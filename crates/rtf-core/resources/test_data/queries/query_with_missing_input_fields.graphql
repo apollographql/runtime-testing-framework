@@ -1,0 +1,31 @@
+query FetchOperationIds(
+  $graph_id: ID!,
+  $variant: String!,
+  $op_types: [OperationType!]!,
+  $first: Int!,
+  $from: Timestamp!,
+  $after: String
+) {
+   service(id: $graph_id) {
+    variant(name: $variant) {
+      byRequests: operationInsightsList(
+        from: $from
+        to: 0,
+        first: $first,
+        after: $after,
+        filter: {
+           operationTypes: $op_types
+        },
+        orderBy: {} # has required fields
+      ) {
+        nodes {
+          id
+          displayName
+        }
+        pageInfo {
+          endCursor
+        }
+      }
+    }
+  }
+} 

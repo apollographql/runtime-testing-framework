@@ -1,0 +1,13 @@
+[package]
+name = "rtf-config"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_yaml = "0.9.34"
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+simple_test_case.workspace = true

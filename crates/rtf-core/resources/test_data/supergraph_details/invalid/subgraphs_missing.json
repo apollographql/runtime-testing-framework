@@ -1,0 +1,20 @@
+{
+  "expected_error": "NoSubgraphs",
+  "data": {
+    "service": {
+      "variant": {
+        "latestApprovedLaunch": {
+          "build": {
+            "result": {
+              "__typename": "BuildSuccess",
+              "coreSchema": {
+                "coreDocument": "SDL"
+              }
+            }
+          }
+        },
+        "subgraphs": null
+      }
+    }
+  }
+}

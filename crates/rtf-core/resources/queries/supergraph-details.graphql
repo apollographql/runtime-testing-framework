@@ -1,0 +1,36 @@
+# Used to pull the SDL for a given supergraph variant and its subgraphs
+query RawSupergraphDetails($graph_id: ID!, $variant: String!) {
+  service(id: $graph_id) {
+    variant(name: $variant) {
+      latestApprovedLaunch {
+        build {
+          result {
+            __typename
+            ... on BuildSuccess {
+              coreSchema {
+                coreDocument
+              }
+            }
+          }
+        }
+      }
+      subgraphs {
+        name
+        activePartialSchema {
+          sdl
+        }
+      }
+      # if this graph is a "contract variant" then this field will be set and contain the
+      # details of the graph that it has been derived from. We use this to pull _all_ of
+      # the subgraph details we can find rather than just those included in the variant
+      sourceVariant {
+        subgraphs {
+          name
+          activePartialSchema {
+            sdl
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+# Check the available variants for a given graph ID
+query SupergraphVariants($name: ID!) {
+  service(id: $name) {
+    variants {
+      name
+    }
+  }
+}

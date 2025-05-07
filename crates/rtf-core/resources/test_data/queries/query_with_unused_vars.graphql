@@ -1,0 +1,52 @@
+# convoluted and disgusting but we need to check that directives, fragments and
+# inline fragments all work as expected
+query UnusedVars(
+  $graph_id: ID!,
+  $op_id: ID!,
+  $op_types: [OperationType!]!,
+  $foo: String!,
+  $bar: Int!,
+  $include_id: Boolean!,
+  $include_variants: Boolean!
+) {
+  ...Svc
+} 
+
+fragment Svc on Query {
+  service(id: $graph_id) {
+    id @include(if: $include_id)
+    ...Variants @include(if: $include_variants)
+    ...Op
+  }
+}
+
+fragment Variants on Service {
+  variants {
+    name
+    byRequests: operationInsightsList(
+      from: -1,
+      to: 0,
+      first: 20,
+      filter: {
+         operationTypes: $op_types
+      },
+    ) {
+      nodes {
+        id
+        displayName
+      }
+      pageInfo {
+        endCursor
+      }
+    }
+  }
+}
+
+fragment Op on Service {
+  operation(id: $op_id) {
+    ...{
+      id @include(if: $include_id)
+      signature
+    }
+  }
+}

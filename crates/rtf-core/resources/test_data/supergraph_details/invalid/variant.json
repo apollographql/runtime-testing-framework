@@ -1,0 +1,8 @@
+{
+  "expected_error": "UnknownVariant",
+  "data": {
+    "service": {
+      "variant": null
+    }
+  }
+}

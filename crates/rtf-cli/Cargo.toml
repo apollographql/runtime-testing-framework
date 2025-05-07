@@ -1,0 +1,26 @@
+[package]
+name = "rtf-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+doc = false
+name = "rtf"
+path = "src/main.rs"
+
+[dependencies]
+rtf-config = { path = "../rtf-config" }
+rtf-core = { path = "../rtf-core" }
+
+anyhow.workspace = true 
+clap = { version = "4.5.32", features = ["derive"] }
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+simple_test_case.workspace = true
+
+[build-dependencies]
+clap-markdown = "0.1.4"
+clap = { version = "4.5.32", features = ["derive"] }

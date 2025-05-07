@@ -1,0 +1,4 @@
+[[ rules ]]
+  id = "generic-api-key"
+  [ rules.allowlist ]
+  paths = [ '''Cargo.lock$''' ]

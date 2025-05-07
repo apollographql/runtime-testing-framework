@@ -1,0 +1,30 @@
+{
+  "service": {
+    "variant": {
+      "latestApprovedLaunch": {
+        "build": {
+          "result": {
+            "__typename": "BuildSuccess",
+            "coreSchema": {
+              "coreDocument": "SDL"
+            }
+          }
+        }
+      },
+      "subgraphs": [
+        {
+          "name": "sg1",
+          "activePartialSchema": {
+            "sdl": "sg1-SDL"
+          }
+        },
+        {
+          "name": "sg2",
+          "activePartialSchema": {
+            "sdl": "sg2-SDL"
+          }
+        }
+      ]
+    }
+  }
+}

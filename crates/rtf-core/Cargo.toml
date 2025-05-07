@@ -1,0 +1,22 @@
+[package]
+name = "rtf-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true # TODO: rip out in favour of thiserror
+apollo-compiler = "1.27.0"
+graphql_client = "0.14.0"
+futures.workspace = true
+itertools.workspace = true
+rand.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+simple_test_case.workspace = true

@@ -1,0 +1,7 @@
+query GetOpSignature($graph_id: ID!, $op_id: ID!) {
+  service(id: $graph_id) {  
+    operation(id: $op_id) {
+      signature
+    }
+  }
+} 

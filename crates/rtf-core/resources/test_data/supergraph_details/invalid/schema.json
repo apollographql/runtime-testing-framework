@@ -1,0 +1,19 @@
+{
+  "expected_error": "EmptySchema",
+  "data": {
+    "service": {
+      "variant": {
+        "latestApprovedLaunch": {
+          "build": {
+            "result": {
+              "__typename": "BuildSuccess",
+              "coreSchema": {
+                "coreDocument": ""
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

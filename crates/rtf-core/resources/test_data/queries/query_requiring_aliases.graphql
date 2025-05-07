@@ -1,0 +1,24 @@
+query NeedsAliases($graph_id: ID!) {
+  service(id: $graph_id) {
+    variant(name: "v1") {
+      id
+    }
+    variant(name: "v2") {
+      id
+    }
+    ...Sig
+    ...Sig2
+  }
+}
+
+fragment Sig on Service {
+  operation(id: "id1") {
+    signature
+  }
+}
+
+fragment Sig2 on Service {
+  operation(id: "id2") {
+    signature
+  }
+}

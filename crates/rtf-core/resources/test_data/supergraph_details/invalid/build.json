@@ -1,0 +1,12 @@
+{
+  "expected_error": "NoBuild",
+  "data": {
+    "service": {
+      "variant": {
+        "latestApprovedLaunch": {
+          "build": null
+        }
+      }
+    }
+  }
+}
