@@ -1,12 +1,12 @@
 //! Gernerated graphQL queries for the Apollo platform API using the graphql-client crate.
 //!
 //! The docs for the internal platform API can be found here in studio:
-//!   https://studio-staging.apollographql.com/graph/engine/variant/prod/home
+//!   <https://studio-staging.apollographql.com/graph/engine/variant/prod/home>
 //!
 //! The supergraph can be found in the resources directory at the root of this crate.
 //!
 //! See here for docs on how to add new queries:
-//!   https://github.com/graphql-rust/graphql-client?tab=readme-ov-file#getting-started
+//!   <https://github.com/graphql-rust/graphql-client?tab=readme-ov-file#getting-started>
 use graphql_client::GraphQLQuery;
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -56,7 +56,7 @@ pub enum Error {
     SerdeJson(#[from] serde_json::Error),
 }
 
-/// Serialization format for graphQL errors: https://spec.graphql.org/October2021/#sec-Errors.Error-result-format
+/// Serialization format for graphQL errors: <https://spec.graphql.org/October2021/#sec-Errors.Error-result-format>
 #[derive(Debug, Deserialize)]
 pub struct GqlError {
     /// The string error message

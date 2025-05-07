@@ -65,4 +65,4 @@ jobs:
     - uses: hecrj/setup-rust-action@v2
       with:
         rust-version: nightly
-    - run: cargo rustdoc --all-features
+    - run: RUSTDOCFLAGS="-D rustdoc::broken-intra-doc-links" cargo doc --all-features --workspace --no-deps

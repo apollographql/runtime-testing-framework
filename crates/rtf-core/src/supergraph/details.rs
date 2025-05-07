@@ -109,8 +109,6 @@ impl SupergraphDetails {
     }
 
     /// Write out only the schemas held in this [SupergraphDetails].
-    ///
-    /// See [Self::write_schemas_and_test_config] for also updating and writing out a [TestSpec].
     pub fn write_schemas(&self, out_dir: &Path) -> anyhow::Result<()> {
         debug!("writing supergraph SDL");
         fs::write(out_dir.join("supergraph.graphql"), &self.supergraph_sdl)?;
@@ -135,7 +133,7 @@ impl SupergraphDetails {
 }
 
 // This is just us defining a type alias for our derived code to use as a custom graphQL scalar
-// See https://github.com/graphql-rust/graphql-client?tab=readme-ov-file#custom-scalars
+// See <https://github.com/graphql-rust/graphql-client?tab=readme-ov-file#custom-scalars>
 type GraphQLDocument = String;
 
 #[derive(GraphQLQuery)]

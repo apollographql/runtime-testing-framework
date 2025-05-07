@@ -2,7 +2,8 @@
 //! generate canned graphQL requests that are valid for the parent supergraph schema.
 //!
 //! The raw operation details pulled from Studio are redacted in a number of ways that cause them
-//! to become invalid. See [parse_and_fix] for details of what issues we currently support fixing.
+//! to become invalid. See [Signature::parse_and_fix] for details of what issues we currently
+//! support fixing.
 use crate::{
     N_PARALLEL_FETCH,
     platform_query::PlatformQuery,
@@ -278,8 +279,8 @@ async fn fetch_operation_signatures(
     Ok(signatures)
 }
 
-/// Declaration for the graphql_client macro code generated from [FetchOperationIds].
-pub type Timestamp = i64;
+// Declaration for the graphql_client macro code generated from FetchOperationIds.
+type Timestamp = i64;
 
 struct Batch {
     ids: Vec<String>,
@@ -654,7 +655,8 @@ pub struct Signature {
 }
 
 impl Signature {
-    async fn fetch(graph_id: String, id: String, api_key: &str, staging: bool) -> Result<Self> {
+    /// Attempt to fetch the signature for a given operation ID from Studio
+    pub async fn fetch(graph_id: String, id: String, api_key: &str, staging: bool) -> Result<Self> {
         Ok(GetOpSignature::fetch(
             get_op_signature::Variables {
                 graph_id,
@@ -666,7 +668,7 @@ impl Signature {
         .await?)
     }
 
-    /// The operations that we pull out of studio using [GetOpSignature] have been partially redacted
+    /// The operations that we pull out of studio using [Signature::fetch] have been partially redacted
     /// to strip any hard coded data present in resolver arguments. As a result, we need to check for
     /// and fix the following known issues before the query will validate (and be usable in a request
     /// to a running Router):
@@ -674,7 +676,7 @@ impl Signature {
     ///   2. Conflicting selections without aliases need to have them added.
     ///   3. Input objects with missing required fields are filled out via the same technique used for
     ///      generating variables to acompany the operation.
-    fn parse_and_fix(
+    pub fn parse_and_fix(
         &self,
         schema: &Valid<Schema>,
         rng: &mut ThreadRng,

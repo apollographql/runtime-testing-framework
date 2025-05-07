@@ -5,7 +5,6 @@ use tracing::debug;
 
 /// Attempt to fetch and parse the details we need for a given supergraph before writing them out
 /// to disk in the given directory:
-///   - a stub [TestSpec] based on these supergraph details
 ///   - a subdirectory containing all of the subgraph SDLs
 ///   - the supergraph SDL
 pub async fn fetch_supergraph(
