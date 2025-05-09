@@ -1,0 +1,7 @@
+input InputObj {
+    someField: String
+}
+
+type Query {
+    requiresInputObject(args: InputObj): String
+}

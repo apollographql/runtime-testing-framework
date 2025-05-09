@@ -921,7 +921,7 @@ fn add_missing_aliases(
     }
 }
 
-/// Locatate and stub out any empty input objects found within the provided [SelectionSet] so that
+/// Locate and stub out any empty input objects found within the provided [SelectionSet] so that
 /// all required fields are present.
 fn fill_missing_input_fields(
     selset: &mut SelectionSet,
@@ -964,6 +964,61 @@ mod tests {
     use simple_test_case::dir_cases;
 
     const SCHEMA: &str = include_str!("../../../resources/engine-prod-schema.graphql");
+
+    #[test]
+    fn fill_missing_input_fields_works() -> anyhow::Result<()> {
+        let schema = Schema::parse_and_validate(
+            include_str!(
+                "../../../resources/test_data/input_object_tests/schema_with_input_objects.graphql"
+            ),
+            "supergraph.graphql",
+        )
+        .unwrap();
+
+        let query = include_str!(
+            "../../../resources/test_data/input_object_tests/query_with_missing_input_object.graphql"
+        );
+        let op = ExecutableDocument::parse(&schema, query, "test")
+            .unwrap()
+            .operations
+            .named
+            .values()
+            .next()
+            .unwrap()
+            .to_owned();
+        let mut selset = op.selection_set.clone();
+
+        assert!(
+            &selset.selections[0]
+                .as_field()
+                .unwrap()
+                .arguments
+                .first()
+                .unwrap()
+                .value
+                .as_object()
+                .unwrap()
+                .is_empty(),
+            "selset argument object should start empty"
+        );
+
+        fill_missing_input_fields(&mut selset, &schema, &mut ThreadRng::default());
+
+        assert!(
+            !&selset.selections[0]
+                .as_field()
+                .unwrap()
+                .arguments
+                .first()
+                .unwrap()
+                .value
+                .as_object()
+                .unwrap()
+                .is_empty(),
+            "selset argument object should end filled in"
+        );
+        Ok(())
+    }
 
     #[test]
     fn find_used_vars_in_selset_works() {
