@@ -83,10 +83,9 @@ impl IntoFileContent for LocalFile {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use super::*;
     use simple_test_case::dir_cases;
+    use std::path::PathBuf;
 
     #[dir_cases("crates/rtf-config/resources/provider-tests/valid")]
     #[test]
