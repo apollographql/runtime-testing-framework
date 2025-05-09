@@ -1,0 +1,2 @@
+kind: local_path
+relative_path: ../example.txt # This is the path relative to the directory this yaml file is located in
