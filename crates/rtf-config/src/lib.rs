@@ -1,14 +1,17 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! Config file parsing and validation for the Apollo Runtime Testing Framework.
+#![warn(
+    clippy::complexity,
+    clippy::correctness,
+    clippy::style,
+    future_incompatible,
+    missing_debug_implementations,
+    missing_docs,
+    rust_2018_idioms,
+    rustdoc::all
+)]
+#![deny(clippy::undocumented_unsafe_blocks)]
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+mod formats;
+mod providers;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+// pub use formats::{EnvironmentConfig, RawEnvironmentConfig};

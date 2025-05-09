@@ -1,0 +1,5 @@
+kind: inline
+content: |
+  This is some inline file content
+  split over multiple lines.
+  How nice.
