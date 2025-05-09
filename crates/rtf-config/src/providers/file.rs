@@ -109,6 +109,40 @@ mod tests {
         assert!(res.is_ok(), "{res:?}");
     }
 
+    #[test]
+    fn local_file_provider_path_does_not_exist_returns_not_found_error() {
+        let provider = LocalFile {
+            relative_path: "../does-not-exist.txt".to_string(),
+        };
+        let p = PathBuf::from("resources/provider-tests/valid")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(p);
+        let res = provider.validate(&ctx);
+
+        assert!(res.is_err(), "{res:?}");
+        assert!(matches!(res.unwrap_err().kind(), io::ErrorKind::NotFound));
+    }
+
+    #[test]
+    fn local_file_provider_path_is_directory_returns_is_directory_error() {
+        let provider = LocalFile {
+            relative_path: "valid".to_string(),
+        };
+        let p = PathBuf::from("resources/provider-tests")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(p);
+        let res = provider.validate(&ctx);
+
+        assert!(res.is_err(), "{res:?}");
+        dbg!(&res);
+        assert!(matches!(
+            res.unwrap_err().kind(),
+            io::ErrorKind::IsADirectory
+        ));
+    }
+
     #[tokio::test]
     async fn local_file_provider_returns_correct_file_content() {
         let provider = LocalFile {
