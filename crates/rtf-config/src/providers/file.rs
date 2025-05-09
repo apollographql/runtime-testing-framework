@@ -121,7 +121,8 @@ mod tests {
         let res = provider.validate(&ctx);
 
         assert!(res.is_err(), "{res:?}");
-        assert!(matches!(res.unwrap_err().kind(), io::ErrorKind::NotFound));
+        let res = res.unwrap_err();
+        assert!(matches!(res.kind(), io::ErrorKind::NotFound), "{res:?}");
     }
 
     #[test]
@@ -136,11 +137,8 @@ mod tests {
         let res = provider.validate(&ctx);
 
         assert!(res.is_err(), "{res:?}");
-        dbg!(&res);
-        assert!(matches!(
-            res.unwrap_err().kind(),
-            io::ErrorKind::IsADirectory
-        ));
+        let res = res.unwrap_err();
+        assert!(matches!(res.kind(), io::ErrorKind::IsADirectory), "{res:?}");
     }
 
     #[tokio::test]
