@@ -94,6 +94,7 @@ impl IntoUtf8FileContent for LocalFile {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::providers::Error;
     use simple_test_case::dir_cases;
     use std::path::PathBuf;
 
@@ -132,7 +133,10 @@ mod tests {
 
         assert!(res.is_err(), "{res:?}");
         let res = res.unwrap_err();
-        assert!(matches!(res.kind(), io::ErrorKind::NotFound), "{res:?}");
+        assert!(match res {
+            Error::Io(e) if e.kind() == io::ErrorKind::NotFound => true,
+            _ => panic!("expected NotFound, got {res:?}"),
+        });
     }
 
     #[test]
@@ -148,7 +152,10 @@ mod tests {
 
         assert!(res.is_err(), "{res:?}");
         let res = res.unwrap_err();
-        assert!(matches!(res.kind(), io::ErrorKind::IsADirectory), "{res:?}");
+        assert!(match res {
+            Error::Io(e) if e.kind() == io::ErrorKind::IsADirectory => true,
+            _ => panic!("expected IsADirectory, got {res:?}"),
+        });
     }
 
     #[tokio::test]
