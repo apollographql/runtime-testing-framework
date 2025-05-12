@@ -1,16 +1,34 @@
 //! Providers are how we expose the rest of the framework to user facing config.
-
-use std::path::PathBuf;
+use serde::Deserialize;
+use std::{io, path::PathBuf};
 
 pub(crate) mod file;
-pub(crate) struct Context {
+
+/// Errors that can be encountered while running file providers
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error(transparent)]
+    Io(#[from] io::Error),
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
+
+/// Execution context for running providers
+#[derive(Debug)]
+pub struct Context {
     pub(crate) config_dir: PathBuf,
 }
 
 impl Context {
-    pub(crate) fn new(config_dir: impl Into<PathBuf>) -> Self {
+    pub fn new(config_dir: impl Into<PathBuf>) -> Self {
         Self {
             config_dir: config_dir.into(),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged, rename_all = "snake_case")]
+pub enum CommandProvider {
+    Local { local: String },
 }

@@ -1,7 +1,19 @@
 //! The core [FileProvider] trait and currently supported file provider implementations.
-use crate::providers::Context;
+use crate::providers::{Context, Result};
 use serde::{Deserialize, de::DeserializeOwned};
 use std::{fmt, fs, io};
+
+/// A file provider is something that can obtain or synthesise utf-8 file content based on a user
+/// provided specification.
+#[allow(async_fn_in_trait)]
+pub trait IntoUtf8FileContent: DeserializeOwned + fmt::Debug {
+    /// Run any initial static validation available to error early if this provider contains
+    /// invalid data.
+    fn validate(&self, ctx: &Context) -> Result<()>;
+
+    /// Attempt to run this file provider and convert it into the required file content.
+    async fn try_into_file_content(self, ctx: &Context) -> Result<String>;
+}
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
@@ -10,37 +22,35 @@ pub enum FileProvider {
     LocalPath(LocalFile),
 }
 
-/// A file provider is something that can obtain or synthesise file content
-/// based on a user provided specification.
-#[allow(async_fn_in_trait)]
-pub trait IntoFileContent: DeserializeOwned + fmt::Debug {
-    type Error; // should this be fixed? probably...or at least Into<UserFacingError>
+impl IntoUtf8FileContent for FileProvider {
+    fn validate(&self, ctx: &Context) -> Result<()> {
+        match self {
+            Self::Inline(fp) => fp.validate(ctx),
+            Self::LocalPath(fp) => fp.validate(ctx),
+        }
+    }
 
-    /// Run any initial static validation available to error early if this provider
-    /// contains invalid data.
-    fn validate(&self, ctx: &Context) -> Result<(), Self::Error>;
-
-    // TODO: we will need to pass in things like API clients eventually
-
-    /// Attempt to run this file provider and convert it into the required file content.
-    async fn try_into_file_content(self, ctx: &Context) -> Result<String, Self::Error>;
+    async fn try_into_file_content(self, ctx: &Context) -> Result<String> {
+        match self {
+            Self::Inline(fp) => fp.try_into_file_content(ctx).await,
+            Self::LocalPath(fp) => fp.try_into_file_content(ctx).await,
+        }
+    }
 }
 
-/// The simplest form of file provider: the user specifies the contents of the
-/// file inline within their config file.
+/// The simplest form of file provider: the user specifies the contents of the file inline within
+/// their config file.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct InlineFile {
     content: String,
 }
 
-impl IntoFileContent for InlineFile {
-    type Error = ();
-
-    fn validate(&self, _ctx: &Context) -> Result<(), ()> {
+impl IntoUtf8FileContent for InlineFile {
+    fn validate(&self, _ctx: &Context) -> Result<()> {
         Ok(())
     }
 
-    async fn try_into_file_content(self, _ctx: &Context) -> Result<String, ()> {
+    async fn try_into_file_content(self, _ctx: &Context) -> Result<String> {
         Ok(self.content)
     }
 }
@@ -52,32 +62,32 @@ pub struct LocalFile {
     relative_path: String,
 }
 
-impl IntoFileContent for LocalFile {
-    type Error = io::Error;
-
-    fn validate(&self, ctx: &Context) -> io::Result<()> {
+impl IntoUtf8FileContent for LocalFile {
+    fn validate(&self, ctx: &Context) -> Result<()> {
         let p = ctx.config_dir.join(&self.relative_path).canonicalize()?;
         if !p.exists() {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
                 format!("File not found: {}", p.display()),
-            ));
+            )
+            .into());
         }
         if !p.is_file() {
             return Err(io::Error::new(
                 io::ErrorKind::IsADirectory,
                 format!("Specified file is a directory: {}", p.display()),
-            ));
+            )
+            .into());
         }
 
         Ok(())
     }
 
     // TO DO: Can we get reading a file to come from the Context?
-    async fn try_into_file_content(self, ctx: &Context) -> io::Result<String> {
+    async fn try_into_file_content(self, ctx: &Context) -> Result<String> {
         let p = ctx.config_dir.join(&self.relative_path).canonicalize()?;
 
-        fs::read_to_string(p)
+        Ok(fs::read_to_string(p)?)
     }
 }
 
@@ -98,7 +108,7 @@ mod tests {
     #[test]
     fn local_file_provider_validates() {
         let provider = LocalFile {
-            relative_path: "../example.txt".to_string(),
+            relative_path: "../../example.txt".to_string(),
         };
         let p = PathBuf::from("resources/provider-tests/valid")
             .canonicalize()
@@ -112,7 +122,7 @@ mod tests {
     #[tokio::test]
     async fn local_file_provider_returns_correct_file_content() {
         let provider = LocalFile {
-            relative_path: "../example.txt".to_string(),
+            relative_path: "../../example.txt".to_string(),
         };
         let p = PathBuf::from("resources/provider-tests/valid")
             .canonicalize()
@@ -121,9 +131,6 @@ mod tests {
         let res = provider.try_into_file_content(&ctx).await;
 
         assert!(res.is_ok(), "{res:?}");
-        assert_eq!(
-            res.unwrap(),
-            include_str!("../../resources/provider-tests/example.txt")
-        )
+        assert_eq!(res.unwrap(), include_str!("../../resources/example.txt"))
     }
 }
