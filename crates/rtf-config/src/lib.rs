@@ -12,13 +12,9 @@
 #![deny(clippy::undocumented_unsafe_blocks)]
 use serde::Deserialize;
 
-mod formats;
-mod providers;
-mod validation;
-
-pub use formats::{
-    BaseTestPlanConfig, EnvironmentConfig, RawBaseTestPlanConfig, RawEnvironmentConfig,
-};
+pub mod formats;
+pub mod providers;
+pub mod validation;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct ValueSchema {

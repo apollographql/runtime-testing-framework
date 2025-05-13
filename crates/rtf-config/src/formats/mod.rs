@@ -1,5 +1,5 @@
 //! The various different config file formats that we support
-use crate::providers;
+use crate::{providers, validation};
 use std::io;
 
 mod environment;
@@ -14,8 +14,8 @@ pub enum Error {
     #[error("one or more file providers failed to run:\n{}", .errs.join("\n"))]
     FailedFileProviders { errs: Vec<String> },
 
-    #[error("the config file being parsed was invalid:\n{}", .errs.join("\n"))]
-    InvalidConfigFile { errs: Vec<String> },
+    #[error("the config file being parsed was invalid:\n{0}")]
+    Validation(#[from] validation::Errors),
 
     // wrapped errors
     #[error(transparent)]
