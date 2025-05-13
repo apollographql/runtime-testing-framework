@@ -18,5 +18,9 @@ pub(crate) fn duplicate_keys<T>(elems: &[T], key_fn: impl Fn(&T) -> &str) -> Vec
         }
     }
 
+    // ensure that our reported duplicates are in alphabetical order
+    duplicates.sort_unstable();
+    duplicates.dedup();
+
     duplicates
 }
