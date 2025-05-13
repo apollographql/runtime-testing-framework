@@ -1,5 +1,5 @@
 //! Providers are how we expose the rest of the framework to user facing config.
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{io, path::PathBuf};
 
 pub(crate) mod file;
@@ -27,7 +27,7 @@ impl Context {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(untagged, rename_all = "snake_case")]
 pub enum CommandProvider {
     Local { local: String },

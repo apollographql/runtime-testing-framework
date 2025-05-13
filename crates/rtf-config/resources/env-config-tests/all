@@ -1,0 +1,109 @@
+A valid environment config file that uses all available fields
+
+-- config.yaml --
+name: "using all available fields for testing purposes"
+setup_command:
+  local: "../../scripts/deploy-router.sh"
+
+values:
+  - name: router_build
+    description: "How to fetch or build the desired version of the Router"
+    schema:
+      type: object
+      properties:
+        source:
+          '$ref': "#/definitions/rtf-router-source"
+
+parameters:
+  supergraph_schema: "{{ .scenario.supergraph_schema }}"
+  router_config: "{{ .values.router_config }}"
+  router_build: "{{ .values.router_build }}"
+  single_cluster: true
+  cleanup_after: 1h
+  subgraph_latency:
+    speedbump:
+      waveform: sine
+      latency: 5ms
+      amplitude: 2ms
+      period: 10s
+
+file_parameters:
+  - name: "my-file.txt"
+    kind: inline
+    content: |
+      My inline file content.
+
+  - name: "example.txt"
+    kind: local_path
+    relative_path: ../example.txt
+
+provides:
+  - name: router_url
+    description: "The publicly accessible URL for the running Router once it is deployed"
+    schema:
+      type: string
+
+  - name: subgraph_urls
+    description: "A map of subgraph names to their override URL"
+    schema:
+      type: object
+      additionalProperties:
+        type: string
+
+-- expected-json --
+{
+    "name": "using all available fields for testing purposes",
+    "setup_command": {
+        "local": "../../scripts/deploy-router.sh"
+    },
+    "values": [
+        {
+            "name": "router_build",
+            "description": "How to fetch or build the desired version of the Router",
+            "schema": {
+                "properties": {
+                    "source": {
+                        "$ref": "#/definitions/rtf-router-source"
+                    }
+                },
+                "type": "object"
+            }
+        }
+    ],
+    "parameters": {
+        "cleanup_after": "1h",
+        "example.txt": "This file exists for testing relative file paths",
+        "my-file.txt": "My inline file content.\n",
+        "router_build": "{{ .values.router_build }}",
+        "router_config": "{{ .values.router_config }}",
+        "single_cluster": true,
+        "subgraph_latency": {
+            "speedbump": {
+                "amplitude": "2ms",
+                "latency": "5ms",
+                "period": "10s",
+                "waveform": "sine"
+            }
+        },
+        "supergraph_schema": "{{ .scenario.supergraph_schema }}"
+    },
+    "provides": [
+        {
+            "name": "router_url",
+            "description": "The publicly accessible URL for the running Router once it is deployed",
+            "schema": {
+                "type": "string"
+            }
+        },
+        {
+            "name": "subgraph_urls",
+            "description": "A map of subgraph names to their override URL",
+            "schema": {
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object"
+            }
+        }
+    ]
+}

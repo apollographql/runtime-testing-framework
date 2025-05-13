@@ -130,7 +130,7 @@ mod tests {
 
     #[dir_cases("crates/rtf-config/resources/provider-tests")]
     #[tokio::test]
-    async fn provider_scenarios(_path: &str, content: &str) {
+    async fn file_provider_scenarios(_path: &str, content: &str) {
         let p = PathBuf::from("resources/provider-tests")
             .canonicalize()
             .unwrap();
@@ -151,7 +151,7 @@ mod tests {
         };
 
         // TO DO: For negative test scenarios we need to check whether one of expected-file-content
-        // or the expected errors object exists. If neither exists we need to panic.
+        // or the expected-errors object exists. If neither exists we need to panic.
         let expected_content = arr.get("expected-file-content");
 
         // Test that the fragment parses

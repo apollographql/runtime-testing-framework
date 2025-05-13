@@ -10,13 +10,13 @@
     rustdoc::all
 )]
 #![deny(clippy::undocumented_unsafe_blocks)]
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub mod formats;
 pub mod providers;
 pub mod validation;
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct ValueSchema {
     pub name: String,
     pub description: String,
