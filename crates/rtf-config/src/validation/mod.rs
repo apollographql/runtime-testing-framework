@@ -1,6 +1,10 @@
 //! Helpers for validating config files
 use std::collections::HashSet;
 
+pub mod error;
+
+pub use error::{Error, ErrorBuilder, ErrorKind, Errors, Result};
+
 /// Determine if there are any duplicates within a given slices of elements using a given key
 /// function.
 ///

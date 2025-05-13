@@ -2,7 +2,7 @@
 use crate::{
     ValueSchema,
     formats::{Error, Result},
-    validation::duplicate_keys,
+    validation::{self, duplicate_keys},
 };
 use serde::Deserialize;
 use std::{
@@ -67,33 +67,29 @@ impl RawBaseTestPlanConfig {
     /// or environment_provides sections of the config file. We allow for the use of the same key
     /// name between the two sections as they are namespaced when they are made available within
     /// other files as template variables.
-    pub fn validate(&self) -> Result<()> {
-        let mut errs = Vec::new();
+    pub fn validate(&self) -> validation::Result<()> {
+        let mut errs = validation::ErrorBuilder::new();
 
         let scenario_duplicates = duplicate_keys(self.scenario_defines.iter(), |s| &s.name);
         if !scenario_duplicates.is_empty() {
-            errs.push(format!(
-                "duplicate value names in scenario_defines:\n  {}",
-                scenario_duplicates.join("\n  ")
-            ))
+            errs.push(
+                validation::ErrorKind::DuplicateValueNames,
+                format!("scenario_defines:\n  {}", scenario_duplicates.join("\n  ")),
+            );
         }
 
         let env_duplicates = duplicate_keys(self.environment_provides.iter(), |s| &s.name);
         if !env_duplicates.is_empty() {
-            errs.push(format!(
-                "duplicate value names in environment_provides:\n  {}",
-                env_duplicates.join("\n  ")
-            ))
+            errs.push(
+                validation::ErrorKind::DuplicateValueNames,
+                format!("environment_provides:\n  {}", env_duplicates.join("\n  ")),
+            );
         }
 
         // TODO: all value schemas need to be checked to see if they are actually valid JSON-schema
         // schemas
 
-        if errs.is_empty() {
-            Ok(())
-        } else {
-            Err(Error::InvalidConfigFile { errs })
-        }
+        errs.into_result(())
     }
 
     /// No programmatic transformation is needed in order to convert a [RawBaseTestPlanConfig] into
