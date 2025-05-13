@@ -111,28 +111,51 @@ mod tests {
     use super::*;
     use crate::providers::Error;
     use simple_test_case::dir_cases;
+    use simple_txtar::Archive;
     use std::path::PathBuf;
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/valid")]
-    #[test]
-    fn valid_provider_fragments_parse(_path: &str, content: &str) {
-        let res: serde_yaml::Result<FileProvider> = serde_yaml::from_str(content);
-
-        assert!(res.is_ok(), "{res:?}");
-    }
-
-    #[test]
-    fn local_file_provider_validates() {
-        let provider = LocalFile {
-            relative_path: "../../example.txt".to_string(),
-        };
-        let p = PathBuf::from("resources/provider-tests/valid")
+    #[dir_cases("crates/rtf-config/resources/provider-tests")]
+    #[tokio::test]
+    async fn provider_scenarios(_path: &str, content: &str) {
+        let p = PathBuf::from("resources/provider-tests")
             .canonicalize()
             .unwrap();
         let ctx = Context::new(p);
-        let res = provider.validate(&ctx);
 
-        assert!(res.is_ok(), "{res:?}");
+        let arr = Archive::from(content);
+
+        let comment = arr.comment();
+        if !comment.is_empty() {
+            println!("{}", comment.trim());
+        }
+
+        let config = match arr.get("config.yaml") {
+            Some(f) => f.content.trim(),
+            None => {
+                panic!("Error: 'config.yaml' not found in the archive");
+            }
+        };
+
+        // TO DO: For negative test scenarios we need to check whether one of content.txt
+        // or the expected errors object exists. If neither exists we need to panic.
+        let expected_content = arr.get("content.txt");
+
+        // Test that the fragment parses
+        let provider: serde_yaml::Result<FileProvider> = serde_yaml::from_str(config);
+        assert!(provider.is_ok(), "{provider:?}");
+
+        // Test that the fragment validates
+        let provider = provider.unwrap();
+        let validate_res = provider.validate(&ctx);
+        assert!(validate_res.is_ok(), "{validate_res:?}");
+
+        // Test that the file content is as expected
+        let file_content = provider.try_into_file_content(&ctx).await;
+
+        assert!(file_content.is_ok(), "{file_content:?}");
+        if let Some(expected) = expected_content {
+            assert_eq!(file_content.unwrap(), expected.content.trim());
+        }
     }
 
     #[test]
@@ -140,7 +163,7 @@ mod tests {
         let provider = LocalFile {
             relative_path: "../does-not-exist.txt".to_string(),
         };
-        let p = PathBuf::from("resources/provider-tests/valid")
+        let p = PathBuf::from("resources/provider-tests/")
             .canonicalize()
             .unwrap();
         let ctx = Context::new(p);
@@ -157,7 +180,7 @@ mod tests {
     #[test]
     fn local_file_provider_path_is_directory_returns_is_directory_error() {
         let provider = LocalFile {
-            relative_path: "valid".to_string(),
+            relative_path: "".to_string(),
         };
         let p = PathBuf::from("resources/provider-tests")
             .canonicalize()
@@ -171,20 +194,5 @@ mod tests {
             Error::Io(e) if e.kind() == io::ErrorKind::IsADirectory => true,
             _ => panic!("expected IsADirectory, got {res:?}"),
         });
-    }
-
-    #[tokio::test]
-    async fn local_file_provider_returns_correct_file_content() {
-        let provider = LocalFile {
-            relative_path: "../../example.txt".to_string(),
-        };
-        let p = PathBuf::from("resources/provider-tests/valid")
-            .canonicalize()
-            .unwrap();
-        let ctx = Context::new(p);
-        let res = provider.try_into_file_content(&ctx).await;
-
-        assert!(res.is_ok(), "{res:?}");
-        assert_eq!(res.unwrap(), include_str!("../../resources/example.txt"))
     }
 }

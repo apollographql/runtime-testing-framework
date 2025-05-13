@@ -1,0 +1,14 @@
+A valid yaml fragment for an inline file provider
+
+-- config.yaml --
+kind: inline
+content: |
+  This is some inline file content
+  split over multiple lines.
+  How nice.
+
+-- content.txt --
+This is some inline file content
+split over multiple lines.
+How nice.
+  
