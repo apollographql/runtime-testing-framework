@@ -3,17 +3,19 @@ use crate::providers;
 use std::io;
 
 mod environment;
+mod test_plan;
 
 pub use environment::{EnvironmentConfig, RawEnvironmentConfig};
+pub use test_plan::{BaseTestPlanConfig, RawBaseTestPlanConfig};
 
-/// Errors that can be encountered while running file providers
+/// Errors that can be encountered resolving config files
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("one or more file providers failed to run:\n{}", .errs.join("\n"))]
     FailedFileProviders { errs: Vec<String> },
 
-    #[error("one or more file providers were invalid:\n{}", .errs.join("\n"))]
-    InvalidFileProviders { errs: Vec<String> },
+    #[error("the config file being parsed was invalid:\n{}", .errs.join("\n"))]
+    InvalidConfigFile { errs: Vec<String> },
 
     // wrapped errors
     #[error(transparent)]

@@ -16,6 +16,21 @@ pub trait IntoUtf8FileContent: DeserializeOwned + fmt::Debug {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct FileParam {
+    pub name: String,
+    #[serde(flatten)]
+    pub provider: FileProvider,
+}
+
+impl FileParam {
+    pub async fn try_into_file_name_and_content(self, ctx: &Context) -> (String, Result<String>) {
+        let res = self.provider.try_into_file_content(ctx).await;
+
+        (self.name, res)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
     Inline(InlineFile),
