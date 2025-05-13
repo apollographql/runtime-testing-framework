@@ -4,7 +4,7 @@ use crate::{
     formats::{Error, Result},
     providers::{
         CommandProvider, Context,
-        file::{FileProvider, IntoUtf8FileContent},
+        file::{FileParam, IntoUtf8FileContent},
     },
 };
 use futures::future::join_all;
@@ -87,7 +87,7 @@ impl RawEnvironmentConfig {
         if errs.is_empty() {
             Ok(())
         } else {
-            Err(Error::InvalidFileProviders { errs })
+            Err(Error::InvalidConfigFile { errs })
         }
     }
 
@@ -125,21 +125,6 @@ impl RawEnvironmentConfig {
         } else {
             Err(Error::FailedFileProviders { errs })
         }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct FileParam {
-    pub name: String,
-    #[serde(flatten)]
-    pub provider: FileProvider,
-}
-
-impl FileParam {
-    async fn try_into_file_name_and_content(self, ctx: &Context) -> (String, Result<String>) {
-        let res = self.provider.try_into_file_content(ctx).await;
-
-        (self.name, res.map_err(Into::into))
     }
 }
 

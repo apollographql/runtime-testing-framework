@@ -1,0 +1,10 @@
+name: minimal
+description: a minimal test plan base
+
+scenario_defines:
+  - name: foo
+    description: "Some scenario foo"
+
+environment_provides:
+  - name: foo
+    description: "Some environment foo"

@@ -14,8 +14,11 @@ use serde::Deserialize;
 
 mod formats;
 mod providers;
+mod validation;
 
-pub use formats::{EnvironmentConfig, RawEnvironmentConfig};
+pub use formats::{
+    BaseTestPlanConfig, EnvironmentConfig, RawBaseTestPlanConfig, RawEnvironmentConfig,
+};
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct ValueSchema {
