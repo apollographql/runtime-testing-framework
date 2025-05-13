@@ -6,6 +6,7 @@ use crate::{
         CommandProvider, Context,
         file::{FileParam, IntoUtf8FileContent},
     },
+    validation,
 };
 use futures::future::join_all;
 use serde::Deserialize;
@@ -69,12 +70,12 @@ impl RawEnvironmentConfig {
         Self::from_str(&content)
     }
 
-    pub fn validate(&self, ctx: &Context) -> Result<()> {
-        let mut errs = Vec::new();
+    pub fn validate(&self, ctx: &Context) -> validation::Result<()> {
+        let mut errs = validation::ErrorBuilder::new();
 
         for param in self.file_parameters.iter() {
             if let Err(e) = param.provider.validate(ctx) {
-                errs.push(format!("file param {:?}: {e}", param.name));
+                errs.extend_with_prefix(e, format!("file param {:?}:", param.name));
             }
         }
 
@@ -84,11 +85,7 @@ impl RawEnvironmentConfig {
         // TODO: all value schemas need to be checked to see if they are actually valid JSON-schema
         // schemas
 
-        if errs.is_empty() {
-            Ok(())
-        } else {
-            Err(Error::InvalidConfigFile { errs })
-        }
+        errs.into_result(())
     }
 
     /// Assume that we have already validated this config and attempt to run all providers in order

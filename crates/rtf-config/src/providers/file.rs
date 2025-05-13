@@ -1,5 +1,8 @@
 //! The core [FileProvider] trait and currently supported file provider implementations.
-use crate::providers::{Context, Result};
+use crate::{
+    providers::{Context, Result},
+    validation,
+};
 use serde::{Deserialize, de::DeserializeOwned};
 use std::{fmt, fs, io};
 
@@ -9,7 +12,7 @@ use std::{fmt, fs, io};
 pub trait IntoUtf8FileContent: DeserializeOwned + fmt::Debug {
     /// Run any initial static validation available to error early if this provider contains
     /// invalid data.
-    fn validate(&self, ctx: &Context) -> Result<()>;
+    fn validate(&self, ctx: &Context) -> validation::Result<()>;
 
     /// Attempt to run this file provider and convert it into the required file content.
     async fn try_into_file_content(self, ctx: &Context) -> Result<String>;
@@ -38,7 +41,7 @@ pub enum FileProvider {
 }
 
 impl IntoUtf8FileContent for FileProvider {
-    fn validate(&self, ctx: &Context) -> Result<()> {
+    fn validate(&self, ctx: &Context) -> validation::Result<()> {
         match self {
             Self::Inline(fp) => fp.validate(ctx),
             Self::LocalPath(fp) => fp.validate(ctx),
@@ -61,7 +64,7 @@ pub struct InlineFile {
 }
 
 impl IntoUtf8FileContent for InlineFile {
-    fn validate(&self, _ctx: &Context) -> Result<()> {
+    fn validate(&self, _ctx: &Context) -> validation::Result<()> {
         Ok(())
     }
 
@@ -78,21 +81,32 @@ pub struct LocalFile {
 }
 
 impl IntoUtf8FileContent for LocalFile {
-    fn validate(&self, ctx: &Context) -> Result<()> {
-        let p = ctx.config_dir.join(&self.relative_path).canonicalize()?;
+    fn validate(&self, ctx: &Context) -> validation::Result<()> {
+        let p = ctx.config_dir.join(&self.relative_path);
+        let p = match p.canonicalize() {
+            Ok(p) => p,
+            Err(e) => {
+                let kind = if e.kind() == io::ErrorKind::NotFound {
+                    validation::ErrorKind::FileNotFound
+                } else {
+                    validation::ErrorKind::InvalidRelativePath
+                };
+
+                return Err(validation::Errors::new(kind, p.display().to_string()));
+            }
+        };
+
         if !p.exists() {
-            return Err(io::Error::new(
-                io::ErrorKind::NotFound,
-                format!("File not found: {}", p.display()),
-            )
-            .into());
+            return Err(validation::Errors::new(
+                validation::ErrorKind::FileNotFound,
+                p.display().to_string(),
+            ));
         }
         if !p.is_file() {
-            return Err(io::Error::new(
-                io::ErrorKind::IsADirectory,
-                format!("Specified file is a directory: {}", p.display()),
-            )
-            .into());
+            return Err(validation::Errors::new(
+                validation::ErrorKind::IsADirectory,
+                p.display().to_string(),
+            ));
         }
 
         Ok(())
@@ -109,7 +123,7 @@ impl IntoUtf8FileContent for LocalFile {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::providers::Error;
+    use crate::validation::ErrorKind;
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
     use std::path::PathBuf;
@@ -170,11 +184,12 @@ mod tests {
         let res = provider.validate(&ctx);
 
         assert!(res.is_err(), "{res:?}");
-        let res = res.unwrap_err();
-        assert!(match res {
-            Error::Io(e) if e.kind() == io::ErrorKind::NotFound => true,
-            _ => panic!("expected NotFound, got {res:?}"),
-        });
+        let res = res.unwrap_err().unwrap_single();
+
+        assert!(
+            matches!(res.kind(), ErrorKind::FileNotFound),
+            "expected FileNotFound, got {res:?}"
+        );
     }
 
     #[test]
@@ -189,10 +204,11 @@ mod tests {
         let res = provider.validate(&ctx);
 
         assert!(res.is_err(), "{res:?}");
-        let res = res.unwrap_err();
-        assert!(match res {
-            Error::Io(e) if e.kind() == io::ErrorKind::IsADirectory => true,
-            _ => panic!("expected IsADirectory, got {res:?}"),
-        });
+        let res = res.unwrap_err().unwrap_single();
+
+        assert!(
+            matches!(res.kind(), ErrorKind::IsADirectory),
+            "expected IsADirectory, got {res:?}"
+        );
     }
 }
