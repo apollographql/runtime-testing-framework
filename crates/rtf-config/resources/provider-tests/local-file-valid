@@ -4,5 +4,5 @@ A valid yaml fragment for an local path file provider
 kind: local_path
 relative_path: ../example.txt # This is the path relative to the directory this yaml file is located in
 
--- content.txt --
+-- expected-file-content --
 This file exists for testing relative file paths

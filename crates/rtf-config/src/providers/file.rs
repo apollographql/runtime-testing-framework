@@ -150,18 +150,18 @@ mod tests {
             }
         };
 
-        // TO DO: For negative test scenarios we need to check whether one of content.txt
+        // TO DO: For negative test scenarios we need to check whether one of expected-file-content
         // or the expected errors object exists. If neither exists we need to panic.
-        let expected_content = arr.get("content.txt");
+        let expected_content = arr.get("expected-file-content");
 
         // Test that the fragment parses
-        let provider: serde_yaml::Result<FileProvider> = serde_yaml::from_str(config);
-        assert!(provider.is_ok(), "{provider:?}");
+        let res: serde_yaml::Result<FileProvider> = serde_yaml::from_str(config);
+        assert!(res.is_ok(), "{res:?}");
 
         // Test that the fragment validates
-        let provider = provider.unwrap();
-        let validate_res = provider.validate(&ctx);
-        assert!(validate_res.is_ok(), "{validate_res:?}");
+        let provider = res.unwrap();
+        let res = provider.validate(&ctx);
+        assert!(res.is_ok(), "{res:?}");
 
         // Test that the file content is as expected
         let file_content = provider.try_into_file_content(&ctx).await;

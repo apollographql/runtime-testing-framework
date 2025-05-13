@@ -7,7 +7,7 @@ content: |
   split over multiple lines.
   How nice.
 
--- content.txt --
+-- expected-file-content --
 This is some inline file content
 split over multiple lines.
 How nice.
