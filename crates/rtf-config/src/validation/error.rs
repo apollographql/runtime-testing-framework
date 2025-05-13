@@ -135,7 +135,7 @@ impl ErrorBuilder {
     }
 
     /// Construct a result from this builder, returning `Ok(t)` if the builder is empty or
-    /// `Err(Errors)` at least one [Error] is present.
+    /// `Err(Errors)` if at least one [Error] is present.
     ///
     /// Other than calling [Errors::new] for a single error, this is the only way to construct a
     /// new [Errors] instance.
