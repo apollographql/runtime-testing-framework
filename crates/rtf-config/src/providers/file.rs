@@ -26,7 +26,7 @@ impl FileParam {
     pub async fn try_into_file_name_and_content(self, ctx: &Context) -> (String, Result<String>) {
         let res = self.provider.try_into_file_content(ctx).await;
 
-        (self.name, res.map_err(Into::into))
+        (self.name, res)
     }
 }
 

@@ -1,5 +1,5 @@
 //! The various different config file formats that we support
-use crate::{providers, validation};
+use crate::providers;
 use std::io;
 
 mod environment;

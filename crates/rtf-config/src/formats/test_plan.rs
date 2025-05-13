@@ -70,7 +70,7 @@ impl RawBaseTestPlanConfig {
     pub fn validate(&self) -> Result<()> {
         let mut errs = Vec::new();
 
-        let scenario_duplicates = duplicate_keys(&self.scenario_defines, |s| &s.name);
+        let scenario_duplicates = duplicate_keys(self.scenario_defines.iter(), |s| &s.name);
         if !scenario_duplicates.is_empty() {
             errs.push(format!(
                 "duplicate value names in scenario_defines:\n  {}",
@@ -78,7 +78,7 @@ impl RawBaseTestPlanConfig {
             ))
         }
 
-        let env_duplicates = duplicate_keys(&self.environment_provides, |s| &s.name);
+        let env_duplicates = duplicate_keys(self.environment_provides.iter(), |s| &s.name);
         if !env_duplicates.is_empty() {
             errs.push(format!(
                 "duplicate value names in environment_provides:\n  {}",
