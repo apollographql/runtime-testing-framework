@@ -128,6 +128,7 @@ impl RawEnvironmentConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rtf_test_utils;
     use serde_json::ser::{PrettyFormatter, Serializer};
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
@@ -171,18 +172,10 @@ mod tests {
         assert!(res.is_ok(), "failed to resolve: {res:?}");
 
         let resolved_config = res.unwrap();
-        // The default pretty string method for serde_json prints to a string with a 2 space indent
-        // The textar files have 4 space indents. The following lines make sure we print the json
-        // string with a 4 space indent so assert_eq! works
-        let fmt4 = PrettyFormatter::with_indent(b"    ");
-        let mut buf = Vec::new();
-        let mut ser4 = Serializer::with_formatter(&mut buf, fmt4);
-        resolved_config.serialize(&mut ser4).unwrap();
-        let res = String::from_utf8(buf);
+        let res = rtf_test_utils::to_pretty_json_with_indent(&resolved_config, 4);
 
-        assert!(res.is_ok(), "{res:?}");
         if let Some(expected) = expected_json {
-            assert_eq!(res.unwrap(), expected.content.trim());
+            assert_eq!(res, expected.content.trim());
         }
     }
 }

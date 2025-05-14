@@ -1,5 +1,5 @@
 [package]
-name = "rtf-config"
+name = "rtf-test-utils"
 version.workspace = true
 edition.workspace = true
 
@@ -17,4 +17,3 @@ tracing.workspace = true
 simple_test_case.workspace = true
 simple_txtar.workspace = true
 tokio.workspace = true
-rtf-test-utils = { path = "../rtf-test-utils" }
