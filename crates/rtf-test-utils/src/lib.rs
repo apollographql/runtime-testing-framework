@@ -5,16 +5,17 @@
     clippy::style,
     future_incompatible,
     missing_debug_implementations,
-    // missing_docs,
+    missing_docs,
     rust_2018_idioms,
     rustdoc::all
 )]
 #![deny(clippy::undocumented_unsafe_blocks)]
 use serde_json::ser::{PrettyFormatter, Serializer};
 
-// // The default pretty string method for serde_json prints to a string with a 2 space indent
-// // The textar files have 4 space indents. The following lines make sure we print the json
-// // string with a customisable space indent so assert_eq! works
+/// The default pretty string method for serde_json prints to a string with a 2 space indent
+/// The textar files have 4 space indents. This function provides a method to print the pretty
+/// json string with a customisable space indent so that assert_eq! works when comparing with
+/// json stored in the txtar files.
 pub fn to_pretty_json_with_indent<T: ?Sized + serde::Serialize>(
     value: &T,
     indent: usize,

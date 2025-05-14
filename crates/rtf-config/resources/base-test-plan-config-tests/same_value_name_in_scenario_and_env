@@ -1,5 +1,6 @@
 A valid base test plan config file that has the same value name in the scenario and
-the environment
+the environment. We validate that values have unique names but these form two distinct
+namespaces so there should be no collisions.
 
 -- config.yaml --
 name: same_value_name_in_scenario_and_env

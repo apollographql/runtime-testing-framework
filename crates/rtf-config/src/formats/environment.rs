@@ -129,7 +129,6 @@ impl RawEnvironmentConfig {
 mod tests {
     use super::*;
     use rtf_test_utils;
-    use serde_json::ser::{PrettyFormatter, Serializer};
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
     use std::path::PathBuf;

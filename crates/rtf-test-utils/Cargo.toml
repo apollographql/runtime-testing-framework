@@ -4,16 +4,5 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-futures.workspace = true
-jsonschema = { version = "0.30.0", default-features = false, features = ["resolve-file"] }
 serde.workspace = true
 serde_json.workspace = true
-serde_yaml = "0.9.34"
-strum.workspace = true
-thiserror.workspace = true
-tracing.workspace = true
-
-[dev-dependencies]
-simple_test_case.workspace = true
-simple_txtar.workspace = true
-tokio.workspace = true

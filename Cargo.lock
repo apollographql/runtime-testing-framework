@@ -1708,17 +1708,8 @@ dependencies = [
 name = "rtf-test-utils"
 version = "0.1.0"
 dependencies = [
- "futures",
- "jsonschema",
  "serde",
  "serde_json",
- "serde_yaml",
- "simple_test_case",
- "simple_txtar",
- "strum",
- "thiserror 2.0.12",
- "tokio",
- "tracing",
 ]
 
 [[package]]
