@@ -1,0 +1,54 @@
+A valid base test plan config file that uses a minimal number of fields
+
+-- config.yaml --
+name: minimal
+description: a minimal test plan base
+
+scenario_defines:
+  - name: supergraph_schema
+    description: "The supergraph that should be run by the Router"
+    schema:
+      type: object
+      properties:
+        file:
+          '$ref': "#/definitions/rtf-supergraph-schema"
+
+environment_provides:
+  - name: subgraph_urls
+    description: "A map of subgraph names to their override URL"
+    schema:
+      type: object
+      additionalProperties:
+        type: string
+
+-- expected.json --
+{
+    "name": "minimal",
+    "description": "a minimal test plan base",
+    "scenario_defines": [
+        {
+            "name": "supergraph_schema",
+            "description": "The supergraph that should be run by the Router",
+            "schema": {
+                "properties": {
+                    "file": {
+                        "$ref": "#/definitions/rtf-supergraph-schema"
+                    }
+                },
+                "type": "object"
+            }
+        }
+    ],
+    "environment_provides": [
+        {
+            "name": "subgraph_urls",
+            "description": "A map of subgraph names to their override URL",
+            "schema": {
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object"
+            }
+        }
+    ]
+}

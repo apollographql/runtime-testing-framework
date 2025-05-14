@@ -4,14 +4,15 @@ use crate::{
     formats::{Error, Result},
     validation::{self, duplicate_keys},
 };
-use serde::Deserialize;
+
+use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::{Path, PathBuf},
     str::FromStr,
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct BaseTestPlanConfig {
     pub name: String,
     pub description: String,
@@ -111,54 +112,44 @@ impl RawBaseTestPlanConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
+    use rtf_test_utils;
     use simple_test_case::dir_cases;
+    use simple_txtar::Archive;
 
-    #[dir_cases("crates/rtf-config/resources/base-test-plan-config-tests/valid")]
-    #[tokio::test]
-    async fn valid_environment_config_parses_and_resolves(_path: &str, content: &str) {
-        let raw: RawBaseTestPlanConfig =
-            serde_yaml::from_str(content).expect("to parse with serde");
-        let res = raw.validate();
-        assert!(res.is_ok(), "failed to validate: {res:?}");
-    }
+    #[dir_cases("crates/rtf-config/resources/base-test-plan-config-tests")]
+    #[test]
+    fn base_test_plan_config_scenarios(_path: &str, content: &str) {
+        let arr = Archive::from(content);
 
-    #[tokio::test]
-    async fn minimal_base_test_plan_config_resolves_correctly() {
-        let content =
-            include_str!("../../resources/base-test-plan-config-tests/valid/minimal.yaml");
-        let res = BaseTestPlanConfig::try_resolve_from_str(content);
-        assert!(res.is_ok(), "failed to resolve config file: {res:?}");
+        let comment = arr.comment();
+        if !comment.is_empty() {
+            println!("{}", comment.trim());
+        }
 
-        let cfg = res.unwrap();
-
-        let expected = BaseTestPlanConfig {
-            name: "minimal".to_string(),
-            description: "a minimal test plan base".to_string(),
-            scenario_defines: vec![ValueSchema {
-                name: "supergraph_schema".to_string(),
-                description: "The supergraph that should be run by the Router".to_string(),
-                schema: Some(json!({
-                    "type": "object",
-                    "properties": json!({
-                        "file": json!({
-                            "$ref": "#/definitions/rtf-supergraph-schema"
-                        })
-                    })
-                })),
-            }],
-            environment_provides: vec![ValueSchema {
-                name: "subgraph_urls".to_string(),
-                description: "A map of subgraph names to their override URL".to_string(),
-                schema: Some(json!({
-                    "type": "object",
-                    "additionalProperties": json!({
-                        "type": "string"
-                    })
-                })),
-            }],
+        let config = match arr.get("config.yaml") {
+            Some(f) => f.content.trim(),
+            None => {
+                panic!("Error: 'config.yaml' not found in the archive");
+            }
         };
 
-        assert_eq!(cfg, expected);
+        // // TO DO: For negative test scenarios we need to check whether one of expected-file-content
+        // // or the expected-errors object exists. If neither exists we need to panic.
+        let expected_json = arr.get("expected-json");
+
+        let res: serde_yaml::Result<RawBaseTestPlanConfig> = serde_yaml::from_str(config);
+        assert!(res.is_ok(), "{res:?}");
+
+        let raw = res.unwrap();
+
+        let res = raw.validate();
+        assert!(res.is_ok(), "failed to validate: {res:?}");
+
+        let resolved_config = raw.into_resolved_unchecked();
+        let res = rtf_test_utils::to_pretty_json_with_indent(&resolved_config, 4);
+
+        if let Some(expected) = expected_json {
+            assert_eq!(res, expected.content.trim());
+        }
     }
 }
