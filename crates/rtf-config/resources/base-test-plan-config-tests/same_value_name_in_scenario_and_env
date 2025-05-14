@@ -1,0 +1,32 @@
+A valid base test plan config file that has the same value name in the scenario and
+the environment
+
+-- config.yaml --
+name: same_value_name_in_scenario_and_env
+description: a test plan base with the same value in the scenario and environment name
+
+scenario_defines:
+  - name: foo
+    description: "Some scenario foo"
+
+environment_provides:
+  - name: foo
+    description: "Some environment foo"
+
+-- expected.json --
+{
+    "name": "same_value_name_in_scenario_and_env",
+    "description": "a test plan base with the same value in the scenario and environment name",
+    "scenario_defines": [
+        {
+            "name": "foo",
+            "description": "Some environment foo",
+        }
+    ],
+    "environment_provides": [
+        {
+            "name": "foo",
+            "description": "Some environment foo",
+        }
+    ],
+}
