@@ -6,16 +6,16 @@ use std::{fmt, slice, vec};
 /// Paired with an additional message to form an [Error].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display, strum::EnumString)]
 pub enum ErrorKind {
-    #[strum(to_string = "non-unique value names found")]
+    #[strum(to_string = "non-unique value names found.")]
     DuplicateValueNames,
 
-    #[strum(to_string = "the requested file did not exist")]
+    #[strum(to_string = "the requested file did not exist.")]
     FileNotFound,
 
-    #[strum(to_string = "the given relative path was not a valid path")]
+    #[strum(to_string = "the given relative path was not a valid path.")]
     InvalidRelativePath,
 
-    #[strum(to_string = "a directory was provided when a file was expected")]
+    #[strum(to_string = "a directory was provided when a file was expected.")]
     IsADirectory,
 }
 

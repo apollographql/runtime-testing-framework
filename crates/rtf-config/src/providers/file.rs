@@ -80,6 +80,12 @@ pub struct LocalFile {
     relative_path: String,
 }
 
+impl LocalFile {
+    fn format_error_message(&self) -> String {
+        format!("Provided path was {:?}", self.relative_path)
+    }
+}
+
 impl IntoUtf8FileContent for LocalFile {
     fn validate(&self, ctx: &Context) -> validation::Result<()> {
         let p = ctx.config_dir.join(&self.relative_path);
@@ -92,20 +98,20 @@ impl IntoUtf8FileContent for LocalFile {
                     validation::ErrorKind::InvalidRelativePath
                 };
 
-                return Err(validation::Errors::new(kind, p.display().to_string()));
+                return Err(validation::Errors::new(kind, self.format_error_message()));
             }
         };
 
         if !p.exists() {
             return Err(validation::Errors::new(
                 validation::ErrorKind::FileNotFound,
-                p.display().to_string(),
+                self.format_error_message(),
             ));
         }
         if !p.is_file() {
             return Err(validation::Errors::new(
                 validation::ErrorKind::IsADirectory,
-                p.display().to_string(),
+                self.format_error_message(),
             ));
         }
 
@@ -128,47 +134,97 @@ mod tests {
     use simple_txtar::Archive;
     use std::path::PathBuf;
 
+    #[derive(Debug, Clone, Copy)]
+    enum Scenario<'a> {
+        Valid(&'a str),
+        InvalidYaml,
+        ValidationFailures(&'a str),
+        ResolutionFailures(&'a str),
+    }
+
+    impl<'a> Scenario<'a> {
+        /// This will panic if the archive is invalid
+        fn from_archive(arr: &'a Archive) -> (&'a str, Self) {
+            let config = match arr.get("config.yaml") {
+                Some(f) => f.content.trim(),
+                None => {
+                    panic!("Error: 'config.yaml' not found in the archive");
+                }
+            };
+
+            let valid = arr.get("expected-file-content");
+            let invalid = arr.get("validation-error");
+            let failed = arr.get("resolution-error");
+            let yaml = arr.get("invalid-yaml");
+
+            let scenario = match (valid, invalid, failed, yaml) {
+                (Some(f), None, None, None) => Self::Valid(f.content.trim()),
+                (None, Some(f), None, None) => Self::ValidationFailures(f.content.trim()),
+                (None, None, Some(f), None) => Self::ResolutionFailures(f.content.trim()),
+                (None, None, None, Some(_)) => Self::InvalidYaml,
+                (None, None, None, None) => panic!("no assertion scenario provided"),
+                _ => panic!("conflicting assertion scenarios provided"),
+            };
+
+            (config, scenario)
+        }
+    }
+
     #[dir_cases("crates/rtf-config/resources/provider-tests")]
     #[tokio::test]
     async fn file_provider_scenarios(_path: &str, content: &str) {
-        let p = PathBuf::from("resources/provider-tests")
-            .canonicalize()
-            .unwrap();
-        let ctx = Context::new(p);
-
         let arr = Archive::from(content);
-
         let comment = arr.comment();
         if !comment.is_empty() {
             println!("{}", comment.trim());
         }
 
-        let config = match arr.get("config.yaml") {
-            Some(f) => f.content.trim(),
-            None => {
-                panic!("Error: 'config.yaml' not found in the archive");
-            }
-        };
-
-        // TO DO: For negative test scenarios we need to check whether one of expected-file-content
-        // or the expected-errors object exists. If neither exists we need to panic.
-        let expected_content = arr.get("expected-file-content");
+        let (config, scenario) = Scenario::from_archive(&arr);
 
         // Test that the fragment parses
         let res: serde_yaml::Result<FileProvider> = serde_yaml::from_str(config);
-        assert!(res.is_ok(), "{res:?}");
+        match scenario {
+            Scenario::InvalidYaml => {
+                assert!(res.is_err(), "expected invalid YAML, got: {res:?}");
+                return;
+            }
+            _ => assert!(res.is_ok(), "invalid YAML: {res:?}"),
+        }
+
+        let provider = res.unwrap();
+        let ctx = Context::new(
+            PathBuf::from("resources/provider-tests")
+                .canonicalize()
+                .unwrap(),
+        );
 
         // Test that the fragment validates
-        let provider = res.unwrap();
         let res = provider.validate(&ctx);
-        assert!(res.is_ok(), "{res:?}");
+        match scenario {
+            Scenario::ValidationFailures(expected) => {
+                assert!(res.is_err(), "expected validation failures");
+                let err = res.unwrap_err();
+                assert_eq!(&err.to_string(), expected, "wrong validation errors");
+                return;
+            }
+            _ => assert!(res.is_ok(), "validation failed: {res:?}"),
+        }
 
         // Test that the file content is as expected
-        let file_content = provider.try_into_file_content(&ctx).await;
+        let res = provider.try_into_file_content(&ctx).await;
+        match scenario {
+            Scenario::ResolutionFailures(expected) => {
+                assert!(res.is_err(), "expected resolution failures, got {res:?}");
+                let err = res.unwrap_err();
+                assert_eq!(&err.to_string(), expected, "wrong resolution errors");
+                return;
+            }
 
-        assert!(file_content.is_ok(), "{file_content:?}");
-        if let Some(expected) = expected_content {
-            assert_eq!(file_content.unwrap(), expected.content.trim());
+            Scenario::Valid(expected) => {
+                assert_eq!(res.unwrap(), expected, "wrong file content");
+            }
+
+            _ => unreachable!("other cases should have been handled above"),
         }
     }
 
