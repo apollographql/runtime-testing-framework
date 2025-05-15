@@ -1,0 +1,34 @@
+name: http-get-test
+description: |
+  Make a series of GET requests against a running web server and assert on
+  getting back the expected responses.
+
+test_command:
+  local: scripts/curl_get_test.sh
+
+output_directories:
+  - /results
+
+values:
+  - name: credentials_env_var
+    description: "An environment variable that contains a '$user:$pwd' string"
+    schema:
+      type: string
+      pattern: '^[^:]:[^:]$'
+
+from_environment:
+  - name: server_url
+    description: "The publicly accessible URL for the service under test"
+    schema:
+      type: string
+
+env_vars:
+  USER_PWD: "{{ values.credentials_env_var }}"
+  SERVER_URL: "{{ environment.server_url }}"
+
+injected_files:
+  - name: "requests.json"
+    path_env_var: REQUESTS_FILE
+    mechanism:
+      kind: required
+      description: "must provide a valid requests file"
