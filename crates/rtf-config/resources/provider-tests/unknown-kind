@@ -1,0 +1,8 @@
+A valid YAML file but unknown file provider kind.
+This should fail to deserialize.
+
+-- config.yaml --
+kind: this_will_never_be_a_valid_kind
+data: foo
+
+-- invalid-yaml --
