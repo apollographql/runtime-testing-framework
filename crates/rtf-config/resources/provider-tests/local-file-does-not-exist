@@ -6,4 +6,4 @@ kind: local_path
 relative_path: ../does-not-exist.txt
 
 -- validation-error --
-the requested file did not exist. Provided path was "../does-not-exist.txt"
+FileNotFound

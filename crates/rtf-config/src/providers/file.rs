@@ -202,8 +202,21 @@ mod tests {
         match scenario {
             Scenario::ValidationFailures(expected) => {
                 assert!(res.is_err(), "expected validation failures");
-                let err = res.unwrap_err();
-                assert_eq!(&err.to_string(), expected, "wrong validation errors");
+                let errs = res.unwrap_err();
+
+                // Validation Errors are an ordered list of individual errors with a kind.
+                // To avoid breaking these tests when the user facing error message for each error
+                // is modified, we only assert on the Kind of each error, not the full message.
+                let mut err_kinds = Vec::new();
+                for err in errs.iter() {
+                    err_kinds.push(format!("{:?}", err.kind()));
+                }
+                let concatenated_errs = err_kinds.join("\n");
+
+                assert_eq!(
+                    &concatenated_errs, expected,
+                    "wrong validation errors: {errs:?}"
+                );
                 return;
             }
             _ => assert!(res.is_ok(), "validation failed: {res:?}"),

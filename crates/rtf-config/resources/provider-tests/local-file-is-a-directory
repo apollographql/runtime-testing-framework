@@ -6,4 +6,4 @@ kind: local_path
 relative_path: ../provider-tests
 
 -- validation-error --
-a directory was provided when a file was expected. Provided path was "../provider-tests"
+IsADirectory
