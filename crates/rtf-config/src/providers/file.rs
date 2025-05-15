@@ -38,6 +38,7 @@ impl FileParam {
 pub enum FileProvider {
     Inline(InlineFile),
     LocalPath(LocalFile),
+    Required(RequiredFile),
 }
 
 impl IntoUtf8FileContent for FileProvider {
@@ -45,6 +46,7 @@ impl IntoUtf8FileContent for FileProvider {
         match self {
             Self::Inline(fp) => fp.validate(ctx),
             Self::LocalPath(fp) => fp.validate(ctx),
+            Self::Required(fp) => fp.validate(ctx),
         }
     }
 
@@ -52,6 +54,7 @@ impl IntoUtf8FileContent for FileProvider {
         match self {
             Self::Inline(fp) => fp.try_into_file_content(ctx).await,
             Self::LocalPath(fp) => fp.try_into_file_content(ctx).await,
+            Self::Required(fp) => fp.try_into_file_content(ctx).await,
         }
     }
 }
@@ -123,6 +126,29 @@ impl IntoUtf8FileContent for LocalFile {
         let p = ctx.config_dir.join(&self.relative_path).canonicalize()?;
 
         Ok(fs::read_to_string(p)?)
+    }
+}
+
+/// The only purpose of this file provider is to throw an error if it still exists
+/// when the file providers are being validated. All definitions of a required file
+/// are expected to be replaced by user defined file providers.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct RequiredFile {
+    message: String,
+}
+
+impl IntoUtf8FileContent for RequiredFile {
+    fn validate(&self, _ctx: &Context) -> validation::Result<()> {
+        Err(validation::Errors::new(
+            validation::ErrorKind::RequiredFileMissing,
+            &self.message,
+        ))
+    }
+
+    async fn try_into_file_content(self, _ctx: &Context) -> Result<String> {
+        panic!(
+            "Should not be able to get here. Required file should result in an error when validated."
+        )
     }
 }
 
