@@ -265,4 +265,21 @@ mod tests {
             _ => unreachable!("other cases should have been handled above"),
         }
     }
+
+    #[tokio::test]
+    #[should_panic(
+        expected = "Should not be able to get here. Required file should result in an error when validated."
+    )]
+    async fn required_file_provider_try_into_file_content_panics() {
+        let required_file = RequiredFile {
+            message: "required file must be defined".to_string(),
+        };
+        let ctx = Context::new(
+            PathBuf::from("resources/provider-tests")
+                .canonicalize()
+                .unwrap(),
+        );
+        let content = required_file.try_into_file_content(&ctx);
+        assert!(content.await.is_ok(), "This should panic")
+    }
 }
