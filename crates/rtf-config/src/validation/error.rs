@@ -17,6 +17,9 @@ pub enum ErrorKind {
 
     #[strum(to_string = "a directory was provided when a file was expected.")]
     IsADirectory,
+
+    #[strum(to_string = "a required file has not been defined.")]
+    RequiredFileMissing,
 }
 
 /// Validation logic should always return this result type where the error variant is [Errors] as
