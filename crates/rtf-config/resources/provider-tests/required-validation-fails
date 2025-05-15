@@ -3,7 +3,7 @@ This should fail to deserialize.
 
 -- config.yaml --
 kind: required
-description: Required files should always fail validation
+message: Required files should always fail validation
 
 -- validation-error --
 RequiredFileMissing
