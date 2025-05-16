@@ -33,17 +33,19 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// A helper function for replacing templated value strings in config with their actual values.
 /// This takes a map of value keys, constructs the expected template format of {{ value.<key> }},
 /// looks for this in the provided config string and replaces it with the actual value
-pub(crate) fn replace_template_strings_with_values(
-    config: &str,
-    values: HashMap<&str, &str>,
+pub(crate) fn apply_values(
+    config: impl Into<String>,
+    values: &HashMap<String, serde_json::Value>,
 ) -> String {
-    let mut config = config.to_string();
+    let mut config = config.into();
 
-    for (key, value) in values {
+    for (key, value) in values.iter() {
         // Create the expected template string from the key
-        let key_template_str = format!("{{{{ value.{} }}}}", key);
+        // Format is "{{ key }}"
+        let key_template_str = format!("\"{{{{ {key} }}}}\"");
+        println!("{key_template_str:?}");
 
-        config = config.replace(&key_template_str, &value);
+        config = config.replace(&key_template_str, &value.to_string());
     }
     config
 }
@@ -51,48 +53,50 @@ pub(crate) fn replace_template_strings_with_values(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::Value;
 
-    #[test]
-    fn replace_template_values_single_key_and_value() {
-        let mut values = HashMap::new();
-        values.insert("foo", "bar");
-
-        let config = "parameters:\n  some_param: {{ value.foo }}".to_string();
-
-        let config = replace_template_strings_with_values(&config, values);
-
-        assert_eq!(config, "parameters:\n  some_param: bar")
+    // TO DO: Make this into a macro so I can pass in values other than strings
+    fn make_map(values: &[(&str, &str)]) -> HashMap<String, serde_json::Value> {
+        values
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), Value::String(v.to_string())))
+            .collect()
     }
 
     #[test]
-    fn replace_template_values_multiple_value_keys() {
-        let mut values = HashMap::new();
-        values.insert("foo", "bar");
-        values.insert("hello", "goodbye");
+    fn apply_single_string_to_template() {
+        let values = make_map(&[("foo", "bar")]);
+        let config = "parameters:\n  some_param: \"{{ foo }}\"".to_string();
 
-        let config =
-            "parameters:\n  some_param: {{ value.foo }}\n  another_param: {{ value.hello }}";
+        let config = apply_values(&config, &values);
+        assert_eq!(config, "parameters:\n  some_param: \"bar\"")
+    }
 
-        let config = replace_template_strings_with_values(&config, values);
+    #[test]
+    fn apply_multiple_values_to_template() {
+        let values = make_map(&[("foo", "bar"), ("hello", "goodbye")]);
 
+        let config = "parameters:\n  some_param: \"{{ foo }}\"\n  another_param: \"{{ hello }}\""
+            .to_string();
+
+        let config = apply_values(&config, &values);
         assert_eq!(
             config,
-            "parameters:\n  some_param: bar\n  another_param: goodbye"
+            "parameters:\n  some_param: \"bar\"\n  another_param: \"goodbye\""
         )
     }
 
     #[test]
-    fn replace_template_values_multiple_template_strings_same_key() {
-        let mut values = HashMap::new();
-        values.insert("foo", "bar");
+    fn apply_same_value_to_template_multiple_times() {
+        let values = make_map(&[("foo", "bar")]);
+        let config =
+            "parameters:\n  some_param: \"{{ foo }}\"\n  another_param: \"{{ foo }}\"".to_string();
 
-        let config = "parameters:\n  some_param: {{ value.foo }}\n  another_param: {{ value.foo }}";
-
-        let config = replace_template_strings_with_values(&config, values);
+        let config = apply_values(&config, &values);
 
         assert_eq!(
             config,
-            "parameters:\n  some_param: bar\n  another_param: bar"
+            "parameters:\n  some_param: \"bar\"\n  another_param: \"bar\""
         )
     }
 }
