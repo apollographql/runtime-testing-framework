@@ -34,11 +34,9 @@ impl EnvironmentConfig {
     pub async fn try_load_and_resolve(p: impl Into<PathBuf>) -> Result<Self> {
         let p = p.into();
         let raw = RawEnvironmentConfig::try_load_from_path(&p)?;
-
         let ctx = Context::new(p);
-        raw.validate(&ctx)?;
 
-        raw.try_resolve(&ctx).await
+        raw.try_validate_and_resolve(&ctx).await
     }
 }
 
@@ -88,9 +86,24 @@ impl RawEnvironmentConfig {
         errs.into_result(())
     }
 
-    /// Assume that we have already validated this config and attempt to run all providers in order
-    /// to generate a fully resolved [EnvironmentConfig].
-    pub async fn try_resolve(self, ctx: &Context) -> Result<EnvironmentConfig> {
+    /// [Validate][Self::validate] this config file before attempting to resolve all of the
+    /// providers it contains in order to obtain the fully resolved [EnvironmentConfig].
+    pub async fn try_validate_and_resolve(self, ctx: &Context) -> Result<EnvironmentConfig> {
+        self.validate(ctx)?;
+
+        self.try_resolve(ctx).await
+    }
+
+    /// Attempt to resolve all of the providers contained in this config without running their
+    /// required validation.
+    ///
+    /// # Panics
+    /// Some [FileProvider][0] implementations can panic if their `try_into_file_name` method is
+    /// called without fist checking the it is valid to do so ([RequiredFile][1] for example).
+    ///
+    ///   [0]: crate::providers::file::FileProvider
+    ///   [1]: crate::providers::file::RequiredFile
+    async fn try_resolve(self, ctx: &Context) -> Result<EnvironmentConfig> {
         let mut cfg = EnvironmentConfig {
             name: self.name,
             setup_command: self.setup_command,
@@ -167,7 +180,7 @@ mod tests {
         let res = raw.validate(&ctx);
         assert!(res.is_ok(), "failed to validate: {res:?}");
 
-        let res = raw.try_resolve(&ctx).await;
+        let res = raw.try_validate_and_resolve(&ctx).await;
         assert!(res.is_ok(), "failed to resolve: {res:?}");
 
         let resolved_config = res.unwrap();

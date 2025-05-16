@@ -8,8 +8,11 @@ use std::{fmt, fs, io};
 
 /// A file provider is something that can obtain or synthesise utf-8 file content based on a user
 /// provided specification.
+///
+/// This trait is deliberately pub(crate) rather than pub so that the validation and resolution
+/// logic is only exposed through the public API as part of the methods on the config file structs.
 #[allow(async_fn_in_trait)]
-pub trait IntoUtf8FileContent: DeserializeOwned + fmt::Debug {
+pub(crate) trait IntoUtf8FileContent: DeserializeOwned + fmt::Debug {
     /// Run any initial static validation available to error early if this provider contains
     /// invalid data.
     fn validate(&self, ctx: &Context) -> validation::Result<()>;
@@ -26,7 +29,10 @@ pub struct FileParam {
 }
 
 impl FileParam {
-    pub async fn try_into_file_name_and_content(self, ctx: &Context) -> (String, Result<String>) {
+    pub(crate) async fn try_into_file_name_and_content(
+        self,
+        ctx: &Context,
+    ) -> (String, Result<String>) {
         let res = self.provider.try_into_file_content(ctx).await;
 
         (self.name, res)
