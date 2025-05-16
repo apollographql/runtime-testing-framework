@@ -1,6 +1,7 @@
-base:
-  kind: local_path
-  relative_path: base-test-plan.yaml
+name: authenticated-http-get-test
+description: |
+  A test plan for running simple HTTP GET requests against a web server
+  that requires basic auth.
 
 values:
   credentials_env_var: "AUTH_HEADER"
@@ -16,6 +17,7 @@ test_scenario:
 
   injected_files:
     - name: "requests.json"
+      env_var: REQUESTS_FILE
       mechanism:
         kind: inline
         content: |

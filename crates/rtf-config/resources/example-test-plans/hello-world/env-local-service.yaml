@@ -4,41 +4,29 @@ description: "Spin up a locally running HTTP server"
 values:
   - name: credentials_env_var
     description: "An environment variable that contains a '$user:$pwd' string"
-    schema:
-      type: string
-      pattern: '^[^:]:[^:]$'
-
   - name: server_command
     description: "The command to run to start the server"
-    schema:
-      type: string
 
 setup:
   command:
     local: scripts/start_local_server.sh
   parameters:
-    auth_header: "{{ values.credentials_env_var }}"
-    server_command: "{{ values.server_command }}"
+    auth_header: "{{ credentials_env_var }}"
+    server_command: "{{ server_command }}"
   file_parameters: []
   env_vars:
     HELLO: "world"
+  provides:
+    - name: server_url
+      description: "The publicly accessible URL for the service under test"
+    - name: server_pid
+      description: "The PID of the running server"
 
 teardown:
   command:
     local: scripts/stop_local_server.sh
   parameters:
-    server_pid: "{{ environment.server_pid }}"
+    server_pid: "{{ server_pid }}"
   file_parameters: []
   env_vars:
     HELLO: "sailor"
-
-provides:
-  - name: server_url
-    description: "The publicly accessible URL for the service under test"
-    schema:
-      type: string
-
-  - name: server_pid
-    description: "The PID of the running server"
-    schema:
-      type: string
