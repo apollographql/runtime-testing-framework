@@ -3,7 +3,7 @@ rather than a file. This should parse but fail to validate.
 
 -- config.yaml --
 kind: local_path
-relative_path: ../provider-tests
+relative_path: ../../provider-tests
 
--- validation-error --
+-- validation-errors --
 IsADirectory

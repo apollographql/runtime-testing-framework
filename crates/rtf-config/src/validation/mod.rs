@@ -36,12 +36,22 @@ pub(crate) fn duplicate_keys<'a, T: 'a>(
 mod tests {
     use super::*;
 
-    struct S(&'static str);
+    #[derive(Debug)]
+    struct Mapping {
+        k: &'static str,
+        _v: usize,
+    }
 
     #[test]
     fn duplicate_keys_returns_empty_vec_for_no_duplicates() {
-        let vals = [S("a"), S("c"), S("b"), S("d"), S("x")];
-        let duplicates = duplicate_keys(vals.iter(), |s| s.0);
+        let vals = [
+            Mapping { k: "a", _v: 1 },
+            Mapping { k: "c", _v: 2 },
+            Mapping { k: "b", _v: 3 },
+            Mapping { k: "d", _v: 4 },
+            Mapping { k: "x", _v: 5 },
+        ];
+        let duplicates = duplicate_keys(vals.iter(), |s| s.k);
 
         assert!(
             duplicates.is_empty(),
@@ -51,16 +61,28 @@ mod tests {
 
     #[test]
     fn duplicate_keys_returns_sorted_results() {
-        let vals = [S("c"), S("c"), S("a"), S("a"), S("b")];
-        let duplicates = duplicate_keys(vals.iter(), |s| s.0);
+        let vals = [
+            Mapping { k: "c", _v: 1 },
+            Mapping { k: "c", _v: 2 },
+            Mapping { k: "a", _v: 3 },
+            Mapping { k: "a", _v: 4 },
+            Mapping { k: "b", _v: 5 },
+        ];
+        let duplicates = duplicate_keys(vals.iter(), |s| s.k);
 
         assert_eq!(duplicates, vec!["a", "c"]);
     }
 
     #[test]
     fn duplicate_keys_returns_unique_results() {
-        let vals = [S("a"), S("c"), S("c"), S("c"), S("c")];
-        let duplicates = duplicate_keys(vals.iter(), |s| s.0);
+        let vals = [
+            Mapping { k: "a", _v: 1 },
+            Mapping { k: "c", _v: 2 },
+            Mapping { k: "c", _v: 3 },
+            Mapping { k: "c", _v: 4 },
+            Mapping { k: "c", _v: 5 },
+        ];
+        let duplicates = duplicate_keys(vals.iter(), |s| s.k);
 
         assert_eq!(duplicates, vec!["c"]);
     }

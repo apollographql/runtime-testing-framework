@@ -5,4 +5,3 @@ This should fail to deserialize.
 kind: this_will_never_be_a_valid_kind
 data: foo
 
--- invalid-yaml --

@@ -1,9 +1,0 @@
-A valid YAML file but unknown file provider kind.
-This should fail to deserialize.
-
--- config.yaml --
-kind: required
-message: Required files should always fail validation
-
--- validation-error --
-RequiredFileMissing

@@ -1,0 +1,10 @@
+A Required file provider always needs to be replaced with an override from the
+test plan. They are never valid on their own and should always trigger a
+validation failure.
+
+-- config.yaml --
+kind: required
+message: Required files should always fail validation
+
+-- validation-errors --
+RequiredFileMissing

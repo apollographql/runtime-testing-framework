@@ -159,111 +159,123 @@ mod tests {
     use simple_txtar::Archive;
     use std::path::PathBuf;
 
-    #[derive(Debug, Clone, Copy)]
-    enum Scenario<'a> {
-        Valid(&'a str),
-        InvalidYaml,
-        ValidationFailures(&'a str),
-        ResolutionFailures(&'a str),
-    }
-
-    impl<'a> Scenario<'a> {
-        /// This will panic if the archive is invalid
-        fn from_archive(arr: &'a Archive) -> (&'a str, Self) {
-            let config = match arr.get("config.yaml") {
-                Some(f) => f.content.trim(),
-                None => {
-                    panic!("Error: 'config.yaml' not found in the archive");
-                }
-            };
-
-            let valid = arr.get("expected-file-content");
-            let invalid = arr.get("validation-error");
-            let failed = arr.get("resolution-error");
-            let yaml = arr.get("invalid-yaml");
-
-            let scenario = match (valid, invalid, failed, yaml) {
-                (Some(f), None, None, None) => Self::Valid(f.content.trim()),
-                (None, Some(f), None, None) => Self::ValidationFailures(f.content.trim()),
-                (None, None, Some(f), None) => Self::ResolutionFailures(f.content.trim()),
-                (None, None, None, Some(_)) => Self::InvalidYaml,
-                (None, None, None, None) => panic!("no assertion scenario provided"),
-                _ => panic!("conflicting assertion scenarios provided"),
-            };
-
-            (config, scenario)
-        }
-    }
-
-    #[dir_cases("crates/rtf-config/resources/provider-tests")]
-    #[tokio::test]
-    async fn file_provider_scenarios(_path: &str, content: &str) {
+    /// Load a txtar [Archive] from the given file content and print the top level comment if there
+    /// is one before returning it.
+    fn load_archive(content: &str) -> Archive {
         let arr = Archive::from(content);
         let comment = arr.comment();
         if !comment.is_empty() {
             println!("{}", comment.trim());
         }
 
-        let (config, scenario) = Scenario::from_archive(&arr);
+        arr
+    }
 
-        // Test that the fragment parses
-        let res: serde_yaml::Result<FileProvider> = serde_yaml::from_str(config);
-        match scenario {
-            Scenario::InvalidYaml => {
-                assert!(res.is_err(), "expected invalid YAML, got: {res:?}");
-                return;
+    /// Read the requested file from the archive, panicking if it is missing
+    fn get_file<'a>(arr: &'a Archive, fname: &str) -> &'a str {
+        match arr.get(fname) {
+            Some(f) => f.content.trim(),
+            None => {
+                panic!("required txtar file section {fname:?} was missing");
             }
-            _ => assert!(res.is_ok(), "invalid YAML: {res:?}"),
         }
+    }
 
-        let provider = res.unwrap();
+    #[dir_cases("crates/rtf-config/resources/provider-tests/valid")]
+    #[tokio::test]
+    async fn valid_providers(_path: &str, content: &str) {
+        let arr = load_archive(content);
+        let config = get_file(&arr, "config.yaml");
+        let expected = get_file(&arr, "expected-file-content");
+
+        let provider: FileProvider = match serde_yaml::from_str(config) {
+            Ok(provider) => provider,
+            Err(e) => panic!("expected a valid FileProvider, got: {e}"),
+        };
+
         let ctx = Context::new(
-            PathBuf::from("resources/provider-tests")
+            PathBuf::from("resources/provider-tests/valid")
                 .canonicalize()
                 .unwrap(),
         );
 
-        // Test that the fragment validates
         let res = provider.validate(&ctx);
-        match scenario {
-            Scenario::ValidationFailures(expected) => {
-                assert!(res.is_err(), "expected validation failures");
-                let errs = res.unwrap_err();
+        assert!(res.is_ok(), "expected to validate but got: {res:?}");
 
-                // Validation Errors are an ordered list of individual errors with a kind.
-                // To avoid breaking these tests when the user facing error message for each error
-                // is modified, we only assert on the Kind of each error, not the full message.
-                let mut err_kinds = Vec::new();
-                for err in errs.iter() {
-                    err_kinds.push(format!("{:?}", err.kind()));
-                }
-                let concatenated_errs = err_kinds.join("\n");
-
-                assert_eq!(
-                    &concatenated_errs, expected,
-                    "wrong validation errors: {errs:?}"
-                );
-                return;
-            }
-            _ => assert!(res.is_ok(), "validation failed: {res:?}"),
-        }
-
-        // Test that the file content is as expected
         let res = provider.try_into_file_content(&ctx).await;
-        match scenario {
-            Scenario::ResolutionFailures(expected) => {
-                assert!(res.is_err(), "expected resolution failures, got {res:?}");
-                let err = res.unwrap_err();
-                assert_eq!(&err.to_string(), expected, "wrong resolution errors");
-                return;
-            }
+        assert_eq!(res.unwrap(), expected, "wrong file content");
+    }
 
-            Scenario::Valid(expected) => {
-                assert_eq!(res.unwrap(), expected, "wrong file content");
-            }
+    #[dir_cases("crates/rtf-config/resources/provider-tests/parse-failures")]
+    #[test]
+    fn parse_failures(_path: &str, content: &str) {
+        let arr = load_archive(content);
+        let config = get_file(&arr, "config.yaml");
+        let res: serde_yaml::Result<FileProvider> = serde_yaml::from_str(config);
 
-            _ => unreachable!("other cases should have been handled above"),
+        assert!(res.is_err(), "expected invalid YAML, got: {res:?}");
+    }
+
+    #[dir_cases("crates/rtf-config/resources/provider-tests/validation-failures")]
+    #[test]
+    fn validation_failures(_path: &str, content: &str) {
+        let arr = load_archive(content);
+        let config = get_file(&arr, "config.yaml");
+        let expected = get_file(&arr, "validation-errors");
+
+        let provider: FileProvider = match serde_yaml::from_str(config) {
+            Ok(provider) => provider,
+            Err(e) => panic!("expected a valid FileProvider, got: {e}"),
+        };
+
+        let ctx = Context::new(
+            PathBuf::from("resources/provider-tests/validation-failures")
+                .canonicalize()
+                .unwrap(),
+        );
+        let res = provider.validate(&ctx);
+
+        assert!(res.is_err(), "expected validation failures");
+        let errs = res.unwrap_err();
+
+        // Validation Errors are an ordered list of individual errors with a kind.
+        // To avoid breaking these tests when the user facing error message for each error
+        // is modified, we only assert on the Kind of each error, not the full message.
+        let mut err_kinds = Vec::new();
+        for err in errs.iter() {
+            err_kinds.push(format!("{:?}", err.kind()));
         }
+        let concatenated_errs = err_kinds.join("\n");
+
+        assert_eq!(
+            &concatenated_errs, expected,
+            "wrong validation errors: {errs:?}"
+        );
+    }
+
+    #[dir_cases("crates/rtf-config/resources/provider-tests/resolution-failures")]
+    #[tokio::test]
+    async fn resolution_errors(_path: &str, content: &str) {
+        let arr = load_archive(content);
+        let config = get_file(&arr, "config.yaml");
+        let expected = get_file(&arr, "resolution-errors");
+
+        let provider: FileProvider = match serde_yaml::from_str(config) {
+            Ok(provider) => provider,
+            Err(e) => panic!("expected a valid FileProvider, got: {e}"),
+        };
+
+        let ctx = Context::new(
+            PathBuf::from("resources/provider-tests/resolution-failures")
+                .canonicalize()
+                .unwrap(),
+        );
+        let _ = provider.validate(&ctx);
+        let res = provider.try_into_file_content(&ctx).await;
+
+        assert!(res.is_err(), "expected resolution failures, got {res:?}");
+        let err = res.unwrap_err();
+        assert_eq!(&err.to_string(), expected, "wrong resolution errors");
     }
 
     #[tokio::test]
@@ -274,12 +286,9 @@ mod tests {
         let required_file = RequiredFile {
             message: "required file must be defined".to_string(),
         };
-        let ctx = Context::new(
-            PathBuf::from("resources/provider-tests")
-                .canonicalize()
-                .unwrap(),
-        );
-        let content = required_file.try_into_file_content(&ctx);
-        assert!(content.await.is_ok(), "This should panic")
+        let ctx = Context::new(PathBuf::from("not/used/in/this/test"));
+
+        // Calling try_into_file_content should panic here
+        _ = required_file.try_into_file_content(&ctx).await;
     }
 }
