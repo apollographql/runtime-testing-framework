@@ -24,16 +24,14 @@ impl BaseTestPlanConfig {
     pub fn try_load_and_resolve(p: impl Into<PathBuf>) -> Result<Self> {
         let p = p.into();
         let raw = RawBaseTestPlanConfig::try_load_from_path(&p)?;
-        raw.validate()?;
 
-        Ok(raw.into_resolved_unchecked())
+        raw.try_validate_and_resolve()
     }
 
     pub fn try_resolve_from_str(s: &str) -> Result<Self> {
         let raw = RawBaseTestPlanConfig::from_str(s)?;
-        raw.validate()?;
 
-        Ok(raw.into_resolved_unchecked())
+        raw.try_validate_and_resolve()
     }
 }
 
@@ -93,13 +91,15 @@ impl RawBaseTestPlanConfig {
         errs.into_result(())
     }
 
-    /// No programmatic transformation is needed in order to convert a [RawBaseTestPlanConfig] into
-    /// a [BaseTestPlanConfig] but calling this method may result in a degraded debugging
-    /// experience for users if this raw config has not already been validated.
-    ///
-    /// You should always prefer calling [BaseTestPlanConfig::try_load_and_resolve] or
-    /// [BaseTestPlanConfig::try_resolve_from_str] where possible.
-    pub fn into_resolved_unchecked(self) -> BaseTestPlanConfig {
+    /// [Validate][Self::validate] this config file before converting it to a [BaseTestPlanConfig].
+    pub fn try_validate_and_resolve(self) -> Result<BaseTestPlanConfig> {
+        self.validate()?;
+
+        Ok(self.into_base_test_plan_config())
+    }
+
+    #[inline]
+    fn into_base_test_plan_config(self) -> BaseTestPlanConfig {
         BaseTestPlanConfig {
             name: self.name,
             description: self.description,
@@ -133,8 +133,8 @@ mod tests {
             }
         };
 
-        // // TO DO: For negative test scenarios we need to check whether one of expected-file-content
-        // // or the expected-errors object exists. If neither exists we need to panic.
+        // TO DO: For negative test scenarios we need to check whether one of expected-file-content
+        // or the expected-errors object exists. If neither exists we need to panic.
         let expected_json = arr.get("expected-json");
 
         let res: serde_yaml::Result<RawBaseTestPlanConfig> = serde_yaml::from_str(config);
@@ -145,7 +145,7 @@ mod tests {
         let res = raw.validate();
         assert!(res.is_ok(), "failed to validate: {res:?}");
 
-        let resolved_config = raw.into_resolved_unchecked();
+        let resolved_config = raw.into_base_test_plan_config();
         let res = rtf_test_utils::to_pretty_json_with_indent(&resolved_config, 4);
 
         if let Some(expected) = expected_json {
