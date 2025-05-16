@@ -20,6 +20,8 @@ setup:
     auth_header: "{{ values.credentials_env_var }}"
     server_command: "{{ values.server_command }}"
   file_parameters: []
+  env_vars:
+    HELLO: "world"
 
 teardown:
   command:
@@ -27,6 +29,8 @@ teardown:
   parameters:
     server_pid: "{{ environment.server_pid }}"
   file_parameters: []
+  env_vars:
+    HELLO: "sailor"
 
 provides:
   - name: server_url

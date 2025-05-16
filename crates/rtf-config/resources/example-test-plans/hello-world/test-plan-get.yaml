@@ -28,3 +28,7 @@ environment:
     relative_path: env-local-service.yaml
 
   file_parameters: []
+
+  setup:
+    env_vars:
+      HELLO: "darling"
