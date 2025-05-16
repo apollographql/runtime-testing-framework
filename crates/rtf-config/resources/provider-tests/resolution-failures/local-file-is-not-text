@@ -4,7 +4,7 @@ fail to resolve when we try to read it as a string.
 
 -- config.yaml --
 kind: local_path
-relative_path: ../frog-no.gif
+relative_path: ../../frog-no.gif
 
--- resolution-error --
+-- resolution-errors --
 stream did not contain valid UTF-8

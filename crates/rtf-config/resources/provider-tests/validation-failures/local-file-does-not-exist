@@ -5,5 +5,5 @@ that doesn't exist. This should parse but fail to validate.
 kind: local_path
 relative_path: ../does-not-exist.txt
 
--- validation-error --
+-- validation-errors --
 FileNotFound
