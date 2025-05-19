@@ -53,10 +53,10 @@ pub(crate) fn apply_values(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::Value;
+    use serde_json::{Value, json};
 
     // TO DO: Make this into a macro so I can pass in values other than strings
-    fn make_map(values: &[(&str, &str)]) -> HashMap<String, serde_json::Value> {
+    fn make_map(values: &[(&str, &str)]) -> HashMap<String, Value> {
         values
             .into_iter()
             .map(|(k, v)| (k.to_string(), Value::String(v.to_string())))
@@ -70,6 +70,36 @@ mod tests {
 
         let config = apply_values(&config, &values);
         assert_eq!(config, "parameters:\n  some_param: \"bar\"")
+    }
+
+    #[test]
+    fn apply_single_integer_to_template() {
+        let mut values = HashMap::new();
+        values.insert("foo".to_string(), json!(true));
+        let config = "parameters:\n  some_param: \"{{ foo }}\"".to_string();
+
+        let config = apply_values(&config, &values);
+        assert_eq!(config, "parameters:\n  some_param: true")
+    }
+
+    #[test]
+    fn apply_single_float_to_template() {
+        let mut values = HashMap::new();
+        values.insert("foo".to_string(), json!(42.42));
+        let config = "parameters:\n  some_param: \"{{ foo }}\"".to_string();
+
+        let config = apply_values(&config, &values);
+        assert_eq!(config, "parameters:\n  some_param: 42.42")
+    }
+
+    #[test]
+    fn apply_single_bool_to_template() {
+        let mut values = HashMap::new();
+        values.insert("foo".to_string(), json!(42.42));
+        let config = "parameters:\n  some_param: \"{{ foo }}\"".to_string();
+
+        let config = apply_values(&config, &values);
+        assert_eq!(config, "parameters:\n  some_param: 42.42")
     }
 
     #[test]
