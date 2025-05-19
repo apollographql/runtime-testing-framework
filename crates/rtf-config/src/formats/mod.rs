@@ -31,7 +31,7 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// A helper function for replacing templated value strings in config with their actual values.
-/// This takes a map of value keys, constructs the expected template format of {{ value.<key> }},
+/// This takes a map of value keys, constructs the expected template format of `"{{ key }}"`,
 /// looks for this in the provided config string and replaces it with the actual value
 #[allow(dead_code)]
 pub(crate) fn apply_values(
@@ -41,10 +41,10 @@ pub(crate) fn apply_values(
     let mut config = config.into();
 
     for (key, value) in values.iter() {
-        // Create the expected template string from the key
-        // Format is "{{ key }}"
+        // The string here looks crazy, we have to escape curly brackets with another curly bracket
+        // So when we want { we have to specify {{
+        // This will end up looking like: "{{ key }}"
         let key_template_str = format!("\"{{{{ {key} }}}}\"");
-        println!("{key_template_str:?}");
 
         config = config.replace(&key_template_str, &value.to_string());
     }
@@ -77,44 +77,44 @@ mod tests {
 
     #[test_case(
         values_map!(),
-        "parameters:\n  some_param: \"foo\"",
-        "parameters:\n  some_param: \"foo\"";
+        "\"foo\"",
+        "\"foo\"";
         "empty_value"
     )]
     #[test_case(
         values_map!("foo" => "bar"),
-        "parameters:\n  some_param: \"{{ foo }}\"",
-        "parameters:\n  some_param: \"bar\"";
+        "\"{{ foo }}\"",
+        "\"bar\"";
         "single_string_value"
     )]
     #[test_case(
         values_map!("foo" => 42),
-        "parameters:\n  some_param: \"{{ foo }}\"",
-        "parameters:\n  some_param: 42";
+        "\"{{ foo }}\"",
+        "42";
         "single_integer_value"
     )]
     #[test_case(
         values_map!("foo" => 42.42),
-        "parameters:\n  some_param: \"{{ foo }}\"",
-        "parameters:\n  some_param: 42.42";
+        "\"{{ foo }}\"",
+        "42.42";
         "single_float_value"
     )]
     #[test_case(
         values_map!("foo" => true),
-        "parameters:\n  some_param: \"{{ foo }}\"",
-        "parameters:\n  some_param: true";
+        "\"{{ foo }}\"",
+        "true";
         "single_bool_value"
     )]
     #[test_case(
         values_map!("foo" => "bar", "baz" => "qux"),
-        "parameters:\n  some_param: \"{{ foo }}\"\n  another_param: \"{{ baz }}\"",
-        "parameters:\n  some_param: \"bar\"\n  another_param: \"qux\"";
+        "\"{{ foo }}\"\n\"{{ baz }}\"",
+        "\"bar\"\n\"qux\"";
         "multiple_string_values"
     )]
     #[test_case(
         values_map!("foo" => "bar"),
-        "parameters:\n  some_param: \"{{ foo }}\"\n  another_param: \"{{ foo }}\"",
-        "parameters:\n  some_param: \"bar\"\n  another_param: \"bar\"";
+        "\"{{ foo }}\"\n\"{{ foo }}\"",
+        "\"bar\"\n\"bar\"";
         "same_string_value_multiple_times"
     )]
     #[test]
