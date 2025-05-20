@@ -132,12 +132,6 @@ macro_rules! impl_visit_for {
     };
 }
 
-fn is_valid_value_identifier(s: &str) -> bool {
-    !s.is_empty()
-        && s.starts_with(char::is_alphabetic)
-        && s.chars().all(|ch| ch == '_' || ch.is_alphanumeric())
-}
-
 impl<'de, T> Visitor<'de> for FieldVisitor<T>
 where
     T: ValidField,
@@ -154,21 +148,27 @@ where
     /// If we detect a malformed template then we error _here_ rather treating it as a string and
     /// potentially leading to confusing runtime behaviour.
     fn visit_str<E: de::Error>(self, value: &str) -> Result<Self::Value, E> {
-        match value.strip_prefix("{{ ") {
-            Some(s) => match s.strip_suffix(" }}") {
-                Some(s) => {
-                    if is_valid_value_identifier(s) {
-                        Ok(Field::Pending(s.to_string()))
-                    } else {
-                        Err(E::custom(
-                            "expected value identifier with a single space either side",
-                        ))
-                    }
-                }
-                None => Err(E::custom("unclosed field template")),
-            },
-            None => Deserialize::deserialize(de::value::StrDeserializer::new(value))
-                .map(|t| Field::Resolved(t)),
+        let ident = match value.strip_prefix("{{ ") {
+            Some(s) => s
+                .strip_suffix(" }}")
+                .ok_or(E::custom("unclosed field template"))?,
+
+            None => {
+                return Deserialize::deserialize(de::value::StrDeserializer::new(value))
+                    .map(|t| Field::Resolved(t));
+            }
+        };
+
+        let is_valid_identifier = !ident.is_empty()
+            && ident.starts_with(char::is_alphabetic)
+            && ident.chars().all(|ch| ch == '_' || ch.is_alphanumeric());
+
+        if is_valid_identifier {
+            Ok(Field::Pending(ident.to_string()))
+        } else {
+            Err(E::custom(
+                "expected value identifier with a single space either side",
+            ))
         }
     }
 
