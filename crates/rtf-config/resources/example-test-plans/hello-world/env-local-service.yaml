@@ -8,14 +8,12 @@ values:
     description: "The command to run to start the server"
 
 setup:
-  command:
-    local: scripts/start_local_server.sh
-  parameters:
-    auth_header: "{{ credentials_env_var }}"
-    server_command: "{{ server_command }}"
-  file_parameters: []
+  local: scripts/start_local_server.sh
   env_vars:
     HELLO: "world"
+    AUTH_HEADER: "{{ credentials_env_var }}"
+    SERVER_COMMAND: "{{ server_command }}"
+
   provides:
     - name: server_url
       description: "The publicly accessible URL for the service under test"
@@ -23,10 +21,7 @@ setup:
       description: "The PID of the running server"
 
 teardown:
-  command:
-    local: scripts/stop_local_server.sh
-  parameters:
-    server_pid: "{{ server_pid }}"
-  file_parameters: []
+  local: scripts/stop_local_server.sh
   env_vars:
     HELLO: "sailor"
+    SERVER_PID: "{{ server_pid }}"

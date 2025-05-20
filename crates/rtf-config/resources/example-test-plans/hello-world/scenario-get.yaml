@@ -9,19 +9,19 @@ values:
   - name: server_url
     description: "The publicly accessible URL for the service under test"
 
-test_command:
-  local: scripts/curl_get_test.sh
-
 output_directories:
   - /results
 
-env_vars:
-  USER_PWD: "{{ credentials_env_var }}"
-  SERVER_URL: "{{ server_url }}"
+test_command:
+  local: scripts/curl_get_test.sh
 
-injected_files:
-  - name: "requests.json"
-    env_var: REQUESTS_FILE
-    mechanism:
-      kind: required
-      description: "must provide a valid requests file"
+  env_vars:
+    AUTH_HEADER: "{{ credentials_env_var }}"
+    SERVER_URL: "{{ server_url }}"
+
+  injected_files:
+    - name: "requests.json"
+      env_var: REQUESTS_FILE
+      mechanism:
+        kind: required
+        description: "must provide a valid requests file"

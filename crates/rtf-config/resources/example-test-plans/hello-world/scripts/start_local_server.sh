@@ -1,13 +1,10 @@
 #!/usr/bin/env sh
 # Run a local server using the given credentials
 
-# Parse the inputs we received from RTF
-SERVER_CMD="$(echo "$1" | jq -r '.server_command')"
-AUTH_HEADER="$(echo "$1" | jq -r '.auth_header')"
 export AUTH_HEADER
 
 # Run the server and grab its pid
-$SERVER_CMD &
+$SERVER_COMMAND &
 PID="$!"
 
 # Output the details we need to satisfy the base test plan
