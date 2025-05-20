@@ -14,8 +14,8 @@ use serde::{Deserialize, Serialize};
 
 pub mod formats;
 pub mod providers;
-pub mod validation;
 pub mod templating;
+pub mod validation;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct ValueSchema {
