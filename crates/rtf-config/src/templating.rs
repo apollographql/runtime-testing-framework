@@ -6,7 +6,7 @@ use serde::{
 use std::{collections::HashMap, fmt, marker::PhantomData};
 
 /// Errors that can occur while attempting to resolve a [Field]
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
     #[error("the provided value did not deserialize correctly for {path}: {reason}")]
     InvalidData { path: String, reason: String },
@@ -478,14 +478,13 @@ bar:
         assert!(res.is_err(), "expected no errors, got {res:?}");
 
         let err = res.unwrap_err().remove(0);
-        println!("{err:?}");
-        assert!(matches!(
+        assert_eq!(
             err,
             Error::InvalidData {
-                path,
-                reason
-            } if path == "bar.baz" && reason == "invalid type: floating point `1.23`, expected u32"
-        ));
+                path: "bar.baz".to_string(),
+                reason: "invalid type: floating point `1.23`, expected u32".to_string()
+            }
+        );
 
         assert_eq!(
             t,
