@@ -138,20 +138,6 @@ impl<'de, T: ValidField> Deserialize<'de> for Field<T> {
 /// is incorrect for the target then this will result in a deserialization error as normal).
 struct FieldVisitor<T>(PhantomData<T>);
 
-/// In order to pass through to the correct deserializer for each type care about, we need to
-/// explicitly implement `visit_$type` as the [Visitor] trait will error by default. To avoid ending
-/// up with a lot of verbose boiler plate code for this we stamp out these methods with a macro as
-/// they all have the same general form.
-macro_rules! impl_visit_for {
-    ( $($ty:ty, $method:ident, $deser:ident;)+ ) => {
-        $(
-            fn $method<E: de::Error>(self, v: $ty) -> Result<Self::Value, E> {
-                Deserialize::deserialize(de::value::$deser::new(v)).map(|t| Field::Resolved(t))
-            }
-        )+
-    };
-}
-
 impl<'de, T> Visitor<'de> for FieldVisitor<T>
 where
     T: ValidField,
@@ -192,22 +178,24 @@ where
         }
     }
 
-    impl_visit_for!(
-        bool, visit_bool, BoolDeserializer;
+    fn visit_bool<E: de::Error>(self, v: bool) -> Result<Self::Value, E> {
+        Deserialize::deserialize(de::value::BoolDeserializer::new(v)).map(|t| Field::Resolved(t))
+    }
 
-        u8, visit_u8, U8Deserializer;
-        u16, visit_u16, U16Deserializer;
-        u32, visit_u32, U32Deserializer;
-        u64, visit_u64, U64Deserializer;
+    // The default impls for i8, i16 and i32 will forward to this
+    fn visit_i64<E: de::Error>(self, v: i64) -> Result<Self::Value, E> {
+        Deserialize::deserialize(de::value::I64Deserializer::new(v)).map(|t| Field::Resolved(t))
+    }
 
-        i8, visit_i8, I8Deserializer;
-        i16, visit_i16, I16Deserializer;
-        i32, visit_i32, I32Deserializer;
-        i64, visit_i64, I64Deserializer;
+    // The default impls for u8, u16 and u32 will forward to this
+    fn visit_u64<E: de::Error>(self, v: u64) -> Result<Self::Value, E> {
+        Deserialize::deserialize(de::value::U64Deserializer::new(v)).map(|t| Field::Resolved(t))
+    }
 
-        f32, visit_f32, F32Deserializer;
-        f64, visit_f64, F64Deserializer;
-    );
+    // The default impl for f32 will forward to this
+    fn visit_f64<E: de::Error>(self, v: f64) -> Result<Self::Value, E> {
+        Deserialize::deserialize(de::value::F64Deserializer::new(v)).map(|t| Field::Resolved(t))
+    }
 }
 
 // NOTE: We are wrapping this as a newtype to avoid exposing serde_json::Number as part of the
@@ -251,13 +239,6 @@ pub trait ValidField:
 }
 
 impl ValidField for bool {}
-
-impl From<bool> for Scalar {
-    fn from(value: bool) -> Self {
-        Scalar::Bool(value)
-    }
-}
-
 impl TryFrom<Scalar> for bool {
     type Error = String;
 
@@ -270,13 +251,6 @@ impl TryFrom<Scalar> for bool {
 }
 
 impl ValidField for String {}
-
-impl From<String> for Scalar {
-    fn from(value: String) -> Self {
-        Scalar::String(value)
-    }
-}
-
 impl TryFrom<Scalar> for String {
     type Error = String;
 
@@ -287,19 +261,8 @@ impl TryFrom<Scalar> for String {
         }
     }
 }
+
 impl ValidField for f64 {}
-
-impl TryFrom<f64> for Scalar {
-    type Error = &'static str;
-
-    fn try_from(value: f64) -> Result<Self, &'static str> {
-        Ok(Scalar::Number(Number(
-            serde_json::Number::from_f64(value)
-                .ok_or("NaN and infinite floats are not supported")?,
-        )))
-    }
-}
-
 impl TryFrom<Scalar> for f64 {
     type Error = String;
 
@@ -351,6 +314,31 @@ impl_integer_scalars!(
 mod tests {
     use super::*;
     use simple_test_case::test_case;
+
+    // From / TryFrom impls to help with creating test data
+
+    impl From<bool> for Scalar {
+        fn from(value: bool) -> Self {
+            Scalar::Bool(value)
+        }
+    }
+
+    impl From<String> for Scalar {
+        fn from(value: String) -> Self {
+            Scalar::String(value)
+        }
+    }
+
+    impl TryFrom<f64> for Scalar {
+        type Error = &'static str;
+
+        fn try_from(value: f64) -> Result<Self, &'static str> {
+            Ok(Scalar::Number(Number(
+                serde_json::Number::from_f64(value)
+                    .ok_or("NaN and infinite floats are not supported")?,
+            )))
+        }
+    }
 
     // Helper macro to create a HashMap<String, Scalar>.
     // Intended to be used for easily creating test values for testing templating
