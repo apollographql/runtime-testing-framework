@@ -15,6 +15,10 @@ pub enum Error {
     UnknownValue { value: String },
 }
 
+/// In order to support controlled templating of config files with [Scalar] values we make use of a
+/// wrapper [Field] type to identify where values need to be injected. A type that implements
+/// [Templatable] supports walking its contents to locate and resolve fields using a provided map
+/// of scalar values.
 pub trait Templatable {
     /// Whether or not there are any pending [Field]s contained within this value.
     fn has_pending_fields(&self) -> bool;
@@ -23,21 +27,37 @@ pub trait Templatable {
     /// provided.
     fn try_resolve(
         &mut self,
-        values: &HashMap<String, serde_json::Value>,
         path: &mut Vec<&'static str>,
+        values: &HashMap<String, Scalar>,
         errs: &mut Vec<Error>,
     );
+
+    /// Attempt to resolve all pending [Field]s when this type is a child of some parent
+    /// [Templatable], appending encountered errors to the `errs` vec provided. The provided `tail`
+    /// will be appended to `path` before calling through to [Templatable::try_resolve].
+    fn try_resolve_nested(
+        &mut self,
+        path: &mut Vec<&'static str>,
+        tail: &'static str,
+        values: &HashMap<String, Scalar>,
+        errs: &mut Vec<Error>,
+    ) {
+        let mut path = path.clone();
+        path.push(tail);
+        self.try_resolve(&mut path, values, errs);
+    }
 
     /// Attempt to resolve all known [Field]s, reporting required values that are not present in
     /// the provided map. If there are any deserialization errors then then this method as an
     /// aggregate operation will fail.
     fn try_resolve_known(
         &mut self,
-        values: &HashMap<String, serde_json::Value>,
-        path: &mut Vec<&'static str>,
+        values: &HashMap<String, Scalar>,
     ) -> Result<Vec<String>, Vec<Error>> {
         let mut all_errs = Vec::new();
-        self.try_resolve(values, path, &mut all_errs);
+        let mut path = Vec::new();
+
+        self.try_resolve(&mut path, values, &mut all_errs);
 
         let mut missing = Vec::new();
         let mut errs = Vec::new();
@@ -83,17 +103,17 @@ where
 
     fn try_resolve(
         &mut self,
-        values: &HashMap<String, serde_json::Value>,
         path: &mut Vec<&'static str>,
+        values: &HashMap<String, Scalar>,
         errs: &mut Vec<Error>,
     ) {
         if let Self::Pending(value) = self {
             match values.get(value) {
-                Some(raw) => match serde_json::from_value(raw.clone()) {
+                Some(raw) => match raw.clone().try_into() {
                     Ok(t) => *self = Self::Resolved(t),
-                    Err(e) => errs.push(Error::InvalidData {
+                    Err(reason) => errs.push(Error::InvalidData {
                         path: path.join("."),
-                        reason: e.to_string(),
+                        reason,
                     }),
                 },
                 None => errs.push(Error::UnknownValue {
@@ -190,36 +210,165 @@ where
     );
 }
 
-/// A marker trait for the types which may appear inside of a templated [Field] within a config file.
-///
-/// This trait is [sealed][0] to enforce that only known scalar types are supported.
-///
-/// [0]: https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
-pub trait ValidField: fmt::Debug + Clone + DeserializeOwned + private::Sealed {}
+// NOTE: We are wrapping this as a newtype to avoid exposing serde_json::Number as part of the
+// public API.
 
-mod private {
-    use super::ValidField;
-    pub trait Sealed {}
+/// Represents a number, whether integer or floating point.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct Number(serde_json::Number);
 
-    // Stamp out the marker trait implementations we need for marking types as being templatable.
-    macro_rules! impl_valid_field {
-        ($($ty:ty),+) => {
-            $(
-                impl Sealed for $ty {}
-                impl ValidField for $ty {}
-            )+
-        };
+impl fmt::Display for Number {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
-
-    impl_valid_field!(
-        u8, u16, u32, u64, usize, i8, i16, i32, i64, isize, f32, f64, bool, String
-    );
 }
+
+/// A scalar that is valid to be used as a template value for a [Field].
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub enum Scalar {
+    /// Represents a number, whether integer or floating point.
+    Number(Number),
+    /// Represents a boolean
+    Bool(bool),
+    /// Represents a string
+    String(String),
+}
+
+impl fmt::Display for Scalar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Number(n) => write!(f, "{n}"),
+            Self::Bool(b) => write!(f, "{b}"),
+            Self::String(s) => write!(f, "{s}"),
+        }
+    }
+}
+
+/// A [Scalar] type which may appear inside of a templated [Field] within a config file.
+pub trait ValidField:
+    fmt::Debug + Clone + DeserializeOwned + TryFrom<Scalar, Error = String>
+{
+}
+
+impl ValidField for bool {}
+
+impl From<bool> for Scalar {
+    fn from(value: bool) -> Self {
+        Scalar::Bool(value)
+    }
+}
+
+impl TryFrom<Scalar> for bool {
+    type Error = String;
+
+    fn try_from(value: Scalar) -> Result<Self, Self::Error> {
+        match value {
+            Scalar::Bool(v) => Ok(v),
+            value => Err(format!("invalid value `{value}`, expected bool")),
+        }
+    }
+}
+
+impl ValidField for String {}
+
+impl From<String> for Scalar {
+    fn from(value: String) -> Self {
+        Scalar::String(value)
+    }
+}
+
+impl TryFrom<Scalar> for String {
+    type Error = String;
+
+    fn try_from(value: Scalar) -> Result<Self, Self::Error> {
+        match value {
+            Scalar::String(v) => Ok(v),
+            value => Err(format!("invalid value `{value}`, expected String")),
+        }
+    }
+}
+impl ValidField for f64 {}
+
+impl TryFrom<f64> for Scalar {
+    type Error = &'static str;
+
+    fn try_from(value: f64) -> Result<Self, &'static str> {
+        Ok(Scalar::Number(Number(
+            serde_json::Number::from_f64(value)
+                .ok_or("NaN and infinite floats are not supported")?,
+        )))
+    }
+}
+
+impl TryFrom<Scalar> for f64 {
+    type Error = String;
+
+    fn try_from(value: Scalar) -> Result<Self, Self::Error> {
+        let maybe_float = match &value {
+            Scalar::Number(Number(v)) => v.as_f64(),
+            _ => None,
+        };
+
+        maybe_float.ok_or_else(|| format!("invalid value `{value}`, expected f64"))
+    }
+}
+
+// We want to handle all signed and unsigned integers in a similar way so we're stamping out the
+// impls we need to satisfy ValidField using a macro.
+macro_rules! impl_integer_scalars {
+    ( $([$($ty:ty),+] => $as_method:ident;)+ ) => {
+        $($(
+            impl ValidField for $ty {}
+
+            impl From<$ty> for Scalar {
+                fn from(value: $ty) -> Self {
+                    Scalar::Number(Number(serde_json::Number::from(value)))
+                }
+            }
+
+            impl TryFrom<Scalar> for $ty {
+                type Error = String;
+
+                fn try_from(value: Scalar) -> Result<Self, Self::Error> {
+                    let maybe_t = match &value {
+                        Scalar::Number(Number(v)) => v.$as_method().map(|n| n as $ty),
+                        _ => None
+                    };
+
+                    maybe_t.ok_or_else(|| format!("invalid value `{value}`, expected {}", stringify!($ty)))
+                }
+            }
+        )+)+
+    };
+}
+
+impl_integer_scalars!(
+    [i8, i16, i32, i64, isize] => as_i64;
+    [u8, u16, u32, u64, usize] => as_u64;
+);
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use simple_test_case::test_case;
+
+    // Helper macro to create a HashMap<String, Scalar>.
+    // Intended to be used for easily creating test values for testing templating
+    macro_rules! values_map {
+        () => {
+            ::std::collections::HashMap::<String, $crate::templating::Scalar>::new()
+        };
+
+        ($($k:expr => $v:expr),+) => {{
+            let mut m = ::std::collections::HashMap::new();
+
+            $(
+                m.insert($k.to_string(), $crate::templating::Scalar::try_from($v).unwrap());
+            )+
+
+            m
+        }};
+    }
 
     #[derive(Debug, PartialEq, Deserialize)]
     #[serde(untagged)]
@@ -296,8 +445,8 @@ mod tests {
         assert!(res.is_err(), "expected error, got {res:?}");
     }
 
-    /// A simple example struct that contains a top level field as well as a field within a nested
-    /// type.
+    // Test data structs for the templatable tests below
+
     #[derive(Debug, PartialEq, Deserialize)]
     struct T {
         foo: Field<bool>,
@@ -311,16 +460,12 @@ mod tests {
 
         fn try_resolve(
             &mut self,
-            values: &HashMap<String, serde_json::Value>,
             path: &mut Vec<&'static str>,
+            values: &HashMap<String, Scalar>,
             errs: &mut Vec<Error>,
         ) {
-            let mut foo_path = path.clone();
-            foo_path.push("foo");
-            self.foo.try_resolve(values, &mut foo_path, errs);
-
-            path.push("bar");
-            self.bar.try_resolve(values, path, errs);
+            self.foo.try_resolve_nested(path, "foo", values, errs);
+            self.bar.try_resolve_nested(path, "bar", values, errs);
         }
     }
 
@@ -336,52 +481,31 @@ mod tests {
 
         fn try_resolve(
             &mut self,
-            values: &HashMap<String, serde_json::Value>,
             path: &mut Vec<&'static str>,
+            values: &HashMap<String, Scalar>,
             errs: &mut Vec<Error>,
         ) {
-            path.push("baz");
-            self.baz.try_resolve(values, path, errs);
+            self.baz.try_resolve_nested(path, "baz", values, errs);
         }
     }
 
     const RESOLVE_NO_PENDING: &str = "
 foo: true
 bar:
-  baz: 17
-";
+  baz: 17";
 
     const RESOLVE_ALL_PENDING: &str = r#"
 foo: "{{ value_A }}"
 bar:
-  baz: "{{ value_B }}"
-"#;
-
-    // Helper macro to create a HashMap<String, serde_json::Value> where the Value can be any valid json object.
-    // Intended to be used for easily creating test values for testing templating
-    macro_rules! values_map {
-        () => {
-            ::std::collections::HashMap::<String, ::serde_json::Value>::new()
-        };
-
-        ($($k:expr => $v:expr),+) => {{
-            let mut m = ::std::collections::HashMap::new();
-
-            $(
-                m.insert($k.to_string(), ::serde_json::json!($v));
-            )+
-
-            m
-        }};
-    }
+  baz: "{{ value_B }}""#;
 
     #[test]
     fn resolving_with_nothing_to_template_works() {
         let mut t: T = serde_yaml::from_str(RESOLVE_NO_PENDING).unwrap();
-        assert!(!t.has_pending_fields());
+        assert!(!t.has_pending_fields(), "shouldn't have any pending fields");
 
         let mut errs = Vec::new();
-        t.try_resolve(&values_map!(), &mut Vec::new(), &mut errs);
+        t.try_resolve(&mut Vec::new(), &values_map!(), &mut errs);
 
         assert!(errs.is_empty(), "expected no errors, got {errs:?}");
         assert_eq!(
@@ -398,14 +522,14 @@ bar:
     #[test]
     fn resolving_with_all_values_available_works() {
         let mut t: T = serde_yaml::from_str(RESOLVE_ALL_PENDING).unwrap();
-        assert!(t.has_pending_fields());
+        assert!(t.has_pending_fields(), "should have pending fields");
 
         let mut errs = Vec::new();
         let vals = values_map!(
             "value_A" => true,
             "value_B" => 17
         );
-        t.try_resolve(&vals, &mut Vec::new(), &mut errs);
+        t.try_resolve(&mut Vec::new(), &vals, &mut errs);
 
         assert!(errs.is_empty(), "expected no errors, got {errs:?}");
         assert_eq!(
@@ -422,10 +546,10 @@ bar:
     #[test]
     fn resolving_with_some_values_available_works() {
         let mut t: T = serde_yaml::from_str(RESOLVE_ALL_PENDING).unwrap();
-        assert!(t.has_pending_fields());
+        assert!(t.has_pending_fields(), "should have pending fields");
 
         let vals = values_map!("value_A" => true);
-        let res = t.try_resolve_known(&vals, &mut Vec::new());
+        let res = t.try_resolve_known(&vals);
 
         assert!(res.is_ok(), "expected no errors, got {res:?}");
 
@@ -446,10 +570,10 @@ bar:
     #[test]
     fn resolving_with_no_values_available_works() {
         let mut t: T = serde_yaml::from_str(RESOLVE_ALL_PENDING).unwrap();
-        assert!(t.has_pending_fields());
+        assert!(t.has_pending_fields(), "should have pending fields");
 
         let vals = values_map!();
-        let res = t.try_resolve_known(&vals, &mut Vec::new());
+        let res = t.try_resolve_known(&vals);
 
         assert!(res.is_ok(), "expected no errors, got {res:?}");
 
@@ -470,19 +594,19 @@ bar:
     #[test]
     fn resolving_with_invalid_data_errors() {
         let mut t: T = serde_yaml::from_str(RESOLVE_ALL_PENDING).unwrap();
-        assert!(t.has_pending_fields());
+        assert!(t.has_pending_fields(), "should have pending fields");
 
         let vals = values_map!("value_A" => true, "value_B" => 1.23);
-        let res = t.try_resolve_known(&vals, &mut Vec::new());
+        let res = t.try_resolve_known(&vals);
 
-        assert!(res.is_err(), "expected no errors, got {res:?}");
+        assert!(res.is_err(), "expected errors, got {res:?}");
 
         let err = res.unwrap_err().remove(0);
         assert_eq!(
             err,
             Error::InvalidData {
                 path: "bar.baz".to_string(),
-                reason: "invalid type: floating point `1.23`, expected u32".to_string()
+                reason: "invalid value `1.23`, expected u32".to_string()
             }
         );
 
