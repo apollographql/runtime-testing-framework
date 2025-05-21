@@ -3,19 +3,38 @@
 Config file parsing for the Apollo Runtime Testing Framework.
 
 
-## Config resolution
+## Design
 
-1.  Load the TestPlan
-      -> At this point we should have either valid inline config or "pointers" to base files
-2.  If we have base files, load them (Scenario & Environment) as serde_yaml::Mappings
-      -> otherwise we have inline raw files as mappings
-3.  Merge overrides mappings with their counterpart base files
-4.  Parse the base file mappings into their raw form
-5.  Try to resolve both base files (here we need to resolve setup and teardown independently)
-6.  If Environment.setup has missing values, or if either of Scenario or Environment.teardown
-    have missing values that would not be provided by Environment.setup, we error out
-7.  Run the Environment setup
-8.  Finish resolving the Scenario and Environment teardown
-9.  Run the Scenario
-10. Extract results
-11. Run the Teardown
+This crate provides parsers for the three related config files used in RTF,
+along with parsers for the various `provider` fragments that are used to
+expose the rest of the framework to users through those config files.
+
+The parsers for `TestPlanConfig`, `EnvironmentConfig` and `ScenarioConfig`
+live in the `formats` module and all expose a similar API for how they
+operate. Each config file is resolved in three stages:
+
+  1. Loading and parsing a given YAML file into a "raw" form that is allowed
+     to contain limited templating via Helm-style scalar values.
+  2. Applying a provided scalar values map to fill in any templated fields.
+  3. Running all providers to generate their requested data.
+
+For each of these stages we check for any errors or inconsistencies and report
+all known errors to the user as a batch operation. Each of the config file
+structs provides an API for running partial validation and resolution so that
+end users are able to efficiently debug and iterate on their config files.
+
+
+## Config resolution & execution
+
+The full resolution and execution of a test plan has the following flow. As
+mentioned above, each step has implicit "validate and report errors" behaviour
+as part of its execution:
+
+1. Load and template the `TestPlan` file.
+2. Load the `Scenario` and `Environment` files as raw YAML.
+3. Merge any overrides from the `TestPlan` into the `Scenario` and `Environment` files.
+4. Template the `Environment` setup section and check that the output it provides is sufficient
+   to finish templating both the `Scenario` and the rest of the `Environment` configuration.
+5. Run the environment setup and finish templating the `Scenario` and `Environment` teardown.
+6. Run the `Scenario` and extract test output.
+7. Run the `Environment` teardown.
