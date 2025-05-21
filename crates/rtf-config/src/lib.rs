@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod formats;
 pub mod providers;
+pub mod templating;
 pub mod validation;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
