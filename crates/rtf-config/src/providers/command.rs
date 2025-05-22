@@ -52,8 +52,7 @@ impl CommandSection {
             .map(|k| k.as_str())
             .chain(self.file_providers.iter().map(|f| f.env_var.as_str()));
 
-        let duplicates = duplicate_keys(env_var_names, |name| &name);
-        println!("{duplicates:?}");
+        let duplicates = duplicate_keys(env_var_names, |name| name);
 
         if !duplicates.is_empty() {
             errs.push(
