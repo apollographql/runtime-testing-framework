@@ -1,0 +1,8 @@
+A valid yaml fragment for a command section with no file providers
+
+-- config.yaml --
+command: "scripts/curl_get_test.sh"
+
+env_vars:
+  AUTH_HEADER: "{{ credentials_env_var }}"
+  SERVER_URL: "{{ server_url }}"

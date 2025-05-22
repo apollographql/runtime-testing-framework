@@ -1,0 +1,4 @@
+A malformed file that isn't even valid yaml
+
+-- config.yaml --
+a file that isn't actually YAML

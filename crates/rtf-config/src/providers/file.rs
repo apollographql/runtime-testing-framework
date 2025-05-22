@@ -22,22 +22,24 @@ pub(crate) trait IntoUtf8FileContent: DeserializeOwned + fmt::Debug {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct FileParam {
+pub struct NamedFileProvider {
     pub name: String,
+    pub env_var: String,
     #[serde(flatten)]
     pub provider: FileProvider,
 }
 
-impl FileParam {
-    pub(crate) async fn try_into_file_name_and_content(
-        self,
-        ctx: &Context,
-    ) -> (String, Result<String>) {
-        let res = self.provider.try_into_file_content(ctx).await;
+// TO DO - RR-50 will use this method in the environment config. Commented out to stop compiler warnings
+// impl NamedFileProvider {
+//     pub(crate) async fn try_into_file_name_and_content(
+//         self,
+//         ctx: &Context,
+//     ) -> (String, Result<String>) {
+//         let res = self.provider.try_into_file_content(ctx).await;
 
-        (self.name, res)
-    }
-}
+//         (self.name, res)
+//     }
+// }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
@@ -187,7 +189,7 @@ mod tests {
         }
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/valid")]
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/valid")]
     #[tokio::test]
     async fn valid_providers(_path: &str, content: &str) {
         let arr = load_archive(content);
@@ -200,7 +202,7 @@ mod tests {
         };
 
         let ctx = Context::new(
-            PathBuf::from("resources/provider-tests/valid")
+            PathBuf::from("resources/provider-tests/file/valid")
                 .canonicalize()
                 .unwrap(),
         );
@@ -212,7 +214,7 @@ mod tests {
         assert_eq!(res.unwrap(), expected, "wrong file content");
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/parse-failures")]
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/parse-failures")]
     #[test]
     fn parse_failures(_path: &str, content: &str) {
         let arr = load_archive(content);
@@ -222,7 +224,7 @@ mod tests {
         assert!(res.is_err(), "expected invalid YAML, got: {res:?}");
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/validation-failures")]
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/validation-failures")]
     #[test]
     fn validation_failures(_path: &str, content: &str) {
         let arr = load_archive(content);
@@ -235,7 +237,7 @@ mod tests {
         };
 
         let ctx = Context::new(
-            PathBuf::from("resources/provider-tests/validation-failures")
+            PathBuf::from("resources/provider-tests/file/validation-failures")
                 .canonicalize()
                 .unwrap(),
         );
@@ -259,7 +261,7 @@ mod tests {
         );
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/resolution-failures")]
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/resolution-failures")]
     #[tokio::test]
     async fn resolution_errors(_path: &str, content: &str) {
         let arr = load_archive(content);
@@ -272,7 +274,7 @@ mod tests {
         };
 
         let ctx = Context::new(
-            PathBuf::from("resources/provider-tests/resolution-failures")
+            PathBuf::from("resources/provider-tests/file/resolution-failures")
                 .canonicalize()
                 .unwrap(),
         );

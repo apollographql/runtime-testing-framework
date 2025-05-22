@@ -1,0 +1,24 @@
+A YAML fragment for a command that references multiple files. One is a directory
+rather than a file. The other is a file that does not exist. This should parse
+but fail to validate.
+
+-- config.yaml --
+command: "scripts/curl_get_test.sh"
+
+env_vars:
+  AUTH_HEADER: "{{ credentials_env_var }}"
+  SERVER_URL: "{{ server_url }}"
+
+file_providers:
+  - name: "is-a-directory.txt"
+    env_var: IS_A_DIRECTORY
+    kind: local_path
+    relative_path: ../../../provider-tests
+  - name: "does-not-exist.txt"
+    env_var: DOES_NOT_EXIST
+    kind: local_path
+    relative_path: ../does-not-exist.txt
+
+-- validation-errors --
+IsADirectory
+FileNotFound

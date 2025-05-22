@@ -1,0 +1,13 @@
+A valid yaml fragment for a command section with no environment variables
+
+-- config.yaml --
+command: "scripts/curl_get_test.sh"
+
+file_providers:
+  - name: "inline.txt"
+    env_var: INLINE_FILE
+    kind: inline
+    content: |
+        This is some inline file content
+        split over multiple lines.
+        How nice.

@@ -3,7 +3,7 @@ A valid yaml fragment for an local path file provider
 -- config.yaml --
 kind: local_path
 # This is the path relative to the directory this yaml file is located in
-relative_path: ../../example.txt
+relative_path: ../../../example.txt
 
 -- expected-file-content --
 This file exists for testing relative file paths
