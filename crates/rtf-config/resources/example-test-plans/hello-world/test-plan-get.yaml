@@ -8,29 +8,30 @@ values:
   server_command: "python3 server.py"
 
 test_scenario:
-  base:
+  from:
     kind: local_path
     relative_path: scenario-get.yaml
 
-  env_vars:
-    VERBOSE: "false"
+  overrides:
+    env_vars:
+      VERBOSE: "false"
 
-  injected_files:
-    - name: "requests.json"
-      env_var: REQUESTS_FILE
-      mechanism:
+    file_providers:
+      - name: "requests.json"
+        env_var: REQUESTS_FILE
         kind: inline
         content: |
           { "endpoint": "hello-world", "status": 200, "resp": { "hello": "world" } }
           { "endpoint": "goodbye-world", "status": 404, "resp": { "error": "not found" } }
 
 environment:
-  base:
+  from:
     kind: local_path
     relative_path: env-local-service.yaml
 
-  file_parameters: []
+  overrides:
+    file_providers: []
 
-  setup:
-    env_vars:
-      HELLO: "darling"
+    setup:
+      env_vars:
+        HELLO: "darling"

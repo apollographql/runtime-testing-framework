@@ -12,16 +12,14 @@ values:
 output_directories:
   - /results
 
-test_command:
-  local: scripts/curl_get_test.sh
+command: "scripts/curl_get_test.sh"
 
-  env_vars:
-    AUTH_HEADER: "{{ credentials_env_var }}"
-    SERVER_URL: "{{ server_url }}"
+env_vars:
+  AUTH_HEADER: "{{ credentials_env_var }}"
+  SERVER_URL: "{{ server_url }}"
 
-  injected_files:
-    - name: "requests.json"
-      env_var: REQUESTS_FILE
-      mechanism:
-        kind: required
-        description: "must provide a valid requests file"
+file_providers:
+  - name: "requests.json"
+    env_var: REQUESTS_FILE
+    kind: required
+    description: "must provide a valid requests file"
