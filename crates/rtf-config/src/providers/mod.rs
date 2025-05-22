@@ -1,5 +1,4 @@
 //! Providers are how we expose the rest of the framework to user facing config.
-use crate::validation;
 use std::{io, path::PathBuf};
 
 pub mod command;

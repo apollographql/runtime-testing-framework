@@ -29,17 +29,19 @@ pub struct NamedFileProvider {
     pub provider: FileProvider,
 }
 
-// TO DO - RR-50 will use this method in the environment config. Commented out to stop compiler warnings
-// impl NamedFileProvider {
-//     pub(crate) async fn try_into_file_name_and_content(
-//         self,
-//         ctx: &Context,
-//     ) -> (String, Result<String>) {
-//         let res = self.provider.try_into_file_content(ctx).await;
+// TO DO - RR-50 will use this method in the environment config. Remove
+// the dead_code annotation once this is used
+#[allow(dead_code)]
+impl NamedFileProvider {
+    pub(crate) async fn try_into_file_name_and_content(
+        self,
+        ctx: &Context,
+    ) -> (String, Result<String>) {
+        let res = self.provider.try_into_file_content(ctx).await;
 
-//         (self.name, res)
-//     }
-// }
+        (self.name, res)
+    }
+}
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]

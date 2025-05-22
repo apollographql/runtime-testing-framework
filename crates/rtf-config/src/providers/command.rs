@@ -1,12 +1,13 @@
 use crate::{
-    providers::{Context, file::NamedFileProvider},
+    providers::{
+        Context,
+        file::{IntoUtf8FileContent, NamedFileProvider},
+    },
     templating::{self, Field, Scalar, Templatable},
     validation::{self, duplicate_keys},
 };
 use serde::Deserialize;
 use std::collections::HashMap;
-
-use super::file::IntoUtf8FileContent;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct CommandSection {
