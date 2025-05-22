@@ -2,10 +2,14 @@
 use crate::{providers, validation};
 use std::{collections::HashMap, io};
 
-mod environment;
+// TO DO - RR-50 will fix the environment config. This is really out of sync with the recently
+//updated providers and is commented out of the lib to allow us to compile and test the working
+// part of the code base
+
+// mod environment;
 mod test_plan;
 
-pub use environment::{EnvironmentConfig, RawEnvironmentConfig};
+// pub use environment::{EnvironmentConfig, RawEnvironmentConfig};
 pub use test_plan::{BaseTestPlanConfig, RawBaseTestPlanConfig};
 
 /// Errors that can be encountered resolving config files

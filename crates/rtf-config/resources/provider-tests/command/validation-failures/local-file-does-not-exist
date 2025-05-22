@@ -1,0 +1,18 @@
+A YAML fragment for a command section that references a file
+that doesn't exist. This should parse but fail to validate.
+
+-- config.yaml --
+command: "scripts/curl_get_test.sh"
+
+env_vars:
+  AUTH_HEADER: "{{ credentials_env_var }}"
+  SERVER_URL: "{{ server_url }}"
+
+file_providers:
+  - name: "inline.txt"
+    env_var: INLINE_FILE
+    kind: local_path
+    relative_path: ../does-not-exist.txt
+
+-- validation-errors --
+FileNotFound

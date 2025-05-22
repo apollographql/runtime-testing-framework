@@ -1,8 +1,8 @@
 //! Providers are how we expose the rest of the framework to user facing config.
-use serde::{Deserialize, Serialize};
 use std::{io, path::PathBuf};
 
-pub(crate) mod file;
+pub mod command;
+pub mod file;
 
 /// Errors that can be encountered while running file providers
 #[derive(Debug, thiserror::Error)]
@@ -25,10 +25,4 @@ impl Context {
             config_dir: config_dir.into(),
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-#[serde(untagged, rename_all = "snake_case")]
-pub enum CommandProvider {
-    Local { local: String },
 }

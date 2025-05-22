@@ -1,0 +1,22 @@
+A valid yaml fragment for a command section with two file providers
+
+-- config.yaml --
+command: "scripts/curl_get_test.sh"
+
+env_vars:
+  AUTH_HEADER: "{{ credentials_env_var }}"
+  SERVER_URL: "{{ server_url }}"
+
+file_providers:
+  - name: "inline.txt"
+    env_var: INLINE_FILE
+    kind: inline
+    content: |
+        This is some inline file content
+        split over multiple lines.
+        How nice.
+  - name: "example.txt"
+    env_var: EXAMPLE_FILE
+    kind: local_path
+    # This is the path relative to the directory this yaml file is located in
+    relative_path: ../../../example.txt

@@ -22,4 +22,4 @@ file_providers:
   - name: "requests.json"
     env_var: REQUESTS_FILE
     kind: required
-    description: "must provide a valid requests file"
+    message: "must provide a valid requests file"

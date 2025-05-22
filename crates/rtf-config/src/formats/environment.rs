@@ -3,8 +3,9 @@ use crate::{
     ValueSchema,
     formats::{Error, Result},
     providers::{
-        CommandProvider, Context,
-        file::{FileParam, IntoUtf8FileContent},
+        Context,
+        command::CommandProvider,
+        file::{IntoUtf8FileContent, NamedFileProvider},
     },
     validation,
 };
@@ -47,7 +48,7 @@ pub struct RawEnvironmentConfig {
     pub setup_command: CommandProvider,
     pub values: Vec<ValueSchema>,
     pub parameters: Map<String, Value>,
-    pub file_parameters: Vec<FileParam>,
+    pub file_parameters: Vec<NamedFileProvider>,
     pub provides: Vec<ValueSchema>,
 }
 

@@ -1,0 +1,28 @@
+A YAML fragment for a command section where two file providers reference the same environment 
+variable. This should parse but fail to validate.
+
+-- config.yaml --
+command: "scripts/curl_get_test.sh"
+
+env_vars:
+  AUTH_HEADER: "{{ credentials_env_var }}"
+  SERVER_URL: "{{ server_url }}"
+
+file_providers:
+  - name: "inline.txt"
+    env_var: INLINE_FILE
+    kind: inline
+    content: |
+        This is some inline file content
+        split over multiple lines.
+        How nice.
+  - name: "inline2.txt"
+    env_var: INLINE_FILE
+    kind: inline
+    content: |
+        This is some inline file content
+        split over multiple lines.
+        How nice.
+
+-- validation-errors --
+DuplicateEnvironmentVariables

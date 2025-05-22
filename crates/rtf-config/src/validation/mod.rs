@@ -10,8 +10,8 @@ pub use error::{Error, ErrorBuilder, ErrorKind, Errors, Result};
 ///
 /// See the tests in the validation module for example usage.
 pub(crate) fn duplicate_keys<'a, T: 'a>(
-    elems: impl Iterator<Item = &'a T>,
-    key_fn: impl Fn(&T) -> &str,
+    elems: impl Iterator<Item = T>,
+    key_fn: impl Fn(T) -> &'a str,
 ) -> Vec<&'a str> {
     let mut seen = HashSet::new();
     let mut duplicates = Vec::new();

@@ -6,6 +6,9 @@ use std::{fmt, slice, vec};
 /// Paired with an additional message to form an [Error].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display, strum::EnumString)]
 pub enum ErrorKind {
+    #[strum(to_string = "non-unique environment variables found.")]
+    DuplicateEnvironmentVariables,
+
     #[strum(to_string = "non-unique value names found.")]
     DuplicateValueNames,
 
