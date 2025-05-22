@@ -37,7 +37,7 @@ impl Templatable for CommandSection {
 }
 
 impl CommandSection {
-    fn validate(&self, ctx: &Context) -> validation::Result<()> {
+    pub(crate) fn validate(&self, ctx: &Context) -> validation::Result<()> {
         let mut errs = validation::ErrorBuilder::new();
 
         for nfp in self.file_providers.iter() {
