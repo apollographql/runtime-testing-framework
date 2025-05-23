@@ -1,6 +1,6 @@
 //! Helpers for supporting minimal templating of user config files.
 use serde::{
-    Deserialize, Deserializer,
+    Deserialize, Deserializer, Serialize,
     de::{self, DeserializeOwned, Visitor},
 };
 use std::{collections::HashMap, fmt, marker::PhantomData};
@@ -82,7 +82,7 @@ pub trait Templatable {
 /// file.
 ///
 /// Fields must be resolved in order to be usable during a test run.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum Field<T>
 where
     T: ValidField,

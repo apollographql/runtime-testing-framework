@@ -6,10 +6,10 @@ use crate::{
     templating::{self, Field, Scalar, Templatable},
     validation::{self, duplicate_keys},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct CommandSection {
     pub command: String,
     #[serde(default)]
