@@ -1,10 +1,11 @@
 //! The core [FileProvider] trait and currently supported file provider implementations.
 use crate::{
     providers::{Context, Result},
+    templating::{self, Scalar, Templatable},
     validation,
 };
 use serde::{Deserialize, de::DeserializeOwned};
-use std::{fmt, fs, io};
+use std::{collections::HashMap, fmt, fs, io};
 
 /// A file provider is something that can obtain or synthesise utf-8 file content based on a user
 /// provided specification.
@@ -51,21 +52,46 @@ pub enum FileProvider {
     Required(RequiredFile),
 }
 
+macro_rules! delegate_to_inner {
+    ($self:ident, $method:ident $(, $arg:expr)*) => {
+        match $self {
+            FileProvider::Inline(fp) => fp.$method($($arg),*),
+            FileProvider::LocalPath(fp) => fp.$method($($arg),*),
+            FileProvider::Required(fp) => fp.$method($($arg),*),
+        }
+    };
+
+    (@async $self:ident, $method:ident, $($arg:expr),*) => {
+        match $self {
+            FileProvider::Inline(fp) => fp.$method($($arg),*).await,
+            FileProvider::LocalPath(fp) => fp.$method($($arg),*).await,
+            FileProvider::Required(fp) => fp.$method($($arg),*).await,
+        }
+    };
+}
+
 impl IntoUtf8FileContent for FileProvider {
     fn validate(&self, ctx: &Context) -> validation::Result<()> {
-        match self {
-            Self::Inline(fp) => fp.validate(ctx),
-            Self::LocalPath(fp) => fp.validate(ctx),
-            Self::Required(fp) => fp.validate(ctx),
-        }
+        delegate_to_inner!(self, validate, ctx)
     }
 
     async fn try_into_file_content(self, ctx: &Context) -> Result<String> {
-        match self {
-            Self::Inline(fp) => fp.try_into_file_content(ctx).await,
-            Self::LocalPath(fp) => fp.try_into_file_content(ctx).await,
-            Self::Required(fp) => fp.try_into_file_content(ctx).await,
-        }
+        delegate_to_inner!(@async self, try_into_file_content, ctx)
+    }
+}
+
+impl Templatable for FileProvider {
+    fn has_pending_fields(&self) -> bool {
+        delegate_to_inner!(self, has_pending_fields)
+    }
+
+    fn try_resolve(
+        &mut self,
+        path: &mut Vec<&'static str>,
+        values: &HashMap<String, Scalar>,
+        errs: &mut Vec<templating::Error>,
+    ) {
+        delegate_to_inner!(self, try_resolve, path, values, errs)
     }
 }
 
@@ -86,6 +112,20 @@ impl IntoUtf8FileContent for InlineFile {
     }
 }
 
+impl Templatable for InlineFile {
+    fn has_pending_fields(&self) -> bool {
+        false
+    }
+
+    fn try_resolve(
+        &mut self,
+        _path: &mut Vec<&'static str>,
+        _values: &HashMap<String, Scalar>,
+        _errs: &mut Vec<templating::Error>,
+    ) {
+    }
+}
+
 /// The user specifies a path to a local file relative to the config
 /// file containing this provider
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -96,6 +136,20 @@ pub struct LocalFile {
 impl LocalFile {
     fn format_error_message(&self) -> String {
         format!("Provided path was {:?}", self.relative_path)
+    }
+}
+
+impl Templatable for LocalFile {
+    fn has_pending_fields(&self) -> bool {
+        false
+    }
+
+    fn try_resolve(
+        &mut self,
+        _path: &mut Vec<&'static str>,
+        _values: &HashMap<String, Scalar>,
+        _errs: &mut Vec<templating::Error>,
+    ) {
     }
 }
 
@@ -145,6 +199,22 @@ impl IntoUtf8FileContent for LocalFile {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct RequiredFile {
     message: String,
+}
+
+impl Templatable for RequiredFile {
+    fn has_pending_fields(&self) -> bool {
+        false
+    }
+
+    fn try_resolve(
+        &mut self,
+        _path: &mut Vec<&'static str>,
+        _values: &HashMap<String, Scalar>,
+        _errs: &mut Vec<templating::Error>,
+    ) {
+        // no-op as we never have anything to resolve but need to satisfy the trait so that
+        // FileProviders can be resolved as a batch operation
+    }
 }
 
 impl IntoUtf8FileContent for RequiredFile {
