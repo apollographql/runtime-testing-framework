@@ -1,7 +1,7 @@
 //! The core [FileProvider] trait and currently supported file provider implementations.
 use crate::{
     providers::{Context, Result},
-    templating::{self, Scalar, Templatable},
+    templating::{self, Field, Scalar, Templatable},
     validation,
 };
 use serde::{Deserialize, de::DeserializeOwned};
@@ -62,7 +62,7 @@ impl NamedFileProvider {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
     Inline(InlineFile),
@@ -70,6 +70,8 @@ pub enum FileProvider {
     Required(RequiredFile),
 }
 
+// Helper for generating boilerplate method impls where we just need to defer to the inner type
+// that a FileProvider is wrapping.
 macro_rules! delegate_to_inner {
     ($self:ident, $method:ident $(, $arg:expr)*) => {
         match $self {
@@ -141,14 +143,16 @@ impl Templatable for InlineFile {
         _values: &HashMap<String, Scalar>,
         _errs: &mut Vec<templating::Error>,
     ) {
+        // no-op as we never have anything to resolve but need to satisfy the trait so that
+        // FileProviders can be resolved as a batch operation
     }
 }
 
 /// The user specifies a path to a local file relative to the config
 /// file containing this provider
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct LocalFile {
-    relative_path: String,
+    relative_path: Field<String>,
 }
 
 impl LocalFile {
@@ -159,21 +163,23 @@ impl LocalFile {
 
 impl Templatable for LocalFile {
     fn has_pending_fields(&self) -> bool {
-        false
+        self.relative_path.has_pending_fields()
     }
 
     fn try_resolve(
         &mut self,
-        _path: &mut Vec<&'static str>,
-        _values: &HashMap<String, Scalar>,
-        _errs: &mut Vec<templating::Error>,
+        path: &mut Vec<&'static str>,
+        values: &HashMap<String, Scalar>,
+        errs: &mut Vec<templating::Error>,
     ) {
+        self.relative_path
+            .try_resolve_nested(path, "relative_path", values, errs);
     }
 }
 
 impl IntoUtf8FileContent for LocalFile {
     fn validate(&self, ctx: &Context) -> validation::Result<()> {
-        let p = ctx.config_dir.join(&self.relative_path);
+        let p = ctx.config_dir.join(self.relative_path.as_resolved());
         let p = match p.canonicalize() {
             Ok(p) => p,
             Err(e) => {
@@ -205,7 +211,10 @@ impl IntoUtf8FileContent for LocalFile {
 
     // TO DO: Can we get reading a file to come from the Context?
     async fn try_into_file_content(self, ctx: &Context) -> Result<String> {
-        let p = ctx.config_dir.join(&self.relative_path).canonicalize()?;
+        let p = ctx
+            .config_dir
+            .join(self.relative_path.as_resolved())
+            .canonicalize()?;
 
         Ok(fs::read_to_string(p)?)
     }
@@ -255,7 +264,7 @@ mod tests {
     use super::*;
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
-    use std::path::PathBuf;
+    use std::{convert::AsRef, path::PathBuf};
 
     /// Load a txtar [Archive] from the given file content and print the top level comment if there
     /// is one before returning it.
@@ -349,6 +358,54 @@ mod tests {
             &concatenated_errs, expected,
             "wrong validation errors: {errs:?}"
         );
+    }
+
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/valid-templates")]
+    #[test]
+    fn valid_templated_providers(_path: &str, content: &str) {
+        let arr = load_archive(content);
+        let config = get_file(&arr, "config.yaml");
+        let raw_values = get_file(&arr, "values");
+        let raw_expected = get_file(&arr, "after-templating");
+
+        let mut provider: FileProvider = serde_yaml::from_str(config).unwrap();
+        let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
+        let expected: FileProvider = serde_yaml::from_str(raw_expected).unwrap();
+
+        assert!(provider.has_pending_fields(), "fields should be pending");
+
+        let mut errs = Vec::new();
+        provider.try_resolve(&mut Vec::new(), &values, &mut errs);
+
+        assert!(errs.is_empty(), "expected no errors, got {errs:?}");
+        assert!(!provider.has_pending_fields(), "fields should be resolved");
+        assert_eq!(provider, expected);
+    }
+
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/invalid-templates")]
+    #[test]
+    fn invalid_templated_providers(_path: &str, content: &str) {
+        let arr = load_archive(content);
+        let config = get_file(&arr, "config.yaml");
+        let raw_values = get_file(&arr, "values");
+        let expected = get_file(&arr, "templating-errors");
+
+        let mut provider: FileProvider = serde_yaml::from_str(config).unwrap();
+        let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
+
+        assert!(provider.has_pending_fields(), "fields should be pending");
+
+        let mut errs = Vec::new();
+        provider.try_resolve(&mut Vec::new(), &values, &mut errs);
+
+        assert!(
+            provider.has_pending_fields(),
+            "fields should still be pending"
+        );
+
+        let str_errs: Vec<&str> = errs.iter().map(|e| e.as_ref()).collect();
+
+        assert_eq!(str_errs.join("\n"), expected.trim());
     }
 
     #[dir_cases("crates/rtf-config/resources/provider-tests/file/resolution-failures")]
