@@ -1,6 +1,6 @@
 //! Parsing for the test plan and base test plan config file formats
 use crate::{
-    ValueSchema,
+    ValueDefinition,
     formats::{Error, Result},
     validation::{self, duplicate_keys},
 };
@@ -16,8 +16,8 @@ use std::{
 pub struct BaseTestPlanConfig {
     pub name: String,
     pub description: String,
-    pub scenario_defines: Vec<ValueSchema>,
-    pub environment_provides: Vec<ValueSchema>,
+    pub scenario_defines: Vec<ValueDefinition>,
+    pub environment_provides: Vec<ValueDefinition>,
 }
 
 impl BaseTestPlanConfig {
@@ -40,8 +40,8 @@ impl BaseTestPlanConfig {
 pub struct RawBaseTestPlanConfig {
     pub name: String,
     pub description: String,
-    pub scenario_defines: Vec<ValueSchema>,
-    pub environment_provides: Vec<ValueSchema>,
+    pub scenario_defines: Vec<ValueDefinition>,
+    pub environment_provides: Vec<ValueDefinition>,
 }
 
 impl FromStr for RawBaseTestPlanConfig {
