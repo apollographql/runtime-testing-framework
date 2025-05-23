@@ -6,7 +6,7 @@ use serde::{
 use std::{collections::HashMap, fmt, marker::PhantomData};
 
 /// Errors that can occur while attempting to resolve a [Field]
-#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, PartialEq, Eq, thiserror::Error, strum::AsRefStr)]
 pub enum Error {
     #[error("the provided value did not deserialize correctly for {path}: {reason}")]
     InvalidData { path: String, reason: String },
@@ -91,6 +91,19 @@ where
     Pending(String),
     /// A field containing the final data needed for resolving the config file.
     Resolved(T),
+}
+
+impl<T> Field<T>
+where
+    T: ValidField,
+{
+    // FIXME: RR-78 will remove the need for this (required for MVP)
+    pub(crate) fn as_resolved(&self) -> &T {
+        match self {
+            Self::Pending(_) => panic!("field is still pending"),
+            Self::Resolved(t) => t,
+        }
+    }
 }
 
 impl<T> Templatable for Field<T>
@@ -213,6 +226,7 @@ impl fmt::Display for Number {
 
 /// A scalar that is valid to be used as a template value for a [Field].
 #[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged)]
 pub enum Scalar {
     /// Represents a number, whether integer or floating point.
     Number(Number),

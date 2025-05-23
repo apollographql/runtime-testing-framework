@@ -18,8 +18,7 @@ pub mod templating;
 pub mod validation;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct ValueSchema {
+pub struct ValueDefinition {
     pub name: String,
     pub description: String,
-    pub schema: Option<serde_json::Value>,
 }
