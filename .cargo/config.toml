@@ -1,0 +1,4 @@
+[alias]
+# PR aliases are used in our CI jobs and shared here so we can run them locally
+pr-clippy = "clippy --all-targets --all-features --examples --tests -- -D warnings"
+pr-format = "fmt --all -- --check"
