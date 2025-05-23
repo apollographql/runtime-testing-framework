@@ -4,7 +4,7 @@ use crate::{
     templating::{self, Field, Scalar, Templatable},
     validation,
 };
-use serde::{Deserialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::HashMap,
     fmt, fs, io,
@@ -26,7 +26,7 @@ pub(crate) trait IntoUtf8FileContent: DeserializeOwned + fmt::Debug {
     async fn try_into_file_content(self, ctx: &Context) -> Result<String>;
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct NamedFileProvider {
     pub name: String,
     pub env_var: String,
@@ -62,7 +62,7 @@ impl NamedFileProvider {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
     Inline(InlineFile),
@@ -117,7 +117,7 @@ impl Templatable for FileProvider {
 
 /// The simplest form of file provider: the user specifies the contents of the file inline within
 /// their config file.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct InlineFile {
     content: String,
 }
@@ -150,7 +150,7 @@ impl Templatable for InlineFile {
 
 /// The user specifies a path to a local file relative to the config
 /// file containing this provider
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct LocalFile {
     relative_path: Field<String>,
 }
@@ -223,7 +223,7 @@ impl IntoUtf8FileContent for LocalFile {
 /// The only purpose of this file provider is to throw an error if it still exists
 /// when the file providers are being validated. All definitions of a required file
 /// are expected to be replaced by user defined file providers.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct RequiredFile {
     message: String,
 }
