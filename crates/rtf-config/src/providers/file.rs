@@ -5,7 +5,11 @@ use crate::{
     validation,
 };
 use serde::{Deserialize, de::DeserializeOwned};
-use std::{collections::HashMap, fmt, fs, io};
+use std::{
+    collections::HashMap,
+    fmt, fs, io,
+    ops::{Deref, DerefMut},
+};
 
 /// A file provider is something that can obtain or synthesise utf-8 file content based on a user
 /// provided specification.
@@ -28,6 +32,20 @@ pub struct NamedFileProvider {
     pub env_var: String,
     #[serde(flatten)]
     pub provider: FileProvider,
+}
+
+impl Deref for NamedFileProvider {
+    type Target = FileProvider;
+
+    fn deref(&self) -> &Self::Target {
+        &self.provider
+    }
+}
+
+impl DerefMut for NamedFileProvider {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.provider
+    }
 }
 
 // TO DO - RR-50 will use this method in the environment config. Remove
