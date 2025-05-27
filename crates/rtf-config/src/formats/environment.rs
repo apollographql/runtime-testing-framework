@@ -1,7 +1,7 @@
 //! Parsing of the environment provisioner config file format
 use crate::{
     ValueDefinition,
-    formats::Result,
+    formats::{Result, filter_values},
     providers::{Context, command::CommandSection},
     templating::{self, Scalar, Templatable},
     validation::{self, duplicate_keys},
@@ -61,11 +61,8 @@ impl EnvironmentConfig {
         values: &HashMap<String, Scalar>,
         errs: &mut Vec<templating::Error>,
     ) {
-        let allowed_values: HashMap<String, Scalar> = values
-            .iter()
-            .filter(|(k, _)| self.values.iter().any(|val| &val.name == *k))
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect();
+        let definitions = self.values.iter();
+        let allowed_values = filter_values(values, definitions);
 
         self.setup
             .command
@@ -82,14 +79,8 @@ impl EnvironmentConfig {
         values: &HashMap<String, Scalar>,
         errs: &mut Vec<templating::Error>,
     ) {
-        let allowed_values: HashMap<String, Scalar> = values
-            .iter()
-            .filter(|(k, _)| {
-                self.values.iter().any(|val| &val.name == *k)
-                    || self.setup.provides.iter().any(|val| &val.name == *k)
-            })
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect();
+        let definitions = self.values.iter().chain(self.setup.provides.iter());
+        let allowed_values = filter_values(values, definitions);
 
         self.teardown
             .try_resolve_nested(path, "teardown", &allowed_values, errs);
