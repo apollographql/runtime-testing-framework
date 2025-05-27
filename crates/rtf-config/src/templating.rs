@@ -27,7 +27,7 @@ pub trait Templatable {
     /// provided.
     fn try_resolve(
         &mut self,
-        path: &mut Vec<&'static str>,
+        path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
         errs: &mut Vec<Error>,
     );
@@ -37,13 +37,13 @@ pub trait Templatable {
     /// will be appended to `path` before calling through to [Templatable::try_resolve].
     fn try_resolve_nested(
         &mut self,
-        path: &mut Vec<&'static str>,
-        tail: &'static str,
+        path: &mut Vec<String>,
+        tail: impl Into<String>,
         values: &HashMap<String, Scalar>,
         errs: &mut Vec<Error>,
     ) {
         let mut path = path.clone();
-        path.push(tail);
+        path.push(tail.into());
         self.try_resolve(&mut path, values, errs);
     }
 
@@ -116,7 +116,7 @@ where
 
     fn try_resolve(
         &mut self,
-        path: &mut Vec<&'static str>,
+        path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
         errs: &mut Vec<Error>,
     ) {
@@ -462,7 +462,7 @@ mod tests {
 
         fn try_resolve(
             &mut self,
-            path: &mut Vec<&'static str>,
+            path: &mut Vec<String>,
             values: &HashMap<String, Scalar>,
             errs: &mut Vec<Error>,
         ) {
@@ -483,7 +483,7 @@ mod tests {
 
         fn try_resolve(
             &mut self,
-            path: &mut Vec<&'static str>,
+            path: &mut Vec<String>,
             values: &HashMap<String, Scalar>,
             errs: &mut Vec<Error>,
         ) {

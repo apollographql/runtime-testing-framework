@@ -107,7 +107,7 @@ impl Templatable for FileProvider {
 
     fn try_resolve(
         &mut self,
-        path: &mut Vec<&'static str>,
+        path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
         errs: &mut Vec<templating::Error>,
     ) {
@@ -119,7 +119,7 @@ impl Templatable for FileProvider {
 /// their config file.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct InlineFile {
-    content: String,
+    pub(crate) content: String,
 }
 
 impl IntoUtf8FileContent for InlineFile {
@@ -139,7 +139,7 @@ impl Templatable for InlineFile {
 
     fn try_resolve(
         &mut self,
-        _path: &mut Vec<&'static str>,
+        _path: &mut Vec<String>,
         _values: &HashMap<String, Scalar>,
         _errs: &mut Vec<templating::Error>,
     ) {
@@ -152,7 +152,7 @@ impl Templatable for InlineFile {
 /// file containing this provider
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct LocalFile {
-    relative_path: Field<String>,
+    pub(crate) relative_path: Field<String>,
 }
 
 impl LocalFile {
@@ -168,7 +168,7 @@ impl Templatable for LocalFile {
 
     fn try_resolve(
         &mut self,
-        path: &mut Vec<&'static str>,
+        path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
         errs: &mut Vec<templating::Error>,
     ) {
@@ -235,7 +235,7 @@ impl Templatable for RequiredFile {
 
     fn try_resolve(
         &mut self,
-        _path: &mut Vec<&'static str>,
+        _path: &mut Vec<String>,
         _values: &HashMap<String, Scalar>,
         _errs: &mut Vec<templating::Error>,
     ) {

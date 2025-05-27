@@ -25,12 +25,11 @@ impl Templatable for CommandSection {
 
     fn try_resolve(
         &mut self,
-        path: &mut Vec<&'static str>,
+        path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
         errs: &mut Vec<templating::Error>,
     ) {
         for f in self.env_vars.values_mut() {
-            // TO DO - Innes to sort out being able to borrow tail from self
             f.try_resolve_nested(path, "env_var", values, errs)
         }
     }
