@@ -25,13 +25,19 @@ impl Templatable for CommandSection {
 
     fn try_resolve(
         &mut self,
-        path: &mut Vec<&'static str>,
+        path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
         errs: &mut Vec<templating::Error>,
     ) {
         for f in self.env_vars.values_mut() {
-            // TO DO - Innes to sort out being able to borrow tail from self
             f.try_resolve_nested(path, "env_var", values, errs)
+        }
+
+        path.push("file_provider".to_string());
+
+        for nfp in self.file_providers.iter_mut() {
+            let tail = nfp.name.clone();
+            nfp.try_resolve_nested(path, tail, values, errs);
         }
     }
 }
@@ -71,9 +77,6 @@ mod tests {
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
     use std::path::PathBuf;
-
-    // TO DO - Move the load_archive and get_file into test_utils (currently have
-    // duplicate definitions in file.rs and command.rs)
 
     /// Load a txtar [Archive] from the given file content and print the top level comment if there
     /// is one before returning it.

@@ -1,0 +1,21 @@
+setup.provides should be optional if there are no values returned from the setup script
+
+-- config.yaml --
+name: minimal
+description: "A minimal environment config"
+
+values:
+  - name: foo
+    description: "An env var called foo"
+  - name: bar
+    description: "An env var called bar"
+
+setup:
+  command: scripts/start_local_server.sh
+  env_vars:
+    HELLO: "world"
+
+teardown:
+  command: scripts/stop_local_server.sh
+  env_vars:
+    HELLO: "sailor"

@@ -1,15 +1,11 @@
 //! The various different config file formats that we support
-use crate::{providers, validation};
+use crate::{ValueDefinition, providers, templating::Scalar, validation};
 use std::{collections::HashMap, io};
 
-// TO DO - RR-50 will fix the environment config. This is really out of sync with the recently
-//updated providers and is commented out of the lib to allow us to compile and test the working
-// part of the code base
-
-// mod environment;
+mod environment;
 mod test_plan;
 
-// pub use environment::{EnvironmentConfig, RawEnvironmentConfig};
+pub use environment::EnvironmentConfig;
 pub use test_plan::{BaseTestPlanConfig, RawBaseTestPlanConfig};
 
 /// Errors that can be encountered resolving config files
@@ -34,96 +30,26 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// A helper function for replacing templated value strings in config with their actual values.
-/// This takes a map of value keys, constructs the expected template format of `"{{ key }}"`,
-/// looks for this in the provided config string and replaces it with the actual value
-#[allow(dead_code)]
-pub(crate) fn apply_values(
-    config: impl Into<String>,
-    values: &HashMap<String, serde_json::Value>,
-) -> String {
-    let mut config = config.into();
-
-    for (key, value) in values.iter() {
-        // The string here looks crazy, we have to escape curly brackets with another curly bracket
-        // So when we want { we have to specify {{
-        // This will end up looking like: "{{ key }}"
-        let key_template_str = format!("\"{{{{ {key} }}}}\"");
-
-        config = config.replace(&key_template_str, &value.to_string());
-    }
-    config
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::Value;
-    use simple_test_case::test_case;
-
-    // Helper macro to create a HashMap<String, serde_json::Value> where the Value can be any valid json object.
-    // Intended to be used for easily creating test values for testing templating
-    macro_rules! values_map {
-        () => {
-            ::std::collections::HashMap::<String, ::serde_json::Value>::new()
-        };
-
-        ($($k:expr => $v:expr),+) => {{
-            let mut m = ::std::collections::HashMap::new();
-
-            $(
-                m.insert($k.to_string(), ::serde_json::json!($v));
-            )+
-
-            m
-        }};
-    }
-
-    #[test_case(
-        values_map!(),
-        "\"foo\"",
-        "\"foo\"";
-        "empty_value"
-    )]
-    #[test_case(
-        values_map!("foo" => "bar"),
-        "\"{{ foo }}\"",
-        "\"bar\"";
-        "single_string_value"
-    )]
-    #[test_case(
-        values_map!("foo" => 42),
-        "\"{{ foo }}\"",
-        "42";
-        "single_integer_value"
-    )]
-    #[test_case(
-        values_map!("foo" => 42.42),
-        "\"{{ foo }}\"",
-        "42.42";
-        "single_float_value"
-    )]
-    #[test_case(
-        values_map!("foo" => true),
-        "\"{{ foo }}\"",
-        "true";
-        "single_bool_value"
-    )]
-    #[test_case(
-        values_map!("foo" => "bar", "baz" => "qux"),
-        "\"{{ foo }}\"\n\"{{ baz }}\"",
-        "\"bar\"\n\"qux\"";
-        "multiple_string_values"
-    )]
-    #[test_case(
-        values_map!("foo" => "bar"),
-        "\"{{ foo }}\"\n\"{{ foo }}\"",
-        "\"bar\"\n\"bar\"";
-        "same_string_value_multiple_times"
-    )]
-    #[test]
-    fn apply_template_values_works(values: HashMap<String, Value>, config: &str, expected: &str) {
-        let config = apply_values(config, &values);
-        assert_eq!(config, expected)
-    }
+/// Helper for filtering allowed templating values based on [ValueDefinition]s present in a config
+/// file.
+///
+/// # Constructing the definitions argument
+///
+/// The trait bound here is to support both direct calls to `Vec<ValueDefinition>.iter()` and calls
+/// to [Iterator::chain] to joing together multiple vecs of ValueDefintions:
+///
+/// ```ignore
+/// // from EnvironmentConfig: both of these will work
+/// let definitions = self.values.iter();
+/// let definitions = self.values.iter().chain(self.setup.provides.iter());
+/// ```
+pub(crate) fn filter_values<'a>(
+    all_values: &HashMap<String, Scalar>,
+    definitions: impl Iterator<Item = &'a ValueDefinition> + Clone,
+) -> HashMap<String, Scalar> {
+    all_values
+        .iter()
+        .filter(|(k, _)| definitions.clone().any(|val| &val.name == *k))
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect()
 }

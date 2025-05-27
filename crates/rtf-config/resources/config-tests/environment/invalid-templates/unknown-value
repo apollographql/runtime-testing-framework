@@ -1,0 +1,25 @@
+An unknown value (i.e. not present in values at all) should be an error.
+
+-- config.yaml --
+name: minimal-with-templates
+description: "A minimal environment config with templates"
+
+values:
+  - name: foo
+    description: "An env var called foo"
+  - name: bar
+    description: "An env var called bar"
+
+setup:
+  command: scripts/start_local_server.sh
+  env_vars:
+    HELLO: "{{ unknown }}"
+
+teardown:
+  command: scripts/stop_local_server.sh
+
+-- values --
+foo: "bar"
+
+-- templating-errors --
+UnknownValue

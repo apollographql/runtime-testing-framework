@@ -1,0 +1,44 @@
+A minimal valid environment config with templating.
+
+-- config.yaml --
+name: minimal-with-templates
+description: "A minimal environment config with templates"
+
+values:
+  - name: foo
+    description: "An env var called foo"
+  - name: bar
+    description: "An env var called bar"
+
+setup:
+  command: scripts/start_local_server.sh
+  env_vars:
+    HELLO: "{{ foo }}"
+
+teardown:
+  command: scripts/stop_local_server.sh
+  env_vars:
+    HELLO: "{{ foo }}"
+
+-- values --
+foo: "bar"
+
+-- after-templating --
+name: minimal-with-templates
+description: "A minimal environment config with templates"
+
+values:
+  - name: foo
+    description: "An env var called foo"
+  - name: bar
+    description: "An env var called bar"
+
+setup:
+  command: scripts/start_local_server.sh
+  env_vars:
+    HELLO: "bar"
+
+teardown:
+  command: scripts/stop_local_server.sh
+  env_vars:
+    HELLO: "bar"
