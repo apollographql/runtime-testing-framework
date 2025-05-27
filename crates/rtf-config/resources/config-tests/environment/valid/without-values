@@ -1,0 +1,21 @@
+The top level values section should be optional if templating is not being used.
+
+-- config.yaml --
+name: no-values
+description: "A minimal environment config without values"
+
+setup:
+  command: scripts/start_local_server.sh
+  env_vars:
+    HELLO: "world"
+
+  provides:
+    - name: server_url
+      description: "The publicly accessible URL for the service under test"
+    - name: server_pid
+      description: "The PID of the running server"
+
+teardown:
+  command: scripts/stop_local_server.sh
+  env_vars:
+    HELLO: "sailor"

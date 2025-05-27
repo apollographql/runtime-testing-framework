@@ -2,14 +2,10 @@
 use crate::{providers, validation};
 use std::{collections::HashMap, io};
 
-// TO DO - RR-50 will fix the environment config. This is really out of sync with the recently
-//updated providers and is commented out of the lib to allow us to compile and test the working
-// part of the code base
-
-// mod environment;
+mod environment;
 mod test_plan;
 
-// pub use environment::{EnvironmentConfig, RawEnvironmentConfig};
+pub use environment::EnvironmentConfig;
 pub use test_plan::{BaseTestPlanConfig, RawBaseTestPlanConfig};
 
 /// Errors that can be encountered resolving config files
@@ -61,8 +57,8 @@ mod tests {
     use serde_json::Value;
     use simple_test_case::test_case;
 
-    // Helper macro to create a HashMap<String, serde_json::Value> where the Value can be any valid json object.
-    // Intended to be used for easily creating test values for testing templating
+    /// Helper macro to create a HashMap<String, serde_json::Value> where the Value can be any valid
+    /// json object. Intended to be used for easily creating test values for testing templating
     macro_rules! values_map {
         () => {
             ::std::collections::HashMap::<String, ::serde_json::Value>::new()
