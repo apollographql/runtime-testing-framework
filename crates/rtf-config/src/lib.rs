@@ -12,6 +12,7 @@
 #![deny(clippy::undocumented_unsafe_blocks)]
 use serde::{Deserialize, Serialize};
 
+pub mod error;
 pub mod formats;
 pub mod providers;
 pub mod templating;
