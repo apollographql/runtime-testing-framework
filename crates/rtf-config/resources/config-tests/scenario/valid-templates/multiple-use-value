@@ -1,0 +1,62 @@
+A minimal valid scenario config with templating.
+
+-- config.yaml --
+name: valid-scenario
+description: |
+  A description for a valid scenario
+
+values:
+  - name: foo
+    description: "A value foo"
+  - name: bar
+    description: "A value bar"
+
+output_directories:
+  - /results
+
+command: "/command.sh"
+
+env_vars:
+  SOME_ENV_VAR: "{{ foo }}"
+  ANOTHER_ENV_VAR: "{{ foo }}"
+
+file_providers:
+  - name: "inline.txt"
+    env_var: INLINE_FILE
+    kind: inline
+    content: |
+      This is some inline file content
+      split over multiple lines.
+      How nice.
+
+-- values --
+foo: "bar"
+
+-- after-templating --
+name: valid-scenario
+description: |
+  A description for a valid scenario
+
+values:
+  - name: foo
+    description: "A value foo"
+  - name: bar
+    description: "A value bar"
+
+output_directories:
+  - /results
+
+command: "/command.sh"
+
+env_vars:
+  SOME_ENV_VAR: "bar"
+  ANOTHER_ENV_VAR: "bar"
+
+file_providers:
+  - name: "inline.txt"
+    env_var: INLINE_FILE
+    kind: inline
+    content: |
+      This is some inline file content
+      split over multiple lines.
+      How nice.

@@ -1,0 +1,25 @@
+description is a required field
+
+-- config.yaml --
+name: valid-scenario
+
+values:
+  - name: foo
+    description: "A value foo"
+
+output_directories:
+  - /results
+
+command: "/command.sh"
+
+env_vars:
+  SOME_ENV_VAR: "some_env_var"
+
+file_providers:
+  - name: "inline.txt"
+    env_var: INLINE_FILE
+    kind: inline
+    content: |
+      This is some inline file content
+      split over multiple lines.
+      How nice.
