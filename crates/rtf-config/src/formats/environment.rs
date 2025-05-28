@@ -4,7 +4,7 @@ use crate::{
     formats::{Result, filter_values},
     providers::{Context, command::CommandSection},
     templating::{self, Scalar, Template},
-    validation::{self, duplicate_keys},
+    validation::{self, Validate, duplicate_keys},
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, path::Path};
@@ -24,31 +24,6 @@ impl EnvironmentConfig {
         let content = fs::read_to_string(p)?;
 
         Ok(serde_yaml::from_str(&content)?)
-    }
-
-    pub fn validate(&self, ctx: &Context) -> validation::Result<()> {
-        let mut errs = validation::ErrorBuilder::new();
-
-        // Check that hard coded values and the ones coming from setup.provides are unique
-        let all_values = self.values.iter().chain(self.setup.provides.iter());
-        let duplicates = duplicate_keys(all_values, |v| &v.name);
-        if !duplicates.is_empty() {
-            errs.push(
-                validation::ErrorKind::DuplicateValueNames,
-                duplicates.join("\n"),
-            );
-        }
-
-        // Check that each command is valid in isolation
-        if let Err(e) = self.setup.command.validate(ctx) {
-            errs.extend_with_prefix(e, "setup");
-        }
-
-        if let Err(e) = self.teardown.validate(ctx) {
-            errs.extend_with_prefix(e, "teardown");
-        }
-
-        errs.into_result(())
     }
 
     /// Try to resolve the setup [CommandSection].
@@ -100,6 +75,34 @@ impl Template for EnvironmentConfig {
     ) {
         self.try_resolve_setup(path, values, errs);
         self.try_resolve_teardown(path, values, errs);
+    }
+}
+
+impl Validate for EnvironmentConfig {
+    fn try_validate(&self, path: &mut Vec<String>, ctx: &Context) -> validation::Result<()> {
+        let mut errs = validation::ErrorBuilder::new();
+
+        // Check that hard coded values and the ones coming from setup.provides are unique
+        let all_values = self.values.iter().chain(self.setup.provides.iter());
+        let duplicates = duplicate_keys(all_values, |v| &v.name);
+        if !duplicates.is_empty() {
+            errs.push(
+                validation::ErrorKind::DuplicateValueNames,
+                duplicates.join("\n"),
+                &path,
+            );
+        }
+
+        // Check that each command is valid in isolation
+        if let Err(e) = self.setup.command.try_validate_nested(path, "setup", ctx) {
+            errs.extend(e);
+        }
+
+        if let Err(e) = self.teardown.try_validate_nested(path, "teardown", ctx) {
+            errs.extend(e);
+        }
+
+        errs.into_result(())
     }
 }
 
@@ -160,7 +163,7 @@ mod tests {
         );
 
         let env_config = res.unwrap();
-        let res = env_config.validate(&ctx);
+        let res = env_config.try_validate(&mut vec!["environment".to_string()], &ctx);
 
         assert!(res.is_ok(), "failed to validate: {res:?}");
     }
@@ -182,7 +185,7 @@ mod tests {
         );
 
         let env_config = res.unwrap();
-        let res = env_config.validate(&ctx);
+        let res = env_config.try_validate(&mut vec!["environment".to_string()], &ctx);
 
         assert!(res.is_err(), "expected validation failures");
         let errs = res.unwrap_err();
@@ -192,7 +195,7 @@ mod tests {
         // is modified, we only assert on the Kind of each error, not the full message.
         let mut err_kinds = Vec::new();
         for err in errs.iter() {
-            err_kinds.push(format!("{:?}", err.kind()));
+            err_kinds.push(format!("{:?}", err.kind));
         }
         let concatenated_errs = err_kinds.join("\n");
 

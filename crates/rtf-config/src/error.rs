@@ -23,11 +23,12 @@ where
     ///
     /// Prefer using [ErrorBuilder] when there is the possibility of multiple errors arising from a
     /// single operation.
-    pub fn new(kind: K, message: impl Into<String>) -> Self {
+    pub fn new(kind: K, message: impl Into<String>, path: &[String]) -> Self {
         Self {
             inner: vec![Error {
                 kind,
                 message: message.into(),
+                path: path.join("."),
             }],
         }
     }
@@ -101,12 +102,18 @@ where
         Self { inner: Vec::new() }
     }
 
-    /// Append a new [Error] to the builder.
-    pub fn push(&mut self, kind: K, message: impl Into<String>) {
+    /// Construct and append a new [Error] to the builder.
+    pub fn push(&mut self, kind: K, message: impl Into<String>, path: &[String]) {
         self.inner.push(Error {
             kind,
             message: message.into(),
+            path: path.join("."),
         });
+    }
+
+    /// Append a new [Error] to the builder.
+    pub fn push_err(&mut self, err: Error<K>) {
+        self.inner.push(err);
     }
 
     /// Add all errors from `other` to the end of this builder.
@@ -115,19 +122,6 @@ where
     /// such as a config file.
     pub fn extend(&mut self, other: Errors<K>) {
         self.inner.extend(other.inner);
-    }
-
-    /// Add all errors from `other` to the end of this builder with an additional prefix added to
-    /// each of their messages.
-    ///
-    /// Typically used to combine errors from nested sources when working with a larger structure
-    /// such as a config file.
-    pub fn extend_with_prefix(&mut self, other: Errors<K>, prefix: impl Into<String>) {
-        let prefix = prefix.into();
-        self.inner.extend(other.inner.into_iter().map(|mut e| {
-            e.message = format!("{prefix} {}", e.message);
-            e
-        }));
     }
 
     /// Construct a result from this builder, returning `Ok(t)` if the builder is empty or
@@ -152,25 +146,12 @@ pub struct Error<K>
 where
     K: fmt::Debug + fmt::Display + Copy,
 {
-    kind: K,
-    message: String,
-}
-
-impl<K> Error<K>
-where
-    K: fmt::Debug + fmt::Display + Copy,
-{
     /// The kind associated with this error.
-    pub fn kind(&self) -> K {
-        self.kind
-    }
-
+    pub kind: K,
     /// The meta-data message attached to this error.
-    ///
-    /// This will be included in the user facing error message is presented to the user.
-    pub fn message(&self) -> &str {
-        &self.message
-    }
+    pub message: String,
+    /// The dotted path to the source of this error.
+    pub path: String,
 }
 
 impl<K> fmt::Display for Error<K>
@@ -178,7 +159,7 @@ where
     K: fmt::Debug + fmt::Display + Copy,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.kind, self.message)
+        write!(f, "({}) {} {}", self.path, self.kind, self.message)
     }
 }
 

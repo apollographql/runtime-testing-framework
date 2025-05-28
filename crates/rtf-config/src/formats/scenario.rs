@@ -3,7 +3,7 @@ use crate::{
     formats::{Result, filter_values},
     providers::{Context, command::CommandSection},
     templating::Template,
-    validation,
+    validation::{self, Validate},
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, path::Path};
@@ -27,16 +27,6 @@ impl ScenarioConfig {
 
         Ok(serde_yaml::from_str(&content)?)
     }
-
-    pub fn validate(&self, ctx: &Context) -> validation::Result<()> {
-        let mut errs = validation::ErrorBuilder::new();
-
-        if let Err(e) = self.command.validate(ctx) {
-            errs.extend_with_prefix(e, format!("command {:?}:", self.command.command));
-        }
-
-        errs.into_result(())
-    }
 }
 
 impl Template for ScenarioConfig {
@@ -55,6 +45,12 @@ impl Template for ScenarioConfig {
 
         self.command
             .try_resolve_nested(path, "command_section", &allowed_values, errs);
+    }
+}
+
+impl Validate for ScenarioConfig {
+    fn try_validate(&self, path: &mut Vec<String>, ctx: &Context) -> validation::Result<()> {
+        self.command.try_validate_nested(path, "command", ctx)
     }
 }
 
@@ -105,7 +101,7 @@ mod tests {
                 .unwrap(),
         );
 
-        let res = scenario.validate(&ctx);
+        let res = scenario.try_validate(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected to validate but got: {res:?}");
     }
 
@@ -126,7 +122,7 @@ mod tests {
         );
 
         let scenario_config = res.unwrap();
-        let res = scenario_config.validate(&ctx);
+        let res = scenario_config.try_validate(&mut Vec::new(), &ctx);
 
         assert!(res.is_err(), "expected validation failures");
         let errs = res.unwrap_err();
@@ -136,7 +132,7 @@ mod tests {
         // is modified, we only assert on the Kind of each error, not the full message.
         let mut err_kinds = Vec::new();
         for err in errs.iter() {
-            err_kinds.push(format!("{:?}", err.kind()));
+            err_kinds.push(format!("{:?}", err.kind));
         }
         let concatenated_errs = err_kinds.join("\n");
 

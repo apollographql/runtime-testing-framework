@@ -1,10 +1,7 @@
 use crate::{
-    providers::{
-        Context,
-        file::{IntoUtf8FileContent, NamedFileProvider},
-    },
+    providers::{Context, file::NamedFileProvider},
     templating::{self, Field, Scalar, Template},
-    validation::{self, duplicate_keys},
+    validation::{self, Validate, duplicate_keys},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -42,13 +39,14 @@ impl Template for CommandSection {
     }
 }
 
-impl CommandSection {
-    pub fn validate(&self, ctx: &Context) -> validation::Result<()> {
+impl Validate for CommandSection {
+    fn try_validate(&self, path: &mut Vec<String>, ctx: &Context) -> validation::Result<()> {
         let mut errs = validation::ErrorBuilder::new();
 
         for nfp in self.file_providers.iter() {
-            if let Err(e) = nfp.provider.validate(ctx) {
-                errs.extend_with_prefix(e, format!("file provider {:?}:", nfp.name));
+            let tail = nfp.name.clone();
+            if let Err(e) = nfp.provider.try_validate_nested(path, tail, ctx) {
+                errs.extend(e);
             }
         }
 
@@ -64,6 +62,7 @@ impl CommandSection {
             errs.push(
                 validation::ErrorKind::DuplicateEnvironmentVariables,
                 duplicates.join("\n"),
+                path,
             );
         }
 
@@ -117,7 +116,7 @@ mod tests {
                 .unwrap(),
         );
 
-        let res = section.validate(&ctx);
+        let res = section.try_validate(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected to validate but got: {res:?}");
     }
 
@@ -148,7 +147,7 @@ mod tests {
                 .canonicalize()
                 .unwrap(),
         );
-        let res = section.validate(&ctx);
+        let res = section.try_validate(&mut Vec::new(), &ctx);
 
         assert!(res.is_err(), "expected validation failures");
         let errs = res.unwrap_err();
@@ -158,7 +157,7 @@ mod tests {
         // is modified, we only assert on the Kind of each error, not the full message.
         let mut err_kinds = Vec::new();
         for err in errs.iter() {
-            err_kinds.push(format!("{:?}", err.kind()));
+            err_kinds.push(format!("{:?}", err.kind));
         }
         let concatenated_errs = err_kinds.join("\n");
 
