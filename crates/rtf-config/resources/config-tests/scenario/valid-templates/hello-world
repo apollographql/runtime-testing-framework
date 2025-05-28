@@ -1,6 +1,4 @@
 The "hello, world!" example scenario config.
-The required file provider has been commented out since this cannot ever result
-in a valid config.
 
 -- config.yaml --
 name: http-get-test
@@ -23,11 +21,11 @@ env_vars:
   AUTH_HEADER: "{{ credentials_env_var }}"
   SERVER_URL: "{{ server_url }}"
 
-# file_providers:
-#   - name: "requests.json"
-#     env_var: REQUESTS_FILE
-#     kind: required
-#     message: "must provide a valid requests file"
+file_providers:
+  - name: "requests.json"
+    env_var: REQUESTS_FILE
+    kind: required
+    message: "must provide a valid requests file"
 
 -- values --
 credentials_env_var: "foo:bar"
@@ -53,3 +51,9 @@ command: "scripts/curl_get_test.sh"
 env_vars:
   AUTH_HEADER: "foo:bar"
   SERVER_URL: "http://server-url"
+
+file_providers:
+  - name: "requests.json"
+    env_var: REQUESTS_FILE
+    kind: required
+    message: "must provide a valid requests file"
