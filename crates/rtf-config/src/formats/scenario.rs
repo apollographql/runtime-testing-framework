@@ -2,7 +2,7 @@ use crate::{
     ValueDefinition,
     formats::{Result, filter_values},
     providers::{Context, command::CommandSection},
-    templating::Template,
+    templating::{self, Template},
     validation::{self, Validate},
 };
 use serde::{Deserialize, Serialize};
@@ -38,13 +38,12 @@ impl Template for ScenarioConfig {
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, crate::templating::Scalar>,
-        errs: &mut Vec<crate::templating::Error>,
-    ) {
+    ) -> templating::Result<()> {
         let definitions = self.values.iter();
         let allowed_values = filter_values(values, definitions);
 
         self.command
-            .try_resolve_nested(path, "command_section", &allowed_values, errs);
+            .try_resolve_nested(path, "command_section", &allowed_values)
     }
 }
 
@@ -169,10 +168,9 @@ mod tests {
             "fields should be pending"
         );
 
-        let mut errs = Vec::new();
-        scenario_config.try_resolve(&mut Vec::new(), &values, &mut errs);
+        let res = scenario_config.try_resolve(&mut Vec::new(), &values);
 
-        assert!(errs.is_empty(), "expected no errors, got {errs:?}");
+        assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
             !scenario_config.has_pending_fields(),
             "fields should be resolved"
@@ -196,15 +194,15 @@ mod tests {
             "fields should be pending"
         );
 
-        let mut errs = Vec::new();
-        scenario_config.try_resolve(&mut Vec::new(), &values, &mut errs);
+        let res = scenario_config.try_resolve(&mut Vec::new(), &values);
 
         assert!(
             scenario_config.has_pending_fields(),
             "fields should still be pending"
         );
 
-        let str_errs: Vec<&str> = errs.iter().map(|e| e.as_ref()).collect();
+        let errs = res.unwrap_err().into_vec();
+        let str_errs: Vec<String> = errs.iter().map(|e| format!("{:?}", e.kind)).collect();
 
         assert_eq!(str_errs.join("\n"), expected.trim());
     }

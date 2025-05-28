@@ -34,14 +34,13 @@ impl EnvironmentConfig {
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
-        errs: &mut Vec<templating::Error>,
-    ) {
+    ) -> templating::Result<()> {
         let definitions = self.values.iter();
         let allowed_values = filter_values(values, definitions);
 
         self.setup
             .command
-            .try_resolve_nested(path, "setup", &allowed_values, errs);
+            .try_resolve_nested(path, "setup", &allowed_values)
     }
 
     /// Try to resolve the teardown [CommandSection].
@@ -52,13 +51,12 @@ impl EnvironmentConfig {
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
-        errs: &mut Vec<templating::Error>,
-    ) {
+    ) -> templating::Result<()> {
         let definitions = self.values.iter().chain(self.setup.provides.iter());
         let allowed_values = filter_values(values, definitions);
 
         self.teardown
-            .try_resolve_nested(path, "teardown", &allowed_values, errs);
+            .try_resolve_nested(path, "teardown", &allowed_values)
     }
 }
 
@@ -71,10 +69,16 @@ impl Template for EnvironmentConfig {
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
-        errs: &mut Vec<templating::Error>,
-    ) {
-        self.try_resolve_setup(path, values, errs);
-        self.try_resolve_teardown(path, values, errs);
+    ) -> templating::Result<()> {
+        let mut errs = templating::ErrorBuilder::new();
+        if let Err(e) = self.try_resolve_setup(path, values) {
+            errs.extend(e);
+        };
+        if let Err(e) = self.try_resolve_teardown(path, values) {
+            errs.extend(e);
+        };
+
+        errs.into_result(())
     }
 }
 
@@ -229,10 +233,9 @@ mod tests {
 
         assert!(env_config.has_pending_fields(), "fields should be pending");
 
-        let mut errs = Vec::new();
-        env_config.try_resolve(&mut Vec::new(), &values, &mut errs);
+        let res = env_config.try_resolve(&mut Vec::new(), &values);
 
-        assert!(errs.is_empty(), "expected no errors, got {errs:?}");
+        assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
             !env_config.has_pending_fields(),
             "fields should be resolved"
@@ -253,15 +256,15 @@ mod tests {
 
         assert!(env_config.has_pending_fields(), "fields should be pending");
 
-        let mut errs = Vec::new();
-        env_config.try_resolve(&mut Vec::new(), &values, &mut errs);
+        let res = env_config.try_resolve(&mut Vec::new(), &values);
 
         assert!(
             env_config.has_pending_fields(),
             "fields should still be pending"
         );
 
-        let str_errs: Vec<&str> = errs.iter().map(|e| e.as_ref()).collect();
+        let errs = res.unwrap_err().into_vec();
+        let str_errs: Vec<String> = errs.iter().map(|e| format!("{:?}", e.kind)).collect();
 
         assert_eq!(str_errs.join("\n"), expected.trim());
     }
@@ -312,18 +315,40 @@ mod tests {
     }
 
     #[test_case(&["foo", "setup-path"], &[], &[]; "both defined")]
-    #[test_case(&[], &[], &["foo", "setup-path"]; "neither defined")]
-    #[test_case(&["foo"], &[], &["setup-path"]; "foo defined")]
-    #[test_case(&["setup-path"], &[], &["foo"]; "setup-path defined")]
+    #[test_case(
+        &[], &[],
+        &[
+            ("foo", "setup.env_vars.FOO"),
+            ("setup-path", "setup.file_providers.SETUP_PATH")
+        ];
+        "neither defined"
+    )]
+    #[test_case(
+        &["foo"], &[],
+        &[("setup-path", "setup.file_providers.SETUP_PATH")];
+        "foo defined"
+    )]
+    #[test_case(
+        &["setup-path"], &[],
+        &[("foo", "setup.env_vars.FOO")];
+        "setup-path defined"
+    )]
     // This one is a little odd, but if a user tries to make use of a value that is coming from
     // setup.provides inside of setup itself that should still be an error as we need to template
     // before running the command.
-    #[test_case(&[], &["foo", "setup-path"], &["foo", "setup-path"]; "defined in provides")]
+    #[test_case(
+        &[], &["foo", "setup-path"],
+        &[
+            ("foo", "setup.env_vars.FOO"),
+            ("setup-path", "setup.file_providers.SETUP_PATH")
+        ];
+        "defined in provides"
+    )]
     #[test]
     fn try_resolve_setup_respects_available_values(
         available_vals: &[&str],
         provides: &[&str],
-        expected_unknown: &[&str],
+        expected_unknown: &[(&str, &str)],
     ) {
         let mut config = config_for_try_resolve_tests(available_vals, provides);
 
@@ -334,13 +359,18 @@ mod tests {
             .map(|(k, v)| (k.to_string(), Scalar::String(v.to_string())))
             .collect();
 
-        let mut errs = Vec::new();
-        config.try_resolve_setup(&mut Vec::new(), &values, &mut errs);
+        let res = config.try_resolve_setup(&mut Vec::new(), &values);
+        let errs = match res {
+            Ok(_) => Vec::new(),
+            Err(e) => e.into_vec(),
+        };
 
         let expected: Vec<templating::Error> = expected_unknown
             .iter()
-            .map(|s| templating::Error::UnknownValue {
-                value: s.to_string(),
+            .map(|(message, path)| templating::Error {
+                kind: templating::ErrorKind::UnknownValue,
+                message: message.to_string(),
+                path: path.to_string(),
             })
             .collect();
 
@@ -349,16 +379,39 @@ mod tests {
 
     #[test_case(&["bar", "teardown-path"], &[], &[]; "both defined at top level")]
     #[test_case(&[], &["bar", "teardown-path"], &[]; "both defined in setup provides")]
-    #[test_case(&[], &[], &["bar", "teardown-path"]; "neither defined")]
-    #[test_case(&["bar"], &[], &["teardown-path"]; "bar defined at top level")]
-    #[test_case(&[], &["bar"], &["teardown-path"]; "bar defined in setup provides")]
-    #[test_case(&["teardown-path"], &[], &["bar"]; "teardown-path defined at top level")]
-    #[test_case(&[], &["teardown-path"], &["bar"]; "teardown-path defined in setup provides")]
+    #[test_case(
+        &[], &[],
+        &[
+            ("bar", "teardown.env_vars.BAR"),
+            ("teardown-path", "teardown.file_providers.TEARDOWN_PATH")
+        ];
+        "neither defined"
+    )]
+    #[test_case(
+        &["bar"], &[],
+        &[("teardown-path", "teardown.file_providers.TEARDOWN_PATH")];
+        "bar defined at top level"
+    )]
+    #[test_case(
+        &[], &["bar"],
+        &[("teardown-path", "teardown.file_providers.TEARDOWN_PATH")];
+        "bar defined in setup provides"
+    )]
+    #[test_case(
+        &["teardown-path"], &[],
+        &[("bar", "teardown.env_vars.BAR")];
+        "teardown-path defined at top level"
+    )]
+    #[test_case(
+        &[], &["teardown-path"],
+        &[("bar", "teardown.env_vars.BAR")];
+        "teardown-path defined in setup provides"
+    )]
     #[test]
     fn try_resolve_teardown_respects_available_values(
         available_vals: &[&str],
         provides: &[&str],
-        expected_unknown: &[&str],
+        expected_unknown: &[(&str, &str)],
     ) {
         let mut config = config_for_try_resolve_tests(available_vals, provides);
 
@@ -369,13 +422,18 @@ mod tests {
             .map(|(k, v)| (k.to_string(), Scalar::String(v.to_string())))
             .collect();
 
-        let mut errs = Vec::new();
-        config.try_resolve_teardown(&mut Vec::new(), &values, &mut errs);
+        let res = config.try_resolve_teardown(&mut Vec::new(), &values);
+        let errs = match res {
+            Ok(_) => Vec::new(),
+            Err(e) => e.into_vec(),
+        };
 
         let expected: Vec<templating::Error> = expected_unknown
             .iter()
-            .map(|s| templating::Error::UnknownValue {
-                value: s.to_string(),
+            .map(|(message, path)| templating::Error {
+                kind: templating::ErrorKind::UnknownValue,
+                message: message.to_string(),
+                path: path.to_string(),
             })
             .collect();
 

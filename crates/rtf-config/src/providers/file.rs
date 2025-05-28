@@ -99,9 +99,8 @@ impl Template for FileProvider {
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
-        errs: &mut Vec<templating::Error>,
-    ) {
-        delegate_to_inner!(self, try_resolve, path, values, errs)
+    ) -> templating::Result<()> {
+        delegate_to_inner!(self, try_resolve, path, values)
     }
 }
 
@@ -133,10 +132,10 @@ impl Template for InlineFile {
         &mut self,
         _path: &mut Vec<String>,
         _values: &HashMap<String, Scalar>,
-        _errs: &mut Vec<templating::Error>,
-    ) {
+    ) -> templating::Result<()> {
         // no-op as we never have anything to resolve but need to satisfy the trait so that
         // FileProviders can be resolved as a batch operation
+        Ok(())
     }
 }
 
@@ -168,10 +167,8 @@ impl Template for LocalFile {
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
-        errs: &mut Vec<templating::Error>,
-    ) {
-        self.relative_path
-            .try_resolve_nested(path, "relative_path", values, errs);
+    ) -> templating::Result<()> {
+        self.relative_path.try_resolve(path, values)
     }
 }
 
@@ -242,10 +239,10 @@ impl Template for RequiredFile {
         &mut self,
         _path: &mut Vec<String>,
         _values: &HashMap<String, Scalar>,
-        _errs: &mut Vec<templating::Error>,
-    ) {
+    ) -> templating::Result<()> {
         // no-op as we never have anything to resolve but need to satisfy the trait so that
         // FileProviders can be resolved as a batch operation
+        Ok(())
     }
 }
 
@@ -272,7 +269,7 @@ mod tests {
     use super::*;
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
-    use std::{convert::AsRef, path::PathBuf};
+    use std::path::PathBuf;
 
     /// Load a txtar [Archive] from the given file content and print the top level comment if there
     /// is one before returning it.
@@ -382,10 +379,9 @@ mod tests {
 
         assert!(provider.has_pending_fields(), "fields should be pending");
 
-        let mut errs = Vec::new();
-        provider.try_resolve(&mut Vec::new(), &values, &mut errs);
+        let res = provider.try_resolve(&mut Vec::new(), &values);
 
-        assert!(errs.is_empty(), "expected no errors, got {errs:?}");
+        assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(!provider.has_pending_fields(), "fields should be resolved");
         assert_eq!(provider, expected);
     }
@@ -403,15 +399,15 @@ mod tests {
 
         assert!(provider.has_pending_fields(), "fields should be pending");
 
-        let mut errs = Vec::new();
-        provider.try_resolve(&mut Vec::new(), &values, &mut errs);
+        let res = provider.try_resolve(&mut Vec::new(), &values);
 
         assert!(
             provider.has_pending_fields(),
             "fields should still be pending"
         );
 
-        let str_errs: Vec<&str> = errs.iter().map(|e| e.as_ref()).collect();
+        let errs = res.unwrap_err().into_vec();
+        let str_errs: Vec<String> = errs.iter().map(|e| format!("{:?}", e.kind)).collect();
 
         assert_eq!(str_errs.join("\n"), expected.trim());
     }

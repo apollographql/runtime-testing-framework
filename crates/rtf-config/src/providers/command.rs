@@ -24,18 +24,28 @@ impl Template for CommandSection {
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
-        errs: &mut Vec<templating::Error>,
-    ) {
-        for f in self.env_vars.values_mut() {
-            f.try_resolve_nested(path, "env_var", values, errs)
+    ) -> templating::Result<()> {
+        let mut errs = templating::ErrorBuilder::new();
+        path.push("env_vars".to_string());
+
+        for (name, f) in self.env_vars.iter_mut() {
+            let tail = name.clone();
+            if let Err(e) = f.try_resolve_nested(path, tail, values) {
+                errs.extend(e);
+            };
         }
 
-        path.push("file_provider".to_string());
+        path.pop();
+        path.push("file_providers".to_string());
 
         for nfp in self.file_providers.iter_mut() {
-            let tail = nfp.name.clone();
-            nfp.try_resolve_nested(path, tail, values, errs);
+            let tail = nfp.env_var.clone();
+            if let Err(e) = nfp.try_resolve_nested(path, tail, values) {
+                errs.extend(e);
+            };
         }
+
+        errs.into_result(())
     }
 }
 
