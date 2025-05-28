@@ -17,9 +17,9 @@ pub enum Error {
 
 /// In order to support controlled templating of config files with [Scalar] values we make use of a
 /// wrapper [Field] type to identify where values need to be injected. A type that implements
-/// [Templatable] supports walking its contents to locate and resolve fields using a provided map
+/// [Template] supports walking its contents to locate and resolve fields using a provided map
 /// of scalar values.
-pub trait Templatable {
+pub trait Template {
     /// Whether or not there are any pending [Field]s contained within this value.
     fn has_pending_fields(&self) -> bool;
 
@@ -33,8 +33,8 @@ pub trait Templatable {
     );
 
     /// Attempt to resolve all pending [Field]s when this type is a child of some parent
-    /// [Templatable], appending encountered errors to the `errs` vec provided. The provided `tail`
-    /// will be appended to `path` before calling through to [Templatable::try_resolve].
+    /// [Template], appending encountered errors to the `errs` vec provided. The provided `tail`
+    /// will be appended to `path` before calling through to [Template::try_resolve].
     fn try_resolve_nested(
         &mut self,
         path: &mut Vec<String>,
@@ -77,7 +77,7 @@ pub trait Templatable {
     }
 }
 
-/// A [Field] wraps some scalar type that implements [Templatable] in order to mark it as
+/// A [Field] wraps some scalar type that implements [Template] in order to mark it as
 /// requriring a templated value coming from user provided values as part of resolving the config
 /// file.
 ///
@@ -106,7 +106,7 @@ where
     }
 }
 
-impl<T> Templatable for Field<T>
+impl<T> Template for Field<T>
 where
     T: ValidField,
 {
@@ -447,7 +447,7 @@ mod tests {
         assert!(res.is_err(), "expected error, got {res:?}");
     }
 
-    // Test data structs for the templatable tests below
+    // Test data structs for the Template tests below
 
     #[derive(Debug, PartialEq, Deserialize)]
     struct T {
@@ -455,7 +455,7 @@ mod tests {
         bar: U,
     }
 
-    impl Templatable for T {
+    impl Template for T {
         fn has_pending_fields(&self) -> bool {
             self.foo.has_pending_fields() || self.bar.has_pending_fields()
         }
@@ -476,7 +476,7 @@ mod tests {
         baz: Field<u32>,
     }
 
-    impl Templatable for U {
+    impl Template for U {
         fn has_pending_fields(&self) -> bool {
             self.baz.has_pending_fields()
         }

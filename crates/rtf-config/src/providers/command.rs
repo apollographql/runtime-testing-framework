@@ -3,7 +3,7 @@ use crate::{
         Context,
         file::{IntoUtf8FileContent, NamedFileProvider},
     },
-    templating::{self, Field, Scalar, Templatable},
+    templating::{self, Field, Scalar, Template},
     validation::{self, duplicate_keys},
 };
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ pub struct CommandSection {
     pub file_providers: Vec<NamedFileProvider>,
 }
 
-impl Templatable for CommandSection {
+impl Template for CommandSection {
     fn has_pending_fields(&self) -> bool {
         self.env_vars.values().any(|f| f.has_pending_fields())
     }
