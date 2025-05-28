@@ -5,15 +5,26 @@ use serde::{
 };
 use std::{collections::HashMap, fmt, marker::PhantomData};
 
-/// Errors that can occur while attempting to resolve a [Field]
-#[derive(Debug, PartialEq, Eq, thiserror::Error, strum::AsRefStr)]
-pub enum Error {
-    #[error("the provided value did not deserialize correctly for {path}: {reason}")]
-    InvalidData { path: String, reason: String },
+/// User facing descriptions of the reason that templating a [Field] failed.
+///
+/// Paired with an additional message to form an [Error].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display, strum::EnumString)]
+pub enum ErrorKind {
+    #[strum(to_string = "invalid templating value")]
+    InvalidData,
 
-    #[error("{value:?} is not a known value")]
-    UnknownValue { value: String },
+    #[strum(to_string = "unknown templating value")]
+    UnknownValue,
 }
+
+// Type aliases for validation error handling.
+// Elsewhere in the codebase we should always refer to these aliases rather than parameterising the
+// generic types from the error module.
+
+pub type Error = crate::error::Error<ErrorKind>;
+pub type Errors = crate::error::Errors<ErrorKind>;
+pub type ErrorBuilder = crate::error::ErrorBuilder<ErrorKind>;
+pub type Result<T> = std::result::Result<T, Errors>;
 
 /// In order to support controlled templating of config files with [Scalar] values we make use of a
 /// wrapper [Field] type to identify where values need to be injected. A type that implements
@@ -29,8 +40,7 @@ pub trait Template {
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
-        errs: &mut Vec<Error>,
-    );
+    ) -> Result<()>;
 
     /// Attempt to resolve all pending [Field]s when this type is a child of some parent
     /// [Template], appending encountered errors to the `errs` vec provided. The provided `tail`
@@ -40,40 +50,32 @@ pub trait Template {
         path: &mut Vec<String>,
         tail: impl Into<String>,
         values: &HashMap<String, Scalar>,
-        errs: &mut Vec<Error>,
-    ) {
+    ) -> Result<()> {
         let mut path = path.clone();
         path.push(tail.into());
-        self.try_resolve(&mut path, values, errs);
+        self.try_resolve(&mut path, values)
     }
 
     /// Attempt to resolve all known [Field]s, reporting required values that are not present in
     /// the provided map. If there are any deserialization errors then then this method as an
     /// aggregate operation will fail.
-    fn try_resolve_known(
-        &mut self,
-        values: &HashMap<String, Scalar>,
-    ) -> Result<Vec<String>, Vec<Error>> {
-        let mut all_errs = Vec::new();
-        let mut path = Vec::new();
+    fn try_resolve_known(&mut self, values: &HashMap<String, Scalar>) -> Result<Vec<String>> {
+        let all_errs = match self.try_resolve(&mut Vec::new(), values) {
+            Ok(_) => return Ok(Vec::new()),
+            Err(errs) => errs,
+        };
 
-        self.try_resolve(&mut path, values, &mut all_errs);
-
+        let mut errs = ErrorBuilder::new();
         let mut missing = Vec::new();
-        let mut errs = Vec::new();
 
         for err in all_errs.into_iter() {
-            match err {
-                Error::UnknownValue { value } => missing.push(value),
-                err => errs.push(err),
+            match err.kind {
+                ErrorKind::UnknownValue => missing.push(err.message),
+                _ => errs.push_err(err),
             }
         }
 
-        if errs.is_empty() {
-            Ok(missing)
-        } else {
-            Err(errs)
-        }
+        errs.into_result(missing)
     }
 }
 
@@ -118,28 +120,26 @@ where
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
-        errs: &mut Vec<Error>,
-    ) {
+    ) -> Result<()> {
         if let Self::Pending(value) = self {
             match values.get(value) {
                 Some(raw) => match raw.clone().try_into() {
                     Ok(t) => *self = Self::Resolved(t),
-                    Err(reason) => errs.push(Error::InvalidData {
-                        path: path.join("."),
-                        reason,
-                    }),
+                    Err(reason) => return Err(Errors::new(ErrorKind::InvalidData, reason, path)),
                 },
-                None => errs.push(Error::UnknownValue {
-                    value: value.clone(),
-                }),
+                None => return Err(Errors::new(ErrorKind::UnknownValue, value.clone(), path)),
             }
         }
+
+        Ok(())
     }
 }
 
 // See the comments around FieldVisitor below for details of how this works
 impl<'de, T: ValidField> Deserialize<'de> for Field<T> {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Field<T>, D::Error> {
+    fn deserialize<D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Field<T>, D::Error> {
         deserializer.deserialize_any(FieldVisitor(PhantomData))
     }
 }
@@ -166,7 +166,7 @@ where
     /// the default handling for strings as with our other supported scalar types.
     /// If we detect a malformed template then we error _here_ rather treating it as a string and
     /// potentially leading to confusing runtime behaviour.
-    fn visit_str<E: de::Error>(self, value: &str) -> Result<Self::Value, E> {
+    fn visit_str<E: de::Error>(self, value: &str) -> std::result::Result<Self::Value, E> {
         let ident = match value.strip_prefix("{{ ") {
             Some(s) => s
                 .strip_suffix(" }}")
@@ -191,22 +191,22 @@ where
         }
     }
 
-    fn visit_bool<E: de::Error>(self, v: bool) -> Result<Self::Value, E> {
+    fn visit_bool<E: de::Error>(self, v: bool) -> std::result::Result<Self::Value, E> {
         Deserialize::deserialize(de::value::BoolDeserializer::new(v)).map(|t| Field::Resolved(t))
     }
 
     // The default impls for i8, i16 and i32 will forward to this
-    fn visit_i64<E: de::Error>(self, v: i64) -> Result<Self::Value, E> {
+    fn visit_i64<E: de::Error>(self, v: i64) -> std::result::Result<Self::Value, E> {
         Deserialize::deserialize(de::value::I64Deserializer::new(v)).map(|t| Field::Resolved(t))
     }
 
     // The default impls for u8, u16 and u32 will forward to this
-    fn visit_u64<E: de::Error>(self, v: u64) -> Result<Self::Value, E> {
+    fn visit_u64<E: de::Error>(self, v: u64) -> std::result::Result<Self::Value, E> {
         Deserialize::deserialize(de::value::U64Deserializer::new(v)).map(|t| Field::Resolved(t))
     }
 
     // The default impl for f32 will forward to this
-    fn visit_f64<E: de::Error>(self, v: f64) -> Result<Self::Value, E> {
+    fn visit_f64<E: de::Error>(self, v: f64) -> std::result::Result<Self::Value, E> {
         Deserialize::deserialize(de::value::F64Deserializer::new(v)).map(|t| Field::Resolved(t))
     }
 }
@@ -256,7 +256,7 @@ impl ValidField for bool {}
 impl TryFrom<Scalar> for bool {
     type Error = String;
 
-    fn try_from(value: Scalar) -> Result<Self, Self::Error> {
+    fn try_from(value: Scalar) -> std::result::Result<Self, Self::Error> {
         match value {
             Scalar::Bool(v) => Ok(v),
             value => Err(format!("invalid value `{value}`, expected bool")),
@@ -268,7 +268,7 @@ impl ValidField for String {}
 impl TryFrom<Scalar> for String {
     type Error = String;
 
-    fn try_from(value: Scalar) -> Result<Self, Self::Error> {
+    fn try_from(value: Scalar) -> std::result::Result<Self, Self::Error> {
         match value {
             Scalar::String(v) => Ok(v),
             value => Err(format!("invalid value `{value}`, expected String")),
@@ -280,7 +280,7 @@ impl ValidField for f64 {}
 impl TryFrom<Scalar> for f64 {
     type Error = String;
 
-    fn try_from(value: Scalar) -> Result<Self, Self::Error> {
+    fn try_from(value: Scalar) -> std::result::Result<Self, Self::Error> {
         let maybe_float = match &value {
             Scalar::Number(Number(v)) => v.as_f64(),
             _ => None,
@@ -306,7 +306,7 @@ macro_rules! impl_integer_scalars {
             impl TryFrom<Scalar> for $ty {
                 type Error = String;
 
-                fn try_from(value: Scalar) -> Result<Self, Self::Error> {
+                fn try_from(value: Scalar) -> std::result::Result<Self, Self::Error> {
                     let maybe_t = match &value {
                         Scalar::Number(Number(v)) => v.$as_method().map(|n| n as $ty),
                         _ => None
@@ -346,7 +346,7 @@ mod tests {
     impl TryFrom<f64> for Scalar {
         type Error = &'static str;
 
-        fn try_from(value: f64) -> Result<Self, &'static str> {
+        fn try_from(value: f64) -> std::result::Result<Self, &'static str> {
             Ok(Scalar::Number(Number(
                 serde_json::Number::from_f64(value)
                     .ok_or("NaN and infinite floats are not supported")?,
@@ -464,10 +464,16 @@ mod tests {
             &mut self,
             path: &mut Vec<String>,
             values: &HashMap<String, Scalar>,
-            errs: &mut Vec<Error>,
-        ) {
-            self.foo.try_resolve_nested(path, "foo", values, errs);
-            self.bar.try_resolve_nested(path, "bar", values, errs);
+        ) -> Result<()> {
+            let mut errs = ErrorBuilder::new();
+            if let Err(e) = self.foo.try_resolve_nested(path, "foo", values) {
+                errs.extend(e);
+            };
+            if let Err(e) = self.bar.try_resolve_nested(path, "bar", values) {
+                errs.extend(e);
+            };
+
+            errs.into_result(())
         }
     }
 
@@ -485,9 +491,8 @@ mod tests {
             &mut self,
             path: &mut Vec<String>,
             values: &HashMap<String, Scalar>,
-            errs: &mut Vec<Error>,
-        ) {
-            self.baz.try_resolve_nested(path, "baz", values, errs);
+        ) -> Result<()> {
+            self.baz.try_resolve_nested(path, "baz", values)
         }
     }
 
@@ -506,10 +511,9 @@ bar:
         let mut t: T = serde_yaml::from_str(RESOLVE_NO_PENDING).unwrap();
         assert!(!t.has_pending_fields(), "shouldn't have any pending fields");
 
-        let mut errs = Vec::new();
-        t.try_resolve(&mut Vec::new(), &values_map!(), &mut errs);
+        let res = t.try_resolve(&mut Vec::new(), &values_map!());
 
-        assert!(errs.is_empty(), "expected no errors, got {errs:?}");
+        assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert_eq!(
             t,
             T {
@@ -526,14 +530,13 @@ bar:
         let mut t: T = serde_yaml::from_str(RESOLVE_ALL_PENDING).unwrap();
         assert!(t.has_pending_fields(), "should have pending fields");
 
-        let mut errs = Vec::new();
         let vals = values_map!(
             "value_A" => true,
             "value_B" => 17
         );
-        t.try_resolve(&mut Vec::new(), &vals, &mut errs);
+        let res = t.try_resolve(&mut Vec::new(), &vals);
 
-        assert!(errs.is_empty(), "expected no errors, got {errs:?}");
+        assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert_eq!(
             t,
             T {
@@ -603,12 +606,13 @@ bar:
 
         assert!(res.is_err(), "expected errors, got {res:?}");
 
-        let err = res.unwrap_err().remove(0);
+        let err = res.unwrap_err().into_vec().remove(0);
         assert_eq!(
             err,
-            Error::InvalidData {
+            Error {
+                kind: ErrorKind::InvalidData,
                 path: "bar.baz".to_string(),
-                reason: "invalid value `1.23`, expected u32".to_string()
+                message: "invalid value `1.23`, expected u32".to_string()
             }
         );
 

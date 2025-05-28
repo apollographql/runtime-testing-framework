@@ -2,7 +2,7 @@
 use crate::{
     providers::{Context, Result},
     templating::{self, Field, Scalar, Template},
-    validation,
+    validation::{self, Validate},
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
@@ -16,12 +16,8 @@ use std::{
 ///
 /// This trait is deliberately pub(crate) rather than pub so that the validation and resolution
 /// logic is only exposed through the public API as part of the methods on the config file structs.
-#[allow(async_fn_in_trait)]
-pub(crate) trait IntoUtf8FileContent: DeserializeOwned + fmt::Debug {
-    /// Run any initial static validation available to error early if this provider contains
-    /// invalid data.
-    fn validate(&self, ctx: &Context) -> validation::Result<()>;
-
+#[allow(async_fn_in_trait, dead_code)]
+pub(crate) trait IntoUtf8FileContent: Validate + DeserializeOwned + fmt::Debug {
     /// Attempt to run this file provider and convert it into the required file content.
     async fn try_into_file_content(self, ctx: &Context) -> Result<String>;
 }
@@ -48,10 +44,8 @@ impl DerefMut for NamedFileProvider {
     }
 }
 
-// TO DO - RR-50 will use this method in the environment config. Remove
-// the dead_code annotation once this is used
-#[allow(dead_code)]
 impl NamedFileProvider {
+    #[allow(dead_code)]
     pub(crate) async fn try_into_file_name_and_content(
         self,
         ctx: &Context,
@@ -91,10 +85,6 @@ macro_rules! delegate_to_inner {
 }
 
 impl IntoUtf8FileContent for FileProvider {
-    fn validate(&self, ctx: &Context) -> validation::Result<()> {
-        delegate_to_inner!(self, validate, ctx)
-    }
-
     async fn try_into_file_content(self, ctx: &Context) -> Result<String> {
         delegate_to_inner!(@async self, try_into_file_content, ctx)
     }
@@ -109,9 +99,14 @@ impl Template for FileProvider {
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
-        errs: &mut Vec<templating::Error>,
-    ) {
-        delegate_to_inner!(self, try_resolve, path, values, errs)
+    ) -> templating::Result<()> {
+        delegate_to_inner!(self, try_resolve, path, values)
+    }
+}
+
+impl Validate for FileProvider {
+    fn try_validate(&self, path: &mut Vec<String>, ctx: &Context) -> validation::Result<()> {
+        delegate_to_inner!(self, try_validate, path, ctx)
     }
 }
 
@@ -123,10 +118,6 @@ pub struct InlineFile {
 }
 
 impl IntoUtf8FileContent for InlineFile {
-    fn validate(&self, _ctx: &Context) -> validation::Result<()> {
-        Ok(())
-    }
-
     async fn try_into_file_content(self, _ctx: &Context) -> Result<String> {
         Ok(self.content)
     }
@@ -141,10 +132,16 @@ impl Template for InlineFile {
         &mut self,
         _path: &mut Vec<String>,
         _values: &HashMap<String, Scalar>,
-        _errs: &mut Vec<templating::Error>,
-    ) {
+    ) -> templating::Result<()> {
         // no-op as we never have anything to resolve but need to satisfy the trait so that
         // FileProviders can be resolved as a batch operation
+        Ok(())
+    }
+}
+
+impl Validate for InlineFile {
+    fn try_validate(&self, _path: &mut Vec<String>, _ctx: &Context) -> validation::Result<()> {
+        Ok(())
     }
 }
 
@@ -170,15 +167,24 @@ impl Template for LocalFile {
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
-        errs: &mut Vec<templating::Error>,
-    ) {
-        self.relative_path
-            .try_resolve_nested(path, "relative_path", values, errs);
+    ) -> templating::Result<()> {
+        self.relative_path.try_resolve(path, values)
     }
 }
 
 impl IntoUtf8FileContent for LocalFile {
-    fn validate(&self, ctx: &Context) -> validation::Result<()> {
+    async fn try_into_file_content(self, ctx: &Context) -> Result<String> {
+        let p = ctx
+            .config_dir
+            .join(self.relative_path.as_resolved())
+            .canonicalize()?;
+
+        Ok(fs::read_to_string(p)?)
+    }
+}
+
+impl Validate for LocalFile {
+    fn try_validate(&self, path: &mut Vec<String>, ctx: &Context) -> validation::Result<()> {
         let p = ctx.config_dir.join(self.relative_path.as_resolved());
         let p = match p.canonicalize() {
             Ok(p) => p,
@@ -189,7 +195,11 @@ impl IntoUtf8FileContent for LocalFile {
                     validation::ErrorKind::InvalidRelativePath
                 };
 
-                return Err(validation::Errors::new(kind, self.format_error_message()));
+                return Err(validation::Errors::new(
+                    kind,
+                    self.format_error_message(),
+                    path,
+                ));
             }
         };
 
@@ -197,26 +207,18 @@ impl IntoUtf8FileContent for LocalFile {
             return Err(validation::Errors::new(
                 validation::ErrorKind::FileNotFound,
                 self.format_error_message(),
+                path,
             ));
         }
         if !p.is_file() {
             return Err(validation::Errors::new(
                 validation::ErrorKind::IsADirectory,
                 self.format_error_message(),
+                path,
             ));
         }
 
         Ok(())
-    }
-
-    // TO DO: Can we get reading a file to come from the Context?
-    async fn try_into_file_content(self, ctx: &Context) -> Result<String> {
-        let p = ctx
-            .config_dir
-            .join(self.relative_path.as_resolved())
-            .canonicalize()?;
-
-        Ok(fs::read_to_string(p)?)
     }
 }
 
@@ -237,25 +239,28 @@ impl Template for RequiredFile {
         &mut self,
         _path: &mut Vec<String>,
         _values: &HashMap<String, Scalar>,
-        _errs: &mut Vec<templating::Error>,
-    ) {
+    ) -> templating::Result<()> {
         // no-op as we never have anything to resolve but need to satisfy the trait so that
         // FileProviders can be resolved as a batch operation
+        Ok(())
     }
 }
 
 impl IntoUtf8FileContent for RequiredFile {
-    fn validate(&self, _ctx: &Context) -> validation::Result<()> {
-        Err(validation::Errors::new(
-            validation::ErrorKind::RequiredFileMissing,
-            &self.message,
-        ))
-    }
-
     async fn try_into_file_content(self, _ctx: &Context) -> Result<String> {
         panic!(
             "Should not be able to get here. Required file should result in an error when validated."
         )
+    }
+}
+
+impl Validate for RequiredFile {
+    fn try_validate(&self, path: &mut Vec<String>, _ctx: &Context) -> validation::Result<()> {
+        Err(validation::Errors::new(
+            validation::ErrorKind::RequiredFileMissing,
+            &self.message,
+            path,
+        ))
     }
 }
 
@@ -264,7 +269,7 @@ mod tests {
     use super::*;
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
-    use std::{convert::AsRef, path::PathBuf};
+    use std::path::PathBuf;
 
     /// Load a txtar [Archive] from the given file content and print the top level comment if there
     /// is one before returning it.
@@ -306,7 +311,7 @@ mod tests {
                 .unwrap(),
         );
 
-        let res = provider.validate(&ctx);
+        let res = provider.try_validate(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected to validate but got: {res:?}");
 
         let res = provider.try_into_file_content(&ctx).await;
@@ -340,7 +345,7 @@ mod tests {
                 .canonicalize()
                 .unwrap(),
         );
-        let res = provider.validate(&ctx);
+        let res = provider.try_validate(&mut Vec::new(), &ctx);
 
         assert!(res.is_err(), "expected validation failures");
         let errs = res.unwrap_err();
@@ -350,7 +355,7 @@ mod tests {
         // is modified, we only assert on the Kind of each error, not the full message.
         let mut err_kinds = Vec::new();
         for err in errs.iter() {
-            err_kinds.push(format!("{:?}", err.kind()));
+            err_kinds.push(format!("{:?}", err.kind));
         }
         let concatenated_errs = err_kinds.join("\n");
 
@@ -374,10 +379,9 @@ mod tests {
 
         assert!(provider.has_pending_fields(), "fields should be pending");
 
-        let mut errs = Vec::new();
-        provider.try_resolve(&mut Vec::new(), &values, &mut errs);
+        let res = provider.try_resolve(&mut Vec::new(), &values);
 
-        assert!(errs.is_empty(), "expected no errors, got {errs:?}");
+        assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(!provider.has_pending_fields(), "fields should be resolved");
         assert_eq!(provider, expected);
     }
@@ -395,15 +399,15 @@ mod tests {
 
         assert!(provider.has_pending_fields(), "fields should be pending");
 
-        let mut errs = Vec::new();
-        provider.try_resolve(&mut Vec::new(), &values, &mut errs);
+        let res = provider.try_resolve(&mut Vec::new(), &values);
 
         assert!(
             provider.has_pending_fields(),
             "fields should still be pending"
         );
 
-        let str_errs: Vec<&str> = errs.iter().map(|e| e.as_ref()).collect();
+        let errs = res.unwrap_err().into_vec();
+        let str_errs: Vec<String> = errs.iter().map(|e| format!("{:?}", e.kind)).collect();
 
         assert_eq!(str_errs.join("\n"), expected.trim());
     }
@@ -425,7 +429,7 @@ mod tests {
                 .canonicalize()
                 .unwrap(),
         );
-        let _ = provider.validate(&ctx);
+        let _ = provider.try_validate(&mut Vec::new(), &ctx);
         let res = provider.try_into_file_content(&ctx).await;
 
         assert!(res.is_err(), "expected resolution failures, got {res:?}");

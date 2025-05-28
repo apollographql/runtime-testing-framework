@@ -2,8 +2,8 @@ use crate::{
     ValueDefinition,
     formats::{Result, filter_values},
     providers::{Context, command::CommandSection},
-    templating::Template,
-    validation,
+    templating::{self, Template},
+    validation::{self, Validate},
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, path::Path};
@@ -27,16 +27,6 @@ impl ScenarioConfig {
 
         Ok(serde_yaml::from_str(&content)?)
     }
-
-    pub fn validate(&self, ctx: &Context) -> validation::Result<()> {
-        let mut errs = validation::ErrorBuilder::new();
-
-        if let Err(e) = self.command.validate(ctx) {
-            errs.extend_with_prefix(e, format!("command {:?}:", self.command.command));
-        }
-
-        errs.into_result(())
-    }
 }
 
 impl Template for ScenarioConfig {
@@ -48,13 +38,18 @@ impl Template for ScenarioConfig {
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, crate::templating::Scalar>,
-        errs: &mut Vec<crate::templating::Error>,
-    ) {
+    ) -> templating::Result<()> {
         let definitions = self.values.iter();
         let allowed_values = filter_values(values, definitions);
 
         self.command
-            .try_resolve_nested(path, "command_section", &allowed_values, errs);
+            .try_resolve_nested(path, "command_section", &allowed_values)
+    }
+}
+
+impl Validate for ScenarioConfig {
+    fn try_validate(&self, path: &mut Vec<String>, ctx: &Context) -> validation::Result<()> {
+        self.command.try_validate_nested(path, "command", ctx)
     }
 }
 
@@ -105,7 +100,7 @@ mod tests {
                 .unwrap(),
         );
 
-        let res = scenario.validate(&ctx);
+        let res = scenario.try_validate(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected to validate but got: {res:?}");
     }
 
@@ -126,7 +121,7 @@ mod tests {
         );
 
         let scenario_config = res.unwrap();
-        let res = scenario_config.validate(&ctx);
+        let res = scenario_config.try_validate(&mut Vec::new(), &ctx);
 
         assert!(res.is_err(), "expected validation failures");
         let errs = res.unwrap_err();
@@ -136,7 +131,7 @@ mod tests {
         // is modified, we only assert on the Kind of each error, not the full message.
         let mut err_kinds = Vec::new();
         for err in errs.iter() {
-            err_kinds.push(format!("{:?}", err.kind()));
+            err_kinds.push(format!("{:?}", err.kind));
         }
         let concatenated_errs = err_kinds.join("\n");
 
@@ -173,10 +168,9 @@ mod tests {
             "fields should be pending"
         );
 
-        let mut errs = Vec::new();
-        scenario_config.try_resolve(&mut Vec::new(), &values, &mut errs);
+        let res = scenario_config.try_resolve(&mut Vec::new(), &values);
 
-        assert!(errs.is_empty(), "expected no errors, got {errs:?}");
+        assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
             !scenario_config.has_pending_fields(),
             "fields should be resolved"
@@ -200,15 +194,15 @@ mod tests {
             "fields should be pending"
         );
 
-        let mut errs = Vec::new();
-        scenario_config.try_resolve(&mut Vec::new(), &values, &mut errs);
+        let res = scenario_config.try_resolve(&mut Vec::new(), &values);
 
         assert!(
             scenario_config.has_pending_fields(),
             "fields should still be pending"
         );
 
-        let str_errs: Vec<&str> = errs.iter().map(|e| e.as_ref()).collect();
+        let errs = res.unwrap_err().into_vec();
+        let str_errs: Vec<String> = errs.iter().map(|e| format!("{:?}", e.kind)).collect();
 
         assert_eq!(str_errs.join("\n"), expected.trim());
     }

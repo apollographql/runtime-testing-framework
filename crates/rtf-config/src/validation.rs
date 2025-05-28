@@ -1,9 +1,57 @@
 //! Helpers for validating config files
+use crate::providers::Context;
 use std::collections::HashSet;
 
-pub mod error;
+/// User facing descriptions of the reason that validation failed.
+///
+/// Paired with an additional message to form an [Error].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display, strum::EnumString)]
+pub enum ErrorKind {
+    #[strum(to_string = "non-unique environment variables found.")]
+    DuplicateEnvironmentVariables,
 
-pub use error::{Error, ErrorBuilder, ErrorKind, Errors, Result};
+    #[strum(to_string = "non-unique value names found.")]
+    DuplicateValueNames,
+
+    #[strum(to_string = "the requested file did not exist.")]
+    FileNotFound,
+
+    #[strum(to_string = "the given relative path was not a valid path.")]
+    InvalidRelativePath,
+
+    #[strum(to_string = "a directory was provided when a file was expected.")]
+    IsADirectory,
+
+    #[strum(to_string = "a required file has not been defined.")]
+    RequiredFileMissing,
+}
+
+// Type aliases for validation error handling.
+// Elsewhere in the codebase we should always refer to these aliases rather than parameterising the
+// generic types from the error module.
+
+pub type Error = crate::error::Error<ErrorKind>;
+pub type Errors = crate::error::Errors<ErrorKind>;
+pub type ErrorBuilder = crate::error::ErrorBuilder<ErrorKind>;
+pub type Result<T> = std::result::Result<T, Errors>;
+
+pub trait Validate {
+    /// Run any initial static validation available to error early if this provider contains
+    /// invalid data.
+    fn try_validate(&self, path: &mut Vec<String>, ctx: &Context) -> Result<()>;
+
+    fn try_validate_nested(
+        &self,
+        path: &mut Vec<String>,
+        tail: impl Into<String>,
+        ctx: &Context,
+    ) -> Result<()> {
+        let mut path = path.clone();
+        path.push(tail.into());
+
+        self.try_validate(&mut path, ctx)
+    }
+}
 
 /// Determine if there are any duplicates within a given slices of elements using a given key
 /// function.
