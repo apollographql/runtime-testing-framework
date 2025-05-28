@@ -89,7 +89,7 @@ impl Validate for EnvironmentConfig {
             errs.push(
                 validation::ErrorKind::DuplicateValueNames,
                 duplicates.join("\n"),
-                &path,
+                path,
             );
         }
 
