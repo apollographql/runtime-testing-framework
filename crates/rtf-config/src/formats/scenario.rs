@@ -120,13 +120,13 @@ mod tests {
         assert!(res.is_ok(), "{res:?}");
 
         let ctx = Context::new(
-            PathBuf::from("resources/config-tests/environment/validation-failures")
+            PathBuf::from("resources/config-tests/scenario/validation-failures")
                 .canonicalize()
                 .unwrap(),
         );
 
-        let env_config = res.unwrap();
-        let res = env_config.validate(&ctx);
+        let scenario_config = res.unwrap();
+        let res = scenario_config.validate(&ctx);
 
         assert!(res.is_err(), "expected validation failures");
         let errs = res.unwrap_err();
@@ -164,21 +164,24 @@ mod tests {
         let raw_values = get_file(&arr, "values");
         let raw_expected = get_file(&arr, "after-templating");
 
-        let mut env_config: ScenarioConfig = serde_yaml::from_str(config).unwrap();
+        let mut scenario_config: ScenarioConfig = serde_yaml::from_str(config).unwrap();
         let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
         let expected: ScenarioConfig = serde_yaml::from_str(raw_expected).unwrap();
 
-        assert!(env_config.has_pending_fields(), "fields should be pending");
+        assert!(
+            scenario_config.has_pending_fields(),
+            "fields should be pending"
+        );
 
         let mut errs = Vec::new();
-        env_config.try_resolve(&mut Vec::new(), &values, &mut errs);
+        scenario_config.try_resolve(&mut Vec::new(), &values, &mut errs);
 
         assert!(errs.is_empty(), "expected no errors, got {errs:?}");
         assert!(
-            !env_config.has_pending_fields(),
+            !scenario_config.has_pending_fields(),
             "fields should be resolved"
         );
-        assert_eq!(env_config, expected);
+        assert_eq!(scenario_config, expected);
     }
 
     #[dir_cases("crates/rtf-config/resources/config-tests/scenario/invalid-templates")]
@@ -189,16 +192,19 @@ mod tests {
         let raw_values = get_file(&arr, "values");
         let expected = get_file(&arr, "templating-errors");
 
-        let mut env_config: ScenarioConfig = serde_yaml::from_str(config).unwrap();
+        let mut scenario_config: ScenarioConfig = serde_yaml::from_str(config).unwrap();
         let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
 
-        assert!(env_config.has_pending_fields(), "fields should be pending");
+        assert!(
+            scenario_config.has_pending_fields(),
+            "fields should be pending"
+        );
 
         let mut errs = Vec::new();
-        env_config.try_resolve(&mut Vec::new(), &values, &mut errs);
+        scenario_config.try_resolve(&mut Vec::new(), &values, &mut errs);
 
         assert!(
-            env_config.has_pending_fields(),
+            scenario_config.has_pending_fields(),
             "fields should still be pending"
         );
 
