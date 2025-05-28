@@ -19,7 +19,7 @@ pub enum Error {
 /// wrapper [Field] type to identify where values need to be injected. A type that implements
 /// [Templatable] supports walking its contents to locate and resolve fields using a provided map
 /// of scalar values.
-pub trait Templatable {
+pub trait Template {
     /// Whether or not there are any pending [Field]s contained within this value.
     fn has_pending_fields(&self) -> bool;
 
@@ -106,7 +106,7 @@ where
     }
 }
 
-impl<T> Templatable for Field<T>
+impl<T> Template for Field<T>
 where
     T: ValidField,
 {
@@ -455,7 +455,7 @@ mod tests {
         bar: U,
     }
 
-    impl Templatable for T {
+    impl Template for T {
         fn has_pending_fields(&self) -> bool {
             self.foo.has_pending_fields() || self.bar.has_pending_fields()
         }
@@ -476,7 +476,7 @@ mod tests {
         baz: Field<u32>,
     }
 
-    impl Templatable for U {
+    impl Template for U {
         fn has_pending_fields(&self) -> bool {
             self.baz.has_pending_fields()
         }

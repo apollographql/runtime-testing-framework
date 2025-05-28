@@ -2,7 +2,7 @@ use crate::{
     ValueDefinition,
     formats::{Result, filter_values},
     providers::{Context, command::CommandSection},
-    templating::Templatable,
+    templating::Template,
     validation,
 };
 use serde::{Deserialize, Serialize};
@@ -39,7 +39,7 @@ impl ScenarioConfig {
     }
 }
 
-impl Templatable for ScenarioConfig {
+impl Template for ScenarioConfig {
     fn has_pending_fields(&self) -> bool {
         self.command.has_pending_fields()
     }

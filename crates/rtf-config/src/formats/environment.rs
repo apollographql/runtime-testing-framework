@@ -3,7 +3,7 @@ use crate::{
     ValueDefinition,
     formats::{Result, filter_values},
     providers::{Context, command::CommandSection},
-    templating::{self, Scalar, Templatable},
+    templating::{self, Scalar, Template},
     validation::{self, duplicate_keys},
 };
 use serde::{Deserialize, Serialize};
@@ -87,7 +87,7 @@ impl EnvironmentConfig {
     }
 }
 
-impl Templatable for EnvironmentConfig {
+impl Template for EnvironmentConfig {
     fn has_pending_fields(&self) -> bool {
         self.setup.command.has_pending_fields() || self.teardown.has_pending_fields()
     }

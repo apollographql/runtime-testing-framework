@@ -1,7 +1,7 @@
 //! The core [FileProvider] trait and currently supported file provider implementations.
 use crate::{
     providers::{Context, Result},
-    templating::{self, Field, Scalar, Templatable},
+    templating::{self, Field, Scalar, Template},
     validation,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -100,7 +100,7 @@ impl IntoUtf8FileContent for FileProvider {
     }
 }
 
-impl Templatable for FileProvider {
+impl Template for FileProvider {
     fn has_pending_fields(&self) -> bool {
         delegate_to_inner!(self, has_pending_fields)
     }
@@ -132,7 +132,7 @@ impl IntoUtf8FileContent for InlineFile {
     }
 }
 
-impl Templatable for InlineFile {
+impl Template for InlineFile {
     fn has_pending_fields(&self) -> bool {
         false
     }
@@ -161,7 +161,7 @@ impl LocalFile {
     }
 }
 
-impl Templatable for LocalFile {
+impl Template for LocalFile {
     fn has_pending_fields(&self) -> bool {
         self.relative_path.has_pending_fields()
     }
@@ -228,7 +228,7 @@ pub struct RequiredFile {
     message: String,
 }
 
-impl Templatable for RequiredFile {
+impl Template for RequiredFile {
     fn has_pending_fields(&self) -> bool {
         false
     }
