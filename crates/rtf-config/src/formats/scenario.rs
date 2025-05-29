@@ -1,7 +1,8 @@
 use crate::{
     ValueDefinition,
+    context::ResolutionContext,
     formats::{Result, filter_values},
-    providers::{Context, command::CommandSection},
+    providers::command::CommandSection,
     templating::{self, Template},
     validation::{self, Validate},
 };
@@ -48,7 +49,11 @@ impl Template for ScenarioConfig {
 }
 
 impl Validate for ScenarioConfig {
-    fn try_validate(&self, path: &mut Vec<String>, ctx: &Context) -> validation::Result<()> {
+    fn try_validate(
+        &self,
+        path: &mut Vec<String>,
+        ctx: &impl ResolutionContext,
+    ) -> validation::Result<()> {
         self.command.try_validate_nested(path, "command", ctx)
     }
 }
@@ -56,7 +61,7 @@ impl Validate for ScenarioConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::templating::Scalar;
+    use crate::{context::Context, templating::Scalar};
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
     use std::path::PathBuf;

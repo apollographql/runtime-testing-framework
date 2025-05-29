@@ -1,13 +1,14 @@
 //! The core [FileProvider] trait and currently supported file provider implementations.
 use crate::{
-    providers::{Context, Result},
+    context::ResolutionContext,
+    providers::Result,
     templating::{self, Field, Scalar, Template},
     validation::{self, Validate},
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::HashMap,
-    fmt, fs, io,
+    fmt, io,
     ops::{Deref, DerefMut},
 };
 
@@ -19,7 +20,7 @@ use std::{
 #[allow(async_fn_in_trait, dead_code)]
 pub(crate) trait IntoUtf8FileContent: Validate + DeserializeOwned + fmt::Debug {
     /// Attempt to run this file provider and convert it into the required file content.
-    async fn try_into_file_content(self, ctx: &Context) -> Result<String>;
+    async fn try_into_file_content(self, ctx: &impl ResolutionContext) -> Result<String>;
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -48,7 +49,7 @@ impl NamedFileProvider {
     #[allow(dead_code)]
     pub(crate) async fn try_into_file_name_and_content(
         self,
-        ctx: &Context,
+        ctx: &impl ResolutionContext,
     ) -> (String, Result<String>) {
         let res = self.provider.try_into_file_content(ctx).await;
 
@@ -85,7 +86,7 @@ macro_rules! delegate_to_inner {
 }
 
 impl IntoUtf8FileContent for FileProvider {
-    async fn try_into_file_content(self, ctx: &Context) -> Result<String> {
+    async fn try_into_file_content(self, ctx: &impl ResolutionContext) -> Result<String> {
         delegate_to_inner!(@async self, try_into_file_content, ctx)
     }
 }
@@ -105,7 +106,11 @@ impl Template for FileProvider {
 }
 
 impl Validate for FileProvider {
-    fn try_validate(&self, path: &mut Vec<String>, ctx: &Context) -> validation::Result<()> {
+    fn try_validate(
+        &self,
+        path: &mut Vec<String>,
+        ctx: &impl ResolutionContext,
+    ) -> validation::Result<()> {
         delegate_to_inner!(self, try_validate, path, ctx)
     }
 }
@@ -118,7 +123,7 @@ pub struct InlineFile {
 }
 
 impl IntoUtf8FileContent for InlineFile {
-    async fn try_into_file_content(self, _ctx: &Context) -> Result<String> {
+    async fn try_into_file_content(self, _ctx: &impl ResolutionContext) -> Result<String> {
         Ok(self.content)
     }
 }
@@ -140,7 +145,11 @@ impl Template for InlineFile {
 }
 
 impl Validate for InlineFile {
-    fn try_validate(&self, _path: &mut Vec<String>, _ctx: &Context) -> validation::Result<()> {
+    fn try_validate(
+        &self,
+        _path: &mut Vec<String>,
+        _ctx: &impl ResolutionContext,
+    ) -> validation::Result<()> {
         Ok(())
     }
 }
@@ -173,20 +182,22 @@ impl Template for LocalFile {
 }
 
 impl IntoUtf8FileContent for LocalFile {
-    async fn try_into_file_content(self, ctx: &Context) -> Result<String> {
-        let p = ctx
-            .config_dir
-            .join(self.relative_path.as_resolved())
-            .canonicalize()?;
+    async fn try_into_file_content(self, ctx: &impl ResolutionContext) -> Result<String> {
+        let p = ctx.resolve_path(self.relative_path.as_resolved())?;
 
-        Ok(fs::read_to_string(p)?)
+        Ok(ctx.read_path_to_string(p)?)
     }
 }
 
 impl Validate for LocalFile {
-    fn try_validate(&self, path: &mut Vec<String>, ctx: &Context) -> validation::Result<()> {
-        let p = ctx.config_dir.join(self.relative_path.as_resolved());
-        let p = match p.canonicalize() {
+    fn try_validate(
+        &self,
+        path: &mut Vec<String>,
+        ctx: &impl ResolutionContext,
+    ) -> validation::Result<()> {
+        let res = ctx.resolve_path(self.relative_path.as_resolved());
+
+        let p = match res {
             Ok(p) => p,
             Err(e) => {
                 let kind = if e.kind() == io::ErrorKind::NotFound {
@@ -203,14 +214,14 @@ impl Validate for LocalFile {
             }
         };
 
-        if !p.exists() {
+        if !ctx.path_exists(&p) {
             return Err(validation::Errors::new(
                 validation::ErrorKind::FileNotFound,
                 self.format_error_message(),
                 path,
             ));
         }
-        if !p.is_file() {
+        if !ctx.path_is_file(&p) {
             return Err(validation::Errors::new(
                 validation::ErrorKind::IsADirectory,
                 self.format_error_message(),
@@ -247,7 +258,7 @@ impl Template for RequiredFile {
 }
 
 impl IntoUtf8FileContent for RequiredFile {
-    async fn try_into_file_content(self, _ctx: &Context) -> Result<String> {
+    async fn try_into_file_content(self, _ctx: &impl ResolutionContext) -> Result<String> {
         panic!(
             "Should not be able to get here. Required file should result in an error when validated."
         )
@@ -255,7 +266,11 @@ impl IntoUtf8FileContent for RequiredFile {
 }
 
 impl Validate for RequiredFile {
-    fn try_validate(&self, path: &mut Vec<String>, _ctx: &Context) -> validation::Result<()> {
+    fn try_validate(
+        &self,
+        path: &mut Vec<String>,
+        _ctx: &impl ResolutionContext,
+    ) -> validation::Result<()> {
         Err(validation::Errors::new(
             validation::ErrorKind::RequiredFileMissing,
             &self.message,
@@ -267,6 +282,7 @@ impl Validate for RequiredFile {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::context::Context;
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
     use std::path::PathBuf;

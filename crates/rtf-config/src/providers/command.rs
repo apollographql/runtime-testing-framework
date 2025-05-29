@@ -1,5 +1,6 @@
 use crate::{
-    providers::{Context, file::NamedFileProvider},
+    context::ResolutionContext,
+    providers::file::NamedFileProvider,
     templating::{self, Field, Scalar, Template},
     validation::{self, Validate, duplicate_keys},
 };
@@ -50,7 +51,11 @@ impl Template for CommandSection {
 }
 
 impl Validate for CommandSection {
-    fn try_validate(&self, path: &mut Vec<String>, ctx: &Context) -> validation::Result<()> {
+    fn try_validate(
+        &self,
+        path: &mut Vec<String>,
+        ctx: &impl ResolutionContext,
+    ) -> validation::Result<()> {
         let mut errs = validation::ErrorBuilder::new();
 
         for nfp in self.file_providers.iter() {
@@ -83,6 +88,7 @@ impl Validate for CommandSection {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::context::Context;
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
     use std::path::PathBuf;
