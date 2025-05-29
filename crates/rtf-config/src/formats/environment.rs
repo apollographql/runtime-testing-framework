@@ -1,8 +1,9 @@
 //! Parsing of the environment provisioner config file format
 use crate::{
     ValueDefinition,
+    context::ResolutionContext,
     formats::{Result, filter_values},
-    providers::{Context, command::CommandSection},
+    providers::command::CommandSection,
     templating::{self, Scalar, Template},
     validation::{self, Validate, duplicate_keys},
 };
@@ -83,7 +84,11 @@ impl Template for EnvironmentConfig {
 }
 
 impl Validate for EnvironmentConfig {
-    fn try_validate(&self, path: &mut Vec<String>, ctx: &Context) -> validation::Result<()> {
+    fn try_validate(
+        &self,
+        path: &mut Vec<String>,
+        ctx: &impl ResolutionContext,
+    ) -> validation::Result<()> {
         let mut errs = validation::ErrorBuilder::new();
 
         // Check that hard coded values and the ones coming from setup.provides are unique
@@ -122,6 +127,7 @@ pub struct SetupSection {
 mod tests {
     use super::*;
     use crate::{
+        context::Context,
         providers::file::{FileProvider, LocalFile, NamedFileProvider},
         templating::Field,
     };

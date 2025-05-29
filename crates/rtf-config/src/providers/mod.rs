@@ -1,5 +1,5 @@
 //! Providers are how we expose the rest of the framework to user facing config.
-use std::{io, path::PathBuf};
+use std::io;
 
 pub mod command;
 pub mod file;
@@ -12,17 +12,3 @@ pub enum Error {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
-
-/// Execution context for running providers
-#[derive(Debug)]
-pub struct Context {
-    pub(crate) config_dir: PathBuf,
-}
-
-impl Context {
-    pub fn new(config_dir: impl Into<PathBuf>) -> Self {
-        Self {
-            config_dir: config_dir.into(),
-        }
-    }
-}

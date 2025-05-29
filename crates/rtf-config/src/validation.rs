@@ -1,5 +1,5 @@
 //! Helpers for validating config files
-use crate::providers::Context;
+use crate::context::ResolutionContext;
 use std::collections::HashSet;
 
 /// User facing descriptions of the reason that validation failed.
@@ -38,13 +38,13 @@ pub type Result<T> = std::result::Result<T, Errors>;
 pub trait Validate {
     /// Run any initial static validation available to error early if this provider contains
     /// invalid data.
-    fn try_validate(&self, path: &mut Vec<String>, ctx: &Context) -> Result<()>;
+    fn try_validate(&self, path: &mut Vec<String>, ctx: &impl ResolutionContext) -> Result<()>;
 
     fn try_validate_nested(
         &self,
         path: &mut Vec<String>,
         tail: impl Into<String>,
-        ctx: &Context,
+        ctx: &impl ResolutionContext,
     ) -> Result<()> {
         let mut path = path.clone();
         path.push(tail.into());
