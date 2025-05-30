@@ -1,6 +1,8 @@
 use std::{
+    collections::HashMap,
     fs, io,
     path::{Path, PathBuf},
+    process::{Command, ExitStatus},
 };
 
 /// Types that implement ResolutionContext may be used to perform IO while validating and resolving
@@ -53,6 +55,16 @@ pub trait ResolutionContext {
     /// Depending on the platform, this function may fail if the full directory path does not
     /// exist.
     fn write(&self, path: impl AsRef<Path>, content: impl AsRef<[u8]>) -> io::Result<()>;
+
+    /// Spawn the specified program as a subprocess with the provided arguments.
+    /// This method will block until the process completes and return the status code. Stdout and
+    /// Stderr will be inherited from the current process.
+    fn run_command_blocking(
+        &self,
+        prog: &str,
+        args: &[&str],
+        env_vars: &HashMap<String, String>,
+    ) -> io::Result<ExitStatus>;
 }
 
 /// A [ResolutionContext] that will perform real IO.
@@ -89,5 +101,16 @@ impl ResolutionContext for Context {
 
     fn write(&self, path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> io::Result<()> {
         fs::write(path, contents)
+    }
+
+    fn run_command_blocking(
+        &self,
+        prog: &str,
+        args: &[&str],
+        env_vars: &HashMap<String, String>,
+    ) -> io::Result<ExitStatus> {
+        let mut child = Command::new(prog).args(args).envs(env_vars).spawn()?;
+
+        child.wait()
     }
 }
