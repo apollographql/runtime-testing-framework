@@ -94,7 +94,7 @@ mod tests {
 
     #[dir_cases("crates/rtf-config/resources/config-tests/scenario/valid")]
     #[tokio::test]
-    async fn valid_providers(_path: &str, content: &str) {
+    async fn valid_config(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
 
