@@ -1,0 +1,60 @@
+A valid ConfigSource snippet for a ScenarioConfig. This successfully
+overrides the environment variables
+
+-- inline-content --
+name: valid-scenario
+description: |
+  A description for a valid scenario
+
+values:
+  - name: foo
+    description: "A value foo"
+
+output_directories:
+  - /results
+
+command: "/command.sh"
+
+env_vars:
+  SOME_ENV_VAR: "some_env_var"
+
+file_providers:
+  - name: "inline.txt"
+    env_var: INLINE_FILE
+    kind: inline
+    content: |
+      This is some inline file content
+      split over multiple lines.
+      How nice.
+
+-- overrides --
+env_vars:
+  SOME_ENV_VAR: "some_env_var"
+  ANOTHER_ENV_VAR: "another_env_var"
+
+-- expected-config --
+name: valid-scenario
+description: |
+  A description for a valid scenario
+
+values:
+  - name: foo
+    description: "A value foo"
+
+output_directories:
+  - /results
+
+command: "/command.sh"
+
+env_vars:
+  SOME_ENV_VAR: "some_env_var"
+  ANOTHER_ENV_VAR: "another_env_var"
+
+file_providers:
+  - name: "inline.txt"
+    env_var: INLINE_FILE
+    kind: inline
+    content: |
+      This is some inline file content
+      split over multiple lines.
+      How nice.

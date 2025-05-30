@@ -4,9 +4,11 @@ use std::{collections::HashMap, io};
 
 mod environment;
 mod scenario;
+mod test_plan;
 
 pub use environment::EnvironmentConfig;
 pub use scenario::ScenarioConfig;
+pub use test_plan::{RawTestPlanConfig, TestPlanConfig};
 
 /// Errors that can be encountered resolving config files
 #[derive(Debug, thiserror::Error)]

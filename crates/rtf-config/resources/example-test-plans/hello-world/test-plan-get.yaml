@@ -7,7 +7,7 @@ values:
   credentials_env_var: "AUTH_HEADER"
   server_command: "python3 server.py"
 
-test_scenario:
+scenario:
   from:
     kind: local_path
     relative_path: scenario-get.yaml

@@ -1,0 +1,57 @@
+A valid ConfigSource snippet for an EnvrionmentConfig. This 
+successfuly overrides the description.
+
+-- inline-content --
+name: minimal
+description: "A minimal environment config"
+
+values:
+  - name: foo
+    description: "An env var called foo"
+  - name: bar
+    description: "An env var called bar"
+
+setup:
+  command: scripts/start_local_server.sh
+  env_vars:
+    HELLO: "world"
+
+  provides:
+    - name: server_url
+      description: "The publicly accessible URL for the service under test"
+    - name: server_pid
+      description: "The PID of the running server"
+
+teardown:
+  command: scripts/stop_local_server.sh
+  env_vars:
+    HELLO: "sailor"
+
+-- overrides --
+description: An overridden description
+
+-- expected-config --
+name: minimal
+description: An overridden description
+
+values:
+  - name: foo
+    description: "An env var called foo"
+  - name: bar
+    description: "An env var called bar"
+
+setup:
+  command: scripts/start_local_server.sh
+  env_vars:
+    HELLO: "world"
+
+  provides:
+    - name: server_url
+      description: "The publicly accessible URL for the service under test"
+    - name: server_pid
+      description: "The PID of the running server"
+
+teardown:
+  command: scripts/stop_local_server.sh
+  env_vars:
+    HELLO: "sailor"
