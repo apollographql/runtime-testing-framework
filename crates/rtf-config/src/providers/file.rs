@@ -45,18 +45,6 @@ impl DerefMut for NamedFileProvider {
     }
 }
 
-impl NamedFileProvider {
-    #[allow(dead_code)]
-    pub(crate) async fn try_into_file_name_and_content(
-        self,
-        ctx: &impl ResolutionContext,
-    ) -> (String, Result<String>) {
-        let res = self.provider.try_get_file_content(ctx).await;
-
-        (self.name, res)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
