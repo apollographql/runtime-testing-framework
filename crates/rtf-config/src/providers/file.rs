@@ -17,7 +17,7 @@ use std::{
 ///
 /// This trait is deliberately pub(crate) rather than pub so that the validation and resolution
 /// logic is only exposed through the public API as part of the methods on the config file structs.
-#[allow(async_fn_in_trait, dead_code)]
+#[allow(async_fn_in_trait)]
 pub(crate) trait AsUtf8FileContent: Validate + DeserializeOwned + fmt::Debug {
     /// Attempt to run this file provider and convert it into the required file content.
     async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String>;
