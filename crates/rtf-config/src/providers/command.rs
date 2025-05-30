@@ -1,11 +1,14 @@
 use crate::{
     context::ResolutionContext,
-    providers::file::NamedFileProvider,
+    providers::{
+        self,
+        file::{AsUtf8FileContent, NamedFileProvider},
+    },
     templating::{self, Field, Scalar, Template},
     validation::{self, Validate, duplicate_keys},
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, io, path::Path, process::ExitStatus};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct CommandSection {
@@ -14,6 +17,80 @@ pub struct CommandSection {
     pub env_vars: HashMap<String, Field<String>>,
     #[serde(default)]
     pub file_providers: Vec<NamedFileProvider>,
+}
+
+impl CommandSection {
+    /// Run all of the [FileProviders][0] associated with this command and write out their file
+    /// contents to the specified directory before executing the command with the specified
+    /// environment.
+    ///
+    /// [0]: crate::providers::file::FileProvider
+    pub async fn run_providers_and_execute(
+        &self,
+        provider_dir: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<ExitStatus> {
+        self.run_providers(provider_dir, ctx).await?;
+        self.execute(provider_dir, ctx)
+    }
+
+    /// Execute this command with the specified environment.
+    ///
+    /// [CommandSection::run_providers] must have been run successfully before calling this method
+    /// in order to ensure that all file providers have written out their file content to the
+    /// expected location.
+    pub fn execute(
+        &self,
+        provider_dir: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<ExitStatus> {
+        let mut args: Vec<&str> = self.command.split_whitespace().collect();
+        if args.is_empty() {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "no command provided").into());
+        }
+
+        let prog = args.remove(0);
+        let env_vars = self.all_env_vars(provider_dir);
+        let status = ctx.run_command_blocking(prog, &args, &env_vars)?;
+
+        Ok(status)
+    }
+
+    /// Combine the base environment variables we have with the ones coming from the file providers
+    /// we need to run. The `provider_dir` argument here needs to match the one used when running
+    /// and outputting the content of the file providers.
+    pub fn all_env_vars(&self, provider_dir: &Path) -> HashMap<String, String> {
+        let mut vars: HashMap<String, String> = self
+            .env_vars
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.as_resolved().clone()))
+            .collect();
+
+        for nfp in self.file_providers.iter() {
+            let path = provider_dir.join(&nfp.name).display().to_string();
+            vars.insert(nfp.env_var.clone(), path);
+        }
+
+        vars
+    }
+
+    /// Run all of the [FileProviders][0] associated with this command and write out their file
+    /// contents to the specified directory.
+    ///
+    /// [0]: crate::providers::file::FileProvider
+    pub async fn run_providers(
+        &self,
+        provider_dir: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        for nfp in self.file_providers.iter() {
+            let content = nfp.try_get_file_content(ctx).await?;
+            let file_path = provider_dir.join(&nfp.name);
+            ctx.write(file_path, content)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl Template for CommandSection {
@@ -88,10 +165,13 @@ impl Validate for CommandSection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::Context;
+    use crate::{
+        context::Context,
+        providers::file::{FileProvider, InlineFile},
+    };
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
-    use std::path::PathBuf;
+    use std::{os::unix::process::ExitStatusExt, path::PathBuf, sync::Mutex};
 
     /// Load a txtar [Archive] from the given file content and print the top level comment if there
     /// is one before returning it.
@@ -181,5 +261,113 @@ mod tests {
             &concatenated_errs, expected,
             "wrong validation errors: {errs:?}"
         );
+    }
+
+    /// Stub implementation of ResolutionContext for testing command execution that tracks which
+    /// files have been written to disk.
+    #[derive(Debug, Default)]
+    struct MockCommandContext {
+        written_files: Mutex<HashMap<String, String>>,
+    }
+
+    impl ResolutionContext for MockCommandContext {
+        fn run_command_blocking(
+            &self,
+            _prog: &str,
+            _args: &[&str],
+            _env_vars: &HashMap<String, String>,
+        ) -> io::Result<ExitStatus> {
+            Ok(ExitStatus::from_raw(0))
+        }
+
+        fn write(&self, path: impl AsRef<Path>, content: impl AsRef<[u8]>) -> io::Result<()> {
+            let s = String::from_utf8(content.as_ref().to_vec()).expect("valid utf8");
+            self.written_files
+                .lock()
+                .unwrap()
+                .insert(path.as_ref().display().to_string(), s);
+
+            Ok(())
+        }
+
+        fn path_exists(&self, _path: impl AsRef<Path>) -> bool {
+            true
+        }
+
+        fn resolve_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
+            Ok(relative_path.as_ref().to_path_buf())
+        }
+
+        fn path_is_file(&self, _path: impl AsRef<Path>) -> bool {
+            true
+        }
+
+        fn read_path_to_string(&self, _path: impl AsRef<Path>) -> io::Result<String> {
+            Ok(String::new())
+        }
+    }
+
+    fn test_cmd_section() -> CommandSection {
+        CommandSection {
+            command: String::default(),
+            env_vars: [("FOO", "hello"), ("BAR", "world")]
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), Field::Resolved(v.to_string())))
+                .collect(),
+            file_providers: vec![
+                NamedFileProvider {
+                    name: "fp1.txt".to_string(),
+                    env_var: "FP1".to_string(),
+                    provider: FileProvider::Inline(InlineFile {
+                        content: "foo".to_string(),
+                    }),
+                },
+                NamedFileProvider {
+                    name: "fp2.txt".to_string(),
+                    env_var: "FP2".to_string(),
+                    provider: FileProvider::Inline(InlineFile {
+                        content: "bar".to_string(),
+                    }),
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn all_env_vars_includes_file_providers() {
+        let c = test_cmd_section();
+        let env_vars = c.all_env_vars(&PathBuf::from("/example-dir"));
+
+        let expected: HashMap<String, String> = [
+            ("FOO", "hello"),
+            ("BAR", "world"),
+            ("FP1", "/example-dir/fp1.txt"),
+            ("FP2", "/example-dir/fp2.txt"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+
+        assert_eq!(env_vars, expected);
+    }
+
+    #[tokio::test]
+    async fn run_providers_writes_the_expected_files() {
+        let c = test_cmd_section();
+        let ctx = MockCommandContext::default();
+
+        let res = c.run_providers(&PathBuf::from("/example-dir"), &ctx).await;
+        assert!(res.is_ok(), "unexpected error: {res:?}");
+
+        let written_files = ctx.written_files.into_inner().unwrap();
+        let expected: HashMap<String, String> = [
+            ("/example-dir/fp1.txt", "foo"),
+            ("/example-dir/fp2.txt", "bar"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+
+        assert_eq!(written_files, expected);
     }
 }

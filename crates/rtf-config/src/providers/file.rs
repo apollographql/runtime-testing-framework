@@ -17,10 +17,10 @@ use std::{
 ///
 /// This trait is deliberately pub(crate) rather than pub so that the validation and resolution
 /// logic is only exposed through the public API as part of the methods on the config file structs.
-#[allow(async_fn_in_trait, dead_code)]
-pub(crate) trait IntoUtf8FileContent: Validate + DeserializeOwned + fmt::Debug {
+#[allow(async_fn_in_trait)]
+pub(crate) trait AsUtf8FileContent: Validate + DeserializeOwned + fmt::Debug {
     /// Attempt to run this file provider and convert it into the required file content.
-    async fn try_into_file_content(self, ctx: &impl ResolutionContext) -> Result<String>;
+    async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String>;
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -42,18 +42,6 @@ impl Deref for NamedFileProvider {
 impl DerefMut for NamedFileProvider {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.provider
-    }
-}
-
-impl NamedFileProvider {
-    #[allow(dead_code)]
-    pub(crate) async fn try_into_file_name_and_content(
-        self,
-        ctx: &impl ResolutionContext,
-    ) -> (String, Result<String>) {
-        let res = self.provider.try_into_file_content(ctx).await;
-
-        (self.name, res)
     }
 }
 
@@ -85,9 +73,9 @@ macro_rules! delegate_to_inner {
     };
 }
 
-impl IntoUtf8FileContent for FileProvider {
-    async fn try_into_file_content(self, ctx: &impl ResolutionContext) -> Result<String> {
-        delegate_to_inner!(@async self, try_into_file_content, ctx)
+impl AsUtf8FileContent for FileProvider {
+    async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String> {
+        delegate_to_inner!(@async self, try_get_file_content, ctx)
     }
 }
 
@@ -122,9 +110,9 @@ pub struct InlineFile {
     pub(crate) content: String,
 }
 
-impl IntoUtf8FileContent for InlineFile {
-    async fn try_into_file_content(self, _ctx: &impl ResolutionContext) -> Result<String> {
-        Ok(self.content)
+impl AsUtf8FileContent for InlineFile {
+    async fn try_get_file_content(&self, _ctx: &impl ResolutionContext) -> Result<String> {
+        Ok(self.content.clone())
     }
 }
 
@@ -181,8 +169,8 @@ impl Template for LocalFile {
     }
 }
 
-impl IntoUtf8FileContent for LocalFile {
-    async fn try_into_file_content(self, ctx: &impl ResolutionContext) -> Result<String> {
+impl AsUtf8FileContent for LocalFile {
+    async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String> {
         let p = ctx.resolve_path(self.relative_path.as_resolved())?;
 
         Ok(ctx.read_path_to_string(p)?)
@@ -257,8 +245,8 @@ impl Template for RequiredFile {
     }
 }
 
-impl IntoUtf8FileContent for RequiredFile {
-    async fn try_into_file_content(self, _ctx: &impl ResolutionContext) -> Result<String> {
+impl AsUtf8FileContent for RequiredFile {
+    async fn try_get_file_content(&self, _ctx: &impl ResolutionContext) -> Result<String> {
         panic!(
             "Should not be able to get here. Required file should result in an error when validated."
         )
@@ -330,7 +318,7 @@ mod tests {
         let res = provider.try_validate(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected to validate but got: {res:?}");
 
-        let res = provider.try_into_file_content(&ctx).await;
+        let res = provider.try_get_file_content(&ctx).await;
         assert_eq!(res.unwrap(), expected, "wrong file content");
     }
 
@@ -446,7 +434,7 @@ mod tests {
                 .unwrap(),
         );
         let _ = provider.try_validate(&mut Vec::new(), &ctx);
-        let res = provider.try_into_file_content(&ctx).await;
+        let res = provider.try_get_file_content(&ctx).await;
 
         assert!(res.is_err(), "expected resolution failures, got {res:?}");
         let err = res.unwrap_err();
@@ -464,6 +452,6 @@ mod tests {
         let ctx = Context::new(PathBuf::from("not/used/in/this/test"));
 
         // Calling try_into_file_content should panic here
-        _ = required_file.try_into_file_content(&ctx).await;
+        _ = required_file.try_get_file_content(&ctx).await;
     }
 }
