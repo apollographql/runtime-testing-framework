@@ -8,7 +8,7 @@ use crate::{
     validation::{self, Validate, duplicate_keys},
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, io, path::Path, process::ExitStatus};
+use std::{collections::HashMap, io, path::Path};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct CommandSection {
@@ -22,19 +22,19 @@ pub struct CommandSection {
 impl CommandSection {
     /// Run all of the [FileProviders][0] associated with this command and write out their file
     /// contents to the specified directory before executing the command with the specified
-    /// environment.
+    /// environment, returning the standard output.
     ///
     /// [0]: crate::providers::file::FileProvider
     pub async fn run_providers_and_execute(
         &self,
         provider_dir: &Path,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<ExitStatus> {
+    ) -> providers::Result<String> {
         self.run_providers(provider_dir, ctx).await?;
         self.execute(provider_dir, ctx)
     }
 
-    /// Execute this command with the specified environment.
+    /// Execute this command with the specified environment, returning the standard output.
     ///
     /// [CommandSection::run_providers] must have been run successfully before calling this method
     /// in order to ensure that all file providers have written out their file content to the
@@ -43,7 +43,7 @@ impl CommandSection {
         &self,
         provider_dir: &Path,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<ExitStatus> {
+    ) -> providers::Result<String> {
         let mut args: Vec<&str> = self.command.split_whitespace().collect();
         if args.is_empty() {
             return Err(io::Error::new(io::ErrorKind::InvalidData, "no command provided").into());
@@ -51,9 +51,9 @@ impl CommandSection {
 
         let prog = args.remove(0);
         let env_vars = self.all_env_vars(provider_dir);
-        let status = ctx.run_command_blocking(prog, &args, &env_vars)?;
+        let stdout = ctx.run_command_blocking(prog, &args, &env_vars)?;
 
-        Ok(status)
+        Ok(stdout)
     }
 
     /// Combine the base environment variables we have with the ones coming from the file providers
@@ -189,7 +189,7 @@ mod tests {
     };
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
-    use std::{os::unix::process::ExitStatusExt, path::PathBuf, sync::Mutex};
+    use std::{path::PathBuf, sync::Mutex};
 
     /// Load a txtar [Archive] from the given file content and print the top level comment if there
     /// is one before returning it.
@@ -294,8 +294,8 @@ mod tests {
             _prog: &str,
             _args: &[&str],
             _env_vars: &HashMap<String, String>,
-        ) -> io::Result<ExitStatus> {
-            Ok(ExitStatus::from_raw(0))
+        ) -> io::Result<String> {
+            Ok(String::new())
         }
 
         fn write(&self, path: impl AsRef<Path>, content: impl AsRef<[u8]>) -> io::Result<()> {

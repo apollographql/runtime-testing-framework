@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     fs, io,
     path::{Path, PathBuf},
-    process::{Command, ExitStatus},
+    process::{Command, Stdio},
 };
 
 /// Types that implement ResolutionContext may be used to perform IO while validating and resolving
@@ -57,14 +57,14 @@ pub trait ResolutionContext {
     fn write(&self, path: impl AsRef<Path>, content: impl AsRef<[u8]>) -> io::Result<()>;
 
     /// Spawn the specified program as a subprocess with the provided arguments.
-    /// This method will block until the process completes and return the status code. Stdout and
-    /// Stderr will be inherited from the current process.
+    /// This method will block until the process completes and return the stdout of the process as
+    /// a utf-8 string.
     fn run_command_blocking(
         &self,
         prog: &str,
         args: &[&str],
         env_vars: &HashMap<String, String>,
-    ) -> io::Result<ExitStatus>;
+    ) -> io::Result<String>;
 }
 
 /// A [ResolutionContext] that will perform real IO.
@@ -108,9 +108,13 @@ impl ResolutionContext for Context {
         prog: &str,
         args: &[&str],
         env_vars: &HashMap<String, String>,
-    ) -> io::Result<ExitStatus> {
-        let mut child = Command::new(prog).args(args).envs(env_vars).spawn()?;
+    ) -> io::Result<String> {
+        let output = Command::new(prog)
+            .args(args)
+            .envs(env_vars)
+            .stdout(Stdio::piped())
+            .output()?;
 
-        child.wait()
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }
 }
