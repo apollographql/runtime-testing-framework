@@ -34,6 +34,9 @@ pub trait Template {
     /// Whether or not there are any pending [Field]s contained within this value.
     fn has_pending_fields(&self) -> bool;
 
+    /// The list of template values that are required to resolve this type fully.
+    fn required_values(&self) -> Vec<String>;
+
     /// Attempt to resolve all pending [Field]s, appending encountered errors to the `errs` vec
     /// provided.
     fn try_resolve(
@@ -114,6 +117,13 @@ where
 {
     fn has_pending_fields(&self) -> bool {
         matches!(self, Self::Pending(_))
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        match self {
+            Self::Pending(field_name) => vec![field_name.clone()],
+            _ => Vec::new(),
+        }
     }
 
     fn try_resolve(
@@ -460,6 +470,13 @@ mod tests {
             self.foo.has_pending_fields() || self.bar.has_pending_fields()
         }
 
+        fn required_values(&self) -> Vec<String> {
+            let mut vals = self.foo.required_values();
+            vals.extend(self.bar.required_values());
+
+            vals
+        }
+
         fn try_resolve(
             &mut self,
             path: &mut Vec<String>,
@@ -485,6 +502,10 @@ mod tests {
     impl Template for U {
         fn has_pending_fields(&self) -> bool {
             self.baz.has_pending_fields()
+        }
+
+        fn required_values(&self) -> Vec<String> {
+            self.baz.required_values()
         }
 
         fn try_resolve(

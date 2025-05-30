@@ -35,6 +35,10 @@ impl Template for ScenarioConfig {
         self.command.has_pending_fields()
     }
 
+    fn required_values(&self) -> Vec<String> {
+        self.command.required_values()
+    }
+
     fn try_resolve(
         &mut self,
         path: &mut Vec<String>,
