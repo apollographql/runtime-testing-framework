@@ -96,6 +96,24 @@ impl CommandSection {
 impl Template for CommandSection {
     fn has_pending_fields(&self) -> bool {
         self.env_vars.values().any(|f| f.has_pending_fields())
+            | self
+                .file_providers
+                .iter()
+                .any(|nfp| nfp.provider.has_pending_fields())
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        let mut vals: Vec<String> = self
+            .env_vars
+            .values()
+            .flat_map(|f| f.required_values())
+            .collect();
+
+        for nfp in self.file_providers.iter() {
+            vals.extend(nfp.required_values());
+        }
+
+        vals
     }
 
     fn try_resolve(

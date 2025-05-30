@@ -84,6 +84,10 @@ impl Template for FileProvider {
         delegate_to_inner!(self, has_pending_fields)
     }
 
+    fn required_values(&self) -> Vec<String> {
+        delegate_to_inner!(self, required_values)
+    }
+
     fn try_resolve(
         &mut self,
         path: &mut Vec<String>,
@@ -119,6 +123,10 @@ impl AsUtf8FileContent for InlineFile {
 impl Template for InlineFile {
     fn has_pending_fields(&self) -> bool {
         false
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        Vec::new()
     }
 
     fn try_resolve(
@@ -158,6 +166,10 @@ impl LocalFile {
 impl Template for LocalFile {
     fn has_pending_fields(&self) -> bool {
         self.relative_path.has_pending_fields()
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        self.relative_path.required_values()
     }
 
     fn try_resolve(
@@ -232,6 +244,10 @@ pub struct RequiredFile {
 impl Template for RequiredFile {
     fn has_pending_fields(&self) -> bool {
         false
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        Vec::new()
     }
 
     fn try_resolve(

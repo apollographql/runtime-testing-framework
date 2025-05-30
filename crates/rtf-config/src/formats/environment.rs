@@ -66,6 +66,13 @@ impl Template for EnvironmentConfig {
         self.setup.command.has_pending_fields() || self.teardown.has_pending_fields()
     }
 
+    fn required_values(&self) -> Vec<String> {
+        let mut vals = self.setup.command.required_values();
+        vals.extend(self.teardown.required_values());
+
+        vals
+    }
+
     fn try_resolve(
         &mut self,
         path: &mut Vec<String>,
