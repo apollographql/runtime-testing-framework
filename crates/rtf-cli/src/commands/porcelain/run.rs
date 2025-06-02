@@ -42,17 +42,9 @@ pub async fn validate_and_run_test_plan(path: &str, out_dir: &str) -> anyhow::Re
 
     info!("resolving environment setup");
     test_plan.try_resolve_envrionment_setup(&values)?;
-    info!("executing environment setup");
-    let raw_output = test_plan
-        .environment
-        .setup
-        .command
-        .run_providers_and_execute(&out_dir, &ctx)
-        .await?;
 
-    // TODO: validate that this matches what was declared by the setup command section
-    // and filter to only make use of the declared values
-    let setup_provides: HashMap<String, Scalar> = serde_json::from_str(&raw_output)?;
+    info!("executing environment setup");
+    let setup_provides = test_plan.run_environment_setup(&out_dir, &ctx).await?;
     values.extend(setup_provides);
 
     // TODO: errors need combining and returning together

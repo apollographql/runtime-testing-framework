@@ -1,6 +1,6 @@
 use crate::{
     context::{Context, ResolutionContext},
-    formats::{EnvironmentConfig, Result, ScenarioConfig},
+    formats::{EnvironmentConfig, Error, Result, ScenarioConfig},
     providers::{
         self,
         file::{AsUtf8FileContent, FileProvider},
@@ -152,6 +152,34 @@ impl TestPlanConfig {
         );
 
         errs.into_result(())
+    }
+
+    pub async fn run_environment_setup(
+        &self,
+        out_dir: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> Result<HashMap<String, Scalar>> {
+        let raw_output = self
+            .environment
+            .setup
+            .command
+            .run_providers_and_execute(out_dir, ctx)
+            .await?;
+
+        let provides: HashMap<String, Scalar> = serde_json::from_str(&raw_output)?;
+
+        let mut missing = Vec::new();
+        for val in self.environment.setup.provides.iter() {
+            if !provides.contains_key(&val.name) {
+                missing.push(val.name.clone());
+            }
+        }
+
+        if missing.is_empty() {
+            Ok(provides)
+        } else {
+            Err(Error::InvalidSetupOutput { missing })
+        }
     }
 }
 
