@@ -21,5 +21,12 @@ pub struct Args {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    Run { test_plan_path: String },
+    /// Validate and run a test plan
+    Run {
+        /// Relative path to the test-plan.yaml file that should be executed
+        test_plan_path: String,
+        /// Output directory for providers when they run
+        #[arg(long, default_value = "output")]
+        outdir: String,
+    },
 }

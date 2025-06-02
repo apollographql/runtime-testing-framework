@@ -15,17 +15,25 @@ A swiss army knife for testing the Apollo Runtime
 
 ###### **Subcommands:**
 
-* `run` — 
+* `run` — Validate and run a test plan
 
 
 
 ## `rtf run`
 
-**Usage:** `rtf run <TEST_PLAN_PATH>`
+Validate and run a test plan
+
+**Usage:** `rtf run [OPTIONS] <TEST_PLAN_PATH>`
 
 ###### **Arguments:**
 
-* `<TEST_PLAN_PATH>`
+* `<TEST_PLAN_PATH>` — Relative path to the test-plan.yaml file that should be executed
+
+###### **Options:**
+
+* `--outdir <OUTDIR>` — Output directory for providers when they run
+
+  Default value: `output`
 
 
 

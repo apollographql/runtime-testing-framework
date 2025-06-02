@@ -1,6 +1,9 @@
 use anyhow::Context;
 use clap::Parser;
-use rtf_cli::cli::{Args, Command};
+use rtf_cli::{
+    cli::{Args, Command},
+    commands::porcelain::validate_and_run_test_plan,
+};
 use std::io::stdout;
 use tracing::{Level, level_filters::LevelFilter, subscriber::set_global_default};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
@@ -11,7 +14,11 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     match args.command {
-        Command::Run { test_plan_path } => println!("path is {test_plan_path}"),
+        // porcelain commands
+        Command::Run {
+            test_plan_path,
+            outdir,
+        } => validate_and_run_test_plan(&test_plan_path, &outdir).await?,
     }
 
     Ok(())

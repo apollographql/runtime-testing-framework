@@ -1677,6 +1677,7 @@ dependencies = [
  "clap-markdown",
  "rtf-config",
  "rtf-core",
+ "serde_json",
  "simple_test_case",
  "tokio",
  "tracing",
