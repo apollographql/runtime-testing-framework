@@ -83,11 +83,6 @@ pub trait Template {
 
         errs.into_result(missing)
     }
-
-    fn all_template_fields(&mut self) -> Vec<String> {
-        self.try_resolve_known(&HashMap::default())
-            .expect("Should only have missing values")
-    }
 }
 
 /// A [Field] wraps some scalar type that implements [Template] in order to mark it as

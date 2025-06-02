@@ -1,5 +1,5 @@
 use crate::{
-    context::ResolutionContext,
+    context::{Context, ResolutionContext},
     formats::{EnvironmentConfig, Result, ScenarioConfig},
     providers::{
         self,
@@ -23,10 +23,12 @@ pub struct TestPlanConfig {
 }
 
 impl TestPlanConfig {
-    pub fn try_load_from_path(p: impl AsRef<Path>) -> Result<Self> {
-        let content = fs::read_to_string(p)?;
+    pub async fn try_load_and_resolve_from_path(p: impl AsRef<Path>) -> Result<Self> {
+        let content = fs::read_to_string(p.as_ref())?;
+        let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
+        let ctx = Context::new(p.as_ref());
 
-        Ok(serde_yaml::from_str(&content)?)
+        raw.try_into_test_plan(&ctx).await
     }
 
     pub fn validate_templating_will_work(&mut self) -> templating::Result<()> {
@@ -217,11 +219,7 @@ pub struct RawTestPlanConfig {
 }
 
 impl RawTestPlanConfig {
-    #[allow(dead_code)]
-    async fn try_into_test_plan(
-        self,
-        ctx: &impl ResolutionContext,
-    ) -> providers::Result<TestPlanConfig> {
+    async fn try_into_test_plan(self, ctx: &impl ResolutionContext) -> Result<TestPlanConfig> {
         let environment_source = self.environment;
         let mut environment = environment_source.try_into_config(ctx).await?;
 
