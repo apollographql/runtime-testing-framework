@@ -1,9 +1,6 @@
 use anyhow::Context;
 use clap::Parser;
-use rtf_cli::{
-    cli::{Args, Command},
-    commands::{fetch_supergraph, top_operations},
-};
+use rtf_cli::cli::{Args, Command};
 use std::io::stdout;
 use tracing::{Level, level_filters::LevelFilter, subscriber::set_global_default};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
@@ -14,31 +11,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     match args.command {
-        Command::FetchSupergraph {
-            graph_id,
-            variant,
-            out_dir,
-            staging,
-        } => fetch_supergraph(graph_id, variant, out_dir, staging).await?,
-
-        Command::TopOperations {
-            graph_id,
-            variant,
-            n_operations,
-            skip_mutations,
-            out_dir,
-            staging,
-        } => {
-            top_operations(
-                graph_id,
-                variant,
-                n_operations,
-                skip_mutations,
-                out_dir,
-                staging,
-            )
-            .await?
-        }
+        Command::Run { test_plan_path } => println!("path is {test_plan_path}"),
     }
 
     Ok(())
