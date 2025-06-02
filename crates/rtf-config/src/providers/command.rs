@@ -10,6 +10,10 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io, path::Path};
 
+/// The environment variable used to provide the location of the output directory to user specified
+/// commands
+const OUTDIR: &str = "OUTDIR";
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct CommandSection {
     pub command: String,
@@ -27,11 +31,11 @@ impl CommandSection {
     /// [0]: crate::providers::file::FileProvider
     pub async fn run_providers_and_execute(
         &self,
-        provider_dir: &Path,
+        out_dir: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
-        self.run_providers(provider_dir, ctx).await?;
-        self.execute(provider_dir, ctx)
+        self.run_providers(out_dir, ctx).await?;
+        self.execute(out_dir, ctx)
     }
 
     /// Execute this command with the specified environment, returning the standard output.
@@ -41,7 +45,7 @@ impl CommandSection {
     /// expected location.
     pub fn execute(
         &self,
-        provider_dir: &Path,
+        out_dir: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let mut args: Vec<&str> = self.command.split_whitespace().collect();
@@ -50,16 +54,16 @@ impl CommandSection {
         }
 
         let prog = args.remove(0);
-        let env_vars = self.all_env_vars(provider_dir);
+        let env_vars = self.all_env_vars(out_dir);
         let stdout = ctx.run_command_blocking(prog, &args, &env_vars)?;
 
         Ok(stdout)
     }
 
     /// Combine the base environment variables we have with the ones coming from the file providers
-    /// we need to run. The `provider_dir` argument here needs to match the one used when running
+    /// we need to run. The `out_dir` argument here needs to match the one used when running
     /// and outputting the content of the file providers.
-    pub fn all_env_vars(&self, provider_dir: &Path) -> HashMap<String, String> {
+    pub fn all_env_vars(&self, out_dir: &Path) -> HashMap<String, String> {
         let mut vars: HashMap<String, String> = self
             .env_vars
             .iter()
@@ -67,9 +71,11 @@ impl CommandSection {
             .collect();
 
         for nfp in self.file_providers.iter() {
-            let path = provider_dir.join(&nfp.name).display().to_string();
+            let path = out_dir.join(&nfp.name).display().to_string();
             vars.insert(nfp.env_var.clone(), path);
         }
+
+        vars.insert(OUTDIR.to_string(), out_dir.display().to_string());
 
         vars
     }
