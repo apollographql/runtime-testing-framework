@@ -26,7 +26,9 @@ impl TestPlanConfig {
     pub async fn try_load_and_resolve_from_path(p: impl AsRef<Path>) -> Result<Self> {
         let content = fs::read_to_string(p.as_ref())?;
         let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
-        let ctx = Context::new(p.as_ref());
+
+        let full_path = p.as_ref().canonicalize()?;
+        let ctx = Context::new(full_path.parent().unwrap());
 
         raw.try_into_test_plan(&ctx).await
     }
