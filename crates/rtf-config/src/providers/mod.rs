@@ -9,6 +9,9 @@ pub mod file;
 pub enum Error {
     #[error(transparent)]
     Io(#[from] io::Error),
+
+    #[error(transparent)]
+    Yaml(#[from] serde_yaml::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

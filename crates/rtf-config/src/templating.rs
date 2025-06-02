@@ -13,6 +13,9 @@ pub enum ErrorKind {
     #[strum(to_string = "invalid templating value")]
     InvalidData,
 
+    #[strum(to_string = "missing template values")]
+    MissingValues,
+
     #[strum(to_string = "unknown templating value")]
     UnknownValue,
 }
@@ -161,7 +164,7 @@ impl<'de, T: ValidField> Deserialize<'de> for Field<T> {
 /// is incorrect for the target then this will result in a deserialization error as normal).
 struct FieldVisitor<T>(PhantomData<T>);
 
-impl<'de, T> Visitor<'de> for FieldVisitor<T>
+impl<T> Visitor<'_> for FieldVisitor<T>
 where
     T: ValidField,
 {
@@ -225,7 +228,7 @@ where
 // public API.
 
 /// Represents a number, whether integer or floating point.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Number(serde_json::Number);
 
 impl fmt::Display for Number {
@@ -235,7 +238,7 @@ impl fmt::Display for Number {
 }
 
 /// A scalar that is valid to be used as a template value for a [Field].
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum Scalar {
     /// Represents a number, whether integer or floating point.
