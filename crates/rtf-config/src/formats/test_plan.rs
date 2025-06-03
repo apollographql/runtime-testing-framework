@@ -1,5 +1,5 @@
 use crate::{
-    context::{Context, ResolutionContext},
+    context::ResolutionContext,
     formats::{EnvironmentConfig, Error, Result, ScenarioConfig},
     providers::{
         self,
@@ -9,7 +9,7 @@ use crate::{
     validation::{self, Validate},
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::{collections::HashMap, fs, hash::Hash, mem::take, path::Path};
+use std::{collections::HashMap, hash::Hash, mem::take, path::Path};
 
 /// The format for parsing scenario config
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -23,14 +23,14 @@ pub struct TestPlanConfig {
 }
 
 impl TestPlanConfig {
-    pub async fn try_load_and_resolve_from_path(p: impl AsRef<Path>) -> Result<Self> {
-        let content = fs::read_to_string(p.as_ref())?;
+    pub async fn try_load_and_resolve_from_path(
+        p: impl AsRef<Path>,
+        ctx: &impl ResolutionContext,
+    ) -> Result<Self> {
+        let content = ctx.read_path_to_string(p.as_ref())?;
         let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
 
-        let full_path = p.as_ref().canonicalize()?;
-        let ctx = Context::new(full_path.parent().unwrap());
-
-        raw.try_into_test_plan(&ctx).await
+        raw.try_into_test_plan(ctx).await
     }
 
     pub fn validate_templating_will_work(&mut self) -> templating::Result<()> {

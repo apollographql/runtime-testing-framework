@@ -17,7 +17,7 @@ async fn validate_and_run_test_plan_with_context(
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
     info!("loading and resolving test plan");
-    let mut test_plan = TestPlanConfig::try_load_and_resolve_from_path(path).await?;
+    let mut test_plan = TestPlanConfig::try_load_and_resolve_from_path(path, &ctx).await?;
 
     info!("checking if templating will work");
     test_plan.validate_templating_will_work()?;
