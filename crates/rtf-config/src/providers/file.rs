@@ -1,6 +1,6 @@
 //! The core [FileProvider] trait and currently supported file provider implementations.
 use crate::{
-    context::ResolutionContext,
+    context::{PathKind, ResolutionContext},
     providers::Result,
     templating::{self, Field, Scalar, Template},
     validation::{self, Validate},
@@ -214,22 +214,19 @@ impl Validate for LocalFile {
             }
         };
 
-        if !ctx.path_exists(&p) {
-            return Err(validation::Errors::new(
-                validation::ErrorKind::FileNotFound,
-                self.format_error_message(),
-                path,
-            ));
-        }
-        if !ctx.path_is_file(&p) {
-            return Err(validation::Errors::new(
+        match ctx.path_kind(&p) {
+            PathKind::File => Ok(()),
+            PathKind::EmptyDir | PathKind::OccupiedDir => Err(validation::Errors::new(
                 validation::ErrorKind::IsADirectory,
                 self.format_error_message(),
                 path,
-            ));
+            )),
+            PathKind::Missing => Err(validation::Errors::new(
+                validation::ErrorKind::FileNotFound,
+                self.format_error_message(),
+                path,
+            )),
         }
-
-        Ok(())
     }
 }
 

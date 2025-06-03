@@ -184,7 +184,7 @@ impl Validate for CommandSection {
 mod tests {
     use super::*;
     use crate::{
-        context::Context,
+        context::{Context, PathKind},
         providers::file::{FileProvider, InlineFile},
     };
     use simple_test_case::dir_cases;
@@ -308,20 +308,24 @@ mod tests {
             Ok(())
         }
 
-        fn path_exists(&self, _path: impl AsRef<Path>) -> bool {
-            true
+        fn path_kind(&self, _path: impl AsRef<Path>) -> crate::context::PathKind {
+            PathKind::File
         }
 
         fn resolve_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
             Ok(relative_path.as_ref().to_path_buf())
         }
 
-        fn path_is_file(&self, _path: impl AsRef<Path>) -> bool {
-            true
-        }
-
         fn read_path_to_string(&self, _path: impl AsRef<Path>) -> io::Result<String> {
             Ok(String::new())
+        }
+
+        fn set_current_dir(&mut self, _path: impl AsRef<Path>) -> io::Result<()> {
+            Ok(())
+        }
+
+        fn create_dir_all(&self, _path: impl AsRef<Path>) -> io::Result<()> {
+            Ok(())
         }
     }
 

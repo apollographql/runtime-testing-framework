@@ -1,9 +1,18 @@
 use std::{
     collections::HashMap,
+    env::set_current_dir,
     fs, io,
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PathKind {
+    Missing,
+    File,
+    EmptyDir,
+    OccupiedDir,
+}
 
 /// Types that implement ResolutionContext may be used to perform IO while validating and resolving
 /// providers.
@@ -18,17 +27,18 @@ pub trait ResolutionContext {
     /// processed.
     fn resolve_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf>;
 
-    /// Returns `true` if the path points at an existing filesystem entity.
-    ///
-    /// If you cannot access the metadata of the file, e.g. because of a permission error or broken
-    /// symbolic links, this will return `false`.
-    fn path_exists(&self, path: impl AsRef<Path>) -> bool;
+    fn dir_containing(&self, path: impl AsRef<Path>) -> PathBuf {
+        match path.as_ref().parent() {
+            Some(p) => p.to_path_buf(),
+            None => PathBuf::new(),
+        }
+    }
 
-    /// Returns `true` if the path exists on disk and is pointing at a regular file.
+    /// Categorise the provided path.
     ///
     /// If you cannot access the metadata of the file, e.g. because of a permission error or broken
-    /// symbolic links, this will return `false`.
-    fn path_is_file(&self, path: impl AsRef<Path>) -> bool;
+    /// symbolic links, this will return [PathKind::Missing].
+    fn path_kind(&self, path: impl AsRef<Path>) -> PathKind;
 
     /// Reads the entire contents of a file into a string.
     ///
@@ -65,34 +75,58 @@ pub trait ResolutionContext {
         args: &[&str],
         env_vars: &HashMap<String, String>,
     ) -> io::Result<String>;
+
+    /// Changes the current working directory to the specified path.
+    fn set_current_dir(&mut self, path: impl AsRef<Path>) -> io::Result<()>;
+
+    /// Recursively create a directory and all of its parent components if they
+    /// are missing.
+    ///
+    /// If this function returns an error, some of the parent components might have
+    /// been created already.
+    ///
+    /// If the empty path is passed to this function, it always succeeds without
+    /// creating any directories.
+    fn create_dir_all(&self, path: impl AsRef<Path>) -> io::Result<()>;
 }
 
 /// A [ResolutionContext] that will perform real IO.
 #[derive(Debug)]
 pub struct Context {
-    pub(crate) config_dir: PathBuf,
+    pub(crate) cwd: PathBuf,
 }
 
 impl Context {
     /// Construct a new `Context` which will resolve paths relative to the provided directory.
-    pub fn new(config_dir: impl Into<PathBuf>) -> Self {
-        Self {
-            config_dir: config_dir.into(),
-        }
+    pub fn new(cwd: impl Into<PathBuf>) -> Self {
+        Self { cwd: cwd.into() }
     }
 }
 
 impl ResolutionContext for Context {
     fn resolve_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
-        self.config_dir.join(relative_path).canonicalize()
+        self.cwd.join(relative_path).canonicalize()
     }
 
-    fn path_exists(&self, path: impl AsRef<Path>) -> bool {
-        path.as_ref().exists()
-    }
+    fn path_kind(&self, path: impl AsRef<Path>) -> PathKind {
+        let p = path.as_ref();
 
-    fn path_is_file(&self, path: impl AsRef<Path>) -> bool {
-        path.as_ref().is_file()
+        if !p.exists() {
+            return PathKind::Missing;
+        } else if p.is_file() {
+            return PathKind::File;
+        }
+
+        match p.read_dir() {
+            Ok(mut rd) => {
+                if rd.next().is_some() {
+                    PathKind::OccupiedDir
+                } else {
+                    PathKind::EmptyDir
+                }
+            }
+            Err(_) => PathKind::Missing,
+        }
     }
 
     fn read_path_to_string(&self, path: impl AsRef<Path>) -> io::Result<String> {
@@ -116,5 +150,16 @@ impl ResolutionContext for Context {
             .output()?;
 
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    }
+
+    fn set_current_dir(&mut self, path: impl AsRef<Path>) -> io::Result<()> {
+        set_current_dir(path.as_ref())?;
+        self.cwd = path.as_ref().to_path_buf();
+
+        Ok(())
+    }
+
+    fn create_dir_all(&self, path: impl AsRef<Path>) -> io::Result<()> {
+        fs::create_dir_all(path)
     }
 }
