@@ -1,0 +1,23 @@
+name: environment-sanity-check
+description: "Sanity check that we template and run commands correctly in the environment"
+
+values:
+  - name: message
+    description: "A message to echo out"
+
+setup:
+  command: scripts/echo-message.sh
+  env_vars:
+    MESSAGE: "{{ message }}"
+    STAGE: "env-setup"
+
+  provides:
+    - name: setup_output
+      description: "a key returned from setup"
+
+teardown:
+  command: scripts/echo-message.sh
+  env_vars:
+    FROM_SETUP: "{{ setup_output }}"
+    MESSAGE: "{{ message }}"
+    STAGE: "env-teardown"

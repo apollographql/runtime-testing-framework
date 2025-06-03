@@ -1,0 +1,16 @@
+name: sanity-check
+description: |
+  Sanity check that we correctly call the specified commands for each stage of a test plan.
+
+values:
+  message: "hello, world!"
+
+scenario:
+  from:
+    kind: local_path
+    relative_path: scenario.yaml
+
+environment:
+  from:
+    kind: local_path
+    relative_path: environment.yaml

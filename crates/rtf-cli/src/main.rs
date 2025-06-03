@@ -2,46 +2,31 @@ use anyhow::Context;
 use clap::Parser;
 use rtf_cli::{
     cli::{Args, Command},
-    commands::{fetch_supergraph, top_operations},
+    commands::porcelain::validate_and_run_test_plan,
 };
-use std::io::stdout;
-use tracing::{Level, level_filters::LevelFilter, subscriber::set_global_default};
+use std::{io::stdout, process::exit};
+use tracing::{Level, error, level_filters::LevelFilter, subscriber::set_global_default};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    init_logging()?;
-    let args = Args::parse();
+async fn main() {
+    if let Err(e) = init_logging() {
+        error!("unable to initialise logging: {e}");
+        exit(1);
+    };
 
-    match args.command {
-        Command::FetchSupergraph {
-            graph_id,
-            variant,
-            out_dir,
-            staging,
-        } => fetch_supergraph(graph_id, variant, out_dir, staging).await?,
+    let res = match Args::parse().command {
+        // porcelain commands
+        Command::Run {
+            test_plan_path,
+            outdir,
+        } => validate_and_run_test_plan(&test_plan_path, &outdir).await,
+    };
 
-        Command::TopOperations {
-            graph_id,
-            variant,
-            n_operations,
-            skip_mutations,
-            out_dir,
-            staging,
-        } => {
-            top_operations(
-                graph_id,
-                variant,
-                n_operations,
-                skip_mutations,
-                out_dir,
-                staging,
-            )
-            .await?
-        }
+    if let Err(e) = res {
+        error!("{e}");
+        exit(1);
     }
-
-    Ok(())
 }
 
 /// Initialise our logger based on the RUST_LOG environment variable.

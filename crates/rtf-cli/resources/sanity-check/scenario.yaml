@@ -1,0 +1,27 @@
+name: scenario-sanity-check
+description: "Sanity check that we template and run commands correctly in the scenario"
+
+values:
+  - name: message
+    description: "A message to echo out"
+  - name: setup_output
+    description: "a key returned from setup"
+
+output_directories:
+  - /output
+
+# command:
+#   kind: local_path
+#   relative_path: scripts/echo-message.sh
+command: scripts/echo-message.sh
+
+env_vars:
+  FROM_SETUP: "{{ setup_output }}"
+  MESSAGE: "{{ message }}"
+  STAGE: "scenario"
+
+file_providers:
+  - name: file-provider.txt
+    env_var: EXAMPLE_FILE
+    kind: inline
+    content: "some inline content that should end up in the output directory"

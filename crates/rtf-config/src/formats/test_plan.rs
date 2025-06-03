@@ -1,6 +1,6 @@
 use crate::{
-    context::{Context, ResolutionContext},
-    formats::{EnvironmentConfig, Result, ScenarioConfig},
+    context::ResolutionContext,
+    formats::{EnvironmentConfig, Error, Result, ScenarioConfig},
     providers::{
         self,
         file::{AsUtf8FileContent, FileProvider},
@@ -9,7 +9,7 @@ use crate::{
     validation::{self, Validate},
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::{collections::HashMap, fs, hash::Hash, mem::take, path::Path};
+use std::{collections::HashMap, hash::Hash, mem::take, path::Path};
 
 /// The format for parsing scenario config
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -23,12 +23,14 @@ pub struct TestPlanConfig {
 }
 
 impl TestPlanConfig {
-    pub async fn try_load_and_resolve_from_path(p: impl AsRef<Path>) -> Result<Self> {
-        let content = fs::read_to_string(p.as_ref())?;
+    pub async fn try_load_and_resolve_from_path(
+        p: impl AsRef<Path>,
+        ctx: &impl ResolutionContext,
+    ) -> Result<Self> {
+        let content = ctx.read_path_to_string(p.as_ref())?;
         let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
-        let ctx = Context::new(p.as_ref());
 
-        raw.try_into_test_plan(&ctx).await
+        raw.try_into_test_plan(ctx).await
     }
 
     pub fn validate_templating_will_work(&mut self) -> templating::Result<()> {
@@ -97,56 +99,97 @@ impl TestPlanConfig {
 
     pub fn try_resolve_envrionment_setup(
         &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, crate::templating::Scalar>,
+        values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
-        if let Err(e) = self.environment.try_resolve_setup(path, values) {
-            errs.extend(e);
-        };
+        let mut path = vec!["environment".to_string()];
+        let res = self.environment.try_resolve_setup(&mut path, values);
 
         debug_assert!(
             !self.environment.setup.command.has_pending_fields(),
             "Envrionment setup should not have pending fields"
         );
 
-        errs.into_result(())
+        res
     }
 
     pub fn try_resolve_envrionment_teardown(
         &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, crate::templating::Scalar>,
+        values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
-        if let Err(e) = self.environment.try_resolve_teardown(path, values) {
-            errs.extend(e);
-        };
+        let mut path = vec!["environment".to_string()];
+        let res = self.environment.try_resolve_teardown(&mut path, values);
 
         debug_assert!(
             !self.environment.teardown.has_pending_fields(),
             "Envrionment teardown should not have pending fields"
         );
 
-        errs.into_result(())
+        res
     }
 
     pub fn try_resolve_scenario(
         &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, crate::templating::Scalar>,
+        values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
-        if let Err(e) = self.scenario.try_resolve_nested(path, "scenario", values) {
-            errs.extend(e);
-        };
+        let mut path = vec!["scenario".to_string()];
+        let res = self.scenario.try_resolve(&mut path, values);
 
         debug_assert!(
             !self.scenario.has_pending_fields(),
             "Scenario should not have pending fields"
         );
 
-        errs.into_result(())
+        res
+    }
+
+    pub async fn run_environment_setup(
+        &self,
+        out_dir: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> Result<HashMap<String, Scalar>> {
+        let raw_output = self
+            .environment
+            .setup
+            .command
+            .run_providers_and_execute(out_dir, ctx)
+            .await?;
+
+        let provides: HashMap<String, Scalar> = serde_json::from_str(&raw_output)?;
+
+        let mut missing = Vec::new();
+        for val in self.environment.setup.provides.iter() {
+            if !provides.contains_key(&val.name) {
+                missing.push(val.name.clone());
+            }
+        }
+
+        if missing.is_empty() {
+            Ok(provides)
+        } else {
+            Err(Error::InvalidSetupOutput { missing })
+        }
+    }
+
+    pub async fn run_environment_teardown(
+        &self,
+        out_dir: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> Result<()> {
+        self.environment
+            .teardown
+            .run_providers_and_execute(out_dir, ctx)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn run_scenario(&self, out_dir: &Path, ctx: &impl ResolutionContext) -> Result<()> {
+        self.scenario
+            .command
+            .run_providers_and_execute(out_dir, ctx)
+            .await?;
+
+        Ok(())
     }
 }
 
@@ -165,18 +208,14 @@ impl Template for TestPlanConfig {
     fn try_resolve(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, crate::templating::Scalar>,
+        values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
-        if let Err(e) = self
-            .environment
-            .try_resolve_nested(path, "environment", values)
-        {
-            errs.extend(e);
-        };
-        if let Err(e) = self.scenario.try_resolve_nested(path, "scenario", values) {
-            errs.extend(e);
-        };
+        let mut errs = templating::ErrorBuilder::from(self.environment.try_resolve_nested(
+            path,
+            "environment",
+            values,
+        ));
+        errs.append(self.scenario.try_resolve_nested(path, "scenario", values));
 
         errs.into_result(())
     }
@@ -187,19 +226,13 @@ impl Validate for TestPlanConfig {
         &self,
         path: &mut Vec<String>,
         ctx: &impl ResolutionContext,
-    ) -> crate::validation::Result<()> {
-        let mut errs = validation::ErrorBuilder::new();
-
-        if let Err(e) = self
-            .environment
-            .try_validate_nested(path, "environent", ctx)
-        {
-            errs.extend(e);
-        };
-
-        if let Err(e) = self.scenario.try_validate_nested(path, "scenario", ctx) {
-            errs.extend(e);
-        };
+    ) -> validation::Result<()> {
+        let mut errs = validation::ErrorBuilder::from(self.environment.try_validate_nested(
+            path,
+            "environent",
+            ctx,
+        ));
+        errs.append(self.scenario.try_validate_nested(path, "scenario", ctx));
 
         errs.into_result(())
     }
@@ -439,7 +472,7 @@ mod tests {
         );
         assert!(plan_config.has_pending_fields(), "fields should be pending");
 
-        let res = plan_config.try_resolve_envrionment_setup(&mut Vec::new(), &values);
+        let res = plan_config.try_resolve_envrionment_setup(&values);
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
             !plan_config.environment.setup.command.has_pending_fields(),
@@ -449,14 +482,14 @@ mod tests {
         let mut combined_values = provides_values.clone();
         combined_values.extend(plan_config.values.clone());
 
-        let res = plan_config.try_resolve_envrionment_teardown(&mut Vec::new(), &combined_values);
+        let res = plan_config.try_resolve_envrionment_teardown(&combined_values);
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
             !plan_config.environment.teardown.has_pending_fields(),
             "fields should be resolved"
         );
 
-        let res = plan_config.try_resolve_scenario(&mut Vec::new(), &combined_values);
+        let res = plan_config.try_resolve_scenario(&combined_values);
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
             !plan_config.scenario.has_pending_fields(),

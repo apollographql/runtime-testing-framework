@@ -16,12 +16,18 @@ pub enum Error {
     #[error("one or more file providers failed to run:\n{}", .errs.join("\n"))]
     FailedFileProviders { errs: Vec<String> },
 
+    #[error("missing required output fields from environment setup: {missing:?}")]
+    InvalidSetupOutput { missing: Vec<String> },
+
     #[error("the config file being parsed was invalid:\n{0}")]
     Validation(#[from] validation::Errors),
 
     // wrapped errors
     #[error(transparent)]
     Io(#[from] io::Error),
+
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
 
     #[error(transparent)]
     Provider(#[from] providers::Error),
