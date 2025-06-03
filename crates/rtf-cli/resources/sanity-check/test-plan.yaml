@@ -8,7 +8,7 @@ values:
 scenario:
   from:
     kind: local_path
-    relative_path: scenario.yaml
+    relative_path: nested/scenario.yaml
 
 environment:
   from:

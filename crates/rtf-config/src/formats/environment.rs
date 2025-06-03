@@ -3,7 +3,7 @@ use crate::{
     ValueDefinition,
     context::ResolutionContext,
     formats::{Result, filter_values},
-    providers::command::CommandSection,
+    providers::{command::CommandSection, file::Source},
     templating::{self, Scalar, Template},
     validation::{self, Validate, duplicate_keys},
 };
@@ -89,6 +89,7 @@ impl Validate for EnvironmentConfig {
     fn try_validate(
         &self,
         path: &mut Vec<String>,
+        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
         let mut errs = validation::ErrorBuilder::new();
@@ -105,8 +106,15 @@ impl Validate for EnvironmentConfig {
         }
 
         // Check that each command is valid in isolation
-        errs.append(self.setup.command.try_validate_nested(path, "setup", ctx));
-        errs.append(self.teardown.try_validate_nested(path, "teardown", ctx));
+        errs.append(
+            self.setup
+                .command
+                .try_validate_nested(path, "setup", src, ctx),
+        );
+        errs.append(
+            self.teardown
+                .try_validate_nested(path, "teardown", src, ctx),
+        );
 
         errs.into_result(())
     }
@@ -163,14 +171,14 @@ mod tests {
         let res: serde_yaml::Result<EnvironmentConfig> = serde_yaml::from_str(config);
         assert!(res.is_ok(), "{res:?}");
 
-        let ctx = Context::new(
-            PathBuf::from("resources/config-tests/environment/valid")
-                .canonicalize()
-                .unwrap(),
-        );
+        let dir = PathBuf::from("resources/config-tests/environment/valid")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(&dir);
+        let src = Source::local(dir);
 
         let env_config = res.unwrap();
-        let res = env_config.try_validate(&mut vec!["environment".to_string()], &ctx);
+        let res = env_config.try_validate(&mut vec!["environment".to_string()], &src, &ctx);
 
         assert!(res.is_ok(), "failed to validate: {res:?}");
     }
@@ -185,14 +193,14 @@ mod tests {
         let res: serde_yaml::Result<EnvironmentConfig> = serde_yaml::from_str(config);
         assert!(res.is_ok(), "{res:?}");
 
-        let ctx = Context::new(
-            PathBuf::from("resources/config-tests/environment/validation-failures")
-                .canonicalize()
-                .unwrap(),
-        );
+        let dir = PathBuf::from("resources/config-tests/environment/validation-failures")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(&dir);
+        let src = Source::local(dir);
 
         let env_config = res.unwrap();
-        let res = env_config.try_validate(&mut vec!["environment".to_string()], &ctx);
+        let res = env_config.try_validate(&mut vec!["environment".to_string()], &src, &ctx);
 
         assert!(res.is_err(), "expected validation failures");
         let errs = res.unwrap_err();

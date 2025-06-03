@@ -2,8 +2,8 @@ use crate::{
     ValueDefinition,
     context::ResolutionContext,
     formats::{Result, filter_values},
-    providers::command::CommandSection,
-    templating::{self, Template},
+    providers::{command::CommandSection, file::Source},
+    templating::{self, Scalar, Template},
     validation::{self, Validate},
 };
 use serde::{Deserialize, Serialize};
@@ -42,7 +42,7 @@ impl Template for ScenarioConfig {
     fn try_resolve(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, crate::templating::Scalar>,
+        values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let definitions = self.values.iter();
         let allowed_values = filter_values(values, definitions);
@@ -56,9 +56,10 @@ impl Validate for ScenarioConfig {
     fn try_validate(
         &self,
         path: &mut Vec<String>,
+        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
-        self.command.try_validate_nested(path, "command", ctx)
+        self.command.try_validate_nested(path, "command", src, ctx)
     }
 }
 
@@ -103,13 +104,13 @@ mod tests {
             Err(e) => panic!("expected a valid ScenarioConfig, got: {e}"),
         };
 
-        let ctx = Context::new(
-            PathBuf::from("resources/config-tests/scenario/valid")
-                .canonicalize()
-                .unwrap(),
-        );
+        let dir = PathBuf::from("resources/config-tests/scenario/valid")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(&dir);
+        let src = Source::local(dir);
 
-        let res = scenario.try_validate(&mut Vec::new(), &ctx);
+        let res = scenario.try_validate(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected to validate but got: {res:?}");
     }
 
@@ -123,14 +124,14 @@ mod tests {
         let res: serde_yaml::Result<ScenarioConfig> = serde_yaml::from_str(config);
         assert!(res.is_ok(), "{res:?}");
 
-        let ctx = Context::new(
-            PathBuf::from("resources/config-tests/scenario/validation-failures")
-                .canonicalize()
-                .unwrap(),
-        );
+        let dir = PathBuf::from("resources/config-tests/scenario/validation-failures")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(&dir);
+        let src = Source::local(dir);
 
         let scenario_config = res.unwrap();
-        let res = scenario_config.try_validate(&mut Vec::new(), &ctx);
+        let res = scenario_config.try_validate(&mut Vec::new(), &src, &ctx);
 
         assert!(res.is_err(), "expected validation failures");
         let errs = res.unwrap_err();

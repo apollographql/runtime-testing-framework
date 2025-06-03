@@ -3,7 +3,7 @@ use crate::{
     formats::{EnvironmentConfig, Error, Result, ScenarioConfig},
     providers::{
         self,
-        file::{AsUtf8FileContent, FileProvider},
+        file::{ConfigProvider, Source},
     },
     templating::{self, Scalar, Template},
     validation::{self, Validate},
@@ -19,7 +19,9 @@ pub struct TestPlanConfig {
     #[serde(default)]
     pub values: HashMap<String, Scalar>,
     pub scenario: ScenarioConfig,
+    pub scenario_source: Source,
     pub environment: EnvironmentConfig,
+    pub environment_source: Source,
 }
 
 impl TestPlanConfig {
@@ -29,8 +31,9 @@ impl TestPlanConfig {
     ) -> Result<Self> {
         let content = ctx.read_path_to_string(p.as_ref())?;
         let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
+        let dir = ctx.dir_containing(p.as_ref());
 
-        raw.try_into_test_plan(ctx).await
+        raw.try_into_test_plan(&dir, ctx).await
     }
 
     pub fn validate_templating_will_work(&mut self) -> templating::Result<()> {
@@ -151,7 +154,7 @@ impl TestPlanConfig {
             .environment
             .setup
             .command
-            .run_providers_and_execute(out_dir, ctx)
+            .run_providers_and_execute(out_dir, &self.environment_source, ctx)
             .await?;
 
         let provides: HashMap<String, Scalar> = serde_json::from_str(&raw_output)?;
@@ -177,7 +180,7 @@ impl TestPlanConfig {
     ) -> Result<()> {
         self.environment
             .teardown
-            .run_providers_and_execute(out_dir, ctx)
+            .run_providers_and_execute(out_dir, &self.environment_source, ctx)
             .await?;
 
         Ok(())
@@ -186,7 +189,7 @@ impl TestPlanConfig {
     pub async fn run_scenario(&self, out_dir: &Path, ctx: &impl ResolutionContext) -> Result<()> {
         self.scenario
             .command
-            .run_providers_and_execute(out_dir, ctx)
+            .run_providers_and_execute(out_dir, &self.scenario_source, ctx)
             .await?;
 
         Ok(())
@@ -225,14 +228,19 @@ impl Validate for TestPlanConfig {
     fn try_validate(
         &self,
         path: &mut Vec<String>,
+        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
         let mut errs = validation::ErrorBuilder::from(self.environment.try_validate_nested(
             path,
             "environent",
+            src,
             ctx,
         ));
-        errs.append(self.scenario.try_validate_nested(path, "scenario", ctx));
+        errs.append(
+            self.scenario
+                .try_validate_nested(path, "scenario", src, ctx),
+        );
 
         errs.into_result(())
     }
@@ -252,12 +260,14 @@ pub struct RawTestPlanConfig {
 }
 
 impl RawTestPlanConfig {
-    async fn try_into_test_plan(self, ctx: &impl ResolutionContext) -> Result<TestPlanConfig> {
-        let environment_source = self.environment;
-        let mut environment = environment_source.try_into_config(ctx).await?;
-
-        let scenario_source = self.scenario;
-        let mut scenario = scenario_source.try_into_config(ctx).await?;
+    async fn try_into_test_plan(
+        self,
+        dir: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> Result<TestPlanConfig> {
+        let (mut environment, environment_source) =
+            self.environment.try_into_config(dir, ctx).await?;
+        let (mut scenario, scenario_source) = self.scenario.try_into_config(dir, ctx).await?;
 
         dedup_and_sort_by_key(&mut environment.values, |v| v.name.clone());
         dedup_and_sort_by_key(&mut environment.setup.provides, |v| v.name.clone());
@@ -277,8 +287,10 @@ impl RawTestPlanConfig {
             name: self.name,
             description: self.description,
             values: self.values,
-            environment,
             scenario,
+            scenario_source,
+            environment,
+            environment_source,
         })
     }
 }
@@ -309,7 +321,7 @@ pub enum ConfigSource<T> {
         inline: T,
     },
     From {
-        from: FileProvider,
+        from: ConfigProvider,
         #[serde(default)]
         overrides: serde_yaml::Value,
     },
@@ -321,17 +333,22 @@ where
 {
     /// Try to convert the [ConfigSource] into a config yaml. This can read the content
     /// directly from inline content or a [FileProvider]
-    async fn try_into_config(self, ctx: &impl ResolutionContext) -> providers::Result<T> {
+    async fn try_into_config(
+        self,
+        dir: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<(T, Source)> {
         match self {
-            Self::Inline { inline } => Ok(inline),
+            Self::Inline { inline } => Ok((inline, Source::local(dir))),
             Self::From { from, overrides } => {
-                let file_content = from.try_get_file_content(ctx).await?;
+                let file_content = from.try_get_file_content(dir, ctx).await?;
+                let src = from.as_source(dir, ctx);
                 let mut base: serde_yaml::Value = serde_yaml::from_str(&file_content)?;
                 if overrides != serde_yaml::Value::Null {
                     merge(overrides, &mut base);
                 }
 
-                Ok(serde_yaml::from_value(base)?)
+                Ok((serde_yaml::from_value(base)?, src))
             }
         }
     }
@@ -369,7 +386,7 @@ fn merge(overrides: serde_yaml::Value, base: &mut serde_yaml::Value) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{context::Context, providers::file::InlineFile};
+    use crate::context::Context;
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
     use std::path::PathBuf;
@@ -408,17 +425,22 @@ mod tests {
             Err(e) => panic!("expected a valid RawTestPlanConfig, got: {e}"),
         };
 
-        let ctx = Context::new(
-            PathBuf::from("resources/config-tests/test-plan/valid")
-                .canonicalize()
-                .unwrap(),
-        );
+        let dir = PathBuf::from("resources/config-tests/test-plan/valid")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(&dir);
+        let src = Source::local(&dir);
 
-        let res = raw_plan.try_into_test_plan(&ctx).await;
+        // The dir passed to try_into_test_plan is used to build out the Sources for each of the
+        // environment and scenario sections. In order to have a deterministic value for this in
+        // testing we hard code this as "/example" here and in the test data files.
+        let res = raw_plan
+            .try_into_test_plan(&PathBuf::from("/example"), &ctx)
+            .await;
         assert!(res.is_ok(), "expected a test plan config, got: {res:?}");
 
         let plan = res.unwrap();
-        let res = plan.try_validate(&mut Vec::new(), &ctx);
+        let res = plan.try_validate(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected test plan to validate, got {res:?}");
         pretty_assertions::assert_eq!(plan, expected, "expected test plan and expected to match");
     }
@@ -549,19 +571,22 @@ mod tests {
         println!("{overrides:?}");
 
         let config_source: ConfigSource<ScenarioConfig> = ConfigSource::From {
-            from: FileProvider::Inline(InlineFile { content }),
+            from: ConfigProvider::Inline { content },
             overrides,
         };
 
-        let ctx = Context::new(
-            PathBuf::from("resources/config-tests/test-plan/valid-scenario-config-source")
-                .canonicalize()
-                .unwrap(),
-        );
+        let dir = PathBuf::from("resources/config-tests/test-plan/valid-scenario-config-source")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(&dir);
 
-        let res = config_source.try_into_config(&ctx).await;
+        let res = config_source.try_into_config(&dir, &ctx).await;
         assert!(res.is_ok(), "Expected a valid ScenarioConfig, got {res:?}");
-        assert_eq!(res.unwrap(), expected, "expected scenario configs to match");
+        assert_eq!(
+            res.unwrap().0,
+            expected,
+            "expected scenario configs to match"
+        );
     }
 
     #[dir_cases(
@@ -579,23 +604,22 @@ mod tests {
         println!("{overrides:?}");
 
         let config_source: ConfigSource<EnvironmentConfig> = ConfigSource::From {
-            from: FileProvider::Inline(InlineFile { content }),
+            from: ConfigProvider::Inline { content },
             overrides,
         };
 
-        let ctx = Context::new(
-            PathBuf::from("resources/config-tests/test-plan/valid-environment-config-source")
-                .canonicalize()
-                .unwrap(),
-        );
+        let dir = PathBuf::from("resources/config-tests/test-plan/valid-environment-config-source")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(&dir);
 
-        let res = config_source.try_into_config(&ctx).await;
+        let res = config_source.try_into_config(&dir, &ctx).await;
         assert!(
             res.is_ok(),
             "Expected a valid EnvironmentConfig, got {res:?}"
         );
         assert_eq!(
-            res.unwrap(),
+            res.unwrap().0,
             expected,
             "expected environment configs to match"
         );

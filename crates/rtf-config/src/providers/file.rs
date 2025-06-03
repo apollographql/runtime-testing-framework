@@ -10,7 +10,28 @@ use std::{
     collections::HashMap,
     fmt, io,
     ops::{Deref, DerefMut},
+    path::{Path, PathBuf},
 };
+
+/// The source of how a particular config file was obtained.
+///
+/// In its simplest form this is a local file path to the directory containing the config file, but
+/// this may also include things like pulling the file over the network.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum Source {
+    /// The config file was read from disk
+    Local {
+        /// The absolute path to the directory containing the config file
+        dir: PathBuf,
+    },
+}
+
+impl Source {
+    pub fn local(dir: impl Into<PathBuf>) -> Self {
+        Self::Local { dir: dir.into() }
+    }
+}
 
 /// A file provider is something that can obtain or synthesise utf-8 file content based on a user
 /// provided specification.
@@ -20,7 +41,11 @@ use std::{
 #[allow(async_fn_in_trait)]
 pub(crate) trait AsUtf8FileContent: Validate + DeserializeOwned + fmt::Debug {
     /// Attempt to run this file provider and convert it into the required file content.
-    async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String>;
+    async fn try_get_file_content(
+        &self,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> Result<String>;
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -74,8 +99,12 @@ macro_rules! delegate_to_inner {
 }
 
 impl AsUtf8FileContent for FileProvider {
-    async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String> {
-        delegate_to_inner!(@async self, try_get_file_content, ctx)
+    async fn try_get_file_content(
+        &self,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> Result<String> {
+        delegate_to_inner!(@async self, try_get_file_content, src, ctx)
     }
 }
 
@@ -101,9 +130,43 @@ impl Validate for FileProvider {
     fn try_validate(
         &self,
         path: &mut Vec<String>,
+        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
-        delegate_to_inner!(self, try_validate, path, ctx)
+        delegate_to_inner!(self, try_validate, path, src, ctx)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum ConfigProvider {
+    LocalPath { relative_path: String },
+    Inline { content: String },
+}
+
+impl ConfigProvider {
+    pub async fn try_get_file_content(
+        &self,
+        dir: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> Result<String> {
+        match self {
+            Self::LocalPath { relative_path } => {
+                let p = dir.join(relative_path);
+                Ok(ctx.read_path_to_string(p)?)
+            }
+            Self::Inline { content } => Ok(content.clone()),
+        }
+    }
+
+    pub fn as_source(&self, dir: &Path, ctx: &impl ResolutionContext) -> Source {
+        match self {
+            Self::LocalPath { relative_path } => match dir.join(relative_path).parent() {
+                Some(path) => Source::local(ctx.canonicalize_path(path).unwrap()),
+                None => Source::local(""),
+            },
+            Self::Inline { .. } => Source::local(dir),
+        }
     }
 }
 
@@ -115,7 +178,11 @@ pub struct InlineFile {
 }
 
 impl AsUtf8FileContent for InlineFile {
-    async fn try_get_file_content(&self, _ctx: &impl ResolutionContext) -> Result<String> {
+    async fn try_get_file_content(
+        &self,
+        _src: &Source,
+        _ctx: &impl ResolutionContext,
+    ) -> Result<String> {
         Ok(self.content.clone())
     }
 }
@@ -144,6 +211,7 @@ impl Validate for InlineFile {
     fn try_validate(
         &self,
         _path: &mut Vec<String>,
+        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
         Ok(())
@@ -182,10 +250,17 @@ impl Template for LocalFile {
 }
 
 impl AsUtf8FileContent for LocalFile {
-    async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String> {
-        let p = ctx.resolve_path(self.relative_path.as_resolved())?;
-
-        Ok(ctx.read_path_to_string(p)?)
+    async fn try_get_file_content(
+        &self,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> Result<String> {
+        match src {
+            Source::Local { dir } => {
+                let p = dir.join(self.relative_path.as_resolved());
+                Ok(ctx.read_path_to_string(p)?)
+            }
+        }
     }
 }
 
@@ -193,9 +268,14 @@ impl Validate for LocalFile {
     fn try_validate(
         &self,
         path: &mut Vec<String>,
+        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
-        let res = ctx.resolve_path(self.relative_path.as_resolved());
+        let res = match src {
+            Source::Local { dir } => {
+                ctx.canonicalize_path(dir.join(self.relative_path.as_resolved()))
+            }
+        };
 
         let p = match res {
             Ok(p) => p,
@@ -259,7 +339,11 @@ impl Template for RequiredFile {
 }
 
 impl AsUtf8FileContent for RequiredFile {
-    async fn try_get_file_content(&self, _ctx: &impl ResolutionContext) -> Result<String> {
+    async fn try_get_file_content(
+        &self,
+        _src: &Source,
+        _ctx: &impl ResolutionContext,
+    ) -> Result<String> {
         panic!(
             "Should not be able to get here. Required file should result in an error when validated."
         )
@@ -270,6 +354,7 @@ impl Validate for RequiredFile {
     fn try_validate(
         &self,
         path: &mut Vec<String>,
+        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
         Err(validation::Errors::new(
@@ -322,16 +407,16 @@ mod tests {
             Err(e) => panic!("expected a valid FileProvider, got: {e}"),
         };
 
-        let ctx = Context::new(
-            PathBuf::from("resources/provider-tests/file/valid")
-                .canonicalize()
-                .unwrap(),
-        );
+        let dir = PathBuf::from("resources/provider-tests/file/valid")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(&dir);
+        let src = Source::local(dir);
 
-        let res = provider.try_validate(&mut Vec::new(), &ctx);
+        let res = provider.try_validate(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected to validate but got: {res:?}");
 
-        let res = provider.try_get_file_content(&ctx).await;
+        let res = provider.try_get_file_content(&src, &ctx).await;
         assert_eq!(res.unwrap(), expected, "wrong file content");
     }
 
@@ -357,12 +442,12 @@ mod tests {
             Err(e) => panic!("expected a valid FileProvider, got: {e}"),
         };
 
-        let ctx = Context::new(
-            PathBuf::from("resources/provider-tests/file/validation-failures")
-                .canonicalize()
-                .unwrap(),
-        );
-        let res = provider.try_validate(&mut Vec::new(), &ctx);
+        let dir = PathBuf::from("resources/provider-tests/file/validation-failures")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(&dir);
+        let src = Source::local(&dir);
+        let res = provider.try_validate(&mut Vec::new(), &src, &ctx);
 
         assert!(res.is_err(), "expected validation failures");
         let errs = res.unwrap_err();
@@ -441,13 +526,13 @@ mod tests {
             Err(e) => panic!("expected a valid FileProvider, got: {e}"),
         };
 
-        let ctx = Context::new(
-            PathBuf::from("resources/provider-tests/file/resolution-failures")
-                .canonicalize()
-                .unwrap(),
-        );
-        let _ = provider.try_validate(&mut Vec::new(), &ctx);
-        let res = provider.try_get_file_content(&ctx).await;
+        let dir = PathBuf::from("resources/provider-tests/file/resolution-failures")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(&dir);
+        let src = Source::local(&dir);
+        let _ = provider.try_validate(&mut Vec::new(), &src, &ctx);
+        let res = provider.try_get_file_content(&src, &ctx).await;
 
         assert!(res.is_err(), "expected resolution failures, got {res:?}");
         let err = res.unwrap_err();
@@ -465,6 +550,13 @@ mod tests {
         let ctx = Context::new(PathBuf::from("not/used/in/this/test"));
 
         // Calling try_into_file_content should panic here
-        _ = required_file.try_get_file_content(&ctx).await;
+        _ = required_file
+            .try_get_file_content(
+                &Source::Local {
+                    dir: PathBuf::new(),
+                },
+                &ctx,
+            )
+            .await;
     }
 }

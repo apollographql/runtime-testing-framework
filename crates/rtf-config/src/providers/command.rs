@@ -10,6 +10,8 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io, path::Path};
 
+use super::file::Source;
+
 /// The environment variable used to provide the location of the output directory to user specified
 /// commands
 const OUTDIR: &str = "OUTDIR";
@@ -32,9 +34,10 @@ impl CommandSection {
     pub async fn run_providers_and_execute(
         &self,
         out_dir: &Path,
+        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
-        self.run_providers(out_dir, ctx).await?;
+        self.run_providers(out_dir, src, ctx).await?;
         self.execute(out_dir, ctx)
     }
 
@@ -87,10 +90,11 @@ impl CommandSection {
     pub async fn run_providers(
         &self,
         provider_dir: &Path,
+        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<()> {
         for nfp in self.file_providers.iter() {
-            let content = nfp.try_get_file_content(ctx).await?;
+            let content = nfp.try_get_file_content(src, ctx).await?;
             let file_path = provider_dir.join(&nfp.name);
             ctx.write(file_path, content)?;
         }
@@ -151,13 +155,14 @@ impl Validate for CommandSection {
     fn try_validate(
         &self,
         path: &mut Vec<String>,
+        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
         let mut errs = validation::ErrorBuilder::new();
 
         for nfp in self.file_providers.iter() {
             let tail = nfp.name.clone();
-            errs.append(nfp.provider.try_validate_nested(path, tail, ctx));
+            errs.append(nfp.provider.try_validate_nested(path, tail, src, ctx));
         }
 
         let env_var_names = self
@@ -224,13 +229,13 @@ mod tests {
             Err(e) => panic!("expected a valid CommandSection, got: {e}"),
         };
 
-        let ctx = Context::new(
-            PathBuf::from("resources/provider-tests/command/valid")
-                .canonicalize()
-                .unwrap(),
-        );
+        let dir = PathBuf::from("resources/provider-tests/command/valid")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(&dir);
+        let src = Source::local(&dir);
 
-        let res = section.try_validate(&mut Vec::new(), &ctx);
+        let res = section.try_validate(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected to validate but got: {res:?}");
     }
 
@@ -256,12 +261,12 @@ mod tests {
             Err(e) => panic!("expected a valid CommandSection, got: {e}"),
         };
 
-        let ctx = Context::new(
-            PathBuf::from("resources/provider-tests/command/validation-failures")
-                .canonicalize()
-                .unwrap(),
-        );
-        let res = section.try_validate(&mut Vec::new(), &ctx);
+        let dir = PathBuf::from("resources/provider-tests/command/validation-failures")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(&dir);
+        let src = Source::local(&dir);
+        let res = section.try_validate(&mut Vec::new(), &src, &ctx);
 
         assert!(res.is_err(), "expected validation failures");
         let errs = res.unwrap_err();
@@ -312,8 +317,8 @@ mod tests {
             PathKind::File
         }
 
-        fn resolve_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
-            Ok(relative_path.as_ref().to_path_buf())
+        fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
+            relative_path.as_ref().canonicalize()
         }
 
         fn read_path_to_string(&self, _path: impl AsRef<Path>) -> io::Result<String> {
@@ -378,8 +383,10 @@ mod tests {
     async fn run_providers_writes_the_expected_files() {
         let c = test_cmd_section();
         let ctx = MockCommandContext::default();
+        let dir = PathBuf::from("/example-dir");
+        let src = Source::Local { dir: dir.clone() };
 
-        let res = c.run_providers(&PathBuf::from("/example-dir"), &ctx).await;
+        let res = c.run_providers(&dir, &src, &ctx).await;
         assert!(res.is_ok(), "unexpected error: {res:?}");
 
         let written_files = ctx.written_files.into_inner().unwrap();
