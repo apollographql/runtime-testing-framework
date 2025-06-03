@@ -52,18 +52,10 @@ pub async fn validate_and_run_test_plan(path: &str, out_dir: &str) -> anyhow::Re
     builder.into_result(())?;
 
     info!("executing scenario");
-    test_plan
-        .scenario
-        .command
-        .run_providers_and_execute(&out_dir, &ctx)
-        .await?;
+    test_plan.run_scenario(&out_dir, &ctx).await?;
 
     info!("executing environment teardown");
-    test_plan
-        .environment
-        .teardown
-        .run_providers_and_execute(&out_dir, &ctx)
-        .await?;
+    test_plan.run_environment_teardown(&out_dir, &ctx).await?;
 
     Ok(())
 }

@@ -169,6 +169,28 @@ impl TestPlanConfig {
             Err(Error::InvalidSetupOutput { missing })
         }
     }
+
+    pub async fn run_environment_teardown(
+        &self,
+        out_dir: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> Result<()> {
+        self.environment
+            .teardown
+            .run_providers_and_execute(out_dir, ctx)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn run_scenario(&self, out_dir: &Path, ctx: &impl ResolutionContext) -> Result<()> {
+        self.scenario
+            .command
+            .run_providers_and_execute(out_dir, ctx)
+            .await?;
+
+        Ok(())
+    }
 }
 
 impl Template for TestPlanConfig {
