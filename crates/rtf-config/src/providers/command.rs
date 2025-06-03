@@ -132,9 +132,7 @@ impl Template for CommandSection {
 
         for (name, f) in self.env_vars.iter_mut() {
             let tail = name.clone();
-            if let Err(e) = f.try_resolve_nested(path, tail, values) {
-                errs.extend(e);
-            };
+            errs.append(f.try_resolve_nested(path, tail, values));
         }
 
         path.pop();
@@ -142,9 +140,7 @@ impl Template for CommandSection {
 
         for nfp in self.file_providers.iter_mut() {
             let tail = nfp.env_var.clone();
-            if let Err(e) = nfp.try_resolve_nested(path, tail, values) {
-                errs.extend(e);
-            };
+            errs.append(nfp.try_resolve_nested(path, tail, values));
         }
 
         errs.into_result(())
@@ -161,9 +157,7 @@ impl Validate for CommandSection {
 
         for nfp in self.file_providers.iter() {
             let tail = nfp.name.clone();
-            if let Err(e) = nfp.provider.try_validate_nested(path, tail, ctx) {
-                errs.extend(e);
-            }
+            errs.append(nfp.provider.try_validate_nested(path, tail, ctx));
         }
 
         let env_var_names = self
@@ -365,6 +359,7 @@ mod tests {
         let expected: HashMap<String, String> = [
             ("FOO", "hello"),
             ("BAR", "world"),
+            ("OUTDIR", "/example-dir"),
             ("FP1", "/example-dir/fp1.txt"),
             ("FP2", "/example-dir/fp2.txt"),
         ]

@@ -485,13 +485,8 @@ mod tests {
             path: &mut Vec<String>,
             values: &HashMap<String, Scalar>,
         ) -> Result<()> {
-            let mut errs = ErrorBuilder::new();
-            if let Err(e) = self.foo.try_resolve_nested(path, "foo", values) {
-                errs.extend(e);
-            };
-            if let Err(e) = self.bar.try_resolve_nested(path, "bar", values) {
-                errs.extend(e);
-            };
+            let mut errs = ErrorBuilder::from(self.foo.try_resolve_nested(path, "foo", values));
+            errs.append(self.bar.try_resolve_nested(path, "bar", values));
 
             errs.into_result(())
         }

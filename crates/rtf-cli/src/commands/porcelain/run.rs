@@ -1,6 +1,5 @@
-use rtf_config::{context::Context, formats::TestPlanConfig, templating::Scalar};
+use rtf_config::{context::Context, formats::TestPlanConfig, templating};
 use std::{
-    collections::HashMap,
     env::{current_dir, set_current_dir},
     fs::create_dir_all,
     mem::take,
@@ -47,10 +46,10 @@ pub async fn validate_and_run_test_plan(path: &str, out_dir: &str) -> anyhow::Re
     let setup_provides = test_plan.run_environment_setup(&out_dir, &ctx).await?;
     values.extend(setup_provides);
 
-    // TODO: errors need combining and returning together
     info!("resolving scenario and environment teardown commands");
-    test_plan.try_resolve_scenario(&values)?;
-    test_plan.try_resolve_envrionment_teardown(&values)?;
+    let mut builder = templating::ErrorBuilder::from(test_plan.try_resolve_scenario(&values));
+    builder.append(test_plan.try_resolve_envrionment_teardown(&values));
+    builder.into_result(())?;
 
     info!("executing scenario");
     test_plan

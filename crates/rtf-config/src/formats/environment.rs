@@ -78,13 +78,8 @@ impl Template for EnvironmentConfig {
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
-        if let Err(e) = self.try_resolve_setup(path, values) {
-            errs.extend(e);
-        };
-        if let Err(e) = self.try_resolve_teardown(path, values) {
-            errs.extend(e);
-        };
+        let mut errs = templating::ErrorBuilder::from(self.try_resolve_setup(path, values));
+        errs.append(self.try_resolve_teardown(path, values));
 
         errs.into_result(())
     }
@@ -110,13 +105,8 @@ impl Validate for EnvironmentConfig {
         }
 
         // Check that each command is valid in isolation
-        if let Err(e) = self.setup.command.try_validate_nested(path, "setup", ctx) {
-            errs.extend(e);
-        }
-
-        if let Err(e) = self.teardown.try_validate_nested(path, "teardown", ctx) {
-            errs.extend(e);
-        }
+        errs.append(self.setup.command.try_validate_nested(path, "setup", ctx));
+        errs.append(self.teardown.try_validate_nested(path, "teardown", ctx));
 
         errs.into_result(())
     }

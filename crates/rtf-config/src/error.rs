@@ -57,6 +57,11 @@ where
     pub fn iter(&self) -> slice::Iter<'_, Error<K>> {
         self.inner.iter()
     }
+
+    /// Append another [Errors] onto this one.
+    pub fn append(&mut self, other: Errors<K>) {
+        self.inner.extend(other.inner);
+    }
 }
 
 impl<K> IntoIterator for Errors<K>
@@ -93,6 +98,18 @@ where
     inner: Vec<Error<K>>,
 }
 
+impl<K> From<Result<(), Errors<K>>> for ErrorBuilder<K>
+where
+    K: fmt::Debug + fmt::Display + Copy,
+{
+    fn from(res: Result<(), Errors<K>>) -> Self {
+        match res {
+            Ok(_) => Self::new(),
+            Err(e) => Self { inner: e.inner },
+        }
+    }
+}
+
 impl<K> ErrorBuilder<K>
 where
     K: fmt::Debug + fmt::Display + Copy,
@@ -116,12 +133,14 @@ where
         self.inner.push(err);
     }
 
-    /// Add all errors from `other` to the end of this builder.
+    /// Add all errors from `res` to the end of this builder.
     ///
     /// Typically used to combine errors from nested sources when working with a larger structure
     /// such as a config file.
-    pub fn extend(&mut self, other: Errors<K>) {
-        self.inner.extend(other.inner);
+    pub fn append(&mut self, res: Result<(), Errors<K>>) {
+        if let Err(e) = res {
+            self.inner.extend(e.inner);
+        }
     }
 
     /// Construct a result from this builder, returning `Ok(t)` if the builder is empty or
@@ -135,6 +154,18 @@ where
         } else {
             Err(Errors { inner: self.inner })
         }
+    }
+}
+
+impl<K> Extend<Error<K>> for ErrorBuilder<K>
+where
+    K: fmt::Debug + fmt::Display + Copy,
+{
+    fn extend<T>(&mut self, iter: T)
+    where
+        T: IntoIterator<Item = Error<K>>,
+    {
+        self.inner.extend(iter);
     }
 }
 

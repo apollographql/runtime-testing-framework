@@ -101,57 +101,45 @@ impl TestPlanConfig {
         &mut self,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
         let mut path = vec!["environment".to_string()];
-
-        if let Err(e) = self.environment.try_resolve_setup(&mut path, values) {
-            errs.extend(e);
-        };
+        let res = self.environment.try_resolve_setup(&mut path, values);
 
         debug_assert!(
             !self.environment.setup.command.has_pending_fields(),
             "Envrionment setup should not have pending fields"
         );
 
-        errs.into_result(())
+        res
     }
 
     pub fn try_resolve_envrionment_teardown(
         &mut self,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
         let mut path = vec!["environment".to_string()];
-
-        if let Err(e) = self.environment.try_resolve_teardown(&mut path, values) {
-            errs.extend(e);
-        };
+        let res = self.environment.try_resolve_teardown(&mut path, values);
 
         debug_assert!(
             !self.environment.teardown.has_pending_fields(),
             "Envrionment teardown should not have pending fields"
         );
 
-        errs.into_result(())
+        res
     }
 
     pub fn try_resolve_scenario(
         &mut self,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
         let mut path = vec!["scenario".to_string()];
-
-        if let Err(e) = self.scenario.try_resolve(&mut path, values) {
-            errs.extend(e);
-        };
+        let res = self.scenario.try_resolve(&mut path, values);
 
         debug_assert!(
             !self.scenario.has_pending_fields(),
             "Scenario should not have pending fields"
         );
 
-        errs.into_result(())
+        res
     }
 
     pub async fn run_environment_setup(
@@ -198,18 +186,14 @@ impl Template for TestPlanConfig {
     fn try_resolve(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, crate::templating::Scalar>,
+        values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
-        if let Err(e) = self
-            .environment
-            .try_resolve_nested(path, "environment", values)
-        {
-            errs.extend(e);
-        };
-        if let Err(e) = self.scenario.try_resolve_nested(path, "scenario", values) {
-            errs.extend(e);
-        };
+        let mut errs = templating::ErrorBuilder::from(self.environment.try_resolve_nested(
+            path,
+            "environment",
+            values,
+        ));
+        errs.append(self.scenario.try_resolve_nested(path, "scenario", values));
 
         errs.into_result(())
     }
@@ -220,19 +204,13 @@ impl Validate for TestPlanConfig {
         &self,
         path: &mut Vec<String>,
         ctx: &impl ResolutionContext,
-    ) -> crate::validation::Result<()> {
-        let mut errs = validation::ErrorBuilder::new();
-
-        if let Err(e) = self
-            .environment
-            .try_validate_nested(path, "environent", ctx)
-        {
-            errs.extend(e);
-        };
-
-        if let Err(e) = self.scenario.try_validate_nested(path, "scenario", ctx) {
-            errs.extend(e);
-        };
+    ) -> validation::Result<()> {
+        let mut errs = validation::ErrorBuilder::from(self.environment.try_validate_nested(
+            path,
+            "environent",
+            ctx,
+        ));
+        errs.append(self.scenario.try_validate_nested(path, "scenario", ctx));
 
         errs.into_result(())
     }
