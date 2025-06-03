@@ -1,49 +1,38 @@
-use rtf_config::{context::Context, formats::TestPlanConfig, templating};
-use std::{
-    env::{current_dir, set_current_dir},
-    fs::create_dir_all,
-    mem::take,
-    path::PathBuf,
-};
+use crate::commands::get_context_and_outdir;
+use rtf_config::{context::ResolutionContext, formats::TestPlanConfig, templating};
+use std::{mem::take, path::Path};
 use tracing::info;
 
-pub async fn validate_and_run_test_plan(path: &str, out_dir: &str) -> anyhow::Result<()> {
+pub async fn validate_and_run_test_plan(
+    config_file_path: &str,
+    out_dir: &str,
+) -> anyhow::Result<()> {
+    let (ctx, out_dir) = get_context_and_outdir(config_file_path, out_dir)?;
+    validate_and_run_test_plan_with_context(config_file_path, &out_dir, ctx).await
+}
+
+async fn validate_and_run_test_plan_with_context(
+    path: &str,
+    out_dir: &Path,
+    mut ctx: impl ResolutionContext,
+) -> anyhow::Result<()> {
     info!("loading and resolving test plan");
     let mut test_plan = TestPlanConfig::try_load_and_resolve_from_path(path).await?;
+
     info!("checking if templating will work");
     test_plan.validate_templating_will_work()?;
 
-    // prepare context and output directory
-    info!("setting up context and output directory");
-    let mut values = take(&mut test_plan.values);
-    let full_path = PathBuf::from(path).canonicalize()?;
-    let config_dir = full_path.parent().unwrap().to_path_buf();
-
-    // we ensure that we are running from the directory containing the test plan so that relative
-    // paths within config files are correct
-    let execution_dir = current_dir()?;
-    set_current_dir(&config_dir)?;
-
-    // output directories are created relative to the directory we were run from
-    let out_dir = execution_dir.join(out_dir);
-
-    if out_dir.exists() {
-        if !out_dir.is_dir() {
-            anyhow::bail!("{} is not a directory", out_dir.display());
-        } else if out_dir.read_dir()?.next().is_some() {
-            anyhow::bail!("{} already exists and is non-empty", out_dir.display());
-        }
-    }
-
     info!("creating output directory");
-    create_dir_all(&out_dir)?;
-    let ctx = Context::new(&config_dir);
+    ctx.create_dir_all(out_dir)?;
+    let config_dir = ctx.dir_containing(path);
+    ctx.set_current_dir(config_dir)?;
 
     info!("resolving environment setup");
+    let mut values = take(&mut test_plan.values);
     test_plan.try_resolve_envrionment_setup(&values)?;
 
     info!("executing environment setup");
-    let setup_provides = test_plan.run_environment_setup(&out_dir, &ctx).await?;
+    let setup_provides = test_plan.run_environment_setup(out_dir, &ctx).await?;
     values.extend(setup_provides);
 
     info!("resolving scenario and environment teardown commands");
@@ -52,10 +41,12 @@ pub async fn validate_and_run_test_plan(path: &str, out_dir: &str) -> anyhow::Re
     builder.into_result(())?;
 
     info!("executing scenario");
-    test_plan.run_scenario(&out_dir, &ctx).await?;
+    test_plan.run_scenario(out_dir, &ctx).await?;
 
     info!("executing environment teardown");
-    test_plan.run_environment_teardown(&out_dir, &ctx).await?;
+    test_plan.run_environment_teardown(out_dir, &ctx).await?;
+
+    info!("done");
 
     Ok(())
 }
