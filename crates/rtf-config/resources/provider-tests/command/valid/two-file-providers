@@ -17,6 +17,5 @@ file_providers:
         How nice.
   - name: "example.txt"
     env_var: EXAMPLE_FILE
-    kind: local_path
-    # This is the path relative to the directory this yaml file is located in
-    relative_path: ../../../example.txt
+    kind: relative_path
+    path: ../../../example.txt

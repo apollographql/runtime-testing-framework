@@ -10,7 +10,7 @@ use std::{
     collections::HashMap,
     fmt, io,
     ops::{Deref, DerefMut},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 /// The source of how a particular config file was obtained.
@@ -45,6 +45,33 @@ impl Default for Source {
     fn default() -> Self {
         Self::Local {
             abs_path: PathBuf::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum RawSource {
+    Local { relative_path: PathBuf },
+}
+
+impl RawSource {
+    pub async fn try_get_file_content(
+        &self,
+        dir: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> Result<String> {
+        match self {
+            Self::Local { relative_path } => Ok(ctx.read_path_to_string(dir.join(relative_path))?),
+        }
+    }
+
+    pub fn try_into_source(self, dir: &Path, ctx: &impl ResolutionContext) -> io::Result<Source> {
+        match self {
+            Self::Local { relative_path } => {
+                let abs_path = ctx.canonicalize_path(dir.join(relative_path))?;
+                Ok(Source::Local { abs_path })
+            }
         }
     }
 }
@@ -90,7 +117,7 @@ impl DerefMut for NamedFileProvider {
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
     Inline(InlineFile),
-    LocalPath(LocalFile),
+    RelativePath(RelativeFile),
     Required(RequiredFile),
 }
 
@@ -100,7 +127,7 @@ macro_rules! delegate_to_inner {
     ($self:ident, $method:ident $(, $arg:expr)*) => {
         match $self {
             FileProvider::Inline(fp) => fp.$method($($arg),*),
-            FileProvider::LocalPath(fp) => fp.$method($($arg),*),
+            FileProvider::RelativePath(fp) => fp.$method($($arg),*),
             FileProvider::Required(fp) => fp.$method($($arg),*),
         }
     };
@@ -108,7 +135,7 @@ macro_rules! delegate_to_inner {
     (@async $self:ident, $method:ident, $($arg:expr),*) => {
         match $self {
             FileProvider::Inline(fp) => fp.$method($($arg),*).await,
-            FileProvider::LocalPath(fp) => fp.$method($($arg),*).await,
+            FileProvider::RelativePath(fp) => fp.$method($($arg),*).await,
             FileProvider::Required(fp) => fp.$method($($arg),*).await,
         }
     };
@@ -204,23 +231,23 @@ impl Validate for InlineFile {
 /// The user specifies a path to a local file relative to the config
 /// file containing this provider
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct LocalFile {
-    pub(crate) relative_path: Field<String>,
+pub struct RelativeFile {
+    pub(crate) path: Field<String>,
 }
 
-impl LocalFile {
+impl RelativeFile {
     fn format_error_message(&self) -> String {
-        format!("Provided path was {:?}", self.relative_path)
+        format!("Provided path was {:?}", self.path)
     }
 }
 
-impl Template for LocalFile {
+impl Template for RelativeFile {
     fn has_pending_fields(&self) -> bool {
-        self.relative_path.has_pending_fields()
+        self.path.has_pending_fields()
     }
 
     fn required_values(&self) -> Vec<String> {
-        self.relative_path.required_values()
+        self.path.required_values()
     }
 
     fn try_resolve(
@@ -228,11 +255,11 @@ impl Template for LocalFile {
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        self.relative_path.try_resolve(path, values)
+        self.path.try_resolve(path, values)
     }
 }
 
-impl AsUtf8FileContent for LocalFile {
+impl AsUtf8FileContent for RelativeFile {
     async fn try_get_file_content(
         &self,
         src: &Source,
@@ -244,14 +271,14 @@ impl AsUtf8FileContent for LocalFile {
                     Some(dir) => dir.to_path_buf(),
                     None => PathBuf::new(),
                 };
-                let p = dir.join(self.relative_path.as_resolved());
+                let p = dir.join(self.path.as_resolved());
                 Ok(ctx.read_path_to_string(p)?)
             }
         }
     }
 }
 
-impl Validate for LocalFile {
+impl Validate for RelativeFile {
     fn try_validate(
         &self,
         path: &mut Vec<String>,
@@ -264,7 +291,7 @@ impl Validate for LocalFile {
                     Some(dir) => dir.to_path_buf(),
                     None => PathBuf::new(),
                 };
-                ctx.canonicalize_path(dir.join(self.relative_path.as_resolved()))
+                ctx.canonicalize_path(dir.join(self.path.as_resolved()))
             }
         };
 

@@ -1,7 +1,10 @@
 use crate::{
     context::ResolutionContext,
     formats::{EnvironmentConfig, Error, Result, ScenarioConfig},
-    providers::{self, file::Source},
+    providers::{
+        self,
+        file::{RawSource, Source},
+    },
     templating::{self, Scalar, Template},
     validation::{self, Validate},
 };
@@ -305,10 +308,12 @@ impl RawTestPlanConfig {
         dir: &Path,
         ctx: &impl ResolutionContext,
     ) -> Result<TestPlanConfig> {
-        let (mut environment, environment_source) =
-            self.environment.try_into_config_with_source(ctx).await?;
+        let (mut environment, environment_source) = self
+            .environment
+            .try_into_config_with_source(dir, ctx)
+            .await?;
         let (mut scenario, scenario_source) =
-            self.scenario.try_into_config_with_source(ctx).await?;
+            self.scenario.try_into_config_with_source(dir, ctx).await?;
 
         dedup_and_sort_by_key(&mut environment.values, |v| v.name.clone());
         dedup_and_sort_by_key(&mut environment.setup.provides, |v| v.name.clone());
@@ -361,7 +366,7 @@ pub enum ConfigSpec<T> {
         inline: T,
     },
     From {
-        from: Source,
+        from: RawSource,
         #[serde(default)]
         overrides: serde_yaml::Value,
     },
@@ -375,18 +380,20 @@ where
     /// directly from inline content or a [FileProvider]
     async fn try_into_config_with_source(
         self,
+        dir: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<(T, Option<Source>)> {
         match self {
             Self::Inline { inline } => Ok((inline, None)),
             Self::From { from, overrides } => {
-                let file_content = from.try_get_file_content(ctx).await?;
+                let file_content = from.try_get_file_content(dir, ctx).await?;
+                let src = from.try_into_source(dir, ctx)?;
                 let mut base: serde_yaml::Value = serde_yaml::from_str(&file_content)?;
                 if overrides != serde_yaml::Value::Null {
                     merge(overrides, &mut base);
                 }
 
-                Ok((serde_yaml::from_value(base)?, Some(from)))
+                Ok((serde_yaml::from_value(base)?, Some(src)))
             }
         }
     }
@@ -647,14 +654,16 @@ mod tests {
             serde_yaml::from_str(get_file(&arr, "expected-config")).unwrap();
 
         let config_source: ConfigSpec<ScenarioConfig> = ConfigSpec::From {
-            from: Source::Local {
-                abs_path: PathBuf::from("scenario.yaml"),
+            from: RawSource::Local {
+                relative_path: PathBuf::from("scenario.yaml"),
             },
             overrides,
         };
 
         let ctx = TxtarContext { arr };
-        let res = config_source.try_into_config_with_source(&ctx).await;
+        let res = config_source
+            .try_into_config_with_source(&PathBuf::new(), &ctx)
+            .await;
         assert!(res.is_ok(), "Expected a valid ScenarioConfig, got {res:?}");
         assert_eq!(
             res.unwrap().0,
@@ -673,15 +682,17 @@ mod tests {
             serde_yaml::from_str(get_file(&arr, "expected-config")).unwrap();
 
         let config_source: ConfigSpec<EnvironmentConfig> = ConfigSpec::From {
-            from: Source::Local {
-                abs_path: PathBuf::from("environment.yaml"),
+            from: RawSource::Local {
+                relative_path: PathBuf::from("environment.yaml"),
             },
             overrides,
         };
 
         let ctx = TxtarContext { arr };
 
-        let res = config_source.try_into_config_with_source(&ctx).await;
+        let res = config_source
+            .try_into_config_with_source(&PathBuf::new(), &ctx)
+            .await;
         assert!(
             res.is_ok(),
             "Expected a valid EnvironmentConfig, got {res:?}"

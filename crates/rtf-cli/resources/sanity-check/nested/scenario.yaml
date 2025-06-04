@@ -23,5 +23,5 @@ env_vars:
 file_providers:
   - name: file-provider.txt
     env_var: EXAMPLE_FILE
-    kind: local_path
-    relative_path: file-provider.txt
+    kind: relative_path
+    path: file-provider.txt

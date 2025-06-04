@@ -7,10 +7,10 @@ values:
 
 scenario:
   from:
-    kind: local_path
+    kind: local
     relative_path: nested/scenario.yaml
 
 environment:
   from:
-    kind: local_path
+    kind: local
     relative_path: environment.yaml

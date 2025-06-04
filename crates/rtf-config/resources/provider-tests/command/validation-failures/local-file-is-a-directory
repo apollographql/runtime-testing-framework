@@ -11,8 +11,8 @@ env_vars:
 file_providers:
   - name: "inline.txt"
     env_var: INLINE_FILE
-    kind: local_path
-    relative_path: ../../../provider-tests
+    kind: relative_path
+    path: ../../../provider-tests
 
 -- validation-errors --
 IsADirectory

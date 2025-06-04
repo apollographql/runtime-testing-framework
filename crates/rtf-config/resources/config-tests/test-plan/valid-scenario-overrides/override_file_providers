@@ -23,8 +23,8 @@ env_vars:
 file_providers:
   - name: "local.txt"
     env_var: LOCAL_FILE
-    kind: local_path
-    relative_path: /path/to/file.txt
+    kind: relative_path
+    path: /path/to/file.txt
 
 -- overrides --
 file_providers:
@@ -56,8 +56,8 @@ env_vars:
 file_providers:
   - name: "local.txt"
     env_var: LOCAL_FILE
-    kind: local_path
-    relative_path: /path/to/file.txt 
+    kind: relative_path
+    path: /path/to/file.txt 
   - name: "inline.txt"
     env_var: INLINE_FILE
     kind: inline

@@ -133,7 +133,7 @@ mod tests {
     use super::*;
     use crate::{
         context::Context,
-        providers::file::{FileProvider, LocalFile, NamedFileProvider},
+        providers::file::{FileProvider, NamedFileProvider, RelativeFile},
         templating::Field,
     };
     use simple_test_case::{dir_cases, test_case};
@@ -300,8 +300,8 @@ mod tests {
             file_providers: vec![NamedFileProvider {
                 name: format!("{name}.txt"),
                 env_var: format!("{}_PATH", name.to_uppercase()),
-                provider: FileProvider::LocalPath(LocalFile {
-                    relative_path: Field::Pending(format!("{name}-path")),
+                provider: FileProvider::RelativePath(RelativeFile {
+                    path: Field::Pending(format!("{name}-path")),
                 }),
             }],
         }
