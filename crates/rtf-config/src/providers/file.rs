@@ -33,6 +33,14 @@ impl Source {
     }
 }
 
+impl Default for Source {
+    fn default() -> Self {
+        Self::Local {
+            dir: PathBuf::new(),
+        }
+    }
+}
+
 /// A file provider is something that can obtain or synthesise utf-8 file content based on a user
 /// provided specification.
 ///

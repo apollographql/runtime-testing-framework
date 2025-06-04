@@ -11,14 +11,6 @@ values:
   credentials_env_var: "AUTH_HEADER"
   server_command: "python3 server.py"
 
-scenario_source:
-  kind: local
-  dir: "/example"
-
-environment_source:
-  kind: local
-  dir: "/example"
-
 scenario:
   name: http-get-test
   description: |
@@ -48,6 +40,7 @@ scenario:
       content: |
         { "endpoint": "hello-world", "status": 200, "resp": { "hello": "world" } }
         { "endpoint": "goodbye-world", "status": 404, "resp": { "error": "not found" } }
+
 environment:
   name: env-local-service
   description: "Spin up a locally running HTTP server"
@@ -91,14 +84,6 @@ values:
   credentials_env_var: "AUTH_HEADER"
   server_command: "python3 server.py"
 
-scenario_source:
-  kind: local
-  dir: "/example"
-
-environment_source:
-  kind: local
-  dir: "/example"
-
 scenario:
   name: http-get-test
   description: |
@@ -128,6 +113,7 @@ scenario:
       content: |
         { "endpoint": "hello-world", "status": 200, "resp": { "hello": "world" } }
         { "endpoint": "goodbye-world", "status": 404, "resp": { "error": "not found" } }
+
 environment:
   name: env-local-service
   description: "Spin up a locally running HTTP server"

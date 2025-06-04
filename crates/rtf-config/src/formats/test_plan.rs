@@ -19,9 +19,9 @@ pub struct TestPlanConfig {
     #[serde(default)]
     pub values: HashMap<String, Scalar>,
     pub scenario: ScenarioConfig,
-    pub scenario_source: Source,
     pub environment: EnvironmentConfig,
-    pub environment_source: Source,
+    #[serde(skip)]
+    pub sources: Sources,
 }
 
 impl TestPlanConfig {
@@ -154,7 +154,7 @@ impl TestPlanConfig {
             .environment
             .setup
             .command
-            .run_providers_and_execute(out_dir, &self.environment_source, ctx)
+            .run_providers_and_execute(out_dir, self.sources.environment(), ctx)
             .await?;
 
         let provides: HashMap<String, Scalar> = serde_json::from_str(&raw_output)?;
@@ -180,7 +180,7 @@ impl TestPlanConfig {
     ) -> Result<()> {
         self.environment
             .teardown
-            .run_providers_and_execute(out_dir, &self.environment_source, ctx)
+            .run_providers_and_execute(out_dir, self.sources.environment(), ctx)
             .await?;
 
         Ok(())
@@ -189,7 +189,7 @@ impl TestPlanConfig {
     pub async fn run_scenario(&self, out_dir: &Path, ctx: &impl ResolutionContext) -> Result<()> {
         self.scenario
             .command
-            .run_providers_and_execute(out_dir, &self.scenario_source, ctx)
+            .run_providers_and_execute(out_dir, self.sources.scenario(), ctx)
             .await?;
 
         Ok(())
@@ -246,6 +246,49 @@ impl Validate for TestPlanConfig {
     }
 }
 
+/// In order to be able to resolve relative paths we need to track where we obtained each of the
+/// config files associated with a [TestPlan][TestPlanConfig].
+///
+/// If the [ScenarioConfig] or [EnvironmentConfig] are specified inline then their source will
+/// match that of the overall [TestPlanConfig], otherwise we store the source as defined in the
+/// [RawTestPlanConfig].
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Sources {
+    test_plan: Source,
+    scenario: Option<Source>,
+    environment: Option<Source>,
+}
+
+impl Sources {
+    fn new(dir: &Path, scenario: Option<Source>, environment: Option<Source>) -> Self {
+        Self {
+            test_plan: Source::local(dir),
+            scenario,
+            environment,
+        }
+    }
+
+    /// The [Source] of the [EnvironmentConfig] in this test plan.
+    ///
+    /// Defaults to the source of the test plan itself if the environment was specified inline.
+    fn environment(&self) -> &Source {
+        match self.environment.as_ref() {
+            Some(source) => source,
+            None => &self.test_plan,
+        }
+    }
+
+    /// The [Source] of the [ScenarioConfig] in this test plan.
+    ///
+    /// Defaults to the source of the test plan itself if the scenario was specified inline.
+    fn scenario(&self) -> &Source {
+        match self.scenario.as_ref() {
+            Some(source) => source,
+            None => &self.test_plan,
+        }
+    }
+}
+
 /// The raw format for parsing scenario config. This allows the [ScenarioConfig]
 /// and [EnvironmentConfig] to be retrieved from files or inline content before
 /// being fully templated and validated.
@@ -288,9 +331,8 @@ impl RawTestPlanConfig {
             description: self.description,
             values: self.values,
             scenario,
-            scenario_source,
             environment,
-            environment_source,
+            sources: Sources::new(dir, scenario_source, environment_source),
         })
     }
 }
@@ -337,9 +379,9 @@ where
         self,
         dir: &Path,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<(T, Source)> {
+    ) -> providers::Result<(T, Option<Source>)> {
         match self {
-            Self::Inline { inline } => Ok((inline, Source::local(dir))),
+            Self::Inline { inline } => Ok((inline, None)),
             Self::From { from, overrides } => {
                 let file_content = from.try_get_file_content(dir, ctx).await?;
                 let src = from.as_source(dir, ctx);
@@ -348,7 +390,7 @@ where
                     merge(overrides, &mut base);
                 }
 
-                Ok((serde_yaml::from_value(base)?, src))
+                Ok((serde_yaml::from_value(base)?, Some(src)))
             }
         }
     }
@@ -416,27 +458,24 @@ mod tests {
     #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/valid")]
     #[tokio::test]
     async fn valid_config(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let expected: TestPlanConfig = serde_yaml::from_str(get_file(&arr, "expected")).unwrap();
-
-        let raw_plan: RawTestPlanConfig = match serde_yaml::from_str(config) {
-            Ok(plan) => plan,
-            Err(e) => panic!("expected a valid RawTestPlanConfig, got: {e}"),
-        };
-
         let dir = PathBuf::from("resources/config-tests/test-plan/valid")
             .canonicalize()
             .unwrap();
         let ctx = Context::new(&dir);
         let src = Source::local(&dir);
 
-        // The dir passed to try_into_test_plan is used to build out the Sources for each of the
-        // environment and scenario sections. In order to have a deterministic value for this in
-        // testing we hard code this as "/example" here and in the test data files.
-        let res = raw_plan
-            .try_into_test_plan(&PathBuf::from("/example"), &ctx)
-            .await;
+        let arr = load_archive(content);
+        let config = get_file(&arr, "config.yaml");
+        let mut expected: TestPlanConfig =
+            serde_yaml::from_str(get_file(&arr, "expected")).unwrap();
+        expected.sources.test_plan = src.clone();
+
+        let raw_plan: RawTestPlanConfig = match serde_yaml::from_str(config) {
+            Ok(plan) => plan,
+            Err(e) => panic!("expected a valid RawTestPlanConfig, got: {e}"),
+        };
+
+        let res = raw_plan.try_into_test_plan(&dir, &ctx).await;
         assert!(res.is_ok(), "expected a test plan config, got: {res:?}");
 
         let plan = res.unwrap();
