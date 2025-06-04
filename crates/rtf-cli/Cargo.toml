@@ -19,6 +19,9 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 
 [dev-dependencies]
+assert_cmd.workspace = true
+assert_fs.workspace = true
+predicates.workspace = true
 simple_test_case.workspace = true
 
 [build-dependencies]
