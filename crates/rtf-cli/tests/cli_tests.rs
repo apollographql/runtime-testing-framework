@@ -30,12 +30,6 @@ fn run_command_sanity_check_works() {
     let temp = TempDir::new().unwrap();
     temp.copy_from("resources/sanity-check", &["**"]).unwrap();
 
-    for entry in temp.path().read_dir().expect("read_dir call failed") {
-        if let Ok(entry) = entry {
-            println!("{:?}", entry.path());
-        }
-    }
-
     let output_file_path = temp.child("output");
     let output_file_path = output_file_path.path().to_str().unwrap();
 
