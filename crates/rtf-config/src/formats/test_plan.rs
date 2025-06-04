@@ -641,9 +641,9 @@ mod tests {
         }
     }
 
-    #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/valid-scenario-config-source")]
+    #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/valid-scenario-overrides")]
     #[tokio::test]
-    async fn valid_scenario_config_source(_path: &str, content: &str) {
+    async fn valid_scenario_overrides(_path: &str, content: &str) {
         let arr = load_archive(content);
         let overrides: serde_yaml::Value =
             serde_yaml::from_str(get_file(&arr, "overrides")).unwrap();
@@ -667,11 +667,9 @@ mod tests {
         );
     }
 
-    #[dir_cases(
-        "crates/rtf-config/resources/config-tests/test-plan/valid-environment-config-source"
-    )]
+    #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/valid-environment-overrides")]
     #[tokio::test]
-    async fn valid_environment_config_source(_path: &str, content: &str) {
+    async fn valid_environment_overrides(_path: &str, content: &str) {
         let arr = load_archive(content);
         let overrides: serde_yaml::Value =
             serde_yaml::from_str(get_file(&arr, "overrides")).unwrap();
