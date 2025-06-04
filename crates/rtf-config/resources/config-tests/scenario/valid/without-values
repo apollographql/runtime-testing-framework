@@ -5,9 +5,6 @@ name: valid-scenario
 description: |
   A description for a valid scenario
 
-output_directories:
-  - /results
-
 command: "/command.sh"
 
 env_vars:

@@ -11,9 +11,6 @@ values:
   - name: bar
     description: "A value bar"
 
-output_directories:
-  - /results
-
 command: "/command.sh"
 
 env_vars:
@@ -42,9 +39,6 @@ values:
     description: "A value foo"
   - name: bar
     description: "A value bar"
-
-output_directories:
-  - /results
 
 command: "/command.sh"
 

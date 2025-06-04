@@ -324,7 +324,6 @@ impl RawTestPlanConfig {
             nfp.env_var.clone()
         });
         dedup_and_sort_by_key(&mut scenario.values, |v| v.name.clone());
-        dedup_and_sort_by_key(&mut scenario.output_directories, |s| s.clone());
         dedup_and_sort_by_key(&mut scenario.command.file_providers, |nfp| {
             nfp.env_var.clone()
         });

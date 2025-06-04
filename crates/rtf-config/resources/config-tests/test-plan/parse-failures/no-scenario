@@ -53,9 +53,6 @@ scenario:
   values:
     - name: foo
       description: "A value foo"
-
-  output_directories:
-    - /results
   
   command: "/command.sh"
 

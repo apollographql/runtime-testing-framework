@@ -9,9 +9,6 @@ values:
   - name: server_url
     description: "The publicly accessible URL for the service under test"
 
-output_directories:
-  - /results
-
 command: "scripts/curl_get_test.sh"
 
 env_vars:

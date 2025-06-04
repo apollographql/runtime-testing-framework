@@ -9,9 +9,6 @@ values:
   - name: foo
     description: "A value foo"
 
-output_directories:
-  - /results
-
 env_vars:
   SOME_ENV_VAR: "some_env_var"
 
