@@ -10,7 +10,7 @@ use std::{
     collections::HashMap,
     fmt, io,
     ops::{Deref, DerefMut},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 /// The source of how a particular config file was obtained.
@@ -150,39 +150,6 @@ impl Validate for FileProvider {
         ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
         delegate_to_inner!(self, try_validate, path, src, ctx)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case", tag = "kind")]
-pub enum ConfigProvider {
-    LocalPath { relative_path: String },
-    Inline { content: String },
-}
-
-impl ConfigProvider {
-    pub async fn try_get_file_content(
-        &self,
-        dir: &Path,
-        ctx: &impl ResolutionContext,
-    ) -> Result<String> {
-        match self {
-            Self::LocalPath { relative_path } => {
-                let p = dir.join(relative_path);
-                Ok(ctx.read_path_to_string(p)?)
-            }
-            Self::Inline { content } => Ok(content.clone()),
-        }
-    }
-
-    pub fn as_source(&self, dir: &Path, ctx: &impl ResolutionContext) -> Source {
-        match self {
-            Self::LocalPath { relative_path } => match dir.join(relative_path).parent() {
-                Some(path) => Source::local(ctx.canonicalize_path(path).unwrap()),
-                None => Source::local(""),
-            },
-            Self::Inline { .. } => Source::local(dir),
-        }
     }
 }
 
