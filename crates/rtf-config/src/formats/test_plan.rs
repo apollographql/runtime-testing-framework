@@ -295,8 +295,8 @@ pub struct RawTestPlanConfig {
     pub description: String,
     #[serde(default)]
     pub values: HashMap<String, Scalar>,
-    pub scenario: ConfigSource<ScenarioConfig>,
-    pub environment: ConfigSource<EnvironmentConfig>,
+    pub scenario: ConfigSpec<ScenarioConfig>,
+    pub environment: ConfigSpec<EnvironmentConfig>,
 }
 
 impl RawTestPlanConfig {
@@ -356,7 +356,7 @@ where
 /// inline yaml in the test plan or from a [FileProvider]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum ConfigSource<T> {
+pub enum ConfigSpec<T> {
     Inline {
         inline: T,
     },
@@ -367,11 +367,11 @@ pub enum ConfigSource<T> {
     },
 }
 
-impl<T> ConfigSource<T>
+impl<T> ConfigSpec<T>
 where
     T: DeserializeOwned,
 {
-    /// Try to convert the [ConfigSource] into a config yaml. This can read the content
+    /// Try to convert the [ConfigSpec] into a config yaml. This can read the content
     /// directly from inline content or a [FileProvider]
     async fn try_into_config_with_source(
         self,
@@ -646,7 +646,7 @@ mod tests {
         let expected: ScenarioConfig =
             serde_yaml::from_str(get_file(&arr, "expected-config")).unwrap();
 
-        let config_source: ConfigSource<ScenarioConfig> = ConfigSource::From {
+        let config_source: ConfigSpec<ScenarioConfig> = ConfigSpec::From {
             from: Source::Local {
                 abs_path: PathBuf::from("scenario.yaml"),
             },
@@ -672,7 +672,7 @@ mod tests {
         let expected: EnvironmentConfig =
             serde_yaml::from_str(get_file(&arr, "expected-config")).unwrap();
 
-        let config_source: ConfigSource<EnvironmentConfig> = ConfigSource::From {
+        let config_source: ConfigSpec<EnvironmentConfig> = ConfigSpec::From {
             from: Source::Local {
                 abs_path: PathBuf::from("environment.yaml"),
             },
