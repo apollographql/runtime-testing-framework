@@ -4,7 +4,7 @@ that the env_vars and provides will be a combination of the
 inline and overrides content. De-duplication will happen in 
 separate function.
 
--- inline-content --
+-- environment.yaml --
 name: minimal
 description: "A minimal environment config"
 

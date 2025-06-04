@@ -1,7 +1,7 @@
 A valid ConfigSource snippet for a ScenarioConfig. This successfully
 overrides the description
 
--- inline-content --
+-- scenario.yaml --
 name: valid-scenario
 description: |
   A description for a valid scenario
@@ -31,10 +31,10 @@ file_providers:
 description: |
   A description from the overrides
 
-
 -- expected-config --
 name: valid-scenario
-description: A description from the overrides
+description: |
+  A description from the overrides
 
 values:
   - name: foo

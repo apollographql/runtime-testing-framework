@@ -1,7 +1,7 @@
 A valid ConfigSource snippet for a ScenarioConfig. This 
 does not define any overrides
 
--- inline-content --
+-- scenario.yaml --
 name: valid-scenario
 description: |
   A description for a valid scenario

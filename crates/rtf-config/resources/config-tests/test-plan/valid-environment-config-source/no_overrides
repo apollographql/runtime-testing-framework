@@ -1,7 +1,7 @@
 A valid ConfigSource snippet for an EnvrionmentConfig. This 
 does not define any overrides
 
--- inline-content --
+-- environment.yaml --
 name: minimal
 description: "A minimal environment config"
 

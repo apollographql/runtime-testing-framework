@@ -428,10 +428,10 @@ fn merge(overrides: serde_yaml::Value, base: &mut serde_yaml::Value) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::Context;
+    use crate::context::{Context, PathKind, ResolutionContext};
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
-    use std::path::PathBuf;
+    use std::{io, path::PathBuf};
 
     /// Load a txtar [Archive] from the given file content and print the top level comment if there
     /// is one before returning it.
@@ -448,7 +448,7 @@ mod tests {
     /// Read the requested file from the archive, panicking if it is missing
     fn get_file<'a>(arr: &'a Archive, fname: &str) -> &'a str {
         match arr.get(fname) {
-            Some(f) => f.content.trim(),
+            Some(f) => &f.content,
             None => {
                 panic!("required txtar file section {fname:?} was missing");
             }
@@ -597,29 +597,68 @@ mod tests {
         assert_eq!(str_errs.join("\n"), expected.trim());
     }
 
+    struct TxtarContext {
+        arr: Archive,
+    }
+
+    impl ResolutionContext for TxtarContext {
+        fn run_command_blocking(
+            &self,
+            _prog: &str,
+            _args: &[&str],
+            _env_vars: &HashMap<String, String>,
+        ) -> io::Result<String> {
+            Ok(String::new())
+        }
+
+        fn write(&self, _path: impl AsRef<Path>, _content: impl AsRef<[u8]>) -> io::Result<()> {
+            unimplemented!()
+        }
+
+        fn path_kind(&self, _path: impl AsRef<Path>) -> crate::context::PathKind {
+            PathKind::File
+        }
+
+        fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
+            Ok(relative_path.as_ref().to_path_buf())
+        }
+
+        fn read_path_to_string(&self, path: impl AsRef<Path>) -> io::Result<String> {
+            let p = path.as_ref().display().to_string();
+
+            self.arr
+                .get(&p)
+                .map(|f| f.content.clone())
+                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, ""))
+        }
+
+        fn set_current_dir(&mut self, _path: impl AsRef<Path>) -> io::Result<()> {
+            Ok(())
+        }
+
+        fn create_dir_all(&self, _path: impl AsRef<Path>) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
     #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/valid-scenario-config-source")]
     #[tokio::test]
     async fn valid_scenario_config_source(_path: &str, content: &str) {
         let arr = load_archive(content);
-        let content = get_file(&arr, "inline-content").to_string();
         let overrides: serde_yaml::Value =
             serde_yaml::from_str(get_file(&arr, "overrides")).unwrap();
         let expected: ScenarioConfig =
             serde_yaml::from_str(get_file(&arr, "expected-config")).unwrap();
 
-        println!("{overrides:?}");
-
         let config_source: ConfigSource<ScenarioConfig> = ConfigSource::From {
-            from: ConfigProvider::Inline { content },
+            from: ConfigProvider::LocalPath {
+                relative_path: "scenario.yaml".to_string(),
+            },
             overrides,
         };
 
-        let dir = PathBuf::from("resources/config-tests/test-plan/valid-scenario-config-source")
-            .canonicalize()
-            .unwrap();
-        let ctx = Context::new(&dir);
-
-        let res = config_source.try_into_config(&dir, &ctx).await;
+        let ctx = TxtarContext { arr };
+        let res = config_source.try_into_config(&PathBuf::new(), &ctx).await;
         assert!(res.is_ok(), "Expected a valid ScenarioConfig, got {res:?}");
         assert_eq!(
             res.unwrap().0,
@@ -634,25 +673,21 @@ mod tests {
     #[tokio::test]
     async fn valid_environment_config_source(_path: &str, content: &str) {
         let arr = load_archive(content);
-        let content = get_file(&arr, "inline-content").to_string();
         let overrides: serde_yaml::Value =
             serde_yaml::from_str(get_file(&arr, "overrides")).unwrap();
         let expected: EnvironmentConfig =
             serde_yaml::from_str(get_file(&arr, "expected-config")).unwrap();
 
-        println!("{overrides:?}");
-
         let config_source: ConfigSource<EnvironmentConfig> = ConfigSource::From {
-            from: ConfigProvider::Inline { content },
+            from: ConfigProvider::LocalPath {
+                relative_path: "environment.yaml".to_string(),
+            },
             overrides,
         };
 
-        let dir = PathBuf::from("resources/config-tests/test-plan/valid-environment-config-source")
-            .canonicalize()
-            .unwrap();
-        let ctx = Context::new(&dir);
+        let ctx = TxtarContext { arr };
 
-        let res = config_source.try_into_config(&dir, &ctx).await;
+        let res = config_source.try_into_config(&PathBuf::new(), &ctx).await;
         assert!(
             res.is_ok(),
             "Expected a valid EnvironmentConfig, got {res:?}"

@@ -3,7 +3,7 @@ overrides the output_directories. It is expected that the "/results"
 directory will be duplicated in the output. De-duplication will
 happen in a separate function.
 
--- inline-content --
+-- scenario.yaml --
 name: valid-scenario
 description: |
   A description for a valid scenario

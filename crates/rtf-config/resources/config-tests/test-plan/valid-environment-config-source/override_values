@@ -3,7 +3,7 @@ overrides the values. It is expected that the output values will be
 a combination of the inline content and overrides. De-duplication
 will happen in separate function.
 
--- inline-content --
+-- environment.yaml --
 name: minimal
 description: "A minimal environment config"
 
