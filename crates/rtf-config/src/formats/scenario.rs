@@ -16,8 +16,6 @@ pub struct ScenarioConfig {
     pub description: String,
     #[serde(default)]
     pub values: Vec<ValueDefinition>,
-    #[serde(default)]
-    pub output_directories: Vec<String>,
     #[serde(flatten)]
     pub command: CommandSection,
 }

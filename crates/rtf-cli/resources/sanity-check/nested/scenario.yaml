@@ -7,9 +7,6 @@ values:
   - name: setup_output
     description: "a key returned from setup"
 
-output_directories:
-  - /output
-
 # command:
 #   kind: local_path
 #   relative_path: scripts/echo-message.sh
