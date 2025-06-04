@@ -233,7 +233,7 @@ mod tests {
             .canonicalize()
             .unwrap();
         let ctx = Context::new(&dir);
-        let src = Source::local(&dir);
+        let src = Source::local(dir.join("example.yaml"));
 
         let res = section.try_validate(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected to validate but got: {res:?}");
@@ -265,7 +265,7 @@ mod tests {
             .canonicalize()
             .unwrap();
         let ctx = Context::new(&dir);
-        let src = Source::local(&dir);
+        let src = Source::local(dir.join("example.yaml"));
         let res = section.try_validate(&mut Vec::new(), &src, &ctx);
 
         assert!(res.is_err(), "expected validation failures");
@@ -384,7 +384,9 @@ mod tests {
         let c = test_cmd_section();
         let ctx = MockCommandContext::default();
         let dir = PathBuf::from("/example-dir");
-        let src = Source::Local { dir: dir.clone() };
+        let src = Source::Local {
+            abs_path: dir.join("example.yaml"),
+        };
 
         let res = c.run_providers(&dir, &src, &ctx).await;
         assert!(res.is_ok(), "unexpected error: {res:?}");

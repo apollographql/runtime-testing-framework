@@ -22,21 +22,29 @@ use std::{
 pub enum Source {
     /// The config file was read from disk
     Local {
-        /// The absolute path to the directory containing the config file
-        dir: PathBuf,
+        /// The absolute path to the config file
+        abs_path: PathBuf,
     },
 }
 
 impl Source {
-    pub fn local(dir: impl Into<PathBuf>) -> Self {
-        Self::Local { dir: dir.into() }
+    pub fn local(abs_path: impl Into<PathBuf>) -> Self {
+        Self::Local {
+            abs_path: abs_path.into(),
+        }
+    }
+
+    pub async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String> {
+        match self {
+            Self::Local { abs_path } => Ok(ctx.read_path_to_string(abs_path)?),
+        }
     }
 }
 
 impl Default for Source {
     fn default() -> Self {
         Self::Local {
-            dir: PathBuf::new(),
+            abs_path: PathBuf::new(),
         }
     }
 }
@@ -264,7 +272,11 @@ impl AsUtf8FileContent for LocalFile {
         ctx: &impl ResolutionContext,
     ) -> Result<String> {
         match src {
-            Source::Local { dir } => {
+            Source::Local { abs_path } => {
+                let dir = match abs_path.parent() {
+                    Some(dir) => dir.to_path_buf(),
+                    None => PathBuf::new(),
+                };
                 let p = dir.join(self.relative_path.as_resolved());
                 Ok(ctx.read_path_to_string(p)?)
             }
@@ -280,7 +292,11 @@ impl Validate for LocalFile {
         ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
         let res = match src {
-            Source::Local { dir } => {
+            Source::Local { abs_path } => {
+                let dir = match abs_path.parent() {
+                    Some(dir) => dir.to_path_buf(),
+                    None => PathBuf::new(),
+                };
                 ctx.canonicalize_path(dir.join(self.relative_path.as_resolved()))
             }
         };
@@ -419,7 +435,7 @@ mod tests {
             .canonicalize()
             .unwrap();
         let ctx = Context::new(&dir);
-        let src = Source::local(dir);
+        let src = Source::local(dir.join("example.yaml"));
 
         let res = provider.try_validate(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected to validate but got: {res:?}");
@@ -454,7 +470,7 @@ mod tests {
             .canonicalize()
             .unwrap();
         let ctx = Context::new(&dir);
-        let src = Source::local(&dir);
+        let src = Source::local(dir.join("example.yaml"));
         let res = provider.try_validate(&mut Vec::new(), &src, &ctx);
 
         assert!(res.is_err(), "expected validation failures");
@@ -538,7 +554,7 @@ mod tests {
             .canonicalize()
             .unwrap();
         let ctx = Context::new(&dir);
-        let src = Source::local(&dir);
+        let src = Source::local(dir.join("example.yaml"));
         let _ = provider.try_validate(&mut Vec::new(), &src, &ctx);
         let res = provider.try_get_file_content(&src, &ctx).await;
 
@@ -561,7 +577,7 @@ mod tests {
         _ = required_file
             .try_get_file_content(
                 &Source::Local {
-                    dir: PathBuf::new(),
+                    abs_path: PathBuf::new(),
                 },
                 &ctx,
             )
