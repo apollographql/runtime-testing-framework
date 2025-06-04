@@ -2,15 +2,13 @@ use crate::{
     context::ResolutionContext,
     providers::{
         self,
-        file::{AsUtf8FileContent, NamedFileProvider},
+        file::{AsUtf8FileContent, NamedFileProvider, Source},
     },
     templating::{self, Field, Scalar, Template},
     validation::{self, Validate, duplicate_keys},
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io, path::Path};
-
-use super::file::Source;
 
 /// The environment variable used to provide the location of the output directory to user specified
 /// commands
