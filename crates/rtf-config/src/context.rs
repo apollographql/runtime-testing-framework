@@ -23,9 +23,9 @@ pub enum PathKind {
 ///
 /// For the canonical real implementations that should be mocked see [Context].
 pub trait ResolutionContext {
-    /// Attempt to resolve a path relative to the directory containing the config file being
-    /// processed.
-    fn resolve_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf>;
+    /// Returns the canonical, absolute form of the path with all intermediate
+    /// components normalized and symbolic links resolved.
+    fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf>;
 
     fn dir_containing(&self, path: impl AsRef<Path>) -> PathBuf {
         match path.as_ref().parent() {
@@ -104,8 +104,8 @@ impl Context {
 }
 
 impl ResolutionContext for Context {
-    fn resolve_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
-        self.cwd.join(relative_path).canonicalize()
+    fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
+        relative_path.as_ref().canonicalize()
     }
 
     fn path_kind(&self, path: impl AsRef<Path>) -> PathKind {

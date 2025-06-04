@@ -26,8 +26,8 @@ scenario:
 
 environment:
   from:
-    kind: local_path
-    relative_path: env-local-service.yaml
+    kind: relative_path
+    path: env-local-service.yaml
 
   overrides:
     file_providers: []

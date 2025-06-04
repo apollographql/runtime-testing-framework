@@ -1,7 +1,7 @@
 A valid ConfigSource snippet for an EnvrionmentConfig. This 
-successfuly overrides the description.
+successfully overrides the name.
 
--- inline-content --
+-- environment.yaml --
 name: minimal
 description: "A minimal environment config"
 
@@ -28,11 +28,11 @@ teardown:
     HELLO: "sailor"
 
 -- overrides --
-description: An overridden description
+name: override_name
 
 -- expected-config --
-name: minimal
-description: An overridden description
+name: override_name
+description: "A minimal environment config"
 
 values:
   - name: foo

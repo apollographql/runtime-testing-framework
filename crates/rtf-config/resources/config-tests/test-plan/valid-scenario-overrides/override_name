@@ -1,7 +1,7 @@
 A valid ConfigSource snippet for a ScenarioConfig. This successfully
 overrides the name
 
--- inline-content --
+-- scenario.yaml --
 name: valid-scenario
 description: |
   A description for a valid scenario
@@ -28,10 +28,10 @@ file_providers:
       How nice.
 
 -- overrides --
-command: "/override_command.sh"
+name: override_name
 
 -- expected-config --
-name: valid-scenario
+name: override_name
 description: |
   A description for a valid scenario
 
@@ -42,7 +42,7 @@ values:
 output_directories:
   - /results
 
-command: "/override_command.sh"
+command: "/command.sh"
 
 env_vars:
   SOME_ENV_VAR: "some_env_var"

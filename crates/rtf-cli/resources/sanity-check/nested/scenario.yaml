@@ -23,5 +23,5 @@ env_vars:
 file_providers:
   - name: file-provider.txt
     env_var: EXAMPLE_FILE
-    kind: inline
-    content: "some inline content that should end up in the output directory"
+    kind: relative_path
+    path: file-provider.txt

@@ -12,12 +12,12 @@ env_vars:
 file_providers:
   - name: "is-a-directory.txt"
     env_var: IS_A_DIRECTORY
-    kind: local_path
-    relative_path: ../../../provider-tests
+    kind: relative_path
+    path: ../../../provider-tests
   - name: "does-not-exist.txt"
     env_var: DOES_NOT_EXIST
-    kind: local_path
-    relative_path: ../does-not-exist.txt
+    kind: relative_path
+    path: ../does-not-exist.txt
 
 -- validation-errors --
 IsADirectory

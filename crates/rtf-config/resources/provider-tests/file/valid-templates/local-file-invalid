@@ -3,12 +3,12 @@ for the path. The path coming from the value being invalid should not
 affect templating.
 
 -- config.yaml --
-kind: local_path
-relative_path: "{{ some_path }}"
+kind: relative_path
+path: "{{ some_path }}"
 
 -- values --
 some_path: "not/a/valid/path"
 
 -- after-templating --
-kind: local_path
-relative_path: "not/a/valid/path"
+kind: relative_path
+path: "not/a/valid/path"

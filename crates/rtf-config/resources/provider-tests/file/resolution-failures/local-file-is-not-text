@@ -3,8 +3,8 @@ which doesn't contain utf-8 text. This should parse and validate but
 fail to resolve when we try to read it as a string.
 
 -- config.yaml --
-kind: local_path
-relative_path: ../../../frog-no.gif
+kind: relative_path
+path: ../../../frog-no.gif
 
 -- resolution-errors --
 stream did not contain valid UTF-8

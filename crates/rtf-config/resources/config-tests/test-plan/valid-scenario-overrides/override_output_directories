@@ -1,9 +1,9 @@
 A valid ConfigSource snippet for a ScenarioConfig. This successfully
-overrides the values. It is expected that the output values will be
-a combination of the inline content and overrides. De-duplication
-will happen in separate function.
+overrides the output_directories. It is expected that the "/results"
+directory will be duplicated in the output. De-duplication will
+happen in a separate function.
 
--- inline-content --
+-- scenario.yaml --
 name: valid-scenario
 description: |
   A description for a valid scenario
@@ -30,10 +30,9 @@ file_providers:
       How nice.
 
 -- overrides --
-values:
-  - name: bar
-    description: "A value bar"
-
+output_directories:
+  - /results
+  - /more-results
 -- expected-config --
 name: valid-scenario
 description: |
@@ -42,11 +41,11 @@ description: |
 values:
   - name: foo
     description: "A value foo"
-  - name: bar
-    description: "A value bar"
 
 output_directories:
   - /results
+  - /results
+  - /more-results
 
 command: "/command.sh"
 

@@ -10,7 +10,71 @@ use std::{
     collections::HashMap,
     fmt, io,
     ops::{Deref, DerefMut},
+    path::{Path, PathBuf},
 };
+
+/// The source of how a particular config file was obtained.
+///
+/// In its simplest form this is a local file path to the directory containing the config file, but
+/// this may also include things like pulling the file over the network.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum Source {
+    /// The config file was read from disk
+    Local {
+        /// The absolute path to the config file
+        abs_path: PathBuf,
+    },
+}
+
+impl Source {
+    pub fn local(abs_path: impl Into<PathBuf>) -> Self {
+        Self::Local {
+            abs_path: abs_path.into(),
+        }
+    }
+
+    pub async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String> {
+        match self {
+            Self::Local { abs_path } => Ok(ctx.read_path_to_string(abs_path)?),
+        }
+    }
+}
+
+impl Default for Source {
+    fn default() -> Self {
+        Self::Local {
+            abs_path: PathBuf::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum RawSource {
+    Local { relative_path: PathBuf },
+}
+
+impl RawSource {
+    pub async fn try_get_file_content(
+        &self,
+        dir: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> Result<String> {
+        match self {
+            Self::Local { relative_path } => Ok(ctx.read_path_to_string(dir.join(relative_path))?),
+        }
+    }
+
+    pub fn try_into_source(self, dir: &Path, ctx: &impl ResolutionContext) -> io::Result<Source> {
+        match self {
+            Self::Local { relative_path } => {
+                let abs_path = ctx.canonicalize_path(dir.join(relative_path))?;
+                Ok(Source::Local { abs_path })
+            }
+        }
+    }
+}
 
 /// A file provider is something that can obtain or synthesise utf-8 file content based on a user
 /// provided specification.
@@ -20,7 +84,11 @@ use std::{
 #[allow(async_fn_in_trait)]
 pub(crate) trait AsUtf8FileContent: Validate + DeserializeOwned + fmt::Debug {
     /// Attempt to run this file provider and convert it into the required file content.
-    async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String>;
+    async fn try_get_file_content(
+        &self,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> Result<String>;
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -49,7 +117,7 @@ impl DerefMut for NamedFileProvider {
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
     Inline(InlineFile),
-    LocalPath(LocalFile),
+    RelativePath(RelativeFile),
     Required(RequiredFile),
 }
 
@@ -59,7 +127,7 @@ macro_rules! delegate_to_inner {
     ($self:ident, $method:ident $(, $arg:expr)*) => {
         match $self {
             FileProvider::Inline(fp) => fp.$method($($arg),*),
-            FileProvider::LocalPath(fp) => fp.$method($($arg),*),
+            FileProvider::RelativePath(fp) => fp.$method($($arg),*),
             FileProvider::Required(fp) => fp.$method($($arg),*),
         }
     };
@@ -67,15 +135,19 @@ macro_rules! delegate_to_inner {
     (@async $self:ident, $method:ident, $($arg:expr),*) => {
         match $self {
             FileProvider::Inline(fp) => fp.$method($($arg),*).await,
-            FileProvider::LocalPath(fp) => fp.$method($($arg),*).await,
+            FileProvider::RelativePath(fp) => fp.$method($($arg),*).await,
             FileProvider::Required(fp) => fp.$method($($arg),*).await,
         }
     };
 }
 
 impl AsUtf8FileContent for FileProvider {
-    async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String> {
-        delegate_to_inner!(@async self, try_get_file_content, ctx)
+    async fn try_get_file_content(
+        &self,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> Result<String> {
+        delegate_to_inner!(@async self, try_get_file_content, src, ctx)
     }
 }
 
@@ -101,9 +173,10 @@ impl Validate for FileProvider {
     fn try_validate(
         &self,
         path: &mut Vec<String>,
+        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
-        delegate_to_inner!(self, try_validate, path, ctx)
+        delegate_to_inner!(self, try_validate, path, src, ctx)
     }
 }
 
@@ -115,7 +188,11 @@ pub struct InlineFile {
 }
 
 impl AsUtf8FileContent for InlineFile {
-    async fn try_get_file_content(&self, _ctx: &impl ResolutionContext) -> Result<String> {
+    async fn try_get_file_content(
+        &self,
+        _src: &Source,
+        _ctx: &impl ResolutionContext,
+    ) -> Result<String> {
         Ok(self.content.clone())
     }
 }
@@ -144,6 +221,7 @@ impl Validate for InlineFile {
     fn try_validate(
         &self,
         _path: &mut Vec<String>,
+        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
         Ok(())
@@ -153,23 +231,23 @@ impl Validate for InlineFile {
 /// The user specifies a path to a local file relative to the config
 /// file containing this provider
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct LocalFile {
-    pub(crate) relative_path: Field<String>,
+pub struct RelativeFile {
+    pub(crate) path: Field<String>,
 }
 
-impl LocalFile {
+impl RelativeFile {
     fn format_error_message(&self) -> String {
-        format!("Provided path was {:?}", self.relative_path)
+        format!("Provided path was {:?}", self.path)
     }
 }
 
-impl Template for LocalFile {
+impl Template for RelativeFile {
     fn has_pending_fields(&self) -> bool {
-        self.relative_path.has_pending_fields()
+        self.path.has_pending_fields()
     }
 
     fn required_values(&self) -> Vec<String> {
-        self.relative_path.required_values()
+        self.path.required_values()
     }
 
     fn try_resolve(
@@ -177,25 +255,45 @@ impl Template for LocalFile {
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        self.relative_path.try_resolve(path, values)
+        self.path.try_resolve(path, values)
     }
 }
 
-impl AsUtf8FileContent for LocalFile {
-    async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String> {
-        let p = ctx.resolve_path(self.relative_path.as_resolved())?;
-
-        Ok(ctx.read_path_to_string(p)?)
+impl AsUtf8FileContent for RelativeFile {
+    async fn try_get_file_content(
+        &self,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> Result<String> {
+        match src {
+            Source::Local { abs_path } => {
+                let dir = match abs_path.parent() {
+                    Some(dir) => dir.to_path_buf(),
+                    None => PathBuf::new(),
+                };
+                let p = dir.join(self.path.as_resolved());
+                Ok(ctx.read_path_to_string(p)?)
+            }
+        }
     }
 }
 
-impl Validate for LocalFile {
+impl Validate for RelativeFile {
     fn try_validate(
         &self,
         path: &mut Vec<String>,
+        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
-        let res = ctx.resolve_path(self.relative_path.as_resolved());
+        let res = match src {
+            Source::Local { abs_path } => {
+                let dir = match abs_path.parent() {
+                    Some(dir) => dir.to_path_buf(),
+                    None => PathBuf::new(),
+                };
+                ctx.canonicalize_path(dir.join(self.path.as_resolved()))
+            }
+        };
 
         let p = match res {
             Ok(p) => p,
@@ -259,7 +357,11 @@ impl Template for RequiredFile {
 }
 
 impl AsUtf8FileContent for RequiredFile {
-    async fn try_get_file_content(&self, _ctx: &impl ResolutionContext) -> Result<String> {
+    async fn try_get_file_content(
+        &self,
+        _src: &Source,
+        _ctx: &impl ResolutionContext,
+    ) -> Result<String> {
         panic!(
             "Should not be able to get here. Required file should result in an error when validated."
         )
@@ -270,6 +372,7 @@ impl Validate for RequiredFile {
     fn try_validate(
         &self,
         path: &mut Vec<String>,
+        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
         Err(validation::Errors::new(
@@ -322,16 +425,16 @@ mod tests {
             Err(e) => panic!("expected a valid FileProvider, got: {e}"),
         };
 
-        let ctx = Context::new(
-            PathBuf::from("resources/provider-tests/file/valid")
-                .canonicalize()
-                .unwrap(),
-        );
+        let dir = PathBuf::from("resources/provider-tests/file/valid")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(&dir);
+        let src = Source::local(dir.join("example.yaml"));
 
-        let res = provider.try_validate(&mut Vec::new(), &ctx);
+        let res = provider.try_validate(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected to validate but got: {res:?}");
 
-        let res = provider.try_get_file_content(&ctx).await;
+        let res = provider.try_get_file_content(&src, &ctx).await;
         assert_eq!(res.unwrap(), expected, "wrong file content");
     }
 
@@ -357,12 +460,12 @@ mod tests {
             Err(e) => panic!("expected a valid FileProvider, got: {e}"),
         };
 
-        let ctx = Context::new(
-            PathBuf::from("resources/provider-tests/file/validation-failures")
-                .canonicalize()
-                .unwrap(),
-        );
-        let res = provider.try_validate(&mut Vec::new(), &ctx);
+        let dir = PathBuf::from("resources/provider-tests/file/validation-failures")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(&dir);
+        let src = Source::local(dir.join("example.yaml"));
+        let res = provider.try_validate(&mut Vec::new(), &src, &ctx);
 
         assert!(res.is_err(), "expected validation failures");
         let errs = res.unwrap_err();
@@ -441,13 +544,13 @@ mod tests {
             Err(e) => panic!("expected a valid FileProvider, got: {e}"),
         };
 
-        let ctx = Context::new(
-            PathBuf::from("resources/provider-tests/file/resolution-failures")
-                .canonicalize()
-                .unwrap(),
-        );
-        let _ = provider.try_validate(&mut Vec::new(), &ctx);
-        let res = provider.try_get_file_content(&ctx).await;
+        let dir = PathBuf::from("resources/provider-tests/file/resolution-failures")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(&dir);
+        let src = Source::local(dir.join("example.yaml"));
+        let _ = provider.try_validate(&mut Vec::new(), &src, &ctx);
+        let res = provider.try_get_file_content(&src, &ctx).await;
 
         assert!(res.is_err(), "expected resolution failures, got {res:?}");
         let err = res.unwrap_err();
@@ -465,6 +568,13 @@ mod tests {
         let ctx = Context::new(PathBuf::from("not/used/in/this/test"));
 
         // Calling try_into_file_content should panic here
-        _ = required_file.try_get_file_content(&ctx).await;
+        _ = required_file
+            .try_get_file_content(
+                &Source::Local {
+                    abs_path: PathBuf::new(),
+                },
+                &ctx,
+            )
+            .await;
     }
 }

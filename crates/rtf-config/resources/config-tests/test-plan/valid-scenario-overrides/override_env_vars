@@ -1,9 +1,7 @@
 A valid ConfigSource snippet for a ScenarioConfig. This successfully
-overrides the file providers. It is expected that the output values will be
-a combination of the inline content and overrides. De-duplication
-will happen in separate function.
+overrides the environment variables
 
--- inline-content --
+-- scenario.yaml --
 name: valid-scenario
 description: |
   A description for a valid scenario
@@ -21,13 +19,6 @@ env_vars:
   SOME_ENV_VAR: "some_env_var"
 
 file_providers:
-  - name: "local.txt"
-    env_var: LOCAL_FILE
-    kind: local_path
-    relative_path: /path/to/file.txt
-
--- overrides --
-file_providers:
   - name: "inline.txt"
     env_var: INLINE_FILE
     kind: inline
@@ -35,6 +26,11 @@ file_providers:
       This is some inline file content
       split over multiple lines.
       How nice.
+
+-- overrides --
+env_vars:
+  SOME_ENV_VAR: "some_env_var"
+  ANOTHER_ENV_VAR: "another_env_var"
 
 -- expected-config --
 name: valid-scenario
@@ -52,12 +48,9 @@ command: "/command.sh"
 
 env_vars:
   SOME_ENV_VAR: "some_env_var"
+  ANOTHER_ENV_VAR: "another_env_var"
 
 file_providers:
-  - name: "local.txt"
-    env_var: LOCAL_FILE
-    kind: local_path
-    relative_path: /path/to/file.txt 
   - name: "inline.txt"
     env_var: INLINE_FILE
     kind: inline

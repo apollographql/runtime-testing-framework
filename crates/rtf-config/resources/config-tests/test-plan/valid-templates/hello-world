@@ -40,6 +40,7 @@ scenario:
       content: |
         { "endpoint": "hello-world", "status": 200, "resp": { "hello": "world" } }
         { "endpoint": "goodbye-world", "status": 404, "resp": { "error": "not found" } }
+
 environment:
   name: env-local-service
   description: "Spin up a locally running HTTP server"
@@ -112,6 +113,7 @@ scenario:
       content: |
         { "endpoint": "hello-world", "status": 200, "resp": { "hello": "world" } }
         { "endpoint": "goodbye-world", "status": 404, "resp": { "error": "not found" } }
+
 environment:
   name: env-local-service
   description: "Spin up a locally running HTTP server"

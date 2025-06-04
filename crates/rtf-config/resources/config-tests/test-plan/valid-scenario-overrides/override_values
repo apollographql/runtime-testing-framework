@@ -1,7 +1,9 @@
 A valid ConfigSource snippet for a ScenarioConfig. This successfully
-overrides the environment variables
+overrides the values. It is expected that the output values will be
+a combination of the inline content and overrides. De-duplication
+will happen in separate function.
 
--- inline-content --
+-- scenario.yaml --
 name: valid-scenario
 description: |
   A description for a valid scenario
@@ -28,9 +30,9 @@ file_providers:
       How nice.
 
 -- overrides --
-env_vars:
-  SOME_ENV_VAR: "some_env_var"
-  ANOTHER_ENV_VAR: "another_env_var"
+values:
+  - name: bar
+    description: "A value bar"
 
 -- expected-config --
 name: valid-scenario
@@ -40,6 +42,8 @@ description: |
 values:
   - name: foo
     description: "A value foo"
+  - name: bar
+    description: "A value bar"
 
 output_directories:
   - /results
@@ -48,7 +52,6 @@ command: "/command.sh"
 
 env_vars:
   SOME_ENV_VAR: "some_env_var"
-  ANOTHER_ENV_VAR: "another_env_var"
 
 file_providers:
   - name: "inline.txt"

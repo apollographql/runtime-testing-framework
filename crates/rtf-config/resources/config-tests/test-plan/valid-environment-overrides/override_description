@@ -1,9 +1,7 @@
-A valid ConfigSource snippet for an EnvrionmentConfig. This successfully
-overrides the values. It is expected that the output values will be
-a combination of the inline content and overrides. De-duplication
-will happen in separate function.
+A valid ConfigSource snippet for an EnvrionmentConfig. This 
+successfuly overrides the description.
 
--- inline-content --
+-- environment.yaml --
 name: minimal
 description: "A minimal environment config"
 
@@ -30,21 +28,17 @@ teardown:
     HELLO: "sailor"
 
 -- overrides --
-values:
-  - name: baz
-    description: "An env var called baz"
+description: An overridden description
 
 -- expected-config --
 name: minimal
-description: "A minimal environment config"
+description: An overridden description
 
 values:
   - name: foo
     description: "An env var called foo"
   - name: bar
     description: "An env var called bar"
-  - name: baz
-    description: "An env var called baz"
 
 setup:
   command: scripts/start_local_server.sh

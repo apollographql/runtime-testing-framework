@@ -3,7 +3,7 @@ use crate::{
     formats::{EnvironmentConfig, Error, Result, ScenarioConfig},
     providers::{
         self,
-        file::{AsUtf8FileContent, FileProvider},
+        file::{RawSource, Source},
     },
     templating::{self, Scalar, Template},
     validation::{self, Validate},
@@ -20,6 +20,8 @@ pub struct TestPlanConfig {
     pub values: HashMap<String, Scalar>,
     pub scenario: ScenarioConfig,
     pub environment: EnvironmentConfig,
+    #[serde(skip)]
+    pub sources: Sources,
 }
 
 impl TestPlanConfig {
@@ -29,8 +31,9 @@ impl TestPlanConfig {
     ) -> Result<Self> {
         let content = ctx.read_path_to_string(p.as_ref())?;
         let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
+        let dir = ctx.dir_containing(p.as_ref());
 
-        raw.try_into_test_plan(ctx).await
+        raw.try_into_test_plan(&dir, ctx).await
     }
 
     pub fn validate_templating_will_work(&mut self) -> templating::Result<()> {
@@ -151,7 +154,7 @@ impl TestPlanConfig {
             .environment
             .setup
             .command
-            .run_providers_and_execute(out_dir, ctx)
+            .run_providers_and_execute(out_dir, self.sources.environment(), ctx)
             .await?;
 
         let provides: HashMap<String, Scalar> = serde_json::from_str(&raw_output)?;
@@ -177,7 +180,7 @@ impl TestPlanConfig {
     ) -> Result<()> {
         self.environment
             .teardown
-            .run_providers_and_execute(out_dir, ctx)
+            .run_providers_and_execute(out_dir, self.sources.environment(), ctx)
             .await?;
 
         Ok(())
@@ -186,7 +189,7 @@ impl TestPlanConfig {
     pub async fn run_scenario(&self, out_dir: &Path, ctx: &impl ResolutionContext) -> Result<()> {
         self.scenario
             .command
-            .run_providers_and_execute(out_dir, ctx)
+            .run_providers_and_execute(out_dir, self.sources.scenario(), ctx)
             .await?;
 
         Ok(())
@@ -225,16 +228,64 @@ impl Validate for TestPlanConfig {
     fn try_validate(
         &self,
         path: &mut Vec<String>,
+        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
         let mut errs = validation::ErrorBuilder::from(self.environment.try_validate_nested(
             path,
             "environent",
+            src,
             ctx,
         ));
-        errs.append(self.scenario.try_validate_nested(path, "scenario", ctx));
+        errs.append(
+            self.scenario
+                .try_validate_nested(path, "scenario", src, ctx),
+        );
 
         errs.into_result(())
+    }
+}
+
+/// In order to be able to resolve relative paths we need to track where we obtained each of the
+/// config files associated with a [TestPlan][TestPlanConfig].
+///
+/// If the [ScenarioConfig] or [EnvironmentConfig] are specified inline then their source will
+/// match that of the overall [TestPlanConfig], otherwise we store the source as defined in the
+/// [RawTestPlanConfig].
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Sources {
+    test_plan: Source,
+    scenario: Option<Source>,
+    environment: Option<Source>,
+}
+
+impl Sources {
+    fn new(dir: &Path, scenario: Option<Source>, environment: Option<Source>) -> Self {
+        Self {
+            test_plan: Source::local(dir),
+            scenario,
+            environment,
+        }
+    }
+
+    /// The [Source] of the [EnvironmentConfig] in this test plan.
+    ///
+    /// Defaults to the source of the test plan itself if the environment was specified inline.
+    fn environment(&self) -> &Source {
+        match self.environment.as_ref() {
+            Some(source) => source,
+            None => &self.test_plan,
+        }
+    }
+
+    /// The [Source] of the [ScenarioConfig] in this test plan.
+    ///
+    /// Defaults to the source of the test plan itself if the scenario was specified inline.
+    fn scenario(&self) -> &Source {
+        match self.scenario.as_ref() {
+            Some(source) => source,
+            None => &self.test_plan,
+        }
     }
 }
 
@@ -247,17 +298,22 @@ pub struct RawTestPlanConfig {
     pub description: String,
     #[serde(default)]
     pub values: HashMap<String, Scalar>,
-    pub scenario: ConfigSource<ScenarioConfig>,
-    pub environment: ConfigSource<EnvironmentConfig>,
+    pub scenario: ConfigSpec<ScenarioConfig>,
+    pub environment: ConfigSpec<EnvironmentConfig>,
 }
 
 impl RawTestPlanConfig {
-    async fn try_into_test_plan(self, ctx: &impl ResolutionContext) -> Result<TestPlanConfig> {
-        let environment_source = self.environment;
-        let mut environment = environment_source.try_into_config(ctx).await?;
-
-        let scenario_source = self.scenario;
-        let mut scenario = scenario_source.try_into_config(ctx).await?;
+    async fn try_into_test_plan(
+        self,
+        dir: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> Result<TestPlanConfig> {
+        let (mut environment, environment_source) = self
+            .environment
+            .try_into_config_with_source(dir, ctx)
+            .await?;
+        let (mut scenario, scenario_source) =
+            self.scenario.try_into_config_with_source(dir, ctx).await?;
 
         dedup_and_sort_by_key(&mut environment.values, |v| v.name.clone());
         dedup_and_sort_by_key(&mut environment.setup.provides, |v| v.name.clone());
@@ -277,8 +333,9 @@ impl RawTestPlanConfig {
             name: self.name,
             description: self.description,
             values: self.values,
-            environment,
             scenario,
+            environment,
+            sources: Sources::new(dir, scenario_source, environment_source),
         })
     }
 }
@@ -304,34 +361,39 @@ where
 /// inline yaml in the test plan or from a [FileProvider]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum ConfigSource<T> {
+pub enum ConfigSpec<T> {
     Inline {
         inline: T,
     },
     From {
-        from: FileProvider,
+        from: RawSource,
         #[serde(default)]
         overrides: serde_yaml::Value,
     },
 }
 
-impl<T> ConfigSource<T>
+impl<T> ConfigSpec<T>
 where
     T: DeserializeOwned,
 {
-    /// Try to convert the [ConfigSource] into a config yaml. This can read the content
+    /// Try to convert the [ConfigSpec] into a config yaml. This can read the content
     /// directly from inline content or a [FileProvider]
-    async fn try_into_config(self, ctx: &impl ResolutionContext) -> providers::Result<T> {
+    async fn try_into_config_with_source(
+        self,
+        dir: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<(T, Option<Source>)> {
         match self {
-            Self::Inline { inline } => Ok(inline),
+            Self::Inline { inline } => Ok((inline, None)),
             Self::From { from, overrides } => {
-                let file_content = from.try_get_file_content(ctx).await?;
+                let file_content = from.try_get_file_content(dir, ctx).await?;
+                let src = from.try_into_source(dir, ctx)?;
                 let mut base: serde_yaml::Value = serde_yaml::from_str(&file_content)?;
                 if overrides != serde_yaml::Value::Null {
                     merge(overrides, &mut base);
                 }
 
-                Ok(serde_yaml::from_value(base)?)
+                Ok((serde_yaml::from_value(base)?, Some(src)))
             }
         }
     }
@@ -369,10 +431,10 @@ fn merge(overrides: serde_yaml::Value, base: &mut serde_yaml::Value) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{context::Context, providers::file::InlineFile};
+    use crate::context::{Context, PathKind, ResolutionContext};
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
-    use std::path::PathBuf;
+    use std::{io, path::PathBuf};
 
     /// Load a txtar [Archive] from the given file content and print the top level comment if there
     /// is one before returning it.
@@ -389,7 +451,7 @@ mod tests {
     /// Read the requested file from the archive, panicking if it is missing
     fn get_file<'a>(arr: &'a Archive, fname: &str) -> &'a str {
         match arr.get(fname) {
-            Some(f) => f.content.trim(),
+            Some(f) => &f.content,
             None => {
                 panic!("required txtar file section {fname:?} was missing");
             }
@@ -399,26 +461,28 @@ mod tests {
     #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/valid")]
     #[tokio::test]
     async fn valid_config(_path: &str, content: &str) {
+        let dir = PathBuf::from("resources/config-tests/test-plan/valid")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new(&dir);
+        let src = Source::local(&dir);
+
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
-        let expected: TestPlanConfig = serde_yaml::from_str(get_file(&arr, "expected")).unwrap();
+        let mut expected: TestPlanConfig =
+            serde_yaml::from_str(get_file(&arr, "expected")).unwrap();
+        expected.sources.test_plan = src.clone();
 
         let raw_plan: RawTestPlanConfig = match serde_yaml::from_str(config) {
             Ok(plan) => plan,
             Err(e) => panic!("expected a valid RawTestPlanConfig, got: {e}"),
         };
 
-        let ctx = Context::new(
-            PathBuf::from("resources/config-tests/test-plan/valid")
-                .canonicalize()
-                .unwrap(),
-        );
-
-        let res = raw_plan.try_into_test_plan(&ctx).await;
+        let res = raw_plan.try_into_test_plan(&dir, &ctx).await;
         assert!(res.is_ok(), "expected a test plan config, got: {res:?}");
 
         let plan = res.unwrap();
-        let res = plan.try_validate(&mut Vec::new(), &ctx);
+        let res = plan.try_validate(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected test plan to validate, got {res:?}");
         pretty_assertions::assert_eq!(plan, expected, "expected test plan and expected to match");
     }
@@ -536,66 +600,105 @@ mod tests {
         assert_eq!(str_errs.join("\n"), expected.trim());
     }
 
-    #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/valid-scenario-config-source")]
+    struct TxtarContext {
+        arr: Archive,
+    }
+
+    impl ResolutionContext for TxtarContext {
+        fn run_command_blocking(
+            &self,
+            _prog: &str,
+            _args: &[&str],
+            _env_vars: &HashMap<String, String>,
+        ) -> io::Result<String> {
+            Ok(String::new())
+        }
+
+        fn write(&self, _path: impl AsRef<Path>, _content: impl AsRef<[u8]>) -> io::Result<()> {
+            unimplemented!()
+        }
+
+        fn path_kind(&self, _path: impl AsRef<Path>) -> crate::context::PathKind {
+            PathKind::File
+        }
+
+        fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
+            Ok(relative_path.as_ref().to_path_buf())
+        }
+
+        fn read_path_to_string(&self, path: impl AsRef<Path>) -> io::Result<String> {
+            let p = path.as_ref().display().to_string();
+
+            self.arr
+                .get(&p)
+                .map(|f| f.content.clone())
+                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, ""))
+        }
+
+        fn set_current_dir(&mut self, _path: impl AsRef<Path>) -> io::Result<()> {
+            Ok(())
+        }
+
+        fn create_dir_all(&self, _path: impl AsRef<Path>) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/valid-scenario-overrides")]
     #[tokio::test]
-    async fn valid_scenario_config_source(_path: &str, content: &str) {
+    async fn valid_scenario_overrides(_path: &str, content: &str) {
         let arr = load_archive(content);
-        let content = get_file(&arr, "inline-content").to_string();
         let overrides: serde_yaml::Value =
             serde_yaml::from_str(get_file(&arr, "overrides")).unwrap();
         let expected: ScenarioConfig =
             serde_yaml::from_str(get_file(&arr, "expected-config")).unwrap();
 
-        println!("{overrides:?}");
-
-        let config_source: ConfigSource<ScenarioConfig> = ConfigSource::From {
-            from: FileProvider::Inline(InlineFile { content }),
+        let config_source: ConfigSpec<ScenarioConfig> = ConfigSpec::From {
+            from: RawSource::Local {
+                relative_path: PathBuf::from("scenario.yaml"),
+            },
             overrides,
         };
 
-        let ctx = Context::new(
-            PathBuf::from("resources/config-tests/test-plan/valid-scenario-config-source")
-                .canonicalize()
-                .unwrap(),
-        );
-
-        let res = config_source.try_into_config(&ctx).await;
+        let ctx = TxtarContext { arr };
+        let res = config_source
+            .try_into_config_with_source(&PathBuf::new(), &ctx)
+            .await;
         assert!(res.is_ok(), "Expected a valid ScenarioConfig, got {res:?}");
-        assert_eq!(res.unwrap(), expected, "expected scenario configs to match");
+        assert_eq!(
+            res.unwrap().0,
+            expected,
+            "expected scenario configs to match"
+        );
     }
 
-    #[dir_cases(
-        "crates/rtf-config/resources/config-tests/test-plan/valid-environment-config-source"
-    )]
+    #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/valid-environment-overrides")]
     #[tokio::test]
-    async fn valid_environment_config_source(_path: &str, content: &str) {
+    async fn valid_environment_overrides(_path: &str, content: &str) {
         let arr = load_archive(content);
-        let content = get_file(&arr, "inline-content").to_string();
         let overrides: serde_yaml::Value =
             serde_yaml::from_str(get_file(&arr, "overrides")).unwrap();
         let expected: EnvironmentConfig =
             serde_yaml::from_str(get_file(&arr, "expected-config")).unwrap();
 
-        println!("{overrides:?}");
-
-        let config_source: ConfigSource<EnvironmentConfig> = ConfigSource::From {
-            from: FileProvider::Inline(InlineFile { content }),
+        let config_source: ConfigSpec<EnvironmentConfig> = ConfigSpec::From {
+            from: RawSource::Local {
+                relative_path: PathBuf::from("environment.yaml"),
+            },
             overrides,
         };
 
-        let ctx = Context::new(
-            PathBuf::from("resources/config-tests/test-plan/valid-environment-config-source")
-                .canonicalize()
-                .unwrap(),
-        );
+        let ctx = TxtarContext { arr };
 
-        let res = config_source.try_into_config(&ctx).await;
+        let res = config_source
+            .try_into_config_with_source(&PathBuf::new(), &ctx)
+            .await;
         assert!(
             res.is_ok(),
             "Expected a valid EnvironmentConfig, got {res:?}"
         );
         assert_eq!(
-            res.unwrap(),
+            res.unwrap().0,
             expected,
             "expected environment configs to match"
         );

@@ -1,10 +1,7 @@
 A valid ConfigSource snippet for an EnvrionmentConfig. This 
-successfully overrides the setup. It is expected 
-that the env_vars and provides will be a combination of the 
-inline and overrides content. De-duplication will happen in 
-separate function.
+does not define any overrides
 
--- inline-content --
+-- environment.yaml --
 name: minimal
 description: "A minimal environment config"
 
@@ -31,14 +28,6 @@ teardown:
     HELLO: "sailor"
 
 -- overrides --
-setup:
-  command: override.sh
-  env_vars:
-    OVER: "ride"
-
-  provides:
-    - name: override
-      description: "The override description"
 
 -- expected-config --
 name: minimal
@@ -51,18 +40,15 @@ values:
     description: "An env var called bar"
 
 setup:
-  command: override.sh
+  command: scripts/start_local_server.sh
   env_vars:
     HELLO: "world"
-    OVER: "ride"
 
   provides:
     - name: server_url
       description: "The publicly accessible URL for the service under test"
     - name: server_pid
       description: "The PID of the running server"
-    - name: override
-      description: "The override description"
 
 teardown:
   command: scripts/stop_local_server.sh
