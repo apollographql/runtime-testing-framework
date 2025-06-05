@@ -6,7 +6,7 @@
 //! support fixing.
 use crate::{
     N_PARALLEL_FETCH,
-    platform_query::PlatformQuery,
+    platform_query::{self, PlatformQuery},
     supergraph::details::{FetchErrorCause, SupergraphDetails},
 };
 use anyhow::{Result, bail}; // TODO: replace with thiserror
@@ -65,8 +65,7 @@ pub async fn generate_canned_ops(
     details: &SupergraphDetails,
     n: usize,
     skip_mutations: bool,
-    api_key: &str,
-    staging: bool,
+    client: &impl platform_query::Client,
 ) -> Result<Vec<CannedOperation>> {
     let schema = schema_with_defer_and_stream(&details.supergraph_sdl);
     let signatures = fetch_operation_signatures(
@@ -74,8 +73,7 @@ pub async fn generate_canned_ops(
         details.variant.clone(),
         n,
         skip_mutations,
-        api_key,
-        staging,
+        client,
     )
     .await?;
 
@@ -190,8 +188,7 @@ async fn fetch_operation_signatures(
     variant: String,
     n: usize,
     skip_mutations: bool,
-    api_key: &str,
-    staging: bool,
+    client: &impl platform_query::Client,
 ) -> Result<Vec<Signature>> {
     info!("fetching top {n} operation IDs for {graph_id}@{variant}");
     let max_batch_size = 100; // enforced by the studio API
@@ -208,8 +205,7 @@ async fn fetch_operation_signatures(
             skip_mutations,
             max_batch_size as i64,
             after,
-            api_key,
-            staging,
+            client,
         )
         .await?;
 
@@ -230,8 +226,7 @@ async fn fetch_operation_signatures(
             skip_mutations,
             overflow as i64,
             after,
-            api_key,
-            staging,
+            client,
         )
         .await?;
         ids.extend(batch.ids);
@@ -269,10 +264,9 @@ async fn fetch_operation_signatures(
         .enumerate()
     {
         info!("requesting batch {}/{n_batches}", i + 1);
-        let items = try_join_all(
-            batch.map(|op_id| Signature::fetch(graph_id.to_string(), op_id, api_key, staging)),
-        )
-        .await?;
+        let items =
+            try_join_all(batch.map(|op_id| Signature::fetch(graph_id.to_string(), op_id, client)))
+                .await?;
         signatures.extend(items);
     }
 
@@ -304,8 +298,7 @@ impl FetchOperationIds {
         skip_mutations: bool,
         first: i64,
         after: Option<String>,
-        api_key: &str,
-        staging: bool,
+        client: &impl platform_query::Client,
     ) -> Result<Batch, FetchErrorCause> {
         use fetch_operation_ids::OperationType;
 
@@ -322,8 +315,7 @@ impl FetchOperationIds {
                 first,
                 after,
             },
-            api_key,
-            staging,
+            client,
         )
         .await
     }
@@ -656,14 +648,17 @@ pub struct Signature {
 
 impl Signature {
     /// Attempt to fetch the signature for a given operation ID from Studio
-    pub async fn fetch(graph_id: String, id: String, api_key: &str, staging: bool) -> Result<Self> {
+    pub async fn fetch(
+        graph_id: String,
+        id: String,
+        client: &impl platform_query::Client,
+    ) -> Result<Self> {
         Ok(GetOpSignature::fetch(
             get_op_signature::Variables {
                 graph_id,
                 op_id: id.clone(),
             },
-            api_key,
-            staging,
+            client,
         )
         .await?)
     }
