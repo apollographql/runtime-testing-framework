@@ -44,6 +44,13 @@ pub enum Error {
         extensions: serde_json::Map<String, serde_json::Value>,
     },
 
+    /// The client being used to make this request is misconfigured
+    #[error("misconfigured client: {reason}")]
+    MisconfiguredClient {
+        /// Details on how the client is misconfigured
+        reason: String,
+    },
+
     /// No data or errors were returned from the platform API in response to running an operation.
     #[error("no data returned from graphql operation")]
     NoData,
@@ -224,11 +231,20 @@ pub trait Client {
 
 impl Client for ReqwestClient {
     async fn post_operation(&self, body: &impl Serialize) -> Result<serde_json::Value, Error> {
+        let (url, api_key) = match self.platform.as_ref() {
+            Some(config) => (&config.url, &config.api_key),
+            None => {
+                return Err(Error::MisconfiguredClient {
+                    reason: "no platform config provided".to_string(),
+                });
+            }
+        };
+
         let raw = self
             .inner
-            .post(&self.platform.url)
+            .post(url)
             .json(body)
-            .header("x-api-key", &self.platform.api_key)
+            .header("x-api-key", api_key)
             .header("apollo-sudo", "true")
             .header("apollographql-client-name", "runtime-testing-framework")
             .header("apollographql-client-version", "0.1.0")

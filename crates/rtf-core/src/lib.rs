@@ -21,29 +21,35 @@ use platform_query::{PROD_STUDIO_URL, STAGING_STUDIO_URL};
 pub const N_PARALLEL_FETCH: usize = 20;
 
 /// A client implementation that is backed by a [reqwest::Client].
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ReqwestClient {
     pub(crate) inner: reqwest::Client,
-    pub(crate) platform: PlatformConfig,
+    pub(crate) platform: Option<PlatformConfig>,
 }
 
 impl ReqwestClient {
-    /// Construct a new [ReqwestClient] with the provided config
-    pub fn new(platform: PlatformConfig) -> Self {
+    /// Construct a new [ReqwestClient]
+    pub fn new() -> Self {
         Self {
             inner: reqwest::Client::new(),
-            platform,
+            platform: None,
         }
     }
 
-    /// Construct a new [ReqwestClient] for interacting with the staging studio API
-    pub fn new_staging(api_key: impl Into<String>) -> Self {
-        Self::new(PlatformConfig::new(STAGING_STUDIO_URL, api_key))
-    }
+    /// Provide configuration for making requests to the Apollo platform API.
+    pub fn with_platform_config(&mut self, api_key: impl Into<String>, staging: bool) -> &mut Self {
+        let url = if staging {
+            STAGING_STUDIO_URL
+        } else {
+            PROD_STUDIO_URL
+        };
 
-    /// Construct a new [ReqwestClient] for interacting with the production studio API
-    pub fn new_prod(api_key: impl Into<String>) -> Self {
-        Self::new(PlatformConfig::new(PROD_STUDIO_URL, api_key))
+        self.platform = Some(PlatformConfig {
+            url: url.into(),
+            api_key: api_key.into(),
+        });
+
+        self
     }
 }
 
