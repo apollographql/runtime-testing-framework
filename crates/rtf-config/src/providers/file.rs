@@ -428,7 +428,7 @@ mod tests {
         let dir = PathBuf::from("resources/provider-tests/file/valid")
             .canonicalize()
             .unwrap();
-        let ctx = Context::new(&dir);
+        let ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
 
         let res = provider.try_validate(&mut Vec::new(), &src, &ctx);
@@ -463,7 +463,7 @@ mod tests {
         let dir = PathBuf::from("resources/provider-tests/file/validation-failures")
             .canonicalize()
             .unwrap();
-        let ctx = Context::new(&dir);
+        let ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
         let res = provider.try_validate(&mut Vec::new(), &src, &ctx);
 
@@ -547,7 +547,7 @@ mod tests {
         let dir = PathBuf::from("resources/provider-tests/file/resolution-failures")
             .canonicalize()
             .unwrap();
-        let ctx = Context::new(&dir);
+        let ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
         let _ = provider.try_validate(&mut Vec::new(), &src, &ctx);
         let res = provider.try_get_file_content(&src, &ctx).await;
@@ -565,7 +565,7 @@ mod tests {
         let required_file = RequiredFile {
             message: "required file must be defined".to_string(),
         };
-        let ctx = Context::new(PathBuf::from("not/used/in/this/test"));
+        let ctx = Context::new();
 
         // Calling try_into_file_content should panic here
         _ = required_file

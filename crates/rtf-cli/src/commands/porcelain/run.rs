@@ -7,7 +7,7 @@ pub async fn validate_and_run_test_plan(
     config_file_path: &str,
     out_dir: &str,
 ) -> anyhow::Result<()> {
-    let (ctx, out_dir) = get_context_and_outdir(config_file_path, out_dir)?;
+    let (ctx, out_dir) = get_context_and_outdir(out_dir)?;
     validate_and_run_test_plan_with_context(config_file_path, &out_dir, ctx).await
 }
 

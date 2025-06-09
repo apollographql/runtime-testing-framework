@@ -102,17 +102,15 @@ pub trait ResolutionContext {
 }
 
 /// A [ResolutionContext] that will perform real IO.
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct Context {
-    pub(crate) cwd: PathBuf,
     pub(crate) client: ReqwestClient,
 }
 
 impl Context {
     /// Construct a new `Context` which will resolve paths relative to the provided directory.
-    pub fn new(cwd: impl Into<PathBuf>) -> Self {
+    pub fn new() -> Self {
         Self {
-            cwd: cwd.into(),
             client: ReqwestClient::default(),
         }
     }
@@ -127,7 +125,7 @@ impl Context {
 impl ResolutionContext for Context {
     type PlatformClient = ReqwestClient;
 
-    fn platform_client(&self) -> Option<&ReqwestClient> {
+    fn platform_client(&self) -> Option<&Self::PlatformClient> {
         if self.client.has_platform_config() {
             Some(&self.client)
         } else {
@@ -185,7 +183,6 @@ impl ResolutionContext for Context {
 
     fn set_current_dir(&mut self, path: impl AsRef<Path>) -> io::Result<()> {
         set_current_dir(path.as_ref())?;
-        self.cwd = path.as_ref().to_path_buf();
 
         Ok(())
     }

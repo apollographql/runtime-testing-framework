@@ -105,7 +105,7 @@ mod tests {
         let dir = PathBuf::from("resources/config-tests/scenario/valid")
             .canonicalize()
             .unwrap();
-        let ctx = Context::new(&dir);
+        let ctx = Context::new();
         let src = Source::local(dir);
 
         let res = scenario.try_validate(&mut Vec::new(), &src, &ctx);
@@ -125,7 +125,7 @@ mod tests {
         let dir = PathBuf::from("resources/config-tests/scenario/validation-failures")
             .canonicalize()
             .unwrap();
-        let ctx = Context::new(&dir);
+        let ctx = Context::new();
         let src = Source::local(dir);
 
         let scenario_config = res.unwrap();
