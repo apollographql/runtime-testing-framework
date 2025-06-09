@@ -108,7 +108,7 @@ pub struct Context {
 }
 
 impl Context {
-    /// Construct a new `Context` which will resolve paths relative to the provided directory.
+    /// Construct a new `Context` with default configuration.
     pub fn new() -> Self {
         Self {
             client: ReqwestClient::default(),
