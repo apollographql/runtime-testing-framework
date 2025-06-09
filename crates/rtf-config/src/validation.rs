@@ -22,6 +22,9 @@ pub enum ErrorKind {
     #[strum(to_string = "a directory was provided when a file was expected.")]
     IsADirectory,
 
+    #[strum(to_string = "no API key provided for calling the Apollo GraphOS API")]
+    MissingGraphOsApiKey,
+
     #[strum(to_string = "a required file has not been defined.")]
     RequiredFileMissing,
 }

@@ -1,4 +1,5 @@
 //! Providers are how we expose the rest of the framework to user facing config.
+use rtf_core::supergraph::details::FetchError;
 use std::io;
 
 pub mod command;
@@ -7,6 +8,9 @@ pub mod file;
 /// Errors that can be encountered while running file providers
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error(transparent)]
+    Fetch(#[from] FetchError),
+
     #[error(transparent)]
     Io(#[from] io::Error),
 
