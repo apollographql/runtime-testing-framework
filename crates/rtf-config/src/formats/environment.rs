@@ -174,7 +174,7 @@ mod tests {
         let dir = PathBuf::from("resources/config-tests/environment/valid")
             .canonicalize()
             .unwrap();
-        let ctx = Context::new(&dir);
+        let ctx = Context::new();
         let src = Source::local(dir);
 
         let env_config = res.unwrap();
@@ -196,7 +196,7 @@ mod tests {
         let dir = PathBuf::from("resources/config-tests/environment/validation-failures")
             .canonicalize()
             .unwrap();
-        let ctx = Context::new(&dir);
+        let ctx = Context::new();
         let src = Source::local(dir);
 
         let env_config = res.unwrap();

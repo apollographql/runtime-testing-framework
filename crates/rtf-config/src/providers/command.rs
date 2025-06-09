@@ -230,7 +230,7 @@ mod tests {
         let dir = PathBuf::from("resources/provider-tests/command/valid")
             .canonicalize()
             .unwrap();
-        let ctx = Context::new(&dir);
+        let ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
 
         let res = section.try_validate(&mut Vec::new(), &src, &ctx);
@@ -262,7 +262,7 @@ mod tests {
         let dir = PathBuf::from("resources/provider-tests/command/validation-failures")
             .canonicalize()
             .unwrap();
-        let ctx = Context::new(&dir);
+        let ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
         let res = section.try_validate(&mut Vec::new(), &src, &ctx);
 

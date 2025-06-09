@@ -463,7 +463,7 @@ mod tests {
         let dir = PathBuf::from("resources/config-tests/test-plan/valid")
             .canonicalize()
             .unwrap();
-        let ctx = Context::new(&dir);
+        let ctx = Context::new();
         let src = Source::local(&dir);
 
         let arr = load_archive(content);

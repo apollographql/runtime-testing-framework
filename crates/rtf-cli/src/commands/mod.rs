@@ -12,14 +12,9 @@ use tracing::info;
 pub mod plumbing;
 pub mod porcelain;
 
-fn get_context_and_outdir(
-    config_file_path: &str,
-    out_dir: &str,
-) -> anyhow::Result<(Context, PathBuf)> {
+fn get_context_and_outdir(out_dir: &str) -> anyhow::Result<(Context, PathBuf)> {
     info!("setting up context and output directory");
-    let full_path = PathBuf::from(config_file_path).canonicalize()?;
-    let config_dir = full_path.parent().unwrap().to_path_buf();
-    let ctx = Context::new(&config_dir);
+    let ctx = Context::new();
 
     // output directories are created relative to the directory we were run from
     let out_dir = current_dir()?.join(out_dir);
