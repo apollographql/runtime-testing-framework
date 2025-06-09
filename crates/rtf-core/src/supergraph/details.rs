@@ -90,8 +90,7 @@ impl SupergraphDetails {
     pub async fn fetch(
         graph_id: String,
         variant: String,
-        api_key: &str,
-        staging: bool,
+        client: &impl platform_query::Client,
     ) -> Result<Self, FetchError> {
         info!(%graph_id, %variant, "pulling supergraph details");
         let graph_ref = raw_supergraph_details::Variables {
@@ -99,7 +98,7 @@ impl SupergraphDetails {
             variant: variant.clone(),
         };
 
-        RawSupergraphDetails::fetch(graph_ref, api_key, staging)
+        RawSupergraphDetails::fetch(graph_ref, client)
             .await
             .map_err(|cause| FetchError {
                 graph_id,

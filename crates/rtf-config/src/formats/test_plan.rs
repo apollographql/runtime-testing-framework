@@ -430,7 +430,7 @@ fn merge(overrides: serde_yaml::Value, base: &mut serde_yaml::Value) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::{Context, PathKind, ResolutionContext};
+    use crate::context::{Context, NullPlatformClient, PathKind, ResolutionContext};
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
     use std::{io, path::PathBuf};
@@ -604,6 +604,8 @@ mod tests {
     }
 
     impl ResolutionContext for TxtarContext {
+        type PlatformClient = NullPlatformClient;
+
         fn run_command_blocking(
             &self,
             _prog: &str,

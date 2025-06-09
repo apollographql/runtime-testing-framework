@@ -187,7 +187,7 @@ impl Validate for CommandSection {
 mod tests {
     use super::*;
     use crate::{
-        context::{Context, PathKind},
+        context::{Context, NullPlatformClient, PathKind},
         providers::file::{FileProvider, InlineFile},
     };
     use simple_test_case::dir_cases;
@@ -292,6 +292,8 @@ mod tests {
     }
 
     impl ResolutionContext for MockCommandContext {
+        type PlatformClient = NullPlatformClient;
+
         fn run_command_blocking(
             &self,
             _prog: &str,

@@ -7,17 +7,19 @@
 //!
 //! See here for docs on how to add new queries:
 //!   <https://github.com/graphql-rust/graphql-client?tab=readme-ov-file#getting-started>
+use crate::ReqwestClient;
 use graphql_client::GraphQLQuery;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use tracing::{error, trace};
 
 /// API endpoint for the staging studio instance.
 /// -> Apollo internal graphs are queried from here
-const STAGING_STUDIO_URL: &str = "https://graphql-staging.api.apollographql.com/api/graphql";
+pub(crate) const STAGING_STUDIO_URL: &str =
+    "https://graphql-staging.api.apollographql.com/api/graphql";
 /// API endpoint for the production studio instance.
 /// -> Customer graphs are queried from here
-const PROD_STUDIO_URL: &str = "https://graphql.api.apollographql.com/api/graphql";
+pub(crate) const PROD_STUDIO_URL: &str = "https://graphql.api.apollographql.com/api/graphql";
 
 /// Error variants that we can encounter when making graphQL requests to the platform API.
 #[derive(Debug, thiserror::Error)]
@@ -40,6 +42,13 @@ pub enum Error {
     GraphqlExtensions {
         /// The raw graphQL extensions returned with the response for the operation
         extensions: serde_json::Map<String, serde_json::Value>,
+    },
+
+    /// The client being used to make this request is misconfigured
+    #[error("misconfigured client: {reason}")]
+    MisconfiguredClient {
+        /// Details on how the client is misconfigured
+        reason: String,
     },
 
     /// No data or errors were returned from the platform API in response to running an operation.
@@ -138,9 +147,9 @@ pub struct GqlError {
 ///     my_enums: vec![my_query::MyEnum::A], // enums are available in the generated module
 /// };
 /// let api_key = "...";
-/// let staging = false;
+/// let client = ReqwestClient::new_prod(api_key);
 ///
-/// let parsed_response = MyQuery::fetch(vars, api_key, staging).await?;
+/// let parsed_response = MyQuery::fetch(vars, &client).await?;
 /// ```
 ///
 ///   [0]: https://github.com/graphql-rust/graphql-client?tab=readme-ov-file#getting-started
@@ -163,68 +172,87 @@ where
     /// Execute this query and parse the returned data
     async fn fetch(
         variables: Self::Variables,
-        api_key: &str,
-        staging: bool,
+        client: &impl Client,
     ) -> Result<Self::Output, Self::Error> {
-        let raw = fetch::<Self>(variables.clone(), api_key, staging).await?;
+        let raw = client.execute_operation::<Self>(variables.clone()).await?;
 
         Self::try_parse(raw, variables)
     }
 }
 
-/// Helper for making an API request to studio and handling any serialization or graphQL errors so
-/// that implementations of [Query::try_parse] only need to care about mapping valid data.
-async fn fetch<T>(
-    variables: T::Variables,
-    api_key: &str,
-    staging: bool,
-) -> Result<T::ResponseData, Error>
-where
-    T: GraphQLQuery,
-{
-    let url = if staging {
-        STAGING_STUDIO_URL
-    } else {
-        PROD_STUDIO_URL
-    };
-    let body = T::build_query(variables);
-    let raw = reqwest::Client::new()
-        .post(url)
-        .json(&body)
-        .header("x-api-key", api_key)
-        .header("apollo-sudo", "true")
-        .header("apollographql-client-name", "runtime-testing-framework")
-        .header("apollographql-client-version", "0.1.0")
-        .send()
-        .await?
-        .json::<serde_json::Value>()
-        .await?;
+/// An API client that can make requests to the Apollo platform API.
+#[allow(async_fn_in_trait)]
+pub trait Client {
+    /// POST a GraphQL operation to the studio API with appropriate headers, returning the raw JSON
+    /// response.
+    ///
+    /// [Client::execute_operation] is used to handle creating the POST body and parsing the
+    /// response.
+    async fn post_operation(&self, body: &impl Serialize) -> Result<serde_json::Value, Error>;
 
-    trace!("raw response: {raw:?}");
-    let resp: GqlResponse<T::ResponseData> = serde_json::from_value(raw)?;
+    /// Helper for making an API request to studio and handling any serialization or graphQL errors so
+    /// that implementations of [PlatformQuery::try_parse] only need to care about mapping valid data.
+    async fn execute_operation<T>(&self, variables: T::Variables) -> Result<T::ResponseData, Error>
+    where
+        T: GraphQLQuery,
+    {
+        let body = T::build_query(variables);
+        let raw = self.post_operation(&body).await?;
 
-    if !resp.errors.is_empty() {
-        error!("Errors returned when running graphql operation");
-        return Err(Error::GraphqlErrors {
-            errors: resp.errors,
-        });
-    } else if !resp.extensions.is_empty() {
-        error!("Unexpected extensions returned when running graphql operation");
-        return Err(Error::GraphqlExtensions {
-            extensions: resp.extensions,
-        });
+        trace!("raw response: {raw:?}");
+        let resp: GqlResponse<T::ResponseData> = serde_json::from_value(raw)?;
+
+        if !resp.errors.is_empty() {
+            error!("Errors returned when running graphql operation");
+            return Err(Error::GraphqlErrors {
+                errors: resp.errors,
+            });
+        } else if !resp.extensions.is_empty() {
+            error!("Unexpected extensions returned when running graphql operation");
+            return Err(Error::GraphqlExtensions {
+                extensions: resp.extensions,
+            });
+        }
+
+        return resp.data.ok_or(Error::NoData);
+
+        // Serde type for parsing the graphql response from the server
+
+        #[derive(Debug, Deserialize)]
+        struct GqlResponse<T> {
+            data: Option<T>,
+            #[serde(default)]
+            errors: Vec<GqlError>,
+            #[serde(default)]
+            extensions: serde_json::Map<String, serde_json::Value>,
+        }
     }
+}
 
-    return resp.data.ok_or(Error::NoData);
+impl Client for ReqwestClient {
+    async fn post_operation(&self, body: &impl Serialize) -> Result<serde_json::Value, Error> {
+        let (url, api_key) = match self.platform.as_ref() {
+            Some(config) => (&config.url, &config.api_key),
+            None => {
+                return Err(Error::MisconfiguredClient {
+                    reason: "no platform config provided".to_string(),
+                });
+            }
+        };
 
-    // serde type for parsing the graphql response from the server
+        let raw = self
+            .inner
+            .post(url)
+            .json(body)
+            .header("x-api-key", api_key)
+            .header("apollo-sudo", "true")
+            .header("apollographql-client-name", "runtime-testing-framework")
+            .header("apollographql-client-version", "0.1.0")
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
 
-    #[derive(Debug, Deserialize)]
-    struct GqlResponse<T> {
-        data: Option<T>,
-        #[serde(default)]
-        errors: Vec<GqlError>,
-        #[serde(default)]
-        extensions: serde_json::Map<String, serde_json::Value>,
+        Ok(raw)
     }
 }
