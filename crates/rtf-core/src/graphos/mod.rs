@@ -1,8 +1,42 @@
 //! Logic for working with Apollo GraphOS
-use std::fmt;
+use std::{fmt, io};
+
+use apollo_compiler::validation::DiagnosticList;
 
 pub mod platform_query;
 pub mod supergraph;
+
+/// Error variants that we can encounter when interacting with Apollo graphOS.
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    /// Error variants that we can encounter when making graphQL requests to the platform API.
+    #[error(transparent)]
+    Fetch(#[from] supergraph::FetchError),
+
+    /// A graphQL error was encountered while attempting to pull supergraph details
+    #[error(transparent)]
+    Graphql(#[from] platform_query::Error),
+
+    /// IO errors
+    #[error(transparent)]
+    Io(#[from] io::Error),
+
+    /// GraphQL parsing errors
+    #[error("error parsing GraphQL document")]
+    InvalidDocument {
+        /// Errors encountered while parsing or validating a GraphQL document
+        errors: DiagnosticList,
+        /// Context for the document that the errors occurred in
+        context: String,
+    },
+
+    /// JSON parsing errors
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+}
+
+/// Alias for a [Result][std::result::Result] where the error variant is an [Error].
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// An API client backed by [reqwest::Client] that can make requests to the Apollo platform API.
 pub struct PlatformClient {

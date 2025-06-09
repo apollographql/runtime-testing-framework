@@ -7,11 +7,11 @@
 use crate::{
     N_PARALLEL_FETCH,
     graphos::{
+        self,
         platform_query::{self, PlatformQuery},
-        supergraph::details::{FetchErrorCause, SupergraphDetails},
+        supergraph::{FetchError, FetchErrorCause, SupergraphDetails},
     },
 };
-use anyhow::{Result, bail}; // TODO: replace with thiserror
 use apollo_compiler::{
     ExecutableDocument, Name, Node, Schema,
     ast::{self, Argument, DirectiveList, Type},
@@ -68,7 +68,7 @@ pub async fn generate_canned_ops(
     n: usize,
     skip_mutations: bool,
     client: &impl platform_query::Client,
-) -> Result<Vec<CannedOperation>> {
+) -> graphos::Result<Vec<CannedOperation>> {
     let schema = schema_with_defer_and_stream(&details.supergraph_sdl);
     let signatures = fetch_operation_signatures(
         details.graph_id.clone(),
@@ -77,7 +77,14 @@ pub async fn generate_canned_ops(
         skip_mutations,
         client,
     )
-    .await?;
+    .await
+    .map_err(|cause| {
+        graphos::Error::Fetch(FetchError {
+            cause,
+            graph_id: details.graph_id.clone(),
+            variant: details.variant.clone(),
+        })
+    })?;
 
     info!("generating canned operations");
     let mut rng = rand::rng();
@@ -191,7 +198,7 @@ async fn fetch_operation_signatures(
     n: usize,
     skip_mutations: bool,
     client: &impl platform_query::Client,
-) -> Result<Vec<Signature>> {
+) -> Result<Vec<Signature>, FetchErrorCause> {
     info!("fetching top {n} operation IDs for {graph_id}@{variant}");
     let max_batch_size = 100; // enforced by the studio API
     let batches = n / max_batch_size;
@@ -402,7 +409,11 @@ impl CannedOperation {
     /// Attempt to rewrite a [Signature] from Studio into an operation that validates against the
     /// provided [Schema]. If that is successful, generate some randomised variables to pair with
     /// the operation to turn it into a valid request to send to a Router.
-    fn try_new(sig: Signature, schema: &Valid<Schema>, rng: &mut ThreadRng) -> Result<Self> {
+    fn try_new(
+        sig: Signature,
+        schema: &Valid<Schema>,
+        rng: &mut ThreadRng,
+    ) -> graphos::Result<Self> {
         debug!("  parsing {}...", sig.id);
         let doc = sig.parse_and_fix(schema, rng)?;
         let mut vars = HashMap::new();
@@ -430,7 +441,7 @@ impl CannedOperation {
     ///
     /// The filenames for the written files are `$operationID.graphql` and `$operationID.json`
     /// respectively.
-    pub fn write(&self, dir: &Path) -> Result<()> {
+    pub fn write(&self, dir: &Path) -> graphos::Result<()> {
         let data = json!({
             "query": self.query,
             "variables": self.vars,
@@ -654,15 +665,15 @@ impl Signature {
         graph_id: String,
         id: String,
         client: &impl platform_query::Client,
-    ) -> Result<Self> {
-        Ok(GetOpSignature::fetch(
+    ) -> Result<Self, FetchErrorCause> {
+        GetOpSignature::fetch(
             get_op_signature::Variables {
                 graph_id,
                 op_id: id.clone(),
             },
             client,
         )
-        .await?)
+        .await
     }
 
     /// The operations that we pull out of studio using [Signature::fetch] have been partially redacted
@@ -677,13 +688,14 @@ impl Signature {
         &self,
         schema: &Valid<Schema>,
         rng: &mut ThreadRng,
-    ) -> Result<Valid<ExecutableDocument>> {
+    ) -> graphos::Result<Valid<ExecutableDocument>> {
         let mut doc = match ExecutableDocument::parse(schema, &self.sig, &self.id) {
             Ok(doc) => doc,
             Err(with_errs) => {
-                let errs: Vec<_> = with_errs.errors.iter().map(|e| e.to_json()).collect();
-                let json_errs = serde_json::to_string(&errs)?;
-                bail!("error parsing operation: {json_errs}");
+                return Err(graphos::Error::InvalidDocument {
+                    errors: with_errs.errors,
+                    context: format!("parsing signature {} before rewrite", self.id),
+                });
             }
         };
 
@@ -693,11 +705,10 @@ impl Signature {
 
         match doc.validate(schema) {
             Ok(doc) => Ok(doc),
-            Err(with_errs) => {
-                let errs: Vec<_> = with_errs.errors.iter().map(|e| e.to_json()).collect();
-                let json_errs = serde_json::to_string(&errs)?;
-                bail!("error validating operation: {json_errs}");
-            }
+            Err(with_errs) => Err(graphos::Error::InvalidDocument {
+                errors: with_errs.errors,
+                context: format!("validating signature {} after rewrite", self.id),
+            }),
         }
     }
 }
