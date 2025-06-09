@@ -1,3 +1,4 @@
+use rtf_core::{ReqwestClient, platform_query};
 use std::{
     collections::HashMap,
     env::set_current_dir,
@@ -23,6 +24,16 @@ pub enum PathKind {
 ///
 /// For the canonical real implementations that should be mocked see [Context].
 pub trait ResolutionContext {
+    type PlatformClient: platform_query::Client;
+
+    /// Provide a [Client][platform_query::Client] for making requests to the Apollo platform API.
+    ///
+    /// If it is not possible for this current context to make requests to the platform API then
+    /// this method should return [None].
+    fn platform_client(&self) -> Option<&Self::PlatformClient> {
+        None
+    }
+
     /// Returns the canonical, absolute form of the path with all intermediate
     /// components normalized and symbolic links resolved.
     fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf>;
@@ -94,16 +105,36 @@ pub trait ResolutionContext {
 #[derive(Debug)]
 pub struct Context {
     pub(crate) cwd: PathBuf,
+    pub(crate) client: ReqwestClient,
 }
 
 impl Context {
     /// Construct a new `Context` which will resolve paths relative to the provided directory.
     pub fn new(cwd: impl Into<PathBuf>) -> Self {
-        Self { cwd: cwd.into() }
+        Self {
+            cwd: cwd.into(),
+            client: ReqwestClient::default(),
+        }
+    }
+
+    /// Provide configuration for making requests to the Apollo platform API.
+    pub fn with_platform_config(&mut self, api_key: impl Into<String>, staging: bool) -> &mut Self {
+        self.client.with_platform_config(api_key, staging);
+        self
     }
 }
 
 impl ResolutionContext for Context {
+    type PlatformClient = ReqwestClient;
+
+    fn platform_client(&self) -> Option<&ReqwestClient> {
+        if self.client.has_platform_config() {
+            Some(&self.client)
+        } else {
+            None
+        }
+    }
+
     fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
         relative_path.as_ref().canonicalize()
     }
@@ -161,5 +192,22 @@ impl ResolutionContext for Context {
 
     fn create_dir_all(&self, path: impl AsRef<Path>) -> io::Result<()> {
         fs::create_dir_all(path)
+    }
+}
+
+/// Used to implement [ResolutionContext] in tests where no platform client is needed.
+#[cfg(test)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct NullPlatformClient;
+
+#[cfg(test)]
+impl platform_query::Client for NullPlatformClient {
+    async fn post_operation(
+        &self,
+        _body: &impl serde::Serialize,
+    ) -> Result<serde_json::Value, platform_query::Error> {
+        Err(platform_query::Error::MisconfiguredClient {
+            reason: "a NullClient can not be used to make requests".to_string(),
+        })
     }
 }

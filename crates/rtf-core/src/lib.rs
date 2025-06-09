@@ -51,6 +51,11 @@ impl ReqwestClient {
 
         self
     }
+
+    /// Whether or not this client has config for maling requests to the Apollo platform API.
+    pub fn has_platform_config(&self) -> bool {
+        self.platform.is_some()
+    }
 }
 
 /// Configuration for making requests to the Apollo platform API
