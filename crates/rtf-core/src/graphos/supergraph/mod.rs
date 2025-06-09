@@ -2,3 +2,5 @@
 
 pub mod details;
 pub mod operations;
+
+pub use details::{FetchError, FetchErrorCause, Subgraph, SupergraphDetails};

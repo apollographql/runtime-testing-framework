@@ -1,4 +1,4 @@
-use rtf_core::{ReqwestClient, platform_query};
+use rtf_core::{ReqwestClient, graphos::platform_query};
 use std::{
     collections::HashMap,
     env::set_current_dir,
@@ -123,7 +123,7 @@ impl Context {
 }
 
 impl ResolutionContext for Context {
-    type PlatformClient = rtf_core::PlatformClient;
+    type PlatformClient = rtf_core::graphos::PlatformClient;
 
     fn platform_client(&self) -> Option<&Self::PlatformClient> {
         self.client.platform_client()

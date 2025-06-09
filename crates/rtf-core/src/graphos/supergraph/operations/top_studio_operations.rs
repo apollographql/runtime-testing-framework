@@ -6,8 +6,10 @@
 //! support fixing.
 use crate::{
     N_PARALLEL_FETCH,
-    platform_query::{self, PlatformQuery},
-    supergraph::details::{FetchErrorCause, SupergraphDetails},
+    graphos::{
+        platform_query::{self, PlatformQuery},
+        supergraph::details::{FetchErrorCause, SupergraphDetails},
+    },
 };
 use anyhow::{Result, bail}; // TODO: replace with thiserror
 use apollo_compiler::{
@@ -958,20 +960,20 @@ mod tests {
     use super::*;
     use simple_test_case::dir_cases;
 
-    const SCHEMA: &str = include_str!("../../../resources/engine-prod-schema.graphql");
+    const SCHEMA: &str = include_str!("../../../../resources/engine-prod-schema.graphql");
 
     #[test]
     fn fill_missing_input_fields_works() -> anyhow::Result<()> {
         let schema = Schema::parse_and_validate(
             include_str!(
-                "../../../resources/test_data/input_object_tests/schema_with_input_objects.graphql"
+                "../../../../resources/test_data/input_object_tests/schema_with_input_objects.graphql"
             ),
             "supergraph.graphql",
         )
         .unwrap();
 
         let query = include_str!(
-            "../../../resources/test_data/input_object_tests/query_with_missing_input_object.graphql"
+            "../../../../resources/test_data/input_object_tests/query_with_missing_input_object.graphql"
         );
         let op = ExecutableDocument::parse(&schema, query, "test")
             .unwrap()
@@ -1017,7 +1019,8 @@ mod tests {
 
     #[test]
     fn find_used_vars_in_selset_works() {
-        let q = include_str!("../../../resources/test_data/queries/query_with_unused_vars.graphql");
+        let q =
+            include_str!("../../../../resources/test_data/queries/query_with_unused_vars.graphql");
         let schema = Schema::parse_and_validate(SCHEMA, "supergraph.graphql").unwrap();
 
         let doc = ExecutableDocument::parse(&schema, q, "test").unwrap();
@@ -1058,7 +1061,8 @@ mod tests {
 
     #[test]
     fn fix_unused_vars_works() {
-        let q = include_str!("../../../resources/test_data/queries/query_with_unused_vars.graphql");
+        let q =
+            include_str!("../../../../resources/test_data/queries/query_with_unused_vars.graphql");
         let schema = Schema::parse_and_validate(SCHEMA, "supergraph.graphql").unwrap();
         let mut doc = ExecutableDocument::parse(&schema, q, "test").unwrap();
 
@@ -1106,7 +1110,7 @@ mod tests {
     #[test]
     fn fix_aliases_works() {
         let q =
-            include_str!("../../../resources/test_data/queries/query_requiring_aliases.graphql");
+            include_str!("../../../../resources/test_data/queries/query_requiring_aliases.graphql");
         let schema = Schema::parse_and_validate(SCHEMA, "supergraph.graphql").unwrap();
         let mut doc = ExecutableDocument::parse(&schema, q, "test").unwrap();
 
@@ -1122,7 +1126,7 @@ mod tests {
     #[test]
     fn fix_missing_input_fields_works() {
         let q = include_str!(
-            "../../../resources/test_data/queries/query_with_missing_input_fields.graphql"
+            "../../../../resources/test_data/queries/query_with_missing_input_fields.graphql"
         );
         let schema = Schema::parse_and_validate(SCHEMA, "supergraph.graphql").unwrap();
         let mut doc = ExecutableDocument::parse(&schema, q, "test").unwrap();

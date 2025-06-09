@@ -1,6 +1,6 @@
 //! Helpers for fetching the details for a given supergraph from the platform API.
-use crate::platform_query::{self, PlatformQuery};
-use anyhow::{Context, bail}; // TODO: replace with thiserror
+use crate::graphos::platform_query::{self, PlatformQuery};
+use anyhow::{Context, bail};
 use graphql_client::GraphQLQuery;
 use std::{fs, path::Path};
 use tracing::{debug, error, info};
