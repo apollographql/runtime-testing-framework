@@ -1,0 +1,10 @@
+A YAML fragment for a GraphOS supergraph provider. The context used in this test
+does not provide config for the platform api so this test should fail validation.
+
+-- config.yaml --
+kind: graphos_supergraph
+graph_id: "graph_id"
+variant: "variant"
+
+-- validation-errors --
+MissingGraphOsApiKey

@@ -1,0 +1,15 @@
+A valid yaml fragment for a graphos supergraph file provider that uses
+a template for the graph id
+
+-- config.yaml --
+kind: graphos_supergraph
+graph_id: "{{ graph_id }}"
+variant: "variant"
+
+-- values --
+graph_id: "graph_id"
+
+-- after-templating --
+kind: graphos_supergraph
+graph_id: "graph_id"
+variant: "variant"
