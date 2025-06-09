@@ -1,5 +1,5 @@
 //! Providers are how we expose the rest of the framework to user facing config.
-use rtf_core::supergraph::details::FetchError;
+use rtf_core::graphos::supergraph::FetchError;
 use std::io;
 
 pub mod command;

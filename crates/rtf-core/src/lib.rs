@@ -10,12 +10,13 @@
     rustdoc::all
 )]
 #![deny(clippy::undocumented_unsafe_blocks)]
-use std::fmt;
 
-pub mod platform_query;
-pub mod supergraph;
+pub mod graphos;
 
-use platform_query::{PROD_STUDIO_URL, STAGING_STUDIO_URL};
+use graphos::{
+    PlatformClient,
+    platform_query::{PROD_STUDIO_URL, STAGING_STUDIO_URL},
+};
 
 /// The maximum number of queries to run in parallel querying the platform API.
 pub const N_PARALLEL_FETCH: usize = 20;
@@ -57,21 +58,5 @@ impl ReqwestClient {
     /// config is available.
     pub fn platform_client(&self) -> Option<&PlatformClient> {
         self.platform.as_ref()
-    }
-}
-
-/// An API client backed by [reqwest::Client] that can make requests to the Apollo platform API.
-pub struct PlatformClient {
-    inner: reqwest::Client,
-    url: String,
-    api_key: String,
-}
-
-// Custom Debug impl to prevent us dumping the api key
-impl fmt::Debug for PlatformClient {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PlatformClient")
-            .field("url", &self.url)
-            .finish()
     }
 }

@@ -1,8 +1,10 @@
 //! Helpers for fetching the details for a given supergraph from the platform API.
-use crate::platform_query::{self, PlatformQuery};
-use anyhow::{Context, bail}; // TODO: replace with thiserror
+use crate::graphos::{
+    self,
+    platform_query::{self, PlatformQuery},
+};
 use graphql_client::GraphQLQuery;
-use std::{fs, path::Path};
+use std::{fs, io, path::Path};
 use tracing::{debug, error, info};
 
 /// An error encountered while attempting to fetch details for a supergraph from the platform API.
@@ -108,23 +110,25 @@ impl SupergraphDetails {
     }
 
     /// Write out only the schemas held in this [SupergraphDetails].
-    pub fn write_schemas(&self, out_dir: &Path) -> anyhow::Result<()> {
+    pub fn write_schemas(&self, out_dir: &Path) -> graphos::Result<()> {
         debug!("writing supergraph SDL");
         fs::write(out_dir.join("supergraph.graphql"), &self.supergraph_sdl)?;
 
         debug!("writing supergraph SDLs");
         let sg_dir = out_dir.join("subgraphs");
         if sg_dir.exists() && !sg_dir.is_dir() {
-            bail!("{} is not a directory", sg_dir.display());
+            return Err(graphos::Error::Io(io::Error::new(
+                io::ErrorKind::NotADirectory,
+                format!("{} is not a directory", sg_dir.display()),
+            )));
         } else if !sg_dir.exists() {
             debug!("  creating subgraph directory: {}", sg_dir.display());
-            fs::create_dir(&sg_dir).context("unable to create subgraph directory")?;
+            fs::create_dir(&sg_dir)?;
         }
 
         for sg in self.subgraphs.iter() {
             debug!("  writing subgraph: {}", sg.name);
-            fs::write(sg_dir.join(format!("{}.graphql", sg.name)), &sg.sdl)
-                .context("failed to write out subgraph schema")?;
+            fs::write(sg_dir.join(format!("{}.graphql", sg.name)), &sg.sdl)?;
         }
 
         Ok(())

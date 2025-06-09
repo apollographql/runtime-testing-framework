@@ -9,7 +9,7 @@ use crate::{
     templating::{self, Field, Scalar, Template},
     validation::{self, Validate},
 };
-use rtf_core::supergraph::details::SupergraphDetails;
+use rtf_core::graphos::supergraph::SupergraphDetails;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
