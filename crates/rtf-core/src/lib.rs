@@ -24,7 +24,7 @@ pub const N_PARALLEL_FETCH: usize = 20;
 #[derive(Debug, Default)]
 pub struct ReqwestClient {
     pub(crate) inner: reqwest::Client,
-    pub(crate) platform: Option<PlatformConfig>,
+    pub(crate) platform: Option<PlatformClient>,
 }
 
 impl ReqwestClient {
@@ -44,7 +44,8 @@ impl ReqwestClient {
             PROD_STUDIO_URL
         };
 
-        self.platform = Some(PlatformConfig {
+        self.platform = Some(PlatformClient {
+            inner: self.inner.clone(),
             url: url.into(),
             api_key: api_key.into(),
         });
@@ -52,32 +53,24 @@ impl ReqwestClient {
         self
     }
 
-    /// Whether or not this client has config for maling requests to the Apollo platform API.
-    pub fn has_platform_config(&self) -> bool {
-        self.platform.is_some()
+    /// Obtain a reference to an API client for running operations with the Apollo platform API if
+    /// config is available.
+    pub fn platform_client(&self) -> Option<&PlatformClient> {
+        self.platform.as_ref()
     }
 }
 
-/// Configuration for making requests to the Apollo platform API
-pub struct PlatformConfig {
-    pub(crate) url: String,
-    pub(crate) api_key: String,
-}
-
-impl PlatformConfig {
-    /// Construct a new [PlatformConfig]
-    pub fn new(url: impl Into<String>, api_key: impl Into<String>) -> Self {
-        Self {
-            url: url.into(),
-            api_key: api_key.into(),
-        }
-    }
+/// An API client backed by [reqwest::Client] that can make requests to the Apollo platform API.
+pub struct PlatformClient {
+    inner: reqwest::Client,
+    url: String,
+    api_key: String,
 }
 
 // Custom Debug impl to prevent us dumping the api key
-impl fmt::Debug for PlatformConfig {
+impl fmt::Debug for PlatformClient {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PlatformConfig")
+        f.debug_struct("PlatformClient")
             .field("url", &self.url)
             .finish()
     }

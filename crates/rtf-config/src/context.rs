@@ -123,14 +123,10 @@ impl Context {
 }
 
 impl ResolutionContext for Context {
-    type PlatformClient = ReqwestClient;
+    type PlatformClient = rtf_core::PlatformClient;
 
     fn platform_client(&self) -> Option<&Self::PlatformClient> {
-        if self.client.has_platform_config() {
-            Some(&self.client)
-        } else {
-            None
-        }
+        self.client.platform_client()
     }
 
     fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
@@ -203,8 +199,6 @@ impl platform_query::Client for NullPlatformClient {
         &self,
         _body: &impl serde::Serialize,
     ) -> Result<serde_json::Value, platform_query::Error> {
-        Err(platform_query::Error::MisconfiguredClient {
-            reason: "a NullClient can not be used to make requests".to_string(),
-        })
+        panic!("a NullClient can not be used to make requests")
     }
 }
