@@ -122,7 +122,11 @@ impl Context {
         let mut ctx = Self::new();
 
         if let Some(api_key) = env_vars.remove(GRAPH_OS_API_KEY_ENV_VAR) {
-            let staging = env_vars.contains_key(GRAPH_OS_STAGING_ENV_VAR);
+            let staging = match env_vars.remove(GRAPH_OS_STAGING_ENV_VAR).as_deref() {
+                Some("true" | "1") => true,
+                _ => false,
+            };
+
             ctx.with_platform_config(api_key, staging);
         }
 
