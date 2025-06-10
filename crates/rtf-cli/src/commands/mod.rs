@@ -6,15 +6,28 @@
 //! [0]: https://git-scm.com/docs
 use anyhow::bail;
 use rtf_config::context::{Context, PathKind, ResolutionContext};
-use std::{env::current_dir, path::PathBuf};
+use std::{
+    collections::HashMap,
+    env::{self, current_dir},
+    path::PathBuf,
+};
 use tracing::info;
 
 pub mod plumbing;
 pub mod porcelain;
 
 fn get_context_and_outdir(out_dir: &str) -> anyhow::Result<(Context, PathBuf)> {
+    let env_vars: HashMap<String, String> = env::vars_os()
+        .map(|(k, v)| {
+            (
+                k.to_string_lossy().to_string(),
+                v.to_string_lossy().to_string(),
+            )
+        })
+        .collect();
+
     info!("setting up context and output directory");
-    let ctx = Context::new();
+    let ctx = Context::new_from_env_vars(env_vars);
 
     // output directories are created relative to the directory we were run from
     let out_dir = current_dir()?.join(out_dir);

@@ -24,7 +24,7 @@ async fn validate_and_run_test_plan_with_context(
 
     info!("creating output directory");
     ctx.create_dir_all(out_dir)?;
-    let config_dir = ctx.dir_containing(path);
+    let config_dir = ctx.dir_containing(ctx.canonicalize_path(path)?);
     ctx.set_current_dir(config_dir)?;
 
     info!("resolving environment setup");

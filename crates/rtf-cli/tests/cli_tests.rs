@@ -54,3 +54,30 @@ fn run_command_invalid_test_plan_path_errors() {
 
     res.stdout(contains("No such file or directory (os error 2)"));
 }
+
+// This test uses the imgood-observability-test graph, current variant in the apollo-team-runtime-readiness
+// studio org to run. You need to create an API Key with Graph Admin permissions for this graph to successfully
+// complete the test. The API key should be set in the command for running the test e.g.
+// GRAPHOS_API_KEY=<YOUR_KEY_HERE> cargo test --test cli_tests
+#[test]
+#[ignore = "requires a valid GraphOS API Key"]
+fn run_command_graphos_supergraph_works() {
+    let temp = TempDir::new().unwrap();
+    temp.copy_from("resources/graphos-supergraph", &["**"])
+        .unwrap();
+
+    let output_file_path = temp.child("output");
+    let output_file_path = output_file_path.path().to_str().unwrap();
+
+    let test_plan_file_path = temp.child("test-plan.yaml");
+    let test_plan_file_path = test_plan_file_path.path().to_str().unwrap();
+
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+
+    cmd.arg("run")
+        .arg(test_plan_file_path)
+        .arg("--outdir")
+        .arg(output_file_path)
+        .assert()
+        .success();
+}
