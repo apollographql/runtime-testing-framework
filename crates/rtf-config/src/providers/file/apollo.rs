@@ -126,8 +126,8 @@ impl AsUtf8FileContent for GraphosCannedOps {
         // Create a json line file for each of the canned operations
         let json_file = canned_ops
             .iter()
-            .map(|v| v.to_json_string().unwrap())
-            .collect::<Vec<_>>()
+            .map(|v| v.to_json_string())
+            .collect::<Result<Vec<_>, _>>()?
             .join("\n");
 
         Ok(json_file)
