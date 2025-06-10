@@ -117,8 +117,8 @@ impl AsUtf8FileContent for GraphosCannedOps {
 
         let canned_ops = generate_canned_ops(
             &details,
-            self.top_n.as_resolved().clone().try_into().unwrap(),
-            self.skip_mutations.as_resolved().clone(),
+            (*self.top_n.as_resolved()).try_into().unwrap(),
+            *self.skip_mutations.as_resolved(),
             client,
         )
         .await?;
