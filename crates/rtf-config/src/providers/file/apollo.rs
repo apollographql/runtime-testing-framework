@@ -97,7 +97,7 @@ impl Validate for GraphosSupergraph {
 pub struct GraphosCannedOps {
     pub graph_id: Field<String>,
     pub variant: Field<String>,
-    pub top_n: Field<i64>,
+    pub top_n: Field<usize>,
     pub skip_mutations: Field<bool>,
 }
 
@@ -117,7 +117,7 @@ impl AsUtf8FileContent for GraphosCannedOps {
 
         let canned_ops = generate_canned_ops(
             &details,
-            (*self.top_n.as_resolved()).try_into().unwrap(),
+            *self.top_n.as_resolved(),
             *self.skip_mutations.as_resolved(),
             client,
         )
