@@ -1,7 +1,6 @@
 //! Logic for working with Apollo GraphOS
-use std::{fmt, io};
-
 use apollo_compiler::validation::DiagnosticList;
+use std::{fmt, io};
 
 pub mod platform_query;
 pub mod supergraph;
@@ -43,6 +42,7 @@ pub struct PlatformClient {
     pub(crate) inner: reqwest::Client,
     pub(crate) url: String,
     pub(crate) api_key: String,
+    pub(crate) sudo: bool,
 }
 
 // Custom Debug impl to prevent us dumping the api key

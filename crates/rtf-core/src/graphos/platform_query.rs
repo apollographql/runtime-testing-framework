@@ -224,14 +224,19 @@ pub trait Client {
 
 impl Client for PlatformClient {
     async fn post_operation(&self, body: &impl Serialize) -> Result<serde_json::Value, Error> {
-        let raw = self
+        let mut req_builder = self
             .inner
             .post(&self.url)
             .json(body)
             .header("x-api-key", &self.api_key)
-            .header("apollo-sudo", "true")
             .header("apollographql-client-name", "runtime-testing-framework")
-            .header("apollographql-client-version", "0.1.0")
+            .header("apollographql-client-version", "0.1.0");
+
+        if self.sudo {
+            req_builder = req_builder.header("apollo-sudo", "true");
+        }
+
+        let raw = req_builder
             .send()
             .await?
             .json::<serde_json::Value>()
