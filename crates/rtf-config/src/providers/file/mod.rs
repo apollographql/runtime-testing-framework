@@ -118,6 +118,7 @@ impl DerefMut for NamedFileProvider {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
+    GraphosCannedOps(apollo::GraphosCannedOps),
     GraphosSupergraph(apollo::GraphosSupergraph),
     Inline(InlineFile),
     RelativePath(RelativeFile),
@@ -129,6 +130,7 @@ pub enum FileProvider {
 macro_rules! delegate_to_inner {
     ($self:ident, $method:ident $(, $arg:expr)*) => {
         match $self {
+            FileProvider::GraphosCannedOps(fp) => fp.$method($($arg),*),
             FileProvider::GraphosSupergraph(fp) => fp.$method($($arg),*),
             FileProvider::Inline(fp) => fp.$method($($arg),*),
             FileProvider::RelativePath(fp) => fp.$method($($arg),*),
@@ -138,6 +140,7 @@ macro_rules! delegate_to_inner {
 
     (@async $self:ident, $method:ident, $($arg:expr),*) => {
         match $self {
+            FileProvider::GraphosCannedOps(fp) => fp.$method($($arg),*).await,
             FileProvider::GraphosSupergraph(fp) => fp.$method($($arg),*).await,
             FileProvider::Inline(fp) => fp.$method($($arg),*).await,
             FileProvider::RelativePath(fp) => fp.$method($($arg),*).await,

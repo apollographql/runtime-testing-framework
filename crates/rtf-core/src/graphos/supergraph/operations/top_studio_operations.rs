@@ -436,6 +436,17 @@ impl CannedOperation {
         })
     }
 
+    /// Attempt to return a JSON string representation of the [CannedOperation] required to
+    /// POST this operation to a running Router.
+    pub fn to_json_string(&self) -> graphos::Result<String> {
+        let data = serde_json::to_string(&json!({
+            "query": self.query,
+            "variables": self.vars,
+        }))?;
+
+        Ok(data)
+    }
+
     /// Write out both a pretty printed version of the rewritten operation and the JSON payload
     /// required to POST this operation to a running Router.
     ///
