@@ -2,3 +2,5 @@
 
 pub mod license;
 pub mod top_studio_operations;
+
+pub use license::fetch_offline_license;

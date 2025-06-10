@@ -1,6 +1,5 @@
 //! Attempt to fetch an offline GraphOS license
 use crate::graphos::{
-    self,
     platform_query::{self, PlatformQuery},
     supergraph::{FetchError, FetchErrorCause},
 };
@@ -10,19 +9,19 @@ use graphql_client::GraphQLQuery;
 pub async fn fetch_offline_license(
     graph_id: impl Into<String>,
     client: &impl platform_query::Client,
-) -> graphos::Result<String> {
+) -> Result<String, FetchError> {
     let graph_id = graph_id.into();
     let vars = offline_license::Variables {
         graph_id: graph_id.clone(),
     };
 
-    OfflineLicense::fetch(vars, client).await.map_err(|cause| {
-        graphos::Error::Fetch(FetchError {
+    OfflineLicense::fetch(vars, client)
+        .await
+        .map_err(|cause| FetchError {
             graph_id,
             variant: String::new(),
             cause,
         })
-    })
 }
 
 #[derive(GraphQLQuery)]
