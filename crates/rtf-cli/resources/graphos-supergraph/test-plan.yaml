@@ -1,0 +1,57 @@
+name: graphos-supergraph
+description: |
+  Check that a supergraph can be successfully pulled from GraphOS
+
+values:
+  message: "hello, world!"
+
+scenario:
+  inline:
+    name: scenario-graphos-supergraph
+    description: "Check that a supergraph file can be pulled from GraphOS"
+
+    values:
+      - name: message
+        description: "A message to echo out"
+      - name: setup_output
+        description: "a key returned from setup"
+
+    command: scripts/echo-message.sh
+
+    env_vars:
+      FROM_SETUP: "{{ setup_output }}"
+      MESSAGE: "{{ message }}"
+      STAGE: "scenario"
+
+    file_providers:
+      - name: supergraph.graphql
+        env_var: SUPERGRAPH_FILE
+        kind: graphos_supergraph
+        graph_id: "graph_id"
+        variant: "variant"
+
+environment:
+  inline:
+    name: environment-graphos-supergraph
+    description: "Run the same environment from the sanity check"
+
+    values:
+      - name: message
+        description: "A message to echo out"
+
+    setup:
+      command: scripts/echo-message.sh
+      env_vars:
+        MESSAGE: "{{ message }}"
+        STAGE: "env-setup"
+
+      provides:
+        - name: setup_output
+          description: "a key returned from setup"
+
+    teardown:
+      command: scripts/echo-message.sh
+      env_vars:
+        FROM_SETUP: "{{ setup_output }}"
+        MESSAGE: "{{ message }}"
+        STAGE: "env-teardown"

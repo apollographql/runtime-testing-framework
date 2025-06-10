@@ -4,6 +4,7 @@ use assert_fs::{
     prelude::{PathChild, PathCopy},
 };
 use predicates::str::contains;
+use rtf_core::{GRAPH_OS_API_KEY_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR};
 
 #[test]
 fn is_executable() {
@@ -53,4 +54,28 @@ fn run_command_invalid_test_plan_path_errors() {
     let res = cmd.arg("run").arg("/not/a/file.txt").assert();
 
     res.stdout(contains("No such file or directory (os error 2)"));
+}
+
+#[test]
+fn run_command_graphos_supergraph_works() {
+    let temp = TempDir::new().unwrap();
+    temp.copy_from("resources/graphos-supergraph", &["**"])
+        .unwrap();
+
+    let output_file_path = temp.child("output");
+    let output_file_path = output_file_path.path().to_str().unwrap();
+
+    let test_plan_file_path = temp.child("test-plan.yaml");
+    let test_plan_file_path = test_plan_file_path.path().to_str().unwrap();
+
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+
+    cmd.arg("run")
+        .env(GRAPH_OS_API_KEY_ENV_VAR, "dummy_key")
+        .env(GRAPH_OS_STAGING_ENV_VAR, "true")
+        .arg(test_plan_file_path)
+        .arg("--outdir")
+        .arg(output_file_path)
+        .assert()
+        .failure();
 }
