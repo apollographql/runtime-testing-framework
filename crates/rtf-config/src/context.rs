@@ -1,4 +1,6 @@
-use rtf_core::{ReqwestClient, graphos::platform_query};
+use rtf_core::{
+    GRAPH_OS_API_KEY_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR, ReqwestClient, graphos::platform_query,
+};
 use std::{
     collections::HashMap,
     env::set_current_dir,
@@ -113,6 +115,18 @@ impl Context {
         Self {
             client: ReqwestClient::default(),
         }
+    }
+
+    /// Construct a new `Context` with environment variables.
+    pub fn new_from_env_vars(mut env_vars: HashMap<String, String>) -> Self {
+        let mut ctx = Self::new();
+
+        if let Some(api_key) = env_vars.remove(GRAPH_OS_API_KEY_ENV_VAR) {
+            let staging = env_vars.contains_key(GRAPH_OS_STAGING_ENV_VAR);
+            ctx.with_platform_config(api_key, staging);
+        }
+
+        ctx
     }
 
     /// Provide configuration for making requests to the Apollo platform API.

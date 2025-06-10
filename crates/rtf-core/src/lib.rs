@@ -21,6 +21,12 @@ use graphos::{
 /// The maximum number of queries to run in parallel querying the platform API.
 pub const N_PARALLEL_FETCH: usize = 20;
 
+/// The environment variable name for the api key used to authenticate with the GraphOS API
+pub const GRAPH_OS_API_KEY_ENV_VAR: &str = "GRAPHOS_API_KEY";
+
+/// The environment variable name for whether or not to use the staging GraphOS API
+pub const GRAPH_OS_STAGING_ENV_VAR: &str = "GRAPHOS_STAGING";
+
 /// A client implementation that is backed by a [reqwest::Client].
 #[derive(Debug, Default)]
 pub struct ReqwestClient {
