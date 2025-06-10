@@ -9,6 +9,7 @@
 //!   <https://github.com/graphql-rust/graphql-client?tab=readme-ov-file#getting-started>
 use crate::PlatformClient;
 use graphql_client::GraphQLQuery;
+use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use tracing::{error, trace};
@@ -42,6 +43,13 @@ pub enum Error {
     GraphqlExtensions {
         /// The raw graphQL extensions returned with the response for the operation
         extensions: serde_json::Map<String, serde_json::Value>,
+    },
+
+    /// The value for a header was invalid
+    #[error("the value provided for the header {key:?} is not a valid header value")]
+    InvalidHeaderValue {
+        /// The header key that was being set
+        key: String,
     },
 
     /// No data or errors were returned from the platform API in response to running an operation.
@@ -224,11 +232,22 @@ pub trait Client {
 
 impl Client for PlatformClient {
     async fn post_operation(&self, body: &impl Serialize) -> Result<serde_json::Value, Error> {
+        let mut api_key = match HeaderValue::from_str(&self.api_key) {
+            Ok(val) => val,
+            Err(_) => {
+                return Err(Error::InvalidHeaderValue {
+                    key: "x-api-key".to_string(),
+                });
+            }
+        };
+
+        api_key.set_sensitive(true);
+
         let mut req_builder = self
             .inner
             .post(&self.url)
             .json(body)
-            .header("x-api-key", &self.api_key)
+            .header("x-api-key", api_key)
             .header("apollographql-client-name", "runtime-testing-framework")
             .header("apollographql-client-version", "0.1.0");
 
