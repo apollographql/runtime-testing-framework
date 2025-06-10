@@ -18,10 +18,10 @@ use graphos::{
     platform_query::{PROD_STUDIO_URL, STAGING_STUDIO_URL},
 };
 
+/// The environment variable name for the api key used to authenticate with the GraphOS API
+pub const APOLLO_KEY_ENV_VAR: &str = "APOLLO_KEY";
 /// The environment variable name for setting the apollo-sudo=true header in GraphOS API requests
 pub const APOLLO_SUDO_ENV_VAR: &str = "APOLLO_SUDO";
-/// The environment variable name for the api key used to authenticate with the GraphOS API
-pub const GRAPH_OS_API_KEY_ENV_VAR: &str = "GRAPHOS_API_KEY";
 /// The environment variable name for whether or not to use the staging GraphOS API
 pub const GRAPH_OS_STAGING_ENV_VAR: &str = "GRAPHOS_STAGING";
 /// The maximum number of queries to run in parallel querying the platform API.

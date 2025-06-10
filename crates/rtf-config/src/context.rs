@@ -1,5 +1,5 @@
 use rtf_core::{
-    APOLLO_SUDO_ENV_VAR, GRAPH_OS_API_KEY_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR, ReqwestClient,
+    APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR, ReqwestClient,
     graphos::platform_query,
 };
 use std::{
@@ -122,7 +122,7 @@ impl Context {
     pub fn new_from_env_vars(mut env_vars: HashMap<String, String>) -> Self {
         let mut ctx = Self::new();
 
-        if let Some(api_key) = env_vars.remove(GRAPH_OS_API_KEY_ENV_VAR) {
+        if let Some(api_key) = env_vars.remove(APOLLO_KEY_ENV_VAR) {
             let staging = matches!(
                 env_vars.remove(GRAPH_OS_STAGING_ENV_VAR).as_deref(),
                 Some("true" | "1")
