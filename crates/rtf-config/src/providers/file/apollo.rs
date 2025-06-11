@@ -97,8 +97,14 @@ impl Validate for GraphosSupergraph {
 pub struct GraphosCannedOps {
     pub graph_id: Field<String>,
     pub variant: Field<String>,
+    #[serde(default = "default_top_n")]
     pub top_n: Field<usize>,
+    #[serde(default)]
     pub skip_mutations: Field<bool>,
+}
+
+fn default_top_n() -> Field<usize> {
+    Field::Resolved(20)
 }
 
 impl AsUtf8FileContent for GraphosCannedOps {

@@ -114,6 +114,15 @@ where
     }
 }
 
+impl<T> Default for Field<T>
+where
+    T: Default + ValidField,
+{
+    fn default() -> Self {
+        Field::Resolved(T::default())
+    }
+}
+
 impl<T> Template for Field<T>
 where
     T: ValidField,
