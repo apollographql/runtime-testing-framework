@@ -2,6 +2,7 @@
 // are part of the suite of tests in the mod.rs file
 use crate::{
     context::ResolutionContext,
+    impl_template,
     providers::{
         self,
         file::{AsUtf8FileContent, Source},
@@ -42,31 +43,7 @@ impl AsUtf8FileContent for GraphosSupergraph {
     }
 }
 
-impl Template for GraphosSupergraph {
-    fn has_pending_fields(&self) -> bool {
-        self.graph_id.has_pending_fields() || self.variant.has_pending_fields()
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        let mut vals = self.graph_id.required_values();
-        vals.extend(self.variant.required_values());
-
-        vals
-    }
-
-    fn try_resolve(
-        &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::from(
-            self.graph_id.try_resolve_nested(path, "graph_id", values),
-        );
-        errs.append(self.variant.try_resolve_nested(path, "variant", values));
-
-        errs.into_result(())
-    }
-}
+impl_template!(GraphosSupergraph => [graph_id, variant]);
 
 impl Validate for GraphosSupergraph {
     fn try_validate(
@@ -136,41 +113,7 @@ impl AsUtf8FileContent for GraphosCannedOps {
     }
 }
 
-impl Template for GraphosCannedOps {
-    fn has_pending_fields(&self) -> bool {
-        self.graph_id.has_pending_fields()
-            || self.variant.has_pending_fields()
-            || self.top_n.has_pending_fields()
-            || self.skip_mutations.has_pending_fields()
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        let mut vals = self.graph_id.required_values();
-        vals.extend(self.variant.required_values());
-        vals.extend(self.top_n.required_values());
-        vals.extend(self.skip_mutations.required_values());
-
-        vals
-    }
-
-    fn try_resolve(
-        &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::from(
-            self.graph_id.try_resolve_nested(path, "graph_id", values),
-        );
-        errs.append(self.variant.try_resolve_nested(path, "variant", values));
-        errs.append(self.top_n.try_resolve_nested(path, "top_n", values));
-        errs.append(
-            self.skip_mutations
-                .try_resolve_nested(path, "skip_mutations", values),
-        );
-
-        errs.into_result(())
-    }
-}
+impl_template!(GraphosCannedOps => [graph_id, variant, top_n, skip_mutations]);
 
 impl Validate for GraphosCannedOps {
     fn try_validate(
@@ -211,23 +154,7 @@ impl AsUtf8FileContent for OfflineGraphosLicense {
     }
 }
 
-impl Template for OfflineGraphosLicense {
-    fn has_pending_fields(&self) -> bool {
-        self.graph_id.has_pending_fields()
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        self.graph_id.required_values()
-    }
-
-    fn try_resolve(
-        &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        self.graph_id.try_resolve_nested(path, "graph_id", values)
-    }
-}
+impl_template!(OfflineGraphosLicense => [graph_id]);
 
 impl Validate for OfflineGraphosLicense {
     fn try_validate(
