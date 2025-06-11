@@ -1,0 +1,26 @@
+name: graphos-canned-ops
+description: |
+  Check that canned operations can be successfully pulled from GraphOS
+
+scenario:
+  inline:
+    name: scenario-graphos-canned-ops
+    description: "Check that canned operations can be pulled from GraphOS"
+    command: echo {}
+    file_providers:
+      - name: canned_ops.json
+        env_var: CANNED_OPS_FILE
+        kind: graphos_canned_ops
+        graph_id: "imgood-observability-test"
+        variant: "current"
+        top_n: 10
+        skip_mutations: false
+
+environment:
+  inline:
+    name: environment-graphos-supergraph
+    description: "Minimal env config since this is not used for the test"
+    setup:
+      command: echo {}
+    teardown:
+      command: echo {}
