@@ -1,6 +1,7 @@
 //! The core [FileProvider] trait and currently supported file provider implementations.
 use crate::{
     context::{PathKind, ResolutionContext},
+    impl_template,
     providers::Result,
     templating::{self, Field, Scalar, Template},
     validation::{self, Validate},
@@ -208,25 +209,7 @@ impl AsUtf8FileContent for InlineFile {
     }
 }
 
-impl Template for InlineFile {
-    fn has_pending_fields(&self) -> bool {
-        false
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        Vec::new()
-    }
-
-    fn try_resolve(
-        &mut self,
-        _path: &mut Vec<String>,
-        _values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        // no-op as we never have anything to resolve but need to satisfy the trait so that
-        // FileProviders can be resolved as a batch operation
-        Ok(())
-    }
-}
+impl_template!(InlineFile => []);
 
 impl Validate for InlineFile {
     fn try_validate(
@@ -252,6 +235,8 @@ impl RelativeFile {
     }
 }
 
+// in try_resolve we don't want to include a trailing ".path" in the resolution path we report to
+// users in error messages so we had implement Template for this one.
 impl Template for RelativeFile {
     fn has_pending_fields(&self) -> bool {
         self.path.has_pending_fields()
@@ -347,26 +332,6 @@ pub struct RequiredFile {
     message: String,
 }
 
-impl Template for RequiredFile {
-    fn has_pending_fields(&self) -> bool {
-        false
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        Vec::new()
-    }
-
-    fn try_resolve(
-        &mut self,
-        _path: &mut Vec<String>,
-        _values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        // no-op as we never have anything to resolve but need to satisfy the trait so that
-        // FileProviders can be resolved as a batch operation
-        Ok(())
-    }
-}
-
 impl AsUtf8FileContent for RequiredFile {
     async fn try_get_file_content(
         &self,
@@ -378,6 +343,8 @@ impl AsUtf8FileContent for RequiredFile {
         )
     }
 }
+
+impl_template!(RequiredFile => []);
 
 impl Validate for RequiredFile {
     fn try_validate(

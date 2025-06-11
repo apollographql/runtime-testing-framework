@@ -85,6 +85,77 @@ pub trait Template {
     }
 }
 
+/// Helper for implementing the [Template] trait for types that only contain [Field]s at the top
+/// level. For types that contain collections of fields (e.g. Vecs and Maps) we need to write the
+/// implementation by hand.
+///
+/// # Usage
+/// ```ignore
+/// struct MyStruct {
+///     foo: Field<String>,
+///     bar: Field<usize>,
+/// }
+///
+/// impl_template!(MyStruct => [foo, bar]);
+/// ```
+#[macro_export]
+macro_rules! impl_template {
+    // For types that contain no Fields we just no-op as we never have anything to resolve but need
+    // to satisfy the trait so that FileProviders can be resolved as a batch operation.
+    ($type:ty => []) => {
+        impl Template for $type {
+            fn has_pending_fields(&self) -> bool {
+                false
+            }
+
+            fn required_values(&self) -> Vec<String> {
+                Vec::new()
+            }
+
+            fn try_resolve(
+                &mut self,
+                _path: &mut Vec<String>,
+                _values: &HashMap<String, Scalar>,
+            ) -> templating::Result<()> {
+                Ok(())
+            }
+        }
+    };
+
+    // For types with one or more Fields we handle the first one and then chain on the output for
+    // each of the remaining fields.
+    ($type:ty => [$first_field:ident $(, $field:ident)*]) => {
+        impl Template for $type {
+            fn has_pending_fields(&self) -> bool {
+                self.$first_field.has_pending_fields()
+                    $(|| self.$field.has_pending_fields())*
+            }
+
+            fn required_values(&self) -> Vec<String> {
+                #[allow(unused_mut)]
+                let mut vals = self.$first_field.required_values();
+                $(vals.extend(self.$field.required_values());)*
+
+                vals
+            }
+
+            fn try_resolve(
+                &mut self,
+                path: &mut Vec<String>,
+                values: &HashMap<String, Scalar>,
+            ) -> templating::Result<()> {
+                #[allow(unused_mut)]
+                let mut errs = templating::ErrorBuilder::from(
+                    self.$first_field.try_resolve_nested(path, stringify!($first_field), values),
+                );
+                $(errs.append(self.$field.try_resolve_nested(path, stringify!($field), values));)*
+
+                errs.into_result(())
+            }
+        }
+    };
+}
+
 /// A [Field] wraps some scalar type that implements [Template] in order to mark it as
 /// requriring a templated value coming from user provided values as part of resolving the config
 /// file.
