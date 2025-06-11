@@ -10,7 +10,8 @@ use crate::{
     validation::{self, Validate},
 };
 use rtf_core::graphos::supergraph::{
-    SupergraphDetails, operations::top_studio_operations::generate_canned_ops,
+    SupergraphDetails,
+    operations::{fetch_offline_license, top_studio_operations::generate_canned_ops},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -29,12 +30,7 @@ impl AsUtf8FileContent for GraphosSupergraph {
         _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
-        let client = match ctx.platform_client() {
-            Some(client) => client,
-            None => panic!(
-                "Should not be trying to fetch the supergraph file from GraphOS without a defined platform client"
-            ),
-        };
+        let client = ctx.platform_client().expect("to have a platform client");
         let supergraph = SupergraphDetails::fetch(
             self.graph_id.as_resolved().clone(),
             self.variant.as_resolved().clone(),
@@ -177,6 +173,63 @@ impl Template for GraphosCannedOps {
 }
 
 impl Validate for GraphosCannedOps {
+    fn try_validate(
+        &self,
+        path: &mut Vec<String>,
+        _src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> validation::Result<()> {
+        if ctx.platform_client().is_none() {
+            return Err(validation::Errors::new(
+                validation::ErrorKind::MissingGraphOsApiKey,
+                "",
+                path,
+            ));
+        }
+
+        Ok(())
+    }
+}
+
+/// The user specifies the graph id that should be used to fetch an offline license from the
+/// GraphOS API.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct OfflineGraphosLicense {
+    pub graph_id: Field<String>,
+}
+
+impl AsUtf8FileContent for OfflineGraphosLicense {
+    async fn try_get_file_content(
+        &self,
+        _src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<String> {
+        let client = ctx.platform_client().expect("to have a platform client");
+        let license = fetch_offline_license(self.graph_id.as_resolved(), client).await?;
+
+        Ok(license)
+    }
+}
+
+impl Template for OfflineGraphosLicense {
+    fn has_pending_fields(&self) -> bool {
+        self.graph_id.has_pending_fields()
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        self.graph_id.required_values()
+    }
+
+    fn try_resolve(
+        &mut self,
+        path: &mut Vec<String>,
+        values: &HashMap<String, Scalar>,
+    ) -> templating::Result<()> {
+        self.graph_id.try_resolve_nested(path, "graph_id", values)
+    }
+}
+
+impl Validate for OfflineGraphosLicense {
     fn try_validate(
         &self,
         path: &mut Vec<String>,

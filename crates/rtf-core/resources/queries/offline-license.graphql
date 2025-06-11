@@ -1,0 +1,9 @@
+query OfflineLicense($graph_id: ID!) {
+  graph(id: $graph_id) {
+    account {
+      offlineLicense {
+        jwt
+      }
+    }
+  }
+}

@@ -121,6 +121,7 @@ pub enum FileProvider {
     GraphosCannedOps(apollo::GraphosCannedOps),
     GraphosSupergraph(apollo::GraphosSupergraph),
     Inline(InlineFile),
+    OfflineGraphosLicense(apollo::OfflineGraphosLicense),
     RelativePath(RelativeFile),
     Required(RequiredFile),
 }
@@ -133,6 +134,7 @@ macro_rules! delegate_to_inner {
             FileProvider::GraphosCannedOps(fp) => fp.$method($($arg),*),
             FileProvider::GraphosSupergraph(fp) => fp.$method($($arg),*),
             FileProvider::Inline(fp) => fp.$method($($arg),*),
+            FileProvider::OfflineGraphosLicense(fp) => fp.$method($($arg),*),
             FileProvider::RelativePath(fp) => fp.$method($($arg),*),
             FileProvider::Required(fp) => fp.$method($($arg),*),
         }
@@ -143,6 +145,7 @@ macro_rules! delegate_to_inner {
             FileProvider::GraphosCannedOps(fp) => fp.$method($($arg),*).await,
             FileProvider::GraphosSupergraph(fp) => fp.$method($($arg),*).await,
             FileProvider::Inline(fp) => fp.$method($($arg),*).await,
+            FileProvider::OfflineGraphosLicense(fp) => fp.$method($($arg),*).await,
             FileProvider::RelativePath(fp) => fp.$method($($arg),*).await,
             FileProvider::Required(fp) => fp.$method($($arg),*).await,
         }

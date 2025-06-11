@@ -1,5 +1,6 @@
 use rtf_core::{
-    GRAPH_OS_API_KEY_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR, ReqwestClient, graphos::platform_query,
+    APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR, ReqwestClient,
+    graphos::platform_query,
 };
 use std::{
     collections::HashMap,
@@ -121,21 +122,30 @@ impl Context {
     pub fn new_from_env_vars(mut env_vars: HashMap<String, String>) -> Self {
         let mut ctx = Self::new();
 
-        if let Some(api_key) = env_vars.remove(GRAPH_OS_API_KEY_ENV_VAR) {
+        if let Some(api_key) = env_vars.remove(APOLLO_KEY_ENV_VAR) {
             let staging = matches!(
                 env_vars.remove(GRAPH_OS_STAGING_ENV_VAR).as_deref(),
                 Some("true" | "1")
             );
+            let sudo = matches!(
+                env_vars.remove(APOLLO_SUDO_ENV_VAR).as_deref(),
+                Some("true" | "1")
+            );
 
-            ctx.with_platform_config(api_key, staging);
+            ctx.with_platform_config(api_key, staging, sudo);
         }
 
         ctx
     }
 
     /// Provide configuration for making requests to the Apollo platform API.
-    pub fn with_platform_config(&mut self, api_key: impl Into<String>, staging: bool) -> &mut Self {
-        self.client.with_platform_config(api_key, staging);
+    pub fn with_platform_config(
+        &mut self,
+        api_key: impl Into<String>,
+        staging: bool,
+        sudo: bool,
+    ) -> &mut Self {
+        self.client.with_platform_config(api_key, staging, sudo);
         self
     }
 }

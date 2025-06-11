@@ -44,9 +44,17 @@ pub enum FetchErrorCause {
     #[error("no subgraphs found")]
     NoSubgraphs,
 
+    /// Offline licenses are not enabled for this organisation
+    #[error("offline licenses are not enabled for this organisation")]
+    OfflineLicenseNotEnabled,
+
     /// The requested operation could not be found in studio
     #[error("not a known operation in studio")]
     UnknownOperation,
+
+    /// The requested organisation could not be found in studio
+    #[error("not a known organisation in studio")]
+    UnknownOrganisation,
 
     /// The requested supergraph could not be found in Studio
     #[error("not a known supergraph in studio")]

@@ -1,0 +1,23 @@
+name: graphos-offline-license
+description: |
+  Check that we can successfully fetch an offline license for GraphOS
+
+scenario:
+  inline:
+    name: scenario-graphos-license
+    description: "Check that a supergraph file can be pulled from GraphOS"
+    command: echo {}
+    file_providers:
+      - name: offline.license
+        env_var: LICENSE_FILE
+        kind: offline_graphos_license
+        graph_id: "starstuff"
+
+environment:
+  inline:
+    name: environment-graphos-license
+    description: "Minimal env config since this is not used for the test"
+    setup:
+      command: echo {}
+    teardown:
+      command: echo {}

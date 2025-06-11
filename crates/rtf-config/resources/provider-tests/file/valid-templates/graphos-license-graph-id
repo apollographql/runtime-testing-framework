@@ -1,0 +1,13 @@
+A valid yaml fragment for a graphos offline license file provider that uses
+a template for the graph id
+
+-- config.yaml --
+kind: offline_graphos_license
+graph_id: "{{ graph_id }}"
+
+-- values --
+graph_id: "graph_id"
+
+-- after-templating --
+kind: offline_graphos_license
+graph_id: "graph_id"
