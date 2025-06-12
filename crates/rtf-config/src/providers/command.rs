@@ -106,7 +106,8 @@ impl CommandSection {
 
 impl Template for CommandSection {
     fn has_pending_fields(&self) -> bool {
-        self.env_vars.values().any(|f| f.has_pending_fields())
+        self.command.has_pending_fields()
+            | self.env_vars.values().any(|f| f.has_pending_fields())
             | self
                 .file_providers
                 .iter()
@@ -124,6 +125,8 @@ impl Template for CommandSection {
             vals.extend(nfp.required_values());
         }
 
+        vals.extend(self.command.required_values());
+
         vals
     }
 
@@ -133,6 +136,9 @@ impl Template for CommandSection {
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
+
+        errs.append(self.command.try_resolve_nested(path, "command", values));
+
         path.push("env_vars".to_string());
 
         for (name, f) in self.env_vars.iter_mut() {
@@ -160,6 +166,8 @@ impl Validate for CommandSection {
         ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
         let mut errs = validation::ErrorBuilder::new();
+
+        errs.append(self.command.try_validate_nested(path, "command", src, ctx));
 
         for nfp in self.file_providers.iter() {
             let tail = nfp.name.clone();
@@ -190,13 +198,120 @@ impl Validate for CommandSection {
 #[serde(untagged)]
 pub enum RawCommand {
     Raw(String),
+    Spec(CommandSpec),
+}
+
+impl Template for RawCommand {
+    fn has_pending_fields(&self) -> bool {
+        match self {
+            RawCommand::String(_) => false,
+            RawCommand::Spec(spec) => spec.has_pending_fields(),
+        }
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        match self {
+            RawCommand::String(_) => Vec::new(),
+            RawCommand::Spec(spec) => spec.required_values(),
+        }
+    }
+
+    fn try_resolve(
+        &mut self,
+        path: &mut Vec<String>,
+        values: &HashMap<String, Scalar>,
+    ) -> templating::Result<()> {
+        match self {
+            RawCommand::String(_) => Ok(()),
+            RawCommand::Spec(spec) => spec.try_resolve(path, values),
+        }
+    }
+}
+
+impl Validate for RawCommand {
+    fn try_validate(
+        &self,
+        path: &mut Vec<String>,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> validation::Result<()> {
+        match self {
+            RawCommand::String(_) => Ok(()),
+            RawCommand::Spec(spec) => spec.try_validate(path, src, ctx),
+        }
+    }
 }
 
 impl RawCommand {
     fn program(&self) -> &str {
         match self {
             RawCommand::Raw(s) => s.as_str(),
+            RawCommand::Spec(_spec) => {
+                todo!()
+            }
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct CommandSpec {
+    pub name: String,
+    #[serde(flatten)]
+    pub command_provider: CommandProvider,
+    #[serde(default)]
+    pub args: Vec<Field<String>>,
+}
+
+impl Template for CommandSpec {
+    fn has_pending_fields(&self) -> bool {
+        self.command_provider.has_pending_fields()
+            | self.args.iter().any(|f| f.has_pending_fields())
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        let mut vals = self.command_provider.required_values();
+
+        for arg in self.args.iter() {
+            vals.extend(arg.required_values());
+        }
+
+        vals
+    }
+
+    fn try_resolve(
+        &mut self,
+        path: &mut Vec<String>,
+        values: &HashMap<String, Scalar>,
+    ) -> templating::Result<()> {
+        let mut errs = templating::ErrorBuilder::from(self.command_provider.try_resolve_nested(
+            path,
+            "command_provider",
+            values,
+        ));
+
+        for arg in self.args.iter_mut() {
+            errs.append(arg.try_resolve_nested(path, stringify!(arg), values));
+        }
+
+        errs.into_result(())
+    }
+}
+
+impl Validate for CommandSpec {
+    fn try_validate(
+        &self,
+        path: &mut Vec<String>,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> validation::Result<()> {
+        let mut errs = validation::ErrorBuilder::new();
+
+        errs.append(
+            self.command_provider
+                .try_validate_nested(path, "command_provider", src, ctx),
+        );
+
+        errs.into_result(())
     }
 }
 
