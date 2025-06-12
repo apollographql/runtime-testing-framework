@@ -3,6 +3,9 @@ description: |
   Start a router scale test from a local machine. This will create the VM and rsync 
   over RTF and the required config to run a router-scale test to the VM.
 
+values:
+  vm_name: "rtf-router-scale"
+
 scenario:
   inline:
     name: scenario-router-scale
@@ -13,7 +16,23 @@ environment:
   inline:
     name: environment-router-scale
     description: "Create a router-scale VM and delete it"
+
+    values:
+      - name: vm_name
+        description: The name of the router-scale VM being created
+
     setup:
-      command: scripts/router-scale-vm.sh create rtf-router-scale
+      command:
+        name: create-router-scale-vm.sh
+        kind: relative_path
+        path: scripts/create-router-scale-vm.sh
+        args:
+          - "{{ vm_name }}"
+
     teardown:
-      command: scripts/router-scale-vm.sh delete rtf-router-scale
+      command:
+        name: delete-router-scale-vm.sh
+        kind: relative_path
+        path: scripts/delete-router-scale-vm.sh
+        args:
+          - "{{ vm_name }}"
