@@ -8,5 +8,5 @@ command:
   content: |
       echo "Hello, world!"
   args:
-    - arg1
+    - "arg1"
     - "{{ arg2 }}"
