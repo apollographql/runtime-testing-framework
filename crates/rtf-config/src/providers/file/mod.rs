@@ -184,6 +184,7 @@ pub enum FileProvider {
     OfflineGraphosLicense(apollo::OfflineGraphosLicense),
     RelativePath(RelativeFile),
     Required(RequiredFile),
+    RouterBinary(RouterBinary),
 }
 
 /// The simplest form of file provider: the user specifies the contents of the file inline within
@@ -352,6 +353,34 @@ impl Validate for RequiredFile {
             &self.message,
             path,
         ))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct RouterBinary {
+    unsure: String,
+}
+
+impl_template!(RouterBinary => []);
+
+impl AsUtf8FileContent for RouterBinary {
+    async fn try_get_file_content(
+        &self,
+        _src: &Source,
+        _ctx: &impl ResolutionContext,
+    ) -> Result<String> {
+        Ok("Placeholder".into())
+    }
+}
+
+impl Validate for RouterBinary {
+    fn try_validate(
+        &self,
+        _path: &mut Vec<String>,
+        _src: &Source,
+        _ctx: &impl ResolutionContext,
+    ) -> validation::Result<()> {
+        Ok(())
     }
 }
 
