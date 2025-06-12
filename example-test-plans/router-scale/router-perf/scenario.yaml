@@ -8,11 +8,11 @@ values:
   - name: random_seed
     description: "A random seed to use for shuffling the canned operations we run"
 
-  - name: rate
-    description: "The request rate to run vegeta at"
+  - name: rps
+    description: "The requests per second to run vegeta at"
 
-  - name: duration
-    description: "The duration to run vegeta for"
+  - name: duration_secs
+    description: "The number of seconds to run vegeta for"
 
   - name: graph_id
     description: "The supergraph ID to run the router for"
@@ -29,8 +29,8 @@ values:
 command: scripts/vegeta-perf-test.sh
 
 env_vars:
-  RATE: "{{ rate }}"
-  DURATION: "{{ duration }}"
+  RPS: "{{ rps }}"
+  DURATION_SECS: "{{ duration_secs }}"
   RANDOM_SEED: "{{ random_seed }}"
 
 file_providers:

@@ -7,8 +7,8 @@ values:
   router_version: "v2.3.0"
   graph_id: "CHANGE_ME"
   variant: "CHANGE_ME"
-  rate: 100/s
-  duration: 20s
+  rps: 100
+  duration_secs: 20
   top_n: 20
   skip_mutations: true
 
