@@ -8,7 +8,12 @@
 export APOLLO_GRAPH_REF="${GRAPH_ID}@${VARIANT}"
 
 TEST_DIR="scale/tests"
-RESULTS_DIR="$TEST_DIR/${APOLLO_GRAPH_REF}_results"
+RESULTS_DIR="$TEST_DIR/results"
+
+set -a
+. "$SUBGRAPH_CONFIG"
+. "$ROUTER_CGROUP_CONFIG"
+set +a
 
 # Wait for an application to become available (using nc)
 function wait_for {
@@ -122,9 +127,6 @@ function run_subgraphs {
   sudo mkdir /sys/fs/cgroup/subgraph/leaf
 
   port=4000
-  set -a
-  . "$SUBGRAPH_CONFIG"
-  set +a
 
   while read -r name; do
     label "subgraph:${name}" subgraph \
@@ -156,10 +158,6 @@ function run_router {
 
   router -s "$SUPERGRAPH_SCHEMA" -c "$ROUTER_CONFIG" "$license_arg" > "$RESULTS_DIR/router.log" &
   router_pid=$!
-
-  set -a
-  . "$ROUTER_CGROUP_CONFIG"
-  set +a
 
   if [ -n "$ROUTER_CPU_REQ" ] || [ -n "$ROUTER_MEM_REQ" ] || [ -n "$ROUTER_MEM_LIM" ]; then
     sudo cgcreate -g cpu,memory:/router
@@ -224,5 +222,10 @@ top -d 0.49 -bp $(pgrep -x router -d,) > "${RESULTS_DIR}/top.router" &
 top -d 0.49 -bp $(pgrep -x redis-server -d,) > "${RESULTS_DIR}/top.redis" &
 top -d 0.49 -bp $(pgrep -x router-side -d,) > "${RESULTS_DIR}/top.router-side" &
 
-# provide the router PID for the teardown script
-echo "{ \"router_pid\": $ROUTER_PID }"
+# provide data required by the teardown script
+ROUTER_CGROUP=false
+if [ -n "$ROUTER_CPU_REQ" ] || [ -n "$ROUTER_MEM_REQ" ] || [ -n "$ROUTER_MEM_LIM" ]; then
+  ROUTER_CGROUP=true
+fi
+
+echo "{ \"router_pid\": $ROUTER_PID, \"router_cgroup\": $ROUTER_CGROUP }"

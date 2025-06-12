@@ -55,8 +55,13 @@ setup:
   provides:
     - name: router_pid
       description: "The PID of the router process we started"
+    - name: router_cgroup
+      decription: "Whether or not a cgroup was configured for the router"
 
 teardown:
   command: scripts/router-perf-teardown.sh
   env_vars:
     ROUTER_PID: "{{ router_pid }}"
+    ROUTER_CGROUP: "{{ router_cgroup }}"
+    GRAPH_ID: "{{ graph_id }}"
+    VARIANT: "{{ variant }}"
