@@ -37,3 +37,8 @@ fn run_command_invalid_test_plan_path_errors() {
 fn run_command_sanity_check_works() {
     is_valid_test_plan("resources/sanity-check");
 }
+
+#[test]
+fn run_command_command_from_spec_works() {
+    is_valid_test_plan("resources/command-from-spec");
+}

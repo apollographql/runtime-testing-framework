@@ -51,13 +51,34 @@ impl CommandSection {
         out_dir: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
-        let command_str = self.command.program();
-        let mut args: Vec<&str> = command_str.split_whitespace().collect();
-        if args.is_empty() {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "no command provided").into());
-        }
+        let command = match &self.command {
+            RawCommand::Raw(s) => s.clone(),
+            RawCommand::Spec(spec) => {
+                let file_path = out_dir.join(spec.name.clone());
+                match file_path.to_str() {
+                    Some(v) => v.to_string(),
+                    None => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "unable to convert command path to valid string",
+                        )
+                        .into());
+                    }
+                }
+            }
+        };
 
-        let prog = args.remove(0);
+        let mut it = command.split_whitespace();
+        let prog = match it.next() {
+            Some(prog) => prog,
+            None => {
+                return Err(
+                    io::Error::new(io::ErrorKind::InvalidData, "no command provided").into(),
+                );
+            }
+        };
+
+        let args: Vec<_> = it.collect();
         let env_vars = self.all_env_vars(out_dir);
         let stdout = ctx.run_command_blocking(prog, &args, &env_vars)?;
 
@@ -94,6 +115,13 @@ impl CommandSection {
         src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<()> {
+        if let RawCommand::Spec(spec) = &self.command {
+            let content = spec.command_provider.try_get_file_content(src, ctx).await?;
+            let file_path = provider_dir.join(&spec.name);
+            ctx.write(&file_path, content)?;
+            ctx.make_executable(&file_path)?;
+        }
+
         for nfp in self.file_providers.iter() {
             let content = nfp.try_get_file_content(src, ctx).await?;
             let file_path = provider_dir.join(&nfp.name);
@@ -238,17 +266,6 @@ impl Validate for RawCommand {
         match self {
             RawCommand::String(_) => Ok(()),
             RawCommand::Spec(spec) => spec.try_validate(path, src, ctx),
-        }
-    }
-}
-
-impl RawCommand {
-    fn program(&self) -> &str {
-        match self {
-            RawCommand::Raw(s) => s.as_str(),
-            RawCommand::Spec(_spec) => {
-                todo!()
-            }
         }
     }
 }

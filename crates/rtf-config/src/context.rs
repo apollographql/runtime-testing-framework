@@ -5,7 +5,9 @@ use rtf_core::{
 use std::{
     collections::HashMap,
     env::set_current_dir,
-    fs, io,
+    fs::{self, File},
+    io,
+    os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
@@ -92,6 +94,15 @@ pub trait ResolutionContext {
 
     /// Changes the current working directory to the specified path.
     fn set_current_dir(&mut self, path: impl AsRef<Path>) -> io::Result<()>;
+
+    /// Changes the permissions of the specified file
+    fn make_executable(&self, path: impl AsRef<Path>) -> io::Result<()> {
+        let file = File::open(path.as_ref())?;
+        let mut permissions = file.metadata()?.permissions();
+        permissions.set_mode(0o777);
+
+        file.set_permissions(permissions)
+    }
 
     /// Recursively create a directory and all of its parent components if they
     /// are missing.
