@@ -1,0 +1,43 @@
+name: router-perf-scenario
+description: |
+  Expects to be executed on a GCP VM as part of a router-scale test. This
+  scenario makes use of vegeta to run a simple perf test against a running
+  router.
+
+values:
+  - name: random_seed
+    description: "A random seed to use for shuffling the canned operations we run"
+
+  - name: rate
+    description: "The request rate to run vegeta at"
+
+  - name: duration
+    description: "The duration to run vegeta for"
+
+  - name: graph_id
+    description: "The supergraph ID to run the router for"
+
+  - name: variant
+    description: "The supergraph variant to run the router for"
+
+  - name: top_n
+    description: "The number of operations to pull"
+
+  - name: skip_mutations
+    description: "Whether or not mutations should be included in the operations being run"
+
+command: scripts/vegeta-perf-test.sh
+
+env_vars:
+  RATE: "{{ rate }}"
+  DURATION: "{{ duration }}"
+  RANDOM_SEED: "{{ random_seed }}"
+
+file_providers:
+  - name: canned_ops.json
+    env_var: CANNED_OPS_FILE
+    kind: graphos_canned_ops
+    graph_id: "{{ graph_id }}"
+    variant: "{{ variant }}"
+    top_n: "{{ top_n }}"
+    skip_mutations: "{{ skip_mutations }}"

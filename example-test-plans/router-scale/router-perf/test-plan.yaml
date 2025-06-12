@@ -1,0 +1,35 @@
+name: router-perf
+description: |
+  A minimal Router performance test modelled after the "basic" test found in router-scale.
+
+values:
+  random_seed: "b5bb5cd521bf12bd5a18fcfc378ae12d25cf9d4d"
+  router_version: "v2.3.0"
+  graph_id: "CHANGE_ME"
+  variant: "CHANGE_ME"
+  rate: 100/s
+  duration: 20s
+  top_n: 20
+  skip_mutations: true
+
+scenario:
+  from:
+    kind: local
+    relative_path: scenario.yaml
+
+environment:
+  from:
+    kind: local
+    relative_path: environment.yaml
+
+  overrides:
+    file_providers:
+      - name: router-config.yaml
+        env_var: ROUTER_CONFIG
+        kind: local
+        relative_path: data/router-2.config.yaml
+
+      - name: license.jwt
+        env_var: LICENSE_FILE
+        kind: offline_graphos_license
+        graph_id: "starstuff"

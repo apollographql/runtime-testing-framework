@@ -1,0 +1,62 @@
+name: router-perf-env
+description: |
+  Expects to be executed on a GCP VM as part of a router-scale test. This environment
+  will spin up a specified build of the router along with mock subgraphs and supporting
+  services. It is possible to configure the resources given to the router and subgraphs.
+
+values:
+  - name: router_version
+    description: "The build of the router to pull from Orbiter"
+
+  - name: graph_id
+    description: "The supergraph ID to run the router for"
+
+  - name: variant
+    description: "The supergraph variant to run the router for"
+
+setup:
+  command: scripts/router-perf-setup.sh
+  env_vars:
+    APOLLO_USAGE_REPORTING_INGRESS_URL: http://127.0.0.1:1234/studio
+    APOLLO_USAGE_REPORTING_OTLP_INGRESS_URL: http://127.0.0.1:4317
+    ROUTER_VERSION: "{{ router_version }}"
+    GRAPH_ID: "{{ graph_id }}"
+    VARIANT: "{{ variant }}"
+
+  file_providers:
+    - name: router-cgroup.txt
+      env_var: ROUTER_CGROUP
+      kind: inline
+      content: |
+        ROUTER_CPU_REQ="4"
+        ROUTER_MEM_REQ=""
+        ROUTER_MEM_LIM="8G"
+
+    - name: subgraph_config.txt
+      env_var: SUBGRAPH_CONFIG
+      kind: inline
+      content: |
+        SUBGRAPH_WAVEFORM=sine
+        SUBGRAPH_LATENCY=5ms
+        SUBGRAPH_AMPLITUDE=2ms
+        SUBGRAPH_PERIOD=10s
+
+    - name: supergraph.graphql
+      env_var: SUPERGRAPH_FILE
+      kind: graphos_supergraph
+      graph_id: "{{ graph_id }}"
+      variant: "{{ variant }}"
+
+    - name: router-config.yaml
+      env_var: ROUTER_CONFIG
+      kind: required
+      message: "Must provide a router config file"
+
+  provides:
+    - name: router_pid
+      description: "The PID of the router process we started"
+
+teardown:
+  command: scripts/router-perf-teardown.sh
+  env_vars:
+    ROUTER_PID: "{{ router_pid }}"
