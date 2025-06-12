@@ -16,7 +16,7 @@ const OUTDIR: &str = "OUTDIR";
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct CommandSection {
-    pub command: String,
+    pub command: RawCommand,
     #[serde(default)]
     pub env_vars: HashMap<String, Field<String>>,
     #[serde(default)]
@@ -49,7 +49,8 @@ impl CommandSection {
         out_dir: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
-        let mut args: Vec<&str> = self.command.split_whitespace().collect();
+        let command_str = self.command.program();
+        let mut args: Vec<&str> = command_str.split_whitespace().collect();
         if args.is_empty() {
             return Err(io::Error::new(io::ErrorKind::InvalidData, "no command provided").into());
         }
@@ -180,6 +181,20 @@ impl Validate for CommandSection {
         }
 
         errs.into_result(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum RawCommand {
+    Raw(String),
+}
+
+impl RawCommand {
+    fn program(&self) -> &str {
+        match self {
+            RawCommand::Raw(s) => s.as_str(),
+        }
     }
 }
 
@@ -336,7 +351,7 @@ mod tests {
 
     fn test_cmd_section() -> CommandSection {
         CommandSection {
-            command: String::default(),
+            command: RawCommand::Raw(String::default()),
             env_vars: [("FOO", "hello"), ("BAR", "world")]
                 .into_iter()
                 .map(|(k, v)| (k.to_string(), Field::Resolved(v.to_string())))
