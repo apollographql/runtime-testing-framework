@@ -1,0 +1,228 @@
+#!/usr/bin/bash
+
+# TODO:
+#   - support setting response headers in subgraphs
+#   - run REST API snapshot servers for Apollo Connectors
+#   - support flamegraph
+
+export APOLLO_GRAPH_REF="${GRAPH_ID}@${VARIANT}"
+
+TEST_DIR="scale/tests"
+RESULTS_DIR="$TEST_DIR/${APOLLO_GRAPH_REF}_results"
+
+# Wait for an application to become available (using nc)
+function wait_for {
+  address=$1
+  port=$2
+  application=$3
+  duration=$4
+
+  i=0
+  while [ $i -lt "${duration}" ]; do
+    nc -z "${address}" "${port}" && break;
+    sleep 1;
+    i=$(( i + 1 ))
+  done
+
+  if [ $i -eq "${duration}" ]; then
+    echo "${application} has not started, terminating..."
+    exit 1
+  fi
+}
+
+
+# Prefix each line of command output with a label.
+function label {
+  local LABEL="$1"
+  shift
+
+  "$@" 1> >(sed "s/^/[$LABEL] /") 2> >(sed "s/^/[$LABEL] /" 1>&2)
+}
+
+
+# Fetch or build the router (this is being replaced by running a script coming from a file provider in RR-58)
+function fetch_router {
+  rm -f ~/.cargo/bin/router
+  cd "$TEST_DIR"
+  curl -sSL "https://router.apollo.dev/download/nix/${ROUTER_VERSION}" | sh
+  mv dist/router ~/.cargo/bin
+  rmdir dist
+
+  if [[ ! -f ".cargo/bin/router" ]]; then
+    echo "Couldn't find a router in ~/.cargo/bin/. Terminating..."
+    exit 1
+  fi
+}
+
+function cleanup_supporting_services {
+  if docker ps | grep otel ; then
+    docker kill otel
+  fi
+  if docker ps | grep redis ; then
+    docker kill redis
+  fi
+  if docker compose ls | grep docker-compose-redis.yml ; then
+    docker compose -f scale/scripts/docker-compose-redis.yml down > /dev/null 2>&1
+  fi
+
+  pkill -3 -x top
+  pkill -3 -x strace
+  pkill -3 -x router-side
+  pkill -3 -x router
+  pkill -x subgraph
+}
+
+function run_supporting_services {
+  # Jaeger runs for the whole life of the host, don't kill it...
+  # It is bound to port 6666 because we are relaying traces to it from otel collector on port 4317
+  if [[ $(docker ps -q --filter name=^/jaeger$ | wc -l) != 1 ]]; then
+    label "start jaeger" docker run \
+      --name jaeger \
+      --rm \
+      --detach \
+      -e COLLECTOR_OTLP_ENABLED=true \
+      -p 16686:16686 \
+      -p 0.0.0.0:6666:4317 \
+      jaegertracing/all-in-one
+  fi
+
+  # Our otel collector is configured to relay tracing details to Jaeger
+  label "start otel" docker run \
+    --name otel \
+    --rm \
+    --detach \
+    -p 4317:4317 \
+    -p 4318:4318 \
+    --add-host=host.docker.internal:host-gateway \
+    --mount type=bind,source=./${TEST_DIR}/config/otel-collector-config.yml,target=/etc/otelcol-contrib/config.yaml \
+    otel/opentelemetry-collector-contrib:0.103.1
+  label "otel" docker logs --follow otel > "${RESULTS_DIR}/otel.log" 2>&1 &
+
+  label "start redis" docker run \
+    --name redis \
+    --rm \
+    --detach \
+    -p 6379:6379 \
+    redis
+  wait_for 127.0.0.1 6379 "redis" 10
+
+  label "redis-cluster" docker compose -f scale/scripts/docker-compose-redis.yml up --detach > /dev/null 2>&1
+  wait_for 127.0.0.1 6385 "redis-cluster" 10
+}
+
+function run_subgraphs {
+  # Create a cgroup to constrain the subgraphs
+  sudo cgcreate -g cpu,memory:/subgraph
+  echo "+cpu +memory" | sudo tee /sys/fs/cgroup/subgraph/cgroup.subtree_control > /dev/null
+  sudo cgset -r memory.swap.max="0" /subgraph
+  sudo cgset -r cpu.max="1600000 100000" /subgraph
+  sudo cgset -r memory.high="8G" /subgraph
+  sudo cgset -r memory.max="8G" /subgraph
+  # Make a leaf for our process (https://unix.stackexchange.com/questions/680167/ebusy-when-trying-to-add-process-to-cgroup-v2)
+  sudo mkdir /sys/fs/cgroup/subgraph/leaf
+
+  port=4000
+  set -a
+  . "$SUBGRAPH_CONFIG"
+  set +a
+
+  while read -r name; do
+    label "subgraph:${name}" subgraph \
+      -latency="$SUBGRAPH_LATENCY" \
+      "-${SUBGRAPH_WAVEFORM}-period=$SUBGRAPH_PERIOD" \
+      "-${SUBGRAPH_WAVEFORM}-amplitude=$SUBGRAPH_AMPLITUDE" \
+      -port="$port" \
+      -schema="$SUPERGRAPH_SCHEMA" &
+
+    SUBGRAPH_PID=$!
+
+    # Move our subgraph pid into the cgroup
+    sudo cgclassify -g cpu,memory:/subgraph/leaf "${SUBGRAPH_PID}"
+    port="$(( port + 1 ))"
+  done <"$SUBGRAPH_NAMES"
+}
+
+function run_router_side {
+  label "side" router-side 127.0.0.1:1234 &
+  ROUTER_SIDE_PID=$!
+  strace -tf -p ${ROUTER_SIDE_PID} > "${RESULTS_DIR}/router-side.strace" 2>&1 &
+}
+
+function run_router {
+  license_arg=""
+  if [ -f "$LICENSE_FILE" ]; then
+    license_arg="--license $LICENSE_FILE"
+  fi
+
+  router -s "$SUPERGRAPH_SCHEMA" -c "$ROUTER_CONFIG" "$license_arg" > "$RESULTS_DIR/router.log" &
+  router_pid=$!
+
+  set -a
+  . "$ROUTER_CGROUP_CONFIG"
+  set +a
+
+  if [ -n "$ROUTER_CPU_REQ" ] || [ -n "$ROUTER_MEM_REQ" ] || [ -n "$ROUTER_MEM_LIM" ]; then
+    sudo cgcreate -g cpu,memory:/router
+    echo "+cpu +memory" | sudo tee /sys/fs/cgroup/router/cgroup.subtree_control > /dev/null
+    sudo cgset -r memory.swap.max="0" /router
+
+    if [ -n "$ROUTER_CPU_REQ" ]; then
+      # Multiply by 100000 to get the right units
+      sudo cgset -r cpu.max="$(( ROUTER_CPU_REQ * 100000 )) 100000" /router
+    fi
+
+    if [ -n "$ROUTER_MEM_REQ" ]; then
+      sudo cgset -r memory.high="$ROUTER_MEM_REQ" /router
+    fi
+
+    if [ -n "$ROUTER_MEM_LIM" ]; then
+      sudo cgset -r memory.max="$ROUTER_MEM_LIM" /router
+    else
+      sudo cgset -r memory.max="max" /router
+    fi
+
+    sudo mkdir /sys/fs/cgroup/router/leaf
+    sudo cgclassify -g cpu,memory:/router/leaf "$router_pid"
+  fi
+
+  echo "$router_pid"
+}
+
+# == Main script ==
+
+if [ ! -f "/TEST_SYSTEM_READY" ]; then
+  printf "!! WARNING !!\n"
+  printf "System installation must have failed, please delete this test system before trying again\n"
+  printf "To delete your test system: 'router_perf.sh -d %s'\n" "$(uname -n)"
+  exit 1
+fi
+
+# Cleanup or we will run out of disk space very quickly (-f so we don't get a warning if the file isn't present)
+rm -f perf.data
+rm -f /tmp/router.*
+
+rm -rf "$RESULTS_DIR"
+mkdir "$RESULTS_DIR"
+
+# redirect output from functions to stderr so we keep stdout clean for returning our "provides"
+
+fetch_router 1>&2
+cleanup_supporting_services 1>&2
+
+top -d 0.49 -bu "$(id -u)" > "${RESULTS_DIR}/top.user" &
+
+run_supporting_services 1>&2
+run_subgraphs 1>&2
+run_router_side 1>&2
+ROUTER_PID="$(run_router)"
+
+# It can take a while for a router to start, let's wait for up to a minute
+wait_for 127.0.0.1 4000 "router" 60
+
+# Monitor some elements of our system more directly
+top -d 0.49 -bp $(pgrep -x router -d,) > "${RESULTS_DIR}/top.router" &
+top -d 0.49 -bp $(pgrep -x redis-server -d,) > "${RESULTS_DIR}/top.redis" &
+top -d 0.49 -bp $(pgrep -x router-side -d,) > "${RESULTS_DIR}/top.router-side" &
+
+# provide the router PID for the teardown script
+echo "{ \"router_pid\": $ROUTER_PID }"
