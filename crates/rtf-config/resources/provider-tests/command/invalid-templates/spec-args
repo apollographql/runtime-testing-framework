@@ -1,0 +1,18 @@
+A valid yaml fragment for a command section that does not provide the
+right type to the command args
+
+-- config.yaml --
+command: 
+  name: inline-command.sh
+  kind: inline
+  content: |
+      echo "Hello, world!"
+  args:
+    - "arg1"
+    - "{{ arg2 }}"
+
+-- values --
+arg2: 42
+
+-- templating-errors --
+InvalidData

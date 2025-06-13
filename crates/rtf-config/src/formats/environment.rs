@@ -133,7 +133,10 @@ mod tests {
     use super::*;
     use crate::{
         context::Context,
-        providers::file::{FileProvider, NamedFileProvider, RelativeFile},
+        providers::{
+            command::RawCommand,
+            file::{FileProvider, NamedFileProvider, RelativeFile},
+        },
         templating::Field,
     };
     use simple_test_case::{dir_cases, test_case};
@@ -293,7 +296,7 @@ mod tests {
 
     fn cmd_section(name: &str, var: &str) -> CommandSection {
         CommandSection {
-            command: name.to_string(),
+            command: RawCommand::String(name.to_string()),
             env_vars: [(var.to_uppercase(), Field::Pending(var.to_string()))]
                 .into_iter()
                 .collect(),

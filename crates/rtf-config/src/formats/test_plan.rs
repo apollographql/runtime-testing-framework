@@ -606,10 +606,10 @@ mod tests {
     impl ResolutionContext for TxtarContext {
         type PlatformClient = NullPlatformClient;
 
-        fn run_command_blocking(
+        fn run_command_blocking<'a>(
             &self,
             _prog: &str,
-            _args: &[&str],
+            _args: impl IntoIterator<Item = &'a str>,
             _env_vars: &HashMap<String, String>,
         ) -> io::Result<String> {
             Ok(String::new())

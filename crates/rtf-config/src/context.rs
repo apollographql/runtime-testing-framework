@@ -5,7 +5,9 @@ use rtf_core::{
 use std::{
     collections::HashMap,
     env::set_current_dir,
-    fs, io,
+    fs::{self, File},
+    io,
+    os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
@@ -83,15 +85,24 @@ pub trait ResolutionContext {
     /// Spawn the specified program as a subprocess with the provided arguments.
     /// This method will block until the process completes and return the stdout of the process as
     /// a utf-8 string.
-    fn run_command_blocking(
+    fn run_command_blocking<'a>(
         &self,
         prog: &str,
-        args: &[&str],
+        args: impl IntoIterator<Item = &'a str>,
         env_vars: &HashMap<String, String>,
     ) -> io::Result<String>;
 
     /// Changes the current working directory to the specified path.
     fn set_current_dir(&mut self, path: impl AsRef<Path>) -> io::Result<()>;
+
+    /// Changes the permissions of the specified file
+    fn make_executable(&self, path: impl AsRef<Path>) -> io::Result<()> {
+        let file = File::open(path.as_ref())?;
+        let mut permissions = file.metadata()?.permissions();
+        permissions.set_mode(0o777);
+
+        file.set_permissions(permissions)
+    }
 
     /// Recursively create a directory and all of its parent components if they
     /// are missing.
@@ -190,10 +201,10 @@ impl ResolutionContext for Context {
         fs::write(path, contents)
     }
 
-    fn run_command_blocking(
+    fn run_command_blocking<'a>(
         &self,
         prog: &str,
-        args: &[&str],
+        args: impl IntoIterator<Item = &'a str>,
         env_vars: &HashMap<String, String>,
     ) -> io::Result<String> {
         let output = Command::new(prog)

@@ -1,0 +1,24 @@
+name: command-from-spec
+description: |
+  Check a command can be run using a command spec (i.e. using a file provider and args)
+
+scenario:
+  inline:
+    name: scenario-command-from-spec
+    description: "Check that a command be run using a command spec"
+    command:
+      name: echo-message.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+
+        echo "Hello, World!"
+
+environment:
+  inline:
+    name: environment-command-from-spec
+    description: "Minimal env config since this is not used for the test"
+    setup:
+      command: echo {}
+    teardown:
+      command: echo {}

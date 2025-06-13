@@ -1,8 +1,10 @@
 use crate::{
     context::ResolutionContext,
     providers::{
-        self,
-        file::{AsUtf8FileContent, NamedFileProvider, Source},
+        self, Result,
+        file::{
+            AsUtf8FileContent, InlineFile, NamedFileProvider, RelativeFile, RequiredFile, Source,
+        },
     },
     templating::{self, Field, Scalar, Template},
     validation::{self, Validate, duplicate_keys},
@@ -16,7 +18,7 @@ const OUTDIR: &str = "OUTDIR";
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct CommandSection {
-    pub command: String,
+    pub command: RawCommand,
     #[serde(default)]
     pub env_vars: HashMap<String, Field<String>>,
     #[serde(default)]
@@ -49,14 +51,35 @@ impl CommandSection {
         out_dir: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
-        let mut args: Vec<&str> = self.command.split_whitespace().collect();
-        if args.is_empty() {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "no command provided").into());
-        }
+        let command = match &self.command {
+            RawCommand::String(s) => s.clone(),
+            RawCommand::Spec(spec) => {
+                let file_path = out_dir.join(spec.name.clone());
+                match file_path.to_str() {
+                    Some(v) => v.to_string(),
+                    None => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "unable to convert command path to valid string",
+                        )
+                        .into());
+                    }
+                }
+            }
+        };
 
-        let prog = args.remove(0);
+        let mut it = command.split_whitespace();
+        let prog = match it.next() {
+            Some(prog) => prog,
+            None => {
+                return Err(
+                    io::Error::new(io::ErrorKind::InvalidData, "no command provided").into(),
+                );
+            }
+        };
+
         let env_vars = self.all_env_vars(out_dir);
-        let stdout = ctx.run_command_blocking(prog, &args, &env_vars)?;
+        let stdout = ctx.run_command_blocking(prog, it, &env_vars)?;
 
         Ok(stdout)
     }
@@ -91,6 +114,13 @@ impl CommandSection {
         src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<()> {
+        if let RawCommand::Spec(spec) = &self.command {
+            let content = spec.command_provider.try_get_file_content(src, ctx).await?;
+            let file_path = provider_dir.join(&spec.name);
+            ctx.write(&file_path, content)?;
+            ctx.make_executable(&file_path)?;
+        }
+
         for nfp in self.file_providers.iter() {
             let content = nfp.try_get_file_content(src, ctx).await?;
             let file_path = provider_dir.join(&nfp.name);
@@ -103,7 +133,8 @@ impl CommandSection {
 
 impl Template for CommandSection {
     fn has_pending_fields(&self) -> bool {
-        self.env_vars.values().any(|f| f.has_pending_fields())
+        self.command.has_pending_fields()
+            | self.env_vars.values().any(|f| f.has_pending_fields())
             | self
                 .file_providers
                 .iter()
@@ -121,6 +152,8 @@ impl Template for CommandSection {
             vals.extend(nfp.required_values());
         }
 
+        vals.extend(self.command.required_values());
+
         vals
     }
 
@@ -130,6 +163,9 @@ impl Template for CommandSection {
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
+
+        errs.append(self.command.try_resolve_nested(path, "command", values));
+
         path.push("env_vars".to_string());
 
         for (name, f) in self.env_vars.iter_mut() {
@@ -158,6 +194,8 @@ impl Validate for CommandSection {
     ) -> validation::Result<()> {
         let mut errs = validation::ErrorBuilder::new();
 
+        errs.append(self.command.try_validate_nested(path, "command", src, ctx));
+
         for nfp in self.file_providers.iter() {
             let tail = nfp.name.clone();
             errs.append(nfp.provider.try_validate_nested(path, tail, src, ctx));
@@ -180,6 +218,183 @@ impl Validate for CommandSection {
         }
 
         errs.into_result(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum RawCommand {
+    String(String),
+    Spec(CommandSpec),
+}
+
+impl Template for RawCommand {
+    fn has_pending_fields(&self) -> bool {
+        match self {
+            RawCommand::String(_s) => false,
+            RawCommand::Spec(spec) => spec.has_pending_fields(),
+        }
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        match self {
+            RawCommand::String(_s) => Vec::new(),
+            RawCommand::Spec(spec) => spec.required_values(),
+        }
+    }
+
+    fn try_resolve(
+        &mut self,
+        path: &mut Vec<String>,
+        values: &HashMap<String, Scalar>,
+    ) -> templating::Result<()> {
+        match self {
+            RawCommand::String(_s) => Ok(()),
+            RawCommand::Spec(spec) => spec.try_resolve(path, values),
+        }
+    }
+}
+
+impl Validate for RawCommand {
+    fn try_validate(
+        &self,
+        path: &mut Vec<String>,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> validation::Result<()> {
+        match self {
+            RawCommand::String(_s) => Ok(()),
+            RawCommand::Spec(spec) => spec.try_validate(path, src, ctx),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct CommandSpec {
+    pub name: String,
+    #[serde(flatten)]
+    pub command_provider: CommandProvider,
+    #[serde(default)]
+    pub args: Vec<Field<String>>,
+}
+
+impl Template for CommandSpec {
+    fn has_pending_fields(&self) -> bool {
+        self.command_provider.has_pending_fields()
+            | self.args.iter().any(|f| f.has_pending_fields())
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        let mut vals = self.command_provider.required_values();
+
+        for arg in self.args.iter() {
+            vals.extend(arg.required_values());
+        }
+
+        vals
+    }
+
+    fn try_resolve(
+        &mut self,
+        path: &mut Vec<String>,
+        values: &HashMap<String, Scalar>,
+    ) -> templating::Result<()> {
+        let mut errs = templating::ErrorBuilder::from(self.command_provider.try_resolve_nested(
+            path,
+            "command_provider",
+            values,
+        ));
+
+        for arg in self.args.iter_mut() {
+            errs.append(arg.try_resolve_nested(path, stringify!(arg), values));
+        }
+
+        errs.into_result(())
+    }
+}
+
+impl Validate for CommandSpec {
+    fn try_validate(
+        &self,
+        path: &mut Vec<String>,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> validation::Result<()> {
+        let mut errs = validation::ErrorBuilder::new();
+
+        errs.append(
+            self.command_provider
+                .try_validate_nested(path, "command_provider", src, ctx),
+        );
+
+        errs.into_result(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum CommandProvider {
+    Inline(InlineFile),
+    RelativePath(RelativeFile),
+    Required(RequiredFile),
+}
+
+// Helper for generating boilerplate method impls where we just need to defer to the inner type
+// that a CommandProvider is wrapping.
+macro_rules! delegate_to_inner {
+    ($self:ident, $method:ident $(, $arg:expr)*) => {
+        match $self {
+            CommandProvider::Inline(fp) => fp.$method($($arg),*),
+            CommandProvider::RelativePath(fp) => fp.$method($($arg),*),
+            CommandProvider::Required(fp) => fp.$method($($arg),*),
+        }
+    };
+
+    (@async $self:ident, $method:ident, $($arg:expr),*) => {
+        match $self {
+            CommandProvider::Inline(fp) => fp.$method($($arg),*).await,
+            CommandProvider::RelativePath(fp) => fp.$method($($arg),*).await,
+            CommandProvider::Required(fp) => fp.$method($($arg),*).await,
+        }
+    };
+}
+
+impl AsUtf8FileContent for CommandProvider {
+    async fn try_get_file_content(
+        &self,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> Result<String> {
+        delegate_to_inner!(@async self, try_get_file_content, src, ctx)
+    }
+}
+
+impl Template for CommandProvider {
+    fn has_pending_fields(&self) -> bool {
+        delegate_to_inner!(self, has_pending_fields)
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        delegate_to_inner!(self, required_values)
+    }
+
+    fn try_resolve(
+        &mut self,
+        path: &mut Vec<String>,
+        values: &HashMap<String, Scalar>,
+    ) -> templating::Result<()> {
+        delegate_to_inner!(self, try_resolve, path, values)
+    }
+}
+
+impl Validate for CommandProvider {
+    fn try_validate(
+        &self,
+        path: &mut Vec<String>,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> validation::Result<()> {
+        delegate_to_inner!(self, try_validate, path, src, ctx)
     }
 }
 
@@ -284,6 +499,53 @@ mod tests {
         );
     }
 
+    #[dir_cases("crates/rtf-config/resources/provider-tests/command/valid-templates")]
+    #[test]
+    fn valid_templated_providers(_path: &str, content: &str) {
+        let arr = load_archive(content);
+        let config = get_file(&arr, "config.yaml");
+        let raw_values = get_file(&arr, "values");
+        let raw_expected = get_file(&arr, "after-templating");
+
+        let mut command: CommandSection = serde_yaml::from_str(config).unwrap();
+        let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
+        let expected: CommandSection = serde_yaml::from_str(raw_expected).unwrap();
+
+        assert!(command.has_pending_fields(), "fields should be pending");
+
+        let res = command.try_resolve(&mut Vec::new(), &values);
+
+        assert!(res.is_ok(), "expected no errors, got {res:?}");
+        assert!(!command.has_pending_fields(), "fields should be resolved");
+        assert_eq!(command, expected);
+    }
+
+    #[dir_cases("crates/rtf-config/resources/provider-tests/command/invalid-templates")]
+    #[test]
+    fn invalid_templated_providers(_path: &str, content: &str) {
+        let arr = load_archive(content);
+        let config = get_file(&arr, "config.yaml");
+        let raw_values = get_file(&arr, "values");
+        let expected = get_file(&arr, "templating-errors");
+
+        let mut command: CommandSection = serde_yaml::from_str(config).unwrap();
+        let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
+
+        assert!(command.has_pending_fields(), "fields should be pending");
+
+        let res = command.try_resolve(&mut Vec::new(), &values);
+
+        assert!(
+            command.has_pending_fields(),
+            "fields should still be pending"
+        );
+
+        let errs = res.unwrap_err().into_vec();
+        let str_errs: Vec<String> = errs.iter().map(|e| format!("{:?}", e.kind)).collect();
+
+        assert_eq!(str_errs.join("\n"), expected.trim());
+    }
+
     /// Stub implementation of ResolutionContext for testing command execution that tracks which
     /// files have been written to disk.
     #[derive(Debug, Default)]
@@ -294,10 +556,10 @@ mod tests {
     impl ResolutionContext for MockCommandContext {
         type PlatformClient = NullPlatformClient;
 
-        fn run_command_blocking(
+        fn run_command_blocking<'a>(
             &self,
             _prog: &str,
-            _args: &[&str],
+            _args: impl IntoIterator<Item = &'a str>,
             _env_vars: &HashMap<String, String>,
         ) -> io::Result<String> {
             Ok(String::new())
@@ -336,7 +598,7 @@ mod tests {
 
     fn test_cmd_section() -> CommandSection {
         CommandSection {
-            command: String::default(),
+            command: RawCommand::String(String::default()),
             env_vars: [("FOO", "hello"), ("BAR", "world")]
                 .into_iter()
                 .map(|(k, v)| (k.to_string(), Field::Resolved(v.to_string())))
