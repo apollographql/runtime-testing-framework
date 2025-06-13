@@ -54,7 +54,7 @@ setup:
     - name: router_pid
       description: "The PID of the router process we started"
     - name: router_cgroup
-      decription: "Whether or not a cgroup was configured for the router"
+      description: "Whether or not a cgroup was configured for the router"
 
 teardown:
   command:

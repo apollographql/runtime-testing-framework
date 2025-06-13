@@ -5,9 +5,9 @@ description: |
 values:
   random_seed: "b5bb5cd521bf12bd5a18fcfc378ae12d25cf9d4d"
   router_version: "v2.3.0"
-  graph_ref: "CHANGE_ME"
-  rps: 100
-  duration_secs: 20
+  graph_ref: "CHANGE@ME"
+  rps: "100"
+  duration_secs: "20"
   top_n: 20
 
 scenario:
@@ -21,13 +21,14 @@ environment:
     relative_path: environment.yaml
 
   overrides:
-    file_providers:
-      - name: router-config.yaml
-        env_var: ROUTER_CONFIG
-        kind: local
-        relative_path: data/router-2.config.yaml
+    setup:
+      file_providers:
+        - name: router-config.yaml
+          env_var: ROUTER_CONFIG
+          kind: relative_path
+          path: data/router-2.config.yaml
 
-      - name: license.jwt
-        env_var: LICENSE_FILE
-        kind: offline_graphos_license
-        graph_id: "starstuff"
+        - name: license.jwt
+          env_var: LICENSE_FILE
+          kind: offline_graphos_license
+          graph_id: "starstuff"
