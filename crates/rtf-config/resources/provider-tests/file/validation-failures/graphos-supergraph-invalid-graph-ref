@@ -3,7 +3,8 @@ does not provide config for the platform api so this test should fail validation
 
 -- config.yaml --
 kind: graphos_supergraph
-graph_ref: "graph_id@variant"
+graph_ref: "not-a-real-ref"
 
 -- validation-errors --
+InvalidGraphRef
 MissingGraphOsApiKey

@@ -1,15 +1,13 @@
 A valid yaml fragment for a graphos supergraph file provider that uses
-a template for the graph id
+a template for the graph ref
 
 -- config.yaml --
 kind: graphos_supergraph
-graph_id: "{{ graph_id }}"
-variant: "variant"
+graph_ref: "{{ graph_ref }}"
 
 -- values --
-graph_id: "graph_id"
+graph_ref: "graph_id@variant"
 
 -- after-templating --
 kind: graphos_supergraph
-graph_id: "graph_id"
-variant: "variant"
+graph_ref: "graph_id@variant"

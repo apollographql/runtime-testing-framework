@@ -21,8 +21,7 @@ use std::collections::HashMap;
 /// a supergraph file from the GraphOS API.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct GraphosSupergraph {
-    pub graph_id: Field<String>,
-    pub variant: Field<String>,
+    pub graph_ref: Field<String>,
 }
 
 impl AsUtf8FileContent for GraphosSupergraph {
@@ -32,18 +31,18 @@ impl AsUtf8FileContent for GraphosSupergraph {
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let client = ctx.platform_client().expect("to have a platform client");
-        let supergraph = SupergraphDetails::fetch(
-            self.graph_id.as_resolved().clone(),
-            self.variant.as_resolved().clone(),
-            client,
-        )
-        .await?;
+        let (graph_id, variant) = self
+            .graph_ref
+            .as_resolved()
+            .split_once('@')
+            .expect("validated graph_ref");
+        let supergraph = SupergraphDetails::fetch(graph_id, variant, client).await?;
 
         Ok(supergraph.supergraph_sdl)
     }
 }
 
-impl_template!(GraphosSupergraph => [graph_id, variant]);
+impl_template!(GraphosSupergraph => [graph_ref]);
 
 impl Validate for GraphosSupergraph {
     fn try_validate(
@@ -52,15 +51,7 @@ impl Validate for GraphosSupergraph {
         _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
-        if ctx.platform_client().is_none() {
-            return Err(validation::Errors::new(
-                validation::ErrorKind::MissingGraphOsApiKey,
-                "",
-                path,
-            ));
-        }
-
-        Ok(())
+        validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
     }
 }
 
@@ -68,8 +59,7 @@ impl Validate for GraphosSupergraph {
 /// a supergraph file from the GraphOS API.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct GraphosCannedOps {
-    pub graph_id: Field<String>,
-    pub variant: Field<String>,
+    pub graph_ref: Field<String>,
     #[serde(default = "default_top_n")]
     pub top_n: Field<usize>,
     #[serde(default)]
@@ -87,12 +77,12 @@ impl AsUtf8FileContent for GraphosCannedOps {
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let client = ctx.platform_client().expect("to have a platform client");
-        let details = SupergraphDetails::fetch(
-            self.graph_id.as_resolved().clone(),
-            self.variant.as_resolved().clone(),
-            client,
-        )
-        .await?;
+        let (graph_id, variant) = self
+            .graph_ref
+            .as_resolved()
+            .split_once('@')
+            .expect("validated graph_ref");
+        let details = SupergraphDetails::fetch(graph_id, variant, client).await?;
 
         let canned_ops = generate_canned_ops(
             &details,
@@ -113,7 +103,7 @@ impl AsUtf8FileContent for GraphosCannedOps {
     }
 }
 
-impl_template!(GraphosCannedOps => [graph_id, variant, top_n, skip_mutations]);
+impl_template!(GraphosCannedOps => [graph_ref, top_n, skip_mutations]);
 
 impl Validate for GraphosCannedOps {
     fn try_validate(
@@ -122,15 +112,7 @@ impl Validate for GraphosCannedOps {
         _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
-        if ctx.platform_client().is_none() {
-            return Err(validation::Errors::new(
-                validation::ErrorKind::MissingGraphOsApiKey,
-                "",
-                path,
-            ));
-        }
-
-        Ok(())
+        validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
     }
 }
 
@@ -163,14 +145,36 @@ impl Validate for OfflineGraphosLicense {
         _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
-        if ctx.platform_client().is_none() {
-            return Err(validation::Errors::new(
-                validation::ErrorKind::MissingGraphOsApiKey,
-                "",
-                path,
-            ));
-        }
-
-        Ok(())
+        validate_client(path, ctx)
     }
+}
+
+fn validate_graph_ref_and_client(
+    graph_ref: &str,
+    path: &[String],
+    ctx: &impl ResolutionContext,
+) -> validation::Result<()> {
+    let mut errs = validation::ErrorBuilder::new();
+    if !graph_ref.contains('@') {
+        errs.push(
+            validation::ErrorKind::InvalidGraphRef,
+            "expected a string of the form 'graph_id@variant'",
+            path,
+        );
+    }
+    errs.append(validate_client(path, ctx));
+
+    errs.into_result(())
+}
+
+fn validate_client(path: &[String], ctx: &impl ResolutionContext) -> validation::Result<()> {
+    if ctx.platform_client().is_none() {
+        return Err(validation::Errors::new(
+            validation::ErrorKind::MissingGraphOsApiKey,
+            "",
+            path,
+        ));
+    }
+
+    Ok(())
 }
