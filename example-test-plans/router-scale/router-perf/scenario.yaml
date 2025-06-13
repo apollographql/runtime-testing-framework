@@ -7,24 +7,14 @@ description: |
 values:
   - name: random_seed
     description: "A random seed to use for shuffling the canned operations we run"
-
   - name: rps
     description: "The requests per second to run vegeta at"
-
   - name: duration_secs
     description: "The number of seconds to run vegeta for"
-
-  - name: graph_id
-    description: "The supergraph ID to run the router for"
-
-  - name: variant
-    description: "The supergraph variant to run the router for"
-
+  - name: graph_ref
+    description: "The graphos graph ref to pull operations for"
   - name: top_n
     description: "The number of operations to pull"
-
-  - name: skip_mutations
-    description: "Whether or not mutations should be included in the operations being run"
 
 command: scripts/vegeta-perf-test.sh
 
@@ -37,7 +27,6 @@ file_providers:
   - name: canned_ops.json
     env_var: CANNED_OPS_FILE
     kind: graphos_canned_ops
-    graph_id: "{{ graph_id }}"
-    variant: "{{ variant }}"
+    graph_ref: "{{ graph_ref }}"
     top_n: "{{ top_n }}"
-    skip_mutations: "{{ skip_mutations }}"
+    skip_mutations: true

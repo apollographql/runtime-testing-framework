@@ -5,8 +5,6 @@
 #   - run REST API snapshot servers for Apollo Connectors
 #   - support flamegraph
 
-export APOLLO_GRAPH_REF="${GRAPH_ID}@${VARIANT}"
-
 TEST_DIR="scale/tests"
 RESULTS_DIR="$TEST_DIR/results"
 

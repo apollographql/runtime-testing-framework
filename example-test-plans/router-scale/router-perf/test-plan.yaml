@@ -5,12 +5,10 @@ description: |
 values:
   random_seed: "b5bb5cd521bf12bd5a18fcfc378ae12d25cf9d4d"
   router_version: "v2.3.0"
-  graph_id: "CHANGE_ME"
-  variant: "CHANGE_ME"
+  graph_ref: "CHANGE_ME"
   rps: 100
   duration_secs: 20
   top_n: 20
-  skip_mutations: true
 
 scenario:
   from:

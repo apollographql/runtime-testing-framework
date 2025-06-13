@@ -1,7 +1,5 @@
 #!/usr/bin/bash
 
-export APOLLO_GRAPH_REF="${GRAPH_ID}@${VARIANT}"
-
 TEST_DIR="scale/tests"
 RESULTS_DIR="$TEST_DIR/results"
 
@@ -17,7 +15,7 @@ echo 'SCAN 0 MATCH "*" COUNT 100' | redis-cli -c --pass router -p 6385 > "${RESU
 # We may have prometheus metrics to harvest, let's try the default location
 curl http://127.0.0.1:9090/metrics > "${RESULTS_DIR}/prometheus.metrics"
 
-# Sometimes a router won't shutdown. We'll be nice, then we'll be nasty...
+# Sometimes a router won't shutdown: we give it 5 seconds and then we're more forceful
 pkill -x router
 timeout 5s tail --pid="${ROUTER_PID}" -f /dev/null || kill -3 "${ROUTER_PID}"
 

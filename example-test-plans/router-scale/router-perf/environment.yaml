@@ -7,21 +7,16 @@ description: |
 values:
   - name: router_version
     description: "The build of the router to pull from Orbiter"
-
-  - name: graph_id
-    description: "The supergraph ID to run the router for"
-
-  - name: variant
-    description: "The supergraph variant to run the router for"
+  - name: graph_ref
+    description: "The graphos graph ref to run the router for"
 
 setup:
   command: scripts/router-perf-setup.sh
   env_vars:
     APOLLO_USAGE_REPORTING_INGRESS_URL: http://127.0.0.1:1234/studio
     APOLLO_USAGE_REPORTING_OTLP_INGRESS_URL: http://127.0.0.1:4317
+    APOLLO_GRAPH_REF: "{{ graph_ref }}"
     ROUTER_VERSION: "{{ router_version }}"
-    GRAPH_ID: "{{ graph_id }}"
-    VARIANT: "{{ variant }}"
 
   file_providers:
     - name: router-cgroup.txt
@@ -44,8 +39,7 @@ setup:
     - name: supergraph.graphql
       env_var: SUPERGRAPH_SCHEMA
       kind: graphos_supergraph
-      graph_id: "{{ graph_id }}"
-      variant: "{{ variant }}"
+      graph_ref: "{{ graph_ref }}"
 
     - name: router-config.yaml
       env_var: ROUTER_CONFIG
@@ -63,5 +57,4 @@ teardown:
   env_vars:
     ROUTER_PID: "{{ router_pid }}"
     ROUTER_CGROUP: "{{ router_cgroup }}"
-    GRAPH_ID: "{{ graph_id }}"
-    VARIANT: "{{ variant }}"
+    GRAPH_REF: "{{ graph_ref }}"
