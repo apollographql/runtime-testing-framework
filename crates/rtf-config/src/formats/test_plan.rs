@@ -271,7 +271,7 @@ impl Sources {
     /// The [Source] of the [EnvironmentConfig] in this test plan.
     ///
     /// Defaults to the source of the test plan itself if the environment was specified inline.
-    fn environment(&self) -> &Source {
+    pub fn environment(&self) -> &Source {
         match self.environment.as_ref() {
             Some(source) => source,
             None => &self.test_plan,
@@ -281,7 +281,7 @@ impl Sources {
     /// The [Source] of the [ScenarioConfig] in this test plan.
     ///
     /// Defaults to the source of the test plan itself if the scenario was specified inline.
-    fn scenario(&self) -> &Source {
+    pub fn scenario(&self) -> &Source {
         match self.scenario.as_ref() {
             Some(source) => source,
             None => &self.test_plan,
