@@ -4,7 +4,7 @@ use rtf_cli::{
     cli::{Args, Command},
     commands::{plumbing::resolve_test_plan, porcelain::validate_and_run_test_plan},
 };
-use std::{io::stdout, process::exit};
+use std::{io::stderr, process::exit};
 use tracing::{Level, error, level_filters::LevelFilter, subscriber::set_global_default};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
@@ -57,7 +57,7 @@ fn init_logging() -> anyhow::Result<()> {
 
     let builder = FmtSubscriber::builder()
         .with_env_filter(filter)
-        .with_writer(stdout)
+        .with_writer(stderr)
         .compact();
 
     // We can't just return a [tracing_subscriber::fmt::Subscriber] here (and then have a single
