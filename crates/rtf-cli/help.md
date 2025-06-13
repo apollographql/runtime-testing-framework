@@ -52,6 +52,7 @@ Resolve a test plan using provided values, outputting the resulting config to st
 ###### **Options:**
 
 * `--values <VALUES>` — Additional values to use while templating, specified as a JSON object
+* `--validate` — Run static validation of the resulting test plan after templating
 
 
 

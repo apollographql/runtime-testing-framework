@@ -3,6 +3,7 @@ use rtf_config::{
     context::ResolutionContext,
     formats::TestPlanConfig,
     templating::{Scalar, Template},
+    validation::{self, Validate},
 };
 use std::{collections::HashMap, mem::take};
 use tracing::info;
@@ -10,6 +11,7 @@ use tracing::info;
 pub async fn resolve_test_plan(
     config_file_path: &str,
     raw_values: Option<&str>,
+    validate: bool,
 ) -> anyhow::Result<()> {
     let ctx = get_context();
     let values = match raw_values {
@@ -17,12 +19,13 @@ pub async fn resolve_test_plan(
         None => None,
     };
 
-    resolve_test_plan_with_context(config_file_path, values, ctx).await
+    resolve_test_plan_with_context(config_file_path, values, validate, ctx).await
 }
 
 async fn resolve_test_plan_with_context(
     path: &str,
     values: Option<HashMap<String, Scalar>>,
+    validate: bool,
     ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
     info!("loading and resolving test plan");
@@ -36,8 +39,28 @@ async fn resolve_test_plan_with_context(
     values.extend(take(&mut test_plan.values));
     test_plan.try_resolve(&mut Vec::new(), &values)?;
 
-    let s = serde_yaml::to_string(&test_plan)?;
-    println!("{s}");
+    if validate {
+        info!("validating test plan");
+        let mut builder =
+            validation::ErrorBuilder::from(test_plan.environment.setup.command.try_validate(
+                &mut Vec::new(),
+                test_plan.sources.environment(),
+                &ctx,
+            ));
+        builder.append(test_plan.scenario.command.try_validate(
+            &mut Vec::new(),
+            test_plan.sources.scenario(),
+            &ctx,
+        ));
+        builder.append(test_plan.environment.teardown.try_validate(
+            &mut Vec::new(),
+            test_plan.sources.environment(),
+            &ctx,
+        ));
+        builder.into_result(())?;
+    }
+
+    println!("{}", serde_yaml::to_string(&test_plan)?);
 
     Ok(())
 }

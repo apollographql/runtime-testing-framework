@@ -26,7 +26,8 @@ async fn main() {
         Command::Resolve {
             test_plan_path,
             values,
-        } => resolve_test_plan(&test_plan_path, values.as_deref()).await,
+            validate,
+        } => resolve_test_plan(&test_plan_path, values.as_deref(), validate).await,
     };
 
     if let Err(e) = res {

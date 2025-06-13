@@ -39,5 +39,8 @@ pub enum Command {
         /// Additional values to use while templating, specified as a JSON object
         #[arg(long)]
         values: Option<String>,
+        /// Run static validation of the resulting test plan after templating
+        #[arg(long, action)]
+        validate: bool,
     },
 }
