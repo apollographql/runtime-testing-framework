@@ -51,12 +51,32 @@ impl CommandSection {
         out_dir: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
-        let command = match &self.command {
-            RawCommand::String(s) => s.clone(),
+        match &self.command {
+            RawCommand::String(s) => {
+                let command = s.clone();
+
+                let mut it = command.split_whitespace();
+                let prog = match it.next() {
+                    Some(prog) => prog,
+                    None => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "no command provided",
+                        )
+                        .into());
+                    }
+                };
+
+                let env_vars = self.all_env_vars(out_dir);
+                let stdout = ctx.run_command_blocking(prog, it, &env_vars)?;
+
+                Ok(stdout)
+            }
+
             RawCommand::Spec(spec) => {
                 let file_path = out_dir.join(spec.name.clone());
-                match file_path.to_str() {
-                    Some(v) => v.to_string(),
+                let prog = match file_path.to_str() {
+                    Some(v) => v,
                     None => {
                         return Err(io::Error::new(
                             io::ErrorKind::InvalidData,
@@ -64,24 +84,15 @@ impl CommandSection {
                         )
                         .into());
                     }
-                }
+                };
+                let it = spec.args.iter().map(|arg| arg.as_resolved().as_str());
+
+                let env_vars = self.all_env_vars(out_dir);
+                let stdout = ctx.run_command_blocking(prog, it, &env_vars)?;
+
+                Ok(stdout)
             }
-        };
-
-        let mut it = command.split_whitespace();
-        let prog = match it.next() {
-            Some(prog) => prog,
-            None => {
-                return Err(
-                    io::Error::new(io::ErrorKind::InvalidData, "no command provided").into(),
-                );
-            }
-        };
-
-        let env_vars = self.all_env_vars(out_dir);
-        let stdout = ctx.run_command_blocking(prog, it, &env_vars)?;
-
-        Ok(stdout)
+        }
     }
 
     /// Combine the base environment variables we have with the ones coming from the file providers

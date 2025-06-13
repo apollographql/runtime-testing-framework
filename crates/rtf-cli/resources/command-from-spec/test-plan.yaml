@@ -13,6 +13,9 @@ scenario:
         #!/usr/bin/env sh
 
         echo "Hello, World!"
+        echo $1
+      args:
+        - "Hello, Sailor!"
 
 environment:
   inline:
