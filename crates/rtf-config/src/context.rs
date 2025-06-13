@@ -85,10 +85,10 @@ pub trait ResolutionContext {
     /// Spawn the specified program as a subprocess with the provided arguments.
     /// This method will block until the process completes and return the stdout of the process as
     /// a utf-8 string.
-    fn run_command_blocking(
+    fn run_command_blocking<'a>(
         &self,
         prog: &str,
-        args: &[&str],
+        args: impl IntoIterator<Item = &'a str>,
         env_vars: &HashMap<String, String>,
     ) -> io::Result<String>;
 
@@ -201,10 +201,10 @@ impl ResolutionContext for Context {
         fs::write(path, contents)
     }
 
-    fn run_command_blocking(
+    fn run_command_blocking<'a>(
         &self,
         prog: &str,
-        args: &[&str],
+        args: impl IntoIterator<Item = &'a str>,
         env_vars: &HashMap<String, String>,
     ) -> io::Result<String> {
         let output = Command::new(prog)

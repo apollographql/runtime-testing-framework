@@ -78,9 +78,8 @@ impl CommandSection {
             }
         };
 
-        let args: Vec<_> = it.collect();
         let env_vars = self.all_env_vars(out_dir);
-        let stdout = ctx.run_command_blocking(prog, &args, &env_vars)?;
+        let stdout = ctx.run_command_blocking(prog, it, &env_vars)?;
 
         Ok(stdout)
     }
@@ -557,10 +556,10 @@ mod tests {
     impl ResolutionContext for MockCommandContext {
         type PlatformClient = NullPlatformClient;
 
-        fn run_command_blocking(
+        fn run_command_blocking<'a>(
             &self,
             _prog: &str,
-            _args: &[&str],
+            _args: impl IntoIterator<Item = &'a str>,
             _env_vars: &HashMap<String, String>,
         ) -> io::Result<String> {
             Ok(String::new())
