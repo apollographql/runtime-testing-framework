@@ -11,8 +11,7 @@ scenario:
       - name: canned_ops.json
         env_var: CANNED_OPS_FILE
         kind: graphos_canned_ops
-        graph_id: "imgood-observability-test"
-        variant: "current"
+        graph_ref: "imgood-observability-test@current"
         top_n: 10
         skip_mutations: false
 
