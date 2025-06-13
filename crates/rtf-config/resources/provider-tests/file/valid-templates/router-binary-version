@@ -1,0 +1,13 @@
+A valid yaml fragment for a graphos canned ops file provider that uses
+a template for the variant
+
+-- config.yaml --
+kind: router_binary
+version: "{{ version }}"
+
+-- values --
+version: "v1.59.1"
+
+-- after-templating --
+kind: router_binary
+version: "v1.59.1"

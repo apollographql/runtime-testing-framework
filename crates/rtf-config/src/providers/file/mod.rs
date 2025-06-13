@@ -356,12 +356,12 @@ impl Validate for RequiredFile {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct RouterBinary {
-    unsure: String,
+    version: Field<String>,
 }
 
-impl_template!(RouterBinary => []);
+impl_template!(RouterBinary => [version]);
 
 impl AsUtf8FileContent for RouterBinary {
     async fn try_get_file_content(
@@ -369,7 +369,11 @@ impl AsUtf8FileContent for RouterBinary {
         _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> Result<String> {
-        Ok("Placeholder".into())
+        let url = format!(
+            "https://router.apollo.dev/download/nix/{}",
+            self.version.as_resolved()
+        );
+        Ok(url)
     }
 }
 
