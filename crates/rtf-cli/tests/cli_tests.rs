@@ -30,7 +30,7 @@ fn run_command_invalid_test_plan_path_errors() {
 
     let res = cmd.arg("run").arg("/not/a/file.txt").assert();
 
-    res.stdout(contains("No such file or directory (os error 2)"));
+    res.stderr(contains("No such file or directory (os error 2)"));
 }
 
 #[test]
@@ -41,4 +41,20 @@ fn run_command_sanity_check_works() {
 #[test]
 fn run_command_command_from_spec_works() {
     is_valid_test_plan("resources/command-from-spec");
+}
+
+#[test]
+fn resolve_command_is_executable() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd.arg("resolve").assert();
+
+    res.stderr(contains("Usage: rtf resolve"));
+}
+
+#[test]
+fn resolve_command_invalid_test_plan_path_errors() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd.arg("run").arg("/not/a/file.txt").assert();
+
+    res.stderr(contains("No such file or directory (os error 2)"));
 }

@@ -1,5 +1,10 @@
 use crate::commands::get_context_and_outdir;
-use rtf_config::{context::ResolutionContext, formats::TestPlanConfig, templating};
+use rtf_config::{
+    context::ResolutionContext,
+    formats::TestPlanConfig,
+    templating,
+    validation::{self, Validate},
+};
 use std::{mem::take, path::Path};
 use tracing::info;
 
@@ -31,6 +36,13 @@ async fn validate_and_run_test_plan_with_context(
     let mut values = take(&mut test_plan.values);
     test_plan.try_resolve_envrionment_setup(&values)?;
 
+    info!("validating environment setup");
+    test_plan.environment.setup.command.try_validate(
+        &mut Vec::new(),
+        test_plan.sources.environment(),
+        &ctx,
+    )?;
+
     info!("executing environment setup");
     let setup_provides = test_plan.run_environment_setup(out_dir, &ctx).await?;
     values.extend(setup_provides);
@@ -38,6 +50,19 @@ async fn validate_and_run_test_plan_with_context(
     info!("resolving scenario and environment teardown commands");
     let mut builder = templating::ErrorBuilder::from(test_plan.try_resolve_scenario(&values));
     builder.append(test_plan.try_resolve_envrionment_teardown(&values));
+    builder.into_result(())?;
+
+    info!("validating scenario and environment teardown commands");
+    let mut builder = validation::ErrorBuilder::from(test_plan.scenario.command.try_validate(
+        &mut Vec::new(),
+        test_plan.sources.scenario(),
+        &ctx,
+    ));
+    builder.append(test_plan.environment.teardown.try_validate(
+        &mut Vec::new(),
+        test_plan.sources.environment(),
+        &ctx,
+    ));
     builder.into_result(())?;
 
     info!("executing scenario");
