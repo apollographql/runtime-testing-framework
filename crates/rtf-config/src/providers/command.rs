@@ -52,7 +52,7 @@ impl CommandSection {
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let command = match &self.command {
-            RawCommand::Raw(s) => s.clone(),
+            RawCommand::String(s) => s.clone(),
             RawCommand::Spec(spec) => {
                 let file_path = out_dir.join(spec.name.clone());
                 match file_path.to_str() {
@@ -225,21 +225,21 @@ impl Validate for CommandSection {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum RawCommand {
-    Raw(String),
+    String(String),
     Spec(CommandSpec),
 }
 
 impl Template for RawCommand {
     fn has_pending_fields(&self) -> bool {
         match self {
-            RawCommand::String(_) => false,
+            RawCommand::String(_s) => false,
             RawCommand::Spec(spec) => spec.has_pending_fields(),
         }
     }
 
     fn required_values(&self) -> Vec<String> {
         match self {
-            RawCommand::String(_) => Vec::new(),
+            RawCommand::String(_s) => Vec::new(),
             RawCommand::Spec(spec) => spec.required_values(),
         }
     }
@@ -250,7 +250,7 @@ impl Template for RawCommand {
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         match self {
-            RawCommand::String(_) => Ok(()),
+            RawCommand::String(_s) => Ok(()),
             RawCommand::Spec(spec) => spec.try_resolve(path, values),
         }
     }
@@ -264,7 +264,7 @@ impl Validate for RawCommand {
         ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
         match self {
-            RawCommand::String(_) => Ok(()),
+            RawCommand::String(_s) => Ok(()),
             RawCommand::Spec(spec) => spec.try_validate(path, src, ctx),
         }
     }
@@ -599,7 +599,7 @@ mod tests {
 
     fn test_cmd_section() -> CommandSection {
         CommandSection {
-            command: RawCommand::Raw(String::default()),
+            command: RawCommand::String(String::default()),
             env_vars: [("FOO", "hello"), ("BAR", "world")]
                 .into_iter()
                 .map(|(k, v)| (k.to_string(), Field::Resolved(v.to_string())))

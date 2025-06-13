@@ -296,7 +296,7 @@ mod tests {
 
     fn cmd_section(name: &str, var: &str) -> CommandSection {
         CommandSection {
-            command: RawCommand::Raw(name.to_string()),
+            command: RawCommand::String(name.to_string()),
             env_vars: [(var.to_uppercase(), Field::Pending(var.to_string()))]
                 .into_iter()
                 .collect(),
