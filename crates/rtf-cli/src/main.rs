@@ -2,7 +2,7 @@ use anyhow::Context;
 use clap::Parser;
 use rtf_cli::{
     cli::{Args, Command},
-    commands::porcelain::validate_and_run_test_plan,
+    commands::{plumbing::resolve_test_plan, porcelain::validate_and_run_test_plan},
 };
 use std::{io::stdout, process::exit};
 use tracing::{Level, error, level_filters::LevelFilter, subscriber::set_global_default};
@@ -21,6 +21,12 @@ async fn main() {
             test_plan_path,
             outdir,
         } => validate_and_run_test_plan(&test_plan_path, &outdir).await,
+
+        // plumbing commands
+        Command::Resolve {
+            test_plan_path,
+            values,
+        } => resolve_test_plan(&test_plan_path, values.as_deref()).await,
     };
 
     if let Err(e) = res {

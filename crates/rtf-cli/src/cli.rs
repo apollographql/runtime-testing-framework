@@ -21,6 +21,7 @@ pub struct Args {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
+    // Porcelain commands
     /// Validate and run a test plan
     Run {
         /// Relative path to the test-plan.yaml file that should be executed
@@ -28,5 +29,15 @@ pub enum Command {
         /// Output directory for providers when they run
         #[arg(long, default_value = "output")]
         outdir: String,
+    },
+
+    // Plumbing commands
+    /// Resolve a test plan using provided values, outputting the resulting config to stdout
+    Resolve {
+        /// Relative path to the test-plan.yaml file that should be resolve
+        test_plan_path: String,
+        /// Additional values to use while templating, specified as a JSON object
+        #[arg(long)]
+        values: Option<String>,
     },
 }

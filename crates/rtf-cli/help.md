@@ -6,6 +6,7 @@ This document contains the help content for the `rtf` command-line program.
 
 * [`rtf`↴](#rtf)
 * [`rtf run`↴](#rtf-run)
+* [`rtf resolve`↴](#rtf-resolve)
 
 ## `rtf`
 
@@ -16,6 +17,7 @@ A swiss army knife for testing the Apollo Runtime
 ###### **Subcommands:**
 
 * `run` — Validate and run a test plan
+* `resolve` — Resolve a test plan using provided values, outputting the resulting config to stdout
 
 
 
@@ -34,6 +36,22 @@ Validate and run a test plan
 * `--outdir <OUTDIR>` — Output directory for providers when they run
 
   Default value: `output`
+
+
+
+## `rtf resolve`
+
+Resolve a test plan using provided values, outputting the resulting config to stdout
+
+**Usage:** `rtf resolve [OPTIONS] <TEST_PLAN_PATH>`
+
+###### **Arguments:**
+
+* `<TEST_PLAN_PATH>` — Relative path to the test-plan.yaml file that should be resolve
+
+###### **Options:**
+
+* `--values <VALUES>` — Additional values to use while templating, specified as a JSON object
 
 
 

@@ -5,18 +5,20 @@
 //!
 //! [0]: https://git-scm.com/docs
 use anyhow::bail;
-use rtf_config::context::{Context, PathKind, ResolutionContext};
+use rtf_config::{
+    context::{Context, PathKind, ResolutionContext},
+    templating::Scalar,
+};
 use std::{
     collections::HashMap,
     env::{self, current_dir},
     path::PathBuf,
 };
-use tracing::info;
 
 pub mod plumbing;
 pub mod porcelain;
 
-fn get_context_and_outdir(out_dir: &str) -> anyhow::Result<(Context, PathBuf)> {
+fn get_context() -> Context {
     let env_vars: HashMap<String, String> = env::vars_os()
         .map(|(k, v)| {
             (
@@ -26,8 +28,11 @@ fn get_context_and_outdir(out_dir: &str) -> anyhow::Result<(Context, PathBuf)> {
         })
         .collect();
 
-    info!("setting up context and output directory");
-    let ctx = Context::new_from_env_vars(env_vars);
+    Context::new_from_env_vars(env_vars)
+}
+
+fn get_context_and_outdir(out_dir: &str) -> anyhow::Result<(Context, PathBuf)> {
+    let ctx = get_context();
 
     // output directories are created relative to the directory we were run from
     let out_dir = current_dir()?.join(out_dir);
@@ -40,4 +45,10 @@ fn get_context_and_outdir(out_dir: &str) -> anyhow::Result<(Context, PathBuf)> {
     }
 
     Ok((ctx, out_dir))
+}
+
+fn parse_values(raw: &str) -> anyhow::Result<HashMap<String, Scalar>> {
+    let vals: HashMap<String, Scalar> = serde_json::from_str(raw)?;
+
+    Ok(vals)
 }
