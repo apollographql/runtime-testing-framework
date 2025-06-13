@@ -11,7 +11,11 @@ values:
     description: "The graphos graph ref to run the router for"
 
 setup:
-  command: scripts/router-perf-setup.sh
+  command:
+    name: router-perf-setup.sh
+    kind: relative_path
+    path: scripts/router-perf-setup.sh
+
   env_vars:
     APOLLO_USAGE_REPORTING_INGRESS_URL: http://127.0.0.1:1234/studio
     APOLLO_USAGE_REPORTING_OTLP_INGRESS_URL: http://127.0.0.1:4317
@@ -53,7 +57,11 @@ setup:
       decription: "Whether or not a cgroup was configured for the router"
 
 teardown:
-  command: scripts/router-perf-teardown.sh
+  command:
+    name: router-perf-teardown.sh
+    kind: relative_path
+    path: scripts/router-perf-teardown.sh
+
   env_vars:
     ROUTER_PID: "{{ router_pid }}"
     ROUTER_CGROUP: "{{ router_cgroup }}"

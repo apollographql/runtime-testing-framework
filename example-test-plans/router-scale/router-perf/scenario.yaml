@@ -16,7 +16,10 @@ values:
   - name: top_n
     description: "The number of operations to pull"
 
-command: scripts/vegeta-perf-test.sh
+command:
+  name: vegeta-perf-test.sh
+  kind: relative_path
+  path: scripts/vegeta-perf-test.sh
 
 env_vars:
   RPS: "{{ rps }}"
