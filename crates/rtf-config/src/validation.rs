@@ -16,6 +16,9 @@ pub enum ErrorKind {
     #[strum(to_string = "the requested file did not exist.")]
     FileNotFound,
 
+    #[strum(to_string = "the provided string was not a valid graph ref")]
+    InvalidGraphRef,
+
     #[strum(to_string = "the given relative path was not a valid path.")]
     InvalidRelativePath,
 

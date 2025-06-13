@@ -98,10 +98,13 @@ impl SupergraphDetails {
     /// insufficient for us to construct [SupergraphDetails]. Failure modes are enumerated and
     /// documented as part of [FetchErrorCause].
     pub async fn fetch(
-        graph_id: String,
-        variant: String,
+        graph_id: impl Into<String>,
+        variant: impl Into<String>,
         client: &impl platform_query::Client,
     ) -> Result<Self, FetchError> {
+        let graph_id = graph_id.into();
+        let variant = variant.into();
+
         info!(%graph_id, %variant, "pulling supergraph details");
         let graph_ref = raw_supergraph_details::Variables {
             graph_id: graph_id.clone(),

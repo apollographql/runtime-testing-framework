@@ -11,8 +11,7 @@ scenario:
       - name: supergraph.graphql
         env_var: SUPERGRAPH_FILE
         kind: graphos_supergraph
-        graph_id: "imgood-observability-test"
-        variant: "current"
+        graph_ref: "imgood-observability-test@current"
 
 environment:
   inline:

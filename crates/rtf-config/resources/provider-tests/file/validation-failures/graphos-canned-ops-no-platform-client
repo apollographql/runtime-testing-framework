@@ -3,8 +3,7 @@ does not provide config for the platform api so this test should fail validation
 
 -- config.yaml --
 kind: graphos_canned_ops
-graph_id: "graph_id"
-variant: "variant"
+graph_ref: "graph_id@variant"
 
 -- validation-errors --
 MissingGraphOsApiKey
