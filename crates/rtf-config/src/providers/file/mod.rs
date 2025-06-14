@@ -373,7 +373,14 @@ impl AsUtf8FileContent for RouterBinary {
             "https://router.apollo.dev/download/nix/{}",
             self.version.as_resolved()
         );
-        Ok(url)
+        let script = reqwest::get(url.as_str())
+            .await
+            .expect("Failed to download")
+            .text()
+            .await
+            .expect("Failed to read script");
+
+        Ok(script)
     }
 }
 
@@ -452,7 +459,7 @@ mod tests {
         for (path, content) in contents.into_iter() {
             let key = path.display().to_string();
             let expected = get_file(&arr, &key);
-            assert_eq!(content, expected, "wrong file content");
+            assert_eq!(content.trim(), expected, "wrong file content");
         }
     }
 

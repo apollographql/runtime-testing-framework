@@ -16,6 +16,7 @@ strum.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+reqwest = "0.12.15"
 
 [dev-dependencies]
 pretty_assertions.workspace = true
