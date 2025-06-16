@@ -94,6 +94,54 @@ pub(crate) trait AsUtf8FileContent: Validate + DeserializeOwned + fmt::Debug {
     ) -> Result<String>;
 }
 
+impl<T> ResolveAndWrite for T
+where
+    T: AsUtf8FileContent,
+{
+    async fn try_get_all_file_content(
+        &self,
+        target: &Path,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> Result<Vec<(PathBuf, String)>> {
+        Ok(vec![(
+            target.to_path_buf(),
+            self.try_get_file_content(src, ctx).await?,
+        )])
+    }
+}
+
+/// Logic for running a file provider and writing its output to the target [Path].
+///
+/// Most [FileProvider] implementations can safely ignore providing a custom implementation for
+/// this trait if all they need to do is write out a single file, and instead just implement
+/// [AsUtf8FileContent] which will give a default implementation of this trait.
+/// If however you need to write out multiple files or run some additional logic after writing out
+/// a file (such as making it executable) then you should implement this trait directly.
+#[allow(async_fn_in_trait)]
+pub(crate) trait ResolveAndWrite: Validate + DeserializeOwned + fmt::Debug {
+    async fn try_get_all_file_content(
+        &self,
+        target: &Path,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> Result<Vec<(PathBuf, String)>>;
+
+    async fn resolve_and_write(
+        &self,
+        target: &Path,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> Result<()> {
+        let files = self.try_get_all_file_content(target, src, ctx).await?;
+        for (path, content) in files.into_iter() {
+            ctx.write(path, content)?;
+        }
+
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct NamedFileProvider {
     pub name: String,
