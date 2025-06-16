@@ -15,7 +15,7 @@ use rtf_core::graphos::supergraph::{
     operations::{fetch_offline_license, top_studio_operations::generate_canned_ops},
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 /// The user specifies the graph id and variant that should be used to fetch
 /// a supergraph file from the GraphOS API.
@@ -30,15 +30,16 @@ impl AsUtf8FileContent for GraphosSupergraph {
         _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
-        let client = ctx.platform_client().expect("to have a platform client");
         let (graph_id, variant) = self
             .graph_ref
             .as_resolved()
             .split_once('@')
             .expect("validated graph_ref");
-        let supergraph = SupergraphDetails::fetch(graph_id, variant, client).await?;
 
-        Ok(supergraph.supergraph_sdl)
+        ctx.with_supergraph_details(graph_id, variant, |details| {
+            Ok(details.supergraph_sdl.clone())
+        })
+        .await
     }
 }
 
@@ -76,14 +77,17 @@ impl AsUtf8FileContent for GraphosCannedOps {
         _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
-        let client = ctx.platform_client().expect("to have a platform client");
         let (graph_id, variant) = self
             .graph_ref
             .as_resolved()
             .split_once('@')
             .expect("validated graph_ref");
-        let details = SupergraphDetails::fetch(graph_id, variant, client).await?;
 
+        let details: Arc<SupergraphDetails> = ctx
+            .with_supergraph_details(graph_id, variant, |details| Ok(details.clone()))
+            .await?;
+
+        let client = ctx.platform_client().expect("to have a platform client");
         let canned_ops = generate_canned_ops(
             &details,
             *self.top_n.as_resolved(),

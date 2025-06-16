@@ -66,7 +66,7 @@ pub enum FetchErrorCause {
 }
 
 /// Subgraph schema details for a single named subgraph
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Subgraph {
     /// The name of this subgraph
     pub name: String,
@@ -77,7 +77,7 @@ pub struct Subgraph {
 /// Supergraph schema details
 ///
 /// To pull supergraph details from studio see [SupergraphDetails::fetch].
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SupergraphDetails {
     /// The GraphOS graphID for this supergraph
     pub graph_id: String,
