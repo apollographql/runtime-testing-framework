@@ -1,16 +1,19 @@
+use crate::providers;
 use rtf_core::{
     APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR, ReqwestClient,
-    graphos::platform_query,
+    graphos::{platform_query, supergraph::SupergraphDetails},
 };
 use std::{
-    collections::HashMap,
+    collections::{HashMap, hash_map::Entry},
     env::set_current_dir,
     fs::{self, File},
     io,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
     process::{Command, Stdio},
+    sync::Arc,
 };
+use tokio::sync::Mutex;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PathKind {
@@ -28,6 +31,7 @@ pub enum PathKind {
 /// trait are wrappers around [std::fs] and API clients for making requests to third party APIs.
 ///
 /// For the canonical real implementations that should be mocked see [Context].
+#[allow(async_fn_in_trait)]
 pub trait ResolutionContext {
     type PlatformClient: platform_query::Client;
 
@@ -37,6 +41,25 @@ pub trait ResolutionContext {
     /// this method should return [None].
     fn platform_client(&self) -> Option<&Self::PlatformClient> {
         None
+    }
+
+    /// Make use of potentially cached supergraph details to derive related data.
+    /// The default implementation of this method will simply pull the required [SupergraphDetails]
+    /// and pass them to the mapping function provided. Custom implementations can be used to
+    /// implement caching and other custom behaviour.
+    ///
+    /// # Panics
+    /// The default implementation will panic if [ResolutionContext::platform_client] is [None].
+    async fn with_supergraph_details<T>(
+        &self,
+        graph_id: impl Into<String>,
+        variant: impl Into<String>,
+        f: impl FnOnce(&Arc<SupergraphDetails>) -> providers::Result<T>,
+    ) -> providers::Result<T> {
+        let client = self.platform_client().expect("no platform client");
+        let details = SupergraphDetails::fetch(graph_id, variant, client).await?;
+
+        f(&Arc::new(details))
     }
 
     /// Returns the canonical, absolute form of the path with all intermediate
@@ -118,14 +141,16 @@ pub trait ResolutionContext {
 /// A [ResolutionContext] that will perform real IO.
 #[derive(Default, Debug)]
 pub struct Context {
-    pub(crate) client: ReqwestClient,
+    client: ReqwestClient,
+    supergraph_details: Mutex<HashMap<String, Arc<SupergraphDetails>>>,
 }
 
 impl Context {
     /// Construct a new `Context` with default configuration.
     pub fn new() -> Self {
         Self {
-            client: ReqwestClient::default(),
+            client: Default::default(),
+            supergraph_details: Default::default(),
         }
     }
 
@@ -166,6 +191,32 @@ impl ResolutionContext for Context {
 
     fn platform_client(&self) -> Option<&Self::PlatformClient> {
         self.client.platform_client()
+    }
+
+    async fn with_supergraph_details<T>(
+        &self,
+        graph_id: impl Into<String>,
+        variant: impl Into<String>,
+        f: impl FnOnce(&Arc<SupergraphDetails>) -> providers::Result<T>,
+    ) -> providers::Result<T> {
+        let graph_id = graph_id.into();
+        let variant = variant.into();
+
+        let mut guard = self.supergraph_details.lock().await;
+        let client = self.client.platform_client().expect("no platform client");
+        let graph_ref = format!("{graph_id}@{variant}");
+
+        if let Entry::Vacant(e) = guard.entry(graph_ref.clone()) {
+            let details = Arc::new(SupergraphDetails::fetch(graph_id, variant, client).await?);
+            let res = f(&details);
+            e.insert(details);
+
+            return res;
+        }
+
+        let details = guard.get(&graph_ref).expect("details should be cached");
+
+        f(details)
     }
 
     fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
