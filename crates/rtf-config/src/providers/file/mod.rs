@@ -168,6 +168,7 @@ impl DerefMut for NamedFileProvider {
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
     GraphosCannedOps(apollo::GraphosCannedOps),
+    GraphosSubgraphs(apollo::GraphosSubgraphs),
     GraphosSupergraph(apollo::GraphosSupergraph),
     Inline(InlineFile),
     OfflineGraphosLicense(apollo::OfflineGraphosLicense),
@@ -181,6 +182,7 @@ macro_rules! delegate_to_inner {
     ($self:ident, $method:ident $(, $arg:expr)*) => {
         match $self {
             FileProvider::GraphosCannedOps(fp) => fp.$method($($arg),*),
+            FileProvider::GraphosSubgraphs(fp) => fp.$method($($arg),*),
             FileProvider::GraphosSupergraph(fp) => fp.$method($($arg),*),
             FileProvider::Inline(fp) => fp.$method($($arg),*),
             FileProvider::OfflineGraphosLicense(fp) => fp.$method($($arg),*),
@@ -192,6 +194,7 @@ macro_rules! delegate_to_inner {
     (@async $self:ident, $method:ident, $($arg:expr),*) => {
         match $self {
             FileProvider::GraphosCannedOps(fp) => fp.$method($($arg),*).await,
+            FileProvider::GraphosSubgraphs(fp) => fp.$method($($arg),*).await,
             FileProvider::GraphosSupergraph(fp) => fp.$method($($arg),*).await,
             FileProvider::Inline(fp) => fp.$method($($arg),*).await,
             FileProvider::OfflineGraphosLicense(fp) => fp.$method($($arg),*).await,

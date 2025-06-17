@@ -1,0 +1,13 @@
+A valid yaml fragment for a graphos subgraphs file provider that uses
+a template for the graph ref
+
+-- config.yaml --
+kind: graphos_subgraphs
+graph_ref: "{{ graph_ref }}"
+
+-- values --
+graph_ref: "graph_id@variant"
+
+-- after-templating --
+kind: graphos_subgraphs
+graph_ref: "graph_id@variant"

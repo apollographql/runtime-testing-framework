@@ -5,7 +5,7 @@ use crate::{
     impl_template,
     providers::{
         self,
-        file::{AsUtf8FileContent, Source},
+        file::{AsUtf8FileContent, ResolveAndWrite, Source},
     },
     templating::{self, Field, Scalar, Template},
     validation::{self, Validate},
@@ -15,10 +15,14 @@ use rtf_core::graphos::supergraph::{
     operations::{fetch_offline_license, top_studio_operations::generate_canned_ops},
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
-/// The user specifies the graph id and variant that should be used to fetch
-/// a supergraph file from the GraphOS API.
+/// The user specifies the ref that should be used to fetch a supergraph SDL
+/// file from the GraphOS API.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct GraphosSupergraph {
     pub graph_ref: Field<String>,
@@ -56,8 +60,56 @@ impl Validate for GraphosSupergraph {
     }
 }
 
-/// The user specifies the graph id and variant that should be used to fetch
-/// a supergraph file from the GraphOS API.
+/// The user specifies the graph ref that should be used to fetch a subgraph
+/// SDL files from the GraphOS API.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct GraphosSubgraphs {
+    pub graph_ref: Field<String>,
+}
+
+impl ResolveAndWrite for GraphosSubgraphs {
+    async fn try_get_all_file_contents(
+        &self,
+        target: impl AsRef<Path>,
+        _src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<Vec<(PathBuf, String)>> {
+        let (graph_id, variant) = self
+            .graph_ref
+            .as_resolved()
+            .split_once('@')
+            .expect("validated graph_ref");
+
+        let subgraphs = ctx
+            .with_supergraph_details(graph_id, variant, |details| Ok(details.subgraphs.clone()))
+            .await?;
+
+        let dir = target.as_ref();
+        let contents: Vec<_> = subgraphs
+            .into_iter()
+            .map(|sg| (dir.join(sg.name).with_extension("graphql"), sg.sdl))
+            .collect();
+
+        Ok(contents)
+    }
+}
+
+impl_template!(GraphosSubgraphs => [graph_ref]);
+
+impl Validate for GraphosSubgraphs {
+    fn try_validate(
+        &self,
+        path: &mut Vec<String>,
+        _src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> validation::Result<()> {
+        validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
+    }
+}
+
+/// The user specifies the graph ref and parameters that should be used to
+/// generate canned GraphQL requests based on operations data obtained from
+/// the GraphOS API.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct GraphosCannedOps {
     pub graph_ref: Field<String>,
