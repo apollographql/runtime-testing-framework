@@ -98,14 +98,14 @@ impl<T> ResolveAndWrite for T
 where
     T: AsUtf8FileContent,
 {
-    async fn try_get_all_file_content(
+    async fn try_get_all_file_contents(
         &self,
-        target: &Path,
+        target: impl AsRef<Path>,
         src: &Source,
         ctx: &impl ResolutionContext,
     ) -> Result<Vec<(PathBuf, String)>> {
         Ok(vec![(
-            target.to_path_buf(),
+            target.as_ref().to_path_buf(),
             self.try_get_file_content(src, ctx).await?,
         )])
     }
@@ -120,20 +120,20 @@ where
 /// a file (such as making it executable) then you should implement this trait directly.
 #[allow(async_fn_in_trait)]
 pub(crate) trait ResolveAndWrite: Validate + DeserializeOwned + fmt::Debug {
-    async fn try_get_all_file_content(
+    async fn try_get_all_file_contents(
         &self,
-        target: &Path,
+        target: impl AsRef<Path>,
         src: &Source,
         ctx: &impl ResolutionContext,
     ) -> Result<Vec<(PathBuf, String)>>;
 
     async fn resolve_and_write(
         &self,
-        target: &Path,
+        target: impl AsRef<Path>,
         src: &Source,
         ctx: &impl ResolutionContext,
     ) -> Result<()> {
-        let files = self.try_get_all_file_content(target, src, ctx).await?;
+        let files = self.try_get_all_file_contents(target, src, ctx).await?;
         for (path, content) in files.into_iter() {
             ctx.write(path, content)?;
         }
@@ -444,7 +444,6 @@ mod tests {
     async fn valid_providers(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
-        let expected = get_file(&arr, "expected-file-content");
 
         let provider: FileProvider = match serde_yaml::from_str(config) {
             Ok(provider) => provider,
@@ -460,8 +459,22 @@ mod tests {
         let res = provider.try_validate(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected to validate but got: {res:?}");
 
-        let res = provider.try_get_file_content(&src, &ctx).await;
-        assert_eq!(res.unwrap(), expected, "wrong file content");
+        // We resolve the file provider under a target of "expected-file-content".
+        // For providers returning a single file only, this is the name of the txtar section that
+        // they need to include. For providers that return multiple files the sections should be
+        // named "expected-file-content/$name_of_file".
+        let contents = provider
+            .try_get_all_file_contents("expected-file-content", &src, &ctx)
+            .await
+            .unwrap();
+
+        assert!(!contents.is_empty(), "no file contents returned");
+
+        for (path, content) in contents.into_iter() {
+            let key = path.display().to_string();
+            let expected = get_file(&arr, &key);
+            assert_eq!(content, expected, "wrong file content");
+        }
     }
 
     #[dir_cases("crates/rtf-config/resources/provider-tests/file/parse-failures")]
@@ -576,7 +589,9 @@ mod tests {
         let ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
         let _ = provider.try_validate(&mut Vec::new(), &src, &ctx);
-        let res = provider.try_get_file_content(&src, &ctx).await;
+        let res = provider
+            .try_get_all_file_contents("expected-file-content", &src, &ctx)
+            .await;
 
         assert!(res.is_err(), "expected resolution failures, got {res:?}");
         let err = res.unwrap_err();
