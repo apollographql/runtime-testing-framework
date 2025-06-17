@@ -135,6 +135,9 @@ pub(crate) trait ResolveAndWrite: Validate + DeserializeOwned + fmt::Debug {
     ) -> Result<()> {
         let files = self.try_get_all_file_contents(target, src, ctx).await?;
         for (path, content) in files.into_iter() {
+            if let Some(parent) = path.parent() {
+                ctx.create_dir_all(parent)?;
+            }
             ctx.write(path, content)?;
         }
 
