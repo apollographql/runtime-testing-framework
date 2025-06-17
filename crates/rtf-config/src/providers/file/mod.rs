@@ -201,13 +201,14 @@ macro_rules! delegate_to_inner {
     };
 }
 
-impl AsUtf8FileContent for FileProvider {
-    async fn try_get_file_content(
+impl ResolveAndWrite for FileProvider {
+    async fn try_get_all_file_contents(
         &self,
+        target: impl AsRef<Path>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<String> {
-        delegate_to_inner!(@async self, try_get_file_content, src, ctx)
+    ) -> Result<Vec<(PathBuf, String)>> {
+        delegate_to_inner!(@async self, try_get_all_file_contents, target, src, ctx)
     }
 }
 
