@@ -1,0 +1,23 @@
+name: graphos-subgraphs
+description: |
+  Check that subgraphs can be successfully pulled from GraphOS
+
+scenario:
+  inline:
+    name: scenario-graphos-subgraphs
+    description: "Check that subgraph files can be pulled from GraphOS"
+    command: echo {}
+    file_providers:
+      - name: subgraphs
+        env_var: SUBGRAPH_DIR
+        kind: graphos_subgraphs
+        graph_ref: "imgood-observability-test@current"
+
+environment:
+  inline:
+    name: environment-graphos-subgraphs
+    description: "Minimal env config since this is not used for the test"
+    setup:
+      command: echo {}
+    teardown:
+      command: echo {}
