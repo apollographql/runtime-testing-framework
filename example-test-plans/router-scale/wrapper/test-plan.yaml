@@ -1,0 +1,67 @@
+name: router-scale-wrapper
+description: |
+  Start a router scale test from a local machine. This will create the VM and rsync 
+  over RTF and the required config to run a router-scale test to the VM.
+
+values:
+  vm_name: "rtf-router-scale"
+  # This has been deliberately set with an int so it will fail if you try to run without replacing this.
+  # This should be the absolute path to your local dir containing RTF
+  abs_path_rtf_repo: 1
+
+scenario:
+  inline:
+    name: scenario-router-scale
+    description: "Sync RTF files over to VM and run router-scale"
+
+    values:
+      - name: vm_name
+        description: The name of the router-scale VM being targeted
+      - name: abs_path_rtf_repo
+        description: The absolute path to the rtf repo. This is needed so that rtf itself can be rsync'd to the VM.
+
+    command:
+      name: sync-files-to-vm.sh
+      kind: relative_path
+      path: scripts/sync-files-to-vm.sh
+      args:
+        - "{{ vm_name }}"
+
+    env_vars:
+      RTF_DIR: "{{ abs_path_rtf_repo }}"
+
+    file_providers:
+      - name: gcloud-ssh-wrapper.sh
+        env_var: GCLOUD_SSH_WRAPPER
+        kind: relative_path
+        path: scripts/gcloud-ssh-wrapper.sh
+
+      - name: install-rtf.sh
+        env_var: INSTALL_RTF
+        kind: relative_path
+        path: scripts/install-rtf.sh
+
+environment:
+  inline:
+    name: environment-router-scale
+    description: "Create a router-scale VM and delete it"
+
+    values:
+      - name: vm_name
+        description: The name of the router-scale VM being created and deleted
+
+    setup:
+      command:
+        name: create-router-scale-vm.sh
+        kind: relative_path
+        path: scripts/create-router-scale-vm.sh
+        args:
+          - "{{ vm_name }}"
+
+    teardown:
+      command:
+        name: delete-router-scale-vm.sh
+        kind: relative_path
+        path: scripts/delete-router-scale-vm.sh
+        args:
+          - "{{ vm_name }}"
