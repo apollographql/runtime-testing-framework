@@ -5,6 +5,9 @@ description: |
 
 values:
   vm_name: "rtf-router-scale"
+  # This has been deliberately set with an int so it will fail if you try to run without replacing this.
+  # This should be the absolute path to your local dir containing RTF
+  abs_path_rtf_repo: 1
 
 scenario:
   inline:
@@ -14,6 +17,8 @@ scenario:
     values:
       - name: vm_name
         description: The name of the router-scale VM being targeted
+      - name: abs_path_rtf_repo
+        description: The absolute path to the rtf repo. This is needed so that rtf itself can be rsync'd to the VM.
 
     command:
       name: sync-files-to-vm.sh
@@ -21,6 +26,9 @@ scenario:
       path: scripts/sync-files-to-vm.sh
       args:
         - "{{ vm_name }}"
+
+    env_vars:
+      RTF_DIR: "{{ abs_path_rtf_repo }}"
 
     file_providers:
       - name: gcloud-ssh-wrapper.sh

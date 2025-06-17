@@ -1,15 +1,17 @@
 #! /usr/bin/env bash
 
-shopt -s expand_aliases
-
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Used to filter out annoying impersonation warning message
-FILTER_OUT="WARNING: This command is using service account impersonation."
+BASE_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+if [ -z "$RTF_DIR" ]; then
+    echo "Error: RTF_DIR environment variable is not set."
+    exit 1
+fi
 
 # Used to log output to text file
 OUTDIR="${OUTDIR:-$(pwd)}"
 LOG_FILE="$OUTDIR/vm-log.txt"
+
+# Used to filter out annoying impersonation warning message
+FILTER_OUT="WARNING: This command is using service account impersonation."
 
 # Used to find the gcloud ssh wrapped and install rtf script
 # This is required so that these can be referenced by RTF
@@ -53,7 +55,6 @@ if [ "$LOGIN_SUCCESS" = false ]; then
 fi
 
 # Copy files required to build RTF over to the VM
-RTF_DIR=$(cd "$BASE_DIR/../../../../" && pwd)
 rsync_to_vm $1 $RTF_DIR/Cargo.toml ./rtf/ >> $LOG_FILE
 rsync_to_vm $1 $RTF_DIR/Cargo.lock ./rtf/ >> $LOG_FILE
 rsync_to_vm $1 $RTF_DIR/crates/ ./rtf/crates/ >> $LOG_FILE

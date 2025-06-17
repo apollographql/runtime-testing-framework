@@ -13,5 +13,15 @@ else
     echo "cargo is already installed."
 fi
 
-echo "Running rtf --help..."
-cargo run --manifest-path ./rtf/Cargo.toml -- --help
+#  Run the sanity check
+echo "Running rtf santity check..."
+cargo run --manifest-path ./rtf/Cargo.toml -- run rtf/crates/rtf-cli/resources/sanity-check/test-plan.yaml
+echo "------ env-setup output ------"
+cat output/env-setup.txt
+echo "------ scenario output ------"
+cat output/scenario.txt
+echo "------ env-teardown output ------"
+cat output/env-teardown.txt
+echo "Sanity check complete"
+echo "Removing RTF output dir..."
+rm -r output/
