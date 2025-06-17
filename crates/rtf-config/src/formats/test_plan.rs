@@ -31,9 +31,9 @@ impl TestPlanConfig {
     ) -> Result<Self> {
         let content = ctx.read_path_to_string(p.as_ref())?;
         let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
-        let dir = ctx.dir_containing(p.as_ref());
+        let abs_path = ctx.canonicalize_path(p.as_ref())?;
 
-        raw.try_into_test_plan(&dir, ctx).await
+        raw.try_into_test_plan(&abs_path, ctx).await
     }
 
     pub fn validate_templating_will_work(&mut self) -> templating::Result<()> {
@@ -260,9 +260,9 @@ pub struct Sources {
 }
 
 impl Sources {
-    fn new(dir: &Path, scenario: Option<Source>, environment: Option<Source>) -> Self {
+    fn new(abs_path: &Path, scenario: Option<Source>, environment: Option<Source>) -> Self {
         Self {
-            test_plan: Source::local(dir),
+            test_plan: Source::local(abs_path),
             scenario,
             environment,
         }
@@ -305,9 +305,10 @@ pub struct RawTestPlanConfig {
 impl RawTestPlanConfig {
     async fn try_into_test_plan(
         self,
-        dir: &Path,
+        abs_path: &Path,
         ctx: &impl ResolutionContext,
     ) -> Result<TestPlanConfig> {
+        let dir = abs_path.parent().expect("we know we have a parent");
         let (mut environment, environment_source) = self
             .environment
             .try_into_config_with_source(dir, ctx)
@@ -334,7 +335,7 @@ impl RawTestPlanConfig {
             values: self.values,
             scenario,
             environment,
-            sources: Sources::new(dir, scenario_source, environment_source),
+            sources: Sources::new(abs_path, scenario_source, environment_source),
         })
     }
 }
