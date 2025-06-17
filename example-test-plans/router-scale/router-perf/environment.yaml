@@ -45,6 +45,11 @@ setup:
       kind: graphos_supergraph
       graph_ref: "{{ graph_ref }}"
 
+    - name: subgraphs
+      env_var: SUBGRAPH_DIR
+      kind: graphos_subgraphs
+      graph_ref: "{{ graph_ref }}"
+
     - name: router-config.yaml
       env_var: ROUTER_CONFIG
       kind: required

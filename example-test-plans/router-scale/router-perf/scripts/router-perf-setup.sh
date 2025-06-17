@@ -126,7 +126,11 @@ function run_subgraphs {
 
   port=4000
 
-  while read -r name; do
+  # Kick off the subgraph binaries
+  for file in "$SUBGRAPH_DIR"/*; do
+    name="${name#"$SUBGRAPH_DIR"}"
+    name="${file%.graphql}"
+
     label "subgraph:${name}" subgraph \
       -latency="$SUBGRAPH_LATENCY" \
       "-${SUBGRAPH_WAVEFORM}-period=$SUBGRAPH_PERIOD" \
@@ -139,7 +143,11 @@ function run_subgraphs {
     # Move our subgraph pid into the cgroup
     sudo cgclassify -g cpu,memory:/subgraph/leaf "${SUBGRAPH_PID}"
     port="$(( port + 1 ))"
-  done <"$SUBGRAPH_NAMES"
+  done
+
+
+  # Override the addresses to use for subgraphs in the router config
+  yq -i '4001 as $i | .override_subgraph_url |= with_entries(.value = "http://127.0.0.1:" + $i | $i+=1)' "$ROUTER_CONFIG"
 }
 
 function run_router_side {
