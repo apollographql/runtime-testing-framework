@@ -3,7 +3,8 @@ use crate::{
     providers::{
         self, Result,
         file::{
-            AsUtf8FileContent, InlineFile, NamedFileProvider, RelativeFile, RequiredFile, Source,
+            AsUtf8FileContent, InlineFile, NamedFileProvider, RelativeFile, RequiredFile,
+            ResolveAndWrite, Source,
         },
     },
     templating::{self, Field, Scalar, Template},
@@ -126,16 +127,16 @@ impl CommandSection {
         ctx: &impl ResolutionContext,
     ) -> providers::Result<()> {
         if let RawCommand::Spec(spec) = &self.command {
-            let content = spec.command_provider.try_get_file_content(src, ctx).await?;
             let file_path = provider_dir.join(&spec.name);
-            ctx.write(&file_path, content)?;
+            spec.command_provider
+                .resolve_and_write(&file_path, src, ctx)
+                .await?;
             ctx.make_executable(&file_path)?;
         }
 
         for nfp in self.file_providers.iter() {
-            let content = nfp.try_get_file_content(src, ctx).await?;
-            let file_path = provider_dir.join(&nfp.name);
-            ctx.write(file_path, content)?;
+            nfp.resolve_and_write(&provider_dir.join(&nfp.name), src, ctx)
+                .await?;
         }
 
         Ok(())
