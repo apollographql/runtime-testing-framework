@@ -135,6 +135,9 @@ pub(crate) trait ResolveAndWrite: Validate + DeserializeOwned + fmt::Debug {
     ) -> Result<()> {
         let files = self.try_get_all_file_contents(target, src, ctx).await?;
         for (path, content) in files.into_iter() {
+            if let Some(parent) = path.parent() {
+                ctx.create_dir_all(parent)?;
+            }
             ctx.write(path, content)?;
         }
 
@@ -168,6 +171,7 @@ impl DerefMut for NamedFileProvider {
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
     GraphosCannedOps(apollo::GraphosCannedOps),
+    GraphosSubgraphs(apollo::GraphosSubgraphs),
     GraphosSupergraph(apollo::GraphosSupergraph),
     Inline(InlineFile),
     OfflineGraphosLicense(apollo::OfflineGraphosLicense),
@@ -181,6 +185,7 @@ macro_rules! delegate_to_inner {
     ($self:ident, $method:ident $(, $arg:expr)*) => {
         match $self {
             FileProvider::GraphosCannedOps(fp) => fp.$method($($arg),*),
+            FileProvider::GraphosSubgraphs(fp) => fp.$method($($arg),*),
             FileProvider::GraphosSupergraph(fp) => fp.$method($($arg),*),
             FileProvider::Inline(fp) => fp.$method($($arg),*),
             FileProvider::OfflineGraphosLicense(fp) => fp.$method($($arg),*),
@@ -192,6 +197,7 @@ macro_rules! delegate_to_inner {
     (@async $self:ident, $method:ident, $($arg:expr),*) => {
         match $self {
             FileProvider::GraphosCannedOps(fp) => fp.$method($($arg),*).await,
+            FileProvider::GraphosSubgraphs(fp) => fp.$method($($arg),*).await,
             FileProvider::GraphosSupergraph(fp) => fp.$method($($arg),*).await,
             FileProvider::Inline(fp) => fp.$method($($arg),*).await,
             FileProvider::OfflineGraphosLicense(fp) => fp.$method($($arg),*).await,

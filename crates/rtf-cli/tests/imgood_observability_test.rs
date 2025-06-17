@@ -11,6 +11,7 @@ use common::is_valid_test_plan;
 use simple_test_case::test_case;
 
 #[test_case("resources/graphos-supergraph"; "supergraph sdl")]
+#[test_case("resources/graphos-subgraphs"; "subgraph sdls")]
 #[test_case("resources/graphos-canned-ops"; "canned operations")]
 #[test]
 #[ignore = "requires a valid GraphOS API Key"]
