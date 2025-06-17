@@ -1,4 +1,4 @@
-name: router-scale-local
+name: router-scale-wrapper
 description: |
   Start a router scale test from a local machine. This will create the VM and rsync 
   over RTF and the required config to run a router-scale test to the VM.
@@ -9,8 +9,29 @@ values:
 scenario:
   inline:
     name: scenario-router-scale
-    description: "-"
-    command: echo {}
+    description: "Sync RTF files over to VM and run router-scale"
+
+    values:
+      - name: vm_name
+        description: The name of the router-scale VM being targeted
+
+    command:
+      name: sync-files-to-vm.sh
+      kind: relative_path
+      path: scripts/sync-files-to-vm.sh
+      args:
+        - "{{ vm_name }}"
+
+    file_providers:
+      - name: gcloud-ssh-wrapper.sh
+        env_var: GCLOUD_SSH_WRAPPER
+        kind: relative_path
+        path: scripts/gcloud-ssh-wrapper.sh
+
+      - name: install-rtf.sh
+        env_var: INSTALL_RTF
+        kind: relative_path
+        path: scripts/install-rtf.sh
 
 environment:
   inline:
@@ -19,7 +40,7 @@ environment:
 
     values:
       - name: vm_name
-        description: The name of the router-scale VM being created
+        description: The name of the router-scale VM being created and deleted
 
     setup:
       command:
