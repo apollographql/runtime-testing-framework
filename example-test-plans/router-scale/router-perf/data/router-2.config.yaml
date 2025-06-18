@@ -93,16 +93,16 @@ telemetry:
         attributes:
           subgraph.name: true
           subgraph.graphql.operation.type: true
-    events:
-      supergraph:
-        logging:
-          message: "graphql.document"
-          level: info
-          on: event_response
-          attributes:
-            cost.actual: true
-            cost.estimated: true
-            cost.delta: true
+    # events:
+    #   supergraph:
+    #     logging:
+    #       message: "graphql.document"
+    #       level: info
+    #       on: event_response
+    #       attributes:
+    #         cost.actual: true
+    #         cost.estimated: true
+    #         cost.delta: true
   exporters:
     tracing:
       common:
