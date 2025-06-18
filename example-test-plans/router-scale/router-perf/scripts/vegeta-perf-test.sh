@@ -3,9 +3,9 @@
 # TODO:
 #   - support using gq-op-gen instead of a canned file
 
-TEST_DIR="scale/tests"
+TEST_DIR="${OUTDIR:-$(pwd)}/tests"
 RESULTS_DIR="$TEST_DIR/results"
-CANNED="$TEST_DIR/data/requests.canned"
+CANNED="$TEST_DIR/requests.canned"
 CANNED_TMP="$(mktemp /tmp/router.XXXXXX)"
 N_OPS="$(wc -l "$CANNED_OPS_FILE")"
 N_COPIES="$(( RPS * DURATION / N_OPS ))"
@@ -13,7 +13,7 @@ N_COPIES="$(( RPS * DURATION / N_OPS ))"
 # rewrite our canned request data into vegeta format
 while read -r req; do
   jq -nc \
-    --arg body "$(base64 -w 0 -i "$req")" \
+    --arg body "$(echo "$req" | base64 -w 0 -i)" \
     '{
       "body": $body,
       "header": { "Content-type": ["application/json"] },
