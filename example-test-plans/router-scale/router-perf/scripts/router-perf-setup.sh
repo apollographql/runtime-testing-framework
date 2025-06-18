@@ -5,10 +5,12 @@
 #   - run REST API snapshot servers for Apollo Connectors
 #   - support flamegraph
 
-TEST_DIR="scale/tests"
+TEST_DIR="${OUTDIR:-$(pwd)}/tests"
 RESULTS_DIR="$TEST_DIR/results"
 
+echo "sourcing data files"
 set -a
+. .bash_profile
 . "$SUBGRAPH_CONFIG"
 . "$ROUTER_CGROUP_CONFIG"
 set +a
@@ -42,14 +44,16 @@ function label {
   "$@" 1> >(sed "s/^/[$LABEL] /") 2> >(sed "s/^/[$LABEL] /" 1>&2)
 }
 
-
 # Fetch or build the router (this is being replaced by running a script coming from a file provider in RR-58)
 function fetch_router {
   rm -f ~/.cargo/bin/router
   cd "$TEST_DIR"
   curl -sSL "https://router.apollo.dev/download/nix/${ROUTER_VERSION}" | sh
-  mv dist/router ~/.cargo/bin
-  rmdir dist
+
+  mkdir -p ~/.cargo/bin
+  mv ./router ~/.cargo/bin
+
+  cd ~
 
   if [[ ! -f ".cargo/bin/router" ]]; then
     echo "Couldn't find a router in ~/.cargo/bin/. Terminating..."
@@ -58,6 +62,7 @@ function fetch_router {
 }
 
 function cleanup_supporting_services {
+  echo "cleaning up supporting services"
   if docker ps | grep otel ; then
     docker kill otel
   fi
@@ -124,12 +129,18 @@ function run_subgraphs {
   # Make a leaf for our process (https://unix.stackexchange.com/questions/680167/ebusy-when-trying-to-add-process-to-cgroup-v2)
   sudo mkdir /sys/fs/cgroup/subgraph/leaf
 
-  port=4000
+  port=4001
+
+  # We need to build out overrides for the locations of each subgraph
+  sg_tmp="$(mktemp /tmp/sg.XXXXXX)"
+  echo "override_subgraph_url:" >> "$sg_tmp"
 
   # Kick off the subgraph binaries
   for file in "$SUBGRAPH_DIR"/*; do
-    name="${name#"$SUBGRAPH_DIR"}"
+    file="${file#"$SUBGRAPH_DIR/"}"
     name="${file%.graphql}"
+
+    echo "  $name: http://127.0.0.1:$port" >> "$sg_tmp"
 
     label "subgraph:${name}" subgraph \
       -latency="$SUBGRAPH_LATENCY" \
@@ -145,9 +156,8 @@ function run_subgraphs {
     port="$(( port + 1 ))"
   done
 
-
   # Override the addresses to use for subgraphs in the router config
-  yq -i '4001 as $i | .override_subgraph_url |= with_entries(.value = "http://127.0.0.1:" + $i | $i+=1)' "$ROUTER_CONFIG"
+  config=${sg_tmp} yq -i '.override_subgraph_url = load(strenv(config)).override_subgraph_url' "$ROUTER_CONFIG"
 }
 
 function run_router_side {
@@ -162,8 +172,8 @@ function run_router {
     license_arg="--license $LICENSE_FILE"
   fi
 
-  router -s "$SUPERGRAPH_SCHEMA" -c "$ROUTER_CONFIG" "$license_arg" > "$RESULTS_DIR/router.log" &
-  router_pid=$!
+  router -s "$SUPERGRAPH_SCHEMA" -c "$ROUTER_CONFIG" $license_arg > "$RESULTS_DIR/router.log" &
+  router_pid="$!"
 
   if [ -n "$ROUTER_CPU_REQ" ] || [ -n "$ROUTER_MEM_REQ" ] || [ -n "$ROUTER_MEM_LIM" ]; then
     sudo cgcreate -g cpu,memory:/router
@@ -194,30 +204,24 @@ function run_router {
 
 # == Main script ==
 
-if [ ! -f "/TEST_SYSTEM_READY" ]; then
-  printf "!! WARNING !!\n"
-  printf "System installation must have failed, please delete this test system before trying again\n"
-  printf "To delete your test system: 'router_perf.sh -d %s'\n" "$(uname -n)"
-  exit 1
-fi
-
 # Cleanup or we will run out of disk space very quickly (-f so we don't get a warning if the file isn't present)
 rm -f perf.data
 rm -f /tmp/router.*
 
 rm -rf "$RESULTS_DIR"
-mkdir "$RESULTS_DIR"
+mkdir -p "$RESULTS_DIR"
 
 # redirect output from functions to stderr so we keep stdout clean for returning our "provides"
 
-fetch_router 1>&2
-cleanup_supporting_services 1>&2
+fetch_router
+cleanup_supporting_services
 
 top -d 0.49 -bu "$(id -u)" > "${RESULTS_DIR}/top.user" &
 
-run_supporting_services 1>&2
-run_subgraphs 1>&2
-run_router_side 1>&2
+run_supporting_services
+run_subgraphs
+run_router_side
+
 ROUTER_PID="$(run_router)"
 
 # It can take a while for a router to start, let's wait for up to a minute
@@ -231,7 +235,7 @@ top -d 0.49 -bp $(pgrep -x router-side -d,) > "${RESULTS_DIR}/top.router-side" &
 # provide data required by the teardown script
 ROUTER_CGROUP=false
 if [ -n "$ROUTER_CPU_REQ" ] || [ -n "$ROUTER_MEM_REQ" ] || [ -n "$ROUTER_MEM_LIM" ]; then
-  ROUTER_CGROUP=true
+  ROUTER_CGROUP="true"
 fi
 
-echo "{ \"router_pid\": $ROUTER_PID, \"router_cgroup\": $ROUTER_CGROUP }"
+echo "{ \"router_pid\": \"$ROUTER_PID\", \"router_cgroup\": \"$ROUTER_CGROUP\" }" >> "$RTF_OUTPUT"
