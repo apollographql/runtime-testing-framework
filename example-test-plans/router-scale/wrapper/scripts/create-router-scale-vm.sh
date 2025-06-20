@@ -101,4 +101,4 @@ check_dependencies || exit 2
 create_vm "$1" >> $LOG_FILE
 
 # Echo empty output so RTF environment setup succeeds
-echo {}
+echo {} > "$RTF_OUTPUT"

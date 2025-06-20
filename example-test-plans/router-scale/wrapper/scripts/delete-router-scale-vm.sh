@@ -32,6 +32,3 @@ if [ -z "$1" ]; then
     exit 1
 fi
 delete_vm "$1" >> $LOG_FILE
-
-# Echo empty output so RTF environment teardown succeeds
-echo {}
