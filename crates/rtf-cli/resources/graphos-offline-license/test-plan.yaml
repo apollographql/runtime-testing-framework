@@ -6,7 +6,7 @@ scenario:
   inline:
     name: scenario-graphos-license
     description: "Check that a supergraph file can be pulled from GraphOS"
-    command: echo {}
+    command: echo 1
     file_providers:
       - name: offline.license
         env_var: LICENSE_FILE
@@ -18,6 +18,12 @@ environment:
     name: environment-graphos-license
     description: "Minimal env config since this is not used for the test"
     setup:
-      command: echo {}
+      command:
+        name: echo-output.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "{}" > "$RTF_OUTPUT"
+
     teardown:
-      command: echo {}
+      command: echo 1

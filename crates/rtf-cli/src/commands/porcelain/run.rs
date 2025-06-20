@@ -13,6 +13,8 @@ pub async fn validate_and_run_test_plan(
     out_dir: &str,
 ) -> anyhow::Result<()> {
     let (ctx, out_dir) = get_context_and_outdir(out_dir)?;
+    let out_dir = ctx.canonicalize_path(out_dir)?;
+
     validate_and_run_test_plan_with_context(config_file_path, &out_dir, ctx).await
 }
 

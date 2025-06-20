@@ -7,5 +7,5 @@ if [ -n "$FROM_SETUP" ]; then
 fi
 
 if [ "${STAGE}" = "env-setup" ]; then
-  echo '{ "setup_output": "output from setup" }'
+  echo '{ "setup_output": "output from setup" }' > "$RTF_OUTPUT"
 fi

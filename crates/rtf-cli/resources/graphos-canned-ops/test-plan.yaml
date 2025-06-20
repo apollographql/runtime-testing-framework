@@ -6,7 +6,7 @@ scenario:
   inline:
     name: scenario-graphos-canned-ops
     description: "Check that canned operations can be pulled from GraphOS"
-    command: echo {}
+    command: echo 1
     file_providers:
       - name: canned_ops.json
         env_var: CANNED_OPS_FILE
@@ -20,6 +20,12 @@ environment:
     name: environment-graphos-supergraph
     description: "Minimal env config since this is not used for the test"
     setup:
-      command: echo {}
+      command:
+        name: echo-output.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "{}" > "$RTF_OUTPUT"
+
     teardown:
-      command: echo {}
+      command: echo 1

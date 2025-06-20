@@ -10,7 +10,7 @@ use std::{
     io,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    process::Command,
     sync::Arc,
 };
 use tokio::sync::Mutex;
@@ -113,7 +113,7 @@ pub trait ResolutionContext {
         prog: &str,
         args: impl IntoIterator<Item = &'a str>,
         env_vars: &HashMap<String, String>,
-    ) -> io::Result<String>;
+    ) -> io::Result<()>;
 
     /// Changes the current working directory to the specified path.
     fn set_current_dir(&mut self, path: impl AsRef<Path>) -> io::Result<()>;
@@ -126,6 +126,8 @@ pub trait ResolutionContext {
 
         file.set_permissions(permissions)
     }
+
+    fn remove_file(&self, path: impl AsRef<Path>) -> io::Result<()>;
 
     /// Recursively create a directory and all of its parent components if they
     /// are missing.
@@ -257,14 +259,18 @@ impl ResolutionContext for Context {
         prog: &str,
         args: impl IntoIterator<Item = &'a str>,
         env_vars: &HashMap<String, String>,
-    ) -> io::Result<String> {
-        let output = Command::new(prog)
+    ) -> io::Result<()> {
+        Command::new(prog)
             .args(args)
             .envs(env_vars)
-            .stdout(Stdio::piped())
-            .output()?;
+            .spawn()?
+            .wait()?;
 
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        Ok(())
+    }
+
+    fn remove_file(&self, path: impl AsRef<Path>) -> io::Result<()> {
+        fs::remove_file(path)
     }
 
     fn set_current_dir(&mut self, path: impl AsRef<Path>) -> io::Result<()> {

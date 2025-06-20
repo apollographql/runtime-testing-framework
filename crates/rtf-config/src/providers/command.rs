@@ -16,6 +16,7 @@ use std::{collections::HashMap, io, path::Path};
 /// The environment variable used to provide the location of the output directory to user specified
 /// commands
 const OUTDIR: &str = "OUTDIR";
+const OUTFILE: &str = "RTF_OUTPUT";
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct CommandSection {
@@ -52,10 +53,12 @@ impl CommandSection {
         out_dir: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
+        let out_file = out_dir.join(OUTFILE);
+        let env_vars = self.all_env_vars(out_dir, &out_file);
+
         match &self.command {
             RawCommand::String(s) => {
                 let command = s.clone();
-
                 let mut it = command.split_whitespace();
                 let prog = match it.next() {
                     Some(prog) => prog,
@@ -68,10 +71,7 @@ impl CommandSection {
                     }
                 };
 
-                let env_vars = self.all_env_vars(out_dir);
-                let stdout = ctx.run_command_blocking(prog, it, &env_vars)?;
-
-                Ok(stdout)
+                ctx.run_command_blocking(prog, it, &env_vars)?;
             }
 
             RawCommand::Spec(spec) => {
@@ -87,19 +87,26 @@ impl CommandSection {
                     }
                 };
                 let it = spec.args.iter().map(|arg| arg.as_resolved().as_str());
-
-                let env_vars = self.all_env_vars(out_dir);
-                let stdout = ctx.run_command_blocking(prog, it, &env_vars)?;
-
-                Ok(stdout)
+                ctx.run_command_blocking(prog, it, &env_vars)?;
             }
         }
+
+        let output = match ctx.read_path_to_string(&out_file) {
+            Ok(s) => {
+                ctx.remove_file(out_file)?;
+                s
+            }
+            Err(e) if e.kind() == io::ErrorKind::NotFound => String::new(),
+            Err(e) => return Err(e.into()),
+        };
+
+        Ok(output)
     }
 
     /// Combine the base environment variables we have with the ones coming from the file providers
     /// we need to run. The `out_dir` argument here needs to match the one used when running
     /// and outputting the content of the file providers.
-    pub fn all_env_vars(&self, out_dir: &Path) -> HashMap<String, String> {
+    pub fn all_env_vars(&self, out_dir: &Path, out_file: &Path) -> HashMap<String, String> {
         let mut vars: HashMap<String, String> = self
             .env_vars
             .iter()
@@ -112,6 +119,7 @@ impl CommandSection {
         }
 
         vars.insert(OUTDIR.to_string(), out_dir.display().to_string());
+        vars.insert(OUTFILE.to_string(), out_file.display().to_string());
 
         vars
     }
@@ -417,7 +425,7 @@ mod tests {
         context::{Context, NullPlatformClient, PathKind},
         providers::file::{FileProvider, InlineFile},
     };
-    use simple_test_case::dir_cases;
+    use simple_test_case::{dir_cases, test_case};
     use simple_txtar::Archive;
     use std::{path::PathBuf, sync::Mutex};
 
@@ -570,11 +578,21 @@ mod tests {
 
         fn run_command_blocking<'a>(
             &self,
-            _prog: &str,
-            _args: impl IntoIterator<Item = &'a str>,
-            _env_vars: &HashMap<String, String>,
-        ) -> io::Result<String> {
-            Ok(String::new())
+            prog: &str,
+            args: impl IntoIterator<Item = &'a str>,
+            env_vars: &HashMap<String, String>,
+        ) -> io::Result<()> {
+            if prog == "WRITE_OUTPUT" {
+                let path = env_vars.get(OUTFILE).expect("outfile env var not set");
+                let content = args.into_iter().next().expect("no args").to_string();
+
+                self.written_files
+                    .lock()
+                    .unwrap()
+                    .insert(path.to_string(), content);
+            }
+
+            Ok(())
         }
 
         fn write(&self, path: impl AsRef<Path>, content: impl AsRef<[u8]>) -> io::Result<()> {
@@ -595,8 +613,22 @@ mod tests {
             relative_path.as_ref().canonicalize()
         }
 
-        fn read_path_to_string(&self, _path: impl AsRef<Path>) -> io::Result<String> {
-            Ok(String::new())
+        fn read_path_to_string(&self, path: impl AsRef<Path>) -> io::Result<String> {
+            let k = path.as_ref().display().to_string();
+
+            self.written_files
+                .lock()
+                .unwrap()
+                .get(&k)
+                .cloned()
+                .ok_or(io::Error::new(io::ErrorKind::NotFound, ""))
+        }
+
+        fn remove_file(&self, path: impl AsRef<Path>) -> io::Result<()> {
+            let k = path.as_ref().display().to_string();
+            self.written_files.lock().unwrap().remove(&k);
+
+            Ok(())
         }
 
         fn set_current_dir(&mut self, _path: impl AsRef<Path>) -> io::Result<()> {
@@ -637,7 +669,10 @@ mod tests {
     #[test]
     fn all_env_vars_includes_file_providers() {
         let c = test_cmd_section();
-        let env_vars = c.all_env_vars(&PathBuf::from("/example-dir"));
+        let env_vars = c.all_env_vars(
+            &PathBuf::from("/example-dir"),
+            &PathBuf::from("/example-dir/RTF_OUTPUT"),
+        );
 
         let expected: HashMap<String, String> = [
             ("FOO", "hello"),
@@ -645,6 +680,7 @@ mod tests {
             ("OUTDIR", "/example-dir"),
             ("FP1", "/example-dir/fp1.txt"),
             ("FP2", "/example-dir/fp2.txt"),
+            ("RTF_OUTPUT", "/example-dir/RTF_OUTPUT"),
         ]
         .into_iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
@@ -675,5 +711,34 @@ mod tests {
         .collect();
 
         assert_eq!(written_files, expected);
+    }
+
+    #[test_case("WRITE_OUTPUT foo", "foo"; "with output")]
+    #[test_case("command-with-no-output", ""; "without output")]
+    #[tokio::test]
+    async fn execute_returns_the_contents_of_the_output_file_and_removes_it(
+        command: &str,
+        expected_output: &str,
+    ) {
+        let c = CommandSection {
+            // See the implementation of MockCommandContext::run_command_blocking
+            command: RawCommand::String(command.to_string()),
+            env_vars: HashMap::new(),
+            file_providers: Vec::new(),
+        };
+
+        let ctx = MockCommandContext::default();
+        let dir = PathBuf::from("/example-dir");
+
+        let output = c.execute(&dir, &ctx).expect("command to succeed");
+        assert_eq!(output, expected_output, "unexpected output");
+
+        let written_files = ctx.written_files.into_inner().unwrap();
+        let k = dir.join(OUTFILE).display().to_string();
+
+        assert!(
+            !written_files.contains_key(&k),
+            "should have removed the outfile"
+        );
     }
 }
