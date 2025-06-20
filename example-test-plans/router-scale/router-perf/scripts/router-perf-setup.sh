@@ -10,7 +10,6 @@ RESULTS_DIR="$TEST_DIR/results"
 
 echo "sourcing data files"
 set -a
-. .bash_profile
 . "$SUBGRAPH_CONFIG"
 . "$ROUTER_CGROUP_CONFIG"
 set +a

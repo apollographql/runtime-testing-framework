@@ -7,7 +7,7 @@ TEST_DIR="${OUTDIR:-$(pwd)}/tests"
 RESULTS_DIR="$TEST_DIR/results"
 CANNED="$TEST_DIR/requests.canned"
 CANNED_TMP="$(mktemp /tmp/router.XXXXXX)"
-N_OPS="$(wc -l "$CANNED_OPS_FILE")"
+N_OPS="$(cat "$CANNED_OPS_FILE" | wc -l)"
 N_COPIES="$(( RPS * DURATION / N_OPS ))"
 
 # rewrite our canned request data into vegeta format
