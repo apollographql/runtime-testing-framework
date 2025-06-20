@@ -13,15 +13,9 @@ else
     echo "cargo is already installed."
 fi
 
-#  Run the sanity check
-echo "Running rtf santity check..."
-cargo run --manifest-path ./rtf/Cargo.toml -- run rtf/crates/rtf-cli/resources/sanity-check/test-plan.yaml
-echo "------ env-setup output ------"
-cat output/env-setup.txt
-echo "------ scenario output ------"
-cat output/scenario.txt
-echo "------ env-teardown output ------"
-cat output/env-teardown.txt
-echo "Sanity check complete"
-echo "Removing RTF output dir..."
-rm -r output/
+export APOLLO_SUDO="true"
+export APOLLO_KEY="$1"
+
+echo "Running test plan..."
+cargo build --manifest-path ./rtf/Cargo.toml
+cargo run --manifest-path ./rtf/Cargo.toml -- run test-data/test-plan.yaml 2>&1
