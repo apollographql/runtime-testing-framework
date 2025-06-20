@@ -6,7 +6,7 @@ scenario:
   inline:
     name: scenario-graphos-subgraphs
     description: "Check that subgraph files can be pulled from GraphOS"
-    command: echo {}
+    command: echo 1
     file_providers:
       - name: subgraphs
         env_var: SUBGRAPH_DIR
@@ -18,6 +18,12 @@ environment:
     name: environment-graphos-subgraphs
     description: "Minimal env config since this is not used for the test"
     setup:
-      command: echo {}
+      command:
+        name: echo-output.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "{}" > "$RTF_OUTPUT"
+
     teardown:
-      command: echo {}
+      command: echo 1

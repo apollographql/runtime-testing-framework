@@ -41,7 +41,7 @@ fn get_context_and_outdir(out_dir: &str) -> anyhow::Result<(Context, PathBuf)> {
         PathKind::OccupiedDir => {
             bail!("{} already exists and is non-empty", out_dir.display())
         }
-        _ => (),
+        _ => ctx.create_dir_all(&out_dir)?,
     }
 
     Ok((ctx, out_dir))

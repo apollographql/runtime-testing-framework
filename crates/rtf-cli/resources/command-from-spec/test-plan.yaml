@@ -5,7 +5,7 @@ description: |
 scenario:
   inline:
     name: scenario-command-from-spec
-    description: "Check that a command be run using a command spec"
+    description: "Check that a command can be run using a command spec"
     command:
       name: echo-message.sh
       kind: inline
@@ -22,6 +22,12 @@ environment:
     name: environment-command-from-spec
     description: "Minimal env config since this is not used for the test"
     setup:
-      command: echo {}
+      command:
+        name: echo-output.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "{}" > "$RTF_OUTPUT"
+
     teardown:
-      command: echo {}
+      command: echo 1

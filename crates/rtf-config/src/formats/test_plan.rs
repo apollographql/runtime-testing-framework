@@ -612,8 +612,8 @@ mod tests {
             _prog: &str,
             _args: impl IntoIterator<Item = &'a str>,
             _env_vars: &HashMap<String, String>,
-        ) -> io::Result<String> {
-            Ok(String::new())
+        ) -> io::Result<()> {
+            Ok(())
         }
 
         fn write(&self, _path: impl AsRef<Path>, _content: impl AsRef<[u8]>) -> io::Result<()> {
@@ -635,6 +635,10 @@ mod tests {
                 .get(&p)
                 .map(|f| f.content.clone())
                 .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, ""))
+        }
+
+        fn remove_file(&self, _path: impl AsRef<Path>) -> io::Result<()> {
+            Ok(())
         }
 
         fn set_current_dir(&mut self, _path: impl AsRef<Path>) -> io::Result<()> {
