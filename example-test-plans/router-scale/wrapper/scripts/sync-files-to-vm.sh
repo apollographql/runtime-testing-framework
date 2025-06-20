@@ -17,6 +17,7 @@ FILTER_OUT="WARNING: This command is using service account impersonation."
 # This is required so that these can be referenced by RTF
 GCLOUD_SSH_WRAPPER="${GCLOUD_SSH_WRAPPER:-$BASE_DIR/gcloud-ssh-wrapper.sh}"
 INSTALL_RTF="${INSTALL_RTF:-$BASE_DIR/install-rtf.sh}"
+BOOTSTRAP_ENV="${BOOTSTRAP_ENV:-$BASE_DIR/bootstrap-env.sh}"
 
 function rsync_to_vm {
     # $1 is the target VM name (it has to be the first argument since the ssh script expects the first argument to be the vm name)
@@ -54,17 +55,21 @@ if [ "$LOGIN_SUCCESS" = false ]; then
     exit 1
 fi
 
+
 # Copy files required to build RTF over to the VM
 rsync_to_vm $1 $RTF_DIR/Cargo.toml ./rtf/ >> $LOG_FILE
 rsync_to_vm $1 $RTF_DIR/Cargo.lock ./rtf/ >> $LOG_FILE
 rsync_to_vm $1 $RTF_DIR/crates/ ./rtf/crates/ >> $LOG_FILE
+# The test plan we're going to run
+rsync_to_vm $1 $RTF_DIR/$2/ ./test-data/ >> $LOG_FILE
 
 # Copy shell script to install rtf to VM
+rsync_to_vm $1 $BOOTSTRAP_ENV ./ >> $LOG_FILE
 rsync_to_vm $1 $INSTALL_RTF ./ >> $LOG_FILE
 
-# Run the rtf script
-echo "Run rtf --help on the VM..." >> $LOG_FILE
-bash $GCLOUD_SSH_WRAPPER $1 bash install-rtf.sh 2> >(grep -v "${FILTER_OUT}") >> $LOG_FILE
+# Bootstrap the environment
+bash $GCLOUD_SSH_WRAPPER $1 bash -i bootstrap-env.sh 2> >(grep -v "${FILTER_OUT}") >> $LOG_FILE
 
-# Echo empty output so RTF environment setup succeeds
-echo {}
+# Run the rtf script
+echo "Install RTF and run on the VM..." >> $LOG_FILE
+bash $GCLOUD_SSH_WRAPPER $1 bash -i install-rtf.sh "$APOLLO_KEY" 2> >(grep -v "${FILTER_OUT}") >> $LOG_FILE
