@@ -1,0 +1,66 @@
+A minimal valid test plan config that specifies environment
+and scenario configs inline. The same value is defined as a
+scalar and as part of a matrix which should be reported as
+a conflict.
+
+-- config.yaml --
+name: minimal-test
+description: |
+  A minimal test plan config
+
+values:
+  credentials_env_var: "AUTH_HEADER"
+  server_command: "python3 server.py"
+
+matrix:
+  credentials_env_var: [ "foo", "bar" ]
+
+scenario:
+  name: valid-scenario
+  description: |
+    A description for a valid scenario
+
+  values:
+    - name: foo
+      description: "A value foo"
+  
+  command: "/command.sh"
+
+  file_providers:
+    - name: "inline.txt"
+      env_var: INLINE_FILE
+      kind: inline
+      content: |
+        This is some inline file content
+        split over multiple lines.
+        How nice.
+
+environment:
+  name: minimal
+  description: "A minimal environment config"
+
+  values:
+    - name: bar
+      description: "An env var called bar"
+    - name: foo
+      description: "An env var called foo"
+  
+  setup:
+    command: scripts/start_local_server.sh
+    env_vars:
+      HELLO: "world"
+      AUTH: "{{ credentials_env_var }}"
+  
+    provides:
+    - name: server_pid
+      description: "The PID of the running server"
+    - name: server_url
+      description: "The publicly accessible URL for the service under test"
+    
+  teardown:
+    command: scripts/stop_local_server.sh
+    env_vars:
+      HELLO: "sailor"
+
+-- templating-errors --
+ConflictingValues

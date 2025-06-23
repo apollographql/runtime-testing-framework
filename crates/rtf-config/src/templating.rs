@@ -10,6 +10,9 @@ use std::{collections::HashMap, fmt, marker::PhantomData};
 /// Paired with an additional message to form an [Error].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display, strum::EnumString)]
 pub enum ErrorKind {
+    #[strum(to_string = "conflicting value definitions")]
+    ConflictingValues,
+
     #[strum(to_string = "invalid templating value")]
     InvalidData,
 

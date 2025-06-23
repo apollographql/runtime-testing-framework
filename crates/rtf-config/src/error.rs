@@ -190,7 +190,7 @@ where
     K: fmt::Debug + fmt::Display + Copy,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({}) {} {}", self.path, self.kind, self.message)
+        write!(f, "({}) {}: {}", self.path, self.kind, self.message)
     }
 }
 

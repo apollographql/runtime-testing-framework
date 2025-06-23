@@ -44,8 +44,32 @@ impl TestPlanConfig {
         raw.try_into_test_plan(&abs_path, ctx).await
     }
 
+    /// The set of allowed templating values that this test plan supports.
+    ///
+    /// This is the union of values defined as a scalars and those that are part of a matrix
+    fn allowed_values(&self) -> HashSet<&String> {
+        self.values.keys().chain(self.matrix.keys()).collect()
+    }
+
     pub fn validate_templating_will_work(&mut self) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
+
+        // Check if we have any conflicts between matrix values and scalar values
+        let mut conflicting_keys: Vec<String> = self
+            .values
+            .keys()
+            .filter(|k| self.matrix.contains_key(*k))
+            .cloned()
+            .collect();
+        if !conflicting_keys.is_empty() {
+            conflicting_keys.sort_unstable(); // ensure consistent ordering
+
+            errs.push(
+                templating::ErrorKind::ConflictingValues,
+                conflicting_keys.join(", "),
+                &[],
+            )
+        }
 
         // Check that all required values have been defined somewhere within the test plan
         let mut check_missing_values =
@@ -67,29 +91,27 @@ impl TestPlanConfig {
                 }
             };
 
+        let mut allowed_values = self.allowed_values();
+
         check_missing_values(
             &self.environment.setup.command,
-            &self.values.keys().collect(),
+            &allowed_values,
             &["environment".to_string(), "setup".to_string()],
         );
 
         // The scenario and teardown are permitted to use values coming from setup.provides in
         // addition to the values declared in the test plan itself
-        let combined_keys: HashSet<&String> = self
-            .values
-            .keys()
-            .chain(self.environment.setup.provides.iter().map(|val| &val.name))
-            .collect();
+        allowed_values.extend(self.environment.setup.provides.iter().map(|val| &val.name));
 
         check_missing_values(
             &self.environment.teardown,
-            &combined_keys,
+            &allowed_values,
             &["environment".to_string(), "teardown".to_string()],
         );
 
         check_missing_values(
             &self.scenario.command,
-            &combined_keys,
+            &allowed_values,
             &["scenario".to_string()],
         );
 
@@ -480,6 +502,12 @@ mod tests {
         let mut combined_values = provides_values.clone();
         combined_values.extend(plan_config.values.clone());
 
+        // For matrices in this test we just want to check that things are valid so we only make
+        // use of the first element for each value
+        for (k, v) in plan_config.matrix.iter() {
+            combined_values.insert(k.to_owned(), v[0].clone());
+        }
+
         assert!(plan_config.has_pending_fields(), "fields should be pending");
 
         let res = plan_config.try_resolve(&mut Vec::new(), &combined_values);
@@ -505,13 +533,17 @@ mod tests {
         let raw_expected = get_file(&arr, "after-templating");
 
         let mut plan_config: TestPlanConfig = serde_yaml::from_str(config).unwrap();
-        let values: HashMap<String, Scalar> = plan_config.values.clone();
         let expected: TestPlanConfig = serde_yaml::from_str(raw_expected).unwrap();
 
-        assert!(
-            plan_config.validate_templating_will_work().is_ok(),
-            "templating should work"
-        );
+        let mut values: HashMap<String, Scalar> = plan_config.values.clone();
+        // For matrices in this test we just want to check that things are valid so we only make
+        // use of the first element for each value
+        for (k, v) in plan_config.matrix.iter() {
+            values.insert(k.to_owned(), v[0].clone());
+        }
+
+        let res = plan_config.validate_templating_will_work();
+        assert!(res.is_ok(), "templating should work: {res:?}");
         assert!(plan_config.has_pending_fields(), "fields should be pending");
 
         let res = plan_config.try_resolve_envrionment_setup(&values);
@@ -522,7 +554,7 @@ mod tests {
         );
 
         let mut combined_values = provides_values.clone();
-        combined_values.extend(plan_config.values.clone());
+        combined_values.extend(values);
 
         let res = plan_config.try_resolve_envrionment_teardown(&combined_values);
         assert!(res.is_ok(), "expected no errors, got {res:?}");
