@@ -1,0 +1,125 @@
+A minimal valid test plan config that specifies valid environment
+and scenario configs inline. Values are specified individually as
+well as part of a matrix.
+
+-- config.yaml --
+name: minimal-test
+description: |
+  A minimal test plan config
+
+values:
+  credentials_env_var: "AUTH_HEADER"
+
+matrix:
+  server_command: [ "python3 server.py", "python3 server.py --some-arg" ]
+
+scenario:
+  inline: 
+    name: valid-scenario
+    description: |
+      A description for a valid scenario
+
+    values:
+     - name: foo
+       description: "A value foo"
+
+    command: "/command.sh"
+
+    env_vars:
+      SOME_ENV_VAR: "some_env_var"
+
+    file_providers:
+      - name: "inline.txt"
+        env_var: INLINE_FILE
+        kind: inline
+        content: |
+          This is some inline file content
+          split over multiple lines.
+          How nice.
+
+environment:
+  inline:
+    name: minimal
+    description: "A minimal environment config"
+
+    values:
+      - name: foo
+        description: "An env var called foo"
+      - name: bar
+        description: "An env var called bar"
+
+    setup:
+      command: scripts/start_local_server.sh
+      env_vars:
+        HELLO: "world"
+
+      provides:
+        - name: server_url
+          description: "The publicly accessible URL for the service under test"
+        - name: server_pid
+          description: "The PID of the running server"
+
+    teardown:
+      command: scripts/stop_local_server.sh
+      env_vars:
+        HELLO: "sailor"
+
+-- expected --
+name: minimal-test
+description: |
+  A minimal test plan config
+
+values:
+  credentials_env_var: "AUTH_HEADER"
+
+matrix:
+  server_command: [ "python3 server.py", "python3 server.py --some-arg" ]
+
+scenario:
+  name: valid-scenario
+  description: |
+    A description for a valid scenario
+
+  values:
+    - name: foo
+      description: "A value foo"
+  
+  command: "/command.sh"
+
+  env_vars:
+    SOME_ENV_VAR: "some_env_var"
+
+  file_providers:
+    - name: "inline.txt"
+      env_var: INLINE_FILE
+      kind: inline
+      content: |
+        This is some inline file content
+        split over multiple lines.
+        How nice.
+
+environment:
+  name: minimal
+  description: "A minimal environment config"
+
+  values:
+    - name: bar
+      description: "An env var called bar"
+    - name: foo
+      description: "An env var called foo"
+  
+  setup:
+    command: scripts/start_local_server.sh
+    env_vars:
+     HELLO: "world"
+  
+    provides:
+    - name: server_pid
+      description: "The PID of the running server"
+    - name: server_url
+      description: "The publicly accessible URL for the service under test"
+    
+  teardown:
+    command: scripts/stop_local_server.sh
+    env_vars:
+      HELLO: "sailor"

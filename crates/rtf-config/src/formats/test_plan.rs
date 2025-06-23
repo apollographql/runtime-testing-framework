@@ -18,6 +18,8 @@ pub struct TestPlanConfig {
     pub description: String,
     #[serde(default)]
     pub values: HashMap<String, Scalar>,
+    #[serde(default)]
+    pub matrix: HashMap<String, Vec<Scalar>>,
     pub scenario: ScenarioConfig,
     pub environment: EnvironmentConfig,
     #[serde(skip)]
@@ -298,6 +300,8 @@ pub struct RawTestPlanConfig {
     pub description: String,
     #[serde(default)]
     pub values: HashMap<String, Scalar>,
+    #[serde(default)]
+    pub matrix: HashMap<String, Vec<Scalar>>,
     pub scenario: ConfigSpec<ScenarioConfig>,
     pub environment: ConfigSpec<EnvironmentConfig>,
 }
@@ -333,6 +337,7 @@ impl RawTestPlanConfig {
             name: self.name,
             description: self.description,
             values: self.values,
+            matrix: self.matrix,
             scenario,
             environment,
             sources: Sources::new(abs_path, scenario_source, environment_source),
