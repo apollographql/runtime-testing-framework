@@ -3,13 +3,19 @@ use crate::{
     formats::{EnvironmentConfig, Error, Result, ScenarioConfig},
     providers::{
         self,
+        command::CommandSection,
         file::{RawSource, Source},
     },
     templating::{self, Scalar, Template},
     validation::{self, Validate},
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::{collections::HashMap, hash::Hash, mem::take, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::Hash,
+    mem::take,
+    path::Path,
+};
 
 /// The format for parsing scenario config
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -41,63 +47,51 @@ impl TestPlanConfig {
     pub fn validate_templating_will_work(&mut self) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
-        let missing_env_setup_values: Vec<_> = self
-            .environment
-            .setup
-            .command
-            .required_values()
-            .into_iter()
-            .filter(|s| !self.values.keys().any(|v| v == s))
+        // Check that all required values have been defined somewhere within the test plan
+        let mut check_missing_values =
+            |section: &CommandSection, allowed: &HashSet<&String>, error_path: &[String]| {
+                let mut missing_values: Vec<String> = section
+                    .required_values()
+                    .iter()
+                    .filter(|s| !allowed.contains(*s))
+                    .cloned()
+                    .collect();
+
+                if !missing_values.is_empty() {
+                    missing_values.sort_unstable(); // ensure consistent ordering
+                    errs.push(
+                        templating::ErrorKind::MissingValues,
+                        missing_values.join(", "),
+                        error_path,
+                    )
+                }
+            };
+
+        check_missing_values(
+            &self.environment.setup.command,
+            &self.values.keys().collect(),
+            &["environment".to_string(), "setup".to_string()],
+        );
+
+        // The scenario and teardown are permitted to use values coming from setup.provides in
+        // addition to the values declared in the test plan itself
+        let combined_keys: HashSet<&String> = self
+            .values
+            .keys()
+            .chain(self.environment.setup.provides.iter().map(|val| &val.name))
             .collect();
 
-        let env_setup_is_missing_values = { !missing_env_setup_values.is_empty() };
-        if env_setup_is_missing_values {
-            errs.push(
-                templating::ErrorKind::MissingValues,
-                "Environment setup is missing values required for templating",
-                &Vec::<String>::new(),
-            )
-        }
+        check_missing_values(
+            &self.environment.teardown,
+            &combined_keys,
+            &["environment".to_string(), "teardown".to_string()],
+        );
 
-        let provides_values = &self.environment.setup.provides;
-        let provides_values_keys: Vec<String> =
-            provides_values.iter().map(|v| v.name.clone()).collect();
-
-        let mut combined_keys: Vec<String> = self.values.keys().cloned().collect();
-        combined_keys.extend(provides_values_keys);
-
-        let missing_env_teardown_values: Vec<_> = self
-            .environment
-            .teardown
-            .required_values()
-            .into_iter()
-            .filter(|s| !combined_keys.iter().any(|v| v == s))
-            .collect();
-
-        let env_teardown_is_missing_values = !missing_env_teardown_values.is_empty();
-        if env_teardown_is_missing_values {
-            errs.push(
-                templating::ErrorKind::MissingValues,
-                "Environment teardown is missing values required for templating",
-                &Vec::<String>::new(),
-            )
-        }
-
-        let missing_scenario_values: Vec<_> = self
-            .scenario
-            .required_values()
-            .into_iter()
-            .filter(|s| !combined_keys.iter().any(|v| v == s))
-            .collect();
-
-        let scenario_is_missing_values = !missing_scenario_values.is_empty();
-        if scenario_is_missing_values {
-            errs.push(
-                templating::ErrorKind::MissingValues,
-                "Scenario is missing values required for templating",
-                &Vec::<String>::new(),
-            )
-        }
+        check_missing_values(
+            &self.scenario.command,
+            &combined_keys,
+            &["scenario".to_string()],
+        );
 
         errs.into_result(())
     }
