@@ -18,7 +18,7 @@ use std::{
 };
 
 /// The format for parsing scenario config
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
 pub struct TestPlanConfig {
     pub name: String,
     pub description: String,
