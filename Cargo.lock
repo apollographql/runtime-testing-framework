@@ -1844,6 +1844,7 @@ name = "rtf-config"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "itertools",
  "jsonschema",
  "pretty_assertions",
  "rtf-core",

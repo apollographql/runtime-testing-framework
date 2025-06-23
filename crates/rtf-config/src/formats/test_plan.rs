@@ -9,6 +9,7 @@ use crate::{
     templating::{self, Scalar, Template},
     validation::{self, Validate},
 };
+use itertools::Itertools;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
@@ -49,6 +50,31 @@ impl TestPlanConfig {
     /// This is the union of values defined as a scalars and those that are part of a matrix
     fn allowed_values(&self) -> HashSet<&String> {
         self.values.keys().chain(self.matrix.keys()).collect()
+    }
+
+    /// We expand out matrix values as a cartesean product over all possible sets of values we can
+    /// obtain when combined with any scalar values we have.
+    pub fn expanded_matrix_values(&self) -> Vec<HashMap<String, Scalar>> {
+        if self.matrix.is_empty() {
+            return vec![self.values.clone()];
+        }
+
+        // Ensure that we have a consistent ordering for the vec we return.
+        // The choice of ordering by the map key here is arbitrary but it is easy to document and
+        // quickly check by hand for users when needed.
+        let mut pairs: Vec<_> = self.matrix.iter().collect();
+        pairs.sort_unstable_by(|(k1, _), (k2, _)| k1.cmp(k2));
+
+        pairs
+            .into_iter()
+            .map(|(k, vals)| vals.iter().map(|v| (k.clone(), v.clone())))
+            .multi_cartesian_product()
+            .map(|matrix_vals| {
+                let mut values = self.values.clone();
+                values.extend(matrix_vals);
+                values
+            })
+            .collect()
     }
 
     pub fn validate_templating_will_work(&mut self) -> templating::Result<()> {
@@ -499,14 +525,10 @@ mod tests {
         let mut plan_config: TestPlanConfig = serde_yaml::from_str(config).unwrap();
         let expected: TestPlanConfig = serde_yaml::from_str(raw_expected).unwrap();
 
-        let mut combined_values = provides_values.clone();
-        combined_values.extend(plan_config.values.clone());
-
         // For matrices in this test we just want to check that things are valid so we only make
         // use of the first element for each value
-        for (k, v) in plan_config.matrix.iter() {
-            combined_values.insert(k.to_owned(), v[0].clone());
-        }
+        let mut combined_values = provides_values.clone();
+        combined_values.extend(plan_config.expanded_matrix_values().remove(0));
 
         assert!(plan_config.has_pending_fields(), "fields should be pending");
 
@@ -535,12 +557,9 @@ mod tests {
         let mut plan_config: TestPlanConfig = serde_yaml::from_str(config).unwrap();
         let expected: TestPlanConfig = serde_yaml::from_str(raw_expected).unwrap();
 
-        let mut values: HashMap<String, Scalar> = plan_config.values.clone();
         // For matrices in this test we just want to check that things are valid so we only make
         // use of the first element for each value
-        for (k, v) in plan_config.matrix.iter() {
-            values.insert(k.to_owned(), v[0].clone());
-        }
+        let values: HashMap<String, Scalar> = plan_config.expanded_matrix_values().remove(0);
 
         let res = plan_config.validate_templating_will_work();
         assert!(res.is_ok(), "templating should work: {res:?}");
@@ -718,5 +737,50 @@ mod tests {
             expected,
             "expected environment configs to match"
         );
+    }
+
+    macro_rules! values_map {
+        ($($k:expr => $v:expr),+) => {{
+            let mut m = ::std::collections::HashMap::new();
+            $( m.insert($k.to_string(), $crate::templating::Scalar::try_from($v).unwrap()); )+
+            m
+        }};
+    }
+
+    #[test]
+    fn matrix_value_expansion_works_without_any_matrix_values() {
+        let tp = TestPlanConfig {
+            values: values_map!("foo" => 42, "bar" => "life"),
+            ..Default::default()
+        };
+
+        let all_values = tp.expanded_matrix_values();
+        let expected = vec![values_map!("foo" => 42, "bar" => "life")];
+
+        assert_eq!(all_values, expected);
+    }
+
+    #[test]
+    fn matrix_value_expansion_works() {
+        let tp = TestPlanConfig {
+            values: values_map!("foo" => 42, "bar" => "life"),
+            matrix: [
+                ("baz".into(), vec![true.into(), false.into()]),
+                ("qux".into(), vec![1.into(), 2.into()]),
+            ]
+            .into_iter()
+            .collect(),
+            ..Default::default()
+        };
+
+        let all_values = tp.expanded_matrix_values();
+        let expected = vec![
+            values_map!("foo" => 42, "bar" => "life", "baz" => true, "qux" => 1),
+            values_map!("foo" => 42, "bar" => "life", "baz" => true, "qux" => 2),
+            values_map!("foo" => 42, "bar" => "life", "baz" => false, "qux" => 1),
+            values_map!("foo" => 42, "bar" => "life", "baz" => false, "qux" => 2),
+        ];
+
+        assert_eq!(all_values, expected);
     }
 }

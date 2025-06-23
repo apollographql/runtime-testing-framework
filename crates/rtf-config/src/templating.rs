@@ -439,6 +439,12 @@ mod tests {
         }
     }
 
+    impl From<&str> for Scalar {
+        fn from(value: &str) -> Self {
+            Scalar::String(value.to_string())
+        }
+    }
+
     impl TryFrom<f64> for Scalar {
         type Error = &'static str;
 
