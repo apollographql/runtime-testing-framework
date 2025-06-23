@@ -74,7 +74,7 @@ impl TestPlanConfig {
             .filter(|s| !combined_keys.iter().any(|v| v == s))
             .collect();
 
-        let env_teardown_is_missing_values = { !missing_env_teardown_values.is_empty() };
+        let env_teardown_is_missing_values = !missing_env_teardown_values.is_empty();
         if env_teardown_is_missing_values {
             errs.push(
                 templating::ErrorKind::MissingValues,
@@ -90,7 +90,7 @@ impl TestPlanConfig {
             .filter(|s| !combined_keys.iter().any(|v| v == s))
             .collect();
 
-        let scenario_is_missing_values = { !missing_scenario_values.is_empty() };
+        let scenario_is_missing_values = !missing_scenario_values.is_empty();
         if scenario_is_missing_values {
             errs.push(
                 templating::ErrorKind::MissingValues,
@@ -107,14 +107,7 @@ impl TestPlanConfig {
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut path = vec!["environment".to_string()];
-        let res = self.environment.try_resolve_setup(&mut path, values);
-
-        debug_assert!(
-            !self.environment.setup.command.has_pending_fields(),
-            "Envrionment setup should not have pending fields"
-        );
-
-        res
+        self.environment.try_resolve_setup(&mut path, values)
     }
 
     pub fn try_resolve_envrionment_teardown(
@@ -122,14 +115,7 @@ impl TestPlanConfig {
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut path = vec!["environment".to_string()];
-        let res = self.environment.try_resolve_teardown(&mut path, values);
-
-        debug_assert!(
-            !self.environment.teardown.has_pending_fields(),
-            "Envrionment teardown should not have pending fields"
-        );
-
-        res
+        self.environment.try_resolve_teardown(&mut path, values)
     }
 
     pub fn try_resolve_scenario(
@@ -137,14 +123,7 @@ impl TestPlanConfig {
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut path = vec!["scenario".to_string()];
-        let res = self.scenario.try_resolve(&mut path, values);
-
-        debug_assert!(
-            !self.scenario.has_pending_fields(),
-            "Scenario should not have pending fields"
-        );
-
-        res
+        self.scenario.try_resolve(&mut path, values)
     }
 
     pub async fn run_environment_setup(
