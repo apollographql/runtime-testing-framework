@@ -2,11 +2,13 @@
 use crate::{
     context::{PathKind, ResolutionContext},
     impl_template,
+    providers::Error,
     providers::Result,
     templating::{self, Field, Scalar, Template},
     validation::{self, Validate},
 };
 use enum_dispatch::enum_dispatch;
+use reqwest::StatusCode;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::HashMap,
@@ -373,12 +375,18 @@ impl AsUtf8FileContent for RouterDownloadScript {
             "https://router.apollo.dev/download/nix/{}",
             self.version.as_resolved()
         );
-        let script = reqwest::get(url.as_str())
-            .await
-            .expect("Failed to download")
-            .text()
-            .await
-            .expect("Failed to read script");
+
+        let response = reqwest::get(url).await.map_err(Error::RequestFailed)?;
+
+        if response.status() == StatusCode::NOT_FOUND {
+            return Err(Error::RouterVersionNotFound(
+                self.version.as_resolved().to_string(),
+            ));
+        } else if !response.status().is_success() {
+            return Err(Error::HttpError(response.status()));
+        }
+
+        let script = response.text().await?;
 
         Ok(script)
     }
