@@ -39,6 +39,11 @@ fn run_command_sanity_check_works() {
 }
 
 #[test]
+fn run_command_matrix_works() {
+    is_valid_test_plan("resources/matrix-values");
+}
+
+#[test]
 fn run_command_command_from_spec_works() {
     is_valid_test_plan("resources/command-from-spec");
 }
