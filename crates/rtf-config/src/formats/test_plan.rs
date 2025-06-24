@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
-    iter, mem,
+    mem,
     path::Path,
 };
 
@@ -53,16 +53,12 @@ impl TestPlanConfig {
     pub fn iter_matrix_variants(&self) -> impl Iterator<Item = Self> {
         // TODO: RR-136 - replaces this with a custom iterator implementation that handles caching
         // providers that are shared between test plan variants.
-        let mut all_vals = self.expanded_matrix_values();
-        all_vals.reverse();
-
-        iter::from_fn(move || {
-            let values = all_vals.pop()?;
+        self.expanded_matrix_values().into_iter().map(|values| {
             let mut new = self.clone();
             new.values = values;
             new.matrix.clear();
 
-            Some(new)
+            new
         })
     }
 
