@@ -1,0 +1,55 @@
+name: matrix-values
+description: |
+  This test plan makes use of a matrix to run variations on an underlying test plan.
+
+values:
+  message: "hello, "
+
+matrix:
+  setup_subject: [ "world!", "sailor" ]
+  scenario_subject: [ "darkness my old friend", "is it me you're looking for?" ]
+
+scenario:
+  inline:
+    name: scenario
+    description: "simply echo out the values that were provided"
+    values:
+      - name: message
+        description: "A message to echo out"
+      - name: scenario_subject
+        description: "Message subject for the scenario command"
+
+    command:
+      name: scenario.sh
+      kind: relative_path
+      path: scripts/echo-message.sh
+    env_vars:
+      MESSAGE: "{{ message }}"
+      SUBJECT: "{{ scenario_subject }}"
+      STAGE: "setup"
+
+environment:
+  inline:
+    name: environment
+    description: "runs the same script as the scenario"
+    values:
+      - name: message
+        description: "A message to echo out"
+      - name: setup_subject
+        description: "Message subject for the setup command"
+
+    setup:
+      command:
+        name: setup.sh
+        kind: relative_path
+        path: scripts/echo-message.sh
+      env_vars:
+        MESSAGE: "{{ message }}"
+        SUBJECT: "{{ setup_subject }}"
+        STAGE: "env-setup"
+
+    teardown:
+      command:
+        name: teardown.sh
+        kind: relative_path
+        path: scripts/teardown.sh

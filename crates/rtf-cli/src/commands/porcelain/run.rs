@@ -34,6 +34,30 @@ async fn validate_and_run_test_plan_with_context(
     let config_dir = ctx.dir_containing(ctx.canonicalize_path(path)?);
     ctx.set_current_dir(config_dir)?;
 
+    if test_plan.matrix.is_empty() {
+        info!("executing test plan");
+        return run_one(test_plan, out_dir, &ctx).await;
+    }
+
+    let n = test_plan.n_matrix_variants();
+
+    for (i, tp) in test_plan.iter_matrix_variants().enumerate() {
+        let sub_dir = out_dir.join(format!("matrix_variant_{i}"));
+        info!("creating output directory for matrix variant {i}/{n}");
+        ctx.create_dir_all(&sub_dir)?;
+
+        info!("executing test plan {i}/{n}");
+        run_one(tp, &sub_dir, &ctx).await?;
+    }
+
+    Ok(())
+}
+
+async fn run_one(
+    mut test_plan: TestPlanConfig,
+    out_dir: &Path,
+    ctx: &impl ResolutionContext,
+) -> anyhow::Result<()> {
     info!("resolving environment setup");
     let mut values = take(&mut test_plan.values);
     test_plan.try_resolve_envrionment_setup(&values)?;
@@ -42,11 +66,11 @@ async fn validate_and_run_test_plan_with_context(
     test_plan.environment.setup.command.try_validate(
         &mut Vec::new(),
         test_plan.sources.environment(),
-        &ctx,
+        ctx,
     )?;
 
     info!("executing environment setup");
-    let setup_provides = test_plan.run_environment_setup(out_dir, &ctx).await?;
+    let setup_provides = test_plan.run_environment_setup(out_dir, ctx).await?;
     values.extend(setup_provides);
 
     info!("resolving scenario and environment teardown commands");
@@ -58,20 +82,20 @@ async fn validate_and_run_test_plan_with_context(
     let mut builder = validation::ErrorBuilder::from(test_plan.scenario.command.try_validate(
         &mut Vec::new(),
         test_plan.sources.scenario(),
-        &ctx,
+        ctx,
     ));
     builder.append(test_plan.environment.teardown.try_validate(
         &mut Vec::new(),
         test_plan.sources.environment(),
-        &ctx,
+        ctx,
     ));
     builder.into_result(())?;
 
     info!("executing scenario");
-    test_plan.run_scenario(out_dir, &ctx).await?;
+    test_plan.run_scenario(out_dir, ctx).await?;
 
     info!("executing environment teardown");
-    test_plan.run_environment_teardown(out_dir, &ctx).await?;
+    test_plan.run_environment_teardown(out_dir, ctx).await?;
 
     info!("done");
 

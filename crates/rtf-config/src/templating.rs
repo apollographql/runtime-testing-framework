@@ -13,6 +13,12 @@ pub enum ErrorKind {
     #[strum(to_string = "conflicting value definitions")]
     ConflictingValues,
 
+    #[strum(to_string = "empty matrix value")]
+    EmptyMatrixValue,
+
+    #[strum(to_string = "inconsistent types for matrix value")]
+    InconsistentMatrixValue,
+
     #[strum(to_string = "invalid templating value")]
     InvalidData,
 

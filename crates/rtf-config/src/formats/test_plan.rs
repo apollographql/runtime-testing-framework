@@ -14,8 +14,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
-    iter,
-    mem::take,
+    iter, mem,
     path::Path,
 };
 
@@ -125,6 +124,21 @@ impl TestPlanConfig {
                 conflicting_keys.join(", "),
                 &[],
             )
+        }
+
+        // Check that all matrix arrays are non-empty and homogeneous
+        for (k, vals) in self.matrix.iter() {
+            let discriminant = match vals.first() {
+                Some(val) => mem::discriminant(val),
+                None => {
+                    errs.push(templating::ErrorKind::EmptyMatrixValue, k, &[]);
+                    continue;
+                }
+            };
+
+            if !vals.iter().all(|v| mem::discriminant(v) == discriminant) {
+                errs.push(templating::ErrorKind::InconsistentMatrixValue, k, &[]);
+            }
         }
 
         // Check that all required values have been defined somewhere within the test plan
@@ -404,7 +418,7 @@ where
     K: Eq + Hash + Ord,
 {
     let mut m = HashMap::with_capacity(v.len());
-    for item in take(v).into_iter() {
+    for item in mem::take(v).into_iter() {
         m.insert(key_fn(&item), item);
     }
     let mut deduped: Vec<T> = m.into_values().collect();
