@@ -1,0 +1,137 @@
+The hello world test plan but using a matrix for defining values.
+
+-- config.yaml --
+name: authenticated-http-get-test
+description: |
+  A test plan for running simple HTTP GET requests against a web server
+  that requires basic auth.
+
+matrix:
+  credentials_env_var: [ "AUTH_HEADER", "AUTH_HEADER_2" ]
+  server_command: [ "python3 server.py", "cargo run" ]
+
+scenario:
+  name: http-get-test
+  description: |
+    Make a series of GET requests against a running web server and assert on
+    getting back the expected responses.
+
+  values:
+    - name: credentials_env_var
+      description: "An environment variable that contains a '$user:$pwd' string"
+    - name: server_url
+      description: "The publicly accessible URL for the service under test"
+
+  command: "scripts/curl_get_test.sh"
+
+  env_vars:
+    AUTH_HEADER: "{{ credentials_env_var }}"
+    SERVER_URL: "{{ server_url }}"
+    VERBOSE: "false"
+
+  file_providers:
+    - name: "requests.json"
+      env_var: REQUESTS_FILE
+      kind: inline
+      content: |
+        { "endpoint": "hello-world", "status": 200, "resp": { "hello": "world" } }
+        { "endpoint": "goodbye-world", "status": 404, "resp": { "error": "not found" } }
+
+environment:
+  name: env-local-service
+  description: "Spin up a locally running HTTP server"
+
+  values:
+    - name: credentials_env_var
+      description: "An environment variable that contains a '$user:$pwd' string"
+    - name: server_command
+      description: "The command to run to start the server"
+
+  setup:
+    command: scripts/start_local_server.sh
+    env_vars:
+      AUTH_HEADER: "{{ credentials_env_var }}"
+      SERVER_COMMAND: "{{ server_command }}"
+      HELLO: "darling"
+
+    provides:
+      - name: server_pid
+        description: "The PID of the running server"
+      - name: server_url
+        description: "The publicly accessible URL for the service under test"
+
+  teardown:
+    command: scripts/stop_local_server.sh
+    env_vars:
+      HELLO: "sailor"
+      SERVER_PID: "{{ server_pid }}"
+      
+-- provides-values --
+server_pid: "000001"
+server_url: "http://server-url"
+
+-- after-templating --
+name: authenticated-http-get-test
+description: |
+  A test plan for running simple HTTP GET requests against a web server
+  that requires basic auth.
+
+matrix:
+  credentials_env_var: [ "AUTH_HEADER", "AUTH_HEADER_2" ]
+  server_command: [ "python3 server.py", "cargo run" ]
+
+scenario:
+  name: http-get-test
+  description: |
+    Make a series of GET requests against a running web server and assert on
+    getting back the expected responses.
+
+  values:
+    - name: credentials_env_var
+      description: "An environment variable that contains a '$user:$pwd' string"
+    - name: server_url
+      description: "The publicly accessible URL for the service under test"
+
+  command: "scripts/curl_get_test.sh"
+
+  env_vars:
+    AUTH_HEADER: "AUTH_HEADER"
+    SERVER_URL: "http://server-url"
+    VERBOSE: "false"
+
+  file_providers:
+    - name: "requests.json"
+      env_var: REQUESTS_FILE
+      kind: inline
+      content: |
+        { "endpoint": "hello-world", "status": 200, "resp": { "hello": "world" } }
+        { "endpoint": "goodbye-world", "status": 404, "resp": { "error": "not found" } }
+
+environment:
+  name: env-local-service
+  description: "Spin up a locally running HTTP server"
+
+  values:
+    - name: credentials_env_var
+      description: "An environment variable that contains a '$user:$pwd' string"
+    - name: server_command
+      description: "The command to run to start the server"
+
+  setup:
+    command: scripts/start_local_server.sh
+    env_vars:
+      AUTH_HEADER: "AUTH_HEADER"
+      SERVER_COMMAND: "python3 server.py"
+      HELLO: "darling"
+
+    provides:
+      - name: server_pid
+        description: "The PID of the running server"
+      - name: server_url
+        description: "The publicly accessible URL for the service under test"
+
+  teardown:
+    command: scripts/stop_local_server.sh
+    env_vars:
+      HELLO: "sailor"
+      SERVER_PID: "000001"

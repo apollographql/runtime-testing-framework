@@ -36,7 +36,7 @@ async fn resolve_test_plan_with_context(
 
     info!("applying values");
     let mut values = values.unwrap_or_default();
-    values.extend(take(&mut test_plan.values));
+    values.extend(take(&mut test_plan.expanded_matrix_values()[0]));
     test_plan.try_resolve(&mut Vec::new(), &values)?;
 
     if validate {

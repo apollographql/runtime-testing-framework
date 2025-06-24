@@ -3,21 +3,30 @@ use crate::{
     formats::{EnvironmentConfig, Error, Result, ScenarioConfig},
     providers::{
         self,
+        command::CommandSection,
         file::{RawSource, Source},
     },
     templating::{self, Scalar, Template},
     validation::{self, Validate},
 };
+use itertools::Itertools;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::{collections::HashMap, hash::Hash, mem::take, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::Hash,
+    mem,
+    path::Path,
+};
 
 /// The format for parsing scenario config
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
 pub struct TestPlanConfig {
     pub name: String,
     pub description: String,
     #[serde(default)]
     pub values: HashMap<String, Scalar>,
+    #[serde(default)]
+    pub matrix: HashMap<String, Vec<Scalar>>,
     pub scenario: ScenarioConfig,
     pub environment: EnvironmentConfig,
     #[serde(skip)]
@@ -36,66 +45,141 @@ impl TestPlanConfig {
         raw.try_into_test_plan(&abs_path, ctx).await
     }
 
+    /// Iteratate over all variants of this test plan that arise from
+    /// [expanding](TestPlanConfig::expanded_matrix_values) any matrix values that it contains.
+    ///
+    /// This will always return at least the base test plan itself if there are no matrix values
+    /// defined.
+    pub fn iter_matrix_variants(&self) -> impl Iterator<Item = Self> {
+        // TODO: RR-136 - replaces this with a custom iterator implementation that handles caching
+        // providers that are shared between test plan variants.
+        self.expanded_matrix_values().into_iter().map(|values| {
+            let mut new = self.clone();
+            new.values = values;
+            new.matrix.clear();
+
+            new
+        })
+    }
+
+    pub fn n_matrix_variants(&self) -> usize {
+        self.matrix
+            .iter()
+            .map(|(k, vals)| vals.iter().map(|v| (k.clone(), v.clone())))
+            .multi_cartesian_product()
+            .count()
+    }
+
+    /// The set of allowed templating values that this test plan supports.
+    ///
+    /// This is the union of values defined as a scalars and those that are part of a matrix
+    fn allowed_values(&self) -> HashSet<&String> {
+        self.values.keys().chain(self.matrix.keys()).collect()
+    }
+
+    /// We expand out matrix values as a cartesean product over all possible sets of values we can
+    /// obtain when combined with any scalar values we have.
+    pub fn expanded_matrix_values(&self) -> Vec<HashMap<String, Scalar>> {
+        if self.matrix.is_empty() {
+            return vec![self.values.clone()];
+        }
+
+        // Ensure that we have a consistent ordering for the vec we return.
+        // The choice of ordering by the map key here is arbitrary but it is easy to document and
+        // quickly check by hand for users when needed.
+        let mut pairs: Vec<_> = self.matrix.iter().collect();
+        pairs.sort_unstable_by(|(k1, _), (k2, _)| k1.cmp(k2));
+
+        pairs
+            .into_iter()
+            .map(|(k, vals)| vals.iter().map(|v| (k.clone(), v.clone())))
+            .multi_cartesian_product()
+            .map(|matrix_vals| {
+                let mut values = self.values.clone();
+                values.extend(matrix_vals);
+                values
+            })
+            .collect()
+    }
+
     pub fn validate_templating_will_work(&mut self) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
-        let missing_env_setup_values: Vec<_> = self
-            .environment
-            .setup
-            .command
-            .required_values()
-            .into_iter()
-            .filter(|s| !self.values.keys().any(|v| v == s))
+        // Check if we have any conflicts between matrix values and scalar values
+        let mut conflicting_keys: Vec<String> = self
+            .values
+            .keys()
+            .filter(|k| self.matrix.contains_key(*k))
+            .cloned()
             .collect();
+        if !conflicting_keys.is_empty() {
+            conflicting_keys.sort_unstable(); // ensure consistent ordering
 
-        let env_setup_is_missing_values = { !missing_env_setup_values.is_empty() };
-        if env_setup_is_missing_values {
             errs.push(
-                templating::ErrorKind::MissingValues,
-                "Environment setup is missing values required for templating",
-                &Vec::<String>::new(),
+                templating::ErrorKind::ConflictingValues,
+                conflicting_keys.join(", "),
+                &[],
             )
         }
 
-        let provides_values = &self.environment.setup.provides;
-        let provides_values_keys: Vec<String> =
-            provides_values.iter().map(|v| v.name.clone()).collect();
+        // Check that all matrix arrays are non-empty and homogeneous
+        for (k, vals) in self.matrix.iter() {
+            let discriminant = match vals.first() {
+                Some(val) => mem::discriminant(val),
+                None => {
+                    errs.push(templating::ErrorKind::EmptyMatrixValue, k, &[]);
+                    continue;
+                }
+            };
 
-        let mut combined_keys: Vec<String> = self.values.keys().cloned().collect();
-        combined_keys.extend(provides_values_keys);
-
-        let missing_env_teardown_values: Vec<_> = self
-            .environment
-            .teardown
-            .required_values()
-            .into_iter()
-            .filter(|s| !combined_keys.iter().any(|v| v == s))
-            .collect();
-
-        let env_teardown_is_missing_values = { !missing_env_teardown_values.is_empty() };
-        if env_teardown_is_missing_values {
-            errs.push(
-                templating::ErrorKind::MissingValues,
-                "Environment teardown is missing values required for templating",
-                &Vec::<String>::new(),
-            )
+            if !vals.iter().all(|v| mem::discriminant(v) == discriminant) {
+                errs.push(templating::ErrorKind::InconsistentMatrixValue, k, &[]);
+            }
         }
 
-        let missing_scenario_values: Vec<_> = self
-            .scenario
-            .required_values()
-            .into_iter()
-            .filter(|s| !combined_keys.iter().any(|v| v == s))
-            .collect();
+        // Check that all required values have been defined somewhere within the test plan
+        let mut check_missing_values =
+            |section: &CommandSection, allowed: &HashSet<&String>, error_path: &[String]| {
+                let mut missing_values: Vec<String> = section
+                    .required_values()
+                    .iter()
+                    .filter(|s| !allowed.contains(*s))
+                    .cloned()
+                    .collect();
 
-        let scenario_is_missing_values = { !missing_scenario_values.is_empty() };
-        if scenario_is_missing_values {
-            errs.push(
-                templating::ErrorKind::MissingValues,
-                "Scenario is missing values required for templating",
-                &Vec::<String>::new(),
-            )
-        }
+                if !missing_values.is_empty() {
+                    missing_values.sort_unstable(); // ensure consistent ordering
+                    errs.push(
+                        templating::ErrorKind::MissingValues,
+                        missing_values.join(", "),
+                        error_path,
+                    )
+                }
+            };
+
+        let mut allowed_values = self.allowed_values();
+
+        check_missing_values(
+            &self.environment.setup.command,
+            &allowed_values,
+            &["environment".to_string(), "setup".to_string()],
+        );
+
+        // The scenario and teardown are permitted to use values coming from setup.provides in
+        // addition to the values declared in the test plan itself
+        allowed_values.extend(self.environment.setup.provides.iter().map(|val| &val.name));
+
+        check_missing_values(
+            &self.environment.teardown,
+            &allowed_values,
+            &["environment".to_string(), "teardown".to_string()],
+        );
+
+        check_missing_values(
+            &self.scenario.command,
+            &allowed_values,
+            &["scenario".to_string()],
+        );
 
         errs.into_result(())
     }
@@ -105,14 +189,7 @@ impl TestPlanConfig {
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut path = vec!["environment".to_string()];
-        let res = self.environment.try_resolve_setup(&mut path, values);
-
-        debug_assert!(
-            !self.environment.setup.command.has_pending_fields(),
-            "Envrionment setup should not have pending fields"
-        );
-
-        res
+        self.environment.try_resolve_setup(&mut path, values)
     }
 
     pub fn try_resolve_envrionment_teardown(
@@ -120,14 +197,7 @@ impl TestPlanConfig {
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut path = vec!["environment".to_string()];
-        let res = self.environment.try_resolve_teardown(&mut path, values);
-
-        debug_assert!(
-            !self.environment.teardown.has_pending_fields(),
-            "Envrionment teardown should not have pending fields"
-        );
-
-        res
+        self.environment.try_resolve_teardown(&mut path, values)
     }
 
     pub fn try_resolve_scenario(
@@ -135,14 +205,7 @@ impl TestPlanConfig {
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut path = vec!["scenario".to_string()];
-        let res = self.scenario.try_resolve(&mut path, values);
-
-        debug_assert!(
-            !self.scenario.has_pending_fields(),
-            "Scenario should not have pending fields"
-        );
-
-        res
+        self.scenario.try_resolve(&mut path, values)
     }
 
     pub async fn run_environment_setup(
@@ -298,6 +361,8 @@ pub struct RawTestPlanConfig {
     pub description: String,
     #[serde(default)]
     pub values: HashMap<String, Scalar>,
+    #[serde(default)]
+    pub matrix: HashMap<String, Vec<Scalar>>,
     pub scenario: ConfigSpec<ScenarioConfig>,
     pub environment: ConfigSpec<EnvironmentConfig>,
 }
@@ -333,6 +398,7 @@ impl RawTestPlanConfig {
             name: self.name,
             description: self.description,
             values: self.values,
+            matrix: self.matrix,
             scenario,
             environment,
             sources: Sources::new(abs_path, scenario_source, environment_source),
@@ -348,7 +414,7 @@ where
     K: Eq + Hash + Ord,
 {
     let mut m = HashMap::with_capacity(v.len());
-    for item in take(v).into_iter() {
+    for item in mem::take(v).into_iter() {
         m.insert(key_fn(&item), item);
     }
     let mut deduped: Vec<T> = m.into_values().collect();
@@ -499,8 +565,10 @@ mod tests {
         let mut plan_config: TestPlanConfig = serde_yaml::from_str(config).unwrap();
         let expected: TestPlanConfig = serde_yaml::from_str(raw_expected).unwrap();
 
+        // For matrices in this test we just want to check that things are valid so we only make
+        // use of the first element for each value
         let mut combined_values = provides_values.clone();
-        combined_values.extend(plan_config.values.clone());
+        combined_values.extend(plan_config.expanded_matrix_values().remove(0));
 
         assert!(plan_config.has_pending_fields(), "fields should be pending");
 
@@ -527,13 +595,14 @@ mod tests {
         let raw_expected = get_file(&arr, "after-templating");
 
         let mut plan_config: TestPlanConfig = serde_yaml::from_str(config).unwrap();
-        let values: HashMap<String, Scalar> = plan_config.values.clone();
         let expected: TestPlanConfig = serde_yaml::from_str(raw_expected).unwrap();
 
-        assert!(
-            plan_config.validate_templating_will_work().is_ok(),
-            "templating should work"
-        );
+        // For matrices in this test we just want to check that things are valid so we only make
+        // use of the first element for each value
+        let values: HashMap<String, Scalar> = plan_config.expanded_matrix_values().remove(0);
+
+        let res = plan_config.validate_templating_will_work();
+        assert!(res.is_ok(), "templating should work: {res:?}");
         assert!(plan_config.has_pending_fields(), "fields should be pending");
 
         let res = plan_config.try_resolve_envrionment_setup(&values);
@@ -544,7 +613,7 @@ mod tests {
         );
 
         let mut combined_values = provides_values.clone();
-        combined_values.extend(plan_config.values.clone());
+        combined_values.extend(values);
 
         let res = plan_config.try_resolve_envrionment_teardown(&combined_values);
         assert!(res.is_ok(), "expected no errors, got {res:?}");
@@ -708,5 +777,51 @@ mod tests {
             expected,
             "expected environment configs to match"
         );
+    }
+
+    macro_rules! values_map {
+        ($($k:expr => $v:expr),+) => {{
+            let mut m = ::std::collections::HashMap::new();
+            $( m.insert($k.to_string(), $crate::templating::Scalar::try_from($v).unwrap()); )+
+            m
+        }};
+    }
+
+    #[test]
+    fn matrix_value_expansion_works_without_any_matrix_values() {
+        let tp = TestPlanConfig {
+            values: values_map!("foo" => 42, "bar" => "life"),
+            ..Default::default()
+        };
+
+        let all_values = tp.expanded_matrix_values();
+        let expected = vec![values_map!("foo" => 42, "bar" => "life")];
+
+        assert_eq!(all_values, expected);
+    }
+
+    #[test]
+    fn matrix_value_expansion_works() {
+        let tp = TestPlanConfig {
+            values: values_map!("foo" => 42, "bar" => "life"),
+            matrix: [
+                ("baz".into(), vec![true.into(), false.into()]),
+                ("qux".into(), vec![1.into(), 2.into()]),
+            ]
+            .into_iter()
+            .collect(),
+            ..Default::default()
+        };
+
+        let all_values = tp.expanded_matrix_values();
+        let expected = vec![
+            values_map!("foo" => 42, "bar" => "life", "baz" => true, "qux" => 1),
+            values_map!("foo" => 42, "bar" => "life", "baz" => true, "qux" => 2),
+            values_map!("foo" => 42, "bar" => "life", "baz" => false, "qux" => 1),
+            values_map!("foo" => 42, "bar" => "life", "baz" => false, "qux" => 2),
+        ];
+
+        assert_eq!(all_values, expected);
+        assert_eq!(tp.n_matrix_variants(), all_values.len());
     }
 }

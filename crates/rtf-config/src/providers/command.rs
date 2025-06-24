@@ -18,7 +18,7 @@ use std::{collections::HashMap, io, path::Path};
 const OUTDIR: &str = "OUTDIR";
 const OUTFILE: &str = "RTF_OUTPUT";
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
 pub struct CommandSection {
     pub command: RawCommand,
     #[serde(default)]
@@ -246,6 +246,12 @@ impl Validate for CommandSection {
 pub enum RawCommand {
     String(String),
     Spec(CommandSpec),
+}
+
+impl Default for RawCommand {
+    fn default() -> Self {
+        Self::String(String::default())
+    }
 }
 
 impl Template for RawCommand {
