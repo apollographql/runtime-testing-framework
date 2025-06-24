@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
+    iter,
     mem::take,
     path::Path,
 };
@@ -43,6 +44,35 @@ impl TestPlanConfig {
         let abs_path = ctx.canonicalize_path(p.as_ref())?;
 
         raw.try_into_test_plan(&abs_path, ctx).await
+    }
+
+    /// Iteratate over all variants of this test plan that arise from
+    /// [expanding](TestPlanConfig::expanded_matrix_values) any matrix values that it contains.
+    ///
+    /// This will always return at least the base test plan itself if there are no matrix values
+    /// defined.
+    pub fn iter_matrix_variants(&self) -> impl Iterator<Item = Self> {
+        // TODO: RR-136 - replaces this with a custom iterator implementation that handles caching
+        // providers that are shared between test plan variants.
+        let mut all_vals = self.expanded_matrix_values();
+        all_vals.reverse();
+
+        iter::from_fn(move || {
+            let values = all_vals.pop()?;
+            let mut new = self.clone();
+            new.values = values;
+            new.matrix.clear();
+
+            Some(new)
+        })
+    }
+
+    pub fn n_matrix_variants(&self) -> usize {
+        self.matrix
+            .iter()
+            .map(|(k, vals)| vals.iter().map(|v| (k.clone(), v.clone())))
+            .multi_cartesian_product()
+            .count()
     }
 
     /// The set of allowed templating values that this test plan supports.
@@ -782,5 +812,6 @@ mod tests {
         ];
 
         assert_eq!(all_values, expected);
+        assert_eq!(tp.n_matrix_variants(), all_values.len());
     }
 }
