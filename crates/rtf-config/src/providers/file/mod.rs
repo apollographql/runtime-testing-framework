@@ -6,6 +6,7 @@ use crate::{
     templating::{self, Field, Scalar, Template},
     validation::{self, Validate},
 };
+use enum_dispatch::enum_dispatch;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::HashMap,
@@ -119,6 +120,7 @@ where
 /// If however you need to write out multiple files or run some additional logic after writing out
 /// a file (such as making it executable) then you should implement this trait directly.
 #[allow(async_fn_in_trait)]
+#[enum_dispatch]
 pub(crate) trait ResolveAndWrite: Validate + DeserializeOwned + fmt::Debug {
     async fn try_get_all_file_contents(
         &self,
@@ -168,6 +170,7 @@ impl DerefMut for NamedFileProvider {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[enum_dispatch(Template, Validate, ResolveAndWrite)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
     GraphosCannedOps(apollo::GraphosCannedOps),
@@ -177,74 +180,6 @@ pub enum FileProvider {
     OfflineGraphosLicense(apollo::OfflineGraphosLicense),
     RelativePath(RelativeFile),
     Required(RequiredFile),
-}
-
-// Helper for generating boilerplate method impls where we just need to defer to the inner type
-// that a FileProvider is wrapping.
-macro_rules! delegate_to_inner {
-    ($self:ident, $method:ident $(, $arg:expr)*) => {
-        match $self {
-            FileProvider::GraphosCannedOps(fp) => fp.$method($($arg),*),
-            FileProvider::GraphosSubgraphs(fp) => fp.$method($($arg),*),
-            FileProvider::GraphosSupergraph(fp) => fp.$method($($arg),*),
-            FileProvider::Inline(fp) => fp.$method($($arg),*),
-            FileProvider::OfflineGraphosLicense(fp) => fp.$method($($arg),*),
-            FileProvider::RelativePath(fp) => fp.$method($($arg),*),
-            FileProvider::Required(fp) => fp.$method($($arg),*),
-        }
-    };
-
-    (@async $self:ident, $method:ident, $($arg:expr),*) => {
-        match $self {
-            FileProvider::GraphosCannedOps(fp) => fp.$method($($arg),*).await,
-            FileProvider::GraphosSubgraphs(fp) => fp.$method($($arg),*).await,
-            FileProvider::GraphosSupergraph(fp) => fp.$method($($arg),*).await,
-            FileProvider::Inline(fp) => fp.$method($($arg),*).await,
-            FileProvider::OfflineGraphosLicense(fp) => fp.$method($($arg),*).await,
-            FileProvider::RelativePath(fp) => fp.$method($($arg),*).await,
-            FileProvider::Required(fp) => fp.$method($($arg),*).await,
-        }
-    };
-}
-
-impl ResolveAndWrite for FileProvider {
-    async fn try_get_all_file_contents(
-        &self,
-        target: impl AsRef<Path>,
-        src: &Source,
-        ctx: &impl ResolutionContext,
-    ) -> Result<Vec<(PathBuf, String)>> {
-        delegate_to_inner!(@async self, try_get_all_file_contents, target, src, ctx)
-    }
-}
-
-impl Template for FileProvider {
-    fn has_pending_fields(&self) -> bool {
-        delegate_to_inner!(self, has_pending_fields)
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        delegate_to_inner!(self, required_values)
-    }
-
-    fn try_resolve(
-        &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        delegate_to_inner!(self, try_resolve, path, values)
-    }
-}
-
-impl Validate for FileProvider {
-    fn try_validate(
-        &self,
-        path: &mut Vec<String>,
-        src: &Source,
-        ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
-        delegate_to_inner!(self, try_validate, path, src, ctx)
-    }
 }
 
 /// The simplest form of file provider: the user specifies the contents of the file inline within

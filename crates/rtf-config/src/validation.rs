@@ -1,6 +1,10 @@
 //! Helpers for validating config files
 use crate::{context::ResolutionContext, providers::file::Source};
+use enum_dispatch::enum_dispatch;
 use std::collections::HashSet;
+
+// We need to bring FileProvider into scope for enum_dispatch to be able to pick it up
+use crate::providers::file::FileProvider;
 
 /// User facing descriptions of the reason that validation failed.
 ///
@@ -41,6 +45,7 @@ pub type Errors = crate::error::Errors<ErrorKind>;
 pub type ErrorBuilder = crate::error::ErrorBuilder<ErrorKind>;
 pub type Result<T> = std::result::Result<T, Errors>;
 
+#[enum_dispatch]
 pub trait Validate {
     /// Run any initial static validation available to error early if this provider contains
     /// invalid data.
