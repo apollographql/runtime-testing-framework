@@ -1,0 +1,28 @@
+name: hello-world-environment
+description: |
+  Runs the same echo script as the scenario during environment setup
+  and simply appends a section terminator to the output file during
+  teardown.
+
+values:
+  - name: message
+    description: "The message to echo out during setup"
+  - name: setup_subject
+    description: "The subject of the setup message"
+
+setup:
+  command:
+    name: echo-message.sh
+    kind: relative_path
+    path: scripts/echo-message.sh
+
+  env_vars:
+    STAGE: "env-setup"
+    MESSAGE: "{{ message }}"
+    SUBJECT: "{{ setup_subject }}"
+
+teardown:
+  command:
+    name: teardown.sh
+    kind: relative_path
+    path: scripts/teardown.sh

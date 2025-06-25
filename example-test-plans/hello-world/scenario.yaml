@@ -1,0 +1,20 @@
+name: hello-world-scenario
+description: |
+  Echo out a simple message based on the template values provided
+  in the test plan.
+
+values:
+  - name: message
+    description: "The message to echo out"
+  - name: scenario_subject
+    description: "The subject of the message"
+
+command:
+  name: echo-message.sh
+  kind: relative_path
+  path: scripts/echo-message.sh
+
+env_vars:
+  STAGE: "scenario"
+  MESSAGE: "{{ message }}"
+  SUBJECT: "{{ scenario_subject }}"
