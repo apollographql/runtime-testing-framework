@@ -359,7 +359,7 @@ impl Validate for RequiredFile {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct RouterDownloadScript {
-    version: Field<String>,
+    pub(crate) version: Field<String>,
 }
 
 impl_template!(RouterDownloadScript => [version]);
