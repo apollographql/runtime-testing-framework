@@ -15,6 +15,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+// We need to bring this into scope for enum_dispatch to be able to pick it up
+use crate::providers::command::CommandProvider;
+
 pub mod apollo;
 
 /// The source of how a particular config file was obtained.
@@ -86,6 +89,7 @@ impl RawSource {
 /// This trait is deliberately pub(crate) rather than pub so that the validation and resolution
 /// logic is only exposed through the public API as part of the methods on the config file structs.
 #[allow(async_fn_in_trait)]
+#[enum_dispatch]
 pub(crate) trait AsUtf8FileContent: Validate + DeserializeOwned + fmt::Debug {
     /// Attempt to run this file provider and convert it into the required file content.
     async fn try_get_file_content(

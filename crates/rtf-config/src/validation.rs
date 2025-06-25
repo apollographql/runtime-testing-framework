@@ -3,8 +3,8 @@ use crate::{context::ResolutionContext, providers::file::Source};
 use enum_dispatch::enum_dispatch;
 use std::collections::HashSet;
 
-// We need to bring FileProvider into scope for enum_dispatch to be able to pick it up
-use crate::providers::file::FileProvider;
+// We need to bring these into scope for enum_dispatch to be able to pick them up
+use crate::providers::{command::CommandProvider, file::FileProvider};
 
 /// User facing descriptions of the reason that validation failed.
 ///

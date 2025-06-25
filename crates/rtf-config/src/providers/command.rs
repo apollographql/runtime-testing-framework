@@ -1,15 +1,15 @@
 use crate::{
     context::ResolutionContext,
     providers::{
-        self, Result,
+        self,
         file::{
-            AsUtf8FileContent, InlineFile, NamedFileProvider, RelativeFile, RequiredFile,
-            ResolveAndWrite, Source,
+            InlineFile, NamedFileProvider, RelativeFile, RequiredFile, ResolveAndWrite, Source,
         },
     },
     templating::{self, Field, Scalar, Template},
     validation::{self, Validate, duplicate_keys},
 };
+use enum_dispatch::enum_dispatch;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io, path::Path};
 
@@ -358,70 +358,12 @@ impl Validate for CommandSpec {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[enum_dispatch(Template, Validate, AsUtf8FileContent)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum CommandProvider {
     Inline(InlineFile),
     RelativePath(RelativeFile),
     Required(RequiredFile),
-}
-
-// Helper for generating boilerplate method impls where we just need to defer to the inner type
-// that a CommandProvider is wrapping.
-macro_rules! delegate_to_inner {
-    ($self:ident, $method:ident $(, $arg:expr)*) => {
-        match $self {
-            CommandProvider::Inline(fp) => fp.$method($($arg),*),
-            CommandProvider::RelativePath(fp) => fp.$method($($arg),*),
-            CommandProvider::Required(fp) => fp.$method($($arg),*),
-        }
-    };
-
-    (@async $self:ident, $method:ident, $($arg:expr),*) => {
-        match $self {
-            CommandProvider::Inline(fp) => fp.$method($($arg),*).await,
-            CommandProvider::RelativePath(fp) => fp.$method($($arg),*).await,
-            CommandProvider::Required(fp) => fp.$method($($arg),*).await,
-        }
-    };
-}
-
-impl AsUtf8FileContent for CommandProvider {
-    async fn try_get_file_content(
-        &self,
-        src: &Source,
-        ctx: &impl ResolutionContext,
-    ) -> Result<String> {
-        delegate_to_inner!(@async self, try_get_file_content, src, ctx)
-    }
-}
-
-impl Template for CommandProvider {
-    fn has_pending_fields(&self) -> bool {
-        delegate_to_inner!(self, has_pending_fields)
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        delegate_to_inner!(self, required_values)
-    }
-
-    fn try_resolve(
-        &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        delegate_to_inner!(self, try_resolve, path, values)
-    }
-}
-
-impl Validate for CommandProvider {
-    fn try_validate(
-        &self,
-        path: &mut Vec<String>,
-        src: &Source,
-        ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
-        delegate_to_inner!(self, try_validate, path, src, ctx)
-    }
 }
 
 #[cfg(test)]
