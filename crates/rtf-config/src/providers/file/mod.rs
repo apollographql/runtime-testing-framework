@@ -2,8 +2,7 @@
 use crate::{
     context::{PathKind, ResolutionContext},
     impl_template,
-    providers::Error,
-    providers::Result,
+    providers::{Error, Result},
     templating::{self, Field, Scalar, Template},
     validation::{self, Validate},
 };
