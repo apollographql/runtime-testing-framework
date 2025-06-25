@@ -378,7 +378,7 @@ impl AsUtf8FileContent for RouterDownloadScript {
         let response = reqwest::get(url).await.map_err(Error::RequestFailed)?;
 
         if response.status() == StatusCode::NOT_FOUND {
-            return Err(Error::RouterVersionNotFound(
+            return Err(Error::UnknownRouterVersion(
                 self.version.as_resolved().to_string(),
             ));
         } else if !response.status().is_success() {

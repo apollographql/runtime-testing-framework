@@ -28,7 +28,7 @@ pub enum Error {
     HttpError(StatusCode),
 
     #[error("Unknown router version: {0}")]
-    RouterVersionNotFound(String),
+    UnknownRouterVersion(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
