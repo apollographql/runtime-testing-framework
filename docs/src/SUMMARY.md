@@ -3,7 +3,7 @@
 [The Apollo Runtime Testing Framework](index.md)
 
 - [Getting started](guides/index.md)
-  - [Setup and hello, world!](guides/hello-world.md)
+  - [Hello, world!](guides/hello-world.md)
   - [Running tests with the CLI](guides/running-a-test-cli.md)
 
 - [Test plans](test-plans/index.md)
