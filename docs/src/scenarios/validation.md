@@ -1,1 +1,0 @@
-# Validating scenario config files
