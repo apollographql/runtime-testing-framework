@@ -1,9 +1,13 @@
 //! Helpers for supporting minimal templating of user config files.
+use enum_dispatch::enum_dispatch;
 use serde::{
     Deserialize, Deserializer, Serialize,
     de::{self, DeserializeOwned, Visitor},
 };
 use std::{collections::HashMap, fmt, marker::PhantomData};
+
+// We need to bring these into scope for enum_dispatch to be able to pick them up
+use crate::providers::{command::CommandProvider, file::FileProvider};
 
 /// User facing descriptions of the reason that templating a [Field] failed.
 ///
@@ -42,6 +46,7 @@ pub type Result<T> = std::result::Result<T, Errors>;
 /// wrapper [Field] type to identify where values need to be injected. A type that implements
 /// [Template] supports walking its contents to locate and resolve fields using a provided map
 /// of scalar values.
+#[enum_dispatch]
 pub trait Template {
     /// Whether or not there are any pending [Field]s contained within this value.
     fn has_pending_fields(&self) -> bool;

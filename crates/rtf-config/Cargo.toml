@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+enum_dispatch = "0.3.13"
 futures.workspace = true
 itertools.workspace = true
 jsonschema = { version = "0.30.0", default-features = false, features = ["resolve-file"] }
