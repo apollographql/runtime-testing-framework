@@ -116,10 +116,10 @@ telemetry:
         endpoint: "127.0.0.1:4317"
         batch_processor:
           scheduled_delay: 20ms
-          max_concurrent_exports: 1000
-          max_export_batch_size: 10000
+          max_concurrent_exports: 100
+          max_export_batch_size: 5000
           max_export_timeout: 5s
-          max_queue_size: 100000
+          max_queue_size: 5000
     metrics:
       otlp:
         enabled: true
@@ -127,10 +127,10 @@ telemetry:
         protocol: grpc
         batch_processor:
           scheduled_delay: 20ms
-          max_concurrent_exports: 1000
-          max_export_batch_size: 10000
+          max_concurrent_exports: 100
+          max_export_batch_size: 5000
           max_export_timeout: 5s
-          max_queue_size: 100000
+          max_queue_size: 5000
       prometheus:
         enabled: true
         listen: 127.0.0.1:9090
