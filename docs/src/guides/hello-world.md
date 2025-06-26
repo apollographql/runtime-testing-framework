@@ -35,7 +35,7 @@ We can use the `rtf resolve` subcommand to pull in the scenario and environment
 config files referenced by the test plan in order to see the full thing. Try
 running the following from the root of the repository:
 ```
-$ rtf 'resolve example-test-plans/hello-world/test-plan.yaml'
+rtf resolve example-test-plans/hello-world/test-plan.yaml
 ```
 
 You should see a larger YAML file containing all of the information `rtf` needs
