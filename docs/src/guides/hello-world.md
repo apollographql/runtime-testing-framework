@@ -69,7 +69,7 @@ rtf run example-test-plans/hello-world/test-plan.yaml
 
 You should also see that you now have an `output` directory in the directory
 you ran `rtf` from. Lets take a look inside:
-```bash
+```
 $ ls output
 combined-output.txt  echo-message.sh  teardown.sh
 
@@ -101,7 +101,7 @@ mechanism in place to prevent you accidentally overwriting existing data or
 merging the output from multiple runs together. We can either remove the
 directory or specify a new one using the `--outdir` flag:
 ```
-$ rtf run 'example-test-plans/hello-world/test-plan.yaml' --outdir=more_output
+$ rtf run example-test-plans/hello-world/test-plan.yaml --outdir=more_output
 
  INFO loading and resolving test plan
  INFO checking if templating will work
@@ -137,8 +137,8 @@ environment config files.
 
 If we run the Test Plan again with quieter logging we can see just the output
 from the scripts being executed:
-```bash
-$ RUST_LOG=warn rtf run 'example-test-plans/hello-world/test-plan.yaml'
+```
+$ RUST_LOG=warn rtf run example-test-plans/hello-world/test-plan.yaml
 
 env-setup :: hello, world!
 scenario :: hello, darkness my old friend
@@ -157,7 +157,7 @@ Lets edit the `test-plan.yaml` to change the value being used for the setup comm
 If we run the Test Plan again we should see that we have new output:
 ```
 $ rm output -rf
-$ RUST_LOG=warn rtf run 'example-test-plans/hello-world/test-plan.yaml'
+$ RUST_LOG=warn rtf run example-test-plans/hello-world/test-plan.yaml
 
 env-setup :: hello, sailor!
 scenario :: hello, darkness my old friend
@@ -177,7 +177,7 @@ reference the same shared value):
 
 ```
 $ rm output -rf
-$ RUST_LOG=warn rtf run 'example-test-plans/hello-world/test-plan.yaml'
+$ RUST_LOG=warn rtf run example-test-plans/hello-world/test-plan.yaml
 
 env-setup :: say hi to the world!
 scenario :: say hi to the darkness my old friend
@@ -210,7 +210,7 @@ values we'd like to use:
 If we run the test plan now we should see something a little different from before:
 ```
 $ rm output -rf
-$ RUST_LOG=warn rtf run 'example-test-plans/hello-world/test-plan.yaml'
+$ RUST_LOG=warn rtf run example-test-plans/hello-world/test-plan.yaml
 
 env-setup :: hello, world!
 scenario :: hello, darkness my old friend
@@ -237,7 +237,7 @@ matrix:
 Then we'll get a run for every _combination_ of values:
 ```
 $ rm output -rf
-$ RUST_LOG=warn rtf run 'example-test-plans/hello-world/test-plan.yaml'
+$ RUST_LOG=warn rtf run example-test-plans/hello-world/test-plan.yaml
 
 env-setup :: hello, world!
 scenario :: hello, darkness my old friend
