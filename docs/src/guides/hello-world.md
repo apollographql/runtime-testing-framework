@@ -48,7 +48,7 @@ Running a Test Plan is as simple as replacing the `resolve` subcommand in the
 example above with `run`. If you now run that from the root of the repository
 you should see the following:
 ```
-$ rtf 'run example-test-plans/hello-world/test-plan.yaml'
+rtf run example-test-plans/hello-world/test-plan.yaml
 
  INFO loading and resolving test plan
  INFO checking if templating will work
