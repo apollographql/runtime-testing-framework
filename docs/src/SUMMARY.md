@@ -17,4 +17,6 @@
 
 - [Troubleshooting](troubleshooting/index.md)
 
+- [Command Line Help](cli-help.md)
+
 - [Glossary](glossary/index.md)

@@ -23,7 +23,7 @@ make changes to the config files in order to alter its behaviour.
 > the [Test Plans](../test-plans/index.md) page.
 
 If we look at the Test Plan itself you should find that as you might expect
-for a "hello, world!" example. there isn't a lot in there:
+for a "hello, world!" example there isn't a lot in there:
 
 ```yaml
 {{ #include ../../../example-test-plans/hello-world/test-plan.yaml }}
@@ -38,7 +38,7 @@ running the following from the root of the repository:
 $ rtf 'resolve example-test-plans/hello-world/test-plan.yaml'
 ```
 
-You should see a larger YAML file contianing all of the information `rtf` needs
+You should see a larger YAML file containing all of the information `rtf` needs
 to be able to run the Test Plan. So, lets try running it!
 
 
@@ -81,7 +81,7 @@ scenario :: hello, darkness my old friend
 
 There's nothing special about the `combined-output.txt` file here: it is just
 being created by the test script we are using in the test plan. The `echo-message.sh`
-and `teardown.sh` scripts have come from the **FileProviders** specifed in our scenario
+and `teardown.sh` scripts have come from the **FileProviders** specified in our scenario
 and environment config files:
 
 
