@@ -1,5 +1,4 @@
 //! Providers are how we expose the rest of the framework to user facing config.
-use reqwest::StatusCode;
 use rtf_core::graphos::supergraph::FetchError;
 use std::io;
 
@@ -23,9 +22,6 @@ pub enum Error {
 
     #[error("Request failed: {0}")]
     RequestFailed(#[from] reqwest::Error),
-
-    #[error("Unexpected server response: {0}")]
-    HttpError(StatusCode),
 
     #[error("Unknown router version: {0}")]
     UnknownRouterVersion(String),

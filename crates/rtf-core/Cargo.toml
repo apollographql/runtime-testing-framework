@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+anyhow = "1.0.97"
 apollo-compiler = "1.27.0"
 graphql_client = "0.14.0"
 futures.workspace = true
@@ -15,6 +16,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+async-trait = "0.1.88"
 
 [dev-dependencies]
 anyhow.workspace = true

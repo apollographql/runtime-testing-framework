@@ -1,6 +1,6 @@
 //! The core [FileProvider] trait and currently supported file provider implementations.
 use crate::{
-    context::{PathKind, ResolutionContext},
+    context::{HttpClient, PathKind, ResolutionContext},
     impl_template,
     providers::{Error, Result},
     templating::{self, Field, Scalar, Template},
@@ -368,23 +368,15 @@ impl AsUtf8FileContent for RouterDownloadScript {
     async fn try_get_file_content(
         &self,
         _src: &Source,
-        _ctx: &impl ResolutionContext,
+        ctx: &impl ResolutionContext,
     ) -> Result<String> {
-        let url = format!(
-            "https://router.apollo.dev/download/nix/{}",
-            self.version.as_resolved()
-        );
-
-        let response = reqwest::get(url).await.map_err(Error::RequestFailed)?;
-
+        let version = self.version.as_resolved();
+        let url = format!("https://router.apollo.dev/download/nix/{}", version);
+        let client = ctx.http_client().expect("to have an http client");
+        let response = client.get(&url).await?;
         if response.status() == StatusCode::NOT_FOUND {
-            return Err(Error::UnknownRouterVersion(
-                self.version.as_resolved().to_string(),
-            ));
-        } else if !response.status().is_success() {
-            return Err(Error::HttpError(response.status()));
+            return Err(Error::UnknownRouterVersion(version.to_string()));
         }
-
         let script = response.text().await?;
 
         Ok(script)

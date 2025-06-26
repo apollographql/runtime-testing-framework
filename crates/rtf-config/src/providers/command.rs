@@ -369,6 +369,7 @@ pub enum CommandProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::context::NullHttpClient;
     use crate::{
         context::{Context, NullPlatformClient, PathKind},
         providers::file::{FileProvider, InlineFile},
@@ -523,6 +524,7 @@ mod tests {
 
     impl ResolutionContext for MockCommandContext {
         type PlatformClient = NullPlatformClient;
+        type HttpClient = NullHttpClient;
 
         fn run_command_blocking<'a>(
             &self,
