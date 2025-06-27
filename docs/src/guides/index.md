@@ -5,7 +5,7 @@ See the Rust [getting started][0] page for details on how to set this up
 if you don't have one already.
 
 Once you have Rust set up you can install `rtf` by cloning the git repository
-using cargo:
+and using cargo:
 ```bash
 $ git clone git@github.com:apollographql/runtime-testing-framework.git
 $ cd runtime-testing-framework
