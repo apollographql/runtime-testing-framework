@@ -371,7 +371,7 @@ impl AsUtf8FileContent for RouterDownloadScript {
         ctx: &impl ResolutionContext,
     ) -> Result<String> {
         let version = self.version.as_resolved();
-        let url = format!("https://router.apollo.dev/download/nix/{}", version);
+        let url = format!("https://router.apollo.dev/download/nix/{version}");
         let client = ctx.http_client().expect("to have an http client");
         let response = client.get(&url).await?;
         if response.status() == StatusCode::NOT_FOUND {
