@@ -17,7 +17,6 @@ thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 reqwest = "0.12.15"
-async-trait = "0.1.88"
 
 [dev-dependencies]
 pretty_assertions.workspace = true

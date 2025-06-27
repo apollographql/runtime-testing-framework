@@ -1967,7 +1967,6 @@ dependencies = [
 name = "rtf-config"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "enum_dispatch",
  "futures",
  "itertools",

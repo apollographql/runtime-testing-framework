@@ -294,9 +294,6 @@ impl ResolutionContext for Context {
     }
 }
 
-#[cfg(test)]
-use async_trait::async_trait;
-
 /// Used to implement [ResolutionContext] in tests where no platform client is needed.
 #[cfg(test)]
 #[derive(Debug, Clone, Copy)]
@@ -318,7 +315,6 @@ impl platform_query::Client for NullPlatformClient {
 pub(crate) struct NullHttpClient;
 
 #[cfg(test)]
-#[async_trait]
 impl HttpClient for NullHttpClient {
     async fn get(&self, _url: &str) -> Result<reqwest::Response, reqwest::Error> {
         panic!("a NullHttpClient can not be used to make requests")

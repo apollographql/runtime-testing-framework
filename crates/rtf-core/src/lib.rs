@@ -11,7 +11,6 @@
 )]
 #![deny(clippy::undocumented_unsafe_blocks)]
 use anyhow::Result;
-use async_trait::async_trait;
 
 pub mod graphos;
 
@@ -76,7 +75,7 @@ impl ReqwestClient {
 }
 
 /// Types that implement HttpClient may be used to perform http requests
-#[async_trait]
+#[allow(async_fn_in_trait)]
 pub trait HttpClient {
     /// Sends an HTTP GET request to the given `url` and returns the full response.
     ///
@@ -86,7 +85,6 @@ pub trait HttpClient {
     async fn get(&self, url: &str) -> Result<reqwest::Response, reqwest::Error>;
 }
 
-#[async_trait]
 impl HttpClient for ReqwestClient {
     async fn get(&self, url: &str) -> Result<reqwest::Response, reqwest::Error> {
         let response = self.inner.get(url).send().await?;
