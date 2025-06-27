@@ -4,7 +4,7 @@
 
 - [Getting started](guides/index.md)
   - [Hello, world!](guides/hello-world.md)
-  - [Running tests with the CLI](guides/running-a-test-cli.md)
+  - [Router Performance Testing](guides/router-perf.md)
 
 - [Test plans](test-plans/index.md)
   - [Writing a new test plan](test-plans/new-test-plan.md)
