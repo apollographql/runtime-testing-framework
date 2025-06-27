@@ -386,10 +386,17 @@ impl AsUtf8FileContent for RouterDownloadScript {
 impl Validate for RouterDownloadScript {
     fn try_validate(
         &self,
-        _path: &mut Vec<String>,
+        path: &mut Vec<String>,
         _src: &Source,
-        _ctx: &impl ResolutionContext,
+        ctx: &impl ResolutionContext,
     ) -> validation::Result<()> {
+        if ctx.http_client().is_none() {
+            return Err(validation::Errors::new(
+                validation::ErrorKind::HttpClientNotFound,
+                "",
+                path,
+            ));
+        }
         Ok(())
     }
 }
