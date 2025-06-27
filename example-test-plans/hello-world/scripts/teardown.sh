@@ -1,3 +1,3 @@
 #!/usr/bin/env sh
 
-echo "---" | tee "$OUTDIR/combined-output.txt"
+echo "---" | tee -a "$OUTDIR/combined-output.txt"
