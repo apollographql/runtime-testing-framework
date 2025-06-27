@@ -374,10 +374,12 @@ impl AsUtf8FileContent for RouterDownloadScript {
         let url = format!("https://router.apollo.dev/download/nix/{version}");
         let client = ctx.http_client().expect("to have an http client");
         let response = client.get(&url).await?;
-        if response.status() == StatusCode::NOT_FOUND {
+        if response.status == StatusCode::NOT_FOUND {
             return Err(Error::UnknownRouterVersion(version.to_string()));
         }
-        let script = response.text().await?;
+        let script = std::str::from_utf8(&response.body)
+            .map_err(|_| Error::Utf8DecodingError)?
+            .to_string();
 
         Ok(script)
     }

@@ -10,7 +10,10 @@
     rustdoc::all
 )]
 #![deny(clippy::undocumented_unsafe_blocks)]
+
 use anyhow::Result;
+use bytes::Bytes;
+use reqwest::{Error, StatusCode};
 
 pub mod graphos;
 
@@ -74,20 +77,38 @@ impl ReqwestClient {
     }
 }
 
+/// Represents the result of an HTTP request made by an `HttpClient`.
+///
+/// Contains the HTTP status code and the raw response body as bytes.
+#[derive(Debug)]
+pub struct HttpResponse {
+    /// The HTTP status code returned by the server (e.g., 200 OK, 404 Not Found).
+    pub status: StatusCode,
+
+    /// The raw response body returned by the server, as bytes.
+    ///
+    /// This may contain any type of content (JSON, text, binary, etc.),
+    /// and should be interpreted by the caller as needed.
+    pub body: Bytes,
+}
+
 /// Types that implement HttpClient may be used to perform http requests
 #[allow(async_fn_in_trait)]
 pub trait HttpClient {
     /// Sends an HTTP GET request to the given `url` and returns the full response.
     ///
     /// This method performs no automatic error handling or status code validation;
-    /// callers are responsible for inspecting the returned [`reqwest::Response`],
-    /// including checking for error status codes.
-    async fn get(&self, url: &str) -> Result<reqwest::Response, reqwest::Error>;
+    /// callers are responsible for interpreting the response body, including parsing
+    /// it as JSON or text if desired, and handling any HTTP status errors.
+    async fn get(&self, url: &str) -> Result<HttpResponse, Error>;
 }
 
 impl HttpClient for ReqwestClient {
-    async fn get(&self, url: &str) -> Result<reqwest::Response, reqwest::Error> {
+    async fn get(&self, url: &str) -> Result<HttpResponse, Error> {
         let response = self.inner.get(url).send().await?;
-        Ok(response)
+        Ok(HttpResponse {
+            status: response.status(),
+            body: response.bytes().await?,
+        })
     }
 }

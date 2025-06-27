@@ -294,6 +294,9 @@ impl ResolutionContext for Context {
     }
 }
 
+#[cfg(test)]
+use rtf_core::HttpResponse;
+
 /// Used to implement [ResolutionContext] in tests where no platform client is needed.
 #[cfg(test)]
 #[derive(Debug, Clone, Copy)]
@@ -316,7 +319,7 @@ pub(crate) struct NullHttpClient;
 
 #[cfg(test)]
 impl HttpClient for NullHttpClient {
-    async fn get(&self, _url: &str) -> Result<reqwest::Response, reqwest::Error> {
+    async fn get(&self, _url: &str) -> Result<HttpResponse, reqwest::Error> {
         panic!("a NullHttpClient can not be used to make requests")
     }
 }

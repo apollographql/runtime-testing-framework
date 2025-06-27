@@ -1993,6 +1993,7 @@ dependencies = [
  "anyhow",
  "apollo-compiler",
  "async-trait",
+ "bytes",
  "futures",
  "graphql_client",
  "itertools",

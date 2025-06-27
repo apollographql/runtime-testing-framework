@@ -23,6 +23,9 @@ pub enum Error {
     #[error("Request failed: {0}")]
     RequestFailed(#[from] reqwest::Error),
 
+    #[error("Error decoding bytes to utf8")]
+    Utf8DecodingError,
+
     #[error("Unknown router version: {0}")]
     UnknownRouterVersion(String),
 }
