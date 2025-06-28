@@ -406,7 +406,9 @@ impl Validate for RouterDownloadScript {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::Context;
+    use crate::context::{Context, NullPlatformClient};
+    use bytes::Bytes;
+    use rtf_core::HttpResponse;
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
     use std::path::PathBuf;
@@ -611,5 +613,154 @@ mod tests {
                 &ctx,
             )
             .await;
+    }
+
+    #[derive(Clone)]
+    struct MockHttpClient;
+
+    impl HttpClient for MockHttpClient {
+        async fn get(&self, url: &str) -> anyhow::Result<HttpResponse, reqwest::Error> {
+            if url.contains("v1.59.1") {
+                Ok(HttpResponse {
+                    status: StatusCode::OK,
+                    body: Bytes::from_static(b"mock router download script"),
+                })
+            } else if url.contains("v12.25.85") {
+                Ok(HttpResponse {
+                    status: StatusCode::NOT_FOUND,
+                    body: Bytes::new(),
+                })
+            } else {
+                panic!("MockHttpClient is not configured to for url {url}")
+            }
+        }
+    }
+
+    #[derive(Clone)]
+    struct MockContext {
+        http: MockHttpClient,
+    }
+
+    impl MockContext {
+        pub fn new() -> Self {
+            Self {
+                http: MockHttpClient,
+            }
+        }
+    }
+
+    impl ResolutionContext for MockContext {
+        type PlatformClient = NullPlatformClient;
+        type HttpClient = MockHttpClient;
+
+        fn platform_client(&self) -> Option<&Self::PlatformClient> {
+            None
+        }
+
+        fn http_client(&self) -> Option<&Self::HttpClient> {
+            Some(&self.http)
+        }
+
+        fn canonicalize_path(&self, _path: impl AsRef<Path>) -> io::Result<PathBuf> {
+            unimplemented!()
+        }
+
+        fn path_kind(&self, _path: impl AsRef<Path>) -> PathKind {
+            unimplemented!()
+        }
+
+        fn read_path_to_string(&self, _path: impl AsRef<Path>) -> io::Result<String> {
+            unimplemented!()
+        }
+
+        fn write(&self, _path: impl AsRef<Path>, _content: impl AsRef<[u8]>) -> io::Result<()> {
+            unimplemented!()
+        }
+
+        fn run_command_blocking<'a>(
+            &self,
+            _prog: &str,
+            _args: impl IntoIterator<Item = &'a str>,
+            _env_vars: &HashMap<String, String>,
+        ) -> io::Result<()> {
+            unimplemented!()
+        }
+
+        fn set_current_dir(&mut self, _path: impl AsRef<Path>) -> io::Result<()> {
+            unimplemented!()
+        }
+
+        fn remove_file(&self, _path: impl AsRef<Path>) -> io::Result<()> {
+            unimplemented!()
+        }
+
+        fn create_dir_all(&self, _path: impl AsRef<Path>) -> io::Result<()> {
+            unimplemented!()
+        }
+    }
+
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/resolution-failures-mock-context")]
+    #[tokio::test]
+    async fn resolution_errors_mock_context(_path: &str, content: &str) {
+        let arr = load_archive(content);
+        let config = get_file(&arr, "config.yaml");
+        let expected = get_file(&arr, "resolution-errors");
+
+        let provider: FileProvider = match serde_yaml::from_str(config) {
+            Ok(provider) => provider,
+            Err(e) => panic!("expected a valid FileProvider, got: {e}"),
+        };
+
+        let dir = PathBuf::from("resources/provider-tests/file/resolution-failures-mock-context")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new();
+        let src = Source::local(dir.join("example.yaml"));
+        let _ = provider.try_validate(&mut Vec::new(), &src, &ctx);
+        let res = provider
+            .try_get_all_file_contents("expected-file-content", &src, &ctx)
+            .await;
+
+        assert!(res.is_err(), "expected resolution failures, got {res:?}");
+        let err = res.unwrap_err();
+        assert_eq!(&err.to_string(), expected, "wrong resolution errors");
+    }
+
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/valid-mock-context")]
+    #[tokio::test]
+    async fn valid_providers_mock_context(_path: &str, content: &str) {
+        let arr = load_archive(content);
+        let config = get_file(&arr, "config.yaml");
+
+        let provider: FileProvider = match serde_yaml::from_str(config) {
+            Ok(provider) => provider,
+            Err(e) => panic!("expected a valid FileProvider, got: {e}"),
+        };
+
+        let dir = PathBuf::from("resources/provider-tests/file/valid-mock-context")
+            .canonicalize()
+            .unwrap();
+        let ctx = MockContext::new();
+        let src = Source::local(dir.join("example.yaml"));
+
+        let res = provider.try_validate(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected to validate but got: {res:?}");
+
+        // We resolve the file provider under a target of "expected-file-content".
+        // For providers returning a single file only, this is the name of the txtar section that
+        // they need to include. For providers that return multiple files the sections should be
+        // named "expected-file-content/$name_of_file".
+        let contents = provider
+            .try_get_all_file_contents("expected-file-content", &src, &ctx)
+            .await
+            .unwrap();
+
+        assert!(!contents.is_empty(), "no file contents returned");
+
+        for (path, content) in contents.into_iter() {
+            let key = path.display().to_string();
+            let expected = get_file(&arr, &key);
+            assert_eq!(content, expected, "wrong file content");
+        }
     }
 }

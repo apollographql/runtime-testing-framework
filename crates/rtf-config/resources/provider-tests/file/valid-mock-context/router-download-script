@@ -1,0 +1,8 @@
+A valid yaml fragment for a router binary
+
+-- config.yaml --
+kind: router_download_script
+version: "v1.59.1"
+
+-- expected-file-content --
+mock router download script
