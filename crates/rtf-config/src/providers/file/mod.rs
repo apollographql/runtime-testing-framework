@@ -469,7 +469,7 @@ mod tests {
         for (path, content) in contents.into_iter() {
             let key = path.display().to_string();
             let expected = get_file(&arr, &key);
-            assert_eq!(content.trim(), expected, "wrong file content");
+            assert_eq!(content, expected, "wrong file content");
         }
     }
 
