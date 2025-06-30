@@ -3,29 +3,20 @@
 [The Apollo Runtime Testing Framework](index.md)
 
 - [Getting started](guides/index.md)
-  - [Running tests with the CLI](guides/running-a-test-cli.md)
-  - [Running tests through the API]()
+  - [Hello, world!](guides/hello-world.md)
+  - [Router Performance Testing](guides/router-perf.md)
 
-- [Test plans](test-plans/index.md)
-  - [Creating a new base test plan](test-plans/new-base-test-plan.md)
-  - [Creating a new test plan](test-plans/new-test-plan.md)
-  - [Validating test plan config files](test-plans/validation.md)
+- [Test plans]()
+  - [Writing a new test plan]()
+  - [Writing a new scenario]()
+  - [Writing a new environment provider]()
+  - [Validating config files]()
 
-- [Test scenarios](scenarios/index.md)
-  - [Creating a new test scenario](scenarios/new-scenario.md)
-  - [Validating scenario config files](scenarios/validation.md)
+- [The framework]()
+  - [Config fragments]()
 
-- [Environment provisioners](environments/index.md)
-  - [Creating a new environment provider](environments/new-env-provider.md)
-  - [Validating environment provider config files](environments/validation.md)
+- [Troubleshooting]()
 
-- [The framework](framework/index.md)
-  - [Config elements]()
-  - [JSON-schema validation]()
-  - [Data generation]()
-  - [Working with supergraphs]()
-  - [Working with subgraphs]()
+- [Command Line Help](cli-help.md)
 
-- [Troubleshooting](troubleshooting/index.md)
-
-- [Glossary](glossary/index.md)
+- [Glossary]()
