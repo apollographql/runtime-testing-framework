@@ -621,12 +621,12 @@ mod tests {
 
     impl HttpClient for MockHttpClient {
         async fn get(&self, url: &str) -> anyhow::Result<HttpResponse, reqwest::Error> {
-            if url.contains("v1.59.1") {
+            if url.ends_with("v1.59.1") {
                 Ok(HttpResponse {
                     status: StatusCode::OK,
                     body: Bytes::from_static(b"mock router download script"),
                 })
-            } else if url.contains("v12.25.85") {
+            } else if url.ends_with("v12.25.85") {
                 Ok(HttpResponse {
                     status: StatusCode::NOT_FOUND,
                     body: Bytes::new(),
