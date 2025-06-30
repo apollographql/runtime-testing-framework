@@ -1,6 +1,6 @@
 //! The core [FileProvider] trait and currently supported file provider implementations.
 use crate::{
-    context::{HttpClient, PathKind, ResolutionContext},
+    context::{PathKind, ResolutionContext},
     impl_template,
     providers::{Error, Result},
     templating::{self, Field, Scalar, Template},
@@ -8,6 +8,7 @@ use crate::{
 };
 use enum_dispatch::enum_dispatch;
 use reqwest::StatusCode;
+use rtf_core::HttpClient;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::HashMap,

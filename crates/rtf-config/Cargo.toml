@@ -16,7 +16,7 @@ strum.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-reqwest = "0.12.15"
+reqwest.workspace = true
 anyhow = "1.0.98"
 bytes = "1.10.1"
 

@@ -369,9 +369,8 @@ pub enum CommandProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::NullHttpClient;
     use crate::{
-        context::{Context, NullPlatformClient, PathKind},
+        context::{Context, NullHttpClient, NullPlatformClient, PathKind},
         providers::file::{FileProvider, InlineFile},
     };
     use simple_test_case::{dir_cases, test_case};
