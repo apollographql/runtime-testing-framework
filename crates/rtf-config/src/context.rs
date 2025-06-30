@@ -1,6 +1,6 @@
 use crate::providers;
 use rtf_core::{
-    APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR, ReqwestClient,
+    APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR, HttpClient, ReqwestClient,
     graphos::{platform_query, supergraph::SupergraphDetails},
 };
 use std::{
@@ -34,12 +34,17 @@ pub enum PathKind {
 #[allow(async_fn_in_trait)]
 pub trait ResolutionContext {
     type PlatformClient: platform_query::Client;
+    type HttpClient: HttpClient;
 
     /// Provide a [Client][platform_query::Client] for making requests to the Apollo platform API.
     ///
     /// If it is not possible for this current context to make requests to the platform API then
     /// this method should return [None].
     fn platform_client(&self) -> Option<&Self::PlatformClient> {
+        None
+    }
+
+    fn http_client(&self) -> Option<&Self::HttpClient> {
         None
     }
 
@@ -190,9 +195,14 @@ impl Context {
 
 impl ResolutionContext for Context {
     type PlatformClient = rtf_core::graphos::PlatformClient;
+    type HttpClient = ReqwestClient;
 
     fn platform_client(&self) -> Option<&Self::PlatformClient> {
         self.client.platform_client()
+    }
+
+    fn http_client(&self) -> Option<&Self::HttpClient> {
+        Some(&self.client)
     }
 
     async fn with_supergraph_details<T>(
@@ -295,6 +305,18 @@ impl platform_query::Client for NullPlatformClient {
         &self,
         _body: &impl serde::Serialize,
     ) -> Result<serde_json::Value, platform_query::Error> {
-        panic!("a NullClient can not be used to make requests")
+        panic!("a NullPlatformClient can not be used to make requests")
+    }
+}
+
+/// Used to implement [ResolutionContext] in tests where no http client is needed.
+#[cfg(test)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct NullHttpClient;
+
+#[cfg(test)]
+impl HttpClient for NullHttpClient {
+    async fn get(&self, _url: &str) -> Result<rtf_core::HttpResponse, reqwest::Error> {
+        panic!("a NullHttpClient can not be used to make requests")
     }
 }

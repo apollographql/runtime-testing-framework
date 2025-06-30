@@ -1855,11 +1855,14 @@ dependencies = [
 name = "rtf-config"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "bytes",
  "enum_dispatch",
  "futures",
  "itertools",
  "jsonschema",
  "pretty_assertions",
+ "reqwest",
  "rtf-core",
  "rtf-test-utils",
  "serde",
@@ -1879,6 +1882,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "apollo-compiler",
+ "bytes",
  "futures",
  "graphql_client",
  "itertools",

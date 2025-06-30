@@ -1,0 +1,9 @@
+Attempting to download a version of the router that does not
+exist should result in a 404 error
+
+-- config.yaml --
+kind: router_download_script
+version: "v12.25.85"
+
+-- resolution-errors --
+Unknown router version: v12.25.85

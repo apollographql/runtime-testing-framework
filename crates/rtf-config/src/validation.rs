@@ -34,6 +34,9 @@ pub enum ErrorKind {
 
     #[strum(to_string = "a required file has not been defined.")]
     RequiredFileMissing,
+
+    #[strum(to_string = "http client not found.")]
+    HttpClientNotFound,
 }
 
 // Type aliases for validation error handling.
