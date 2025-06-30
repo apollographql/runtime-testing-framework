@@ -11,7 +11,6 @@
 )]
 #![deny(clippy::undocumented_unsafe_blocks)]
 
-use anyhow::Result;
 use bytes::Bytes;
 use reqwest::{Error, StatusCode};
 
