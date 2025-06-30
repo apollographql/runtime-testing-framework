@@ -400,6 +400,7 @@ impl Validate for RouterDownloadScript {
                 path,
             ));
         }
+
         Ok(())
     }
 }
