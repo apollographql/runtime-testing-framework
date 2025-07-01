@@ -56,7 +56,6 @@ Template a test plan using provided values, outputting the resulting config to s
 
 ###### **Options:**
 
-* `--values <VALUES>` — Additional values to use while templating, specified as a JSON object
 * `--check` — Run a static check of the resulting test plan after templating
 
 

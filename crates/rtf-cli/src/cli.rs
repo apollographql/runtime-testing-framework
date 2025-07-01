@@ -49,9 +49,6 @@ pub enum Command {
     Template {
         /// Relative path to the test-plan.yaml file that should be templated
         test_plan_path: String,
-        /// Additional values to use while templating, specified as a JSON object
-        #[arg(long)]
-        values: Option<String>,
         /// Run a static check of the resulting test plan after templating
         #[arg(long, action)]
         check: bool,

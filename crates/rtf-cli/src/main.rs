@@ -15,19 +15,19 @@ async fn main() {
         exit(1);
     };
 
-    let res = match Args::parse().command {
+    let Args { command, values } = Args::parse();
+    let res = match command {
         // porcelain commands
         Command::Run {
             test_plan_path,
             outdir,
-        } => check_and_run_test_plan(&test_plan_path, &outdir).await,
+        } => check_and_run_test_plan(&test_plan_path, values, &outdir).await,
 
         // plumbing commands
         Command::Template {
             test_plan_path,
-            values,
             check,
-        } => template_test_plan(&test_plan_path, values.as_deref(), check).await,
+        } => template_test_plan(&test_plan_path, values, check).await,
     };
 
     if let Err(e) = res {
