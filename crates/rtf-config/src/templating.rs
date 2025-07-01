@@ -353,6 +353,35 @@ impl fmt::Display for Scalar {
     }
 }
 
+impl From<bool> for Scalar {
+    fn from(value: bool) -> Self {
+        Scalar::Bool(value)
+    }
+}
+
+impl From<String> for Scalar {
+    fn from(value: String) -> Self {
+        Scalar::String(value)
+    }
+}
+
+impl From<&str> for Scalar {
+    fn from(value: &str) -> Self {
+        Scalar::String(value.to_string())
+    }
+}
+
+impl TryFrom<f64> for Scalar {
+    type Error = &'static str;
+
+    fn try_from(value: f64) -> std::result::Result<Self, &'static str> {
+        Ok(Scalar::Number(Number(
+            serde_json::Number::from_f64(value)
+                .ok_or("NaN and infinite floats are not supported")?,
+        )))
+    }
+}
+
 /// A [Scalar] type which may appear inside of a templated [Field] within a config file.
 pub trait ValidField:
     fmt::Debug + Clone + DeserializeOwned + TryFrom<Scalar, Error = String>
@@ -435,37 +464,6 @@ impl_integer_scalars!(
 mod tests {
     use super::*;
     use simple_test_case::test_case;
-
-    // From / TryFrom impls to help with creating test data
-
-    impl From<bool> for Scalar {
-        fn from(value: bool) -> Self {
-            Scalar::Bool(value)
-        }
-    }
-
-    impl From<String> for Scalar {
-        fn from(value: String) -> Self {
-            Scalar::String(value)
-        }
-    }
-
-    impl From<&str> for Scalar {
-        fn from(value: &str) -> Self {
-            Scalar::String(value.to_string())
-        }
-    }
-
-    impl TryFrom<f64> for Scalar {
-        type Error = &'static str;
-
-        fn try_from(value: f64) -> std::result::Result<Self, &'static str> {
-            Ok(Scalar::Number(Number(
-                serde_json::Number::from_f64(value)
-                    .ok_or("NaN and infinite floats are not supported")?,
-            )))
-        }
-    }
 
     // Helper macro to create a HashMap<String, Scalar>.
     // Intended to be used for easily creating test values for testing templating
