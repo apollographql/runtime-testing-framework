@@ -1,9 +1,9 @@
 A YAML fragment for an local path file provider that references a directory
-rather than a file. This should parse but fail to validate.
+rather than a file. This should parse but fail to check successfully.
 
 -- config.yaml --
 kind: relative_path
 path: ../../../provider-tests
 
--- validation-errors --
+-- check-errors --
 IsADirectory

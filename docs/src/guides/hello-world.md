@@ -55,11 +55,11 @@ rtf run example-test-plans/hello-world/test-plan.yaml
  INFO creating output directory
  INFO executing test plan
  INFO templating environment setup
- INFO validating environment setup
+ INFO checking environment setup
  INFO executing environment setup
 >>> Hello from env-setup!
  INFO templating scenario and environment teardown commands
- INFO validating scenario and environment teardown commands
+ INFO checking scenario and environment teardown commands
  INFO executing scenario
 >>> Hello from scenario!
  INFO executing environment teardown
@@ -108,11 +108,11 @@ $ rtf run example-test-plans/hello-world/test-plan.yaml --outdir=more_output
  INFO creating output directory
  INFO executing test plan
  INFO templating environment setup
- INFO validating environment setup
+ INFO checking environment setup
  INFO executing environment setup
 >>> Hello from env-setup!
  INFO templating scenario and environment teardown commands
- INFO validating scenario and environment teardown commands
+ INFO checking scenario and environment teardown commands
  INFO executing scenario
 >>> Hello from scenario!
  INFO executing environment teardown
@@ -195,7 +195,7 @@ move it under the `matrix` section of our Test Plan and provide the array of
 values we'd like to use:
 
 > Remember to also remove it from the `values` section or your Test Plan will
-> fail to validate!
+> fail its check!
 
 ```diff
  values:

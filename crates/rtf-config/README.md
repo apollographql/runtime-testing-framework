@@ -20,14 +20,14 @@ operate. Each config file is templated in three stages:
 
 For each of these stages we check for any errors or inconsistencies and report
 all known errors to the user as a batch operation. Each of the config file
-structs provides an API for running partial validation and resolution so that
+structs provides an API for running partial checks and templating so that
 end users are able to efficiently debug and iterate on their config files.
 
 
 ## Config resolution & execution
 
 The full resolution and execution of a test plan has the following flow. As
-mentioned above, each step has implicit "validate and report errors" behaviour
+mentioned above, each step has implicit "check and report errors" behaviour
 as part of its execution:
 
 1. Load and template the `TestPlan` file.

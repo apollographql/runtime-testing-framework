@@ -1,5 +1,5 @@
 A YAML fragment for a command section that references a file
-that doesn't exist. This should parse but fail to validate.
+that doesn't exist. This should parse but fail to check successfully.
 
 -- config.yaml --
 command: "scripts/curl_get_test.sh"
@@ -14,5 +14,5 @@ file_providers:
     kind: relative_path
     path: ../does-not-exist.txt
 
--- validation-errors --
+-- check-errors --
 FileNotFound

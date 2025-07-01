@@ -1,10 +1,10 @@
 //! The core [FileProvider] trait and currently supported file provider implementations.
 use crate::{
+    checks::{self, Check},
     context::{PathKind, ResolutionContext},
     impl_template,
     providers::{Error, Result},
     templating::{self, Field, Scalar, Template},
-    validation::{self, Validate},
 };
 use enum_dispatch::enum_dispatch;
 use reqwest::StatusCode;
@@ -92,7 +92,7 @@ impl RawSource {
 /// logic is only exposed through the public API as part of the methods on the config file structs.
 #[allow(async_fn_in_trait)]
 #[enum_dispatch]
-pub(crate) trait AsUtf8FileContent: Validate + DeserializeOwned + fmt::Debug {
+pub(crate) trait AsUtf8FileContent: Check + DeserializeOwned + fmt::Debug {
     /// Attempt to run this file provider and convert it into the required file content.
     async fn try_get_file_content(
         &self,
@@ -127,7 +127,7 @@ where
 /// a file (such as making it executable) then you should implement this trait directly.
 #[allow(async_fn_in_trait)]
 #[enum_dispatch]
-pub(crate) trait ResolveAndWrite: Validate + DeserializeOwned + fmt::Debug {
+pub(crate) trait ResolveAndWrite: Check + DeserializeOwned + fmt::Debug {
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,
@@ -176,7 +176,7 @@ impl DerefMut for NamedFileProvider {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-#[enum_dispatch(Template, Validate, ResolveAndWrite)]
+#[enum_dispatch(Template, Check, ResolveAndWrite)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
     GraphosCannedOps(apollo::GraphosCannedOps),
@@ -208,13 +208,13 @@ impl AsUtf8FileContent for InlineFile {
 
 impl_template!(InlineFile => []);
 
-impl Validate for InlineFile {
-    fn try_validate(
+impl Check for InlineFile {
+    fn try_check(
         &self,
         _path: &mut Vec<String>,
         _src: &Source,
         _ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
+    ) -> checks::Result<()> {
         Ok(())
     }
 }
@@ -271,13 +271,13 @@ impl AsUtf8FileContent for RelativeFile {
     }
 }
 
-impl Validate for RelativeFile {
-    fn try_validate(
+impl Check for RelativeFile {
+    fn try_check(
         &self,
         path: &mut Vec<String>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
+    ) -> checks::Result<()> {
         let res = match src {
             Source::Local { abs_path } => {
                 let dir = match abs_path.parent() {
@@ -292,28 +292,24 @@ impl Validate for RelativeFile {
             Ok(p) => p,
             Err(e) => {
                 let kind = if e.kind() == io::ErrorKind::NotFound {
-                    validation::ErrorKind::FileNotFound
+                    checks::ErrorKind::FileNotFound
                 } else {
-                    validation::ErrorKind::InvalidRelativePath
+                    checks::ErrorKind::InvalidRelativePath
                 };
 
-                return Err(validation::Errors::new(
-                    kind,
-                    self.format_error_message(),
-                    path,
-                ));
+                return Err(checks::Errors::new(kind, self.format_error_message(), path));
             }
         };
 
         match ctx.path_kind(&p) {
             PathKind::File => Ok(()),
-            PathKind::EmptyDir | PathKind::OccupiedDir => Err(validation::Errors::new(
-                validation::ErrorKind::IsADirectory,
+            PathKind::EmptyDir | PathKind::OccupiedDir => Err(checks::Errors::new(
+                checks::ErrorKind::IsADirectory,
                 self.format_error_message(),
                 path,
             )),
-            PathKind::Missing => Err(validation::Errors::new(
-                validation::ErrorKind::FileNotFound,
+            PathKind::Missing => Err(checks::Errors::new(
+                checks::ErrorKind::FileNotFound,
                 self.format_error_message(),
                 path,
             )),
@@ -322,7 +318,7 @@ impl Validate for RelativeFile {
 }
 
 /// The only purpose of this file provider is to throw an error if it still exists
-/// when the file providers are being validated. All definitions of a required file
+/// when the file providers are being checked. All definitions of a required file
 /// are expected to be replaced by user defined file providers.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct RequiredFile {
@@ -336,22 +332,22 @@ impl AsUtf8FileContent for RequiredFile {
         _ctx: &impl ResolutionContext,
     ) -> Result<String> {
         panic!(
-            "Should not be able to get here. Required file should result in an error when validated."
+            "Should not be able to get here. Required file should result in an error when checked."
         )
     }
 }
 
 impl_template!(RequiredFile => []);
 
-impl Validate for RequiredFile {
-    fn try_validate(
+impl Check for RequiredFile {
+    fn try_check(
         &self,
         path: &mut Vec<String>,
         _src: &Source,
         _ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
-        Err(validation::Errors::new(
-            validation::ErrorKind::RequiredFileMissing,
+    ) -> checks::Result<()> {
+        Err(checks::Errors::new(
+            checks::ErrorKind::RequiredFileMissing,
             &self.message,
             path,
         ))
@@ -386,16 +382,16 @@ impl AsUtf8FileContent for RouterDownloadScript {
     }
 }
 
-impl Validate for RouterDownloadScript {
-    fn try_validate(
+impl Check for RouterDownloadScript {
+    fn try_check(
         &self,
         path: &mut Vec<String>,
         _src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
+    ) -> checks::Result<()> {
         if ctx.http_client().is_none() {
-            return Err(validation::Errors::new(
-                validation::ErrorKind::HttpClientNotFound,
+            return Err(checks::Errors::new(
+                checks::ErrorKind::HttpClientNotFound,
                 "",
                 path,
             ));
@@ -454,8 +450,8 @@ mod tests {
         let ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
 
-        let res = provider.try_validate(&mut Vec::new(), &src, &ctx);
-        assert!(res.is_ok(), "expected to validate but got: {res:?}");
+        let res = provider.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected successful check but got: {res:?}");
 
         // We resolve the file provider under a target of "expected-file-content".
         // For providers returning a single file only, this is the name of the txtar section that
@@ -485,26 +481,26 @@ mod tests {
         assert!(res.is_err(), "expected invalid YAML, got: {res:?}");
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/validation-failures")]
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/check-failures")]
     #[test]
-    fn validation_failures(_path: &str, content: &str) {
+    fn check_failures(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
-        let expected = get_file(&arr, "validation-errors");
+        let expected = get_file(&arr, "check-errors");
 
         let provider: FileProvider = match serde_yaml::from_str(config) {
             Ok(provider) => provider,
             Err(e) => panic!("expected a valid FileProvider, got: {e}"),
         };
 
-        let dir = PathBuf::from("resources/provider-tests/file/validation-failures")
+        let dir = PathBuf::from("resources/provider-tests/file/check-failures")
             .canonicalize()
             .unwrap();
         let ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
-        let res = provider.try_validate(&mut Vec::new(), &src, &ctx);
+        let res = provider.try_check(&mut Vec::new(), &src, &ctx);
 
-        assert!(res.is_err(), "expected validation failures");
+        assert!(res.is_err(), "expected check failures");
         let errs = res.unwrap_err();
 
         // Validation Errors are an ordered list of individual errors with a kind.
@@ -586,7 +582,7 @@ mod tests {
             .unwrap();
         let ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
-        let _ = provider.try_validate(&mut Vec::new(), &src, &ctx);
+        let _ = provider.try_check(&mut Vec::new(), &src, &ctx);
         let res = provider
             .try_get_all_file_contents("expected-file-content", &src, &ctx)
             .await;
@@ -598,7 +594,7 @@ mod tests {
 
     #[tokio::test]
     #[should_panic(
-        expected = "Should not be able to get here. Required file should result in an error when validated."
+        expected = "Should not be able to get here. Required file should result in an error when checked."
     )]
     async fn required_file_provider_try_into_file_content_panics() {
         let required_file = RequiredFile {
@@ -718,7 +714,7 @@ mod tests {
             .unwrap();
         let ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
-        let _ = provider.try_validate(&mut Vec::new(), &src, &ctx);
+        let _ = provider.try_check(&mut Vec::new(), &src, &ctx);
         let res = provider
             .try_get_all_file_contents("expected-file-content", &src, &ctx)
             .await;
@@ -745,8 +741,8 @@ mod tests {
         let ctx = MockContext::new();
         let src = Source::local(dir.join("example.yaml"));
 
-        let res = provider.try_validate(&mut Vec::new(), &src, &ctx);
-        assert!(res.is_ok(), "expected to validate but got: {res:?}");
+        let res = provider.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected successful check but got: {res:?}");
 
         // We resolve the file provider under a target of "expected-file-content".
         // For providers returning a single file only, this is the name of the txtar section that

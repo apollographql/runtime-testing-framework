@@ -23,7 +23,7 @@ pub enum PathKind {
     OccupiedDir,
 }
 
-/// Types that implement ResolutionContext may be used to perform IO while validating and resolving
+/// Types that implement ResolutionContext may be used to perform IO while checking and templating
 /// providers.
 ///
 /// This trait is used to allow us to inject mock IO implementations in tests so we do not need to

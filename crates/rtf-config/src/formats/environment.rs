@@ -1,11 +1,11 @@
 //! Parsing of the environment provisioner config file format
 use crate::{
     ValueDefinition,
+    checks::{self, Check, duplicate_keys},
     context::ResolutionContext,
     formats::{Result, filter_values},
     providers::{command::CommandSection, file::Source},
     templating::{self, Scalar, Template},
-    validation::{self, Validate, duplicate_keys},
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, path::Path};
@@ -85,36 +85,29 @@ impl Template for EnvironmentConfig {
     }
 }
 
-impl Validate for EnvironmentConfig {
-    fn try_validate(
+impl Check for EnvironmentConfig {
+    fn try_check(
         &self,
         path: &mut Vec<String>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
-        let mut errs = validation::ErrorBuilder::new();
+    ) -> checks::Result<()> {
+        let mut errs = checks::ErrorBuilder::new();
 
         // Check that hard coded values and the ones coming from setup.provides are unique
         let all_values = self.values.iter().chain(self.setup.provides.iter());
         let duplicates = duplicate_keys(all_values, |v| &v.name);
         if !duplicates.is_empty() {
             errs.push(
-                validation::ErrorKind::DuplicateValueNames,
+                checks::ErrorKind::DuplicateValueNames,
                 duplicates.join("\n"),
                 path,
             );
         }
 
         // Check that each command is valid in isolation
-        errs.append(
-            self.setup
-                .command
-                .try_validate_nested(path, "setup", src, ctx),
-        );
-        errs.append(
-            self.teardown
-                .try_validate_nested(path, "teardown", src, ctx),
-        );
+        errs.append(self.setup.command.try_check_nested(path, "setup", src, ctx));
+        errs.append(self.teardown.try_check_nested(path, "teardown", src, ctx));
 
         errs.into_result(())
     }
@@ -181,31 +174,31 @@ mod tests {
         let src = Source::local(dir);
 
         let env_config = res.unwrap();
-        let res = env_config.try_validate(&mut vec!["environment".to_string()], &src, &ctx);
+        let res = env_config.try_check(&mut vec!["environment".to_string()], &src, &ctx);
 
-        assert!(res.is_ok(), "failed to validate: {res:?}");
+        assert!(res.is_ok(), "failed check: {res:?}");
     }
 
-    #[dir_cases("crates/rtf-config/resources/config-tests/environment/validation-failures")]
+    #[dir_cases("crates/rtf-config/resources/config-tests/environment/check-failures")]
     #[test]
-    fn validation_failures(_path: &str, content: &str) {
+    fn check_failures(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
-        let expected = get_file(&arr, "validation-errors");
+        let expected = get_file(&arr, "check-errors");
 
         let res: serde_yaml::Result<EnvironmentConfig> = serde_yaml::from_str(config);
         assert!(res.is_ok(), "{res:?}");
 
-        let dir = PathBuf::from("resources/config-tests/environment/validation-failures")
+        let dir = PathBuf::from("resources/config-tests/environment/check-failures")
             .canonicalize()
             .unwrap();
         let ctx = Context::new();
         let src = Source::local(dir);
 
         let env_config = res.unwrap();
-        let res = env_config.try_validate(&mut vec!["environment".to_string()], &src, &ctx);
+        let res = env_config.try_check(&mut vec!["environment".to_string()], &src, &ctx);
 
-        assert!(res.is_err(), "expected validation failures");
+        assert!(res.is_err(), "expected check failures");
         let errs = res.unwrap_err();
 
         // Validation Errors are an ordered list of individual errors with a kind.

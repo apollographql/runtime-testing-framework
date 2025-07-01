@@ -1,10 +1,10 @@
 use crate::{
     ValueDefinition,
+    checks::{self, Check},
     context::ResolutionContext,
     formats::{Result, filter_values},
     providers::{command::CommandSection, file::Source},
     templating::{self, Scalar, Template},
-    validation::{self, Validate},
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, path::Path};
@@ -50,14 +50,14 @@ impl Template for ScenarioConfig {
     }
 }
 
-impl Validate for ScenarioConfig {
-    fn try_validate(
+impl Check for ScenarioConfig {
+    fn try_check(
         &self,
         path: &mut Vec<String>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
-        self.command.try_validate_nested(path, "command", src, ctx)
+    ) -> checks::Result<()> {
+        self.command.try_check_nested(path, "command", src, ctx)
     }
 }
 
@@ -108,30 +108,30 @@ mod tests {
         let ctx = Context::new();
         let src = Source::local(dir);
 
-        let res = scenario.try_validate(&mut Vec::new(), &src, &ctx);
-        assert!(res.is_ok(), "expected to validate but got: {res:?}");
+        let res = scenario.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected successful check but got: {res:?}");
     }
 
-    #[dir_cases("crates/rtf-config/resources/config-tests/scenario/validation-failures")]
+    #[dir_cases("crates/rtf-config/resources/config-tests/scenario/check-failures")]
     #[test]
-    fn validation_failures(_path: &str, content: &str) {
+    fn check_failures(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
-        let expected = get_file(&arr, "validation-errors");
+        let expected = get_file(&arr, "check-errors");
 
         let res: serde_yaml::Result<ScenarioConfig> = serde_yaml::from_str(config);
         assert!(res.is_ok(), "{res:?}");
 
-        let dir = PathBuf::from("resources/config-tests/scenario/validation-failures")
+        let dir = PathBuf::from("resources/config-tests/scenario/check-failures")
             .canonicalize()
             .unwrap();
         let ctx = Context::new();
         let src = Source::local(dir);
 
         let scenario_config = res.unwrap();
-        let res = scenario_config.try_validate(&mut Vec::new(), &src, &ctx);
+        let res = scenario_config.try_check(&mut Vec::new(), &src, &ctx);
 
-        assert!(res.is_err(), "expected validation failures");
+        assert!(res.is_err(), "expected check failures");
         let errs = res.unwrap_err();
 
         // Validation Errors are an ordered list of individual errors with a kind.

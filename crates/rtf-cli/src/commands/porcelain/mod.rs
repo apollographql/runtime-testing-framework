@@ -3,4 +3,4 @@
 
 mod run;
 
-pub use run::validate_and_run_test_plan;
+pub use run::check_and_run_test_plan;

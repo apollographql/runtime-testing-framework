@@ -1,4 +1,5 @@
 use crate::{
+    checks::{self, Check},
     context::ResolutionContext,
     formats::{EnvironmentConfig, Error, Result, ScenarioConfig},
     providers::{
@@ -7,7 +8,6 @@ use crate::{
         file::{RawSource, Source},
     },
     templating::{self, Scalar, Template},
-    validation::{self, Validate},
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -102,7 +102,7 @@ impl TestPlanConfig {
             .collect()
     }
 
-    pub fn validate_templating_will_work(&mut self) -> templating::Result<()> {
+    pub fn check_templating_will_work(&mut self) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
         // Check if we have any conflicts between matrix values and scalar values
@@ -287,23 +287,20 @@ impl Template for TestPlanConfig {
     }
 }
 
-impl Validate for TestPlanConfig {
-    fn try_validate(
+impl Check for TestPlanConfig {
+    fn try_check(
         &self,
         path: &mut Vec<String>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
-        let mut errs = validation::ErrorBuilder::from(self.environment.try_validate_nested(
+    ) -> checks::Result<()> {
+        let mut errs = checks::ErrorBuilder::from(self.environment.try_check_nested(
             path,
             "environent",
             src,
             ctx,
         ));
-        errs.append(
-            self.scenario
-                .try_validate_nested(path, "scenario", src, ctx),
-        );
+        errs.append(self.scenario.try_check_nested(path, "scenario", src, ctx));
 
         errs.into_result(())
     }
@@ -354,7 +351,7 @@ impl Sources {
 
 /// The raw format for parsing scenario config. This allows the [ScenarioConfig]
 /// and [EnvironmentConfig] to be retrieved from files or inline content before
-/// being fully templated and validated.
+/// being fully templated and checked.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct RawTestPlanConfig {
     pub name: String,
@@ -550,8 +547,11 @@ mod tests {
         assert!(res.is_ok(), "expected a test plan config, got: {res:?}");
 
         let plan = res.unwrap();
-        let res = plan.try_validate(&mut Vec::new(), &src, &ctx);
-        assert!(res.is_ok(), "expected test plan to validate, got {res:?}");
+        let res = plan.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(
+            res.is_ok(),
+            "expected successful test plan check, got {res:?}"
+        );
         pretty_assertions::assert_eq!(plan, expected, "expected test plan and expected to match");
     }
 
@@ -603,7 +603,7 @@ mod tests {
         // use of the first element for each value
         let values: HashMap<String, Scalar> = plan_config.expanded_matrix_values().remove(0);
 
-        let res = plan_config.validate_templating_will_work();
+        let res = plan_config.check_templating_will_work();
         assert!(res.is_ok(), "templating should work: {res:?}");
         assert!(plan_config.has_pending_fields(), "fields should be pending");
 
@@ -659,7 +659,7 @@ mod tests {
 
         assert!(plan_config.has_pending_fields(), "fields should be pending");
 
-        let res = plan_config.validate_templating_will_work();
+        let res = plan_config.check_templating_will_work();
         assert!(
             res.is_err(),
             "expected templating not to work, got: {res:?}"

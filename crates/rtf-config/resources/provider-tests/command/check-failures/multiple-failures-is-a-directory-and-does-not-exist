@@ -1,6 +1,6 @@
 A YAML fragment for a command that references multiple files. One is a directory
 rather than a file. The other is a file that does not exist. This should parse
-but fail to validate.
+but fail to check successfully.
 
 -- config.yaml --
 command: "scripts/curl_get_test.sh"
@@ -19,6 +19,6 @@ file_providers:
     kind: relative_path
     path: ../does-not-exist.txt
 
--- validation-errors --
+-- check-errors --
 IsADirectory
 FileNotFound

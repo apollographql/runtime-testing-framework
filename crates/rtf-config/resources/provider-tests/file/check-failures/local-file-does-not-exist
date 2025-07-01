@@ -1,9 +1,9 @@
 A YAML fragment for an local path file provider that references a file
-that doesn't exist. This should parse but fail to validate.
+that doesn't exist. This should parse but fail to check successfully.
 
 -- config.yaml --
 kind: relative_path
 path: ../does-not-exist.txt
 
--- validation-errors --
+-- check-errors --
 FileNotFound

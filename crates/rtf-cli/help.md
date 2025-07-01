@@ -16,14 +16,14 @@ A swiss army knife for testing the Apollo Runtime
 
 ###### **Subcommands:**
 
-* `run` — Validate and run a test plan
+* `run` — Check and run a test plan
 * `template` — Template a test plan using provided values, outputting the resulting config to stdout
 
 
 
 ## `rtf run`
 
-Validate and run a test plan
+Check and run a test plan
 
 **Usage:** `rtf run [OPTIONS] <TEST_PLAN_PATH>`
 
@@ -52,7 +52,7 @@ Template a test plan using provided values, outputting the resulting config to s
 ###### **Options:**
 
 * `--values <VALUES>` — Additional values to use while templating, specified as a JSON object
-* `--validate` — Run static validation of the resulting test plan after templating
+* `--check` — Run a static check of the resulting test plan after templating
 
 
 

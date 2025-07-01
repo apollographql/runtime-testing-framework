@@ -1,4 +1,4 @@
-Validation failures in setup should be reported
+check failures in setup should be reported
 
 -- config.yaml --
 name: minimal
@@ -15,6 +15,12 @@ setup:
   env_vars:
     HELLO: "world"
 
+  file_providers:
+    - name: "should-be-invalid"
+      env_var: INVALID
+      kind: required
+      message: Required files should always fail checks
+
   provides:
     - name: server_url
       description: "The publicly accessible URL for the service under test"
@@ -26,11 +32,5 @@ teardown:
   env_vars:
     HELLO: "sailor"
 
-  file_providers:
-    - name: "should-be-invalid"
-      env_var: INVALID
-      kind: required
-      message: Required files should always fail validation
-
--- validation-errors --
+-- check-errors --
 RequiredFileMissing

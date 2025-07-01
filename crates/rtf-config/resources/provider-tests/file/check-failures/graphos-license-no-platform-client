@@ -1,9 +1,9 @@
 A YAML fragment for a GraphOS offline license provider. The context used in this test
-does not provide config for the platform api so this test should fail validation.
+does not provide config for the platform api so this test should fail checks.
 
 -- config.yaml --
 kind: offline_graphos_license
 graph_id: "graph_id"
 
--- validation-errors --
+-- check-errors --
 MissingGraphOsApiKey

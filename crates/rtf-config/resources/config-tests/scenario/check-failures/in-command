@@ -1,4 +1,4 @@
-Validation failures in command should be reported
+check failures in command should be reported
 
 -- config.yaml --
 name: valid-scenario
@@ -18,7 +18,7 @@ file_providers:
   - name: "should-be-invalid"
     env_var: INVALID
     kind: required
-    message: Required files should always fail validation
+    message: Required files should always fail checks
 
--- validation-errors --
+-- check-errors --
 RequiredFileMissing
