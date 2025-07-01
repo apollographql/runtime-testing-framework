@@ -1,24 +1,21 @@
 use crate::commands::get_context_and_outdir;
 use rtf_config::{
+    checks::{self, Check},
     context::ResolutionContext,
     formats::TestPlanConfig,
     templating,
-    validation::{self, Validate},
 };
 use std::{mem::take, path::Path};
 use tracing::info;
 
-pub async fn validate_and_run_test_plan(
-    config_file_path: &str,
-    out_dir: &str,
-) -> anyhow::Result<()> {
+pub async fn check_and_run_test_plan(config_file_path: &str, out_dir: &str) -> anyhow::Result<()> {
     let (ctx, out_dir) = get_context_and_outdir(out_dir)?;
     let out_dir = ctx.canonicalize_path(out_dir)?;
 
-    validate_and_run_test_plan_with_context(config_file_path, &out_dir, ctx).await
+    check_and_run_test_plan_with_context(config_file_path, &out_dir, ctx).await
 }
 
-async fn validate_and_run_test_plan_with_context(
+async fn check_and_run_test_plan_with_context(
     path: &str,
     out_dir: &Path,
     mut ctx: impl ResolutionContext,
@@ -27,7 +24,7 @@ async fn validate_and_run_test_plan_with_context(
     let mut test_plan = TestPlanConfig::try_load_and_resolve_from_path(path, &ctx).await?;
 
     info!("checking if templating will work");
-    test_plan.validate_templating_will_work()?;
+    test_plan.check_templating_will_work()?;
 
     info!("creating output directory");
     ctx.create_dir_all(out_dir)?;
@@ -59,12 +56,12 @@ async fn run_one(
     out_dir: &Path,
     ctx: &impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    info!("resolving environment setup");
+    info!("templating environment setup");
     let mut values = take(&mut test_plan.values);
-    test_plan.try_resolve_envrionment_setup(&values)?;
+    test_plan.try_template_envrionment_setup(&values)?;
 
-    info!("validating environment setup");
-    test_plan.environment.setup.command.try_validate(
+    info!("checking environment setup");
+    test_plan.environment.setup.command.try_check(
         &mut Vec::new(),
         test_plan.sources.environment(),
         ctx,
@@ -74,18 +71,18 @@ async fn run_one(
     let setup_provides = test_plan.run_environment_setup(out_dir, ctx).await?;
     values.extend(setup_provides);
 
-    info!("resolving scenario and environment teardown commands");
-    let mut builder = templating::ErrorBuilder::from(test_plan.try_resolve_scenario(&values));
-    builder.append(test_plan.try_resolve_envrionment_teardown(&values));
+    info!("templating scenario and environment teardown commands");
+    let mut builder = templating::ErrorBuilder::from(test_plan.try_template_scenario(&values));
+    builder.append(test_plan.try_template_envrionment_teardown(&values));
     builder.into_result(())?;
 
-    info!("validating scenario and environment teardown commands");
-    let mut builder = validation::ErrorBuilder::from(test_plan.scenario.command.try_validate(
+    info!("checking scenario and environment teardown commands");
+    let mut builder = checks::ErrorBuilder::from(test_plan.scenario.command.try_check(
         &mut Vec::new(),
         test_plan.sources.scenario(),
         ctx,
     ));
-    builder.append(test_plan.environment.teardown.try_validate(
+    builder.append(test_plan.environment.teardown.try_check(
         &mut Vec::new(),
         test_plan.sources.environment(),
         ctx,

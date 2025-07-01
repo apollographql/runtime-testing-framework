@@ -10,7 +10,7 @@
   - [Writing a new test plan]()
   - [Writing a new scenario]()
   - [Writing a new environment provider]()
-  - [Validating config files]()
+  - [Checking config files]()
 
 - [The framework]()
   - [Config fragments]()

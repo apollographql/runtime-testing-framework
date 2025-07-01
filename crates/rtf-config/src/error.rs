@@ -1,5 +1,5 @@
 //! Generic helpers for working with operations that can return multiple errors, such as templating
-//! and validation.
+//! and checks.
 use std::{fmt, slice, vec};
 
 /// One or more [Error]s.

@@ -1,4 +1,5 @@
 use crate::{
+    checks::{self, Check},
     context::ResolutionContext,
     formats::{EnvironmentConfig, Error, Result, ScenarioConfig},
     providers::{
@@ -7,7 +8,6 @@ use crate::{
         file::{RawSource, Source},
     },
     templating::{self, Scalar, Template},
-    validation::{self, Validate},
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -102,7 +102,7 @@ impl TestPlanConfig {
             .collect()
     }
 
-    pub fn validate_templating_will_work(&mut self) -> templating::Result<()> {
+    pub fn check_templating_will_work(&mut self) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
         // Check if we have any conflicts between matrix values and scalar values
@@ -184,28 +184,28 @@ impl TestPlanConfig {
         errs.into_result(())
     }
 
-    pub fn try_resolve_envrionment_setup(
+    pub fn try_template_envrionment_setup(
         &mut self,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut path = vec!["environment".to_string()];
-        self.environment.try_resolve_setup(&mut path, values)
+        self.environment.try_template_setup(&mut path, values)
     }
 
-    pub fn try_resolve_envrionment_teardown(
+    pub fn try_template_envrionment_teardown(
         &mut self,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut path = vec!["environment".to_string()];
-        self.environment.try_resolve_teardown(&mut path, values)
+        self.environment.try_template_teardown(&mut path, values)
     }
 
-    pub fn try_resolve_scenario(
+    pub fn try_template_scenario(
         &mut self,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut path = vec!["scenario".to_string()];
-        self.scenario.try_resolve(&mut path, values)
+        self.scenario.try_template(&mut path, values)
     }
 
     pub async fn run_environment_setup(
@@ -271,39 +271,36 @@ impl Template for TestPlanConfig {
         vals
     }
 
-    fn try_resolve(
+    fn try_template(
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::from(self.environment.try_resolve_nested(
+        let mut errs = templating::ErrorBuilder::from(self.environment.try_template_nested(
             path,
             "environment",
             values,
         ));
-        errs.append(self.scenario.try_resolve_nested(path, "scenario", values));
+        errs.append(self.scenario.try_template_nested(path, "scenario", values));
 
         errs.into_result(())
     }
 }
 
-impl Validate for TestPlanConfig {
-    fn try_validate(
+impl Check for TestPlanConfig {
+    fn try_check(
         &self,
         path: &mut Vec<String>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
-        let mut errs = validation::ErrorBuilder::from(self.environment.try_validate_nested(
+    ) -> checks::Result<()> {
+        let mut errs = checks::ErrorBuilder::from(self.environment.try_check_nested(
             path,
             "environent",
             src,
             ctx,
         ));
-        errs.append(
-            self.scenario
-                .try_validate_nested(path, "scenario", src, ctx),
-        );
+        errs.append(self.scenario.try_check_nested(path, "scenario", src, ctx));
 
         errs.into_result(())
     }
@@ -354,7 +351,7 @@ impl Sources {
 
 /// The raw format for parsing scenario config. This allows the [ScenarioConfig]
 /// and [EnvironmentConfig] to be retrieved from files or inline content before
-/// being fully templated and validated.
+/// being fully templated and checked.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct RawTestPlanConfig {
     pub name: String,
@@ -550,8 +547,11 @@ mod tests {
         assert!(res.is_ok(), "expected a test plan config, got: {res:?}");
 
         let plan = res.unwrap();
-        let res = plan.try_validate(&mut Vec::new(), &src, &ctx);
-        assert!(res.is_ok(), "expected test plan to validate, got {res:?}");
+        let res = plan.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(
+            res.is_ok(),
+            "expected successful test plan check, got {res:?}"
+        );
         pretty_assertions::assert_eq!(plan, expected, "expected test plan and expected to match");
     }
 
@@ -574,7 +574,7 @@ mod tests {
 
         assert!(plan_config.has_pending_fields(), "fields should be pending");
 
-        let res = plan_config.try_resolve(&mut Vec::new(), &combined_values);
+        let res = plan_config.try_template(&mut Vec::new(), &combined_values);
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
             !plan_config.scenario.has_pending_fields(),
@@ -603,11 +603,11 @@ mod tests {
         // use of the first element for each value
         let values: HashMap<String, Scalar> = plan_config.expanded_matrix_values().remove(0);
 
-        let res = plan_config.validate_templating_will_work();
+        let res = plan_config.check_templating_will_work();
         assert!(res.is_ok(), "templating should work: {res:?}");
         assert!(plan_config.has_pending_fields(), "fields should be pending");
 
-        let res = plan_config.try_resolve_envrionment_setup(&values);
+        let res = plan_config.try_template_envrionment_setup(&values);
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
             !plan_config.environment.setup.command.has_pending_fields(),
@@ -617,14 +617,14 @@ mod tests {
         let mut combined_values = provides_values.clone();
         combined_values.extend(values);
 
-        let res = plan_config.try_resolve_envrionment_teardown(&combined_values);
+        let res = plan_config.try_template_envrionment_teardown(&combined_values);
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
             !plan_config.environment.teardown.has_pending_fields(),
             "fields should be resolved"
         );
 
-        let res = plan_config.try_resolve_scenario(&combined_values);
+        let res = plan_config.try_template_scenario(&combined_values);
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
             !plan_config.scenario.has_pending_fields(),
@@ -659,7 +659,7 @@ mod tests {
 
         assert!(plan_config.has_pending_fields(), "fields should be pending");
 
-        let res = plan_config.validate_templating_will_work();
+        let res = plan_config.check_templating_will_work();
         assert!(
             res.is_err(),
             "expected templating not to work, got: {res:?}"

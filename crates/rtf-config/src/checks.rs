@@ -1,10 +1,7 @@
-//! Helpers for validating config files
+//! Helpers for checking config files
 use crate::{context::ResolutionContext, providers::file::Source};
 use enum_dispatch::enum_dispatch;
 use std::collections::HashSet;
-
-// We need to bring these into scope for enum_dispatch to be able to pick them up
-use crate::providers::{command::CommandProvider, file::FileProvider};
 
 /// User facing descriptions of the reason that validation failed.
 ///
@@ -49,27 +46,27 @@ pub type ErrorBuilder = crate::error::ErrorBuilder<ErrorKind>;
 pub type Result<T> = std::result::Result<T, Errors>;
 
 #[enum_dispatch]
-pub trait Validate {
-    /// Run any initial static validation available to error early if this provider contains
+pub trait Check {
+    /// Run any initial static check available to error early if this provider contains
     /// invalid data.
-    fn try_validate(
+    fn try_check(
         &self,
         path: &mut Vec<String>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<()>;
+    ) -> std::result::Result<(), crate::checks::Errors>;
 
-    fn try_validate_nested(
+    fn try_check_nested(
         &self,
         path: &mut Vec<String>,
         tail: impl Into<String>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<()> {
+    ) -> std::result::Result<(), crate::checks::Errors> {
         let mut path = path.clone();
         path.push(tail.into());
 
-        self.try_validate(&mut path, src, ctx)
+        self.try_check(&mut path, src, ctx)
     }
 }
 

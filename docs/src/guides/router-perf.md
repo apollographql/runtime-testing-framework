@@ -79,23 +79,23 @@ tests that use production data.
 
 ## Replacing placeholder values
 
-Before either of the Test Plans can be validated and ran the placeholder values
+Before either of the Test Plans can be checked and ran the placeholder values
 the contain need to be filled in. Attempting to run them before doing this will
-deliberately fail validation so they can not be run by accident.
+deliberately fail checks so they can not be run by accident.
 
 ### Wrapper
 cd to the root of your checkout of the `runtime-testing-framework` repository
-and run the following command to validate the wrapper test plan:
+and run the following command to check the wrapper test plan:
 ```bash
-rtf resolve example-test-plans/router-scale/wrapper/test-plan.yaml \
-  --validate
+rtf template example-test-plans/router-scale/wrapper/test-plan.yaml \
+  --check
 ```
 
 Doing so with a clean checkout of the repository should give you the following
 (expected) error output:
 ```
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.37s
-     Running `target/debug/rtf resolve example-test-plans/router-scale/wrapper/test-plan.yaml --validate`
+     Running `target/debug/rtf template example-test-plans/router-scale/wrapper/test-plan.yaml --check`
  INFO loading and resolving test plan
  INFO checking if templating will work
  INFO applying values
@@ -104,27 +104,27 @@ ERROR (scenario.command_section.env_vars.RTF_DIR) invalid templating value inval
 
 Open up `example-test-plans/router-scale/wrapper/test-plan.yaml` and set the
 `abs_path_rtf_repo` value to the absolute path of your checkout of this repo.
-Re-running the above command should now output the resolved test plan in your
+Re-running the above command should now output the templated test plan in your
 terminal.
 
 ### Router-perf
-Validating the router-perf test plan looks similar but with an additional
+Checking the router-perf test plan looks similar but with an additional
 argument as we need to manually specify values to use in place of the command
-output from the environment setup (this is only required for validation):
+output from the environment setup (this is only required for checks):
 ```bash
-rtf resolve example-test-plans/router-scale/router-perf/test-plan.yaml \
-  --validate \
+rtf template example-test-plans/router-scale/router-perf/test-plan.yaml \
+  --check \
   --values='{ "router_pid": "1", "router_cgroup": "true" }'
 ```
 
 Again, you should see some expected error output due to placeholder values:
 ```
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.21s
-     Running `target/debug/rtf resolve example-test-plans/router-scale/router-perf/test-plan.yaml --validate '--values={ "router_pid": "1", "router_cgroup": "true" }'`
+     Running `target/debug/rtf template example-test-plans/router-scale/router-perf/test-plan.yaml --check '--values={ "router_pid": "1", "router_cgroup": "true" }'`
  INFO loading and resolving test plan
  INFO checking if templating will work
  INFO applying values
- INFO validating test plan
+ INFO checking test plan
 ERROR (subgraphs) the provided string was not a valid graph ref expected a string of the form 'graph_id@variant'
 (supergraph.graphql) the provided string was not a valid graph ref expected a string of the form 'graph_id@variant'
 (canned_ops.json) the provided string was not a valid graph ref expected a string of the form 'graph_id@variant'
@@ -136,7 +136,7 @@ ERROR (subgraphs) the provided string was not a valid graph ref expected a strin
 
 Open up `example-test-plans/router-scale/router-perf/test-plan.yaml` and set
 the `graph_ref` value to a valid router-scale graph ref from the [router-scale corpus][15].
-Re-running the above command should now output the resolved test plan in your terminal.
+Re-running the above command should now output the templated test plan in your terminal.
 
 With both Test Plans updated you should have a diff that looks something like this:
 ```diff
@@ -147,7 +147,7 @@ index 312489c..82e1a64 100644
 @@ -16,7 +16,7 @@ values:
    random_seed: "b5bb5cd521bf12bd5a18fcfc378ae12d25cf9d4d"
    router_version: "v2.3.0"
-   # This is a deliberately invalid graph ref so that we will fail validation before running
+   # This is a deliberately invalid graph ref so that we will fail checks before running
 -  graph_ref: "CHANGE_ME"
 +  graph_ref: "muppets@latest"
    rps: "100"
@@ -168,7 +168,7 @@ index af201dd..d84f00f 100644
 
 ## Executing the Test Plan
 
-Now that both Test Plans validate you can use the wrapper Test Plan to execute
+Now that both Test Plans check successfully you can use the wrapper Test Plan to execute
 a performance test on an ephemeral VM.
 ```bash
 rtf run example-test-plans/router-scale/wrapper/test-plan.yaml

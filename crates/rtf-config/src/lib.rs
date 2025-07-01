@@ -12,12 +12,12 @@
 #![deny(clippy::undocumented_unsafe_blocks)]
 use serde::{Deserialize, Serialize};
 
+pub mod checks;
 pub mod context;
 pub mod error;
 pub mod formats;
 pub mod providers;
 pub mod templating;
-pub mod validation;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct ValueDefinition {

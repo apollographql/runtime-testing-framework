@@ -1,6 +1,7 @@
 // Unit tests for the parsing and validation of the providers in this file
 // are part of the suite of tests in the mod.rs file
 use crate::{
+    checks::{self, Check},
     context::ResolutionContext,
     impl_template,
     providers::{
@@ -8,7 +9,6 @@ use crate::{
         file::{AsUtf8FileContent, ResolveAndWrite, Source},
     },
     templating::{self, Field, Scalar, Template},
-    validation::{self, Validate},
 };
 use rtf_core::graphos::supergraph::{
     SupergraphDetails,
@@ -49,13 +49,13 @@ impl AsUtf8FileContent for GraphosSupergraph {
 
 impl_template!(GraphosSupergraph => [graph_ref]);
 
-impl Validate for GraphosSupergraph {
-    fn try_validate(
+impl Check for GraphosSupergraph {
+    fn try_check(
         &self,
         path: &mut Vec<String>,
         _src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
+    ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
     }
 }
@@ -96,13 +96,13 @@ impl ResolveAndWrite for GraphosSubgraphs {
 
 impl_template!(GraphosSubgraphs => [graph_ref]);
 
-impl Validate for GraphosSubgraphs {
-    fn try_validate(
+impl Check for GraphosSubgraphs {
+    fn try_check(
         &self,
         path: &mut Vec<String>,
         _src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
+    ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
     }
 }
@@ -161,13 +161,13 @@ impl AsUtf8FileContent for GraphosCannedOps {
 
 impl_template!(GraphosCannedOps => [graph_ref, top_n, skip_mutations]);
 
-impl Validate for GraphosCannedOps {
-    fn try_validate(
+impl Check for GraphosCannedOps {
+    fn try_check(
         &self,
         path: &mut Vec<String>,
         _src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
+    ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
     }
 }
@@ -194,13 +194,13 @@ impl AsUtf8FileContent for OfflineGraphosLicense {
 
 impl_template!(OfflineGraphosLicense => [graph_id]);
 
-impl Validate for OfflineGraphosLicense {
-    fn try_validate(
+impl Check for OfflineGraphosLicense {
+    fn try_check(
         &self,
         path: &mut Vec<String>,
         _src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
+    ) -> checks::Result<()> {
         validate_client(path, ctx)
     }
 }
@@ -209,11 +209,11 @@ fn validate_graph_ref_and_client(
     graph_ref: &str,
     path: &[String],
     ctx: &impl ResolutionContext,
-) -> validation::Result<()> {
-    let mut errs = validation::ErrorBuilder::new();
+) -> checks::Result<()> {
+    let mut errs = checks::ErrorBuilder::new();
     if !graph_ref.contains('@') {
         errs.push(
-            validation::ErrorKind::InvalidGraphRef,
+            checks::ErrorKind::InvalidGraphRef,
             "expected a string of the form 'graph_id@variant'",
             path,
         );
@@ -223,10 +223,10 @@ fn validate_graph_ref_and_client(
     errs.into_result(())
 }
 
-fn validate_client(path: &[String], ctx: &impl ResolutionContext) -> validation::Result<()> {
+fn validate_client(path: &[String], ctx: &impl ResolutionContext) -> checks::Result<()> {
     if ctx.platform_client().is_none() {
-        return Err(validation::Errors::new(
-            validation::ErrorKind::MissingGraphOsApiKey,
+        return Err(checks::Errors::new(
+            checks::ErrorKind::MissingGraphOsApiKey,
             "",
             path,
         ));

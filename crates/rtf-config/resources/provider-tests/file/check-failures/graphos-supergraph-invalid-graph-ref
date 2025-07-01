@@ -1,10 +1,10 @@
 A YAML fragment for a GraphOS supergraph provider. The context used in this test
-does not provide config for the platform api so this test should fail validation.
+does not provide config for the platform api so this test should fail checks.
 
 -- config.yaml --
 kind: graphos_supergraph
 graph_ref: "not-a-real-ref"
 
--- validation-errors --
+-- check-errors --
 InvalidGraphRef
 MissingGraphOsApiKey

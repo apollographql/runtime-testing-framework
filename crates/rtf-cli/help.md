@@ -6,7 +6,7 @@ This document contains the help content for the `rtf` command-line program.
 
 * [`rtf`↴](#rtf)
 * [`rtf run`↴](#rtf-run)
-* [`rtf resolve`↴](#rtf-resolve)
+* [`rtf template`↴](#rtf-template)
 
 ## `rtf`
 
@@ -16,14 +16,14 @@ A swiss army knife for testing the Apollo Runtime
 
 ###### **Subcommands:**
 
-* `run` — Validate and run a test plan
-* `resolve` — Resolve a test plan using provided values, outputting the resulting config to stdout
+* `run` — Check and run a test plan
+* `template` — Template a test plan using provided values, outputting the resulting config to stdout
 
 
 
 ## `rtf run`
 
-Validate and run a test plan
+Check and run a test plan
 
 **Usage:** `rtf run [OPTIONS] <TEST_PLAN_PATH>`
 
@@ -39,20 +39,20 @@ Validate and run a test plan
 
 
 
-## `rtf resolve`
+## `rtf template`
 
-Resolve a test plan using provided values, outputting the resulting config to stdout
+Template a test plan using provided values, outputting the resulting config to stdout
 
-**Usage:** `rtf resolve [OPTIONS] <TEST_PLAN_PATH>`
+**Usage:** `rtf template [OPTIONS] <TEST_PLAN_PATH>`
 
 ###### **Arguments:**
 
-* `<TEST_PLAN_PATH>` — Relative path to the test-plan.yaml file that should be resolve
+* `<TEST_PLAN_PATH>` — Relative path to the test-plan.yaml file that should be templated
 
 ###### **Options:**
 
 * `--values <VALUES>` — Additional values to use while templating, specified as a JSON object
-* `--validate` — Run static validation of the resulting test plan after templating
+* `--check` — Run a static check of the resulting test plan after templating
 
 
 

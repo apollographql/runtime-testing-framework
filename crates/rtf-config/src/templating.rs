@@ -33,7 +33,7 @@ pub enum ErrorKind {
     UnknownValue,
 }
 
-// Type aliases for validation error handling.
+// Type aliases for checks error handling.
 // Elsewhere in the codebase we should always refer to these aliases rather than parameterising the
 // generic types from the error module.
 
@@ -44,19 +44,19 @@ pub type Result<T> = std::result::Result<T, Errors>;
 
 /// In order to support controlled templating of config files with [Scalar] values we make use of a
 /// wrapper [Field] type to identify where values need to be injected. A type that implements
-/// [Template] supports walking its contents to locate and resolve fields using a provided map
+/// [Template] supports walking its contents to locate and template fields using a provided map
 /// of scalar values.
 #[enum_dispatch]
 pub trait Template {
     /// Whether or not there are any pending [Field]s contained within this value.
     fn has_pending_fields(&self) -> bool;
 
-    /// The list of template values that are required to resolve this type fully.
+    /// The list of template values that are required to template this type fully.
     fn required_values(&self) -> Vec<String>;
 
     /// Attempt to resolve all pending [Field]s, appending encountered errors to the `errs` vec
     /// provided.
-    fn try_resolve(
+    fn try_template(
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
@@ -64,8 +64,8 @@ pub trait Template {
 
     /// Attempt to resolve all pending [Field]s when this type is a child of some parent
     /// [Template], appending encountered errors to the `errs` vec provided. The provided `tail`
-    /// will be appended to `path` before calling through to [Template::try_resolve].
-    fn try_resolve_nested(
+    /// will be appended to `path` before calling through to [Template::try_template].
+    fn try_template_nested(
         &mut self,
         path: &mut Vec<String>,
         tail: impl Into<String>,
@@ -73,14 +73,14 @@ pub trait Template {
     ) -> Result<()> {
         let mut path = path.clone();
         path.push(tail.into());
-        self.try_resolve(&mut path, values)
+        self.try_template(&mut path, values)
     }
 
     /// Attempt to resolve all known [Field]s, reporting required values that are not present in
     /// the provided map. If there are any deserialization errors then then this method as an
     /// aggregate operation will fail.
-    fn try_resolve_known(&mut self, values: &HashMap<String, Scalar>) -> Result<Vec<String>> {
-        let all_errs = match self.try_resolve(&mut Vec::new(), values) {
+    fn try_template_known(&mut self, values: &HashMap<String, Scalar>) -> Result<Vec<String>> {
+        let all_errs = match self.try_template(&mut Vec::new(), values) {
             Ok(_) => return Ok(Vec::new()),
             Err(errs) => errs,
         };
@@ -126,7 +126,7 @@ macro_rules! impl_template {
                 Vec::new()
             }
 
-            fn try_resolve(
+            fn try_template(
                 &mut self,
                 _path: &mut Vec<String>,
                 _values: &HashMap<String, Scalar>,
@@ -153,16 +153,16 @@ macro_rules! impl_template {
                 vals
             }
 
-            fn try_resolve(
+            fn try_template(
                 &mut self,
                 path: &mut Vec<String>,
                 values: &HashMap<String, Scalar>,
             ) -> templating::Result<()> {
                 #[allow(unused_mut)]
                 let mut errs = templating::ErrorBuilder::from(
-                    self.$first_field.try_resolve_nested(path, stringify!($first_field), values),
+                    self.$first_field.try_template_nested(path, stringify!($first_field), values),
                 );
-                $(errs.append(self.$field.try_resolve_nested(path, stringify!($field), values));)*
+                $(errs.append(self.$field.try_template_nested(path, stringify!($field), values));)*
 
                 errs.into_result(())
             }
@@ -223,7 +223,7 @@ where
         }
     }
 
-    fn try_resolve(
+    fn try_template(
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
@@ -580,13 +580,13 @@ mod tests {
             vals
         }
 
-        fn try_resolve(
+        fn try_template(
             &mut self,
             path: &mut Vec<String>,
             values: &HashMap<String, Scalar>,
         ) -> Result<()> {
-            let mut errs = ErrorBuilder::from(self.foo.try_resolve_nested(path, "foo", values));
-            errs.append(self.bar.try_resolve_nested(path, "bar", values));
+            let mut errs = ErrorBuilder::from(self.foo.try_template_nested(path, "foo", values));
+            errs.append(self.bar.try_template_nested(path, "bar", values));
 
             errs.into_result(())
         }
@@ -606,12 +606,12 @@ mod tests {
             self.baz.required_values()
         }
 
-        fn try_resolve(
+        fn try_template(
             &mut self,
             path: &mut Vec<String>,
             values: &HashMap<String, Scalar>,
         ) -> Result<()> {
-            self.baz.try_resolve_nested(path, "baz", values)
+            self.baz.try_template_nested(path, "baz", values)
         }
     }
 
@@ -630,7 +630,7 @@ bar:
         let mut t: T = serde_yaml::from_str(RESOLVE_NO_PENDING).unwrap();
         assert!(!t.has_pending_fields(), "shouldn't have any pending fields");
 
-        let res = t.try_resolve(&mut Vec::new(), &values_map!());
+        let res = t.try_template(&mut Vec::new(), &values_map!());
 
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert_eq!(
@@ -653,7 +653,7 @@ bar:
             "value_A" => true,
             "value_B" => 17
         );
-        let res = t.try_resolve(&mut Vec::new(), &vals);
+        let res = t.try_template(&mut Vec::new(), &vals);
 
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert_eq!(
@@ -673,7 +673,7 @@ bar:
         assert!(t.has_pending_fields(), "should have pending fields");
 
         let vals = values_map!("value_A" => true);
-        let res = t.try_resolve_known(&vals);
+        let res = t.try_template_known(&vals);
 
         assert!(res.is_ok(), "expected no errors, got {res:?}");
 
@@ -697,7 +697,7 @@ bar:
         assert!(t.has_pending_fields(), "should have pending fields");
 
         let vals = values_map!();
-        let res = t.try_resolve_known(&vals);
+        let res = t.try_template_known(&vals);
 
         assert!(res.is_ok(), "expected no errors, got {res:?}");
 
@@ -721,7 +721,7 @@ bar:
         assert!(t.has_pending_fields(), "should have pending fields");
 
         let vals = values_map!("value_A" => true, "value_B" => 1.23);
-        let res = t.try_resolve_known(&vals);
+        let res = t.try_template_known(&vals);
 
         assert!(res.is_err(), "expected errors, got {res:?}");
 

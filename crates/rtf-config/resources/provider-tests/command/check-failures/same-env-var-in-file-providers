@@ -1,5 +1,5 @@
 A YAML fragment for a command section where two file providers reference the same environment 
-variable. This should parse but fail to validate.
+variable. This should parse but fail to check successfully.
 
 -- config.yaml --
 command: "scripts/curl_get_test.sh"
@@ -24,5 +24,5 @@ file_providers:
         split over multiple lines.
         How nice.
 
--- validation-errors --
+-- check-errors --
 DuplicateEnvironmentVariables

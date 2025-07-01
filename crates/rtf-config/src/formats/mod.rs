@@ -1,5 +1,5 @@
 //! The various different config file formats that we support
-use crate::{ValueDefinition, providers, templating::Scalar, validation};
+use crate::{ValueDefinition, checks, providers, templating::Scalar};
 use std::{collections::HashMap, io};
 
 mod environment;
@@ -20,7 +20,7 @@ pub enum Error {
     InvalidSetupOutput { missing: Vec<String> },
 
     #[error("the config file being parsed was invalid:\n{0}")]
-    Validation(#[from] validation::Errors),
+    Validation(#[from] checks::Errors),
 
     // wrapped errors
     #[error(transparent)]

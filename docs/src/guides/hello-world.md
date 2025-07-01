@@ -15,7 +15,7 @@ and terminology involved with using the tool. We'll start with the "hello,
 world!" test plan (that you can probably guess the behaviour of) which can
 be found at [example-test-plans/hello-world/test-plan.yaml][1].
 
-We're going to start with simply resolving and running the Test Plan as it
+We're going to start with simply templating and running the Test Plan as it
 is written, before taking a quick look at a couple of simple ways we can
 make changes to the config files in order to alter its behaviour.
 
@@ -31,11 +31,11 @@ for a "hello, world!" example there isn't a lot in there:
 
 ## Pre-Flight Checks
 
-We can use the `rtf resolve` subcommand to pull in the scenario and environment
+We can use the `rtf template` subcommand to pull in the scenario and environment
 config files referenced by the test plan in order to see the full thing. Try
 running the following from the root of the repository:
 ```
-rtf resolve example-test-plans/hello-world/test-plan.yaml
+rtf template example-test-plans/hello-world/test-plan.yaml
 ```
 
 You should see a larger YAML file containing all of the information `rtf` needs
@@ -44,7 +44,7 @@ to be able to run the Test Plan. So, lets try running it!
 
 ## Running a Test Plan
 
-Running a Test Plan is as simple as replacing the `resolve` subcommand in the
+Running a Test Plan is as simple as replacing the `template` subcommand in the
 example above with `run`. If you now run that from the root of the repository
 you should see the following:
 ```
@@ -54,12 +54,12 @@ rtf run example-test-plans/hello-world/test-plan.yaml
  INFO checking if templating will work
  INFO creating output directory
  INFO executing test plan
- INFO resolving environment setup
- INFO validating environment setup
+ INFO templating environment setup
+ INFO checking environment setup
  INFO executing environment setup
 >>> Hello from env-setup!
- INFO resolving scenario and environment teardown commands
- INFO validating scenario and environment teardown commands
+ INFO templating scenario and environment teardown commands
+ INFO checking scenario and environment teardown commands
  INFO executing scenario
 >>> Hello from scenario!
  INFO executing environment teardown
@@ -107,12 +107,12 @@ $ rtf run example-test-plans/hello-world/test-plan.yaml --outdir=more_output
  INFO checking if templating will work
  INFO creating output directory
  INFO executing test plan
- INFO resolving environment setup
- INFO validating environment setup
+ INFO templating environment setup
+ INFO checking environment setup
  INFO executing environment setup
 >>> Hello from env-setup!
- INFO resolving scenario and environment teardown commands
- INFO validating scenario and environment teardown commands
+ INFO templating scenario and environment teardown commands
+ INFO checking scenario and environment teardown commands
  INFO executing scenario
 >>> Hello from scenario!
  INFO executing environment teardown
@@ -195,7 +195,7 @@ move it under the `matrix` section of our Test Plan and provide the array of
 values we'd like to use:
 
 > Remember to also remove it from the `values` section or your Test Plan will
-> fail to validate!
+> fail its check!
 
 ```diff
  values:

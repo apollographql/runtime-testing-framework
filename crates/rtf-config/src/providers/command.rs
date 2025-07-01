@@ -1,4 +1,5 @@
 use crate::{
+    checks::{self, Check, duplicate_keys},
     context::ResolutionContext,
     providers::{
         self,
@@ -7,7 +8,6 @@ use crate::{
         },
     },
     templating::{self, Field, Scalar, Template},
-    validation::{self, Validate, duplicate_keys},
 };
 use enum_dispatch::enum_dispatch;
 use serde::{Deserialize, Serialize};
@@ -177,20 +177,20 @@ impl Template for CommandSection {
         vals
     }
 
-    fn try_resolve(
+    fn try_template(
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
-        errs.append(self.command.try_resolve_nested(path, "command", values));
+        errs.append(self.command.try_template_nested(path, "command", values));
 
         path.push("env_vars".to_string());
 
         for (name, f) in self.env_vars.iter_mut() {
             let tail = name.clone();
-            errs.append(f.try_resolve_nested(path, tail, values));
+            errs.append(f.try_template_nested(path, tail, values));
         }
 
         path.pop();
@@ -198,27 +198,27 @@ impl Template for CommandSection {
 
         for nfp in self.file_providers.iter_mut() {
             let tail = nfp.env_var.clone();
-            errs.append(nfp.try_resolve_nested(path, tail, values));
+            errs.append(nfp.try_template_nested(path, tail, values));
         }
 
         errs.into_result(())
     }
 }
 
-impl Validate for CommandSection {
-    fn try_validate(
+impl Check for CommandSection {
+    fn try_check(
         &self,
         path: &mut Vec<String>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
-        let mut errs = validation::ErrorBuilder::new();
+    ) -> checks::Result<()> {
+        let mut errs = checks::ErrorBuilder::new();
 
-        errs.append(self.command.try_validate_nested(path, "command", src, ctx));
+        errs.append(self.command.try_check_nested(path, "command", src, ctx));
 
         for nfp in self.file_providers.iter() {
             let tail = nfp.name.clone();
-            errs.append(nfp.provider.try_validate_nested(path, tail, src, ctx));
+            errs.append(nfp.provider.try_check_nested(path, tail, src, ctx));
         }
 
         let env_var_names = self
@@ -231,7 +231,7 @@ impl Validate for CommandSection {
 
         if !duplicates.is_empty() {
             errs.push(
-                validation::ErrorKind::DuplicateEnvironmentVariables,
+                checks::ErrorKind::DuplicateEnvironmentVariables,
                 duplicates.join("\n"),
                 path,
             );
@@ -269,28 +269,28 @@ impl Template for RawCommand {
         }
     }
 
-    fn try_resolve(
+    fn try_template(
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         match self {
             RawCommand::String(_s) => Ok(()),
-            RawCommand::Spec(spec) => spec.try_resolve(path, values),
+            RawCommand::Spec(spec) => spec.try_template(path, values),
         }
     }
 }
 
-impl Validate for RawCommand {
-    fn try_validate(
+impl Check for RawCommand {
+    fn try_check(
         &self,
         path: &mut Vec<String>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
+    ) -> checks::Result<()> {
         match self {
             RawCommand::String(_s) => Ok(()),
-            RawCommand::Spec(spec) => spec.try_validate(path, src, ctx),
+            RawCommand::Spec(spec) => spec.try_check(path, src, ctx),
         }
     }
 }
@@ -320,37 +320,37 @@ impl Template for CommandSpec {
         vals
     }
 
-    fn try_resolve(
+    fn try_template(
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::from(self.command_provider.try_resolve_nested(
+        let mut errs = templating::ErrorBuilder::from(self.command_provider.try_template_nested(
             path,
             "command_provider",
             values,
         ));
 
         for arg in self.args.iter_mut() {
-            errs.append(arg.try_resolve_nested(path, stringify!(arg), values));
+            errs.append(arg.try_template_nested(path, stringify!(arg), values));
         }
 
         errs.into_result(())
     }
 }
 
-impl Validate for CommandSpec {
-    fn try_validate(
+impl Check for CommandSpec {
+    fn try_check(
         &self,
         path: &mut Vec<String>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> validation::Result<()> {
-        let mut errs = validation::ErrorBuilder::new();
+    ) -> checks::Result<()> {
+        let mut errs = checks::ErrorBuilder::new();
 
         errs.append(
             self.command_provider
-                .try_validate_nested(path, "command_provider", src, ctx),
+                .try_check_nested(path, "command_provider", src, ctx),
         );
 
         errs.into_result(())
@@ -358,7 +358,7 @@ impl Validate for CommandSpec {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-#[enum_dispatch(Template, Validate, AsUtf8FileContent)]
+#[enum_dispatch(Template, Check, AsUtf8FileContent)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum CommandProvider {
     Inline(InlineFile),
@@ -416,8 +416,8 @@ mod tests {
         let ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
 
-        let res = section.try_validate(&mut Vec::new(), &src, &ctx);
-        assert!(res.is_ok(), "expected to validate but got: {res:?}");
+        let res = section.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected successful check but got: {res:?}");
     }
 
     #[dir_cases("crates/rtf-config/resources/provider-tests/command/parse-failures")]
@@ -430,26 +430,26 @@ mod tests {
         assert!(res.is_err(), "expected invalid YAML, got: {res:?}");
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/command/validation-failures")]
+    #[dir_cases("crates/rtf-config/resources/provider-tests/command/check-failures")]
     #[test]
-    fn validation_failures(_path: &str, content: &str) {
+    fn check_failures(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
-        let expected = get_file(&arr, "validation-errors");
+        let expected = get_file(&arr, "check-errors");
 
         let section: CommandSection = match serde_yaml::from_str(config) {
             Ok(section) => section,
             Err(e) => panic!("expected a valid CommandSection, got: {e}"),
         };
 
-        let dir = PathBuf::from("resources/provider-tests/command/validation-failures")
+        let dir = PathBuf::from("resources/provider-tests/command/check-failures")
             .canonicalize()
             .unwrap();
         let ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
-        let res = section.try_validate(&mut Vec::new(), &src, &ctx);
+        let res = section.try_check(&mut Vec::new(), &src, &ctx);
 
-        assert!(res.is_err(), "expected validation failures");
+        assert!(res.is_err(), "expected check failures");
         let errs = res.unwrap_err();
 
         // Validation Errors are an ordered list of individual errors with a kind.
@@ -481,7 +481,7 @@ mod tests {
 
         assert!(command.has_pending_fields(), "fields should be pending");
 
-        let res = command.try_resolve(&mut Vec::new(), &values);
+        let res = command.try_template(&mut Vec::new(), &values);
 
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(!command.has_pending_fields(), "fields should be resolved");
@@ -501,7 +501,7 @@ mod tests {
 
         assert!(command.has_pending_fields(), "fields should be pending");
 
-        let res = command.try_resolve(&mut Vec::new(), &values);
+        let res = command.try_template(&mut Vec::new(), &values);
 
         assert!(
             command.has_pending_fields(),

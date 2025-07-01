@@ -1,5 +1,5 @@
 A YAML fragment for a command section that references a directory
-rather than a file. This should parse but fail to validate.
+rather than a file. This should parse but fail to check successfully.
 
 -- config.yaml --
 command: "scripts/curl_get_test.sh"
@@ -14,5 +14,5 @@ file_providers:
     kind: relative_path
     path: ../../../provider-tests
 
--- validation-errors --
+-- check-errors --
 IsADirectory

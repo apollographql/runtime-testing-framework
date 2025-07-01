@@ -22,7 +22,7 @@ pub struct Args {
 #[derive(Debug, Subcommand)]
 pub enum Command {
     // Porcelain commands
-    /// Validate and run a test plan
+    /// Check and run a test plan
     Run {
         /// Relative path to the test-plan.yaml file that should be executed
         test_plan_path: String,
@@ -32,15 +32,15 @@ pub enum Command {
     },
 
     // Plumbing commands
-    /// Resolve a test plan using provided values, outputting the resulting config to stdout
-    Resolve {
-        /// Relative path to the test-plan.yaml file that should be resolve
+    /// Template a test plan using provided values, outputting the resulting config to stdout
+    Template {
+        /// Relative path to the test-plan.yaml file that should be templated
         test_plan_path: String,
         /// Additional values to use while templating, specified as a JSON object
         #[arg(long)]
         values: Option<String>,
-        /// Run static validation of the resulting test plan after templating
+        /// Run a static check of the resulting test plan after templating
         #[arg(long, action)]
-        validate: bool,
+        check: bool,
     },
 }
