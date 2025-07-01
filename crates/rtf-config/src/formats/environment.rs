@@ -27,11 +27,11 @@ impl EnvironmentConfig {
         Ok(serde_yaml::from_str(&content)?)
     }
 
-    /// Try to resolve the setup [CommandSection].
+    /// Try to template the setup [CommandSection].
     ///
     /// Setup is only allowed to reference values that are declared in the values section of this
     /// config file.
-    pub fn try_resolve_setup(
+    pub fn try_template_setup(
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
@@ -41,14 +41,14 @@ impl EnvironmentConfig {
 
         self.setup
             .command
-            .try_resolve_nested(path, "setup", &allowed_values)
+            .try_template_nested(path, "setup", &allowed_values)
     }
 
-    /// Try to resolve the teardown [CommandSection].
+    /// Try to template the teardown [CommandSection].
     ///
     /// Teardown is allowed to reference values that come from the output of setup in addition to
     /// the values decalered in the values section of this config file.
-    pub fn try_resolve_teardown(
+    pub fn try_template_teardown(
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
@@ -57,7 +57,7 @@ impl EnvironmentConfig {
         let allowed_values = filter_values(values, definitions);
 
         self.teardown
-            .try_resolve_nested(path, "teardown", &allowed_values)
+            .try_template_nested(path, "teardown", &allowed_values)
     }
 }
 
@@ -73,13 +73,13 @@ impl Template for EnvironmentConfig {
         vals
     }
 
-    fn try_resolve(
+    fn try_template(
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::from(self.try_resolve_setup(path, values));
-        errs.append(self.try_resolve_teardown(path, values));
+        let mut errs = templating::ErrorBuilder::from(self.try_template_setup(path, values));
+        errs.append(self.try_template_teardown(path, values));
 
         errs.into_result(())
     }
@@ -247,7 +247,7 @@ mod tests {
 
         assert!(env_config.has_pending_fields(), "fields should be pending");
 
-        let res = env_config.try_resolve(&mut Vec::new(), &values);
+        let res = env_config.try_template(&mut Vec::new(), &values);
 
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
@@ -270,7 +270,7 @@ mod tests {
 
         assert!(env_config.has_pending_fields(), "fields should be pending");
 
-        let res = env_config.try_resolve(&mut Vec::new(), &values);
+        let res = env_config.try_template(&mut Vec::new(), &values);
 
         assert!(
             env_config.has_pending_fields(),
@@ -312,7 +312,7 @@ mod tests {
 
     /// Construct a stub [EnvironmentConfig] with the specified value definitions in the top level
     /// values section and setup.provides section.
-    fn config_for_try_resolve_tests(
+    fn config_for_try_template_tests(
         available_vals: &[&str],
         provides: &[&str],
     ) -> EnvironmentConfig {
@@ -359,12 +359,12 @@ mod tests {
         "defined in provides"
     )]
     #[test]
-    fn try_resolve_setup_respects_available_values(
+    fn try_template_setup_respects_available_values(
         available_vals: &[&str],
         provides: &[&str],
         expected_unknown: &[(&str, &str)],
     ) {
-        let mut config = config_for_try_resolve_tests(available_vals, provides);
+        let mut config = config_for_try_template_tests(available_vals, provides);
 
         // Both required values are available in the provided values map but they shouldn't be
         // usable unless they are defined.
@@ -373,7 +373,7 @@ mod tests {
             .map(|(k, v)| (k.to_string(), Scalar::String(v.to_string())))
             .collect();
 
-        let res = config.try_resolve_setup(&mut Vec::new(), &values);
+        let res = config.try_template_setup(&mut Vec::new(), &values);
         let errs = match res {
             Ok(_) => Vec::new(),
             Err(e) => e.into_vec(),
@@ -422,12 +422,12 @@ mod tests {
         "teardown-path defined in setup provides"
     )]
     #[test]
-    fn try_resolve_teardown_respects_available_values(
+    fn try_template_teardown_respects_available_values(
         available_vals: &[&str],
         provides: &[&str],
         expected_unknown: &[(&str, &str)],
     ) {
-        let mut config = config_for_try_resolve_tests(available_vals, provides);
+        let mut config = config_for_try_template_tests(available_vals, provides);
 
         // Both required values are available in the provided values map but they shouldn't be
         // usable unless they are defined.
@@ -436,7 +436,7 @@ mod tests {
             .map(|(k, v)| (k.to_string(), Scalar::String(v.to_string())))
             .collect();
 
-        let res = config.try_resolve_teardown(&mut Vec::new(), &values);
+        let res = config.try_template_teardown(&mut Vec::new(), &values);
         let errs = match res {
             Ok(_) => Vec::new(),
             Err(e) => e.into_vec(),

@@ -87,7 +87,7 @@ deliberately fail validation so they can not be run by accident.
 cd to the root of your checkout of the `runtime-testing-framework` repository
 and run the following command to validate the wrapper test plan:
 ```bash
-rtf resolve example-test-plans/router-scale/wrapper/test-plan.yaml \
+rtf template example-test-plans/router-scale/wrapper/test-plan.yaml \
   --validate
 ```
 
@@ -95,7 +95,7 @@ Doing so with a clean checkout of the repository should give you the following
 (expected) error output:
 ```
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.37s
-     Running `target/debug/rtf resolve example-test-plans/router-scale/wrapper/test-plan.yaml --validate`
+     Running `target/debug/rtf template example-test-plans/router-scale/wrapper/test-plan.yaml --validate`
  INFO loading and resolving test plan
  INFO checking if templating will work
  INFO applying values
@@ -104,7 +104,7 @@ ERROR (scenario.command_section.env_vars.RTF_DIR) invalid templating value inval
 
 Open up `example-test-plans/router-scale/wrapper/test-plan.yaml` and set the
 `abs_path_rtf_repo` value to the absolute path of your checkout of this repo.
-Re-running the above command should now output the resolved test plan in your
+Re-running the above command should now output the templated test plan in your
 terminal.
 
 ### Router-perf
@@ -112,7 +112,7 @@ Validating the router-perf test plan looks similar but with an additional
 argument as we need to manually specify values to use in place of the command
 output from the environment setup (this is only required for validation):
 ```bash
-rtf resolve example-test-plans/router-scale/router-perf/test-plan.yaml \
+rtf template example-test-plans/router-scale/router-perf/test-plan.yaml \
   --validate \
   --values='{ "router_pid": "1", "router_cgroup": "true" }'
 ```
@@ -120,7 +120,7 @@ rtf resolve example-test-plans/router-scale/router-perf/test-plan.yaml \
 Again, you should see some expected error output due to placeholder values:
 ```
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.21s
-     Running `target/debug/rtf resolve example-test-plans/router-scale/router-perf/test-plan.yaml --validate '--values={ "router_pid": "1", "router_cgroup": "true" }'`
+     Running `target/debug/rtf template example-test-plans/router-scale/router-perf/test-plan.yaml --validate '--values={ "router_pid": "1", "router_cgroup": "true" }'`
  INFO loading and resolving test plan
  INFO checking if templating will work
  INFO applying values
@@ -136,7 +136,7 @@ ERROR (subgraphs) the provided string was not a valid graph ref expected a strin
 
 Open up `example-test-plans/router-scale/router-perf/test-plan.yaml` and set
 the `graph_ref` value to a valid router-scale graph ref from the [router-scale corpus][15].
-Re-running the above command should now output the resolved test plan in your terminal.
+Re-running the above command should now output the templated test plan in your terminal.
 
 With both Test Plans updated you should have a diff that looks something like this:
 ```diff

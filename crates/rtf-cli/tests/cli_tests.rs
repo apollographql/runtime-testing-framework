@@ -49,17 +49,17 @@ fn run_command_command_from_spec_works() {
 }
 
 #[test]
-fn resolve_command_is_executable() {
+fn template_command_is_executable() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
-    let res = cmd.arg("resolve").assert();
+    let res = cmd.arg("template").assert();
 
-    res.stderr(contains("Usage: rtf resolve"));
+    res.stderr(contains("Usage: rtf template"));
 }
 
 #[test]
-fn resolve_command_invalid_test_plan_path_errors() {
+fn template_command_invalid_test_plan_path_errors() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
-    let res = cmd.arg("run").arg("/not/a/file.txt").assert();
+    let res = cmd.arg("template").arg("/not/a/file.txt").assert();
 
     res.stderr(contains("No such file or directory (os error 2)"));
 }

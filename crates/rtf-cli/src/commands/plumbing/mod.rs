@@ -1,5 +1,5 @@
 //! Lower level commands for running individual pieces of functionality from the framework.
 
-mod resolve;
+mod template;
 
-pub use resolve::resolve_test_plan;
+pub use template::template_test_plan;

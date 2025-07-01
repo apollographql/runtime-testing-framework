@@ -32,9 +32,9 @@ pub enum Command {
     },
 
     // Plumbing commands
-    /// Resolve a test plan using provided values, outputting the resulting config to stdout
-    Resolve {
-        /// Relative path to the test-plan.yaml file that should be resolve
+    /// Template a test plan using provided values, outputting the resulting config to stdout
+    Template {
+        /// Relative path to the test-plan.yaml file that should be templated
         test_plan_path: String,
         /// Additional values to use while templating, specified as a JSON object
         #[arg(long)]

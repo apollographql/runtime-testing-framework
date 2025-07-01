@@ -184,28 +184,28 @@ impl TestPlanConfig {
         errs.into_result(())
     }
 
-    pub fn try_resolve_envrionment_setup(
+    pub fn try_template_envrionment_setup(
         &mut self,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut path = vec!["environment".to_string()];
-        self.environment.try_resolve_setup(&mut path, values)
+        self.environment.try_template_setup(&mut path, values)
     }
 
-    pub fn try_resolve_envrionment_teardown(
+    pub fn try_template_envrionment_teardown(
         &mut self,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut path = vec!["environment".to_string()];
-        self.environment.try_resolve_teardown(&mut path, values)
+        self.environment.try_template_teardown(&mut path, values)
     }
 
-    pub fn try_resolve_scenario(
+    pub fn try_template_scenario(
         &mut self,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut path = vec!["scenario".to_string()];
-        self.scenario.try_resolve(&mut path, values)
+        self.scenario.try_template(&mut path, values)
     }
 
     pub async fn run_environment_setup(
@@ -271,17 +271,17 @@ impl Template for TestPlanConfig {
         vals
     }
 
-    fn try_resolve(
+    fn try_template(
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::from(self.environment.try_resolve_nested(
+        let mut errs = templating::ErrorBuilder::from(self.environment.try_template_nested(
             path,
             "environment",
             values,
         ));
-        errs.append(self.scenario.try_resolve_nested(path, "scenario", values));
+        errs.append(self.scenario.try_template_nested(path, "scenario", values));
 
         errs.into_result(())
     }
@@ -574,7 +574,7 @@ mod tests {
 
         assert!(plan_config.has_pending_fields(), "fields should be pending");
 
-        let res = plan_config.try_resolve(&mut Vec::new(), &combined_values);
+        let res = plan_config.try_template(&mut Vec::new(), &combined_values);
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
             !plan_config.scenario.has_pending_fields(),
@@ -607,7 +607,7 @@ mod tests {
         assert!(res.is_ok(), "templating should work: {res:?}");
         assert!(plan_config.has_pending_fields(), "fields should be pending");
 
-        let res = plan_config.try_resolve_envrionment_setup(&values);
+        let res = plan_config.try_template_envrionment_setup(&values);
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
             !plan_config.environment.setup.command.has_pending_fields(),
@@ -617,14 +617,14 @@ mod tests {
         let mut combined_values = provides_values.clone();
         combined_values.extend(values);
 
-        let res = plan_config.try_resolve_envrionment_teardown(&combined_values);
+        let res = plan_config.try_template_envrionment_teardown(&combined_values);
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
             !plan_config.environment.teardown.has_pending_fields(),
             "fields should be resolved"
         );
 
-        let res = plan_config.try_resolve_scenario(&combined_values);
+        let res = plan_config.try_template_scenario(&combined_values);
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
             !plan_config.scenario.has_pending_fields(),

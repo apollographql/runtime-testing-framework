@@ -37,7 +37,7 @@ impl Template for ScenarioConfig {
         self.command.required_values()
     }
 
-    fn try_resolve(
+    fn try_template(
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
@@ -46,7 +46,7 @@ impl Template for ScenarioConfig {
         let allowed_values = filter_values(values, definitions);
 
         self.command
-            .try_resolve_nested(path, "command_section", &allowed_values)
+            .try_template_nested(path, "command_section", &allowed_values)
     }
 }
 
@@ -176,7 +176,7 @@ mod tests {
             "fields should be pending"
         );
 
-        let res = scenario_config.try_resolve(&mut Vec::new(), &values);
+        let res = scenario_config.try_template(&mut Vec::new(), &values);
 
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
@@ -202,7 +202,7 @@ mod tests {
             "fields should be pending"
         );
 
-        let res = scenario_config.try_resolve(&mut Vec::new(), &values);
+        let res = scenario_config.try_template(&mut Vec::new(), &values);
 
         assert!(
             scenario_config.has_pending_fields(),

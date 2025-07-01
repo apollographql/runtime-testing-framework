@@ -8,7 +8,7 @@ use rtf_config::{
 use std::{collections::HashMap, mem::take};
 use tracing::info;
 
-pub async fn resolve_test_plan(
+pub async fn template_test_plan(
     config_file_path: &str,
     raw_values: Option<&str>,
     validate: bool,
@@ -19,10 +19,10 @@ pub async fn resolve_test_plan(
         None => None,
     };
 
-    resolve_test_plan_with_context(config_file_path, values, validate, ctx).await
+    template_test_plan_with_context(config_file_path, values, validate, ctx).await
 }
 
-async fn resolve_test_plan_with_context(
+async fn template_test_plan_with_context(
     path: &str,
     values: Option<HashMap<String, Scalar>>,
     validate: bool,
@@ -37,7 +37,7 @@ async fn resolve_test_plan_with_context(
     info!("applying values");
     let mut values = values.unwrap_or_default();
     values.extend(take(&mut test_plan.expanded_matrix_values()[0]));
-    test_plan.try_resolve(&mut Vec::new(), &values)?;
+    test_plan.try_template(&mut Vec::new(), &values)?;
 
     if validate {
         info!("validating test plan");

@@ -11,7 +11,7 @@ expose the rest of the framework to users through those config files.
 
 The parsers for `TestPlanConfig`, `EnvironmentConfig` and `ScenarioConfig`
 live in the `formats` module and all expose a similar API for how they
-operate. Each config file is resolved in three stages:
+operate. Each config file is templated in three stages:
 
   1. Loading and parsing a given YAML file into a "raw" form that is allowed
      to contain limited templating via Helm-style scalar values.

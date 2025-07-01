@@ -232,7 +232,7 @@ impl RelativeFile {
     }
 }
 
-// in try_resolve we don't want to include a trailing ".path" in the resolution path we report to
+// in try_template we don't want to include a trailing ".path" in the resolution path we report to
 // users in error messages so we had implement Template for this one.
 impl Template for RelativeFile {
     fn has_pending_fields(&self) -> bool {
@@ -243,12 +243,12 @@ impl Template for RelativeFile {
         self.path.required_values()
     }
 
-    fn try_resolve(
+    fn try_template(
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        self.path.try_resolve(path, values)
+        self.path.try_template(path, values)
     }
 }
 
@@ -536,7 +536,7 @@ mod tests {
 
         assert!(provider.has_pending_fields(), "fields should be pending");
 
-        let res = provider.try_resolve(&mut Vec::new(), &values);
+        let res = provider.try_template(&mut Vec::new(), &values);
 
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(!provider.has_pending_fields(), "fields should be resolved");
@@ -556,7 +556,7 @@ mod tests {
 
         assert!(provider.has_pending_fields(), "fields should be pending");
 
-        let res = provider.try_resolve(&mut Vec::new(), &values);
+        let res = provider.try_template(&mut Vec::new(), &values);
 
         assert!(
             provider.has_pending_fields(),

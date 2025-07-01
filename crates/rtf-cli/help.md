@@ -6,7 +6,7 @@ This document contains the help content for the `rtf` command-line program.
 
 * [`rtf`↴](#rtf)
 * [`rtf run`↴](#rtf-run)
-* [`rtf resolve`↴](#rtf-resolve)
+* [`rtf template`↴](#rtf-template)
 
 ## `rtf`
 
@@ -17,7 +17,7 @@ A swiss army knife for testing the Apollo Runtime
 ###### **Subcommands:**
 
 * `run` — Validate and run a test plan
-* `resolve` — Resolve a test plan using provided values, outputting the resulting config to stdout
+* `template` — Template a test plan using provided values, outputting the resulting config to stdout
 
 
 
@@ -39,15 +39,15 @@ Validate and run a test plan
 
 
 
-## `rtf resolve`
+## `rtf template`
 
-Resolve a test plan using provided values, outputting the resulting config to stdout
+Template a test plan using provided values, outputting the resulting config to stdout
 
-**Usage:** `rtf resolve [OPTIONS] <TEST_PLAN_PATH>`
+**Usage:** `rtf template [OPTIONS] <TEST_PLAN_PATH>`
 
 ###### **Arguments:**
 
-* `<TEST_PLAN_PATH>` — Relative path to the test-plan.yaml file that should be resolve
+* `<TEST_PLAN_PATH>` — Relative path to the test-plan.yaml file that should be templated
 
 ###### **Options:**
 

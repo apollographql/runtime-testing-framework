@@ -177,20 +177,20 @@ impl Template for CommandSection {
         vals
     }
 
-    fn try_resolve(
+    fn try_template(
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
-        errs.append(self.command.try_resolve_nested(path, "command", values));
+        errs.append(self.command.try_template_nested(path, "command", values));
 
         path.push("env_vars".to_string());
 
         for (name, f) in self.env_vars.iter_mut() {
             let tail = name.clone();
-            errs.append(f.try_resolve_nested(path, tail, values));
+            errs.append(f.try_template_nested(path, tail, values));
         }
 
         path.pop();
@@ -198,7 +198,7 @@ impl Template for CommandSection {
 
         for nfp in self.file_providers.iter_mut() {
             let tail = nfp.env_var.clone();
-            errs.append(nfp.try_resolve_nested(path, tail, values));
+            errs.append(nfp.try_template_nested(path, tail, values));
         }
 
         errs.into_result(())
@@ -269,14 +269,14 @@ impl Template for RawCommand {
         }
     }
 
-    fn try_resolve(
+    fn try_template(
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         match self {
             RawCommand::String(_s) => Ok(()),
-            RawCommand::Spec(spec) => spec.try_resolve(path, values),
+            RawCommand::Spec(spec) => spec.try_template(path, values),
         }
     }
 }
@@ -320,19 +320,19 @@ impl Template for CommandSpec {
         vals
     }
 
-    fn try_resolve(
+    fn try_template(
         &mut self,
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::from(self.command_provider.try_resolve_nested(
+        let mut errs = templating::ErrorBuilder::from(self.command_provider.try_template_nested(
             path,
             "command_provider",
             values,
         ));
 
         for arg in self.args.iter_mut() {
-            errs.append(arg.try_resolve_nested(path, stringify!(arg), values));
+            errs.append(arg.try_template_nested(path, stringify!(arg), values));
         }
 
         errs.into_result(())
@@ -481,7 +481,7 @@ mod tests {
 
         assert!(command.has_pending_fields(), "fields should be pending");
 
-        let res = command.try_resolve(&mut Vec::new(), &values);
+        let res = command.try_template(&mut Vec::new(), &values);
 
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(!command.has_pending_fields(), "fields should be resolved");
@@ -501,7 +501,7 @@ mod tests {
 
         assert!(command.has_pending_fields(), "fields should be pending");
 
-        let res = command.try_resolve(&mut Vec::new(), &values);
+        let res = command.try_template(&mut Vec::new(), &values);
 
         assert!(
             command.has_pending_fields(),

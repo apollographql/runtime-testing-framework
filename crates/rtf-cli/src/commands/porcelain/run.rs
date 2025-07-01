@@ -59,9 +59,9 @@ async fn run_one(
     out_dir: &Path,
     ctx: &impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    info!("resolving environment setup");
+    info!("templating environment setup");
     let mut values = take(&mut test_plan.values);
-    test_plan.try_resolve_envrionment_setup(&values)?;
+    test_plan.try_template_envrionment_setup(&values)?;
 
     info!("validating environment setup");
     test_plan.environment.setup.command.try_validate(
@@ -74,9 +74,9 @@ async fn run_one(
     let setup_provides = test_plan.run_environment_setup(out_dir, ctx).await?;
     values.extend(setup_provides);
 
-    info!("resolving scenario and environment teardown commands");
-    let mut builder = templating::ErrorBuilder::from(test_plan.try_resolve_scenario(&values));
-    builder.append(test_plan.try_resolve_envrionment_teardown(&values));
+    info!("templating scenario and environment teardown commands");
+    let mut builder = templating::ErrorBuilder::from(test_plan.try_template_scenario(&values));
+    builder.append(test_plan.try_template_envrionment_teardown(&values));
     builder.into_result(())?;
 
     info!("validating scenario and environment teardown commands");
