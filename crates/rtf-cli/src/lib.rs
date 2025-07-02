@@ -16,9 +16,12 @@ impl cli::Values {
     pub fn merge(
         self,
         from_test_plan: &mut HashMap<String, Scalar>,
-        ctx: &impl ResolutionContext,
+        ctx: &mut impl ResolutionContext,
     ) -> anyhow::Result<()> {
-        self.merge_inner(from_test_plan, |path| ctx.read_path_to_string(path))
+        self.merge_inner(from_test_plan, |path| ctx.read_path_to_string(path))?;
+        ctx.set_values(from_test_plan);
+
+        Ok(())
     }
 
     #[inline]

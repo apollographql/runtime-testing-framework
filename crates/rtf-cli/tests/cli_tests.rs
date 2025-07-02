@@ -69,6 +69,7 @@ fn overriding_values_works() {
     // default echo arg should be foo
     prepare_rtf_run("resources/value-overrides")
         .assert()
+        .success()
         .stdout(contains("foo"));
 
     // specifying as a command line value should override
@@ -76,6 +77,7 @@ fn overriding_values_works() {
         .arg("--value")
         .arg("echo_me=bar")
         .assert()
+        .success()
         .stdout(contains("bar"));
 
     // values.json should override to baz
@@ -83,5 +85,29 @@ fn overriding_values_works() {
         .arg("--values")
         .arg("resources/value-overrides/values.json")
         .assert()
+        .success()
         .stdout(contains("baz"));
+}
+
+#[test]
+fn resolved_values_provider_works() {
+    prepare_rtf_run("resources/resolved-values")
+        .assert()
+        .success()
+        .stdout(contains(r#""foo":"bar""#));
+
+    prepare_rtf_run("resources/resolved-values")
+        .arg("--value")
+        .arg("foo=baz")
+        .assert()
+        .success()
+        .stdout(contains(r#""foo":"baz""#));
+
+    prepare_rtf_run("resources/resolved-values")
+        .arg("--value")
+        .arg("echo_me=baz")
+        .assert()
+        .success()
+        .stdout(contains(r#""foo":"bar""#))
+        .stdout(contains(r#""echo_me":"baz""#));
 }
