@@ -1,15 +1,16 @@
 use crate::{
     checks::{self, Check, duplicate_keys},
     context::ResolutionContext,
+    enum_impl_as_utf8_file_content, enum_impl_check, enum_impl_template,
     providers::{
         self,
         file::{
-            InlineFile, NamedFileProvider, RelativeFile, RequiredFile, ResolveAndWrite, Source,
+            AsUtf8FileContent, InlineFile, NamedFileProvider, RelativeFile, RequiredFile,
+            ResolveAndWrite, Source,
         },
     },
     templating::{self, Field, Scalar, Template},
 };
-use enum_dispatch::enum_dispatch;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io, path::Path};
 
@@ -358,13 +359,26 @@ impl Check for CommandSpec {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-#[enum_dispatch(Template, Check, AsUtf8FileContent)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum CommandProvider {
     Inline(InlineFile),
     RelativePath(RelativeFile),
     Required(RequiredFile),
 }
+
+// Each time we add a new variant to the CommandProvider enum above we need to remember to add it
+// to the macro invocation below in order to update the trait implementations for the enum. (You
+// can't really forget to do this as the compiler will complain about missing match arms if you
+// do!)
+macro_rules! enum_impl_command_provider {
+    ($($variant:ident),+) => {
+        enum_impl_check!(CommandProvider => $($variant),+);
+        enum_impl_template!(CommandProvider => $($variant),+);
+        enum_impl_as_utf8_file_content!(CommandProvider => $($variant),+);
+    };
+}
+
+enum_impl_command_provider!(Inline, RelativePath, Required);
 
 #[cfg(test)]
 mod tests {
