@@ -15,6 +15,15 @@ OUTDIR="${OUTDIR:-$(pwd)}"
 LOG_FILE="$OUTDIR/vm-log.txt"
 
 ###
+# Cleanup after a router-scale test
+###
+function cleanup_vm {
+    echo "Cleaning up test system: $1..."
+    echo "WIP - NO CLEANUP STEPS DEFINED"
+    echo "Test system: $1 cleaned up."
+}
+
+###
 # Delete an instance
 ###
 function delete_vm {
@@ -27,8 +36,16 @@ function delete_vm {
     echo "Test system: $1 deleted."
 }
 
-if [ -z "$1" ]; then
-    echo "Usage: $0 <vm-name>"
+if [ $# -ne 2 ]; then
+    echo "Usage: $0 <vm-name> <delete-vm>"
     exit 1
 fi
-delete_vm "$1" >> $LOG_FILE
+
+VM_NAME="$1"
+DELETE_VM="$2"
+
+if [ "$DELETE_VM" != "true" ]; then
+    cleanup_vm $VM_NAME >> $LOG_FILE
+else
+    delete_vm $VM_NAME >> $LOG_FILE
+fi

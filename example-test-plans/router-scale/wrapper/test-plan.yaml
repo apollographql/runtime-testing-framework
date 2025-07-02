@@ -5,6 +5,7 @@ description: |
 
 values:
   vm_name: "rtf-router-scale"
+  delete_vm: "true"
   test_plan_dir: "example-test-plans/router-scale/router-perf"
   # This has been deliberately set with an int so it will fail if you try to run without replacing this.
   # This should be the absolute path to your local dir containing RTF
@@ -62,6 +63,11 @@ environment:
     values:
       - name: vm_name
         description: The name of the router-scale VM being created and deleted
+      - name: delete_vm
+        description: |
+          A flag to set whether the VM should be deleted at the end of the run.
+          To delete the VM, this must be set to "true".
+          If not deleted, the VM will be cleaned up to remove sensitive data.
 
     setup:
       command:
@@ -78,3 +84,4 @@ environment:
         path: scripts/cleanup-router-scale-vm.sh
         args:
           - "{{ vm_name }}"
+          - "{{ delete_vm }}"

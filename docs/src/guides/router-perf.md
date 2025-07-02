@@ -185,17 +185,14 @@ once the VM is up to get an SSH session started on the VM if desired. (On the VM
 output of the tests is placed in `~/output/tests/results/` but be aware that the VM is
 auto-removed once the tests are complete).
 
-To persist the VM between runs, replace the teardown command in the wrapper test plan
-with "echo 1":
-```yaml
-    teardown:
-      command: echo 1
-      # command:
-      #   name: cleanup-router-scale-vm.sh
-      #   kind: relative_path
-      #   path: scripts/cleanup-router-scale-vm.sh
-      #   args:
-      #     - "{{ vm_name }}"
+To persist the VM between runs, override the `delete_vm` value in the wrapper test plan
+with `"false"`. In practice, this could be relaced with any value that is not `"true"`, 
+since that is the only value being matched on in the `cleanup-router-scale-vm.sh` script:
+```bash
+rtf run example-test-plans/router-scale/wrapper/test-plan.yaml \
+  --value "abs_path_rtf_repo=$(pwd)" \
+  --value "graph_ref=YOUR-CHOSEN@GRAPH" \
+  --value 'delete_vm="false"'
 ```
 
   [0]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/router-scale
