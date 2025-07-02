@@ -1,4 +1,4 @@
-use crate::commands::get_context_and_outdir;
+use crate::{cli::Values, commands::get_context_and_outdir};
 use rtf_config::{
     checks::{self, Check},
     context::ResolutionContext,
@@ -8,20 +8,26 @@ use rtf_config::{
 use std::{mem::take, path::Path};
 use tracing::info;
 
-pub async fn check_and_run_test_plan(config_file_path: &str, out_dir: &str) -> anyhow::Result<()> {
+pub async fn check_and_run_test_plan(
+    config_file_path: &str,
+    values: Values,
+    out_dir: &str,
+) -> anyhow::Result<()> {
     let (ctx, out_dir) = get_context_and_outdir(out_dir)?;
     let out_dir = ctx.canonicalize_path(out_dir)?;
 
-    check_and_run_test_plan_with_context(config_file_path, &out_dir, ctx).await
+    check_and_run_test_plan_with_context(config_file_path, values, &out_dir, ctx).await
 }
 
 async fn check_and_run_test_plan_with_context(
     path: &str,
+    values: Values,
     out_dir: &Path,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
     info!("loading and resolving test plan");
     let mut test_plan = TestPlanConfig::try_load_and_resolve_from_path(path, &ctx).await?;
+    values.merge(&mut test_plan.values, &ctx)?;
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work()?;

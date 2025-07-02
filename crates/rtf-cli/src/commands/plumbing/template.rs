@@ -1,43 +1,37 @@
-use crate::commands::{get_context, parse_values};
+use crate::{cli::Values, commands::get_context};
 use rtf_config::{
     checks::{self, Check},
     context::ResolutionContext,
     formats::TestPlanConfig,
-    templating::{Scalar, Template},
+    templating::Template,
 };
-use std::{collections::HashMap, mem::take};
 use tracing::info;
 
 pub async fn template_test_plan(
     config_file_path: &str,
-    raw_values: Option<&str>,
+    values: Values,
     check: bool,
 ) -> anyhow::Result<()> {
     let ctx = get_context();
-    let values = match raw_values {
-        Some(s) => Some(parse_values(s)?),
-        None => None,
-    };
 
     template_test_plan_with_context(config_file_path, values, check, ctx).await
 }
 
 async fn template_test_plan_with_context(
     path: &str,
-    values: Option<HashMap<String, Scalar>>,
+    values: Values,
     check: bool,
     ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
     info!("loading and resolving test plan");
     let mut test_plan = TestPlanConfig::try_load_and_resolve_from_path(path, &ctx).await?;
+    values.merge(&mut test_plan.values, &ctx)?;
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work()?;
 
-    info!("applying values");
-    let mut values = values.unwrap_or_default();
-    values.extend(take(&mut test_plan.expanded_matrix_values()[0]));
-    test_plan.try_template(&mut Vec::new(), &values)?;
+    let values = &test_plan.expanded_matrix_values()[0];
+    test_plan.try_template(&mut Vec::new(), values)?;
 
     if check {
         info!("checking test plan");

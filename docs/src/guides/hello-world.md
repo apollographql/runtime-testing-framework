@@ -5,6 +5,7 @@
   - [Pre-Flight Checks](#pre-flight-checks)
   - [Running a Test Plan](#running-a-test-plan)
   - [Modifying Values](#modifying-values)
+  - [Overriding Individual Values](#overriding-individual-values)
   - [Matrix Values](#matrix-values)
 
 ## Overview
@@ -184,11 +185,67 @@ scenario :: say hi to the darkness my old friend
 ---
 ```
 
+## Overriding Individual Values
+
+If you want to temporarily override a value (or work with an existing test plan
+that you don't want to edit) then you can make use of the `--value` and `--values`
+flags to specify overrides on the command line.
+
+We can get the same effect from before using the original test plan by instead
+running the following:
+
+```bash
+$ RUST_LOG=warn rtf run example-test-plans/hello-world/test-plan.yaml \
+  --value 'message="say hi to the "'
+
+env-setup :: say hi to the world!
+scenario :: say hi to the darkness my old friend
+---
+```
+
+We can also provide the flag multiple times to override multiple values:
+```bash
+$ RUST_LOG=warn rtf run example-test-plans/hello-world/test-plan.yaml \
+  --value 'message="say hi to the "' \
+  --value 'setup_subject=sailor!'
+
+env-setup :: say hi to the sailor!
+scenario :: say hi to the darkness my old friend
+---
+```
+
+When you have multiple overrides like this you can use the `--values` flag to
+provide the location of a JSON file containing the values you want to merge on
+top of the ones given in the test plan:
+```bash
+$ cat example-test-plans/hello-world/values.json
+{
+  "message": "say hi to the ",
+  "setup_subject": "sailor!"
+}
+
+$ RUST_LOG=warn rtf run example-test-plans/hello-world/test-plan.yaml \
+  --values example-test-plans/hello-world/values.json
+
+env-setup :: say hi to the sailor!
+scenario :: say hi to the darkness my old friend
+---
+```
+
+Each of these options is useful in different ways:
+  - Both allow for adjusting the behaviour of a test plan without having to edit
+    the test plan itself.
+  - Providing individual values on the command line allows you to dynamically
+    set things using environment variables and other shell commands
+  - Providing sets of values in a JSON file lets you define multiple variations
+    for a single test plan that you can run individually without having to edit
+    or duplicate the test plan.
+
 ## Matrix Values
 
-But what if we want to use multiple messages without having to edit the Test
-Plan each time we run it? `rtf` provides a **matrix** feature that functions in
-a similar way to matrices in [GitHub Actions][2].
+But what if we want to define multiple sets of values and run them _all_ as
+part of a batch of tests? For that, `rtf` provides a **matrix** feature that
+functions in a similar way to matrices in [GitHub Actions][2].
 
 All we need to do to convert a **value** from a single value to a matrix is
 move it under the `matrix` section of our Test Plan and provide the array of

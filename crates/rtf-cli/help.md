@@ -12,12 +12,17 @@ This document contains the help content for the `rtf` command-line program.
 
 A swiss army knife for testing the Apollo Runtime
 
-**Usage:** `rtf <COMMAND>`
+**Usage:** `rtf [OPTIONS] <COMMAND>`
 
 ###### **Subcommands:**
 
 * `run` — Check and run a test plan
 * `template` — Template a test plan using provided values, outputting the resulting config to stdout
+
+###### **Options:**
+
+* `--value <VALUE>` — A single additional templationg value in the form "key=value"
+* `--values <VALUES>` — Path to a JSON file containing additional template values
 
 
 
@@ -51,7 +56,6 @@ Template a test plan using provided values, outputting the resulting config to s
 
 ###### **Options:**
 
-* `--values <VALUES>` — Additional values to use while templating, specified as a JSON object
 * `--check` — Run a static check of the resulting test plan after templating
 
 

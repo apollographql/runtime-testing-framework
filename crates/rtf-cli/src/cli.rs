@@ -1,5 +1,6 @@
 //! Parsing of our command line arguments using Clap's derive API
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
 // NOTE: All of the doc comments here are parsed by Clap and used to build out the documentation
 // seen in the CLI. We treat them as user facing and aim to provide as much useful information as
@@ -17,6 +18,18 @@ use clap::{Parser, Subcommand};
 pub struct Args {
     #[clap(subcommand)]
     pub command: Command,
+    #[command(flatten)]
+    pub values: Values,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct Values {
+    /// A single additional templationg value in the form "key=value"
+    #[arg(long, global = true)]
+    pub value: Vec<String>,
+    /// Path to a JSON file containing additional template values
+    #[arg(long, global = true)]
+    pub values: Option<PathBuf>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -36,9 +49,6 @@ pub enum Command {
     Template {
         /// Relative path to the test-plan.yaml file that should be templated
         test_plan_path: String,
-        /// Additional values to use while templating, specified as a JSON object
-        #[arg(long)]
-        values: Option<String>,
         /// Run a static check of the resulting test plan after templating
         #[arg(long, action)]
         check: bool,

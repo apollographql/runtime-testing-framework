@@ -5,10 +5,7 @@
 //!
 //! [0]: https://git-scm.com/docs
 use anyhow::bail;
-use rtf_config::{
-    context::{Context, PathKind, ResolutionContext},
-    templating::Scalar,
-};
+use rtf_config::context::{Context, PathKind, ResolutionContext};
 use std::{
     collections::HashMap,
     env::{self, current_dir},
@@ -45,10 +42,4 @@ fn get_context_and_outdir(out_dir: &str) -> anyhow::Result<(Context, PathBuf)> {
     }
 
     Ok((ctx, out_dir))
-}
-
-fn parse_values(raw: &str) -> anyhow::Result<HashMap<String, Scalar>> {
-    let vals: HashMap<String, Scalar> = serde_json::from_str(raw)?;
-
-    Ok(vals)
 }

@@ -1,0 +1,39 @@
+name: value overrides
+description: |
+  Checks that we correctly apply value overrides from the CLI.
+
+values:
+  echo_me: "foo"
+
+scenario:
+  inline:
+    name: scenario
+    description: "Echo based on supplied values"
+    values:
+      - name: echo_me
+        description: "A string to echo out"
+
+    command:
+      name: echo-message.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+
+        echo "$1"
+      args:
+        - "{{ echo_me }}"
+
+environment:
+  inline:
+    name: environment-command-from-spec
+    description: "Minimal env config since this is not used for the test"
+    setup:
+      command:
+        name: echo-output.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "{}" > "$RTF_OUTPUT"
+
+    teardown:
+      command: echo 1

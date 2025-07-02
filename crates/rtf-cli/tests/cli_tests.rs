@@ -1,7 +1,7 @@
 pub mod common;
 
 use assert_cmd::Command;
-use common::is_valid_test_plan;
+use common::{is_valid_test_plan, prepare_rtf_run};
 use predicates::str::contains;
 
 #[test]
@@ -62,4 +62,26 @@ fn template_command_invalid_test_plan_path_errors() {
     let res = cmd.arg("template").arg("/not/a/file.txt").assert();
 
     res.stderr(contains("No such file or directory (os error 2)"));
+}
+
+#[test]
+fn overriding_values_works() {
+    // default echo arg should be foo
+    prepare_rtf_run("resources/value-overrides")
+        .assert()
+        .stdout(contains("foo"));
+
+    // specifying as a command line value should override
+    prepare_rtf_run("resources/value-overrides")
+        .arg("--value")
+        .arg("echo_me=bar")
+        .assert()
+        .stdout(contains("bar"));
+
+    // values.json should override to baz
+    prepare_rtf_run("resources/value-overrides")
+        .arg("--values")
+        .arg("resources/value-overrides/values.json")
+        .assert()
+        .stdout(contains("baz"));
 }
