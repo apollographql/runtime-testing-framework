@@ -102,22 +102,32 @@ Doing so with a clean checkout of the repository should give you the following
 ERROR (scenario.command_section.env_vars.RTF_DIR) invalid templating value invalid value `1`, expected String
 ```
 
-Open up `example-test-plans/router-scale/wrapper/test-plan.yaml` and set the
-`abs_path_rtf_repo` value to the absolute path of your checkout of this repo.
-Re-running the above command should now output the templated test plan in your
-terminal.
-
-### Router-perf
-Checking the router-perf test plan looks similar but with an additional
-argument as we need to manually specify values to use in place of the command
-output from the environment setup (this is only required for checks):
+To fix this error we need to override the `abs_path_rtf_repo` value with the
+absolute path of the rtf repo. Since we are running this test plan from the
+root of the repo we can do that simply by using `--value` flag:
 ```bash
-rtf template example-test-plans/router-scale/router-perf/test-plan.yaml \
-  --check \
-  --values='{ "router_pid": "1", "router_cgroup": "true" }'
+rtf template example-test-plans/router-scale/wrapper/test-plan.yaml \
+  --value "abs_path_rtf_repo=$(pwd)" \
+  --check
 ```
 
-Again, you should see some expected error output due to placeholder values:
+Running this updated command should output the templated test plan in your
+terminal.
+
+
+### Router-perf
+Checking the router-perf test plan looks similar but with a few more additional
+values that will come from the environment setup command when the test plan is
+run. Lets start by setting those:
+```bash
+rtf template example-test-plans/router-scale/router-perf/test-plan.yaml \
+  --value "router_pid=1" \
+  --value "router_cgroup=true" \
+  --check
+```
+
+Again, you should see some expected error output due to a placeholder value,
+this time the graph ref that we are running the tests for:
 ```
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.21s
      Running `target/debug/rtf template example-test-plans/router-scale/router-perf/test-plan.yaml --check '--values={ "router_pid": "1", "router_cgroup": "true" }'`
@@ -134,45 +144,39 @@ ERROR (subgraphs) the provided string was not a valid graph ref expected a strin
 > have not exported your API key under the `APOLLO_KEY` environment variable
 > (see the [Studio API access](#studio-api-access) section above)
 
-Open up `example-test-plans/router-scale/router-perf/test-plan.yaml` and set
-the `graph_ref` value to a valid router-scale graph ref from the [router-scale corpus][15].
-Re-running the above command should now output the templated test plan in your terminal.
-
-With both Test Plans updated you should have a diff that looks something like this:
-```diff
-diff --git a/example-test-plans/router-scale/router-perf/test-plan.yaml b/example-test-plans/router-scale/router-perf/test-plan.yaml
-index 312489c..82e1a64 100644
---- a/example-test-plans/router-scale/router-perf/test-plan.yaml
-+++ b/example-test-plans/router-scale/router-perf/test-plan.yaml
-@@ -16,7 +16,7 @@ values:
-   random_seed: "b5bb5cd521bf12bd5a18fcfc378ae12d25cf9d4d"
-   router_version: "v2.3.0"
-   # This is a deliberately invalid graph ref so that we will fail checks before running
--  graph_ref: "CHANGE_ME"
-+  graph_ref: "muppets@latest"
-   rps: "100"
-   duration_secs: "20"
-   top_n: 20
-
-diff --git a/example-test-plans/router-scale/wrapper/test-plan.yaml b/example-test-plans/router-scale/wrapper/test-plan.yaml
-index af201dd..d84f00f 100644
---- a/example-test-plans/router-scale/wrapper/test-plan.yaml
-+++ b/example-test-plans/router-scale/wrapper/test-plan.yaml
-@@ -8,7 +8,7 @@ values:
-   test_plan_dir: "example-test-plans/router-scale/router-perf"
-   # This has been deliberately set with an int so it will fail if you try to run without replacing this.
-   # This should be the absolute path to your local dir containing RTF
--  abs_path_rtf_repo: 1
-+  abs_path_rtf_repo: "/Users/kermit/repos/runtime-testing-framework"
+As before we can fix this error by using `--value` flag to override the placeholder
+value, this time for the `graph_ref` value. If you are unsure of a graph to test
+against then a good starting point is to pick one of the graphs found in the current
+[router-scale corpus][15]:
+```bash
+rtf template example-test-plans/router-scale/router-perf/test-plan.yaml \
+  --value "router_pid=1" \
+  --value "router_cgroup=true" \
+  --value "graph_ref=YOUR-CHOSEN@GRAPH" \
+  --check
 ```
+
+Running this updated command should output the templated test plan in your
+terminal.
+
 
 ## Executing the Test Plan
 
 Now that both Test Plans check successfully you can use the wrapper Test Plan to execute
-a performance test on an ephemeral VM.
+a performance test on an ephemeral VM. We don't need to override the values coming from
+the environment setup any more but we _do_ still need to specify the repo location and
+graph ref:
 ```bash
-rtf run example-test-plans/router-scale/wrapper/test-plan.yaml
+rtf run example-test-plans/router-scale/wrapper/test-plan.yaml \
+  --value "abs_path_rtf_repo=$(pwd)" \
+  --value "graph_ref=YOUR-CHOSEN@GRAPH"
 ```
+
+> **NOTE**: Instead of using the `--value` flag to specify each value individually,
+> you can also use the `--values` (plural) flag to point to a JSON file containing
+> multiple values:
+> 
+> `rtf run my-test-plan.yaml --values my-values.json`
 
 Once the `output` directory has been created you can run `tail -f output/vm-log.txt`
 in another terminal window to follow the execution and then run
