@@ -191,9 +191,9 @@ with "echo 1":
     teardown:
       command: echo 1
       # command:
-      #   name: delete-router-scale-vm.sh
+      #   name: cleanup-router-scale-vm.sh
       #   kind: relative_path
-      #   path: scripts/delete-router-scale-vm.sh
+      #   path: scripts/cleanup-router-scale-vm.sh
       #   args:
       #     - "{{ vm_name }}"
 ```
