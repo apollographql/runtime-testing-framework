@@ -1,6 +1,5 @@
 //! Helpers for checking config files
 use crate::{context::ResolutionContext, providers::file::Source};
-use enum_dispatch::enum_dispatch;
 use std::collections::HashSet;
 
 /// User facing descriptions of the reason that validation failed.
@@ -45,7 +44,6 @@ pub type Errors = crate::error::Errors<ErrorKind>;
 pub type ErrorBuilder = crate::error::ErrorBuilder<ErrorKind>;
 pub type Result<T> = std::result::Result<T, Errors>;
 
-#[enum_dispatch]
 pub trait Check {
     /// Run any initial static check available to error early if this provider contains
     /// invalid data.
@@ -54,7 +52,7 @@ pub trait Check {
         path: &mut Vec<String>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> std::result::Result<(), crate::checks::Errors>;
+    ) -> Result<()>;
 
     fn try_check_nested(
         &self,
@@ -62,12 +60,43 @@ pub trait Check {
         tail: impl Into<String>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> std::result::Result<(), crate::checks::Errors> {
+    ) -> Result<()> {
         let mut path = path.clone();
         path.push(tail.into());
 
         self.try_check(&mut path, src, ctx)
     }
+}
+
+/// Helper macro for stamping out implementations of the [Check] trait on an enum where each
+/// variant is a wrapper around a type that already implements the trait.
+#[macro_export]
+macro_rules! enum_impl_check {
+    ($enum:ident => $($variant:ident),+) => {
+        impl Check for $enum {
+            fn try_check(
+                &self,
+                path: &mut Vec<String>,
+                src: &Source,
+                ctx: &impl ResolutionContext,
+            ) -> $crate::checks::Result<()> {
+                match self {
+                    $(Self::$variant(inner) => inner.try_check(path, src, ctx),)+
+                }
+            }
+            fn try_check_nested(
+                &self,
+                path: &mut Vec<String>,
+                tail: impl Into<String>,
+                src: &Source,
+                ctx: &impl ResolutionContext,
+            ) -> $crate::checks::Result<()> {
+                match self {
+                    $(Self::$variant(inner) => inner.try_check_nested(path, tail, src, ctx),)+
+                }
+            }
+        }
+    };
 }
 
 /// Determine if there are any duplicates within a given slices of elements using a given key

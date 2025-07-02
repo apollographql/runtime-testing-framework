@@ -2,11 +2,10 @@
 use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
-    impl_template,
-    providers::{Error, Result},
+    enum_impl_check, enum_impl_template, impl_template,
+    providers::{self, Error, Result},
     templating::{self, Field, Scalar, Template},
 };
-use enum_dispatch::enum_dispatch;
 use reqwest::StatusCode;
 use rtf_core::HttpClient;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -16,9 +15,6 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
-
-// We need to bring this into scope for enum_dispatch to be able to pick it up
-use crate::providers::command::CommandProvider;
 
 pub mod apollo;
 
@@ -91,14 +87,32 @@ impl RawSource {
 /// This trait is deliberately pub(crate) rather than pub so that the validation and resolution
 /// logic is only exposed through the public API as part of the methods on the config file structs.
 #[allow(async_fn_in_trait)]
-#[enum_dispatch]
 pub(crate) trait AsUtf8FileContent: Check + DeserializeOwned + fmt::Debug {
     /// Attempt to run this file provider and convert it into the required file content.
     async fn try_get_file_content(
         &self,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<String>;
+    ) -> providers::Result<String>;
+}
+
+/// Helper macro for stamping out implementations of the [AsUtf8FileContent] trait on an enum where
+/// each variant is a wrapper around a type that already implements the trait.
+#[macro_export]
+macro_rules! enum_impl_as_utf8_file_content {
+    ($enum:ident => $($variant:ident),+) => {
+        impl AsUtf8FileContent for $enum {
+            async fn try_get_file_content(
+                &self,
+                src: &Source,
+                ctx: &impl ResolutionContext,
+            ) -> providers::Result<String> {
+                match self {
+                    $(Self::$variant(inner) => inner.try_get_file_content(src, ctx).await,)+
+                }
+            }
+        }
+    };
 }
 
 impl<T> ResolveAndWrite for T
@@ -126,7 +140,6 @@ where
 /// If however you need to write out multiple files or run some additional logic after writing out
 /// a file (such as making it executable) then you should implement this trait directly.
 #[allow(async_fn_in_trait)]
-#[enum_dispatch]
 pub(crate) trait ResolveAndWrite: Check + DeserializeOwned + fmt::Debug {
     async fn try_get_all_file_contents(
         &self,
@@ -153,6 +166,37 @@ pub(crate) trait ResolveAndWrite: Check + DeserializeOwned + fmt::Debug {
     }
 }
 
+/// Helper macro for stamping out implementations of the [ResolveAndWrite] trait on an enum where
+/// each variant is a wrapper around a type that already implements the trait.
+#[macro_export]
+macro_rules! enum_impl_resolve_and_write {
+    ($enum:ident => $($variant:ident),+) => {
+        impl ResolveAndWrite for $enum {
+            async fn try_get_all_file_contents(
+                &self,
+                target: impl AsRef<Path>,
+                src: &Source,
+                ctx: &impl ResolutionContext,
+            ) -> $crate::providers::Result<Vec<(PathBuf, String)>> {
+                match self {
+                    $(Self::$variant(inner) => inner.try_get_all_file_contents(target, src, ctx).await,)+
+                }
+            }
+
+            async fn resolve_and_write(
+                &self,
+                target: impl AsRef<Path>,
+                src: &Source,
+                ctx: &impl ResolutionContext,
+            ) -> $crate::providers::Result<()> {
+                match self {
+                    $(Self::$variant(inner) => inner.resolve_and_write(target, src, ctx).await,)+
+                }
+            }
+        }
+    };
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct NamedFileProvider {
     pub name: String,
@@ -176,7 +220,6 @@ impl DerefMut for NamedFileProvider {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-#[enum_dispatch(Template, Check, ResolveAndWrite)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
     GraphosCannedOps(apollo::GraphosCannedOps),
@@ -188,6 +231,28 @@ pub enum FileProvider {
     Required(RequiredFile),
     RouterDownloadScript(RouterDownloadScript),
 }
+
+// Each time we add a new variant to the FileProvider enum above we need to remember to add it to
+// the macro invocation below in order to update the trait implementations for the enum. (You can't
+// really forget to do this as the compiler will complain about missing match arms if you do!)
+macro_rules! enum_impl_file_provider {
+    ($($variant:ident),+) => {
+        enum_impl_check!(FileProvider => $($variant),+);
+        enum_impl_template!(FileProvider => $($variant),+);
+        enum_impl_resolve_and_write!(FileProvider => $($variant),+);
+    };
+}
+
+enum_impl_file_provider!(
+    GraphosCannedOps,
+    GraphosSubgraphs,
+    GraphosSupergraph,
+    Inline,
+    OfflineGraphosLicense,
+    RelativePath,
+    Required,
+    RouterDownloadScript
+);
 
 /// The simplest form of file provider: the user specifies the contents of the file inline within
 /// their config file.

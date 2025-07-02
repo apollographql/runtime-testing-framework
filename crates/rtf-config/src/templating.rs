@@ -1,13 +1,9 @@
 //! Helpers for supporting minimal templating of user config files.
-use enum_dispatch::enum_dispatch;
 use serde::{
     Deserialize, Deserializer, Serialize,
     de::{self, DeserializeOwned, Visitor},
 };
 use std::{collections::HashMap, fmt, marker::PhantomData};
-
-// We need to bring these into scope for enum_dispatch to be able to pick them up
-use crate::providers::{command::CommandProvider, file::FileProvider};
 
 /// User facing descriptions of the reason that templating a [Field] failed.
 ///
@@ -46,7 +42,6 @@ pub type Result<T> = std::result::Result<T, Errors>;
 /// wrapper [Field] type to identify where values need to be injected. A type that implements
 /// [Template] supports walking its contents to locate and template fields using a provided map
 /// of scalar values.
-#[enum_dispatch]
 pub trait Template {
     /// Whether or not there are any pending [Field]s contained within this value.
     fn has_pending_fields(&self) -> bool;
@@ -97,6 +92,37 @@ pub trait Template {
 
         errs.into_result(missing)
     }
+}
+
+/// Helper macro for stamping out implementations of the [Template] trait on an enum where each
+/// variant is a wrapper around a type that already implements the trait.
+#[macro_export]
+macro_rules! enum_impl_template {
+    ($enum:ident => $($variant:ident),+) => {
+        impl Template for $enum {
+            fn has_pending_fields(&self) -> bool {
+                match self {
+                    $(Self::$variant(inner) => inner.has_pending_fields(),)+
+                }
+            }
+
+            fn required_values(&self) -> Vec<String> {
+                match self {
+                    $(Self::$variant(inner) => inner.required_values(),)+
+                }
+            }
+
+            fn try_template(
+                &mut self,
+                path: &mut Vec<String>,
+                values: &HashMap<String, Scalar>,
+            ) -> templating::Result<()> {
+                match self {
+                    $(Self::$variant(inner) => inner.try_template(path, values),)+
+                }
+            }
+        }
+    };
 }
 
 /// Helper for implementing the [Template] trait for types that only contain [Field]s at the top
