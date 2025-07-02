@@ -230,6 +230,7 @@ pub enum FileProvider {
     RelativePath(RelativeFile),
     Required(RequiredFile),
     RouterDownloadScript(RouterDownloadScript),
+    ResolvedValues(ResolvedValues),
 }
 
 // Each time we add a new variant to the FileProvider enum above we need to remember to add it to
@@ -251,7 +252,8 @@ enum_impl_file_provider!(
     OfflineGraphosLicense,
     RelativePath,
     Required,
-    RouterDownloadScript
+    RouterDownloadScript,
+    ResolvedValues
 );
 
 /// The simplest form of file provider: the user specifies the contents of the file inline within
@@ -416,6 +418,38 @@ impl Check for RequiredFile {
             &self.message,
             path,
         ))
+    }
+}
+
+/// Returns the JSON string representation of the resolved values for the test plan being run.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct ResolvedValues;
+
+impl AsUtf8FileContent for ResolvedValues {
+    async fn try_get_file_content(
+        &self,
+        _src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> Result<String> {
+        let s = match ctx.values() {
+            Some(values) => serde_json::to_string(&values)?,
+            None => "{}".to_string(),
+        };
+
+        Ok(s)
+    }
+}
+
+impl_template!(ResolvedValues => []);
+
+impl Check for ResolvedValues {
+    fn try_check(
+        &self,
+        _path: &mut Vec<String>,
+        _src: &Source,
+        _ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        Ok(())
     }
 }
 
@@ -676,6 +710,26 @@ mod tests {
                 &ctx,
             )
             .await;
+    }
+
+    #[tokio::test]
+    async fn resolved_values_file_provider_returns_stored_values() {
+        let mut ctx = Context::new();
+        let values: HashMap<String, Scalar> =
+            [("foo".to_string(), "bar".into())].into_iter().collect();
+        ctx.set_values(&values);
+
+        let s = ResolvedValues
+            .try_get_file_content(
+                &Source::Local {
+                    abs_path: PathBuf::new(),
+                },
+                &ctx,
+            )
+            .await
+            .expect("resolution to succeed");
+
+        assert_eq!(s, r#"{"foo":"bar"}"#);
     }
 
     #[derive(Clone)]

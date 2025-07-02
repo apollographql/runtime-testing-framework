@@ -1,4 +1,4 @@
-use crate::providers;
+use crate::{providers, templating::Scalar};
 use rtf_core::{
     APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR, HttpClient, ReqwestClient,
     graphos::{platform_query, supergraph::SupergraphDetails},
@@ -45,6 +45,13 @@ pub trait ResolutionContext {
     }
 
     fn http_client(&self) -> Option<&Self::HttpClient> {
+        None
+    }
+
+    #[allow(unused_variables)]
+    fn set_values(&mut self, values: &HashMap<String, Scalar>) {}
+
+    fn values(&self) -> Option<&HashMap<String, Scalar>> {
         None
     }
 
@@ -150,15 +157,13 @@ pub trait ResolutionContext {
 pub struct Context {
     client: ReqwestClient,
     supergraph_details: Mutex<HashMap<String, Arc<SupergraphDetails>>>,
+    values: HashMap<String, Scalar>,
 }
 
 impl Context {
     /// Construct a new `Context` with default configuration.
     pub fn new() -> Self {
-        Self {
-            client: Default::default(),
-            supergraph_details: Default::default(),
-        }
+        Self::default()
     }
 
     /// Construct a new `Context` with environment variables.
@@ -203,6 +208,14 @@ impl ResolutionContext for Context {
 
     fn http_client(&self) -> Option<&Self::HttpClient> {
         Some(&self.client)
+    }
+
+    fn set_values(&mut self, values: &HashMap<String, Scalar>) {
+        self.values = values.clone();
+    }
+
+    fn values(&self) -> Option<&HashMap<String, Scalar>> {
+        Some(&self.values)
     }
 
     async fn with_supergraph_details<T>(

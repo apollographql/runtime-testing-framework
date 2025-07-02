@@ -21,11 +21,11 @@ async fn template_test_plan_with_context(
     path: &str,
     values: Values,
     check: bool,
-    ctx: impl ResolutionContext,
+    mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
     info!("loading and resolving test plan");
     let mut test_plan = TestPlanConfig::try_load_and_resolve_from_path(path, &ctx).await?;
-    values.merge(&mut test_plan.values, &ctx)?;
+    values.merge(&mut test_plan.values, &mut ctx)?;
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work()?;
