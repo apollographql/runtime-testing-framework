@@ -5,8 +5,8 @@
 #   - run REST API snapshot servers for Apollo Connectors
 #   - support flamegraph
 
-TEST_DIR="${OUTDIR:-$(pwd)}/tests"
-RESULTS_DIR="$TEST_DIR/results"
+OUTDIR="${OUTDIR:-$(pwd)}"
+RESULTS_DIR="$OUTDIR/results"
 
 echo "sourcing data files"
 set -a
@@ -46,7 +46,7 @@ function label {
 # Fetch or build the router (this is being replaced by running a script coming from a file provider in RR-58)
 function fetch_router {
   rm -f ~/.cargo/bin/router
-  cd "$TEST_DIR"
+  cd "$OUTDIR"
   curl -sSL "https://router.apollo.dev/download/nix/${ROUTER_VERSION}" | sh
 
   mkdir -p ~/.cargo/bin

@@ -181,10 +181,10 @@ rtf run example-test-plans/router-scale/wrapper/test-plan.yaml \
 Once the `output` directory has been created you can run `tail -f output/vm-log.txt`
 in another terminal window to follow the execution and then run
 `./example-test-plans/router-scale/wrapper/scripts/gcloud-ssh-wrapper.sh rtf-router-scale`
-once the VM is up to get an SSH session started on the VM if desired. On the VM, the
-output of the tests is placed in `~/output/results/` and is copied to your local RTF
-output directory before the test run completes. The VM itself is either deleted at the end
-of the test run or the results are removed from the VM.
+once the VM is up to get an SSH session started on the VM if desired. The test results
+are copied to your local RTF output directory before the test run completes. They should
+be stored in `output/results`. If the VM is not deleted at the end of the test run the
+results are deleted from the VM by the clean up script (so are only available locally).
 
 To persist the VM between runs, override the `delete_vm` value in the wrapper test plan
 with `"false"`. In practice, this could be relaced with any value that is not `"true"`, 

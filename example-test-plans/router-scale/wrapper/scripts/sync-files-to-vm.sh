@@ -90,4 +90,4 @@ bash $GCLOUD_SSH_WRAPPER $1 bash -i run-test-plan.sh "$APOLLO_KEY" 2> >(grep -v 
 
 # Copy test results back from the VM
 mkdir -p "$OUTDIR/results/"
-rsync_from_vm $1 "$OUTDIR/results/" "output/tests/results/" >> $LOG_FILE
+rsync_from_vm $1 "$OUTDIR/results/" "output/results/" >> $LOG_FILE
