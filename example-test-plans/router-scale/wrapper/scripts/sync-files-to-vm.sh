@@ -16,7 +16,7 @@ FILTER_OUT="WARNING: This command is using service account impersonation."
 # Used to find the gcloud ssh wrapped and install rtf script
 # This is required so that these can be referenced by RTF
 GCLOUD_SSH_WRAPPER="${GCLOUD_SSH_WRAPPER:-$BASE_DIR/gcloud-ssh-wrapper.sh}"
-INSTALL_RTF="${INSTALL_RTF:-$BASE_DIR/install-rtf.sh}"
+INSTALL_RTF="${INSTALL_RTF:-$BASE_DIR/run-test-plan.sh}"
 BOOTSTRAP_ENV="${BOOTSTRAP_ENV:-$BASE_DIR/bootstrap-env.sh}"
 
 function rsync_to_vm {
@@ -86,7 +86,7 @@ bash $GCLOUD_SSH_WRAPPER $1 bash -i bootstrap-env.sh 2> >(grep -v "${FILTER_OUT}
 
 # Run the rtf script
 echo "Install RTF and run on the VM..." >> $LOG_FILE
-bash $GCLOUD_SSH_WRAPPER $1 bash -i install-rtf.sh "$APOLLO_KEY" 2> >(grep -v "${FILTER_OUT}") >> $LOG_FILE
+bash $GCLOUD_SSH_WRAPPER $1 bash -i run-test-plan.sh "$APOLLO_KEY" 2> >(grep -v "${FILTER_OUT}") >> $LOG_FILE
 
 # Copy test results back from the VM
 mkdir -p "$OUTDIR/results/"
