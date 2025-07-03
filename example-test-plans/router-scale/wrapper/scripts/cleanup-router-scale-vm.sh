@@ -5,10 +5,6 @@
 # files from the test run(s)
 
 BASE_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-if [ -z "$RTF_DIR" ]; then
-    echo "Error: RTF_DIR environment variable is not set."
-    exit 1
-fi
 
 shopt -s expand_aliases
 
