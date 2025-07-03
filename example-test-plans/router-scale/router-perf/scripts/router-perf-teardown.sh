@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
-TEST_DIR="${OUTDIR:-$(pwd)}/tests"
-RESULTS_DIR="$TEST_DIR/results"
+OUTDIR="${OUTDIR:-$(pwd)}"
+RESULTS_DIR="$OUTDIR/results"
 
 echo "extracting data from redis"
 

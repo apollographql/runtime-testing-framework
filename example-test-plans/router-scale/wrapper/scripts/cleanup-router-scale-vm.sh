@@ -41,8 +41,8 @@ function cleanup_vm {
     bash $GCLOUD_SSH_WRAPPER $1 rm -f "$OUTDIR/router-config.yaml" 2> >(grep -v "${FILTER_OUT}") >> $LOG_FILE
     bash $GCLOUD_SSH_WRAPPER $1 rm -f "$OUTDIR/supergraph.graphql" 2> >(grep -v "${FILTER_OUT}") >> $LOG_FILE
     bash $GCLOUD_SSH_WRAPPER $1 rm -rf "$OUTDIR/subgraphs/" 2> >(grep -v "${FILTER_OUT}") >> $LOG_FILE
-    bash $GCLOUD_SSH_WRAPPER $1 rm -f "$OUTDIR/tests/requests.canned" 2> >(grep -v "${FILTER_OUT}") >> $LOG_FILE
-    bash $GCLOUD_SSH_WRAPPER $1 rm -rf "$OUTDIR/tests/results/" 2> >(grep -v "${FILTER_OUT}") >> $LOG_FILE
+    bash $GCLOUD_SSH_WRAPPER $1 rm -f "$OUTDIR/requests.canned" 2> >(grep -v "${FILTER_OUT}") >> $LOG_FILE
+    bash $GCLOUD_SSH_WRAPPER $1 rm -rf "$OUTDIR/results/" 2> >(grep -v "${FILTER_OUT}") >> $LOG_FILE
 
     echo "Test system: $1 cleaned up."
 }

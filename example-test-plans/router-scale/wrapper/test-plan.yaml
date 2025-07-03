@@ -46,10 +46,10 @@ scenario:
         kind: relative_path
         path: scripts/bootstrap-env.sh
 
-      - name: install-rtf.sh
+      - name: run-test-plan.sh
         env_var: INSTALL_RTF
         kind: relative_path
-        path: scripts/install-rtf.sh
+        path: scripts/run-test-plan.sh
 
       - name: values.json
         env_var: VALUES
