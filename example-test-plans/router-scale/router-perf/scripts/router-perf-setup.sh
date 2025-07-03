@@ -171,7 +171,7 @@ function run_router {
     license_arg="--license $LICENSE_FILE"
   fi
 
-  router -s "$SUPERGRAPH_SCHEMA" -c "$ROUTER_CONFIG" $license_arg > "$RESULTS_DIR/router.log" &
+  label "router" router -s "$SUPERGRAPH_SCHEMA" -c "$ROUTER_CONFIG" $license_arg > "$RESULTS_DIR/router.log" &
   router_pid="$!"
 
   if [ -n "$ROUTER_CPU_REQ" ] || [ -n "$ROUTER_MEM_REQ" ] || [ -n "$ROUTER_MEM_LIM" ]; then
