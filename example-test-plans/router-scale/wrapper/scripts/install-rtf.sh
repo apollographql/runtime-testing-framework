@@ -18,4 +18,7 @@ export APOLLO_KEY="$1"
 
 echo "Running test plan..."
 cargo build --manifest-path ./rtf/Cargo.toml
-cargo run --manifest-path ./rtf/Cargo.toml -- run test-data/test-plan.yaml --values "values.json" 2>&1
+cargo run --manifest-path ./rtf/Cargo.toml -- run test-data/test-plan.yaml --outdir output --values "values.json" 2>&1
+
+# Create an output/tests/results dir in case the rtf run fails
+mkdir -p output/tests/results

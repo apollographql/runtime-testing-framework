@@ -29,6 +29,16 @@ function rsync_to_vm {
         2> >(grep -v "${FILTER_OUT}")
 }
 
+function rsync_from_vm {
+    # $1 is the remote VM name (it has to be the first argument since the ssh script expects the first argument to be the vm name)
+    # $2 is the local dir
+    # $3 is the remote dir
+    echo "Copying from $1:$3 to $2..."
+    
+    rsync -e "bash $GCLOUD_SSH_WRAPPER" --compress --recursive --times "$1:$3" "$2"\
+        2> >(grep -v "${FILTER_OUT}")
+}
+
 if [ -z "$1" ]; then
     echo "Usage: $0 <vm-name>"
     exit 1
@@ -77,3 +87,7 @@ bash $GCLOUD_SSH_WRAPPER $1 bash -i bootstrap-env.sh 2> >(grep -v "${FILTER_OUT}
 # Run the rtf script
 echo "Install RTF and run on the VM..." >> $LOG_FILE
 bash $GCLOUD_SSH_WRAPPER $1 bash -i install-rtf.sh "$APOLLO_KEY" 2> >(grep -v "${FILTER_OUT}") >> $LOG_FILE
+
+# Copy test results back from the VM
+mkdir -p "$OUTDIR/results/"
+rsync_from_vm $1 "$OUTDIR/results/" "output/tests/results/" >> $LOG_FILE
