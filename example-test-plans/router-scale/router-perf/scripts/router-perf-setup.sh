@@ -55,7 +55,12 @@ function fetch_router {
   cd ~
 
   if [[ ! -f ".cargo/bin/router" ]]; then
-    echo "Couldn't find a router in ~/.cargo/bin/. Terminating..."
+    echo "ERROR: Couldn't find a router in ~/.cargo/bin/. Exiting"
+    exit 1
+  fi
+
+  if ! router config validate "$ROUTER_CONFIG"; then
+    echo "ERROR: Router config file is invalid. Exiting"
     exit 1
   fi
 }
@@ -68,8 +73,8 @@ function cleanup_supporting_services {
   if docker ps | grep redis ; then
     docker kill redis
   fi
-  if docker compose ls | grep docker-compose-redis.yml ; then
-    docker compose -f scale/scripts/docker-compose-redis.yml down > /dev/null 2>&1
+  if docker compose ls | grep "$REDIS_DOCKER_COMPOSE" ; then
+    docker compose -f "$REDIS_DOCKER_COMPOSE" down > /dev/null 2>&1
   fi
 
   pkill -3 -x top
@@ -101,7 +106,7 @@ function run_supporting_services {
     -p 4317:4317 \
     -p 4318:4318 \
     --add-host=host.docker.internal:host-gateway \
-    --mount type=bind,source=./${TEST_DIR}/config/otel-collector-config.yml,target=/etc/otelcol-contrib/config.yaml \
+    --mount type=bind,source="${OTEL_CONFIG}",target=/etc/otelcol-contrib/config.yaml \
     otel/opentelemetry-collector-contrib:0.103.1
   label "otel" docker logs --follow otel > "${RESULTS_DIR}/otel.log" 2>&1 &
 
@@ -113,7 +118,7 @@ function run_supporting_services {
     redis
   wait_for 127.0.0.1 6379 "redis" 10
 
-  label "redis-cluster" docker compose -f scale/scripts/docker-compose-redis.yml up --detach > /dev/null 2>&1
+  label "redis-cluster" docker compose -f "$REDIS_DOCKER_COMPOSE" up --detach > /dev/null 2>&1
   wait_for 127.0.0.1 6385 "redis-cluster" 10
 }
 
@@ -171,7 +176,7 @@ function run_router {
     license_arg="--license $LICENSE_FILE"
   fi
 
-  router -s "$SUPERGRAPH_SCHEMA" -c "$ROUTER_CONFIG" $license_arg > "$RESULTS_DIR/router.log" &
+  label "router" router -s "$SUPERGRAPH_SCHEMA" -c "$ROUTER_CONFIG" $license_arg > "$RESULTS_DIR/router.log" &
   router_pid="$!"
 
   if [ -n "$ROUTER_CPU_REQ" ] || [ -n "$ROUTER_MEM_REQ" ] || [ -n "$ROUTER_MEM_LIM" ]; then

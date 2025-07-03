@@ -283,11 +283,17 @@ impl ResolutionContext for Context {
         args: impl IntoIterator<Item = &'a str>,
         env_vars: &HashMap<String, String>,
     ) -> io::Result<()> {
-        Command::new(prog)
+        let status = Command::new(prog)
             .args(args)
             .envs(env_vars)
             .spawn()?
             .wait()?;
+
+        if !status.success() {
+            return Err(io::Error::other(format!(
+                "{prog:?} failed to terminate successfully"
+            )));
+        }
 
         Ok(())
     }

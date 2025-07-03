@@ -39,6 +39,16 @@ environment:
           kind: relative_path
           path: data/router-2.config.yaml
 
+        - name: otel-config.yaml
+          env_var: OTEL_CONFIG
+          kind: relative_path
+          path: data/otel-collector-config.yaml
+
+        - name: docker-compose-redis.yaml
+          env_var: REDIS_DOCKER_COMPOSE
+          kind: relative_path
+          path: data/docker-compose-redis.yaml
+
         - name: license.jwt
           env_var: LICENSE_FILE
           kind: offline_graphos_license
