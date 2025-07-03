@@ -101,7 +101,7 @@ function run_supporting_services {
     -p 4317:4317 \
     -p 4318:4318 \
     --add-host=host.docker.internal:host-gateway \
-    --mount type=bind,source=./${TEST_DIR}/config/otel-collector-config.yml,target=/etc/otelcol-contrib/config.yaml \
+    --mount type=bind,source="${OTEL_CONFIG}",target=/etc/otelcol-contrib/config.yaml \
     otel/opentelemetry-collector-contrib:0.103.1
   label "otel" docker logs --follow otel > "${RESULTS_DIR}/otel.log" 2>&1 &
 
