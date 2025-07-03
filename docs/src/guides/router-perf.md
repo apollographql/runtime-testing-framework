@@ -150,8 +150,8 @@ against then a good starting point is to pick one of the graphs found in the cur
 [router-scale corpus][15]:
 ```bash
 rtf template example-test-plans/router-scale/router-perf/test-plan.yaml \
-  --value "router_pid=1" \
-  --value "router_cgroup=true" \
+  --value "router_pid='1'" \
+  --value "router_cgroup='true'" \
   --value "graph_ref=YOUR-CHOSEN@GRAPH" \
   --check
 ```
