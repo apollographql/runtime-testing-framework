@@ -1,0 +1,16 @@
+A valid yaml fragment for building the router from source containing
+both commit_ref and rust_version fields
+
+-- config.yaml --
+kind: build_router_from_source
+commit_ref: "a12k25h85"
+rust_version: "1.65.0-nightly.20230701"
+
+-- expected-file-content --
+mkdir router-source && \
+cd router-source && \
+git clone https://github.com/apollographql/router.git && \
+cd router && \
+git checkout a12k25h85 && \
+rustup run 1.65.0-nightly.20230701 cargo build --release && \
+cp ${CARGO_TARGET_DIR}/release/router ~/.cargo/bin/

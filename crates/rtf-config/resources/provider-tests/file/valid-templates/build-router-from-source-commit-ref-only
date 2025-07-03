@@ -1,0 +1,13 @@
+A valid yaml fragment for building the router from source containing
+both only commit_ref field
+
+-- config.yaml --
+kind: build_router_from_source
+commit_ref: "{{ commit_ref }}"
+
+-- values --
+commit_ref: "a12k25h85"
+
+-- after-templating --
+kind: build_router_from_source
+commit_ref: "a12k25h85"

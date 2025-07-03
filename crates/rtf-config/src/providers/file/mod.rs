@@ -231,6 +231,7 @@ pub enum FileProvider {
     Required(RequiredFile),
     RouterDownloadScript(RouterDownloadScript),
     ResolvedValues(ResolvedValues),
+    BuildRouterFromSource(BuildRouterFromSource),
 }
 
 // Each time we add a new variant to the FileProvider enum above we need to remember to add it to
@@ -253,7 +254,8 @@ enum_impl_file_provider!(
     RelativePath,
     Required,
     RouterDownloadScript,
-    ResolvedValues
+    ResolvedValues,
+    BuildRouterFromSource
 );
 
 /// The simplest form of file provider: the user specifies the contents of the file inline within
@@ -496,6 +498,100 @@ impl Check for RouterDownloadScript {
             ));
         }
 
+        Ok(())
+    }
+}
+
+/// A file provider used for building the Router from source at a specific git commit
+/// or reference.
+///
+/// - `commit_ref`: A git reference that can be passed to `git checkout`. This may be
+///   a full or partial commit hash, branch name, or tag. Defaults to `"main"` if unset.
+/// - `rust_version`: A Rust version string that can be passed to `rustup run {rust_version}`,
+///   such as `"1.78.0"`, `"beta"`, or `"nightly"`. Defaults to `"stable"` if unset.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct BuildRouterFromSource {
+    pub(crate) commit_ref: Option<Field<String>>,
+    pub(crate) rust_version: Option<Field<String>>,
+}
+
+impl Template for BuildRouterFromSource {
+    fn has_pending_fields(&self) -> bool {
+        [&self.commit_ref, &self.rust_version].iter().any(|field| {
+            field
+                .as_ref()
+                .map(|f| f.has_pending_fields())
+                .unwrap_or(false)
+        })
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        [&self.commit_ref, &self.rust_version]
+            .iter()
+            .flat_map(|field| {
+                field
+                    .as_ref()
+                    .map(|f| f.required_values())
+                    .unwrap_or_default()
+            })
+            .collect()
+    }
+
+    fn try_template(
+        &mut self,
+        path: &mut Vec<String>,
+        values: &HashMap<String, Scalar>,
+    ) -> templating::Result<()> {
+        if let Some(field) = self.commit_ref.as_mut() {
+            field.try_template(path, values)?;
+        }
+
+        if let Some(field) = self.rust_version.as_mut() {
+            field.try_template(path, values)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl AsUtf8FileContent for BuildRouterFromSource {
+    async fn try_get_file_content(
+        &self,
+        _src: &Source,
+        _ctx: &impl ResolutionContext,
+    ) -> Result<String> {
+        let commit_ref = match &self.commit_ref {
+            Some(hash) => hash.as_resolved(),
+            None => "main",
+        };
+
+        let rust_version = match &self.rust_version {
+            Some(rust_version) => rust_version.as_resolved(),
+            None => "stable",
+        };
+
+        let install_script = format!(
+            r#"mkdir router-source && \
+cd router-source && \
+git clone https://github.com/apollographql/router.git && \
+cd router && \
+git checkout {} && \
+rustup run {} cargo build --release && \
+cp ${{CARGO_TARGET_DIR}}/release/router ~/.cargo/bin/"#,
+            commit_ref, rust_version
+        );
+
+        Ok(install_script)
+    }
+}
+
+impl Check for BuildRouterFromSource {
+    fn try_check(
+        &self,
+        _path: &mut Vec<String>,
+        _src: &Source,
+        _ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
         Ok(())
     }
 }
