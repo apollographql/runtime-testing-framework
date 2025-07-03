@@ -60,8 +60,12 @@ fi
 rsync_to_vm $1 $RTF_DIR/Cargo.toml ./rtf/ >> $LOG_FILE
 rsync_to_vm $1 $RTF_DIR/Cargo.lock ./rtf/ >> $LOG_FILE
 rsync_to_vm $1 $RTF_DIR/crates/ ./rtf/crates/ >> $LOG_FILE
+
 # The test plan we're going to run
 rsync_to_vm $1 $RTF_DIR/$2/ ./test-data/ >> $LOG_FILE
+
+# The values.json file
+rsync_to_vm $1 $VALUES ./ >> $LOG_FILE
 
 # Copy shell script to install rtf to VM
 rsync_to_vm $1 $BOOTSTRAP_ENV ./ >> $LOG_FILE

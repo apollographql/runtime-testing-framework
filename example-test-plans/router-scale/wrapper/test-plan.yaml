@@ -50,6 +50,10 @@ scenario:
         kind: relative_path
         path: scripts/install-rtf.sh
 
+      - name: values.json
+        env_var: VALUES
+        kind: resolved_values
+
 environment:
   inline:
     name: environment-router-scale
