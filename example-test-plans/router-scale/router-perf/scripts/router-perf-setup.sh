@@ -55,7 +55,12 @@ function fetch_router {
   cd ~
 
   if [[ ! -f ".cargo/bin/router" ]]; then
-    echo "Couldn't find a router in ~/.cargo/bin/. Terminating..."
+    echo "ERROR: Couldn't find a router in ~/.cargo/bin/. Exiting"
+    exit 1
+  fi
+
+  if ! router config validate "$ROUTER_CONFIG"; then
+    echo "ERROR: Router config file is invalid. Exiting"
     exit 1
   fi
 }
