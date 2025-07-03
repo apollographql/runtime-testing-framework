@@ -73,8 +73,8 @@ function cleanup_supporting_services {
   if docker ps | grep redis ; then
     docker kill redis
   fi
-  if docker compose ls | grep docker-compose-redis.yml ; then
-    docker compose -f scale/scripts/docker-compose-redis.yml down > /dev/null 2>&1
+  if docker compose ls | grep "$REDIS_DOCKER_COMPOSE" ; then
+    docker compose -f "$REDIS_DOCKER_COMPOSE" down > /dev/null 2>&1
   fi
 
   pkill -3 -x top
@@ -118,7 +118,7 @@ function run_supporting_services {
     redis
   wait_for 127.0.0.1 6379 "redis" 10
 
-  label "redis-cluster" docker compose -f scale/scripts/docker-compose-redis.yml up --detach > /dev/null 2>&1
+  label "redis-cluster" docker compose -f "$REDIS_DOCKER_COMPOSE" up --detach > /dev/null 2>&1
   wait_for 127.0.0.1 6385 "redis-cluster" 10
 }
 
