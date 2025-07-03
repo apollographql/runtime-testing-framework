@@ -63,6 +63,8 @@ environment:
     values:
       - name: vm_name
         description: The name of the router-scale VM being created and deleted
+      - name: abs_path_rtf_repo
+        description: The absolute path to the rtf repo. This is needed so that the VM can be cleaned up.
       - name: delete_vm
         description: |
           A flag to set whether the VM should be deleted at the end of the run.
@@ -85,3 +87,6 @@ environment:
         args:
           - "{{ vm_name }}"
           - "{{ delete_vm }}"
+
+      env_vars:
+        RTF_DIR: "{{ abs_path_rtf_repo }}"
