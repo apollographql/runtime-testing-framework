@@ -8,7 +8,7 @@ RESULTS_DIR="$OUTDIR/results"
 CANNED="$OUTDIR/requests.canned"
 CANNED_TMP="$(mktemp /tmp/router.XXXXXX)"
 N_OPS="$(cat "$CANNED_OPS_FILE" | wc -l)"
-N_COPIES="$(( RPS * DURATION / N_OPS ))"
+N_COPIES="$(( RPS * DURATION_SECS / N_OPS ))"
 
 # rewrite our canned request data into vegeta format
 while read -r req; do
