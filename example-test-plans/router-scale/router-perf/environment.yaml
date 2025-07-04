@@ -20,9 +20,28 @@ setup:
     APOLLO_USAGE_REPORTING_INGRESS_URL: http://127.0.0.1:1234/studio
     APOLLO_USAGE_REPORTING_OTLP_INGRESS_URL: http://127.0.0.1:4317
     APOLLO_GRAPH_REF: "{{ graph_ref }}"
-    ROUTER_VERSION: "{{ router_version }}"
 
   file_providers:
+    - name: install-router.sh
+      env_var: ROUTER_INSTALL_SCRIPT
+      kind: router_download_script
+      version: "{{ router_version }}"
+
+    - name: router-config.yaml
+      env_var: ROUTER_CONFIG
+      kind: required
+      message: "Must provide a router config file"
+
+    - name: supergraph.graphql
+      env_var: SUPERGRAPH_SCHEMA
+      kind: graphos_supergraph
+      graph_ref: "{{ graph_ref }}"
+
+    - name: subgraphs
+      env_var: SUBGRAPH_DIR
+      kind: graphos_subgraphs
+      graph_ref: "{{ graph_ref }}"
+
     - name: router-cgroup.txt
       env_var: ROUTER_CGROUP_CONFIG
       kind: inline
@@ -39,21 +58,6 @@ setup:
         SUBGRAPH_LATENCY=5ms
         SUBGRAPH_AMPLITUDE=2ms
         SUBGRAPH_PERIOD=10s
-
-    - name: supergraph.graphql
-      env_var: SUPERGRAPH_SCHEMA
-      kind: graphos_supergraph
-      graph_ref: "{{ graph_ref }}"
-
-    - name: subgraphs
-      env_var: SUBGRAPH_DIR
-      kind: graphos_subgraphs
-      graph_ref: "{{ graph_ref }}"
-
-    - name: router-config.yaml
-      env_var: ROUTER_CONFIG
-      kind: required
-      message: "Must provide a router config file"
 
   provides:
     - name: router_pid
