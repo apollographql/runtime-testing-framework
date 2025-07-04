@@ -99,15 +99,36 @@ Doing so with a clean checkout of the repository should give you the following
  INFO loading and resolving test plan
  INFO checking if templating will work
  INFO applying values
-ERROR (scenario.command_section.env_vars.RTF_DIR) invalid templating value invalid value `1`, expected String
+ERROR (environment.setup.command.arg) invalid templating value: invalid value `1`, expected String
+(environment.teardown.command.arg) invalid templating value: invalid value `1`, expected String
+(scenario.command_section.command.arg) invalid templating value: invalid value `1`, expected String
+(scenario.command_section.env_vars.RTF_DIR) invalid templating value: invalid value `1`, expected String
 ```
 
-To fix this error we need to override the `abs_path_rtf_repo` value with the
-absolute path of the rtf repo. Since we are running this test plan from the
-root of the repo we can do that simply by using `--value` flag:
+To fix this error we need to override the `abs_path_rtf_repo` and `vm_name_suffix` values with the
+absolute path of the rtf repo and a suffix for the VM name. Since we are running this test plan from
+the root of the repo we can do that simply by using `--value` flag:
 ```bash
 rtf template example-test-plans/router-scale/wrapper/test-plan.yaml \
   --value "abs_path_rtf_repo=$(pwd)" \
+  --value "vm_name_suffix=suffix" \
+  --check
+```
+
+You will still get an error with this command. Expected error output:
+```
+ERROR (environment.teardown.command.arg) unknown templating value: vm_name
+(scenario.command_section.command.arg) unknown templating value: vm_name
+```
+
+This is because the environment setup provides a `vm_name` (which is generated using the `vm_name_suffix`).
+When running the test plan with the `run` subcommand you will not need to specify this value. However, to
+check that a test plan fully templates, this value will need to be specified with the `--value` flag too.
+```bash
+rtf template example-test-plans/router-scale/wrapper/test-plan.yaml \
+  --value "abs_path_rtf_repo=$(pwd)" \
+  --value "vm_name_suffix=suffix" \
+  --value "vm_name=name" \
   --check
 ```
 
@@ -164,11 +185,16 @@ terminal.
 
 Now that both Test Plans check successfully you can use the wrapper Test Plan to execute
 a performance test on an ephemeral VM. We don't need to override the values coming from
-the environment setup any more but we _do_ still need to specify the repo location and
-graph ref:
+the environment setup any more but we _do_ still need to specify the repo location, vm
+name suffix and graph ref:
+
+> **NOTE**: Replace `YOUR_SUFFIX` with your actual suffix before running.
+> We recommend using your name to avoid conflicts with any other users.
+
 ```bash
 rtf run example-test-plans/router-scale/wrapper/test-plan.yaml \
   --value "abs_path_rtf_repo=$(pwd)" \
+  --value "vm_name_suffix=YOUR_SUFFIX" \
   --value "graph_ref=YOUR-CHOSEN@GRAPH"
 ```
 
@@ -192,6 +218,7 @@ since that is the only value being matched on in the `cleanup-router-scale-vm.sh
 ```bash
 rtf run example-test-plans/router-scale/wrapper/test-plan.yaml \
   --value "abs_path_rtf_repo=$(pwd)" \
+  --value "vm_name_suffix=YOUR_SUFFIX" \
   --value "graph_ref=YOUR-CHOSEN@GRAPH" \
   --value 'delete_vm="false"'
 ```
