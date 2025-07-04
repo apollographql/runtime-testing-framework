@@ -4,7 +4,9 @@ description: |
   over RTF and the required config to run a router-scale test to the VM.
 
 values:
-  vm_name: "rtf-router-scale"
+  # This has been deliberately set with an int so it will fail if you try to run without replacing this.
+  # This should be overriden using the --value(s) flag on the CLI
+  vm_name_suffix: 1
   delete_vm: "true"
   test_plan_dir: "example-test-plans/router-scale/router-perf"
   # This has been deliberately set with an int so it will fail if you try to run without replacing this.
@@ -61,8 +63,8 @@ environment:
     description: "Create a router-scale VM and delete it"
 
     values:
-      - name: vm_name
-        description: The name of the router-scale VM being created and deleted
+      - name: vm_name_suffix
+        description: The suffix of the name of the router-scale VM being created. This will be prefixed with "rtf-".
       - name: abs_path_rtf_repo
         description: The absolute path to the rtf repo. This is needed so that the VM can be cleaned up.
       - name: delete_vm
@@ -77,7 +79,11 @@ environment:
         kind: relative_path
         path: scripts/create-router-scale-vm.sh
         args:
-          - "{{ vm_name }}"
+          - "{{ vm_name_suffix }}"
+
+      provides:
+        - name: vm_name
+          description: The full name of the router-scale VM that was created.
 
     teardown:
       command:

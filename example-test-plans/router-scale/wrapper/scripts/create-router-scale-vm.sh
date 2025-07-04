@@ -94,11 +94,13 @@ function create_vm {
 }
 
 if [ -z "$1" ]; then
-    echo "Usage: $0 <vm-name>"
+    echo "Usage: $0 <vm-name-suffix>"
     exit 1
 fi
 check_dependencies || exit 2
-create_vm "$1" >> $LOG_FILE
 
-# Echo empty output so RTF environment setup succeeds
-echo {} > "$RTF_OUTPUT"
+VM_NAME="rtf-$1"
+create_vm $VM_NAME >> $LOG_FILE
+
+# Echo the vm_name so RTF environment setup succeeds
+echo "{ \"vm_name\": \"$VM_NAME\" }"  > "$RTF_OUTPUT"
