@@ -87,6 +87,3 @@ environment:
         args:
           - "{{ vm_name }}"
           - "{{ delete_vm }}"
-
-      env_vars:
-        RTF_DIR: "{{ abs_path_rtf_repo }}"
