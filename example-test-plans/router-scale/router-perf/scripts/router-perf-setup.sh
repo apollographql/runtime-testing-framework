@@ -47,7 +47,7 @@ function label {
 function fetch_router {
   rm -f ~/.cargo/bin/router
   cd "$OUTDIR"
-  curl -sSL "https://router.apollo.dev/download/nix/${ROUTER_VERSION}" | sh
+  sh "$ROUTER_INSTALL_SCRIPT"
 
   mkdir -p ~/.cargo/bin
   mv ./router ~/.cargo/bin
