@@ -36,7 +36,7 @@
   - [Command providers](developer/data-structures/command-providers.md)
   - [Config file formats](developer/data-structures/config-files.md)
 - [Traits for working with config structs](developer/config-traits.md)
-- [Use of IO in providers]()
+- [Use of IO in providers](developer/context.md)
 - [CLI subcommand design]()
   - [Plumbing vs porcelain]()
   - [No built-in magic]()

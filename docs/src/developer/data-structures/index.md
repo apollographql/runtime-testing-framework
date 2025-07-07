@@ -11,4 +11,4 @@ and working up to the [TestPlanConfig][2] struct that acts as the root.
 
   [0]: https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config
   [1]: https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli
-  [2]: https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/formats/test_plan.rs#L23
+  [2]: https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/formats/test_plan.rs#L23

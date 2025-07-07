@@ -15,5 +15,5 @@ See the implementation of [try_template][2] for the `CommandSection` struct for
 an example of what this looks like in practice.
 
   [0]: https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/error.rs
-  [1]: https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/error.rs#L94
-  [2]: https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/providers/command.rs#L181
+  [1]: https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/error.rs#L94
+  [2]: https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/command.rs#L181

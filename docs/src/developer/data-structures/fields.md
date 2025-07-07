@@ -22,6 +22,6 @@ using them where such flexibility is not required.
 > as the intention is for this to always be provided within the test plan itself.
 
 
-  [0]: https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/templating.rs#L205
+  [0]: https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/templating.rs#L205
   [1]: https://serde.rs/
-  [2]: https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/templating.rs#L363
+  [2]: https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/templating.rs#L363
