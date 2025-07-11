@@ -1,5 +1,5 @@
 A valid yaml fragment for building the router from source containing
-both only commit_ref field
+only commit_ref field
 
 -- config.yaml --
 kind: build_router_from_source
