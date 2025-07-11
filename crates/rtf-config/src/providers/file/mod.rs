@@ -575,10 +575,9 @@ impl AsUtf8FileContent for BuildRouterFromSource {
 cd router-source && \
 git clone https://github.com/apollographql/router.git && \
 cd router && \
-git checkout {} && \
-rustup run {} cargo build --release && \
+git checkout {commit_ref} && \
+rustup run {rust_version} cargo build --release && \
 cp ${{CARGO_TARGET_DIR}}/release/router ~/.cargo/bin/"#,
-            commit_ref, rust_version
         );
 
         Ok(install_script)
