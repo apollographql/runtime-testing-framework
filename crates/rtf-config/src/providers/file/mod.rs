@@ -543,15 +543,16 @@ impl Template for BuildRouterFromSource {
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
+        let mut errs = templating::ErrorBuilder::new();
         if let Some(field) = self.commit_ref.as_mut() {
-            field.try_template(path, values)?;
+            errs.append(field.try_template(path, values));
         }
 
         if let Some(field) = self.rust_version.as_mut() {
-            field.try_template(path, values)?;
+            errs.append(field.try_template(path, values));
         }
 
-        Ok(())
+        errs.into_result(())
     }
 }
 
