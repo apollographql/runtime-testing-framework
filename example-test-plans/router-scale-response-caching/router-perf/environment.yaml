@@ -5,8 +5,10 @@ description: |
   services. It is possible to configure the resources given to the router and subgraphs.
 
 values:
-  - name: router_version
-    description: "The build of the router to pull from Orbiter"
+  - name: rust_version
+    description: "Rust version to use to build the router"
+  - name: router_commit_ref
+    description: "The git commit ref for the router build"
   - name: graph_ref
     description: "The graphos graph ref to run the router for"
 
