@@ -28,7 +28,7 @@
 
 - [Concepts and Architecture](developer/concepts-and-architecture.md)
 - [Error handling](developer/error-handling.md)
-- [Testing]()
+- [Testing](developer/testing.md)
 - [Parsing config files](developer/parsing-config-files.md)
 - [Data structures](developer/data-structures/index.md)
   - [Templating fields](developer/data-structures/fields.md)
