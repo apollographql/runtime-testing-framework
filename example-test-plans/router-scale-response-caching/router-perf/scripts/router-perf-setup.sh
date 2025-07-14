@@ -67,12 +67,10 @@ function fetch_router {
 
 function cleanup_supporting_services {
   echo "cleaning up supporting services"
-  if docker ps | grep otel ; then
-    docker kill otel
-  fi
-  if docker ps | grep redis ; then
-    docker kill redis
-  fi
+  for service in otel redis postgres; do 
+    docker ps --filter "name=${service}" --format '{{.ID}}' | xargs docker kill
+  done
+
   if docker compose ls | grep "$REDIS_DOCKER_COMPOSE" ; then
     docker compose -f "$REDIS_DOCKER_COMPOSE" down > /dev/null 2>&1
   fi
@@ -117,6 +115,16 @@ function run_supporting_services {
     -p 6379:6379 \
     redis
   wait_for 127.0.0.1 6379 "redis" 10
+
+  label "start postgres" docker run \
+    --name postgres \
+    --rm \
+    --detach \
+    -p 5432:5432 \
+    -e POSTGRES_USER=postgres \
+    -e POSTGRES_DB=postgres \
+    cimg/postgres:17.0
+  wait_for 127.0.0.1 5432 "postgres" 10
 
   label "redis-cluster" docker compose -f "$REDIS_DOCKER_COMPOSE" up --detach > /dev/null 2>&1
   wait_for 127.0.0.1 6385 "redis-cluster" 10

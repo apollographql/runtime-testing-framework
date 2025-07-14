@@ -28,9 +28,10 @@ pkill -3 -x strace
 pkill -3 -x router-side
 pkill -x subgraph
 pkill -x snapshot
-docker kill otel
-docker kill redis
-docker compose -f scale/scripts/docker-compose-redis.yml down > /dev/null 2>&1
+docker compose -f "$REDIS_DOCKER_COMPOSE" down > /dev/null 2>&1
+for service in otel redis postgres; do 
+  docker ps --filter "name=${service}" --format '{{.ID}}' | xargs docker kill
+done
 
 echo "removing cgroups"
 if [ "$ROUTER_CGROUP" = "true" ]; then

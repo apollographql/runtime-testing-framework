@@ -54,3 +54,9 @@ environment:
           env_var: LICENSE_FILE
           kind: offline_graphos_license
           graph_id: "starstuff"
+    teardown:
+      file_providers:
+        - name: docker-compose-redis.yaml
+          env_var: REDIS_DOCKER_COMPOSE
+          kind: relative_path
+          path: data/docker-compose-redis.yaml
