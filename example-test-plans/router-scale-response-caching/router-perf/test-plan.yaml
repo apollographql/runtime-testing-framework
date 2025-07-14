@@ -1,0 +1,55 @@
+name: router-perf
+description: |
+  A minimal Router performance test modelled after the "basic" test found in router-scale.
+
+  In order to run this test plan you will need to have elevated permissions in Studio:
+    - Open a ticket with SHERIFF as instructed in https://apollographql.atlassian.net/wiki/spaces/SecOps/pages/805568513
+      - Or just go here directly: https://apollographql.atlassian.net/servicedesk/customer/portal/1/group/3/create/1247
+    - Select “Access Type: Apollo Admin Access”. You need “Read Only” access to the “Prod” environment.
+    - Create a new personal Studio API key at https://studio.apollographql.com/user-settings/api-keys
+      - Note you must do this after admin access has been granted.
+      - You also must create a new API key each time you request access.
+      - Admin Access is valid for 12 hours.
+    - Export your new API key as APOLLO_KEY before running rtf
+
+values:
+  random_seed: "b5bb5cd521bf12bd5a18fcfc378ae12d25cf9d4d"
+  router_version: "v2.3.0"
+  # This is a deliberately invalid graph ref so that we will fail checks before running
+  graph_ref: "CHANGE_ME"
+  rps: "100"
+  duration_secs: "20"
+  top_n: 20
+
+scenario:
+  from:
+    kind: local
+    relative_path: scenario.yaml
+
+environment:
+  from:
+    kind: local
+    relative_path: environment.yaml
+
+  overrides:
+    setup:
+      file_providers:
+        - name: router-config.yaml
+          env_var: ROUTER_CONFIG
+          kind: relative_path
+          path: data/router-2.config.yaml
+
+        - name: otel-config.yaml
+          env_var: OTEL_CONFIG
+          kind: relative_path
+          path: data/otel-collector-config.yaml
+
+        - name: docker-compose-redis.yaml
+          env_var: REDIS_DOCKER_COMPOSE
+          kind: relative_path
+          path: data/docker-compose-redis.yaml
+
+        - name: license.jwt
+          env_var: LICENSE_FILE
+          kind: offline_graphos_license
+          graph_id: "starstuff"
