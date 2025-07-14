@@ -24,8 +24,9 @@ setup:
   file_providers:
     - name: install-router.sh
       env_var: ROUTER_INSTALL_SCRIPT
-      kind: router_download_script
-      version: "{{ router_version }}"
+      kind: build_router_from_source
+      rust_version: "{{ rust_version }}"
+      commit_ref: "{{ router_commit_ref }}"
 
     - name: router-config.yaml
       env_var: ROUTER_CONFIG
