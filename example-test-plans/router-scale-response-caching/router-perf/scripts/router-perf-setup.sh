@@ -158,6 +158,7 @@ function run_subgraphs {
       -latency="$SUBGRAPH_LATENCY" \
       "-${SUBGRAPH_WAVEFORM}-period=$SUBGRAPH_PERIOD" \
       "-${SUBGRAPH_WAVEFORM}-amplitude=$SUBGRAPH_AMPLITUDE" \
+      -header="cache-control=max-age=30,public" \
       -port="$port" \
       -schema="$SUPERGRAPH_SCHEMA" &
 
