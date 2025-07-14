@@ -37,7 +37,7 @@ environment:
         - name: router-config.yaml
           env_var: ROUTER_CONFIG
           kind: relative_path
-          path: data/router-2.config.yaml
+          path: data/router.config.yaml
 
         - name: otel-config.yaml
           env_var: OTEL_CONFIG

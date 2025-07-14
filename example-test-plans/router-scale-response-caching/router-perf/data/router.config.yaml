@@ -48,6 +48,28 @@ demand_control:
       list_size: 10
       max: 1000
 
+experimental_response_cache:
+  enabled: true
+  # debug: true
+  metrics:
+    enabled: true
+  invalidation:
+    listen: 127.0.0.1:4000
+    path: /invalidation
+  # Configure entity caching per subgraph
+  subgraph:
+    all:
+      enabled: true
+      postgres:
+        url: "postgres://localhost:5432"
+        username: postgres
+        password: ""
+        timeout: 2min # Optional, by default: 2ms
+      ttl: 360s # overrides the global TTL
+      invalidation:
+        enabled: true
+        shared_key: "invalidate"
+
 # DIMENSION: add connectors
 # preview_connectors:
 #   subgraphs:
