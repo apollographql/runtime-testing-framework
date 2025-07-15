@@ -64,7 +64,7 @@ fn init_logging() -> anyhow::Result<()> {
     // We can't just return a [tracing_subscriber::fmt::Subscriber] here (and then have a single
     // call to set_global_default) as it has a number of generics based on exactly how the builder
     // was run which means that each branch ends up returning a different type.
-    if max_level >= Level::INFO {
+    if max_level <= Level::INFO {
         // Opinionated log formatting: minimising the output as much as possible by default
         let subscriber = builder
             .with_target(false)
