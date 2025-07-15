@@ -14,6 +14,7 @@
 use bytes::Bytes;
 use reqwest::{Error, StatusCode};
 
+pub mod github;
 pub mod graphos;
 
 use graphos::{
