@@ -20,6 +20,10 @@ pub struct Args {
     pub command: Command,
     #[command(flatten)]
     pub values: Values,
+    /// Flag to control logging verbosity. Default level is `warn`.
+    /// `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`.
+    #[arg(short, long, global = true, action = clap::ArgAction::Count)]
+    pub verbose: u8,
 }
 
 #[derive(Debug, clap::Args)]
