@@ -3,7 +3,7 @@ use bytes::Bytes;
 use std::string::FromUtf8Error;
 
 const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
-const GITHUB_API_URL: &str = "https://api.github.com";
+pub(crate) const GITHUB_API_URL: &str = "https://api.github.com";
 
 /// Error variants that we can encounter when making requests to the GitHub REST API
 #[derive(Debug, thiserror::Error)]

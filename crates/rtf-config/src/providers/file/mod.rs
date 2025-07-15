@@ -603,7 +603,7 @@ impl Check for BuildRouterFromSource {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::{Context, NullPlatformClient};
+    use crate::context::{Context, NullClient};
     use bytes::Bytes;
     use rtf_core::HttpResponse;
     use simple_test_case::dir_cases;
@@ -867,7 +867,8 @@ mod tests {
     }
 
     impl ResolutionContext for MockContext {
-        type PlatformClient = NullPlatformClient;
+        type PlatformClient = NullClient;
+        type GithubClient = NullClient;
         type HttpClient = MockHttpClient;
 
         fn platform_client(&self) -> Option<&Self::PlatformClient> {

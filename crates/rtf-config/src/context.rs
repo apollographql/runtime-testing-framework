@@ -1,6 +1,7 @@
 use crate::{providers, templating::Scalar};
 use rtf_core::{
-    APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR, HttpClient, ReqwestClient,
+    APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, GITHUB_TOKEN_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR,
+    HttpClient, ReqwestClient, github,
     graphos::{platform_query, supergraph::SupergraphDetails},
 };
 use std::{
@@ -34,6 +35,7 @@ pub enum PathKind {
 #[allow(async_fn_in_trait)]
 pub trait ResolutionContext {
     type PlatformClient: platform_query::Client;
+    type GithubClient: github::Client;
     type HttpClient: HttpClient;
 
     /// Provide a [Client][platform_query::Client] for making requests to the Apollo platform API.
@@ -41,6 +43,14 @@ pub trait ResolutionContext {
     /// If it is not possible for this current context to make requests to the platform API then
     /// this method should return [None].
     fn platform_client(&self) -> Option<&Self::PlatformClient> {
+        None
+    }
+
+    /// Provide a [Client][github::Client] for making requests to the GitHub REST API.
+    ///
+    /// If it is not possible for this current context to make requests to the GitHub API then
+    /// this method should return [None].
+    fn github_client(&self) -> Option<&Self::GithubClient> {
         None
     }
 
@@ -183,6 +193,10 @@ impl Context {
             ctx.with_platform_config(api_key, staging, sudo);
         }
 
+        if let Some(api_token) = env_vars.remove(GITHUB_TOKEN_ENV_VAR) {
+            ctx.with_github_config(api_token);
+        }
+
         ctx
     }
 
@@ -196,14 +210,25 @@ impl Context {
         self.client.with_platform_config(api_key, staging, sudo);
         self
     }
+
+    /// Provide configuration for making requests to the GitHub REST API.
+    pub fn with_github_config(&mut self, api_token: impl Into<String>) -> &mut Self {
+        self.client.with_github_config(api_token);
+        self
+    }
 }
 
 impl ResolutionContext for Context {
     type PlatformClient = rtf_core::graphos::PlatformClient;
+    type GithubClient = github::GithubClient;
     type HttpClient = ReqwestClient;
 
     fn platform_client(&self) -> Option<&Self::PlatformClient> {
         self.client.platform_client()
+    }
+
+    fn github_client(&self) -> Option<&Self::GithubClient> {
+        self.client.github_client()
     }
 
     fn http_client(&self) -> Option<&Self::HttpClient> {
@@ -313,29 +338,37 @@ impl ResolutionContext for Context {
     }
 }
 
-/// Used to implement [ResolutionContext] in tests where no platform client is needed.
+/// Used to implement [ResolutionContext] in tests where no client is needed.
 #[cfg(test)]
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct NullPlatformClient;
+pub(crate) struct NullClient;
 
 #[cfg(test)]
-impl platform_query::Client for NullPlatformClient {
+impl platform_query::Client for NullClient {
     async fn post_operation(
         &self,
         _body: &impl serde::Serialize,
     ) -> Result<serde_json::Value, platform_query::Error> {
-        panic!("a NullPlatformClient can not be used to make requests")
+        panic!("a NullClient can not be used to make requests")
     }
 }
 
-/// Used to implement [ResolutionContext] in tests where no http client is needed.
 #[cfg(test)]
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct NullHttpClient;
+impl github::Client for NullClient {
+    async fn raw_file_content(
+        &self,
+        _org: &str,
+        _repo: &str,
+        _path: &str,
+        _git_ref: Option<impl AsRef<str>>,
+    ) -> Result<bytes::Bytes, github::Error> {
+        panic!("a NullClient can not be used to make requests")
+    }
+}
 
 #[cfg(test)]
-impl HttpClient for NullHttpClient {
+impl HttpClient for NullClient {
     async fn get(&self, _url: &str) -> Result<rtf_core::HttpResponse, reqwest::Error> {
-        panic!("a NullHttpClient can not be used to make requests")
+        panic!("a NullClient can not be used to make requests")
     }
 }
