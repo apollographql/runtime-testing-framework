@@ -10,12 +10,17 @@ use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 #[tokio::main]
 async fn main() {
-    if let Err(e) = init_logging() {
+    let Args {
+        command,
+        values,
+        verbose,
+    } = Args::parse();
+
+    if let Err(e) = init_logging(verbose) {
         error!("unable to initialise logging: {e}");
         exit(1);
     };
 
-    let Args { command, values } = Args::parse();
     let res = match command {
         // porcelain commands
         Command::Run {
@@ -40,7 +45,7 @@ async fn main() {
 ///
 /// See the documentation on [EnvFilter] for details on how this works and what the supported
 /// syntax is for setting a logging filter (it's a lot richer than just setting a level).
-fn init_logging() -> anyhow::Result<()> {
+fn init_logging(verbosity: u8) -> anyhow::Result<()> {
     // This is a bit of a song and dance to pull out what the max configured logging level is so we
     // can conditionally alter the output format we use when we are at INFO or above.
     // -> The thinking is that for the default case we want to restrict things to simple, compact
@@ -48,9 +53,16 @@ fn init_logging() -> anyhow::Result<()> {
     //    out progress through the operation being performed). But, when things are dropped down to
     //    debug or trace we want to include more information such as the filename and timing
     //    information.
-    let filter = EnvFilter::builder()
-        .with_default_directive(LevelFilter::INFO.into())
-        .from_env_lossy();
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+        // Map verbosity to tracing level string
+        let level = match verbosity {
+            0 => LevelFilter::WARN,
+            1 => LevelFilter::INFO,
+            2 => LevelFilter::DEBUG,
+            _ => LevelFilter::TRACE,
+        };
+        EnvFilter::from_default_env().add_directive(level.into())
+    });
     let max_level = filter
         .max_level_hint()
         .and_then(|l| l.into_level())
@@ -64,7 +76,7 @@ fn init_logging() -> anyhow::Result<()> {
     // We can't just return a [tracing_subscriber::fmt::Subscriber] here (and then have a single
     // call to set_global_default) as it has a number of generics based on exactly how the builder
     // was run which means that each branch ends up returning a different type.
-    if max_level >= Level::INFO {
+    if max_level <= Level::INFO {
         // Opinionated log formatting: minimising the output as much as possible by default
         let subscriber = builder
             .with_target(false)
