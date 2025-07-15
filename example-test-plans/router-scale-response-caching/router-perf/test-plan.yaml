@@ -12,6 +12,10 @@ description: |
       - Admin Access is valid for 12 hours.
     - Export your new API key as APOLLO_KEY before running rtf
 
+  You will also need to prepare the gcloud tool:
+    - Log in to google cloud: `gcloud auth login`
+    - Ensure tooling is installed: `gcloud beta compute instances list`
+
 values:
   random_seed: "b5bb5cd521bf12bd5a18fcfc378ae12d25cf9d4d"
   rust_version: "1.87.0"

@@ -8,7 +8,7 @@ values:
   # This should be overriden using the --value(s) flag on the CLI
   vm_name_suffix: 1
   delete_vm: "true"
-  test_plan_dir: "example-test-plans/router-scale/router-perf"
+  test_plan_dir: "example-test-plans/router-scale-response-caching/router-perf"
   # This has been deliberately set with an int so it will fail if you try to run without replacing this.
   # This should be the absolute path to your local dir containing RTF
   abs_path_rtf_repo: 1
