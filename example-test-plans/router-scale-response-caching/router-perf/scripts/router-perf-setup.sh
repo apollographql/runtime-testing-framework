@@ -43,16 +43,22 @@ function label {
   "$@" 1> >(sed "s/^/[$LABEL] /") 2> >(sed "s/^/[$LABEL] /" 1>&2)
 }
 
-# Fetch or build the router (this is being replaced by running a script coming from a file provider in RR-58)
+# Fetch or build the router
 function fetch_router {
   rm -f ~/.cargo/bin/router
-  cd "$OUTDIR"
+  cd "$OUTDIR" || exit 1
   sh "$ROUTER_INSTALL_SCRIPT"
 
   mkdir -p ~/.cargo/bin
-  mv ./router ~/.cargo/bin
+  
+  # depending on the install script, the router might be in either:
+  # * ~/.cargo/bin/router
+  # * ./router
+  if [[ -f "./router" ]]; then
+    mv ./router ~/.cargo/bin
+  fi
 
-  cd ~
+  cd ~ || exit 1
 
   if [[ ! -f ".cargo/bin/router" ]]; then
     echo "ERROR: Couldn't find a router in ~/.cargo/bin/. Exiting"
@@ -68,7 +74,7 @@ function fetch_router {
 function cleanup_supporting_services {
   echo "cleaning up supporting services"
   for service in otel redis postgres; do 
-    docker ps --filter "name=${service}" --format '{{.ID}}' | xargs docker kill
+    docker ps --filter "name=${service}" --format '{{.ID}}' | xargs --no-run-if-empty docker kill
   done
 
   if docker compose ls | grep "$REDIS_DOCKER_COMPOSE" ; then
@@ -185,7 +191,8 @@ function run_router {
     license_arg="--license $LICENSE_FILE"
   fi
 
-  label "router" router -s "$SUPERGRAPH_SCHEMA" -c "$ROUTER_CONFIG" $license_arg > "$RESULTS_DIR/router.log" &
+  # NB: prefixing this with `label "router"` causes the output to not be properly redirected and then 'returned' as the ROUTER_PID
+  router -s "$SUPERGRAPH_SCHEMA" -c "$ROUTER_CONFIG" $license_arg > "$RESULTS_DIR/router.log" &
   router_pid="$!"
 
   if [ -n "$ROUTER_CPU_REQ" ] || [ -n "$ROUTER_MEM_REQ" ] || [ -n "$ROUTER_MEM_LIM" ]; then

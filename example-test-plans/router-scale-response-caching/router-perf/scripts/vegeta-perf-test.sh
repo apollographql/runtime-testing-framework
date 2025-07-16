@@ -38,3 +38,7 @@ vegeta attack \
   -output "$RESULTS_DIR/perf.$$.vegeta" \
   -rate="$RPS/s" \
   -duration="${DURATION_SECS}s" <"$CANNED"
+
+for vegeta_output in $RESULTS_DIR/perf.*.vegeta ; do
+  vegeta report --type json "${vegeta_output}" | jq '.' > "${vegeta_output}.json"
+done

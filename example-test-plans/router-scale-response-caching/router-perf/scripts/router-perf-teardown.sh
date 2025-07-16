@@ -14,6 +14,10 @@ echo "INFO" | redis-cli -c --pass router -p 6385 > "${RESULTS_DIR}/redis-cluster
 # Just grab 100 keys from redis. Might not be helpful, but downloading the full dataset is definitely not useful
 echo 'SCAN 0 MATCH "*" COUNT 100' | redis-cli -c --pass router -p 6385 > "${RESULTS_DIR}/redis-cluster.keys"
 
+echo "extracting data from postgres"
+PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres --csv --no-password --quiet "select count(*) from cache" > "${RESULTS_DIR}/postgres_cache_count.csv"
+PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres --csv --no-password --quiet "select count(*) from invalidation_key" > "${RESULTS_DIR}/postgres_invalidation_key_count.csv"
+
 # We may have prometheus metrics to harvest, let's try the default location
 curl http://127.0.0.1:9090/metrics > "${RESULTS_DIR}/prometheus.metrics"
 
@@ -30,7 +34,7 @@ pkill -x subgraph
 pkill -x snapshot
 docker compose -f "$REDIS_DOCKER_COMPOSE" down > /dev/null 2>&1
 for service in otel redis postgres; do 
-  docker ps --filter "name=${service}" --format '{{.ID}}' | xargs docker kill
+  docker ps --filter "name=${service}" --format '{{.ID}}' | xargs --no-run-if-empty docker kill
 done
 
 echo "removing cgroups"
