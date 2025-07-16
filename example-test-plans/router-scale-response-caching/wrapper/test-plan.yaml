@@ -7,6 +7,7 @@ values:
   # This has been deliberately set with an int so it will fail if you try to run without replacing this.
   # This should be overriden using the --value(s) flag on the CLI
   vm_name_suffix: 1
+  vm_machine_image: "router-perf-resp-cache"
   delete_vm: "true"
   test_plan_dir: "example-test-plans/router-scale-response-caching/router-perf"
   # This has been deliberately set with an int so it will fail if you try to run without replacing this.
@@ -65,6 +66,8 @@ environment:
     values:
       - name: vm_name_suffix
         description: The suffix of the name of the router-scale VM being created. This will be prefixed with "rtf-".
+      - name: vm_machine_image
+        description: The name of the machine image to base the VM off of.
       - name: abs_path_rtf_repo
         description: The absolute path to the rtf repo. This is needed so that the VM can be cleaned up.
       - name: delete_vm
@@ -80,6 +83,7 @@ environment:
         path: scripts/create-router-scale-vm.sh
         args:
           - "{{ vm_name_suffix }}"
+          - "{{ vm_machine_image }}"
 
       provides:
         - name: vm_name

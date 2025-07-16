@@ -63,8 +63,9 @@ function check_dependencies {
 # Try to boot from an existing master image. If there is no master image boot from scratch and create a new master image for future use.
 ###
 function create_vm {
+    MACHINE_IMAGE=$2
     echo "Creating test system: $1..."
-    if GCLOUD_SA compute machine-images describe router-perf-master --project router-performance > /dev/null 2> >(grep -v "${FILTER_OUT}"); then
+    if GCLOUD_SA compute machine-images describe "${MACHINE_IMAGE}" --project router-performance > /dev/null 2> >(grep -v "${FILTER_OUT}"); then
         # We have a master, clone it
         GCLOUD_SA beta compute instances create "$1" \
             --project=router-performance \
@@ -81,7 +82,7 @@ function create_vm {
             --shielded-integrity-monitoring \
             --labels="goog-ec-src=vm_add-gcloud,perf-test=$1" \
             --reservation-affinity=any \
-            --source-machine-image=router-perf-master \
+            --source-machine-image="${MACHINE_IMAGE}" \
             --service-account=sa-router-performance@router-performance.iam.gserviceaccount.com \
             --scopes=https://www.googleapis.com/auth/devstorage.read_only,https://www.googleapis.com/auth/logging.write,https://www.googleapis.com/auth/monitoring.write,https://www.googleapis.com/auth/servicecontrol,https://www.googleapis.com/auth/service.management.readonly,https://www.googleapis.com/auth/trace.append \
             2> >(grep -v "${FILTER_OUT}") \
@@ -93,14 +94,14 @@ function create_vm {
     fi
 }
 
-if [ -z "$1" ]; then
-    echo "Usage: $0 <vm-name-suffix>"
+if [ -z "$2" ]; then
+    echo "Usage: $0 <vm-name-suffix> <vm_machine_image>"
     exit 1
 fi
 check_dependencies || exit 2
 
 VM_NAME="rtf-$1"
-create_vm $VM_NAME >> $LOG_FILE
+create_vm $VM_NAME "$2" >> $LOG_FILE
 
 # Echo the vm_name so RTF environment setup succeeds
 echo "{ \"vm_name\": \"$VM_NAME\" }"  > "$RTF_OUTPUT"
