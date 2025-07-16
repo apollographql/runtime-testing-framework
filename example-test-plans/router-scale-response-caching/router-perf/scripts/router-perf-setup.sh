@@ -10,7 +10,6 @@ RESULTS_DIR="$OUTDIR/results"
 
 echo "sourcing data files"
 set -a
-. "$SUBGRAPH_CONFIG"
 . "$ROUTER_CGROUP_CONFIG"
 set +a
 
@@ -160,13 +159,14 @@ function run_subgraphs {
 
     echo "  $name: http://127.0.0.1:$port" >> "$sg_tmp"
 
-    label "subgraph:${name}" subgraph \
-      -latency="$SUBGRAPH_LATENCY" \
-      "-${SUBGRAPH_WAVEFORM}-period=$SUBGRAPH_PERIOD" \
-      "-${SUBGRAPH_WAVEFORM}-amplitude=$SUBGRAPH_AMPLITUDE" \
-      -header="cache-control=max-age=30,public" \
-      -port="$port" \
-      -schema="$SUPERGRAPH_SCHEMA" &
+    # read $SUBGRAPH_CONFIG yaml, combining parameters of default and override.this_subgraph. then, convert that map
+    # into a string space-separated key-value pairs, prepended by a hyphen
+    # sample output: -latency=5ms -idLength=2
+    subgraph_parameters="$(name=${name} yq '[(.default + .override.strenv(name)) | to_entries | .[] | "-\(.key)=\(.value)"] | join(" ")' ${SUBGRAPH_CONFIG})"
+
+    # disable shellcheck double-quote warning - we want all the subgraph parameters to be treated as separate arguments
+    # shellcheck disable=SC2086
+    label "subgraph:${name}" subgraph -port="$port" -schema="$SUPERGRAPH_SCHEMA" $subgraph_parameters &
 
     SUBGRAPH_PID=$!
 

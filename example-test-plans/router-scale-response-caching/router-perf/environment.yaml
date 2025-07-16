@@ -53,14 +53,23 @@ setup:
         ROUTER_MEM_REQ=""
         ROUTER_MEM_LIM="8G"
 
-    - name: subgraph_config.txt
+    - name: subgraph-config.yaml
       env_var: SUBGRAPH_CONFIG
       kind: inline
       content: |
-        SUBGRAPH_WAVEFORM=sine
-        SUBGRAPH_LATENCY=5ms
-        SUBGRAPH_AMPLITUDE=2ms
-        SUBGRAPH_PERIOD=10s
+        default:
+          latency: 5ms
+          "sine-period": 10s
+          "sine-amplitude": 2ms
+          header: cache-control=max-age=30,public
+          arrayLength: 0..=10
+          idLength: 5
+          stringLength: 5..=10
+          cacheNoStoreRatio: 0.1
+          intMax: 100
+        override:
+          reporting-subgraph:
+            cacheNoStoreRatio: 0.8
 
   provides:
     - name: router_pid
