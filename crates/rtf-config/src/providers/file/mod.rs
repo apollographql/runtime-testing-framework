@@ -18,6 +18,7 @@ use std::{
 };
 
 pub mod apollo;
+pub mod github;
 
 /// The source of how a particular config file was obtained.
 ///
@@ -223,6 +224,8 @@ impl DerefMut for NamedFileProvider {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
+    BuildRouterFromSource(BuildRouterFromSource),
+    GithubFile(github::GithubFile),
     GraphosCannedOps(apollo::GraphosCannedOps),
     GraphosSubgraphs(apollo::GraphosSubgraphs),
     GraphosSupergraph(apollo::GraphosSupergraph),
@@ -230,16 +233,15 @@ pub enum FileProvider {
     OfflineGraphosLicense(apollo::OfflineGraphosLicense),
     RelativePath(RelativeFile),
     Required(RequiredFile),
-    RouterDownloadScript(RouterDownloadScript),
     ResolvedValues(ResolvedValues),
-    BuildRouterFromSource(BuildRouterFromSource),
+    RouterDownloadScript(RouterDownloadScript),
 }
 
 // Each time we add a new variant to the FileProvider enum above we need to remember to add it to
 // the macro invocation below in order to update the trait implementations for the enum. (You can't
 // really forget to do this as the compiler will complain about missing match arms if you do!)
 macro_rules! enum_impl_file_provider {
-    ($($variant:ident),+) => {
+    ($($variant:ident,)+) => {
         enum_impl_check!(FileProvider => $($variant),+);
         enum_impl_template!(FileProvider => $($variant),+);
         enum_impl_resolve_and_write!(FileProvider => $($variant),+);
@@ -247,6 +249,8 @@ macro_rules! enum_impl_file_provider {
 }
 
 enum_impl_file_provider!(
+    BuildRouterFromSource,
+    GithubFile,
     GraphosCannedOps,
     GraphosSubgraphs,
     GraphosSupergraph,
@@ -254,9 +258,8 @@ enum_impl_file_provider!(
     OfflineGraphosLicense,
     RelativePath,
     Required,
-    RouterDownloadScript,
     ResolvedValues,
-    BuildRouterFromSource
+    RouterDownloadScript,
 );
 
 /// The simplest form of file provider: the user specifies the contents of the file inline within
@@ -603,7 +606,7 @@ impl Check for BuildRouterFromSource {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::{Context, NullPlatformClient};
+    use crate::context::{Context, NullClient};
     use bytes::Bytes;
     use rtf_core::HttpResponse;
     use simple_test_case::dir_cases;
@@ -867,7 +870,8 @@ mod tests {
     }
 
     impl ResolutionContext for MockContext {
-        type PlatformClient = NullPlatformClient;
+        type PlatformClient = NullClient;
+        type GithubClient = NullClient;
         type HttpClient = MockHttpClient;
 
         fn platform_client(&self) -> Option<&Self::PlatformClient> {

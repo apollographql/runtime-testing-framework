@@ -12,8 +12,10 @@
 #![deny(clippy::undocumented_unsafe_blocks)]
 
 use bytes::Bytes;
+use github::{GITHUB_API_URL, GithubClient};
 use reqwest::{Error, StatusCode};
 
+pub mod github;
 pub mod graphos;
 
 use graphos::{
@@ -29,11 +31,14 @@ pub const APOLLO_SUDO_ENV_VAR: &str = "APOLLO_SUDO";
 pub const GRAPH_OS_STAGING_ENV_VAR: &str = "GRAPHOS_STAGING";
 /// The maximum number of queries to run in parallel querying the platform API.
 pub const N_PARALLEL_FETCH: usize = 20;
+/// The environment variable name for the api token used to authenticate with the GitHub API.
+pub const GITHUB_TOKEN_ENV_VAR: &str = "GITHUB_TOKEN";
 
 /// A client implementation that is backed by a [reqwest::Client].
 #[derive(Debug, Default)]
 pub struct ReqwestClient {
     pub(crate) inner: reqwest::Client,
+    pub(crate) github: Option<GithubClient>,
     pub(crate) platform: Option<PlatformClient>,
 }
 
@@ -42,8 +47,21 @@ impl ReqwestClient {
     pub fn new() -> Self {
         Self {
             inner: reqwest::Client::new(),
+            github: None,
             platform: None,
         }
+    }
+
+    /// Obtain a reference to an API client for running operations with the Apollo platform API if
+    /// config is available.
+    pub fn platform_client(&self) -> Option<&PlatformClient> {
+        self.platform.as_ref()
+    }
+
+    /// Obtain a reference to an API client for making requests to the GitHub REST API if config is
+    /// available.
+    pub fn github_client(&self) -> Option<&GithubClient> {
+        self.github.as_ref()
     }
 
     /// Provide configuration for making requests to the Apollo platform API.
@@ -69,10 +87,15 @@ impl ReqwestClient {
         self
     }
 
-    /// Obtain a reference to an API client for running operations with the Apollo platform API if
-    /// config is available.
-    pub fn platform_client(&self) -> Option<&PlatformClient> {
-        self.platform.as_ref()
+    /// Provide configuration for making requests to the GitHub REST API.
+    pub fn with_github_config(&mut self, api_token: impl Into<String>) -> &mut Self {
+        self.github = Some(GithubClient {
+            inner: self.inner.clone(),
+            base_url: GITHUB_API_URL.into(),
+            api_token: api_token.into(),
+        });
+
+        self
     }
 }
 

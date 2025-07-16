@@ -384,7 +384,7 @@ enum_impl_command_provider!(Inline, RelativePath, Required);
 mod tests {
     use super::*;
     use crate::{
-        context::{Context, NullHttpClient, NullPlatformClient, PathKind},
+        context::{Context, NullClient, PathKind},
         providers::file::{FileProvider, InlineFile},
     };
     use simple_test_case::{dir_cases, test_case};
@@ -536,8 +536,9 @@ mod tests {
     }
 
     impl ResolutionContext for MockCommandContext {
-        type PlatformClient = NullPlatformClient;
-        type HttpClient = NullHttpClient;
+        type PlatformClient = NullClient;
+        type GithubClient = NullClient;
+        type HttpClient = NullClient;
 
         fn run_command_blocking<'a>(
             &self,

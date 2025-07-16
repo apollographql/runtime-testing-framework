@@ -12,6 +12,9 @@ pub enum Error {
     Fetch(#[from] FetchError),
 
     #[error(transparent)]
+    Github(#[from] rtf_core::github::Error),
+
+    #[error(transparent)]
     GraphOS(#[from] rtf_core::graphos::Error),
 
     #[error(transparent)]

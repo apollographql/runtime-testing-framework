@@ -1,0 +1,20 @@
+A valid yaml fragment for a github file provider that uses
+a templates for all required fields. The git_ref field
+remains unspecified and should be defaulted to None.
+
+-- config.yaml --
+kind: github_file
+org: "{{ org }}"
+repo: "{{ repo }}"
+path: "{{ path }}"
+
+-- values --
+org: "apollographql"
+repo: "runtime-testing-framework"
+path: "README.md"
+
+-- after-templating --
+kind: github_file
+org: "apollographql"
+repo: "runtime-testing-framework"
+path: "README.md"
