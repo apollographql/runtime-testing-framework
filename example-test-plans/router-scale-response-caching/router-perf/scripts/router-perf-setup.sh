@@ -162,7 +162,7 @@ function run_subgraphs {
     # read $SUBGRAPH_CONFIG yaml, combining parameters of default and override.this_subgraph. then, convert that map
     # into a string space-separated key-value pairs, prepended by a hyphen
     # sample output: -latency=5ms -idLength=2
-    subgraph_parameters="$(name=${name} yq '[(.default + .override.strenv(name)) | to_entries | .[] | "-\(.key)=\(.value)"] | join(" ")' ${SUBGRAPH_CONFIG})"
+    subgraph_parameters="$(name=${name} yq '[(.default + .override.strenv(name)) | to_entries | .[] | \"-\(.key)=\(.value)\"] | join(\" \")' ${SUBGRAPH_CONFIG})"
 
     # disable shellcheck double-quote warning - we want all the subgraph parameters to be treated as separate arguments
     # shellcheck disable=SC2086
