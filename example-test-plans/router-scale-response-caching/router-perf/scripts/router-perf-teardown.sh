@@ -15,8 +15,9 @@ echo "INFO" | redis-cli -c --pass router -p 6385 > "${RESULTS_DIR}/redis-cluster
 echo 'SCAN 0 MATCH "*" COUNT 100' | redis-cli -c --pass router -p 6385 > "${RESULTS_DIR}/redis-cluster.keys"
 
 echo "extracting data from postgres"
-PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres --csv --no-password --quiet "select count(*) from cache" > "${RESULTS_DIR}/postgres_cache_count.csv"
-PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres --csv --no-password --quiet "select count(*) from invalidation_key" > "${RESULTS_DIR}/postgres_invalidation_key_count.csv"
+# for now just exec into the postgres container. this will need to be changed if we start using a managed postgres
+docker exec -it postgres psql --quiet -U postgres --command "select count(*) from cache" postgres > "${RESULTS_DIR}/postgres_cache_count"
+docker exec -it postgres psql --quiet -U postgres --command "select count(*) from invalidation_key" postgres > "${RESULTS_DIR}/postgres_invalidation_key_count"
 
 # We may have prometheus metrics to harvest, let's try the default location
 curl http://127.0.0.1:9090/metrics > "${RESULTS_DIR}/prometheus.metrics"
