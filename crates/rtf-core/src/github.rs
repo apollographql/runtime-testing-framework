@@ -8,6 +8,10 @@ pub(crate) const GITHUB_API_URL: &str = "https://api.github.com";
 /// Error variants that we can encounter when making requests to the GitHub REST API
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    /// No GitHub API client available
+    #[error("no GitHub client available")]
+    NoClient,
+
     // Wrapped errors
     /// Invalid utf-8 found while trying to decode file content from GitHub
     #[error(transparent)]
@@ -105,7 +109,8 @@ impl Client for GithubClient {
             .header("X-GitHub-Api-Version", "2022-11-28")
             .header("accept", "application/vnd.github.v3.raw")
             .send()
-            .await?;
+            .await?
+            .error_for_status()?;
 
         Ok(res.bytes().await?)
     }

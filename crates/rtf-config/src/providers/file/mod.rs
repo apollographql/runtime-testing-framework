@@ -8,7 +8,7 @@ use crate::{
 };
 use indoc::indoc;
 use reqwest::StatusCode;
-use rtf_core::HttpClient;
+use rtf_core::{HttpClient, github::Client};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::HashMap,
@@ -32,6 +32,18 @@ pub enum Source {
         /// The absolute path to the config file
         abs_path: PathBuf,
     },
+
+    /// The config file was downloaded from GitHub
+    Github {
+        /// The GitHub org
+        org: String,
+        /// The GitHub repository
+        repo: String,
+        /// The path to the file within the GitHub repository
+        path: PathBuf,
+        /// An optional ref of the repo to use (the default branch is used when None)
+        git_ref: Option<String>,
+    },
 }
 
 impl Source {
@@ -44,6 +56,20 @@ impl Source {
     pub async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String> {
         match self {
             Self::Local { abs_path } => Ok(ctx.read_path_to_string(abs_path)?),
+            Self::Github {
+                org,
+                repo,
+                path,
+                git_ref,
+            } => {
+                let client = ctx
+                    .github_client()
+                    .ok_or(providers::Error::Github(rtf_core::github::Error::NoClient))?;
+
+                Ok(client
+                    .string_file_content(org, repo, &path.display().to_string(), git_ref.as_ref())
+                    .await?)
+            }
         }
     }
 }
@@ -59,26 +85,37 @@ impl Default for Source {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum RawSource {
-    Local { relative_path: PathBuf },
+    Local {
+        relative_path: PathBuf,
+    },
+    Github {
+        org: String,
+        repo: String,
+        path: String,
+        #[serde(default)]
+        git_ref: Option<String>,
+    },
 }
 
 impl RawSource {
-    pub async fn try_get_file_content(
-        &self,
-        dir: &Path,
-        ctx: &impl ResolutionContext,
-    ) -> Result<String> {
-        match self {
-            Self::Local { relative_path } => Ok(ctx.read_path_to_string(dir.join(relative_path))?),
-        }
-    }
-
     pub fn try_into_source(self, dir: &Path, ctx: &impl ResolutionContext) -> io::Result<Source> {
         match self {
             Self::Local { relative_path } => {
                 let abs_path = ctx.canonicalize_path(dir.join(relative_path))?;
                 Ok(Source::Local { abs_path })
             }
+
+            Self::Github {
+                org,
+                repo,
+                path,
+                git_ref,
+            } => Ok(Source::Github {
+                org,
+                repo,
+                path: PathBuf::from(path),
+                git_ref,
+            }),
         }
     }
 }
@@ -340,6 +377,25 @@ impl AsUtf8FileContent for RelativeFile {
                 let p = dir.join(self.path.as_resolved());
                 Ok(ctx.read_path_to_string(p)?)
             }
+
+            Source::Github {
+                org,
+                repo,
+                path,
+                git_ref,
+            } => {
+                let client = ctx
+                    .github_client()
+                    .ok_or(providers::Error::Github(rtf_core::github::Error::NoClient))?;
+                let full_path = match path.parent() {
+                    Some(parent) => parent.join(self.path.as_resolved()).display().to_string(),
+                    None => self.path.as_resolved().to_string(),
+                };
+
+                Ok(client
+                    .string_file_content(org, repo, &full_path, git_ref.as_ref())
+                    .await?)
+            }
         }
     }
 }
@@ -358,6 +414,18 @@ impl Check for RelativeFile {
                     None => PathBuf::new(),
                 };
                 ctx.canonicalize_path(dir.join(self.path.as_resolved()))
+            }
+
+            Source::Github { .. } => {
+                return if ctx.github_client().is_none() {
+                    Err(checks::Errors::new(
+                        checks::ErrorKind::MissingGithubApiKey,
+                        "",
+                        path,
+                    ))
+                } else {
+                    Ok(())
+                };
             }
         };
 
