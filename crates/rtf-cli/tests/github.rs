@@ -10,6 +10,7 @@ use common::is_valid_test_plan;
 use simple_test_case::test_case;
 
 #[test_case("resources/github-file"; "github file")]
+#[test_case("resources/github-config-files"; "github config files")]
 #[test]
 #[ignore = "requires a valid GitHub API Token"]
 fn github_valid_test_plans(dir: &str) {

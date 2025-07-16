@@ -449,8 +449,8 @@ where
         match self {
             Self::Inline { inline } => Ok((inline, None)),
             Self::From { from, overrides } => {
-                let file_content = from.try_get_file_content(dir, ctx).await?;
                 let src = from.try_into_source(dir, ctx)?;
+                let file_content = src.try_get_file_content(ctx).await?;
                 let mut base: serde_yaml::Value = serde_yaml::from_str(&file_content)?;
                 if overrides != serde_yaml::Value::Null {
                     merge(overrides, &mut base);
