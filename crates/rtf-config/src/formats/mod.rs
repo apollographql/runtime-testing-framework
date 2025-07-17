@@ -7,6 +7,7 @@ mod scenario;
 mod test_plan;
 
 pub use environment::EnvironmentConfig;
+use rtf_core::github;
 pub use scenario::ScenarioConfig;
 pub use test_plan::{RawTestPlanConfig, TestPlanConfig};
 
@@ -23,6 +24,9 @@ pub enum Error {
     Validation(#[from] checks::Errors),
 
     // wrapped errors
+    #[error(transparent)]
+    GitHub(#[from] github::Error),
+
     #[error(transparent)]
     Io(#[from] io::Error),
 

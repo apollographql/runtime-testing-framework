@@ -10,6 +10,7 @@ use crate::{
     templating::{self, Scalar, Template},
 };
 use itertools::Itertools;
+use rtf_core::github::{self, Client};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
@@ -41,8 +42,31 @@ impl TestPlanConfig {
         let content = ctx.read_path_to_string(p.as_ref())?;
         let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
         let abs_path = ctx.canonicalize_path(p.as_ref())?;
+        let tp_source = Source::local(abs_path);
 
-        raw.try_into_test_plan(&abs_path, ctx).await
+        raw.try_into_test_plan(tp_source, ctx).await
+    }
+
+    pub async fn try_load_and_resolve_from_github(
+        org: &str,
+        repo: &str,
+        path: &str,
+        git_ref: Option<String>,
+        ctx: &impl ResolutionContext,
+    ) -> Result<Self> {
+        let client = match ctx.github_client() {
+            Some(client) => client,
+            None => return Err(github::Error::NoClient.into()),
+        };
+
+        let content = client
+            .string_file_content(org, repo, path, git_ref.as_ref())
+            .await?;
+
+        let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
+        let tp_source = Source::github(org, repo, path, git_ref);
+
+        raw.try_into_test_plan(tp_source, ctx).await
     }
 
     /// Iteratate over all variants of this test plan that arise from
@@ -320,12 +344,16 @@ pub struct Sources {
 }
 
 impl Sources {
-    fn new(abs_path: &Path, scenario: Option<Source>, environment: Option<Source>) -> Self {
+    fn new(test_plan: Source, scenario: Option<Source>, environment: Option<Source>) -> Self {
         Self {
-            test_plan: Source::local(abs_path),
+            test_plan,
             scenario,
             environment,
         }
+    }
+
+    pub fn test_plan(&self) -> &Source {
+        &self.test_plan
     }
 
     /// The [Source] of the [EnvironmentConfig] in this test plan.
@@ -367,16 +395,17 @@ pub struct RawTestPlanConfig {
 impl RawTestPlanConfig {
     async fn try_into_test_plan(
         self,
-        abs_path: &Path,
+        tp_source: Source,
         ctx: &impl ResolutionContext,
     ) -> Result<TestPlanConfig> {
-        let dir = abs_path.parent().expect("we know we have a parent");
         let (mut environment, environment_source) = self
             .environment
-            .try_into_config_with_source(dir, ctx)
+            .try_into_config_with_source(&tp_source, ctx)
             .await?;
-        let (mut scenario, scenario_source) =
-            self.scenario.try_into_config_with_source(dir, ctx).await?;
+        let (mut scenario, scenario_source) = self
+            .scenario
+            .try_into_config_with_source(&tp_source, ctx)
+            .await?;
 
         dedup_and_sort_by_key(&mut environment.values, |v| v.name.clone());
         dedup_and_sort_by_key(&mut environment.setup.provides, |v| v.name.clone());
@@ -398,7 +427,7 @@ impl RawTestPlanConfig {
             matrix: self.matrix,
             scenario,
             environment,
-            sources: Sources::new(abs_path, scenario_source, environment_source),
+            sources: Sources::new(tp_source, scenario_source, environment_source),
         })
     }
 }
@@ -443,13 +472,13 @@ where
     /// directly from inline content or a [FileProvider]
     async fn try_into_config_with_source(
         self,
-        dir: &Path,
+        tp_source: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<(T, Option<Source>)> {
         match self {
             Self::Inline { inline } => Ok((inline, None)),
             Self::From { from, overrides } => {
-                let src = from.try_into_source(dir, ctx)?;
+                let src = from.try_into_source(tp_source, ctx)?;
                 let file_content = src.try_get_file_content(ctx).await?;
                 let mut base: serde_yaml::Value = serde_yaml::from_str(&file_content)?;
                 if overrides != serde_yaml::Value::Null {
@@ -528,7 +557,7 @@ mod tests {
             .canonicalize()
             .unwrap();
         let ctx = Context::new();
-        let src = Source::local(&dir);
+        let src = Source::local(dir.join("test-plan.yaml"));
 
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
@@ -541,7 +570,7 @@ mod tests {
             Err(e) => panic!("expected a valid RawTestPlanConfig, got: {e}"),
         };
 
-        let res = raw_plan.try_into_test_plan(&dir, &ctx).await;
+        let res = raw_plan.try_into_test_plan(src.clone(), &ctx).await;
         assert!(res.is_ok(), "expected a test plan config, got: {res:?}");
 
         let plan = res.unwrap();
@@ -739,7 +768,7 @@ mod tests {
 
         let ctx = TxtarContext { arr };
         let res = config_source
-            .try_into_config_with_source(&PathBuf::new(), &ctx)
+            .try_into_config_with_source(&Source::local(""), &ctx)
             .await;
         assert!(res.is_ok(), "Expected a valid ScenarioConfig, got {res:?}");
         assert_eq!(
@@ -768,7 +797,7 @@ mod tests {
         let ctx = TxtarContext { arr };
 
         let res = config_source
-            .try_into_config_with_source(&PathBuf::new(), &ctx)
+            .try_into_config_with_source(&Source::local(""), &ctx)
             .await;
         assert!(
             res.is_ok(),
