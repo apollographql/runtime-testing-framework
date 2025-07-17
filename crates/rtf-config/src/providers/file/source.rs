@@ -41,6 +41,20 @@ impl Source {
         }
     }
 
+    pub fn github(
+        org: impl Into<String>,
+        repo: impl Into<String>,
+        path: impl Into<PathBuf>,
+        git_ref: Option<impl Into<String>>,
+    ) -> Self {
+        Self::Github {
+            org: org.into(),
+            repo: repo.into(),
+            path: path.into(),
+            git_ref: git_ref.map(Into::into),
+        }
+    }
+
     pub async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String> {
         match self {
             Self::Local { abs_path } => Ok(ctx.read_path_to_string(abs_path)?),
@@ -154,19 +168,6 @@ mod tests {
     use super::*;
     use simple_test_case::test_case;
 
-    fn local(path: &str) -> Source {
-        Source::local(path)
-    }
-
-    fn gh(org: &str, repo: &str, path: &str, git_ref: Option<&str>) -> Source {
-        Source::Github {
-            org: org.into(),
-            repo: repo.into(),
-            path: path.into(),
-            git_ref: git_ref.map(Into::into),
-        }
-    }
-
     fn raw_local(path: &str) -> RawSource {
         RawSource::Local {
             relative_path: path.into(),
@@ -182,63 +183,66 @@ mod tests {
         }
     }
 
+    // Option<impl Into<String>> requires explicit typing for "None"
+    const STR_NONE: Option<&str> = None;
+
     // Github RawSource is independent of the test plan source so these should all just map
     // directly from their raw to "cooked" counterpart
     #[test_case(
-        raw_gh("org", "repo", "bar/environment.yaml", None),
-        local("foo/test-plan.yaml"),
-        gh("org", "repo", "bar/environment.yaml", None);
+        raw_gh("org", "repo", "bar/environment.yaml", STR_NONE),
+        Source::local("foo/test-plan.yaml"),
+        Source::github("org", "repo", "bar/environment.yaml", STR_NONE);
         "local test plan github raw"
     )]
     #[test_case(
         raw_gh("org", "repo", "bar/environment.yaml", Some("branch")),
-        local("foo/test-plan.yaml"),
-        gh("org", "repo", "bar/environment.yaml", Some("branch"));
+        Source::local("foo/test-plan.yaml"),
+        Source::github("org", "repo", "bar/environment.yaml", Some("branch"));
         "local test plan github raw with branch"
     )]
     #[test_case(
-        raw_gh("org", "repo", "bar/environment.yaml", None),
-        gh("org", "repo", "foo/test-plan.yaml", None),
-        gh("org", "repo", "bar/environment.yaml", None);
+        raw_gh("org", "repo", "bar/environment.yaml", STR_NONE),
+        Source::github("org", "repo", "foo/test-plan.yaml", STR_NONE),
+        Source::github("org", "repo", "bar/environment.yaml", STR_NONE);
         "github test plan github raw"
     )]
     #[test_case(
         raw_gh("org", "repo", "bar/environment.yaml", Some("branch")),
-        gh("org", "repo", "foo/test-plan.yaml", Some("branch")),
-        gh("org", "repo", "bar/environment.yaml", Some("branch"));
+        Source::github("org", "repo", "foo/test-plan.yaml", Some("branch")),
+        Source::github("org", "repo", "bar/environment.yaml", Some("branch"));
         "github test plan github raw with branch"
     )]
     #[test_case(
         raw_gh("org", "repo", "bar/environment.yaml", Some("branch")),
-        gh("org", "repo", "foo/test-plan.yaml", None),
-        gh("org", "repo", "bar/environment.yaml", Some("branch"));
+        Source::github("org", "repo", "foo/test-plan.yaml", STR_NONE),
+        Source::github("org", "repo", "bar/environment.yaml", Some("branch"));
         "github test plan without branch github raw with branch"
     )]
     #[test_case(
         raw_gh("org", "repo", "bar/environment.yaml", Some("branch")),
-        gh("org", "repo", "foo/test-plan.yaml", Some("other-branch")),
-        gh("org", "repo", "bar/environment.yaml", Some("branch"));
+        Source::github("org", "repo", "foo/test-plan.yaml", Some("other-branch")),
+        Source::github("org", "repo", "bar/environment.yaml", Some("branch"));
         "github test plan with different branch github raw with branch"
     )]
     // Local TP + local raw should update the relative path based on the directory containing the
     // test plan
     #[test_case(
         raw_local("bar/environment.yaml"),
-        local("foo/test-plan.yaml"),
-        local("foo/bar/environment.yaml");
+        Source::local("foo/test-plan.yaml"),
+        Source::local("foo/bar/environment.yaml");
         "local test plan local raw"
     )]
     // Github test plan source should rewrite local raw sources to be github sources as well
     #[test_case(
         raw_local("bar/environment.yaml"),
-        gh("org", "repo", "foo/test-plan.yaml", None),
-        gh("org", "repo", "foo/bar/environment.yaml", None);
+        Source::github("org", "repo", "foo/test-plan.yaml", STR_NONE),
+        Source::github("org", "repo", "foo/bar/environment.yaml", STR_NONE);
         "github test plan local raw"
     )]
     #[test_case(
         raw_local("bar/environment.yaml"),
-        gh("org", "repo", "foo/test-plan.yaml", Some("branch")),
-        gh("org", "repo", "foo/bar/environment.yaml", Some("branch"));
+        Source::github("org", "repo", "foo/test-plan.yaml", Some("branch")),
+        Source::github("org", "repo", "foo/bar/environment.yaml", Some("branch"));
         "github test plan with branch local raw"
     )]
     #[test]

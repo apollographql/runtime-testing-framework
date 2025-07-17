@@ -10,6 +10,7 @@ use crate::{
     templating::{self, Scalar, Template},
 };
 use itertools::Itertools;
+use rtf_core::github::{self, Client};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
@@ -42,6 +43,28 @@ impl TestPlanConfig {
         let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
         let abs_path = ctx.canonicalize_path(p.as_ref())?;
         let tp_source = Source::local(abs_path);
+
+        raw.try_into_test_plan(tp_source, ctx).await
+    }
+
+    pub async fn try_load_and_resolve_from_github(
+        org: String,
+        repo: String,
+        path: String,
+        git_ref: Option<String>,
+        ctx: &impl ResolutionContext,
+    ) -> Result<Self> {
+        let client = match ctx.github_client() {
+            Some(client) => client,
+            None => return Err(github::Error::NoClient.into()),
+        };
+
+        let content = client
+            .string_file_content(&org, &repo, &path, git_ref.as_ref())
+            .await?;
+
+        let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
+        let tp_source = Source::github(org, repo, path, git_ref);
 
         raw.try_into_test_plan(tp_source, ctx).await
     }
