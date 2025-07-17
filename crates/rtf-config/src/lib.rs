@@ -18,6 +18,8 @@ pub mod error;
 pub mod formats;
 pub mod providers;
 pub mod templating;
+#[cfg(test)]
+mod txtar_context;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct ValueDefinition {

@@ -674,7 +674,8 @@ impl Check for BuildRouterFromSource {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::{Context, NullClient};
+    use crate::context::Context;
+    use crate::txtar_context::NullClient;
     use bytes::Bytes;
     use rtf_core::HttpResponse;
     use simple_test_case::dir_cases;

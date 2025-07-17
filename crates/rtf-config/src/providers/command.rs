@@ -383,8 +383,9 @@ enum_impl_command_provider!(Inline, RelativePath, Required);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::txtar_context::NullClient;
     use crate::{
-        context::{Context, NullClient, PathKind},
+        context::{Context, PathKind},
         providers::file::{FileProvider, InlineFile},
     };
     use simple_test_case::{dir_cases, test_case};
