@@ -159,14 +159,22 @@ function run_subgraphs {
 
     echo "  $name: http://127.0.0.1:$port" >> "$sg_tmp"
 
-    # read $SUBGRAPH_CONFIG yaml, combining parameters of default and override.this_subgraph. then, convert that map
-    # into a string space-separated key-value pairs, prepended by a hyphen
-    # sample output: -latency=5ms -idLength=2
-    subgraph_parameters="$(name=${name} yq '[(.default + .override.strenv(name)) | to_entries | .[] | \"-\(.key)=\(.value)\"] | join(\" \")' ${SUBGRAPH_CONFIG})"
+    # read $SUBGRAPH_CONFIG yaml, combining parameters of `default` and `override.$name`, and use those values for the
+    # subgraph arguments
+    subgraph_params=$(overridePath=".override.${name}" yq -o=j '.default + eval(strenv(overridePath))' "${SUBGRAPH_CONFIG}")
 
-    # disable shellcheck double-quote warning - we want all the subgraph parameters to be treated as separate arguments
-    # shellcheck disable=SC2086
-    label "subgraph:${name}" subgraph -port="$port" -schema="$SUPERGRAPH_SCHEMA" $subgraph_parameters &
+    # TODO: I'd prefer if we could automatically generate all of these but I had a bunch of issues with bash expansion
+    #  and did it the less optimal way instead
+    label "subgraph:${name}" subgraph -port="$port" -schema="$SUPERGRAPH_SCHEMA" \
+      -latency="$(echo "$subgraph_params" | yq .latency)" \
+      -sine-period="$(echo "$subgraph_params" | yq .sine-period)" \
+      -sine-amplitude="$(echo "$subgraph_params" | yq .sine-amplitude)" \
+      -header="$(echo "$subgraph_params" | yq .header)" \
+      -array-length="$(echo "$subgraph_params" | yq .array-length)" \
+      -id-length="$(echo "$subgraph_params" | yq .id-length)" \
+      -string-length="$(echo "$subgraph_params" | yq .string-length)" \
+      -cache-no-store-ratio="$(echo "$subgraph_params" | yq .cache-no-store-ratio)" \
+      -int-max="$(echo "$subgraph_params" | yq .int-max)" &
 
     SUBGRAPH_PID=$!
 

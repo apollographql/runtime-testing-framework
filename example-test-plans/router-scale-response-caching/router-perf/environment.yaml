@@ -59,17 +59,17 @@ setup:
       content: |
         default:
           latency: 5ms
-          "sine-period": 10s
-          "sine-amplitude": 2ms
+          sine-period: 10s
+          sine-amplitude: 2ms
           header: cache-control=max-age=30,public
-          arrayLength: 0..=10
-          idLength: 5
-          stringLength: 5..=10
-          cacheNoStoreRatio: 0.1
-          intMax: 100
+          array-length: 0..=10
+          id-length: 5
+          string-length: 5..=10
+          cache-no-store-ratio: 0.1
+          int-max: 100
         override:
           reporting-subgraph:
-            cacheNoStoreRatio: 0.8
+            cache-no-store-ratio: 0.8
 
   provides:
     - name: router_pid
