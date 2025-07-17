@@ -98,12 +98,43 @@ pub enum RawSource {
 }
 
 impl RawSource {
-    pub fn try_into_source(self, dir: &Path, ctx: &impl ResolutionContext) -> io::Result<Source> {
+    pub fn try_into_source(
+        self,
+        tp_source: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> io::Result<Source> {
         match self {
-            Self::Local { relative_path } => {
-                let abs_path = ctx.canonicalize_path(dir.join(relative_path))?;
-                Ok(Source::Local { abs_path })
-            }
+            Self::Local { relative_path } => match tp_source {
+                Source::Local { abs_path } => {
+                    let p = match abs_path.parent() {
+                        Some(parent) => parent.join(relative_path),
+                        None => relative_path,
+                    };
+
+                    Ok(Source::Local {
+                        abs_path: ctx.canonicalize_path(p)?,
+                    })
+                }
+
+                Source::Github {
+                    org,
+                    repo,
+                    path,
+                    git_ref,
+                } => {
+                    let path = match path.parent() {
+                        Some(parent) => parent.join(relative_path),
+                        None => relative_path,
+                    };
+
+                    Ok(Source::Github {
+                        org: org.clone(),
+                        repo: repo.clone(),
+                        path,
+                        git_ref: git_ref.clone(),
+                    })
+                }
+            },
 
             Self::Github {
                 org,
