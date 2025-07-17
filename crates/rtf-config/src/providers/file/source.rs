@@ -91,36 +91,46 @@ impl RawSource {
         tp_source: &Source,
         ctx: &impl ResolutionContext,
     ) -> io::Result<Source> {
+        match self.try_into_source_without_canonical_path(tp_source) {
+            Source::Local { abs_path } => Ok(Source::Local {
+                abs_path: ctx.canonicalize_path(abs_path)?,
+            }),
+
+            gh => Ok(gh),
+        }
+    }
+
+    fn try_into_source_without_canonical_path(self, tp_source: &Source) -> Source {
         match self {
             Self::Local { relative_path } => match tp_source {
-                Source::Local { abs_path } => {
-                    let p = match abs_path.parent() {
+                Source::Local {
+                    abs_path: test_plan_path,
+                } => {
+                    let abs_path = match test_plan_path.parent() {
                         Some(parent) => parent.join(relative_path),
                         None => relative_path,
                     };
 
-                    Ok(Source::Local {
-                        abs_path: ctx.canonicalize_path(p)?,
-                    })
+                    Source::Local { abs_path }
                 }
 
                 Source::Github {
                     org,
                     repo,
-                    path,
+                    path: test_plan_path,
                     git_ref,
                 } => {
-                    let path = match path.parent() {
+                    let path = match test_plan_path.parent() {
                         Some(parent) => parent.join(relative_path),
                         None => relative_path,
                     };
 
-                    Ok(Source::Github {
+                    Source::Github {
                         org: org.clone(),
                         repo: repo.clone(),
                         path,
                         git_ref: git_ref.clone(),
-                    })
+                    }
                 }
             },
 
@@ -129,12 +139,115 @@ impl RawSource {
                 repo,
                 path,
                 git_ref,
-            } => Ok(Source::Github {
+            } => Source::Github {
                 org,
                 repo,
                 path: PathBuf::from(path),
                 git_ref,
-            }),
+            },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use simple_test_case::test_case;
+
+    fn local(path: &str) -> Source {
+        Source::local(path)
+    }
+
+    fn gh(org: &str, repo: &str, path: &str, git_ref: Option<&str>) -> Source {
+        Source::Github {
+            org: org.into(),
+            repo: repo.into(),
+            path: path.into(),
+            git_ref: git_ref.map(Into::into),
+        }
+    }
+
+    fn raw_local(path: &str) -> RawSource {
+        RawSource::Local {
+            relative_path: path.into(),
+        }
+    }
+
+    fn raw_gh(org: &str, repo: &str, path: &str, git_ref: Option<&str>) -> RawSource {
+        RawSource::Github {
+            org: org.into(),
+            repo: repo.into(),
+            path: path.into(),
+            git_ref: git_ref.map(Into::into),
+        }
+    }
+
+    // Github RawSource is independent of the test plan source so these should all just map
+    // directly from their raw to "cooked" counterpart
+    #[test_case(
+        raw_gh("org", "repo", "bar/environment.yaml", None),
+        local("foo/test-plan.yaml"),
+        gh("org", "repo", "bar/environment.yaml", None);
+        "local test plan github raw"
+    )]
+    #[test_case(
+        raw_gh("org", "repo", "bar/environment.yaml", Some("branch")),
+        local("foo/test-plan.yaml"),
+        gh("org", "repo", "bar/environment.yaml", Some("branch"));
+        "local test plan github raw with branch"
+    )]
+    #[test_case(
+        raw_gh("org", "repo", "bar/environment.yaml", None),
+        gh("org", "repo", "foo/test-plan.yaml", None),
+        gh("org", "repo", "bar/environment.yaml", None);
+        "github test plan github raw"
+    )]
+    #[test_case(
+        raw_gh("org", "repo", "bar/environment.yaml", Some("branch")),
+        gh("org", "repo", "foo/test-plan.yaml", Some("branch")),
+        gh("org", "repo", "bar/environment.yaml", Some("branch"));
+        "github test plan github raw with branch"
+    )]
+    #[test_case(
+        raw_gh("org", "repo", "bar/environment.yaml", Some("branch")),
+        gh("org", "repo", "foo/test-plan.yaml", None),
+        gh("org", "repo", "bar/environment.yaml", Some("branch"));
+        "github test plan without branch github raw with branch"
+    )]
+    #[test_case(
+        raw_gh("org", "repo", "bar/environment.yaml", Some("branch")),
+        gh("org", "repo", "foo/test-plan.yaml", Some("other-branch")),
+        gh("org", "repo", "bar/environment.yaml", Some("branch"));
+        "github test plan with different branch github raw with branch"
+    )]
+    // Local TP + local raw should update the relative path based on the directory containing the
+    // test plan
+    #[test_case(
+        raw_local("bar/environment.yaml"),
+        local("foo/test-plan.yaml"),
+        local("foo/bar/environment.yaml");
+        "local test plan local raw"
+    )]
+    // Github test plan source should rewrite local raw sources to be github sources as well
+    #[test_case(
+        raw_local("bar/environment.yaml"),
+        gh("org", "repo", "foo/test-plan.yaml", None),
+        gh("org", "repo", "foo/bar/environment.yaml", None);
+        "github test plan local raw"
+    )]
+    #[test_case(
+        raw_local("bar/environment.yaml"),
+        gh("org", "repo", "foo/test-plan.yaml", Some("branch")),
+        gh("org", "repo", "foo/bar/environment.yaml", Some("branch"));
+        "github test plan with branch local raw"
+    )]
+    #[test]
+    fn try_into_source_respects_parent_source_kind(
+        raw: RawSource,
+        tp_source: Source,
+        expected: Source,
+    ) {
+        let src = raw.try_into_source_without_canonical_path(&tp_source);
+        assert_eq!(src, expected);
     }
 }
