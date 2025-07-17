@@ -161,7 +161,7 @@ function run_subgraphs {
 
     # read $SUBGRAPH_CONFIG yaml, combining parameters of `default` and `override.$name`, and use those values for the
     # subgraph arguments
-    subgraph_params=$(overridePath=".override.${name}" yq -o=j '.default + eval(strenv(overridePath))' "${SUBGRAPH_CONFIG}")
+    subgraph_params=$(overridePath="(.override.${name} // {})" yq -o=j '.default + eval(strenv(overridePath))' "${SUBGRAPH_CONFIG}")
 
     # TODO: I'd prefer if we could automatically generate all of these but I had a bunch of issues with bash expansion
     #  and did it the less optimal way instead

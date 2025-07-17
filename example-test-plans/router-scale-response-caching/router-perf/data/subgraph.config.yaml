@@ -1,0 +1,13 @@
+default:
+  latency: 5ms
+  sine-period: 10s
+  sine-amplitude: 2ms
+  header: cache-control=max-age=30,public
+  array-length: 0..=10
+  id-length: 5
+  string-length: 5..=10
+  cache-no-store-ratio: 0.1
+  int-max: 100
+override:
+  reporting-subgraph:
+    cache-no-store-ratio: 0.8

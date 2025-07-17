@@ -63,8 +63,8 @@ experimental_response_cache:
       postgres:
         url: "postgres://localhost:5432"
         username: postgres
-        password: ""
-        timeout: 2min # Optional, by default: 2ms
+        password: postgres
+        required_to_start: true
       ttl: 360s # overrides the global TTL
       invalidation:
         enabled: true

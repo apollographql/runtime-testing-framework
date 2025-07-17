@@ -44,6 +44,11 @@ environment:
           kind: relative_path
           path: data/router.config.yaml
 
+        - name: subgraph-config.yaml
+          env_var: SUBGRAPH_CONFIG
+          kind: relative_path
+          path: data/subgraph.config.yaml
+
         - name: otel-config.yaml
           env_var: OTEL_CONFIG
           kind: relative_path
