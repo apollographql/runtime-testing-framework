@@ -2,7 +2,10 @@ use anyhow::Context;
 use clap::Parser;
 use rtf_cli::{
     cli::{Args, Command},
-    commands::{plumbing::template_test_plan, porcelain::check_and_run_test_plan},
+    commands::{
+        plumbing::template_test_plan,
+        porcelain::{check_and_run_github_test_plan, check_and_run_local_test_plan},
+    },
 };
 use std::{io::stderr, process::exit};
 use tracing::{Level, error, level_filters::LevelFilter, subscriber::set_global_default};
@@ -25,8 +28,28 @@ async fn main() {
         // porcelain commands
         Command::Run {
             test_plan_path,
+            github,
+            git_ref,
             outdir,
-        } => check_and_run_test_plan(&test_plan_path, values, &outdir).await,
+        } => match (test_plan_path, github, git_ref) {
+            (Some(path), None, None) => check_and_run_local_test_plan(&path, values, &outdir).await,
+
+            (Some(_), None, Some(_)) => {
+                error!("--ref is not supported for local file paths");
+                exit(1);
+            }
+
+            (None, Some(org_repo_path), git_ref) => {
+                check_and_run_github_test_plan(org_repo_path, git_ref, values, &outdir).await
+            }
+
+            (None, None, _) => {
+                error!("no test plan provided");
+                exit(1);
+            }
+
+            (Some(_), Some(_), _) => unreachable!(),
+        },
 
         // plumbing commands
         Command::Template {

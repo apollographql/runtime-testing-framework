@@ -1,5 +1,5 @@
 //! Parsing of our command line arguments using Clap's derive API
-use clap::{Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand};
 use std::path::PathBuf;
 
 // NOTE: All of the doc comments here are parsed by Clap and used to build out the documentation
@@ -18,11 +18,13 @@ use std::path::PathBuf;
 pub struct Args {
     #[clap(subcommand)]
     pub command: Command,
+
     #[command(flatten)]
     pub values: Values,
+
     /// Flag to control logging verbosity. Default level is `warn`.
     /// `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`.
-    #[arg(short, long, global = true, action = clap::ArgAction::Count)]
+    #[arg(short, long, global = true, action = ArgAction::Count)]
     pub verbose: u8,
 }
 
@@ -31,6 +33,7 @@ pub struct Values {
     /// A single additional templationg value in the form "key=value"
     #[arg(long, global = true)]
     pub value: Vec<String>,
+
     /// Path to a JSON file containing additional template values
     #[arg(long, global = true)]
     pub values: Option<PathBuf>,
@@ -41,8 +44,17 @@ pub enum Command {
     // Porcelain commands
     /// Check and run a test plan
     Run {
-        /// Relative path to the test-plan.yaml file that should be executed
-        test_plan_path: String,
+        /// Relative path to the test plan file that should be executed
+        test_plan_path: Option<String>,
+
+        /// Execute a test plan file in GitHub instead of from a local path
+        #[arg(long, value_name = "ORG/REPO/PATH", conflicts_with = "test_plan_path")]
+        github: Option<String>,
+
+        /// Optional git ref to pull files from when using --github
+        #[arg(long = "ref", requires = "github")]
+        git_ref: Option<String>,
+
         /// Output directory for providers when they run
         #[arg(long, default_value = "output")]
         outdir: String,
@@ -53,6 +65,7 @@ pub enum Command {
     Template {
         /// Relative path to the test-plan.yaml file that should be templated
         test_plan_path: String,
+
         /// Run a static check of the resulting test plan after templating
         #[arg(long, action)]
         check: bool,

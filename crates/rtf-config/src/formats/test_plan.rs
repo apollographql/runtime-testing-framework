@@ -48,9 +48,9 @@ impl TestPlanConfig {
     }
 
     pub async fn try_load_and_resolve_from_github(
-        org: String,
-        repo: String,
-        path: String,
+        org: &str,
+        repo: &str,
+        path: &str,
         git_ref: Option<String>,
         ctx: &impl ResolutionContext,
     ) -> Result<Self> {
@@ -60,7 +60,7 @@ impl TestPlanConfig {
         };
 
         let content = client
-            .string_file_content(&org, &repo, &path, git_ref.as_ref())
+            .string_file_content(org, repo, path, git_ref.as_ref())
             .await?;
 
         let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
@@ -350,6 +350,10 @@ impl Sources {
             scenario,
             environment,
         }
+    }
+
+    pub fn test_plan(&self) -> &Source {
+        &self.test_plan
     }
 
     /// The [Source] of the [EnvironmentConfig] in this test plan.
