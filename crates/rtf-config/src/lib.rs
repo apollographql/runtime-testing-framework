@@ -25,4 +25,6 @@ mod txtar_context;
 pub struct ValueDefinition {
     pub name: String,
     pub description: String,
+    #[serde(default)]
+    pub default: Option<templating::Scalar>,
 }

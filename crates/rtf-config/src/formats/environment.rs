@@ -283,6 +283,7 @@ mod tests {
             .map(|s| ValueDefinition {
                 name: s.to_string(),
                 description: s.to_string(),
+                default: None,
             })
             .collect()
     }

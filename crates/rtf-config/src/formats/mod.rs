@@ -43,7 +43,8 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Helper for filtering allowed templating values based on [ValueDefinition]s present in a config
-/// file.
+/// file. This is also where defaults defined in value definitions are applied, being overwritten
+/// by any explicitly provided values coming from `all_values`.
 ///
 /// # Constructing the definitions argument
 ///
@@ -59,9 +60,67 @@ pub(crate) fn values_for_config_file<'a>(
     all_values: &HashMap<String, Scalar>,
     definitions: impl Iterator<Item = &'a ValueDefinition> + Clone,
 ) -> HashMap<String, Scalar> {
-    all_values
-        .iter()
-        .filter(|(k, _)| definitions.clone().any(|val| &val.name == *k))
-        .map(|(k, v)| (k.clone(), v.clone()))
-        .collect()
+    let mut values: HashMap<String, Scalar> = definitions
+        .clone()
+        .flat_map(|vd| vd.default.clone().map(|v| (vd.name.clone(), v)))
+        .collect();
+
+    values.extend(
+        all_values
+            .iter()
+            .filter(|(k, _)| definitions.clone().any(|val| &val.name == *k))
+            .map(|(k, v)| (k.clone(), v.clone())),
+    );
+
+    values
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn value_defaults_are_used_correctly() {
+        let all_values: HashMap<String, Scalar> = [
+            ("a".into(), 1.into()),
+            ("b".into(), "foo".into()),
+            ("c".into(), true.into()),
+        ]
+        .into_iter()
+        .collect();
+
+        let definitions = [
+            ValueDefinition {
+                name: "a".into(),
+                description: String::new(),
+                default: Some(2.into()),
+            },
+            ValueDefinition {
+                name: "b".into(),
+                description: String::new(),
+                default: None,
+            },
+            ValueDefinition {
+                name: "d".into(),
+                description: String::new(),
+                default: Some("bar".into()),
+            },
+        ];
+
+        let vals = values_for_config_file(&all_values, definitions.iter());
+
+        // a has an explicit value so it overrides the default
+        // b has an explicit value and no default
+        // c is not in the definitions so it is filtered out
+        // d has no explicit value so we take the default
+        let expected: HashMap<String, Scalar> = [
+            ("a".into(), 1.into()),
+            ("b".into(), "foo".into()),
+            ("d".into(), "bar".into()),
+        ]
+        .into_iter()
+        .collect();
+
+        assert_eq!(vals, expected);
+    }
 }

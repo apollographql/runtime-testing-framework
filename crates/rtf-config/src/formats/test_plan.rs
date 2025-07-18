@@ -1,4 +1,5 @@
 use crate::{
+    ValueDefinition,
     checks::{self, Check},
     context::ResolutionContext,
     formats::{EnvironmentConfig, Error, Result, ScenarioConfig},
@@ -175,11 +176,19 @@ impl TestPlanConfig {
     /// Check that all required values have been defined somewhere within the test plan
     fn check_required_values(&self, errs: &mut templating::ErrorBuilder) {
         let mut check_missing_values =
-            |section: &CommandSection, allowed: &HashSet<&String>, error_path: &[String]| {
+            |section: &CommandSection,
+             allowed: &HashSet<&String>,
+             value_defs: &[ValueDefinition],
+             error_path: &[String]| {
                 let mut missing_values: Vec<String> = section
                     .required_values()
                     .iter()
-                    .filter(|s| !allowed.contains(*s))
+                    .filter(|s| {
+                        !(allowed.contains(*s)
+                            || value_defs
+                                .iter()
+                                .any(|vd| &vd.name == *s && vd.default.is_some()))
+                    })
                     .cloned()
                     .collect();
 
@@ -198,6 +207,7 @@ impl TestPlanConfig {
         check_missing_values(
             &self.environment.setup.command,
             &allowed_values,
+            &self.environment.values,
             &["environment".to_string(), "setup".to_string()],
         );
 
@@ -208,12 +218,14 @@ impl TestPlanConfig {
         check_missing_values(
             &self.environment.teardown,
             &allowed_values,
+            &self.environment.values,
             &["environment".to_string(), "teardown".to_string()],
         );
 
         check_missing_values(
             &self.scenario.command,
             &allowed_values,
+            &self.scenario.values,
             &["scenario".to_string()],
         );
     }
@@ -533,8 +545,10 @@ fn merge(overrides: serde_yaml::Value, base: &mut serde_yaml::Value) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::Context;
-    use crate::txtar_context::TxtarContext;
+    use crate::{
+        context::Context, formats::environment::SetupSection, templating::Field,
+        txtar_context::TxtarContext,
+    };
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
     use std::path::PathBuf;
@@ -813,5 +827,53 @@ mod tests {
 
         assert_eq!(all_values, expected);
         assert_eq!(tp.n_matrix_variants(), all_values.len());
+    }
+
+    fn stub_cmd_section(k: &str, v: &str) -> CommandSection {
+        CommandSection {
+            env_vars: [(k.into(), Field::Pending(v.into()))].into_iter().collect(),
+            ..Default::default()
+        }
+    }
+
+    fn value_with_default(name: &str, val: &str) -> ValueDefinition {
+        ValueDefinition {
+            name: name.into(),
+            description: String::default(),
+            default: Some(val.into()),
+        }
+    }
+
+    #[test]
+    fn value_definition_defaults_count_as_required_values() {
+        // A test plan with no values defined in it but each of the required values has a default.
+        // This should return no errors around missing values.
+        let tp = TestPlanConfig {
+            values: HashMap::new(),
+            scenario: ScenarioConfig {
+                values: vec![value_with_default("a", "foo")],
+                command: stub_cmd_section("A", "a"),
+                ..Default::default()
+            },
+            environment: EnvironmentConfig {
+                values: vec![
+                    value_with_default("b", "bar"),
+                    value_with_default("c", "baz"),
+                ],
+                setup: SetupSection {
+                    command: stub_cmd_section("B", "b"),
+                    provides: vec![],
+                },
+                teardown: stub_cmd_section("C", "c"),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let mut errs = templating::ErrorBuilder::new();
+        tp.check_required_values(&mut errs);
+        let res = errs.into_result(());
+
+        assert!(res.is_ok(), "errors: {res:?}");
     }
 }
