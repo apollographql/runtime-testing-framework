@@ -523,10 +523,11 @@ fn merge(overrides: serde_yaml::Value, base: &mut serde_yaml::Value) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::{Context, NullClient, PathKind, ResolutionContext};
+    use crate::context::Context;
+    use crate::txtar_context::TxtarContext;
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
-    use std::{io, path::PathBuf};
+    use std::path::PathBuf;
 
     /// Load a txtar [Archive] from the given file content and print the top level comment if there
     /// is one before returning it.
@@ -698,58 +699,6 @@ mod tests {
         assert_eq!(str_errs.join("\n"), expected.trim());
     }
 
-    struct TxtarContext {
-        arr: Archive,
-    }
-
-    impl ResolutionContext for TxtarContext {
-        type PlatformClient = NullClient;
-        type GithubClient = NullClient;
-        type HttpClient = NullClient;
-
-        fn run_command_blocking<'a>(
-            &self,
-            _prog: &str,
-            _args: impl IntoIterator<Item = &'a str>,
-            _env_vars: &HashMap<String, String>,
-        ) -> io::Result<()> {
-            Ok(())
-        }
-
-        fn write(&self, _path: impl AsRef<Path>, _content: impl AsRef<[u8]>) -> io::Result<()> {
-            unimplemented!()
-        }
-
-        fn path_kind(&self, _path: impl AsRef<Path>) -> crate::context::PathKind {
-            PathKind::File
-        }
-
-        fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
-            Ok(relative_path.as_ref().to_path_buf())
-        }
-
-        fn read_path_to_string(&self, path: impl AsRef<Path>) -> io::Result<String> {
-            let p = path.as_ref().display().to_string();
-
-            self.arr
-                .get(&p)
-                .map(|f| f.content.clone())
-                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, ""))
-        }
-
-        fn remove_file(&self, _path: impl AsRef<Path>) -> io::Result<()> {
-            Ok(())
-        }
-
-        fn set_current_dir(&mut self, _path: impl AsRef<Path>) -> io::Result<()> {
-            Ok(())
-        }
-
-        fn create_dir_all(&self, _path: impl AsRef<Path>) -> io::Result<()> {
-            Ok(())
-        }
-    }
-
     #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/valid-scenario-overrides")]
     #[tokio::test]
     async fn valid_scenario_overrides(_path: &str, content: &str) {
@@ -766,7 +715,7 @@ mod tests {
             overrides,
         };
 
-        let ctx = TxtarContext { arr };
+        let ctx = TxtarContext::new(arr);
         let res = config_source
             .try_into_config_with_source(&Source::local(""), &ctx)
             .await;
@@ -794,7 +743,7 @@ mod tests {
             overrides,
         };
 
-        let ctx = TxtarContext { arr };
+        let ctx = TxtarContext::new(arr);
 
         let res = config_source
             .try_into_config_with_source(&Source::local(""), &ctx)

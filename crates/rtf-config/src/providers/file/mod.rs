@@ -577,9 +577,10 @@ impl Check for BuildRouterFromSource {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::{Context, NullClient};
-    use bytes::Bytes;
-    use rtf_core::HttpResponse;
+    use crate::{
+        context::Context,
+        txtar_context::{MockHttpClient, TxtarContext},
+    };
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
     use std::path::PathBuf;
@@ -806,91 +807,6 @@ mod tests {
         assert_eq!(s, r#"{"foo":"bar"}"#);
     }
 
-    #[derive(Clone)]
-    struct MockHttpClient;
-
-    impl HttpClient for MockHttpClient {
-        async fn get(&self, url: &str) -> anyhow::Result<HttpResponse, reqwest::Error> {
-            if url.ends_with("v1.59.1") {
-                Ok(HttpResponse {
-                    status: StatusCode::OK,
-                    body: Bytes::from_static(b"mock router download script"),
-                })
-            } else if url.ends_with("v12.25.85") {
-                Ok(HttpResponse {
-                    status: StatusCode::NOT_FOUND,
-                    body: Bytes::new(),
-                })
-            } else {
-                panic!("MockHttpClient is not configured to for url {url}")
-            }
-        }
-    }
-
-    #[derive(Clone)]
-    struct MockContext {
-        http: MockHttpClient,
-    }
-
-    impl MockContext {
-        pub fn new() -> Self {
-            Self {
-                http: MockHttpClient,
-            }
-        }
-    }
-
-    impl ResolutionContext for MockContext {
-        type PlatformClient = NullClient;
-        type GithubClient = NullClient;
-        type HttpClient = MockHttpClient;
-
-        fn platform_client(&self) -> Option<&Self::PlatformClient> {
-            None
-        }
-
-        fn http_client(&self) -> Option<&Self::HttpClient> {
-            Some(&self.http)
-        }
-
-        fn canonicalize_path(&self, _path: impl AsRef<Path>) -> io::Result<PathBuf> {
-            unimplemented!()
-        }
-
-        fn path_kind(&self, _path: impl AsRef<Path>) -> PathKind {
-            unimplemented!()
-        }
-
-        fn read_path_to_string(&self, _path: impl AsRef<Path>) -> io::Result<String> {
-            unimplemented!()
-        }
-
-        fn write(&self, _path: impl AsRef<Path>, _content: impl AsRef<[u8]>) -> io::Result<()> {
-            unimplemented!()
-        }
-
-        fn run_command_blocking<'a>(
-            &self,
-            _prog: &str,
-            _args: impl IntoIterator<Item = &'a str>,
-            _env_vars: &HashMap<String, String>,
-        ) -> io::Result<()> {
-            unimplemented!()
-        }
-
-        fn set_current_dir(&mut self, _path: impl AsRef<Path>) -> io::Result<()> {
-            unimplemented!()
-        }
-
-        fn remove_file(&self, _path: impl AsRef<Path>) -> io::Result<()> {
-            unimplemented!()
-        }
-
-        fn create_dir_all(&self, _path: impl AsRef<Path>) -> io::Result<()> {
-            unimplemented!()
-        }
-    }
-
     #[dir_cases("crates/rtf-config/resources/provider-tests/file/resolution-failures-mock-context")]
     #[tokio::test]
     async fn resolution_errors_mock_context(_path: &str, content: &str) {
@@ -932,7 +848,7 @@ mod tests {
         let dir = PathBuf::from("resources/provider-tests/file/valid-mock-context")
             .canonicalize()
             .unwrap();
-        let ctx = MockContext::new();
+        let ctx = TxtarContext::with_http(arr.clone(), MockHttpClient::from_archive(&arr));
         let src = Source::local(dir.join("example.yaml"));
 
         let res = provider.try_check(&mut Vec::new(), &src, &ctx);
