@@ -674,8 +674,10 @@ impl Check for BuildRouterFromSource {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::Context;
-    use crate::txtar_context::{MockHttpClient, TxtarContext};
+    use crate::{
+        context::Context,
+        txtar_context::{MockHttpClient, TxtarContext},
+    };
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
     use std::path::PathBuf;
