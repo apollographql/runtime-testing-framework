@@ -55,7 +55,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// let definitions = self.values.iter();
 /// let definitions = self.values.iter().chain(self.setup.provides.iter());
 /// ```
-pub(crate) fn filter_values<'a>(
+pub(crate) fn values_for_config_file<'a>(
     all_values: &HashMap<String, Scalar>,
     definitions: impl Iterator<Item = &'a ValueDefinition> + Clone,
 ) -> HashMap<String, Scalar> {

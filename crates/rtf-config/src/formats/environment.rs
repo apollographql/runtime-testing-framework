@@ -3,7 +3,7 @@ use crate::{
     ValueDefinition,
     checks::{self, Check, duplicate_keys},
     context::ResolutionContext,
-    formats::{Result, filter_values},
+    formats::{Result, values_for_config_file},
     providers::{command::CommandSection, file::Source},
     templating::{self, Scalar, Template},
 };
@@ -37,7 +37,7 @@ impl EnvironmentConfig {
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let definitions = self.values.iter();
-        let allowed_values = filter_values(values, definitions);
+        let allowed_values = values_for_config_file(values, definitions);
 
         self.setup
             .command
@@ -54,7 +54,7 @@ impl EnvironmentConfig {
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let definitions = self.values.iter().chain(self.setup.provides.iter());
-        let allowed_values = filter_values(values, definitions);
+        let allowed_values = values_for_config_file(values, definitions);
 
         self.teardown
             .try_template_nested(path, "teardown", &allowed_values)
