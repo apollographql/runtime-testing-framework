@@ -1,19 +1,36 @@
 use crate::context::{PathKind, ResolutionContext};
 use rtf_core::graphos::platform_query;
 use rtf_core::{HttpClient, github};
+use serde::Deserialize;
 use simple_txtar::Archive;
 use std::collections::HashMap;
 use std::io;
 use std::path::{Path, PathBuf};
 
-pub struct TxtarContext {
+pub struct TxtarContext<C: HttpClient + Clone + 'static> {
     pub arr: Archive,
+    pub http: C,
 }
 
-impl ResolutionContext for TxtarContext {
+impl<C: HttpClient + Clone + 'static> TxtarContext<C> {
+    pub fn with_http(arr: Archive, http: C) -> Self {
+        Self { arr, http }
+    }
+}
+
+impl TxtarContext<NullClient> {
+    pub fn new(arr: Archive) -> Self {
+        Self {
+            arr,
+            http: NullClient,
+        }
+    }
+}
+
+impl<C: HttpClient + Clone + 'static> ResolutionContext for TxtarContext<C> {
     type PlatformClient = NullClient;
     type GithubClient = NullClient;
-    type HttpClient = NullClient;
+    type HttpClient = C;
 
     fn run_command_blocking<'a>(
         &self,
@@ -22,6 +39,10 @@ impl ResolutionContext for TxtarContext {
         _env_vars: &HashMap<String, String>,
     ) -> io::Result<()> {
         Ok(())
+    }
+
+    fn http_client(&self) -> Option<&Self::HttpClient> {
+        Some(&self.http)
     }
 
     fn write(&self, _path: impl AsRef<Path>, _content: impl AsRef<[u8]>) -> io::Result<()> {
@@ -90,5 +111,57 @@ impl github::Client for NullClient {
 impl HttpClient for NullClient {
     async fn get(&self, _url: &str) -> Result<rtf_core::HttpResponse, reqwest::Error> {
         panic!("a NullClient can not be used to make requests")
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct MockHttpRequest {
+    url: String,
+    status: u16,
+    body: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct MockHttpRequestList {
+    requests: Vec<MockHttpRequest>,
+}
+
+#[derive(Clone)]
+pub struct MockHttpClient {
+    responses: HashMap<String, rtf_core::HttpResponse>,
+}
+
+impl MockHttpClient {
+    pub fn from_archive(arr: &Archive) -> Self {
+        let mut responses = HashMap::new();
+
+        if let Some(file) = arr.get("mock-http-requests") {
+            let parsed: MockHttpRequestList = serde_yaml::from_str(&file.content)
+                .expect("invalid YAML in mock-http-requests section");
+
+            for req in parsed.requests {
+                let status =
+                    reqwest::StatusCode::from_u16(req.status).expect("invalid HTTP status code");
+
+                responses.insert(
+                    req.url,
+                    rtf_core::HttpResponse {
+                        status,
+                        body: req.body.into(),
+                    },
+                );
+            }
+        }
+
+        Self { responses }
+    }
+}
+
+impl HttpClient for MockHttpClient {
+    async fn get(&self, url: &str) -> Result<rtf_core::HttpResponse, reqwest::Error> {
+        match self.responses.get(url) {
+            Some(response) => Ok(response.clone()),
+            None => panic!("unexpected URL: {url}"),
+        }
     }
 }

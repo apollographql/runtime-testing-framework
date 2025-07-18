@@ -686,7 +686,7 @@ mod tests {
             overrides,
         };
 
-        let ctx = TxtarContext { arr };
+        let ctx = TxtarContext::new(arr);
         let res = config_source
             .try_into_config_with_source(&PathBuf::new(), &ctx)
             .await;
@@ -714,7 +714,7 @@ mod tests {
             overrides,
         };
 
-        let ctx = TxtarContext { arr };
+        let ctx = TxtarContext::new(arr);
 
         let res = config_source
             .try_into_config_with_source(&PathBuf::new(), &ctx)

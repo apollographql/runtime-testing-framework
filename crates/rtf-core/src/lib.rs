@@ -102,7 +102,7 @@ impl ReqwestClient {
 /// Represents the result of an HTTP request made by an `HttpClient`.
 ///
 /// Contains the HTTP status code and the raw response body as bytes.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HttpResponse {
     /// The HTTP status code returned by the server (e.g., 200 OK, 404 Not Found).
     pub status: StatusCode,
