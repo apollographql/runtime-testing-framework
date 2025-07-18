@@ -129,24 +129,34 @@ impl TestPlanConfig {
     pub fn check_templating_will_work(&mut self) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
-        // Check if we have any conflicts between matrix values and scalar values
+        self.check_conflicting_keys(&mut errs);
+        self.check_matrix_values(&mut errs);
+        self.check_required_values(&mut errs);
+
+        errs.into_result(())
+    }
+
+    /// Check if we have any conflicts between matrix values and scalar values
+    fn check_conflicting_keys(&self, errs: &mut templating::ErrorBuilder) {
         let mut conflicting_keys: Vec<String> = self
             .values
             .keys()
             .filter(|k| self.matrix.contains_key(*k))
             .cloned()
             .collect();
+
         if !conflicting_keys.is_empty() {
             conflicting_keys.sort_unstable(); // ensure consistent ordering
-
             errs.push(
                 templating::ErrorKind::ConflictingValues,
                 conflicting_keys.join(", "),
                 &[],
             )
         }
+    }
 
-        // Check that all matrix arrays are non-empty and homogeneous
+    /// Check that all matrix arrays are non-empty and homogeneous
+    fn check_matrix_values(&self, errs: &mut templating::ErrorBuilder) {
         for (k, vals) in self.matrix.iter() {
             let discriminant = match vals.first() {
                 Some(val) => mem::discriminant(val),
@@ -160,8 +170,10 @@ impl TestPlanConfig {
                 errs.push(templating::ErrorKind::InconsistentMatrixValue, k, &[]);
             }
         }
+    }
 
-        // Check that all required values have been defined somewhere within the test plan
+    /// Check that all required values have been defined somewhere within the test plan
+    fn check_required_values(&self, errs: &mut templating::ErrorBuilder) {
         let mut check_missing_values =
             |section: &CommandSection, allowed: &HashSet<&String>, error_path: &[String]| {
                 let mut missing_values: Vec<String> = section
@@ -204,8 +216,6 @@ impl TestPlanConfig {
             &allowed_values,
             &["scenario".to_string()],
         );
-
-        errs.into_result(())
     }
 
     pub fn try_template_envrionment_setup(
