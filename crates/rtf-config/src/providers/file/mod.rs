@@ -609,7 +609,7 @@ mod tests {
 
     #[dir_cases("crates/rtf-config/resources/provider-tests/file/expected-file-success")]
     #[tokio::test]
-    async fn valid_providers(_path: &str, content: &str) {
+    async fn expected_file_success(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
 
@@ -657,7 +657,7 @@ mod tests {
 
     #[dir_cases("crates/rtf-config/resources/provider-tests/file/check-errors")]
     #[test]
-    fn check_failures(_path: &str, content: &str) {
+    fn check_errors(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
         let expected = get_file(&arr, "check-errors");
@@ -691,7 +691,7 @@ mod tests {
 
     #[dir_cases("crates/rtf-config/resources/provider-tests/file/template-success")]
     #[test]
-    fn valid_templated_providers(_path: &str, content: &str) {
+    fn template_success(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
         let raw_values = get_file(&arr, "values");
@@ -712,7 +712,7 @@ mod tests {
 
     #[dir_cases("crates/rtf-config/resources/provider-tests/file/template-errors")]
     #[test]
-    fn invalid_templated_providers(_path: &str, content: &str) {
+    fn template_errors(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
         let raw_values = get_file(&arr, "values");
@@ -835,7 +835,7 @@ mod tests {
         "crates/rtf-config/resources/provider-tests/file/expected-file-success-mock-context"
     )]
     #[tokio::test]
-    async fn valid_providers_mock_context(_path: &str, content: &str) {
+    async fn expected_file_success_mock_context(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
 
