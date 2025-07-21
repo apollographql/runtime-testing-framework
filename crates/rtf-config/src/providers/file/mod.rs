@@ -692,7 +692,7 @@ mod tests {
         );
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/valid-templates")]
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/template-success")]
     #[test]
     fn valid_templated_providers(_path: &str, content: &str) {
         let arr = load_archive(content);
