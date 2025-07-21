@@ -8,5 +8,5 @@ path: "{{ some_path }}"
 -- values --
 some_path: 42
 
--- templating-errors --
+-- template-errors --
 InvalidData

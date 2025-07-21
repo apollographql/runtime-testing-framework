@@ -713,13 +713,13 @@ mod tests {
         assert_eq!(provider, expected);
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/invalid-templates")]
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/template-errors")]
     #[test]
     fn invalid_templated_providers(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
         let raw_values = get_file(&arr, "values");
-        let expected = get_file(&arr, "templating-errors");
+        let expected = get_file(&arr, "template-errors");
 
         let mut provider: FileProvider = serde_yaml::from_str(config).unwrap();
         let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
