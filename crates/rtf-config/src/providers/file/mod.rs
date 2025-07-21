@@ -834,7 +834,9 @@ mod tests {
         assert_eq!(&err.to_string(), expected, "wrong resolution errors");
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/valid-mock-context")]
+    #[dir_cases(
+        "crates/rtf-config/resources/provider-tests/file/expected-file-success-mock-context"
+    )]
     #[tokio::test]
     async fn valid_providers_mock_context(_path: &str, content: &str) {
         let arr = load_archive(content);
@@ -845,7 +847,7 @@ mod tests {
             Err(e) => panic!("expected a valid FileProvider, got: {e}"),
         };
 
-        let dir = PathBuf::from("resources/provider-tests/file/valid-mock-context")
+        let dir = PathBuf::from("resources/provider-tests/file/expected-file-success-mock-context")
             .canonicalize()
             .unwrap();
         let ctx = TxtarContext::with_http(arr.clone(), MockHttpClient::from_archive(&arr));
