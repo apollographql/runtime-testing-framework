@@ -607,7 +607,7 @@ mod tests {
         }
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/valid")]
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/expected-file-success")]
     #[tokio::test]
     async fn valid_providers(_path: &str, content: &str) {
         let arr = load_archive(content);
@@ -618,7 +618,7 @@ mod tests {
             Err(e) => panic!("expected a valid FileProvider, got: {e}"),
         };
 
-        let dir = PathBuf::from("resources/provider-tests/file/valid")
+        let dir = PathBuf::from("resources/provider-tests/file/expected-file-success")
             .canonicalize()
             .unwrap();
         let ctx = Context::new();
