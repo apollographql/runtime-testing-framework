@@ -8,7 +8,7 @@ use crate::{
 };
 use indoc::indoc;
 use reqwest::StatusCode;
-use rtf_core::HttpClient;
+use rtf_core::{HttpClient, github::Client};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::HashMap,
@@ -18,69 +18,10 @@ use std::{
 };
 
 pub mod apollo;
+pub mod github;
+mod source;
 
-/// The source of how a particular config file was obtained.
-///
-/// In its simplest form this is a local file path to the directory containing the config file, but
-/// this may also include things like pulling the file over the network.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case", tag = "kind")]
-pub enum Source {
-    /// The config file was read from disk
-    Local {
-        /// The absolute path to the config file
-        abs_path: PathBuf,
-    },
-}
-
-impl Source {
-    pub fn local(abs_path: impl Into<PathBuf>) -> Self {
-        Self::Local {
-            abs_path: abs_path.into(),
-        }
-    }
-
-    pub async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String> {
-        match self {
-            Self::Local { abs_path } => Ok(ctx.read_path_to_string(abs_path)?),
-        }
-    }
-}
-
-impl Default for Source {
-    fn default() -> Self {
-        Self::Local {
-            abs_path: PathBuf::new(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case", tag = "kind")]
-pub enum RawSource {
-    Local { relative_path: PathBuf },
-}
-
-impl RawSource {
-    pub async fn try_get_file_content(
-        &self,
-        dir: &Path,
-        ctx: &impl ResolutionContext,
-    ) -> Result<String> {
-        match self {
-            Self::Local { relative_path } => Ok(ctx.read_path_to_string(dir.join(relative_path))?),
-        }
-    }
-
-    pub fn try_into_source(self, dir: &Path, ctx: &impl ResolutionContext) -> io::Result<Source> {
-        match self {
-            Self::Local { relative_path } => {
-                let abs_path = ctx.canonicalize_path(dir.join(relative_path))?;
-                Ok(Source::Local { abs_path })
-            }
-        }
-    }
-}
+pub use source::{RawSource, Source};
 
 /// A file provider is something that can obtain or synthesise utf-8 file content based on a user
 /// provided specification.
@@ -223,6 +164,8 @@ impl DerefMut for NamedFileProvider {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
+    BuildRouterFromSource(BuildRouterFromSource),
+    GithubFile(github::GithubFile),
     GraphosCannedOps(apollo::GraphosCannedOps),
     GraphosSubgraphs(apollo::GraphosSubgraphs),
     GraphosSupergraph(apollo::GraphosSupergraph),
@@ -230,16 +173,15 @@ pub enum FileProvider {
     OfflineGraphosLicense(apollo::OfflineGraphosLicense),
     RelativePath(RelativeFile),
     Required(RequiredFile),
-    RouterDownloadScript(RouterDownloadScript),
     ResolvedValues(ResolvedValues),
-    BuildRouterFromSource(BuildRouterFromSource),
+    RouterDownloadScript(RouterDownloadScript),
 }
 
 // Each time we add a new variant to the FileProvider enum above we need to remember to add it to
 // the macro invocation below in order to update the trait implementations for the enum. (You can't
 // really forget to do this as the compiler will complain about missing match arms if you do!)
 macro_rules! enum_impl_file_provider {
-    ($($variant:ident),+) => {
+    ($($variant:ident,)+) => {
         enum_impl_check!(FileProvider => $($variant),+);
         enum_impl_template!(FileProvider => $($variant),+);
         enum_impl_resolve_and_write!(FileProvider => $($variant),+);
@@ -247,6 +189,8 @@ macro_rules! enum_impl_file_provider {
 }
 
 enum_impl_file_provider!(
+    BuildRouterFromSource,
+    GithubFile,
     GraphosCannedOps,
     GraphosSubgraphs,
     GraphosSupergraph,
@@ -254,9 +198,8 @@ enum_impl_file_provider!(
     OfflineGraphosLicense,
     RelativePath,
     Required,
-    RouterDownloadScript,
     ResolvedValues,
-    BuildRouterFromSource
+    RouterDownloadScript,
 );
 
 /// The simplest form of file provider: the user specifies the contents of the file inline within
@@ -337,6 +280,25 @@ impl AsUtf8FileContent for RelativeFile {
                 let p = dir.join(self.path.as_resolved());
                 Ok(ctx.read_path_to_string(p)?)
             }
+
+            Source::Github {
+                org,
+                repo,
+                path,
+                git_ref,
+            } => {
+                let client = ctx
+                    .github_client()
+                    .ok_or(providers::Error::Github(rtf_core::github::Error::NoClient))?;
+                let full_path = match path.parent() {
+                    Some(parent) => parent.join(self.path.as_resolved()).display().to_string(),
+                    None => self.path.as_resolved().to_string(),
+                };
+
+                Ok(client
+                    .string_file_content(org, repo, &full_path, git_ref.as_ref())
+                    .await?)
+            }
         }
     }
 }
@@ -355,6 +317,18 @@ impl Check for RelativeFile {
                     None => PathBuf::new(),
                 };
                 ctx.canonicalize_path(dir.join(self.path.as_resolved()))
+            }
+
+            Source::Github { .. } => {
+                return if ctx.github_client().is_none() {
+                    Err(checks::Errors::new(
+                        checks::ErrorKind::MissingGithubApiKey,
+                        "",
+                        path,
+                    ))
+                } else {
+                    Ok(())
+                };
             }
         };
 
@@ -604,9 +578,10 @@ impl Check for BuildRouterFromSource {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::{Context, NullPlatformClient};
-    use bytes::Bytes;
-    use rtf_core::HttpResponse;
+    use crate::{
+        context::Context,
+        txtar_context::{MockHttpClient, TxtarContext},
+    };
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
     use std::path::PathBuf;
@@ -833,90 +808,6 @@ mod tests {
         assert_eq!(s, r#"{"foo":"bar"}"#);
     }
 
-    #[derive(Clone)]
-    struct MockHttpClient;
-
-    impl HttpClient for MockHttpClient {
-        async fn get(&self, url: &str) -> anyhow::Result<HttpResponse, reqwest::Error> {
-            if url.ends_with("v1.59.1") {
-                Ok(HttpResponse {
-                    status: StatusCode::OK,
-                    body: Bytes::from_static(b"mock router download script"),
-                })
-            } else if url.ends_with("v12.25.85") {
-                Ok(HttpResponse {
-                    status: StatusCode::NOT_FOUND,
-                    body: Bytes::new(),
-                })
-            } else {
-                panic!("MockHttpClient is not configured to for url {url}")
-            }
-        }
-    }
-
-    #[derive(Clone)]
-    struct MockContext {
-        http: MockHttpClient,
-    }
-
-    impl MockContext {
-        pub fn new() -> Self {
-            Self {
-                http: MockHttpClient,
-            }
-        }
-    }
-
-    impl ResolutionContext for MockContext {
-        type PlatformClient = NullPlatformClient;
-        type HttpClient = MockHttpClient;
-
-        fn platform_client(&self) -> Option<&Self::PlatformClient> {
-            None
-        }
-
-        fn http_client(&self) -> Option<&Self::HttpClient> {
-            Some(&self.http)
-        }
-
-        fn canonicalize_path(&self, _path: impl AsRef<Path>) -> io::Result<PathBuf> {
-            unimplemented!()
-        }
-
-        fn path_kind(&self, _path: impl AsRef<Path>) -> PathKind {
-            unimplemented!()
-        }
-
-        fn read_path_to_string(&self, _path: impl AsRef<Path>) -> io::Result<String> {
-            unimplemented!()
-        }
-
-        fn write(&self, _path: impl AsRef<Path>, _content: impl AsRef<[u8]>) -> io::Result<()> {
-            unimplemented!()
-        }
-
-        fn run_command_blocking<'a>(
-            &self,
-            _prog: &str,
-            _args: impl IntoIterator<Item = &'a str>,
-            _env_vars: &HashMap<String, String>,
-        ) -> io::Result<()> {
-            unimplemented!()
-        }
-
-        fn set_current_dir(&mut self, _path: impl AsRef<Path>) -> io::Result<()> {
-            unimplemented!()
-        }
-
-        fn remove_file(&self, _path: impl AsRef<Path>) -> io::Result<()> {
-            unimplemented!()
-        }
-
-        fn create_dir_all(&self, _path: impl AsRef<Path>) -> io::Result<()> {
-            unimplemented!()
-        }
-    }
-
     #[dir_cases("crates/rtf-config/resources/provider-tests/file/resolution-failures-mock-context")]
     #[tokio::test]
     async fn resolution_errors_mock_context(_path: &str, content: &str) {
@@ -958,7 +849,7 @@ mod tests {
         let dir = PathBuf::from("resources/provider-tests/file/valid-mock-context")
             .canonicalize()
             .unwrap();
-        let ctx = MockContext::new();
+        let ctx = TxtarContext::with_http(arr.clone(), MockHttpClient::from_archive(&arr));
         let src = Source::local(dir.join("example.yaml"));
 
         let res = provider.try_check(&mut Vec::new(), &src, &ctx);

@@ -1,14 +1,16 @@
 use crate::{cli::Values, commands::get_context_and_outdir};
+use anyhow::anyhow;
 use rtf_config::{
     checks::{self, Check},
     context::ResolutionContext,
     formats::TestPlanConfig,
+    providers::file::Source,
     templating,
 };
 use std::{mem::take, path::Path};
 use tracing::info;
 
-pub async fn check_and_run_test_plan(
+pub async fn check_and_run_local_test_plan(
     config_file_path: &str,
     values: Values,
     out_dir: &str,
@@ -16,17 +18,41 @@ pub async fn check_and_run_test_plan(
     let (ctx, out_dir) = get_context_and_outdir(out_dir)?;
     let out_dir = ctx.canonicalize_path(out_dir)?;
 
-    check_and_run_test_plan_with_context(config_file_path, values, &out_dir, ctx).await
+    info!("loading and resolving test plan");
+    let test_plan = TestPlanConfig::try_load_and_resolve_from_path(config_file_path, &ctx).await?;
+
+    check_and_run_test_plan_with_context(test_plan, values, &out_dir, ctx).await
+}
+
+pub async fn check_and_run_github_test_plan(
+    org_repo_path: String,
+    git_ref: Option<String>,
+    values: Values,
+    out_dir: &str,
+) -> anyhow::Result<()> {
+    let (ctx, out_dir) = get_context_and_outdir(out_dir)?;
+    let out_dir = ctx.canonicalize_path(out_dir)?;
+
+    let (org, repo_and_path) = org_repo_path
+        .split_once('/')
+        .ok_or(anyhow!("invalid GitHub uri"))?;
+    let (repo, path) = repo_and_path
+        .split_once('/')
+        .ok_or(anyhow!("invalid GitHub uri"))?;
+
+    info!("fetching and resolving test plan from GitHub");
+    let test_plan =
+        TestPlanConfig::try_load_and_resolve_from_github(org, repo, path, git_ref, &ctx).await?;
+
+    check_and_run_test_plan_with_context(test_plan, values, &out_dir, ctx).await
 }
 
 async fn check_and_run_test_plan_with_context(
-    path: &str,
+    mut test_plan: TestPlanConfig,
     values: Values,
     out_dir: &Path,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    info!("loading and resolving test plan");
-    let mut test_plan = TestPlanConfig::try_load_and_resolve_from_path(path, &ctx).await?;
     values.merge(&mut test_plan.values, &mut ctx)?;
 
     info!("checking if templating will work");
@@ -34,8 +60,11 @@ async fn check_and_run_test_plan_with_context(
 
     info!("creating output directory");
     ctx.create_dir_all(out_dir)?;
-    let config_dir = ctx.dir_containing(ctx.canonicalize_path(path)?);
-    ctx.set_current_dir(config_dir)?;
+
+    if let Source::Local { abs_path } = test_plan.sources.test_plan() {
+        let config_dir = ctx.dir_containing(abs_path);
+        ctx.set_current_dir(config_dir)?;
+    }
 
     if test_plan.matrix.is_empty() {
         info!("executing test plan");

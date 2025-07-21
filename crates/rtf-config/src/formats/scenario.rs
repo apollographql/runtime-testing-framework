@@ -2,7 +2,7 @@ use crate::{
     ValueDefinition,
     checks::{self, Check},
     context::ResolutionContext,
-    formats::{Result, filter_values},
+    formats::{Result, values_for_config_file},
     providers::{command::CommandSection, file::Source},
     templating::{self, Scalar, Template},
 };
@@ -43,7 +43,7 @@ impl Template for ScenarioConfig {
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let definitions = self.values.iter();
-        let allowed_values = filter_values(values, definitions);
+        let allowed_values = values_for_config_file(values, definitions);
 
         self.command
             .try_template_nested(path, "command_section", &allowed_values)

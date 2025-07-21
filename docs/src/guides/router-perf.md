@@ -1,5 +1,9 @@
 # Router Performance Testing
 
+> **Note**: The `router-scale` example contained in RTF repo is intended as an example to
+help you get started. For the most up-to-date `router-scale` scripts and other example
+test plans please go to the [rtf-morgue][0].
+
 ### Table of contents
   - [Overview](#overview)
   - [Setting up access](#gcp-access)
@@ -11,25 +15,25 @@
 
 ## Overview
 
-The Test Plans found in [example-test-plans/router-scale][0] demonstrate how to
-run Router performance tests in a way similar to the existing [router-scale][1]
+The Test Plans found in [example-test-plans/router-scale][1] demonstrate how to
+run Router performance tests in a way similar to the existing [router-scale][2]
 testing tool.
 
 Rather than running as a single Test Plan as we did in [hello world](./hello-world.md),
 these tests are run using a _pair_ of Test Plans:
-  - The first is a [wrapper][2] that is used to spin up an ephemeral GCP VM
+  - The first is a [wrapper][3] that is used to spin up an ephemeral GCP VM
     where the tests will be executed. This Test Plan is decoupled from the actual
     test you are running and simply provides a shared orchestration layer for
     provisioning VMs and setting them up to be able to run an `rtf` Test Plan which
     is rsync'd across for execution on the VM rather than locally on your laptop
     (or directly in CI).
   - The second is the Test Plan that we will actually execute on the VM as the
-    test itself. For the purposes of this guide we'll be using the [router-perf][3]
-    Test Plan that will spin up a build of the Apollo [Router][4] with mocked
-    subgraphs and run a simple performance test against it using [vegeta][5].
+    test itself. For the purposes of this guide we'll be using the [router-perf][4]
+    Test Plan that will spin up a build of the Apollo [Router][5] with mocked
+    subgraphs and run a simple performance test against it using [vegeta][6].
 
 As with the "hello, world!" Test Plan you will need a local checkout of the
-[runtime-testing-framework][6] repository and you will need to have the `rtf` binary
+[runtime-testing-framework][7] repository and you will need to have the `rtf` binary
 installed. Please see the details found in the [Getting Started](./index.md) page for
 how to get set up if you have not done so already.
 
@@ -42,14 +46,14 @@ that out first.
 
 You can request access to GCP by using the `/assist` command in Slack to open a
 ticket with IT. Once you’re access request has been actioned, navigate to the
-`router-performance` project’s IAM page [here][7] and look for your team name
+`router-performance` project’s IAM page [here][8] and look for your team name
 in that list. If your team does not have the `Service Account Token Creator`
 role then you will also need to request that using `/assist`.
 
-> An example PR to handle this can be found [here][8],
+> An example PR to handle this can be found [here][9],
 
 Once that role has been granted to your team you will need to ensure that you
-have the [gcloud CLI][9] installed and configured. This can be done by running
+have the [gcloud CLI][10] installed and configured. This can be done by running
 `gcloud init` after completing the installation instructions in the that link
 and then following the steps it provides (for a fresh install) or by running
 `gcloud auth login` if you already have the CLI installed.
@@ -59,21 +63,21 @@ which can be done by running `gcloud components install beta`.
 
 ## Studio API Access
 In order to run test plans using production data you will need to have elevated
-permissions in Studio. This is handled using [SHERRIF][10] and unlike the GCP
+permissions in Studio. This is handled using [SHERRIF][11] and unlike the GCP
 access steps above this will need to be completed each time you want to run
 tests that use production data.
 
-- Open a ticket with SHERIFF as instructed [here][11] or alternatively just go
-  [here][12] directly.
+- Open a ticket with SHERIFF as instructed [here][12] or alternatively just go
+  [here][13] directly.
 - Select “Access Type: Apollo Admin Access”. You need “Read Only” access to the
   “Prod” environment.
 - Once your admin access has been granted you can create a new personal Studio
-  API key [here][13]. Note that your elevated permissions are only valid for 12
+  API key [here][14]. Note that your elevated permissions are only valid for 12
   hours and that you will need to create a new API key each time you request
   access via SHERIFF.
 - Export your new API key as `APOLLO_KEY` using your perferred mechanism for
   managing shell environment variables before running rtf.
-  - [direnv][14] is a nice way to do this if you don't have an existing setup
+  - [direnv][15] is a nice way to do this if you don't have an existing setup
     you are already using.
 
 
@@ -168,7 +172,7 @@ ERROR (subgraphs) the provided string was not a valid graph ref expected a strin
 As before we can fix this error by using `--value` flag to override the placeholder
 value, this time for the `graph_ref` value. If you are unsure of a graph to test
 against then a good starting point is to pick one of the graphs found in the current
-[router-scale corpus][15]:
+[router-scale corpus][16]:
 ```bash
 rtf template example-test-plans/router-scale/router-perf/test-plan.yaml \
   --value "router_pid='1'" \
@@ -223,19 +227,20 @@ rtf run example-test-plans/router-scale/wrapper/test-plan.yaml \
   --value 'delete_vm="false"'
 ```
 
-  [0]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/router-scale
-  [1]: https://github.com/apollographql/router-scale
-  [2]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/router-scale/wrapper
-  [3]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/router-scale/router-perf
-  [4]: https://github.com/apollographql/router
-  [5]: https://github.com/tsenart/vegeta
-  [6]: https://github.com/apollographql/runtime-testing-framework
-  [7]: https://console.cloud.google.com/iam-admin/iam?referrer=search&project=router-performance
-  [8]: https://github.com/mdg-private/platform-teams/pull/178
-  [9]: https://cloud.google.com/sdk/docs/install
-  [10]: https://apollographql.atlassian.net/wiki/spaces/SecOps/pages/805404674/SHERIFF
-  [11]: https://apollographql.atlassian.net/wiki/spaces/SecOps/pages/805568513
-  [12]: https://apollographql.atlassian.net/servicedesk/customer/portal/1/group/3/create/1247
-  [13]: https://studio.apollographql.com/user-settings/api-keys
-  [14]: https://github.com/direnv/direnv
-  [15]: https://github.com/apollographql/router-scale/blob/main/data/router_2.0_launch/corpus.yaml#L7-L46
+  [0]: https://github.com/apollographql/rtf-morgue
+  [1]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/router-scale
+  [2]: https://github.com/apollographql/router-scale
+  [3]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/router-scale/wrapper
+  [4]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/router-scale/router-perf
+  [5]: https://github.com/apollographql/router
+  [6]: https://github.com/tsenart/vegeta
+  [7]: https://github.com/apollographql/runtime-testing-framework
+  [8]: https://console.cloud.google.com/iam-admin/iam?referrer=search&project=router-performance
+  [9]: https://github.com/mdg-private/platform-teams/pull/178
+  [10]: https://cloud.google.com/sdk/docs/install
+  [11]: https://apollographql.atlassian.net/wiki/spaces/SecOps/pages/805404674/SHERIFF
+  [12]: https://apollographql.atlassian.net/wiki/spaces/SecOps/pages/805568513
+  [13]: https://apollographql.atlassian.net/servicedesk/customer/portal/1/group/3/create/1247
+  [14]: https://studio.apollographql.com/user-settings/api-keys
+  [15]: https://github.com/direnv/direnv
+  [16]: https://github.com/apollographql/router-scale/blob/main/data/router_2.0_launch/corpus.yaml#L7-L46
