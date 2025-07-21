@@ -771,7 +771,7 @@ mod tests {
         let dir = PathBuf::from("resources/provider-tests/file/resolution-errors-mock-context")
             .canonicalize()
             .unwrap();
-        let ctx = Context::new();
+        let ctx = TxtarContext::with_http(arr.clone(), MockHttpClient::from_archive(&arr));
         let src = Source::local(dir.join("example.yaml"));
         let _ = provider.try_check(&mut Vec::new(), &src, &ctx);
         let res = provider
