@@ -52,6 +52,8 @@ setup:
       env_var: ROUTER_CGROUP_CONFIG
       kind: inline
       content: |
+        # NB: this is shared among all routers, so must be scaled to account for multiple routers on the same VM
+        # current values are those for `1`
         ROUTER_CPU_REQ="4"
         ROUTER_MEM_REQ=""
         ROUTER_MEM_LIM="8G"
@@ -77,3 +79,4 @@ teardown:
     ROUTER_PIDS: "{{ router_pids }}"
     ROUTER_CGROUP: "{{ router_cgroup }}"
     GRAPH_REF: "{{ graph_ref }}"
+    NUM_ROUTERS: "{{ num_routers }}"

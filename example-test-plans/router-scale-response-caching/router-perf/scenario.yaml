@@ -8,13 +8,15 @@ values:
   - name: random_seed
     description: "A random seed to use for shuffling the canned operations we run"
   - name: rps
-    description: "The requests per second to run vegeta at"
+    description: "The requests per second to run vegeta at (load will be spread across routers)"
   - name: duration_secs
     description: "The number of seconds to run vegeta for"
   - name: graph_ref
     description: "The graphos graph ref to pull operations for"
   - name: top_n
     description: "The number of operations to pull"
+  - name: num_routers
+    description: "The numbers of routers being run"
 
 command:
   name: vegeta-perf-test.sh
@@ -25,6 +27,7 @@ env_vars:
   RPS: "{{ rps }}"
   DURATION_SECS: "{{ duration_secs }}"
   RANDOM_SEED: "{{ random_seed }}"
+  NUM_ROUTERS: "{{ num_routers }}"
 
 file_providers:
   - name: canned_ops.json

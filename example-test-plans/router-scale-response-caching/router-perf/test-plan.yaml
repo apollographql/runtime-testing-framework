@@ -20,6 +20,7 @@ values:
   random_seed: "b5bb5cd521bf12bd5a18fcfc378ae12d25cf9d4d"
   rust_version: "1.87.0"
   router_commit_ref: dev
+  num_routers: "2"
   # This is a deliberately invalid graph ref so that we will fail checks before running
   graph_ref: "CHANGE_ME"
   rps: "100"

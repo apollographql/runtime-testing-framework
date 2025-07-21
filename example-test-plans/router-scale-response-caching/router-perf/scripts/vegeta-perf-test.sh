@@ -8,18 +8,21 @@ RESULTS_DIR="$OUTDIR/results"
 CANNED="$OUTDIR/requests.canned"
 CANNED_TMP="$(mktemp /tmp/router.XXXXXX)"
 N_OPS="$(cat "$CANNED_OPS_FILE" | wc -l)"
-N_COPIES="$(( RPS * DURATION_SECS / N_OPS ))"
+N_COPIES="$(( RPS * DURATION_SECS * NUM_ROUTERS / N_OPS ))"
 
 # rewrite our canned request data into vegeta format
 while read -r req; do
-  jq -nc \
-    --arg body "$(echo "$req" | base64 -w 0 -i)" \
-    '{
-      "body": $body,
-      "header": { "Content-type": ["application/json"] },
-      "method": "POST",
-      "url": "http://127.0.0.1:4000/"
-    }' >> "$CANNED"
+  for (( i=0 ; i<NUM_ROUTERS ; i++ )); do
+    jq -nc \
+      --arg body "$(echo "$req" | base64 -w 0 -i)" \
+      --arg url "http://127.0.0.1:$(( 4000 + i ))" \
+      '{
+        "body": $body,
+        "header": { "Content-type": ["application/json"] },
+        "method": "POST",
+        "url": $url
+      }' >> "$CANNED"
+  done
 done <"$CANNED_OPS_FILE"
 
 yes "$CANNED" |

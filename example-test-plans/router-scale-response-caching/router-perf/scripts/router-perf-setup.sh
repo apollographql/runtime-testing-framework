@@ -10,7 +10,6 @@ RESULTS_DIR="$OUTDIR/results"
 
 echo "sourcing data files"
 set -a
-. "$SUBGRAPH_CONFIG"
 . "$ROUTER_CGROUP_CONFIG"
 set +a
 
@@ -194,45 +193,72 @@ function run_router_side {
   strace -tf -p ${ROUTER_SIDE_PID} > "${RESULTS_DIR}/router-side.strace" 2>&1 &
 }
 
+function set_up_router_cgroup {
+  sudo cgcreate -g cpu,memory:/router
+  echo "+cpu +memory" | sudo tee /sys/fs/cgroup/router/cgroup.subtree_control > /dev/null
+  sudo cgset -r memory.swap.max="0" /router
+
+  if [ -n "$ROUTER_CPU_REQ" ]; then
+    # Multiply by 100000 to get the right units
+    sudo cgset -r cpu.max="$(( ROUTER_CPU_REQ * 100000 )) 100000" /router
+  fi
+
+  if [ -n "$ROUTER_MEM_REQ" ]; then
+    sudo cgset -r memory.high="$ROUTER_MEM_REQ" /router
+  fi
+
+  if [ -n "$ROUTER_MEM_LIM" ]; then
+    sudo cgset -r memory.max="$ROUTER_MEM_LIM" /router
+  else
+    sudo cgset -r memory.max="max" /router
+  fi
+
+  sudo mkdir /sys/fs/cgroup/router/leaf
+}
+
 # shellcheck disable=SC2086
 function run_router {
-  port=$1
+  port_offset=$1
+
+  port=$(( 4000 + port_offset ))
+  prom_port=$(( 9090 + port_offset ))
+
   license_arg=""
   if [ -f "$LICENSE_FILE" ]; then
     license_arg="--license $LICENSE_FILE"
   fi
 
+  # copy the router config file and modify it for this router
+  config_file="$ROUTER_CONFIG.$port"
+  cp "$ROUTER_CONFIG" "$config_file"
+  listen="127.0.0.1:$port" yq -i '.supergraph.listen = strenv(listen)' "$config_file"
+  listen="127.0.0.1:$port" yq -i '.health_check.listen = strenv(listen)' "$config_file"
+  listen="127.0.0.1:$port" yq -i '.experimental_response_cache.invalidation.listen = strenv(listen)' "$config_file"
+  listen="127.0.0.1:$prom_port" yq -i '.telemetry.exporters.metrics.prometheus.listen = strenv(listen)' "$config_file"
+
   # NB: prefixing this with `label "router"` causes the output to not be properly redirected and then 'returned'
   # as one of the ROUTER_PIDS
-  router -s "$SUPERGRAPH_SCHEMA" -c "$ROUTER_CONFIG" $license_arg > "$RESULTS_DIR/router_${port}.log" &
+  router -s "$SUPERGRAPH_SCHEMA" -c "$config_file" $license_arg > "$RESULTS_DIR/router_${port}.log" &
   router_pid="$!"
-  group_name="router_$port"
 
-  if [ -n "$ROUTER_CPU_REQ" ] || [ -n "$ROUTER_MEM_REQ" ] || [ -n "$ROUTER_MEM_LIM" ]; then
-    sudo cgcreate -g cpu,memory:/$group_name
-    echo "+cpu +memory" | sudo tee /sys/fs/cgroup/$group_name/cgroup.subtree_control > /dev/null
-    sudo cgset -r memory.swap.max="0" /$group_name
-
-    if [ -n "$ROUTER_CPU_REQ" ]; then
-      # Multiply by 100000 to get the right units
-      sudo cgset -r cpu.max="$(( ROUTER_CPU_REQ * 100000 )) 100000" /$group_name
-    fi
-
-    if [ -n "$ROUTER_MEM_REQ" ]; then
-      sudo cgset -r memory.high="$ROUTER_MEM_REQ" /$group_name
-    fi
-
-    if [ -n "$ROUTER_MEM_LIM" ]; then
-      sudo cgset -r memory.max="$ROUTER_MEM_LIM" /$group_name
-    else
-      sudo cgset -r memory.max="max" /$group_name
-    fi
-
-    sudo mkdir /sys/fs/cgroup/$group_name/leaf
-    sudo cgclassify -g cpu,memory:/$group_name/leaf "$router_pid"
+  if [ "${ROUTER_CGROUP}" = "true" ]; then
+    sudo cgclassify -g cpu,memory:/router/leaf "$router_pid"
   fi
 
   echo "$router_pid"
+}
+
+function run_routers {
+  num_routers=$1
+
+  declare -a router_pids
+
+  for (( i=0 ; i<num_routers ; i++ )); do
+    router_pid="$(run_router "$i")"
+    router_pids[i]=$router_pid
+  done
+
+  echo "${router_pids[*]}"
 }
 
 # == Main script ==
@@ -255,20 +281,26 @@ run_supporting_services
 run_subgraphs
 run_router_side
 
-ROUTER_PID="$(run_router 4000)"
-
-# It can take a while for a router to start, let's wait for up to a minute
-wait_for 127.0.0.1 4000 "router_4000" 60
-
-# Monitor some elements of our system more directly
-top -d 0.49 -bp $(pgrep -x router -d,) > "${RESULTS_DIR}/top.router" &
-top -d 0.49 -bp $(pgrep -x redis-server -d,) > "${RESULTS_DIR}/top.redis" &
-top -d 0.49 -bp $(pgrep -x router-side -d,) > "${RESULTS_DIR}/top.router-side" &
-
-# provide data required by the teardown script
 ROUTER_CGROUP=false
 if [ -n "$ROUTER_CPU_REQ" ] || [ -n "$ROUTER_MEM_REQ" ] || [ -n "$ROUTER_MEM_LIM" ]; then
   ROUTER_CGROUP="true"
+  set_up_router_cgroup
 fi
 
-echo "{ \"router_pids\": \"$ROUTER_PID\", \"router_cgroup\": \"$ROUTER_CGROUP\" }" >> "$RTF_OUTPUT"
+ROUTER_PIDS="$(run_routers "${NUM_ROUTERS}")"
+
+# It can take a while for a router to start, let's wait for up to a minute
+for (( i=0 ; i<num_routers ; i++ )); do
+  port=$(( 4000 + i ))
+  wait_for 127.0.0.1 "${port}" "router_${port}" 60
+done
+
+# Monitor some elements of our system more directly
+top -d 0.49 -bp $(pgrep -x redis-server -d,) > "${RESULTS_DIR}/top.redis" &
+top -d 0.49 -bp $(pgrep -x router-side -d,) > "${RESULTS_DIR}/top.router-side" &
+for pid in $ROUTER_PIDS; do 
+  top -d 0.49 -bp "$pid" > "${RESULTS_DIR}/top.router.$pid" &
+done
+
+# provide data required by the teardown script
+echo "{ \"router_pids\": \"$ROUTER_PIDS\", \"router_cgroup\": \"$ROUTER_CGROUP\" }" >> "$RTF_OUTPUT"

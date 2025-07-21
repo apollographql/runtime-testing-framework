@@ -20,7 +20,10 @@ docker exec -it postgres psql --quiet -U postgres --command "select count(*) fro
 docker exec -it postgres psql --quiet -U postgres --command "select count(*) from invalidation_key" postgres > "${RESULTS_DIR}/postgres_invalidation_key_count"
 
 # We may have prometheus metrics to harvest, let's try the default location
-curl http://127.0.0.1:9090/metrics > "${RESULTS_DIR}/prometheus.metrics"
+for (( i=0 ; i<NUM_ROUTERS ; i++ )); do
+  port=$(( 9090 + i ))
+  curl http://127.0.0.1:$port/metrics > "${RESULTS_DIR}/prometheus.metrics.$port"
+done
 
 echo "stopping the router"
 # Sometimes a router won't shutdown: we give it 5 seconds and then we're more forceful
@@ -51,9 +54,11 @@ sudo cgdelete cpu,memory:/subgraph
 
 echo "processing top output"
 jc -q --top-s < "${RESULTS_DIR}/top.user"  > "${RESULTS_DIR}/top.user.json"
-jc -q --top-s < "${RESULTS_DIR}/top.router"  > "${RESULTS_DIR}/top.router.json"
 jc -q --top-s < "${RESULTS_DIR}/top.redis"  > "${RESULTS_DIR}/top.redis.json"
 jc -q --top-s < "${RESULTS_DIR}/top.router-side"  > "${RESULTS_DIR}/top.router-side.json"
+for router_pid in $ROUTER_PIDS; do
+  jc -q --top-s < "${RESULTS_DIR}/top.router.${router_pid}"  > "${RESULTS_DIR}/top.router.${router_pid}.json"
+done
 
 echo "removing temp data"
 # Cleanup or we will run out of disk space very quickly (-f so we don't get a warning if the file isn't present)
