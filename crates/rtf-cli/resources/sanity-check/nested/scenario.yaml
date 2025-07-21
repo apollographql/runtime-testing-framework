@@ -7,10 +7,10 @@ values:
   - name: setup_output
     description: "a key returned from setup"
 
-# command:
-#   kind: local_path
-#   relative_path: scripts/echo-message.sh
-command: scripts/echo-message.sh
+command:
+  name: echo-message.sh
+  kind: relative_path
+  path: ../scripts/echo-message.sh
 
 env_vars:
   FROM_SETUP: "{{ setup_output }}"

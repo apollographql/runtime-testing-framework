@@ -1,0 +1,24 @@
+//! To run this example you will need to create a "classic" personal access token.
+//! See https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#personal-access-tokens-classic
+//! for details on how this works.
+use rtf_core::github::{Client, GithubClient};
+use std::env;
+
+#[tokio::main]
+async fn main() {
+    let token = env::var("GITHUB_TOKEN").unwrap();
+    let client = GithubClient::new(token);
+    let git_ref: Option<&str> = None;
+
+    let org = "apollographql";
+    let repo = "runtime-testing-framework";
+    let file_path = "README.md";
+
+    println!("Attempting to pull {org}/{repo}/{file_path}");
+    let content = client
+        .string_file_content(org, repo, file_path, git_ref)
+        .await
+        .expect("to have file");
+
+    println!("File content:\n{content}");
+}

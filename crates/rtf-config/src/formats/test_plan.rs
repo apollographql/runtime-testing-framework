@@ -1,4 +1,5 @@
 use crate::{
+    ValueDefinition,
     checks::{self, Check},
     context::ResolutionContext,
     formats::{EnvironmentConfig, Error, Result, ScenarioConfig},
@@ -10,6 +11,7 @@ use crate::{
     templating::{self, Scalar, Template},
 };
 use itertools::Itertools;
+use rtf_core::github::{self, Client};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
@@ -41,8 +43,31 @@ impl TestPlanConfig {
         let content = ctx.read_path_to_string(p.as_ref())?;
         let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
         let abs_path = ctx.canonicalize_path(p.as_ref())?;
+        let tp_source = Source::local(abs_path);
 
-        raw.try_into_test_plan(&abs_path, ctx).await
+        raw.try_into_test_plan(tp_source, ctx).await
+    }
+
+    pub async fn try_load_and_resolve_from_github(
+        org: &str,
+        repo: &str,
+        path: &str,
+        git_ref: Option<String>,
+        ctx: &impl ResolutionContext,
+    ) -> Result<Self> {
+        let client = match ctx.github_client() {
+            Some(client) => client,
+            None => return Err(github::Error::NoClient.into()),
+        };
+
+        let content = client
+            .string_file_content(org, repo, path, git_ref.as_ref())
+            .await?;
+
+        let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
+        let tp_source = Source::github(org, repo, path, git_ref);
+
+        raw.try_into_test_plan(tp_source, ctx).await
     }
 
     /// Iteratate over all variants of this test plan that arise from
@@ -105,24 +130,34 @@ impl TestPlanConfig {
     pub fn check_templating_will_work(&mut self) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
-        // Check if we have any conflicts between matrix values and scalar values
+        self.check_conflicting_keys(&mut errs);
+        self.check_matrix_values(&mut errs);
+        self.check_required_values(&mut errs);
+
+        errs.into_result(())
+    }
+
+    /// Check if we have any conflicts between matrix values and scalar values
+    fn check_conflicting_keys(&self, errs: &mut templating::ErrorBuilder) {
         let mut conflicting_keys: Vec<String> = self
             .values
             .keys()
             .filter(|k| self.matrix.contains_key(*k))
             .cloned()
             .collect();
+
         if !conflicting_keys.is_empty() {
             conflicting_keys.sort_unstable(); // ensure consistent ordering
-
             errs.push(
                 templating::ErrorKind::ConflictingValues,
                 conflicting_keys.join(", "),
                 &[],
             )
         }
+    }
 
-        // Check that all matrix arrays are non-empty and homogeneous
+    /// Check that all matrix arrays are non-empty and homogeneous
+    fn check_matrix_values(&self, errs: &mut templating::ErrorBuilder) {
         for (k, vals) in self.matrix.iter() {
             let discriminant = match vals.first() {
                 Some(val) => mem::discriminant(val),
@@ -136,14 +171,24 @@ impl TestPlanConfig {
                 errs.push(templating::ErrorKind::InconsistentMatrixValue, k, &[]);
             }
         }
+    }
 
-        // Check that all required values have been defined somewhere within the test plan
+    /// Check that all required values have been defined somewhere within the test plan
+    fn check_required_values(&self, errs: &mut templating::ErrorBuilder) {
         let mut check_missing_values =
-            |section: &CommandSection, allowed: &HashSet<&String>, error_path: &[String]| {
+            |section: &CommandSection,
+             allowed: &HashSet<&String>,
+             value_defs: &[ValueDefinition],
+             error_path: &[String]| {
                 let mut missing_values: Vec<String> = section
                     .required_values()
                     .iter()
-                    .filter(|s| !allowed.contains(*s))
+                    .filter(|s| {
+                        !(allowed.contains(*s)
+                            || value_defs
+                                .iter()
+                                .any(|vd| &vd.name == *s && vd.default.is_some()))
+                    })
                     .cloned()
                     .collect();
 
@@ -162,6 +207,7 @@ impl TestPlanConfig {
         check_missing_values(
             &self.environment.setup.command,
             &allowed_values,
+            &self.environment.values,
             &["environment".to_string(), "setup".to_string()],
         );
 
@@ -172,16 +218,16 @@ impl TestPlanConfig {
         check_missing_values(
             &self.environment.teardown,
             &allowed_values,
+            &self.environment.values,
             &["environment".to_string(), "teardown".to_string()],
         );
 
         check_missing_values(
             &self.scenario.command,
             &allowed_values,
+            &self.scenario.values,
             &["scenario".to_string()],
         );
-
-        errs.into_result(())
     }
 
     pub fn try_template_envrionment_setup(
@@ -320,12 +366,16 @@ pub struct Sources {
 }
 
 impl Sources {
-    fn new(abs_path: &Path, scenario: Option<Source>, environment: Option<Source>) -> Self {
+    fn new(test_plan: Source, scenario: Option<Source>, environment: Option<Source>) -> Self {
         Self {
-            test_plan: Source::local(abs_path),
+            test_plan,
             scenario,
             environment,
         }
+    }
+
+    pub fn test_plan(&self) -> &Source {
+        &self.test_plan
     }
 
     /// The [Source] of the [EnvironmentConfig] in this test plan.
@@ -367,16 +417,17 @@ pub struct RawTestPlanConfig {
 impl RawTestPlanConfig {
     async fn try_into_test_plan(
         self,
-        abs_path: &Path,
+        tp_source: Source,
         ctx: &impl ResolutionContext,
     ) -> Result<TestPlanConfig> {
-        let dir = abs_path.parent().expect("we know we have a parent");
         let (mut environment, environment_source) = self
             .environment
-            .try_into_config_with_source(dir, ctx)
+            .try_into_config_with_source(&tp_source, ctx)
             .await?;
-        let (mut scenario, scenario_source) =
-            self.scenario.try_into_config_with_source(dir, ctx).await?;
+        let (mut scenario, scenario_source) = self
+            .scenario
+            .try_into_config_with_source(&tp_source, ctx)
+            .await?;
 
         dedup_and_sort_by_key(&mut environment.values, |v| v.name.clone());
         dedup_and_sort_by_key(&mut environment.setup.provides, |v| v.name.clone());
@@ -398,7 +449,7 @@ impl RawTestPlanConfig {
             matrix: self.matrix,
             scenario,
             environment,
-            sources: Sources::new(abs_path, scenario_source, environment_source),
+            sources: Sources::new(tp_source, scenario_source, environment_source),
         })
     }
 }
@@ -443,14 +494,14 @@ where
     /// directly from inline content or a [FileProvider]
     async fn try_into_config_with_source(
         self,
-        dir: &Path,
+        tp_source: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<(T, Option<Source>)> {
         match self {
             Self::Inline { inline } => Ok((inline, None)),
             Self::From { from, overrides } => {
-                let file_content = from.try_get_file_content(dir, ctx).await?;
-                let src = from.try_into_source(dir, ctx)?;
+                let src = from.try_into_source(tp_source, ctx)?;
+                let file_content = src.try_get_file_content(ctx).await?;
                 let mut base: serde_yaml::Value = serde_yaml::from_str(&file_content)?;
                 if overrides != serde_yaml::Value::Null {
                     merge(overrides, &mut base);
@@ -494,12 +545,13 @@ fn merge(overrides: serde_yaml::Value, base: &mut serde_yaml::Value) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::{
-        Context, NullHttpClient, NullPlatformClient, PathKind, ResolutionContext,
+    use crate::{
+        context::Context, formats::environment::SetupSection, templating::Field,
+        txtar_context::TxtarContext,
     };
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
-    use std::{io, path::PathBuf};
+    use std::path::PathBuf;
 
     /// Load a txtar [Archive] from the given file content and print the top level comment if there
     /// is one before returning it.
@@ -530,7 +582,7 @@ mod tests {
             .canonicalize()
             .unwrap();
         let ctx = Context::new();
-        let src = Source::local(&dir);
+        let src = Source::local(dir.join("test-plan.yaml"));
 
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
@@ -543,7 +595,7 @@ mod tests {
             Err(e) => panic!("expected a valid RawTestPlanConfig, got: {e}"),
         };
 
-        let res = raw_plan.try_into_test_plan(&dir, &ctx).await;
+        let res = raw_plan.try_into_test_plan(src.clone(), &ctx).await;
         assert!(res.is_ok(), "expected a test plan config, got: {res:?}");
 
         let plan = res.unwrap();
@@ -671,57 +723,6 @@ mod tests {
         assert_eq!(str_errs.join("\n"), expected.trim());
     }
 
-    struct TxtarContext {
-        arr: Archive,
-    }
-
-    impl ResolutionContext for TxtarContext {
-        type PlatformClient = NullPlatformClient;
-        type HttpClient = NullHttpClient;
-
-        fn run_command_blocking<'a>(
-            &self,
-            _prog: &str,
-            _args: impl IntoIterator<Item = &'a str>,
-            _env_vars: &HashMap<String, String>,
-        ) -> io::Result<()> {
-            Ok(())
-        }
-
-        fn write(&self, _path: impl AsRef<Path>, _content: impl AsRef<[u8]>) -> io::Result<()> {
-            unimplemented!()
-        }
-
-        fn path_kind(&self, _path: impl AsRef<Path>) -> crate::context::PathKind {
-            PathKind::File
-        }
-
-        fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
-            Ok(relative_path.as_ref().to_path_buf())
-        }
-
-        fn read_path_to_string(&self, path: impl AsRef<Path>) -> io::Result<String> {
-            let p = path.as_ref().display().to_string();
-
-            self.arr
-                .get(&p)
-                .map(|f| f.content.clone())
-                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, ""))
-        }
-
-        fn remove_file(&self, _path: impl AsRef<Path>) -> io::Result<()> {
-            Ok(())
-        }
-
-        fn set_current_dir(&mut self, _path: impl AsRef<Path>) -> io::Result<()> {
-            Ok(())
-        }
-
-        fn create_dir_all(&self, _path: impl AsRef<Path>) -> io::Result<()> {
-            Ok(())
-        }
-    }
-
     #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/valid-scenario-overrides")]
     #[tokio::test]
     async fn valid_scenario_overrides(_path: &str, content: &str) {
@@ -738,9 +739,9 @@ mod tests {
             overrides,
         };
 
-        let ctx = TxtarContext { arr };
+        let ctx = TxtarContext::new(arr);
         let res = config_source
-            .try_into_config_with_source(&PathBuf::new(), &ctx)
+            .try_into_config_with_source(&Source::local(""), &ctx)
             .await;
         assert!(res.is_ok(), "Expected a valid ScenarioConfig, got {res:?}");
         assert_eq!(
@@ -766,10 +767,10 @@ mod tests {
             overrides,
         };
 
-        let ctx = TxtarContext { arr };
+        let ctx = TxtarContext::new(arr);
 
         let res = config_source
-            .try_into_config_with_source(&PathBuf::new(), &ctx)
+            .try_into_config_with_source(&Source::local(""), &ctx)
             .await;
         assert!(
             res.is_ok(),
@@ -826,5 +827,53 @@ mod tests {
 
         assert_eq!(all_values, expected);
         assert_eq!(tp.n_matrix_variants(), all_values.len());
+    }
+
+    fn stub_cmd_section(k: &str, v: &str) -> CommandSection {
+        CommandSection {
+            env_vars: [(k.into(), Field::Pending(v.into()))].into_iter().collect(),
+            ..Default::default()
+        }
+    }
+
+    fn value_with_default(name: &str, val: &str) -> ValueDefinition {
+        ValueDefinition {
+            name: name.into(),
+            description: String::default(),
+            default: Some(val.into()),
+        }
+    }
+
+    #[test]
+    fn value_definition_defaults_count_as_required_values() {
+        // A test plan with no values defined in it but each of the required values has a default.
+        // This should return no errors around missing values.
+        let tp = TestPlanConfig {
+            values: HashMap::new(),
+            scenario: ScenarioConfig {
+                values: vec![value_with_default("a", "foo")],
+                command: stub_cmd_section("A", "a"),
+                ..Default::default()
+            },
+            environment: EnvironmentConfig {
+                values: vec![
+                    value_with_default("b", "bar"),
+                    value_with_default("c", "baz"),
+                ],
+                setup: SetupSection {
+                    command: stub_cmd_section("B", "b"),
+                    provides: vec![],
+                },
+                teardown: stub_cmd_section("C", "c"),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let mut errs = templating::ErrorBuilder::new();
+        tp.check_required_values(&mut errs);
+        let res = errs.into_result(());
+
+        assert!(res.is_ok(), "errors: {res:?}");
     }
 }

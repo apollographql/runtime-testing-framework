@@ -20,8 +20,7 @@ fn run_command_is_executable() {
 
     let res = cmd.arg("run").assert();
 
-    // Check the output contains usage instructions for rtf run
-    res.stderr(contains("Usage: rtf run"));
+    res.stderr(contains("no test plan provided"));
 }
 
 #[test]

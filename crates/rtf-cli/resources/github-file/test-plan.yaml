@@ -1,0 +1,31 @@
+name: github-file
+description: |
+  Check that files can be pulled from GitHub
+
+scenario:
+  inline:
+    name: scenario-github
+    description: "Check that a file can be pulled from GitHub"
+    command: echo 1
+    file_providers:
+      - name: README.md
+        env_var: RTF_README
+        kind: github_file
+        org: "apollographql"
+        repo: "runtime-testing-framework"
+        path: "README.md"
+
+environment:
+  inline:
+    name: environment-github
+    description: "Minimal env config since this is not used for the test"
+    setup:
+      command:
+        name: echo-output.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "{}" > "$RTF_OUTPUT"
+
+    teardown:
+      command: echo 1

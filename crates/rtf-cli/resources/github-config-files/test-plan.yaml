@@ -1,0 +1,24 @@
+name: github-config-files
+description: |
+  Run the example sanity check test plan but it source the scenario and
+  environment from GitHub instead of from the local file system.
+  This is a test of:
+    - github config sources
+    - relative file providers under a github source
+
+values:
+  message: "hello, world!"
+
+scenario:
+  from:
+    kind: github
+    org: apollographql
+    repo: runtime-testing-framework
+    path: crates/rtf-cli/resources/sanity-check/nested/scenario.yaml
+
+environment:
+  from:
+    kind: github
+    org: apollographql
+    repo: runtime-testing-framework
+    path: crates/rtf-cli/resources/sanity-check/environment.yaml
