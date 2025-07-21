@@ -807,7 +807,7 @@ mod tests {
         assert_eq!(s, r#"{"foo":"bar"}"#);
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/resolution-failures-mock-context")]
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/resolution-errors-mock-context")]
     #[tokio::test]
     async fn resolution_errors_mock_context(_path: &str, content: &str) {
         let arr = load_archive(content);
@@ -819,7 +819,7 @@ mod tests {
             Err(e) => panic!("expected a valid FileProvider, got: {e}"),
         };
 
-        let dir = PathBuf::from("resources/provider-tests/file/resolution-failures-mock-context")
+        let dir = PathBuf::from("resources/provider-tests/file/resolution-errors-mock-context")
             .canonicalize()
             .unwrap();
         let ctx = Context::new();
