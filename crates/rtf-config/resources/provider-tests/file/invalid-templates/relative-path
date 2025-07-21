@@ -1,4 +1,4 @@
-A valid yaml fragment for an local path file provider combined with
+A valid yaml fragment for an relative path file provider combined with
 a values map that attempts to template an integer rather than a string.
 
 -- config.yaml --

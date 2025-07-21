@@ -1,4 +1,4 @@
-A YAML fragment for an local path file provider that references a file
+A YAML fragment for a relative path file provider that references a file
 which doesn't contain utf-8 text. This should parse and check successfully but
 fail to template when we try to read it as a string.
 
