@@ -1,14 +1,17 @@
 # Router Performance Testing
 
-> **Note**: The `router-scale` example contained in RTF repo is intended as an example to
-help you get started. For the most up-to-date `router-scale` scripts and other example
-test plans please go to the [rtf-morgue][0].
+> **Note**: The `router-scale` example contained in this guide is stored in the [rtf-morgue][0].
+This contains many examples of how to run different styles of tests in RTF. We recommend looking
+through the examples in the morgue to find a test plan that matches your use cases(s) once
+familiar with the steps in this guide.
 
 ### Table of contents
   - [Overview](#overview)
   - [Setting up access](#gcp-access)
     - [GCP](#gcp-access)
     - [Studio API](#studio-api-access)
+    - [GitHub](#github-access)
+    - [Clone rtf-morgue](#clone-rtf-morgue)
   - [Replacing placeholder values](#replacing-placeholder-values)
   - [Executing the Test Plan](#executing-the-test-plan)
 
@@ -32,15 +35,13 @@ these tests are run using a _pair_ of Test Plans:
     Test Plan that will spin up a build of the Apollo [Router][5] with mocked
     subgraphs and run a simple performance test against it using [vegeta][6].
 
-As with the "hello, world!" Test Plan you will need a local checkout of the
-[runtime-testing-framework][7] repository and you will need to have the `rtf` binary
+As with the "hello, world!" Test Plan you will need to have the `rtf` binary
 installed. Please see the details found in the [Getting Started](./index.md) page for
 how to get set up if you have not done so already.
 
 Unlike the "hello, world!" example, these Test Plans requires some additional setup and
 access to resources which will need to be in place before things will work, so lets sort
 that out first.
-
 
 ## GCP Access
 
@@ -80,6 +81,27 @@ tests that use production data.
   - [direnv][15] is a nice way to do this if you don't have an existing setup
     you are already using.
 
+## GitHub Access
+In order to run this test plan, you will need a `GITHUB_TOKEN`. This is so that the VM can
+pull the RTF binary directly from the GitHub workflow artifacts. This is also required so
+the VM can pull the rtf-morgue test plans and so that GitHub file providers will run (if
+being used).
+
+To create one, follow the instructions on creating a [personal access token (classic)][16].
+The token will only need `repo` scopes.
+
+Once created, use the `Configure SSO` option that appears next to your token in the Personal
+access tokens list. Make sure that the token is authenticated with the `apollographql` org.
+
+Export your new API key as `GITHUB_TOKEN` using your perferred mechanism for managing shell
+environment variables before running rtf.
+
+## Clone rtf-morgue
+Clone the [rtf-morgue][0] repository to your local machine. The commands below assume you 
+are running from the root of your local [rtf-morgue][0].
+```bash
+git clone https://github.com/apollographql/rtf-morgue.git
+```
 
 ## Replacing placeholder values
 
@@ -88,33 +110,25 @@ the contain need to be filled in. Attempting to run them before doing this will
 deliberately fail checks so they can not be run by accident.
 
 ### Wrapper
-cd to the root of your checkout of the `runtime-testing-framework` repository
-and run the following command to check the wrapper test plan:
+cd to the root of your checkout of the `rtf-morgue` repository and run the following
+command to check the wrapper test plan:
 ```bash
-rtf template example-test-plans/router-scale/wrapper/test-plan.yaml \
+rtf template test-plans/router-scale/wrapper/test-plan.yaml \
   --check
 ```
 
 Doing so with a clean checkout of the repository should give you the following
 (expected) error output:
 ```
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.37s
-     Running `target/debug/rtf template example-test-plans/router-scale/wrapper/test-plan.yaml --check`
- INFO loading and resolving test plan
- INFO checking if templating will work
- INFO applying values
 ERROR (environment.setup.command.arg) invalid templating value: invalid value `1`, expected String
-(environment.teardown.command.arg) invalid templating value: invalid value `1`, expected String
-(scenario.command_section.command.arg) invalid templating value: invalid value `1`, expected String
-(scenario.command_section.env_vars.RTF_DIR) invalid templating value: invalid value `1`, expected String
+(environment.teardown.command.arg) unknown templating value: vm_name
+(scenario.command_section.command.arg) unknown templating value: vm_name
 ```
 
-To fix this error we need to override the `abs_path_rtf_repo` and `vm_name_suffix` values with the
-absolute path of the rtf repo and a suffix for the VM name. Since we are running this test plan from
-the root of the repo we can do that simply by using `--value` flag:
+To fix this error we need to override the `vm_name_suffix` value with a suffix for the VM name. Since we
+are running this test plan from the root of the repo we can do that simply by using `--value` flag:
 ```bash
-rtf template example-test-plans/router-scale/wrapper/test-plan.yaml \
-  --value "abs_path_rtf_repo=$(pwd)" \
+rtf template test-plans/router-scale/wrapper/test-plan.yaml \
   --value "vm_name_suffix=suffix" \
   --check
 ```
@@ -129,8 +143,7 @@ This is because the environment setup provides a `vm_name` (which is generated u
 When running the test plan with the `run` subcommand you will not need to specify this value. However, to
 check that a test plan fully templates, this value will need to be specified with the `--value` flag too.
 ```bash
-rtf template example-test-plans/router-scale/wrapper/test-plan.yaml \
-  --value "abs_path_rtf_repo=$(pwd)" \
+rtf template test-plans/router-scale/wrapper/test-plan.yaml \
   --value "vm_name_suffix=suffix" \
   --value "vm_name=name" \
   --check
@@ -145,24 +158,18 @@ Checking the router-perf test plan looks similar but with a few more additional
 values that will come from the environment setup command when the test plan is
 run. Lets start by setting those:
 ```bash
-rtf template example-test-plans/router-scale/router-perf/test-plan.yaml \
-  --value "router_pid=1" \
-  --value "router_cgroup=true" \
+rtf template test-plans/router-scale/performance/router-perf/test-plan.yaml \
+  --value 'router_pid="1"' \
+  --value 'router_cgroup="true"' \
   --check
 ```
 
 Again, you should see some expected error output due to a placeholder value,
 this time the graph ref that we are running the tests for:
 ```
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.21s
-     Running `target/debug/rtf template example-test-plans/router-scale/router-perf/test-plan.yaml --check '--values={ "router_pid": "1", "router_cgroup": "true" }'`
- INFO loading and resolving test plan
- INFO checking if templating will work
- INFO applying values
- INFO checking test plan
-ERROR (subgraphs) the provided string was not a valid graph ref expected a string of the form 'graph_id@variant'
-(supergraph.graphql) the provided string was not a valid graph ref expected a string of the form 'graph_id@variant'
-(canned_ops.json) the provided string was not a valid graph ref expected a string of the form 'graph_id@variant'
+ERROR (subgraphs) the provided string was not a valid graph ref: expected a string of the form 'graph_id@variant'
+(supergraph.graphql) the provided string was not a valid graph ref: expected a string of the form 'graph_id@variant'
+(canned_ops.json) the provided string was not a valid graph ref: expected a string of the form 'graph_id@variant'
 ```
 
 > **NOTE**: If you also see errors around no API key being provided then you
@@ -172,11 +179,11 @@ ERROR (subgraphs) the provided string was not a valid graph ref expected a strin
 As before we can fix this error by using `--value` flag to override the placeholder
 value, this time for the `graph_ref` value. If you are unsure of a graph to test
 against then a good starting point is to pick one of the graphs found in the current
-[router-scale corpus][16]:
+[router-scale corpus][17]:
 ```bash
-rtf template example-test-plans/router-scale/router-perf/test-plan.yaml \
-  --value "router_pid='1'" \
-  --value "router_cgroup='true'" \
+rtf template test-plans/router-scale/performance/router-perf/test-plan.yaml \
+  --value 'router_pid="1"' \
+  --value 'router_cgroup="true"' \
   --value "graph_ref=YOUR-CHOSEN@GRAPH" \
   --check
 ```
@@ -189,16 +196,12 @@ terminal.
 
 Now that both Test Plans check successfully you can use the wrapper Test Plan to execute
 a performance test on an ephemeral VM. We don't need to override the values coming from
-the environment setup any more but we _do_ still need to specify the repo location, vm
-name suffix and graph ref:
-
-> **NOTE**: Replace `YOUR_SUFFIX` with your actual suffix before running.
-> We recommend using your name to avoid conflicts with any other users.
+the environment setup any more but we _do_ still need to specify the vm name suffix and
+graph ref:
 
 ```bash
-rtf run example-test-plans/router-scale/wrapper/test-plan.yaml \
-  --value "abs_path_rtf_repo=$(pwd)" \
-  --value "vm_name_suffix=YOUR_SUFFIX" \
+rtf run test-plans/router-scale/wrapper/test-plan.yaml \
+  --value "vm_name_suffix=$(whoami)" \
   --value "graph_ref=YOUR-CHOSEN@GRAPH"
 ```
 
@@ -208,9 +211,14 @@ rtf run example-test-plans/router-scale/wrapper/test-plan.yaml \
 > 
 > `rtf run my-test-plan.yaml --values my-values.json`
 
-Once the `output` directory has been created you can run `tail -f output/vm-log.txt`
+Once the `output` directory has been created you can run 
+```bash
+tail -f output/vm-log.txt`
+```
 in another terminal window to follow the execution and then run
-`./example-test-plans/router-scale/wrapper/scripts/gcloud-ssh-wrapper.sh rtf-router-scale`
+```bash
+./test-plans/router-scale/wrapper/scripts/gcloud-ssh-wrapper.sh rtf-$(whoami)
+```
 once the VM is up to get an SSH session started on the VM if desired. The test results
 are copied to your local RTF output directory before the test run completes. They should
 be stored in `output/results`. If the VM is not deleted at the end of the test run the
@@ -220,12 +228,12 @@ To persist the VM between runs, override the `delete_vm` value in the wrapper te
 with `"false"`. In practice, this could be relaced with any value that is not `"true"`, 
 since that is the only value being matched on in the `cleanup-router-scale-vm.sh` script:
 ```bash
-rtf run example-test-plans/router-scale/wrapper/test-plan.yaml \
-  --value "abs_path_rtf_repo=$(pwd)" \
-  --value "vm_name_suffix=YOUR_SUFFIX" \
+rtf run test-plans/router-scale/wrapper/test-plan.yaml \
+  --value "vm_name_suffix=$(whoami)" \
   --value "graph_ref=YOUR-CHOSEN@GRAPH" \
   --value 'delete_vm="false"'
 ```
+
 
   [0]: https://github.com/apollographql/rtf-morgue
   [1]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/router-scale
@@ -243,4 +251,5 @@ rtf run example-test-plans/router-scale/wrapper/test-plan.yaml \
   [13]: https://apollographql.atlassian.net/servicedesk/customer/portal/1/group/3/create/1247
   [14]: https://studio.apollographql.com/user-settings/api-keys
   [15]: https://github.com/direnv/direnv
-  [16]: https://github.com/apollographql/router-scale/blob/main/data/router_2.0_launch/corpus.yaml#L7-L46
+  [16]: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic
+  [17]: https://github.com/apollographql/router-scale/blob/main/data/router_2.0_launch/corpus.yaml#L7-L46
