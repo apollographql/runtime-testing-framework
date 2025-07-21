@@ -739,7 +739,7 @@ mod tests {
         assert_eq!(str_errs.join("\n"), expected.trim());
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/resolution-failures")]
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/resolution-errors")]
     #[tokio::test]
     async fn resolution_errors(_path: &str, content: &str) {
         let arr = load_archive(content);
@@ -751,7 +751,7 @@ mod tests {
             Err(e) => panic!("expected a valid FileProvider, got: {e}"),
         };
 
-        let dir = PathBuf::from("resources/provider-tests/file/resolution-failures")
+        let dir = PathBuf::from("resources/provider-tests/file/resolution-errors")
             .canonicalize()
             .unwrap();
         let ctx = Context::new();
