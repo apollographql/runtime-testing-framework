@@ -10,6 +10,7 @@ RESULTS_DIR="$OUTDIR/results"
 
 echo "sourcing data files"
 set -a
+. "$SUBGRAPH_CONFIG"
 . "$ROUTER_CGROUP_CONFIG"
 set +a
 
