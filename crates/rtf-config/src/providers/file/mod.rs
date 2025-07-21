@@ -677,7 +677,7 @@ mod tests {
         assert!(res.is_err(), "expected check errors");
         let errs = res.unwrap_err();
 
-        // Validation Errors are an ordered list of individual errors with a kind.
+        // Check errors are an ordered list of individual errors with a kind.
         // To avoid breaking these tests when the user facing error message for each error
         // is modified, we only assert on the Kind of each error, not the full message.
         let mut err_kinds = Vec::new();
@@ -686,10 +686,7 @@ mod tests {
         }
         let concatenated_errs = err_kinds.join("\n");
 
-        assert_eq!(
-            &concatenated_errs, expected,
-            "wrong validation errors: {errs:?}"
-        );
+        assert_eq!(&concatenated_errs, expected, "wrong check errors: {errs:?}");
     }
 
     #[dir_cases("crates/rtf-config/resources/provider-tests/file/template-success")]
