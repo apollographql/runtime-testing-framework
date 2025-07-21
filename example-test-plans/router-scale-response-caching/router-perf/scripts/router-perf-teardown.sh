@@ -25,7 +25,9 @@ curl http://127.0.0.1:9090/metrics > "${RESULTS_DIR}/prometheus.metrics"
 echo "stopping the router"
 # Sometimes a router won't shutdown: we give it 5 seconds and then we're more forceful
 pkill -x router
-timeout 5s tail --pid="${ROUTER_PID}" -f /dev/null || kill -3 "${ROUTER_PID}"
+for router_pid in ${ROUTER_PIDS}; do
+  timeout 5s tail --pid="${router_pid}" -f /dev/null || kill -3 "${router_pid}"
+done
 
 echo "stopping additional services"
 pkill -3 -x top

@@ -11,6 +11,8 @@ values:
     description: "The git commit ref for the router build"
   - name: graph_ref
     description: "The graphos graph ref to run the router for"
+  - name: num_routers
+    description: "The number of router instances to run in parallel"
 
 setup:
   command:
@@ -22,6 +24,7 @@ setup:
     APOLLO_USAGE_REPORTING_INGRESS_URL: http://127.0.0.1:1234/studio
     APOLLO_USAGE_REPORTING_OTLP_INGRESS_URL: http://127.0.0.1:4317
     APOLLO_GRAPH_REF: "{{ graph_ref }}"
+    NUM_ROUTERS: "{{ num_routers }}"
 
   file_providers:
     - name: install-router.sh
@@ -59,8 +62,8 @@ setup:
       message: "Must provide a subgraph config file"
 
   provides:
-    - name: router_pid
-      description: "The PID of the router process we started"
+    - name: router_pids
+      description: "The PIDs of the router processes we started (space separated)"
     - name: router_cgroup
       description: "Whether or not a cgroup was configured for the router"
 
@@ -71,6 +74,6 @@ teardown:
     path: scripts/router-perf-teardown.sh
 
   env_vars:
-    ROUTER_PID: "{{ router_pid }}"
+    ROUTER_PIDS: "{{ router_pids }}"
     ROUTER_CGROUP: "{{ router_cgroup }}"
     GRAPH_REF: "{{ graph_ref }}"

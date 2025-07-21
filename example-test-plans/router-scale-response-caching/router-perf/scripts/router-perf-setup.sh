@@ -147,7 +147,7 @@ function run_subgraphs {
   # Make a leaf for our process (https://unix.stackexchange.com/questions/680167/ebusy-when-trying-to-add-process-to-cgroup-v2)
   sudo mkdir /sys/fs/cgroup/subgraph/leaf
 
-  port=4001
+  port=$(( 4000 + NUM_ROUTERS ))
 
   # We need to build out overrides for the locations of each subgraph
   sg_tmp="$(mktemp /tmp/sg.XXXXXX)"
@@ -194,38 +194,42 @@ function run_router_side {
   strace -tf -p ${ROUTER_SIDE_PID} > "${RESULTS_DIR}/router-side.strace" 2>&1 &
 }
 
+# shellcheck disable=SC2086
 function run_router {
+  port=$1
   license_arg=""
   if [ -f "$LICENSE_FILE" ]; then
     license_arg="--license $LICENSE_FILE"
   fi
 
-  # NB: prefixing this with `label "router"` causes the output to not be properly redirected and then 'returned' as the ROUTER_PID
-  router -s "$SUPERGRAPH_SCHEMA" -c "$ROUTER_CONFIG" $license_arg > "$RESULTS_DIR/router.log" &
+  # NB: prefixing this with `label "router"` causes the output to not be properly redirected and then 'returned'
+  # as one of the ROUTER_PIDS
+  router -s "$SUPERGRAPH_SCHEMA" -c "$ROUTER_CONFIG" $license_arg > "$RESULTS_DIR/router_${port}.log" &
   router_pid="$!"
+  group_name="router_$port"
 
   if [ -n "$ROUTER_CPU_REQ" ] || [ -n "$ROUTER_MEM_REQ" ] || [ -n "$ROUTER_MEM_LIM" ]; then
-    sudo cgcreate -g cpu,memory:/router
-    echo "+cpu +memory" | sudo tee /sys/fs/cgroup/router/cgroup.subtree_control > /dev/null
-    sudo cgset -r memory.swap.max="0" /router
+    sudo cgcreate -g cpu,memory:/$group_name
+    echo "+cpu +memory" | sudo tee /sys/fs/cgroup/$group_name/cgroup.subtree_control > /dev/null
+    sudo cgset -r memory.swap.max="0" /$group_name
 
     if [ -n "$ROUTER_CPU_REQ" ]; then
       # Multiply by 100000 to get the right units
-      sudo cgset -r cpu.max="$(( ROUTER_CPU_REQ * 100000 )) 100000" /router
+      sudo cgset -r cpu.max="$(( ROUTER_CPU_REQ * 100000 )) 100000" /$group_name
     fi
 
     if [ -n "$ROUTER_MEM_REQ" ]; then
-      sudo cgset -r memory.high="$ROUTER_MEM_REQ" /router
+      sudo cgset -r memory.high="$ROUTER_MEM_REQ" /$group_name
     fi
 
     if [ -n "$ROUTER_MEM_LIM" ]; then
-      sudo cgset -r memory.max="$ROUTER_MEM_LIM" /router
+      sudo cgset -r memory.max="$ROUTER_MEM_LIM" /$group_name
     else
-      sudo cgset -r memory.max="max" /router
+      sudo cgset -r memory.max="max" /$group_name
     fi
 
-    sudo mkdir /sys/fs/cgroup/router/leaf
-    sudo cgclassify -g cpu,memory:/router/leaf "$router_pid"
+    sudo mkdir /sys/fs/cgroup/$group_name/leaf
+    sudo cgclassify -g cpu,memory:/$group_name/leaf "$router_pid"
   fi
 
   echo "$router_pid"
@@ -251,10 +255,10 @@ run_supporting_services
 run_subgraphs
 run_router_side
 
-ROUTER_PID="$(run_router)"
+ROUTER_PID="$(run_router 4000)"
 
 # It can take a while for a router to start, let's wait for up to a minute
-wait_for 127.0.0.1 4000 "router" 60
+wait_for 127.0.0.1 4000 "router_4000" 60
 
 # Monitor some elements of our system more directly
 top -d 0.49 -bp $(pgrep -x router -d,) > "${RESULTS_DIR}/top.router" &
@@ -267,4 +271,4 @@ if [ -n "$ROUTER_CPU_REQ" ] || [ -n "$ROUTER_MEM_REQ" ] || [ -n "$ROUTER_MEM_LIM
   ROUTER_CGROUP="true"
 fi
 
-echo "{ \"router_pid\": \"$ROUTER_PID\", \"router_cgroup\": \"$ROUTER_CGROUP\" }" >> "$RTF_OUTPUT"
+echo "{ \"router_pids\": \"$ROUTER_PID\", \"router_cgroup\": \"$ROUTER_CGROUP\" }" >> "$RTF_OUTPUT"
