@@ -655,7 +655,7 @@ mod tests {
         assert!(res.is_err(), "expected invalid YAML, got: {res:?}");
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/check-failures")]
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/check-errors")]
     #[test]
     fn check_failures(_path: &str, content: &str) {
         let arr = load_archive(content);
@@ -667,14 +667,14 @@ mod tests {
             Err(e) => panic!("expected a valid FileProvider, got: {e}"),
         };
 
-        let dir = PathBuf::from("resources/provider-tests/file/check-failures")
+        let dir = PathBuf::from("resources/provider-tests/file/check-errors")
             .canonicalize()
             .unwrap();
         let ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
         let res = provider.try_check(&mut Vec::new(), &src, &ctx);
 
-        assert!(res.is_err(), "expected check failures");
+        assert!(res.is_err(), "expected check errors");
         let errs = res.unwrap_err();
 
         // Validation Errors are an ordered list of individual errors with a kind.
