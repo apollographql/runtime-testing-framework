@@ -607,9 +607,43 @@ mod tests {
         }
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/valid")]
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/check-errors")]
+    #[test]
+    fn check_errors(_path: &str, content: &str) {
+        let arr = load_archive(content);
+        let config = get_file(&arr, "config.yaml");
+        let expected = get_file(&arr, "check-errors");
+
+        let provider: FileProvider = match serde_yaml::from_str(config) {
+            Ok(provider) => provider,
+            Err(e) => panic!("expected a valid FileProvider, got: {e}"),
+        };
+
+        let dir = PathBuf::from("resources/provider-tests/file/check-errors")
+            .canonicalize()
+            .unwrap();
+        let ctx = Context::new();
+        let src = Source::local(dir.join("example.yaml"));
+        let res = provider.try_check(&mut Vec::new(), &src, &ctx);
+
+        assert!(res.is_err(), "expected check errors");
+        let errs = res.unwrap_err();
+
+        // Check errors are an ordered list of individual errors with a kind.
+        // To avoid breaking these tests when the user facing error message for each error
+        // is modified, we only assert on the Kind of each error, not the full message.
+        let mut err_kinds = Vec::new();
+        for err in errs.iter() {
+            err_kinds.push(format!("{:?}", err.kind));
+        }
+        let concatenated_errs = err_kinds.join("\n");
+
+        assert_eq!(&concatenated_errs, expected, "wrong check errors: {errs:?}");
+    }
+
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/expected-file-success")]
     #[tokio::test]
-    async fn valid_providers(_path: &str, content: &str) {
+    async fn expected_file_success(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
 
@@ -618,10 +652,50 @@ mod tests {
             Err(e) => panic!("expected a valid FileProvider, got: {e}"),
         };
 
-        let dir = PathBuf::from("resources/provider-tests/file/valid")
+        let dir = PathBuf::from("resources/provider-tests/file/expected-file-success")
             .canonicalize()
             .unwrap();
         let ctx = Context::new();
+        let src = Source::local(dir.join("example.yaml"));
+
+        let res = provider.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected successful check but got: {res:?}");
+
+        // We resolve the file provider under a target of "expected-file-content".
+        // For providers returning a single file only, this is the name of the txtar section that
+        // they need to include. For providers that return multiple files the sections should be
+        // named "expected-file-content/$name_of_file".
+        let contents = provider
+            .try_get_all_file_contents("expected-file-content", &src, &ctx)
+            .await
+            .unwrap();
+
+        assert!(!contents.is_empty(), "no file contents returned");
+
+        for (path, content) in contents.into_iter() {
+            let key = path.display().to_string();
+            let expected = get_file(&arr, &key);
+            assert_eq!(content, expected, "wrong file content");
+        }
+    }
+
+    #[dir_cases(
+        "crates/rtf-config/resources/provider-tests/file/expected-file-success-mock-context"
+    )]
+    #[tokio::test]
+    async fn expected_file_success_mock_context(_path: &str, content: &str) {
+        let arr = load_archive(content);
+        let config = get_file(&arr, "config.yaml");
+
+        let provider: FileProvider = match serde_yaml::from_str(config) {
+            Ok(provider) => provider,
+            Err(e) => panic!("expected a valid FileProvider, got: {e}"),
+        };
+
+        let dir = PathBuf::from("resources/provider-tests/file/expected-file-success-mock-context")
+            .canonicalize()
+            .unwrap();
+        let ctx = TxtarContext::with_http(arr.clone(), MockHttpClient::from_archive(&arr));
         let src = Source::local(dir.join("example.yaml"));
 
         let res = provider.try_check(&mut Vec::new(), &src, &ctx);
@@ -655,71 +729,67 @@ mod tests {
         assert!(res.is_err(), "expected invalid YAML, got: {res:?}");
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/check-failures")]
-    #[test]
-    fn check_failures(_path: &str, content: &str) {
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/resolution-errors")]
+    #[tokio::test]
+    async fn resolution_errors(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
-        let expected = get_file(&arr, "check-errors");
+        let expected = get_file(&arr, "resolution-errors");
 
         let provider: FileProvider = match serde_yaml::from_str(config) {
             Ok(provider) => provider,
             Err(e) => panic!("expected a valid FileProvider, got: {e}"),
         };
 
-        let dir = PathBuf::from("resources/provider-tests/file/check-failures")
+        let dir = PathBuf::from("resources/provider-tests/file/resolution-errors")
             .canonicalize()
             .unwrap();
         let ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
-        let res = provider.try_check(&mut Vec::new(), &src, &ctx);
+        let _ = provider.try_check(&mut Vec::new(), &src, &ctx);
+        let res = provider
+            .try_get_all_file_contents("expected-file-content", &src, &ctx)
+            .await;
 
-        assert!(res.is_err(), "expected check failures");
-        let errs = res.unwrap_err();
-
-        // Validation Errors are an ordered list of individual errors with a kind.
-        // To avoid breaking these tests when the user facing error message for each error
-        // is modified, we only assert on the Kind of each error, not the full message.
-        let mut err_kinds = Vec::new();
-        for err in errs.iter() {
-            err_kinds.push(format!("{:?}", err.kind));
-        }
-        let concatenated_errs = err_kinds.join("\n");
-
-        assert_eq!(
-            &concatenated_errs, expected,
-            "wrong validation errors: {errs:?}"
-        );
+        assert!(res.is_err(), "expected resolution failures, got {res:?}");
+        let err = res.unwrap_err();
+        assert_eq!(&err.to_string(), expected, "wrong resolution errors");
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/valid-templates")]
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/resolution-errors-mock-context")]
+    #[tokio::test]
+    async fn resolution_errors_mock_context(_path: &str, content: &str) {
+        let arr = load_archive(content);
+        let config = get_file(&arr, "config.yaml");
+        let expected = get_file(&arr, "resolution-errors");
+
+        let provider: FileProvider = match serde_yaml::from_str(config) {
+            Ok(provider) => provider,
+            Err(e) => panic!("expected a valid FileProvider, got: {e}"),
+        };
+
+        let dir = PathBuf::from("resources/provider-tests/file/resolution-errors-mock-context")
+            .canonicalize()
+            .unwrap();
+        let ctx = TxtarContext::with_http(arr.clone(), MockHttpClient::from_archive(&arr));
+        let src = Source::local(dir.join("example.yaml"));
+        let _ = provider.try_check(&mut Vec::new(), &src, &ctx);
+        let res = provider
+            .try_get_all_file_contents("expected-file-content", &src, &ctx)
+            .await;
+
+        assert!(res.is_err(), "expected resolution failures, got {res:?}");
+        let err = res.unwrap_err();
+        assert_eq!(&err.to_string(), expected, "wrong resolution errors");
+    }
+
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/template-errors")]
     #[test]
-    fn valid_templated_providers(_path: &str, content: &str) {
+    fn template_errors(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
         let raw_values = get_file(&arr, "values");
-        let raw_expected = get_file(&arr, "after-templating");
-
-        let mut provider: FileProvider = serde_yaml::from_str(config).unwrap();
-        let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
-        let expected: FileProvider = serde_yaml::from_str(raw_expected).unwrap();
-
-        assert!(provider.has_pending_fields(), "fields should be pending");
-
-        let res = provider.try_template(&mut Vec::new(), &values);
-
-        assert!(res.is_ok(), "expected no errors, got {res:?}");
-        assert!(!provider.has_pending_fields(), "fields should be resolved");
-        assert_eq!(provider, expected);
-    }
-
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/invalid-templates")]
-    #[test]
-    fn invalid_templated_providers(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let raw_values = get_file(&arr, "values");
-        let expected = get_file(&arr, "templating-errors");
+        let expected = get_file(&arr, "template-errors");
 
         let mut provider: FileProvider = serde_yaml::from_str(config).unwrap();
         let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
@@ -739,31 +809,25 @@ mod tests {
         assert_eq!(str_errs.join("\n"), expected.trim());
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/resolution-failures")]
-    #[tokio::test]
-    async fn resolution_errors(_path: &str, content: &str) {
+    #[dir_cases("crates/rtf-config/resources/provider-tests/file/template-success")]
+    #[test]
+    fn template_success(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
-        let expected = get_file(&arr, "resolution-errors");
+        let raw_values = get_file(&arr, "values");
+        let raw_expected = get_file(&arr, "after-templating");
 
-        let provider: FileProvider = match serde_yaml::from_str(config) {
-            Ok(provider) => provider,
-            Err(e) => panic!("expected a valid FileProvider, got: {e}"),
-        };
+        let mut provider: FileProvider = serde_yaml::from_str(config).unwrap();
+        let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
+        let expected: FileProvider = serde_yaml::from_str(raw_expected).unwrap();
 
-        let dir = PathBuf::from("resources/provider-tests/file/resolution-failures")
-            .canonicalize()
-            .unwrap();
-        let ctx = Context::new();
-        let src = Source::local(dir.join("example.yaml"));
-        let _ = provider.try_check(&mut Vec::new(), &src, &ctx);
-        let res = provider
-            .try_get_all_file_contents("expected-file-content", &src, &ctx)
-            .await;
+        assert!(provider.has_pending_fields(), "fields should be pending");
 
-        assert!(res.is_err(), "expected resolution failures, got {res:?}");
-        let err = res.unwrap_err();
-        assert_eq!(&err.to_string(), expected, "wrong resolution errors");
+        let res = provider.try_template(&mut Vec::new(), &values);
+
+        assert!(res.is_ok(), "expected no errors, got {res:?}");
+        assert!(!provider.has_pending_fields(), "fields should be resolved");
+        assert_eq!(provider, expected);
     }
 
     #[tokio::test]
@@ -805,70 +869,5 @@ mod tests {
             .expect("resolution to succeed");
 
         assert_eq!(s, r#"{"foo":"bar"}"#);
-    }
-
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/resolution-failures-mock-context")]
-    #[tokio::test]
-    async fn resolution_errors_mock_context(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let expected = get_file(&arr, "resolution-errors");
-
-        let provider: FileProvider = match serde_yaml::from_str(config) {
-            Ok(provider) => provider,
-            Err(e) => panic!("expected a valid FileProvider, got: {e}"),
-        };
-
-        let dir = PathBuf::from("resources/provider-tests/file/resolution-failures-mock-context")
-            .canonicalize()
-            .unwrap();
-        let ctx = Context::new();
-        let src = Source::local(dir.join("example.yaml"));
-        let _ = provider.try_check(&mut Vec::new(), &src, &ctx);
-        let res = provider
-            .try_get_all_file_contents("expected-file-content", &src, &ctx)
-            .await;
-
-        assert!(res.is_err(), "expected resolution failures, got {res:?}");
-        let err = res.unwrap_err();
-        assert_eq!(&err.to_string(), expected, "wrong resolution errors");
-    }
-
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/valid-mock-context")]
-    #[tokio::test]
-    async fn valid_providers_mock_context(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-
-        let provider: FileProvider = match serde_yaml::from_str(config) {
-            Ok(provider) => provider,
-            Err(e) => panic!("expected a valid FileProvider, got: {e}"),
-        };
-
-        let dir = PathBuf::from("resources/provider-tests/file/valid-mock-context")
-            .canonicalize()
-            .unwrap();
-        let ctx = TxtarContext::with_http(arr.clone(), MockHttpClient::from_archive(&arr));
-        let src = Source::local(dir.join("example.yaml"));
-
-        let res = provider.try_check(&mut Vec::new(), &src, &ctx);
-        assert!(res.is_ok(), "expected successful check but got: {res:?}");
-
-        // We resolve the file provider under a target of "expected-file-content".
-        // For providers returning a single file only, this is the name of the txtar section that
-        // they need to include. For providers that return multiple files the sections should be
-        // named "expected-file-content/$name_of_file".
-        let contents = provider
-            .try_get_all_file_contents("expected-file-content", &src, &ctx)
-            .await
-            .unwrap();
-
-        assert!(!contents.is_empty(), "no file contents returned");
-
-        for (path, content) in contents.into_iter() {
-            let key = path.display().to_string();
-            let expected = get_file(&arr, &key);
-            assert_eq!(content, expected, "wrong file content");
-        }
     }
 }

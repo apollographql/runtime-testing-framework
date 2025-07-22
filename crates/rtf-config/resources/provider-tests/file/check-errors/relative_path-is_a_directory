@@ -1,4 +1,4 @@
-A YAML fragment for an local path file provider that references a directory
+A YAML fragment for a relative path file provider that references a directory
 rather than a file. This should parse but fail to check successfully.
 
 -- config.yaml --
