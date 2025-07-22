@@ -30,7 +30,7 @@ pub struct Args {
 
 #[derive(Debug, clap::Args)]
 pub struct Values {
-    /// A single additional templationg value in the form "key=value"
+    /// A single additional templating value in the form "key=value"
     #[arg(long, global = true)]
     pub value: Vec<String>,
 
