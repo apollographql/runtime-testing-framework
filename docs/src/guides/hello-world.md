@@ -312,8 +312,7 @@ scenario :: hello, is it me you're looking for?
 
 ## Next Steps
 
-> **TODO** Link to the page for running the router-scale test plan and details on
-> config structure once they are written.
+Learn how to run a [Router Performance Test](./router-perf.md)
 
   [0]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans
   [1]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/hello-world/test-plan.yaml
