@@ -214,7 +214,7 @@ fn validate_graph_ref_and_client(
     if !graph_ref.contains('@') {
         errs.push(
             checks::ErrorKind::InvalidGraphRef,
-            "expected a string of the form 'graph_id@variant'",
+            format!("expected a string of the form 'graph_id@variant', got {graph_ref}"),
             path,
         );
     }
