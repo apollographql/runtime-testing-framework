@@ -21,7 +21,7 @@ A swiss army knife for testing the Apollo Runtime
 
 ###### **Options:**
 
-* `--value <VALUE>` — A single additional templationg value in the form "key=value"
+* `--value <VALUE>` — A single additional templating value in the form "key=value"
 * `--values <VALUES>` — Path to a JSON file containing additional template values
 * `-v`, `--verbose` — Flag to control logging verbosity. Default level is `warn`. `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`
 
