@@ -1,0 +1,6 @@
+[files]
+# Ignore GraphQL schema files that contain generated content and API names
+# that may appear as typos but are intentional
+extend-exclude = [
+    "crates/rtf-core/resources/engine-prod-schema.graphql"
+]
