@@ -12,7 +12,7 @@ use graphql_client::GraphQLQuery;
 use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use tracing::{error, trace};
+use tracing::error;
 
 /// API endpoint for the staging studio instance.
 /// -> Apollo internal graphs are queried from here
@@ -200,7 +200,6 @@ pub trait Client {
         let body = T::build_query(variables);
         let raw = self.post_operation(&body).await?;
 
-        trace!("raw response: {raw:?}");
         let resp: GqlResponse<T::ResponseData> = serde_json::from_value(raw)?;
 
         if !resp.errors.is_empty() {
