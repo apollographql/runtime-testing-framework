@@ -24,4 +24,3 @@ pretty_assertions.workspace = true
 simple_test_case.workspace = true
 simple_txtar.workspace = true
 tokio.workspace = true
-rtf-test-utils = { path = "../rtf-test-utils" }
