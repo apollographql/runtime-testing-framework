@@ -84,8 +84,17 @@ fn init_logging(verbosity: u8) -> anyhow::Result<()> {
             2 => LevelFilter::DEBUG,
             _ => LevelFilter::TRACE,
         };
-        EnvFilter::from_default_env().add_directive(level.into())
+
+        // The hyper and h2 crates that we pull in have _very_ verbose logging that swamps
+        // everything else and also is not typically helpful. We do this here where we construct
+        // the filter explicitly in order to allow a user specified filter to enable these logs if
+        // they are needed.
+        EnvFilter::from_default_env()
+            .add_directive(level.into())
+            .add_directive("hyper=warn".parse().expect("valid directive"))
+            .add_directive("h2=warn".parse().expect("valid directive"))
     });
+
     let max_level = filter
         .max_level_hint()
         .and_then(|l| l.into_level())
