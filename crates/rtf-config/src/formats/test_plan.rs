@@ -230,7 +230,7 @@ impl TestPlanConfig {
         );
     }
 
-    pub fn try_template_envrionment_setup(
+    pub fn try_template_environment_setup(
         &mut self,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
@@ -238,7 +238,7 @@ impl TestPlanConfig {
         self.environment.try_template_setup(&mut path, values)
     }
 
-    pub fn try_template_envrionment_teardown(
+    pub fn try_template_environment_teardown(
         &mut self,
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
@@ -342,7 +342,7 @@ impl Check for TestPlanConfig {
     ) -> checks::Result<()> {
         let mut errs = checks::ErrorBuilder::from(self.environment.try_check_nested(
             path,
-            "environent",
+            "environment",
             src,
             ctx,
         ));
@@ -659,7 +659,7 @@ mod tests {
         assert!(res.is_ok(), "templating should work: {res:?}");
         assert!(plan_config.has_pending_fields(), "fields should be pending");
 
-        let res = plan_config.try_template_envrionment_setup(&values);
+        let res = plan_config.try_template_environment_setup(&values);
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
             !plan_config.environment.setup.command.has_pending_fields(),
@@ -669,7 +669,7 @@ mod tests {
         let mut combined_values = provides_values.clone();
         combined_values.extend(values);
 
-        let res = plan_config.try_template_envrionment_teardown(&combined_values);
+        let res = plan_config.try_template_environment_teardown(&combined_values);
         assert!(res.is_ok(), "expected no errors, got {res:?}");
         assert!(
             !plan_config.environment.teardown.has_pending_fields(),

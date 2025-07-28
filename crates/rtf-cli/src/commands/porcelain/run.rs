@@ -94,7 +94,7 @@ async fn run_one(
 ) -> anyhow::Result<()> {
     info!("templating environment setup");
     let mut values = take(&mut test_plan.values);
-    test_plan.try_template_envrionment_setup(&values)?;
+    test_plan.try_template_environment_setup(&values)?;
 
     info!("checking environment setup");
     test_plan.environment.setup.command.try_check(
@@ -109,7 +109,7 @@ async fn run_one(
 
     info!("templating scenario and environment teardown commands");
     let mut builder = templating::ErrorBuilder::from(test_plan.try_template_scenario(&values));
-    builder.append(test_plan.try_template_envrionment_teardown(&values));
+    builder.append(test_plan.try_template_environment_teardown(&values));
     builder.into_result(())?;
 
     info!("checking scenario and environment teardown commands");

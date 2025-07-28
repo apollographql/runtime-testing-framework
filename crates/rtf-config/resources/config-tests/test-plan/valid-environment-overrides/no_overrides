@@ -1,4 +1,4 @@
-A valid ConfigSource snippet for an EnvrionmentConfig. This 
+A valid ConfigSource snippet for an EnvironmentConfig. This 
 does not define any overrides
 
 -- environment.yaml --

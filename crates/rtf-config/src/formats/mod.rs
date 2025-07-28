@@ -49,7 +49,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// # Constructing the definitions argument
 ///
 /// The trait bound here is to support both direct calls to `Vec<ValueDefinition>.iter()` and calls
-/// to [Iterator::chain] to joing together multiple vecs of ValueDefintions:
+/// to [Iterator::chain] to joining together multiple vecs of ValueDefinitions:
 ///
 /// ```ignore
 /// // from EnvironmentConfig: both of these will work
