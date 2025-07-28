@@ -47,9 +47,10 @@ to be able to run the Test Plan. So, lets try running it!
 
 Running a Test Plan is as simple as replacing the `template` subcommand in the
 example above with `run`. If you now run that from the root of the repository
-you should see the following:
+with the log level set to `INFO` using the `-v` flag, you should see the following:
+
 ```
-rtf run example-test-plans/hello-world/test-plan.yaml
+$ rtf run example-test-plans/hello-world/test-plan.yaml -v
 
  INFO loading and resolving test plan
  INFO checking if templating will work
@@ -101,8 +102,9 @@ error warning you that the `output` directory already exists. This is a safety
 mechanism in place to prevent you accidentally overwriting existing data or
 merging the output from multiple runs together. We can either remove the
 directory or specify a new one using the `--outdir` flag:
+
 ```
-$ rtf run example-test-plans/hello-world/test-plan.yaml --outdir=more_output
+$ rtf run example-test-plans/hello-world/test-plan.yaml -v --outdir=more_output
 
  INFO loading and resolving test plan
  INFO checking if templating will work
@@ -136,10 +138,11 @@ environment config files.
 {{ #include ../../../example-test-plans/hello-world/test-plan.yaml }}
 ```
 
-If we run the Test Plan again with quieter logging we can see just the output
-from the scripts being executed:
+By default, `rtf` uses the log level `WARN`. If we run the Test Plan again with
+the default log level we can see just the output from the scripts being executed:
+
 ```
-$ RUST_LOG=warn rtf run example-test-plans/hello-world/test-plan.yaml
+$ rtf run example-test-plans/hello-world/test-plan.yaml
 
 env-setup :: hello, world!
 scenario :: hello, darkness my old friend
@@ -158,7 +161,7 @@ Lets edit the `test-plan.yaml` to change the value being used for the setup comm
 If we run the Test Plan again we should see that we have new output:
 ```
 $ rm output -rf
-$ RUST_LOG=warn rtf run example-test-plans/hello-world/test-plan.yaml
+$ rtf run example-test-plans/hello-world/test-plan.yaml
 
 env-setup :: hello, sailor!
 scenario :: hello, darkness my old friend
@@ -178,7 +181,7 @@ reference the same shared value):
 
 ```
 $ rm output -rf
-$ RUST_LOG=warn rtf run example-test-plans/hello-world/test-plan.yaml
+$ rtf run example-test-plans/hello-world/test-plan.yaml
 
 env-setup :: say hi to the world!
 scenario :: say hi to the darkness my old friend
@@ -195,7 +198,7 @@ We can get the same effect from before using the original test plan by instead
 running the following:
 
 ```bash
-$ RUST_LOG=warn rtf run example-test-plans/hello-world/test-plan.yaml \
+$ rtf run example-test-plans/hello-world/test-plan.yaml \
   --value 'message="say hi to the "'
 
 env-setup :: say hi to the world!
@@ -205,7 +208,7 @@ scenario :: say hi to the darkness my old friend
 
 We can also provide the flag multiple times to override multiple values:
 ```bash
-$ RUST_LOG=warn rtf run example-test-plans/hello-world/test-plan.yaml \
+$ rtf run example-test-plans/hello-world/test-plan.yaml \
   --value 'message="say hi to the "' \
   --value 'setup_subject=sailor!'
 
@@ -224,7 +227,7 @@ $ cat example-test-plans/hello-world/values.json
   "setup_subject": "sailor!"
 }
 
-$ RUST_LOG=warn rtf run example-test-plans/hello-world/test-plan.yaml \
+$ rtf run example-test-plans/hello-world/test-plan.yaml \
   --values example-test-plans/hello-world/values.json
 
 env-setup :: say hi to the sailor!
@@ -267,7 +270,7 @@ values we'd like to use:
 If we run the test plan now we should see something a little different from before:
 ```
 $ rm output -rf
-$ RUST_LOG=warn rtf run example-test-plans/hello-world/test-plan.yaml
+$ rtf run example-test-plans/hello-world/test-plan.yaml
 
 env-setup :: hello, world!
 scenario :: hello, darkness my old friend
@@ -294,7 +297,7 @@ matrix:
 Then we'll get a run for every _combination_ of values:
 ```
 $ rm output -rf
-$ RUST_LOG=warn rtf run example-test-plans/hello-world/test-plan.yaml
+$ rtf run example-test-plans/hello-world/test-plan.yaml
 
 env-setup :: hello, world!
 scenario :: hello, darkness my old friend
