@@ -30,6 +30,7 @@
 - [Error handling](developer/error-handling.md)
 - [Logging](developer/logging.md)
 - [Testing](developer/testing.md)
+- [PR checks](developer/pr-checks.md)
 - [Parsing config files](developer/parsing-config-files.md)
 - [Data structures](developer/data-structures/index.md)
   - [Templating fields](developer/data-structures/fields.md)
