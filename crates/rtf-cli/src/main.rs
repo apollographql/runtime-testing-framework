@@ -1,6 +1,7 @@
 use anyhow::Context;
 use clap::Parser;
 use rtf_cli::{
+    LOG_LEVEL_ENV_VAR,
     cli::{Args, Command},
     commands::{
         plumbing::template_test_plan,
@@ -64,7 +65,7 @@ async fn main() {
     }
 }
 
-/// Initialise our logger based on the RUST_LOG environment variable.
+/// Initialise our logger based on the [LOG_LEVEL_ENV_VAR] environment variable.
 ///
 /// See the documentation on [EnvFilter] for details on how this works and what the supported
 /// syntax is for setting a logging filter (it's a lot richer than just setting a level).
@@ -76,7 +77,7 @@ fn init_logging(verbosity: u8) -> anyhow::Result<()> {
     //    out progress through the operation being performed). But, when things are dropped down to
     //    debug or trace we want to include more information such as the filename and timing
     //    information.
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+    let filter = EnvFilter::try_from_env(LOG_LEVEL_ENV_VAR).unwrap_or_else(|_| {
         // Map verbosity to tracing level string
         let level = match verbosity {
             0 => LevelFilter::WARN,
