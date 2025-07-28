@@ -21,7 +21,8 @@ refer to the [docs](./docs) directory which contains user facing documentation
 written using [mdbook][1].
 
 For examples of what it looks like to write Test Plans using `rtf` please
-see the [example-test-plans](./example-test-plans) directory.
+see the [rtf-morgue][2] directory.
 
   [0]: https://www.rust-lang.org/learn/get-started
   [1]: https://rust-lang.github.io/mdBook/index.html
+  [2]: https://github.com/apollographql/rtf-morgue

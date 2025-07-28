@@ -83,15 +83,15 @@ tests that use production data.
 
 ## GitHub Access
 In order to run this test plan, you will need a `GITHUB_TOKEN`. This is so that the VM can
-pull the RTF binary directly from the GitHub workflow artifacts. This is also required so
-the VM can pull the rtf-morgue test plans and so that GitHub file providers will run (if
-being used).
+pull the RTF binary directly from the GitHub workflow artifacts. This is also required so 
+that GitHub file providers will run (if being used).
 
 To create one, follow the instructions on creating a [personal access token (classic)][16].
 The token will only need `repo` scopes.
 
-Once created, use the `Configure SSO` option that appears next to your token in the Personal
-access tokens list. Make sure that the token is authenticated with the `apollographql` org.
+> **Warning**: Once created, you must use the `Configure SSO` option that appears next to your token in the Personal
+access tokens list. Make sure that the token is authenticated with the `apollographql` org. If this step is not completed
+then you will not authenticate successfully with the RTF repo.
 
 Export your new API key as `GITHUB_TOKEN` using your perferred mechanism for managing shell
 environment variables before running rtf.
@@ -123,15 +123,22 @@ Doing so with a clean checkout of the repository should give you the following
 ERROR (environment.setup.command.arg) invalid templating value: invalid value `1`, expected String
 (environment.teardown.command.arg) unknown templating value: vm_name
 (scenario.command_section.command.arg) unknown templating value: vm_name
+(scenario.command_section.env_vars.RSYNC_DIR) invalid templating value: invalid value `1`, expected String
 ```
 
-To fix this error we need to override the `vm_name_suffix` value with a suffix for the VM name. Since we
-are running this test plan from the root of the repo we can do that simply by using `--value` flag:
+To fix this error we need to override the `vm_name_suffix` and `rsync_dir` values with a suffix for the VM
+name and the absolute path to a local directory that needs to be synced to the VM.Since we are running this
+test plan from the root of the repo we can do that simply by using `--value` flag:
 ```bash
 rtf template test-plans/router-scale/wrapper/test-plan.yaml \
   --value "vm_name_suffix=suffix" \
+  --value "rsync_dir=$(pwd)" \
   --check
 ```
+
+> **Info**: The `rsync_dir` copies a full, local directory to the VM. This directory is expected to contain
+the test plan that will be executed on the VM and all of its dependencies (scripts, config files etc). In
+this example, we copy the full `rtf-morgue` repo. It will be present on the VM at `./rsync-dir`.
 
 You will still get an error with this command. Expected error output:
 ```
@@ -145,6 +152,7 @@ check that a test plan fully templates, this value will need to be specified wit
 ```bash
 rtf template test-plans/router-scale/wrapper/test-plan.yaml \
   --value "vm_name_suffix=suffix" \
+  --value "rsync_dir=$(pwd)" \
   --value "vm_name=name" \
   --check
 ```
@@ -202,6 +210,7 @@ graph ref:
 ```bash
 rtf run test-plans/router-scale/wrapper/test-plan.yaml \
   --value "vm_name_suffix=$(whoami)" \
+  --value "rsync_dir=$(pwd)" \
   --value "graph_ref=YOUR-CHOSEN@GRAPH"
 ```
 
@@ -230,9 +239,22 @@ since that is the only value being matched on in the `cleanup-router-scale-vm.sh
 ```bash
 rtf run test-plans/router-scale/wrapper/test-plan.yaml \
   --value "vm_name_suffix=$(whoami)" \
+  --value "rsync_dir=$(pwd)" \
   --value "graph_ref=YOUR-CHOSEN@GRAPH" \
   --value 'delete_vm="false"'
 ```
+
+To execute a different test plan in the morgue, the `test_plan_dir` value can be overridden.
+The example below will run the `router-1234` regression test instead of `router-perf`.
+```bash
+rtf run test-plans/router-scale/wrapper/test-plan.yaml \
+  --value "vm_name_suffix=$(whoami)" \
+  --value "rsync_dir=$(pwd)" \
+  --value "graph_ref=YOUR-CHOSEN@GRAPH" \
+  --value "test_plan_dir=./rsync-dir/test-plans/router-scale/underprovisioned/router-1234"
+```
+The `rsync_dir` and `test_plan_dir` can be used in combination to run any local test plans
+that you write and run them on the `router-scale` VM.
 
 
   [0]: https://github.com/apollographql/rtf-morgue
