@@ -27,11 +27,11 @@ To run and fix locally, run `RUSTDOCFLAGS="-D rustdoc::broken-intra-doc-links" c
 --workspace --no-deps` and address any issues that are highlighted.
 
 ## spell-check
-This uses the [typos-cli crate](https://github.com/crate-ci/typos) to check all the docstrings, YAML files
+This uses the [typos-cli crate][0] to check all the docstrings, YAML files
 and READMEs for typos. This tool in particular has been chosen as the spell checker for RTF as it has been
 designed to reduce false positives.
 
-To run locally, [install](https://github.com/crate-ci/typos?tab=readme-ov-file#install) the cli and then run
+If using mise, then the `typos-cli` should already be installed, else, [install][1] the cli and then run
 ```bash
 typos
 ```
@@ -47,5 +47,9 @@ Before committing to `main`, manually review the diff to check all spelling erro
 have been fixed correctly.
 
 If there are any detected spelling errors that should be valid, or files that should be ignored, then
-[update the `.typos.toml` file](https://github.com/crate-ci/typos?tab=readme-ov-file#false-positives) at the
+[update the `.typos.toml` file][2] at the
 root of the repo.
+
+    [0](https://github.com/crate-ci/typos)
+    [1](https://github.com/crate-ci/typos?tab=readme-ov-file#install)
+    [2](https://github.com/crate-ci/typos?tab=readme-ov-file#false-positives)

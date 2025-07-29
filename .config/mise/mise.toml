@@ -1,6 +1,7 @@
 [tools]
 mdbook = "0.4.51"
 rust = "1.88.0"
+"cargo:typos-cli" = "1.34.0"
 
 [env]
 _.file = '../../.env'
