@@ -23,7 +23,6 @@
 
 - [Glossary]()
 
-
 # Developer Documentation
 
 - [Concepts and Architecture](developer/concepts-and-architecture.md)

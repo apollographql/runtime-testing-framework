@@ -1,49 +1,53 @@
 # Logging
 
-This guide covers when and how to use different log levels in the Runtime Testing Framework. The project uses the 
-[`tracing`](https://tracing.rs/) crate for structured logging. 
+This guide covers when and how to use different log levels in the Runtime Testing Framework. The
+project uses the [`tracing`](https://tracing.rs/) crate for structured logging.
 
-We want RTF to take the "no news is good news" approach and be quiet by default. Logging is primarily there to help 
-debug issues and provide feedback when things go wrong. When adding log statements to RTF, consider whether the 
-information is helpful and avoid overwhelming users with unnecessary data.
+We want RTF to take the "no news is good news" approach and be quiet by default. Logging is
+primarily there to help debug issues and provide feedback when things go wrong. When adding log
+statements to RTF, consider whether the information is helpful and avoid overwhelming users with
+unnecessary data.
 
 ## Log levels overview
 
 The Runtime Testing Framework uses five log levels, from most to least verbose:
 
-| Level | Verbosity Flag | Purpose | Audience |
-|-------|---------------|---------|----------|
-| `TRACE` | `-vvv` | Extremely detailed execution flow | Framework developers debugging |
-| `DEBUG` | `-vv` | Detailed diagnostic information | Developers and end users troubleshooting |
-| `INFO` | `-v` | High-level progress indicators | End users |
-| `WARN` | (default) | Potentially problematic situations | End users |
-| `ERROR` | (always shown) | Error conditions that prevent normal operation | End users |
+| Level   | Verbosity Flag | Purpose                                        | Audience                                 |
+| ------- | -------------- | ---------------------------------------------- | ---------------------------------------- |
+| `TRACE` | `-vvv`         | Extremely detailed execution flow              | Framework developers debugging           |
+| `DEBUG` | `-vv`          | Detailed diagnostic information                | Developers and end users troubleshooting |
+| `INFO`  | `-v`           | High-level progress indicators                 | End users                                |
+| `WARN`  | (default)      | Potentially problematic situations             | End users                                |
+| `ERROR` | (always shown) | Error conditions that prevent normal operation | End users                                |
 
 ## When to use each level
 
 ### ERROR level
 
-Use `error!` for conditions that prevent the application from continuing normal operation or cause significant
-functionality to fail.
+Use `error!` for conditions that prevent the application from continuing normal operation or cause
+significant functionality to fail.
 
 **Examples:**
+
 - Failed to initialize logging system
 - Missing required configuration
 - Network requests that fail completely
 - File I/O errors that prevent core functionality
 
 **Avoid using ERROR for:**
+
 - Temporary failures that will be retried
 - Optional operations that fail
 - Expected validation failures
 
 ### WARN level
 
-Use `warn!` for situations that are unusual or potentially problematic but don't prevent the operation from continuing.
-WARN is the default log level shown to end users, so these messages should provide useful context about what users 
-should look for if errors occur later in the process.
+Use `warn!` for situations that are unusual or potentially problematic but don't prevent the
+operation from continuing. WARN is the default log level shown to end users, so these messages
+should provide useful context about what users should look for if errors occur later in the process.
 
 **Examples:**
+
 - Deprecated features being used
 - Non-critical parsing failures
 - Missing optional data
@@ -51,9 +55,11 @@ should look for if errors occur later in the process.
 
 ### INFO level
 
-Use `info!` for high-level progress indicators that help users understand what the application is doing.
+Use `info!` for high-level progress indicators that help users understand what the application is
+doing.
 
 **Examples:**
+
 - Major phase transitions (loading, executing, completing)
 - Processing of user-provided inputs
 - Successful completion of significant operations
@@ -61,10 +67,11 @@ Use `info!` for high-level progress indicators that help users understand what t
 
 ### DEBUG level
 
-Use `debug!` for detailed diagnostic information that helps developers understand the internal workings and 
-troubleshoot issues.
+Use `debug!` for detailed diagnostic information that helps developers understand the internal
+workings and troubleshoot issues.
 
 **Examples:**
+
 - File system operations (creating directories, writing files)
 - Detailed processing steps
 - Configuration values being used
@@ -72,13 +79,17 @@ troubleshoot issues.
 
 ### TRACE level
 
-Use `trace!` for extremely detailed execution flow information, typically for debugging complex logic or data flow issues.
-> **Warning**: Do not log potentially sensitive data in the `trace` logs. Assume all data supplied by the user or from
-sources specified by the user could contain sensitive data. For this reason, we do not log raw API responses or the
-contents of a file.
+Use `trace!` for extremely detailed execution flow information, typically for debugging complex
+logic or data flow issues.
+
+> **Warning**: Do not log potentially sensitive data in the `trace` logs. Assume all data supplied
+> by the user or from sources specified by the user could contain sensitive data. For this reason,
+> we do not log raw API responses or the contents of a file.
 
 **Examples:**
-- The URL of an API being called. Do not log the response or parameters used to call the API since these could be sensitive.
+
+- The URL of an API being called. Do not log the response or parameters used to call the API since
+  these could be sensitive.
 - Fine-grained execution flow
 - Performance-sensitive debugging information
 
@@ -86,8 +97,9 @@ contents of a file.
 
 ### Use Structured Fields
 
-Take advantage of [tracing's structured logging capabilities](https://docs.rs/tracing/latest/tracing/#recording-fields) by
-including relevant context as fields:
+Take advantage of
+[tracing's structured logging capabilities](https://docs.rs/tracing/latest/tracing/#recording-fields)
+by including relevant context as fields:
 
 ```rust
 // Good: structured fields for easy filtering and analysis
@@ -108,6 +120,7 @@ Use these prefixes to control how values are formatted in log output:
 - Use descriptive field names: `operation_count`, `file_path`, `duration_ms`
 
 **Examples:**
+
 ```rust
 // Good field names
 debug!(file_path = %path, size_bytes = file_size, "reading configuration file");
@@ -131,10 +144,11 @@ error!("file operation failed: {e}");
 
 ## Performance considerations
 
-Logging performance is not a primary concern in RTF. The framework is expected to become I/O bound (waiting for network 
-requests, file operations, etc.) before logging becomes a bottleneck.
+Logging performance is not a primary concern in RTF. The framework is expected to become I/O bound
+(waiting for network requests, file operations, etc.) before logging becomes a bottleneck.
 
 However, keep these guidelines in mind:
+
 - Avoid expensive computations solely for log messages
 - Use structured fields instead of string formatting when possible
 - Don't worry about the overhead of log statements that won't be displayed
@@ -146,6 +160,7 @@ The logging level can be controlled in several ways:
 ### Command line verbosity flags
 
 Use these flags to control the overall log level:
+
 - No flags: WARN level (default - only warnings and errors)
 - `-v`: INFO level (includes progress indicators)
 - `-vv`: DEBUG level (includes detailed diagnostic information)
@@ -154,6 +169,7 @@ Use these flags to control the overall log level:
 ### Environment variable
 
 Set `APOLLO_RTF_LOG` for fine-grained control over specific modules:
+
 ```bash
 APOLLO_RTF_LOG=rtf_core=debug,rtf_cli=info cargo run
 ```
@@ -161,22 +177,26 @@ APOLLO_RTF_LOG=rtf_core=debug,rtf_cli=info cargo run
 ### Per-module filtering
 
 You can set different log levels for different parts of the codebase:
+
 ```bash
 APOLLO_RTF_LOG=warn,rtf_core::graphos=debug cargo run
 ```
 
-> **Note**: When both command-line flags and environment variables are used, the environment variable takes precedence 
-> for the modules it specifies, while the command-line flag sets the default level for other modules.
+> **Note**: When both command-line flags and environment variables are used, the environment
+> variable takes precedence for the modules it specifies, while the command-line flag sets the
+> default level for other modules.
 
 ## Testing logging
 
-Do not test logging at the low level using a crate like `tracing_test`. Instead, make sure to test the output the user
-sees in the CLI tests. Tests should ensure the user sees the logging statement in situations where it is expected and
-required to give helpful feedback. Tests should not cover `debug` and `trace` level logs.
+Do not test logging at the low level using a crate like `tracing_test`. Instead, make sure to test
+the output the user sees in the CLI tests. Tests should ensure the user sees the logging statement
+in situations where it is expected and required to give helpful feedback. Tests should not cover
+`debug` and `trace` level logs.
 
 ## Quick Reference
 
 ### When to use each level
+
 - **ERROR**: Operation cannot continue, user needs to take action
 - **WARN**: Something unusual happened, but operation continues (default visibility)
 - **INFO**: High-level progress updates, what RTF is currently doing
@@ -184,6 +204,7 @@ required to give helpful feedback. Tests should not cover `debug` and `trace` le
 - **TRACE**: Extremely detailed execution flow for debugging
 
 ### Common patterns
+
 ```rust
 // Error with context
 error!(path = %config_path, "failed to read configuration file: {e}");
@@ -199,7 +220,8 @@ warn!(feature = "deprecated_option", "using deprecated configuration option");
 ```
 
 ### Verbosity flags
+
 - Default: `WARN` and `ERROR` only
-- `-v`: Add `INFO` messages  
+- `-v`: Add `INFO` messages
 - `-vv`: Add `DEBUG` messages
 - `-vvv`: Add `TRACE` messages
