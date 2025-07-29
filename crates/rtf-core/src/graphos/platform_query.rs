@@ -1,4 +1,4 @@
-//! Gernerated graphQL queries for the Apollo platform API using the graphql-client crate.
+//! Generated graphQL queries for the Apollo platform API using the graphql-client crate.
 //!
 //! The docs for the internal platform API can be found here in studio:
 //!   <https://studio-staging.apollographql.com/graph/engine/variant/prod/home>
@@ -71,7 +71,7 @@ pub enum Error {
 pub struct GqlError {
     /// The string error message
     pub message: String,
-    /// The locations within the operation being run where the errors ocurred
+    /// The locations within the operation being run where the errors occurred
     #[serde(default)]
     pub locations: Option<Vec<BTreeMap<String, u32>>>,
     /// The path through the provided operation to the location of the error
@@ -93,7 +93,7 @@ pub struct GqlError {
 ///   - The name of the query in your graphql file needs to exactly match the name of the Rust
 ///     struct
 ///
-/// The macro will then generate a module with a name that is the snake_case transfrom of your
+/// The macro will then generate a module with a name that is the snake_case transform of your
 /// struct (so `MyQuery` becomes `my_query`) that contains all of the generated types needed to
 /// make your request and parse the response.
 ///

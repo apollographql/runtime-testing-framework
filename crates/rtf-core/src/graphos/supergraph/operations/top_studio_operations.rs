@@ -56,7 +56,7 @@ const MAX_NULL_DEPTH: usize = 3;
 /// Hard cut off at which we panic to avoid becoming too deeply nested
 const MAX_DEPTH: usize = 10;
 
-/// The from field in the filter for fetching operations takes a negative integer as an offest in
+/// The from field in the filter for fetching operations takes a negative integer as an offset in
 /// seconds to set how far back to query operations for. The default behaviour from rehydrate (the
 /// go impl used in router-scale) used 24 hours so we match that here.
 const LAST_24HOURS_SECONDS: i64 = -(60 * 60 * 24); // TODO: allow customising
@@ -917,7 +917,7 @@ fn add_missing_aliases(
                     }
                     None => {
                         // If we've already encountered this field name previously then we need to add
-                        // an alias for all subsequent ocurrences.
+                        // an alias for all subsequent occurrences.
                         if seen.contains(&f.name) {
                             f.alias = Some(Name::new_unchecked(&format!("alias_{}", *suffix)));
                             *suffix += 1;

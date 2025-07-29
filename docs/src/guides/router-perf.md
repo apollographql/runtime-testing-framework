@@ -76,7 +76,7 @@ tests that use production data.
   API key [here][14]. Note that your elevated permissions are only valid for 12
   hours and that you will need to create a new API key each time you request
   access via SHERIFF.
-- Export your new API key as `APOLLO_KEY` using your perferred mechanism for
+- Export your new API key as `APOLLO_KEY` using your preferred mechanism for
   managing shell environment variables before running rtf.
   - We use [mise][15] in the rtf repo and manage our environment variables in a `.env` file that is git ignored.
     We recommend managing your environment variables in a local `.env` file.
@@ -93,7 +93,7 @@ The token will only need `repo` scopes.
 access tokens list. Make sure that the token is authenticated with the `apollographql` org. If this step is not completed
 then you will not authenticate successfully with the RTF repo.
 
-Export your new API key as `GITHUB_TOKEN` using your perferred mechanism for managing shell
+Export your new API key as `GITHUB_TOKEN` using your preferred mechanism for managing shell
 environment variables before running rtf.
 
 ## Clone rtf-morgue

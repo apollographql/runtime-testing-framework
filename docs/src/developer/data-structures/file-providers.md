@@ -9,7 +9,7 @@ by the commands being run as part of a test plan.
 
 Within config files, file providers are always wrapped in a [NamedFileProvider][2]
 that adds filename and environment variable fields along with logic for running
-the provider and outputing the new resources in the correct location on the
+the provider and outputting the new resources in the correct location on the
 filesystem.
 
 
