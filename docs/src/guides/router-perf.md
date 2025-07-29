@@ -78,8 +78,8 @@ tests that use production data.
   access via SHERIFF.
 - Export your new API key as `APOLLO_KEY` using your perferred mechanism for
   managing shell environment variables before running rtf.
-  - [direnv][15] is a nice way to do this if you don't have an existing setup
-    you are already using.
+  - We use [mise][15] in the rtf repo and manage our environment variables in a `.env` file that is git ignored.
+    We recommend managing your environment variables in a local `.env` file.
 
 ## GitHub Access
 In order to run this test plan, you will need a `GITHUB_TOKEN`. This is so that the VM can
@@ -272,6 +272,6 @@ that you write and run them on the `router-scale` VM.
   [12]: https://apollographql.atlassian.net/wiki/spaces/SecOps/pages/805568513
   [13]: https://apollographql.atlassian.net/servicedesk/customer/portal/1/group/3/create/1247
   [14]: https://studio.apollographql.com/user-settings/api-keys
-  [15]: https://github.com/direnv/direnv
+  [15]: https://apollographql.atlassian.net/wiki/spaces/Foundation/pages/1490583600/Mise+standardized+dev+tools+made+simple
   [16]: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic
   [17]: https://github.com/apollographql/router-scale/blob/main/data/router_2.0_launch/corpus.yaml#L7-L46
