@@ -3,15 +3,20 @@
 This repository contains the `rtf` command line tool along with associated
 example Test Plans and documentation.
 
-In order to build `rtf` from source you will need a local Rust toolchain.
-See the Rust [getting started][0] page for details on how to set this up
-if you don't have one already.
-
-Once you have Rust set up you can install `rtf` by cloning the git repository
-and using cargo:
+To build `rtf` from source, start by cloning the repo locally.
 ```bash
 $ git clone git@github.com:apollographql/runtime-testing-framework.git
 $ cd runtime-testing-framework
+```
+
+You will need a local Rust toolchain. We recommend using [mise][0] to install
+the Rust toolchain and other dependencies.
+```bash
+$ mise trust
+```
+
+Once you have Rust set up you can install `rtf` by using cargo:
+```bash
 $ cargo install --path crates/rtf-cli
 ```
 
@@ -23,6 +28,6 @@ written using [mdbook][1].
 For examples of what it looks like to write Test Plans using `rtf` please
 see the [rtf-morgue][2] directory.
 
-  [0]: https://www.rust-lang.org/learn/get-started
+  [0]: https://mise.jdx.dev/getting-started.html
   [1]: https://rust-lang.github.io/mdBook/index.html
   [2]: https://github.com/apollographql/rtf-morgue

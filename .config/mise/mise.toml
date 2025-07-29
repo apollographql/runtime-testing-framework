@@ -1,0 +1,6 @@
+[tools]
+mdbook = "0.4.51"
+rust = "1.88.0"
+
+[env]
+_.file = '../../.env'
