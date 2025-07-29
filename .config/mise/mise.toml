@@ -1,3 +1,31 @@
+[tasks.fix-spelling]
+run = "typos --write-changes"
+
+[tasks.pr-all]
+run = [
+    "mise run pr-format",
+    "mise run pr-clippy",
+    "mise run pr-doclinks",
+    "mise run pr-spell-check",
+    "mise run pr-markdown",
+    "mise run pr-test"
+]
+
+[tasks.pr-clippy]
+run = "cargo pr-clippy"
+
+[tasks.pr-doclinks]
+run = "RUSTDOCFLAGS=\"-D rustdoc::broken-intra-doc-links\" cargo doc --all-features --workspace --no-deps"
+
+[tasks.pr-format]
+run = "cargo pr-format"
+
+[tasks.pr-spell-check]
+run = "typos"
+
+[tasks.pr-test]
+run = "cargo test"
+
 [tools]
 mdbook = "0.4.51"
 rust = "1.88.0"
