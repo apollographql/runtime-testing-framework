@@ -1,6 +1,9 @@
 [tasks.fix-spelling]
 run = "typos --write-changes"
 
+[tasks.format-markdown]
+run = "dprint fmt"
+
 [tasks.pr-all]
 run = [
     "mise run pr-format",
@@ -20,6 +23,9 @@ run = "RUSTDOCFLAGS=\"-D rustdoc::broken-intra-doc-links\" cargo doc --all-featu
 [tasks.pr-format]
 run = "cargo pr-format"
 
+[tasks.pr-markdown]
+run = "dprint check"
+
 [tasks.pr-spell-check]
 run = "typos"
 
@@ -30,6 +36,7 @@ run = "cargo test"
 mdbook = "0.4.51"
 rust = "1.88.0"
 "cargo:typos-cli" = "1.34.0"
+"cargo:dprint" = "0.48.0"
 
 [env]
 _.file = '../../.env'

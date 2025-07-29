@@ -70,6 +70,21 @@ jobs:
     - uses: crate-ci/typos@v1.34.0
       with:
         config: ./.typos.toml
+
+  lint-markdown:
+    name: Lint Markdown files with dprint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      # The action takes too long to build if we install all the tools in the repo
+      # This deletes the full mise.toml and instead installs dprint only
+    - run: rm -f .config/mise/mise.toml
+    - uses: jdx/mise-action@v2
+      with:
+        mise_toml: |
+          [tools]
+          dprint = "0.48.0"
+    - run: dprint check
   
   upload-rtf-binary:
     name: Upload the RTF binary as an artifact
@@ -79,6 +94,8 @@ jobs:
       - rustfmt
       - clippy
       - rustdoc-links
+      - spell-check
+      - lint-markdown
 
     steps:
     - uses: actions/checkout@v4

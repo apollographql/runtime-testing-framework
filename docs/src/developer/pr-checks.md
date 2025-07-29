@@ -74,7 +74,25 @@ have been fixed correctly.
 If there are any detected spelling errors that should be valid, or files that should be ignored, then
 [update the `.typos.toml` file][3] at the root of the repo.
 
+## lint-markdown
+This uses the [dprint crate][4] lint the markdown files and ensure consistent style and formatting.
+
+To run locally
+```bash
+mise run lint-markdown
+```
+This will highlight any issues with the markdown files.
+
+To fix all these issues automatically
+```bash
+mise run format-markdown
+```
+Before committing to `main`, manually review the diff to check all formatting fixes are desired.
+
+Files can be excluded using the `dprint.json` file at the root of the repo.
+
     [0](https://mise.jdx.dev/tasks/)
     [1](https://github.com/crate-ci/typos)
     [2](https://github.com/crate-ci/typos?tab=readme-ov-file#install)
     [3](https://github.com/crate-ci/typos?tab=readme-ov-file#false-positives)
+    [4](https://github.com/dprint/dprint)

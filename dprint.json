@@ -1,0 +1,17 @@
+{
+    "markdown": {
+        "lineWidth": 100,
+        "textWrap": "always"
+    },
+    "includes": [
+        "**/*.md"
+    ],
+    "excludes": [
+        "target/**",
+        "docs/book/**",
+        "crates/rtf-cli/help.md"
+    ],
+    "plugins": [
+        "https://plugins.dprint.dev/markdown-0.17.8.wasm"
+    ]
+}
