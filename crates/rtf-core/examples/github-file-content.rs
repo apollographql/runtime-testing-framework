@@ -14,11 +14,11 @@ async fn main() {
     let repo = "runtime-testing-framework";
     let file_path = "README.md";
 
-    println!("Attempting to pull {org}/{repo}/{file_path}");
+    println!("attempting to pull {org}/{repo}/{file_path}");
     let content = client
         .string_file_content(org, repo, file_path, git_ref)
         .await
         .expect("to have file");
 
-    println!("File content:\n{content}");
+    println!("file content:\n{content}");
 }

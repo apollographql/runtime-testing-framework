@@ -241,7 +241,7 @@ pub struct RelativeFile {
 
 impl RelativeFile {
     fn format_error_message(&self) -> String {
-        format!("Provided path was {:?}", self.path)
+        format!("provided path was {:?}", self.path)
     }
 }
 

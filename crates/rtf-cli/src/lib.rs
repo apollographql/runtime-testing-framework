@@ -35,7 +35,7 @@ impl cli::Values {
     ) -> anyhow::Result<()> {
         if let Some(path) = self.values.as_ref() {
             let s = (read_file)(path)
-                .context(format!("Unable to read values file {}", path.display()))?;
+                .context(format!("unable to read values file {}", path.display()))?;
             let from_values: HashMap<String, Scalar> =
                 serde_json::from_str(&s).context("invalid values file")?;
 
