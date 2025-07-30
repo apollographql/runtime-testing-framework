@@ -11,43 +11,38 @@
 
 ## Overview
 
-The [example_test_plans][0] directory in the rtf repository contains several tests plans that you
-can try running and editing to learn about the concepts and terminology involved with using the
-tool. We'll start with the "hello, world!" test plan (that you can probably guess the behaviour of)
-which can be found at [example-test-plans/hello-world/test-plan.yaml][1].
+The [example_test_plans][0] directory in the rtf repository contains a "hello, world!" test plan
+that you can edit and run to learn about the concepts and terminology involved with using rtf.
 
-We're going to start with simply templating and running the Test Plan as it is written, before
-taking a quick look at a couple of simple ways we can make changes to the config files in order to
-alter its behaviour.
+We'll start with templating and running the test plan as it is written. Then, we'll take a quick
+look at a couple of simple ways we can make changes to the config files in order to alter its
+behaviour.
 
-> For more information on the structure of RTF Test Plan config files see the
+> For more information on the structure of RTF test plan config files see the
 > [Test Plans](../test-plans/index.md) page.
 
-If we look at the Test Plan itself you should find that as you might expect for a "hello, world!"
-example there isn't a lot in there:
+The "hello, world!" test plan contains a brief description, a few values, and references to scenario
+and environment config files:
 
 ```yaml
-{{ #include ../../../example-test-plans/hello-world/test-plan.yaml }}
+{ { #include ../../../example-test-plans/hello-world/test-plan.yaml }}
 ```
 
 ## Pre-Flight Checks
 
-We can use the `rtf template` subcommand to pull in the scenario and environment config files
-referenced by the test plan in order to see the full thing. Try running the following from the root
-of the repository:
+Use the `rtf template` subcommand to pull in the scenario and environment config files referenced by
+the test plan in order to see the fully templated file:
 
-```
-rtf template example-test-plans/hello-world/test-plan.yaml
+```bash
+$ rtf template example-test-plans/hello-world/test-plan.yaml
 ```
 
-You should see a larger YAML file containing all of the information `rtf` needs to be able to run
-the Test Plan. So, lets try running it!
+You should see a larger YAML file containing all the information `rtf` needs to be able to run the
+test plan. So, lets try running it!
 
 ## Running a Test Plan
 
-Running a Test Plan is as simple as replacing the `template` subcommand in the example above with
-`run`. If you now run that from the root of the repository with the log level set to `INFO` using
-the `-v` flag, you should see the following:
+To run the test plan, use the `run` subcommand. The `-v` option sets the log level to `INFO`:
 
 ```
 $ rtf run example-test-plans/hello-world/test-plan.yaml -v
@@ -69,8 +64,8 @@ $ rtf run example-test-plans/hello-world/test-plan.yaml -v
  INFO done
 ```
 
-You should also see that you now have an `output` directory in the directory you ran `rtf` from.
-Lets take a look inside:
+You should also see that you now have an `output` directory in the directory where you ran `rtf`.
+Take a look inside:
 
 ```
 $ ls output
@@ -82,9 +77,8 @@ scenario :: hello, darkness my old friend
 ---
 ```
 
-There's nothing special about the `combined-output.txt` file here: it is just being created by the
-test script we are using in the test plan. The `echo-message.sh` and `teardown.sh` scripts have come
-from the **FileProviders** specified in our scenario and environment config files:
+The `echo-message.sh` and `teardown.sh` scripts came from the **FileProviders** specified in our
+scenario and environment config files:
 
 #### echo-message.sh
 
@@ -98,10 +92,13 @@ from the **FileProviders** specified in our scenario and environment config file
 {{ #include ../../../example-test-plans/hello-world/scripts/teardown.sh }}
 ```
 
-If you try running the Test Plan a second time you will see that you get an error warning you that
-the `output` directory already exists. This is a safety mechanism in place to prevent you
-accidentally overwriting existing data or merging the output from multiple runs together. We can
-either remove the directory or specify a new one using the `--outdir` flag:
+The `combined-output.txt` file is created by the `echo-message.sh` script and amended by the
+`teardown.sh` script.
+
+If you run the test plan a second time you will encounter an error: the `output` directory already
+exists. This is a safety mechanism to prevent you from accidentally overwriting existing data or
+merging the output from multiple runs together. Either remove the existing directory
+(`rm -rf output`) or specify a new one using the `--outdir` flag:
 
 ```
 $ rtf run example-test-plans/hello-world/test-plan.yaml -v --outdir=more_output
@@ -130,15 +127,14 @@ output
 
 ## Modifying Values
 
-If we look back at the Test Plan file itself we can see that we are defining some scalar **values**
-which are then being applied to the scenario and environment config files.
+The test plan defines several scalar **values** which are then applied to the scenario and
+environment config files.
 
 ```yaml
-{{ #include ../../../example-test-plans/hello-world/test-plan.yaml }}
+{ { #include ../../../example-test-plans/hello-world/test-plan.yaml }}
 ```
 
-By default, `rtf` uses the log level `WARN`. If we run the Test Plan again with the default log
-level we can see just the output from the scripts being executed:
+Run the test plan again using the default log level:
 
 ```
 $ rtf run example-test-plans/hello-world/test-plan.yaml
@@ -148,7 +144,7 @@ scenario :: hello, darkness my old friend
 ---
 ```
 
-Lets edit the `test-plan.yaml` to change the value being used for the setup command:
+Edit the `test-plan.yaml` to change the value being used for the setup command:
 
 ```diff
  values:
@@ -158,7 +154,7 @@ Lets edit the `test-plan.yaml` to change the value being used for the setup comm
    scenario_subject: "darkness my old friend"
 ```
 
-If we run the Test Plan again we should see that we have new output:
+Run the test plan again to see the modified output:
 
 ```
 $ rm output -rf
@@ -169,8 +165,8 @@ scenario :: hello, darkness my old friend
 ---
 ```
 
-And if we instead edit the `message` value you should see that it updates the output for both the
-scenario and the environment setup (as they both reference the same shared value):
+Now, edit the `message` value to see that it updates the output for both env-setup and scenario, as
+they both reference the same shared value:
 
 ```diff
  values:
@@ -191,12 +187,8 @@ scenario :: say hi to the darkness my old friend
 
 ## Overriding Individual Values
 
-If you want to temporarily override a value (or work with an existing test plan that you don't want
-to edit) then you can make use of the `--value` and `--values` flags to specify overrides on the
-command line.
-
-We can get the same effect from before using the original test plan by instead running the
-following:
+If you want to temporarily override a value use the `--value` or `--values` flags to specify
+overrides on the command line:
 
 ```bash
 $ rtf run example-test-plans/hello-world/test-plan.yaml \
@@ -219,8 +211,8 @@ scenario :: say hi to the darkness my old friend
 ---
 ```
 
-When you have multiple overrides like this you can use the `--values` flag to provide the location
-of a JSON file containing the values you want to merge on top of the ones given in the test plan:
+For overriding multiple values, you can use the `--values` flag to provide the location of a JSON
+file containing the values you want to merge on top of the ones given in the test plan:
 
 ```bash
 $ cat example-test-plans/hello-world/values.json
@@ -239,22 +231,22 @@ scenario :: say hi to the darkness my old friend
 
 Each of these options is useful in different ways:
 
-- Both allow for adjusting the behaviour of a test plan without having to edit the test plan itself.
-- Providing individual values on the command line allows you to dynamically set things using
-  environment variables and other shell commands
-- Providing sets of values in a JSON file lets you define multiple variations for a single test plan
-  that you can run individually without having to edit or duplicate the test plan.
+- Using `--value` to provide individual values on the command line allows you to dynamically set
+  things using environment variables and other shell commands
+- Using `--values` to provide a JSON file containing multiple values allows you to define variations
+  on a test plan without having to edit or duplicate the test plan. Those variations can be stored
+  in version control.
 
 ## Matrix Values
 
-But what if we want to define multiple sets of values and run them _all_ as part of a batch of
-tests? For that, `rtf` provides a **matrix** feature that functions in a similar way to matrices in
+What if we want to define multiple sets of values and run them _all_ as part of a batch of tests?
+For that, `rtf` provides a **matrix** feature that functions in a similar way to matrices in
 [GitHub Actions][2].
 
-All we need to do to convert a **value** from a single value to a matrix is move it under the
-`matrix` section of our Test Plan and provide the array of values we'd like to use:
+To convert a **value** from a single value to a matrix, move it under the `matrix` section of the
+test plan and provide an array of values you'd like to use:
 
-> Remember to also remove it from the `values` section or your Test Plan will fail its check!
+> Remember to also remove it from the `values` section or your test plan will fail its check!
 
 ```diff
  values:
@@ -266,7 +258,7 @@ All we need to do to convert a **value** from a single value to a matrix is move
 +  setup_subject: [ "world!", "sailor!" ]
 ```
 
-If we run the test plan now we should see something a little different from before:
+Running the test plan with two `setup_subject` values produces two results:
 
 ```
 $ rm output -rf
@@ -280,8 +272,7 @@ scenario :: hello, darkness my old friend
 ---
 ```
 
-Now we're getting a run of the full test plan for each of the values we have provided in the
-**matrix**. If we also move the `scenario_subject` into the matrix:
+If we also move the `scenario_subject` into the matrix:
 
 ```diff
  values:
@@ -294,7 +285,7 @@ Now we're getting a run of the full test plan for each of the values we have pro
 +  scenario_subject: [ "darkness my old friend", "is it me you're looking for?" ]
 ```
 
-Then we'll get a run for every _combination_ of values:
+We'll get a run for every _combination_ of values:
 
 ```
 $ rm output -rf
