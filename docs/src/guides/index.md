@@ -3,27 +3,27 @@
 To build `rtf` from source, start by cloning the repo locally:
 
 ```bash
-$ git clone git@github.com:apollographql/runtime-testing-framework.git
-$ cd runtime-testing-framework
+git clone git@github.com:apollographql/runtime-testing-framework.git
+cd runtime-testing-framework
 ```
 
 You will need a local Rust toolchain. We recommend using [mise][0] to install the Rust toolchain and
 other dependencies. After installing `mise`, trust the mise config file:
 
 ```bash
-$ mise trust
+mise trust
 ```
 
 Install `rtf` with cargo:
 
 ```bash
-$ cargo install --path crates/rtf-cli
+cargo install --path crates/rtf-cli
 ```
 
 Verify installation:
 
 ```bash
-$ rtf
+rtf
 ```
 
 This should print the rtf help output to your terminal. With that done, you're ready to run some
