@@ -203,12 +203,12 @@ pub trait Client {
         let resp: GqlResponse<T::ResponseData> = serde_json::from_value(raw)?;
 
         if !resp.errors.is_empty() {
-            error!("Errors returned when running graphql operation");
+            error!("errors returned when running graphql operation");
             return Err(Error::GraphqlErrors {
                 errors: resp.errors,
             });
         } else if !resp.extensions.is_empty() {
-            error!("Unexpected extensions returned when running graphql operation");
+            error!("unexpected extensions returned when running graphql operation");
             return Err(Error::GraphqlExtensions {
                 extensions: resp.extensions,
             });
