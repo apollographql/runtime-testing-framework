@@ -30,6 +30,7 @@
 - [Logging](developer/logging.md)
 - [Testing](developer/testing/index.md)
   - [rtf-config](developer/testing/rtf-config.md)
+  - [rtf-core](developer/testing/rtf-core.md)
 - [PR checks](developer/pr-checks.md)
 - [Parsing config files](developer/parsing-config-files.md)
 - [Data structures](developer/data-structures/index.md)
