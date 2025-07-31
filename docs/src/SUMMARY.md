@@ -28,7 +28,7 @@
 - [Concepts and Architecture](developer/concepts-and-architecture.md)
 - [Error handling](developer/error-handling.md)
 - [Logging](developer/logging.md)
-- [Testing](developer/testing.md)
+- [Testing](developer/testing/index.md)
 - [PR checks](developer/pr-checks.md)
 - [Parsing config files](developer/parsing-config-files.md)
 - [Data structures](developer/data-structures/index.md)
