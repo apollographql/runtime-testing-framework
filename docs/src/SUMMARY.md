@@ -29,6 +29,7 @@
 - [Error handling](developer/error-handling.md)
 - [Logging](developer/logging.md)
 - [Testing](developer/testing/index.md)
+  - [rtf-cli](developer/testing/rtf-cli.md)
   - [rtf-config](developer/testing/rtf-config.md)
   - [rtf-core](developer/testing/rtf-core.md)
 - [PR checks](developer/pr-checks.md)
