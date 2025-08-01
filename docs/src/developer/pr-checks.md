@@ -114,8 +114,8 @@ Before committing to `main`, manually review the diff to check all formatting fi
 
 Files can be excluded using the `dprint.json` file at the root of the repo.
 
-    [0](https://mise.jdx.dev/tasks/)
-    [1](https://github.com/crate-ci/typos)
-    [2](https://github.com/crate-ci/typos?tab=readme-ov-file#install)
-    [3](https://github.com/crate-ci/typos?tab=readme-ov-file#false-positives)
-    [4](https://github.com/dprint/dprint)
+[0]: https://mise.jdx.dev/tasks/
+[1]: https://github.com/crate-ci/typos
+[2]: https://github.com/crate-ci/typos?tab=readme-ov-file#install
+[3]: https://github.com/crate-ci/typos?tab=readme-ov-file#false-positives
+[4]: https://github.com/dprint/dprint

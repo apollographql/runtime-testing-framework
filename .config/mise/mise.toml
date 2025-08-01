@@ -33,10 +33,11 @@ run = "typos"
 run = "cargo test"
 
 [tools]
+"cargo:cargo-llvm-cov" = "0.6.18"
+"cargo:dprint" = "0.48.0"
+"cargo:typos-cli" = "1.34.0"
 mdbook = "0.4.51"
 rust = "1.88.0"
-"cargo:typos-cli" = "1.34.0"
-"cargo:dprint" = "0.48.0"
 
 [env]
 _.file = '../../.env'
