@@ -14,31 +14,31 @@
   - [GitHub](#github-access)
   - [Clone rtf-morgue](#clone-rtf-morgue)
 - [Replacing placeholder values](#replacing-placeholder-values)
-- [Executing the Test Plan](#executing-the-test-plan)
+- [Executing the test plan](#executing-the-test-plan)
 
 ## Overview
 
-The Test Plans found in [example-test-plans/router-scale][1] demonstrate how to run Router
+The test plans found in [example-test-plans/router-scale][1] demonstrate how to run Router
 performance tests in a way similar to the existing [router-scale][2] testing tool.
 
-Rather than running as a single Test Plan as we did in [hello world](./hello-world.md), these tests
-are run using a _pair_ of Test Plans:
+Rather than running as a single test plan as we did in [hello world](./hello-world.md), these tests
+are run using a _pair_ of test plans:
 
 - The first is a [wrapper][3] that is used to spin up an ephemeral GCP VM where the tests will be
-  executed. This Test Plan is decoupled from the actual test you are running and simply provides a
+  executed. This test plan is decoupled from the actual test you are running and simply provides a
   shared orchestration layer for provisioning VMs and setting them up to be able to run an `rtf`
-  Test Plan which is rsync'd across for execution on the VM rather than locally on your laptop (or
+  test plan which is rsync'd across for execution on the VM rather than locally on your laptop (or
   directly in CI).
-- The second is the Test Plan that we will actually execute on the VM as the test itself. For the
-  purposes of this guide we'll be using the [router-perf][4] Test Plan that will spin up a build of
+- The second is the test plan that we will actually execute on the VM as the test itself. For the
+  purposes of this guide we'll be using the [router-perf][4] test plan that will spin up a build of
   the Apollo [Router][5] with mocked subgraphs and run a simple performance test against it using
   [vegeta][6].
 
-As with the "hello, world!" Test Plan you will need to have the `rtf` binary installed. Please see
+As with the "hello, world!" test plan you will need to have the `rtf` binary installed. Please see
 the details found in the [Getting Started](./index.md) page for how to get set up if you have not
 done so already.
 
-Unlike the "hello, world!" example, these Test Plans requires some additional setup and access to
+Unlike the "hello, world!" example, these test plans requires some additional setup and access to
 resources which will need to be in place before things will work, so lets sort that out first.
 
 ## GCP Access
@@ -102,7 +102,7 @@ git clone https://github.com/apollographql/rtf-morgue.git
 
 ## Replacing placeholder values
 
-Before either of the Test Plans can be checked and ran the placeholder values the contain need to be
+Before either of the test plans can be checked and ran the placeholder values the contain need to be
 filled in. Attempting to run them before doing this will deliberately fail checks so they can not be
 run by accident.
 
@@ -205,7 +205,7 @@ Running this updated command should output the templated test plan in your termi
 
 ## Executing the Test Plan
 
-Now that both Test Plans check successfully you can use the wrapper Test Plan to execute a
+Now that both test plans check successfully you can use the wrapper test plan to execute a
 performance test on an ephemeral VM. We don't need to override the values coming from the
 environment setup any more but we _do_ still need to specify the vm name suffix and graph ref:
 
