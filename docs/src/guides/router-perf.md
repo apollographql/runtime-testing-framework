@@ -18,7 +18,7 @@
 
 ## Overview
 
-The test plans found in [example-test-plans/router-scale][1] demonstrate how to run Router
+The test plans found in [rtf-morgue/test-plans/router-scale][1] demonstrate how to run Router
 performance tests in a way similar to the existing [router-scale][2] testing tool.
 
 Rather than running as a single test plan as we did in [hello world](./hello-world.md), these tests
@@ -265,10 +265,10 @@ The `rsync_dir` and `test_plan_dir` can be used in combination to run any local 
 write and run them on the `router-scale` VM.
 
 [0]: https://github.com/apollographql/rtf-morgue
-[1]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/router-scale
+[1]: https://github.com/apollographql/rtf-morgue/tree/main/test-plans/router-scale
 [2]: https://github.com/apollographql/router-scale
-[3]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/router-scale/wrapper
-[4]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/router-scale/router-perf
+[3]: https://github.com/apollographql/rtf-morgue/tree/main/test-plans/router-scale/wrapper
+[4]: https://github.com/apollographql/rtf-morgue/tree/main/test-plans/router-scale/router-perf
 [5]: https://github.com/apollographql/router
 [6]: https://github.com/tsenart/vegeta
 [7]: https://github.com/apollographql/runtime-testing-framework
