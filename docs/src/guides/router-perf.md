@@ -43,32 +43,49 @@ resources which will need to be in place before things will work, so lets sort t
 
 ## GCP Access
 
-You can request access to GCP by using the `/assist` command in Slack to open a ticket with IT. Once
-your access request has been actioned, navigate to the `router-performance` project’s [IAM page][8]
-and look for your team name in that list. If your team does not have the
-`Service Account Token Creator` role then you will also need to request that using `/assist`.
+At Apollo, GCP access is managed by team. Navigate to the `router-performance` project’s
+[IAM page][8] and look for your team name in that list. Verify that your team has the
+`Service Account Token Creator` role.
 
-> An example PR to handle this can be found [here][9],
+If your team does not have `Service Account Token Creator` role in the `router-performance` project,
+use the `/assist` command in Slack to open a ticket with IT. Reference this
+[example platform-teams PR][9] if necessary.
 
-Once that role has been granted to your team you will need to ensure that you have the
-[gcloud CLI][10] installed and configured. This can be done by running `gcloud init` after
-completing the installation instructions in the that link and then following the steps it provides
-(for a fresh install) or by running `gcloud auth login` if you already have the CLI installed.
+Check if you have the gcloud CLI installed:
 
-Finally you will also need to make sure the beta gcloud components are installed, which can be done
-by running `gcloud components install beta`.
+```bash
+which gcloud
+```
+
+If you do not have the gcloud CLI installed, follow the [gcloud CLI installation instructions][10].
+
+To authenticate with the gcloud CLI, run:
+
+```bash
+gcloud auth login
+```
+
+Ensure that beta components are installed:
+
+```bash
+gcloud components install beta
+```
 
 ## Studio API Access
 
 In order to run test plans using production data you will need to have elevated permissions in
-Studio. This is handled using [SHERRIF][11] and unlike the GCP access steps above this will need to
-be completed each time you want to run tests that use production data.
+Studio. This is handled using [SHERRIF][11]. Unlike the GCP access steps above this will need to be
+completed each time you want to run tests that use production data.
 
-- Open a ticket with SHERIFF as instructed [here][12] or alternatively just go [here][13] directly.
-- Select “Access Type: Apollo Admin Access”. You need “Read Only” access to the “Prod” environment.
-- Once your admin access has been granted you can create a new personal Studio API key [here][14].
-  Note that your elevated permissions are only valid for 12 hours and that you will need to create a
-  new API key each time you request access via SHERIFF.
+- Open a [SHERIFF ticket][13].
+  - Summary: "Read-only Apollo admin access for running RTF"
+  - Justification: "Elevated permissions are required for running RTF against production data"
+  - Access Type: "Apollo Admin Access"
+  - Role: "Read Only"
+  - Environment(s) "Prod"
+- Once your admin access has been granted, create a [new personal Studio API key][14]. Note that
+  your elevated permissions are only valid for 12 hours and that you will need to create a new API
+  key each time you request access via SHERIFF.
 - Export your new API key as `APOLLO_KEY` using your preferred mechanism for managing shell
   environment variables before running rtf.
   - We use [mise][15] in the rtf repo and manage our environment variables in a `.env` file that is
