@@ -44,8 +44,8 @@ resources which will need to be in place before things will work, so lets sort t
 ## GCP Access
 
 You can request access to GCP by using the `/assist` command in Slack to open a ticket with IT. Once
-you’re access request has been actioned, navigate to the `router-performance` project’s IAM page
-[here][8] and look for your team name in that list. If your team does not have the
+your access request has been actioned, navigate to the `router-performance` project’s [IAM page][8]
+and look for your team name in that list. If your team does not have the
 `Service Account Token Creator` role then you will also need to request that using `/assist`.
 
 > An example PR to handle this can be found [here][9],
