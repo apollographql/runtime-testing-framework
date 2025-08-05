@@ -14,61 +14,78 @@
   - [GitHub](#github-access)
   - [Clone rtf-morgue](#clone-rtf-morgue)
 - [Replacing placeholder values](#replacing-placeholder-values)
-- [Executing the Test Plan](#executing-the-test-plan)
+- [Executing the test plan](#executing-the-test-plan)
 
 ## Overview
 
-The Test Plans found in [example-test-plans/router-scale][1] demonstrate how to run Router
+The test plans found in [rtf-morgue/test-plans/router-scale][1] demonstrate how to run Router
 performance tests in a way similar to the existing [router-scale][2] testing tool.
 
-Rather than running as a single Test Plan as we did in [hello world](./hello-world.md), these tests
-are run using a _pair_ of Test Plans:
+Rather than running as a single test plan as we did in [hello world](./hello-world.md), these tests
+are run using a _pair_ of test plans:
 
 - The first is a [wrapper][3] that is used to spin up an ephemeral GCP VM where the tests will be
-  executed. This Test Plan is decoupled from the actual test you are running and simply provides a
+  executed. This test plan is decoupled from the actual test you are running and simply provides a
   shared orchestration layer for provisioning VMs and setting them up to be able to run an `rtf`
-  Test Plan which is rsync'd across for execution on the VM rather than locally on your laptop (or
+  test plan which is rsync'd across for execution on the VM rather than locally on your laptop (or
   directly in CI).
-- The second is the Test Plan that we will actually execute on the VM as the test itself. For the
-  purposes of this guide we'll be using the [router-perf][4] Test Plan that will spin up a build of
+- The second is the test plan that we will actually execute on the VM as the test itself. For the
+  purposes of this guide we'll be using the [router-perf][4] test plan that will spin up a build of
   the Apollo [Router][5] with mocked subgraphs and run a simple performance test against it using
   [vegeta][6].
 
-As with the "hello, world!" Test Plan you will need to have the `rtf` binary installed. Please see
+As with the "hello, world!" test plan you will need to have the `rtf` binary installed. Please see
 the details found in the [Getting Started](./index.md) page for how to get set up if you have not
 done so already.
 
-Unlike the "hello, world!" example, these Test Plans requires some additional setup and access to
+Unlike the "hello, world!" example, these test plans requires some additional setup and access to
 resources which will need to be in place before things will work, so lets sort that out first.
 
 ## GCP Access
 
-You can request access to GCP by using the `/assist` command in Slack to open a ticket with IT. Once
-you’re access request has been actioned, navigate to the `router-performance` project’s IAM page
-[here][8] and look for your team name in that list. If your team does not have the
-`Service Account Token Creator` role then you will also need to request that using `/assist`.
+At Apollo, GCP access is managed by team. Navigate to the `router-performance` project’s
+[IAM page][8] and look for your team name in that list. Verify that your team has the
+`Service Account Token Creator` role.
 
-> An example PR to handle this can be found [here][9],
+If your team does not have `Service Account Token Creator` role in the `router-performance` project,
+use the `/assist` command in Slack to open a ticket with IT. Reference this
+[example platform-teams PR][9] if necessary.
 
-Once that role has been granted to your team you will need to ensure that you have the
-[gcloud CLI][10] installed and configured. This can be done by running `gcloud init` after
-completing the installation instructions in the that link and then following the steps it provides
-(for a fresh install) or by running `gcloud auth login` if you already have the CLI installed.
+Check if you have the gcloud CLI installed:
 
-Finally you will also need to make sure the beta gcloud components are installed, which can be done
-by running `gcloud components install beta`.
+```bash
+which gcloud
+```
+
+If you do not have the gcloud CLI installed, follow the [gcloud CLI installation instructions][10].
+
+To authenticate with the gcloud CLI, run:
+
+```bash
+gcloud auth login
+```
+
+Ensure that beta components are installed:
+
+```bash
+gcloud components install beta
+```
 
 ## Studio API Access
 
 In order to run test plans using production data you will need to have elevated permissions in
-Studio. This is handled using [SHERRIF][11] and unlike the GCP access steps above this will need to
-be completed each time you want to run tests that use production data.
+Studio. This is handled using [SHERRIF][11]. Unlike the GCP access steps above this will need to be
+completed each time you want to run tests that use production data.
 
-- Open a ticket with SHERIFF as instructed [here][12] or alternatively just go [here][13] directly.
-- Select “Access Type: Apollo Admin Access”. You need “Read Only” access to the “Prod” environment.
-- Once your admin access has been granted you can create a new personal Studio API key [here][14].
-  Note that your elevated permissions are only valid for 12 hours and that you will need to create a
-  new API key each time you request access via SHERIFF.
+- Open a [SHERIFF ticket][13].
+  - Summary: "Read-only Apollo admin access for running RTF"
+  - Justification: "Elevated permissions are required for running RTF against production data"
+  - Access Type: "Apollo Admin Access"
+  - Role: "Read Only"
+  - Environment(s) "Prod"
+- Once your admin access has been granted, create a [new personal Studio API key][14]. Note that
+  your elevated permissions are only valid for 12 hours and that you will need to create a new API
+  key each time you request access via SHERIFF.
 - Export your new API key as `APOLLO_KEY` using your preferred mechanism for managing shell
   environment variables before running rtf.
   - We use [mise][15] in the rtf repo and manage our environment variables in a `.env` file that is
@@ -102,7 +119,7 @@ git clone https://github.com/apollographql/rtf-morgue.git
 
 ## Replacing placeholder values
 
-Before either of the Test Plans can be checked and ran the placeholder values the contain need to be
+Before either of the test plans can be checked and ran the placeholder values the contain need to be
 filled in. Attempting to run them before doing this will deliberately fail checks so they can not be
 run by accident.
 
@@ -205,7 +222,7 @@ Running this updated command should output the templated test plan in your termi
 
 ## Executing the Test Plan
 
-Now that both Test Plans check successfully you can use the wrapper Test Plan to execute a
+Now that both test plans check successfully you can use the wrapper test plan to execute a
 performance test on an ephemeral VM. We don't need to override the values coming from the
 environment setup any more but we _do_ still need to specify the vm name suffix and graph ref:
 
@@ -265,10 +282,10 @@ The `rsync_dir` and `test_plan_dir` can be used in combination to run any local 
 write and run them on the `router-scale` VM.
 
 [0]: https://github.com/apollographql/rtf-morgue
-[1]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/router-scale
+[1]: https://github.com/apollographql/rtf-morgue/tree/main/test-plans/router-scale
 [2]: https://github.com/apollographql/router-scale
-[3]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/router-scale/wrapper
-[4]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/router-scale/router-perf
+[3]: https://github.com/apollographql/rtf-morgue/tree/main/test-plans/router-scale/wrapper
+[4]: https://github.com/apollographql/rtf-morgue/tree/main/test-plans/router-scale/router-perf
 [5]: https://github.com/apollographql/router
 [6]: https://github.com/tsenart/vegeta
 [7]: https://github.com/apollographql/runtime-testing-framework
