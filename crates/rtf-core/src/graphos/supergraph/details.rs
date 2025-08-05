@@ -194,7 +194,7 @@ impl PlatformQuery for RawSupergraphDetails {
         let subgraphs: Vec<_> = match graph_variant.source_variant {
             Some(v) => {
                 // TODO: have a better log message here (this is just lifted from fetchsup)
-                info!("This variant is a contract, using fallback subgraph location");
+                info!("this variant is a contract; using fallback subgraph location");
                 v.subgraphs
                     .ok_or(FetchErrorCause::NoSubgraphs)?
                     .into_iter()
