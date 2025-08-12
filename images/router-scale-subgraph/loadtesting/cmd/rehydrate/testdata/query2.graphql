@@ -1,0 +1,16 @@
+fragment fieldsA on ThingA {
+    iA
+    c
+}
+
+fragment fieldsB on ThingB {
+    iA
+    c
+}
+
+query getStuff {
+    doSomething {
+       ... fieldsA
+       ... fieldsB
+    }
+}

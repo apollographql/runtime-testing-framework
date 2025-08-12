@@ -1,0 +1,1 @@
+{"query":"query {\n customer(id: 1) {\n  properties {\n   id\n   salesforceId\n   state\n   ... on SemiDetachedHouse {\n    houseCommon {\n     zip_code\n    }\n   }\n  }\n }\n}\n"}

@@ -1,0 +1,30 @@
+" An author of a piece of literature. "
+type Author @key(fields: "id") @key(fields: "name") {
+    " The primary key for this author. "
+    id: ID!
+    " The name of the author. "
+    name: String!
+    " The year the author was born. "
+    yearBorn: Int!
+    " The year the author died (or null if alive)."
+    yearDied: Int
+    " Where the author was born, if known. "
+    whereBorn: String
+    " A short biography of the author. "
+    biography: String
+}
+
+type Book @key(fields: "title") {
+    title: String
+    published: Int
+}
+
+type Query {
+    " Get a list of authors. In REST this might be: /api/v1/authors?filter=&sort= "
+    authors(filter: String, sort: String): [Author!]!
+}
+
+type Mutation {
+    " Create a new author. "
+    addAuthor(name: String!, yearBorn: Int!, biography: String!): Author!
+}

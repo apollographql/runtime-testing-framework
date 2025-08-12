@@ -1,0 +1,37 @@
+# Test for input values being created correctly
+schema @core(feature: "https://specs.apollo.dev/core/v0.1") @core(feature: "https://specs.apollo.dev/join/v0.1") @apollo_studio_metadata(buildId: "0b12a515-e79b-4e3d-bab6-6b564bc8b1e5", checkId: null, launchId: "0b12a515-e79b-4e3d-bab6-6b564bc8b1e5") {
+  query: Query
+}
+
+enum Country {
+  US
+  DE
+  FR
+}
+
+enum GeometryType {
+  POINT
+  LINE_STRING
+  POLYGON
+  MULTI_POINT
+  MULTI_LINE_STRING
+  MULTI_POLYGON
+}
+
+input MyInput {
+  term: String!
+  country: Country!
+  limit: Int!
+  geometryType: [GeometryType]
+}
+
+type Output {
+    a: String
+    b: Int
+    c: Float
+}
+
+
+type Query{
+    doSomething(input: MyInput): Output
+}
