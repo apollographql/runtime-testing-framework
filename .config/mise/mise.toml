@@ -37,7 +37,7 @@ run = "cargo test"
 "cargo:dprint" = "0.48.0"
 "cargo:typos-cli" = "1.34.0"
 mdbook = "0.4.51"
-rust = "1.88.0"
+rust = "1.89.0"
 
 [env]
 _.file = '../../.env'
