@@ -1,4 +1,4 @@
-FROM golang:bookworm AS build
+FROM --platform=$BUILDPLATFORM golang:bookworm AS build
 
 # Install git
 RUN apt-get update && apt-get install -y git
@@ -16,7 +16,7 @@ RUN --mount=type=secret,id=GITHUB_TOKEN \
 # Build the subgraph binary
 RUN go build
 
-FROM debian:bookworm-slim AS final
+FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS final
 
 WORKDIR /app
 
