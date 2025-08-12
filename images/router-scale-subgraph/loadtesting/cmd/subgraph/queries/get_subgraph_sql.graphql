@@ -1,0 +1,17 @@
+query Service($serviceId: ID!, $name: String!) {
+  service(id: $serviceId) {
+    variant(name: $name) {
+      id
+      subgraphs {
+        name
+        activePartialSchema {
+          sdl
+        }
+      }
+    }
+  }
+}
+{
+  "serviceId": "",
+  "name": "prod"
+}

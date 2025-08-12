@@ -1,0 +1,10 @@
+go 1.22.3
+
+use (
+	./cmd/fetchsup
+	./cmd/rehydrate
+	./cmd/subgraph
+	./pkg/client
+	./pkg/latency
+	./pkg/tools
+)

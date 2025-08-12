@@ -1,0 +1,7 @@
+query getStuff {
+    doSomething(input: {}) {
+        a
+        b
+        c
+    }
+}

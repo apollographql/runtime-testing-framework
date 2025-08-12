@@ -1,0 +1,54 @@
+query accommodationSearchQuery__accommodations__20 ($representations: [_Any!]!, $shouldIncludeTopAmenities: Boolean!, $shouldIncludeFreeWiFiStatus: Boolean!) {
+ _entities(representations: $representations) {
+  ... on AccommodationDetails {
+   __typename
+   typeObject {
+    __typename
+    nsid {
+     __typename
+     id698: id
+     ns
+    }
+    ... on AccommodationDetails {
+     __typename
+     nsid {
+      id
+      ns
+     }
+    }
+    ... on AdvertiserDetails {
+     __typename
+     nsid {
+      id
+      ns
+     }
+    }
+    ... on Destination {
+     __typename
+     nsid {
+      id
+      ns
+     }
+    }
+   }
+  }
+  ... on AccommodationDetails @include(if: $shouldIncludeTopAmenities) {
+   typeObject {
+    __typename
+    nsid {
+     id
+     ns
+    }
+   }
+  }
+  ... on AccommodationDetails @include(if: $shouldIncludeFreeWiFiStatus) {
+   typeObject {
+    __typename
+    nsid {
+     id
+     ns
+    }
+   }
+  }
+ }
+}
