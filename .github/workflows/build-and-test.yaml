@@ -26,24 +26,37 @@ jobs:
           version=$(grep '^rust\s*=' .config/mise/mise.toml | sed -E 's/.*"([^"]+)".*/\1/')
           echo "rust-version=$version" >> "$GITHUB_OUTPUT"
 
-  test:
-    name: Test Rust ${{ matrix.rust }}
+  test-stable:
+    name: Test Rust stable
     runs-on: ubuntu-latest
     needs: [read-rust-version]
-    strategy:
-      fail-fast: false
-      matrix:
-        rust:
-          - ${{ needs.read-rust-version.outputs.rust-version }}
-          - beta
-          - nightly
-
     steps:
     - uses: actions/checkout@v4
     - uses: hecrj/setup-rust-action@v2
       with:
-        rust-version: ${{ matrix.rust }}
+        rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
+    - name: Run tests
+      run: cargo test --verbose
 
+  test-beta:
+    name: Test Rust beta
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: hecrj/setup-rust-action@v2
+      with:
+        rust-version: beta
+    - name: Run tests
+      run: cargo test --verbose
+
+  test-nightly:
+    name: Test Rust nightly
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: hecrj/setup-rust-action@v2
+      with:
+        rust-version: nightly
     - name: Run tests
       run: cargo test --verbose
 
@@ -111,7 +124,9 @@ jobs:
     runs-on: ubuntu-22.04
     needs:
       - read-rust-version
-      - test
+      - test-stable
+      - test-beta
+      - test-nightly
       - rustfmt
       - clippy
       - rustdoc-links
