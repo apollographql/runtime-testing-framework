@@ -1,0 +1,28 @@
+A valid yaml fragment for merging two YAML files correctly.
+
+-- config.yaml --
+kind: merge_yaml
+base:
+  kind: inline
+  content: |
+    foo: [1]
+    bar:
+      baz: "a"
+      qux: [true]
+overrides:
+  kind: inline
+  content: |
+    foo: [2]
+    bar:
+      baz: "b"
+      qux: [false]
+
+-- expected-file-content --
+foo:
+- 1
+- 2
+bar:
+  baz: b
+  qux:
+  - true
+  - false

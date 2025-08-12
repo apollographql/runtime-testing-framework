@@ -1,0 +1,20 @@
+A YAML fragment for a YAML merge file provider that references a base file
+which doesn't contain YAML. This should parse and check successfully but
+fail to resolve when we attempt to parse the contents of the base file.
+
+-- config.yaml --
+kind: merge_yaml
+base:
+  kind: inline
+  content: |
+    "an unclosed string
+overrides:
+  kind: inline
+  content: |
+    foo: [2]
+    bar:
+      baz: "b"
+      qux: [false]
+
+-- resolution-errors --
+found unexpected end of stream at line 2 column 1, while scanning a quoted scalar
