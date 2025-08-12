@@ -57,3 +57,109 @@ pub(crate) fn merge_yaml(overrides: serde_yaml::Value, base: &mut serde_yaml::Va
         (overrides, base) => *base = overrides,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use indoc::indoc;
+    use simple_test_case::test_case;
+
+    #[test_case(
+        "foo: [1]",
+        "foo: [2]",
+        indoc!(r#"
+        foo:
+        - 1
+        - 2"#);
+        "arrays concatenate"
+    )]
+    #[test_case(
+        indoc!(r#"
+        foo:
+          bar: 1
+          baz: 2"#),
+        indoc!(r#"
+        foo:
+          baz: 42"#),
+        indoc!(r#"
+        foo:
+          bar: 1
+          baz: 42"#);
+        "maps override individual keys"
+    )]
+    #[test_case(
+        "foo: 1",
+        "foo: 2",
+        "foo: 2";
+        "scalar scalar overwrites"
+    )]
+    #[test_case(
+        "foo: 1",
+        "foo: [2]",
+        indoc!(r#"
+        foo:
+        - 2"#);
+        "scalar array overwrites"
+    )]
+    #[test_case(
+        "foo: 1",
+        indoc!(r#"
+        foo:
+          bar: 1
+          baz: 2"#),
+        indoc!(r#"
+        foo:
+          bar: 1
+          baz: 2"#);
+        "scalar map overwrites"
+    )]
+    #[test_case(
+        "foo: [1]",
+        "foo: 2",
+        "foo: 2";
+        "array scalar overwrites"
+    )]
+    #[test_case(
+        "foo: [1]",
+        indoc!(r#"
+        foo:
+          bar: 1
+          baz: 2"#),
+        indoc!(r#"
+        foo:
+          bar: 1
+          baz: 2"#);
+        "array map overwrites"
+    )]
+    #[test_case(
+        indoc!(r#"
+        foo:
+          bar: 1
+          baz: 2"#),
+        "foo: 2",
+        "foo: 2";
+        "map scalar overwrites"
+    )]
+    #[test_case(
+        indoc!(r#"
+        foo:
+          bar: 1
+          baz: 2"#),
+        "foo: [2]",
+        indoc!(r#"
+        foo:
+        - 2"#);
+        "map array overwrites"
+    )]
+    #[test]
+    fn merge_yaml_returns_expected_structure(base: &str, overrides: &str, expected: &str) {
+        let mut base: serde_yaml::Value = serde_yaml::from_str(base).unwrap();
+        let overrides: serde_yaml::Value = serde_yaml::from_str(overrides).unwrap();
+
+        merge_yaml(overrides, &mut base);
+
+        let merged = serde_yaml::to_string(&base).unwrap().trim().to_string();
+
+        assert_eq!(merged, expected);
+    }
+}
