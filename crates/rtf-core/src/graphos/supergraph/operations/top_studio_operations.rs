@@ -886,16 +886,16 @@ fn add_missing_aliases(
     // -> This requires that all of the fragments have already been pre-processed as part of
     //    [Signature::parse_and_fix].
     for sel in selset.selections.iter() {
-        if let Selection::FragmentSpread(s) = sel {
-            if let Some(frag) = fragments.get(&s.fragment_name) {
-                for sel in frag.selection_set.selections.iter() {
-                    if let Selection::Field(f) = sel {
-                        let name = match f.alias.as_ref() {
-                            Some(name) => name.clone(),
-                            None => f.name.clone(),
-                        };
-                        seen.insert(name);
-                    }
+        if let Selection::FragmentSpread(s) = sel
+            && let Some(frag) = fragments.get(&s.fragment_name)
+        {
+            for sel in frag.selection_set.selections.iter() {
+                if let Selection::Field(f) = sel {
+                    let name = match f.alias.as_ref() {
+                        Some(name) => name.clone(),
+                        None => f.name.clone(),
+                    };
+                    seen.insert(name);
                 }
             }
         }

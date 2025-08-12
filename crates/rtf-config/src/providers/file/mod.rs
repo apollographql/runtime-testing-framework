@@ -20,6 +20,7 @@ use std::{
 pub mod apollo;
 pub mod github;
 mod source;
+pub mod utility;
 
 pub use source::{RawSource, Source};
 
@@ -175,6 +176,7 @@ pub enum FileProvider {
     Required(RequiredFile),
     ResolvedValues(ResolvedValues),
     RouterDownloadScript(RouterDownloadScript),
+    MergeYaml(utility::MergeYaml),
 }
 
 // Each time we add a new variant to the FileProvider enum above we need to remember to add it to
@@ -200,6 +202,7 @@ enum_impl_file_provider!(
     Required,
     ResolvedValues,
     RouterDownloadScript,
+    MergeYaml,
 );
 
 /// The simplest form of file provider: the user specifies the contents of the file inline within
