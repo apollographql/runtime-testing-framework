@@ -117,6 +117,178 @@ impl Check for GraphosSubgraphs {
     }
 }
 
+/// # GraphOS Supergraph Docker Compose
+///
+/// The user specifies the graph ref that should be used to fetch subgraph
+/// SDL files from the GraphOS API and generates a docker compose file that
+/// runs all the subgraphs
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+pub struct GraphosSubgraphDockerCompose {
+    pub graph_ref: Field<String>,
+}
+
+impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
+    async fn try_get_file_content(
+        &self,
+        _src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<String> {
+        let (graph_id, variant) = self
+            .graph_ref
+            .as_resolved()
+            .split_once('@')
+            .expect("validated graph_ref");
+
+        let subgraphs = ctx
+            .with_supergraph_details(graph_id, variant, |details| Ok(details.subgraphs.clone()))
+            .await?;
+
+        // The current subgraph mock service needs the full supergraph schema to run NOT the subgraph schema.
+        // This is counter-intuitive and will be addressed when we create a new subgraph mocking service.
+        let supergraph = ctx
+            .with_supergraph_details(graph_id, variant, |details| {
+                Ok(details.supergraph_sdl.clone())
+            })
+            .await?;
+
+        let mut services: HashMap<String, SubgraphService> = HashMap::new();
+        let mut port = 4001;
+        for sg in subgraphs {
+            let mut resources: HashMap<String, Resource> = HashMap::new();
+            resources.insert(
+                "limits".to_string(),
+                Resource {
+                    cpus: "0.1".to_string(),
+                    memory: "1G".to_string(),
+                },
+            );
+            resources.insert(
+                "reservations".to_string(),
+                Resource {
+                    cpus: "0.1".to_string(),
+                    memory: "512M".to_string(),
+                },
+            );
+
+            let service = SubgraphService {
+                image: "ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main"
+                    .to_string(),
+                container_name: sg.name.clone(),
+                command: vec![
+                    "-schema".to_string(),
+                    "/app/supergraph.graphql".to_string(),
+                    "-latency=5ms".to_string(),
+                    "-sine-period=10s".to_string(),
+                    "-sine-amplitude=2ms".to_string(),
+                ],
+                configs: vec![SubgraphConfig {
+                    source: "supergraph.graphql".to_string(),
+                    target: "/app/supergraph.graphql".to_string(),
+                }],
+                ports: vec![format!("{}:8080", port)],
+                restart: "unless-stopped".to_string(),
+                deploy: Deploy {
+                    resources: Resources { resources },
+                },
+                mem_swappiness: 0,
+            };
+
+            services.insert(sg.name.clone(), service);
+            port += 1;
+        }
+
+        let mut configs: HashMap<String, Config> = HashMap::new();
+        configs.insert(
+            "supergraph.graphql".to_string(),
+            Config {
+                content: supergraph,
+            },
+        );
+
+        let compose = Compose {
+            services: SubgraphServices { services },
+            configs: Configs { configs },
+        };
+        let compose_yaml = serde_yaml::to_string(&compose)?;
+
+        // Here follows the structs required to create a properly formatted docker compose file
+        // The serde flatten from a HashMap allows us to create multiple similar objects with
+        // uniquely named keys (so each service is named after the subgraph for example)
+        #[derive(Serialize)]
+        struct Compose {
+            services: SubgraphServices,
+            configs: Configs,
+        }
+
+        #[derive(Serialize)]
+        struct SubgraphServices {
+            #[serde(flatten)]
+            services: HashMap<String, SubgraphService>,
+        }
+
+        #[derive(Serialize)]
+        struct SubgraphService {
+            image: String,
+            container_name: String,
+            command: Vec<String>,
+            configs: Vec<SubgraphConfig>,
+            ports: Vec<String>,
+            restart: String,
+            deploy: Deploy,
+            mem_swappiness: i64,
+        }
+
+        #[derive(Serialize)]
+        struct SubgraphConfig {
+            source: String,
+            target: String,
+        }
+
+        #[derive(Serialize)]
+        struct Configs {
+            #[serde(flatten)]
+            configs: HashMap<String, Config>,
+        }
+
+        #[derive(Serialize)]
+        struct Config {
+            content: String,
+        }
+
+        #[derive(Serialize)]
+        struct Deploy {
+            resources: Resources,
+        }
+
+        #[derive(Serialize)]
+        struct Resources {
+            #[serde(flatten)]
+            resources: HashMap<String, Resource>,
+        }
+
+        #[derive(Serialize)]
+        struct Resource {
+            cpus: String,
+            memory: String,
+        }
+
+        Ok(compose_yaml)
+    }
+}
+
+impl_template!(GraphosSubgraphDockerCompose => [graph_ref]);
+
+impl Check for GraphosSubgraphDockerCompose {
+    fn try_check(
+        &self,
+        path: &mut Vec<String>,
+        _src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
+    }
+}
+
 /// # GraphOS Canned Operations
 ///
 /// The user specifies the graph ref and parameters that should be used to

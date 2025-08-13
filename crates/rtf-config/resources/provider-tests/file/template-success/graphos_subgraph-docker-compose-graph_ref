@@ -1,0 +1,13 @@
+A valid yaml fragment for a graphos subgraph docker compose file provider that uses
+a template for the graph ref
+
+-- config.yaml --
+kind: graphos_subgraph_docker_compose
+graph_ref: "{{ graph_ref }}"
+
+-- values --
+graph_ref: "graph_id@variant"
+
+-- after-templating --
+kind: graphos_subgraph_docker_compose
+graph_ref: "graph_id@variant"

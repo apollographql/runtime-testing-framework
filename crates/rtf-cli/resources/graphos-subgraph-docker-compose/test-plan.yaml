@@ -1,0 +1,29 @@
+name: graphos-subgraph-docker-compose
+description: |
+  Check that subgraphs can be successfully pulled from GraphOS
+
+scenario:
+  inline:
+    name: scenario-graphos-subgraph-docker-compose
+    description: "Check that subgraph files can be pulled from GraphOS and generate a docker compose file"
+    command: echo 1
+    file_providers:
+      - name: subgraph-compose.yaml
+        env_var: SUBGRAPH_COMPOSE
+        kind: graphos_subgraph_docker_compose
+        graph_ref: "imgood-observability-test@current"
+
+environment:
+  inline:
+    name: environment-graphos-subgraph-docker-compose
+    description: "Minimal env config since this is not used for the test"
+    setup:
+      command:
+        name: echo-output.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "{}" > "$RTF_OUTPUT"
+
+    teardown:
+      command: echo 1
