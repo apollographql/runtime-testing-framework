@@ -7,16 +7,25 @@ use crate::{
     providers::{command::CommandSection, file::Source},
     templating::{self, Scalar, Template},
 };
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, path::Path};
 
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
+/// # Environment Config
+///
+/// Configuration for preparing and cleaning up the test environment as part of a test plan.
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct EnvironmentConfig {
+    /// The name of this environment configuration
     pub name: String,
+    /// A brief description of how this environment setup works
     pub description: String,
+    /// Definitions for the required values for templating this environment
     #[serde(default)]
     pub values: Vec<ValueDefinition>,
+    /// The command to execute to prepare the environment for executing the test scenario
     pub setup: SetupSection,
+    /// The command to execute to clean up the environment after executing the test scenario
     pub teardown: CommandSection,
 }
 
@@ -113,10 +122,12 @@ impl Check for EnvironmentConfig {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
+/// # Setup Command Section
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct SetupSection {
     #[serde(flatten)]
     pub command: CommandSection,
+    /// Additional templating values that will be provided through the output of this command
     #[serde(default)]
     pub provides: Vec<ValueDefinition>,
 }

@@ -409,8 +409,10 @@ where
 // NOTE: We are wrapping this as a newtype to avoid exposing serde_json::Number as part of the
 // public API.
 
+/// # Number
+///
 /// Represents a number, whether integer or floating point.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct Number(serde_json::Number);
 
 impl fmt::Display for Number {
@@ -419,8 +421,10 @@ impl fmt::Display for Number {
     }
 }
 
+/// # Scalar
+///
 /// A scalar that is valid to be used as a template value for a [Field].
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(untagged)]
 pub enum Scalar {
     /// Represents a number, whether integer or floating point.

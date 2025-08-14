@@ -13,6 +13,7 @@ use crate::{
 };
 use itertools::Itertools;
 use rtf_core::github::{self, Client};
+use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
@@ -403,15 +404,23 @@ impl Sources {
 /// The raw format for parsing scenario config. This allows the [ScenarioConfig]
 /// and [EnvironmentConfig] to be retrieved from files or inline content before
 /// being fully templated and checked.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[schemars(title = "Test Plan Config")]
+#[schemars(description = "The top level config file for specifying an RTF test plan")]
 pub struct RawTestPlanConfig {
+    /// The name of this test plan
     pub name: String,
+    /// A brief description of the purpose / behaviour of this test plan
     pub description: String,
+    /// Templating values to apply to fields within the rest of the test plan
     #[serde(default)]
     pub values: HashMap<String, Scalar>,
+    /// Sets of templating values to apply to fields within the rest of the test plan as a matrix
     #[serde(default)]
     pub matrix: HashMap<String, Vec<Scalar>>,
+    /// The test scenario to execute
     pub scenario: ConfigSpec<ScenarioConfig>,
+    /// The environment setup and teardown to run around the test scenario
     pub environment: ConfigSpec<EnvironmentConfig>,
 }
 
@@ -472,19 +481,29 @@ where
     *v = deduped;
 }
 
+/// # Config Spec
+///
 /// This struct allows the config files to be resolved either from
 /// inline yaml in the test plan or from a [FileProvider]
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(untagged)]
 pub enum ConfigSpec<T> {
     Inline {
+        /// Inline YAML configuration
         inline: T,
     },
     From {
+        /// A source file to read to obtain the required configuration
         from: RawSource,
+        /// Optional overrides to merge on top of the base configuration
         #[serde(default)]
+        #[schemars(schema_with = "arbitrary_map")]
         overrides: serde_yaml::Value,
     },
+}
+
+fn arbitrary_map(_gen: &mut SchemaGenerator) -> Schema {
+    json_schema!({ "type": "object" })
 }
 
 impl<T> ConfigSpec<T>
