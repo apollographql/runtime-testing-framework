@@ -125,6 +125,50 @@ impl Check for GraphosSubgraphs {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct GraphosSubgraphDockerCompose {
     pub graph_ref: Field<String>,
+    #[serde(default = "default_image")]
+    pub image: Field<String>,
+    #[serde(default = "default_command")]
+    pub command: Vec<String>,
+    #[serde(default = "default_limits")]
+    pub resource_limits: Resources,
+    #[serde(default = "default_reservations")]
+    pub resource_reservations: Resources,
+    #[serde(default = "default_mem_swappiness")]
+    pub mem_swappiness: Field<i32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+pub struct Resources {
+    pub cpus: Field<String>,
+    pub memory: Field<String>,
+}
+
+fn default_image() -> Field<String> {
+    Field::Resolved(
+        "ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main".to_string(),
+    )
+}
+
+fn default_command() -> Vec<String> {
+    vec!["-schema".to_string(), "/app/supergraph.graphql".to_string()]
+}
+
+fn default_limits() -> Resources {
+    Resources {
+        cpus: Field::Resolved("0.1".to_string()),
+        memory: Field::Resolved("1G".to_string()),
+    }
+}
+
+fn default_reservations() -> Resources {
+    Resources {
+        cpus: Field::Resolved("0.1".to_string()),
+        memory: Field::Resolved("512M".to_string()),
+    }
+}
+
+fn default_mem_swappiness() -> Field<i32> {
+    Field::Resolved(0)
 }
 
 impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
@@ -158,29 +202,22 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
             resources.insert(
                 "limits".to_string(),
                 Resource {
-                    cpus: "0.1".to_string(),
-                    memory: "1G".to_string(),
+                    cpus: self.resource_limits.cpus.as_resolved().to_string(),
+                    memory: self.resource_limits.memory.as_resolved().to_string(),
                 },
             );
             resources.insert(
                 "reservations".to_string(),
                 Resource {
-                    cpus: "0.1".to_string(),
-                    memory: "512M".to_string(),
+                    cpus: self.resource_reservations.cpus.as_resolved().to_string(),
+                    memory: self.resource_reservations.memory.as_resolved().to_string(),
                 },
             );
 
             let service = SubgraphService {
-                image: "ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main"
-                    .to_string(),
+                image: self.image.as_resolved().to_string(),
                 container_name: sg.name.clone(),
-                command: vec![
-                    "-schema".to_string(),
-                    "/app/supergraph.graphql".to_string(),
-                    "-latency=5ms".to_string(),
-                    "-sine-period=10s".to_string(),
-                    "-sine-amplitude=2ms".to_string(),
-                ],
+                command: self.command.clone(),
                 configs: vec![SubgraphConfig {
                     source: "supergraph.graphql".to_string(),
                     target: "/app/supergraph.graphql".to_string(),
@@ -190,7 +227,7 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
                 deploy: Deploy {
                     resources: Resources { resources },
                 },
-                mem_swappiness: 0,
+                mem_swappiness: *self.mem_swappiness.as_resolved(),
             };
 
             services.insert(sg.name.clone(), service);
@@ -235,7 +272,7 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
             ports: Vec<String>,
             restart: String,
             deploy: Deploy,
-            mem_swappiness: i64,
+            mem_swappiness: i32,
         }
 
         #[derive(Serialize)]

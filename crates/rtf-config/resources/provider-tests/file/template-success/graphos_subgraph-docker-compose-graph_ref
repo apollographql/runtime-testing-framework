@@ -11,3 +11,14 @@ graph_ref: "graph_id@variant"
 -- after-templating --
 kind: graphos_subgraph_docker_compose
 graph_ref: "graph_id@variant"
+image: "ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main"
+command:
+  - "-schema"
+  - "/app/supergraph.graphql"
+resource_limits:
+  cpus: "0.1"
+  memory: "1G"
+resource_reservations:
+  cpus: "0.1"
+  memory: "512M"
+mem_swappiness: 0
