@@ -14,8 +14,8 @@
   - [Writing a new environment provider]()
   - [Checking config files]()
 
-- [The framework]()
-  - [Config fragments]()
+- [The framework](framework/index.md)
+  - [Providers](framework/providers.md)
 
 - [Troubleshooting]()
 
