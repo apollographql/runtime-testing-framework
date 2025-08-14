@@ -11,12 +11,15 @@ use crate::{
     },
     templating::{self, Scalar, Template},
 };
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::error;
 
-/// A subset of file providers that can produce arbitrary utf-8 text
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+/// # Text File Provider
+///
+/// A subset of file providers that can produce arbitrary utf-8 text as their output.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum TextFileProvider {
     GithubFile(GithubFile),
@@ -39,13 +42,17 @@ macro_rules! enum_impl_text_file_provider {
 
 enum_impl_text_file_provider!(GithubFile, Inline, RelativePath, Required);
 
+/// # Merge YAML
+///
 /// Merge the YAML output of two text based file providers into a single YAML file.
 ///
 /// Matching keys in the overrides file will replace scalar values, concatenate arrays
 /// and merge keys for maps.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct MergeYaml {
+    /// A base YAML file to start with.
     pub(crate) base: TextFileProvider,
+    /// An second YAML file to merge on top of the base file.
     pub(crate) overrides: TextFileProvider,
 }
 

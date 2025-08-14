@@ -8,17 +8,27 @@ use crate::{
     templating::{self, Field, Scalar, Template},
 };
 use rtf_core::github::Client;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// # GitHub File
+///
 /// The user specifies a path to a file within a GitHub repository, optionally providing a specific
 /// ref of the repository to pull the file from. If no ref is providing then the provider will pull
 /// the version of the file found on the default branch.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct GithubFile {
+    /// The GitHub org for the repository containing the target file
     pub(crate) org: Field<String>,
+    /// The GitHub repository containing the target file
     pub(crate) repo: Field<String>,
+    /// The absolute path from the root of the repository to the target file
     pub(crate) path: Field<String>,
+    /// An optional git reference to pull the file from. This may be a full or partial commit hash,
+    /// branch name, or tag.
+    ///
+    /// Defaults to the mainline branch as specified in GitHub if unset.
     pub(crate) git_ref: Option<Field<String>>,
 }
 

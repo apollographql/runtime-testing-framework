@@ -14,6 +14,7 @@ use rtf_core::graphos::supergraph::{
     SupergraphDetails,
     operations::{fetch_offline_license, top_studio_operations::generate_canned_ops},
 };
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -21,10 +22,13 @@ use std::{
     sync::Arc,
 };
 
+/// # GraphOS Supergraph SDL
+///
 /// The user specifies the ref that should be used to fetch a supergraph SDL
 /// file from the GraphOS API.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct GraphosSupergraph {
+    /// The Apollo graph ref to pull supergraph SDL for.
     pub graph_ref: Field<String>,
 }
 
@@ -60,10 +64,16 @@ impl Check for GraphosSupergraph {
     }
 }
 
+/// # GraphOS subgraph SDL
+///
 /// The user specifies the graph ref that should be used to fetch a subgraph
 /// SDL files from the GraphOS API.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+///
+/// Note that this file proivider will output a directory of SDL schema files, one for each
+/// subgraph.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct GraphosSubgraphs {
+    /// The Apollo graph ref to pull subgraph SDL files for.
     pub graph_ref: Field<String>,
 }
 
@@ -107,14 +117,23 @@ impl Check for GraphosSubgraphs {
     }
 }
 
+/// # GraphOS Canned Operations
+///
 /// The user specifies the graph ref and parameters that should be used to
 /// generate canned GraphQL requests based on operations data obtained from
 /// the GraphOS API.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct GraphosCannedOps {
+    /// The Apollo graph ref to pull operations for.
     pub graph_ref: Field<String>,
+    /// The number of operations to attempt to fetch.
+    ///
+    /// Defaults to 20 if unset.
     #[serde(default = "default_top_n")]
     pub top_n: Field<usize>,
+    /// Whether or not to include mutations in the returned operations.
+    ///
+    /// Defaults to false if unset.
     #[serde(default)]
     pub skip_mutations: Field<bool>,
 }
@@ -172,10 +191,13 @@ impl Check for GraphosCannedOps {
     }
 }
 
+/// # GraphOS Offline License
+///
 /// The user specifies the graph id that should be used to fetch an offline license from the
 /// GraphOS API.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct OfflineGraphosLicense {
+    /// The Apollo graph ref to pull an offline license for.
     pub graph_id: Field<String>,
 }
 
