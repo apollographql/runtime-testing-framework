@@ -1,0 +1,10 @@
+A YAML fragment for a GraphOS subgraphs router url overrides provider. The context used in this test
+does not provide config for the platform api so this test should fail checks.
+
+-- config.yaml --
+kind: graphos_subgraph_router_url_overrides
+graph_ref: "not-a-real-ref"
+
+-- check-errors --
+InvalidGraphRef
+MissingGraphOsApiKey
