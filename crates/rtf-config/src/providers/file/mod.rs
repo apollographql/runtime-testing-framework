@@ -9,6 +9,7 @@ use crate::{
 use indoc::indoc;
 use reqwest::StatusCode;
 use rtf_core::{HttpClient, github::Client};
+use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::HashMap,
@@ -162,7 +163,8 @@ impl DerefMut for NamedFileProvider {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+/// # File Provider
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
     BuildRouterFromSource(BuildRouterFromSource),
@@ -177,6 +179,17 @@ pub enum FileProvider {
     ResolvedValues(ResolvedValues),
     RouterDownloadScript(RouterDownloadScript),
     MergeYaml(utility::MergeYaml),
+}
+
+impl FileProvider {
+    pub fn json_schema() -> serde_json::Value {
+        let mut settings = SchemaSettings::default();
+        settings.inline_subschemas = true;
+        let generator = settings.into_generator();
+        let schema = generator.into_root_schema_for::<Self>();
+
+        schema.to_value()
+    }
 }
 
 // Each time we add a new variant to the FileProvider enum above we need to remember to add it to
@@ -205,10 +218,13 @@ enum_impl_file_provider!(
     MergeYaml,
 );
 
+/// # Inline File
+///
 /// The simplest form of file provider: the user specifies the contents of the file inline within
 /// their config file.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 pub struct InlineFile {
+    /// The text to write out as the contents of the generated file.
     pub(crate) content: String,
 }
 
@@ -235,10 +251,14 @@ impl Check for InlineFile {
     }
 }
 
-/// The user specifies a path to a local file relative to the config
-/// file containing this provider
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+/// # Relative File
+///
+/// A relative path from the containing config file to a target file that should be made available
+/// as part of the test run. This provider works both with local files and files within GitHub
+/// if the containing config file was pulled from a repository.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct RelativeFile {
+    /// The relative path from the containing config file to the target file.
     pub(crate) path: Field<String>,
 }
 
@@ -364,11 +384,14 @@ impl Check for RelativeFile {
     }
 }
 
+/// # Required File
+///
 /// The only purpose of this file provider is to throw an error if it still exists
 /// when the file providers are being checked. All definitions of a required file
 /// are expected to be replaced by user defined file providers.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 pub struct RequiredFile {
+    /// The error message to display to the user if this provider is not overwritten.
     message: String,
 }
 
@@ -401,8 +424,10 @@ impl Check for RequiredFile {
     }
 }
 
+/// # Resolved Values
+///
 /// Returns the JSON string representation of the resolved values for the test plan being run.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 pub struct ResolvedValues;
 
 impl AsUtf8FileContent for ResolvedValues {
@@ -433,8 +458,13 @@ impl Check for ResolvedValues {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+/// # Router Download Script
+///
+/// Produces a POSIX shell script that can be run in order to download a target version of the
+/// Apollo Router.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct RouterDownloadScript {
+    /// The version of the Apollo Router to download.
     pub(crate) version: Field<String>,
 }
 
@@ -480,16 +510,22 @@ impl Check for RouterDownloadScript {
     }
 }
 
+/// # Build Router From Source
+///
 /// A file provider used for building the Router from source at a specific git commit
 /// or reference.
-///
-/// - `commit_ref`: A git reference that can be passed to `git checkout`. This may be
-///   a full or partial commit hash, branch name, or tag. Defaults to `"main"` if unset.
-/// - `rust_version`: A Rust version string that can be passed to `rustup run {rust_version}`,
-///   such as `"1.78.0"`, `"beta"`, or `"nightly"`. Defaults to `"stable"` if unset.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct BuildRouterFromSource {
+    /// A git reference that can be passed to `git checkout`. This may be
+    /// a full or partial commit hash, branch name, or tag.
+    ///
+    /// Defaults to `"main"` if unset.
     pub(crate) commit_ref: Option<Field<String>>,
+
+    /// A Rust version string that can be passed to `rustup run {rust_version}`,
+    /// such as `"1.78.0"`, `"beta"`, or `"nightly"`.
+    ///
+    /// Defaults to `"stable"` if unset.
     pub(crate) rust_version: Option<Field<String>>,
 }
 

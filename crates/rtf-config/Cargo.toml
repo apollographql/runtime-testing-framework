@@ -18,6 +18,7 @@ reqwest.workspace = true
 anyhow = "1.0.98"
 bytes = "1.10.1"
 indoc = "2.0.6"
+schemars = { version = "1.0.4", features = ["preserve_order"] }
 
 [dev-dependencies]
 pretty_assertions.workspace = true

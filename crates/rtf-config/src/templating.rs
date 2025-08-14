@@ -1,9 +1,10 @@
 //! Helpers for supporting minimal templating of user config files.
+use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{
-    Deserialize, Deserializer, Serialize,
+    Deserialize, Deserializer, Serialize, Serializer,
     de::{self, DeserializeOwned, Visitor},
 };
-use std::{collections::HashMap, fmt, marker::PhantomData};
+use std::{borrow::Cow, collections::HashMap, fmt, marker::PhantomData};
 
 /// User facing descriptions of the reason that templating a [Field] failed.
 ///
@@ -201,7 +202,7 @@ macro_rules! impl_template {
 /// file.
 ///
 /// Fields must be resolved in order to be usable during a test run.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Field<T>
 where
     T: ValidField,
@@ -210,6 +211,55 @@ where
     Pending(String),
     /// A field containing the final data needed for resolving the config file.
     Resolved(T),
+}
+
+impl<T> JsonSchema for Field<T>
+where
+    T: JsonSchema + ValidField,
+{
+    fn schema_name() -> Cow<'static, str> {
+        let t_type = T::json_schema(&mut SchemaGenerator::default())
+            .to_value()
+            .get("type")
+            .unwrap()
+            .clone();
+
+        format!("Templatable {}", t_type.as_str().unwrap()).into()
+    }
+
+    fn schema_id() -> Cow<'static, str> {
+        format!("Field<{}>", T::schema_id()).into()
+    }
+
+    fn inline_schema() -> bool {
+        false
+    }
+
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
+        let t_type = T::json_schema(generator)
+            .to_value()
+            .get("type")
+            .unwrap()
+            .clone();
+
+        json_schema!({
+          "description": format!(
+              "A templatable {} that can be replaced with a user specified value at runtime",
+              t_type.as_str().unwrap()
+          ),
+          "oneOf": [
+            {
+              "description": "The value that should be templated.",
+              "type": "string",
+              "pattern": r#"^\{\{ \w+ \}\}$"#
+            },
+            {
+              "description": "Statically provided data.",
+              "type": t_type
+            }
+          ]
+        })
+    }
 }
 
 impl<T> Field<T>
@@ -265,6 +315,18 @@ where
         }
 
         Ok(())
+    }
+}
+
+impl<T: ValidField> Serialize for Field<T> {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Self::Pending(s) => serializer.serialize_str(&format!("{{{{ {s} }}}}")),
+            Self::Resolved(t) => t.serialize(serializer),
+        }
     }
 }
 
@@ -410,7 +472,7 @@ impl TryFrom<f64> for Scalar {
 
 /// A [Scalar] type which may appear inside of a templated [Field] within a config file.
 pub trait ValidField:
-    fmt::Debug + Clone + DeserializeOwned + TryFrom<Scalar, Error = String>
+    fmt::Debug + Clone + Serialize + DeserializeOwned + TryFrom<Scalar, Error = String>
 {
 }
 
