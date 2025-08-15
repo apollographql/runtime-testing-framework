@@ -196,8 +196,11 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
             .await?;
 
         let mut services: HashMap<String, SubgraphService> = HashMap::new();
-        let mut port = 4001;
-        for sg in subgraphs {
+        let base_port = 4001;
+
+        for (offset, sg) in subgraphs.iter().enumerate() {
+            let port = base_port + offset;
+
             let mut resources: HashMap<String, Resource> = HashMap::new();
             resources.insert(
                 "limits".to_string(),
@@ -231,7 +234,6 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
             };
 
             services.insert(sg.name.clone(), service);
-            port += 1;
         }
 
         let mut configs: HashMap<String, Config> = HashMap::new();
@@ -248,9 +250,8 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
         };
         let compose_yaml = serde_yaml::to_string(&compose)?;
 
-        // Here follows the structs required to create a properly formatted docker compose file
-        // The serde flatten from a HashMap allows us to create multiple similar objects with
-        // uniquely named keys (so each service is named after the subgraph for example)
+        return Ok(compose_yaml);
+
         #[derive(Serialize)]
         struct Compose {
             services: SubgraphServices,
@@ -308,8 +309,6 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
             cpus: String,
             memory: String,
         }
-
-        Ok(compose_yaml)
     }
 }
 
