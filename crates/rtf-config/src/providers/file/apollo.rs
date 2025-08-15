@@ -196,8 +196,11 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
             .await?;
 
         let mut services: HashMap<String, SubgraphService> = HashMap::new();
-        let mut port = 4001;
-        for sg in subgraphs {
+        let base_port = 4001;
+
+        for (offset, sg) in subgraphs.iter().enumerate() {
+            let port = base_port + offset;
+
             let mut resources: HashMap<String, Resource> = HashMap::new();
             resources.insert(
                 "limits".to_string(),
@@ -231,7 +234,6 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
             };
 
             services.insert(sg.name.clone(), service);
-            port += 1;
         }
 
         let mut configs: HashMap<String, Config> = HashMap::new();
@@ -248,9 +250,8 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
         };
         let compose_yaml = serde_yaml::to_string(&compose)?;
 
-        // Here follows the structs required to create a properly formatted docker compose file
-        // The serde flatten from a HashMap allows us to create multiple similar objects with
-        // uniquely named keys (so each service is named after the subgraph for example)
+        return Ok(compose_yaml);
+
         #[derive(Serialize)]
         struct Compose {
             services: SubgraphServices,
@@ -308,14 +309,95 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
             cpus: String,
             memory: String,
         }
-
-        Ok(compose_yaml)
     }
 }
 
 impl_template!(GraphosSubgraphDockerCompose => [graph_ref]);
 
 impl Check for GraphosSubgraphDockerCompose {
+    fn try_check(
+        &self,
+        path: &mut Vec<String>,
+        _src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
+    }
+}
+
+/// # GraphOS Supergraph Router URL Overrides
+///
+/// The user specifies the graph ref that should be used to fetch subgraph
+/// SDL files from the GraphOS API and generates a the override_subgraph_urls
+/// YAML snippet that can be merged into a router config file
+///
+/// This should be used when generating the subgraph docker compose using
+/// [GraphosSubgraphDockerCompose]. This will ensure the router subgraph urls
+/// map to the urls in that compose file.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+pub struct GraphosSubgraphRouterUrlOverrides {
+    pub graph_ref: Field<String>,
+    #[serde(default = "default_url_format")]
+    pub url_format: UrlFormat,
+}
+
+fn default_url_format() -> UrlFormat {
+    UrlFormat::Localhost
+}
+
+/// The allowed url formats for the [GraphosSubgraphRouterUrlOverrides]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum UrlFormat {
+    Localhost,
+    Docker,
+}
+
+impl UrlFormat {
+    fn subgraph_url(&self, subgraph_name: &String, port: &usize) -> String {
+        match self {
+            UrlFormat::Localhost => format!("http://localhost:{port}"),
+            UrlFormat::Docker => format!("http://{}:8080", subgraph_name),
+        }
+    }
+}
+
+impl AsUtf8FileContent for GraphosSubgraphRouterUrlOverrides {
+    async fn try_get_file_content(
+        &self,
+        _src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<String> {
+        let (graph_id, variant) = self
+            .graph_ref
+            .as_resolved()
+            .split_once('@')
+            .expect("validated graph_ref");
+
+        let subgraphs = ctx
+            .with_supergraph_details(graph_id, variant, |details| Ok(details.subgraphs.clone()))
+            .await?;
+
+        let mut subgraph_urls: HashMap<String, String> = HashMap::new();
+        let base_port = 4001;
+
+        for (offset, sg) in subgraphs.iter().enumerate() {
+            let port = base_port + offset;
+
+            let url = self.url_format.subgraph_url(&sg.name, &port);
+            subgraph_urls.insert(sg.name.clone(), url);
+        }
+
+        let overrides_yaml =
+            serde_yaml::to_string(&serde_json::json!({"override_subgraph_url": subgraph_urls}))?;
+
+        Ok(overrides_yaml)
+    }
+}
+
+impl_template!(GraphosSubgraphRouterUrlOverrides => [graph_ref]);
+
+impl Check for GraphosSubgraphRouterUrlOverrides {
     fn try_check(
         &self,
         path: &mut Vec<String>,

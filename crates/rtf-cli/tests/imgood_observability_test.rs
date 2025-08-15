@@ -12,6 +12,7 @@ use simple_test_case::test_case;
 
 #[test_case("resources/graphos-supergraph"; "supergraph sdl")]
 #[test_case("resources/graphos-subgraph-docker-compose"; "subgraph docker compose")]
+#[test_case("resources/graphos-subgraph-router-url-overrides"; "subgraph router url overrides")]
 #[test_case("resources/graphos-subgraphs"; "subgraph sdls")]
 #[test_case("resources/graphos-canned-ops"; "canned operations")]
 #[test]

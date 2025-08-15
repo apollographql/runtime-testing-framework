@@ -1,0 +1,29 @@
+name: graphos-subgraph-router-url-overrides
+description: |
+  Check that subgraph router url overrides can be generated
+
+scenario:
+  inline:
+    name: scenario-graphos-subgraph-router-url-overrides
+    description: "Check that subgraph files can be pulled from GraphOS and generate a router url overrides file"
+    command: echo 1
+    file_providers:
+      - name: subgraph-url-overrides.yaml
+        env_var: SUBGRAPH_URL_OVERRIDES
+        kind: graphos_subgraph_router_url_overrides
+        graph_ref: "imgood-observability-test@current"
+
+environment:
+  inline:
+    name: environment-graphos-subgraph-router-url-overrides
+    description: "Minimal env config since this is not used for the test"
+    setup:
+      command:
+        name: echo-output.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "{}" > "$RTF_OUTPUT"
+
+    teardown:
+      command: echo 1
