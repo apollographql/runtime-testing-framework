@@ -6,7 +6,8 @@ use crate::{
     providers::{
         self, Result,
         file::{
-            AsUtf8FileContent, InlineFile, RelativeFile, RequiredFile, Source, github::GithubFile,
+            AsUtf8FileContent, InlineFile, RelativeFile, RequiredFile, Source,
+            apollo::GraphosSubgraphRouterUrlOverrides, github::GithubFile,
         },
     },
     templating::{self, Scalar, Template},
@@ -23,6 +24,7 @@ use tracing::error;
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum TextFileProvider {
     GithubFile(GithubFile),
+    GraphosSubgraphRouterUrlOverrides(GraphosSubgraphRouterUrlOverrides),
     Inline(InlineFile),
     RelativePath(RelativeFile),
     Required(RequiredFile),
@@ -40,7 +42,13 @@ macro_rules! enum_impl_text_file_provider {
     };
 }
 
-enum_impl_text_file_provider!(GithubFile, Inline, RelativePath, Required);
+enum_impl_text_file_provider!(
+    GithubFile,
+    GraphosSubgraphRouterUrlOverrides,
+    Inline,
+    RelativePath,
+    Required
+);
 
 /// # Merge YAML
 ///
