@@ -10,6 +10,7 @@
     rustdoc::all
 )]
 #![deny(clippy::undocumented_unsafe_blocks)]
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub mod checks;
@@ -21,10 +22,13 @@ pub mod templating;
 #[cfg(test)]
 mod txtar_context;
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct ValueDefinition {
+    /// The templating name for this value
     pub name: String,
+    /// A brief description of how this value is used
     pub description: String,
+    /// An optional default to use if this value is not provided in the parent test plan
     #[serde(default)]
     pub default: Option<templating::Scalar>,
 }

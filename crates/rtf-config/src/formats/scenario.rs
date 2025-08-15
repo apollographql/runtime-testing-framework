@@ -6,16 +6,23 @@ use crate::{
     providers::{command::CommandSection, file::Source},
     templating::{self, Scalar, Template},
 };
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, path::Path};
 
-/// The format for parsing scenario config
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
+/// # Scenario Config
+///
+/// Configuration for a single test scenario to be executed as part of a test plan.
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct ScenarioConfig {
+    /// The name of this scenario
     pub name: String,
+    /// A brief description of the purpose / behaviour of this scenario
     pub description: String,
+    /// Definitions for the required values for templating this scenario
     #[serde(default)]
     pub values: Vec<ValueDefinition>,
+    /// The command to execute as this scenario
     #[serde(flatten)]
     pub command: CommandSection,
 }

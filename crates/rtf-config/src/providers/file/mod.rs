@@ -141,9 +141,16 @@ macro_rules! enum_impl_resolve_and_write {
     };
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+/// # Named File Provider
+///
+/// Shared metadata that wraps every file provider.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct NamedFileProvider {
+    /// The to use for the output produced by this provider
+    ///
+    /// This can be either a file or a directory depending on the file provider.
     pub name: String,
+    /// The environment variable to place the absolute path to this providers output
     pub env_var: String,
     #[serde(flatten)]
     pub provider: FileProvider,

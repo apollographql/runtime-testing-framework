@@ -11,6 +11,7 @@ use crate::{
     },
     templating::{self, Field, Scalar, Template},
 };
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io, path::Path};
 
@@ -19,11 +20,18 @@ use std::{collections::HashMap, io, path::Path};
 const OUTDIR: &str = "OUTDIR";
 const OUTFILE: &str = "RTF_OUTPUT";
 
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
+/// # Command Section
+///
+/// Defines an executable command along with environment variables that should be set prior to
+/// execution and file providers that should be made available.
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct CommandSection {
+    /// The command to be run
     pub command: RawCommand,
+    /// Environment variables to set
     #[serde(default)]
     pub env_vars: HashMap<String, Field<String>>,
+    /// File providers to run and make available prior to execution
     #[serde(default)]
     pub file_providers: Vec<NamedFileProvider>,
 }
@@ -242,10 +250,13 @@ impl Check for CommandSection {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+/// # Raw Command
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(untagged)]
 pub enum RawCommand {
+    /// A named executable and arguments to run
     String(String),
+    /// An explicit specification for a command to be run
     Spec(CommandSpec),
 }
 
@@ -296,11 +307,15 @@ impl Check for RawCommand {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+/// # Command Spec
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct CommandSpec {
+    /// The name of the command to run
     pub name: String,
+    /// A provider to produce the command that should be run
     #[serde(flatten)]
     pub command_provider: CommandProvider,
+    /// Arguments to the command
     #[serde(default)]
     pub args: Vec<Field<String>>,
 }
@@ -358,7 +373,8 @@ impl Check for CommandSpec {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+/// # Command Provider
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum CommandProvider {
     Inline(InlineFile),

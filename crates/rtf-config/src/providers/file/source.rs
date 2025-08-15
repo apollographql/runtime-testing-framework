@@ -5,6 +5,7 @@ use crate::{
     providers::{self, Result},
 };
 use rtf_core::github::Client;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{io, path::PathBuf};
 
@@ -84,16 +85,22 @@ impl Default for Source {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// # Config Source
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum RawSource {
     Local {
+        /// A relative path to the target config file
         relative_path: PathBuf,
     },
     Github {
+        /// The GitHub org to pull the config file from
         org: String,
+        /// The GitHub repository to pull the config file from
         repo: String,
+        /// The absolute path to the config file within the target GitHub repository
         path: String,
+        /// An optional git ref to pull the config file from (defaults to mainline)
         #[serde(default)]
         git_ref: Option<String>,
     },
