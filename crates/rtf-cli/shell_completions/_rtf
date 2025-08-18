@@ -1,0 +1,140 @@
+#compdef rtf
+
+autoload -U is-at-least
+
+_rtf() {
+    typeset -A opt_args
+    typeset -a _arguments_options
+    local ret=1
+
+    if is-at-least 5.2; then
+        _arguments_options=(-s -S -C)
+    else
+        _arguments_options=(-s -C)
+    fi
+
+    local context curcontext="$curcontext" state line
+    _arguments "${_arguments_options[@]}" : \
+'*--value=[A single additional templating value in the form "key=value"]:VALUE:_default' \
+'--values=[Path to a JSON file containing additional template values]:VALUES:_files' \
+'*-v[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'*--verbose[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_rtf_commands" \
+"*::: :->rtf" \
+&& ret=0
+    case $state in
+    (rtf)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:rtf-command-$line[1]:"
+        case $line[1] in
+            (run)
+_arguments "${_arguments_options[@]}" : \
+'()--github=[Execute a test plan file in GitHub instead of from a local path]:ORG/REPO/PATH:_default' \
+'--ref=[Optional git ref to pull files from when using --github]:GIT_REF:_default' \
+'--outdir=[Output directory for providers when they run]:OUTDIR:_default' \
+'*--value=[A single additional templating value in the form "key=value"]:VALUE:_default' \
+'--values=[Path to a JSON file containing additional template values]:VALUES:_files' \
+'*-v[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'*--verbose[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'::test_plan_path -- Relative path to the test plan file that should be executed:_default' \
+&& ret=0
+;;
+(template)
+_arguments "${_arguments_options[@]}" : \
+'*--value=[A single additional templating value in the form "key=value"]:VALUE:_default' \
+'--values=[Path to a JSON file containing additional template values]:VALUES:_files' \
+'--check[Run a static check of the resulting test plan after templating]' \
+'*-v[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'*--verbose[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':test_plan_path -- Relative path to the test-plan.yaml file that should be templated:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_rtf__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:rtf-help-command-$line[1]:"
+        case $line[1] in
+            (run)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(template)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+}
+
+(( $+functions[_rtf_commands] )) ||
+_rtf_commands() {
+    local commands; commands=(
+'run:Check and run a test plan' \
+'template:Template a test plan using provided values, outputting the resulting config to stdout' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'rtf commands' commands "$@"
+}
+(( $+functions[_rtf__help_commands] )) ||
+_rtf__help_commands() {
+    local commands; commands=(
+'run:Check and run a test plan' \
+'template:Template a test plan using provided values, outputting the resulting config to stdout' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'rtf help commands' commands "$@"
+}
+(( $+functions[_rtf__help__help_commands] )) ||
+_rtf__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf help help commands' commands "$@"
+}
+(( $+functions[_rtf__help__run_commands] )) ||
+_rtf__help__run_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf help run commands' commands "$@"
+}
+(( $+functions[_rtf__help__template_commands] )) ||
+_rtf__help__template_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf help template commands' commands "$@"
+}
+(( $+functions[_rtf__run_commands] )) ||
+_rtf__run_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf run commands' commands "$@"
+}
+(( $+functions[_rtf__template_commands] )) ||
+_rtf__template_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf template commands' commands "$@"
+}
+
+if [ "$funcstack[1]" = "_rtf" ]; then
+    _rtf "$@"
+else
+    compdef _rtf rtf
+fi
