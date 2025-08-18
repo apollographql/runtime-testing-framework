@@ -28,4 +28,5 @@ simple_test_case.workspace = true
 
 [build-dependencies]
 clap-markdown = "0.1.4"
+clap_complete = "4.5.32"
 clap = { version = "4.5.32", features = ["derive"] }

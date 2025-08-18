@@ -1,3 +1,5 @@
+use clap::CommandFactory;
+use clap_complete::aot::{Shell, generate_to};
 use clap_markdown::{MarkdownOptions, help_markdown_custom};
 use std::{fs, io};
 
@@ -13,6 +15,14 @@ fn main() -> io::Result<()> {
     let help = help_markdown_custom::<cli::Args>(&MarkdownOptions::new().show_footer(false));
 
     fs::write("help.md", help)?;
+
+    // Write out a completion files
+    for shell in [Shell::Bash, Shell::Zsh, Shell::Fish] {
+        let mut cmd = cli::Args::command();
+        let name = cmd.get_name().to_string();
+
+        _ = generate_to(shell, &mut cmd, name, "shell_completions");
+    }
 
     Ok(())
 }
