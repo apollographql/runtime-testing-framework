@@ -57,9 +57,8 @@ const MAX_NULL_DEPTH: usize = 3;
 const MAX_DEPTH: usize = 10;
 
 /// The from field in the filter for fetching operations takes a negative integer as an offset in
-/// seconds to set how far back to query operations for. The default behaviour from rehydrate (the
-/// go impl used in router-scale) used 24 hours so we match that here.
-const LAST_24HOURS_SECONDS: i64 = -(60 * 60 * 24); // TODO: allow customising
+/// seconds to set how far back to query operations for. We use 30 days as the default behaviour.
+const LAST_30DAYS_SECONDS: i64 = -(60 * 60 * 24 * 30); // TODO: allow customising
 
 /// For a given supergraph, pull the top n operations as reported by studio and generate canned
 /// operation data to be able to use them in requests to a running Router.
@@ -320,7 +319,7 @@ impl FetchOperationIds {
                 } else {
                     vec![OperationType::QUERY, OperationType::MUTATION]
                 },
-                from: LAST_24HOURS_SECONDS,
+                from: LAST_30DAYS_SECONDS,
                 first,
                 after,
             },
