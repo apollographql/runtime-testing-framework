@@ -1,4 +1,7 @@
-use crate::{providers, templating::Scalar};
+use crate::{
+    providers::{self, Provider},
+    templating::Scalar,
+};
 use rtf_core::{
     APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, GITHUB_TOKEN_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR,
     HttpClient, ReqwestClient, github,
@@ -15,6 +18,7 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::Mutex;
+use tracing::error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PathKind {
@@ -55,6 +59,15 @@ pub trait ResolutionContext {
     }
 
     fn http_client(&self) -> Option<&Self::HttpClient> {
+        None
+    }
+
+    /// Record the path that the given provider's output was written to.
+    fn store_provider_output_path(&mut self, provider: Provider<'_>, path: PathBuf);
+
+    /// Query the output path of a given provider.
+    #[allow(unused_variables)]
+    fn known_provider_output_path(&self, provider: Provider<'_>) -> Option<PathBuf> {
         None
     }
 
@@ -168,6 +181,7 @@ pub struct Context {
     client: ReqwestClient,
     supergraph_details: Mutex<HashMap<String, Arc<SupergraphDetails>>>,
     values: HashMap<String, Scalar>,
+    fp_output_paths: HashMap<String, PathBuf>,
 }
 
 impl Context {
@@ -233,6 +247,24 @@ impl ResolutionContext for Context {
 
     fn http_client(&self) -> Option<&Self::HttpClient> {
         Some(&self.client)
+    }
+
+    fn store_provider_output_path(&mut self, provider: Provider<'_>, path: PathBuf) {
+        let key = match serde_yaml::to_string(&provider) {
+            Ok(s) => s,
+            Err(error) => {
+                error!(?path, %error, "unable to generate file provider cache key");
+                return;
+            }
+        };
+
+        self.fp_output_paths.insert(key, path);
+    }
+
+    fn known_provider_output_path(&self, provider: Provider<'_>) -> Option<PathBuf> {
+        let key = serde_yaml::to_string(&provider).ok()?;
+
+        self.fp_output_paths.get(&key).cloned()
     }
 
     fn set_values(&mut self, values: &HashMap<String, Scalar>) {

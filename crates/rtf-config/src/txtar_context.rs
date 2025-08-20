@@ -1,4 +1,7 @@
-use crate::context::{PathKind, ResolutionContext};
+use crate::{
+    context::{PathKind, ResolutionContext},
+    providers::Provider,
+};
 use rtf_core::graphos::platform_query;
 use rtf_core::{HttpClient, github};
 use serde::Deserialize;
@@ -43,6 +46,10 @@ impl<C: HttpClient + Clone + 'static> ResolutionContext for TxtarContext<C> {
 
     fn http_client(&self) -> Option<&Self::HttpClient> {
         Some(&self.http)
+    }
+
+    fn store_provider_output_path(&mut self, _provider: Provider<'_>, _path: PathBuf) {
+        unimplemented!()
     }
 
     fn write(&self, _path: impl AsRef<Path>, _content: impl AsRef<[u8]>) -> io::Result<()> {
