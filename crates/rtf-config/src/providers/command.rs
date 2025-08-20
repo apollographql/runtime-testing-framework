@@ -14,6 +14,7 @@ use crate::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io, path::Path};
+use tracing::trace;
 
 /// The environment variable used to provide the location of the output directory to user specified
 /// commands
@@ -84,7 +85,15 @@ impl CommandSection {
             }
 
             RawCommand::Spec(spec) => {
-                let file_path = out_dir.join(spec.name.clone());
+                let file_path = ctx
+                    .known_provider_output_path(Provider::Command {
+                        name: &spec.name,
+                        cmd: &spec.command_provider,
+                    })
+                    .ok_or(providers::Error::MissingProviderOutput {
+                        name: spec.name.clone(),
+                    })?;
+
                 let prog = match file_path.to_str() {
                     Some(v) => v,
                     None => {
@@ -129,7 +138,7 @@ impl CommandSection {
 
         for nfp in self.file_providers.iter() {
             let path = ctx
-                .known_provider_output_path(Provider::File(&nfp.provider))
+                .known_provider_output_path(Provider::File { fp: &nfp.provider })
                 .ok_or(providers::Error::MissingProviderOutput {
                     name: nfp.name.clone(),
                 })?;
@@ -154,28 +163,39 @@ impl CommandSection {
     ) -> providers::Result<()> {
         if let RawCommand::Spec(spec) = &self.command
             && ctx
-                .known_provider_output_path(Provider::Command(&spec.command_provider))
+                .known_provider_output_path(Provider::Command {
+                    name: &spec.name,
+                    cmd: &spec.command_provider,
+                })
                 .is_none()
         {
+            trace!(name=%spec.name, "running command provider");
             let file_path = provider_dir.join(&spec.name);
             spec.command_provider
                 .resolve_and_write(&file_path, src, ctx)
                 .await?;
             ctx.make_executable(&file_path)?;
-            ctx.store_provider_output_path(Provider::Command(&spec.command_provider), file_path);
+            ctx.store_provider_output_path(
+                Provider::Command {
+                    name: &spec.name,
+                    cmd: &spec.command_provider,
+                },
+                file_path,
+            );
         }
 
         for nfp in self.file_providers.iter() {
             if ctx
-                .known_provider_output_path(Provider::File(&nfp.provider))
+                .known_provider_output_path(Provider::File { fp: &nfp.provider })
                 .is_some()
             {
                 continue;
             }
 
+            trace!(name=%nfp.name, "running command provider");
             let file_path = provider_dir.join(&nfp.name);
             nfp.resolve_and_write(&file_path, src, ctx).await?;
-            ctx.store_provider_output_path(Provider::File(&nfp.provider), file_path);
+            ctx.store_provider_output_path(Provider::File { fp: &nfp.provider }, file_path);
         }
 
         Ok(())
@@ -675,7 +695,6 @@ mod tests {
 
     fn test_cmd_section() -> CommandSection {
         CommandSection {
-            // command: RawCommand::String(String::default()),
             command: RawCommand::Spec(CommandSpec {
                 name: "example.sh".to_string(),
                 command_provider: CommandProvider::Inline(InlineFile {

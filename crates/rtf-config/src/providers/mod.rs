@@ -46,8 +46,12 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Wrapper enum for supporting caching of provider output
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "snake_case", tag = "kind")]
 pub enum Provider<'a> {
-    File(&'a FileProvider),
-    Command(&'a CommandProvider),
+    File {
+        fp: &'a FileProvider,
+    },
+    Command {
+        name: &'a str,
+        cmd: &'a CommandProvider,
+    },
 }
