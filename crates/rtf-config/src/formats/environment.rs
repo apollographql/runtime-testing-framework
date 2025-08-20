@@ -310,6 +310,7 @@ mod tests {
                 env_var: format!("{}_PATH", name.to_uppercase()),
                 provider: FileProvider::RelativePath(RelativeFile {
                     path: Field::Pending(format!("{name}-path")),
+                    src: None,
                 }),
             }],
         }

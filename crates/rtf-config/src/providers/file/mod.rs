@@ -271,6 +271,12 @@ impl Check for InlineFile {
 pub struct RelativeFile {
     /// The relative path from the containing config file to the target file.
     pub(crate) path: Field<String>,
+
+    /// Set during TestPlan parsing as part of overrides. This should only ever be `Some` if this
+    /// provider was defined as part of an `overrides` section in the test plan.
+    #[serde(default, skip_serializing)]
+    #[schemars(skip)]
+    pub(crate) src: Option<Source>,
 }
 
 impl RelativeFile {
@@ -305,6 +311,10 @@ impl AsUtf8FileContent for RelativeFile {
         src: &Source,
         ctx: &impl ResolutionContext,
     ) -> Result<String> {
+        // Prefer an explicitly provided Source if one was set during parsing of the test plan
+        // as part of applying overrides.
+        let src = self.src.as_ref().unwrap_or(src);
+
         match src {
             Source::Local { abs_path } => {
                 let dir = match abs_path.parent() {
@@ -344,6 +354,10 @@ impl Check for RelativeFile {
         src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
+        // Prefer an explicitly provided Source if one was set during parsing of the test plan
+        // as part of applying overrides.
+        let src = self.src.as_ref().unwrap_or(src);
+
         let res = match src {
             Source::Local { abs_path } => {
                 let dir = match abs_path.parent() {

@@ -519,17 +519,58 @@ where
     ) -> providers::Result<(T, Option<Source>)> {
         match self {
             Self::Inline { inline } => Ok((inline, None)),
-            Self::From { from, overrides } => {
+            Self::From {
+                from,
+                mut overrides,
+            } => {
                 let src = from.try_into_source(tp_source, ctx)?;
                 let file_content = src.try_get_file_content(ctx).await?;
                 let mut base: serde_yaml::Value = serde_yaml::from_str(&file_content)?;
+
                 if overrides != serde_yaml::Value::Null {
+                    let yaml_src = serde_yaml::to_value(tp_source)?;
+                    set_source_for_relative_files(&mut overrides, &yaml_src);
                     merge_yaml(overrides, &mut base);
                 }
 
                 Ok((serde_yaml::from_value(base)?, Some(src)))
             }
         }
+    }
+}
+
+/// Relative files set as part of overrides need to be resolved relative to the test plan source
+/// location rather than the source location of the file they are being merged into.
+///
+/// To support this we tag any RelativeFile file providers we can find with the source of the test
+/// plan before we merge _at the YAML level_. We do it this way to avoid having to define Rust
+/// types for the overrides where every field is optional, but this does mean that we have zero
+/// type safety around this.
+///
+/// !! If something strange is happening around relative paths defined in test plan overrides then
+///    this is likely the best place to start looking!
+fn set_source_for_relative_files(val: &mut serde_yaml::Value, src: &serde_yaml::Value) {
+    use serde_yaml::Value;
+
+    match val {
+        Value::Mapping(map) => {
+            if map.get("kind").and_then(|v| v.as_str()) == Some("relative_path") {
+                map.insert(Value::String("src".into()), src.clone());
+                return;
+            }
+
+            for v in map.values_mut() {
+                set_source_for_relative_files(v, src);
+            }
+        }
+
+        Value::Sequence(seq) => {
+            for v in seq {
+                set_source_for_relative_files(v, src);
+            }
+        }
+
+        _ => (),
     }
 }
 
@@ -866,5 +907,58 @@ mod tests {
         let res = errs.into_result(());
 
         assert!(res.is_ok(), "errors: {res:?}");
+    }
+
+    #[test]
+    fn override_sources_are_set_correctly() {
+        let s = r#"
+some_key:
+  a:
+    b:
+      c:
+        kind: relative_path
+        path: ../foo.md
+some_seq:
+- kind: foo
+  path: bar
+- kind: relative_path
+  path: baz
+- some_nested_map:
+    kind: relative_path
+    path: qux"#;
+
+        let expected = r#"
+some_key:
+  a:
+    b:
+      c:
+        kind: relative_path
+        path: ../foo.md
+        src:
+          kind: local
+          abs_path: /a/b/c
+some_seq:
+- kind: foo
+  path: bar
+- kind: relative_path
+  path: baz
+  src:
+    kind: local
+    abs_path: /a/b/c
+- some_nested_map:
+    kind: relative_path
+    path: qux
+    src:
+      kind: local
+      abs_path: /a/b/c"#;
+
+        let mut yaml: serde_yaml::Value = serde_yaml::from_str(s).unwrap();
+        let src = Source::local("/a/b/c");
+        let yaml_src = serde_yaml::to_value(&src).unwrap();
+
+        set_source_for_relative_files(&mut yaml, &yaml_src);
+
+        let rewritten = serde_yaml::to_string(&yaml).unwrap();
+        assert_eq!(rewritten.trim(), expected.trim());
     }
 }
