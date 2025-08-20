@@ -9,6 +9,12 @@ scenario:
   from:
     kind: local
     relative_path: nested/scenario.yaml
+  overrides:
+    file_providers:
+      - name: file-provider.txt
+        env_var: EXAMPLE_FILE
+        kind: relative_path
+        path: nested/override-file-provider.txt
 
 environment:
   from:

@@ -1,1 +1,1 @@
-some inline content that should end up in the output directory
+some content that should end up in the output directory
