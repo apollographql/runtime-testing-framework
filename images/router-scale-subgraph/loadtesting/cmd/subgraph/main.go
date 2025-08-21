@@ -504,7 +504,7 @@ func runProcessor(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	log.Debugf("New query: %s", req.Query)
 	log.Tracef("Variables: %s", to_string(req.Variables))
 
-	doc, err := parser.ParseQuery(&ast.Source{Input: req.Query, Name: "spec"})
+	doc, err := parser.ParseQueryWithTokenLimit(&ast.Source{Input: req.Query, Name: "spec"}, 150000)
 	if err != nil {
 		log.Errorf("cannot parse query: %s", err.Error())
 		http.Error(w, fmt.Sprintf("Invalid GraphQL operation: %s", err.Error()), http.StatusBadRequest)
