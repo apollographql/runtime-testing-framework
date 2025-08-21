@@ -68,7 +68,7 @@ async fn check_and_run_test_plan_with_context(
 
     if test_plan.matrix.is_empty() {
         info!("executing test plan");
-        return run_one(test_plan, out_dir, &ctx).await;
+        return run_one(test_plan, out_dir, &mut ctx).await;
     }
 
     let n = test_plan.n_matrix_variants();
@@ -81,7 +81,7 @@ async fn check_and_run_test_plan_with_context(
         ctx.create_dir_all(&sub_dir)?;
 
         info!("executing test plan {i}/{n}");
-        run_one(tp, &sub_dir, &ctx).await?;
+        run_one(tp, &sub_dir, &mut ctx).await?;
     }
 
     Ok(())
@@ -90,7 +90,7 @@ async fn check_and_run_test_plan_with_context(
 async fn run_one(
     mut test_plan: TestPlanConfig,
     out_dir: &Path,
-    ctx: &impl ResolutionContext,
+    ctx: &mut impl ResolutionContext,
 ) -> anyhow::Result<()> {
     info!("templating environment setup");
     let mut values = take(&mut test_plan.values);

@@ -1,6 +1,9 @@
 //! Providers are how we expose the rest of the framework to user facing config.
 use rtf_core::graphos::supergraph::FetchError;
+use serde::Serialize;
 use std::io;
+
+use crate::providers::{command::CommandProvider, file::FileProvider};
 
 pub mod command;
 pub mod file;
@@ -29,6 +32,9 @@ pub enum Error {
     #[error("Request failed: {0}")]
     RequestFailed(#[from] reqwest::Error),
 
+    #[error("Missing provider output for {name}")]
+    MissingProviderOutput { name: String },
+
     #[error("Error decoding bytes to utf8")]
     Utf8DecodingError,
 
@@ -37,3 +43,15 @@ pub enum Error {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+/// Wrapper enum for supporting caching of provider output
+#[derive(Debug, Serialize)]
+pub enum Provider<'a> {
+    File {
+        fp: &'a FileProvider,
+    },
+    Command {
+        name: &'a str,
+        cmd: &'a CommandProvider,
+    },
+}

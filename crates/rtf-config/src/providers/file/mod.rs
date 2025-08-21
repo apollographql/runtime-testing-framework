@@ -31,7 +31,9 @@ pub use source::{RawSource, Source};
 /// This trait is deliberately pub(crate) rather than pub so that the validation and resolution
 /// logic is only exposed through the public API as part of the methods on the config file structs.
 #[allow(async_fn_in_trait)]
-pub(crate) trait AsUtf8FileContent: Check + DeserializeOwned + fmt::Debug {
+pub(crate) trait AsUtf8FileContent:
+    Check + Serialize + DeserializeOwned + fmt::Debug
+{
     /// Attempt to run this file provider and convert it into the required file content.
     async fn try_get_file_content(
         &self,
@@ -84,7 +86,7 @@ where
 /// If however you need to write out multiple files or run some additional logic after writing out
 /// a file (such as making it executable) then you should implement this trait directly.
 #[allow(async_fn_in_trait)]
-pub(crate) trait ResolveAndWrite: Check + DeserializeOwned + fmt::Debug {
+pub(crate) trait ResolveAndWrite: Check + Serialize + DeserializeOwned + fmt::Debug {
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,

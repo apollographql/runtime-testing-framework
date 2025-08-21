@@ -259,7 +259,7 @@ impl TestPlanConfig {
     pub async fn run_environment_setup(
         &self,
         out_dir: &Path,
-        ctx: &impl ResolutionContext,
+        ctx: &mut impl ResolutionContext,
     ) -> Result<HashMap<String, Scalar>> {
         let raw_output = self
             .environment
@@ -287,7 +287,7 @@ impl TestPlanConfig {
     pub async fn run_environment_teardown(
         &self,
         out_dir: &Path,
-        ctx: &impl ResolutionContext,
+        ctx: &mut impl ResolutionContext,
     ) -> Result<()> {
         self.environment
             .teardown
@@ -297,7 +297,11 @@ impl TestPlanConfig {
         Ok(())
     }
 
-    pub async fn run_scenario(&self, out_dir: &Path, ctx: &impl ResolutionContext) -> Result<()> {
+    pub async fn run_scenario(
+        &self,
+        out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> Result<()> {
         self.scenario
             .command
             .run_providers_and_execute(out_dir, self.sources.scenario(), ctx)

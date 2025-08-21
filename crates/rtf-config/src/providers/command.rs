@@ -3,7 +3,7 @@ use crate::{
     context::ResolutionContext,
     enum_impl_as_utf8_file_content, enum_impl_check, enum_impl_template,
     providers::{
-        self,
+        self, Provider,
         file::{
             AsUtf8FileContent, InlineFile, NamedFileProvider, RelativeFile, RequiredFile,
             ResolveAndWrite, Source,
@@ -14,6 +14,7 @@ use crate::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io, path::Path};
+use tracing::trace;
 
 /// The environment variable used to provide the location of the output directory to user specified
 /// commands
@@ -46,7 +47,7 @@ impl CommandSection {
         &self,
         out_dir: &Path,
         src: &Source,
-        ctx: &impl ResolutionContext,
+        ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
         self.run_providers(out_dir, src, ctx).await?;
         self.execute(out_dir, ctx)
@@ -63,7 +64,7 @@ impl CommandSection {
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let out_file = out_dir.join(OUTFILE);
-        let env_vars = self.all_env_vars(out_dir, &out_file);
+        let env_vars = self.all_env_vars(out_dir, &out_file, ctx)?;
 
         match &self.command {
             RawCommand::String(s) => {
@@ -84,7 +85,15 @@ impl CommandSection {
             }
 
             RawCommand::Spec(spec) => {
-                let file_path = out_dir.join(spec.name.clone());
+                let file_path = ctx
+                    .known_provider_output_path(Provider::Command {
+                        name: &spec.name,
+                        cmd: &spec.command_provider,
+                    })
+                    .ok_or(providers::Error::MissingProviderOutput {
+                        name: spec.name.clone(),
+                    })?;
+
                 let prog = match file_path.to_str() {
                     Some(v) => v,
                     None => {
@@ -115,7 +124,12 @@ impl CommandSection {
     /// Combine the base environment variables we have with the ones coming from the file providers
     /// we need to run. The `out_dir` argument here needs to match the one used when running
     /// and outputting the content of the file providers.
-    pub fn all_env_vars(&self, out_dir: &Path, out_file: &Path) -> HashMap<String, String> {
+    pub fn all_env_vars(
+        &self,
+        out_dir: &Path,
+        out_file: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<HashMap<String, String>> {
         let mut vars: HashMap<String, String> = self
             .env_vars
             .iter()
@@ -123,14 +137,18 @@ impl CommandSection {
             .collect();
 
         for nfp in self.file_providers.iter() {
-            let path = out_dir.join(&nfp.name).display().to_string();
-            vars.insert(nfp.env_var.clone(), path);
+            let path = ctx
+                .known_provider_output_path(Provider::File { fp: &nfp.provider })
+                .ok_or(providers::Error::MissingProviderOutput {
+                    name: nfp.name.clone(),
+                })?;
+            vars.insert(nfp.env_var.clone(), path.to_string_lossy().to_string());
         }
 
         vars.insert(OUTDIR.to_string(), out_dir.display().to_string());
         vars.insert(OUTFILE.to_string(), out_file.display().to_string());
 
-        vars
+        Ok(vars)
     }
 
     /// Run all of the [FileProviders][0] associated with this command and write out their file
@@ -141,19 +159,43 @@ impl CommandSection {
         &self,
         provider_dir: &Path,
         src: &Source,
-        ctx: &impl ResolutionContext,
+        ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
-        if let RawCommand::Spec(spec) = &self.command {
+        if let RawCommand::Spec(spec) = &self.command
+            && ctx
+                .known_provider_output_path(Provider::Command {
+                    name: &spec.name,
+                    cmd: &spec.command_provider,
+                })
+                .is_none()
+        {
+            trace!(name=%spec.name, "running command provider");
             let file_path = provider_dir.join(&spec.name);
             spec.command_provider
                 .resolve_and_write(&file_path, src, ctx)
                 .await?;
             ctx.make_executable(&file_path)?;
+            ctx.store_provider_output_path(
+                Provider::Command {
+                    name: &spec.name,
+                    cmd: &spec.command_provider,
+                },
+                file_path,
+            );
         }
 
         for nfp in self.file_providers.iter() {
-            nfp.resolve_and_write(&provider_dir.join(&nfp.name), src, ctx)
-                .await?;
+            if ctx
+                .known_provider_output_path(Provider::File { fp: &nfp.provider })
+                .is_some()
+            {
+                continue;
+            }
+
+            trace!(name=%nfp.name, "running command provider");
+            let file_path = provider_dir.join(&nfp.name);
+            nfp.resolve_and_write(&file_path, src, ctx).await?;
+            ctx.store_provider_output_path(Provider::File { fp: &nfp.provider }, file_path);
         }
 
         Ok(())
@@ -401,7 +443,10 @@ mod tests {
     use super::*;
     use crate::{
         context::{Context, PathKind},
-        providers::file::{FileProvider, InlineFile},
+        providers::{
+            Provider,
+            file::{FileProvider, InlineFile},
+        },
         txtar_context::NullClient,
     };
     use simple_test_case::{dir_cases, test_case};
@@ -550,12 +595,26 @@ mod tests {
     #[derive(Debug, Default)]
     struct MockCommandContext {
         written_files: Mutex<HashMap<String, String>>,
+        writes: Mutex<HashMap<String, usize>>,
+        fp_output_paths: HashMap<String, PathBuf>,
     }
 
     impl ResolutionContext for MockCommandContext {
         type PlatformClient = NullClient;
         type GithubClient = NullClient;
         type HttpClient = NullClient;
+
+        fn store_provider_output_path(&mut self, provider: Provider<'_>, path: PathBuf) {
+            let key = serde_yaml::to_string(&provider).unwrap();
+
+            self.fp_output_paths.insert(key, path);
+        }
+
+        fn known_provider_output_path(&self, provider: Provider<'_>) -> Option<PathBuf> {
+            let key = serde_yaml::to_string(&provider).ok()?;
+
+            self.fp_output_paths.get(&key).cloned()
+        }
 
         fn run_command_blocking<'a>(
             &self,
@@ -583,6 +642,15 @@ mod tests {
                 .unwrap()
                 .insert(path.as_ref().display().to_string(), s);
 
+            // Record each time we write to support checking that we correctly use the provider
+            // cache
+            *self
+                .writes
+                .lock()
+                .unwrap()
+                .entry(path.as_ref().display().to_string())
+                .or_default() += 1;
+
             Ok(())
         }
 
@@ -592,6 +660,10 @@ mod tests {
 
         fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
             relative_path.as_ref().canonicalize()
+        }
+
+        fn make_executable(&self, _path: impl AsRef<Path>) -> io::Result<()> {
+            Ok(())
         }
 
         fn read_path_to_string(&self, path: impl AsRef<Path>) -> io::Result<String> {
@@ -623,7 +695,13 @@ mod tests {
 
     fn test_cmd_section() -> CommandSection {
         CommandSection {
-            command: RawCommand::String(String::default()),
+            command: RawCommand::Spec(CommandSpec {
+                name: "example.sh".to_string(),
+                command_provider: CommandProvider::Inline(InlineFile {
+                    content: "command".to_string(),
+                }),
+                args: Vec::new(),
+            }),
             env_vars: [("FOO", "hello"), ("BAR", "world")]
                 .into_iter()
                 .map(|(k, v)| (k.to_string(), Field::Resolved(v.to_string())))
@@ -647,14 +725,28 @@ mod tests {
         }
     }
 
-    #[test]
-    fn all_env_vars_includes_file_providers() {
+    #[tokio::test]
+    async fn all_env_vars_includes_file_providers() {
         let c = test_cmd_section();
-        let env_vars = c.all_env_vars(
-            &PathBuf::from("/example-dir"),
-            &PathBuf::from("/example-dir/RTF_OUTPUT"),
-        );
+        let mut ctx = MockCommandContext::default();
+        let dir = PathBuf::from("/example-dir");
+        let src = Source::Local {
+            abs_path: dir.join("example.yaml"),
+        };
 
+        c.run_providers(&dir, &src, &mut ctx)
+            .await
+            .expect("providers failed to run");
+
+        let env_vars = c
+            .all_env_vars(
+                &PathBuf::from("/example-dir"),
+                &PathBuf::from("/example-dir/RTF_OUTPUT"),
+                &ctx,
+            )
+            .unwrap();
+
+        // Should NOT include the command script, only file providers
         let expected: HashMap<String, String> = [
             ("FOO", "hello"),
             ("BAR", "world"),
@@ -673,17 +765,18 @@ mod tests {
     #[tokio::test]
     async fn run_providers_writes_the_expected_files() {
         let c = test_cmd_section();
-        let ctx = MockCommandContext::default();
+        let mut ctx = MockCommandContext::default();
         let dir = PathBuf::from("/example-dir");
         let src = Source::Local {
             abs_path: dir.join("example.yaml"),
         };
 
-        let res = c.run_providers(&dir, &src, &ctx).await;
+        let res = c.run_providers(&dir, &src, &mut ctx).await;
         assert!(res.is_ok(), "unexpected error: {res:?}");
 
         let written_files = ctx.written_files.into_inner().unwrap();
         let expected: HashMap<String, String> = [
+            ("/example-dir/example.sh", "command"),
             ("/example-dir/fp1.txt", "foo"),
             ("/example-dir/fp2.txt", "bar"),
         ]
@@ -692,6 +785,45 @@ mod tests {
         .collect();
 
         assert_eq!(written_files, expected);
+    }
+
+    #[tokio::test]
+    async fn the_provider_cache_is_used_to_avoid_rerunning_providers() {
+        let c = test_cmd_section();
+        let mut ctx = MockCommandContext::default();
+        let dir = PathBuf::from("/example-dir");
+        let src = Source::Local {
+            abs_path: dir.join("example.yaml"),
+        };
+
+        let writes = ctx.writes.lock().unwrap().clone();
+        assert!(
+            writes.is_empty(),
+            "should start without any recorded writes"
+        );
+
+        // Running the providers should result in each provider writing output once
+        let expected: HashMap<String, usize> = [
+            ("/example-dir/example.sh".to_string(), 1),
+            ("/example-dir/fp1.txt".to_string(), 1),
+            ("/example-dir/fp2.txt".to_string(), 1),
+        ]
+        .into_iter()
+        .collect();
+
+        let res = c.run_providers(&dir, &src, &mut ctx).await;
+        assert!(res.is_ok(), "unexpected error: {res:?}");
+
+        let writes = ctx.writes.lock().unwrap().clone();
+        assert_eq!(writes, expected);
+
+        // Running the providers a second time should still succeed and should not result in any
+        // further calls to ctx.write
+        let res = c.run_providers(&dir, &src, &mut ctx).await;
+        assert!(res.is_ok(), "unexpected error: {res:?}");
+
+        let writes = ctx.writes.into_inner().unwrap();
+        assert_eq!(writes, expected);
     }
 
     #[test_case("WRITE_OUTPUT foo", "foo"; "with output")]
