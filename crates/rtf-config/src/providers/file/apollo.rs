@@ -220,6 +220,10 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
                 Ok(details.supergraph_sdl.clone())
             })
             .await?;
+        // We are inlining the supergraph file to a docker compose file. It will interpolate $ by default. To avoid
+        // this we escape the $ symbols using $$
+        // https://docs.docker.com/reference/compose-file/interpolation/
+        let supergraph = supergraph.replace("$", "$$");
 
         let mut subgraph_resources: HashMap<String, Resource> = HashMap::new();
         subgraph_resources.insert(
