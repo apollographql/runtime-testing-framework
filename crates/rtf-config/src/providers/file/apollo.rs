@@ -10,6 +10,7 @@ use crate::{
     },
     templating::{self, Field, Scalar, Template},
 };
+use indoc::indoc;
 use rtf_core::graphos::supergraph::{
     SupergraphDetails,
     operations::{fetch_offline_license, top_studio_operations::generate_canned_ops},
@@ -129,11 +130,22 @@ pub struct GraphosSubgraphDockerCompose {
     pub image: Field<String>,
     #[serde(default = "default_command")]
     pub command: Vec<String>,
+    #[serde(default = "default_replicas")]
+    pub replicas: Field<i32>,
     #[serde(default = "default_limits")]
     pub resource_limits: Resources,
     #[serde(default = "default_reservations")]
     pub resource_reservations: Resources,
     #[serde(default = "default_mem_swappiness")]
+    pub mem_swappiness: Field<i32>,
+    #[serde(default = "default_loadbalancer")]
+    pub loadbalancer: Loadbalancer,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+pub struct Loadbalancer {
+    pub resource_limits: Resources,
+    pub resource_reservations: Resources,
     pub mem_swappiness: Field<i32>,
 }
 
@@ -153,9 +165,13 @@ fn default_command() -> Vec<String> {
     vec!["-schema".to_string(), "/app/supergraph.graphql".to_string()]
 }
 
+fn default_replicas() -> Field<i32> {
+    Field::Resolved(5)
+}
+
 fn default_limits() -> Resources {
     Resources {
-        cpus: Field::Resolved("0.1".to_string()),
+        cpus: Field::Resolved("0.5".to_string()),
         memory: Field::Resolved("1G".to_string()),
     }
 }
@@ -171,6 +187,20 @@ fn default_mem_swappiness() -> Field<i32> {
     Field::Resolved(0)
 }
 
+fn default_loadbalancer() -> Loadbalancer {
+    Loadbalancer {
+        resource_limits: Resources {
+            cpus: Field::Resolved("0.5".to_string()),
+            memory: Field::Resolved("1G".to_string()),
+        },
+        resource_reservations: Resources {
+            cpus: Field::Resolved("0.1".to_string()),
+            memory: Field::Resolved("512M".to_string()),
+        },
+        mem_swappiness: Field::Resolved(0),
+    }
+}
+
 impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
     async fn try_get_file_content(
         &self,
@@ -183,10 +213,6 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
             .split_once('@')
             .expect("validated graph_ref");
 
-        let subgraphs = ctx
-            .with_supergraph_details(graph_id, variant, |details| Ok(details.subgraphs.clone()))
-            .await?;
-
         // The current subgraph mock service needs the full supergraph schema to run NOT the subgraph schema.
         // This is counter-intuitive and will be addressed when we create a new subgraph mocking service.
         let supergraph = ctx
@@ -195,46 +221,93 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
             })
             .await?;
 
-        let mut services: HashMap<String, SubgraphService> = HashMap::new();
-        let base_port = 4001;
+        let mut subgraph_resources: HashMap<String, Resource> = HashMap::new();
+        subgraph_resources.insert(
+            "limits".to_string(),
+            Resource {
+                cpus: self.resource_limits.cpus.as_resolved().to_string(),
+                memory: self.resource_limits.memory.as_resolved().to_string(),
+            },
+        );
+        subgraph_resources.insert(
+            "reservations".to_string(),
+            Resource {
+                cpus: self.resource_reservations.cpus.as_resolved().to_string(),
+                memory: self.resource_reservations.memory.as_resolved().to_string(),
+            },
+        );
 
-        for (offset, sg) in subgraphs.iter().enumerate() {
-            let port = base_port + offset;
-
-            let mut resources: HashMap<String, Resource> = HashMap::new();
-            resources.insert(
-                "limits".to_string(),
-                Resource {
-                    cpus: self.resource_limits.cpus.as_resolved().to_string(),
-                    memory: self.resource_limits.memory.as_resolved().to_string(),
+        let subgraph_service = SubgraphService {
+            image: self.image.as_resolved().to_string(),
+            command: self.command.clone(),
+            configs: vec![ServiceConfig {
+                source: "supergraph.graphql".to_string(),
+                target: "/app/supergraph.graphql".to_string(),
+            }],
+            expose: vec!["8080".to_string()],
+            restart: "unless-stopped".to_string(),
+            deploy: DeployWithReplicas {
+                replicas: *self.replicas.as_resolved(),
+                resources: Resources {
+                    resources: subgraph_resources,
                 },
-            );
-            resources.insert(
-                "reservations".to_string(),
-                Resource {
-                    cpus: self.resource_reservations.cpus.as_resolved().to_string(),
-                    memory: self.resource_reservations.memory.as_resolved().to_string(),
-                },
-            );
+            },
+            mem_swappiness: *self.mem_swappiness.as_resolved(),
+        };
 
-            let service = SubgraphService {
-                image: self.image.as_resolved().to_string(),
-                container_name: sg.name.clone(),
-                command: self.command.clone(),
-                configs: vec![SubgraphConfig {
-                    source: "supergraph.graphql".to_string(),
-                    target: "/app/supergraph.graphql".to_string(),
-                }],
-                ports: vec![format!("{}:8080", port)],
-                restart: "unless-stopped".to_string(),
-                deploy: Deploy {
-                    resources: Resources { resources },
-                },
-                mem_swappiness: *self.mem_swappiness.as_resolved(),
-            };
+        let mut loadbalancer_resources: HashMap<String, Resource> = HashMap::new();
+        loadbalancer_resources.insert(
+            "limits".to_string(),
+            Resource {
+                cpus: self
+                    .loadbalancer
+                    .resource_limits
+                    .cpus
+                    .as_resolved()
+                    .to_string(),
+                memory: self
+                    .loadbalancer
+                    .resource_limits
+                    .memory
+                    .as_resolved()
+                    .to_string(),
+            },
+        );
+        loadbalancer_resources.insert(
+            "reservations".to_string(),
+            Resource {
+                cpus: self
+                    .loadbalancer
+                    .resource_reservations
+                    .cpus
+                    .as_resolved()
+                    .to_string(),
+                memory: self
+                    .loadbalancer
+                    .resource_reservations
+                    .memory
+                    .as_resolved()
+                    .to_string(),
+            },
+        );
 
-            services.insert(sg.name.clone(), service);
-        }
+        let loadbalancer_service = LoadbalancerService {
+            image: "nginx:alpine".to_string(),
+            container_name: "loadbalancer".to_string(),
+            configs: vec![ServiceConfig {
+                source: "nginx.conf".to_string(),
+                target: "/etc/nginx/nginx.conf".to_string(),
+            }],
+            ports: vec!["8080:8080".to_string()],
+            restart: "unless-stopped".to_string(),
+            deploy: Deploy {
+                resources: Resources {
+                    resources: loadbalancer_resources,
+                },
+            },
+            mem_swappiness: *self.loadbalancer.mem_swappiness.as_resolved(),
+            depends_on: vec!["subgraph".to_string()],
+        };
 
         let mut configs: HashMap<String, Config> = HashMap::new();
         configs.insert(
@@ -243,9 +316,36 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
                 content: supergraph,
             },
         );
+        let nginx_config = indoc![
+            r#"
+            events {}
+
+            http {
+                upstream backend {
+                    server subgraph:8080;  # Docker DNS will resolve all replicas
+                }
+
+                server {
+                    listen 8080;
+                    location / {
+                        proxy_pass http://backend;
+                    }
+                }
+            }
+        "#
+        ];
+        configs.insert(
+            "nginx.conf".to_string(),
+            Config {
+                content: nginx_config.to_string(),
+            },
+        );
 
         let compose = Compose {
-            services: SubgraphServices { services },
+            services: Services {
+                subgraph: subgraph_service,
+                loadbalancer: loadbalancer_service,
+            },
             configs: Configs { configs },
         };
         let compose_yaml = serde_yaml::to_string(&compose)?;
@@ -254,30 +354,41 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
 
         #[derive(Serialize)]
         struct Compose {
-            services: SubgraphServices,
+            services: Services,
             configs: Configs,
         }
 
         #[derive(Serialize)]
-        struct SubgraphServices {
-            #[serde(flatten)]
-            services: HashMap<String, SubgraphService>,
+        struct Services {
+            subgraph: SubgraphService,
+            loadbalancer: LoadbalancerService,
         }
 
         #[derive(Serialize)]
         struct SubgraphService {
             image: String,
-            container_name: String,
             command: Vec<String>,
-            configs: Vec<SubgraphConfig>,
-            ports: Vec<String>,
+            configs: Vec<ServiceConfig>,
+            expose: Vec<String>,
             restart: String,
-            deploy: Deploy,
+            deploy: DeployWithReplicas,
             mem_swappiness: i32,
         }
 
         #[derive(Serialize)]
-        struct SubgraphConfig {
+        struct LoadbalancerService {
+            image: String,
+            container_name: String,
+            configs: Vec<ServiceConfig>,
+            ports: Vec<String>,
+            restart: String,
+            deploy: Deploy,
+            mem_swappiness: i32,
+            depends_on: Vec<String>,
+        }
+
+        #[derive(Serialize)]
+        struct ServiceConfig {
             source: String,
             target: String,
         }
@@ -291,6 +402,12 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
         #[derive(Serialize)]
         struct Config {
             content: String,
+        }
+
+        #[derive(Serialize)]
+        struct DeployWithReplicas {
+            replicas: i32,
+            resources: Resources,
         }
 
         #[derive(Serialize)]
@@ -354,10 +471,11 @@ pub enum UrlFormat {
 }
 
 impl UrlFormat {
-    fn subgraph_url(&self, subgraph_name: &String, port: &usize) -> String {
+    fn subgraph_url(&self, port: &usize) -> String {
         match self {
             UrlFormat::Localhost => format!("http://localhost:{port}"),
-            UrlFormat::Docker => format!("http://{}:8080", subgraph_name),
+            // The docker compose generated by rtf puts all subgraph containers behind a loadbalancer
+            UrlFormat::Docker => "http://loadbalancer:8080".to_string(),
         }
     }
 }
@@ -384,7 +502,7 @@ impl AsUtf8FileContent for GraphosSubgraphRouterUrlOverrides {
         for (offset, sg) in subgraphs.iter().enumerate() {
             let port = base_port + offset;
 
-            let url = self.url_format.subgraph_url(&sg.name, &port);
+            let url = self.url_format.subgraph_url(&port);
             subgraph_urls.insert(sg.name.clone(), url);
         }
 
