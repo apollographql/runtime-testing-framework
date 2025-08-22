@@ -10,6 +10,9 @@ use rtf_config::{
 use std::{mem::take, path::Path};
 use tracing::info;
 
+const VALUES_PATH: &str = "test-plan-values.json";
+const RESOLVED_TP_PATH: &str = "resolved-test-plan.yaml";
+
 pub async fn check_and_run_local_test_plan(
     config_file_path: &str,
     values: Values,
@@ -130,6 +133,16 @@ async fn run_one(
 
     info!("executing environment teardown");
     test_plan.run_environment_teardown(out_dir, ctx).await?;
+
+    info!("writing out resolved test plan and values");
+    ctx.write(
+        out_dir.join(VALUES_PATH),
+        serde_json::to_string_pretty(&values)?,
+    )?;
+    ctx.write(
+        out_dir.join(RESOLVED_TP_PATH),
+        serde_yaml::to_string(&test_plan)?,
+    )?;
 
     info!("done");
 
