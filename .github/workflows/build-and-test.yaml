@@ -130,7 +130,7 @@ jobs:
       - test-nightly
       - rustfmt
       - clippy
-      - rustdoc-links
+      - rustdoc
       - spell-check
       - lint-markdown
 
