@@ -8,7 +8,7 @@ run = "dprint fmt"
 run = [
     "mise run pr-format",
     "mise run pr-clippy",
-    "mise run pr-doclinks",
+    "mise run pr-rustdoc",
     "mise run pr-spell-check",
     "mise run pr-markdown",
     "mise run pr-test"
@@ -17,8 +17,8 @@ run = [
 [tasks.pr-clippy]
 run = "cargo pr-clippy"
 
-[tasks.pr-doclinks]
-run = "RUSTDOCFLAGS=\"-D rustdoc::broken-intra-doc-links\" cargo doc --all-features --workspace --no-deps"
+[tasks.pr-rustdoc]
+run = "RUSTDOCFLAGS=\"-D warnings -D rustdoc::broken-intra-doc-links\" cargo doc --all-features --workspace --no-deps"
 
 [tasks.pr-format]
 run = "cargo pr-format"

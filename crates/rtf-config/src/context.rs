@@ -123,12 +123,10 @@ pub trait ResolutionContext {
     ///
     /// If the contents of the file are not valid UTF-8, then an error will also be returned.
     ///
-    /// While reading from the file, this function handles [io::ErrorKind::Interrupted][1] with
-    /// automatic retries. See [io::Read][2] documentation for details.
+    /// While reading from the file, this function handles [io::ErrorKind::Interrupted] with
+    /// automatic retries. See [io::Read] documentation for details.
     ///
     /// [0]: std::fs::OpenOptions::open
-    /// [1]: std::io::ErrorKind::Interrupted
-    /// [2]: std::io::Read
     fn read_path_to_string(&self, path: impl AsRef<Path>) -> io::Result<String>;
 
     /// Writes a slice as the entire contents of a file.

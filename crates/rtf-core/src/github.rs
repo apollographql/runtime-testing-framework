@@ -56,10 +56,10 @@ pub trait Client {
 /// A lightweight GitHub API client for the subset of REST endpoints we need to work with.
 ///
 /// This client makes use of bearer auth as documented for the GitHub API here:
-///   https://docs.github.com/en/rest/authentication/authenticating-to-the-rest-api?apiVersion=2022-11-28
+///   <https://docs.github.com/en/rest/authentication/authenticating-to-the-rest-api?apiVersion=2022-11-28>
 ///
 /// Creation of access tokens is documented here:
-///   https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#types-of-personal-access-tokens
+///   <https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#types-of-personal-access-tokens>
 #[derive(Clone, Debug)]
 pub struct GithubClient {
     pub(crate) inner: reqwest::Client,

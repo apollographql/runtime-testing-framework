@@ -42,7 +42,7 @@ pub(crate) trait AsUtf8FileContent:
     ) -> providers::Result<String>;
 }
 
-/// Helper macro for stamping out implementations of the [AsUtf8FileContent] trait on an enum where
+/// Helper macro for stamping out implementations of the AsUtf8FileContent trait on an enum where
 /// each variant is a wrapper around a type that already implements the trait.
 #[macro_export]
 macro_rules! enum_impl_as_utf8_file_content {
@@ -112,7 +112,7 @@ pub(crate) trait ResolveAndWrite: Check + Serialize + DeserializeOwned + fmt::De
     }
 }
 
-/// Helper macro for stamping out implementations of the [ResolveAndWrite] trait on an enum where
+/// Helper macro for stamping out implementations of the ResolveAndWrite trait on an enum where
 /// each variant is a wrapper around a type that already implements the trait.
 #[macro_export]
 macro_rules! enum_impl_resolve_and_write {
