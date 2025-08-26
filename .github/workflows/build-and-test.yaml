@@ -85,8 +85,8 @@ jobs:
         rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
     - run: cargo pr-clippy
 
-  rustdoc-links:
-    name: Check doc links are valid
+  rustdoc:
+    name: Check that rustdoc is happy
     runs-on: ubuntu-latest
 
     steps:
@@ -94,7 +94,7 @@ jobs:
     - uses: hecrj/setup-rust-action@v2
       with:
         rust-version: nightly
-    - run: RUSTDOCFLAGS="-D rustdoc::broken-intra-doc-links" cargo doc --all-features --workspace --no-deps
+    - run: RUSTDOCFLAGS="-D warnings -D rustdoc::broken-intra-doc-links" cargo doc --all-features --workspace --no-deps
   
   spell-check:
     name: Spell check using the typos-cli crate
