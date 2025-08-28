@@ -20,6 +20,7 @@ use tracing::trace;
 /// commands
 const OUTDIR: &str = "OUTDIR";
 const OUTFILE: &str = "RTF_OUTPUT";
+const PROVIDER_DIR: &str = "providers";
 
 /// # Command Section
 ///
@@ -157,10 +158,12 @@ impl CommandSection {
     /// [0]: crate::providers::file::FileProvider
     pub async fn run_providers(
         &self,
-        provider_dir: &Path,
+        out_dir: &Path,
         src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
+        let provider_dir = out_dir.join(PROVIDER_DIR);
+
         if let RawCommand::Spec(spec) = &self.command
             && ctx
                 .known_provider_output_path(Provider::Command {
@@ -751,8 +754,8 @@ mod tests {
             ("FOO", "hello"),
             ("BAR", "world"),
             ("OUTDIR", "/example-dir"),
-            ("FP1", "/example-dir/fp1.txt"),
-            ("FP2", "/example-dir/fp2.txt"),
+            ("FP1", "/example-dir/providers/fp1.txt"),
+            ("FP2", "/example-dir/providers/fp2.txt"),
             ("RTF_OUTPUT", "/example-dir/RTF_OUTPUT"),
         ]
         .into_iter()
@@ -776,9 +779,9 @@ mod tests {
 
         let written_files = ctx.written_files.into_inner().unwrap();
         let expected: HashMap<String, String> = [
-            ("/example-dir/example.sh", "command"),
-            ("/example-dir/fp1.txt", "foo"),
-            ("/example-dir/fp2.txt", "bar"),
+            ("/example-dir/providers/example.sh", "command"),
+            ("/example-dir/providers/fp1.txt", "foo"),
+            ("/example-dir/providers/fp2.txt", "bar"),
         ]
         .into_iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
@@ -804,9 +807,9 @@ mod tests {
 
         // Running the providers should result in each provider writing output once
         let expected: HashMap<String, usize> = [
-            ("/example-dir/example.sh".to_string(), 1),
-            ("/example-dir/fp1.txt".to_string(), 1),
-            ("/example-dir/fp2.txt".to_string(), 1),
+            ("/example-dir/providers/example.sh".to_string(), 1),
+            ("/example-dir/providers/fp1.txt".to_string(), 1),
+            ("/example-dir/providers/fp2.txt".to_string(), 1),
         ]
         .into_iter()
         .collect();
