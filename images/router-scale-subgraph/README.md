@@ -32,4 +32,4 @@ To see all options for the subgraph container run
 docker run -t router-scale-subgraph -h
 ```
 
-    [0]: https://github.com/apollographql/router-scale
+[0]: https://github.com/apollographql/router-scale
