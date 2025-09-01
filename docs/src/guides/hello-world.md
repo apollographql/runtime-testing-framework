@@ -305,10 +305,6 @@ scenario :: hello, is it me you're looking for?
 ---
 ```
 
-## Next Steps
-
-Learn how to run a [Router Performance Test](./router-perf.md)
-
 [0]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans
 [1]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/hello-world/test-plan.yaml
 [2]: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/running-variations-of-jobs-in-a-workflow

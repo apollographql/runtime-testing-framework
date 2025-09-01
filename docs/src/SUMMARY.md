@@ -6,7 +6,6 @@
 
 - [Getting started](guides/index.md)
   - [Hello, world!](guides/hello-world.md)
-  - [Router Performance Testing](guides/router-perf.md)
 
 - [Test plans]()
   - [Writing a new test plan]()
