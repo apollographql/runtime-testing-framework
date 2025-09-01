@@ -7,11 +7,12 @@
 - [Getting started](guides/index.md)
   - [Hello, world!](guides/hello-world.md)
 
-- [Test plans]()
-  - [Writing a new test plan]()
-  - [Writing a new scenario]()
-  - [Writing a new environment provider]()
-  - [Checking config files]()
+- [Test plans](guides/test-plans/index.md)
+  - [Writing a new test plan](guides/test-plans/writing-a-test-plan.md)
+  - [Writing a command](guides/test-plans/writing-a-command.md)
+  - [Writing a new scenario](guides/test-plans/writing-a-scenario.md)
+  - [Writing a new environment](guides/test-plans/writing-an-environment.md)
+  - [Using file providers](guides/test-plans/using-file-providers.md)
 
 - [The framework](framework/index.md)
   - [Providers](framework/providers.md)
