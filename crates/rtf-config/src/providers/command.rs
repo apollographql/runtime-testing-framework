@@ -113,12 +113,16 @@ impl CommandSection {
             }
         }
 
+        // It is possible that no output is set in the environment setup script. If the output is
+        // blank then default to an empty json object. If there is an error reading the user defined
+        // output to the file then we still pass that error to the user. This is a quality of life
+        // improvement so if the user does define any output the rtf execution will continue.
         let output = match ctx.read_path_to_string(&out_file) {
             Ok(s) => {
                 ctx.remove_file(out_file)?;
                 s
             }
-            Err(e) if e.kind() == io::ErrorKind::NotFound => String::new(),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => "{}".to_string(),
             Err(e) => return Err(e.into()),
         };
 
@@ -886,7 +890,7 @@ mod tests {
     }
 
     #[test_case("WRITE_OUTPUT foo", "foo"; "with output")]
-    #[test_case("command-with-no-output", ""; "without output")]
+    #[test_case("command-with-no-output", "{}"; "without output")]
     #[tokio::test]
     async fn execute_returns_the_contents_of_the_output_file_and_removes_it(
         command: &str,
