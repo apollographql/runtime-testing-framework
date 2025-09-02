@@ -21,6 +21,7 @@ use std::{
     mem,
     path::Path,
 };
+use tracing::error;
 
 /// The format for parsing scenario config
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
@@ -423,9 +424,9 @@ pub struct RawTestPlanConfig {
     #[serde(default)]
     pub matrix: HashMap<String, Vec<Scalar>>,
     /// The test scenario to execute
-    pub scenario: ConfigSpec<ScenarioConfig>,
+    pub scenario: ConfigSpec,
     /// The environment setup and teardown to run around the test scenario
-    pub environment: ConfigSpec<EnvironmentConfig>,
+    pub environment: ConfigSpec,
 }
 
 impl RawTestPlanConfig {
@@ -434,14 +435,29 @@ impl RawTestPlanConfig {
         tp_source: Source,
         ctx: &impl ResolutionContext,
     ) -> Result<TestPlanConfig> {
-        let (mut environment, environment_source) = self
+        let res = self
             .environment
-            .try_into_config_with_source(&tp_source, ctx)
-            .await?;
-        let (mut scenario, scenario_source) = self
+            .try_into_config_with_source::<EnvironmentConfig>(&tp_source, ctx)
+            .await;
+        let (mut environment, environment_source) = match res {
+            Ok(data) => data,
+            Err(err) => {
+                error!("malformed environment config section");
+                return Err(err.into());
+            }
+        };
+
+        let res = self
             .scenario
-            .try_into_config_with_source(&tp_source, ctx)
-            .await?;
+            .try_into_config_with_source::<ScenarioConfig>(&tp_source, ctx)
+            .await;
+        let (mut scenario, scenario_source) = match res {
+            Ok(data) => data,
+            Err(err) => {
+                error!("malformed scenario config section");
+                return Err(err.into());
+            }
+        };
 
         dedup_and_sort_by_key(&mut environment.values, |v| v.name.clone());
         dedup_and_sort_by_key(&mut environment.setup.provides, |v| v.name.clone());
@@ -490,11 +506,15 @@ where
 /// This struct allows the config files to be resolved either from
 /// inline yaml in the test plan or from a [FileProvider]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
-#[serde(untagged)]
-pub enum ConfigSpec<T> {
+#[serde(
+    untagged,
+    expecting = "expected valid inline config section or from with overrides"
+)]
+pub enum ConfigSpec {
     Inline {
         /// Inline YAML configuration
-        inline: T,
+        #[schemars(schema_with = "arbitrary_map")]
+        inline: serde_yaml::Value,
     },
     From {
         /// A source file to read to obtain the required configuration
@@ -510,19 +530,23 @@ fn arbitrary_map(_gen: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": "object" })
 }
 
-impl<T> ConfigSpec<T>
-where
-    T: DeserializeOwned,
-{
+impl ConfigSpec {
     /// Try to convert the [ConfigSpec] into a config yaml. This can read the content
     /// directly from inline content or a [FileProvider]
-    async fn try_into_config_with_source(
+    async fn try_into_config_with_source<T>(
         self,
         tp_source: &Source,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<(T, Option<Source>)> {
+    ) -> providers::Result<(T, Option<Source>)>
+    where
+        T: DeserializeOwned,
+    {
         match self {
-            Self::Inline { inline } => Ok((inline, None)),
+            Self::Inline { inline } => {
+                let t = serde_yaml::from_value(inline)?;
+
+                Ok((t, None))
+            }
             Self::From {
                 from,
                 mut overrides,
@@ -768,7 +792,7 @@ mod tests {
         let expected: ScenarioConfig =
             serde_yaml::from_str(get_file(&arr, "expected-config")).unwrap();
 
-        let config_source: ConfigSpec<ScenarioConfig> = ConfigSpec::From {
+        let config_source: ConfigSpec = ConfigSpec::From {
             from: RawSource::Local {
                 relative_path: PathBuf::from("scenario.yaml"),
             },
@@ -777,7 +801,7 @@ mod tests {
 
         let ctx = TxtarContext::new(arr);
         let res = config_source
-            .try_into_config_with_source(&Source::local(""), &ctx)
+            .try_into_config_with_source::<ScenarioConfig>(&Source::local(""), &ctx)
             .await;
         assert!(res.is_ok(), "Expected a valid ScenarioConfig, got {res:?}");
         assert_eq!(
@@ -796,7 +820,7 @@ mod tests {
         let expected: EnvironmentConfig =
             serde_yaml::from_str(get_file(&arr, "expected-config")).unwrap();
 
-        let config_source: ConfigSpec<EnvironmentConfig> = ConfigSpec::From {
+        let config_source: ConfigSpec = ConfigSpec::From {
             from: RawSource::Local {
                 relative_path: PathBuf::from("environment.yaml"),
             },
@@ -806,7 +830,7 @@ mod tests {
         let ctx = TxtarContext::new(arr);
 
         let res = config_source
-            .try_into_config_with_source(&Source::local(""), &ctx)
+            .try_into_config_with_source::<EnvironmentConfig>(&Source::local(""), &ctx)
             .await;
         assert!(
             res.is_ok(),
