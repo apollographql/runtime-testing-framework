@@ -3,8 +3,9 @@ use crate::graphos::{
     self,
     platform_query::{self, PlatformQuery},
 };
+use apollo_compiler::{Node, Schema, ast::Value, schema::ExtendedType};
 use graphql_client::GraphQLQuery;
-use std::{fs, io, path::Path};
+use std::{collections::HashMap, fs, io, path::Path};
 use tracing::{debug, error, info};
 
 /// An error encountered while attempting to fetch details for a supergraph from the platform API.
@@ -120,6 +121,25 @@ impl SupergraphDetails {
             })
     }
 
+    /// Attempt to rewrite the subgraph url directives in this schema to use the provided urls
+    /// instead.
+    pub fn rewrite_subgraph_urls(
+        &mut self,
+        subgraph_urls: &HashMap<String, String>,
+    ) -> Result<(), &'static str> {
+        match rewrite_subgraph_urls(&self.supergraph_sdl, subgraph_urls) {
+            Some(new_sdl) => {
+                self.supergraph_sdl = new_sdl;
+                Ok(())
+            }
+
+            None => {
+                error!("Unable to rewrite subgraph URLs");
+                Err("Unable to rewrite subgraph URLs")
+            }
+        }
+    }
+
     /// Write out only the schemas held in this [SupergraphDetails].
     pub fn write_schemas(&self, out_dir: &Path) -> graphos::Result<()> {
         debug!("writing supergraph SDL");
@@ -228,6 +248,32 @@ impl PlatformQuery for RawSupergraphDetails {
     }
 }
 
+// FIXME: this needs actual logging and testing!
+/// Rewrite the given supergraph SDL to set the provided subgraph URLs in place of what is
+/// currently there.
+fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> Option<String> {
+    let mut schema = Schema::parse(sdl, "supergraph.graphql").unwrap();
+    let join_graph_enum = match schema.types.get_mut("join__Graph")? {
+        ExtendedType::Enum(e) => e,
+        _ => return None,
+    };
+
+    for value_def in join_graph_enum.get_mut()?.values.values_mut() {
+        for directive in value_def.get_mut()?.directives.0.iter_mut() {
+            if directive.name.as_str() != "join__graph" {
+                continue;
+            }
+
+            let sg_name = directive.specified_argument_by_name("name")?;
+            let url = subgraph_urls.get(sg_name.as_str()?)?;
+            *directive.get_mut()?.specified_argument_by_name_mut("url")? =
+                Node::new(Value::String(url.clone()));
+        }
+    }
+
+    Some(schema.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -313,5 +359,25 @@ mod tests {
         }
 
         Ok(())
+    }
+
+    #[test]
+    fn rewriting_subgraph_urls_works() {
+        let sdl = include_str!("../../../resources/test_data/simple-supergraph.graphql");
+        let subgraph_urls: HashMap<String, String> = [
+            ("accounts".into(), "accounts_url".into()),
+            ("inventory".into(), "inventory_url".into()),
+            ("products".into(), "products_url".into()),
+            ("reviews".into(), "reviews_url".into()),
+        ]
+        .into_iter()
+        .collect();
+
+        let s = rewrite_subgraph_urls(sdl, &subgraph_urls).unwrap();
+
+        assert!(s.contains(r#"ACCOUNTS @join__graph(name: "accounts", url: "accounts_url")"#));
+        assert!(s.contains(r#"INVENTORY @join__graph(name: "inventory", url: "inventory_url")"#));
+        assert!(s.contains(r#"PRODUCTS @join__graph(name: "products", url: "products_url")"#));
+        assert!(s.contains(r#"REVIEWS @join__graph(name: "reviews", url: "reviews_url")"#));
     }
 }
