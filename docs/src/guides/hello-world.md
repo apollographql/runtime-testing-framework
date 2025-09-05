@@ -25,7 +25,7 @@ The "hello, world!" test plan contains a brief description, a few values, and re
 and environment config files:
 
 ```yaml
-{ { #include ../../../example-test-plans/hello-world/test-plan.yaml }}
+{{ #include ../../../example-test-plans/hello-world/test-plan.yaml }}
 ```
 
 ## Pre-Flight Checks
