@@ -12,7 +12,7 @@ use crate::{
 };
 use indoc::indoc;
 use rtf_core::graphos::supergraph::{
-    SupergraphDetails,
+    Subgraph, SupergraphDetails,
     operations::{fetch_offline_license, top_studio_operations::generate_canned_ops},
 };
 use schemars::JsonSchema;
@@ -31,6 +31,8 @@ use std::{
 pub struct GraphosSupergraph {
     /// The Apollo graph ref to pull supergraph SDL for.
     pub graph_ref: Field<String>,
+    #[serde(default)]
+    pub with_subgraph_overrides: Option<UrlFormat>,
 }
 
 impl AsUtf8FileContent for GraphosSupergraph {
@@ -45,10 +47,28 @@ impl AsUtf8FileContent for GraphosSupergraph {
             .split_once('@')
             .expect("validated graph_ref");
 
-        ctx.with_supergraph_details(graph_id, variant, |details| {
-            Ok(details.supergraph_sdl.clone())
-        })
-        .await
+        match self.with_subgraph_overrides.as_ref() {
+            Some(url_format) => {
+                let mut arc_details = ctx
+                    .with_supergraph_details(graph_id, variant, |details| Ok(details.clone()))
+                    .await?;
+
+                let details = Arc::make_mut(&mut arc_details);
+                let subgraph_urls = url_format.urls_for_subgraphs(&details.subgraphs);
+                details
+                    .rewrite_subgraph_urls(&subgraph_urls)
+                    .expect("unable to rewrite subgraph URLs");
+
+                Ok(details.supergraph_sdl.clone())
+            }
+
+            None => {
+                ctx.with_supergraph_details(graph_id, variant, |details| {
+                    Ok(details.supergraph_sdl.clone())
+                })
+                .await
+            }
+        }
     }
 }
 
@@ -475,6 +495,20 @@ pub enum UrlFormat {
 }
 
 impl UrlFormat {
+    fn urls_for_subgraphs(&self, subgraphs: &[Subgraph]) -> HashMap<String, String> {
+        let mut subgraph_urls: HashMap<String, String> = HashMap::new();
+        let base_port = 4001;
+
+        for (offset, sg) in subgraphs.iter().enumerate() {
+            let port = base_port + offset;
+
+            let url = self.subgraph_url(&port);
+            subgraph_urls.insert(sg.name.clone(), url);
+        }
+
+        subgraph_urls
+    }
+
     fn subgraph_url(&self, port: &usize) -> String {
         match self {
             UrlFormat::Localhost => format!("http://localhost:{port}"),
@@ -500,16 +534,7 @@ impl AsUtf8FileContent for GraphosSubgraphRouterUrlOverrides {
             .with_supergraph_details(graph_id, variant, |details| Ok(details.subgraphs.clone()))
             .await?;
 
-        let mut subgraph_urls: HashMap<String, String> = HashMap::new();
-        let base_port = 4001;
-
-        for (offset, sg) in subgraphs.iter().enumerate() {
-            let port = base_port + offset;
-
-            let url = self.url_format.subgraph_url(&port);
-            subgraph_urls.insert(sg.name.clone(), url);
-        }
-
+        let subgraph_urls = self.url_format.urls_for_subgraphs(&subgraphs);
         let overrides_yaml =
             serde_yaml::to_string(&serde_json::json!({"override_subgraph_url": subgraph_urls}))?;
 
