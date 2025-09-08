@@ -367,6 +367,12 @@ where
                 .strip_suffix(" }}")
                 .ok_or(E::custom("unclosed field template"))?,
 
+            None if value.starts_with("{{") => {
+                return Err(E::custom(
+                    "malformed template string: expected a single space after '{{'",
+                ));
+            }
+
             None => {
                 return Deserialize::deserialize(de::value::StrDeserializer::new(value))
                     .map(|t| Field::Resolved(t));
@@ -602,8 +608,8 @@ mod tests {
     }
 
     #[derive(Debug, PartialEq, Deserialize)]
-    struct S {
-        field: Field<usize>,
+    struct StringField {
+        field: Field<String>,
     }
 
     #[test_case("foo"; "ascii")]
@@ -614,10 +620,10 @@ mod tests {
     #[test]
     fn valid_value_identifiers_are_accepted(raw: &str) {
         let s = format!("field: \"{{{{ {raw} }}}}\"");
-        let res: serde_yaml::Result<S> = serde_yaml::from_str(&s);
+        let res: serde_yaml::Result<StringField> = serde_yaml::from_str(&s);
         assert!(res.is_ok(), "expected ok, got {res:?}");
 
-        let S { field } = res.unwrap();
+        let StringField { field } = res.unwrap();
         assert_eq!(field, Field::Pending(raw.to_string()));
     }
 
@@ -630,24 +636,32 @@ mod tests {
     #[test]
     fn invalid_value_identifiers_are_rejected(raw: &str) {
         let s = format!("field: \"{{{{ {raw} }}}}\"");
-        let res: serde_yaml::Result<S> = serde_yaml::from_str(&s);
+        let res: serde_yaml::Result<StringField> = serde_yaml::from_str(&s);
         assert!(res.is_err(), "expected error, got {res:?}");
     }
 
-    #[test_case("\"{{foo }}\""; "no space before value name")]
-    #[test_case("\"{{ foo}}\""; "no space after value name")]
-    #[test_case("\"{{foo}}\""; "no spaces before or after value name")]
-    #[test_case("\"{{ foo\""; "unclosed template")]
-    #[test_case("\"{{ foo }\""; "single closing curly")]
-    #[test_case("\"{ foo }}\""; "single opening curly")]
-    #[test_case("\"{{  foo }}\""; "additional leading space")]
-    #[test_case("\"{{ \tfoo }}\""; "leading tab")]
-    #[test_case("\"{{ foo  }}\""; "additional trailing space")]
-    #[test_case("\"{{ foo\t }}\""; "trailing tab")]
+    #[test_case(r#""{{foo }}""#; "no space before value name")]
+    #[test_case(r#""{{ foo}}""#; "no space after value name")]
+    #[test_case(r#""{{foo}}""#; "no spaces before or after value name")]
+    #[test_case(r#""{{ foo""#; "unclosed template")]
+    #[test_case(r#""{{ foo }""#; "single closing curly")]
+    #[test_case(r#""{{  foo }}""#; "additional leading space")]
+    #[test_case(r#""{{ \tfoo }}""#; "leading tab")]
+    #[test_case(r#""{{ foo  }}""#; "additional trailing space")]
+    #[test_case(r#""{{ foo\t }}""#; "trailing tab")]
     #[test]
     fn malformed_templates_error(raw: &str) {
-        let res: serde_yaml::Result<S> = serde_yaml::from_str(&format!("field: {raw}"));
+        let res: serde_yaml::Result<StringField> = serde_yaml::from_str(&format!("field: {raw}"));
         assert!(res.is_err(), "expected error, got {res:?}");
+    }
+
+    #[test]
+    fn single_leading_curly_is_permitted_for_a_string_field() {
+        let raw = r#"field: "{ \"some\": { \"valid\": [\"json\", \"data\"] }}""#;
+        let res: serde_yaml::Result<StringField> = serde_yaml::from_str(raw);
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert!(matches!(res.unwrap().field, Field::Resolved(_)));
     }
 
     // Test data structs for the Template tests below
