@@ -20,7 +20,7 @@
 
 - [Command Line Help](cli-help.md)
 
-- [Glossary]()
+- [Glossary](glossary.md)
 
 # Developer Documentation
 
