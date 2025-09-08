@@ -13,7 +13,7 @@ rtf-config = { path = "../rtf-config" }
 rtf-core = { path = "../rtf-core" }
 
 anyhow.workspace = true 
-clap = { version = "4.5.32", features = ["derive"] }
+clap = { version = "4.5.47", features = ["derive"] }
 serde_json.workspace = true
 serde_yaml.workspace = true
 tokio.workspace = true
@@ -27,6 +27,6 @@ predicates.workspace = true
 simple_test_case.workspace = true
 
 [build-dependencies]
-clap-markdown = "0.1.4"
-clap_complete = "4.5.32"
-clap = { version = "4.5.32", features = ["derive"] }
+clap-markdown = "0.1.5"
+clap_complete = "4.5.57"
+clap = { version = "4.5.47", features = ["derive"] }
