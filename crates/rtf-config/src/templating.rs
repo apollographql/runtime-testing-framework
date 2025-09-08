@@ -431,7 +431,7 @@ impl fmt::Display for Number {
 ///
 /// A scalar that is valid to be used as a template value for a [Field].
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
-#[serde(untagged)]
+#[serde(untagged, expecting = "expecting a valid Number, Boolean or String")]
 pub enum Scalar {
     /// Represents a number, whether integer or floating point.
     Number(Number),
@@ -582,7 +582,10 @@ mod tests {
     }
 
     #[derive(Debug, PartialEq, Deserialize)]
-    #[serde(untagged)]
+    #[serde(
+        untagged,
+        expecting = "expecting a Field that can resolve into a usize, isize, f64, bool or String"
+    )]
     enum Target {
         U { usize: Field<usize> },
         I { isize: Field<isize> },

@@ -12,9 +12,12 @@ use crate::{
     templating::{self, Field, Scalar, Template},
 };
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, io, path::Path};
-use tracing::trace;
+use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
+    de::{self, Visitor, value::MapAccessDeserializer},
+};
+use std::{collections::HashMap, fmt, io, path::Path};
+use tracing::{error, trace};
 
 /// The environment variable used to provide the location of the output directory to user specified
 /// commands
@@ -110,12 +113,16 @@ impl CommandSection {
             }
         }
 
+        // It is possible that no output is set in the environment setup script. If the output is
+        // blank then default to an empty json object. If there is an error reading the user defined
+        // output to the file then we still pass that error to the user. This is a quality of life
+        // improvement so if the user does define any output the rtf execution will continue.
         let output = match ctx.read_path_to_string(&out_file) {
             Ok(s) => {
                 ctx.remove_file(out_file)?;
                 s
             }
-            Err(e) if e.kind() == io::ErrorKind::NotFound => String::new(),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => "{}".to_string(),
             Err(e) => return Err(e.into()),
         };
 
@@ -296,13 +303,66 @@ impl Check for CommandSection {
 }
 
 /// # Raw Command
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, JsonSchema)]
 #[serde(untagged)]
 pub enum RawCommand {
     /// A named executable and arguments to run
     String(String),
     /// An explicit specification for a command to be run
     Spec(CommandSpec),
+}
+
+impl Serialize for RawCommand {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Self::String(s) => serializer.serialize_str(s),
+            Self::Spec(spec) => spec.serialize(serializer),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for RawCommand {
+    fn deserialize<D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<RawCommand, D::Error> {
+        deserializer.deserialize_any(CommandVisitor)
+    }
+}
+
+struct CommandVisitor;
+
+impl<'de> Visitor<'de> for CommandVisitor {
+    type Value = RawCommand;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("a string or a valid command spec")
+    }
+
+    fn visit_str<E: de::Error>(self, value: &str) -> std::result::Result<Self::Value, E> {
+        Ok(RawCommand::String(value.to_owned()))
+    }
+
+    fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+    where
+        A: de::MapAccess<'de>,
+    {
+        // MapAccessDeserializer is a wrapper that turns a MapAccess into a Deserializer, allowing
+        // it to be used as the input to CommandSpec's Deserialize implementation.
+        // CommandSpec then deserializes itself using the entries from the map visitor.
+        let res = CommandSpec::deserialize(MapAccessDeserializer::new(map));
+        let spec = match res {
+            Ok(data) => data,
+            Err(err) => {
+                error!("malformed command spec");
+                return Err(err);
+            }
+        };
+
+        Ok(RawCommand::Spec(spec))
+    }
 }
 
 impl Default for RawCommand {
@@ -830,7 +890,7 @@ mod tests {
     }
 
     #[test_case("WRITE_OUTPUT foo", "foo"; "with output")]
-    #[test_case("command-with-no-output", ""; "without output")]
+    #[test_case("command-with-no-output", "{}"; "without output")]
     #[tokio::test]
     async fn execute_returns_the_contents_of_the_output_file_and_removes_it(
         command: &str,
