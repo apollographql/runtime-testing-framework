@@ -1648,6 +1648,7 @@ dependencies = [
  "predicates",
  "rtf-config",
  "rtf-core",
+ "schemars",
  "serde_json",
  "serde_yaml",
  "simple_test_case",

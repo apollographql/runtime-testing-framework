@@ -27,6 +27,10 @@ predicates.workspace = true
 simple_test_case.workspace = true
 
 [build-dependencies]
+rtf-config = { path = "../rtf-config" }
+
 clap-markdown = "0.1.5"
 clap_complete = "4.5.57"
 clap = { version = "4.5.47", features = ["derive"] }
+schemars.workspace = true
+serde_json.workspace = true
