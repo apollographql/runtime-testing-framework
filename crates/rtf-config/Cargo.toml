@@ -18,7 +18,7 @@ reqwest.workspace = true
 anyhow = "1.0.99"
 bytes = "1.10.1"
 indoc = "2.0.6"
-schemars = "1.0.4"
+schemars.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true

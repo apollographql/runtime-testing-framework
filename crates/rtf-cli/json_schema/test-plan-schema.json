@@ -1,0 +1,1343 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "BuildRouterFromSource": {
+      "description": "A file provider used for building the Router from source at a specific git commit\nor reference.",
+      "properties": {
+        "commit_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A git reference that can be passed to `git checkout`. This may be\na full or partial commit hash, branch name, or tag.\n\nDefaults to `\"main\"` if unset."
+        },
+        "rust_version": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A Rust version string that can be passed to `rustup run {rust_version}`,\nsuch as `\"1.78.0\"`, `\"beta\"`, or `\"nightly\"`.\n\nDefaults to `\"stable\"` if unset."
+        }
+      },
+      "title": "Build Router From Source",
+      "type": "object"
+    },
+    "CommandSection": {
+      "description": "Defines an executable command along with environment variables that should be set prior to\nexecution and file providers that should be made available.",
+      "properties": {
+        "command": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RawCommand"
+            }
+          ],
+          "description": "The command to be run"
+        },
+        "env_vars": {
+          "additionalProperties": {
+            "$ref": "#/definitions/Templatable%20string"
+          },
+          "default": {},
+          "description": "Environment variables to set",
+          "type": "object"
+        },
+        "file_providers": {
+          "default": [],
+          "description": "File providers to run and make available prior to execution",
+          "items": {
+            "$ref": "#/definitions/NamedFileProvider"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "title": "Command Section",
+      "type": "object"
+    },
+    "CommandSpec": {
+      "oneOf": [
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/InlineFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "inline",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RelativeFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "relative_path",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RequiredFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "required",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ],
+      "properties": {
+        "args": {
+          "default": [],
+          "description": "Arguments to the command",
+          "items": {
+            "$ref": "#/definitions/Templatable%20string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "description": "The name of the command to run",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Command Spec",
+      "type": "object"
+    },
+    "ConfigSpec": {
+      "anyOf": [
+        {
+          "properties": {
+            "inline": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/ScenarioConfig"
+                }
+              ],
+              "description": "Inline YAML configuration"
+            }
+          },
+          "required": [
+            "inline"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "from": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/RawSource"
+                }
+              ],
+              "description": "A source file to read to obtain the required configuration"
+            },
+            "overrides": {
+              "default": null,
+              "description": "Optional overrides to merge on top of the base configuration",
+              "type": "object"
+            }
+          },
+          "required": [
+            "from"
+          ],
+          "type": "object"
+        }
+      ],
+      "description": "This struct allows the config files to be resolved either from\ninline yaml in the test plan or from a [FileProvider]",
+      "title": "Config Spec"
+    },
+    "ConfigSpec2": {
+      "anyOf": [
+        {
+          "properties": {
+            "inline": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/EnvironmentConfig"
+                }
+              ],
+              "description": "Inline YAML configuration"
+            }
+          },
+          "required": [
+            "inline"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "from": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/RawSource"
+                }
+              ],
+              "description": "A source file to read to obtain the required configuration"
+            },
+            "overrides": {
+              "default": null,
+              "description": "Optional overrides to merge on top of the base configuration",
+              "type": "object"
+            }
+          },
+          "required": [
+            "from"
+          ],
+          "type": "object"
+        }
+      ],
+      "description": "This struct allows the config files to be resolved either from\ninline yaml in the test plan or from a [FileProvider]",
+      "title": "Config Spec"
+    },
+    "EnvironmentConfig": {
+      "description": "Configuration for preparing and cleaning up the test environment as part of a test plan.",
+      "properties": {
+        "description": {
+          "description": "A brief description of how this environment setup works",
+          "type": "string"
+        },
+        "name": {
+          "description": "The name of this environment configuration",
+          "type": "string"
+        },
+        "setup": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/SetupSection"
+            }
+          ],
+          "description": "The command to execute to prepare the environment for executing the test scenario"
+        },
+        "teardown": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CommandSection"
+            }
+          ],
+          "description": "The command to execute to clean up the environment after executing the test scenario"
+        },
+        "values": {
+          "default": [],
+          "description": "Definitions for the required values for templating this environment",
+          "items": {
+            "$ref": "#/definitions/ValueDefinition"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "setup",
+        "teardown"
+      ],
+      "title": "Environment Config",
+      "type": "object"
+    },
+    "GithubFile": {
+      "description": "The user specifies a path to a file within a GitHub repository, optionally providing a specific\nref of the repository to pull the file from. If no ref is providing then the provider will pull\nthe version of the file found on the default branch.",
+      "properties": {
+        "git_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "An optional git reference to pull the file from. This may be a full or partial commit hash,\nbranch name, or tag.\n\nDefaults to the mainline branch as specified in GitHub if unset."
+        },
+        "org": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The GitHub org for the repository containing the target file"
+        },
+        "path": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The absolute path from the root of the repository to the target file"
+        },
+        "repo": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The GitHub repository containing the target file"
+        }
+      },
+      "required": [
+        "org",
+        "repo",
+        "path"
+      ],
+      "title": "GitHub File",
+      "type": "object"
+    },
+    "GraphosCannedOps": {
+      "description": "The user specifies the graph ref and parameters that should be used to\ngenerate canned GraphQL requests based on operations data obtained from\nthe GraphOS API.",
+      "properties": {
+        "graph_ref": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The Apollo graph ref to pull operations for."
+        },
+        "skip_mutations": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20boolean"
+            }
+          ],
+          "default": false,
+          "description": "Whether or not to include mutations in the returned operations.\n\nDefaults to false if unset."
+        },
+        "top_n": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20integer"
+            }
+          ],
+          "default": 20,
+          "description": "The number of operations to attempt to fetch.\n\nDefaults to 20 if unset."
+        }
+      },
+      "required": [
+        "graph_ref"
+      ],
+      "title": "GraphOS Canned Operations",
+      "type": "object"
+    },
+    "GraphosSubgraphDockerCompose": {
+      "description": "The user specifies the graph ref that should be used to fetch subgraph\nSDL files from the GraphOS API and generates a docker compose file that\nruns all the subgraphs",
+      "properties": {
+        "command": {
+          "default": [
+            "-schema",
+            "/app/supergraph.graphql"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "graph_ref": {
+          "$ref": "#/definitions/Templatable%20string"
+        },
+        "image": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "default": "ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main"
+        },
+        "loadbalancer": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Loadbalancer"
+            }
+          ],
+          "default": {
+            "mem_swappiness": 0,
+            "resource_limits": {
+              "cpus": "0.5",
+              "memory": "1G"
+            },
+            "resource_reservations": {
+              "cpus": "0.1",
+              "memory": "512M"
+            }
+          }
+        },
+        "mem_swappiness": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20integer2"
+            }
+          ],
+          "default": 0
+        },
+        "replicas": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20integer2"
+            }
+          ],
+          "default": 5
+        },
+        "resource_limits": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Resources"
+            }
+          ],
+          "default": {
+            "cpus": "0.5",
+            "memory": "1G"
+          }
+        },
+        "resource_reservations": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Resources"
+            }
+          ],
+          "default": {
+            "cpus": "0.1",
+            "memory": "512M"
+          }
+        }
+      },
+      "required": [
+        "graph_ref"
+      ],
+      "title": "GraphOS Supergraph Docker Compose",
+      "type": "object"
+    },
+    "GraphosSubgraphRouterUrlOverrides": {
+      "description": "The user specifies the graph ref that should be used to fetch subgraph\nSDL files from the GraphOS API and generates a the override_subgraph_urls\nYAML snippet that can be merged into a router config file\n\nThis should be used when generating the subgraph docker compose using\n[GraphosSubgraphDockerCompose]. This will ensure the router subgraph urls\nmap to the urls in that compose file.",
+      "properties": {
+        "graph_ref": {
+          "$ref": "#/definitions/Templatable%20string"
+        },
+        "url_format": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/UrlFormat"
+            }
+          ],
+          "default": "localhost"
+        }
+      },
+      "required": [
+        "graph_ref"
+      ],
+      "title": "GraphOS Supergraph Router URL Overrides",
+      "type": "object"
+    },
+    "GraphosSubgraphs": {
+      "description": "The user specifies the graph ref that should be used to fetch a subgraph\nSDL files from the GraphOS API.\n\nNote that this file proivider will output a directory of SDL schema files, one for each\nsubgraph.",
+      "properties": {
+        "graph_ref": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The Apollo graph ref to pull subgraph SDL files for."
+        }
+      },
+      "required": [
+        "graph_ref"
+      ],
+      "title": "GraphOS subgraph SDL",
+      "type": "object"
+    },
+    "GraphosSupergraph": {
+      "description": "The user specifies the ref that should be used to fetch a supergraph SDL\nfile from the GraphOS API.",
+      "properties": {
+        "graph_ref": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The Apollo graph ref to pull supergraph SDL for."
+        },
+        "with_subgraph_overrides": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UrlFormat"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "graph_ref"
+      ],
+      "title": "GraphOS Supergraph SDL",
+      "type": "object"
+    },
+    "InlineFile": {
+      "description": "The simplest form of file provider: the user specifies the contents of the file inline within\ntheir config file.",
+      "properties": {
+        "content": {
+          "description": "The text to write out as the contents of the generated file.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "title": "Inline File",
+      "type": "object"
+    },
+    "Loadbalancer": {
+      "properties": {
+        "mem_swappiness": {
+          "$ref": "#/definitions/Templatable%20integer2"
+        },
+        "resource_limits": {
+          "$ref": "#/definitions/Resources"
+        },
+        "resource_reservations": {
+          "$ref": "#/definitions/Resources"
+        }
+      },
+      "required": [
+        "resource_limits",
+        "resource_reservations",
+        "mem_swappiness"
+      ],
+      "type": "object"
+    },
+    "MergeYaml": {
+      "description": "Merge the YAML output of two text based file providers into a single YAML file.\n\nMatching keys in the overrides file will replace scalar values, concatenate arrays\nand merge keys for maps.",
+      "properties": {
+        "base": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TextFileProvider"
+            }
+          ],
+          "description": "A base YAML file to start with."
+        },
+        "overrides": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/TextFileProvider"
+            }
+          ],
+          "description": "An second YAML file to merge on top of the base file."
+        }
+      },
+      "required": [
+        "base",
+        "overrides"
+      ],
+      "title": "Merge YAML",
+      "type": "object"
+    },
+    "NamedFileProvider": {
+      "description": "Shared metadata that wraps every file provider.",
+      "oneOf": [
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/BuildRouterFromSource"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "build_router_from_source",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GithubFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "github_file",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GraphosCannedOps"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphos_canned_ops",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GraphosSubgraphDockerCompose"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphos_subgraph_docker_compose",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GraphosSubgraphRouterUrlOverrides"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphos_subgraph_router_url_overrides",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GraphosSubgraphs"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphos_subgraphs",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GraphosSupergraph"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphos_supergraph",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/InlineFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "inline",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/OfflineGraphosLicense"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "offline_graphos_license",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RelativeFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "relative_path",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RequiredFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "required",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Returns the JSON string representation of the resolved values for the test plan being run.",
+          "properties": {
+            "kind": {
+              "const": "resolved_values",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "title": "Resolved Values",
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RouterDownloadScript"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "router_download_script",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/MergeYaml"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "merge_yaml",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ],
+      "properties": {
+        "env_var": {
+          "description": "The environment variable to place the absolute path to this providers output",
+          "type": "string"
+        },
+        "name": {
+          "description": "The to use for the output produced by this provider\n\nThis can be either a file or a directory depending on the file provider.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "env_var"
+      ],
+      "title": "Named File Provider",
+      "type": "object"
+    },
+    "Number": {
+      "description": "Represents a number, whether integer or floating point.",
+      "title": "Number",
+      "type": "number"
+    },
+    "OfflineGraphosLicense": {
+      "description": "The user specifies the graph id that should be used to fetch an offline license from the\nGraphOS API.",
+      "properties": {
+        "graph_id": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The Apollo graph ref to pull an offline license for."
+        }
+      },
+      "required": [
+        "graph_id"
+      ],
+      "title": "GraphOS Offline License",
+      "type": "object"
+    },
+    "RawCommand": {
+      "anyOf": [
+        {
+          "description": "A named executable and arguments to run",
+          "type": "string"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CommandSpec"
+            }
+          ],
+          "description": "An explicit specification for a command to be run"
+        }
+      ],
+      "title": "Raw Command"
+    },
+    "RawSource": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "local",
+              "type": "string"
+            },
+            "relative_path": {
+              "description": "A relative path to the target config file",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "relative_path"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "git_ref": {
+              "default": null,
+              "description": "An optional git ref to pull the config file from (defaults to mainline)",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "const": "github",
+              "type": "string"
+            },
+            "org": {
+              "description": "The GitHub org to pull the config file from",
+              "type": "string"
+            },
+            "path": {
+              "description": "The absolute path to the config file within the target GitHub repository",
+              "type": "string"
+            },
+            "repo": {
+              "description": "The GitHub repository to pull the config file from",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "org",
+            "repo",
+            "path"
+          ],
+          "type": "object"
+        }
+      ],
+      "title": "Config Source"
+    },
+    "RelativeFile": {
+      "description": "A relative path from the containing config file to a target file that should be made available\nas part of the test run. This provider works both with local files and files within GitHub\nif the containing config file was pulled from a repository.",
+      "properties": {
+        "path": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The relative path from the containing config file to the target file."
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "Relative File",
+      "type": "object"
+    },
+    "RequiredFile": {
+      "description": "The only purpose of this file provider is to throw an error if it still exists\nwhen the file providers are being checked. All definitions of a required file\nare expected to be replaced by user defined file providers.",
+      "properties": {
+        "message": {
+          "description": "The error message to display to the user if this provider is not overwritten.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "title": "Required File",
+      "type": "object"
+    },
+    "Resources": {
+      "properties": {
+        "cpus": {
+          "$ref": "#/definitions/Templatable%20string"
+        },
+        "memory": {
+          "$ref": "#/definitions/Templatable%20string"
+        }
+      },
+      "required": [
+        "cpus",
+        "memory"
+      ],
+      "type": "object"
+    },
+    "RouterDownloadScript": {
+      "description": "Produces a POSIX shell script that can be run in order to download a target version of the\nApollo Router.",
+      "properties": {
+        "version": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The version of the Apollo Router to download."
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "title": "Router Download Script",
+      "type": "object"
+    },
+    "Scalar": {
+      "anyOf": [
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Number"
+            }
+          ],
+          "description": "Represents a number, whether integer or floating point."
+        },
+        {
+          "description": "Represents a boolean",
+          "type": "boolean"
+        },
+        {
+          "description": "Represents a string",
+          "type": "string"
+        }
+      ],
+      "description": "A scalar that is valid to be used as a template value for a [Field].",
+      "title": "Scalar"
+    },
+    "ScenarioConfig": {
+      "description": "Configuration for a single test scenario to be executed as part of a test plan.",
+      "properties": {
+        "command": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RawCommand"
+            }
+          ],
+          "description": "The command to be run"
+        },
+        "description": {
+          "description": "A brief description of the purpose / behaviour of this scenario",
+          "type": "string"
+        },
+        "env_vars": {
+          "additionalProperties": {
+            "$ref": "#/definitions/Templatable%20string"
+          },
+          "default": {},
+          "description": "Environment variables to set",
+          "type": "object"
+        },
+        "file_providers": {
+          "default": [],
+          "description": "File providers to run and make available prior to execution",
+          "items": {
+            "$ref": "#/definitions/NamedFileProvider"
+          },
+          "type": "array"
+        },
+        "name": {
+          "description": "The name of this scenario",
+          "type": "string"
+        },
+        "values": {
+          "default": [],
+          "description": "Definitions for the required values for templating this scenario",
+          "items": {
+            "$ref": "#/definitions/ValueDefinition"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "command"
+      ],
+      "title": "Scenario Config",
+      "type": "object"
+    },
+    "SetupSection": {
+      "description": "Defines an executable command along with environment variables that should be set prior to\nexecution and file providers that should be made available.",
+      "properties": {
+        "command": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RawCommand"
+            }
+          ],
+          "description": "The command to be run"
+        },
+        "env_vars": {
+          "additionalProperties": {
+            "$ref": "#/definitions/Templatable%20string"
+          },
+          "default": {},
+          "description": "Environment variables to set",
+          "type": "object"
+        },
+        "file_providers": {
+          "default": [],
+          "description": "File providers to run and make available prior to execution",
+          "items": {
+            "$ref": "#/definitions/NamedFileProvider"
+          },
+          "type": "array"
+        },
+        "provides": {
+          "default": [],
+          "description": "Additional templating values that will be provided through the output of this command",
+          "items": {
+            "$ref": "#/definitions/ValueDefinition"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "title": "Setup Command Section",
+      "type": "object"
+    },
+    "Templatable boolean": {
+      "description": "A templatable boolean that can be replaced with a user specified value at runtime",
+      "oneOf": [
+        {
+          "description": "The value that should be templated.",
+          "pattern": "^\\{\\{ \\w+ \\}\\}$",
+          "type": "string"
+        },
+        {
+          "description": "Statically provided data.",
+          "type": "boolean"
+        }
+      ]
+    },
+    "Templatable integer": {
+      "description": "A templatable integer that can be replaced with a user specified value at runtime",
+      "oneOf": [
+        {
+          "description": "The value that should be templated.",
+          "pattern": "^\\{\\{ \\w+ \\}\\}$",
+          "type": "string"
+        },
+        {
+          "description": "Statically provided data.",
+          "type": "integer"
+        }
+      ]
+    },
+    "Templatable integer2": {
+      "description": "A templatable integer that can be replaced with a user specified value at runtime",
+      "oneOf": [
+        {
+          "description": "The value that should be templated.",
+          "pattern": "^\\{\\{ \\w+ \\}\\}$",
+          "type": "string"
+        },
+        {
+          "description": "Statically provided data.",
+          "type": "integer"
+        }
+      ]
+    },
+    "Templatable string": {
+      "description": "A templatable string that can be replaced with a user specified value at runtime",
+      "oneOf": [
+        {
+          "description": "The value that should be templated.",
+          "pattern": "^\\{\\{ \\w+ \\}\\}$",
+          "type": "string"
+        },
+        {
+          "description": "Statically provided data.",
+          "type": "string"
+        }
+      ]
+    },
+    "TextFileProvider": {
+      "description": "A subset of file providers that can produce arbitrary utf-8 text as their output.",
+      "oneOf": [
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GithubFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "github_file",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GraphosSubgraphRouterUrlOverrides"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphos_subgraph_router_url_overrides",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/InlineFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "inline",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RelativeFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "relative_path",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RequiredFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "required",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ],
+      "title": "Text File Provider"
+    },
+    "UrlFormat": {
+      "description": "The allowed url formats for the [GraphosSubgraphRouterUrlOverrides]",
+      "enum": [
+        "localhost",
+        "docker"
+      ],
+      "type": "string"
+    },
+    "ValueDefinition": {
+      "properties": {
+        "default": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Scalar"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "An optional default to use if this value is not provided in the parent test plan"
+        },
+        "description": {
+          "description": "A brief description of how this value is used",
+          "type": "string"
+        },
+        "name": {
+          "description": "The templating name for this value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "description"
+      ],
+      "type": "object"
+    }
+  },
+  "description": "The top level config file for specifying an RTF test plan",
+  "properties": {
+    "description": {
+      "description": "A brief description of the purpose / behaviour of this test plan",
+      "type": "string"
+    },
+    "environment": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ConfigSpec2"
+        }
+      ],
+      "description": "The environment setup and teardown to run around the test scenario"
+    },
+    "matrix": {
+      "additionalProperties": {
+        "items": {
+          "$ref": "#/definitions/Scalar"
+        },
+        "type": "array"
+      },
+      "default": {},
+      "description": "Sets of templating values to apply to fields within the rest of the test plan as a matrix",
+      "type": "object"
+    },
+    "name": {
+      "description": "The name of this test plan",
+      "type": "string"
+    },
+    "scenario": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ConfigSpec"
+        }
+      ],
+      "description": "The test scenario to execute"
+    },
+    "values": {
+      "additionalProperties": {
+        "$ref": "#/definitions/Scalar"
+      },
+      "default": {},
+      "description": "Templating values to apply to fields within the rest of the test plan",
+      "type": "object"
+    }
+  },
+  "required": [
+    "name",
+    "description",
+    "scenario",
+    "environment"
+  ],
+  "title": "Test Plan Config",
+  "type": "object"
+}
