@@ -1,4 +1,4 @@
 {
   "message": "say hi to the ",
-  "setup_subject": "sailor!"
+  "setup_subject": ["sailor!", "brother?"]
 }

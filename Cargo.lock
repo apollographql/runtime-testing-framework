@@ -1649,6 +1649,7 @@ dependencies = [
  "rtf-config",
  "rtf-core",
  "schemars",
+ "serde",
  "serde_json",
  "serde_yaml",
  "simple_test_case",

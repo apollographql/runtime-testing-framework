@@ -14,6 +14,7 @@ rtf-core = { path = "../rtf-core" }
 
 anyhow.workspace = true 
 clap = { version = "4.5.47", features = ["derive"] }
+serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
 tokio.workspace = true
