@@ -56,7 +56,7 @@ async fn check_and_run_test_plan_with_context(
     out_dir: &Path,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    values.merge(&mut test_plan.values, &mut ctx)?;
+    values.merge(&mut test_plan.values, &mut test_plan.matrix, &mut ctx)?;
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work()?;

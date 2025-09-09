@@ -1,6 +1,7 @@
 //! Runtime Testing Framework CLI - a swiss army knife for testing the Apollo Runtime
 use anyhow::{Context, anyhow};
 use rtf_config::{context::ResolutionContext, templating::Scalar};
+use serde::Deserialize;
 use std::{collections::HashMap, io, path::Path};
 
 pub mod cli;
@@ -14,15 +15,26 @@ pub const LOG_LEVEL_ENV_VAR: &str = "APOLLO_RTF_LOG";
 // build dependencies (rather than main crate dependencies), so we implement this method here
 // instead.
 
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum ScalarOrArray {
+    Scalar(Scalar),
+    Array(Vec<Scalar>),
+}
+
 impl cli::Values {
-    /// Merge any values obtained from the CLI with the ones found in a test plan.
+    /// Merge any values obtained from the CLI with the ones found in a test plan, removing any
+    /// existing value or matrix definitions with the same key.
     pub fn merge(
         self,
-        from_test_plan: &mut HashMap<String, Scalar>,
+        values_from_test_plan: &mut HashMap<String, Scalar>,
+        matrix_from_test_plan: &mut HashMap<String, Vec<Scalar>>,
         ctx: &mut impl ResolutionContext,
     ) -> anyhow::Result<()> {
-        self.merge_inner(from_test_plan, |path| ctx.read_path_to_string(path))?;
-        ctx.set_values(from_test_plan);
+        self.merge_inner(values_from_test_plan, matrix_from_test_plan, |path| {
+            ctx.read_path_to_string(path)
+        })?;
+        ctx.set_values(values_from_test_plan);
 
         Ok(())
     }
@@ -30,18 +42,32 @@ impl cli::Values {
     #[inline]
     fn merge_inner(
         self,
-        from_test_plan: &mut HashMap<String, Scalar>,
+        values_from_test_plan: &mut HashMap<String, Scalar>,
+        matrix_from_test_plan: &mut HashMap<String, Vec<Scalar>>,
         read_file: impl Fn(&Path) -> io::Result<String>,
     ) -> anyhow::Result<()> {
+        // Values read from a file can be used to specify either individual values or matrix arrays
         if let Some(path) = self.values.as_ref() {
             let s = (read_file)(path)
                 .context(format!("unable to read values file {}", path.display()))?;
-            let from_values: HashMap<String, Scalar> =
+            let from_values: HashMap<String, ScalarOrArray> =
                 serde_json::from_str(&s).context("invalid values file")?;
 
-            from_test_plan.extend(from_values);
+            for (k, v) in from_values.into_iter() {
+                match v {
+                    ScalarOrArray::Scalar(s) => {
+                        matrix_from_test_plan.remove(&k);
+                        values_from_test_plan.insert(k, s);
+                    }
+                    ScalarOrArray::Array(arr) => {
+                        values_from_test_plan.remove(&k);
+                        matrix_from_test_plan.insert(k, arr);
+                    }
+                }
+            }
         }
 
+        // Values provided on the command line always specify a single value
         for kv in self.value.into_iter() {
             let (k, v) = kv
                 .split_once('=')
@@ -52,7 +78,8 @@ impl cli::Values {
             }
 
             let v: Scalar = serde_yaml::from_str(v).context(format!("invalid value for {k:?}"))?;
-            from_test_plan.insert(k.to_string(), v);
+            matrix_from_test_plan.remove(k);
+            values_from_test_plan.insert(k.to_string(), v);
         }
 
         Ok(())
@@ -62,20 +89,22 @@ impl cli::Values {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rtf_config::templating::Scalar;
     use simple_test_case::test_case;
     use std::path::PathBuf;
 
     macro_rules! values_map {
         ($($k:expr => $v:expr),+) => {{
             let mut m = ::std::collections::HashMap::new();
-            $( m.insert($k.to_string(), rtf_config::templating::Scalar::try_from($v).unwrap()); )+
+            $( m.insert($k.to_string(), Scalar::try_from($v).unwrap()); )+
             m
         }};
     }
 
     #[test]
     fn values_are_merged_in_the_correct_order() {
-        let mut from_test_plan = values_map!("foo" => 42, "bar" => "live", "baz" => true);
+        let mut values = values_map!("foo" => 42, "bar" => "live", "baz" => true);
+        let mut matrix = HashMap::default();
         let from_cli = cli::Values {
             value: vec![
                 "bar=love".to_string(),
@@ -88,20 +117,62 @@ mod tests {
             |_: &Path| io::Result::Ok(r#"{ "bar": "laugh", "baz": false }"#.to_string());
 
         from_cli
-            .merge_inner(&mut from_test_plan, read_file)
+            .merge_inner(&mut values, &mut matrix, read_file)
             .unwrap();
 
+        assert!(matrix.is_empty());
+
         // foo is not overwritten and should remain what was in the test plan
-        assert_eq!(from_test_plan.get("foo"), Some(&Scalar::from(42)));
+        assert_eq!(values.get("foo"), Some(&Scalar::from(42)));
 
         // bar is overwritten from both the values json file and a cli arg: cli should be preferred
-        assert_eq!(from_test_plan.get("bar"), Some(&Scalar::from("love")));
+        assert_eq!(values.get("bar"), Some(&Scalar::from("love")));
 
         // baz is overwritten in the values json file
-        assert_eq!(from_test_plan.get("baz"), Some(&Scalar::from(false)));
+        assert_eq!(values.get("baz"), Some(&Scalar::from(false)));
 
         // qux is an additional value added as a cli arg twice: we should get the last value set
-        assert_eq!(from_test_plan.get("qux"), Some(&Scalar::from(456)));
+        assert_eq!(values.get("qux"), Some(&Scalar::from(456)));
+    }
+
+    #[test]
+    fn overrides_remove_conflicting_existing_keys() {
+        // Start with foo as a value and bar and baz a matrix dimensions
+        let mut values = values_map!("foo" => 42);
+        let mut matrix: HashMap<String, Vec<Scalar>> = HashMap::default();
+        matrix.insert("bar".into(), vec![1.into()]);
+        matrix.insert("baz".into(), vec![2.into()]);
+
+        // change bar to a value from the cli
+        // change baz to a value from values.json
+        // change foo to a matrix dimension from values.json
+        let from_cli = cli::Values {
+            value: vec!["bar=3".to_string()],
+            values: Some(PathBuf::from("my-values.json")),
+        };
+        let read_file = |_: &Path| io::Result::Ok(r#"{ "foo": [2], "baz": 42 }"#.to_string());
+
+        // Keys should start mutually exclusive
+        let mut initial_values: Vec<&String> = values.keys().collect();
+        let mut initial_matrix_dimensions: Vec<&String> = matrix.keys().collect();
+        initial_values.sort_unstable();
+        initial_matrix_dimensions.sort_unstable();
+
+        assert_eq!(&initial_values, &["foo"]);
+        assert_eq!(&initial_matrix_dimensions, &["bar", "baz"]);
+
+        from_cli
+            .merge_inner(&mut values, &mut matrix, read_file)
+            .unwrap();
+
+        // Keys should end mutually exclusive but flipped
+        let mut final_values: Vec<&String> = values.keys().collect();
+        let mut final_matrix_dimensions: Vec<&String> = matrix.keys().collect();
+        final_values.sort_unstable();
+        final_matrix_dimensions.sort_unstable();
+
+        assert_eq!(&final_values, &["bar", "baz"]);
+        assert_eq!(&final_matrix_dimensions, &["foo"]);
     }
 
     #[test_case("bar should have an equals before value"; "no equals")]
@@ -117,7 +188,10 @@ mod tests {
         };
 
         let mut vals = HashMap::default();
-        let res = from_cli.merge_inner(&mut vals, |_: &Path| panic!("should not be called"));
+        let mut mat = HashMap::default();
+        let res = from_cli.merge_inner(&mut vals, &mut mat, |_: &Path| {
+            panic!("should not be called")
+        });
 
         assert!(res.is_err(), "expected error, ended up with {vals:?}");
     }

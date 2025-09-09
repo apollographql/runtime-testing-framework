@@ -25,7 +25,7 @@ async fn template_test_plan_with_context(
 ) -> anyhow::Result<()> {
     info!("loading and resolving test plan");
     let mut test_plan = TestPlanConfig::try_load_and_resolve_from_path(path, &ctx).await?;
-    values.merge(&mut test_plan.values, &mut ctx)?;
+    values.merge(&mut test_plan.values, &mut test_plan.matrix, &mut ctx)?;
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work()?;
