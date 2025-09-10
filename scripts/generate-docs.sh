@@ -80,6 +80,6 @@ toc >> "$DOCS_PAGE"
 process_output >> "$DOCS_PAGE"
 
 echo ">> Formatting markdown..."
-mise run format-markdown
+dprint fmt
 
 echo ">> Done"
