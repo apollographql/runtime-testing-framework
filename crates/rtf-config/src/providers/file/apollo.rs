@@ -342,7 +342,9 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
         );
         let nginx_config = indoc![
             r#"
-            events {}
+            events {
+                worker_connections 10000;
+            }
 
             http {
                 upstream backend {
