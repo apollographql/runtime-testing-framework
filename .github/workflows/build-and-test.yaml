@@ -118,6 +118,35 @@ jobs:
           [tools]
           dprint = "0.48.0"
     - run: dprint check
+
+  check-generated-docs:
+    name: Check that generated docs are up to date
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: hecrj/setup-rust-action@v2
+      with:
+        components: rustdoc
+        rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
+      # The action takes too long to build if we install all the tools in the repo
+      # This deletes the full mise.toml and instead installs dprint only
+    - run: rm -f .config/mise/mise.toml
+    - uses: jdx/mise-action@v2
+      with:
+        mise_toml: |
+          [tools]
+          dprint = "0.48.0"
+    - run: |
+        ./scripts/fp-docs.sh
+        DIFF="$(git diff docs/src/)"
+        DIFF_LINES="$(echo "$DIFF" | wc -l)"
+        if [ "$DIFF_LINES" != 0 ]; then
+          echo "WARNING: Generated docs are out of date:"
+          echo "$DIFF"
+          exit 1
+        else
+          echo "Generated docs are up to date"
+        fi
   
   upload-rtf-binary:
     name: Upload the RTF binary as an artifact
