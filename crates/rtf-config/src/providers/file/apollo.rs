@@ -27,10 +27,21 @@ use std::{
 ///
 /// The user specifies the ref that should be used to fetch a supergraph SDL
 /// file from the GraphOS API.
+///
+/// ```yaml
+/// - name: "supergraph.graphql"
+///   env_var: SUPERGRAPH
+///   kind: graphos_supergraph
+///   graph_ref: graph@variant
+///   with_supergraph_overrides: null
+/// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct GraphosSupergraph {
     /// The Apollo graph ref to pull supergraph SDL for.
     pub graph_ref: Field<String>,
+    /// Replace the supergraph's subgraph urls with overridden values for testing.
+    ///
+    /// Defaults to null if unset.
     #[serde(default)]
     pub with_subgraph_overrides: Option<UrlFormat>,
 }
@@ -92,6 +103,13 @@ impl Check for GraphosSupergraph {
 ///
 /// Note that this file proivider will output a directory of SDL schema files, one for each
 /// subgraph.
+///
+/// ```yaml
+/// - name: "subgraphs"
+///   env_var: SUBGRAPHS
+///   kind: graphos_subgraphs
+///   graph_ref: graph@variant
+/// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct GraphosSubgraphs {
     /// The Apollo graph ref to pull subgraph SDL files for.
@@ -140,38 +158,97 @@ impl Check for GraphosSubgraphs {
 
 /// # GraphOS Supergraph Docker Compose
 ///
-/// The user specifies the graph ref that should be used to fetch subgraph
-/// SDL files from the GraphOS API and generates a docker compose file that
-/// runs all the subgraphs
+/// The user specifies the graph ref that should be used to fetch the supergraph
+/// SDL file from the GraphOS API and generates a docker compose file. It runs a
+/// configurable number of subgraph services, mocking based on the supergraph
+/// schema behind a loadbalancer.
+///
+/// ```yaml
+/// - name: "subgraph-compose.yaml"
+///   env_var: SUBGRAPH_COMPOSE
+///   kind: graphos_subgraph_docker_compose
+///   graph_ref: graph@variant
+///   image: ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main
+///   command:
+///   - -schema
+///   - /app/supergraph.graphql
+///   replicas: 5
+///   resource_limits:
+///     cpus: '0.5'
+///     memory: 1G
+///   resource_reservations:
+///    cpus: '0.1'
+///     memory: 512M
+///   mem_swappiness: 0
+///   loadbalancer:
+///     resource_limits:
+///       cpus: '0.5'
+///       memory: 1G
+///     resource_reservations:
+///       cpus: '0.1'
+///       memory: 512M
+///     mem_swappiness: 0
+/// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct GraphosSubgraphDockerCompose {
+    /// The Apollo graph ref to pull the supergraph for.
     pub graph_ref: Field<String>,
+    /// The image the subgraph service runs.
+    ///
+    /// Defaults to ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main if unset.
     #[serde(default = "default_image")]
     pub image: Field<String>,
+    /// The command that subgraph server image runs.
+    ///
+    /// Defaults to "-schema /app/supergraph.graphql" if unset.
     #[serde(default = "default_command")]
     pub command: Vec<String>,
+    /// The number of subgraph services containers running.
+    ///
+    /// Defaults to 5 if unset.
     #[serde(default = "default_replicas")]
     pub replicas: Field<i32>,
+    /// The resource limits for the subgraph containers.
+    ///
+    /// Defaults to cpus=0.5 and memory=1G if unset.
     #[serde(default = "default_limits")]
     pub resource_limits: Resources,
+    /// The reserved resources for the subgraph containers.
+    ///
+    /// Defaults to cpus=0.1 and memory=512M if unset.
     #[serde(default = "default_reservations")]
     pub resource_reservations: Resources,
+    /// Enable or disable memory swapping in the subgraph services.
+    ///
+    /// Defaults to 0 (disabled) if unset.
     #[serde(default = "default_mem_swappiness")]
     pub mem_swappiness: Field<i32>,
+    /// The configuration for the subgraph's loadbalancer.
     #[serde(default = "default_loadbalancer")]
     pub loadbalancer: Loadbalancer,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct Loadbalancer {
+    /// The resource limits for the loadbalancer.
+    ///
+    /// Defaults to cpus=0.5 and memory=1G if unset.
     pub resource_limits: Resources,
+    /// The reserved resources for the loadbalancer.
+    ///
+    /// Defaults to cpus=0.1 and memory=512M if unset.
     pub resource_reservations: Resources,
+    /// Enable or disable memory swapping in the loadbalancer.
+    ///
+    /// Defaults to 0 (disabled) if unset.
     pub mem_swappiness: Field<i32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct Resources {
+    /// The cpus allocated for the resource.
     pub cpus: Field<String>,
+    /// The memory allocated for the resource.
     pub memory: Field<String>,
 }
 
@@ -476,10 +553,20 @@ impl Check for GraphosSubgraphDockerCompose {
 ///
 /// This should be used when generating the subgraph docker compose using
 /// [GraphosSubgraphDockerCompose]. This will ensure the router subgraph urls
-/// map to the urls in that compose file.
+/// map to the loadbalancer url in that compose file.
+///
+/// ```yaml
+/// - name: subgraph-url-overrides.yaml
+///   env_var: SUBGRAPH_URL_OVERRIDES
+///   kind: graphos_subgraph_router_url_overrides
+///   graph_ref: graph@variant
+///   url_format: localhost
+/// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct GraphosSubgraphRouterUrlOverrides {
+    /// The Apollo graph ref to pull the subgraphs for.
     pub graph_ref: Field<String>,
+    /// The format of the overrides url.
     #[serde(default = "default_url_format")]
     pub url_format: UrlFormat,
 }
@@ -562,6 +649,15 @@ impl Check for GraphosSubgraphRouterUrlOverrides {
 /// The user specifies the graph ref and parameters that should be used to
 /// generate canned GraphQL requests based on operations data obtained from
 /// the GraphOS API.
+///
+/// ```yaml
+/// - name: canned_ops.json
+///   env_var: CANNED_OPS_FILE
+///   kind: graphos_canned_ops
+///   graph_ref: graph@variant
+///   top_n: 10
+///   skip_mutations: false
+/// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct GraphosCannedOps {
     /// The Apollo graph ref to pull operations for.
@@ -639,6 +735,13 @@ impl Check for GraphosCannedOps {
 ///
 /// The user specifies the graph id that should be used to fetch an offline license from the
 /// GraphOS API.
+///
+/// ```yaml
+/// - name: license.jwt
+///   env_var: LICENSE
+///   kind: graphos_offline_license
+///   graph_id: graph
+/// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct OfflineGraphosLicense {
     /// The Apollo graph ref to pull an offline license for.

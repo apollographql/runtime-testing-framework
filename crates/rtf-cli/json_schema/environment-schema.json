@@ -186,7 +186,7 @@
       "type": "object"
     },
     "GraphosCannedOps": {
-      "description": "The user specifies the graph ref and parameters that should be used to\ngenerate canned GraphQL requests based on operations data obtained from\nthe GraphOS API.",
+      "description": "The user specifies the graph ref and parameters that should be used to\ngenerate canned GraphQL requests based on operations data obtained from\nthe GraphOS API.\n\n```yaml\n- name: canned_ops.json\n  env_var: CANNED_OPS_FILE\n  kind: graphos_canned_ops\n  graph_ref: graph@variant\n  top_n: 10\n  skip_mutations: false\n```",
       "properties": {
         "graph_ref": {
           "allOf": [
@@ -222,20 +222,26 @@
       "type": "object"
     },
     "GraphosSubgraphDockerCompose": {
-      "description": "The user specifies the graph ref that should be used to fetch subgraph\nSDL files from the GraphOS API and generates a docker compose file that\nruns all the subgraphs",
+      "description": "The user specifies the graph ref that should be used to fetch the supergraph\nSDL file from the GraphOS API and generates a docker compose file. It runs a\nconfigurable number of subgraph services, mocking based on the supergraph\nschema behind a loadbalancer.\n\n```yaml\n- name: \"subgraph-compose.yaml\"\n  env_var: SUBGRAPH_COMPOSE\n  kind: graphos_subgraph_docker_compose\n  graph_ref: graph@variant\n  image: ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main\n  command:\n  - -schema\n  - /app/supergraph.graphql\n  replicas: 5\n  resource_limits:\n    cpus: '0.5'\n    memory: 1G\n  resource_reservations:\n   cpus: '0.1'\n    memory: 512M\n  mem_swappiness: 0\n  loadbalancer:\n    resource_limits:\n      cpus: '0.5'\n      memory: 1G\n    resource_reservations:\n      cpus: '0.1'\n      memory: 512M\n    mem_swappiness: 0\n```",
       "properties": {
         "command": {
           "default": [
             "-schema",
             "/app/supergraph.graphql"
           ],
+          "description": "The command that subgraph server image runs.\n\nDefaults to \"-schema /app/supergraph.graphql\" if unset.",
           "items": {
             "type": "string"
           },
           "type": "array"
         },
         "graph_ref": {
-          "$ref": "#/definitions/Templatable%20string"
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The Apollo graph ref to pull the supergraph for."
         },
         "image": {
           "allOf": [
@@ -243,7 +249,8 @@
               "$ref": "#/definitions/Templatable%20string"
             }
           ],
-          "default": "ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main"
+          "default": "ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main",
+          "description": "The image the subgraph service runs.\n\nDefaults to ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main if unset."
         },
         "loadbalancer": {
           "allOf": [
@@ -261,7 +268,8 @@
               "cpus": "0.1",
               "memory": "512M"
             }
-          }
+          },
+          "description": "The configuration for the subgraph's loadbalancer."
         },
         "mem_swappiness": {
           "allOf": [
@@ -269,7 +277,8 @@
               "$ref": "#/definitions/Templatable%20integer2"
             }
           ],
-          "default": 0
+          "default": 0,
+          "description": "Enable or disable memory swapping in the subgraph services.\n\nDefaults to 0 (disabled) if unset."
         },
         "replicas": {
           "allOf": [
@@ -277,7 +286,8 @@
               "$ref": "#/definitions/Templatable%20integer2"
             }
           ],
-          "default": 5
+          "default": 5,
+          "description": "The number of subgraph services containers running.\n\nDefaults to 5 if unset."
         },
         "resource_limits": {
           "allOf": [
@@ -288,7 +298,8 @@
           "default": {
             "cpus": "0.5",
             "memory": "1G"
-          }
+          },
+          "description": "The resource limits for the subgraph containers.\n\nDefaults to cpus=0.5 and memory=1G if unset."
         },
         "resource_reservations": {
           "allOf": [
@@ -299,7 +310,8 @@
           "default": {
             "cpus": "0.1",
             "memory": "512M"
-          }
+          },
+          "description": "The reserved resources for the subgraph containers.\n\nDefaults to cpus=0.1 and memory=512M if unset."
         }
       },
       "required": [
@@ -309,10 +321,15 @@
       "type": "object"
     },
     "GraphosSubgraphRouterUrlOverrides": {
-      "description": "The user specifies the graph ref that should be used to fetch subgraph\nSDL files from the GraphOS API and generates a the override_subgraph_urls\nYAML snippet that can be merged into a router config file\n\nThis should be used when generating the subgraph docker compose using\n[GraphosSubgraphDockerCompose]. This will ensure the router subgraph urls\nmap to the urls in that compose file.",
+      "description": "The user specifies the graph ref that should be used to fetch subgraph\nSDL files from the GraphOS API and generates a the override_subgraph_urls\nYAML snippet that can be merged into a router config file\n\nThis should be used when generating the subgraph docker compose using\n[GraphosSubgraphDockerCompose]. This will ensure the router subgraph urls\nmap to the loadbalancer url in that compose file.\n\n```yaml\n- name: subgraph-url-overrides.yaml\n  env_var: SUBGRAPH_URL_OVERRIDES\n  kind: graphos_subgraph_router_url_overrides\n  graph_ref: graph@variant\n  url_format: localhost\n```",
       "properties": {
         "graph_ref": {
-          "$ref": "#/definitions/Templatable%20string"
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The Apollo graph ref to pull the subgraphs for."
         },
         "url_format": {
           "allOf": [
@@ -320,7 +337,8 @@
               "$ref": "#/definitions/UrlFormat"
             }
           ],
-          "default": "localhost"
+          "default": "localhost",
+          "description": "The format of the overrides url."
         }
       },
       "required": [
@@ -330,7 +348,7 @@
       "type": "object"
     },
     "GraphosSubgraphs": {
-      "description": "The user specifies the graph ref that should be used to fetch a subgraph\nSDL files from the GraphOS API.\n\nNote that this file proivider will output a directory of SDL schema files, one for each\nsubgraph.",
+      "description": "The user specifies the graph ref that should be used to fetch a subgraph\nSDL files from the GraphOS API.\n\nNote that this file proivider will output a directory of SDL schema files, one for each\nsubgraph.\n\n```yaml\n- name: \"subgraphs\"\n  env_var: SUBGRAPHS\n  kind: graphos_subgraphs\n  graph_ref: graph@variant\n```",
       "properties": {
         "graph_ref": {
           "allOf": [
@@ -348,7 +366,7 @@
       "type": "object"
     },
     "GraphosSupergraph": {
-      "description": "The user specifies the ref that should be used to fetch a supergraph SDL\nfile from the GraphOS API.",
+      "description": "The user specifies the ref that should be used to fetch a supergraph SDL\nfile from the GraphOS API.\n\n```yaml\n- name: \"supergraph.graphql\"\n  env_var: SUPERGRAPH\n  kind: graphos_supergraph\n  graph_ref: graph@variant\n  with_supergraph_overrides: null\n```",
       "properties": {
         "graph_ref": {
           "allOf": [
@@ -367,7 +385,8 @@
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "description": "Replace the supergraph's subgraph urls with overridden values for testing.\n\nDefaults to null if unset."
         }
       },
       "required": [
@@ -393,13 +412,28 @@
     "Loadbalancer": {
       "properties": {
         "mem_swappiness": {
-          "$ref": "#/definitions/Templatable%20integer2"
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20integer2"
+            }
+          ],
+          "description": "Enable or disable memory swapping in the loadbalancer.\n\nDefaults to 0 (disabled) if unset."
         },
         "resource_limits": {
-          "$ref": "#/definitions/Resources"
+          "allOf": [
+            {
+              "$ref": "#/definitions/Resources"
+            }
+          ],
+          "description": "The resource limits for the loadbalancer.\n\nDefaults to cpus=0.5 and memory=1G if unset."
         },
         "resource_reservations": {
-          "$ref": "#/definitions/Resources"
+          "allOf": [
+            {
+              "$ref": "#/definitions/Resources"
+            }
+          ],
+          "description": "The reserved resources for the loadbalancer.\n\nDefaults to cpus=0.1 and memory=512M if unset."
         }
       },
       "required": [
@@ -698,7 +732,7 @@
       "type": "number"
     },
     "OfflineGraphosLicense": {
-      "description": "The user specifies the graph id that should be used to fetch an offline license from the\nGraphOS API.",
+      "description": "The user specifies the graph id that should be used to fetch an offline license from the\nGraphOS API.\n\n```yaml\n- name: license.jwt\n  env_var: LICENSE\n  kind: graphos_offline_license\n  graph_id: graph\n```",
       "properties": {
         "graph_id": {
           "allOf": [
@@ -767,10 +801,20 @@
     "Resources": {
       "properties": {
         "cpus": {
-          "$ref": "#/definitions/Templatable%20string"
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The cpus allocated for the resource."
         },
         "memory": {
-          "$ref": "#/definitions/Templatable%20string"
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The memory allocated for the resource."
         }
       },
       "required": [
