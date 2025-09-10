@@ -1,187 +1,405 @@
-# Providers
+# File Providers
 
-## File Provider
+Available file providers:
 
-> **NOTE**: These are placeholder docs while we work on setting up an automated way of generating
-> these from the JSON schema for the config file types.
+- [Build Router From Source](#build-router-from-source)
+- [GitHub File](#github-file)
+- [GraphOS Canned Operations](#graphos-canned-operations)
+- [GraphOS Supergraph Docker Compose](#graphos-supergraph-docker-compose)
+- [GraphOS Supergraph Router URL Overrides](#graphos-supergraph-router-url-overrides)
+- [GraphOS subgraph SDL](#graphos-subgraph-sdl)
+- [GraphOS Supergraph SDL](#graphos-supergraph-sdl)
+- [Inline File](#inline-file)
+- [GraphOS Offline License](#graphos-offline-license)
+- [Relative Path](#relative-path)
+- [Required File](#required-file)
+- [Resolved Values](#resolved-values)
+- [Router Download Script](#router-download-script)
+- [Merge YAML](#merge-yaml)
 
-### Variants
-
-#### <a id="definitions/BuildRouterFromSource"></a>BuildRouterFromSource
+## Build Router From Source
 
 A file provider used for building the Router from source at a specific git commit or reference.
 
-- <a id="definitions/BuildRouterFromSource/properties/commit_ref"></a>**`commit_ref`**: A git
-  reference that can be passed to `git checkout`. This may be a full or partial commit hash, branch
-  name, or tag.<br> Defaults to `"main"` if unset.
-  - **Any of**
-    - <a id="definitions/BuildRouterFromSource/properties/commit_ref/anyOf/0"></a>
-      _[Templatable string](#definitions/Templatable%2520string)_.
-    - <a id="definitions/BuildRouterFromSource/properties/commit_ref/anyOf/1"></a>_null_
-- <a id="definitions/BuildRouterFromSource/properties/rust_version"></a>**`rust_version`**: A Rust
-  version string that can be passed to `rustup run {rust_version}`, such as `"1.78.0"`, `"beta"`, or
-  `"nightly"`.<br> Defaults to `"stable"` if unset.
-  - **Any of**
-    - <a id="definitions/BuildRouterFromSource/properties/rust_version/anyOf/0"></a>
-      _[Templatable string](#definitions/Templatable%2520string)_.
-    - <a id="definitions/BuildRouterFromSource/properties/rust_version/anyOf/1"></a>_null_
+```yaml
+- name: "router-build.sh"
+  env_var: ROUTER_BUILD_SCRIPT
+  kind: build_router_from_source
+  commit_ref: "some-ref"
+  rust_version: "1.89.0"
+```
 
-#### <a id="definitions/GithubFile"></a>GithubFile
+### Fields
+
+#### `commit_ref`
+
+A git reference that can be passed to `git checkout`. This may be a full or partial commit hash,
+branch name, or tag.
+
+Defaults to `"main"` if unset.
+
+#### `rust_version`
+
+A Rust version string that can be passed to `rustup run {rust_version}`, such as `"1.78.0"`,
+`"beta"`, or `"nightly"`.
+
+Defaults to `"stable"` if unset.
+
+## GitHub File
 
 The user specifies a path to a file within a GitHub repository, optionally providing a specific ref
 of the repository to pull the file from. If no ref is providing then the provider will pull the
 version of the file found on the default branch.
 
-- <a id="definitions/GithubFile/properties/org"></a>**`org`** _(required)_: The GitHub org for the
-  repository containing the target file. Refer to
-  _[Templatable string](#definitions/Templatable%2520string)_.
-- <a id="definitions/GithubFile/properties/repo"></a>**`repo`** _(required)_: The GitHub repository
-  containing the target file. Refer to _[Templatable string](#definitions/Templatable%2520string)_.
-- <a id="definitions/GithubFile/properties/path"></a>**`path`** _(required)_: The absolute path from
-  the root of the repository to the target file. Refer to
-  _[Templatable string](#definitions/Templatable%2520string)_.
-- <a id="definitions/GithubFile/properties/git_ref"></a>**`git_ref`**: An optional git reference to
-  pull the file from. This may be a full or partial commit hash, branch name, or tag.<br> Defaults
-  to the mainline branch as specified in GitHub if unset.
-  - **Any of**
-    - <a id="definitions/GithubFile/properties/git_ref/anyOf/0"></a>
-      _[Templatable string](#definitions/Templatable%2520string)_.
-    - <a id="definitions/GithubFile/properties/git_ref/anyOf/1"></a>_null_
+```yaml
+- name: "my-file.txt"
+  env_var: MY_FILE
+  kind: github_file
+  org: "my-org"
+  repo: "my-repo"
+  path: "resources/test-data/my-file.txt"
+  git_ref: "some-ref"
+```
 
-#### <a id="definitions/GraphosCannedOps"></a>GraphosCannedOps
+### Fields
+
+#### `org`
+
+The GitHub org for the repository containing the target file
+
+#### `repo`
+
+The GitHub repository containing the target file
+
+#### `path`
+
+The absolute path from the root of the repository to the target file
+
+#### `git_ref`
+
+An optional git reference to pull the file from. This may be a full or partial commit hash, branch
+name, or tag.
+
+Defaults to the mainline branch as specified in GitHub if unset.
+
+## GraphOS Canned Operations
 
 The user specifies the graph ref and parameters that should be used to generate canned GraphQL
 requests based on operations data obtained from the GraphOS API.
 
-- <a id="definitions/GraphosCannedOps/properties/graph_ref"></a>**`graph_ref`** _(required)_: The
-  Apollo graph ref to pull operations for. Refer to
-  _[Templatable string](#definitions/Templatable%2520string)_.
-- <a id="definitions/GraphosCannedOps/properties/top_n"></a>**`top_n`**: The number of operations to
-  attempt to fetch.<br> Defaults to 20 if unset. Refer to
-  _[Templatable integer](#definitions/Templatable%2520integer)_. Default: `20`.
-- <a id="definitions/GraphosCannedOps/properties/skip_mutations"></a>**`skip_mutations`**: Whether
-  or not to include mutations in the returned operations.<br> Defaults to false if unset. Refer to
-  _[Templatable boolean](#definitions/Templatable%2520boolean)_. Default: `false`.
+```yaml
+- name: canned_ops.json
+  env_var: CANNED_OPS_FILE
+  kind: graphos_canned_ops
+  graph_ref: graph@variant
+  top_n: 10
+  skip_mutations: true
+```
 
-#### <a id="definitions/GraphosSubgraphs"></a>GraphosSubgraphs
+### Fields
+
+#### `graph_ref`
+
+The Apollo graph ref to pull operations for.
+
+#### `top_n`
+
+The number of operations to attempt to fetch.
+
+Defaults to 20 if unset.
+
+#### `skip_mutations`
+
+Whether or not to include mutations in the returned operations.
+
+Defaults to false if unset.
+
+## GraphOS Supergraph Docker Compose
+
+The user specifies the graph ref that should be used to fetch the supergraph SDL file from the
+GraphOS API and generates a docker compose file. It runs a configurable number of subgraph services,
+mocking based on the supergraph schema behind a loadbalancer.
+
+```yaml
+- name: "subgraph-compose.yaml"
+  env_var: SUBGRAPH_COMPOSE
+  kind: graphos_subgraph_docker_compose
+  graph_ref: graph@variant
+  image: ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main
+  command:
+  - -schema
+  - /app/supergraph.graphql
+  replicas: 5
+  resource_limits:
+    cpus: '0.5'
+    memory: 1G
+  resource_reservations:
+   cpus: '0.1'
+    memory: 512M
+  mem_swappiness: 0
+  loadbalancer:
+    resource_limits:
+      cpus: '0.5'
+      memory: 1G
+    resource_reservations:
+      cpus: '0.1'
+      memory: 512M
+    mem_swappiness: 0
+```
+
+### Fields
+
+#### `graph_ref`
+
+The Apollo graph ref to pull the supergraph for.
+
+#### `image`
+
+The image the subgraph service runs.
+
+Defaults to ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main if unset.
+
+#### `command`
+
+The command that subgraph server image runs.
+
+Defaults to "-schema /app/supergraph.graphql" if unset.
+
+#### `replicas`
+
+The number of subgraph services containers running.
+
+Defaults to 5 if unset.
+
+#### `resource_limits`
+
+The resource limits for the subgraph containers.
+
+Defaults to cpus=0.5 and memory=1G if unset.
+
+#### `resource_reservations`
+
+The reserved resources for the subgraph containers.
+
+Defaults to cpus=0.1 and memory=512M if unset.
+
+#### `mem_swappiness`
+
+Enable or disable memory swapping in the subgraph services.
+
+Defaults to 0 (disabled) if unset.
+
+#### `loadbalancer`
+
+The configuration for the subgraph's loadbalancer.
+
+## GraphOS Supergraph Router URL Overrides
+
+The user specifies the graph ref that should be used to fetch subgraph SDL files from the GraphOS
+API and generates a the override_subgraph_urls YAML snippet that can be merged into a router config
+file
+
+This should be used when generating the subgraph docker compose using
+[GraphosSubgraphDockerCompose]. This will ensure the router subgraph urls map to the loadbalancer
+url in that compose file.
+
+```yaml
+- name: subgraph-url-overrides.yaml
+  env_var: SUBGRAPH_URL_OVERRIDES
+  kind: graphos_subgraph_router_url_overrides
+  graph_ref: graph@variant
+  url_format: localhost
+```
+
+### Fields
+
+#### `graph_ref`
+
+The Apollo graph ref to pull the subgraphs for.
+
+#### `url_format`
+
+The format of the overrides url.
+
+## GraphOS subgraph SDL
 
 The user specifies the graph ref that should be used to fetch a subgraph SDL files from the GraphOS
-API.<br> Note that this file proivider will output a directory of SDL schema files, one for each
-subgraph.
+API.
 
-- <a id="definitions/GraphosSubgraphs/properties/graph_ref"></a>**`graph_ref`** _(required)_: The
-  Apollo graph ref to pull subgraph SDL files for. Refer to
-  _[Templatable string](#definitions/Templatable%2520string)_.
+Note that this file proivider will output a directory of SDL schema files, one for each subgraph.
 
-#### <a id="definitions/GraphosSupergraph"></a>GraphosSupergraph
+```yaml
+- name: "subgraphs"
+  env_var: SUBGRAPHS
+  kind: graphos_subgraphs
+  graph_ref: graph@variant
+```
+
+### Fields
+
+#### `graph_ref`
+
+The Apollo graph ref to pull subgraph SDL files for.
+
+## GraphOS Supergraph SDL
 
 The user specifies the ref that should be used to fetch a supergraph SDL file from the GraphOS API.
 
-- <a id="definitions/GraphosSupergraph/properties/graph_ref"></a>**`graph_ref`** _(required)_: The
-  Apollo graph ref to pull supergraph SDL for. Refer to
-  _[Templatable string](#definitions/Templatable%2520string)_.
+```yaml
+- name: "supergraph.graphql"
+  env_var: SUPERGRAPH
+  kind: graphos_supergraph
+  graph_ref: graph@variant
+  with_subgraph_overrides: docker
+```
 
-#### <a id="definitions/InlineFile"></a>InlineFile
+### Fields
+
+#### `graph_ref`
+
+The Apollo graph ref to pull supergraph SDL for.
+
+#### `with_subgraph_overrides`
+
+Replace the supergraph's subgraph urls with overridden values for testing.
+
+Defaults to null if unset.
+
+## Inline File
 
 The simplest form of file provider: the user specifies the contents of the file inline within their
 config file.
 
-- <a id="definitions/InlineFile/properties/content"></a>**`content`** _(string, required)_: The text
-  to write out as the contents of the generated file.
+```yaml
+- name: "my-file.txt"
+  env_var: MY_FILE
+  kind: inline
+  content: |
+    my raw file content.
+    specified inline within an RTF config file.
+```
 
-#### <a id="definitions/OfflineGraphosLicense"></a>OfflineGraphosLicense
+### Fields
+
+#### `content`
+
+The text to write out as the contents of the generated file.
+
+## GraphOS Offline License
 
 The user specifies the graph id that should be used to fetch an offline license from the GraphOS
 API.
 
-- <a id="definitions/OfflineGraphosLicense/properties/graph_id"></a>**`graph_id`** _(required)_: The
-  Apollo graph ref to pull an offline license for. Refer to
-  _[Templatable string](#definitions/Templatable%2520string)_.
+```yaml
+- name: license.jwt
+  env_var: LICENSE
+  kind: graphos_offline_license
+  graph_id: graph
+```
 
-#### <a id="definitions/RelativeFile"></a>RelativeFile
+### Fields
+
+#### `graph_id`
+
+The Apollo graph ref to pull an offline license for.
+
+## Relative Path
 
 A relative path from the containing config file to a target file that should be made available as
 part of the test run. This provider works both with local files and files within GitHub if the
 containing config file was pulled from a repository.
 
-- <a id="definitions/RelativeFile/properties/path"></a>**`path`** _(required)_: The relative path
-  from the containing config file to the target file. Refer to
-  _[Templatable string](#definitions/Templatable%2520string)_.
+```yaml
+- name: "my-file.txt"
+  env_var: MY_FILE
+  kind: relative_path
+  path: "../../resources/test-data/my-file.txt"
+```
 
-#### <a id="definitions/RequiredFile"></a>RequiredFile
+### Fields
+
+#### `path`
+
+The relative path from the containing config file to the target file.
+
+#### `src`
+
+Set during TestPlan parsing as part of overrides. This should only ever be `Some` if this provider
+was defined as part of an `overrides` section in the test plan.
+
+## Required File
 
 The only purpose of this file provider is to throw an error if it still exists when the file
 providers are being checked. All definitions of a required file are expected to be replaced by user
 defined file providers.
 
-- <a id="definitions/RequiredFile/properties/message"></a>**`message`** _(string, required)_: The
-  error message to display to the user if this provider is not overwritten.
+```yaml
+- name: "router-config.yaml"
+  env_var: ROUTER_CONFIG
+  kind: required
+  message: "you must specify a router config file to use"
+```
 
-#### <a id="definitions/RouterDownloadScript"></a>RouterDownloadScript
+### Fields
+
+#### `message`
+
+The error message to display to the user if this provider is not overwritten.
+
+## Resolved Values
+
+Returns the JSON string representation of the resolved values for the test plan being run.
+
+```yaml
+- name: "resolved-values.json"
+  env_var: VALUES
+  kind: resolved_values
+```
+
+## Router Download Script
 
 Produces a POSIX shell script that can be run in order to download a target version of the Apollo
 Router.
 
-- <a id="definitions/RouterDownloadScript/properties/version"></a>**`version`** _(required)_: The
-  version of the Apollo Router to download. Refer to
-  _[Templatable string](#definitions/Templatable%2520string)_.
+```yaml
+- name: "router-download.sh"
+  env_var: ROUTER_DOWNLOAD
+  kind: router_download_script
+  version: "v2.6.0"
+```
 
-#### <a id="definitions/MergeYaml"></a>MergeYaml
+### Fields
 
-Merge the YAML output of two text based file providers into a single YAML file.<br> Matching keys in
-the overrides file will replace scalar values, concatenate arrays and merge keys for maps.
+#### `version`
 
-- <a id="definitions/MergeYaml/properties/base"></a>**`base`** _(required)_: A base YAML file to
-  start with. Refer to _[TextFileProvider](#definitions/TextFileProvider)_.
-- <a id="definitions/MergeYaml/properties/overrides"></a>**`overrides`** _(required)_: An second
-  YAML file to merge on top of the base file. Refer to
-  _[TextFileProvider](#definitions/TextFileProvider)_.
+The version of the Apollo Router to download.
 
-#### <a id="definitions/TextFileProvider"></a>TextFileProvider
+## Merge YAML
 
-A subset of file providers that can produce arbitrary utf-8 text as their output.
+Merge the YAML output of two text based file providers into a single YAML file.
 
-- **One of**
-  - <a id="definitions/TextFileProvider/oneOf/0"></a>_object_
-    _[GithubFile](#definitions/GithubFile)_.
-    - <a id="definitions/TextFileProvider/oneOf/0/properties/kind"></a>**`kind`** _(string,
-      required)_: Must be: `"github_file"`.
-  - <a id="definitions/TextFileProvider/oneOf/1"></a>_object_
-    _[InlineFile](#definitions/InlineFile)_.
-    - <a id="definitions/TextFileProvider/oneOf/1/properties/kind"></a>**`kind`** _(string,
-      required)_: Must be: `"inline"`.
-  - <a id="definitions/TextFileProvider/oneOf/2"></a>_object_
-    _[RelativeFile](#definitions/RelativeFile)_.
-    - <a id="definitions/TextFileProvider/oneOf/2/properties/kind"></a>**`kind`** _(string,
-      required)_: Must be: `"relative_path"`.
-  - <a id="definitions/TextFileProvider/oneOf/3"></a>_object_
-    _[RequiredFile](#definitions/RequiredFile)_.
-    - <a id="definitions/TextFileProvider/oneOf/3/properties/kind"></a>**`kind`** _(string,
-      required)_: Must be: `"required"`.
+Matching keys in the overrides file will replace scalar values, concatenate arrays and merge keys
+for maps.
 
-#### <a id="definitions/Templatable%20boolean"></a>Templatable boolean
+```yaml
+- name: router-config.yaml
+  env_var: ROUTER_CONFIG
+  kind: merge_yaml
+  base:
+    kind: relative_path
+    path: "data/base-router-config.yaml"
+  overrides:
+    kind: graphos_subgraph_router_url_overrides
+    graph_ref: "foo@bar"
+    url_format: "docker"
+```
 
-A templatable boolean that can be replaced with a user specified value at runtime.
+### Fields
 
-- **One of**
-  - <a id="definitions/Templatable%20boolean/oneOf/0"></a>_string_: The value that should be
-    templated. Must match pattern: `^\{\{ \w+ \}\}$`
-  - <a id="definitions/Templatable%20boolean/oneOf/1"></a>_boolean_: Statically provided data.
+#### `base`
 
-#### <a id="definitions/Templatable%20integer"></a>Templatable integer
+A base YAML file to start with.
 
-A templatable integer that can be replaced with a user specified value at runtime.
+#### `overrides`
 
-- **One of**
-  - <a id="definitions/Templatable%20integer/oneOf/0"></a>_string_: The value that should be
-    templated. Must match pattern: `^\{\{ \w+ \}\}$`
-  - <a id="definitions/Templatable%20integer/oneOf/1"></a>_integer_: Statically provided data.
-
-#### <a id="definitions/Templatable%20string"></a>Templatable string
-
-A templatable string that can be replaced with a user specified value at runtime.
-
-- **One of**
-  - <a id="definitions/Templatable%20string/oneOf/0"></a>_string_: The value that should be
-    templated. Must match pattern: `^\{\{ \w+ \}\}$`
-  - <a id="definitions/Templatable%20string/oneOf/1"></a>_string_: Statically provided data.
+An second YAML file to merge on top of the base file.

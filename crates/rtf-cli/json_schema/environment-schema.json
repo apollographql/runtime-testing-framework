@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
     "BuildRouterFromSource": {
-      "description": "A file provider used for building the Router from source at a specific git commit\nor reference.",
+      "description": "A file provider used for building the Router from source at a specific git commit\nor reference.\n\n```yaml\n- name: \"router-build.sh\"\n  env_var: ROUTER_BUILD_SCRIPT\n  kind: build_router_from_source\n  commit_ref: \"some-ref\"\n  rust_version: \"1.89.0\"\n```",
       "properties": {
         "commit_ref": {
           "anyOf": [
@@ -139,7 +139,7 @@
       "type": "object"
     },
     "GithubFile": {
-      "description": "The user specifies a path to a file within a GitHub repository, optionally providing a specific\nref of the repository to pull the file from. If no ref is providing then the provider will pull\nthe version of the file found on the default branch.",
+      "description": "The user specifies a path to a file within a GitHub repository, optionally providing a specific\nref of the repository to pull the file from. If no ref is providing then the provider will pull\nthe version of the file found on the default branch.\n\n```yaml\n- name: \"my-file.txt\"\n  env_var: MY_FILE\n  kind: github_file\n  org: \"my-org\"\n  repo: \"my-repo\"\n  path: \"resources/test-data/my-file.txt\"\n  git_ref: \"some-ref\"\n```",
       "properties": {
         "git_ref": {
           "anyOf": [
@@ -186,7 +186,7 @@
       "type": "object"
     },
     "GraphosCannedOps": {
-      "description": "The user specifies the graph ref and parameters that should be used to\ngenerate canned GraphQL requests based on operations data obtained from\nthe GraphOS API.\n\n```yaml\n- name: canned_ops.json\n  env_var: CANNED_OPS_FILE\n  kind: graphos_canned_ops\n  graph_ref: graph@variant\n  top_n: 10\n  skip_mutations: false\n```",
+      "description": "The user specifies the graph ref and parameters that should be used to\ngenerate canned GraphQL requests based on operations data obtained from\nthe GraphOS API.\n\n```yaml\n- name: canned_ops.json\n  env_var: CANNED_OPS_FILE\n  kind: graphos_canned_ops\n  graph_ref: graph@variant\n  top_n: 10\n  skip_mutations: true\n```",
       "properties": {
         "graph_ref": {
           "allOf": [
@@ -366,7 +366,7 @@
       "type": "object"
     },
     "GraphosSupergraph": {
-      "description": "The user specifies the ref that should be used to fetch a supergraph SDL\nfile from the GraphOS API.\n\n```yaml\n- name: \"supergraph.graphql\"\n  env_var: SUPERGRAPH\n  kind: graphos_supergraph\n  graph_ref: graph@variant\n  with_supergraph_overrides: null\n```",
+      "description": "The user specifies the ref that should be used to fetch a supergraph SDL\nfile from the GraphOS API.\n\n```yaml\n- name: \"supergraph.graphql\"\n  env_var: SUPERGRAPH\n  kind: graphos_supergraph\n  graph_ref: graph@variant\n  with_subgraph_overrides: docker\n```",
       "properties": {
         "graph_ref": {
           "allOf": [
@@ -396,7 +396,7 @@
       "type": "object"
     },
     "InlineFile": {
-      "description": "The simplest form of file provider: the user specifies the contents of the file inline within\ntheir config file.",
+      "description": "The simplest form of file provider: the user specifies the contents of the file inline within\ntheir config file.\n\n```yaml\n- name: \"my-file.txt\"\n  env_var: MY_FILE\n  kind: inline\n  content: |\n    my raw file content.\n    specified inline within an RTF config file.\n```",
       "properties": {
         "content": {
           "description": "The text to write out as the contents of the generated file.",
@@ -444,7 +444,7 @@
       "type": "object"
     },
     "MergeYaml": {
-      "description": "Merge the YAML output of two text based file providers into a single YAML file.\n\nMatching keys in the overrides file will replace scalar values, concatenate arrays\nand merge keys for maps.",
+      "description": "Merge the YAML output of two text based file providers into a single YAML file.\n\nMatching keys in the overrides file will replace scalar values, concatenate arrays\nand merge keys for maps.\n\n```yaml\n- name: router-config.yaml\n  env_var: ROUTER_CONFIG\n  kind: merge_yaml\n  base:\n    kind: relative_path\n    path: \"data/base-router-config.yaml\"\n  overrides:\n    kind: graphos_subgraph_router_url_overrides\n    graph_ref: \"foo@bar\"\n    url_format: \"docker\"\n```",
       "properties": {
         "base": {
           "allOf": [
@@ -661,7 +661,7 @@
           "type": "object"
         },
         {
-          "description": "Returns the JSON string representation of the resolved values for the test plan being run.",
+          "description": "Returns the JSON string representation of the resolved values for the test plan being run.\n\n```yaml\n- name: \"resolved-values.json\"\n  env_var: VALUES\n  kind: resolved_values\n```",
           "properties": {
             "kind": {
               "const": "resolved_values",
@@ -767,7 +767,7 @@
       "title": "Raw Command"
     },
     "RelativeFile": {
-      "description": "A relative path from the containing config file to a target file that should be made available\nas part of the test run. This provider works both with local files and files within GitHub\nif the containing config file was pulled from a repository.",
+      "description": "A relative path from the containing config file to a target file that should be made available\nas part of the test run. This provider works both with local files and files within GitHub\nif the containing config file was pulled from a repository.\n\n```yaml\n- name: \"my-file.txt\"\n  env_var: MY_FILE\n  kind: relative_path\n  path: \"../../resources/test-data/my-file.txt\"\n```",
       "properties": {
         "path": {
           "allOf": [
@@ -781,11 +781,11 @@
       "required": [
         "path"
       ],
-      "title": "Relative File",
+      "title": "Relative Path",
       "type": "object"
     },
     "RequiredFile": {
-      "description": "The only purpose of this file provider is to throw an error if it still exists\nwhen the file providers are being checked. All definitions of a required file\nare expected to be replaced by user defined file providers.",
+      "description": "The only purpose of this file provider is to throw an error if it still exists\nwhen the file providers are being checked. All definitions of a required file\nare expected to be replaced by user defined file providers.\n\n```yaml\n- name: \"router-config.yaml\"\n  env_var: ROUTER_CONFIG\n  kind: required\n  message: \"you must specify a router config file to use\"\n```",
       "properties": {
         "message": {
           "description": "The error message to display to the user if this provider is not overwritten.",
@@ -824,7 +824,7 @@
       "type": "object"
     },
     "RouterDownloadScript": {
-      "description": "Produces a POSIX shell script that can be run in order to download a target version of the\nApollo Router.",
+      "description": "Produces a POSIX shell script that can be run in order to download a target version of the\nApollo Router.\n\n```yaml\n- name: \"router-download.sh\"\n  env_var: ROUTER_DOWNLOAD\n  kind: router_download_script\n  version: \"v2.6.0\"\n```",
       "properties": {
         "version": {
           "allOf": [

@@ -33,7 +33,7 @@ use std::{
 ///   env_var: SUPERGRAPH
 ///   kind: graphos_supergraph
 ///   graph_ref: graph@variant
-///   with_supergraph_overrides: null
+///   with_subgraph_overrides: docker
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct GraphosSupergraph {
@@ -656,7 +656,7 @@ impl Check for GraphosSubgraphRouterUrlOverrides {
 ///   kind: graphos_canned_ops
 ///   graph_ref: graph@variant
 ///   top_n: 10
-///   skip_mutations: false
+///   skip_mutations: true
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct GraphosCannedOps {
