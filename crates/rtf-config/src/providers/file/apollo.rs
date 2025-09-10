@@ -608,11 +608,15 @@ impl AsUtf8FileContent for GraphosCannedOps {
         .await?;
 
         // Create a json line file for each of the canned operations
-        let json_file = canned_ops
+        let mut json_file = canned_ops
             .iter()
             .map(|v| v.to_json_string())
             .collect::<Result<Vec<_>, _>>()?
             .join("\n");
+
+        // This appends a new line to the json file
+        // Without this, when shell scripts iterate over the operations they count the lines to iterate over as N-1
+        json_file.push('\n');
 
         Ok(json_file)
     }
