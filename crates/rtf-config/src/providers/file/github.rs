@@ -17,6 +17,16 @@ use std::collections::HashMap;
 /// The user specifies a path to a file within a GitHub repository, optionally providing a specific
 /// ref of the repository to pull the file from. If no ref is providing then the provider will pull
 /// the version of the file found on the default branch.
+///
+/// ```yaml
+/// - name: "my-file.txt"
+///   env_var: MY_FILE
+///   kind: github_file
+///   org: "my-org"
+///   repo: "my-repo"
+///   path: "resources/test-data/my-file.txt"
+///   git_ref: "some-ref"
+/// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct GithubFile {
     /// The GitHub org for the repository containing the target file

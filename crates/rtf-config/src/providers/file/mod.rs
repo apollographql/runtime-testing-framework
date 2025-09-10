@@ -235,6 +235,15 @@ enum_impl_file_provider!(
 ///
 /// The simplest form of file provider: the user specifies the contents of the file inline within
 /// their config file.
+///
+/// ```yaml
+/// - name: "my-file.txt"
+///   env_var: MY_FILE
+///   kind: inline
+///   content: |
+///     my raw file content.
+///     specified inline within an RTF config file.
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 pub struct InlineFile {
     /// The text to write out as the contents of the generated file.
@@ -264,11 +273,18 @@ impl Check for InlineFile {
     }
 }
 
-/// # Relative File
+/// # Relative Path
 ///
 /// A relative path from the containing config file to a target file that should be made available
 /// as part of the test run. This provider works both with local files and files within GitHub
 /// if the containing config file was pulled from a repository.
+///
+/// ```yaml
+/// - name: "my-file.txt"
+///   env_var: MY_FILE
+///   kind: relative_path
+///   path: "../../resources/test-data/my-file.txt"
+/// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct RelativeFile {
     /// The relative path from the containing config file to the target file.
@@ -416,6 +432,13 @@ impl Check for RelativeFile {
 /// The only purpose of this file provider is to throw an error if it still exists
 /// when the file providers are being checked. All definitions of a required file
 /// are expected to be replaced by user defined file providers.
+///
+/// ```yaml
+/// - name: "router-config.yaml"
+///   env_var: ROUTER_CONFIG
+///   kind: required
+///   message: "you must specify a router config file to use"
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 pub struct RequiredFile {
     /// The error message to display to the user if this provider is not overwritten.
@@ -454,6 +477,12 @@ impl Check for RequiredFile {
 /// # Resolved Values
 ///
 /// Returns the JSON string representation of the resolved values for the test plan being run.
+///
+/// ```yaml
+/// - name: "resolved-values.json"
+///   env_var: VALUES
+///   kind: resolved_values
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 pub struct ResolvedValues;
 
@@ -489,6 +518,13 @@ impl Check for ResolvedValues {
 ///
 /// Produces a POSIX shell script that can be run in order to download a target version of the
 /// Apollo Router.
+///
+/// ```yaml
+/// - name: "router-download.sh"
+///   env_var: ROUTER_DOWNLOAD
+///   kind: router_download_script
+///   version: "v2.6.0"
+/// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct RouterDownloadScript {
     /// The version of the Apollo Router to download.
@@ -541,6 +577,14 @@ impl Check for RouterDownloadScript {
 ///
 /// A file provider used for building the Router from source at a specific git commit
 /// or reference.
+///
+/// ```yaml
+/// - name: "router-build.sh"
+///   env_var: ROUTER_BUILD_SCRIPT
+///   kind: build_router_from_source
+///   commit_ref: "some-ref"
+///   rust_version: "1.89.0"
+/// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct BuildRouterFromSource {
     /// A git reference that can be passed to `git checkout`. This may be

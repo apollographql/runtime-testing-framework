@@ -4,6 +4,9 @@ run = "typos --write-changes"
 [tasks.format-markdown]
 run = "dprint fmt"
 
+[tasks.generate-docs]
+run = "$(git rev-parse --show-toplevel)/scripts/generate-docs.sh"
+
 [tasks.pr-all]
 run = [
     "mise run pr-format",

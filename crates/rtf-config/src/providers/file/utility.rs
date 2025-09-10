@@ -56,6 +56,19 @@ enum_impl_text_file_provider!(
 ///
 /// Matching keys in the overrides file will replace scalar values, concatenate arrays
 /// and merge keys for maps.
+///
+/// ```yaml
+/// - name: router-config.yaml
+///   env_var: ROUTER_CONFIG
+///   kind: merge_yaml
+///   base:
+///     kind: relative_path
+///     path: "data/base-router-config.yaml"
+///   overrides:
+///     kind: graphos_subgraph_router_url_overrides
+///     graph_ref: "foo@bar"
+///     url_format: "docker"
+/// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct MergeYaml {
     /// A base YAML file to start with.
