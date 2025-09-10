@@ -139,13 +139,14 @@ jobs:
     - run: |
         ./scripts/generate-docs.sh
         DIFF="$(git diff docs/src/)"
-        DIFF_LINES="$(echo "$DIFF" | wc -l)"
-        if [ "$DIFF_LINES" != 0 ]; then
-          echo "WARNING: Generated docs are out of date:"
-          echo "$DIFF"
-          exit 1
-        else
+        if [ "$DIFF" = "" ]; then
           echo "Generated docs are up to date"
+        else
+          echo "WARNING: Generated docs are out of date:"
+          echo ">> Diff start"
+          echo "$DIFF"
+          echo ">> Diff end"
+          exit 1
         fi
   
   upload-rtf-binary:
