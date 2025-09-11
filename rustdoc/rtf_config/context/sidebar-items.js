@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PathKind"],"struct":["Context"],"trait":["ResolutionContext"]};

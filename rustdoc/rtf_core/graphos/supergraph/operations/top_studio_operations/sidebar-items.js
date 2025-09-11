@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["generate_canned_ops"],"struct":["CannedOperation","Signature"]};

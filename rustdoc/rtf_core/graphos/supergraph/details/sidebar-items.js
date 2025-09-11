@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["FetchErrorCause"],"struct":["FetchError","Subgraph","SupergraphDetails"]};

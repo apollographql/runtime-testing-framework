@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["FileProvider","RawSource","Source"],"mod":["apollo","github","utility"],"struct":["BuildRouterFromSource","InlineFile","NamedFileProvider","RelativeFile","RequiredFile","ResolvedValues","RouterDownloadScript"]};

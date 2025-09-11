@@ -1,0 +1,428 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Logging - Runtime Testing Framework</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="../highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="../tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Runtime Testing Framework</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/apollographql/runtime-testing-framework" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="logging"><a class="header" href="#logging">Logging</a></h1>
+<p>This guide covers when and how to use different log levels in the Runtime Testing Framework. The
+project uses the <a href="https://tracing.rs/"><code>tracing</code></a> crate for structured logging.</p>
+<p>We want RTF to take the "no news is good news" approach and be quiet by default. Logging is
+primarily there to help debug issues and provide feedback when things go wrong. When adding log
+statements to RTF, consider whether the information is helpful and avoid overwhelming users with
+unnecessary data.</p>
+<h2 id="log-levels-overview"><a class="header" href="#log-levels-overview">Log levels overview</a></h2>
+<p>The Runtime Testing Framework uses five log levels, from most to least verbose:</p>
+<div class="table-wrapper"><table><thead><tr><th>Level</th><th>Verbosity Flag</th><th>Purpose</th><th>Audience</th></tr></thead><tbody>
+<tr><td><code>TRACE</code></td><td><code>-vvv</code></td><td>Extremely detailed execution flow</td><td>Framework developers debugging</td></tr>
+<tr><td><code>DEBUG</code></td><td><code>-vv</code></td><td>Detailed diagnostic information</td><td>Developers and end users troubleshooting</td></tr>
+<tr><td><code>INFO</code></td><td><code>-v</code></td><td>High-level progress indicators</td><td>End users</td></tr>
+<tr><td><code>WARN</code></td><td>(default)</td><td>Potentially problematic situations</td><td>End users</td></tr>
+<tr><td><code>ERROR</code></td><td>(always shown)</td><td>Error conditions that prevent normal operation</td><td>End users</td></tr>
+</tbody></table>
+</div>
+<h2 id="when-to-use-each-level"><a class="header" href="#when-to-use-each-level">When to use each level</a></h2>
+<h3 id="error-level"><a class="header" href="#error-level">ERROR level</a></h3>
+<p>Use <code>error!</code> for conditions that prevent the application from continuing normal operation or cause
+significant functionality to fail.</p>
+<p><strong>Examples:</strong></p>
+<ul>
+<li>Failed to initialize logging system</li>
+<li>Missing required configuration</li>
+<li>Network requests that fail completely</li>
+<li>File I/O errors that prevent core functionality</li>
+</ul>
+<p><strong>Avoid using ERROR for:</strong></p>
+<ul>
+<li>Temporary failures that will be retried</li>
+<li>Optional operations that fail</li>
+<li>Expected validation failures</li>
+</ul>
+<h3 id="warn-level"><a class="header" href="#warn-level">WARN level</a></h3>
+<p>Use <code>warn!</code> for situations that are unusual or potentially problematic but don't prevent the
+operation from continuing. WARN is the default log level shown to end users, so these messages
+should provide useful context about what users should look for if errors occur later in the process.</p>
+<p><strong>Examples:</strong></p>
+<ul>
+<li>Deprecated features being used</li>
+<li>Non-critical parsing failures</li>
+<li>Missing optional data</li>
+<li>Retrying failed operations</li>
+</ul>
+<h3 id="info-level"><a class="header" href="#info-level">INFO level</a></h3>
+<p>Use <code>info!</code> for high-level progress indicators that help users understand what the application is
+doing.</p>
+<p><strong>Examples:</strong></p>
+<ul>
+<li>Major phase transitions (loading, executing, completing)</li>
+<li>Processing of user-provided inputs</li>
+<li>Successful completion of significant operations</li>
+<li>Progress indicators for long-running operations</li>
+</ul>
+<h3 id="debug-level"><a class="header" href="#debug-level">DEBUG level</a></h3>
+<p>Use <code>debug!</code> for detailed diagnostic information that helps developers understand the internal
+workings and troubleshoot issues.</p>
+<p><strong>Examples:</strong></p>
+<ul>
+<li>File system operations (creating directories, writing files)</li>
+<li>Detailed processing steps</li>
+<li>Configuration values being used</li>
+<li>Internal state changes</li>
+</ul>
+<h3 id="trace-level"><a class="header" href="#trace-level">TRACE level</a></h3>
+<p>Use <code>trace!</code> for extremely detailed execution flow information, typically for debugging complex
+logic or data flow issues.</p>
+<blockquote>
+<p><strong>Warning</strong>: Do not log potentially sensitive data in the <code>trace</code> logs. Assume all data supplied
+by the user or from sources specified by the user could contain sensitive data. For this reason,
+we do not log raw API responses or the contents of a file.</p>
+</blockquote>
+<p><strong>Examples:</strong></p>
+<ul>
+<li>The URL of an API being called. Do not log the response or parameters used to call the API since
+these could be sensitive.</li>
+<li>Fine-grained execution flow</li>
+<li>Performance-sensitive debugging information</li>
+</ul>
+<h2 id="logging-best-practices"><a class="header" href="#logging-best-practices">Logging best practices</a></h2>
+<h3 id="use-structured-fields"><a class="header" href="#use-structured-fields">Use Structured Fields</a></h3>
+<p>Take advantage of
+<a href="https://docs.rs/tracing/latest/tracing/#recording-fields">tracing's structured logging capabilities</a>
+by including relevant context as fields:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Good: structured fields for easy filtering and analysis
+info!(%graph_id, %variant, "pulling supergraph details");
+warn!(error = %e, "failed to parse configuration");
+
+// Avoid: embedding everything in the message
+info!("pulling supergraph details for graph_id={} variant={}", graph_id, variant);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="common-field-naming-conventions"><a class="header" href="#common-field-naming-conventions">Common field naming conventions</a></h3>
+<p>Use these prefixes to control how values are formatted in log output:</p>
+<ul>
+<li>Use <code>%</code> prefix for Display formatting (human-readable): <code>%graph_id</code>, <code>%error</code></li>
+<li>Use <code>?</code> prefix for Debug formatting (developer-oriented): <code>?config_object</code>, <code>?response_data</code></li>
+<li>Use <code>error = %e</code> for error context</li>
+<li>Use descriptive field names: <code>operation_count</code>, <code>file_path</code>, <code>duration_ms</code></li>
+</ul>
+<p><strong>Examples:</strong></p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Good field names
+debug!(file_path = %path, size_bytes = file_size, "reading configuration file");
+warn!(retry_count = attempts, max_retries = MAX_ATTEMPTS, "operation failed, retrying");
+
+// Avoid generic or unclear names
+debug!(thing = %path, num = file_size, "reading file");
+<span class="boring">}</span></code></pre></pre>
+<h3 id="error-context"><a class="header" href="#error-context">Error context</a></h3>
+<p>Always include relevant context when logging errors:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Good: includes context about what failed
+error!(path = %config_path, "failed to read configuration file: {e}");
+
+// Avoid: generic error without context
+error!("file operation failed: {e}");
+<span class="boring">}</span></code></pre></pre>
+<h2 id="performance-considerations"><a class="header" href="#performance-considerations">Performance considerations</a></h2>
+<p>Logging performance is not a primary concern in RTF. The framework is expected to become I/O bound
+(waiting for network requests, file operations, etc.) before logging becomes a bottleneck.</p>
+<p>However, keep these guidelines in mind:</p>
+<ul>
+<li>Avoid expensive computations solely for log messages</li>
+<li>Use structured fields instead of string formatting when possible</li>
+<li>Don't worry about the overhead of log statements that won't be displayed</li>
+</ul>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>The logging level can be controlled in several ways:</p>
+<h3 id="command-line-verbosity-flags"><a class="header" href="#command-line-verbosity-flags">Command line verbosity flags</a></h3>
+<p>Use these flags to control the overall log level:</p>
+<ul>
+<li>No flags: WARN level (default - only warnings and errors)</li>
+<li><code>-v</code>: INFO level (includes progress indicators)</li>
+<li><code>-vv</code>: DEBUG level (includes detailed diagnostic information)</li>
+<li><code>-vvv</code>: TRACE level (includes extremely detailed execution flow)</li>
+</ul>
+<h3 id="environment-variable"><a class="header" href="#environment-variable">Environment variable</a></h3>
+<p>Set <code>APOLLO_RTF_LOG</code> for fine-grained control over specific modules:</p>
+<pre><code class="language-bash">APOLLO_RTF_LOG=rtf_core=debug,rtf_cli=info cargo run
+</code></pre>
+<h3 id="per-module-filtering"><a class="header" href="#per-module-filtering">Per-module filtering</a></h3>
+<p>You can set different log levels for different parts of the codebase:</p>
+<pre><code class="language-bash">APOLLO_RTF_LOG=warn,rtf_core::graphos=debug cargo run
+</code></pre>
+<blockquote>
+<p><strong>Note</strong>: When both command-line flags and environment variables are used, the environment
+variable takes precedence for the modules it specifies, while the command-line flag sets the
+default level for other modules.</p>
+</blockquote>
+<h2 id="testing-logging"><a class="header" href="#testing-logging">Testing logging</a></h2>
+<p>Do not test logging at the low level using a crate like <code>tracing_test</code>. Instead, make sure to test
+the output the user sees in the CLI tests. Tests should ensure the user sees the logging statement
+in situations where it is expected and required to give helpful feedback. Tests should not cover
+<code>debug</code> and <code>trace</code> level logs.</p>
+<h2 id="quick-reference"><a class="header" href="#quick-reference">Quick Reference</a></h2>
+<h3 id="when-to-use-each-level-1"><a class="header" href="#when-to-use-each-level-1">When to use each level</a></h3>
+<ul>
+<li><strong>ERROR</strong>: Operation cannot continue, user needs to take action</li>
+<li><strong>WARN</strong>: Something unusual happened, but operation continues (default visibility)</li>
+<li><strong>INFO</strong>: High-level progress updates, what RTF is currently doing</li>
+<li><strong>DEBUG</strong>: Detailed diagnostic information for troubleshooting</li>
+<li><strong>TRACE</strong>: Extremely detailed execution flow for debugging</li>
+</ul>
+<h3 id="common-patterns"><a class="header" href="#common-patterns">Common patterns</a></h3>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Error with context
+error!(path = %config_path, "failed to read configuration file: {e}");
+
+// Progress indication
+info!(test_count = tests.len(), "executing test suite");
+
+// Debug with structured data
+debug!(endpoint = %url, method = "POST", "making API request");
+
+// Warning about potential issues
+warn!(feature = "deprecated_option", "using deprecated configuration option");
+<span class="boring">}</span></code></pre></pre>
+<h3 id="verbosity-flags"><a class="header" href="#verbosity-flags">Verbosity flags</a></h3>
+<ul>
+<li>Default: <code>WARN</code> and <code>ERROR</code> only</li>
+<li><code>-v</code>: Add <code>INFO</code> messages</li>
+<li><code>-vv</code>: Add <code>DEBUG</code> messages</li>
+<li><code>-vvv</code>: Add <code>TRACE</code> messages</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../developer/error-handling.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../developer/testing/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../developer/error-handling.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../developer/testing/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+        <script src="../ace.js"></script>
+        <script src="../mode-rust.js"></script>
+        <script src="../editor.js"></script>
+        <script src="../theme-dawn.js"></script>
+        <script src="../theme-tomorrow_night.js"></script>
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

@@ -1,0 +1,70 @@
+// Populate the sidebar
+//
+// This is a script, and not included directly in the page, to control the total size of the book.
+// The TOC contains an entry for each page, so if each page includes a copy of the TOC,
+// the total size of the page becomes O(n**2).
+class MDBookSidebarScrollbox extends HTMLElement {
+    constructor() {
+        super();
+    }
+    connectedCallback() {
+        this.innerHTML = '<ol class="chapter"><li class="chapter-item affix "><a href="index.html">The Apollo Runtime Testing Framework</a></li><li class="chapter-item affix "><li class="part-title">User Documentation</li><li class="chapter-item "><a href="guides/index.html"><strong aria-hidden="true">1.</strong> Getting started</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="guides/hello-world.html"><strong aria-hidden="true">1.1.</strong> Hello, world!</a></li></ol></li><li class="chapter-item "><a href="guides/test-plans/index.html"><strong aria-hidden="true">2.</strong> Test plans</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="guides/test-plans/writing-a-test-plan.html"><strong aria-hidden="true">2.1.</strong> Writing a new test plan</a></li><li class="chapter-item "><a href="guides/test-plans/writing-a-command.html"><strong aria-hidden="true">2.2.</strong> Writing a command</a></li><li class="chapter-item "><a href="guides/test-plans/writing-a-scenario.html"><strong aria-hidden="true">2.3.</strong> Writing a new scenario</a></li><li class="chapter-item "><a href="guides/test-plans/writing-an-environment.html"><strong aria-hidden="true">2.4.</strong> Writing a new environment</a></li><li class="chapter-item "><a href="guides/test-plans/using-file-providers.html"><strong aria-hidden="true">2.5.</strong> Using file providers</a></li></ol></li><li class="chapter-item "><a href="framework/index.html"><strong aria-hidden="true">3.</strong> The framework</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="framework/providers.html"><strong aria-hidden="true">3.1.</strong> Providers</a></li></ol></li><li class="chapter-item "><div><strong aria-hidden="true">4.</strong> Troubleshooting</div></li><li class="chapter-item "><a href="cli-help.html"><strong aria-hidden="true">5.</strong> Command Line Help</a></li><li class="chapter-item "><a href="glossary.html"><strong aria-hidden="true">6.</strong> Glossary</a></li><li class="chapter-item affix "><li class="part-title">Developer Documentation</li><li class="chapter-item "><a href="developer/concepts-and-architecture.html"><strong aria-hidden="true">7.</strong> Concepts and Architecture</a></li><li class="chapter-item "><a href="developer/error-handling.html"><strong aria-hidden="true">8.</strong> Error handling</a></li><li class="chapter-item "><a href="developer/logging.html"><strong aria-hidden="true">9.</strong> Logging</a></li><li class="chapter-item "><a href="developer/testing/index.html"><strong aria-hidden="true">10.</strong> Testing</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="developer/testing/rtf-cli.html"><strong aria-hidden="true">10.1.</strong> rtf-cli</a></li><li class="chapter-item "><a href="developer/testing/rtf-config.html"><strong aria-hidden="true">10.2.</strong> rtf-config</a></li><li class="chapter-item "><a href="developer/testing/rtf-core.html"><strong aria-hidden="true">10.3.</strong> rtf-core</a></li></ol></li><li class="chapter-item "><a href="developer/pr-checks.html"><strong aria-hidden="true">11.</strong> PR checks</a></li><li class="chapter-item "><a href="developer/parsing-config-files.html"><strong aria-hidden="true">12.</strong> Parsing config files</a></li><li class="chapter-item "><a href="developer/data-structures/index.html"><strong aria-hidden="true">13.</strong> Data structures</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="developer/data-structures/fields.html"><strong aria-hidden="true">13.1.</strong> Templating fields</a></li><li class="chapter-item "><a href="developer/data-structures/file-providers.html"><strong aria-hidden="true">13.2.</strong> File providers</a></li><li class="chapter-item "><a href="developer/data-structures/command-providers.html"><strong aria-hidden="true">13.3.</strong> Command providers</a></li><li class="chapter-item "><a href="developer/data-structures/config-files.html"><strong aria-hidden="true">13.4.</strong> Config file formats</a></li></ol></li><li class="chapter-item "><a href="developer/config-traits.html"><strong aria-hidden="true">14.</strong> Traits for working with config structs</a></li><li class="chapter-item "><a href="developer/context.html"><strong aria-hidden="true">15.</strong> Use of IO in providers</a></li><li class="chapter-item "><a href="developer/cli-subcommand-design/index.html"><strong aria-hidden="true">16.</strong> CLI subcommand design</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="developer/cli-subcommand-design/plumbing-vs-porcelain.html"><strong aria-hidden="true">16.1.</strong> Plumbing vs porcelain</a></li><li class="chapter-item "><a href="developer/cli-subcommand-design/no-built-in-magic.html"><strong aria-hidden="true">16.2.</strong> No built-in magic</a></li><li class="chapter-item "><a href="developer/cli-subcommand-design/global-flags.html"><strong aria-hidden="true">16.3.</strong> Global flags</a></li></ol></li></ol>';
+        // Set the current, active page, and reveal it if it's hidden
+        let current_page = document.location.href.toString().split("#")[0].split("?")[0];
+        if (current_page.endsWith("/")) {
+            current_page += "index.html";
+        }
+        var links = Array.prototype.slice.call(this.querySelectorAll("a"));
+        var l = links.length;
+        for (var i = 0; i < l; ++i) {
+            var link = links[i];
+            var href = link.getAttribute("href");
+            if (href && !href.startsWith("#") && !/^(?:[a-z+]+:)?\/\//.test(href)) {
+                link.href = path_to_root + href;
+            }
+            // The "index" page is supposed to alias the first chapter in the book.
+            if (link.href === current_page || (i === 0 && path_to_root === "" && current_page.endsWith("/index.html"))) {
+                link.classList.add("active");
+                var parent = link.parentElement;
+                if (parent && parent.classList.contains("chapter-item")) {
+                    parent.classList.add("expanded");
+                }
+                while (parent) {
+                    if (parent.tagName === "LI" && parent.previousElementSibling) {
+                        if (parent.previousElementSibling.classList.contains("chapter-item")) {
+                            parent.previousElementSibling.classList.add("expanded");
+                        }
+                    }
+                    parent = parent.parentElement;
+                }
+            }
+        }
+        // Track and set sidebar scroll position
+        this.addEventListener('click', function(e) {
+            if (e.target.tagName === 'A') {
+                sessionStorage.setItem('sidebar-scroll', this.scrollTop);
+            }
+        }, { passive: true });
+        var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+        sessionStorage.removeItem('sidebar-scroll');
+        if (sidebarScrollTop) {
+            // preserve sidebar scroll position when navigating via links within sidebar
+            this.scrollTop = sidebarScrollTop;
+        } else {
+            // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+            var activeSection = document.querySelector('#sidebar .active');
+            if (activeSection) {
+                activeSection.scrollIntoView({ block: 'center' });
+            }
+        }
+        // Toggle buttons
+        var sidebarAnchorToggles = document.querySelectorAll('#sidebar a.toggle');
+        function toggleSection(ev) {
+            ev.currentTarget.parentElement.classList.toggle('expanded');
+        }
+        Array.from(sidebarAnchorToggles).forEach(function (el) {
+            el.addEventListener('click', toggleSection);
+        });
+    }
+}
+window.customElements.define("mdbook-sidebar-scrollbox", MDBookSidebarScrollbox);

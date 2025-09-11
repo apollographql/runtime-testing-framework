@@ -1,0 +1,572 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Using file providers - Runtime Testing Framework</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="../../highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="../../tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../../searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../../toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Runtime Testing Framework</h1>
+
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/apollographql/runtime-testing-framework" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="using-file-providers"><a class="header" href="#using-file-providers">Using file providers</a></h1>
+<h3 id="table-of-contents"><a class="header" href="#table-of-contents">Table of contents</a></h3>
+<ul>
+<li><a href="#getting-started">Getting started</a></li>
+<li><a href="#what-are-file-providers">What are file providers?</a></li>
+<li><a href="#adding-an-inline-file">Adding an inline file</a></li>
+<li><a href="#file-provider-config-structure">File provider config structure</a></li>
+<li><a href="#adding-a-file-from-a-relative-path">Adding a file from a relative path</a></li>
+<li><a href="#required-files">Required files</a></li>
+</ul>
+<h2 id="getting-started"><a class="header" href="#getting-started">Getting started</a></h2>
+<p>This guide assumes you've completed the <a href="writing-an-environment.html">"Writing an environment"</a> guide.
+You should already have the files in a directory named <code>rtf-hello-world</code>. Your directory should be
+in the state it was at the end of that guide:</p>
+<pre><code class="language-bash">$ ls -R
+configs         scripts         test-plan.yaml
+
+rtf-hello-world/configs:
+environment.yaml        scenario.yaml
+
+rtf-hello-world/scripts:
+scenario.sh     setup.sh
+</code></pre>
+<h2 id="what-are-file-providers"><a class="header" href="#what-are-file-providers">What are file providers?</a></h2>
+<p>We've already been using file providers in the <code>command</code> configuration throughout the previous
+guides. File providers are rtf's way of referring to files and data that are required for the
+environment setup, environment teardown, and scenario to run successfully. Commands make use of two
+kinds of file providers, <code>inline</code> and <code>relative_path</code>. These are the most commonly used file
+providers as they provide the file content either from the local filesystem or from within the test
+plan configuration itself.</p>
+<p>There are additional file providers that, amongst other things, can pull data from APIs (such as
+GraphOS specific providers). These will not be discussed in this guide but can be seen in the
+<a href="../../framework/providers.html">framework reference</a>.</p>
+<p>All file providers follow the same basic principle - they create one or more files and place it on a
+path for rtf to make use of. If you need to know that path (for your command script, for example),
+rtf will assign an environment variable that contains the file's path. This is a deliberate design
+choice that allows rtf to make changes to how it stores files obtained from providers without
+breaking assumptions made about paths in user-written scripts.</p>
+<h2 id="adding-an-inline-file"><a class="header" href="#adding-an-inline-file">Adding an inline file</a></h2>
+<p>Let's see how file providers can be used in our test plan config. We'll add an inline file to our
+scenario and just <code>cat</code> the output to the terminal. First, we need to make use of the
+<code>file_providers</code> key in the <code>scenario.yaml</code>:</p>
+<pre><code class="language-yaml">name: Inline scenario config
+description: An inline scenario config
+values:
+  - name: scenario_value
+    description: An example value that the scenario expects to be defined
+    default: "scenario executed with default value"
+command:
+  name: scenario.sh
+  kind: relative_path
+  path: ../scripts/scenario.sh
+env_vars:
+  SCENARIO_ENV: "{{ scenario_value }}"
+# --- Add a new file to the scenario ---
+file_providers:
+  - name: scenario.txt
+    env_var: SCENARIO_TXT
+    kind: inline
+    content: |
+      Some inline text content for our scenario
+# --------------------------------------
+</code></pre>
+<blockquote>
+<p><strong>Note</strong> The environment setup and teardown configs can also define a <code>file_providers</code> section and
+it works in the exact same way as specified here. Files defined in the environment setup can also
+be referred to in the scenario and environment teardown using the same <code>env_var</code>. Similarly, files
+defined in the scenario will also be available to the teardown.</p>
+</blockquote>
+<p>We haven't yet updated the scenario's command to make use of this, but let's look at what happens
+when we run the test plan and examine the providers output:</p>
+<pre><code class="language-bash">$ rtf run test-plan.yaml
+Using the override setup script
+Environment setup complete. PROCESS_ID=2
+Running scenario from an external file
+scenario executed with test plan value
+Environment teardown complete. PROCESS_ID=2
+
+$ ls output/providers
+scenario.sh     scenario.txt    setup.sh        teardown.sh
+
+$ cat output/providers/scenario.txt 
+Some inline text content for our scenario
+</code></pre>
+<p>We've successfully updated our test plan to write a new <code>scenario.txt</code> file to the output with the
+content we specified inline. Let's make use of this in our command script. Note that when specifying
+file providers, we must set an <code>env_var</code>. This is the name of the environment variable that will be
+set when this is run and it will contain the path to the file. Let's update our <code>scenario.sh</code>
+script:</p>
+<pre><code class="language-sh">#!/usr/bin/env sh
+
+echo "Running scenario from an external file"
+# The SCENARIO_TXT environment variable is used to refer to the scenario.txt file's path
+cat $SCENARIO_TXT
+echo "$SCENARIO_ENV"
+</code></pre>
+<p>Now, if we run the test plan:</p>
+<pre><code class="language-bash">$ rtf run test-plan.yaml
+Using the override setup script
+Environment setup complete. PROCESS_ID=2
+Running scenario from an external file
+Some inline text content for our scenario
+scenario executed with test plan value
+Environment teardown complete. PROCESS_ID=2
+</code></pre>
+<p>We can see the content from <code>scenario.txt</code> being printed to the terminal.</p>
+<h2 id="file-provider-config-structure"><a class="header" href="#file-provider-config-structure">File provider config structure</a></h2>
+<p>Now that we've seen a file provider being defined, let's discuss how the config is structured. There
+are three required fields:</p>
+<ol>
+<li><code>name</code> is the name the file will be saved with in the <code>providers</code> directory of the output.</li>
+<li><code>env_var</code> is the environment variable the file's path will be stored in. This is used by
+subsequent commands to refer to the file.</li>
+<li><code>kind</code> is used to set which kind of file provider is being used. See the
+<a href="../../framework/providers.html">file provider reference</a> for details on all the providers
+available.</li>
+</ol>
+<p>Each file provider will have other fields that need to be defined, like <code>content</code> for <code>inline</code>.
+These are specific to each provider type, and the <code>template</code> command will highlight any missing or
+incorrectly defined keys.</p>
+<h2 id="adding-a-file-from-a-relative-path"><a class="header" href="#adding-a-file-from-a-relative-path">Adding a file from a relative path</a></h2>
+<p>Let's add a file from a relative path to the scenario config. The <code>file_provider</code> field can accept
+as many files as you need via a list. Before adding the new file to the config, let's create the
+file itself:</p>
+<pre><code class="language-bash">$ mkdir data
+$ touch data/file.txt
+</code></pre>
+<p>Add the following content to <code>file.txt</code>:</p>
+<pre><code>More content from a file for our scenario
+</code></pre>
+<p>Let's update <code>scenario.yaml</code> to refer to this file, this time using the <code>relative_path</code> file
+provider:</p>
+<pre><code class="language-yaml">name: Inline scenario config
+description: An inline scenario config
+values:
+  - name: scenario_value
+    description: An example value that the scenario expects to be defined
+    default: "scenario executed with default value"
+command:
+  name: scenario.sh
+  kind: relative_path
+  path: ../scripts/scenario.sh
+env_vars:
+  SCENARIO_ENV: "{{ scenario_value }}"
+file_providers:
+  - name: scenario.txt
+    env_var: SCENARIO_TXT
+    kind: inline
+    content: |
+      Some inline text content for our scenario
+# --- Add a new relative_path provider ---
+  - name: file.txt
+    env_var: FILE_TXT
+    kind: relative_path
+    path: ../data/file.txt
+# ----------------------------------------
+</code></pre>
+<blockquote>
+<p><strong>Note</strong> The path is relative to the <code>scenario.yaml</code> file!</p>
+</blockquote>
+<p>Let's update our <code>scenario.sh</code> script too:</p>
+<pre><code class="language-sh">#!/usr/bin/env sh
+
+echo "Running scenario from an external file"
+cat $SCENARIO_TXT
+# Add the cat command for file.txt
+cat $FILE_TXT
+echo "$SCENARIO_ENV"
+</code></pre>
+<p>Now, let's run the test plan:</p>
+<pre><code class="language-bash">$ rtf run test-plan.yaml
+Using the override setup script
+Environment setup complete. PROCESS_ID=2
+Running scenario from an external file
+Some inline text content for our scenario
+More content from a file for our scenario
+scenario executed with test plan value
+Environment teardown complete. PROCESS_ID=2
+
+$ ls output/providers 
+file.txt        scenario.sh     scenario.txt    setup.sh        teardown.sh
+</code></pre>
+<p>As expected, we also see the content of <code>file.txt</code> in our test plan execution. We can also see the
+file itself in the output.</p>
+<h2 id="required-files"><a class="header" href="#required-files">Required files</a></h2>
+<p>As discussed in previous sections of this guide, the environment and scenario configs are designed
+to be reused. For config designed to be reused often, you might want to force the user of the test
+plan to define a file, but not give them a default file to work with. For this use case, the
+<code>required</code> file provider is the perfect solution. Any test plan that tries to execute with a
+<code>required</code> file provider will fail and tell the user to specify the file themselves (normally this
+is done using <code>overrides</code>). Let's walk through how <code>required</code> can be used:</p>
+<p>Let's say we need a configuration file for our environment setup. We don't want to give a base
+example because users might end up using that without thinking about what configuration they
+actually need for their specific test. In other words, we don't want it to "just work" by design.
+Let's add a <code>required</code> file to our <code>environment.yaml</code>:</p>
+<pre><code class="language-yaml">name: Inline environment config
+description: An inline environment config
+setup:
+  command:
+    name: setup.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      PROCESS_ID="1"
+      echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
+      echo "{ \"process_id\": \"$PROCESS_ID\" }" &gt; "$RTF_OUTPUT"
+# --- Add a required file ---
+  file_providers:
+    - name: config.txt
+      env_var: CONFIG
+      kind: required
+      message: Please specify a config file
+# ---------------------------
+  provides:
+    - name: process_id
+      description: The id of the process started in the environment setup
+teardown:
+  command:
+    name: teardown.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
+  env_vars:
+    PROCESS_ID: "{{ process_id }}"
+</code></pre>
+<p>Now, let's see what happens when we try to template this test plan:</p>
+<pre><code class="language-bash">$ rtf template test-plan.yaml --check --value process_id="id"
+ERROR (config.txt) a required file has not been defined.: Please specify a config file
+</code></pre>
+<p>We get an error saying we haven't defined a required file, along with the message we put in the
+<code>message</code> field. We'd get the same error if we tried <code>rtf run</code>.</p>
+<p>To make this work, the test plan user should make use of overrides. Let's update <code>test-plan.yaml</code>:</p>
+<pre><code class="language-yaml">name: Hello World
+description: A test plan created as a guide for writing test plans
+
+  scenario_value: "scenario executed with test plan value"
+scenario:
+  from:
+    kind: local
+    relative_path: configs/scenario.yaml
+environment:
+  from:
+    kind: local
+    relative_path: configs/environment.yaml
+  overrides:
+    setup:
+      command:
+        name: setup.sh
+        kind: relative_path
+        path: scripts/setup.sh
+# --- Override the config.txt config ---
+      file_providers:
+        - name: config.txt
+          env_var: CONFIG
+          kind: inline
+          content: |
+            Config
+# --------------------------------------
+</code></pre>
+<p>The override will match based on the <code>name</code> key. If we template now, we get:</p>
+<pre><code class="language-bash">$ rtf template test-plan.yaml --check --value process_id="id"
+name: Hello World
+description: A test plan created as a guide for writing test plans
+values:
+  example_value: value
+  scenario_value: scenario executed with test plan value
+  process_id: id
+matrix: {}
+scenario:
+  name: Inline scenario config
+  description: An inline scenario config
+  values:
+  - name: scenario_value
+    description: An example value that the scenario expects to be defined
+    default: scenario executed with default value
+  command:
+    name: scenario.sh
+    kind: relative_path
+    path: ../scripts/scenario.sh
+    args: []
+  env_vars:
+    SCENARIO_ENV: scenario executed with test plan value
+  file_providers:
+  - name: file.txt
+    env_var: FILE_TXT
+    kind: relative_path
+    path: ../data/file.txt
+  - name: scenario.txt
+    env_var: SCENARIO_TXT
+    kind: inline
+    content: |
+      Some inline text content for our scenario
+environment:
+  name: Inline environment config
+  description: An inline environment config
+  values: []
+  setup:
+    command:
+      name: setup.sh
+      kind: relative_path
+      path: scripts/setup.sh
+      args: []
+    env_vars: {}
+    file_providers:
+    - name: config.txt
+      env_var: CONFIG
+      kind: inline
+      content: |
+        Config
+    provides:
+    - name: process_id
+      description: The id of the process started in the environment setup
+      default: null
+  teardown:
+    command:
+      name: teardown.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+
+        echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
+      args: []
+    env_vars:
+      PROCESS_ID: id
+    file_providers: []
+</code></pre>
+<p>If you look at <code>setup.file_providers</code>, you can see that <code>config.txt</code> now uses the config from the
+overrides. Our test plan no longer contains a <code>required</code> file, so we no longer get that error. The
+<code>rtf run</code> command can also complete successfully now.</p>
+<hr />
+<p>Congratulations! You've now completed the guide on how to write test plans.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../guides/test-plans/writing-an-environment.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../../framework/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../guides/test-plans/writing-an-environment.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../../framework/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+        <script src="../../ace.js"></script>
+        <script src="../../mode-rust.js"></script>
+        <script src="../../editor.js"></script>
+        <script src="../../theme-dawn.js"></script>
+        <script src="../../theme-tomorrow_night.js"></script>
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

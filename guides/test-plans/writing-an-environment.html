@@ -1,0 +1,650 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Writing a new environment - Runtime Testing Framework</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="../../highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="../../tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../../searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../../toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Runtime Testing Framework</h1>
+
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/apollographql/runtime-testing-framework" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="writing-a-new-environment"><a class="header" href="#writing-a-new-environment">Writing a new environment</a></h1>
+<h3 id="table-of-contents"><a class="header" href="#table-of-contents">Table of contents</a></h3>
+<ul>
+<li><a href="#getting-started">Getting started</a></li>
+<li><a href="#creating-an-environment-file">Creating an environment file</a></li>
+<li><a href="#environment-config-structure">Environment config structure</a></li>
+<li><a href="#using-provides">Using provides</a></li>
+<li><a href="#using-overrides">Using overrides</a></li>
+</ul>
+<h2 id="getting-started"><a class="header" href="#getting-started">Getting started</a></h2>
+<p>This guide assumes you've completed the <a href="writing-a-scenario.html">"Writing a scenario"</a> guide. You
+should already have the files in a directory named <code>rtf-hello-world</code>. Your directory should be in
+the state it was at the end of that guide.</p>
+<pre><code class="language-bash">$ ls -R
+configs         scripts         test-plan.yaml
+
+configs:
+scenario.yaml
+
+scripts:
+scenario.sh
+</code></pre>
+<h2 id="creating-an-environment-file"><a class="header" href="#creating-an-environment-file">Creating an environment file</a></h2>
+<p>Creating a separate environment file works exactly the same way and has the same benefits as
+creating a separate scenario file outlined in the
+<a href="writing-a-scenario.html#creating-a-scenario-file">"Writing a scenario" guide</a>.</p>
+<p>Let's update our test plan to specify the environment in a separate file:</p>
+<pre><code class="language-bash">touch configs/environment.yaml
+</code></pre>
+<p>Make sure the <code>environment.yaml</code> contains a copy of the environment config currently in your
+<code>test-plan.yaml</code> file:</p>
+<pre><code class="language-yaml">name: Inline environment config
+description: An inline environment config
+setup:
+  command:
+    name: setup.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      echo "environment setup command executed"
+teardown:
+  command:
+    name: setup.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      echo "environment teardown command executed"
+</code></pre>
+<p>Finally, update the <code>test-plan.yaml</code> file to use the new <code>environment.yaml</code> file:</p>
+<pre><code class="language-yaml">name: Hello World
+description: A test plan created as a guide for writing test plans
+  scenario_value: "scenario executed with test plan value"
+scenario:
+  from:
+    kind: local
+    relative_path: configs/scenario.yaml
+environment:
+  from:
+    kind: local
+    relative_path: configs/environment.yaml
+</code></pre>
+<p>Let's verify this has made no material difference to the templated test plan:</p>
+<pre><code class="language-bash">$ rtf template test-plan.yaml --check
+name: Hello World
+description: A test plan created as a guide for writing test plans
+values:
+  scenario_value: scenario executed with test plan value
+  example_value: value
+matrix: {}
+scenario:
+  name: Inline scenario config
+  description: An inline scenario config
+  values:
+  - name: scenario_value
+    description: An example value that the scenario expects to be defined
+    default: scenario executed with default value
+  command:
+    name: scenario.sh
+    kind: relative_path
+    path: ../scripts/scenario.sh
+    args: []
+  env_vars:
+    SCENARIO_ENV: scenario executed with test plan value
+  file_providers: []
+environment:
+  name: Inline environment config
+  description: An inline environment config
+  values: []
+  setup:
+    command:
+      name: setup.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+
+        echo "environment setup command executed"
+      args: []
+    env_vars: {}
+    file_providers: []
+    provides: []
+  teardown:
+    command:
+      name: setup.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+
+        echo "environment teardown command executed"
+      args: []
+    env_vars: {}
+    file_providers: []
+</code></pre>
+<h2 id="environment-config-structure"><a class="header" href="#environment-config-structure">Environment config structure</a></h2>
+<p>Now is a good time to review how the environment config is structured. The main difference compared
+to the <a href="writing-a-scenario.html#scenario-config-structure">scenario config</a> is that an environment can
+run two commands using the <code>setup</code> and <code>teardown</code> keys. The <code>setup</code> key has an additional field
+called <code>provides</code> which we'll explain in more detail in the
+<a href="#using-provides">"Using provides" section</a>. The fields in an environment config are:</p>
+<ul>
+<li><code>name</code> (required) is used to give the environment an identifiable title. It can be any valid
+string. It has no impact on the execution of an environment.</li>
+<li><code>description</code> (required) is used to give more information about the environment. It can be any
+valid string. It has no impact on the execution of an environment.</li>
+<li><code>values</code> (optional) are used to define which values an environment requires to successfully
+execute. This works the same as it does for a scenario and is explained more in the
+<a href="writing-a-scenario.html#using-values">"using values"</a> section of that guide.</li>
+<li><code>setup</code> (required) is used to define the command that executes at the start of the <code>rtf run</code>
+command. It is intended to be used to create and configure the environment for the scenario to
+test. It requires the following keys:
+<ul>
+<li><code>command</code> (required) is used to define what is executed when the environment setup is run. The
+<a href="writing-a-command.html">"Writing a command" guide</a> explains commands in more detail.</li>
+<li><code>env_vars</code> (optional) is used to define the environment variables that are set when the
+<code>command</code> is executed.</li>
+<li><code>file_providers</code> (optional) is used to define the files and data that the environment setup
+depends on to execute. The <a href="using-file-providers.html">"Using file providers" guide</a> explains how
+these are used in more detail.</li>
+<li><code>provides</code> (optional) is unique to the environment setup and is used to set values that can only
+be known at runtime. This is explained more in the <a href="#using-provides">"Using provides" section</a>.</li>
+</ul>
+</li>
+<li><code>teardown</code> (required) is used to define the command that executes at the end of the <code>rtf run</code>
+command. It is intended to be used to collect results and shutdown the environment the scenario
+tested. It requires the following keys:
+<ul>
+<li><code>command</code> (required) is used to define what is executed when the environment teardown is run.
+The <a href="writing-a-command.html">"Writing a command" guide</a> explains commands in more detail.</li>
+<li><code>env_vars</code> (optional) is used to define the environment variables that are set when the
+<code>command</code> is executed.</li>
+<li><code>file_providers</code> (optional) is used to define the files and data that the environment teardown
+depends on to execute. The <a href="using-file-providers.html">"Using file providers" guide</a> explains how
+these are used in more detail.</li>
+</ul>
+</li>
+</ul>
+<h2 id="using-provides"><a class="header" href="#using-provides">Using provides</a></h2>
+<p>The <code>provides</code> key is used to take values from the environment setup and make them available to the
+scenario and environment teardown steps. The most common use case for this is when the environment
+setup starts a process with some ID that can only be known at runtime. That ID is required by the
+environment teardown so it can stop the process once the test is done. In practice, this can be used
+to set any value for the scenario and environment teardown to use.</p>
+<p>Before we look at how <code>provides</code> works, let's update our environment setup command in
+<code>environment.yaml</code>:</p>
+<pre><code class="language-yaml">name: Inline environment config
+description: An inline environment config
+setup:
+# --- Update the setup command ---
+  command:
+    name: setup.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      PROCESS_ID="1"
+      echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
+# --------------------------------
+teardown:
+  command:
+    name: setup.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      echo "environment teardown command executed"
+</code></pre>
+<p>The environment setup now creates a <code>PROCESS_ID</code> with a value of <code>1</code>. We'll want to be able to use
+this in our teardown script. In preparation, let's update the teardown command so it can use a
+<code>PROCESS_ID</code> environment variable that will eventually come from the setup:</p>
+<pre><code class="language-yaml">name: Inline environment config
+description: An inline environment config
+setup:
+  command:
+    name: setup.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      PROCESS_ID="1"
+      echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
+teardown:
+# --- Update the teardown command ---
+  command:
+    name: teardown.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
+  env_vars:
+    PROCESS_ID: "not yet from setup"
+# -----------------------------------
+</code></pre>
+<p>Let's verify this works:</p>
+<pre><code class="language-bash">$ rtf run test-plan.yaml
+Environment setup complete. PROCESS_ID=1
+Running scenario from an external file
+scenario executed with test plan value
+Environment teardown complete. PROCESS_ID=not yet from setup
+</code></pre>
+<p>The <code>provides</code> key defines values that are specified in the config in the exact same way that
+<code>values</code> are. Let's update the <code>environment.yaml</code>:</p>
+<pre><code class="language-yaml">name: Inline environment config
+description: An inline environment config
+setup:
+  command:
+    name: setup.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      PROCESS_ID="1"
+      echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
+# --- Add a provides ---
+  provides:
+    - name: process_id
+      description: The id of the process started in the environment setup
+# ----------------------
+teardown:
+  command:
+    name: teardown.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
+  env_vars:
+# --- Use the process_id here ---
+    PROCESS_ID: "{{ process_id }}"
+# -------------------------------
+</code></pre>
+<blockquote>
+<p><strong>Note</strong> If you want to check this templates, you'll need to specify a value for <code>process_id</code>
+using <code>--value process_id="dummy_id"</code>. If you don't do this, you'll get
+<code>ERROR (environment.teardown.env_vars.PROCESS_ID) unknown templating value: process_id</code>.</p>
+</blockquote>
+<p>If we try to run this, it won't work:</p>
+<pre><code class="language-bash">$ rtf run test-plan.yaml
+Environment setup complete. PROCESS_ID=1
+ERROR missing required output fields from environment setup: ["process_id"]
+</code></pre>
+<p>This is because we need to update our setup script to output the <code>process_id</code>. To do this, rtf has a
+reserved file that output needs to be <code>echo</code>'d to called <code>RTF_OUTPUT</code>. Let's look at this in an
+updated <code>environment.yaml</code>:</p>
+<pre><code class="language-yaml">name: Inline environment config
+description: An inline environment config
+setup:
+  command:
+    name: setup.sh
+    kind: inline
+# --- Add the missing echo to output command ---
+    content: |
+      #!/usr/bin/env sh
+
+      PROCESS_ID="1"
+      echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
+      echo "{ \"process_id\": \"$PROCESS_ID\" }" &gt; "$RTF_OUTPUT"
+# ----------------------------------------------
+  provides:
+    - name: process_id
+      description: The id of the process started in the environment setup
+teardown:
+  command:
+    name: teardown.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
+  env_vars:
+    PROCESS_ID: "{{ process_id }}"
+</code></pre>
+<p>Now, if we run again, we'll see the <code>process_id</code> being successfully used in the teardown:</p>
+<pre><code class="language-bash">$ rtf run test-plan.yaml
+Environment setup complete. PROCESS_ID=1
+Running scenario from an external file
+scenario executed with test plan value
+Environment teardown complete. PROCESS_ID=1
+</code></pre>
+<h2 id="using-overrides"><a class="header" href="#using-overrides">Using overrides</a></h2>
+<p>One of the main benefits of defining environment (and scenario) config in a separate file is that it
+can be reused across multiple test plans. There will be occasions where you want to reuse the
+majority of what's defined in an environment config but make small edits. Instead of making a new
+file with the edits, you can use <code>overrides</code>.</p>
+<p>Before we look at overrides, let's create a new <code>setup.sh</code> script. We'll use this instead of the
+current inline script in <code>environment.yaml</code>:</p>
+<pre><code class="language-bash">touch scripts/setup.sh
+</code></pre>
+<p>Add the following to the <code>setup.sh</code> file (this will make it obvious we've run the intended setup):</p>
+<pre><code class="language-sh">#!/usr/bin/env sh
+
+PROCESS_ID="2"
+echo "Using the override setup script"
+echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
+echo "{ \"process_id\": \"$PROCESS_ID\" }" &gt; "$RTF_OUTPUT"
+</code></pre>
+<p>Overrides can be added to either the <code>environment</code> or <code>scenario</code> in the test plan config. Add this
+to <code>test-plan.yaml</code>:</p>
+<pre><code class="language-yaml">name: Hello World
+description: A test plan created as a guide for writing test plans
+
+  scenario_value: "scenario executed with test plan value"
+scenario:
+  from:
+    kind: local
+    relative_path: configs/scenario.yaml
+environment:
+  from:
+    kind: local
+    relative_path: configs/environment.yaml
+# --- Add an override for the setup command ---
+  overrides:
+    setup:
+      command:
+        name: setup.sh
+        kind: relative_path
+        path: scripts/setup.sh
+# ---------------------------------------------
+</code></pre>
+<p>Before checking if this works, let's look at how it works. We only want to change the
+<code>setup.command</code>, so only that segment of the config is required. rtf will merge the YAML on matching
+keys before checking if it templates. If you run the <code>template</code> command now (pay attention to the
+<code>--value</code> flag here, we need this because of the <code>provides</code> value):</p>
+<pre><code class="language-bash">$ template rtf-hello-world/test-plan.yaml --check --value process_id=dummy`
+name: Hello World
+description: A test plan created as a guide for writing test plans
+values:
+  scenario_value: scenario executed with test plan value
+  example_value: value
+  process_id: dummy
+matrix: {}
+scenario:
+  name: Inline scenario config
+  description: An inline scenario config
+  values:
+  - name: scenario_value
+    description: An example value that the scenario expects to be defined
+    default: scenario executed with default value
+  command:
+    name: scenario.sh
+    kind: relative_path
+    path: ../scripts/scenario.sh
+    args: []
+  env_vars:
+    SCENARIO_ENV: scenario executed with test plan value
+  file_providers: []
+environment:
+  name: Inline environment config
+  description: An inline environment config
+  values: []
+  setup:
+    command:
+      name: setup.sh
+      kind: relative_path
+      path: scripts/setup.sh
+      args: []
+    env_vars: {}
+    file_providers: []
+    provides:
+    - name: process_id
+      description: The id of the process started in the environment setup
+      default: null
+  teardown:
+    command:
+      name: teardown.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+
+        echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
+      args: []
+    env_vars:
+      PROCESS_ID: dummy
+    file_providers: []
+</code></pre>
+<p>If you look closely at the templated test plan, the setup command now matches what we defined in the
+<code>overrides</code>, while the rest of the environment config is unchanged. If we run the test plan:</p>
+<pre><code class="language-bash">$ rtf run test-plan.yaml
+Using the override setup script
+Environment setup complete. PROCESS_ID=2
+Running scenario from an external file
+scenario executed with test plan value
+Environment teardown complete. PROCESS_ID=2
+</code></pre>
+<p>This confirms we're successfully using a new <code>setup.sh</code> script for the environment without changing
+any other config for the environment.</p>
+<hr />
+<p>In this guide, we've covered moving environment config into its own file, using provides in the
+setup, and using overrides in the test plan. Next, we'll guide you through how to use file
+providers.</p>
+<p><strong>Next:</strong> <a href="using-file-providers.html">Using file providers</a></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../guides/test-plans/writing-a-scenario.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../../guides/test-plans/using-file-providers.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../guides/test-plans/writing-a-scenario.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../../guides/test-plans/using-file-providers.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+        <script src="../../ace.js"></script>
+        <script src="../../mode-rust.js"></script>
+        <script src="../../editor.js"></script>
+        <script src="../../theme-dawn.js"></script>
+        <script src="../../theme-tomorrow_night.js"></script>
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

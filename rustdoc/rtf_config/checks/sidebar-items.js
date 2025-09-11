@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ErrorKind"],"trait":["Check"],"type":["Error","ErrorBuilder","Errors","Result"]};
