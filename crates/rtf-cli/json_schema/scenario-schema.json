@@ -328,7 +328,7 @@
       "required": [
         "graph_ref"
       ],
-      "title": "GraphOS subgraph SDL",
+      "title": "GraphOS Subgraph SDL",
       "type": "object"
     },
     "GraphosSupergraph": {

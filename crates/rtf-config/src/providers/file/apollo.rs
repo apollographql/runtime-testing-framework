@@ -96,7 +96,7 @@ impl Check for GraphosSupergraph {
     }
 }
 
-/// # GraphOS subgraph SDL
+/// # GraphOS Subgraph SDL
 ///
 /// The user specifies the graph ref that should be used to fetch a subgraph
 /// SDL files from the GraphOS API.
