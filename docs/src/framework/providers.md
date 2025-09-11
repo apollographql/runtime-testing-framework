@@ -7,7 +7,7 @@ Available file providers:
 - [GraphOS Canned Operations](#graphos-canned-operations)
 - [GraphOS Supergraph Docker Compose](#graphos-supergraph-docker-compose)
 - [GraphOS Supergraph Router URL Overrides](#graphos-supergraph-router-url-overrides)
-- [GraphOS subgraph SDL](#graphos-subgraph-sdl)
+- [GraphOS Subgraph SDL](#graphos-subgraph-sdl)
 - [GraphOS Supergraph SDL](#graphos-supergraph-sdl)
 - [Inline File](#inline-file)
 - [GraphOS Offline License](#graphos-offline-license)
@@ -221,7 +221,7 @@ The Apollo graph ref to pull the subgraphs for.
 
 The format of the overrides url.
 
-## GraphOS subgraph SDL
+## GraphOS Subgraph SDL
 
 The user specifies the graph ref that should be used to fetch a subgraph SDL files from the GraphOS
 API.
