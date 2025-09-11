@@ -1,0 +1,56 @@
+name: Publish RTF binary for the morgue-helper
+# This is publishing a binary for use in the GCP VMs used in the morgue scripts
+# The use of ubuntu-22.04 is deliberate, this is the latest version of ubuntu we 
+# can use that has glibc versions old enough to be compatible with the GCP VM base image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'crates/**'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_LOG: info
+  RUST_BACKTRACE: 1
+
+jobs:
+  read-rust-version:
+    name: Read Rust version from mise.toml
+    runs-on: ubuntu-latest
+    outputs:
+      rust-version: ${{ steps.get-version.outputs.rust-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: get-version
+        run: |
+          version=$(grep '^rust\s*=' .config/mise/mise.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "rust-version=$version" >> "$GITHUB_OUTPUT"
+  
+  upload-rtf-binary:
+    name: Upload the RTF binary as an artifact
+    # This is pinned to this version of ubuntu because later versions of ubuntu create a binary that uses later versions
+    # of glibc than are compatabile with the GCP VMs we use
+    runs-on: ubuntu-22.04
+    needs:
+      - read-rust-version
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: hecrj/setup-rust-action@v2
+      with:
+        rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
+    
+    # router-scale VM architecture is Linux x86_64 - the ubuntu-latest runner matches the 
+    # architecture of the router-scale VM
+    # NOTE - this binary will only work on Linux x86_64 architecture
+    - name: Build rtf binary (release)
+      run: cargo build --release --bin rtf
+
+    - name: Upload rtf binary artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: rtf-binary
+        path: target/release/rtf
+
