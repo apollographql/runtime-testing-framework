@@ -112,10 +112,14 @@ impl_template!(MergeYaml => [base, overrides]);
 impl Check for MergeYaml {
     fn try_check(
         &self,
-        _path: &mut Vec<String>,
-        _src: &Source,
-        _ctx: &impl ResolutionContext,
+        path: &mut Vec<String>,
+        src: &Source,
+        ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        Ok(())
+        let mut errs = checks::ErrorBuilder::new();
+        errs.append(self.base.try_check(path, src, ctx));
+        errs.append(self.overrides.try_check(path, src, ctx));
+
+        errs.into_result(())
     }
 }
