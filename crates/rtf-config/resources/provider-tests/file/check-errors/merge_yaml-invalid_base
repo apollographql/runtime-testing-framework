@@ -1,0 +1,15 @@
+A YAML fragment for a merge YAML file provider that references a file
+that doesn't exist in the base.
+This should parse but fail to check successfully.
+
+-- config.yaml --
+kind: merge_yaml
+base:
+  kind: relative_path
+  path: ../does-not-exist.txt
+overrides:
+  kind: inline
+  content: content
+
+-- check-errors --
+FileNotFound
