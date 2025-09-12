@@ -221,8 +221,8 @@ where
         let t_type = T::json_schema(&mut SchemaGenerator::default())
             .to_value()
             .get("type")
-            .unwrap()
-            .clone();
+            .cloned()
+            .unwrap_or(serde_json::Value::String("Scalar".into()));
 
         format!("Templatable {}", t_type.as_str().unwrap()).into()
     }
@@ -239,8 +239,8 @@ where
         let t_type = T::json_schema(generator)
             .to_value()
             .get("type")
-            .unwrap()
-            .clone();
+            .cloned()
+            .unwrap_or(serde_json::Value::String("Scalar".into()));
 
         json_schema!({
           "description": format!(
@@ -306,9 +306,11 @@ where
     ) -> Result<()> {
         if let Self::Pending(value) = self {
             match values.get(value) {
-                Some(raw) => match raw.clone().try_into() {
+                Some(raw) => match T::try_from_scalar(raw.clone()) {
                     Ok(t) => *self = Self::Resolved(t),
-                    Err(reason) => return Err(Errors::new(ErrorKind::InvalidData, reason, path)),
+                    Err(reason) => {
+                        return Err(Errors::new(ErrorKind::InvalidData, reason, path));
+                    }
                 },
                 None => return Err(Errors::new(ErrorKind::UnknownValue, value.clone(), path)),
             }
@@ -481,12 +483,26 @@ impl TryFrom<f64> for Scalar {
 }
 
 /// A [Scalar] type which may appear inside of a templated [Field] within a config file.
-pub trait ValidField:
-    fmt::Debug + Clone + Serialize + DeserializeOwned + TryFrom<Scalar, Error = String>
-{
+pub trait ValidField: fmt::Debug + Clone + Serialize + DeserializeOwned {
+    /// We need this try_from operation to always return a String error on failure so we can report
+    /// invalid types being used in Test Plans to the user. This doesn't work for a `Field<Scalar>`
+    /// as Scalar::try_from(Scalar) has an error type of Infallible which can't be constructed (and
+    /// therefore can't be turned into a string).
+    fn try_from_scalar(s: Scalar) -> std::result::Result<Self, String>;
 }
 
-impl ValidField for bool {}
+impl ValidField for Scalar {
+    fn try_from_scalar(s: Scalar) -> std::result::Result<Self, String> {
+        Ok(s)
+    }
+}
+
+impl ValidField for bool {
+    fn try_from_scalar(s: Scalar) -> std::result::Result<Self, String> {
+        Self::try_from(s)
+    }
+}
+
 impl TryFrom<Scalar> for bool {
     type Error = String;
 
@@ -498,7 +514,12 @@ impl TryFrom<Scalar> for bool {
     }
 }
 
-impl ValidField for String {}
+impl ValidField for String {
+    fn try_from_scalar(s: Scalar) -> std::result::Result<Self, String> {
+        Self::try_from(s)
+    }
+}
+
 impl TryFrom<Scalar> for String {
     type Error = String;
 
@@ -510,7 +531,12 @@ impl TryFrom<Scalar> for String {
     }
 }
 
-impl ValidField for f64 {}
+impl ValidField for f64 {
+    fn try_from_scalar(s: Scalar) -> std::result::Result<Self, String> {
+        Self::try_from(s)
+    }
+}
+
 impl TryFrom<Scalar> for f64 {
     type Error = String;
 
@@ -529,7 +555,11 @@ impl TryFrom<Scalar> for f64 {
 macro_rules! impl_integer_scalars {
     ( $([$($ty:ty),+] => $as_method:ident;)+ ) => {
         $($(
-            impl ValidField for $ty {}
+            impl ValidField for $ty {
+                fn try_from_scalar(s: Scalar) -> std::result::Result<Self, String> {
+                    Self::try_from(s)
+                }
+            }
 
             impl From<$ty> for Scalar {
                 fn from(value: $ty) -> Self {

@@ -35,7 +35,7 @@ pub struct CommandSection {
     pub command: RawCommand,
     /// Environment variables to set
     #[serde(default)]
-    pub env_vars: HashMap<String, Field<String>>,
+    pub env_vars: HashMap<String, Field<Scalar>>,
     /// File providers to run and make available prior to execution
     #[serde(default)]
     pub file_providers: Vec<NamedFileProvider>,
@@ -141,7 +141,7 @@ impl CommandSection {
         let mut vars: HashMap<String, String> = self
             .env_vars
             .iter()
-            .map(|(k, v)| (k.to_string(), v.as_resolved().clone()))
+            .map(|(k, v)| (k.to_string(), v.as_resolved().to_string()))
             .collect();
 
         for nfp in self.file_providers.iter() {
@@ -765,10 +765,14 @@ mod tests {
                 }),
                 args: Vec::new(),
             }),
-            env_vars: [("FOO", "hello"), ("BAR", "world")]
-                .into_iter()
-                .map(|(k, v)| (k.to_string(), Field::Resolved(v.to_string())))
-                .collect(),
+            env_vars: [
+                ("FOO", Scalar::from("hello")),
+                ("BAR", Scalar::from("world")),
+                ("BAZ", Scalar::from(true)),
+            ]
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), Field::Resolved(v)))
+            .collect(),
             file_providers: vec![
                 NamedFileProvider {
                     name: "fp1.txt".to_string(),
@@ -813,6 +817,7 @@ mod tests {
         let expected: HashMap<String, String> = [
             ("FOO", "hello"),
             ("BAR", "world"),
+            ("BAZ", "true"),
             ("OUTDIR", "/example-dir"),
             ("FP1", "/example-dir/providers/fp1.txt"),
             ("FP2", "/example-dir/providers/fp2.txt"),
