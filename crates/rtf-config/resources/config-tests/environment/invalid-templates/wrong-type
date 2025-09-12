@@ -6,20 +6,21 @@ description: "A minimal environment config with templates"
 
 values:
   - name: foo
-    description: "An env var called foo"
-  - name: bar
-    description: "An env var called bar"
+    description: "An value called foo"
 
 setup:
   command: scripts/start_local_server.sh
-  env_vars:
-    HELLO: "{{ foo }}"
+  file_providers:
+    - name: foo
+      env_var: FOO
+      kind: relative_path
+      path: "{{ foo }}"
 
 teardown:
   command: scripts/stop_local_server.sh
 
 -- values --
-foo: 42  # env vars should always be strings
+foo: 42  # paths need to be strings
 
 -- templating-errors --
 InvalidData

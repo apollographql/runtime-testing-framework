@@ -43,7 +43,7 @@
         },
         "env_vars": {
           "additionalProperties": {
-            "$ref": "#/definitions/Templatable%20string"
+            "$ref": "#/definitions/Templatable%20Scalar"
           },
           "default": {},
           "description": "Environment variables to set",
@@ -876,7 +876,7 @@
         },
         "env_vars": {
           "additionalProperties": {
-            "$ref": "#/definitions/Templatable%20string"
+            "$ref": "#/definitions/Templatable%20Scalar"
           },
           "default": {},
           "description": "Environment variables to set",
@@ -904,6 +904,20 @@
       ],
       "title": "Setup Command Section",
       "type": "object"
+    },
+    "Templatable Scalar": {
+      "description": "A templatable Scalar that can be replaced with a user specified value at runtime",
+      "oneOf": [
+        {
+          "description": "The value that should be templated.",
+          "pattern": "^\\{\\{ \\w+ \\}\\}$",
+          "type": "string"
+        },
+        {
+          "description": "Statically provided data.",
+          "type": "Scalar"
+        }
+      ]
     },
     "Templatable boolean": {
       "description": "A templatable boolean that can be replaced with a user specified value at runtime",

@@ -11,9 +11,6 @@ values:
 
 command: "/command.sh"
 
-env_vars:
-  SOME_ENV_VAR: "{{ foo }}"
-
 file_providers:
   - name: "inline.txt"
     env_var: INLINE_FILE
@@ -23,11 +20,16 @@ file_providers:
       split over multiple lines.
       How nice.
 
+  - name: foo
+    env_var: FOO
+    kind: relative_path
+    path: "{{ foo }}"
+
 teardown:
   command: scripts/stop_local_server.sh
 
 -- values --
-foo: 42  # env vars should always be strings
+foo: 42  # paths need to be strings
 
 -- templating-errors --
 InvalidData
