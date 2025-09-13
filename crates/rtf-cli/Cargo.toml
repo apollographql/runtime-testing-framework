@@ -13,7 +13,7 @@ rtf-config = { path = "../rtf-config" }
 rtf-core = { path = "../rtf-core" }
 
 anyhow.workspace = true 
-clap = { version = "4.5.47", features = ["derive"] }
+clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
@@ -32,6 +32,6 @@ rtf-config = { path = "../rtf-config" }
 
 clap-markdown = "0.1.5"
 clap_complete = "4.5.57"
-clap = { version = "4.5.47", features = ["derive"] }
+clap.workspace = true
 schemars.workspace = true
 serde_json.workspace = true
