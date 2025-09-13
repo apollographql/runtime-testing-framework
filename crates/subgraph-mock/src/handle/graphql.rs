@@ -1,10 +1,14 @@
+use std::collections::HashMap;
+
 use crate::{ADDITIONAL_HEADERS, SUPERGRAPH_SCHEMA, handle::ByteResponse};
 use apollo_compiler::{
-    ExecutableDocument, Node, Schema,
-    ast::OperationType,
-    executable::Operation,
+    ExecutableDocument, Name, Node, Schema,
+    ast::{NamedType, OperationType},
+    collections::IndexMap,
+    executable::{Fragment, Selection, SelectionSet},
     name,
-    response::{ExecutionResponse, GraphQLError},
+    response::{ExecutionResponse, GraphQLError, JsonMap},
+    schema::ExtendedType,
     validation::Valid,
 };
 use http_body_util::{BodyExt, Full};
@@ -51,7 +55,7 @@ struct GraphQLRequest {
     query: String,
     operation_name: Option<String>,
     #[serde(default)]
-    variables: serde_json::Map<String, Value>,
+    variables: HashMap<String, Value>,
     // #[serde(default)]
     // extensions: serde_json::Map<String, Value>,
 }
@@ -110,7 +114,9 @@ impl GraphQLRequest {
         );
 
         let resp = match op.operation_type {
-            OperationType::Query => build_query_response(op, schema),
+            OperationType::Query => {
+                build_query_response(&op.selection_set, &self.variables, None, 0, &doc, schema)
+            }
 
             OperationType::Subscription => {
                 error!("received subscription request: not implemented");
@@ -142,14 +148,96 @@ impl GraphQLRequest {
     }
 }
 
-fn build_query_response(op: &Node<Operation>, schema: &Valid<Schema>) -> ExecutionResponse {
+fn err(msg: impl Into<String>) -> ExecutionResponse {
     ExecutionResponse {
         errors: vec![GraphQLError {
-            message: "WIP".into(),
+            message: msg.into(),
             locations: Vec::new(),
             path: Vec::new(),
             extensions: Default::default(),
         }],
         data: None,
     }
+}
+
+fn build_query_response(
+    selset: &SelectionSet,
+    vars: &HashMap<String, Value>,
+    parent_ty: Option<NamedType>,
+    depth: usize,
+    doc: &Valid<ExecutableDocument>,
+    schema: &Valid<Schema>,
+) -> ExecutionResponse {
+    let data = JsonMap::with_capacity(selset.selections.len());
+    let parent_ty = match parent_ty {
+        Some(ty) => match get_parent_ty(ty, doc, schema) {
+            Ok(name) => name,
+            Err(msg) => return err(msg),
+        },
+        None => name!("Query"),
+    };
+
+    ExecutionResponse {
+        data: Some(data),
+        errors: Vec::new(),
+    }
+}
+
+// If the parent type is a union or interface we need to pick a concrete type to work with based on
+// what is being queried:
+//  - scan through all fragments and collect type conditions
+//  - if no type conditions found, just pick one
+fn get_parent_ty(
+    ty: NamedType,
+    doc: &Valid<ExecutableDocument>,
+    schema: &Valid<Schema>,
+) -> Result<NamedType, String> {
+    let parent_ty = schema
+        .types
+        .get(&ty)
+        .ok_or_else(|| format!("{ty} is not a known type"))?;
+
+    match parent_ty {
+        ExtendedType::Union(u) => unimplemented!(),
+        ExtendedType::Interface(i) => unimplemented!(),
+        _ => (),
+    }
+
+    Ok(ty)
+}
+
+fn get_type_conditions(
+    selset: &SelectionSet,
+    doc: &ExecutableDocument,
+    schema: &Valid<Schema>,
+) -> Vec<Name> {
+    let mut types = Vec::new();
+
+    for s in selset.selections.iter() {
+        match s {
+            Selection::Field(_) => continue,
+
+            Selection::InlineFragment(i) => {
+                if let Some(ty) = &i.type_condition {
+                    types.push(ty.clone());
+                }
+            }
+
+            Selection::FragmentSpread(f) => match doc.fragments.get(&f.fragment_name) {
+                None => error!(name = %f.fragment_name, "unknown fragment"),
+                Some(frag) => {
+                    let ty = schema.types.get(frag.type_condition()).unwrap();
+                    if ty.is_union() || ty.is_interface() {
+                        types.extend(get_type_conditions(&frag.selection_set, doc, schema));
+                    } else {
+                        // This _isn't_ what the Go code does, but surely it should?
+                        // it only pushes in the abstract type case
+                        types.push(frag.type_condition().clone())
+                    }
+                }
+            },
+        }
+    }
+
+    types
 }
