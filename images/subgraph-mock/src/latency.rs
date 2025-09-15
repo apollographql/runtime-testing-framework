@@ -13,6 +13,21 @@ pub struct LatencyConfig {
     pub triangle: Option<Shape>,
 }
 
+impl Default for LatencyConfig {
+    fn default() -> Self {
+        Self {
+            base: Duration::from_millis(5),
+            saw: None,
+            sine: Some(Shape {
+                amplitude: Duration::from_millis(2),
+                period: Duration::from_secs(10),
+            }),
+            square: None,
+            triangle: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Deserialize)]
 pub struct Shape {
     #[serde(deserialize_with = "humantime_serde::deserialize")]

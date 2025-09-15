@@ -1,7 +1,0 @@
-port: 8080
-headers: {}
-latency:
-  base: 5ms
-  sine:
-    amplitude: 2ms
-    period: 10s

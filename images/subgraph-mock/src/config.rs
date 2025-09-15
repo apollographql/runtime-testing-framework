@@ -12,7 +12,18 @@ pub struct Config {
     pub port: u16,
     #[serde(default)]
     pub headers: HashMap<String, String>,
+    #[serde(default)]
     pub latency: LatencyConfig,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            port: default_port(),
+            headers: Default::default(),
+            latency: Default::default(),
+        }
+    }
 }
 
 impl Config {

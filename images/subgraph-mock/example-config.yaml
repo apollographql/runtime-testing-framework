@@ -1,0 +1,16 @@
+port: 8080
+headers: {}
+
+latency:
+  base: 5ms
+  sine:
+    amplitude: 2ms
+    period: 10s
+
+# response_generation:
+#   null_ratio: 0.0
+#   int_max: 100
+#   id_length: 10
+#   string_length: [5, 15]
+#   array_length: [2, 10]
+

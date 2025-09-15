@@ -7,15 +7,22 @@ use hyper_util::{
 use std::net::SocketAddr;
 use subgraph_mock::{Args, handle::handle_request};
 use tokio::net::TcpListener;
-use tracing::{Level, error, info};
+use tracing::{error, info};
+use tracing_subscriber::{
+    filter::{EnvFilter, LevelFilter},
+    fmt,
+    prelude::*,
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .json()
-        .flatten_event(true)
-        .with_target(false)
-        .with_max_level(Level::INFO)
+    tracing_subscriber::registry()
+        .with(fmt::layer().json().flatten_event(true).with_target(false))
+        .with(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .from_env_lossy(),
+        )
         .try_init()
         .expect("unable to set a global tracing subscriber");
 

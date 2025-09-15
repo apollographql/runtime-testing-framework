@@ -17,7 +17,7 @@ pub async fn handle_request(req: Request<Incoming>) -> anyhow::Result<ByteRespon
     let (method, path) = (parts.method, parts.uri.path());
 
     let res = match (&method, path) {
-        (&Method::POST, "/graphql") => graphql::handle(body).await,
+        (&Method::POST, "/") => graphql::handle(body).await,
 
         // default to 404
         (method, path) => {
