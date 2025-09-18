@@ -2,8 +2,7 @@
 use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
-    enum_impl_check, enum_impl_template, impl_template,
-    providers::{self, Result},
+    enum_impl_check, enum_impl_template, impl_template, providers,
     templating::{self, Field, Scalar, Template},
 };
 use rtf_core::github::Client;
@@ -68,7 +67,7 @@ where
         target: impl AsRef<Path>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<Vec<(PathBuf, String)>> {
+    ) -> providers::Result<Vec<(PathBuf, String)>> {
         Ok(vec![(
             target.as_ref().to_path_buf(),
             self.try_get_file_content(src, ctx).await?,
@@ -90,14 +89,14 @@ pub(crate) trait ResolveAndWrite: Check + Serialize + DeserializeOwned + fmt::De
         target: impl AsRef<Path>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<Vec<(PathBuf, String)>>;
+    ) -> providers::Result<Vec<(PathBuf, String)>>;
 
     async fn resolve_and_write(
         &self,
         target: impl AsRef<Path>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<()> {
+    ) -> providers::Result<()> {
         let files = self.try_get_all_file_contents(target, src, ctx).await?;
         for (path, content) in files.into_iter() {
             if let Some(parent) = path.parent() {
@@ -253,7 +252,7 @@ impl AsUtf8FileContent for InlineFile {
         &self,
         _src: &Source,
         _ctx: &impl ResolutionContext,
-    ) -> Result<String> {
+    ) -> providers::Result<String> {
         Ok(self.content.clone())
     }
 }
@@ -326,7 +325,7 @@ impl AsUtf8FileContent for RelativeFile {
         &self,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<String> {
+    ) -> providers::Result<String> {
         // Prefer an explicitly provided Source if one was set during parsing of the test plan
         // as part of applying overrides.
         let src = self.src.as_ref().unwrap_or(src);
@@ -448,7 +447,7 @@ impl AsUtf8FileContent for RequiredFile {
         &self,
         _src: &Source,
         _ctx: &impl ResolutionContext,
-    ) -> Result<String> {
+    ) -> providers::Result<String> {
         panic!(
             "Should not be able to get here. Required file should result in an error when checked."
         )
@@ -489,7 +488,7 @@ impl AsUtf8FileContent for ResolvedValues {
         &self,
         _src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<String> {
+    ) -> providers::Result<String> {
         let s = match ctx.values() {
             Some(values) => serde_json::to_string(&values)?,
             None => "{}".to_string(),
