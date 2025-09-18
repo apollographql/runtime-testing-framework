@@ -876,7 +876,7 @@ impl Check for RouterDownloadScript {
 /// - name: "router-build.sh"
 ///   env_var: ROUTER_BUILD_SCRIPT
 ///   kind: build_router_from_source
-///   commit_ref: "some-ref"
+///   git_ref: "some-ref"
 ///   rust_version: "1.89.0"
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
@@ -885,7 +885,7 @@ pub struct BuildRouterFromSource {
     /// a full or partial commit hash, branch name, or tag.
     ///
     /// Defaults to `"main"` if unset.
-    pub(crate) commit_ref: Option<Field<String>>,
+    pub(crate) git_ref: Option<Field<String>>,
 
     /// A Rust version string that can be passed to `rustup run {rust_version}`,
     /// such as `"1.78.0"`, `"beta"`, or `"nightly"`.
@@ -896,7 +896,7 @@ pub struct BuildRouterFromSource {
 
 impl Template for BuildRouterFromSource {
     fn has_pending_fields(&self) -> bool {
-        [&self.commit_ref, &self.rust_version].iter().any(|field| {
+        [&self.git_ref, &self.rust_version].iter().any(|field| {
             field
                 .as_ref()
                 .map(|f| f.has_pending_fields())
@@ -905,7 +905,7 @@ impl Template for BuildRouterFromSource {
     }
 
     fn required_values(&self) -> Vec<String> {
-        [&self.commit_ref, &self.rust_version]
+        [&self.git_ref, &self.rust_version]
             .iter()
             .flat_map(|field| {
                 field
@@ -922,7 +922,7 @@ impl Template for BuildRouterFromSource {
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
-        if let Some(field) = self.commit_ref.as_mut() {
+        if let Some(field) = self.git_ref.as_mut() {
             errs.append(field.try_template(path, values));
         }
 
@@ -940,7 +940,7 @@ impl AsUtf8FileContent for BuildRouterFromSource {
         _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
-        let commit_ref = match &self.commit_ref {
+        let commit_ref = match &self.git_ref {
             Some(hash) => hash.as_resolved(),
             None => "main",
         };

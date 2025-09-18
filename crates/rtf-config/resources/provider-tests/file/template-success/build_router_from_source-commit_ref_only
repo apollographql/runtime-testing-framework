@@ -3,11 +3,11 @@ only commit_ref field
 
 -- config.yaml --
 kind: build_router_from_source
-commit_ref: "{{ commit_ref }}"
+git_ref: "{{ git_ref }}"
 
 -- values --
-commit_ref: "a12k25h85"
+git_ref: "a12k25h85"
 
 -- after-templating --
 kind: build_router_from_source
-commit_ref: "a12k25h85"
+git_ref: "a12k25h85"

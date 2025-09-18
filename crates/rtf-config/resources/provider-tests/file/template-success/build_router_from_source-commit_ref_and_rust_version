@@ -3,14 +3,14 @@ both commit_ref and rust_version fields
 
 -- config.yaml --
 kind: build_router_from_source
-commit_ref: "{{ commit_ref }}"
+git_ref: "{{ git_ref }}"
 rust_version: "{{ rust_version }}"
 
 -- values --
-commit_ref: "a12k25h85"
+git_ref: "a12k25h85"
 rust_version: "1.65.0-nightly.20230701"
 
 -- after-templating --
 kind: build_router_from_source
-commit_ref: "a12k25h85"
+git_ref: "a12k25h85"
 rust_version: "1.65.0-nightly.20230701"
