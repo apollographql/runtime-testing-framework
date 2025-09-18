@@ -25,13 +25,13 @@ A file provider used for building the Router from source at a specific git commi
 - name: "router-build.sh"
   env_var: ROUTER_BUILD_SCRIPT
   kind: build_router_from_source
-  commit_ref: "some-ref"
+  git_ref: "some-ref"
   rust_version: "1.89.0"
 ```
 
 ### Fields
 
-#### `commit_ref`
+#### `git_ref`
 
 A git reference that can be passed to `git checkout`. This may be a full or partial commit hash,
 branch name, or tag.
