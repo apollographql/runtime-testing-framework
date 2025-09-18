@@ -7,7 +7,7 @@ use hyper::{
 use tokio::time::{Instant, sleep};
 use tracing::{trace, warn};
 
-mod graphql;
+pub mod graphql;
 
 type ByteResponse = Response<BoxBody<Bytes, hyper::Error>>;
 

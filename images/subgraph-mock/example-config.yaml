@@ -7,10 +7,13 @@ latency:
     amplitude: 2ms
     period: 10s
 
-# response_generation:
-#   null_ratio: 0.0
-#   int_max: 100
-#   id_length: 10
-#   string_length: [5, 15]
-#   array_length: [2, 10]
-
+response_generation:
+  null_ratio: [1, 2]
+  array:
+    min_length: 0
+    max_length: 10
+  scalars:
+    String:
+      type: String
+      min_len: 5
+      max_len: 20

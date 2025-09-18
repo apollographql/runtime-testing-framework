@@ -1,4 +1,4 @@
-use crate::{config::Config, latency::LatencyGenerator};
+use crate::{config::Config, handle::graphql::ResponseGenerationConfig, latency::LatencyGenerator};
 use apollo_compiler::{
     Node, Schema,
     ast::{FieldDefinition, InputValueDefinition, Type},
@@ -15,6 +15,7 @@ pub mod config;
 pub mod handle;
 pub mod latency;
 
+static RESPONSE_GENERATION_CONFIG: OnceLock<ResponseGenerationConfig> = OnceLock::new();
 static ADDITIONAL_HEADERS: OnceLock<HeaderMap<HeaderValue>> = OnceLock::new();
 static LATENCY_GENERATOR: OnceLock<LatencyGenerator> = OnceLock::new();
 static SUPERGRAPH_SCHEMA: OnceLock<Valid<Schema>> = OnceLock::new();
@@ -46,7 +47,7 @@ impl Args {
             }
         };
 
-        let (port, latency_generator, headers) = cfg.into_parts();
+        let (port, latency_generator, headers, response_generation) = cfg.into_parts();
 
         info!("loading and parsing supergraph schema");
         match Schema::parse(fs::read_to_string(&self.schema)?, self.schema) {
@@ -64,6 +65,7 @@ impl Args {
             Err(e) => panic!("ERROR: invalid supergraph schema\n{}", e.errors),
         };
 
+        RESPONSE_GENERATION_CONFIG.set(response_generation).unwrap();
         ADDITIONAL_HEADERS.set(headers).unwrap();
         LATENCY_GENERATOR.set(latency_generator).unwrap();
 

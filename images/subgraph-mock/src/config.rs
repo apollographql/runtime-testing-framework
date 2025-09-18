@@ -1,4 +1,7 @@
-use crate::latency::{LatencyConfig, LatencyGenerator};
+use crate::{
+    handle::graphql::ResponseGenerationConfig,
+    latency::{LatencyConfig, LatencyGenerator},
+};
 use hyper::{
     HeaderMap,
     header::{HeaderName, HeaderValue},
@@ -14,6 +17,8 @@ pub struct Config {
     pub headers: HashMap<String, String>,
     #[serde(default)]
     pub latency: LatencyConfig,
+    #[serde(default)]
+    pub response_generation: ResponseGenerationConfig,
 }
 
 impl Default for Config {
@@ -22,12 +27,20 @@ impl Default for Config {
             port: default_port(),
             headers: Default::default(),
             latency: Default::default(),
+            response_generation: Default::default(),
         }
     }
 }
 
 impl Config {
-    pub fn into_parts(self) -> (u16, LatencyGenerator, HeaderMap<HeaderValue>) {
+    pub fn into_parts(
+        self,
+    ) -> (
+        u16,
+        LatencyGenerator,
+        HeaderMap<HeaderValue>,
+        ResponseGenerationConfig,
+    ) {
         let latency_generator = LatencyGenerator::new(self.latency);
         let additional_headers: HeaderMap<HeaderValue> = self
             .headers
@@ -42,7 +55,17 @@ impl Config {
             })
             .collect();
 
-        (self.port, latency_generator, additional_headers)
+        let mut response_generation = self.response_generation;
+        let mut scalars = ResponseGenerationConfig::default().scalars;
+        scalars.extend(response_generation.scalars);
+        response_generation.scalars = scalars;
+
+        (
+            self.port,
+            latency_generator,
+            additional_headers,
+            response_generation,
+        )
     }
 }
 
