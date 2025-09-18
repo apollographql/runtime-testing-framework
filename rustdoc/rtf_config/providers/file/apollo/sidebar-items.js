@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["UrlFormat"],"struct":["GraphosCannedOps","GraphosSubgraphDockerCompose","GraphosSubgraphRouterUrlOverrides","GraphosSubgraphs","GraphosSupergraph","Loadbalancer","OfflineGraphosLicense","Resources"]};
+window.SIDEBAR_ITEMS = {"enum":["UrlFormat"],"struct":["BuildRouterFromSource","GraphosCannedOps","GraphosSubgraphDockerCompose","GraphosSubgraphRouterUrlOverrides","GraphosSubgraphs","GraphosSupergraph","Loadbalancer","OfflineGraphosLicense","Resources","RouterDownloadScript"]};

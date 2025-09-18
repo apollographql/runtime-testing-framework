@@ -201,14 +201,13 @@
 <pre><code class="language-yaml">- name: "router-build.sh"
   env_var: ROUTER_BUILD_SCRIPT
   kind: build_router_from_source
-  commit_ref: "some-ref"
+  git_ref: "some-ref"
   rust_version: "1.89.0"
 </code></pre>
 <h3 id="fields"><a class="header" href="#fields">Fields</a></h3>
-<h4 id="commit_ref"><a class="header" href="#commit_ref"><code>commit_ref</code></a></h4>
+<h4 id="git_ref"><a class="header" href="#git_ref"><code>git_ref</code></a></h4>
 <p>A git reference that can be passed to <code>git checkout</code>. This may be a full or partial commit hash,
 branch name, or tag.</p>
-<p>Defaults to <code>"main"</code> if unset.</p>
 <h4 id="rust_version"><a class="header" href="#rust_version"><code>rust_version</code></a></h4>
 <p>A Rust version string that can be passed to <code>rustup run {rust_version}</code>, such as <code>"1.78.0"</code>,
 <code>"beta"</code>, or <code>"nightly"</code>.</p>
@@ -232,7 +231,7 @@ version of the file found on the default branch.</p>
 <p>The GitHub repository containing the target file</p>
 <h4 id="path"><a class="header" href="#path"><code>path</code></a></h4>
 <p>The absolute path from the root of the repository to the target file</p>
-<h4 id="git_ref"><a class="header" href="#git_ref"><code>git_ref</code></a></h4>
+<h4 id="git_ref-1"><a class="header" href="#git_ref-1"><code>git_ref</code></a></h4>
 <p>An optional git reference to pull the file from. This may be a full or partial commit hash, branch
 name, or tag.</p>
 <p>Defaults to the mainline branch as specified in GitHub if unset.</p>
