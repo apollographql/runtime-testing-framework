@@ -2,13 +2,10 @@
 use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
-    enum_impl_check, enum_impl_template, impl_template,
-    providers::{self, Error, Result},
+    enum_impl_check, enum_impl_template, impl_template, providers,
     templating::{self, Field, Scalar, Template},
 };
-use indoc::indoc;
-use reqwest::StatusCode;
-use rtf_core::{HttpClient, github::Client};
+use rtf_core::github::Client;
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
@@ -70,7 +67,7 @@ where
         target: impl AsRef<Path>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<Vec<(PathBuf, String)>> {
+    ) -> providers::Result<Vec<(PathBuf, String)>> {
         Ok(vec![(
             target.as_ref().to_path_buf(),
             self.try_get_file_content(src, ctx).await?,
@@ -92,14 +89,14 @@ pub(crate) trait ResolveAndWrite: Check + Serialize + DeserializeOwned + fmt::De
         target: impl AsRef<Path>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<Vec<(PathBuf, String)>>;
+    ) -> providers::Result<Vec<(PathBuf, String)>>;
 
     async fn resolve_and_write(
         &self,
         target: impl AsRef<Path>,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<()> {
+    ) -> providers::Result<()> {
         let files = self.try_get_all_file_contents(target, src, ctx).await?;
         for (path, content) in files.into_iter() {
             if let Some(parent) = path.parent() {
@@ -176,7 +173,7 @@ impl DerefMut for NamedFileProvider {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
-    BuildRouterFromSource(BuildRouterFromSource),
+    BuildRouterFromSource(apollo::BuildRouterFromSource),
     GithubFile(github::GithubFile),
     GraphosCannedOps(apollo::GraphosCannedOps),
     GraphosSubgraphDockerCompose(apollo::GraphosSubgraphDockerCompose),
@@ -188,7 +185,7 @@ pub enum FileProvider {
     RelativePath(RelativeFile),
     Required(RequiredFile),
     ResolvedValues(ResolvedValues),
-    RouterDownloadScript(RouterDownloadScript),
+    RouterDownloadScript(apollo::RouterDownloadScript),
     MergeYaml(utility::MergeYaml),
 }
 
@@ -255,7 +252,7 @@ impl AsUtf8FileContent for InlineFile {
         &self,
         _src: &Source,
         _ctx: &impl ResolutionContext,
-    ) -> Result<String> {
+    ) -> providers::Result<String> {
         Ok(self.content.clone())
     }
 }
@@ -328,7 +325,7 @@ impl AsUtf8FileContent for RelativeFile {
         &self,
         src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<String> {
+    ) -> providers::Result<String> {
         // Prefer an explicitly provided Source if one was set during parsing of the test plan
         // as part of applying overrides.
         let src = self.src.as_ref().unwrap_or(src);
@@ -450,7 +447,7 @@ impl AsUtf8FileContent for RequiredFile {
         &self,
         _src: &Source,
         _ctx: &impl ResolutionContext,
-    ) -> Result<String> {
+    ) -> providers::Result<String> {
         panic!(
             "Should not be able to get here. Required file should result in an error when checked."
         )
@@ -491,7 +488,7 @@ impl AsUtf8FileContent for ResolvedValues {
         &self,
         _src: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<String> {
+    ) -> providers::Result<String> {
         let s = match ctx.values() {
             Some(values) => serde_json::to_string(&values)?,
             None => "{}".to_string(),
@@ -504,177 +501,6 @@ impl AsUtf8FileContent for ResolvedValues {
 impl_template!(ResolvedValues => []);
 
 impl Check for ResolvedValues {
-    fn try_check(
-        &self,
-        _path: &mut Vec<String>,
-        _src: &Source,
-        _ctx: &impl ResolutionContext,
-    ) -> checks::Result<()> {
-        Ok(())
-    }
-}
-
-/// # Router Download Script
-///
-/// Produces a POSIX shell script that can be run in order to download a target version of the
-/// Apollo Router.
-///
-/// ```yaml
-/// - name: "router-download.sh"
-///   env_var: ROUTER_DOWNLOAD
-///   kind: router_download_script
-///   version: "v2.6.0"
-/// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
-pub struct RouterDownloadScript {
-    /// The version of the Apollo Router to download.
-    pub(crate) version: Field<String>,
-}
-
-impl_template!(RouterDownloadScript => [version]);
-
-impl AsUtf8FileContent for RouterDownloadScript {
-    async fn try_get_file_content(
-        &self,
-        _src: &Source,
-        ctx: &impl ResolutionContext,
-    ) -> Result<String> {
-        let version = self.version.as_resolved();
-        let url = format!("https://router.apollo.dev/download/nix/{version}");
-        let client = ctx.http_client().expect("to have an http client");
-        let response = client.get(&url).await?;
-        if response.status == StatusCode::NOT_FOUND {
-            return Err(Error::UnknownRouterVersion(version.to_string()));
-        }
-        let script = std::str::from_utf8(&response.body)
-            .map_err(|_| Error::Utf8DecodingError)?
-            .to_string();
-
-        Ok(script)
-    }
-}
-
-impl Check for RouterDownloadScript {
-    fn try_check(
-        &self,
-        path: &mut Vec<String>,
-        _src: &Source,
-        ctx: &impl ResolutionContext,
-    ) -> checks::Result<()> {
-        if ctx.http_client().is_none() {
-            return Err(checks::Errors::new(
-                checks::ErrorKind::HttpClientNotFound,
-                "",
-                path,
-            ));
-        }
-
-        Ok(())
-    }
-}
-
-/// # Build Router From Source
-///
-/// A file provider used for building the Router from source at a specific git commit
-/// or reference.
-///
-/// ```yaml
-/// - name: "router-build.sh"
-///   env_var: ROUTER_BUILD_SCRIPT
-///   kind: build_router_from_source
-///   commit_ref: "some-ref"
-///   rust_version: "1.89.0"
-/// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
-pub struct BuildRouterFromSource {
-    /// A git reference that can be passed to `git checkout`. This may be
-    /// a full or partial commit hash, branch name, or tag.
-    ///
-    /// Defaults to `"main"` if unset.
-    pub(crate) commit_ref: Option<Field<String>>,
-
-    /// A Rust version string that can be passed to `rustup run {rust_version}`,
-    /// such as `"1.78.0"`, `"beta"`, or `"nightly"`.
-    ///
-    /// Defaults to `"stable"` if unset.
-    pub(crate) rust_version: Option<Field<String>>,
-}
-
-impl Template for BuildRouterFromSource {
-    fn has_pending_fields(&self) -> bool {
-        [&self.commit_ref, &self.rust_version].iter().any(|field| {
-            field
-                .as_ref()
-                .map(|f| f.has_pending_fields())
-                .unwrap_or(false)
-        })
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        [&self.commit_ref, &self.rust_version]
-            .iter()
-            .flat_map(|field| {
-                field
-                    .as_ref()
-                    .map(|f| f.required_values())
-                    .unwrap_or_default()
-            })
-            .collect()
-    }
-
-    fn try_template(
-        &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
-        if let Some(field) = self.commit_ref.as_mut() {
-            errs.append(field.try_template(path, values));
-        }
-
-        if let Some(field) = self.rust_version.as_mut() {
-            errs.append(field.try_template(path, values));
-        }
-
-        errs.into_result(())
-    }
-}
-
-impl AsUtf8FileContent for BuildRouterFromSource {
-    async fn try_get_file_content(
-        &self,
-        _src: &Source,
-        _ctx: &impl ResolutionContext,
-    ) -> Result<String> {
-        let commit_ref = match &self.commit_ref {
-            Some(hash) => hash.as_resolved(),
-            None => "main",
-        };
-
-        let rust_version = match &self.rust_version {
-            Some(rust_version) => rust_version.as_resolved(),
-            None => "stable",
-        };
-
-        let install_script = format!(
-            indoc!(
-                r#"mkdir router-source && \
-                cd router-source && \
-                git clone https://github.com/apollographql/router.git && \
-                cd router && \
-                git checkout {} && \
-                rustup toolchain install {} && \
-                rustup run {} cargo build --release && \
-                cp ${{CARGO_TARGET_DIR}}/release/router ~/.cargo/bin/"#
-            ),
-            commit_ref, rust_version, rust_version
-        );
-
-        Ok(install_script)
-    }
-}
-
-impl Check for BuildRouterFromSource {
     fn try_check(
         &self,
         _path: &mut Vec<String>,

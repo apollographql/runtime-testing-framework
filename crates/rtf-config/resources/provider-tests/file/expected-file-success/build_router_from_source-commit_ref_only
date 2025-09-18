@@ -3,7 +3,7 @@ only commit_ref field
 
 -- config.yaml --
 kind: build_router_from_source
-commit_ref: "a12k25h85"
+git_ref: "a12k25h85"
 
 -- expected-file-content --
 mkdir router-source && \
