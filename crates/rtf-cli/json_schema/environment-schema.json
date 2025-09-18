@@ -5,25 +5,21 @@
       "description": "A file provider used for building the Router from source at a specific git commit\nor reference.\n\n```yaml\n- name: \"router-build.sh\"\n  env_var: ROUTER_BUILD_SCRIPT\n  kind: build_router_from_source\n  git_ref: \"some-ref\"\n  rust_version: \"1.89.0\"\n```",
       "properties": {
         "git_ref": {
-          "anyOf": [
+          "allOf": [
             {
               "$ref": "#/definitions/Templatable%20string"
-            },
-            {
-              "type": "null"
             }
           ],
+          "default": "main",
           "description": "A git reference that can be passed to `git checkout`. This may be\na full or partial commit hash, branch name, or tag.\n\nDefaults to `\"main\"` if unset."
         },
         "rust_version": {
-          "anyOf": [
+          "allOf": [
             {
               "$ref": "#/definitions/Templatable%20string"
-            },
-            {
-              "type": "null"
             }
           ],
+          "default": "stable",
           "description": "A Rust version string that can be passed to `rustup run {rust_version}`,\nsuch as `\"1.78.0\"`, `\"beta\"`, or `\"nightly\"`.\n\nDefaults to `\"stable\"` if unset."
         }
       },

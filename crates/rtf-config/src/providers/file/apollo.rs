@@ -885,34 +885,36 @@ pub struct BuildRouterFromSource {
     /// a full or partial commit hash, branch name, or tag.
     ///
     /// Defaults to `"main"` if unset.
-    pub(crate) git_ref: Option<Field<String>>,
+    #[serde(default = "default_git_ref")]
+    pub(crate) git_ref: Field<String>,
 
     /// A Rust version string that can be passed to `rustup run {rust_version}`,
     /// such as `"1.78.0"`, `"beta"`, or `"nightly"`.
     ///
     /// Defaults to `"stable"` if unset.
-    pub(crate) rust_version: Option<Field<String>>,
+    #[serde(default = "default_rust_version")]
+    pub(crate) rust_version: Field<String>,
+}
+
+fn default_git_ref() -> Field<String> {
+    Field::Resolved("main".to_string())
+}
+
+fn default_rust_version() -> Field<String> {
+    Field::Resolved("stable".to_string())
 }
 
 impl Template for BuildRouterFromSource {
     fn has_pending_fields(&self) -> bool {
-        [&self.git_ref, &self.rust_version].iter().any(|field| {
-            field
-                .as_ref()
-                .map(|f| f.has_pending_fields())
-                .unwrap_or(false)
-        })
+        [&self.git_ref, &self.rust_version]
+            .iter()
+            .any(|field| field.has_pending_fields())
     }
 
     fn required_values(&self) -> Vec<String> {
         [&self.git_ref, &self.rust_version]
             .iter()
-            .flat_map(|field| {
-                field
-                    .as_ref()
-                    .map(|f| f.required_values())
-                    .unwrap_or_default()
-            })
+            .flat_map(|field| field.required_values())
             .collect()
     }
 
@@ -922,13 +924,8 @@ impl Template for BuildRouterFromSource {
         values: &HashMap<String, Scalar>,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
-        if let Some(field) = self.git_ref.as_mut() {
-            errs.append(field.try_template(path, values));
-        }
-
-        if let Some(field) = self.rust_version.as_mut() {
-            errs.append(field.try_template(path, values));
-        }
+        errs.append(self.git_ref.try_template(path, values));
+        errs.append(self.rust_version.try_template(path, values));
 
         errs.into_result(())
     }
@@ -940,15 +937,8 @@ impl AsUtf8FileContent for BuildRouterFromSource {
         _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
-        let commit_ref = match &self.git_ref {
-            Some(hash) => hash.as_resolved(),
-            None => "main",
-        };
-
-        let rust_version = match &self.rust_version {
-            Some(rust_version) => rust_version.as_resolved(),
-            None => "stable",
-        };
+        let commit_ref = self.git_ref.as_resolved();
+        let rust_version = self.rust_version.as_resolved();
 
         let install_script = format!(
             indoc!(
