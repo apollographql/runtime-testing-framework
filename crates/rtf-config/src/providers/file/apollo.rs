@@ -883,9 +883,6 @@ impl Check for RouterDownloadScript {
 pub struct BuildRouterFromSource {
     /// A git reference that can be passed to `git checkout`. This may be
     /// a full or partial commit hash, branch name, or tag.
-    ///
-    /// Defaults to `"main"` if unset.
-    #[serde(default = "default_git_ref")]
     pub(crate) git_ref: Field<String>,
 
     /// A Rust version string that can be passed to `rustup run {rust_version}`,
@@ -894,10 +891,6 @@ pub struct BuildRouterFromSource {
     /// Defaults to `"stable"` if unset.
     #[serde(default = "default_rust_version")]
     pub(crate) rust_version: Field<String>,
-}
-
-fn default_git_ref() -> Field<String> {
-    Field::Resolved("main".to_string())
 }
 
 fn default_rust_version() -> Field<String> {

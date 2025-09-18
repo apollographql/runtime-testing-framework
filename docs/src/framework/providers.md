@@ -36,8 +36,6 @@ A file provider used for building the Router from source at a specific git commi
 A git reference that can be passed to `git checkout`. This may be a full or partial commit hash,
 branch name, or tag.
 
-Defaults to `"main"` if unset.
-
 #### `rust_version`
 
 A Rust version string that can be passed to `rustup run {rust_version}`, such as `"1.78.0"`,

@@ -10,8 +10,7 @@
               "$ref": "#/definitions/Templatable%20string"
             }
           ],
-          "default": "main",
-          "description": "A git reference that can be passed to `git checkout`. This may be\na full or partial commit hash, branch name, or tag.\n\nDefaults to `\"main\"` if unset."
+          "description": "A git reference that can be passed to `git checkout`. This may be\na full or partial commit hash, branch name, or tag."
         },
         "rust_version": {
           "allOf": [
@@ -23,6 +22,9 @@
           "description": "A Rust version string that can be passed to `rustup run {rust_version}`,\nsuch as `\"1.78.0\"`, `\"beta\"`, or `\"nightly\"`.\n\nDefaults to `\"stable\"` if unset."
         }
       },
+      "required": [
+        "git_ref"
+      ],
       "title": "Build Router From Source",
       "type": "object"
     },
