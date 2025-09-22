@@ -8,7 +8,6 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.99"
 apollo-compiler = "1.30.0"
-apollo-smith = "0.15.1"
 arbitrary = "1.4.2"
 clap = { version = "4.5.47", features = ["derive"] }
 futures = "0.3.31"

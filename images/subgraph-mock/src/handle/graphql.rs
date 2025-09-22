@@ -1,6 +1,7 @@
 use crate::{
     ADDITIONAL_HEADERS, RESPONSE_GENERATION_CONFIG, SUPERGRAPH_SCHEMA, handle::ByteResponse,
 };
+use anyhow::anyhow;
 use apollo_compiler::{
     ExecutableDocument, Name, Schema,
     ast::OperationType,
@@ -8,20 +9,17 @@ use apollo_compiler::{
     schema::ExtendedType,
     validation::Valid,
 };
-use apollo_smith::Unstructured;
 use http_body_util::{BodyExt, Full};
 use hyper::{
     Response, StatusCode,
     body::{Bytes, Incoming},
     header::HeaderValue,
 };
-use rand::Rng;
+use rand::{Rng, rngs::ThreadRng, seq::IteratorRandom};
 use serde::Deserialize;
 use serde_json::{Map, Number, Value, json};
 use std::{collections::HashMap, ops::RangeInclusive};
 use tracing::{debug, error, trace};
-
-const ARBITRARY_BUF_SIZE: usize = 8192;
 
 pub async fn handle(body: Incoming) -> anyhow::Result<ByteResponse> {
     let body_bytes = body.collect().await?.to_bytes().to_vec();
@@ -137,11 +135,8 @@ fn generate_response(
         Err(_) => return Ok(json!({ "data": null })),
     };
 
-    let mut buf = [0u8; ARBITRARY_BUF_SIZE];
-    rand::rng().fill(&mut buf);
-
     let data = ResponseBuilder::new(
-        &mut Unstructured::new(&buf),
+        &mut rand::rng(),
         doc,
         schema,
         RESPONSE_GENERATION_CONFIG.wait(),
@@ -155,16 +150,22 @@ fn generate_response(
 pub struct ResponseGenerationConfig {
     pub scalars: HashMap<String, ScalarGenerator>,
     pub array: ArraySize,
-    pub null_ratio: Option<(u8, u8)>,
+    pub null_ratio: Option<(u32, u32)>,
 }
 
 impl Default for ResponseGenerationConfig {
     fn default() -> Self {
         let scalars = [
+            ("Bool".into(), ScalarGenerator::Bool),
             ("Int".into(), ScalarGenerator::Int { min: 0, max: 100 }),
             ("ID".into(), ScalarGenerator::Int { min: 0, max: 100 }),
-            ("Float".into(), ScalarGenerator::Float),
-            ("Bool".into(), ScalarGenerator::Bool),
+            (
+                "Float".into(),
+                ScalarGenerator::Float {
+                    min: -1.0,
+                    max: 1.0,
+                },
+            ),
             (
                 "String".into(),
                 ScalarGenerator::String {
@@ -191,7 +192,7 @@ impl Default for ResponseGenerationConfig {
 #[serde(tag = "type")]
 pub enum ScalarGenerator {
     Bool,
-    Float,
+    Float { min: f64, max: f64 },
     Int { min: i32, max: i32 },
     String { min_len: usize, max_len: usize },
 }
@@ -208,38 +209,23 @@ impl ScalarGenerator {
         max_len: 10,
     };
 
-    const F64_SIGN_AND_EXP_MASK: u64 = 0xfff0_0000_0000_0000;
-    const F64_EXP_MASK: u64 = 0x7ff0_0000_0000_0000;
-
-    fn generate(&self, u: &mut Unstructured<'_>) -> anyhow::Result<Value> {
+    fn generate(&self, rng: &mut ThreadRng) -> anyhow::Result<Value> {
         let val = match *self {
-            Self::Bool => Value::Bool(u.arbitrary::<bool>()?),
-            Self::Int { min, max } => Value::Number(u.int_in_range(min..=max)?.into()),
+            Self::Bool => Value::Bool(rng.random_bool(0.5)),
+            Self::Int { min, max } => Value::Number(rng.random_range(min..=max).into()),
 
-            // The default Arbitrary impl for f64 includes NaN and +-inf which we can't use as
-            // JSON numbers so we fixup invalid floats before returning
-            Self::Float => {
-                let mut f = u.arbitrary::<f64>()?;
-                let bits = f.to_bits();
-                if bits & Self::F64_EXP_MASK == Self::F64_EXP_MASK {
-                    // deliberately using a u16 for generation to use less of the input
-                    let sign_and_exponent = u.int_in_range(0..=4094u16)? as u64;
-                    f = f64::from_bits(
-                        bits & ((sign_and_exponent << 52) & Self::F64_SIGN_AND_EXP_MASK),
-                    );
-                }
-
-                Value::Number(Number::from_f64(f).expect("should never have NaN or +/-inf"))
-            }
+            Self::Float { min, max } => Value::Number(
+                Number::from_f64(rng.random_range(min..=max)).expect("expected finite float"),
+            ),
 
             // The default Arbitrary impl for String has a random length so we build based on
             // characters instead
             Self::String { min_len, max_len } => {
-                let len = u.int_in_range(min_len..=max_len)?;
+                let len = rng.random_range(min_len..=max_len);
                 // Allow for some multibyte chars. May still need to realloc
                 let mut chars = Vec::with_capacity(len * 2);
                 for _ in 0..len {
-                    chars.push(u.arbitrary::<char>()?);
+                    chars.push(rng.random::<char>());
                 }
 
                 Value::String(chars.into_iter().collect())
@@ -263,7 +249,7 @@ impl ArraySize {
 }
 
 struct ResponseBuilder<'a, 'doc, 'schema> {
-    u: &'a mut Unstructured<'a>,
+    rng: &'a mut ThreadRng,
     doc: &'doc Valid<ExecutableDocument>,
     schema: &'schema Valid<Schema>,
     cfg: &'a ResponseGenerationConfig,
@@ -271,13 +257,13 @@ struct ResponseBuilder<'a, 'doc, 'schema> {
 
 impl<'a, 'doc, 'schema> ResponseBuilder<'a, 'doc, 'schema> {
     fn new(
-        u: &'a mut Unstructured<'a>,
+        rng: &'a mut ThreadRng,
         doc: &'doc Valid<ExecutableDocument>,
         schema: &'schema Valid<Schema>,
         cfg: &'a ResponseGenerationConfig,
     ) -> Self {
         Self {
-            u,
+            rng,
             doc,
             schema,
             cfg,
@@ -331,7 +317,12 @@ impl<'a, 'doc, 'schema> ResponseBuilder<'a, 'doc, 'schema> {
     fn leaf_field(&mut self, type_name: &Name) -> anyhow::Result<Value> {
         match self.schema.types.get(type_name).unwrap() {
             ExtendedType::Enum(enum_ty) => {
-                let enum_value = self.u.choose_iter(enum_ty.values.values())?;
+                let enum_value = enum_ty
+                    .values
+                    .values()
+                    .choose(self.rng)
+                    .ok_or(anyhow!("empty enum: {type_name}"))?;
+
                 Ok(Value::String(enum_value.value.to_string()))
             }
 
@@ -340,14 +331,14 @@ impl<'a, 'doc, 'schema> ResponseBuilder<'a, 'doc, 'schema> {
                 .scalars
                 .get(scalar.name.as_str())
                 .unwrap_or(&ScalarGenerator::DEFAULT)
-                .generate(self.u),
+                .generate(self.rng),
 
             _ => unreachable!("A field with an empty selection set must be a scalar or enum type"),
         }
     }
 
     fn arbitrary_array_len(&mut self) -> anyhow::Result<usize> {
-        Ok(self.u.int_in_range(self.cfg.array.range())?)
+        Ok(self.rng.random_range(self.cfg.array.range()))
     }
 
     fn array_selection_set(&mut self, selection_set: &SelectionSet) -> anyhow::Result<Vec<Value>> {
@@ -372,8 +363,7 @@ impl<'a, 'doc, 'schema> ResponseBuilder<'a, 'doc, 'schema> {
 
     fn should_be_null(&mut self) -> bool {
         if let Some((numerator, denominator)) = self.cfg.null_ratio {
-            // prefer nulling out if we're unable to generate
-            self.u.ratio(numerator, denominator).unwrap_or(true)
+            self.rng.random_ratio(numerator, denominator)
         } else {
             false
         }
