@@ -4,7 +4,11 @@ use apollo_compiler::{
     ast::{FieldDefinition, InputValueDefinition, Type},
     collections::IndexSet,
     name,
-    schema::{Component, ComponentName, ComponentOrigin, ExtendedType, ScalarType, UnionType},
+    schema::{
+        Component, ComponentName, ComponentOrigin, DirectiveDefinition, DirectiveLocation,
+        ExtendedType, ScalarType, UnionType,
+    },
+    ty,
     validation::Valid,
 };
 use hyper::{HeaderMap, header::HeaderValue};
@@ -52,7 +56,7 @@ impl Args {
         info!("loading and parsing supergraph schema");
         match Schema::parse(fs::read_to_string(&self.schema)?, self.schema) {
             Ok(mut schema) => {
-                patch_supergraph_for_entities(&mut schema);
+                patch_supergraph(&mut schema);
                 match schema.validate() {
                     Ok(schema) => SUPERGRAPH_SCHEMA.set(schema).unwrap(),
                     Err(e) => panic!(
@@ -73,9 +77,18 @@ impl Args {
     }
 }
 
-/// We need to be able to intercept and handle queries for entities.
+/// We need to be able to intercept and handle queries for entities:
 /// { _entities(representations: [_Any!]!): [_Entity]!
-fn patch_supergraph_for_entities(schema: &mut Schema) {
+///
+/// The router also auto-supports the @defer and @stream directive so schemas may be using them without
+/// importing / defining them directly. In that case we need to inject them into the schema in
+/// order for the validation of our queries to succeed.
+///
+/// See https://www.apollographql.com/docs/graphos/routing/operations/defer
+///
+/// The directive definitions are copied from here:
+///   https://github.com/apollographql/router/blob/23e580e22a4401cc2e7a952b241a1ec955b29c99/apollo-federation/src/api_schema.rs#L156https://github.com/apollographql/router/blob/23e580e22a4401cc2e7a952b241a1ec955b29c99/apollo-federation/src/api_schema.rs#L156
+fn patch_supergraph(schema: &mut Schema) {
     // Grab _everything_ for our _Entity union. This is a lot more than the true _Entity union for
     // any of the actual subgraphs but it at least means that we can correctly parse the queries
     // coming from the client.
@@ -135,4 +148,77 @@ fn patch_supergraph_for_entities(schema: &mut Schema) {
             directives: Default::default(),
         }),
     );
+
+    // Matching the behaviour in the Router:
+    //   https://github.com/apollographql/router/blob/23e580e22a4401cc2e7a952b241a1ec955b29c99/apollo-federation/src/api_schema.rs#L139-L149
+    if !schema.directive_definitions.contains_key(&name!("defer")) {
+        schema
+            .directive_definitions
+            .insert(name!("defer"), defer_definition());
+    }
+    if !schema.directive_definitions.contains_key(&name!("stream")) {
+        schema
+            .directive_definitions
+            .insert(name!("stream"), stream_definition());
+    }
+}
+
+fn defer_definition() -> Node<DirectiveDefinition> {
+    Node::new(DirectiveDefinition {
+        description: None,
+        name: name!("defer"),
+        arguments: vec![
+            Node::new(InputValueDefinition {
+                description: None,
+                name: name!("label"),
+                ty: ty!(String).into(),
+                default_value: None,
+                directives: Default::default(),
+            }),
+            Node::new(InputValueDefinition {
+                description: None,
+                name: name!("if"),
+                ty: ty!(Boolean!).into(),
+                default_value: Some(true.into()),
+                directives: Default::default(),
+            }),
+        ],
+        repeatable: false,
+        locations: vec![
+            DirectiveLocation::FragmentSpread,
+            DirectiveLocation::InlineFragment,
+        ],
+    })
+}
+
+fn stream_definition() -> Node<DirectiveDefinition> {
+    Node::new(DirectiveDefinition {
+        description: None,
+        name: name!("stream"),
+        arguments: vec![
+            Node::new(InputValueDefinition {
+                description: None,
+                name: name!("label"),
+                ty: ty!(String).into(),
+                default_value: None,
+                directives: Default::default(),
+            }),
+            Node::new(InputValueDefinition {
+                description: None,
+                name: name!("if"),
+                ty: ty!(Boolean!).into(),
+                default_value: Some(true.into()),
+                directives: Default::default(),
+            }),
+            Node::new(InputValueDefinition {
+                description: None,
+                name: name!("initialCount"),
+                ty: ty!(Int).into(),
+                default_value: Some(0.into()),
+                directives: Default::default(),
+            }),
+        ],
+        repeatable: false,
+        locations: vec![DirectiveLocation::Field],
+    })
 }
