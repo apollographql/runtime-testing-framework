@@ -8,6 +8,7 @@ use hyper::{
 };
 use serde::Deserialize;
 use std::collections::HashMap;
+use tracing::info;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
@@ -41,7 +42,10 @@ impl Config {
         HeaderMap<HeaderValue>,
         ResponseGenerationConfig,
     ) {
+        info!(config=%serde_json::to_string(&self.latency).unwrap(), "latency generation");
         let latency_generator = LatencyGenerator::new(self.latency);
+
+        info!(headers=%serde_json::to_string(&self.headers).unwrap(), "additional headers");
         let additional_headers: HeaderMap<HeaderValue> = self
             .headers
             .into_iter()
@@ -59,6 +63,8 @@ impl Config {
         let mut scalars = ResponseGenerationConfig::default().scalars;
         scalars.extend(response_generation.scalars);
         response_generation.scalars = scalars;
+
+        info!(config=%serde_json::to_string(&response_generation).unwrap(), "response generation");
 
         (
             self.port,

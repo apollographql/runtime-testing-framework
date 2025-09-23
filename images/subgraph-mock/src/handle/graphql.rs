@@ -16,7 +16,7 @@ use hyper::{
     header::HeaderValue,
 };
 use rand::{Rng, rngs::ThreadRng, seq::IteratorRandom};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Number, Value, json};
 use std::{collections::HashMap, ops::RangeInclusive};
 use tracing::{debug, error, trace};
@@ -146,7 +146,7 @@ fn generate_response(
     Ok(json!({ "data": data }))
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseGenerationConfig {
     pub scalars: HashMap<String, ScalarGenerator>,
     pub array: ArraySize,
@@ -188,8 +188,8 @@ impl Default for ResponseGenerationConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(tag = "type")]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
 pub enum ScalarGenerator {
     Bool,
     Float { min: f64, max: f64 },
@@ -236,7 +236,7 @@ impl ScalarGenerator {
     }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ArraySize {
     pub min_length: usize,
     pub max_length: usize,

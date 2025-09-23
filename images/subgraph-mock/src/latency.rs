@@ -1,9 +1,9 @@
 //! Simple latency generation
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
 use tokio::time::{Duration, Instant};
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct LatencyConfig {
     #[serde(deserialize_with = "humantime_serde::deserialize")]
     pub base: Duration,
@@ -28,7 +28,7 @@ impl Default for LatencyConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Shape {
     #[serde(deserialize_with = "humantime_serde::deserialize")]
     pub amplitude: Duration,

@@ -42,7 +42,7 @@ impl Args {
     pub fn init(self) -> anyhow::Result<u16> {
         let cfg = match self.config {
             Some(path) => {
-                info!("loading and parsing config file");
+                info!(path=%path.display(), "loading and parsing config file");
                 serde_yaml::from_slice(&fs::read(path)?)?
             }
             None => {
@@ -53,7 +53,7 @@ impl Args {
 
         let (port, latency_generator, headers, response_generation) = cfg.into_parts();
 
-        info!("loading and parsing supergraph schema");
+        info!(path=%self.schema.display(), "loading and parsing supergraph schema");
         match Schema::parse(fs::read_to_string(&self.schema)?, self.schema) {
             Ok(mut schema) => {
                 patch_supergraph(&mut schema);
