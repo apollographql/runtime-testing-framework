@@ -1,0 +1,57 @@
+# The port to listen on (currently the graphql endpoint is simply served on "/"
+# but support for serving different subgraphs at different routes is planned
+port: 8080
+
+# Additional response headers to set for every response.
+# "Content-type: application/json" is automatically set for all graphQL responses
+# by default.
+headers:
+  MyHeader: "my-header-value"
+
+# Currently matching the latency generation config from the router-scale Go
+# "subgraph" mock server.
+# Total latency is the sum of the base latency and any defined waveforms.
+latency:
+  # Base latency to apply _after_ response generation.
+  base: 5ms
+  # Latency waveforms: allowed keys are "sine", "saw", "square", "triangle"
+  # and all options have the same sub-keys of "amplitude" and "period" for
+  # the waveform.
+  sine:
+    amplitude: 2ms
+    period: 10s
+
+# Configuration for how responses should be generated for incoming graphQL
+# requests. What is shown below is the current default configuration that
+# will be used. Additional scalar generators can be defined and the existing
+# defaults can be overwritten as needed.
+response_generation:
+  # How frequently to set nullable fields to null
+  null_ratio: [1, 2]
+  # Minimum and maximum lengths for array fields
+  array:
+    min_length: 0
+    max_length: 10
+  # Custom scalar generators. Below is the default setup for built-in
+  # scalars plus "ID". Keys must exactly match the scalar name found
+  # in the schema provided to the server, unmatched scalars will be
+  # defaulted to being represented as strings with lengths 1-10.
+  scalars:
+    Bool:
+      type: bool
+    Float:
+      type: float
+      min: -1.0
+      max: 1.0
+    Int:
+      type: int
+      min: 0
+      max: 100
+    Id:
+      type: int
+      min: 0
+      max: 100
+    String:
+      type: string
+      min_len: 1
+      max_len: 10
