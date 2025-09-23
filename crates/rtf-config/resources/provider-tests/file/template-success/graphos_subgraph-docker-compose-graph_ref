@@ -1,33 +1,55 @@
 A valid yaml fragment for a graphos subgraph docker compose file provider that uses
-a template for the graph ref
+a template for all templatable fields
 
 -- config.yaml --
 kind: graphos_subgraph_docker_compose
 graph_ref: "{{ graph_ref }}"
+image: "{{ image }}"
+replicas: "{{ replicas }}"
+resource_limits:
+  cpus: "{{ cpu }}"
+  memory: "{{ memory }}"
+resource_reservations:
+  cpus: "{{ cpu }}"
+  memory: "{{ memory }}"
+mem_swappiness: "{{ mem_swappiness }}"
+loadbalancer:
+  resource_limits:
+    cpus: "{{ cpu }}"
+    memory: "{{ memory }}"
+  resource_reservations:
+    cpus: "{{ cpu }}"
+    memory: "{{ memory }}"
+  mem_swappiness: "{{ mem_swappiness }}"
 
 -- values --
 graph_ref: "graph_id@variant"
+image: "image:tag"
+replicas: 10
+cpu: "2"
+memory: "2G"
+mem_swappiness: 1
 
 -- after-templating --
 kind: graphos_subgraph_docker_compose
 graph_ref: "graph_id@variant"
-image: "ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main"
+image: "image:tag"
 command:
   - "-schema"
   - "/app/supergraph.graphql"
-replicas: 5
+replicas: 10
 resource_limits:
-  cpus: "0.5"
-  memory: "1G"
+  cpus: "2"
+  memory: "2G"
 resource_reservations:
-  cpus: "0.1"
-  memory: "512M"
-mem_swappiness: 0
+  cpus: "2"
+  memory: "2G"
+mem_swappiness: 1
 loadbalancer:
   resource_limits:
-    cpus: "0.5"
-    memory: "1G"
+    cpus: "2"
+    memory: "2G"
   resource_reservations:
-    cpus: "0.1"
-    memory: "512M"
-  mem_swappiness: 0
+    cpus: "2"
+    memory: "2G"
+  mem_swappiness: 1

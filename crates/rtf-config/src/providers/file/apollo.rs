@@ -536,7 +536,9 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
     }
 }
 
-impl_template!(GraphosSubgraphDockerCompose => [graph_ref]);
+impl_template!(GraphosSubgraphDockerCompose => [graph_ref, image, replicas, resource_limits, resource_reservations, mem_swappiness, loadbalancer]);
+impl_template!(Loadbalancer => [resource_limits, resource_reservations, mem_swappiness]);
+impl_template!(Resources => [cpus, memory]);
 
 impl Check for GraphosSubgraphDockerCompose {
     fn try_check(
