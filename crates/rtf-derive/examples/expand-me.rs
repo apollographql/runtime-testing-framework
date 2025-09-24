@@ -1,15 +1,17 @@
-use rtf_config::templating::{Field, IterFields};
-use rtf_derive::IterFields;
+use rtf_config::templating::Field;
+use rtf_derive::Template;
 
-#[derive(IterFields)]
+#[derive(Template)]
 struct MyStruct {
     foo: Field<String>,
     bar: Bar,
+    #[template(skip)]
+    baz: String,
 }
 
-#[derive(IterFields)]
+#[derive(Template)]
 struct Bar {
-    baz: Field<u32>,
+    inner: Field<u32>,
 }
 
 fn main() {}
