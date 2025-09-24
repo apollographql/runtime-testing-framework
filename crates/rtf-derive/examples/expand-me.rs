@@ -1,17 +1,37 @@
-use rtf_config::templating::Field;
+use rtf_config::templating::{Field, Template};
 use rtf_derive::Template;
+use std::collections::HashMap;
 
-#[derive(Template)]
-struct MyStruct {
-    foo: Field<String>,
-    bar: Bar,
+#[derive(Debug, Template)]
+pub struct MyStruct {
+    pub foo: Field<String>,
+    pub bar: Bar,
     #[template(skip)]
-    baz: String,
+    pub baz: String,
 }
 
-#[derive(Template)]
-struct Bar {
-    inner: Field<u32>,
+#[derive(Debug, Template)]
+pub struct Bar {
+    pub inner: Field<u32>,
 }
 
-fn main() {}
+fn main() {
+    let mut s = MyStruct {
+        foo: Field::Pending("FOO".to_string()),
+        bar: Bar {
+            inner: Field::Resolved(42),
+        },
+        baz: "BAZ".to_string(),
+    };
+
+    println!("{:?}", s.has_pending_fields());
+    println!("{:?}", s.required_values());
+    println!("{:?}", s);
+
+    let mut vals = HashMap::new();
+    vals.insert("FOO".to_string(), "a value for foo".into());
+
+    s.try_template(&mut Vec::new(), &vals).unwrap();
+    println!("{:?}", s.has_pending_fields());
+    println!("{:?}", s);
+}
