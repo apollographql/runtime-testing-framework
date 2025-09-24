@@ -39,6 +39,30 @@ pub type Errors = crate::error::Errors<ErrorKind>;
 pub type ErrorBuilder = crate::error::ErrorBuilder<ErrorKind>;
 pub type Result<T> = std::result::Result<T, Errors>;
 
+pub trait IterFields {
+    fn iter_fields(&self) -> impl Iterator<Item = &TypedField>;
+
+    fn iter_fields_mut(&mut self) -> impl Iterator<Item = &mut TypedField>;
+}
+
+#[derive(Debug)]
+pub enum TypedField {
+    Scalar(Field<Scalar>),
+    Bool(Field<bool>),
+    String(Field<String>),
+    I8(Field<i8>),
+    I16(Field<i16>),
+    I32(Field<i32>),
+    I64(Field<i64>),
+    Isize(Field<isize>),
+    U8(Field<u8>),
+    U16(Field<u16>),
+    U32(Field<u32>),
+    U64(Field<u64>),
+    Usize(Field<usize>),
+    F64(Field<f64>),
+}
+
 /// In order to support controlled templating of config files with [Scalar] values we make use of a
 /// wrapper [Field] type to identify where values need to be injected. A type that implements
 /// [Template] supports walking its contents to locate and template fields using a provided map
