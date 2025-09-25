@@ -131,7 +131,7 @@ The test plan defines several scalar **values** which are then applied to the sc
 environment config files.
 
 ```yaml
-{ { #include ../../../example-test-plans/hello-world/test-plan.yaml }}
+{{ #include ../../../example-test-plans/hello-world/test-plan.yaml }}
 ```
 
 Run the test plan again using the default log level:

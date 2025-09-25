@@ -4,6 +4,8 @@
 
 # User Documentation
 
+- [Overview](overview.md)
+
 - [Getting started](guides/index.md)
   - [Hello, world!](guides/hello-world.md)
 
