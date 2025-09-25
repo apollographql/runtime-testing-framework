@@ -1,0 +1,351 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Overview - Runtime Testing Framework</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Runtime Testing Framework</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/apollographql/runtime-testing-framework" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="overview"><a class="header" href="#overview">Overview</a></h1>
+<hr />
+<ul>
+<li><a href="#what-rtf-is">What RTF is</a></li>
+<li><a href="#what-rtf-is-not">What RTF is not</a></li>
+<li><a href="#pay-for-what-you-use">Pay for what you use</a></li>
+<li><a href="#so-whats-actually-on-offer">So, what's actually on offer?</a></li>
+<li><a href="#next-steps">Next steps</a></li>
+</ul>
+<hr />
+<p>Throughout the rest of the <em>User Documentation</em> you'll see us talking about RTF both as the
+framework itself and as part of the richer tooling and testing capabilities provided by the Runtime
+Readiness team. We feel that it is important to draw a distinction between these two areas in order
+to be able to make the best use of each.</p>
+<p>So, while the rest of our documentation tends to focus on the "how" of using RTF and its related
+tooling, this page instead covers some of the "why" around how things are set up and the different
+options available for making use of it. To kick things off, its probably best to cover what RTF <em>is</em>
+(and importantly, what it <em>isn't</em>).</p>
+<h2 id="what-rtf-is"><a class="header" href="#what-rtf-is">What RTF <em>is</em></a></h2>
+<h3 id="compositional-glue"><a class="header" href="#compositional-glue">Compositional Glue</a></h3>
+<p>The most important thing to understand about RTF is that it truly is <em>all</em> glue code and meta-data.
+RTF Test plans follow a simple "setup, run, teardown" execution model and providers are all self
+contained functions of their inputs. Need access to a resource inside of your test scenario? Add the
+appropriate provider. Need access to the same resource when you're spinning up your test
+environment? Add the provider there as well: RTF will handle de-duplicating the resources for you.</p>
+<h3 id="once-size-fits-most-not-all"><a class="header" href="#once-size-fits-most-not-all">Once size fits most (not all)</a></h3>
+<p>Aiming to provide a working out of the box solution for every use case we come across inevitably
+results in chasing a long tail infrequently used aspects of the system that bitrot or are
+insufficiently tested.</p>
+<p>No one wants that.</p>
+<p>Instead we focus on paving a path for the majority of use cases that we know are actively required
+by our users (initially the Router core team) while ensuring that the system remains open to
+extension. As and when new shared use cases arise we work with the users who have an interest in
+their semantics to pull them in to the managed set of providers and base configurations.</p>
+<h2 id="what-rtf-is-not"><a class="header" href="#what-rtf-is-not">What RTF is <em>not</em></a></h2>
+<h3 id="a-magic-bullet"><a class="header" href="#a-magic-bullet">A magic bullet</a></h3>
+<p>While it is certainly possible to rewrite all of your existing test suites to run under RTF we
+wouldn't recommend it. For anyone. The value add for using a framework like RTF is that it can
+handle pulling together resources and test data for you in a standardised, reliable way. If all you
+need to do is run something that looks like a unit test with no external dependencies, then RTF is
+almost guaranteed to be overkill.</p>
+<h3 id="purpose-built-for-your-exact-use-case"><a class="header" href="#purpose-built-for-your-exact-use-case">Purpose built for your exact use case</a></h3>
+<p>By design, RTF is a general purpose framework that focuses on giving users the tools to write their
+own test plans and tooling. Given the nature of the types of tests we typically see run under RTF,
+you may be inclined to ask why the framework doesn't offer built in support for things like running
+Terraform or managing Kubernetes clusters. The answer is relatively simple: RTF is designed to
+<em>compose</em> with other tools rather than embed them directly. By setting things up this way we make it
+possible for end users to leverage the tooling they are already familiar with alongside RTF rather
+than being forced to pick from a limited set of options that we happed to have added support for.</p>
+<h2 id="pay-for-what-you-use"><a class="header" href="#pay-for-what-you-use">Pay for what you use</a></h2>
+<p>So if that's what RTF is / is not in terms of design, what does it look like to actually use?</p>
+<p>We here at Runtime Readiness are <em>big</em> fans of the Unix Philosophy (as stated by Doug McIlroy):</p>
+<blockquote>
+<p>Write programs that do one thing and do it well.<br/> Write programs to work together.<br/> Write
+programs to handle text streams, because that is a universal interface.</p>
+</blockquote>
+<p>In our case, as with most developer tooling, "text streams" is better replaced with structured data
+in the form of YAML and JSON but the spirit of the philosophy remains.</p>
+<p>We certainly require a variety of machinery to automate spinning up the services under test and
+pulling together all of the data and configuration required to run representative test scenarios.
+But we always make sure that each piece of what we write is usable independently (as far as
+possible) and that if you don't want or need something, you shouldn't have to even know that it
+exists.</p>
+<p>To achieve that, our tooling is written as a collection of layers that you are free to pick and
+chose from as you see fit. Each individual piece will have its own requirements and expectations for
+you to be able to make use of it, but you should quickly see that many of those are shared so you
+get quite a lot of bang for your buck!</p>
+<h2 id="so-whats-actually-on-offer"><a class="header" href="#so-whats-actually-on-offer">So, what's actually on offer?</a></h2>
+<p>RTF and the additional tooling surrounding it is organised as a set of three distinct layers that
+work together to allow you, the user, to determine how and where to focus your time and resources.
+With each option there are a different set of trade offs involved which mainly concern whether you
+would prefer for everything to be as hands off as possible or if you would like to be able to
+configure things just the way you like them. As you might imagine, the further down the layers you
+go, the more control you have but also fewer guarantees.</p>
+<h3 id="layer-3-custom-user-facing-functionality-built-using-rtf"><a class="header" href="#layer-3-custom-user-facing-functionality-built-using-rtf">Layer 3: Custom user facing functionality built using RTF</a></h3>
+<p>At one end of the scale we have custom applications built using RTF as a foundation such as the
+<a href="https://apollographql.atlassian.net/wiki/spaces/RUNTIMEREADINESS/pages/1814036490/Router+Release+Validation">Router release validation tests</a>. Here RTF is very much an implementation detail from the user's
+perspective and the focus is entirely on addressing a particular testing need. If the application in
+question is one you want or need to make use of, it will have accompanying documentation to guide
+you through the process. If you are interested in developing your own testing capabilities on top of
+RTF then these existing applications are a useful place to start in order to get some ideas about
+what is possible.</p>
+<h3 id="layer-2-configurable-test-plans-environments-scenarios--providers"><a class="header" href="#layer-2-configurable-test-plans-environments-scenarios--providers">Layer 2: Configurable test plans, environments, scenarios &amp; providers</a></h3>
+<p>If you would prefer something a little more custom then the next layer down lets you make use of the
+same building blocks we use ourselves for writing our own <em>Layer 3</em> applications. Here you can find
+general purpose Scenario and Environment configurations such as those available in the <a href="https://github.com/apollographql/rtf-morgue/tree/main/lib">lib</a>
+directory of the <code>rtf-morgue</code> repo.</p>
+<blockquote>
+<p>Soon you will also be able to define and re-use custom providers once <a href="https://apollographql.atlassian.net/browse/RR-351">RR-351</a> is complete.</p>
+</blockquote>
+<p>The focus of <em>Layer 2</em> is to build and re-use higher level abstractions that address common use
+cases which require coordinating elements that make use of shared semantics or configuration.</p>
+<p>As far as possible, anything that is done by one of our <em>Layer 3</em> applications is also made
+available as part of <em>Layer 2</em> for direct use as well. If you find yourself needing to do something
+that isn't yet supported by our APIs or libraries, please do reach out to us in the
+<code>#proj-runtime-testing-framework</code> channel in Slack to let us know! Chances are that other users
+would like the same functionality and it might make sense to support it natively from our side.</p>
+<h3 id="layer-1-rtf-core"><a class="header" href="#layer-1-rtf-core">Layer 1: RTF core</a></h3>
+<p>The final layer is RTF itself. Here we provide the <code>rtf</code> CLI which supports a number of
+<a href="./framework/providers.html">built-in providers</a> that serve as a minimal foundation for writing test plans. At this layer you
+have maximum flexibility to implement what you need but at the cost of minimal guarantees around how
+you have composed together the different elements that make up your test plan.</p>
+<p>We should emphasise that "minimal" here is in comparison to what is available from Layers 2 and 3:
+RTF provides a variety of debugging commands and rich error output to help you write and debug your
+test plans. What it <em>doesn't</em> provide out of the box is a way for ensuring that you've set up your
+providers and test scripts in a self consistent way.</p>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
+<p>Now that you've read a little of the "why" its time to dig into the "how". Unsurprisingly, the
+<a href="./guides/index.html">Getting started</a> section is where we recommend you start first if your goal is to learn about
+how RTF works and how you can work with pre-existing test plans. If you want to dig more into the
+framework itself, then the <a href="./guides/test-plans/index.html">Test plans</a> and <a href="./framework/index.html">framework</a> sections are more likely what you are
+after.</p>
+<p>Happy testing!</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="guides/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="guides/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+        <script src="ace.js"></script>
+        <script src="mode-rust.js"></script>
+        <script src="editor.js"></script>
+        <script src="theme-dawn.js"></script>
+        <script src="theme-tomorrow_night.js"></script>
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

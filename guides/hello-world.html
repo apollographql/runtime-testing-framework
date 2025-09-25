@@ -305,7 +305,25 @@ output
 <h2 id="modifying-values"><a class="header" href="#modifying-values">Modifying Values</a></h2>
 <p>The test plan defines several scalar <strong>values</strong> which are then applied to the scenario and
 environment config files.</p>
-<pre><code class="language-yaml">{ { #include ../../../example-test-plans/hello-world/test-plan.yaml }}
+<pre><code class="language-yaml">name: hello-world
+description: |
+  The "hello, world!" of test plans. Intended as a minimal introduction to
+  the concepts and functionality found within RTF.
+
+values:
+  message: "hello, "
+  setup_subject: "world!"
+  scenario_subject: "darkness my old friend"
+
+scenario:
+  from:
+    kind: local
+    relative_path: scenario.yaml
+
+environment:
+  from:
+    kind: local
+    relative_path: environment.yaml
 </code></pre>
 <p>Run the test plan again using the default log level:</p>
 <pre><code>$ rtf run example-test-plans/hello-world/test-plan.yaml
