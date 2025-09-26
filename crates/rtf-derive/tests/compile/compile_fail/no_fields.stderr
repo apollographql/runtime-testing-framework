@@ -1,0 +1,47 @@
+error[E0599]: no method named `has_pending_fields` found for struct `std::string::String` in the current scope
+ --> tests/compile/compile_fail/no_fields.rs:3:17
+  |
+3 | #[derive(Debug, Template)]
+  |                 ^^^^^^^^ method not found in `std::string::String`
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `has_pending_fields` found for type `usize` in the current scope
+ --> tests/compile/compile_fail/no_fields.rs:3:17
+  |
+3 | #[derive(Debug, Template)]
+  |                 ^^^^^^^^ method not found in `usize`
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `required_values` found for struct `std::string::String` in the current scope
+ --> tests/compile/compile_fail/no_fields.rs:3:17
+  |
+3 | #[derive(Debug, Template)]
+  |                 ^^^^^^^^ method not found in `std::string::String`
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `required_values` found for type `usize` in the current scope
+ --> tests/compile/compile_fail/no_fields.rs:3:17
+  |
+3 | #[derive(Debug, Template)]
+  |                 ^^^^^^^^ method not found in `usize`
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `try_template_nested` found for struct `std::string::String` in the current scope
+ --> tests/compile/compile_fail/no_fields.rs:3:17
+  |
+3 | #[derive(Debug, Template)]
+  |                 ^^^^^^^^ method not found in `std::string::String`
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `try_template_nested` found for type `usize` in the current scope
+ --> tests/compile/compile_fail/no_fields.rs:3:17
+  |
+3 | #[derive(Debug, Template)]
+  |                 ^^^^^^^^ method not found in `usize`
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)

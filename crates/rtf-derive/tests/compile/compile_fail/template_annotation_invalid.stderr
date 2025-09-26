@@ -1,0 +1,5 @@
+error: Unknown field: `not_valid`. Available values: `skip`
+ --> tests/compile/compile_fail/template_annotation_invalid.rs:7:16
+  |
+7 |     #[template(not_valid)]
+  |                ^^^^^^^^^
