@@ -1748,6 +1748,7 @@ name = "rtf-derive"
 version = "0.1.0"
 dependencies = [
  "darling",
+ "proc-macro2",
  "quote",
  "rtf-config",
  "syn 2.0.106",

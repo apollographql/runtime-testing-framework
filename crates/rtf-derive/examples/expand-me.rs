@@ -3,6 +3,13 @@ use rtf_derive::Template;
 use std::collections::HashMap;
 
 #[derive(Debug, Template)]
+pub enum MyEnum {
+    A(MyStruct),
+    B(Bar),
+    C(Field<String>),
+}
+
+#[derive(Debug, Template)]
 pub struct MyStruct {
     pub foo: Field<String>,
     pub bar: Bar,
