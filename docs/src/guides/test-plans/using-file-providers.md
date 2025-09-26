@@ -1,6 +1,6 @@
 # Using file providers
 
-### Table of contents
+---
 
 - [Getting started](#getting-started)
 - [What are file providers?](#what-are-file-providers)
@@ -9,7 +9,7 @@
 - [Adding a file from a relative path](#adding-a-file-from-a-relative-path)
 - [Required files](#required-files)
 
-## Getting started
+---
 
 This guide assumes you've completed the ["Writing an environment"](writing-an-environment.md) guide.
 You should already have the files in a directory named `rtf-hello-world`. Your directory should be
@@ -37,7 +37,7 @@ plan configuration itself.
 
 There are additional file providers that, amongst other things, can pull data from APIs (such as
 GraphOS specific providers). These will not be discussed in this guide but can be seen in the
-[framework reference](../../framework/providers.md).
+[framework reference](../../framework/file-providers.md).
 
 All file providers follow the same basic principle - they create one or more files and place it on a
 path for rtf to make use of. If you need to know that path (for your command script, for example),

@@ -1,6 +1,6 @@
 # Writing a test plan
 
-### Table of contents
+---
 
 - [Getting started](#getting-started)
 - [Adding required fields](#adding-required-fields)
@@ -13,7 +13,7 @@
 - [Setting values](#setting-values)
 - [Using a matrix](#using-a-matrix)
 
-## Getting started
+---
 
 Create an empty directory and make it your working directory:
 

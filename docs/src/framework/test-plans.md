@@ -241,4 +241,4 @@ environment:
 [2]: ./scenarios.md
 [3]: ./environments.md
 [4]: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
-[5]: ./providers.md
+[5]: ./file-providers.md
