@@ -358,7 +358,9 @@ look at a couple of simple ways we can make changes to the config files in order
 behaviour.</p>
 <blockquote>
 <p>For more information on the structure of RTF test plan config files see the
-<a href="guides/../test-plans/index.html">Test Plans</a> page.</p>
+<a href="guides/../framework/test-plans.html">Framework / Test Plans</a> page.</p>
+<p>For details on how to get started with writing your own test plans from scratch see the
+<a href="guides/./test-plans/index.html">Writing test plans</a> section.</p>
 </blockquote>
 <p>The "hello, world!" test plan contains a brief description, a few values, and references to scenario
 and environment config files:</p>
@@ -621,7 +623,506 @@ env-setup :: hello, sailor!
 scenario :: hello, is it me you're looking for?
 ---
 </code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="the-framework"><a class="header" href="#the-framework">The framework</a></h1>
+<p>The following pages provide reference information for various aspects of the runtime testing
+framework for end users who are interested in writing their own test plans.</p>
+<p>If you are just getting started with RTF then we recommend reading through the <a href="framework/../guides/index.html">guides</a> section
+first.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="test-plans"><a class="header" href="#test-plans">Test Plans</a></h1>
+<hr />
+<ul>
+<li><a href="framework/test-plans.html#top-level-keys">Top level keys</a></li>
+<li><a href="framework/test-plans.html#config-specs">Config Specs</a>
+<ul>
+<li><a href="framework/test-plans.html#inline-configuration">Inline configuration</a></li>
+<li><a href="framework/test-plans.html#from-a-local-file">From a local file</a></li>
+<li><a href="framework/test-plans.html#from-a-remote-file-in-github">From a remote file in GitHub</a></li>
+</ul>
+</li>
+<li><a href="framework/test-plans.html#applying-overrides">Applying overrides</a></li>
+<li><a href="framework/test-plans.html#a-note-on-relative-paths">A note on relative paths</a></li>
+<li><a href="framework/test-plans.html#full-example">Full example</a></li>
+</ul>
+<hr />
+<p>As we saw in the <a href="framework/../guides/hello-world.html">hello, world!</a> guide, the top level entry point for running tests under RTF is
+the <code>test-plan.yaml</code> config file. Depending on exactly how you want to set things up there are
+several options available for how you organise this, but the core structure remains the same.</p>
+<p>In this page we will cover the available keys within a Test Plan and outline the structure and
+semantics of each. For more detailed information on specific aspects of the framework please see the
+relevant pages under the <a href="framework/./index.html">Framework</a> section of the documentation.</p>
+<blockquote>
+<p>An example of a valid <code>test-plan.yaml</code> is provided in the <a href="framework/test-plans.html#full-example">Full example</a> section
+below.</p>
+</blockquote>
+<h2 id="top-level-keys"><a class="header" href="#top-level-keys">Top level keys</a></h2>
+<ul>
+<li><code>name</code>: The name for this Test Plan.
+<ul>
+<li>Uniqueness is not enforced by the <code>rtf</code> CLI but it is worthwhile ensuring that the test plans
+you write each have unique names that can be used to distinguish them.</li>
+</ul>
+</li>
+<li><code>description</code>: A brief, human readable description of the behaviour of the Test Plan.
+<ul>
+<li>If there are any pre-requesites to running this Test Plan it is best to call them out here
+rather than in comments or other files (such as a README).</li>
+</ul>
+</li>
+<li><code>values</code>: Key value pairs for templating the Test Plan where the values are all scalar.
+<ul>
+<li>Scalar here is defined to be a number, string or boolean.</li>
+</ul>
+</li>
+<li><code>matrix</code>: Key value pairs for templating the Test Plan where the values arrays of scalars.
+<ul>
+<li>Each matrix entry must have a consistent type for the values array. Mixing different scalar
+values will result in an error when you attempt to run the Test Plan.</li>
+</ul>
+</li>
+<li><code>scenario</code>: A <a href="framework/test-plans.html#config-specs">Config Spec</a> for the scenario to be run.
+<ul>
+<li>For full details on the structure of a Scenario see the <a href="framework/./scenarios.html">Scenario</a> page of the Framework
+documentation.</li>
+</ul>
+</li>
+<li><code>environment</code>: A <a href="framework/test-plans.html#config-specs">Config Spec</a> for the test environment to provision.
+<ul>
+<li>For full details on the structure of an Environment see the <a href="framework/./environments.html">Environment</a> page of the
+Framework documentation.</li>
+</ul>
+</li>
+</ul>
+<h2 id="config-specs"><a class="header" href="#config-specs">Config Specs</a></h2>
+<p>Both the <code>scenario</code> and <code>environment</code> keys map to a structure known as a <em>Config Spec</em>, which is a
+way telling RTF how to find the appropriate configuration for that aspect of the Test Plan.
+Currently there are three options available for doing this:</p>
+<ol>
+<li>Embedding the relevant config file inline within the Test Plan itself.</li>
+<li>Specifying a local relative path to an appropriate config file to use as a base.</li>
+<li>Specifying an absolute path within a GitHub repository to use as a base.</li>
+</ol>
+<p>For options 2 and 3 you then also have the opportunity to define <em>overrides</em> that will be merged on
+top of the base config file before the Test Plan is templated and checked.</p>
+<h3 id="inline-configuration"><a class="header" href="#inline-configuration">Inline configuration</a></h3>
+<p>To provide your configuration inline simply add <code>inline</code> key under the relevant top level <code>scenario</code>
+or <code>environment</code> key and then write your config file as normal. (Remember to ensure that your
+indentation levels are adjusted appropriately!)</p>
+<pre><code class="language-yaml">scenario:
+  inline:
+    # your scenario.yaml configuration goes here
+</code></pre>
+<pre><code class="language-yaml">environment:
+  inline:
+    # your environment.yaml configuration goes here
+</code></pre>
+<h3 id="from-a-local-file"><a class="header" href="#from-a-local-file">From a local file</a></h3>
+<p>To use a local file as a base with optional overrides simply add a top level <code>from</code> key under the
+relevant top level <code>scenario</code> or <code>environment</code> key, specifying the <code>kind</code> as <code>local</code> and giving the
+relative path <em>from the test-plan.yaml file</em> under the <code>relative_path</code> key.</p>
+<p>To define <em>overrides</em>, add the <code>overrides</code> key at the same indentation level as <code>from</code> and then add
+your override configuration under that key. The structure here is <em>not</em> required to parse as a full
+config file so you are free to only specify the keys that you need.</p>
+<blockquote>
+<p>For details on how overrides are applied, see <a href="framework/test-plans.html#applying-overrides">Applying Overrides</a> below.</p>
+</blockquote>
+<pre><code class="language-yaml">scenario:
+  from:
+    kind: local
+    relative_path: ../my-scenario.yaml
+  overrides:
+    # overrides go here
+</code></pre>
+<pre><code class="language-yaml">environment:
+  from:
+    kind: local
+    relative_path: ../my-environment.yaml
+  overrides:
+    # overrides go here
+</code></pre>
+<h3 id="from-a-remote-file-in-github"><a class="header" href="#from-a-remote-file-in-github">From a remote file in GitHub</a></h3>
+<p>To use a remote file from a GitHub repository as a base with optional overrides simply add a top
+level <code>from</code> key under the relevant top level <code>scenario</code> or <code>environment</code> key, specifying the <code>kind</code>
+as <code>github</code> along with details for the <code>org</code>, <code>repo</code> and <code>path</code> to the file relative to the root of
+the repository. It is also possible to optionally provide a <code>git_ref</code> to pull the file from. If this
+is not specified then RTF will default to pulling from the mainline branch.</p>
+<blockquote>
+<p>You <em>must</em> have a valid GitHub access token with permissions to interact with your chosen
+repoisitory exported as <code>GITHUB_TOKEN</code> in your shell environment for this method to work. See
+<a href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens">here</a> for GitHub's documentation on how to create and manage access tokens.</p>
+</blockquote>
+<p>As with using a <a href="framework/test-plans.html#from-a-local-file">local file</a>, <em>overrides</em> can be defined by adding the
+<code>overrides</code> key at the same indentation level as <code>from</code> and then adding your override configuration
+under that key. The structure here is <em>not</em> required to parse as a full config file so you are free
+to only specify the keys that you need.</p>
+<blockquote>
+<p>For details on how overrides are applied, see <a href="framework/test-plans.html#applying-overrides">Applying Overrides</a> below.</p>
+</blockquote>
+<pre><code class="language-yaml">scenario:
+  from:
+    kind: github
+    org: my-org
+    repo: my-repo
+    # git_ref: testing-branch
+    path: test-plans/example/my-scenario.yaml
+  overrides:
+    # overrides go here
+</code></pre>
+<pre><code class="language-yaml">environment:
+  from:
+    kind: github
+    org: my-org
+    repo: my-repo
+    # git_ref: testing-branch
+    path: test-plans/example/my-environment.yaml
+  overrides:
+    # overrides go here
+</code></pre>
+<h2 id="applying-overrides"><a class="header" href="#applying-overrides">Applying overrides</a></h2>
+<p>The <code>overrides</code> section of a <em>Config Spec</em> is merged with the configuration file provided under the
+<code>from</code> key as raw YAML before the configuration is parsed by RTF.</p>
+<p>The merging strategy used is as follows:</p>
+<ul>
+<li>For maps, keys are iterated from the overrides and merged on top of matching keys found within the
+base configuration file. If a key is present in both the base and the overrides then we
+recursively merge the values under that key, otherwise we insert the overrides key into the base
+directly.</li>
+<li>If both maps contain an array under a given overrides key then the overrides are appended to the
+values already present in the base.</li>
+<li>If the values under a given key differ in type (or are scalar) we replace the value in the base
+with the one provided in the overrides.</li>
+</ul>
+<p>Once the overrides have been applied and the resulting config file is successfully parsed, all
+arrays are then sorted and deduplicated based on an appropriate key in order to support replacing
+array elements:</p>
+<ul>
+<li>For <a href="framework/./providers.html">File providers</a> the key used is <code>env_var</code>.</li>
+<li>For value declarations and environment setup "provides" the key used is <code>name</code>.</li>
+</ul>
+<h2 id="a-note-on-relative-paths"><a class="header" href="#a-note-on-relative-paths">A note on relative paths</a></h2>
+<p>There are several places within RTF config files that you be required to specify relative paths to
+other files on disk. In order to help with reasoning about how to provide these paths, RTF has
+strict semantics about how such relative paths are resolved.</p>
+<p>Namely, they are <em>always</em> resolved relative to the file the path is written in. At first glance this
+may sound obvious but the important aspect to remember is around writing <code>overrides</code> in your
+<code>test-plan.yaml</code>.</p>
+<p>When a base config file is loaded by RTF, all pre-existing relative paths will be resolved relative
+to the path that the config file was loaded from (this is also true when pulling remote files from
+GitHub). When <code>overrides</code> are then applied from the Test Plan, any new relative paths found there
+are resolved relative to the location of the <code>test-plan.yaml</code> file, <em>not</em> the location of the base
+config file.</p>
+<p>The intent is that everything works as you would intuitively expect, and that IDE auto-completion of
+paths will always prompt you to write the correct thing.</p>
+<h2 id="full-example"><a class="header" href="#full-example">Full example</a></h2>
+<p>The following is a minimal "kitchen sink" example of the structure of a valid <code>test-plan.yaml</code>.</p>
+<pre><code class="language-yaml">name: example
+description: An example description
+
+values:
+  foo: "A value for foo"
+
+matrix:
+  bar: [1, 2, 3]
+  baz: [true, false]
+
+scenario:
+  inline:
+    name: An inline scenario
+    description: A description for the inline scenario
+
+    values:
+      - name: foo
+        description: "A description for foo"
+
+    command:
+      name: my-test.sh
+      kind: relative_path
+      path: scripts/my-test.sh
+
+    env_vars:
+      FOO: "{{ foo }}"
+
+environment:
+  from:
+    kind: local
+    relative_path: environment.yaml
+
+  overrides:
+    file_providers:
+      - name: my-additional-file.txt
+        env_var: ADDITIONAL_FILE
+        kind: inline
+        content: |
+          An additional file that wasn't present in the original environment.yaml
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="environments"><a class="header" href="#environments">Environments</a></h1>
+<blockquote>
+<p>Coming soon</p>
+</blockquote>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="scenarios"><a class="header" href="#scenarios">Scenarios</a></h1>
+<blockquote>
+<p>Coming soon</p>
+</blockquote>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="file-providers"><a class="header" href="#file-providers">File Providers</a></h1>
+<p>Available file providers:</p>
+<ul>
+<li><a href="framework/providers.html#build-router-from-source">Build Router From Source</a></li>
+<li><a href="framework/providers.html#github-file">GitHub File</a></li>
+<li><a href="framework/providers.html#graphos-canned-operations">GraphOS Canned Operations</a></li>
+<li><a href="framework/providers.html#graphos-supergraph-docker-compose">GraphOS Supergraph Docker Compose</a></li>
+<li><a href="framework/providers.html#graphos-supergraph-router-url-overrides">GraphOS Supergraph Router URL Overrides</a></li>
+<li><a href="framework/providers.html#graphos-subgraph-sdl">GraphOS Subgraph SDL</a></li>
+<li><a href="framework/providers.html#graphos-supergraph-sdl">GraphOS Supergraph SDL</a></li>
+<li><a href="framework/providers.html#inline-file">Inline File</a></li>
+<li><a href="framework/providers.html#graphos-offline-license">GraphOS Offline License</a></li>
+<li><a href="framework/providers.html#relative-path">Relative Path</a></li>
+<li><a href="framework/providers.html#required-file">Required File</a></li>
+<li><a href="framework/providers.html#resolved-values">Resolved Values</a></li>
+<li><a href="framework/providers.html#router-download-script">Router Download Script</a></li>
+<li><a href="framework/providers.html#merge-yaml">Merge YAML</a></li>
+</ul>
+<h2 id="build-router-from-source"><a class="header" href="#build-router-from-source">Build Router From Source</a></h2>
+<p>A file provider used for building the Router from source at a specific git commit or reference.</p>
+<pre><code class="language-yaml">- name: "router-build.sh"
+  env_var: ROUTER_BUILD_SCRIPT
+  kind: build_router_from_source
+  git_ref: "some-ref"
+  rust_version: "1.89.0"
+</code></pre>
+<h3 id="fields"><a class="header" href="#fields">Fields</a></h3>
+<h4 id="git_ref"><a class="header" href="#git_ref"><code>git_ref</code></a></h4>
+<p>A git reference that can be passed to <code>git checkout</code>. This may be a full or partial commit hash,
+branch name, or tag.</p>
+<h4 id="rust_version"><a class="header" href="#rust_version"><code>rust_version</code></a></h4>
+<p>A Rust version string that can be passed to <code>rustup run {rust_version}</code>, such as <code>"1.78.0"</code>,
+<code>"beta"</code>, or <code>"nightly"</code>.</p>
+<p>Defaults to <code>"stable"</code> if unset.</p>
+<h2 id="github-file"><a class="header" href="#github-file">GitHub File</a></h2>
+<p>The user specifies a path to a file within a GitHub repository, optionally providing a specific ref
+of the repository to pull the file from. If no ref is providing then the provider will pull the
+version of the file found on the default branch.</p>
+<pre><code class="language-yaml">- name: "my-file.txt"
+  env_var: MY_FILE
+  kind: github_file
+  org: "my-org"
+  repo: "my-repo"
+  path: "resources/test-data/my-file.txt"
+  git_ref: "some-ref"
+</code></pre>
+<h3 id="fields-1"><a class="header" href="#fields-1">Fields</a></h3>
+<h4 id="org"><a class="header" href="#org"><code>org</code></a></h4>
+<p>The GitHub org for the repository containing the target file</p>
+<h4 id="repo"><a class="header" href="#repo"><code>repo</code></a></h4>
+<p>The GitHub repository containing the target file</p>
+<h4 id="path"><a class="header" href="#path"><code>path</code></a></h4>
+<p>The absolute path from the root of the repository to the target file</p>
+<h4 id="git_ref-1"><a class="header" href="#git_ref-1"><code>git_ref</code></a></h4>
+<p>An optional git reference to pull the file from. This may be a full or partial commit hash, branch
+name, or tag.</p>
+<p>Defaults to the mainline branch as specified in GitHub if unset.</p>
+<h2 id="graphos-canned-operations"><a class="header" href="#graphos-canned-operations">GraphOS Canned Operations</a></h2>
+<p>The user specifies the graph ref and parameters that should be used to generate canned GraphQL
+requests based on operations data obtained from the GraphOS API.</p>
+<pre><code class="language-yaml">- name: canned_ops.json
+  env_var: CANNED_OPS_FILE
+  kind: graphos_canned_ops
+  graph_ref: graph@variant
+  top_n: 10
+  skip_mutations: true
+</code></pre>
+<h3 id="fields-2"><a class="header" href="#fields-2">Fields</a></h3>
+<h4 id="graph_ref"><a class="header" href="#graph_ref"><code>graph_ref</code></a></h4>
+<p>The Apollo graph ref to pull operations for.</p>
+<h4 id="top_n"><a class="header" href="#top_n"><code>top_n</code></a></h4>
+<p>The number of operations to attempt to fetch.</p>
+<p>Defaults to 20 if unset.</p>
+<h4 id="skip_mutations"><a class="header" href="#skip_mutations"><code>skip_mutations</code></a></h4>
+<p>Whether or not to include mutations in the returned operations.</p>
+<p>Defaults to false if unset.</p>
+<h2 id="graphos-supergraph-docker-compose"><a class="header" href="#graphos-supergraph-docker-compose">GraphOS Supergraph Docker Compose</a></h2>
+<p>The user specifies the graph ref that should be used to fetch the supergraph SDL file from the
+GraphOS API and generates a docker compose file. It runs a configurable number of subgraph services,
+mocking based on the supergraph schema behind a loadbalancer.</p>
+<pre><code class="language-yaml">- name: "subgraph-compose.yaml"
+  env_var: SUBGRAPH_COMPOSE
+  kind: graphos_subgraph_docker_compose
+  graph_ref: graph@variant
+  image: ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main
+  command:
+  - -schema
+  - /app/supergraph.graphql
+  replicas: 5
+  resource_limits:
+    cpus: '0.5'
+    memory: 1G
+  resource_reservations:
+   cpus: '0.1'
+    memory: 512M
+  mem_swappiness: 0
+  loadbalancer:
+    resource_limits:
+      cpus: '0.5'
+      memory: 1G
+    resource_reservations:
+      cpus: '0.1'
+      memory: 512M
+    mem_swappiness: 0
+</code></pre>
+<h3 id="fields-3"><a class="header" href="#fields-3">Fields</a></h3>
+<h4 id="graph_ref-1"><a class="header" href="#graph_ref-1"><code>graph_ref</code></a></h4>
+<p>The Apollo graph ref to pull the supergraph for.</p>
+<h4 id="image"><a class="header" href="#image"><code>image</code></a></h4>
+<p>The image the subgraph service runs.</p>
+<p>Defaults to ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main if unset.</p>
+<h4 id="command"><a class="header" href="#command"><code>command</code></a></h4>
+<p>The command that subgraph server image runs.</p>
+<p>Defaults to "-schema /app/supergraph.graphql" if unset.</p>
+<h4 id="replicas"><a class="header" href="#replicas"><code>replicas</code></a></h4>
+<p>The number of subgraph services containers running.</p>
+<p>Defaults to 5 if unset.</p>
+<h4 id="resource_limits"><a class="header" href="#resource_limits"><code>resource_limits</code></a></h4>
+<p>The resource limits for the subgraph containers.</p>
+<p>Defaults to cpus=0.5 and memory=1G if unset.</p>
+<h4 id="resource_reservations"><a class="header" href="#resource_reservations"><code>resource_reservations</code></a></h4>
+<p>The reserved resources for the subgraph containers.</p>
+<p>Defaults to cpus=0.1 and memory=512M if unset.</p>
+<h4 id="mem_swappiness"><a class="header" href="#mem_swappiness"><code>mem_swappiness</code></a></h4>
+<p>Enable or disable memory swapping in the subgraph services.</p>
+<p>Defaults to 0 (disabled) if unset.</p>
+<h4 id="loadbalancer"><a class="header" href="#loadbalancer"><code>loadbalancer</code></a></h4>
+<p>The configuration for the subgraph's loadbalancer.</p>
+<h2 id="graphos-supergraph-router-url-overrides"><a class="header" href="#graphos-supergraph-router-url-overrides">GraphOS Supergraph Router URL Overrides</a></h2>
+<p>The user specifies the graph ref that should be used to fetch subgraph SDL files from the GraphOS
+API and generates a the override_subgraph_urls YAML snippet that can be merged into a router config
+file</p>
+<p>This should be used when generating the subgraph docker compose using
+[GraphosSubgraphDockerCompose]. This will ensure the router subgraph urls map to the loadbalancer
+url in that compose file.</p>
+<pre><code class="language-yaml">- name: subgraph-url-overrides.yaml
+  env_var: SUBGRAPH_URL_OVERRIDES
+  kind: graphos_subgraph_router_url_overrides
+  graph_ref: graph@variant
+  url_format: localhost
+</code></pre>
+<h3 id="fields-4"><a class="header" href="#fields-4">Fields</a></h3>
+<h4 id="graph_ref-2"><a class="header" href="#graph_ref-2"><code>graph_ref</code></a></h4>
+<p>The Apollo graph ref to pull the subgraphs for.</p>
+<h4 id="url_format"><a class="header" href="#url_format"><code>url_format</code></a></h4>
+<p>The format of the overrides url.</p>
+<h2 id="graphos-subgraph-sdl"><a class="header" href="#graphos-subgraph-sdl">GraphOS Subgraph SDL</a></h2>
+<p>The user specifies the graph ref that should be used to fetch a subgraph SDL files from the GraphOS
+API.</p>
+<p>Note that this file proivider will output a directory of SDL schema files, one for each subgraph.</p>
+<pre><code class="language-yaml">- name: "subgraphs"
+  env_var: SUBGRAPHS
+  kind: graphos_subgraphs
+  graph_ref: graph@variant
+</code></pre>
+<h3 id="fields-5"><a class="header" href="#fields-5">Fields</a></h3>
+<h4 id="graph_ref-3"><a class="header" href="#graph_ref-3"><code>graph_ref</code></a></h4>
+<p>The Apollo graph ref to pull subgraph SDL files for.</p>
+<h2 id="graphos-supergraph-sdl"><a class="header" href="#graphos-supergraph-sdl">GraphOS Supergraph SDL</a></h2>
+<p>The user specifies the ref that should be used to fetch a supergraph SDL file from the GraphOS API.</p>
+<pre><code class="language-yaml">- name: "supergraph.graphql"
+  env_var: SUPERGRAPH
+  kind: graphos_supergraph
+  graph_ref: graph@variant
+  with_subgraph_overrides: docker
+</code></pre>
+<h3 id="fields-6"><a class="header" href="#fields-6">Fields</a></h3>
+<h4 id="graph_ref-4"><a class="header" href="#graph_ref-4"><code>graph_ref</code></a></h4>
+<p>The Apollo graph ref to pull supergraph SDL for.</p>
+<h4 id="with_subgraph_overrides"><a class="header" href="#with_subgraph_overrides"><code>with_subgraph_overrides</code></a></h4>
+<p>Replace the supergraph's subgraph urls with overridden values for testing.</p>
+<p>Defaults to null if unset.</p>
+<h2 id="inline-file"><a class="header" href="#inline-file">Inline File</a></h2>
+<p>The simplest form of file provider: the user specifies the contents of the file inline within their
+config file.</p>
+<pre><code class="language-yaml">- name: "my-file.txt"
+  env_var: MY_FILE
+  kind: inline
+  content: |
+    my raw file content.
+    specified inline within an RTF config file.
+</code></pre>
+<h3 id="fields-7"><a class="header" href="#fields-7">Fields</a></h3>
+<h4 id="content"><a class="header" href="#content"><code>content</code></a></h4>
+<p>The text to write out as the contents of the generated file.</p>
+<h2 id="graphos-offline-license"><a class="header" href="#graphos-offline-license">GraphOS Offline License</a></h2>
+<p>The user specifies the graph id that should be used to fetch an offline license from the GraphOS
+API.</p>
+<pre><code class="language-yaml">- name: license.jwt
+  env_var: LICENSE
+  kind: graphos_offline_license
+  graph_id: graph
+</code></pre>
+<h3 id="fields-8"><a class="header" href="#fields-8">Fields</a></h3>
+<h4 id="graph_id"><a class="header" href="#graph_id"><code>graph_id</code></a></h4>
+<p>The Apollo graph ref to pull an offline license for.</p>
+<h2 id="relative-path"><a class="header" href="#relative-path">Relative Path</a></h2>
+<p>A relative path from the containing config file to a target file that should be made available as
+part of the test run. This provider works both with local files and files within GitHub if the
+containing config file was pulled from a repository.</p>
+<pre><code class="language-yaml">- name: "my-file.txt"
+  env_var: MY_FILE
+  kind: relative_path
+  path: "../../resources/test-data/my-file.txt"
+</code></pre>
+<h3 id="fields-9"><a class="header" href="#fields-9">Fields</a></h3>
+<h4 id="path-1"><a class="header" href="#path-1"><code>path</code></a></h4>
+<p>The relative path from the containing config file to the target file.</p>
+<h4 id="src"><a class="header" href="#src"><code>src</code></a></h4>
+<p>Set during TestPlan parsing as part of overrides. This should only ever be <code>Some</code> if this provider
+was defined as part of an <code>overrides</code> section in the test plan.</p>
+<h2 id="required-file"><a class="header" href="#required-file">Required File</a></h2>
+<p>The only purpose of this file provider is to throw an error if it still exists when the file
+providers are being checked. All definitions of a required file are expected to be replaced by user
+defined file providers.</p>
+<pre><code class="language-yaml">- name: "router-config.yaml"
+  env_var: ROUTER_CONFIG
+  kind: required
+  message: "you must specify a router config file to use"
+</code></pre>
+<h3 id="fields-10"><a class="header" href="#fields-10">Fields</a></h3>
+<h4 id="message"><a class="header" href="#message"><code>message</code></a></h4>
+<p>The error message to display to the user if this provider is not overwritten.</p>
+<h2 id="resolved-values"><a class="header" href="#resolved-values">Resolved Values</a></h2>
+<p>Returns the JSON string representation of the resolved values for the test plan being run.</p>
+<pre><code class="language-yaml">- name: "resolved-values.json"
+  env_var: VALUES
+  kind: resolved_values
+</code></pre>
+<h2 id="router-download-script"><a class="header" href="#router-download-script">Router Download Script</a></h2>
+<p>Produces a POSIX shell script that can be run in order to download a target version of the Apollo
+Router.</p>
+<pre><code class="language-yaml">- name: "router-download.sh"
+  env_var: ROUTER_DOWNLOAD
+  kind: router_download_script
+  version: "v2.6.0"
+</code></pre>
+<h3 id="fields-11"><a class="header" href="#fields-11">Fields</a></h3>
+<h4 id="version"><a class="header" href="#version"><code>version</code></a></h4>
+<p>The version of the Apollo Router to download.</p>
+<h2 id="merge-yaml"><a class="header" href="#merge-yaml">Merge YAML</a></h2>
+<p>Merge the YAML output of two text based file providers into a single YAML file.</p>
+<p>Matching keys in the overrides file will replace scalar values, concatenate arrays and merge keys
+for maps.</p>
+<pre><code class="language-yaml">- name: router-config.yaml
+  env_var: ROUTER_CONFIG
+  kind: merge_yaml
+  base:
+    kind: relative_path
+    path: "data/base-router-config.yaml"
+  overrides:
+    kind: graphos_subgraph_router_url_overrides
+    graph_ref: "foo@bar"
+    url_format: "docker"
+</code></pre>
+<h3 id="fields-12"><a class="header" href="#fields-12">Fields</a></h3>
+<h4 id="base"><a class="header" href="#base"><code>base</code></a></h4>
+<p>A base YAML file to start with.</p>
+<h4 id="overrides"><a class="header" href="#overrides"><code>overrides</code></a></h4>
+<p>An second YAML file to merge on top of the base file.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="writing-test-plans"><a class="header" href="#writing-test-plans">Writing test Plans</a></h1>
 <p>This section will guide you through writing a test plan for rtf from a blank file. The test plan
 will be a simple "Hello, World!" example that introduces you to the concepts of writing RTF test
 plans. For examples of test plans that can be used for specific testing use cases, please refer to
@@ -2294,271 +2795,6 @@ overrides. Our test plan no longer contains a <code>required</code> file, so we 
 <code>rtf run</code> command can also complete successfully now.</p>
 <hr />
 <p>Congratulations! You've now completed the guide on how to write test plans.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="the-framework"><a class="header" href="#the-framework">The framework</a></h1>
-<p>The following pages provide reference information for various aspects of the runtime testing
-framework for end users who are interested in writing their own test plans.</p>
-<p>If you are just getting started with RTF then we recommend reading through the <a href="framework/../guides/index.html">guides</a> section
-first.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="file-providers"><a class="header" href="#file-providers">File Providers</a></h1>
-<p>Available file providers:</p>
-<ul>
-<li><a href="framework/providers.html#build-router-from-source">Build Router From Source</a></li>
-<li><a href="framework/providers.html#github-file">GitHub File</a></li>
-<li><a href="framework/providers.html#graphos-canned-operations">GraphOS Canned Operations</a></li>
-<li><a href="framework/providers.html#graphos-supergraph-docker-compose">GraphOS Supergraph Docker Compose</a></li>
-<li><a href="framework/providers.html#graphos-supergraph-router-url-overrides">GraphOS Supergraph Router URL Overrides</a></li>
-<li><a href="framework/providers.html#graphos-subgraph-sdl">GraphOS Subgraph SDL</a></li>
-<li><a href="framework/providers.html#graphos-supergraph-sdl">GraphOS Supergraph SDL</a></li>
-<li><a href="framework/providers.html#inline-file">Inline File</a></li>
-<li><a href="framework/providers.html#graphos-offline-license">GraphOS Offline License</a></li>
-<li><a href="framework/providers.html#relative-path">Relative Path</a></li>
-<li><a href="framework/providers.html#required-file">Required File</a></li>
-<li><a href="framework/providers.html#resolved-values">Resolved Values</a></li>
-<li><a href="framework/providers.html#router-download-script">Router Download Script</a></li>
-<li><a href="framework/providers.html#merge-yaml">Merge YAML</a></li>
-</ul>
-<h2 id="build-router-from-source"><a class="header" href="#build-router-from-source">Build Router From Source</a></h2>
-<p>A file provider used for building the Router from source at a specific git commit or reference.</p>
-<pre><code class="language-yaml">- name: "router-build.sh"
-  env_var: ROUTER_BUILD_SCRIPT
-  kind: build_router_from_source
-  git_ref: "some-ref"
-  rust_version: "1.89.0"
-</code></pre>
-<h3 id="fields"><a class="header" href="#fields">Fields</a></h3>
-<h4 id="git_ref"><a class="header" href="#git_ref"><code>git_ref</code></a></h4>
-<p>A git reference that can be passed to <code>git checkout</code>. This may be a full or partial commit hash,
-branch name, or tag.</p>
-<h4 id="rust_version"><a class="header" href="#rust_version"><code>rust_version</code></a></h4>
-<p>A Rust version string that can be passed to <code>rustup run {rust_version}</code>, such as <code>"1.78.0"</code>,
-<code>"beta"</code>, or <code>"nightly"</code>.</p>
-<p>Defaults to <code>"stable"</code> if unset.</p>
-<h2 id="github-file"><a class="header" href="#github-file">GitHub File</a></h2>
-<p>The user specifies a path to a file within a GitHub repository, optionally providing a specific ref
-of the repository to pull the file from. If no ref is providing then the provider will pull the
-version of the file found on the default branch.</p>
-<pre><code class="language-yaml">- name: "my-file.txt"
-  env_var: MY_FILE
-  kind: github_file
-  org: "my-org"
-  repo: "my-repo"
-  path: "resources/test-data/my-file.txt"
-  git_ref: "some-ref"
-</code></pre>
-<h3 id="fields-1"><a class="header" href="#fields-1">Fields</a></h3>
-<h4 id="org"><a class="header" href="#org"><code>org</code></a></h4>
-<p>The GitHub org for the repository containing the target file</p>
-<h4 id="repo"><a class="header" href="#repo"><code>repo</code></a></h4>
-<p>The GitHub repository containing the target file</p>
-<h4 id="path"><a class="header" href="#path"><code>path</code></a></h4>
-<p>The absolute path from the root of the repository to the target file</p>
-<h4 id="git_ref-1"><a class="header" href="#git_ref-1"><code>git_ref</code></a></h4>
-<p>An optional git reference to pull the file from. This may be a full or partial commit hash, branch
-name, or tag.</p>
-<p>Defaults to the mainline branch as specified in GitHub if unset.</p>
-<h2 id="graphos-canned-operations"><a class="header" href="#graphos-canned-operations">GraphOS Canned Operations</a></h2>
-<p>The user specifies the graph ref and parameters that should be used to generate canned GraphQL
-requests based on operations data obtained from the GraphOS API.</p>
-<pre><code class="language-yaml">- name: canned_ops.json
-  env_var: CANNED_OPS_FILE
-  kind: graphos_canned_ops
-  graph_ref: graph@variant
-  top_n: 10
-  skip_mutations: true
-</code></pre>
-<h3 id="fields-2"><a class="header" href="#fields-2">Fields</a></h3>
-<h4 id="graph_ref"><a class="header" href="#graph_ref"><code>graph_ref</code></a></h4>
-<p>The Apollo graph ref to pull operations for.</p>
-<h4 id="top_n"><a class="header" href="#top_n"><code>top_n</code></a></h4>
-<p>The number of operations to attempt to fetch.</p>
-<p>Defaults to 20 if unset.</p>
-<h4 id="skip_mutations"><a class="header" href="#skip_mutations"><code>skip_mutations</code></a></h4>
-<p>Whether or not to include mutations in the returned operations.</p>
-<p>Defaults to false if unset.</p>
-<h2 id="graphos-supergraph-docker-compose"><a class="header" href="#graphos-supergraph-docker-compose">GraphOS Supergraph Docker Compose</a></h2>
-<p>The user specifies the graph ref that should be used to fetch the supergraph SDL file from the
-GraphOS API and generates a docker compose file. It runs a configurable number of subgraph services,
-mocking based on the supergraph schema behind a loadbalancer.</p>
-<pre><code class="language-yaml">- name: "subgraph-compose.yaml"
-  env_var: SUBGRAPH_COMPOSE
-  kind: graphos_subgraph_docker_compose
-  graph_ref: graph@variant
-  image: ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main
-  command:
-  - -schema
-  - /app/supergraph.graphql
-  replicas: 5
-  resource_limits:
-    cpus: '0.5'
-    memory: 1G
-  resource_reservations:
-   cpus: '0.1'
-    memory: 512M
-  mem_swappiness: 0
-  loadbalancer:
-    resource_limits:
-      cpus: '0.5'
-      memory: 1G
-    resource_reservations:
-      cpus: '0.1'
-      memory: 512M
-    mem_swappiness: 0
-</code></pre>
-<h3 id="fields-3"><a class="header" href="#fields-3">Fields</a></h3>
-<h4 id="graph_ref-1"><a class="header" href="#graph_ref-1"><code>graph_ref</code></a></h4>
-<p>The Apollo graph ref to pull the supergraph for.</p>
-<h4 id="image"><a class="header" href="#image"><code>image</code></a></h4>
-<p>The image the subgraph service runs.</p>
-<p>Defaults to ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main if unset.</p>
-<h4 id="command"><a class="header" href="#command"><code>command</code></a></h4>
-<p>The command that subgraph server image runs.</p>
-<p>Defaults to "-schema /app/supergraph.graphql" if unset.</p>
-<h4 id="replicas"><a class="header" href="#replicas"><code>replicas</code></a></h4>
-<p>The number of subgraph services containers running.</p>
-<p>Defaults to 5 if unset.</p>
-<h4 id="resource_limits"><a class="header" href="#resource_limits"><code>resource_limits</code></a></h4>
-<p>The resource limits for the subgraph containers.</p>
-<p>Defaults to cpus=0.5 and memory=1G if unset.</p>
-<h4 id="resource_reservations"><a class="header" href="#resource_reservations"><code>resource_reservations</code></a></h4>
-<p>The reserved resources for the subgraph containers.</p>
-<p>Defaults to cpus=0.1 and memory=512M if unset.</p>
-<h4 id="mem_swappiness"><a class="header" href="#mem_swappiness"><code>mem_swappiness</code></a></h4>
-<p>Enable or disable memory swapping in the subgraph services.</p>
-<p>Defaults to 0 (disabled) if unset.</p>
-<h4 id="loadbalancer"><a class="header" href="#loadbalancer"><code>loadbalancer</code></a></h4>
-<p>The configuration for the subgraph's loadbalancer.</p>
-<h2 id="graphos-supergraph-router-url-overrides"><a class="header" href="#graphos-supergraph-router-url-overrides">GraphOS Supergraph Router URL Overrides</a></h2>
-<p>The user specifies the graph ref that should be used to fetch subgraph SDL files from the GraphOS
-API and generates a the override_subgraph_urls YAML snippet that can be merged into a router config
-file</p>
-<p>This should be used when generating the subgraph docker compose using
-[GraphosSubgraphDockerCompose]. This will ensure the router subgraph urls map to the loadbalancer
-url in that compose file.</p>
-<pre><code class="language-yaml">- name: subgraph-url-overrides.yaml
-  env_var: SUBGRAPH_URL_OVERRIDES
-  kind: graphos_subgraph_router_url_overrides
-  graph_ref: graph@variant
-  url_format: localhost
-</code></pre>
-<h3 id="fields-4"><a class="header" href="#fields-4">Fields</a></h3>
-<h4 id="graph_ref-2"><a class="header" href="#graph_ref-2"><code>graph_ref</code></a></h4>
-<p>The Apollo graph ref to pull the subgraphs for.</p>
-<h4 id="url_format"><a class="header" href="#url_format"><code>url_format</code></a></h4>
-<p>The format of the overrides url.</p>
-<h2 id="graphos-subgraph-sdl"><a class="header" href="#graphos-subgraph-sdl">GraphOS Subgraph SDL</a></h2>
-<p>The user specifies the graph ref that should be used to fetch a subgraph SDL files from the GraphOS
-API.</p>
-<p>Note that this file proivider will output a directory of SDL schema files, one for each subgraph.</p>
-<pre><code class="language-yaml">- name: "subgraphs"
-  env_var: SUBGRAPHS
-  kind: graphos_subgraphs
-  graph_ref: graph@variant
-</code></pre>
-<h3 id="fields-5"><a class="header" href="#fields-5">Fields</a></h3>
-<h4 id="graph_ref-3"><a class="header" href="#graph_ref-3"><code>graph_ref</code></a></h4>
-<p>The Apollo graph ref to pull subgraph SDL files for.</p>
-<h2 id="graphos-supergraph-sdl"><a class="header" href="#graphos-supergraph-sdl">GraphOS Supergraph SDL</a></h2>
-<p>The user specifies the ref that should be used to fetch a supergraph SDL file from the GraphOS API.</p>
-<pre><code class="language-yaml">- name: "supergraph.graphql"
-  env_var: SUPERGRAPH
-  kind: graphos_supergraph
-  graph_ref: graph@variant
-  with_subgraph_overrides: docker
-</code></pre>
-<h3 id="fields-6"><a class="header" href="#fields-6">Fields</a></h3>
-<h4 id="graph_ref-4"><a class="header" href="#graph_ref-4"><code>graph_ref</code></a></h4>
-<p>The Apollo graph ref to pull supergraph SDL for.</p>
-<h4 id="with_subgraph_overrides"><a class="header" href="#with_subgraph_overrides"><code>with_subgraph_overrides</code></a></h4>
-<p>Replace the supergraph's subgraph urls with overridden values for testing.</p>
-<p>Defaults to null if unset.</p>
-<h2 id="inline-file"><a class="header" href="#inline-file">Inline File</a></h2>
-<p>The simplest form of file provider: the user specifies the contents of the file inline within their
-config file.</p>
-<pre><code class="language-yaml">- name: "my-file.txt"
-  env_var: MY_FILE
-  kind: inline
-  content: |
-    my raw file content.
-    specified inline within an RTF config file.
-</code></pre>
-<h3 id="fields-7"><a class="header" href="#fields-7">Fields</a></h3>
-<h4 id="content"><a class="header" href="#content"><code>content</code></a></h4>
-<p>The text to write out as the contents of the generated file.</p>
-<h2 id="graphos-offline-license"><a class="header" href="#graphos-offline-license">GraphOS Offline License</a></h2>
-<p>The user specifies the graph id that should be used to fetch an offline license from the GraphOS
-API.</p>
-<pre><code class="language-yaml">- name: license.jwt
-  env_var: LICENSE
-  kind: graphos_offline_license
-  graph_id: graph
-</code></pre>
-<h3 id="fields-8"><a class="header" href="#fields-8">Fields</a></h3>
-<h4 id="graph_id"><a class="header" href="#graph_id"><code>graph_id</code></a></h4>
-<p>The Apollo graph ref to pull an offline license for.</p>
-<h2 id="relative-path"><a class="header" href="#relative-path">Relative Path</a></h2>
-<p>A relative path from the containing config file to a target file that should be made available as
-part of the test run. This provider works both with local files and files within GitHub if the
-containing config file was pulled from a repository.</p>
-<pre><code class="language-yaml">- name: "my-file.txt"
-  env_var: MY_FILE
-  kind: relative_path
-  path: "../../resources/test-data/my-file.txt"
-</code></pre>
-<h3 id="fields-9"><a class="header" href="#fields-9">Fields</a></h3>
-<h4 id="path-1"><a class="header" href="#path-1"><code>path</code></a></h4>
-<p>The relative path from the containing config file to the target file.</p>
-<h4 id="src"><a class="header" href="#src"><code>src</code></a></h4>
-<p>Set during TestPlan parsing as part of overrides. This should only ever be <code>Some</code> if this provider
-was defined as part of an <code>overrides</code> section in the test plan.</p>
-<h2 id="required-file"><a class="header" href="#required-file">Required File</a></h2>
-<p>The only purpose of this file provider is to throw an error if it still exists when the file
-providers are being checked. All definitions of a required file are expected to be replaced by user
-defined file providers.</p>
-<pre><code class="language-yaml">- name: "router-config.yaml"
-  env_var: ROUTER_CONFIG
-  kind: required
-  message: "you must specify a router config file to use"
-</code></pre>
-<h3 id="fields-10"><a class="header" href="#fields-10">Fields</a></h3>
-<h4 id="message"><a class="header" href="#message"><code>message</code></a></h4>
-<p>The error message to display to the user if this provider is not overwritten.</p>
-<h2 id="resolved-values"><a class="header" href="#resolved-values">Resolved Values</a></h2>
-<p>Returns the JSON string representation of the resolved values for the test plan being run.</p>
-<pre><code class="language-yaml">- name: "resolved-values.json"
-  env_var: VALUES
-  kind: resolved_values
-</code></pre>
-<h2 id="router-download-script"><a class="header" href="#router-download-script">Router Download Script</a></h2>
-<p>Produces a POSIX shell script that can be run in order to download a target version of the Apollo
-Router.</p>
-<pre><code class="language-yaml">- name: "router-download.sh"
-  env_var: ROUTER_DOWNLOAD
-  kind: router_download_script
-  version: "v2.6.0"
-</code></pre>
-<h3 id="fields-11"><a class="header" href="#fields-11">Fields</a></h3>
-<h4 id="version"><a class="header" href="#version"><code>version</code></a></h4>
-<p>The version of the Apollo Router to download.</p>
-<h2 id="merge-yaml"><a class="header" href="#merge-yaml">Merge YAML</a></h2>
-<p>Merge the YAML output of two text based file providers into a single YAML file.</p>
-<p>Matching keys in the overrides file will replace scalar values, concatenate arrays and merge keys
-for maps.</p>
-<pre><code class="language-yaml">- name: router-config.yaml
-  env_var: ROUTER_CONFIG
-  kind: merge_yaml
-  base:
-    kind: relative_path
-    path: "data/base-router-config.yaml"
-  overrides:
-    kind: graphos_subgraph_router_url_overrides
-    graph_ref: "foo@bar"
-    url_format: "docker"
-</code></pre>
-<h3 id="fields-12"><a class="header" href="#fields-12">Fields</a></h3>
-<h4 id="base"><a class="header" href="#base"><code>base</code></a></h4>
-<p>A base YAML file to start with.</p>
-<h4 id="overrides"><a class="header" href="#overrides"><code>overrides</code></a></h4>
-<p>An second YAML file to merge on top of the base file.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="command-line-help-for-rtf"><a class="header" href="#command-line-help-for-rtf">Command-Line Help for <code>rtf</code></a></h1>
 <p>This document contains the help content for the <code>rtf</code> command-line program.</p>
 <p><strong>Command Overview:</strong></p>
