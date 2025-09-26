@@ -1,4 +1,4 @@
-# Test Plans
+# Writing test Plans
 
 This section will guide you through writing a test plan for rtf from a blank file. The test plan
 will be a simple "Hello, World!" example that introduces you to the concepts of writing RTF test
