@@ -13,6 +13,7 @@
   - [Test Plans](framework/test-plans.md)
   - [Environments](framework/environments.md)
   - [Scenarios](framework/scenarios.md)
+  - [Command providers](framework/command-providers.md)
   - [File providers](framework/file-providers.md)
 
 - [Writing test plans](guides/test-plans/index.md)
