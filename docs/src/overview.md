@@ -148,7 +148,7 @@ Happy testing!
 [0]: https://apollographql.atlassian.net/wiki/spaces/RUNTIMEREADINESS/pages/1814036490/Router+Release+Validation
 [1]: https://github.com/apollographql/rtf-morgue/tree/main/lib
 [2]: https://apollographql.atlassian.net/browse/RR-351
-[3]: ./framework/providers.md
+[3]: ./framework/file-providers.md
 [4]: ./guides/index.md
 [5]: ./guides/test-plans/index.md
 [6]: ./framework/index.md

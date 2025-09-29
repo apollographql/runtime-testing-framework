@@ -1,13 +1,13 @@
 # Writing a command
 
-### Table of contents
+---
 
 - [Getting started](#getting-started)
 - [Environment variables](#environment-variables)
 - [Inline command file](#inline-command-file)
 - [Local command file](#local-command-file)
 
-## Getting started
+---
 
 This guide assumes you've completed the ["Writing a test plan"](writing-a-test-plan.md) guide. You
 should already have a `test-plan.yaml` file in a directory named `rtf-hello-world`. We're going to

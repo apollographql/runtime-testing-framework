@@ -504,7 +504,7 @@ where
 /// # Config Spec
 ///
 /// This struct allows the config files to be resolved either from
-/// inline yaml in the test plan or from a [FileProvider]
+/// inline yaml in the test plan or from a `FileProvider`.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(
     untagged,
