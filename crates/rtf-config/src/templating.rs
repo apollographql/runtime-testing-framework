@@ -64,11 +64,11 @@ pub trait Template {
     fn try_template_nested(
         &mut self,
         path: &mut Vec<String>,
-        tail: impl Into<String>,
+        tail: &str,
         values: &HashMap<String, Scalar>,
     ) -> Result<()> {
         let mut path = path.clone();
-        path.push(tail.into());
+        path.push(tail.to_string());
         self.try_template(&mut path, values)
     }
 

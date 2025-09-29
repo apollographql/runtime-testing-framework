@@ -250,8 +250,7 @@ impl Template for CommandSection {
         path.push("env_vars".to_string());
 
         for (name, f) in self.env_vars.iter_mut() {
-            let tail = name.clone();
-            errs.append(f.try_template_nested(path, tail, values));
+            errs.append(f.try_template_nested(path, name, values));
         }
 
         path.pop();
@@ -259,7 +258,7 @@ impl Template for CommandSection {
 
         for nfp in self.file_providers.iter_mut() {
             let tail = nfp.env_var.clone();
-            errs.append(nfp.try_template_nested(path, tail, values));
+            errs.append(nfp.try_template_nested(path, &tail, values));
         }
 
         errs.into_result(())
