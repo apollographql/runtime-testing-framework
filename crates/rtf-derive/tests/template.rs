@@ -1,16 +1,16 @@
-use std::collections::HashMap;
+#![allow(clippy::disallowed_names)]
 
 use rtf_config::templating::{Field, Scalar, Template, ValidField};
 use rtf_derive::Template;
 use simple_test_case::test_case;
 
 /// Construct a pending field
-fn pending<T: ValidField>(s: &str) -> Field<T> {
+fn p<T: ValidField>(s: &str) -> Field<T> {
     Field::Pending(s.to_string())
 }
 
 /// Construct a resolved field
-fn resolved<T: ValidField>(t: impl Into<T>) -> Field<T> {
+fn r<T: ValidField>(t: impl Into<T>) -> Field<T> {
     Field::Resolved(t.into())
 }
 
@@ -20,12 +20,20 @@ struct SingleField {
     foo: Field<String>,
 }
 
+fn sinf(foo: Field<String>) -> Box<SingleField> {
+    Box::new(SingleField { foo })
+}
+
 /// Used to test multiple fields have correctly implements Template
 #[derive(Debug, Template)]
 struct MultiField {
     foo: Field<String>,
     bar: Field<String>,
     baz: Field<String>,
+}
+
+fn mf(foo: Field<String>, bar: Field<String>, baz: Field<String>) -> Box<MultiField> {
+    Box::new(MultiField { foo, bar, baz })
 }
 
 /// Used to test that an inner struct results in correctly implements Template
@@ -39,14 +47,10 @@ struct InnerStruct {
     inner: Field<String>,
 }
 
-/// Construct a pending inner struct
-fn pending_inner(s: &str) -> InnerStruct {
-    InnerStruct { inner: pending(s) }
-}
-
-/// Construct a resolved inner struct
-fn resolved_inner(s: &str) -> InnerStruct {
-    InnerStruct { inner: resolved(s) }
+fn ns(inner: Field<String>) -> Box<NestedStruct> {
+    Box::new(NestedStruct {
+        foo: InnerStruct { inner },
+    })
 }
 
 // Used to test that the combination of fields and structs results in correctly implements Template
@@ -55,6 +59,18 @@ struct MultiFieldWithInnerStruct {
     foo: Field<String>,
     bar: Field<String>,
     baz: InnerStruct,
+}
+
+fn mfwis(
+    foo: Field<String>,
+    bar: Field<String>,
+    inner: Field<String>,
+) -> Box<MultiFieldWithInnerStruct> {
+    Box::new(MultiFieldWithInnerStruct {
+        foo,
+        bar,
+        baz: InnerStruct { inner },
+    })
 }
 
 /// Used to test that a skipped Field has no impact on the Template implementation
@@ -66,6 +82,10 @@ struct SkippedField {
     bar: Field<String>,
 }
 
+fn skipf(foo: Field<String>, bar: Field<String>) -> Box<SkippedField> {
+    Box::new(SkippedField { foo, bar })
+}
+
 /// Used to check that a skipped non-field introduces no change to Template implementation
 #[derive(Debug, Template)]
 struct SkippedNotField {
@@ -73,6 +93,13 @@ struct SkippedNotField {
     #[template(skip)]
     #[allow(dead_code)]
     bar: String,
+}
+
+fn skipnf(foo: Field<String>, bar: &str) -> Box<SkippedNotField> {
+    Box::new(SkippedNotField {
+        foo,
+        bar: bar.to_string(),
+    })
 }
 
 /// Used to test that nesting fields in multiple pub structs results in the correctly implements Template
@@ -86,18 +113,12 @@ struct InnerStructWithInnerStruct {
     inner: InnerStruct,
 }
 
-/// Construct a pending inner struct within an inner struct
-fn pending_inner_within_inner(s: &str) -> InnerStructWithInnerStruct {
-    InnerStructWithInnerStruct {
-        inner: InnerStruct { inner: pending(s) },
-    }
-}
-
-/// Construct a resolved inner struct within an inner struct
-fn resolved_inner_within_inner(s: &str) -> InnerStructWithInnerStruct {
-    InnerStructWithInnerStruct {
-        inner: InnerStruct { inner: resolved(s) },
-    }
+fn mns(inner: Field<String>) -> Box<MultiNestedStruct> {
+    Box::new(MultiNestedStruct {
+        inner: InnerStructWithInnerStruct {
+            inner: InnerStruct { inner },
+        },
+    })
 }
 
 /// Used test that the Template implementation works when applied to an enum
@@ -107,26 +128,34 @@ enum TemplateTypes {
     SingleField(SingleField),
 }
 
-#[test_case(Box::new(SingleField {foo: pending("foo")}), true; "single_field_is_pending")]
-#[test_case(Box::new(SingleField {foo: resolved("foo")}), false; "single_field_is_resolved")]
-#[test_case(Box::new(MultiField {foo: pending("foo"), bar: pending("bar"), baz: pending("baz")}), true; "multi_field_all_fields_pending")]
-#[test_case(Box::new(MultiField {foo: pending("foo"), bar: resolved("bar"), baz: resolved("baz")}), true; "multi_field_single_field_pending")]
-#[test_case(Box::new(MultiField {foo: resolved("foo"), bar: resolved("bar"), baz: resolved("baz")}), false; "multi_field_all_fields_resolved")]
-#[test_case(Box::new(NestedStruct {foo: pending_inner("inner")}), true; "inner_structs_field_is_pending")]
-#[test_case(Box::new(NestedStruct {foo: resolved_inner("inner")}), false; "inner_structs_field_is_resolved")]
-#[test_case(Box::new(MultiFieldWithInnerStruct {foo: pending("foo"), bar: pending("bar"), baz: pending_inner("inner")}), true; "multi_field_with_inner_struct_all_fields_pending")]
-#[test_case(Box::new(MultiFieldWithInnerStruct {foo: resolved("foo"), bar: resolved("bar"), baz: pending_inner("inner")}), true; "multi_field_with_inner_struct_inner_field_pending")]
-#[test_case(Box::new(MultiFieldWithInnerStruct {foo: pending("foo"), bar: resolved("bar"), baz: resolved_inner("inner")}), true; "multi_field_with_inner_struct_outer_field_pending")]
-#[test_case(Box::new(MultiFieldWithInnerStruct {foo: resolved("foo"), bar: resolved("bar"), baz: resolved_inner("inner")}), false; "multi_field_with_inner_struct_resolved")]
-#[test_case(Box::new(SkippedField{foo: resolved("foo"), bar: pending("bar")}), false; "skipped_field_does_make_status_pending")]
-#[test_case(Box::new(SkippedNotField{foo: pending("foo"), bar: "bar".to_string()}), true; "skipped_not_field_pending")]
-#[test_case(Box::new(SkippedNotField{foo: resolved("foo"), bar: "bar".to_string()}), false; "skipped_not_field_resolved")]
-#[test_case(Box::new(MultiNestedStruct{inner: pending_inner_within_inner("inner")}), true; "nested_inner_structs_field_is_pending")]
-#[test_case(Box::new(MultiNestedStruct{inner: resolved_inner_within_inner("inner")}), false; "nested_inner_structs_field_is_resolved")]
-#[test_case(Box::new(TemplateTypes::Field(pending("foo"))), true; "field_in_enum_is_pending")]
-#[test_case(Box::new(TemplateTypes::Field(resolved("foo"))), false; "field_in_enum_is_resolved")]
-#[test_case(Box::new(TemplateTypes::SingleField(SingleField{foo: pending("foo")})), true; "struct_in_enum_is_pending")]
-#[test_case(Box::new(TemplateTypes::SingleField(SingleField{foo: resolved("foo")})), false; "struct_in_enum_is_resolved")]
+fn ttf(inner: Field<String>) -> Box<TemplateTypes> {
+    Box::new(TemplateTypes::Field(inner))
+}
+
+fn ttsf(foo: Field<String>) -> Box<TemplateTypes> {
+    Box::new(TemplateTypes::SingleField(SingleField { foo }))
+}
+
+#[test_case(sinf(p("foo")), true; "single_field_is_pending")]
+#[test_case(sinf(r("foo")), false; "single_field_is_resolved")]
+#[test_case(mf(p("foo"), p("bar"), p("baz")), true; "multi_field_all_fields_pending")]
+#[test_case(mf(p("foo"), r("bar"), r("baz")), true; "multi_field_single_field_pending")]
+#[test_case(mf(r("foo"), r("bar"), r("baz")), false; "multi_field_all_fields_resolved")]
+#[test_case(ns(p("inner")), true; "inner_structs_field_is_pending")]
+#[test_case(ns(r("inner")), false; "inner_structs_field_is_resolved")]
+#[test_case(mfwis(p("foo"), p("bar"), p("inner")), true; "multi_field_with_inner_struct_all_fields_pending")]
+#[test_case(mfwis(r("foo"), r("bar"), p("inner")), true; "multi_field_with_inner_struct_inner_field_pending")]
+#[test_case(mfwis(p("foo"), r("bar"), r("inner")), true; "multi_field_with_inner_struct_outer_field_pending")]
+#[test_case(mfwis(r("foo"), r("bar"), r("inner")), false; "multi_field_with_inner_struct_resolved")]
+#[test_case(skipf(r("foo"), p("bar")), false; "skipped_field_does_make_status_pending")]
+#[test_case(skipnf(p("foo"), "bar"), true; "skipped_not_field_pending")]
+#[test_case(skipnf(r("foo"), "bar"), false; "skipped_not_field_resolved")]
+#[test_case(mns(p("inner")), true; "nested_inner_structs_field_is_pending")]
+#[test_case(mns(r("inner")), false; "nested_inner_structs_field_is_resolved")]
+#[test_case(ttf(p("foo")), true; "field_in_enum_is_pending")]
+#[test_case(ttf(r("foo")), false; "field_in_enum_is_resolved")]
+#[test_case(ttsf(p("foo")), true; "struct_in_enum_is_pending")]
+#[test_case(ttsf(r("foo")), false; "struct_in_enum_is_resolved")]
 #[test]
 fn has_pending_fields(t: Box<dyn Template>, expected: bool) {
     let res = t.has_pending_fields();
@@ -136,55 +165,59 @@ fn has_pending_fields(t: Box<dyn Template>, expected: bool) {
     )
 }
 
-#[test_case(Box::new(SingleField {foo: pending("foo")}), vec!["foo"]; "single_field_value_required")]
-#[test_case(Box::new(SingleField {foo: resolved("foo")}), vec![]; "single_field_no_value_required")]
-#[test_case(Box::new(MultiField {foo: pending("foo"), bar: pending("bar"), baz: pending("baz")}), vec!["foo", "bar", "baz"]; "multi_field_all_fields_required")]
-#[test_case(Box::new(MultiField {foo: pending("foo"), bar: resolved("bar"), baz: resolved("baz")}), vec!["foo"]; "multi_field_single_field_required")]
-#[test_case(Box::new(MultiField {foo: resolved("foo"), bar: resolved("bar"), baz: resolved("baz")}), vec![]; "multi_field_no_fields_required")]
-#[test_case(Box::new(NestedStruct {foo: pending_inner("inner")}), vec!["inner"]; "inner_structs_field_required")]
-#[test_case(Box::new(NestedStruct {foo: resolved_inner("inner")}), vec![]; "inner_structs_no_fields_required")]
-#[test_case(Box::new(MultiFieldWithInnerStruct {foo: pending("foo"), bar: pending("bar"), baz: pending_inner("inner")}), vec!["foo", "bar", "inner"]; "multi_field_with_inner_struct_all_fields_required")]
-#[test_case(Box::new(MultiFieldWithInnerStruct {foo: resolved("foo"), bar: resolved("bar"), baz: pending_inner("inner")}), vec!["inner"]; "multi_field_with_inner_struct_inner_field_required")]
-#[test_case(Box::new(MultiFieldWithInnerStruct {foo: pending("foo"), bar: resolved("bar"), baz: resolved_inner("inner")}), vec!["foo"]; "multi_field_with_inner_struct_outer_field_required")]
-#[test_case(Box::new(MultiFieldWithInnerStruct {foo: resolved("foo"), bar: resolved("bar"), baz: resolved_inner("inner")}), vec![]; "multi_field_with_inner_struct_no_fields_required")]
-#[test_case(Box::new(SkippedField{foo: resolved("foo"), bar: pending("bar")}), vec![]; "skipped_field_does_add_required_value")]
-#[test_case(Box::new(SkippedNotField{foo: pending("foo"), bar: "bar".to_string()}), vec!["foo"]; "skipped_not_field_field_required")]
-#[test_case(Box::new(SkippedNotField{foo: resolved("foo"), bar: "bar".to_string()}), vec![]; "skipped_not_field_no_field_required")]
-#[test_case(Box::new(MultiNestedStruct{inner: pending_inner_within_inner("inner")}), vec!["inner"]; "nested_inner_structs_field_is_required")]
-#[test_case(Box::new(MultiNestedStruct{inner: resolved_inner_within_inner("inner")}), vec![]; "nested_inner_structs_no_field_is_required")]
-#[test_case(Box::new(TemplateTypes::Field(pending("foo"))), vec!["foo"]; "field_in_enum_is_required")]
-#[test_case(Box::new(TemplateTypes::Field(resolved("foo"))), vec![]; "field_in_enum_is_not_required")]
-#[test_case(Box::new(TemplateTypes::SingleField(SingleField{foo: pending("foo")})), vec!["foo"]; "struct_in_enum_field_is_required")]
-#[test_case(Box::new(TemplateTypes::SingleField(SingleField{foo: resolved("foo")})), vec![]; "struct_in_enum_no_field_is_required")]
+#[test_case(sinf(p("foo")), &["foo"]; "single_field_value_required")]
+#[test_case(sinf(r("foo")), &[]; "single_field_no_value_required")]
+#[test_case(mf(p("foo"), p("bar"), p("baz")), &["foo", "bar", "baz"]; "multi_field_all_fields_required")]
+#[test_case(mf(p("foo"), r("bar"), r("baz")), &["foo"]; "multi_field_single_field_required")]
+#[test_case(mf(r("foo"), r("bar"), r("baz")), &[]; "multi_field_no_fields_required")]
+#[test_case(ns(p("inner")), &["inner"]; "inner_structs_field_required")]
+#[test_case(ns(r("inner")), &[]; "inner_structs_no_fields_required")]
+#[test_case(mfwis(p("foo"), p("bar"), p("inner")), &["foo", "bar", "inner"]; "multi_field_with_inner_struct_all_fields_required")]
+#[test_case(mfwis(r("foo"), r("bar"), p("inner")), &["inner"]; "multi_field_with_inner_struct_inner_field_required")]
+#[test_case(mfwis(p("foo"), r("bar"), r("inner")), &["foo"]; "multi_field_with_inner_struct_outer_field_required")]
+#[test_case(mfwis(r("foo"), r("bar"), r("inner")), &[]; "multi_field_with_inner_struct_no_fields_required")]
+#[test_case(skipf(r("foo"), p("bar")), &[]; "skipped_field_does_add_required_value")]
+#[test_case(skipnf(p("foo"), "bar"), &["foo"]; "skipped_not_field_field_required")]
+#[test_case(skipnf(r("foo"), "bar"), &[]; "skipped_not_field_no_field_required")]
+#[test_case(mns(p("inner")), &["inner"]; "nested_inner_structs_field_is_required")]
+#[test_case(mns(r("inner")), &[]; "nested_inner_structs_no_field_is_required")]
+#[test_case(ttf(p("foo")), &["foo"]; "field_in_enum_is_required")]
+#[test_case(ttf(r("foo")), &[]; "field_in_enum_is_not_required")]
+#[test_case(ttsf(p("foo")), &["foo"]; "struct_in_enum_field_is_required")]
+#[test_case(ttsf(r("foo")), &[]; "struct_in_enum_no_field_is_required")]
 #[test]
-fn required_values(t: Box<dyn Template>, expected: Vec<&str>) {
+fn required_values(t: Box<dyn Template>, expected: &[&str]) {
     let res = t.required_values();
     assert_eq!(
-        res, expected,
+        res.as_slice(),
+        expected,
         "expected required values to be {expected:?}, got {res:?}"
     )
 }
 
 macro_rules! values_map {
-    ($($k:expr => $v:expr),+) => {{
+    ($slice:expr) => {{
         let mut m = ::std::collections::HashMap::new();
-        $( m.insert($k.to_string(), Scalar::try_from($v).unwrap()); )+
+        for k in $slice {
+            m.insert(k.to_string(), Scalar::from(k.to_string()));
+        }
         m
     }};
 }
 
-#[test_case(Box::new(SingleField {foo: pending("foo")}), values_map!("foo" => "foo"); "single_field")]
-#[test_case(Box::new(SingleField {foo: pending("foo")}), values_map!("foo" => "foo", "bar" => "bar"); "single_field_unused_value")]
-#[test_case(Box::new(MultiField {foo: pending("foo"), bar: pending("bar"), baz: pending("baz")}), values_map!("foo" => "foo", "bar" => "bar", "baz" => "baz"); "multi_field")]
-#[test_case(Box::new(NestedStruct {foo: pending_inner("inner")}), values_map!("inner" => "inner"); "nested_struct")]
-#[test_case(Box::new(MultiFieldWithInnerStruct {foo: pending("foo"), bar: pending("bar"), baz: pending_inner("inner")}), values_map!("foo" => "foo", "bar" => "bar", "inner" => "inner"); "multi_field_with_inner_struct")]
-#[test_case(Box::new(SkippedField{foo: pending("foo"), bar: pending("bar")}), values_map!("foo" => "foo", "bar" => "bar"); "skipped_field")]
-#[test_case(Box::new(SkippedNotField{foo: pending("foo"), bar: "bar".to_string()}), values_map!("foo" => "foo"); "skipped_not_field")]
-#[test_case(Box::new(MultiNestedStruct{inner: pending_inner_within_inner("inner")}), values_map!("inner" => "inner"); "nested_inner_structs")]
-#[test_case(Box::new(TemplateTypes::Field(pending("foo"))), values_map!("foo" => "foo"); "field_in_enum")]
-#[test_case(Box::new(TemplateTypes::SingleField(SingleField{foo: pending("foo")})), values_map!("foo" => "foo"); "struct_in_enum")]
+#[test_case(sinf(p("foo")), &["foo"]; "single_field")]
+#[test_case(sinf(p("foo")), &["foo", "bar"]; "single_field_unused_value")]
+#[test_case(mf(p("foo"), p("bar"), p("baz")), &["foo", "bar", "baz"]; "multi_field")]
+#[test_case(ns(p("inner")), &["inner"]; "nested_struct")]
+#[test_case(mfwis(p("foo"), p("bar"), p("inner")), &["foo", "bar", "inner"]; "multi_field_with_inner_struct")]
+#[test_case(skipf(p("foo"), p("bar")), &["foo", "bar"]; "skipped_field")]
+#[test_case(skipnf(p("foo"), "bar"), &["foo"]; "skipped_not_field")]
+#[test_case(mns(p("inner")), &["inner"]; "nested_inner_structs")]
+#[test_case(ttf(p("foo")), &["foo"]; "field_in_enum")]
+#[test_case(ttsf(p("foo")), &["foo"]; "struct_in_enum")]
 #[test]
-fn try_template_all_fields(mut t: Box<dyn Template>, values: HashMap<String, Scalar>) {
+fn try_template_all_fields(mut t: Box<dyn Template>, values: &[&str]) {
+    let values = values_map!(values);
     let res = t.try_template(&mut Vec::new(), &values);
     assert!(
         res.is_ok(),
@@ -192,18 +225,19 @@ fn try_template_all_fields(mut t: Box<dyn Template>, values: HashMap<String, Sca
     )
 }
 
-#[test_case(Box::new(SingleField {foo: pending("foo")}); "single_field")]
-#[test_case(Box::new(MultiField {foo: pending("foo"), bar: pending("bar"), baz: pending("baz")}); "multi_field")]
-#[test_case(Box::new(NestedStruct {foo: pending_inner("inner")}); "nested_struct")]
-#[test_case(Box::new(MultiFieldWithInnerStruct {foo: pending("foo"), bar: pending("bar"), baz: pending_inner("inner")}); "multi_field_with_inner_struct")]
-#[test_case(Box::new(SkippedField{foo: pending("foo"), bar: pending("bar")}); "skipped_field")]
-#[test_case(Box::new(SkippedNotField{foo: pending("foo"), bar: "bar".to_string()}); "skipped_not_field")]
-#[test_case(Box::new(MultiNestedStruct{inner: pending_inner_within_inner("inner")}); "nested_inner_structs")]
-#[test_case(Box::new(TemplateTypes::Field(pending("foo"))); "field_in_enum")]
-#[test_case(Box::new(TemplateTypes::SingleField(SingleField{foo: pending("foo")})); "struct_in_enum")]
+#[test_case(sinf(p("foo")); "single_field")]
+#[test_case(sinf(p("foo")); "single_field_unused_value")]
+#[test_case(mf(p("foo"), p("bar"), p("baz")); "multi_field")]
+#[test_case(ns(p("inner")); "nested_struct")]
+#[test_case(mfwis(p("foo"), p("bar"), p("inner")); "multi_field_with_inner_struct")]
+#[test_case(skipf(p("foo"), p("bar")); "skipped_field")]
+#[test_case(skipnf(p("foo"), "bar"); "skipped_not_field")]
+#[test_case(mns(p("inner")); "nested_inner_structs")]
+#[test_case(ttf(p("foo")); "field_in_enum")]
+#[test_case(ttsf(p("foo")); "struct_in_enum")]
 #[test]
 fn try_template_unknown_value_error(mut t: Box<dyn Template>) {
-    let values = values_map!("unused_value" => "unused");
+    let values = values_map!(["unused"]);
 
     let res = t.try_template(&mut Vec::new(), &values);
     assert!(res.is_err(), "expected templating to fail, got {res:?}");
