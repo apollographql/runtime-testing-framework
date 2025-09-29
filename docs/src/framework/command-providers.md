@@ -41,7 +41,7 @@ made executable before being executed as a subprocess by RTF. As such, you _must
 appropriate [shebang][5] line at the top of your script in order for it to run correctly.
 
 > ⚠️ **At this time, RTF does not support directly executing binaries via command providers**
-> 
+>
 > If the command you wish to execute is simply a pre-existing binary, you should provide an **inline
 > wrapper script** that ensures that the binary in question is available on the PATH before calling
 > the binary with the appropriate arguments:
