@@ -266,7 +266,7 @@ impl TestPlanConfig {
             .environment
             .setup
             .command
-            .run_providers_and_execute(out_dir, self.sources.environment(), ctx)
+            .run_providers_and_execute_for_output(out_dir, self.sources.environment(), ctx)
             .await?;
 
         let provides: HashMap<String, Scalar> = serde_json::from_str(&raw_output)?;
@@ -292,7 +292,7 @@ impl TestPlanConfig {
     ) -> Result<()> {
         self.environment
             .teardown
-            .run_providers_and_execute(out_dir, self.sources.environment(), ctx)
+            .run_providers_and_execute_for_output(out_dir, self.sources.environment(), ctx)
             .await?;
 
         Ok(())
@@ -305,7 +305,7 @@ impl TestPlanConfig {
     ) -> Result<()> {
         self.scenario
             .command
-            .run_providers_and_execute(out_dir, self.sources.scenario(), ctx)
+            .run_providers_and_execute_for_output(out_dir, self.sources.scenario(), ctx)
             .await?;
 
         Ok(())

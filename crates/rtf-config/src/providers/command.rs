@@ -14,13 +14,17 @@ use crate::{
 use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, io, path::Path};
+use std::{
+    collections::HashMap,
+    io,
+    path::{Path, PathBuf},
+};
 use tracing::trace;
 
 /// The environment variable used to provide the location of the output directory to user specified
 /// commands
 const OUTDIR: &str = "OUTDIR";
-const OUTFILE: &str = "RTF_OUTPUT";
+const OUTPUT_PATH: &str = "RTF_OUTPUT";
 const PROVIDER_DIR: &str = "providers";
 
 /// # Command Section
@@ -42,31 +46,60 @@ pub struct CommandSection {
 impl CommandSection {
     /// Run all of the [FileProviders][0] associated with this command and write out their file
     /// contents to the specified directory before executing the command with the specified
-    /// environment, returning the standard output.
+    /// environment, returning the the output path passed to the command. If no `output_path` is
+    /// specified it will be defaulted to `out_dir`/[OUTPUT_PATH].
     ///
     /// [0]: crate::providers::file::FileProvider
     pub async fn run_providers_and_execute(
         &self,
         out_dir: &Path,
+        output_path: Option<PathBuf>,
+        src: &Source,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<PathBuf> {
+        let output_path = output_path.unwrap_or_else(|| out_dir.join(OUTPUT_PATH));
+        self.run_providers(out_dir, src, ctx).await?;
+        self.execute(out_dir, &output_path, ctx)?;
+
+        Ok(output_path)
+    }
+
+    /// Run all of the [FileProviders][0] associated with this command and write out their file
+    /// contents to the specified directory before executing the command with the specified
+    /// environment, returning the the content written to [OUTPUT_PATH] and removing the output
+    /// file if it was created.
+    ///
+    /// This method assumes that the command being executed is writing a single file out at the
+    /// provided output path rather than a directory of files. To run a command and leave the
+    /// resources available on disk after execution, use [run_providers_and_execute][1] instead.
+    ///
+    /// [0]: crate::providers::file::FileProvider
+    /// [1]: CommandSection::run_providers_and_execute
+    pub async fn run_providers_and_execute_for_output(
+        &self,
+        out_dir: &Path,
         src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
-        self.run_providers(out_dir, src, ctx).await?;
-        self.execute(out_dir, ctx)
+        let output_path = self
+            .run_providers_and_execute(out_dir, None, src, ctx)
+            .await?;
+
+        try_read_output_and_remove(&output_path, ctx)
     }
 
-    /// Execute this command with the specified environment, returning the standard output.
+    /// Execute this command with the specified environment, returning the output path used.
     ///
     /// [CommandSection::run_providers] must have been run successfully before calling this method
     /// in order to ensure that all file providers have written out their file content to the
     /// expected location.
-    pub fn execute(
+    fn execute(
         &self,
         out_dir: &Path,
+        output_path: &Path,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<String> {
-        let out_file = out_dir.join(OUTFILE);
-        let env_vars = self.all_env_vars(out_dir, &out_file, ctx)?;
+    ) -> providers::Result<()> {
+        let env_vars = self.all_env_vars(out_dir, output_path, ctx)?;
 
         let file_path = ctx
             .known_provider_output_path(Provider::Command {
@@ -94,20 +127,7 @@ impl CommandSection {
             .map(|arg| arg.as_resolved().as_str());
         ctx.run_command_blocking(prog, it, &env_vars)?;
 
-        // It is possible that no output is set in the environment setup script. If the output is
-        // blank then default to an empty json object. If there is an error reading the user defined
-        // output to the file then we still pass that error to the user. This is a quality of life
-        // improvement so if the user does define any output the rtf execution will continue.
-        let output = match ctx.read_path_to_string(&out_file) {
-            Ok(s) => {
-                ctx.remove_file(out_file)?;
-                s
-            }
-            Err(e) if e.kind() == io::ErrorKind::NotFound => "{}".to_string(),
-            Err(e) => return Err(e.into()),
-        };
-
-        Ok(output)
+        Ok(())
     }
 
     /// Combine the base environment variables we have with the ones coming from the file providers
@@ -116,7 +136,7 @@ impl CommandSection {
     pub fn all_env_vars(
         &self,
         out_dir: &Path,
-        out_file: &Path,
+        output_path: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<HashMap<String, String>> {
         let mut vars: HashMap<String, String> = self
@@ -135,7 +155,7 @@ impl CommandSection {
         }
 
         vars.insert(OUTDIR.to_string(), out_dir.display().to_string());
-        vars.insert(OUTFILE.to_string(), out_file.display().to_string());
+        vars.insert(OUTPUT_PATH.to_string(), output_path.display().to_string());
 
         Ok(vars)
     }
@@ -185,7 +205,14 @@ impl CommandSection {
 
             trace!(name=%nfp.name, "running command provider");
             let file_path = provider_dir.join(&nfp.name);
-            nfp.resolve_and_write(&file_path, src, ctx).await?;
+
+            // We need to box the future here in order to prevent us ending up with a recursive
+            // type definition for the Future we are building with this method. We end up being
+            // recursively defined because of the FromCommand file provider which is just a wrapper
+            // around this struct, meading that the call to resolve_and_write below ends up calling
+            // back into run_providers_and_execute which then calls this method (run_providers).
+            Box::pin(nfp.resolve_and_write(&file_path, src, ctx)).await?;
+
             ctx.store_provider_output_path(Provider::File { fp: &nfp.provider }, file_path);
         }
 
@@ -243,6 +270,26 @@ impl Check for CommandSection {
 
         errs.into_result(())
     }
+}
+
+/// It is possible that no output is set in the environment setup script. If the output is
+/// blank then default to an empty json object. If there is an error reading the user defined
+/// output to the file then we still pass that error to the user. This is a quality of life
+/// improvement so if the user does define any output the rtf execution will continue.
+fn try_read_output_and_remove(
+    output_path: &Path,
+    ctx: &impl ResolutionContext,
+) -> providers::Result<String> {
+    let output = match ctx.read_path_to_string(output_path) {
+        Ok(s) => {
+            ctx.remove_file(output_path)?;
+            s
+        }
+        Err(e) if e.kind() == io::ErrorKind::NotFound => "{}".to_string(),
+        Err(e) => return Err(e.into()),
+    };
+
+    Ok(output)
 }
 
 /// # Command Spec
@@ -459,7 +506,9 @@ mod tests {
             args: impl IntoIterator<Item = &'a str>,
             env_vars: &HashMap<String, String>,
         ) -> io::Result<()> {
-            let path = env_vars.get(OUTFILE).expect("outfile env var not set");
+            let path = env_vars
+                .get(OUTPUT_PATH)
+                .expect("RTF_OUTPUT env var not set");
             let mut iter = args.into_iter();
             if let Some(content) = iter.next() {
                 self.written_files
@@ -467,6 +516,7 @@ mod tests {
                     .unwrap()
                     .insert(path.to_string(), content.to_string());
             }
+
             Ok(())
         }
 
@@ -669,7 +719,7 @@ mod tests {
     #[test_case(vec![(Field::Resolved("foo".to_string()))], "foo"; "with output")]
     #[test_case(Vec::new(), "{}"; "without output")]
     #[tokio::test]
-    async fn execute_returns_the_contents_of_the_output_file_and_removes_it(
+    async fn run_providers_and_execute_returns_expected_output(
         args: Vec<Field<String>>,
         expected_output: &str,
     ) {
@@ -689,20 +739,21 @@ mod tests {
         let mut ctx = MockCommandContext::default();
         let dir = PathBuf::from("/example-dir");
 
-        c.run_providers(
-            &dir,
-            &Source::Local {
-                abs_path: "/".into(),
-            },
-            &mut ctx,
-        )
-        .await
-        .expect("providers to run");
-        let output = c.execute(&dir, &ctx).expect("output");
+        let output = c
+            .run_providers_and_execute_for_output(
+                &dir,
+                &Source::Local {
+                    abs_path: PathBuf::new(),
+                },
+                &mut ctx,
+            )
+            .await
+            .expect("command to succeed");
+
         assert_eq!(output, expected_output, "unexpected output");
 
         let written_files = ctx.written_files.into_inner().unwrap();
-        let k = dir.join(OUTFILE).display().to_string();
+        let k = dir.join(OUTPUT_PATH).display().to_string();
 
         assert!(
             !written_files.contains_key(&k),
