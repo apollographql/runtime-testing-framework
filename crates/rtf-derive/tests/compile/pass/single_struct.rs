@@ -10,5 +10,3 @@ struct MyStruct {
 struct Foo {
     bar: Field<String>,
 }
-
-fn main() {}

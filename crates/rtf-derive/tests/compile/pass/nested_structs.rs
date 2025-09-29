@@ -15,5 +15,3 @@ struct Foo {
 struct Bar {
     baz: Field<String>,
 }
-
-fn main() {}

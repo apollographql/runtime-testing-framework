@@ -5,5 +5,3 @@ use rtf_derive::Template;
 struct MyStruct {
     foo: Field<String>,
 }
-
-fn main() {}

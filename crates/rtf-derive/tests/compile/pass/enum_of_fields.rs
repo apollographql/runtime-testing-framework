@@ -6,5 +6,3 @@ enum MyEnum {
     Foo(Field<String>),
     Bar(Field<String>),
 }
-
-fn main() {}

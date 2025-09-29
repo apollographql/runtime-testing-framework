@@ -7,5 +7,3 @@ struct MyStruct {
     #[template(skip)]
     bar: String,
 }
-
-fn main() {}

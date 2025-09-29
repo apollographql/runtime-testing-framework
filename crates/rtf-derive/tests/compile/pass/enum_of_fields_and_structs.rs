@@ -11,5 +11,3 @@ enum MyEnum {
 struct Foo {
     foo: Field<String>,
 }
-
-fn main() {}

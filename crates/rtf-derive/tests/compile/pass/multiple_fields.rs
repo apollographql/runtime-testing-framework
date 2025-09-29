@@ -8,5 +8,3 @@ struct MyStruct {
     baz: Field<f64>,
     qux: Field<i32>,
 }
-
-fn main() {}

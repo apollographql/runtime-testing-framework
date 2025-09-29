@@ -11,5 +11,3 @@ struct MyStruct {
 struct Foo {
     inner: Field<String>,
 }
-
-fn main() {}
