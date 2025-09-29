@@ -1,4 +1,6 @@
-use rtf_config::templating::{Field, Template, ValidField};
+use std::collections::HashMap;
+
+use rtf_config::templating::{Field, Scalar, Template, ValidField};
 use rtf_derive::Template;
 use simple_test_case::test_case;
 
@@ -161,4 +163,56 @@ fn required_values(t: Box<dyn Template>, expected: Vec<&str>) {
         res, expected,
         "expected required values to be {expected:?}, got {res:?}"
     )
+}
+
+macro_rules! values_map {
+    ($($k:expr => $v:expr),+) => {{
+        let mut m = ::std::collections::HashMap::new();
+        $( m.insert($k.to_string(), Scalar::try_from($v).unwrap()); )+
+        m
+    }};
+}
+
+#[test_case(Box::new(SingleField {foo: pending("foo")}), values_map!("foo" => "foo"); "single_field")]
+#[test_case(Box::new(SingleField {foo: pending("foo")}), values_map!("foo" => "foo", "bar" => "bar"); "single_field_unused_value")]
+#[test_case(Box::new(MultiField {foo: pending("foo"), bar: pending("bar"), baz: pending("baz")}), values_map!("foo" => "foo", "bar" => "bar", "baz" => "baz"); "multi_field")]
+#[test_case(Box::new(NestedStruct {foo: pending_inner("inner")}), values_map!("inner" => "inner"); "nested_struct")]
+#[test_case(Box::new(MultiFieldWithInnerStruct {foo: pending("foo"), bar: pending("bar"), baz: pending_inner("inner")}), values_map!("foo" => "foo", "bar" => "bar", "inner" => "inner"); "multi_field_with_inner_struct")]
+#[test_case(Box::new(SkippedField{foo: pending("foo"), bar: pending("bar")}), values_map!("foo" => "foo", "bar" => "bar"); "skipped_field")]
+#[test_case(Box::new(SkippedNotField{foo: pending("foo"), bar: "bar".to_string()}), values_map!("foo" => "foo"); "skipped_not_field")]
+#[test_case(Box::new(MultiNestedStruct{inner: pending_inner_within_inner("inner")}), values_map!("inner" => "inner"); "nested_inner_structs")]
+#[test_case(Box::new(TemplateTypes::Field(pending("foo"))), values_map!("foo" => "foo"); "field_in_enum")]
+#[test_case(Box::new(TemplateTypes::SingleField(SingleField{foo: pending("foo")})), values_map!("foo" => "foo"); "struct_in_enum")]
+#[test]
+fn try_template_all_fields(mut t: Box<dyn Template>, values: HashMap<String, Scalar>) {
+    let res = t.try_template(&mut Vec::new(), &values);
+    assert!(
+        res.is_ok(),
+        "expected to template successfully, got {res:?}"
+    )
+}
+
+#[test_case(Box::new(SingleField {foo: pending("foo")}); "single_field")]
+#[test_case(Box::new(MultiField {foo: pending("foo"), bar: pending("bar"), baz: pending("baz")}); "multi_field")]
+#[test_case(Box::new(NestedStruct {foo: pending_inner("inner")}); "nested_struct")]
+#[test_case(Box::new(MultiFieldWithInnerStruct {foo: pending("foo"), bar: pending("bar"), baz: pending_inner("inner")}); "multi_field_with_inner_struct")]
+#[test_case(Box::new(SkippedField{foo: pending("foo"), bar: pending("bar")}); "skipped_field")]
+#[test_case(Box::new(SkippedNotField{foo: pending("foo"), bar: "bar".to_string()}); "skipped_not_field")]
+#[test_case(Box::new(MultiNestedStruct{inner: pending_inner_within_inner("inner")}); "nested_inner_structs")]
+#[test_case(Box::new(TemplateTypes::Field(pending("foo"))); "field_in_enum")]
+#[test_case(Box::new(TemplateTypes::SingleField(SingleField{foo: pending("foo")})); "struct_in_enum")]
+#[test]
+fn try_template_unknown_value_error(mut t: Box<dyn Template>) {
+    let values = values_map!("unused_value" => "unused");
+
+    let res = t.try_template(&mut Vec::new(), &values);
+    assert!(res.is_err(), "expected templating to fail, got {res:?}");
+    let errors = res.unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .all(|e| matches!(e.kind, rtf_config::templating::ErrorKind::UnknownValue)),
+        "expected all errors to be UnknownValue, got {:?}",
+        errors
+    );
 }
