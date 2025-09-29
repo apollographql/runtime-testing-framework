@@ -36,6 +36,7 @@ run = "typos"
 run = "cargo test"
 
 [tools]
+"cargo:cargo-expand" = "1.0.116"
 "cargo:cargo-llvm-cov" = "0.6.18"
 "cargo:dprint" = "0.48.0"
 "cargo:typos-cli" = "1.34.0"

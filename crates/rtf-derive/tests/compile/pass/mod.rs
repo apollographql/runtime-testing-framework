@@ -1,0 +1,10 @@
+mod enum_of_fields;
+mod enum_of_fields_and_structs;
+mod enum_of_structs;
+mod field_skipped;
+mod field_with_struct;
+mod multiple_fields;
+mod nested_structs;
+mod non_field_skipped;
+mod single_field;
+mod single_struct;
