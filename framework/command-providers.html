@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Scenarios - Runtime Testing Framework</title>
+        <title>Command providers - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -178,93 +178,167 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="scenarios"><a class="header" href="#scenarios">Scenarios</a></h1>
+                        <h1 id="command-providers"><a class="header" href="#command-providers">Command providers</a></h1>
 <hr />
 <ul>
-<li><a href="#top-level-keys">Top level keys</a></li>
-<li><a href="#full-example">Full example</a></li>
+<li><a href="#the-command-section">The command section</a>
+<ul>
+<li><a href="#inline-scripts">Inline scripts</a></li>
+<li><a href="#relative-paths">Relative paths</a></li>
+<li><a href="#required-commands">Required commands</a></li>
+</ul>
+</li>
+<li><a href="#the-env-vars-section">The env vars section</a></li>
+<li><a href="#the-file-providers-section">The file providers section</a>
+<ul>
+<li><a href="#a-note-on-providers-as-resources">A note on providers as resources</a></li>
+</ul>
+</li>
 </ul>
 <hr />
-<p>As outlined in the <a href="./test-plans.html">Test Plan</a> overview, your Scenario configuration is one of the two main
-pieces of configuration needed in order to run tests under RTF. Conceptually, a Scenario simply a
-<a href="./command-providers.html">Command providers</a> with enforced semantics within the overall execution of the Test Plan, being
-run inbetween the Environment's setup and teardown commands.</p>
-<p>In this page we will cover the available keys within a Scenario and outline the structure and
-semantics of each. For more detailed information on specific aspects of the framework please see the
-relevant pages under the <a href="./index.html">Framework</a> section of the documentation.</p>
+<p><em>Command Providers</em> are the core executable element making up RTF Test Plans. They allow you, the
+user, to specify how a given command should be run and what resources it needs in order to do so.
+Both the <a href="./environments.html">Environment</a> and <a href="./scenarios.html">Scenario</a> configuration files are simply ways of defining Command
+Providers with known semantics for RTF to execute alongside templating values that can be used to
+customise how that command is run.</p>
+<p>The configuration for a Command Provider consists of three top level sections:</p>
+<ol>
+<li>The command itself.</li>
+<li>Environment variables that should be set before the command is run.</li>
+<li>A set of <a href="./file-providers.html">File Providers</a> that should be run and made available before the command is run.</li>
+</ol>
+<p>The details of each section are outlined below.</p>
 <blockquote>
-<p>An example of a valid <code>scenario.yaml</code> is provided in the <a href="#full-example">Full example</a> section
-below.</p>
+<p>For full examples of what command sections look like inside of RTF test plans, please see the
+examples found in the <a href="./environments.html#full-example">Environment</a> and <a href="./scenarios.html#full-example">Scenario</a> pages.</p>
 </blockquote>
-<h2 id="top-level-keys"><a class="header" href="#top-level-keys">Top level keys</a></h2>
-<ul>
-<li><code>name</code>: The name for this Scenario configuration.
-<ul>
-<li>Uniqueness is not enforced by the <code>rtf</code> CLI but it is worthwhile ensuring that the scenarios you
-write each have unique names that can be used to distinguish them.</li>
-</ul>
-</li>
-<li><code>description</code>: A brief, human readable description of the behaviour of the Scenario.
-<ul>
-<li>If there are any pre-requesites to running this Scenario it is best to call them out here rather
-than in comments or other files (such as a README).</li>
-</ul>
-</li>
-<li><code>values</code>: Declarations of the templating values supported by this Scenario.
-<ul>
-<li>Value declarations require specifying both the value name and a short description of how the
-value is used.</li>
-<li>Value declarations also support an optional <code>default</code> field where you can specify a default
-scalar value to use if none is provided within the <a href="./test-plans.html">Test Plan</a>.</li>
-<li>If the same value name is defined in both the Environment and Scenario used by a given Test Plan
-but with different defaults, each config file will fall back to its own default.</li>
-</ul>
-</li>
-<li><code>command</code>: See <a href="./command-providers.html">Command Provider</a>.</li>
-<li><code>env_vars</code>: See <a href="./command-providers.html">Command Provider</a>.</li>
-<li><code>file_providers</code>: See <a href="./command-providers.html">Command Provider</a>.</li>
-</ul>
+<h2 id="the-command-section"><a class="header" href="#the-command-section">The command section</a></h2>
+<p>You can define your command in two ways:</p>
+<ol>
+<li>As an inline script that will be written to disk and made executable.</li>
+<li>As a relative path to an existing executable script.</li>
+</ol>
+<p>Both strategies will result in the appropriate utf-8 encoded text file being written to disk and
+made executable before being executed as a subprocess by RTF. As such, you <em>must</em> include an
+appropriate <a href="https://en.wikipedia.org/wiki/Shebang_%28Unix%29">shebang</a> line at the top of your script in order for it to run correctly.</p>
 <blockquote>
-<p>We are aware that having the same key name for value declarations in the Scenario / Environment
-config files and the value <em>definitions</em> in the Test plan config file can be confusing. We are
-considering renaming one or both of the keys to make the distinction clearer.</p>
-<p>Please see <a href="https://apollographql.atlassian.net/browse/RR-352">RR-352</a> for more details.</p>
+<p>⚠️ <strong>At this time, RTF does not support directly executing binaries via command providers</strong></p>
+<p>If the command you wish to execute is simply a pre-existing binary, you should provide an <strong>inline
+wrapper script</strong> that ensures that the binary in question is available on the PATH before calling
+the binary with the appropriate arguments:</p>
+<pre><code class="language-bash">#!/usr/bin/env sh
+if ! which "$YOUR_BINARY" &gt; /dev/null 2&gt;&amp;1; then
+  echo "ERROR: $YOUR_BINARY is not available on the path"
+  exit 1
+fi
+
+"$YOUR_BINARY" # arguments to the binary
+</code></pre>
 </blockquote>
-<h2 id="full-example"><a class="header" href="#full-example">Full example</a></h2>
-<p>The following is a minimal "kitchen sink" example of the structure of a valid <code>scenario.yaml</code>.</p>
-<pre><code class="language-yaml">name: example
-description: An example description
-
-values:
-  - name: my_value
-    description: "A description for my value"
-    default: "foo"
-
-command:
-  name: my-scenario-command.sh
+<p>It is also possible to instead mark that the command is <em>required</em> as an override specified in the
+user's Test Plan. This is primarily used as part of a Scenario or Environment configuration where
+you want to set up supporting resources and data around an arbitrary user specified command.</p>
+<p>In each of the three options you will need to provide the <code>name</code> of the command as well as a <code>kind</code>
+the specifies which strategy you want to use to define your command.</p>
+<h3 id="inline-scripts"><a class="header" href="#inline-scripts">Inline scripts</a></h3>
+<p>To provide your command as an inline script simply specify the kind as <code>inline</code> and provide your
+script contents under the <code>content</code> key.</p>
+<p>It is worth familiarising yourself with YAML's support for multiline strings in order to ensure that
+you have the correct indentation within your scripts. <a href="https://yaml-multiline.info/">This site</a> serves as a nice minimal
+reference for the relevant YAML syntax.</p>
+<pre><code class="language-yaml">command:
+  name: my-shell-script.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "Hello from RTF"
+</code></pre>
+<h3 id="relative-paths"><a class="header" href="#relative-paths">Relative paths</a></h3>
+<p>To use a pre-existing script as your command simply specify the kind as <code>relative_path</code> and provide
+the relative path to your script under the <code>path</code> key. (See <a href="./test-plans.html#a-note-on-relative-paths">here</a> for details on how relative
+paths are handled by RTF).</p>
+<pre><code class="language-yaml">command:
+  name: my-shell-script.sh
   kind: relative_path
-  path: scripts/scenario.sh
-  args: ["a", "b"]
+  path: ../scripts/my-shell-script.sh
+</code></pre>
+<h3 id="required-commands"><a class="header" href="#required-commands">Required commands</a></h3>
+<p>To mark a command as required, but not specified by default, you can use the <code>required</code> kind which
+supports providing an accompanying <code>message</code> to inform the user of how they should define their own
+command. If the user fails to provide an override for the command in their <a href="./test-plans.html">Test Plan</a>, RTF will
+error at the templating stage of execution and print your error message as the reason for the
+failure.</p>
+<pre><code class="language-yaml">command:
+  name: my-command
+  kind: required
+  message: "This command must be provided in the test plan explicitly"
+</code></pre>
+<h2 id="the-env-vars-section"><a class="header" href="#the-env-vars-section">The env vars section</a></h2>
+<p>Environment variables are defined simply as key value pairs under the <code>env_vars</code> key. Values may be
+templated using the <code>"{{ my_value }}"</code> syntax using any scalar value (not just strings). The
+environment variables explicitly defined under this key will be merged with the environment
+available to RTF itself before your command is executed.</p>
+<pre><code class="language-yaml"># values:
+#   my_string_env_var: "bar"
+#   my_integer_env_var: 42
 
 env_vars:
-  MY_VALUE: "{{ my_value }}"
-
-file_providers:
-  - name: my-file.txt
-    env_var: MY_FILE
-    kind: inline
-    content: My inline content
+  FOO: "foo"
+  BAR: "{{ my_string_env_var }}"
+  BAZ: "{{ my_integer_env_var }}"
 </code></pre>
+<h2 id="the-file-providers-section"><a class="header" href="#the-file-providers-section">The file providers section</a></h2>
+<p>Under the <code>file_providers</code> key you may specify any number of <em>File Providers</em> as resources that will
+be made available to your command prior to execution. The <a href="./file-providers.html">File Providers</a> page covers the
+specifics of each of the built-in file providers within RTF so here we will focus instead on their
+shared structure and semantics.</p>
+<p>When defined under a <em>Command Provider</em> the following shared keys are added to the variant specific
+keys defined by each file provider:</p>
+<ul>
+<li><code>name</code>: the name for this specific provider that will be used to report any errors encountered
+during execution.</li>
+<li><code>env_var</code>: the environment variable to set containing the absolute path to the resources created
+by the provider.
+<ul>
+<li>Depending on the provider this may either be a single file or a directory of files.</li>
+<li>See the relevant documentation for each provider to learn more about the structure of their
+outputs.</li>
+</ul>
+</li>
+<li><code>kind</code>: the variant "kind" which then sets the expected keys required for the rest of the provider
+block.</li>
+</ul>
+<pre><code class="language-yaml">file_providers:
+  - name: my-inline-file.txt
+    env_var: MY_INLINE_FILE
+    content: "some file content"
+
+  - name: supergraph.graphql
+    env_var: SUPERGRAPH_SCHEMA
+    kind: graphos_supergraph
+    graph_ref: "foo@bar"
+    with_subgraph_overrides: docker
+</code></pre>
+<h3 id="a-note-on-providers-as-resources"><a class="header" href="#a-note-on-providers-as-resources">A note on providers as resources</a></h3>
+<p>You must ensure that <em>every</em> resource that you need to make available to your <em>Command Provider</em> is
+specified via a <em>File Provider</em>. RTF will only guarantee that the absolute paths it places in
+provider environment variables are correct. You must not attempt to construct relative paths between
+resources or from command scripts themselves as RTF can (and will) break such relative path
+relationships without warning.</p>
+<p>To help with managing the resources you need for your commands, RTF internally caches and reuses
+file providers that share identical keys, so you are free to duplicate providers between different
+<em>Command Providers</em>. Allowing you to share resources between different <em>Command Providers</em> without
+worrying about the providers running multiple times.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../framework/environments.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../framework/scenarios.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../framework/command-providers.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../framework/file-providers.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -274,11 +348,11 @@ file_providers:
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../framework/environments.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../framework/scenarios.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../framework/command-providers.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../framework/file-providers.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

@@ -179,9 +179,89 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="environments"><a class="header" href="#environments">Environments</a></h1>
+<hr />
+<ul>
+<li><a href="#top-level-keys">Top level keys</a></li>
+<li><a href="#full-example">Full example</a></li>
+</ul>
+<hr />
+<p>As outlined in the <a href="./test-plans.html">Test Plan</a> overview, your Environment configuration is one of the two main
+pieces of configuration needed in order to run tests under RTF. Conceptually, an Environment
+configuration is a pair of <a href="./command-providers.html">Command providers</a> that are run either side of the test scenario you
+want to run in order to setup and teardown the resources required for running the test.</p>
+<p>In this page we will cover the available keys within an Environment and outline the structure and
+semantics of each. For more detailed information on specific aspects of the framework please see the
+relevant pages under the <a href="./index.html">Framework</a> section of the documentation.</p>
 <blockquote>
-<p>Coming soon</p>
+<p>An example of a valid <code>environment.yaml</code> is provided in the <a href="#full-example">Full example</a> section
+below.</p>
 </blockquote>
+<h2 id="top-level-keys"><a class="header" href="#top-level-keys">Top level keys</a></h2>
+<ul>
+<li><code>name</code>: The name for this Environment configuration.
+<ul>
+<li>Uniqueness is not enforced by the <code>rtf</code> CLI but it is worthwhile ensuring that the environments
+you write each have unique names that can be used to distinguish them.</li>
+</ul>
+</li>
+<li><code>description</code>: A brief, human readable description of the behaviour of the Environment.
+<ul>
+<li>If there are any pre-requesites to running this Environment it is best to call them out here
+rather than in comments or other files (such as a README).</li>
+</ul>
+</li>
+<li><code>values</code>: Declarations of the templating values supported by this Environment.
+<ul>
+<li>Value declarations require specifying both the value name and a short description of how the
+value is used.</li>
+<li>Value declarations also support an optional <code>default</code> field where you can specify a default
+scalar value to use if none is provided within the <a href="./test-plans.html">Test Plan</a>.</li>
+<li>If the same value name is defined in both the Environment and Scenario used by a given Test Plan
+but with different defaults, each config file will fall back to its own default.</li>
+</ul>
+</li>
+<li><code>setup</code>: A <a href="./command-providers.html">Command Provider</a> that defines how the environment should be set up before the
+scenario is run.</li>
+<li><code>teardown</code>: A <a href="./command-providers.html">Command Provider</a> that defines how the environment should be torn down after the
+scenario is run.</li>
+</ul>
+<blockquote>
+<p>We are aware that having the same key name for value declarations in the Scenario / Environment
+config files and the value <em>definitions</em> in the Test plan config file can be confusing. We are
+considering renaming one or both of the keys to make the distinction clearer.</p>
+<p>Please see <a href="https://apollographql.atlassian.net/browse/RR-352">RR-352</a> for more details.</p>
+</blockquote>
+<h2 id="full-example"><a class="header" href="#full-example">Full example</a></h2>
+<p>The following is a minimal "kitchen sink" example of the structure of a valid <code>environment.yaml</code>.</p>
+<pre><code class="language-yaml">name: example
+description: An example description
+
+values:
+  - name: my_value
+    description: "A description for my value"
+    default: "foo"
+
+setup:
+  command:
+    name: my-setup-command.sh
+    kind: relative_path
+    path: scripts/setup.sh
+
+  env_vars:
+    MY_VALUE: "{{ my_value }}"
+
+teardown:
+  command:
+    name: my-teardown-command.sh
+    kind: relative_path
+    path: scripts/teardown.sh
+
+  file_providers:
+    - name: my-file.txt
+      env_var: MY_FILE
+      kind: inline
+      content: My inline content
+</code></pre>
 
                     </main>
 

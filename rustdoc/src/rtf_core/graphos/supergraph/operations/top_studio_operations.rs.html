@@ -106,10 +106,10 @@
 <a href=#106 id=106 data-nosnippet>106</a>/// importing / defining them directly. In that case we need to inject them into the schema in
 <a href=#107 id=107 data-nosnippet>107</a>/// order for the validation of our queries to succeed.
 <a href=#108 id=108 data-nosnippet>108</a>///
-<a href=#109 id=109 data-nosnippet>109</a>/// See https://www.apollographql.com/docs/graphos/routing/operations/defer
+<a href=#109 id=109 data-nosnippet>109</a>/// See &lt;https://www.apollographql.com/docs/graphos/routing/operations/defer&gt;
 <a href=#110 id=110 data-nosnippet>110</a>///
 <a href=#111 id=111 data-nosnippet>111</a>/// The directive definitions are copied from here:
-<a href=#112 id=112 data-nosnippet>112</a>///   https://github.com/apollographql/router/blob/23e580e22a4401cc2e7a952b241a1ec955b29c99/apollo-federation/src/api_schema.rs#L156https://github.com/apollographql/router/blob/23e580e22a4401cc2e7a952b241a1ec955b29c99/apollo-federation/src/api_schema.rs#L156
+<a href=#112 id=112 data-nosnippet>112</a>///   &lt;https://github.com/apollographql/router/blob/23e580e22a4401cc2e7a952b241a1ec955b29c99/apollo-federation/src/api_schema.rs#L156&gt;
 <a href=#113 id=113 data-nosnippet>113</a></span><span class="kw">fn </span>schema_with_defer_and_stream(sdl: <span class="kw-2">&amp;</span>str) -&gt; Valid&lt;Schema&gt; {
 <a href=#114 id=114 data-nosnippet>114</a>    <span class="kw">let </span><span class="kw-2">mut </span>schema = Schema::parse(sdl, <span class="string">"supergraph.graphql"</span>).unwrap();
 <a href=#115 id=115 data-nosnippet>115</a>
