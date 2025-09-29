@@ -23,9 +23,9 @@ use tracing::trace;
 
 /// The environment variable used to provide the location of the output directory to user specified
 /// commands
-const OUTDIR: &str = "OUTDIR";
-const OUTPUT_PATH: &str = "RTF_OUTPUT";
-const PROVIDER_DIR: &str = "providers";
+pub const OUTDIR: &str = "OUTDIR";
+pub const OUTPUT_PATH: &str = "RTF_OUTPUT";
+pub const PROVIDER_DIR: &str = "providers";
 
 /// # Command Section
 ///
@@ -209,7 +209,7 @@ impl CommandSection {
             // We need to box the future here in order to prevent us ending up with a recursive
             // type definition for the Future we are building with this method. We end up being
             // recursively defined because of the FromCommand file provider which is just a wrapper
-            // around this struct, meading that the call to resolve_and_write below ends up calling
+            // around this struct, meaning that the call to resolve_and_write below ends up calling
             // back into run_providers_and_execute which then calls this method (run_providers).
             Box::pin(nfp.resolve_and_write(&file_path, src, ctx)).await?;
 

@@ -102,6 +102,40 @@
       "title": "Command Spec",
       "type": "object"
     },
+    "FromCommand": {
+      "description": "Run a command provider and use its output as a file provider resource.\n\nAs with all other command providers, you can provide both environment variables\nand other file providers as inputs to the command being executed. RTF will use\nthe contents of the `$RTF_OUTPUT` path as the output of this provider, supporting\nboth writing a single file to that path and creating a directory at that path\ncontaining multiple files.\n\n```yaml\n- name: vegeta-ops.json\n  env_var: VEGETA_OPS\n  kind: from_command\n  command:\n    name: format-for-vegeta.sh\n    kind: relative_path\n    path: scripts/format-for-vegeta.sh\n  env_vars:\n    ROUTER_URL: \"http://127.0.0.1:4000/\"\n  file_providers:\n    - name: canned_ops.json\n      env_var: CANNED_OPS_FILE\n      kind: graphos_canned_ops\n      graph_ref: \"my@graph\"\n      top_n: 20\n      skip_mutations: true\n```\n\n### format-for-vegeta.sh\n```bash\n#!/usr/bin/env sh\nwhile read -r req; do\n  if [[ \"$OSTYPE\" == \"darwin\"* ]]; then\n    encoded=$(echo \"$req\" | base64 -b 0)\n  else\n    encoded=$(echo \"$req\" | base64 -w 0)\n  fi\n  \n  jq -nc \\\n    --arg body \"$encoded\" \\\n    --arg url \"$ROUTER_URL\" \\\n    '{\n      \"body\": $body,\n      \"header\": { \"Content-type\": [\"application/json\"] },\n      \"method\": \"POST\",\n      \"url\": $url\n    }' >> \"$RTF_OUTPUT\"\ndone <\"$CANNED_OPS_FILE\"\n```",
+      "properties": {
+        "command": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CommandSpec"
+            }
+          ],
+          "description": "The command to be run"
+        },
+        "env_vars": {
+          "additionalProperties": {
+            "$ref": "#/definitions/Templatable%20Scalar"
+          },
+          "default": {},
+          "description": "Environment variables to set",
+          "type": "object"
+        },
+        "file_providers": {
+          "default": [],
+          "description": "File providers to run and make available prior to execution",
+          "items": {
+            "$ref": "#/definitions/NamedFileProvider"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "title": "From command",
+      "type": "object"
+    },
     "GithubFile": {
       "description": "The user specifies a path to a file within a GitHub repository, optionally providing a specific\nref of the repository to pull the file from. If no ref is providing then the provider will pull\nthe version of the file found on the default branch.\n\n```yaml\n- name: \"my-file.txt\"\n  env_var: MY_FILE\n  kind: github_file\n  org: \"my-org\"\n  repo: \"my-repo\"\n  path: \"resources/test-data/my-file.txt\"\n  git_ref: \"some-ref\"\n```",
       "properties": {
@@ -307,7 +341,7 @@
       "required": [
         "graph_ref"
       ],
-      "title": "GraphOS Supergraph Docker Compose",
+      "title": "GraphOS Subgraph Docker Compose",
       "type": "object"
     },
     "GraphosSubgraphRouterUrlOverrides": {
@@ -483,6 +517,23 @@
         {
           "allOf": [
             {
+              "$ref": "#/definitions/FromCommand"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "from_command",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
               "$ref": "#/definitions/GithubFile"
             }
           ],
@@ -619,6 +670,23 @@
         {
           "allOf": [
             {
+              "$ref": "#/definitions/MergeYaml"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "merge_yaml",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
               "$ref": "#/definitions/OfflineGraphosLicense"
             }
           ],
@@ -690,23 +758,6 @@
           "properties": {
             "kind": {
               "const": "router_download_script",
-              "type": "string"
-            }
-          },
-          "required": [
-            "kind"
-          ],
-          "type": "object"
-        },
-        {
-          "allOf": [
-            {
-              "$ref": "#/definitions/MergeYaml"
-            }
-          ],
-          "properties": {
-            "kind": {
-              "const": "merge_yaml",
               "type": "string"
             }
           },

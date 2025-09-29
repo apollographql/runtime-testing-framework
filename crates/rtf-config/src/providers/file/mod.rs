@@ -67,7 +67,7 @@ where
         &self,
         target: impl AsRef<Path>,
         src: &Source,
-        ctx: &impl ResolutionContext,
+        ctx: &mut impl ResolutionContext,
     ) -> providers::Result<Vec<(PathBuf, String)>> {
         Ok(vec![(
             target.as_ref().to_path_buf(),
@@ -89,14 +89,14 @@ pub(crate) trait ResolveAndWrite: Check + Serialize + DeserializeOwned + fmt::De
         &self,
         target: impl AsRef<Path>,
         src: &Source,
-        ctx: &impl ResolutionContext,
+        ctx: &mut impl ResolutionContext,
     ) -> providers::Result<Vec<(PathBuf, String)>>;
 
     async fn resolve_and_write(
         &self,
         target: impl AsRef<Path>,
         src: &Source,
-        ctx: &impl ResolutionContext,
+        ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
         let files = self.try_get_all_file_contents(target, src, ctx).await?;
         for (path, content) in files.into_iter() {
@@ -120,7 +120,7 @@ macro_rules! enum_impl_resolve_and_write {
                 &self,
                 target: impl AsRef<Path>,
                 src: &Source,
-                ctx: &impl ResolutionContext,
+                ctx: &mut impl ResolutionContext,
             ) -> $crate::providers::Result<Vec<(PathBuf, String)>> {
                 match self {
                     $(Self::$variant(inner) => inner.try_get_all_file_contents(target, src, ctx).await,)+
@@ -131,7 +131,7 @@ macro_rules! enum_impl_resolve_and_write {
                 &self,
                 target: impl AsRef<Path>,
                 src: &Source,
-                ctx: &impl ResolutionContext,
+                ctx: &mut impl ResolutionContext,
             ) -> $crate::providers::Result<()> {
                 match self {
                     $(Self::$variant(inner) => inner.resolve_and_write(target, src, ctx).await,)+
@@ -206,6 +206,7 @@ impl Template for NamedFileProvider {
 // the all_fields_templated test in this file
 pub enum FileProvider {
     BuildRouterFromSource(apollo::BuildRouterFromSource),
+    FromCommand(utility::FromCommand),
     GithubFile(github::GithubFile),
     GraphosCannedOps(apollo::GraphosCannedOps),
     GraphosCannedOpsById(apollo::GraphosCannedOpsById),
@@ -214,12 +215,12 @@ pub enum FileProvider {
     GraphosSubgraphs(apollo::GraphosSubgraphs),
     GraphosSupergraph(apollo::GraphosSupergraph),
     Inline(InlineFile),
+    MergeYaml(utility::MergeYaml),
     OfflineGraphosLicense(apollo::OfflineGraphosLicense),
     RelativePath(RelativeFile),
     Required(RequiredFile),
     ResolvedValues(ResolvedValues),
     RouterDownloadScript(apollo::RouterDownloadScript),
-    MergeYaml(utility::MergeYaml),
 }
 
 impl FileProvider {
@@ -245,6 +246,7 @@ macro_rules! enum_impl_file_provider {
 
 enum_impl_file_provider!(
     BuildRouterFromSource,
+    FromCommand,
     GithubFile,
     GraphosCannedOps,
     GraphosCannedOpsById,
@@ -253,12 +255,12 @@ enum_impl_file_provider!(
     GraphosSubgraphs,
     GraphosSupergraph,
     Inline,
+    MergeYaml,
     OfflineGraphosLicense,
     RelativePath,
     Required,
     ResolvedValues,
     RouterDownloadScript,
-    MergeYaml,
 );
 
 /// # Inline File
@@ -608,13 +610,13 @@ mod tests {
         let dir = PathBuf::from("resources/provider-tests/file/expected-file-success")
             .canonicalize()
             .unwrap();
-        let ctx = Context::new();
+        let mut ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
 
         let res = provider.try_check(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected successful check but got: {res:?}");
 
-        let res = provider.resolve_and_write(&file, &src, &ctx).await;
+        let res = provider.resolve_and_write(&file, &src, &mut ctx).await;
         assert!(res.is_ok(), "{res:?}");
 
         let expected = get_file(&arr, "expected-file-content");
@@ -640,13 +642,13 @@ mod tests {
         let dir = PathBuf::from("resources/provider-tests/file/expected-file-success-mock-context")
             .canonicalize()
             .unwrap();
-        let ctx = TxtarContext::with_http(arr.clone(), MockHttpClient::from_archive(&arr));
+        let mut ctx = TxtarContext::with_http(arr.clone(), MockHttpClient::from_archive(&arr));
         let src = Source::local(dir.join("example.yaml"));
 
         let res = provider.try_check(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected successful check but got: {res:?}");
 
-        let res = provider.resolve_and_write(&file, &src, &ctx).await;
+        let res = provider.resolve_and_write(&file, &src, &mut ctx).await;
         assert!(res.is_ok(), "{res:?}");
 
         let expected = get_file(&arr, "expected-file-content");
@@ -668,11 +670,11 @@ mod tests {
         let dir = PathBuf::from("resources/provider-tests/file/resolution-errors")
             .canonicalize()
             .unwrap();
-        let ctx = Context::new();
+        let mut ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
         let _ = provider.try_check(&mut Vec::new(), &src, &ctx);
         let res = provider
-            .resolve_and_write("expected-file-content", &src, &ctx)
+            .resolve_and_write("expected-file-content", &src, &mut ctx)
             .await;
 
         assert!(res.is_err(), "expected resolution failures, got {res:?}");
@@ -695,11 +697,11 @@ mod tests {
         let dir = PathBuf::from("resources/provider-tests/file/resolution-errors-mock-context")
             .canonicalize()
             .unwrap();
-        let ctx = TxtarContext::with_http(arr.clone(), MockHttpClient::from_archive(&arr));
+        let mut ctx = TxtarContext::with_http(arr.clone(), MockHttpClient::from_archive(&arr));
         let src = Source::local(dir.join("example.yaml"));
         let _ = provider.try_check(&mut Vec::new(), &src, &ctx);
         let res = provider
-            .resolve_and_write("expected-file-content", &src, &ctx)
+            .resolve_and_write("expected-file-content", &src, &mut ctx)
             .await;
 
         assert!(res.is_err(), "expected resolution failures, got {res:?}");

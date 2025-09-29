@@ -127,7 +127,7 @@ impl ResolveAndWrite for GraphosSubgraphs {
         &self,
         target: impl AsRef<Path>,
         _src: &Source,
-        ctx: &impl ResolutionContext,
+        ctx: &mut impl ResolutionContext,
     ) -> providers::Result<Vec<(PathBuf, String)>> {
         let (graph_id, variant) = self
             .graph_ref
@@ -160,7 +160,7 @@ impl Check for GraphosSubgraphs {
     }
 }
 
-/// # GraphOS Supergraph Docker Compose
+/// # GraphOS Subgraph Docker Compose
 ///
 /// The user specifies the graph ref that should be used to fetch the supergraph
 /// SDL file from the GraphOS API and generates a docker compose file. It runs a

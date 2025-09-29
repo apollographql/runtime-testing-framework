@@ -5,8 +5,9 @@ use crate::{
     enum_impl_as_utf8_file_content, enum_impl_check, merge_yaml,
     providers::{
         self, Result,
+        command::CommandSection,
         file::{
-            AsUtf8FileContent, InlineFile, RelativeFile, RequiredFile, Source,
+            AsUtf8FileContent, InlineFile, RelativeFile, RequiredFile, ResolveAndWrite, Source,
             apollo::GraphosSubgraphRouterUrlOverrides, github::GithubFile,
         },
     },
@@ -14,6 +15,7 @@ use crate::{
 use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 use tracing::error;
 
 /// # Text File Provider
@@ -117,5 +119,98 @@ impl Check for MergeYaml {
         errs.append(self.overrides.try_check(path, src, ctx));
 
         errs.into_result(())
+    }
+}
+
+/// # From command
+///
+/// Run a command provider and use its output as a file provider resource.
+///
+/// As with all other command providers, you can provide both environment variables
+/// and other file providers as inputs to the command being executed. RTF will use
+/// the contents of the `$RTF_OUTPUT` path as the output of this provider, supporting
+/// both writing a single file to that path and creating a directory at that path
+/// containing multiple files.
+///
+/// ```yaml
+/// - name: vegeta-ops.json
+///   env_var: VEGETA_OPS
+///   kind: from_command
+///   command:
+///     name: format-for-vegeta.sh
+///     kind: relative_path
+///     path: scripts/format-for-vegeta.sh
+///   env_vars:
+///     ROUTER_URL: "http://127.0.0.1:4000/"
+///   file_providers:
+///     - name: canned_ops.json
+///       env_var: CANNED_OPS_FILE
+///       kind: graphos_canned_ops
+///       graph_ref: "my@graph"
+///       top_n: 20
+///       skip_mutations: true
+/// ```
+///
+/// ### format-for-vegeta.sh
+/// ```bash
+/// #!/usr/bin/env sh
+/// while read -r req; do
+///   if [[ "$OSTYPE" == "darwin"* ]]; then
+///     encoded=$(echo "$req" | base64 -b 0)
+///   else
+///     encoded=$(echo "$req" | base64 -w 0)
+///   fi
+///   
+///   jq -nc \
+///     --arg body "$encoded" \
+///     --arg url "$ROUTER_URL" \
+///     '{
+///       "body": $body,
+///       "header": { "Content-type": ["application/json"] },
+///       "method": "POST",
+///       "url": $url
+///     }' >> "$RTF_OUTPUT"
+/// done <"$CANNED_OPS_FILE"
+/// ```
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+pub struct FromCommand {
+    #[serde(flatten)]
+    inner: CommandSection,
+}
+
+impl ResolveAndWrite for FromCommand {
+    async fn try_get_all_file_contents(
+        &self,
+        _target: impl AsRef<Path>,
+        _src: &Source,
+        _ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<Vec<(PathBuf, String)>> {
+        todo!("we need to break this method out of ResolveAndWrite and rework the providers tests");
+    }
+
+    async fn resolve_and_write(
+        &self,
+        target: impl AsRef<Path>,
+        src: &Source,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<()> {
+        let target = target.as_ref();
+        let out_dir = ctx.dir_containing(target);
+        self.inner
+            .run_providers_and_execute(&out_dir, Some(target.into()), src, ctx)
+            .await?;
+
+        Ok(())
+    }
+}
+
+impl Check for FromCommand {
+    fn try_check(
+        &self,
+        path: &mut Vec<String>,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        self.inner.try_check(path, src, ctx)
     }
 }
