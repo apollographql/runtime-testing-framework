@@ -106,10 +106,10 @@ pub async fn generate_canned_ops(
 /// importing / defining them directly. In that case we need to inject them into the schema in
 /// order for the validation of our queries to succeed.
 ///
-/// See https://www.apollographql.com/docs/graphos/routing/operations/defer
+/// See <https://www.apollographql.com/docs/graphos/routing/operations/defer>
 ///
 /// The directive definitions are copied from here:
-///   https://github.com/apollographql/router/blob/23e580e22a4401cc2e7a952b241a1ec955b29c99/apollo-federation/src/api_schema.rs#L156https://github.com/apollographql/router/blob/23e580e22a4401cc2e7a952b241a1ec955b29c99/apollo-federation/src/api_schema.rs#L156
+///   <https://github.com/apollographql/router/blob/23e580e22a4401cc2e7a952b241a1ec955b29c99/apollo-federation/src/api_schema.rs#L156>
 fn schema_with_defer_and_stream(sdl: &str) -> Valid<Schema> {
     let mut schema = Schema::parse(sdl, "supergraph.graphql").unwrap();
 
