@@ -40,10 +40,21 @@ Both strategies will result in the appropriate utf-8 encoded text file being wri
 made executable before being executed as a subprocess by RTF. As such, you _must_ include an
 appropriate [shebang][5] line at the top of your script in order for it to run correctly.
 
-> At this time, RTF does not support directly executing binaries via command providers. If the
-> command you wish to execute is simply a pre-existing binary, please ensure that the binary in
-> question is available on the PATH where RTF is running and provide a wrapper script that can be
-> used to call through to it.
+> ⚠️ **At this time, RTF does not support directly executing binaries via command providers**
+> 
+> If the command you wish to execute is simply a pre-existing binary, you should provide an **inline
+> wrapper script** that ensures that the binary in question is available on the PATH before calling
+> the binary with the appropriate arguments:
+>
+> ```bash
+> #!/usr/bin/env sh
+> if ! which "$YOUR_BINARY" > /dev/null 2>&1; then
+>   echo "ERROR: $YOUR_BINARY is not available on the path"
+>   exit 1
+> fi
+>
+> "$YOUR_BINARY" # arguments to the binary
+> ```
 
 It is also possible to instead mark that the command is _required_ as an override specified in the
 user's Test Plan. This is primarily used as part of a Scenario or Environment configuration where
