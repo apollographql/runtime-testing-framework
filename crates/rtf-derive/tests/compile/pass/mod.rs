@@ -7,4 +7,5 @@ mod multiple_fields;
 mod nested_structs;
 mod non_field_skipped;
 mod single_field;
+mod single_field_annotated_with_skip;
 mod single_struct;

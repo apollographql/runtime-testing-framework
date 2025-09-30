@@ -24,6 +24,24 @@ fn sinf(foo: Field<String>) -> Box<SingleField> {
     Box::new(SingleField { foo })
 }
 
+// Used to test that a struct with no templatable fields correctly implements Template
+#[derive(Debug, Template)]
+struct NoTemplatableFields {
+    #[template(skip)]
+    #[allow(dead_code)]
+    foo: String,
+    #[template(skip)]
+    #[allow(dead_code)]
+    bar: String,
+}
+
+fn ntf(foo: &str, bar: &str) -> Box<NoTemplatableFields> {
+    Box::new(NoTemplatableFields {
+        foo: foo.to_string(),
+        bar: bar.to_string(),
+    })
+}
+
 /// Used to test multiple fields have correctly implements Template
 #[derive(Debug, Template)]
 struct MultiField {
@@ -138,6 +156,7 @@ fn ttsf(foo: Field<String>) -> Box<TemplateTypes> {
 
 #[test_case(sinf(p("foo")), true; "single_field_is_pending")]
 #[test_case(sinf(r("foo")), false; "single_field_is_resolved")]
+#[test_case(ntf("foo", "bar"), false; "no_templatable_fields_is_resolved")]
 #[test_case(mf(p("foo"), p("bar"), p("baz")), true; "multi_field_all_fields_pending")]
 #[test_case(mf(p("foo"), r("bar"), r("baz")), true; "multi_field_single_field_pending")]
 #[test_case(mf(r("foo"), r("bar"), r("baz")), false; "multi_field_all_fields_resolved")]
@@ -165,8 +184,9 @@ fn has_pending_fields(t: Box<dyn Template>, expected: bool) {
     )
 }
 
-#[test_case(sinf(p("foo")), &["foo"]; "single_field_value_required")]
-#[test_case(sinf(r("foo")), &[]; "single_field_no_value_required")]
+#[test_case(sinf(p("foo")), &["foo"]; "single_field_field_required")]
+#[test_case(sinf(r("foo")), &[]; "single_field_no_fields_required")]
+#[test_case(ntf("foo", "bar"), &[]; "no_templatable_fields_no_fields_required")]
 #[test_case(mf(p("foo"), p("bar"), p("baz")), &["foo", "bar", "baz"]; "multi_field_all_fields_required")]
 #[test_case(mf(p("foo"), r("bar"), r("baz")), &["foo"]; "multi_field_single_field_required")]
 #[test_case(mf(r("foo"), r("bar"), r("baz")), &[]; "multi_field_no_fields_required")]
@@ -207,6 +227,7 @@ macro_rules! values_map {
 
 #[test_case(sinf(p("foo")), &["foo"]; "single_field")]
 #[test_case(sinf(p("foo")), &["foo", "bar"]; "single_field_unused_value")]
+#[test_case(ntf("foo", "bar"), &[]; "no_templatable_fields")]
 #[test_case(mf(p("foo"), p("bar"), p("baz")), &["foo", "bar", "baz"]; "multi_field")]
 #[test_case(ns(p("inner")), &["inner"]; "nested_struct")]
 #[test_case(mfwis(p("foo"), p("bar"), p("inner")), &["foo", "bar", "inner"]; "multi_field_with_inner_struct")]
