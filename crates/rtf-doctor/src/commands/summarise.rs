@@ -81,7 +81,10 @@ pub async fn summarise_graph(
     };
 
     if n_ops > 0 {
-        let ops = top_studio_canned_ops(&sg, n_ops, skip_mutations, platform_client).await?;
+        let mut ops = top_studio_canned_ops(&sg, n_ops, skip_mutations, platform_client).await?;
+        ops.sort_unstable_by_key(|op| op.request_count);
+        ops.reverse();
+
         let mut op_meta: Vec<_> = ops
             .iter()
             .enumerate()
