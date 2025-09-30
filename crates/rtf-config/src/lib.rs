@@ -10,6 +10,13 @@
     rustdoc::all
 )]
 #![deny(clippy::undocumented_unsafe_blocks)]
+
+/// Re-exports the current crate as `rtf_config`, allowing other modules within the crate
+/// to refer to it using the `rtf_config` name. This is useful for the Template proc macro
+/// in rtf_derive and allows us to refer to the trait using the ::rtf_config:: path.
+#[allow(unused_extern_crates)]
+extern crate self as rtf_config;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

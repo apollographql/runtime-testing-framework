@@ -95,6 +95,87 @@ pub trait Template {
     }
 }
 
+impl<T> Template for Option<T>
+where
+    T: Template,
+{
+    fn has_pending_fields(&self) -> bool {
+        self.as_ref()
+            .map(|inner| inner.has_pending_fields())
+            .unwrap_or_default()
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        self.as_ref()
+            .map(|inner| inner.required_values())
+            .unwrap_or_default()
+    }
+
+    fn try_template(
+        &mut self,
+        path: &mut Vec<String>,
+        values: &HashMap<String, Scalar>,
+    ) -> Result<()> {
+        self.as_mut()
+            .map(|inner| inner.try_template(path, values))
+            .unwrap_or(Ok(()))
+    }
+}
+
+impl<T> Template for Vec<T>
+where
+    T: Template,
+{
+    fn has_pending_fields(&self) -> bool {
+        self.iter().any(|elem| elem.has_pending_fields())
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        self.iter()
+            .flat_map(|elem| elem.required_values())
+            .collect()
+    }
+
+    fn try_template(
+        &mut self,
+        path: &mut Vec<String>,
+        values: &HashMap<String, Scalar>,
+    ) -> Result<()> {
+        self.iter_mut()
+            .try_for_each(|elem| elem.try_template(path, values))
+    }
+}
+
+impl<K, T> Template for HashMap<K, T>
+where
+    K: AsRef<str>,
+    T: Template,
+{
+    fn has_pending_fields(&self) -> bool {
+        self.values().any(|elem| elem.has_pending_fields())
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        self.values()
+            .flat_map(|elem| elem.required_values())
+            .collect()
+    }
+
+    fn try_template(
+        &mut self,
+        path: &mut Vec<String>,
+        values: &HashMap<String, Scalar>,
+    ) -> Result<()> {
+        let mut errs = ErrorBuilder::new();
+
+        for (name, f) in self.iter_mut() {
+            errs.append(f.try_template_nested(path, name.as_ref(), values));
+        }
+
+        errs.into_result(())
+    }
+}
+
 /// Helper macro for stamping out implementations of the [Template] trait on an enum where each
 /// variant is a wrapper around a type that already implements the trait.
 #[macro_export]
@@ -591,25 +672,8 @@ impl_integer_scalars!(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rtf_derive::Template;
     use simple_test_case::test_case;
-
-    // Helper macro to create a HashMap<String, Scalar>.
-    // Intended to be used for easily creating test values for testing templating
-    macro_rules! values_map {
-        () => {
-            ::std::collections::HashMap::<String, $crate::templating::Scalar>::new()
-        };
-
-        ($($k:expr => $v:expr),+) => {{
-            let mut m = ::std::collections::HashMap::new();
-
-            $(
-                m.insert($k.to_string(), $crate::templating::Scalar::try_from($v).unwrap());
-            )+
-
-            m
-        }};
-    }
 
     #[derive(Debug, PartialEq, Deserialize)]
     #[serde(
@@ -697,189 +761,155 @@ mod tests {
         assert!(matches!(res.unwrap().field, Field::Resolved(_)));
     }
 
-    // Test data structs for the Template tests below
-
-    #[derive(Debug, PartialEq, Deserialize)]
-    struct T {
-        foo: Field<bool>,
-        bar: U,
+    // Helper functions for constructing pending and resolved fields
+    fn p<T: ValidField>(s: &str) -> Field<T> {
+        Field::Pending(s.to_string())
+    }
+    fn r<T: ValidField>(t: impl Into<T>) -> Field<T> {
+        Field::Resolved(t.into())
     }
 
-    impl Template for T {
-        fn has_pending_fields(&self) -> bool {
-            self.foo.has_pending_fields() || self.bar.has_pending_fields()
-        }
-
-        fn required_values(&self) -> Vec<String> {
-            let mut vals = self.foo.required_values();
-            vals.extend(self.bar.required_values());
-
-            vals
-        }
-
-        fn try_template(
-            &mut self,
-            path: &mut Vec<String>,
-            values: &HashMap<String, Scalar>,
-        ) -> Result<()> {
-            let mut errs = ErrorBuilder::from(self.foo.try_template_nested(path, "foo", values));
-            errs.append(self.bar.try_template_nested(path, "bar", values));
-
-            errs.into_result(())
-        }
+    // Test struct for Option<Field<T>>
+    #[derive(Debug, Template)]
+    struct OptionField {
+        foo: Option<Field<String>>,
+    }
+    fn of(foo: Option<Field<String>>) -> Box<OptionField> {
+        Box::new(OptionField { foo })
     }
 
-    #[derive(Debug, PartialEq, Deserialize)]
-    struct U {
-        baz: Field<u32>,
+    // Test struct for Vec<Field<T>>
+    #[derive(Debug, Template)]
+    struct VecField {
+        foo: Vec<Field<String>>,
+    }
+    fn vf(foo: &[Field<String>]) -> Box<VecField> {
+        Box::new(VecField { foo: foo.to_vec() })
     }
 
-    impl Template for U {
-        fn has_pending_fields(&self) -> bool {
-            self.baz.has_pending_fields()
-        }
-
-        fn required_values(&self) -> Vec<String> {
-            self.baz.required_values()
-        }
-
-        fn try_template(
-            &mut self,
-            path: &mut Vec<String>,
-            values: &HashMap<String, Scalar>,
-        ) -> Result<()> {
-            self.baz.try_template_nested(path, "baz", values)
-        }
+    // Test struct for HashMap<K, Field<T>>
+    #[derive(Debug, Template)]
+    struct HashMapField {
+        foo: HashMap<String, Field<String>>,
     }
-
-    const RESOLVE_NO_PENDING: &str = "
-foo: true
-bar:
-  baz: 17";
-
-    const RESOLVE_ALL_PENDING: &str = r#"
-foo: "{{ value_A }}"
-bar:
-  baz: "{{ value_B }}""#;
-
-    #[test]
-    fn resolving_with_nothing_to_template_works() {
-        let mut t: T = serde_yaml::from_str(RESOLVE_NO_PENDING).unwrap();
-        assert!(!t.has_pending_fields(), "shouldn't have any pending fields");
-
-        let res = t.try_template(&mut Vec::new(), &values_map!());
-
-        assert!(res.is_ok(), "expected no errors, got {res:?}");
-        assert_eq!(
-            t,
-            T {
-                foo: Field::Resolved(true),
-                bar: U {
-                    baz: Field::Resolved(17)
+    macro_rules! field_map {
+        ($slice:expr) => {{
+            let mut m = ::std::collections::HashMap::new();
+            for field in $slice {
+                match field {
+                    Field::Pending(key) => {
+                        m.insert(key.clone(), field.clone());
+                    }
+                    Field::Resolved(value) => {
+                        m.insert(value.clone(), field.clone());
+                    }
                 }
             }
-        );
+            m
+        }};
+    }
+    fn hmf(map: &[Field<String>]) -> Box<HashMapField> {
+        let foo = field_map!(map);
+        Box::new(HashMapField { foo })
     }
 
+    #[test_case(of(Some(p("foo"))), true; "optional field is some pending")]
+    #[test_case(of(Some(r("foo"))), false; "optional field is some resolved")]
+    #[test_case(of(None), false; "optional field is none is resolved")]
+    #[test_case(vf(&[p("foo"), p("bar"), p("baz")]), true; "vec all entries are pending")]
+    #[test_case(vf(&[p("foo"), r("bar"), r("baz")]), true; "vec one entry is pending")]
+    #[test_case(vf(&[p("foo")]), true; "vec single entry is pending")]
+    #[test_case(vf(&[r("foo"), r("bar"), r("baz")]), false; "vec all entries are resolved")]
+    #[test_case(vf(&[r("foo")]), false; "vec single entry is resolved")]
+    #[test_case(vf(&[]), false; "vec no entries is resolved")]
+    #[test_case(hmf(&[p("foo"), p("bar"), p("baz")]), true; "hash map multiple entries pending")]
+    #[test_case(hmf(&[p("foo"), r("bar"), r("baz")]), true; "hash map single entry pending")]
+    #[test_case(hmf(&[p("foo")]), true; "hash map one entry pending")]
+    #[test_case(hmf(&[r("foo"), r("bar"), r("baz")]), false; "hash map all entries resolved")]
+    #[test_case(hmf(&[r("foo")]), false; "hash map single entry resolved")]
+    #[test_case(hmf(&[]), false; "hash map no entries resolved")]
     #[test]
-    fn resolving_with_all_values_available_works() {
-        let mut t: T = serde_yaml::from_str(RESOLVE_ALL_PENDING).unwrap();
-        assert!(t.has_pending_fields(), "should have pending fields");
-
-        let vals = values_map!(
-            "value_A" => true,
-            "value_B" => 17
-        );
-        let res = t.try_template(&mut Vec::new(), &vals);
-
-        assert!(res.is_ok(), "expected no errors, got {res:?}");
-        assert_eq!(
-            t,
-            T {
-                foo: Field::Resolved(true),
-                bar: U {
-                    baz: Field::Resolved(17)
-                }
-            }
-        );
+    fn has_pending_fields(t: Box<dyn Template>, expected: bool) {
+        let res = t.has_pending_fields();
+        assert!(
+            res == expected,
+            "expected has pending fields to be {expected:?}, got {res:?}"
+        )
     }
 
+    #[test_case(of(Some(p("foo"))), &["foo"]; "some optional field is required")]
+    #[test_case(of(Some(r("foo"))), &[]; "some optional field is not required")]
+    #[test_case(of(None), &[]; "none optional field is not required")]
+    #[test_case(vf(&[p("foo"), p("bar"), p("baz")]), &["bar", "baz", "foo"]; "vec all entries are required")]
+    #[test_case(vf(&[p("foo"), r("bar"), r("baz")]), &["foo"]; "vec one entry is required")]
+    #[test_case(vf(&[p("foo")]), &["foo"]; "vec single entry is required")]
+    #[test_case(vf(&[r("foo"), r("bar"), r("baz")]), &[]; "vec no entries are required")]
+    #[test_case(vf(&[r("foo")]), &[]; "vec single entry is not required")]
+    #[test_case(vf(&[]), &[]; "vec no entries not required")]
+    #[test_case(hmf(&[p("foo"), p("bar"), p("baz")]), &["bar", "baz", "foo"]; "hash map multiple entries are required")]
+    #[test_case(hmf(&[p("foo"), r("bar"), r("baz")]), &["foo"]; "hash map single entry is required")]
+    #[test_case(hmf(&[p("foo")]), &["foo"]; "hash map one entry is required")]
+    #[test_case(hmf(&[r("foo"), r("bar"), r("baz")]), &[]; "hash map no entries are required")]
+    #[test_case(hmf(&[r("foo")]), &[]; "hash map single entry is not required")]
+    #[test_case(hmf(&[]), &[]; "hash map no entries not required")]
     #[test]
-    fn resolving_with_some_values_available_works() {
-        let mut t: T = serde_yaml::from_str(RESOLVE_ALL_PENDING).unwrap();
-        assert!(t.has_pending_fields(), "should have pending fields");
-
-        let vals = values_map!("value_A" => true);
-        let res = t.try_template_known(&vals);
-
-        assert!(res.is_ok(), "expected no errors, got {res:?}");
-
-        let missing = res.unwrap();
-        assert_eq!(missing, vec!["value_B".to_string()]);
+    fn required_values(t: Box<dyn Template>, expected: &[&str]) {
+        let mut res = t.required_values();
+        res.sort();
 
         assert_eq!(
-            t,
-            T {
-                foo: Field::Resolved(true),
-                bar: U {
-                    baz: Field::Pending("value_B".to_string()),
-                }
-            }
-        );
+            res.as_slice(),
+            expected,
+            "expected required values to be {expected:?}, got {res:?}"
+        )
     }
 
-    #[test]
-    fn resolving_with_no_values_available_works() {
-        let mut t: T = serde_yaml::from_str(RESOLVE_ALL_PENDING).unwrap();
-        assert!(t.has_pending_fields(), "should have pending fields");
-
-        let vals = values_map!();
-        let res = t.try_template_known(&vals);
-
-        assert!(res.is_ok(), "expected no errors, got {res:?}");
-
-        let missing = res.unwrap();
-        assert_eq!(missing, vec!["value_A".to_string(), "value_B".to_string()]);
-
-        assert_eq!(
-            t,
-            T {
-                foo: Field::Pending("value_A".to_string()),
-                bar: U {
-                    baz: Field::Pending("value_B".to_string()),
-                }
+    macro_rules! values_map {
+        ($slice:expr) => {{
+            let mut m = ::std::collections::HashMap::new();
+            for k in $slice {
+                m.insert(k.to_string(), Scalar::from(k.to_string()));
             }
-        );
+            m
+        }};
     }
 
+    #[test_case(of(Some(p("foo"))), &["foo"]; "some optional field templates")]
+    #[test_case(of(None), &[]; "none optional field templates")]
+    #[test_case(vf(&[p("foo"), p("bar"), p("baz")]), &["foo", "bar", "baz"]; "multiple vec entries template")]
+    #[test_case(vf(&[p("foo")]), &["foo"]; "single vec entry templates")]
+    #[test_case(vf(&[]), &[]; "no vec entries templates")]
+    #[test_case(hmf(&[p("foo"), p("bar"), p("baz")]), &["foo", "bar", "baz"]; "multiple hash map entries template")]
+    #[test_case(hmf(&[p("foo")]), &["foo"]; "single hash map entry templates")]
+    #[test_case(hmf(&[]), &[]; "no hash map entries templates")]
     #[test]
-    fn resolving_with_invalid_data_errors() {
-        let mut t: T = serde_yaml::from_str(RESOLVE_ALL_PENDING).unwrap();
-        assert!(t.has_pending_fields(), "should have pending fields");
+    fn try_template(mut t: Box<dyn Template>, values: &[&str]) {
+        let values = values_map!(values);
+        let res = t.try_template(&mut Vec::new(), &values);
+        assert!(
+            res.is_ok(),
+            "expected to template successfully, got {res:?}"
+        )
+    }
 
-        let vals = values_map!("value_A" => true, "value_B" => 1.23);
-        let res = t.try_template_known(&vals);
+    #[test_case(of(Some(p("foo"))); "some optional field")]
+    #[test_case(vf(&[p("foo"), p("bar"), p("baz")]); "multiple vec entries")]
+    #[test_case(vf(&[p("foo")]); "single vec entry")]
+    #[test_case(hmf(&[p("foo"), p("bar"), p("baz")]); "multiple hash map entries")]
+    #[test_case(hmf(&[p("foo")]); "single hash map entry")]
+    #[test]
+    fn try_template_unknown_value_error(mut t: Box<dyn Template>) {
+        let values = values_map!(["unused"]);
 
-        assert!(res.is_err(), "expected errors, got {res:?}");
-
-        let err = res.unwrap_err().into_vec().remove(0);
-        assert_eq!(
-            err,
-            Error {
-                kind: ErrorKind::InvalidData,
-                path: "bar.baz".to_string(),
-                message: "invalid value `1.23`, expected u32".to_string()
-            }
-        );
-
-        assert_eq!(
-            t,
-            T {
-                foo: Field::Resolved(true),
-                bar: U {
-                    baz: Field::Pending("value_B".to_string()),
-                }
-            }
+        let res = t.try_template(&mut Vec::new(), &values);
+        assert!(res.is_err(), "expected templating to fail, got {res:?}");
+        let errors = res.unwrap_err();
+        assert!(
+            errors
+                .iter()
+                .all(|e| matches!(e.kind, ErrorKind::UnknownValue)),
+            "expected all errors to be UnknownValue, got {:?}",
+            errors
         );
     }
 }
