@@ -11,6 +11,10 @@ pub struct Args {
     /// `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`.
     #[arg(short, long, global = true, action = ArgAction::Count)]
     pub verbose: u8,
+
+    /// Output as JSON rather than markdown
+    #[arg(long, global = true, action)]
+    pub json: bool,
 }
 
 #[derive(Debug, Subcommand)]

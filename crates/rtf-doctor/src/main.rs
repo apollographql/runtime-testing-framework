@@ -11,7 +11,11 @@ use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 #[tokio::main]
 async fn main() {
-    let Args { command, verbose } = Args::parse();
+    let Args {
+        command,
+        verbose,
+        json,
+    } = Args::parse();
     if let Err(e) = init_logging(verbose) {
         error!("unable to initialise logging: {e}");
         exit(1);
@@ -23,9 +27,9 @@ async fn main() {
             n_operations,
             skip_mutations,
             by_fields,
-        } => summarise_graph(&graph_ref, n_operations, skip_mutations, by_fields).await,
+        } => summarise_graph(graph_ref, n_operations, skip_mutations, by_fields, json).await,
 
-        Command::LaunchHistory { graph_ref, n } => get_launch_history(&graph_ref, n).await,
+        Command::LaunchHistory { graph_ref, n } => get_launch_history(&graph_ref, n, json).await,
     };
 
     if let Err(e) = res {

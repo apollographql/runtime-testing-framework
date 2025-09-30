@@ -4,8 +4,9 @@ use chrono::{DateTime, Utc};
 use graphql_client::GraphQLQuery;
 use rtf_core::graphos::platform_query::PlatformQuery;
 use serde::Serialize;
+use tabled::{Table, Tabled, settings::Style};
 
-pub async fn get_launch_history(graph_ref: &str, n: usize) -> Result<()> {
+pub async fn get_launch_history(graph_ref: &str, n: usize, json_output: bool) -> Result<()> {
     let (graph_id, variant) = graph_ref
         .split_once('@')
         .ok_or(anyhow!("invalid graph ref"))?;
@@ -18,7 +19,7 @@ pub async fn get_launch_history(graph_ref: &str, n: usize) -> Result<()> {
     let max_batch_size = 100; // enforced by the studio API
     let batches = n / max_batch_size;
     let mut overflow = n % max_batch_size;
-    let mut launches = Vec::with_capacity(n);
+    let mut raw_launches = Vec::with_capacity(n);
     let mut offset = 0;
 
     for _ in 0..batches {
@@ -33,7 +34,7 @@ pub async fn get_launch_history(graph_ref: &str, n: usize) -> Result<()> {
         )
         .await?;
 
-        launches.extend(batch);
+        raw_launches.extend(batch);
         offset += batch_size as i64;
         if batch_size < max_batch_size {
             overflow = 0;
@@ -53,22 +54,31 @@ pub async fn get_launch_history(graph_ref: &str, n: usize) -> Result<()> {
         )
         .await?;
 
-        launches.extend(batch);
+        raw_launches.extend(batch);
     }
 
-    let mut prev = launches[0];
-    for at in launches {
+    let mut launches = Vec::with_capacity(raw_launches.len());
+    let mut prev = raw_launches[0];
+    for at in raw_launches {
         let delta = prev.signed_duration_since(at);
         let delta_mins = delta.num_minutes();
         prev = at;
 
-        println!("{}", serde_json::to_string(&Launch { at, delta_mins })?);
+        launches.push(Launch { at, delta_mins });
+    }
+
+    if json_output {
+        println!("{}", serde_json::to_string(&launches)?);
+    } else {
+        let mut table = Table::new(launches);
+        table.with(Style::markdown());
+        println!("{table}");
     }
 
     Ok(())
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Tabled)]
 struct Launch {
     at: Timestamp,
     delta_mins: i64,
