@@ -26,8 +26,8 @@ async fn main() {
             graph_ref,
             n_operations,
             skip_mutations,
-            by_fields,
-        } => summarise_graph(graph_ref, n_operations, skip_mutations, by_fields, json).await,
+            sort_by,
+        } => summarise_graph(graph_ref, n_operations, skip_mutations, sort_by, json).await,
 
         Command::LaunchHistory { graph_ref, n } => get_launch_history(&graph_ref, n, json).await,
     };

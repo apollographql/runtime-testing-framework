@@ -24,6 +24,8 @@ query FetchOperationIds(
         nodes {
           id
           displayName
+          requestCount
+          requestCountPerMin
         }
         pageInfo {
           endCursor

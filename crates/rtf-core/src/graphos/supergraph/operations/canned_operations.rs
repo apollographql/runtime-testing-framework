@@ -68,7 +68,15 @@ pub async fn canned_ops_for_ids(
     client: &impl platform_query::Client,
 ) -> graphos::Result<Vec<CannedOperation>> {
     let schema = schema_with_defer_and_stream(&details.supergraph_sdl);
-    let signatures = fetch_operation_signatures(details.graph_id.clone(), op_ids, client)
+    let op_meta = op_ids
+        .into_iter()
+        .map(|id| OpInsights {
+            id,
+            request_count: 0,
+            request_count_per_min: 0,
+        })
+        .collect();
+    let signatures = fetch_operation_signatures(details.graph_id.clone(), op_meta, client)
         .await
         .map_err(|cause| {
             graphos::Error::Fetch(FetchError {
@@ -112,7 +120,7 @@ pub async fn top_studio_canned_ops(
     };
 
     let schema = schema_with_defer_and_stream(&details.supergraph_sdl);
-    let ids = fetch_operation_ids(
+    let op_metas = fetch_operation_meta(
         details.graph_id.clone(),
         details.variant.clone(),
         n,
@@ -122,7 +130,7 @@ pub async fn top_studio_canned_ops(
     .await
     .map_err(fetch_error)?;
 
-    let signatures = fetch_operation_signatures(details.graph_id.clone(), ids, client)
+    let signatures = fetch_operation_signatures(details.graph_id.clone(), op_metas, client)
         .await
         .map_err(fetch_error)?;
 
@@ -232,18 +240,18 @@ fn stream_definition() -> Node<DirectiveDefinition> {
 
 /// Fetch the top `n` operations for a given graph variant and return their operation IDs
 /// which can be used for then fetching operation Signatures for rehydration.
-async fn fetch_operation_ids(
+async fn fetch_operation_meta(
     graph_id: String,
     variant: String,
     n: usize,
     skip_mutations: bool,
     client: &impl platform_query::Client,
-) -> Result<Vec<String>, FetchErrorCause> {
+) -> Result<Vec<OpInsights>, FetchErrorCause> {
     info!("fetching top {n} operation IDs for {graph_id}@{variant}");
     let max_batch_size = 100; // enforced by the studio API
     let batches = n / max_batch_size;
     let mut overflow = n % max_batch_size;
-    let mut ids = Vec::with_capacity(n);
+    let mut ops = Vec::with_capacity(n);
     let mut after = None;
 
     for i in 0..batches {
@@ -258,8 +266,8 @@ async fn fetch_operation_ids(
         )
         .await?;
 
-        let batch_size = batch.ids.len();
-        ids.extend(batch.ids);
+        let batch_size = batch.ops.len();
+        ops.extend(batch.ops);
         after = batch.after;
         if batch_size < max_batch_size {
             overflow = 0;
@@ -278,46 +286,46 @@ async fn fetch_operation_ids(
             client,
         )
         .await?;
-        ids.extend(batch.ids);
+        ops.extend(batch.ops);
     }
 
-    if ids.len() < n {
+    if ops.len() < n {
         warn!(
             "ran out of operations in studio: wanted {n} but only able to pull {}",
-            ids.len()
+            ops.len()
         );
     }
 
-    let prev_len = ids.len();
-    ids.sort_unstable();
-    ids.dedup();
+    let prev_len = ops.len();
+    ops.sort_unstable_by_key(|op| op.id.clone());
+    ops.dedup_by_key(|op| op.id.clone());
 
-    if ids.len() < prev_len {
+    if ops.len() < prev_len {
         warn!(
             "duplicate operations returned: only have {} unique operations",
-            ids.len()
+            ops.len()
         );
     }
 
-    Ok(ids)
+    Ok(ops)
 }
 
 /// Fetch the top `n` operations for a given graph variant and return their "signatures" for
 /// processing into valid queries that we can then generate structurally valid variable data for.
 async fn fetch_operation_signatures(
     graph_id: String,
-    ids: Vec<String>,
+    op_metas: Vec<OpInsights>,
     client: &impl platform_query::Client,
 ) -> Result<Vec<Signature>, FetchErrorCause> {
-    let mut signatures = Vec::with_capacity(ids.len());
+    let mut signatures = Vec::with_capacity(op_metas.len());
 
     info!("pulling operation signatures for {graph_id}");
-    let mut n_batches = ids.len() / N_PARALLEL_FETCH;
+    let mut n_batches = op_metas.len() / N_PARALLEL_FETCH;
     if !n_batches.is_multiple_of(N_PARALLEL_FETCH) {
         n_batches += 1;
     }
 
-    for (i, batch) in ids
+    for (i, batch) in op_metas
         .into_iter()
         .chunks(N_PARALLEL_FETCH)
         .into_iter()
@@ -325,7 +333,7 @@ async fn fetch_operation_signatures(
     {
         info!("requesting batch {}/{n_batches}", i + 1);
         let items =
-            try_join_all(batch.map(|op_id| Signature::fetch(graph_id.to_string(), op_id, client)))
+            try_join_all(batch.map(|op| Signature::fetch(graph_id.to_string(), op, client)))
                 .await?;
         signatures.extend(items);
     }
@@ -335,10 +343,19 @@ async fn fetch_operation_signatures(
 
 // Declaration for the graphql_client macro code generated from FetchOperationIds.
 type Timestamp = i64;
+type Long = usize;
 
 struct Batch {
-    ids: Vec<String>,
+    ops: Vec<OpInsights>,
     after: Option<String>,
+}
+
+/// Insights metadata for an operation in studio
+#[derive(Debug, Default)]
+pub struct OpInsights {
+    id: String,
+    request_count: usize,
+    request_count_per_min: usize,
 }
 
 /// Paginate through the top operations for a given supergraph and time range.
@@ -397,13 +414,17 @@ impl PlatformQuery for FetchOperationIds {
             .by_requests;
         let nodes = by_requests.nodes.unwrap_or_default();
         let after = by_requests.page_info.end_cursor;
-        let ids: Vec<String> = nodes
+        let ops: Vec<OpInsights> = nodes
             .into_iter()
             .filter(|node| !node.display_name.starts_with("#"))
-            .map(|node| node.id)
+            .map(|node| OpInsights {
+                id: node.id,
+                request_count: node.request_count,
+                request_count_per_min: node.request_count_per_min.round() as usize,
+            })
             .collect();
 
-        Ok(Batch { ids, after })
+        Ok(Batch { ops, after })
     }
 }
 
@@ -435,6 +456,7 @@ impl PlatformQuery for GetOpSignature {
         Ok(Signature {
             id: vars.op_id,
             sig,
+            insights: Default::default(),
         })
     }
 }
@@ -452,6 +474,10 @@ pub struct CannedOperation {
     pub doc: Valid<ExecutableDocument>,
     /// The generated variable data for this operation
     pub vars: HashMap<String, Value>,
+    /// Total request count over the queried time period from insights
+    pub request_count: usize,
+    /// Average request count per minute over the queried time period from insights
+    pub request_count_per_min: usize,
 }
 
 impl CannedOperation {
@@ -481,6 +507,8 @@ impl CannedOperation {
             id: sig.id,
             doc,
             vars,
+            request_count: sig.insights.request_count,
+            request_count_per_min: sig.insights.request_count_per_min,
         })
     }
 
@@ -727,23 +755,27 @@ fn try_field(named_ty: &Name, ty: &Type, depth: usize, schema: &Valid<Schema>) -
 pub struct Signature {
     id: String,
     sig: String,
+    insights: OpInsights,
 }
 
 impl Signature {
     /// Attempt to fetch the signature for a given operation ID from Studio
     pub async fn fetch(
         graph_id: String,
-        id: String,
+        insights: OpInsights,
         client: &impl platform_query::Client,
     ) -> Result<Self, FetchErrorCause> {
-        GetOpSignature::fetch(
+        let mut sig = GetOpSignature::fetch(
             get_op_signature::Variables {
                 graph_id,
-                op_id: id.clone(),
+                op_id: insights.id.clone(),
             },
             client,
         )
-        .await
+        .await?;
+        sig.insights = insights;
+
+        Ok(sig)
     }
 
     /// The operations that we pull out of studio using [Signature::fetch] have been partially redacted
@@ -1229,6 +1261,7 @@ mod tests {
         let sig = Signature {
             id: path.to_string(),
             sig: contents.to_string(),
+            insights: Default::default(),
         };
 
         let mut rng = rand::rng();

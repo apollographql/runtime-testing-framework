@@ -1,3 +1,4 @@
+use crate::commands::summarise::OpSort;
 use clap::{ArgAction, Parser, Subcommand};
 
 /// A debbugging tool for looking into issues with supergraphs and routers
@@ -33,9 +34,9 @@ pub enum Command {
         #[arg(long, action)]
         skip_mutations: bool,
 
-        /// Order operations by number of fields being queried
-        #[arg(long, action)]
-        by_fields: bool,
+        /// How to order the queried operations (defaults to by most frequently run)
+        #[arg(long, value_enum)]
+        sort_by: Option<OpSort>,
     },
 
     /// Check the launch history of a given supergraph
