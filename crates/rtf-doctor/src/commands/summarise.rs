@@ -1,5 +1,6 @@
 use crate::{format_bytes, new_client};
 use anyhow::{Result, anyhow};
+use apollo_compiler::executable::{FragmentMap, Selection, SelectionSet};
 use rtf_core::graphos::supergraph::{
     SupergraphDetails,
     operations::top_studio_operations::{generate_canned_ops, schema_with_defer_and_stream},
@@ -75,6 +76,8 @@ pub async fn summarise_graph(
                 ty,
                 sdl_bytes: format_bytes(doc.to_string().len()),
                 n_fields: op.all_fields(doc).count(),
+                n_fragments: doc.fragments.len(),
+                max_depth: max_depth(&op.selection_set, &doc.fragments),
             }
         })
         .collect();
@@ -98,4 +101,38 @@ struct OpMeta {
     ty: &'static str,
     sdl_bytes: String,
     n_fields: usize,
+    n_fragments: usize,
+    max_depth: usize,
+}
+
+fn max_depth(selset: &SelectionSet, fragments: &FragmentMap) -> usize {
+    let mut max = 0;
+
+    for sel in selset.selections.iter() {
+        let m = match sel {
+            Selection::FragmentSpread(s) => {
+                if let Some(f) = fragments.get(&s.fragment_name) {
+                    max_depth(&f.selection_set, fragments) + 1
+                } else {
+                    1
+                }
+            }
+
+            Selection::Field(f) => {
+                if f.selection_set.is_empty() {
+                    1
+                } else {
+                    max_depth(&f.selection_set, fragments) + 1
+                }
+            }
+
+            Selection::InlineFragment(f) => max_depth(&f.selection_set, fragments) + 1,
+        };
+
+        if m > max {
+            max = m;
+        }
+    }
+
+    max
 }

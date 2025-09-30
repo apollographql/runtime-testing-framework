@@ -1811,6 +1811,7 @@ name = "rtf-doctor"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "apollo-compiler",
  "chrono",
  "clap",
  "graphql_client",

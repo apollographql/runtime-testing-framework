@@ -12,6 +12,7 @@ path = "src/main.rs"
 rtf-core = { path = "../rtf-core" }
 
 anyhow.workspace = true 
+apollo-compiler.workspace = true
 clap.workspace = true
 graphql_client = "0.14.0"
 serde.workspace = true
