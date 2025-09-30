@@ -444,14 +444,12 @@ impl PlatformQuery for GetOpSignature {
 ///
 /// See [Signature::parse_and_fix] for details on the rewriting we need to do in order to fix up
 /// operations pulled from Studio so they are in a form we can work with.
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug)]
 pub struct CannedOperation {
     /// The platform API ID for this operation in Studio
     pub id: String,
-    /// The compact form of this operation that will be used for writing out a JSON POST request
-    pub query: String,
-    /// The pretty printed form of this operation for writing out a graphl file
-    pub pretty_query: String,
+    /// The rehydrated and validated graphQL document
+    pub doc: Valid<ExecutableDocument>,
     /// The generated variable data for this operation
     pub vars: HashMap<String, Value>,
 }
@@ -481,17 +479,24 @@ impl CannedOperation {
 
         Ok(Self {
             id: sig.id,
-            query: doc.serialize().no_indent().to_string(),
-            pretty_query: doc.to_string(),
+            doc,
             vars,
         })
+    }
+
+    fn query(&self) -> String {
+        self.doc.serialize().no_indent().to_string()
+    }
+
+    fn pretty_query(&self) -> String {
+        self.doc.to_string()
     }
 
     /// Attempt to return a JSON string representation of the [CannedOperation] required to
     /// POST this operation to a running Router.
     pub fn to_json_string(&self) -> graphos::Result<String> {
         let data = serde_json::to_string(&json!({
-            "query": self.query,
+            "query": self.query(),
             "variables": self.vars,
         }))?;
 
@@ -505,11 +510,14 @@ impl CannedOperation {
     /// respectively.
     pub fn write(&self, dir: &Path) -> graphos::Result<()> {
         let data = json!({
-            "query": self.query,
+            "query": self.query(),
             "variables": self.vars,
         });
 
-        fs::write(dir.join(format!("{}.graphql", self.id)), &self.pretty_query)?;
+        fs::write(
+            dir.join(format!("{}.graphql", self.id)),
+            self.pretty_query(),
+        )?;
         fs::write(
             dir.join(format!("{}.json", self.id)),
             serde_json::to_string_pretty(&data)?,
