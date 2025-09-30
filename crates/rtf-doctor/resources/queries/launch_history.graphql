@@ -1,0 +1,10 @@
+query LaunchHistory($graph_id: ID!, $variant: String!, $limit: Int!, $offset: Int!) {
+  graph(id: $graph_id) {
+    variant(name: $variant) {
+      launchHistory(limit: $limit, offset: $offset) {
+        completedAt
+        isCompleted
+      }
+    }
+  }
+}

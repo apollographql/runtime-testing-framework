@@ -3,7 +3,7 @@ use clap::Parser;
 use rtf_doctor::{
     LOG_LEVEL_ENV_VAR,
     cli::{Args, Command},
-    commands::summarise::summarise_graph,
+    commands::{launch_history::get_launch_history, summarise::summarise_graph},
 };
 use std::{io::stderr, process::exit};
 use tracing::{Level, error, level_filters::LevelFilter, subscriber::set_global_default};
@@ -24,6 +24,8 @@ async fn main() {
             skip_mutations,
             by_fields,
         } => summarise_graph(&graph_ref, n_operations, skip_mutations, by_fields).await,
+
+        Command::LaunchHistory { graph_ref, n } => get_launch_history(&graph_ref, n).await,
     };
 
     if let Err(e) = res {

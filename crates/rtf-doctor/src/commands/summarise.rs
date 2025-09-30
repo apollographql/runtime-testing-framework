@@ -86,7 +86,7 @@ pub async fn summarise_graph(
 
     println!(":: Top operation details");
     let mut table = Table::new(op_meta);
-    table.with(Style::psql());
+    table.with(Style::markdown());
     println!("{table}");
 
     Ok(())

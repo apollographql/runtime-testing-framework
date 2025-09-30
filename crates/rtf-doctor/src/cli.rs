@@ -33,4 +33,15 @@ pub enum Command {
         #[arg(long, action)]
         by_fields: bool,
     },
+
+    /// Check the launch history of a given supergraph
+    LaunchHistory {
+        /// The graph-ref to look at launch history for
+        #[arg(long)]
+        graph_ref: String,
+
+        /// The number of launches to check (successful & unsuccessful)
+        #[arg(short, long, default_value = "100")]
+        n: usize,
+    },
 }
