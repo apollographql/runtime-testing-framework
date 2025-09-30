@@ -138,7 +138,7 @@ fn enum_token_streams(enum_meta: Vec<EnumMeta>) -> (TokenStream, TokenStream, To
 
     let try_template = quote! {
         match self {
-            #(Self::#variants(inner) => inner.try_template_nested(path, stringify!(#variants), values),)*
+            #(Self::#variants(inner) => inner.try_template(path, values),)*
         }
     };
 
