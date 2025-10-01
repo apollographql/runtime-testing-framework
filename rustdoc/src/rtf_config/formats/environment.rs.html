@@ -339,13 +339,13 @@
 <a href=#339 id=339 data-nosnippet>339</a>        <span class="kw-2">&amp;</span>[]</span>, <span class="kw-2">&amp;</span>[],
 <a href=#340 id=340 data-nosnippet>340</a>        <span class="kw-2">&amp;</span>[
 <a href=#341 id=341 data-nosnippet>341</a>            (<span class="string">"foo"</span>, <span class="string">"setup.env_vars.FOO"</span>),
-<a href=#342 id=342 data-nosnippet>342</a>            (<span class="string">"setup-path"</span>, <span class="string">"setup.file_providers.SETUP_PATH"</span>)
+<a href=#342 id=342 data-nosnippet>342</a>            (<span class="string">"setup-path"</span>, <span class="string">"setup.file_providers.SETUP_PATH.path"</span>)
 <a href=#343 id=343 data-nosnippet>343</a>        ];
 <a href=#344 id=344 data-nosnippet>344</a>        <span class="string">"neither defined"
 <a href=#345 id=345 data-nosnippet>345</a>    </span>)]
 <a href=#346 id=346 data-nosnippet>346</a>    <span class="attr">#[test_case(
 <a href=#347 id=347 data-nosnippet>347</a>        <span class="kw-2">&amp;</span>[<span class="string">"foo"</span>]</span>, <span class="kw-2">&amp;</span>[],
-<a href=#348 id=348 data-nosnippet>348</a>        <span class="kw-2">&amp;</span>[(<span class="string">"setup-path"</span>, <span class="string">"setup.file_providers.SETUP_PATH"</span>)];
+<a href=#348 id=348 data-nosnippet>348</a>        <span class="kw-2">&amp;</span>[(<span class="string">"setup-path"</span>, <span class="string">"setup.file_providers.SETUP_PATH.path"</span>)];
 <a href=#349 id=349 data-nosnippet>349</a>        <span class="string">"foo defined"
 <a href=#350 id=350 data-nosnippet>350</a>    </span>)]
 <a href=#351 id=351 data-nosnippet>351</a>    <span class="attr">#[test_case(
@@ -360,7 +360,7 @@
 <a href=#360 id=360 data-nosnippet>360</a>        <span class="kw-2">&amp;</span>[]</span>, <span class="kw-2">&amp;</span>[<span class="string">"foo"</span>, <span class="string">"setup-path"</span>],
 <a href=#361 id=361 data-nosnippet>361</a>        <span class="kw-2">&amp;</span>[
 <a href=#362 id=362 data-nosnippet>362</a>            (<span class="string">"foo"</span>, <span class="string">"setup.env_vars.FOO"</span>),
-<a href=#363 id=363 data-nosnippet>363</a>            (<span class="string">"setup-path"</span>, <span class="string">"setup.file_providers.SETUP_PATH"</span>)
+<a href=#363 id=363 data-nosnippet>363</a>            (<span class="string">"setup-path"</span>, <span class="string">"setup.file_providers.SETUP_PATH.path"</span>)
 <a href=#364 id=364 data-nosnippet>364</a>        ];
 <a href=#365 id=365 data-nosnippet>365</a>        <span class="string">"defined in provides"
 <a href=#366 id=366 data-nosnippet>366</a>    </span>)]
@@ -403,18 +403,18 @@
 <a href=#403 id=403 data-nosnippet>403</a>        <span class="kw-2">&amp;</span>[]</span>, <span class="kw-2">&amp;</span>[],
 <a href=#404 id=404 data-nosnippet>404</a>        <span class="kw-2">&amp;</span>[
 <a href=#405 id=405 data-nosnippet>405</a>            (<span class="string">"bar"</span>, <span class="string">"teardown.env_vars.BAR"</span>),
-<a href=#406 id=406 data-nosnippet>406</a>            (<span class="string">"teardown-path"</span>, <span class="string">"teardown.file_providers.TEARDOWN_PATH"</span>)
+<a href=#406 id=406 data-nosnippet>406</a>            (<span class="string">"teardown-path"</span>, <span class="string">"teardown.file_providers.TEARDOWN_PATH.path"</span>)
 <a href=#407 id=407 data-nosnippet>407</a>        ];
 <a href=#408 id=408 data-nosnippet>408</a>        <span class="string">"neither defined"
 <a href=#409 id=409 data-nosnippet>409</a>    </span>)]
 <a href=#410 id=410 data-nosnippet>410</a>    <span class="attr">#[test_case(
 <a href=#411 id=411 data-nosnippet>411</a>        <span class="kw-2">&amp;</span>[<span class="string">"bar"</span>]</span>, <span class="kw-2">&amp;</span>[],
-<a href=#412 id=412 data-nosnippet>412</a>        <span class="kw-2">&amp;</span>[(<span class="string">"teardown-path"</span>, <span class="string">"teardown.file_providers.TEARDOWN_PATH"</span>)];
+<a href=#412 id=412 data-nosnippet>412</a>        <span class="kw-2">&amp;</span>[(<span class="string">"teardown-path"</span>, <span class="string">"teardown.file_providers.TEARDOWN_PATH.path"</span>)];
 <a href=#413 id=413 data-nosnippet>413</a>        <span class="string">"bar defined at top level"
 <a href=#414 id=414 data-nosnippet>414</a>    </span>)]
 <a href=#415 id=415 data-nosnippet>415</a>    <span class="attr">#[test_case(
 <a href=#416 id=416 data-nosnippet>416</a>        <span class="kw-2">&amp;</span>[]</span>, <span class="kw-2">&amp;</span>[<span class="string">"bar"</span>],
-<a href=#417 id=417 data-nosnippet>417</a>        <span class="kw-2">&amp;</span>[(<span class="string">"teardown-path"</span>, <span class="string">"teardown.file_providers.TEARDOWN_PATH"</span>)];
+<a href=#417 id=417 data-nosnippet>417</a>        <span class="kw-2">&amp;</span>[(<span class="string">"teardown-path"</span>, <span class="string">"teardown.file_providers.TEARDOWN_PATH.path"</span>)];
 <a href=#418 id=418 data-nosnippet>418</a>        <span class="string">"bar defined in setup provides"
 <a href=#419 id=419 data-nosnippet>419</a>    </span>)]
 <a href=#420 id=420 data-nosnippet>420</a>    <span class="attr">#[test_case(
