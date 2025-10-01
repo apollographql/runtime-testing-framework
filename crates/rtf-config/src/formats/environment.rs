@@ -339,13 +339,13 @@ mod tests {
         &[], &[],
         &[
             ("foo", "setup.env_vars.FOO"),
-            ("setup-path", "setup.file_providers.SETUP_PATH")
+            ("setup-path", "setup.file_providers.SETUP_PATH.path")
         ];
         "neither defined"
     )]
     #[test_case(
         &["foo"], &[],
-        &[("setup-path", "setup.file_providers.SETUP_PATH")];
+        &[("setup-path", "setup.file_providers.SETUP_PATH.path")];
         "foo defined"
     )]
     #[test_case(
@@ -360,7 +360,7 @@ mod tests {
         &[], &["foo", "setup-path"],
         &[
             ("foo", "setup.env_vars.FOO"),
-            ("setup-path", "setup.file_providers.SETUP_PATH")
+            ("setup-path", "setup.file_providers.SETUP_PATH.path")
         ];
         "defined in provides"
     )]
@@ -403,18 +403,18 @@ mod tests {
         &[], &[],
         &[
             ("bar", "teardown.env_vars.BAR"),
-            ("teardown-path", "teardown.file_providers.TEARDOWN_PATH")
+            ("teardown-path", "teardown.file_providers.TEARDOWN_PATH.path")
         ];
         "neither defined"
     )]
     #[test_case(
         &["bar"], &[],
-        &[("teardown-path", "teardown.file_providers.TEARDOWN_PATH")];
+        &[("teardown-path", "teardown.file_providers.TEARDOWN_PATH.path")];
         "bar defined at top level"
     )]
     #[test_case(
         &[], &["bar"],
-        &[("teardown-path", "teardown.file_providers.TEARDOWN_PATH")];
+        &[("teardown-path", "teardown.file_providers.TEARDOWN_PATH.path")];
         "bar defined in setup provides"
     )]
     #[test_case(

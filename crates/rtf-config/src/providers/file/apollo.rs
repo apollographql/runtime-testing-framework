@@ -3,12 +3,11 @@
 use crate::{
     checks::{self, Check},
     context::ResolutionContext,
-    impl_template,
     providers::{
         self,
         file::{AsUtf8FileContent, ResolveAndWrite, Source},
     },
-    templating::{self, Field, Scalar, Template},
+    templating::Field,
 };
 use indoc::indoc;
 use reqwest::StatusCode;
@@ -19,6 +18,7 @@ use rtf_core::{
         operations::{fetch_offline_license, top_studio_operations::generate_canned_ops},
     },
 };
+use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -39,7 +39,7 @@ use std::{
 ///   graph_ref: graph@variant
 ///   with_subgraph_overrides: docker
 /// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct GraphosSupergraph {
     /// The Apollo graph ref to pull supergraph SDL for.
     pub graph_ref: Field<String>,
@@ -47,6 +47,7 @@ pub struct GraphosSupergraph {
     ///
     /// Defaults to null if unset.
     #[serde(default)]
+    #[template(skip)]
     pub with_subgraph_overrides: Option<UrlFormat>,
 }
 
@@ -87,8 +88,6 @@ impl AsUtf8FileContent for GraphosSupergraph {
     }
 }
 
-impl_template!(GraphosSupergraph => [graph_ref]);
-
 impl Check for GraphosSupergraph {
     fn try_check(
         &self,
@@ -114,7 +113,7 @@ impl Check for GraphosSupergraph {
 ///   kind: graphos_subgraphs
 ///   graph_ref: graph@variant
 /// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct GraphosSubgraphs {
     /// The Apollo graph ref to pull subgraph SDL files for.
     pub graph_ref: Field<String>,
@@ -146,8 +145,6 @@ impl ResolveAndWrite for GraphosSubgraphs {
         Ok(contents)
     }
 }
-
-impl_template!(GraphosSubgraphs => [graph_ref]);
 
 impl Check for GraphosSubgraphs {
     fn try_check(
@@ -193,7 +190,7 @@ impl Check for GraphosSubgraphs {
 ///       memory: 512M
 ///     mem_swappiness: 0
 /// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct GraphosSubgraphDockerCompose {
     /// The Apollo graph ref to pull the supergraph for.
     pub graph_ref: Field<String>,
@@ -206,6 +203,7 @@ pub struct GraphosSubgraphDockerCompose {
     ///
     /// Defaults to "-schema /app/supergraph.graphql" if unset.
     #[serde(default = "default_command")]
+    #[template(skip)]
     pub command: Vec<String>,
     /// The number of subgraph services containers running.
     ///
@@ -232,7 +230,7 @@ pub struct GraphosSubgraphDockerCompose {
     pub loadbalancer: Loadbalancer,
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct Loadbalancer {
     /// The resource limits for the loadbalancer.
     ///
@@ -248,7 +246,7 @@ pub struct Loadbalancer {
     pub mem_swappiness: Field<i32>,
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct Resources {
     /// The cpus allocated for the resource.
     pub cpus: Field<String>,
@@ -536,10 +534,6 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
     }
 }
 
-impl_template!(GraphosSubgraphDockerCompose => [graph_ref, image, replicas, resource_limits, resource_reservations, mem_swappiness, loadbalancer]);
-impl_template!(Loadbalancer => [resource_limits, resource_reservations, mem_swappiness]);
-impl_template!(Resources => [cpus, memory]);
-
 impl Check for GraphosSubgraphDockerCompose {
     fn try_check(
         &self,
@@ -568,12 +562,13 @@ impl Check for GraphosSubgraphDockerCompose {
 ///   graph_ref: graph@variant
 ///   url_format: localhost
 /// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct GraphosSubgraphRouterUrlOverrides {
     /// The Apollo graph ref to pull the subgraphs for.
     pub graph_ref: Field<String>,
     /// The format of the overrides url.
     #[serde(default = "default_url_format")]
+    #[template(skip)]
     pub url_format: UrlFormat,
 }
 
@@ -637,8 +632,6 @@ impl AsUtf8FileContent for GraphosSubgraphRouterUrlOverrides {
     }
 }
 
-impl_template!(GraphosSubgraphRouterUrlOverrides => [graph_ref]);
-
 impl Check for GraphosSubgraphRouterUrlOverrides {
     fn try_check(
         &self,
@@ -664,7 +657,7 @@ impl Check for GraphosSubgraphRouterUrlOverrides {
 ///   top_n: 10
 ///   skip_mutations: true
 /// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct GraphosCannedOps {
     /// The Apollo graph ref to pull operations for.
     pub graph_ref: Field<String>,
@@ -724,8 +717,6 @@ impl AsUtf8FileContent for GraphosCannedOps {
     }
 }
 
-impl_template!(GraphosCannedOps => [graph_ref, top_n, skip_mutations]);
-
 impl Check for GraphosCannedOps {
     fn try_check(
         &self,
@@ -748,7 +739,7 @@ impl Check for GraphosCannedOps {
 ///   kind: graphos_offline_license
 ///   graph_id: graph
 /// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct OfflineGraphosLicense {
     /// The Apollo graph ref to pull an offline license for.
     pub graph_id: Field<String>,
@@ -766,8 +757,6 @@ impl AsUtf8FileContent for OfflineGraphosLicense {
         Ok(license)
     }
 }
-
-impl_template!(OfflineGraphosLicense => [graph_id]);
 
 impl Check for OfflineGraphosLicense {
     fn try_check(
@@ -821,13 +810,11 @@ fn validate_client(path: &[String], ctx: &impl ResolutionContext) -> checks::Res
 ///   kind: router_download_script
 ///   version: "v2.6.0"
 /// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct RouterDownloadScript {
     /// The version of the Apollo Router to download.
     pub(crate) version: Field<String>,
 }
-
-impl_template!(RouterDownloadScript => [version]);
 
 impl AsUtf8FileContent for RouterDownloadScript {
     async fn try_get_file_content(
@@ -881,7 +868,7 @@ impl Check for RouterDownloadScript {
 ///   git_ref: "some-ref"
 ///   rust_version: "1.89.0"
 /// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct BuildRouterFromSource {
     /// A git reference that can be passed to `git checkout`. This may be
     /// a full or partial commit hash, branch name, or tag.
@@ -897,33 +884,6 @@ pub struct BuildRouterFromSource {
 
 fn default_rust_version() -> Field<String> {
     Field::Resolved("stable".to_string())
-}
-
-impl Template for BuildRouterFromSource {
-    fn has_pending_fields(&self) -> bool {
-        [&self.git_ref, &self.rust_version]
-            .iter()
-            .any(|field| field.has_pending_fields())
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        [&self.git_ref, &self.rust_version]
-            .iter()
-            .flat_map(|field| field.required_values())
-            .collect()
-    }
-
-    fn try_template(
-        &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
-        errs.append(self.git_ref.try_template(path, values));
-        errs.append(self.rust_version.try_template(path, values));
-
-        errs.into_result(())
-    }
 }
 
 impl AsUtf8FileContent for BuildRouterFromSource {

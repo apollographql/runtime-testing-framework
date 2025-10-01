@@ -5,12 +5,12 @@ use crate::{
         Result,
         file::{AsUtf8FileContent, Source},
     },
-    templating::{self, Field, Scalar, Template},
+    templating::Field,
 };
 use rtf_core::github::Client;
+use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// # GitHub File
 ///
@@ -27,7 +27,7 @@ use std::collections::HashMap;
 ///   path: "resources/test-data/my-file.txt"
 ///   git_ref: "some-ref"
 /// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct GithubFile {
     /// The GitHub org for the repository containing the target file
     pub(crate) org: Field<String>,
@@ -40,49 +40,6 @@ pub struct GithubFile {
     ///
     /// Defaults to the mainline branch as specified in GitHub if unset.
     pub(crate) git_ref: Option<Field<String>>,
-}
-
-impl Template for GithubFile {
-    fn has_pending_fields(&self) -> bool {
-        self.org.has_pending_fields()
-            || self.repo.has_pending_fields()
-            || self.path.has_pending_fields()
-            || self
-                .git_ref
-                .as_ref()
-                .map(|field| field.has_pending_fields())
-                .unwrap_or(false)
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        let mut vals: Vec<String> = [&self.org, &self.repo, &self.path]
-            .iter()
-            .flat_map(|field| field.required_values())
-            .collect();
-
-        if let Some(field) = self.git_ref.as_ref() {
-            vals.extend(field.required_values());
-        }
-
-        vals
-    }
-
-    fn try_template(
-        &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
-        errs.append(self.org.try_template(path, values));
-        errs.append(self.repo.try_template(path, values));
-        errs.append(self.path.try_template(path, values));
-
-        if let Some(field) = self.git_ref.as_mut() {
-            errs.append(field.try_template(path, values));
-        }
-
-        errs.into_result(())
-    }
 }
 
 impl AsUtf8FileContent for GithubFile {

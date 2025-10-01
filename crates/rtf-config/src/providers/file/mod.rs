@@ -2,14 +2,14 @@
 use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
-    enum_impl_check, enum_impl_template, impl_template, providers,
-    templating::{self, Field, Scalar, Template},
+    enum_impl_check, providers,
+    templating::Field,
 };
 use rtf_core::github::Client;
+use rtf_derive::Template;
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
-    collections::HashMap,
     fmt, io,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -170,7 +170,7 @@ impl DerefMut for NamedFileProvider {
 }
 
 /// # File Provider
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum FileProvider {
     BuildRouterFromSource(apollo::BuildRouterFromSource),
@@ -206,7 +206,6 @@ impl FileProvider {
 macro_rules! enum_impl_file_provider {
     ($($variant:ident,)+) => {
         enum_impl_check!(FileProvider => $($variant),+);
-        enum_impl_template!(FileProvider => $($variant),+);
         enum_impl_resolve_and_write!(FileProvider => $($variant),+);
     };
 }
@@ -241,9 +240,10 @@ enum_impl_file_provider!(
 ///     my raw file content.
 ///     specified inline within an RTF config file.
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct InlineFile {
     /// The text to write out as the contents of the generated file.
+    #[template(skip)]
     pub(crate) content: String,
 }
 
@@ -256,8 +256,6 @@ impl AsUtf8FileContent for InlineFile {
         Ok(self.content.clone())
     }
 }
-
-impl_template!(InlineFile => []);
 
 impl Check for InlineFile {
     fn try_check(
@@ -282,7 +280,7 @@ impl Check for InlineFile {
 ///   kind: relative_path
 ///   path: "../../resources/test-data/my-file.txt"
 /// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct RelativeFile {
     /// The relative path from the containing config file to the target file.
     pub(crate) path: Field<String>,
@@ -291,32 +289,13 @@ pub struct RelativeFile {
     /// provider was defined as part of an `overrides` section in the test plan.
     #[serde(default, skip_serializing)]
     #[schemars(skip)]
+    #[template(skip)]
     pub(crate) src: Option<Source>,
 }
 
 impl RelativeFile {
     fn format_error_message(&self) -> String {
         format!("provided path was {:?}", self.path)
-    }
-}
-
-// in try_template we don't want to include a trailing ".path" in the resolution path we report to
-// users in error messages so we had implement Template for this one.
-impl Template for RelativeFile {
-    fn has_pending_fields(&self) -> bool {
-        self.path.has_pending_fields()
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        self.path.required_values()
-    }
-
-    fn try_template(
-        &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        self.path.try_template(path, values)
     }
 }
 
@@ -436,9 +415,10 @@ impl Check for RelativeFile {
 ///   kind: required
 ///   message: "you must specify a router config file to use"
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct RequiredFile {
     /// The error message to display to the user if this provider is not overwritten.
+    #[template(skip)]
     message: String,
 }
 
@@ -453,8 +433,6 @@ impl AsUtf8FileContent for RequiredFile {
         )
     }
 }
-
-impl_template!(RequiredFile => []);
 
 impl Check for RequiredFile {
     fn try_check(
@@ -480,7 +458,7 @@ impl Check for RequiredFile {
 ///   env_var: VALUES
 ///   kind: resolved_values
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct ResolvedValues;
 
 impl AsUtf8FileContent for ResolvedValues {
@@ -498,8 +476,6 @@ impl AsUtf8FileContent for ResolvedValues {
     }
 }
 
-impl_template!(ResolvedValues => []);
-
 impl Check for ResolvedValues {
     fn try_check(
         &self,
@@ -516,11 +492,12 @@ mod tests {
     use super::*;
     use crate::{
         context::Context,
+        templating::{Scalar, Template},
         txtar_context::{MockHttpClient, TxtarContext},
     };
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
-    use std::path::PathBuf;
+    use std::{collections::HashMap, path::PathBuf};
 
     /// Load a txtar [Archive] from the given file content and print the top level comment if there
     /// is one before returning it.
