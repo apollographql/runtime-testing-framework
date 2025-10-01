@@ -3,13 +3,14 @@ use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
     enum_impl_check, providers,
-    templating::Field,
+    templating::{self, Field, Scalar, Template},
 };
 use rtf_core::github::Client;
 use rtf_derive::Template;
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
+    collections::HashMap,
     fmt, io,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -166,6 +167,35 @@ impl Deref for NamedFileProvider {
 impl DerefMut for NamedFileProvider {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.provider
+    }
+}
+
+// Adding this custom implementation so that file providers and the environment variable
+// used to identify the file provider are added to the path when templating a
+// NamedFileProvider
+impl Template for NamedFileProvider {
+    fn has_pending_fields(&self) -> bool {
+        self.provider.has_pending_fields()
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        self.provider.required_values()
+    }
+
+    fn try_template(
+        &mut self,
+        path: &mut Vec<String>,
+        values: &HashMap<String, Scalar>,
+    ) -> templating::Result<()> {
+        let mut errs = templating::ErrorBuilder::new();
+
+        path.pop();
+        path.push("file_providers".to_string());
+
+        let tail = self.env_var.clone();
+        errs.append(self.provider.try_template_nested(path, &tail, values));
+
+        errs.into_result(())
     }
 }
 
@@ -492,12 +522,12 @@ mod tests {
     use super::*;
     use crate::{
         context::Context,
-        templating::{Scalar, Template},
+        templating::ErrorKind,
         txtar_context::{MockHttpClient, TxtarContext},
     };
-    use simple_test_case::dir_cases;
+    use simple_test_case::{dir_cases, test_case};
     use simple_txtar::Archive;
-    use std::{collections::HashMap, path::PathBuf};
+    use std::path::PathBuf;
 
     /// Load a txtar [Archive] from the given file content and print the top level comment if there
     /// is one before returning it.
@@ -783,5 +813,92 @@ mod tests {
             .expect("resolution to succeed");
 
         assert_eq!(s, r#"{"foo":"bar"}"#);
+    }
+
+    #[test_case(Field::Pending("foo".to_string()), true; "field is pending")]
+    #[test_case(Field::Resolved("foo".to_string()), false; "field is resolved")]
+    #[test]
+    fn named_file_provider_has_pending_fields(f: Field<String>, expected: bool) {
+        let nfp = NamedFileProvider {
+            name: "inline.txt".to_string(),
+            env_var: "INLINE".to_string(),
+            provider: FileProvider::RelativePath(RelativeFile { path: f, src: None }),
+        };
+
+        let res = nfp.has_pending_fields();
+        assert!(
+            res == expected,
+            "expected has pending fields to be {expected:?}, got {res:?}"
+        )
+    }
+
+    #[test_case(Field::Pending("foo".to_string()), &["foo"]; "field is required")]
+    #[test_case(Field::Resolved("foo".to_string()), &[]; "no fields required")]
+    #[test]
+    fn named_file_provider_required_values(f: Field<String>, expected: &[&str]) {
+        let nfp = NamedFileProvider {
+            name: "inline.txt".to_string(),
+            env_var: "INLINE".to_string(),
+            provider: FileProvider::RelativePath(RelativeFile { path: f, src: None }),
+        };
+
+        let res = nfp.required_values();
+        assert!(
+            res == expected,
+            "expected has pending fields to be {expected:?}, got {res:?}"
+        )
+    }
+
+    #[test]
+    fn named_file_provider_try_template_succeeds() {
+        let mut nfp = NamedFileProvider {
+            name: "inline.txt".to_string(),
+            env_var: "INLINE".to_string(),
+            provider: FileProvider::RelativePath(RelativeFile {
+                path: Field::Pending("path".to_string()),
+                src: None,
+            }),
+        };
+        let mut values: HashMap<String, Scalar> = HashMap::new();
+        values.insert("path".to_string(), Scalar::String("path".to_string()));
+
+        let res = nfp.try_template(&mut Vec::new(), &values);
+        assert!(
+            res.is_ok(),
+            "expected to template successfully, got {res:?}"
+        )
+    }
+
+    #[test_case(vec![], "file_providers.RELATIVE.path"; "no path entries")]
+    #[test_case(vec!["path"], "file_providers.RELATIVE.path"; "single path entry")]
+    #[test_case(vec!["two", "entries"], "two.file_providers.RELATIVE.path"; "two path entries")]
+    #[test_case(vec!["multiple", "path", "entries"], "multiple.path.file_providers.RELATIVE.path"; "multiple path entries")]
+    #[test]
+    fn named_file_provider_try_template_unknown_value_error(path: Vec<&str>, expected_path: &str) {
+        let mut nfp = NamedFileProvider {
+            name: "relative.txt".to_string(),
+            env_var: "RELATIVE".to_string(),
+            provider: FileProvider::RelativePath(RelativeFile {
+                path: Field::Pending("path".to_string()),
+                src: None,
+            }),
+        };
+        let mut values: HashMap<String, Scalar> = HashMap::new();
+        values.insert("unused".to_string(), Scalar::String("unused".to_string()));
+        let mut path: Vec<String> = path.into_iter().map(|s| s.to_string()).collect();
+
+        let res = nfp.try_template(&mut path, &values);
+        assert!(res.is_err(), "expected templating to error, got {res:?}");
+
+        let errors = res.unwrap_err();
+        let error = errors.unwrap_single();
+        let error_kind = error.kind;
+        let error_path = error.path;
+        assert_eq!(
+            error_kind,
+            ErrorKind::UnknownValue,
+            "expected ErrorKind to match"
+        );
+        assert_eq!(error_path, expected_path, "expected path to match")
     }
 }

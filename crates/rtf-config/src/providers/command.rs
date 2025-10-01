@@ -11,6 +11,7 @@ use crate::{
     },
     templating::{self, Field, Scalar, Template},
 };
+use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
@@ -29,7 +30,7 @@ const PROVIDER_DIR: &str = "providers";
 ///
 /// Defines an executable command along with environment variables that should be set prior to
 /// execution and file providers that should be made available.
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct CommandSection {
     /// The command to be run
     pub command: RawCommand,
@@ -209,59 +210,6 @@ impl CommandSection {
         }
 
         Ok(())
-    }
-}
-
-impl Template for CommandSection {
-    fn has_pending_fields(&self) -> bool {
-        self.command.has_pending_fields()
-            | self.env_vars.values().any(|f| f.has_pending_fields())
-            | self
-                .file_providers
-                .iter()
-                .any(|nfp| nfp.provider.has_pending_fields())
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        let mut vals: Vec<String> = self
-            .env_vars
-            .values()
-            .flat_map(|f| f.required_values())
-            .collect();
-
-        for nfp in self.file_providers.iter() {
-            vals.extend(nfp.required_values());
-        }
-
-        vals.extend(self.command.required_values());
-
-        vals
-    }
-
-    fn try_template(
-        &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
-
-        errs.append(self.command.try_template_nested(path, "command", values));
-
-        path.push("env_vars".to_string());
-
-        for (name, f) in self.env_vars.iter_mut() {
-            errs.append(f.try_template_nested(path, name, values));
-        }
-
-        path.pop();
-        path.push("file_providers".to_string());
-
-        for nfp in self.file_providers.iter_mut() {
-            let tail = nfp.env_var.clone();
-            errs.append(nfp.try_template_nested(path, &tail, values));
-        }
-
-        errs.into_result(())
     }
 }
 
