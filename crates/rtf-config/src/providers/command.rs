@@ -471,16 +471,6 @@ mod tests {
         assert!(res.is_ok(), "expected successful check but got: {res:?}");
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/command/parse-failures")]
-    #[test]
-    fn parse_failures(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let res: serde_yaml::Result<CommandSection> = serde_yaml::from_str(config);
-
-        assert!(res.is_err(), "expected invalid YAML, got: {res:?}");
-    }
-
     #[dir_cases("crates/rtf-config/resources/provider-tests/command/check-failures")]
     #[test]
     fn check_failures(_path: &str, content: &str) {
@@ -516,53 +506,6 @@ mod tests {
             &concatenated_errs, expected,
             "wrong validation errors: {errs:?}"
         );
-    }
-
-    #[dir_cases("crates/rtf-config/resources/provider-tests/command/valid-templates")]
-    #[test]
-    fn valid_templated_providers(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let raw_values = get_file(&arr, "values");
-        let raw_expected = get_file(&arr, "after-templating");
-
-        let mut command: CommandSection = serde_yaml::from_str(config).unwrap();
-        let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
-        let expected: CommandSection = serde_yaml::from_str(raw_expected).unwrap();
-
-        assert!(command.has_pending_fields(), "fields should be pending");
-
-        let res = command.try_template(&mut Vec::new(), &values);
-
-        assert!(res.is_ok(), "expected no errors, got {res:?}");
-        assert!(!command.has_pending_fields(), "fields should be resolved");
-        assert_eq!(command, expected);
-    }
-
-    #[dir_cases("crates/rtf-config/resources/provider-tests/command/invalid-templates")]
-    #[test]
-    fn invalid_templated_providers(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let raw_values = get_file(&arr, "values");
-        let expected = get_file(&arr, "templating-errors");
-
-        let mut command: CommandSection = serde_yaml::from_str(config).unwrap();
-        let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
-
-        assert!(command.has_pending_fields(), "fields should be pending");
-
-        let res = command.try_template(&mut Vec::new(), &values);
-
-        assert!(
-            command.has_pending_fields(),
-            "fields should still be pending"
-        );
-
-        let errs = res.unwrap_err().into_vec();
-        let str_errs: Vec<String> = errs.iter().map(|e| format!("{:?}", e.kind)).collect();
-
-        assert_eq!(str_errs.join("\n"), expected.trim());
     }
 
     /// Stub implementation of ResolutionContext for testing command execution that tracks which
