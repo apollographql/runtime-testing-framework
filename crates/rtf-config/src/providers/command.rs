@@ -1,7 +1,7 @@
 use crate::{
     checks::{self, Check, duplicate_keys},
     context::ResolutionContext,
-    enum_impl_as_utf8_file_content, enum_impl_check, enum_impl_template,
+    enum_impl_as_utf8_file_content, enum_impl_check,
     providers::{
         self, Provider,
         file::{
@@ -360,9 +360,10 @@ impl Check for RawCommand {
 }
 
 /// # Command Spec
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct CommandSpec {
     /// The name of the command to run
+    #[template(skip)]
     pub name: String,
     /// A provider to produce the command that should be run
     #[serde(flatten)]
@@ -370,41 +371,6 @@ pub struct CommandSpec {
     /// Arguments to the command
     #[serde(default)]
     pub args: Vec<Field<String>>,
-}
-
-impl Template for CommandSpec {
-    fn has_pending_fields(&self) -> bool {
-        self.command_provider.has_pending_fields()
-            | self.args.iter().any(|f| f.has_pending_fields())
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        let mut vals = self.command_provider.required_values();
-
-        for arg in self.args.iter() {
-            vals.extend(arg.required_values());
-        }
-
-        vals
-    }
-
-    fn try_template(
-        &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::from(self.command_provider.try_template_nested(
-            path,
-            "command_provider",
-            values,
-        ));
-
-        for arg in self.args.iter_mut() {
-            errs.append(arg.try_template_nested(path, stringify!(arg), values));
-        }
-
-        errs.into_result(())
-    }
 }
 
 impl Check for CommandSpec {
@@ -426,7 +392,7 @@ impl Check for CommandSpec {
 }
 
 /// # Command Provider
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum CommandProvider {
     Inline(InlineFile),
@@ -441,7 +407,6 @@ pub enum CommandProvider {
 macro_rules! enum_impl_command_provider {
     ($($variant:ident),+) => {
         enum_impl_check!(CommandProvider => $($variant),+);
-        enum_impl_template!(CommandProvider => $($variant),+);
         enum_impl_as_utf8_file_content!(CommandProvider => $($variant),+);
     };
 }
