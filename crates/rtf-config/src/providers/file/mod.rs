@@ -2,10 +2,11 @@
 use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
-    enum_impl_check, enum_impl_template, impl_template, providers,
+    enum_impl_check, providers,
     templating::{self, Field, Scalar, Template},
 };
 use rtf_core::github::Client;
+use rtf_derive::Template;
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
@@ -169,9 +170,40 @@ impl DerefMut for NamedFileProvider {
     }
 }
 
+// Adding this custom implementation so that file providers and the environment variable
+// used to identify the file provider are added to the path when templating a
+// NamedFileProvider
+impl Template for NamedFileProvider {
+    fn has_pending_fields(&self) -> bool {
+        self.provider.has_pending_fields()
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        self.provider.required_values()
+    }
+
+    fn try_template(
+        &mut self,
+        path: &mut Vec<String>,
+        values: &HashMap<String, Scalar>,
+    ) -> templating::Result<()> {
+        let mut errs = templating::ErrorBuilder::new();
+
+        path.pop();
+        path.push("file_providers".to_string());
+
+        let tail = self.env_var.clone();
+        errs.append(self.provider.try_template_nested(path, &tail, values));
+
+        errs.into_result(())
+    }
+}
+
 /// # File Provider
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(rename_all = "snake_case", tag = "kind")]
+// If you are adding a FileProvider please make sure to also add a parse test to
+// the all_fields_templated test in this file
 pub enum FileProvider {
     BuildRouterFromSource(apollo::BuildRouterFromSource),
     GithubFile(github::GithubFile),
@@ -206,7 +238,6 @@ impl FileProvider {
 macro_rules! enum_impl_file_provider {
     ($($variant:ident,)+) => {
         enum_impl_check!(FileProvider => $($variant),+);
-        enum_impl_template!(FileProvider => $($variant),+);
         enum_impl_resolve_and_write!(FileProvider => $($variant),+);
     };
 }
@@ -241,9 +272,10 @@ enum_impl_file_provider!(
 ///     my raw file content.
 ///     specified inline within an RTF config file.
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct InlineFile {
     /// The text to write out as the contents of the generated file.
+    #[template(skip)]
     pub(crate) content: String,
 }
 
@@ -256,8 +288,6 @@ impl AsUtf8FileContent for InlineFile {
         Ok(self.content.clone())
     }
 }
-
-impl_template!(InlineFile => []);
 
 impl Check for InlineFile {
     fn try_check(
@@ -282,7 +312,7 @@ impl Check for InlineFile {
 ///   kind: relative_path
 ///   path: "../../resources/test-data/my-file.txt"
 /// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct RelativeFile {
     /// The relative path from the containing config file to the target file.
     pub(crate) path: Field<String>,
@@ -291,32 +321,13 @@ pub struct RelativeFile {
     /// provider was defined as part of an `overrides` section in the test plan.
     #[serde(default, skip_serializing)]
     #[schemars(skip)]
+    #[template(skip)]
     pub(crate) src: Option<Source>,
 }
 
 impl RelativeFile {
     fn format_error_message(&self) -> String {
         format!("provided path was {:?}", self.path)
-    }
-}
-
-// in try_template we don't want to include a trailing ".path" in the resolution path we report to
-// users in error messages so we had implement Template for this one.
-impl Template for RelativeFile {
-    fn has_pending_fields(&self) -> bool {
-        self.path.has_pending_fields()
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        self.path.required_values()
-    }
-
-    fn try_template(
-        &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        self.path.try_template(path, values)
     }
 }
 
@@ -436,9 +447,10 @@ impl Check for RelativeFile {
 ///   kind: required
 ///   message: "you must specify a router config file to use"
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct RequiredFile {
     /// The error message to display to the user if this provider is not overwritten.
+    #[template(skip)]
     message: String,
 }
 
@@ -453,8 +465,6 @@ impl AsUtf8FileContent for RequiredFile {
         )
     }
 }
-
-impl_template!(RequiredFile => []);
 
 impl Check for RequiredFile {
     fn try_check(
@@ -480,7 +490,7 @@ impl Check for RequiredFile {
 ///   env_var: VALUES
 ///   kind: resolved_values
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct ResolvedValues;
 
 impl AsUtf8FileContent for ResolvedValues {
@@ -498,8 +508,6 @@ impl AsUtf8FileContent for ResolvedValues {
     }
 }
 
-impl_template!(ResolvedValues => []);
-
 impl Check for ResolvedValues {
     fn try_check(
         &self,
@@ -516,9 +524,11 @@ mod tests {
     use super::*;
     use crate::{
         context::Context,
+        templating::ErrorKind,
         txtar_context::{MockHttpClient, TxtarContext},
     };
-    use simple_test_case::dir_cases;
+    use indoc::indoc;
+    use simple_test_case::{dir_cases, test_case};
     use simple_txtar::Archive;
     use std::path::PathBuf;
 
@@ -656,16 +666,6 @@ mod tests {
         }
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/parse-failures")]
-    #[test]
-    fn parse_failures(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let res: serde_yaml::Result<FileProvider> = serde_yaml::from_str(config);
-
-        assert!(res.is_err(), "expected invalid YAML, got: {res:?}");
-    }
-
     #[dir_cases("crates/rtf-config/resources/provider-tests/file/resolution-errors")]
     #[tokio::test]
     async fn resolution_errors(_path: &str, content: &str) {
@@ -720,53 +720,6 @@ mod tests {
         assert_eq!(&err.to_string(), expected, "wrong resolution errors");
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/template-errors")]
-    #[test]
-    fn template_errors(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let raw_values = get_file(&arr, "values");
-        let expected = get_file(&arr, "template-errors");
-
-        let mut provider: FileProvider = serde_yaml::from_str(config).unwrap();
-        let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
-
-        assert!(provider.has_pending_fields(), "fields should be pending");
-
-        let res = provider.try_template(&mut Vec::new(), &values);
-
-        assert!(
-            provider.has_pending_fields(),
-            "fields should still be pending"
-        );
-
-        let errs = res.unwrap_err().into_vec();
-        let str_errs: Vec<String> = errs.iter().map(|e| format!("{:?}", e.kind)).collect();
-
-        assert_eq!(str_errs.join("\n"), expected.trim());
-    }
-
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/template-success")]
-    #[test]
-    fn template_success(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let raw_values = get_file(&arr, "values");
-        let raw_expected = get_file(&arr, "after-templating");
-
-        let mut provider: FileProvider = serde_yaml::from_str(config).unwrap();
-        let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
-        let expected: FileProvider = serde_yaml::from_str(raw_expected).unwrap();
-
-        assert!(provider.has_pending_fields(), "fields should be pending");
-
-        let res = provider.try_template(&mut Vec::new(), &values);
-
-        assert!(res.is_ok(), "expected no errors, got {res:?}");
-        assert!(!provider.has_pending_fields(), "fields should be resolved");
-        assert_eq!(provider, expected);
-    }
-
     #[tokio::test]
     #[should_panic(
         expected = "Should not be able to get here. Required file should result in an error when checked."
@@ -806,5 +759,236 @@ mod tests {
             .expect("resolution to succeed");
 
         assert_eq!(s, r#"{"foo":"bar"}"#);
+    }
+
+    // Yaml snippets for all file providers
+    const BUILD_ROUTER_FROM_SOURCE: &str = indoc!(
+        r#"
+        kind: build_router_from_source
+        git_ref: "{{ git_ref }}"
+        rust_version: "{{ rust_version }}"
+    "#
+    );
+    const GITHUB_FILE: &str = indoc!(
+        r#"
+        kind: github_file
+        org: "{{ org }}"
+        repo: "{{ repo }}"
+        path: "{{ path }}"
+        git_ref: "{{ git_ref }}"
+    "#
+    );
+    const GRAPHOS_CANNED_OPS: &str = indoc!(
+        r#"
+        kind: graphos_canned_ops
+        graph_ref: "{{ graph_ref }}"
+        top_n: "{{ top_n }}"
+        skip_mutations: "{{ skip_mutations }}"
+    "#
+    );
+    const GRAPHOS_SUBGRAPH_DOCKER_COMPOSE: &str = indoc!(
+        r#"
+        kind: graphos_subgraph_docker_compose
+        graph_ref: "{{ graph_ref }}"
+        image: "{{ image }}"
+        replicas: "{{ replicas }}"
+        resource_limits:
+          cpus: "{{ resource_limits_cpus }}"
+          memory: "{{ resource_limits_memory }}"
+        resource_reservations:
+          cpus: "{{ resource_reservations_cpus }}"
+          memory: "{{ resource_reservations_memory }}"
+        mem_swappiness: "{{ mem_swappiness }}"
+        loadbalancer:
+          resource_limits:
+            cpus: "{{ loadbalancer_resource_limits_cpus }}"
+            memory: "{{ loadbalancer_resource_limits_memory }}"
+          resource_reservations:
+            cpus: "{{ loadbalancer_resource_reservations_cpus }}"
+            memory: "{{ loadbalancer_resource_reservations_memory }}"
+          mem_swappiness: "{{ loadbalancer_mem_swappiness }}"
+    "#
+    );
+    const GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES: &str = indoc!(
+        r#"
+        kind: graphos_subgraph_router_url_overrides
+        graph_ref: "{{ graph_ref }}"
+    "#
+    );
+    const GRAPHOS_SUBGRAPHS: &str = indoc!(
+        r#"
+        kind: graphos_subgraphs
+        graph_ref: "{{ graph_ref }}"
+    "#
+    );
+    const GRAPHOS_SUPERGRAPH: &str = indoc!(
+        r#"
+        kind: graphos_supergraph
+        graph_ref: "{{ graph_ref }}"
+    "#
+    );
+    const INLINE: &str = indoc!(
+        r#"
+        kind: inline
+        content: |
+            some content
+    "#
+    );
+    const OFFLINE_GRAPHOS_LICENSE: &str = indoc!(
+        r#"
+        kind: offline_graphos_license
+        graph_id: "{{ graph_id }}"
+    "#
+    );
+    const RELATIVE_PATH: &str = indoc!(
+        r#"
+        kind: relative_path
+        path: "{{ path }}"
+    "#
+    );
+    const REQUIRED_FILE: &str = indoc!(
+        r#"
+        kind: required
+        message: this file is required
+    "#
+    );
+    const RESOLVED_VALUES: &str = indoc!(
+        r#"
+        kind: resolved_values
+    "#
+    );
+    const ROUTER_DOWNLOAD_SCRIPT: &str = indoc!(
+        r#"
+        kind: router_download_script
+        version: "{{ version }}"
+    "#
+    );
+    const MERGE_YAML: &str = indoc!(
+        r#"
+        kind: merge_yaml
+        base:
+          kind: inline
+          content: |
+            key: value
+        overrides:
+          kind: inline
+          content: |
+            new_key: new_value
+    "#
+    );
+
+    #[test_case(BUILD_ROUTER_FROM_SOURCE, &["git_ref", "rust_version"]; "build_router_from_source")]
+    #[test_case(GITHUB_FILE, &["org", "repo", "path", "git_ref"]; "github_file")]
+    #[test_case(GRAPHOS_CANNED_OPS, &["graph_ref", "top_n", "skip_mutations"]; "graphos_canned_ops")]
+    #[test_case(GRAPHOS_SUBGRAPH_DOCKER_COMPOSE, &[
+        "graph_ref", "image", "replicas", "resource_limits_cpus", "resource_limits_memory", 
+        "resource_reservations_cpus", "resource_reservations_memory", "mem_swappiness", 
+        "loadbalancer_resource_limits_cpus", "loadbalancer_resource_limits_memory", 
+        "loadbalancer_resource_reservations_cpus", "loadbalancer_resource_reservations_memory", 
+        "loadbalancer_mem_swappiness"
+    ]; "graphos_subgraph_docker_compose")]
+    #[test_case(GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES, &["graph_ref"]; "graphos_subgraph_router_url_overrides")]
+    #[test_case(GRAPHOS_SUBGRAPHS, &["graph_ref"]; "graphos_subgraphs")]
+    #[test_case(GRAPHOS_SUPERGRAPH, &["graph_ref"]; "graphos_supergraph")]
+    #[test_case(INLINE, &[]; "inline")]
+    #[test_case(OFFLINE_GRAPHOS_LICENSE, &["graph_id"]; "offline_graphos_license")]
+    #[test_case(RELATIVE_PATH, &["path"]; "relative_path")]
+    #[test_case(REQUIRED_FILE, &[]; "required")]
+    #[test_case(RESOLVED_VALUES, &[]; "resolved_values")]
+    #[test_case(ROUTER_DOWNLOAD_SCRIPT, &["version"]; "router_download_script")]
+    #[test_case(MERGE_YAML, &[]; "merge_yaml")]
+    #[test]
+    fn all_fields_templated(content: &str, expected_values: &[&str]) {
+        let config: FileProvider = serde_yaml::from_str(content).unwrap();
+
+        let res = config.required_values();
+        assert_eq!(res, expected_values, "expected values to match")
+    }
+
+    #[test_case(Field::Pending("foo".to_string()), true; "field is pending")]
+    #[test_case(Field::Resolved("foo".to_string()), false; "field is resolved")]
+    #[test]
+    fn named_file_provider_has_pending_fields(f: Field<String>, expected: bool) {
+        let nfp = NamedFileProvider {
+            name: "inline.txt".to_string(),
+            env_var: "INLINE".to_string(),
+            provider: FileProvider::RelativePath(RelativeFile { path: f, src: None }),
+        };
+
+        let res = nfp.has_pending_fields();
+        assert!(
+            res == expected,
+            "expected has pending fields to be {expected:?}, got {res:?}"
+        )
+    }
+
+    #[test_case(Field::Pending("foo".to_string()), &["foo"]; "field is required")]
+    #[test_case(Field::Resolved("foo".to_string()), &[]; "no fields required")]
+    #[test]
+    fn named_file_provider_required_values(f: Field<String>, expected: &[&str]) {
+        let nfp = NamedFileProvider {
+            name: "inline.txt".to_string(),
+            env_var: "INLINE".to_string(),
+            provider: FileProvider::RelativePath(RelativeFile { path: f, src: None }),
+        };
+
+        let res = nfp.required_values();
+        assert!(
+            res == expected,
+            "expected has pending fields to be {expected:?}, got {res:?}"
+        )
+    }
+
+    #[test]
+    fn named_file_provider_try_template_succeeds() {
+        let mut nfp = NamedFileProvider {
+            name: "inline.txt".to_string(),
+            env_var: "INLINE".to_string(),
+            provider: FileProvider::RelativePath(RelativeFile {
+                path: Field::Pending("path".to_string()),
+                src: None,
+            }),
+        };
+        let mut values: HashMap<String, Scalar> = HashMap::new();
+        values.insert("path".to_string(), Scalar::String("path".to_string()));
+
+        let res = nfp.try_template(&mut Vec::new(), &values);
+        assert!(
+            res.is_ok(),
+            "expected to template successfully, got {res:?}"
+        )
+    }
+
+    #[test_case(vec![], "file_providers.RELATIVE.path"; "no path entries")]
+    #[test_case(vec!["path"], "file_providers.RELATIVE.path"; "single path entry")]
+    #[test_case(vec!["two", "entries"], "two.file_providers.RELATIVE.path"; "two path entries")]
+    #[test_case(vec!["multiple", "path", "entries"], "multiple.path.file_providers.RELATIVE.path"; "multiple path entries")]
+    #[test]
+    fn named_file_provider_try_template_unknown_value_error(path: Vec<&str>, expected_path: &str) {
+        let mut nfp = NamedFileProvider {
+            name: "relative.txt".to_string(),
+            env_var: "RELATIVE".to_string(),
+            provider: FileProvider::RelativePath(RelativeFile {
+                path: Field::Pending("path".to_string()),
+                src: None,
+            }),
+        };
+        let mut values: HashMap<String, Scalar> = HashMap::new();
+        values.insert("unused".to_string(), Scalar::String("unused".to_string()));
+        let mut path: Vec<String> = path.into_iter().map(|s| s.to_string()).collect();
+
+        let res = nfp.try_template(&mut path, &values);
+        assert!(res.is_err(), "expected templating to error, got {res:?}");
+
+        let errors = res.unwrap_err();
+        let error = errors.unwrap_single();
+        let error_kind = error.kind;
+        let error_path = error.path;
+        assert_eq!(
+            error_kind,
+            ErrorKind::UnknownValue,
+            "expected ErrorKind to match"
+        );
+        assert_eq!(error_path, expected_path, "expected path to match")
     }
 }

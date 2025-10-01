@@ -1,7 +1,7 @@
 use crate::{
     checks::{self, Check, duplicate_keys},
     context::ResolutionContext,
-    enum_impl_as_utf8_file_content, enum_impl_check, enum_impl_template,
+    enum_impl_as_utf8_file_content, enum_impl_check,
     providers::{
         self, Provider,
         file::{
@@ -11,6 +11,7 @@ use crate::{
     },
     templating::{self, Field, Scalar, Template},
 };
+use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
@@ -29,7 +30,7 @@ const PROVIDER_DIR: &str = "providers";
 ///
 /// Defines an executable command along with environment variables that should be set prior to
 /// execution and file providers that should be made available.
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct CommandSection {
     /// The command to be run
     pub command: RawCommand,
@@ -212,59 +213,6 @@ impl CommandSection {
     }
 }
 
-impl Template for CommandSection {
-    fn has_pending_fields(&self) -> bool {
-        self.command.has_pending_fields()
-            | self.env_vars.values().any(|f| f.has_pending_fields())
-            | self
-                .file_providers
-                .iter()
-                .any(|nfp| nfp.provider.has_pending_fields())
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        let mut vals: Vec<String> = self
-            .env_vars
-            .values()
-            .flat_map(|f| f.required_values())
-            .collect();
-
-        for nfp in self.file_providers.iter() {
-            vals.extend(nfp.required_values());
-        }
-
-        vals.extend(self.command.required_values());
-
-        vals
-    }
-
-    fn try_template(
-        &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
-
-        errs.append(self.command.try_template_nested(path, "command", values));
-
-        path.push("env_vars".to_string());
-
-        for (name, f) in self.env_vars.iter_mut() {
-            errs.append(f.try_template_nested(path, name, values));
-        }
-
-        path.pop();
-        path.push("file_providers".to_string());
-
-        for nfp in self.file_providers.iter_mut() {
-            let tail = nfp.env_var.clone();
-            errs.append(nfp.try_template_nested(path, &tail, values));
-        }
-
-        errs.into_result(())
-    }
-}
-
 impl Check for CommandSection {
     fn try_check(
         &self,
@@ -412,9 +360,10 @@ impl Check for RawCommand {
 }
 
 /// # Command Spec
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct CommandSpec {
     /// The name of the command to run
+    #[template(skip)]
     pub name: String,
     /// A provider to produce the command that should be run
     #[serde(flatten)]
@@ -422,41 +371,6 @@ pub struct CommandSpec {
     /// Arguments to the command
     #[serde(default)]
     pub args: Vec<Field<String>>,
-}
-
-impl Template for CommandSpec {
-    fn has_pending_fields(&self) -> bool {
-        self.command_provider.has_pending_fields()
-            | self.args.iter().any(|f| f.has_pending_fields())
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        let mut vals = self.command_provider.required_values();
-
-        for arg in self.args.iter() {
-            vals.extend(arg.required_values());
-        }
-
-        vals
-    }
-
-    fn try_template(
-        &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::from(self.command_provider.try_template_nested(
-            path,
-            "command_provider",
-            values,
-        ));
-
-        for arg in self.args.iter_mut() {
-            errs.append(arg.try_template_nested(path, stringify!(arg), values));
-        }
-
-        errs.into_result(())
-    }
 }
 
 impl Check for CommandSpec {
@@ -478,7 +392,7 @@ impl Check for CommandSpec {
 }
 
 /// # Command Provider
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum CommandProvider {
     Inline(InlineFile),
@@ -493,7 +407,6 @@ pub enum CommandProvider {
 macro_rules! enum_impl_command_provider {
     ($($variant:ident),+) => {
         enum_impl_check!(CommandProvider => $($variant),+);
-        enum_impl_template!(CommandProvider => $($variant),+);
         enum_impl_as_utf8_file_content!(CommandProvider => $($variant),+);
     };
 }
@@ -558,16 +471,6 @@ mod tests {
         assert!(res.is_ok(), "expected successful check but got: {res:?}");
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/command/parse-failures")]
-    #[test]
-    fn parse_failures(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let res: serde_yaml::Result<CommandSection> = serde_yaml::from_str(config);
-
-        assert!(res.is_err(), "expected invalid YAML, got: {res:?}");
-    }
-
     #[dir_cases("crates/rtf-config/resources/provider-tests/command/check-failures")]
     #[test]
     fn check_failures(_path: &str, content: &str) {
@@ -603,53 +506,6 @@ mod tests {
             &concatenated_errs, expected,
             "wrong validation errors: {errs:?}"
         );
-    }
-
-    #[dir_cases("crates/rtf-config/resources/provider-tests/command/valid-templates")]
-    #[test]
-    fn valid_templated_providers(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let raw_values = get_file(&arr, "values");
-        let raw_expected = get_file(&arr, "after-templating");
-
-        let mut command: CommandSection = serde_yaml::from_str(config).unwrap();
-        let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
-        let expected: CommandSection = serde_yaml::from_str(raw_expected).unwrap();
-
-        assert!(command.has_pending_fields(), "fields should be pending");
-
-        let res = command.try_template(&mut Vec::new(), &values);
-
-        assert!(res.is_ok(), "expected no errors, got {res:?}");
-        assert!(!command.has_pending_fields(), "fields should be resolved");
-        assert_eq!(command, expected);
-    }
-
-    #[dir_cases("crates/rtf-config/resources/provider-tests/command/invalid-templates")]
-    #[test]
-    fn invalid_templated_providers(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let raw_values = get_file(&arr, "values");
-        let expected = get_file(&arr, "templating-errors");
-
-        let mut command: CommandSection = serde_yaml::from_str(config).unwrap();
-        let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
-
-        assert!(command.has_pending_fields(), "fields should be pending");
-
-        let res = command.try_template(&mut Vec::new(), &values);
-
-        assert!(
-            command.has_pending_fields(),
-            "fields should still be pending"
-        );
-
-        let errs = res.unwrap_err().into_vec();
-        let str_errs: Vec<String> = errs.iter().map(|e| format!("{:?}", e.kind)).collect();
-
-        assert_eq!(str_errs.join("\n"), expected.trim());
     }
 
     /// Stub implementation of ResolutionContext for testing command execution that tracks which

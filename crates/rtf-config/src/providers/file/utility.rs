@@ -2,7 +2,7 @@
 use crate::{
     checks::{self, Check},
     context::ResolutionContext,
-    enum_impl_as_utf8_file_content, enum_impl_check, enum_impl_template, impl_template, merge_yaml,
+    enum_impl_as_utf8_file_content, enum_impl_check, merge_yaml,
     providers::{
         self, Result,
         file::{
@@ -10,17 +10,16 @@ use crate::{
             apollo::GraphosSubgraphRouterUrlOverrides, github::GithubFile,
         },
     },
-    templating::{self, Scalar, Template},
 };
+use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use tracing::error;
 
 /// # Text File Provider
 ///
 /// A subset of file providers that can produce arbitrary utf-8 text as their output.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum TextFileProvider {
     GithubFile(GithubFile),
@@ -37,7 +36,6 @@ pub enum TextFileProvider {
 macro_rules! enum_impl_text_file_provider {
     ($($variant:ident),+) => {
         enum_impl_check!(TextFileProvider => $($variant),+);
-        enum_impl_template!(TextFileProvider => $($variant),+);
         enum_impl_as_utf8_file_content!(TextFileProvider => $($variant),+);
     };
 }
@@ -69,7 +67,7 @@ enum_impl_text_file_provider!(
 ///     graph_ref: "foo@bar"
 ///     url_format: "docker"
 /// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct MergeYaml {
     /// A base YAML file to start with.
     pub(crate) base: TextFileProvider,
@@ -106,8 +104,6 @@ impl AsUtf8FileContent for MergeYaml {
         Ok(serde_yaml::to_string(&base)?.trim().to_string())
     }
 }
-
-impl_template!(MergeYaml => [base, overrides]);
 
 impl Check for MergeYaml {
     fn try_check(

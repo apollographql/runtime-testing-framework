@@ -53,6 +53,14 @@ impl InputMeta {
     fn into_token_streams(self) -> Result<(Ident, TokenStream, TokenStream, TokenStream)> {
         let (has_pending_fields, required_values, try_template) = match self.data {
             ast::Data::Struct(s) => struct_token_streams(s.fields),
+
+            ast::Data::Enum(v) if v.is_empty() => {
+                return Err(syn::Error::new(
+                    self.ident.span(),
+                    "derive Template not supported for empty enums",
+                ));
+            }
+
             ast::Data::Enum(v) => enum_token_streams(v),
         };
 
@@ -71,6 +79,17 @@ fn struct_token_streams(field_meta: Vec<FieldMeta>) -> (TokenStream, TokenStream
         .filter(|fm| !fm.skip)
         .flat_map(|fm| fm.ident)
         .collect();
+
+    // We have valid structs that need to implement Template but do not have any templatable Fields
+    // For this, we need to special case structs with "no fields" (in reality these structs have
+    // fields, they will all have been marked as skipped)
+    if fields.is_empty() {
+        return (
+            quote! {false},
+            quote! {::std::vec::Vec::new()},
+            quote! {Ok(())},
+        );
+    }
 
     let inner = fields.iter().map(|f| {
         quote! { self.#f.has_pending_fields() }
@@ -119,7 +138,7 @@ fn enum_token_streams(enum_meta: Vec<EnumMeta>) -> (TokenStream, TokenStream, To
 
     let try_template = quote! {
         match self {
-            #(Self::#variants(inner) => inner.try_template_nested(path, stringify!(#variants), values),)*
+            #(Self::#variants(inner) => inner.try_template(path, values),)*
         }
     };
 
