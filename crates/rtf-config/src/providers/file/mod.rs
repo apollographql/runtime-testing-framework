@@ -202,6 +202,8 @@ impl Template for NamedFileProvider {
 /// # File Provider
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(rename_all = "snake_case", tag = "kind")]
+// If you are adding a FileProvider please make sure to also add a parse test to
+// the all_fields_templated test in this file
 pub enum FileProvider {
     BuildRouterFromSource(apollo::BuildRouterFromSource),
     GithubFile(github::GithubFile),
@@ -525,6 +527,7 @@ mod tests {
         templating::ErrorKind,
         txtar_context::{MockHttpClient, TxtarContext},
     };
+    use indoc::indoc;
     use simple_test_case::{dir_cases, test_case};
     use simple_txtar::Archive;
     use std::path::PathBuf;
@@ -663,16 +666,6 @@ mod tests {
         }
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/parse-failures")]
-    #[test]
-    fn parse_failures(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let res: serde_yaml::Result<FileProvider> = serde_yaml::from_str(config);
-
-        assert!(res.is_err(), "expected invalid YAML, got: {res:?}");
-    }
-
     #[dir_cases("crates/rtf-config/resources/provider-tests/file/resolution-errors")]
     #[tokio::test]
     async fn resolution_errors(_path: &str, content: &str) {
@@ -727,53 +720,6 @@ mod tests {
         assert_eq!(&err.to_string(), expected, "wrong resolution errors");
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/template-errors")]
-    #[test]
-    fn template_errors(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let raw_values = get_file(&arr, "values");
-        let expected = get_file(&arr, "template-errors");
-
-        let mut provider: FileProvider = serde_yaml::from_str(config).unwrap();
-        let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
-
-        assert!(provider.has_pending_fields(), "fields should be pending");
-
-        let res = provider.try_template(&mut Vec::new(), &values);
-
-        assert!(
-            provider.has_pending_fields(),
-            "fields should still be pending"
-        );
-
-        let errs = res.unwrap_err().into_vec();
-        let str_errs: Vec<String> = errs.iter().map(|e| format!("{:?}", e.kind)).collect();
-
-        assert_eq!(str_errs.join("\n"), expected.trim());
-    }
-
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/template-success")]
-    #[test]
-    fn template_success(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let raw_values = get_file(&arr, "values");
-        let raw_expected = get_file(&arr, "after-templating");
-
-        let mut provider: FileProvider = serde_yaml::from_str(config).unwrap();
-        let values: HashMap<String, Scalar> = serde_yaml::from_str(raw_values).unwrap();
-        let expected: FileProvider = serde_yaml::from_str(raw_expected).unwrap();
-
-        assert!(provider.has_pending_fields(), "fields should be pending");
-
-        let res = provider.try_template(&mut Vec::new(), &values);
-
-        assert!(res.is_ok(), "expected no errors, got {res:?}");
-        assert!(!provider.has_pending_fields(), "fields should be resolved");
-        assert_eq!(provider, expected);
-    }
-
     #[tokio::test]
     #[should_panic(
         expected = "Should not be able to get here. Required file should result in an error when checked."
@@ -813,6 +759,150 @@ mod tests {
             .expect("resolution to succeed");
 
         assert_eq!(s, r#"{"foo":"bar"}"#);
+    }
+
+    // Yaml snippets for all file providers
+    const BUILD_ROUTER_FROM_SOURCE: &str = indoc!(
+        r#"
+        kind: build_router_from_source
+        git_ref: "{{ git_ref }}"
+        rust_version: "{{ rust_version }}"
+    "#
+    );
+    const GITHUB_FILE: &str = indoc!(
+        r#"
+        kind: github_file
+        org: "{{ org }}"
+        repo: "{{ repo }}"
+        path: "{{ path }}"
+        git_ref: "{{ git_ref }}"
+    "#
+    );
+    const GRAPHOS_CANNED_OPS: &str = indoc!(
+        r#"
+        kind: graphos_canned_ops
+        graph_ref: "{{ graph_ref }}"
+        top_n: "{{ top_n }}"
+        skip_mutations: "{{ skip_mutations }}"
+    "#
+    );
+    const GRAPHOS_SUBGRAPH_DOCKER_COMPOSE: &str = indoc!(
+        r#"
+        kind: graphos_subgraph_docker_compose
+        graph_ref: "{{ graph_ref }}"
+        image: "{{ image }}"
+        replicas: "{{ replicas }}"
+        resource_limits:
+          cpus: "{{ resource_limits_cpus }}"
+          memory: "{{ resource_limits_memory }}"
+        resource_reservations:
+          cpus: "{{ resource_reservations_cpus }}"
+          memory: "{{ resource_reservations_memory }}"
+        mem_swappiness: "{{ mem_swappiness }}"
+        loadbalancer:
+          resource_limits:
+            cpus: "{{ loadbalancer_resource_limits_cpus }}"
+            memory: "{{ loadbalancer_resource_limits_memory }}"
+          resource_reservations:
+            cpus: "{{ loadbalancer_resource_reservations_cpus }}"
+            memory: "{{ loadbalancer_resource_reservations_memory }}"
+          mem_swappiness: "{{ loadbalancer_mem_swappiness }}"
+    "#
+    );
+    const GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES: &str = indoc!(
+        r#"
+        kind: graphos_subgraph_router_url_overrides
+        graph_ref: "{{ graph_ref }}"
+    "#
+    );
+    const GRAPHOS_SUBGRAPHS: &str = indoc!(
+        r#"
+        kind: graphos_subgraphs
+        graph_ref: "{{ graph_ref }}"
+    "#
+    );
+    const GRAPHOS_SUPERGRAPH: &str = indoc!(
+        r#"
+        kind: graphos_supergraph
+        graph_ref: "{{ graph_ref }}"
+    "#
+    );
+    const INLINE: &str = indoc!(
+        r#"
+        kind: inline
+        content: |
+            some content
+    "#
+    );
+    const OFFLINE_GRAPHOS_LICENSE: &str = indoc!(
+        r#"
+        kind: offline_graphos_license
+        graph_id: "{{ graph_id }}"
+    "#
+    );
+    const RELATIVE_PATH: &str = indoc!(
+        r#"
+        kind: relative_path
+        path: "{{ path }}"
+    "#
+    );
+    const REQUIRED_FILE: &str = indoc!(
+        r#"
+        kind: required
+        message: this file is required
+    "#
+    );
+    const RESOLVED_VALUES: &str = indoc!(
+        r#"
+        kind: resolved_values
+    "#
+    );
+    const ROUTER_DOWNLOAD_SCRIPT: &str = indoc!(
+        r#"
+        kind: router_download_script
+        version: "{{ version }}"
+    "#
+    );
+    const MERGE_YAML: &str = indoc!(
+        r#"
+        kind: merge_yaml
+        base:
+          kind: inline
+          content: |
+            key: value
+        overrides:
+          kind: inline
+          content: |
+            new_key: new_value
+    "#
+    );
+
+    #[test_case(BUILD_ROUTER_FROM_SOURCE, &["git_ref", "rust_version"]; "build_router_from_source")]
+    #[test_case(GITHUB_FILE, &["org", "repo", "path", "git_ref"]; "github_file")]
+    #[test_case(GRAPHOS_CANNED_OPS, &["graph_ref", "top_n", "skip_mutations"]; "graphos_canned_ops")]
+    #[test_case(GRAPHOS_SUBGRAPH_DOCKER_COMPOSE, &[
+        "graph_ref", "image", "replicas", "resource_limits_cpus", "resource_limits_memory", 
+        "resource_reservations_cpus", "resource_reservations_memory", "mem_swappiness", 
+        "loadbalancer_resource_limits_cpus", "loadbalancer_resource_limits_memory", 
+        "loadbalancer_resource_reservations_cpus", "loadbalancer_resource_reservations_memory", 
+        "loadbalancer_mem_swappiness"
+    ]; "graphos_subgraph_docker_compose")]
+    #[test_case(GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES, &["graph_ref"]; "graphos_subgraph_router_url_overrides")]
+    #[test_case(GRAPHOS_SUBGRAPHS, &["graph_ref"]; "graphos_subgraphs")]
+    #[test_case(GRAPHOS_SUPERGRAPH, &["graph_ref"]; "graphos_supergraph")]
+    #[test_case(INLINE, &[]; "inline")]
+    #[test_case(OFFLINE_GRAPHOS_LICENSE, &["graph_id"]; "offline_graphos_license")]
+    #[test_case(RELATIVE_PATH, &["path"]; "relative_path")]
+    #[test_case(REQUIRED_FILE, &[]; "required")]
+    #[test_case(RESOLVED_VALUES, &[]; "resolved_values")]
+    #[test_case(ROUTER_DOWNLOAD_SCRIPT, &["version"]; "router_download_script")]
+    #[test_case(MERGE_YAML, &[]; "merge_yaml")]
+    #[test]
+    fn all_fields_templated(content: &str, expected_values: &[&str]) {
+        let config: FileProvider = serde_yaml::from_str(content).unwrap();
+
+        let res = config.required_values();
+        assert_eq!(res, expected_values, "expected values to match")
     }
 
     #[test_case(Field::Pending("foo".to_string()), true; "field is pending")]
