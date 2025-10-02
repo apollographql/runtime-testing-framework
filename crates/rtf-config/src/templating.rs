@@ -753,7 +753,7 @@ mod tests {
     #[test]
     fn required_values(t: Box<dyn Template>, expected: &[&str]) {
         let mut res = t.required_values();
-        res.sort();
+        res.sort(); // Sorting so values are in a determistic order for the assert_eq
 
         assert_eq!(
             res.as_slice(),

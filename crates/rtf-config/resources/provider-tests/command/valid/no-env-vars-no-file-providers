@@ -1,5 +1,0 @@
-A valid yaml fragment for a command section with no environment
-variables or file providers
-
--- config.yaml --
-command: "scripts/curl_get_test.sh"

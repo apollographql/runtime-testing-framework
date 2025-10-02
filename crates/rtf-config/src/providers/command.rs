@@ -422,8 +422,10 @@ mod tests {
             Provider,
             file::{FileProvider, InlineFile},
         },
+        templating::Template,
         txtar_context::NullClient,
     };
+    use indoc::indoc;
     use simple_test_case::{dir_cases, test_case};
     use simple_txtar::Archive;
     use std::{path::PathBuf, sync::Mutex};
@@ -450,25 +452,55 @@ mod tests {
         }
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/command/valid")]
-    #[tokio::test]
-    async fn valid_providers(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
+    // Sample command yaml
+    const FULL_INLINE: &str = indoc!(
+        r#"
+        command: 
+          name: inline-command.sh
+          kind: inline
+          content: |
+            echo "Hello, world!"
+          args:
+            - "{{ arg1 }}"
+            - "{{ arg2 }}"
+        env_vars:
+          ENV_VAR_1: "{{ env_var_1 }}"
+          ENV_VAR_2: "{{ env_var_2 }}"
+        file_providers:
+          - name: inline.txt
+            env_var: INLINE
+            kind: inline
+            content: |
+              some content
+    "#
+    );
+    const PARTIAL_RELATIVE_PATH: &str = indoc!(
+        r#"
+        command: 
+          name: relative-path.sh
+          kind: relative_path
+          path: "{{ path }}"
+    "#
+    );
+    const REQUIRED: &str = indoc!(
+        r#"
+        command: 
+          name: required.sh
+          kind: required
+          message: file is required
+    "#
+    );
 
-        let section: CommandSection = match serde_yaml::from_str(config) {
-            Ok(section) => section,
-            Err(e) => panic!("expected a valid CommandSection, got: {e}"),
-        };
+    #[test_case(FULL_INLINE, &["arg1", "arg2", "env_var_1", "env_var_2"]; "full_inline")]
+    #[test_case(PARTIAL_RELATIVE_PATH, &["path"]; "partial_relative_path")]
+    #[test_case(REQUIRED, &[]; "required")]
+    #[test]
+    fn command_parses_and_templates(content: &str, expected_values: &[&str]) {
+        let config: CommandSection = serde_yaml::from_str(content).unwrap();
 
-        let dir = PathBuf::from("resources/provider-tests/command/valid")
-            .canonicalize()
-            .unwrap();
-        let ctx = Context::new();
-        let src = Source::local(dir.join("example.yaml"));
-
-        let res = section.try_check(&mut Vec::new(), &src, &ctx);
-        assert!(res.is_ok(), "expected successful check but got: {res:?}");
+        let mut res = config.required_values();
+        res.sort(); // Sorting so values are in a determistic order for the assert_eq
+        assert_eq!(res, expected_values, "expected values to match")
     }
 
     #[dir_cases("crates/rtf-config/resources/provider-tests/command/check-failures")]
