@@ -5,7 +5,12 @@ name: valid-scenario
 description: |
   A description for a valid scenario
 
-command: "/command.sh"
+command: 
+  name: command.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "Hello, World!"
 
 env_vars:
   SOME_ENV_VAR: "some_env_var"

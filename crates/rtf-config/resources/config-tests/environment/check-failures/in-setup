@@ -11,7 +11,12 @@ values:
     description: "An env var called bar"
 
 setup:
-  command: scripts/start_local_server.sh
+  command:
+    name: inline-command.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+      echo "Hello, world!"
   env_vars:
     HELLO: "world"
 
@@ -28,7 +33,12 @@ setup:
       description: "The PID of the running server"
 
 teardown:
-  command: scripts/stop_local_server.sh
+  command:
+    name: inline-command.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+      echo "Hello, world!"
   env_vars:
     HELLO: "sailor"
 

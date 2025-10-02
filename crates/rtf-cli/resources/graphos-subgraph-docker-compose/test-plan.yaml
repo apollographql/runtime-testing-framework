@@ -6,7 +6,12 @@ scenario:
   inline:
     name: scenario-graphos-subgraph-docker-compose
     description: "Check that subgraph files can be pulled from GraphOS and generate a docker compose file"
-    command: echo 1
+    command:
+      name: command.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, World!"
     file_providers:
       - name: subgraph-compose.yaml
         env_var: SUBGRAPH_COMPOSE
@@ -26,4 +31,9 @@ environment:
           echo "{}" > "$RTF_OUTPUT"
 
     teardown:
-      command: echo 1
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Goodbye, World!"

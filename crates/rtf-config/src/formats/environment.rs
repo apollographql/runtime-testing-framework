@@ -14,7 +14,7 @@ use std::{collections::HashMap, fs, path::Path};
 /// # Environment Config
 ///
 /// Configuration for preparing and cleaning up the test environment as part of a test plan.
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct EnvironmentConfig {
     /// The name of this environment configuration
     pub name: String,
@@ -67,6 +67,21 @@ impl EnvironmentConfig {
 
         self.teardown
             .try_template_nested(path, "teardown", &allowed_values)
+    }
+
+    /// Create an empty [EnvironmentConfig] for tests
+    #[cfg(test)]
+    pub(crate) fn empty() -> EnvironmentConfig {
+        EnvironmentConfig {
+            name: Default::default(),
+            description: Default::default(),
+            values: Vec::new(),
+            setup: SetupSection {
+                command: CommandSection::empty(),
+                provides: Vec::new(),
+            },
+            teardown: CommandSection::empty(),
+        }
     }
 }
 
@@ -123,7 +138,7 @@ impl Check for EnvironmentConfig {
 }
 
 /// # Setup Command Section
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct SetupSection {
     #[serde(flatten)]
     pub command: CommandSection,
@@ -138,8 +153,8 @@ mod tests {
     use crate::{
         context::Context,
         providers::{
-            command::RawCommand,
-            file::{FileProvider, NamedFileProvider, RelativeFile},
+            command::{CommandProvider, CommandSpec},
+            file::{FileProvider, InlineFile, NamedFileProvider, RelativeFile},
         },
         templating::Field,
     };
@@ -301,7 +316,13 @@ mod tests {
 
     fn cmd_section(name: &str, var: &str) -> CommandSection {
         CommandSection {
-            command: RawCommand::String(name.to_string()),
+            command: CommandSpec {
+                name: "command.sh".to_string(),
+                command_provider: CommandProvider::Inline(InlineFile {
+                    content: "command".to_string(),
+                }),
+                args: Vec::new(),
+            },
             env_vars: [(var.to_uppercase(), Field::Pending(var.to_string()))]
                 .into_iter()
                 .collect(),
@@ -357,13 +378,13 @@ mod tests {
     // setup.provides inside of setup itself that should still be an error as we need to template
     // before running the command.
     #[test_case(
-        &[], &["foo", "setup-path"],
-        &[
-            ("foo", "setup.env_vars.FOO"),
-            ("setup-path", "setup.file_providers.SETUP_PATH.path")
-        ];
-        "defined in provides"
-    )]
+            &[], &["foo", "setup-path"],
+            &[
+                ("foo", "setup.env_vars.FOO"),
+                ("setup-path", "setup.file_providers.SETUP_PATH.path")
+            ];
+            "defined in provides"
+        )]
     #[test]
     fn try_template_setup_respects_available_values(
         available_vals: &[&str],
@@ -400,33 +421,33 @@ mod tests {
     #[test_case(&["bar", "teardown-path"], &[], &[]; "both defined at top level")]
     #[test_case(&[], &["bar", "teardown-path"], &[]; "both defined in setup provides")]
     #[test_case(
-        &[], &[],
-        &[
-            ("bar", "teardown.env_vars.BAR"),
-            ("teardown-path", "teardown.file_providers.TEARDOWN_PATH.path")
-        ];
-        "neither defined"
-    )]
+            &[], &[],
+            &[
+                ("bar", "teardown.env_vars.BAR"),
+                ("teardown-path", "teardown.file_providers.TEARDOWN_PATH.path")
+            ];
+            "neither defined"
+        )]
     #[test_case(
-        &["bar"], &[],
-        &[("teardown-path", "teardown.file_providers.TEARDOWN_PATH.path")];
-        "bar defined at top level"
-    )]
+            &["bar"], &[],
+            &[("teardown-path", "teardown.file_providers.TEARDOWN_PATH.path")];
+            "bar defined at top level"
+        )]
     #[test_case(
-        &[], &["bar"],
-        &[("teardown-path", "teardown.file_providers.TEARDOWN_PATH.path")];
-        "bar defined in setup provides"
-    )]
+            &[], &["bar"],
+            &[("teardown-path", "teardown.file_providers.TEARDOWN_PATH.path")];
+            "bar defined in setup provides"
+        )]
     #[test_case(
-        &["teardown-path"], &[],
-        &[("bar", "teardown.env_vars.BAR")];
-        "teardown-path defined at top level"
-    )]
+            &["teardown-path"], &[],
+            &[("bar", "teardown.env_vars.BAR")];
+            "teardown-path defined at top level"
+        )]
     #[test_case(
-        &[], &["teardown-path"],
-        &[("bar", "teardown.env_vars.BAR")];
-        "teardown-path defined in setup provides"
-    )]
+            &[], &["teardown-path"],
+            &[("bar", "teardown.env_vars.BAR")];
+            "teardown-path defined in setup provides"
+        )]
     #[test]
     fn try_template_teardown_respects_available_values(
         available_vals: &[&str],

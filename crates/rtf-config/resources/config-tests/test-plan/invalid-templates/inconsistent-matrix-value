@@ -23,7 +23,12 @@ scenario:
     - name: foo
       description: "A value foo"
   
-  command: "/command.sh"
+  command: 
+    name: command.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+      echo "Hello, World!"
 
   file_providers:
     - name: "inline.txt"
@@ -45,7 +50,12 @@ environment:
       description: "An env var called foo"
   
   setup:
-    command: scripts/start_local_server.sh
+    command:
+      name: inline-command.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, world!"
     env_vars:
       HELLO: "world"
       AUTH: "{{ credentials_env_var }}"
@@ -57,7 +67,12 @@ environment:
       description: "The publicly accessible URL for the service under test"
     
   teardown:
-    command: scripts/stop_local_server.sh
+    command:
+      name: inline-command.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, world!"
     env_vars:
       HELLO: "sailor"
 

@@ -24,7 +24,7 @@ use std::{
 use tracing::error;
 
 /// The format for parsing scenario config
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct TestPlanConfig {
     pub name: String,
     pub description: String,
@@ -309,6 +309,26 @@ impl TestPlanConfig {
             .await?;
 
         Ok(())
+    }
+
+    /// Create an empty [TestPlanConfig] for tests
+    #[cfg(test)]
+    pub(crate) fn empty() -> TestPlanConfig {
+        TestPlanConfig {
+            name: Default::default(),
+            description: Default::default(),
+            values: Default::default(),
+            matrix: Default::default(),
+            scenario: ScenarioConfig::empty(),
+            environment: EnvironmentConfig::empty(),
+            sources: Sources {
+                test_plan: Source::Local {
+                    abs_path: Default::default(),
+                },
+                scenario: Default::default(),
+                environment: Default::default(),
+            },
+        }
     }
 }
 
@@ -605,10 +625,7 @@ fn set_source_for_relative_files(val: &mut serde_yaml::Value, src: &serde_yaml::
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        context::Context, formats::environment::SetupSection, templating::Field,
-        txtar_context::TxtarContext,
-    };
+    use crate::{context::Context, templating::Field, txtar_context::TxtarContext};
     use simple_test_case::dir_cases;
     use simple_txtar::Archive;
     use std::path::PathBuf;
@@ -851,11 +868,19 @@ mod tests {
         }};
     }
 
+    fn value_with_default(name: &str, val: &str) -> ValueDefinition {
+        ValueDefinition {
+            name: name.into(),
+            description: String::default(),
+            default: Some(val.into()),
+        }
+    }
+
     #[test]
     fn matrix_value_expansion_works_without_any_matrix_values() {
         let tp = TestPlanConfig {
             values: values_map!("foo" => 42, "bar" => "life"),
-            ..Default::default()
+            ..TestPlanConfig::empty()
         };
 
         let all_values = tp.expanded_matrix_values();
@@ -874,7 +899,7 @@ mod tests {
             ]
             .into_iter()
             .collect(),
-            ..Default::default()
+            ..TestPlanConfig::empty()
         };
 
         let all_values = tp.expanded_matrix_values();
@@ -889,45 +914,30 @@ mod tests {
         assert_eq!(tp.n_matrix_variants(), all_values.len());
     }
 
-    fn stub_cmd_section(k: &str, v: &str) -> CommandSection {
-        CommandSection {
-            env_vars: [(k.into(), Field::Pending(v.into()))].into_iter().collect(),
-            ..Default::default()
-        }
-    }
-
-    fn value_with_default(name: &str, val: &str) -> ValueDefinition {
-        ValueDefinition {
-            name: name.into(),
-            description: String::default(),
-            default: Some(val.into()),
-        }
-    }
-
     #[test]
     fn value_definition_defaults_count_as_required_values() {
         // A test plan with no values defined in it but each of the required values has a default.
         // This should return no errors around missing values.
+        let mut scenario_env_vars: HashMap<String, Field<String>> = HashMap::new();
+        scenario_env_vars.insert("A".to_string(), Field::Pending("a".to_string()));
+        let mut setup_env_vars: HashMap<String, Field<String>> = HashMap::new();
+        setup_env_vars.insert("B".to_string(), Field::Pending("b".to_string()));
+        let mut teardown_env_vars: HashMap<String, Field<String>> = HashMap::new();
+        teardown_env_vars.insert("C".to_string(), Field::Pending("c".to_string()));
+
         let tp = TestPlanConfig {
-            values: HashMap::new(),
             scenario: ScenarioConfig {
                 values: vec![value_with_default("a", "foo")],
-                command: stub_cmd_section("A", "a"),
-                ..Default::default()
+                ..ScenarioConfig::empty()
             },
             environment: EnvironmentConfig {
                 values: vec![
                     value_with_default("b", "bar"),
                     value_with_default("c", "baz"),
                 ],
-                setup: SetupSection {
-                    command: stub_cmd_section("B", "b"),
-                    provides: vec![],
-                },
-                teardown: stub_cmd_section("C", "c"),
-                ..Default::default()
+                ..EnvironmentConfig::empty()
             },
-            ..Default::default()
+            ..TestPlanConfig::empty()
         };
 
         let mut errs = templating::ErrorBuilder::new();

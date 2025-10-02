@@ -13,7 +13,7 @@ use std::{collections::HashMap, fs, path::Path};
 /// # Scenario Config
 ///
 /// Configuration for a single test scenario to be executed as part of a test plan.
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct ScenarioConfig {
     /// The name of this scenario
     pub name: String,
@@ -32,6 +32,17 @@ impl ScenarioConfig {
         let content = fs::read_to_string(p)?;
 
         Ok(serde_yaml::from_str(&content)?)
+    }
+
+    /// Create an empty [ScenarioConfig] for tests
+    #[cfg(test)]
+    pub(crate) fn empty() -> ScenarioConfig {
+        ScenarioConfig {
+            name: Default::default(),
+            description: Default::default(),
+            values: Default::default(),
+            command: CommandSection::empty(),
+        }
     }
 }
 

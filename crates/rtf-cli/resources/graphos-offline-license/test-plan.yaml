@@ -6,7 +6,12 @@ scenario:
   inline:
     name: scenario-graphos-license
     description: "Check that a supergraph file can be pulled from GraphOS"
-    command: echo 1
+    command:
+      name: command.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, World!"
     file_providers:
       - name: offline.license
         env_var: LICENSE_FILE
@@ -26,4 +31,9 @@ environment:
           echo "{}" > "$RTF_OUTPUT"
 
     teardown:
-      command: echo 1
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Goodbye, World!"

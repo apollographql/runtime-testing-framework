@@ -1,9 +1,0 @@
-A valid yaml fragment for a command section specified with
-an inline spec and no args
-
--- config.yaml --
-command: 
-  name: inline-command.sh
-  kind: inline
-  content: |
-      echo "Hello, world!"
