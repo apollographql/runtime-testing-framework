@@ -1,0 +1,14 @@
+query FetchEntities($graphId: ID!, $variant: String!) {
+  graph(id: $graphId) {
+    variant(name: $variant) {
+      entities {
+        __typename
+        ... on EntitiesResponse {
+          entities {
+            typename
+          }
+        }
+      }
+    }
+  }
+}

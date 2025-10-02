@@ -2,9 +2,14 @@ use crate::{format_bytes, new_client};
 use anyhow::{Result, anyhow};
 use apollo_compiler::executable::{FragmentMap, Selection, SelectionSet};
 use clap::ValueEnum;
-use rtf_core::graphos::supergraph::{
-    SupergraphDetails,
-    operations::canned_operations::{schema_with_defer_and_stream, top_studio_canned_ops},
+use graphql_client::GraphQLQuery;
+use rtf_core::graphos::{
+    PlatformClient,
+    platform_query::PlatformQuery,
+    supergraph::{
+        SupergraphDetails,
+        operations::canned_operations::{schema_with_defer_and_stream, top_studio_canned_ops},
+    },
 };
 use serde::{Deserialize, Serialize};
 use tabled::{Table, Tabled, settings::Style};
@@ -39,28 +44,28 @@ pub async fn summarise_graph(
 
     let sg = SupergraphDetails::fetch(graph_id, variant, platform_client).await?;
     let schema = schema_with_defer_and_stream(&sg.supergraph_sdl);
+    let entities = count_entities(graph_id, variant, platform_client).await?;
 
     let mut schema_meta = SchemaMeta {
         graph_ref,
-        n_types: schema.types.len(),
+        types: schema.types.len(),
+        entities,
         sdl_bytes: format_bytes(sg.supergraph_sdl.len()),
-        query_resolvers: 0,
-        mutation_resolvers: 0,
-        subscription_resolvers: 0,
+        subgraphs: sg.subgraphs.len(),
+        queries: 0,
+        mutations: 0,
+        subscriptions: 0,
     };
 
     let roots = [
-        (
-            &schema.schema_definition.query,
-            &mut schema_meta.query_resolvers,
-        ),
+        (&schema.schema_definition.query, &mut schema_meta.queries),
         (
             &schema.schema_definition.mutation,
-            &mut schema_meta.mutation_resolvers,
+            &mut schema_meta.mutations,
         ),
         (
             &schema.schema_definition.subscription,
-            &mut schema_meta.subscription_resolvers,
+            &mut schema_meta.subscriptions,
         ),
     ];
 
@@ -106,8 +111,8 @@ pub async fn summarise_graph(
                     ty,
                     sdl_bytes: format_bytes(doc.to_string().len()),
                     raw_sdl_bytes: doc.to_string().len(),
-                    n_fields: op.all_fields(doc).count(),
-                    n_fragments: doc.fragments.len(),
+                    fields: op.all_fields(doc).count(),
+                    fragments: doc.fragments.len(),
                     max_depth: max_depth(&op.selection_set, &doc.fragments),
                     request_count: canned_op.request_count,
                     request_count_per_min: canned_op.request_count_per_min,
@@ -118,8 +123,8 @@ pub async fn summarise_graph(
         if let Some(op_sort) = op_sort {
             match op_sort {
                 OpSort::Sdl => op_meta.sort_by_key(|m| m.raw_sdl_bytes),
-                OpSort::Fields => op_meta.sort_by_key(|m| m.n_fields),
-                OpSort::Fragments => op_meta.sort_by_key(|m| m.n_fragments),
+                OpSort::Fields => op_meta.sort_by_key(|m| m.fields),
+                OpSort::Fragments => op_meta.sort_by_key(|m| m.fragments),
                 OpSort::Depth => op_meta.sort_by_key(|m| m.max_depth),
             }
 
@@ -155,11 +160,13 @@ struct Meta {
 #[derive(Serialize, Tabled)]
 struct SchemaMeta {
     graph_ref: String,
-    n_types: usize,
+    types: usize,
+    entities: usize,
     sdl_bytes: String,
-    query_resolvers: usize,
-    mutation_resolvers: usize,
-    subscription_resolvers: usize,
+    subgraphs: usize,
+    queries: usize,
+    mutations: usize,
+    subscriptions: usize,
 }
 
 #[derive(Serialize, Tabled)]
@@ -170,8 +177,8 @@ struct OpMeta {
     #[serde(skip)]
     #[tabled(skip)]
     raw_sdl_bytes: usize,
-    n_fields: usize,
-    n_fragments: usize,
+    fields: usize,
+    fragments: usize,
     max_depth: usize,
     request_count: usize,
     request_count_per_min: usize,
@@ -207,4 +214,46 @@ fn max_depth(selset: &SelectionSet, fragments: &FragmentMap) -> usize {
     }
 
     max
+}
+
+async fn count_entities(graph_id: &str, variant: &str, client: &PlatformClient) -> Result<usize> {
+    FetchEntities::fetch(
+        fetch_entities::Variables {
+            graph_id: graph_id.into(),
+            variant: variant.into(),
+        },
+        client,
+    )
+    .await
+}
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "../rtf-core/resources/engine-prod-schema.graphql",
+    query_path = "resources/queries/fetch_entities.graphql",
+    response_derives = "Deserialize",
+    variables_derives = "Clone"
+)]
+pub struct FetchEntities;
+
+impl PlatformQuery for FetchEntities {
+    type Output = usize;
+    type Error = anyhow::Error;
+
+    fn try_parse(data: Self::ResponseData, _vars: fetch_entities::Variables) -> Result<usize> {
+        use fetch_entities::FetchEntitiesGraphVariantEntities::*;
+
+        let entities = data
+            .graph
+            .ok_or(anyhow!("unknown graph"))?
+            .variant
+            .ok_or(anyhow!("unknown variant"))?
+            .entities
+            .ok_or(anyhow!("unable to query entities"))?;
+
+        match entities {
+            EntitiesResponse(inner) => Ok(inner.entities.len()),
+            EntitiesErrorResponse => Err(anyhow!("error fetching entities")),
+        }
+    }
 }
