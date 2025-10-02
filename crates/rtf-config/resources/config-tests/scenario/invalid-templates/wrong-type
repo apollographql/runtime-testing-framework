@@ -9,7 +9,12 @@ values:
   - name: foo
     description: "A value foo"
 
-command: "/command.sh"
+command: 
+  name: command.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "Hello, World!"
 
 file_providers:
   - name: "inline.txt"
@@ -26,7 +31,12 @@ file_providers:
     path: "{{ foo }}"
 
 teardown:
-  command: scripts/stop_local_server.sh
+  command:
+    name: inline-command.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+      echo "Hello, world!"
 
 -- values --
 foo: 42  # paths need to be strings

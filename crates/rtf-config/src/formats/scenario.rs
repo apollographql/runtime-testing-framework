@@ -13,7 +13,7 @@ use std::{collections::HashMap, fs, path::Path};
 /// # Scenario Config
 ///
 /// Configuration for a single test scenario to be executed as part of a test plan.
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct ScenarioConfig {
     /// The name of this scenario
     pub name: String,

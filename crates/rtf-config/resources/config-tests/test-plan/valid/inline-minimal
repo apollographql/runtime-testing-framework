@@ -20,7 +20,12 @@ scenario:
      - name: foo
        description: "A value foo"
 
-    command: "/command.sh"
+    command: 
+      name: command.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, World!"
 
     env_vars:
       SOME_ENV_VAR: "some_env_var"
@@ -46,7 +51,12 @@ environment:
         description: "An env var called bar"
 
     setup:
-      command: scripts/start_local_server.sh
+      command:
+        name: inline-command.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, world!"
       env_vars:
         HELLO: "world"
 
@@ -57,7 +67,12 @@ environment:
           description: "The PID of the running server"
 
     teardown:
-      command: scripts/stop_local_server.sh
+      command:
+        name: inline-command.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, world!"
       env_vars:
         HELLO: "sailor"
 
@@ -79,7 +94,12 @@ scenario:
     - name: foo
       description: "A value foo"
   
-  command: "/command.sh"
+  command: 
+    name: command.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+      echo "Hello, World!"
 
   env_vars:
     SOME_ENV_VAR: "some_env_var"
@@ -104,7 +124,12 @@ environment:
       description: "An env var called foo"
   
   setup:
-    command: scripts/start_local_server.sh
+    command:
+      name: inline-command.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, world!"
     env_vars:
      HELLO: "world"
   
@@ -115,6 +140,11 @@ environment:
       description: "The publicly accessible URL for the service under test"
     
   teardown:
-    command: scripts/stop_local_server.sh
+    command:
+      name: inline-command.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, world!"
     env_vars:
       HELLO: "sailor"

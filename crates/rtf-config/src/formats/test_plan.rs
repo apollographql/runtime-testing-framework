@@ -24,7 +24,7 @@ use std::{
 use tracing::error;
 
 /// The format for parsing scenario config
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct TestPlanConfig {
     pub name: String,
     pub description: String,
@@ -606,7 +606,13 @@ fn set_source_for_relative_files(val: &mut serde_yaml::Value, src: &serde_yaml::
 mod tests {
     use super::*;
     use crate::{
-        context::Context, formats::environment::SetupSection, templating::Field,
+        context::Context,
+        formats::environment::SetupSection,
+        providers::{
+            command::{CommandProvider, CommandSpec},
+            file::InlineFile,
+        },
+        templating::Field,
         txtar_context::TxtarContext,
     };
     use simple_test_case::dir_cases;
@@ -851,12 +857,92 @@ mod tests {
         }};
     }
 
+    fn stub_tp_config(
+        values: HashMap<String, Scalar>,
+        matrix: HashMap<String, Vec<Scalar>>,
+        scenario: ScenarioConfig,
+        environment: EnvironmentConfig,
+    ) -> TestPlanConfig {
+        TestPlanConfig {
+            name: "name".to_string(),
+            description: "description".to_string(),
+            values,
+            matrix,
+            scenario,
+            environment,
+            sources: Sources {
+                test_plan: Source::Local {
+                    abs_path: "abs_path".into(),
+                },
+                scenario: None,
+                environment: None,
+            },
+        }
+    }
+
+    fn stub_scenario_config(
+        values: Vec<ValueDefinition>,
+        command: CommandSection,
+    ) -> ScenarioConfig {
+        ScenarioConfig {
+            name: "name".to_string(),
+            description: "description".to_string(),
+            values,
+            command,
+        }
+    }
+
+    fn stub_environment_config(
+        values: Vec<ValueDefinition>,
+        setup_command: CommandSection,
+        teardown_command: CommandSection,
+    ) -> EnvironmentConfig {
+        EnvironmentConfig {
+            name: "name".to_string(),
+            description: "description".to_string(),
+            values,
+            setup: SetupSection {
+                command: setup_command,
+                provides: Vec::new(),
+            },
+            teardown: teardown_command,
+        }
+    }
+
+    fn stub_cmd_section(env_vars: HashMap<String, Field<Scalar>>) -> CommandSection {
+        CommandSection {
+            command: CommandSpec {
+                name: "command".to_string(),
+                command_provider: CommandProvider::Inline(InlineFile {
+                    content: "content".to_string(),
+                }),
+                args: Vec::new(),
+            },
+            env_vars,
+            file_providers: Vec::new(),
+        }
+    }
+
+    fn value_with_default(name: &str, val: &str) -> ValueDefinition {
+        ValueDefinition {
+            name: name.into(),
+            description: String::default(),
+            default: Some(val.into()),
+        }
+    }
+
     #[test]
     fn matrix_value_expansion_works_without_any_matrix_values() {
-        let tp = TestPlanConfig {
-            values: values_map!("foo" => 42, "bar" => "life"),
-            ..Default::default()
-        };
+        let tp = stub_tp_config(
+            values_map!("foo" => 42, "bar" => "life"),
+            HashMap::new(),
+            stub_scenario_config(Vec::new(), stub_cmd_section(HashMap::new())),
+            stub_environment_config(
+                Vec::new(),
+                stub_cmd_section(HashMap::new()),
+                stub_cmd_section(HashMap::new()),
+            ),
+        );
 
         let all_values = tp.expanded_matrix_values();
         let expected = vec![values_map!("foo" => 42, "bar" => "life")];
@@ -866,16 +952,21 @@ mod tests {
 
     #[test]
     fn matrix_value_expansion_works() {
-        let tp = TestPlanConfig {
-            values: values_map!("foo" => 42, "bar" => "life"),
-            matrix: [
+        let tp = stub_tp_config(
+            values_map!("foo" => 42, "bar" => "life"),
+            [
                 ("baz".into(), vec![true.into(), false.into()]),
                 ("qux".into(), vec![1.into(), 2.into()]),
             ]
             .into_iter()
             .collect(),
-            ..Default::default()
-        };
+            stub_scenario_config(Vec::new(), stub_cmd_section(HashMap::new())),
+            stub_environment_config(
+                Vec::new(),
+                stub_cmd_section(HashMap::new()),
+                stub_cmd_section(HashMap::new()),
+            ),
+        );
 
         let all_values = tp.expanded_matrix_values();
         let expected = vec![
@@ -889,46 +980,33 @@ mod tests {
         assert_eq!(tp.n_matrix_variants(), all_values.len());
     }
 
-    fn stub_cmd_section(k: &str, v: &str) -> CommandSection {
-        CommandSection {
-            env_vars: [(k.into(), Field::Pending(v.into()))].into_iter().collect(),
-            ..Default::default()
-        }
-    }
-
-    fn value_with_default(name: &str, val: &str) -> ValueDefinition {
-        ValueDefinition {
-            name: name.into(),
-            description: String::default(),
-            default: Some(val.into()),
-        }
-    }
-
     #[test]
     fn value_definition_defaults_count_as_required_values() {
         // A test plan with no values defined in it but each of the required values has a default.
         // This should return no errors around missing values.
-        let tp = TestPlanConfig {
-            values: HashMap::new(),
-            scenario: ScenarioConfig {
-                values: vec![value_with_default("a", "foo")],
-                command: stub_cmd_section("A", "a"),
-                ..Default::default()
-            },
-            environment: EnvironmentConfig {
-                values: vec![
+        let mut scenario_env_vars = HashMap::new();
+        scenario_env_vars.insert("A".to_string(), Field::Pending("a".to_string()));
+        let mut setup_env_vars = HashMap::new();
+        setup_env_vars.insert("B".to_string(), Field::Pending("b".to_string()));
+        let mut teardown_env_vars = HashMap::new();
+        teardown_env_vars.insert("C".to_string(), Field::Pending("c".to_string()));
+
+        let tp = stub_tp_config(
+            HashMap::new(),
+            HashMap::new(),
+            stub_scenario_config(
+                vec![value_with_default("a", "foo")],
+                stub_cmd_section(scenario_env_vars),
+            ),
+            stub_environment_config(
+                vec![
                     value_with_default("b", "bar"),
                     value_with_default("c", "baz"),
                 ],
-                setup: SetupSection {
-                    command: stub_cmd_section("B", "b"),
-                    provides: vec![],
-                },
-                teardown: stub_cmd_section("C", "c"),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
+                stub_cmd_section(setup_env_vars),
+                stub_cmd_section(teardown_env_vars),
+            ),
+        );
 
         let mut errs = templating::ErrorBuilder::new();
         tp.check_required_values(&mut errs);

@@ -36,4 +36,9 @@ environment:
           echo "{}" > "$RTF_OUTPUT"
 
     teardown:
-      command: echo 1
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Goodbye, World!"

@@ -22,7 +22,12 @@ scenario:
     - name: server_url
       description: "The publicly accessible URL for the service under test"
 
-  command: "scripts/curl_get_test.sh"
+  command:
+    name: inline-command.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+      echo "Hello, world!"
 
   env_vars:
     AUTH_HEADER: "{{ credentials_env_var }}"
@@ -48,7 +53,12 @@ environment:
       description: "The command to run to start the server"
 
   setup:
-    command: scripts/start_local_server.sh
+    command:
+      name: inline-command.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, world!"
     env_vars:
       AUTH_HEADER: "{{ credentials_env_var }}"
       SERVER_COMMAND: "{{ server_command }}"
@@ -61,7 +71,12 @@ environment:
         description: "The publicly accessible URL for the service under test"
 
   teardown:
-    command: scripts/stop_local_server.sh
+    command:
+      name: inline-command.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, world!"
     env_vars:
       HELLO: "sailor"
       SERVER_PID: "{{ server_pid }}"
@@ -92,7 +107,12 @@ scenario:
     - name: server_url
       description: "The publicly accessible URL for the service under test"
 
-  command: "scripts/curl_get_test.sh"
+  command:
+    name: inline-command.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+      echo "Hello, world!"
 
   env_vars:
     AUTH_HEADER: "AUTH_HEADER"
@@ -118,7 +138,12 @@ environment:
       description: "The command to run to start the server"
 
   setup:
-    command: scripts/start_local_server.sh
+    command:
+      name: inline-command.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, world!"
     env_vars:
       AUTH_HEADER: "AUTH_HEADER"
       SERVER_COMMAND: "python3 server.py"
@@ -131,7 +156,12 @@ environment:
         description: "The publicly accessible URL for the service under test"
 
   teardown:
-    command: scripts/stop_local_server.sh
+    command:
+      name: inline-command.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, world!"
     env_vars:
       HELLO: "sailor"
       SERVER_PID: "000001"

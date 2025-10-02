@@ -713,23 +713,6 @@
       "title": "GraphOS Offline License",
       "type": "object"
     },
-    "RawCommand": {
-      "anyOf": [
-        {
-          "description": "A named executable and arguments to run",
-          "type": "string"
-        },
-        {
-          "allOf": [
-            {
-              "$ref": "#/definitions/CommandSpec"
-            }
-          ],
-          "description": "An explicit specification for a command to be run"
-        }
-      ],
-      "title": "Raw Command"
-    },
     "RelativeFile": {
       "description": "A relative path from the containing config file to a target file that should be made available\nas part of the test run. This provider works both with local files and files within GitHub\nif the containing config file was pulled from a repository.\n\n```yaml\n- name: \"my-file.txt\"\n  env_var: MY_FILE\n  kind: relative_path\n  path: \"../../resources/test-data/my-file.txt\"\n```",
       "properties": {
@@ -1031,7 +1014,7 @@
     "command": {
       "allOf": [
         {
-          "$ref": "#/definitions/RawCommand"
+          "$ref": "#/definitions/CommandSpec"
         }
       ],
       "description": "The command to be run"

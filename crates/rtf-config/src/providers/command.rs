@@ -9,16 +9,13 @@ use crate::{
             ResolveAndWrite, Source,
         },
     },
-    templating::{self, Field, Scalar, Template},
+    templating::{Field, Scalar},
 };
 use rtf_derive::Template;
 use schemars::JsonSchema;
-use serde::{
-    Deserialize, Deserializer, Serialize, Serializer,
-    de::{self, Visitor, value::MapAccessDeserializer},
-};
-use std::{collections::HashMap, fmt, io, path::Path};
-use tracing::{error, trace};
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, io, path::Path};
+use tracing::trace;
 
 /// The environment variable used to provide the location of the output directory to user specified
 /// commands
@@ -30,10 +27,10 @@ const PROVIDER_DIR: &str = "providers";
 ///
 /// Defines an executable command along with environment variables that should be set prior to
 /// execution and file providers that should be made available.
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct CommandSection {
     /// The command to be run
-    pub command: RawCommand,
+    pub command: CommandSpec,
     /// Environment variables to set
     #[serde(default)]
     pub env_vars: HashMap<String, Field<Scalar>>,
@@ -71,48 +68,31 @@ impl CommandSection {
         let out_file = out_dir.join(OUTFILE);
         let env_vars = self.all_env_vars(out_dir, &out_file, ctx)?;
 
-        match &self.command {
-            RawCommand::String(s) => {
-                let command = s.clone();
-                let mut it = command.split_whitespace();
-                let prog = match it.next() {
-                    Some(prog) => prog,
-                    None => {
-                        return Err(io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "no command provided",
-                        )
-                        .into());
-                    }
-                };
+        let file_path = ctx
+            .known_provider_output_path(Provider::Command {
+                name: &self.command.name,
+                cmd: &self.command.command_provider,
+            })
+            .ok_or(providers::Error::MissingProviderOutput {
+                name: self.command.name.clone(),
+            })?;
 
-                ctx.run_command_blocking(prog, it, &env_vars)?;
+        let prog = match file_path.to_str() {
+            Some(v) => v,
+            None => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "unable to convert command path to valid string",
+                )
+                .into());
             }
-
-            RawCommand::Spec(spec) => {
-                let file_path = ctx
-                    .known_provider_output_path(Provider::Command {
-                        name: &spec.name,
-                        cmd: &spec.command_provider,
-                    })
-                    .ok_or(providers::Error::MissingProviderOutput {
-                        name: spec.name.clone(),
-                    })?;
-
-                let prog = match file_path.to_str() {
-                    Some(v) => v,
-                    None => {
-                        return Err(io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "unable to convert command path to valid string",
-                        )
-                        .into());
-                    }
-                };
-                let it = spec.args.iter().map(|arg| arg.as_resolved().as_str());
-                ctx.run_command_blocking(prog, it, &env_vars)?;
-            }
-        }
+        };
+        let it = self
+            .command
+            .args
+            .iter()
+            .map(|arg| arg.as_resolved().as_str());
+        ctx.run_command_blocking(prog, it, &env_vars)?;
 
         // It is possible that no output is set in the environment setup script. If the output is
         // blank then default to an empty json object. If there is an error reading the user defined
@@ -172,24 +152,24 @@ impl CommandSection {
     ) -> providers::Result<()> {
         let provider_dir = out_dir.join(PROVIDER_DIR);
 
-        if let RawCommand::Spec(spec) = &self.command
-            && ctx
-                .known_provider_output_path(Provider::Command {
-                    name: &spec.name,
-                    cmd: &spec.command_provider,
-                })
-                .is_none()
+        if ctx
+            .known_provider_output_path(Provider::Command {
+                name: &self.command.name,
+                cmd: &self.command.command_provider,
+            })
+            .is_none()
         {
-            trace!(name=%spec.name, "running command provider");
-            let file_path = provider_dir.join(&spec.name);
-            spec.command_provider
+            trace!(name=%self.command.name, "running command provider");
+            let file_path = provider_dir.join(&self.command.name);
+            self.command
+                .command_provider
                 .resolve_and_write(&file_path, src, ctx)
                 .await?;
             ctx.make_executable(&file_path)?;
             ctx.store_provider_output_path(
                 Provider::Command {
-                    name: &spec.name,
-                    cmd: &spec.command_provider,
+                    name: &self.command.name,
+                    cmd: &self.command.command_provider,
                 },
                 file_path,
             );
@@ -246,116 +226,6 @@ impl Check for CommandSection {
         }
 
         errs.into_result(())
-    }
-}
-
-/// # Raw Command
-#[derive(Debug, Clone, PartialEq, JsonSchema)]
-#[serde(untagged)]
-pub enum RawCommand {
-    /// A named executable and arguments to run
-    String(String),
-    /// An explicit specification for a command to be run
-    Spec(CommandSpec),
-}
-
-impl Serialize for RawCommand {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            Self::String(s) => serializer.serialize_str(s),
-            Self::Spec(spec) => spec.serialize(serializer),
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for RawCommand {
-    fn deserialize<D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> std::result::Result<RawCommand, D::Error> {
-        deserializer.deserialize_any(CommandVisitor)
-    }
-}
-
-struct CommandVisitor;
-
-impl<'de> Visitor<'de> for CommandVisitor {
-    type Value = RawCommand;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("a string or a valid command spec")
-    }
-
-    fn visit_str<E: de::Error>(self, value: &str) -> std::result::Result<Self::Value, E> {
-        Ok(RawCommand::String(value.to_owned()))
-    }
-
-    fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
-    where
-        A: de::MapAccess<'de>,
-    {
-        // MapAccessDeserializer is a wrapper that turns a MapAccess into a Deserializer, allowing
-        // it to be used as the input to CommandSpec's Deserialize implementation.
-        // CommandSpec then deserializes itself using the entries from the map visitor.
-        let res = CommandSpec::deserialize(MapAccessDeserializer::new(map));
-        let spec = match res {
-            Ok(data) => data,
-            Err(err) => {
-                error!("malformed command spec");
-                return Err(err);
-            }
-        };
-
-        Ok(RawCommand::Spec(spec))
-    }
-}
-
-impl Default for RawCommand {
-    fn default() -> Self {
-        Self::String(String::default())
-    }
-}
-
-impl Template for RawCommand {
-    fn has_pending_fields(&self) -> bool {
-        match self {
-            RawCommand::String(_s) => false,
-            RawCommand::Spec(spec) => spec.has_pending_fields(),
-        }
-    }
-
-    fn required_values(&self) -> Vec<String> {
-        match self {
-            RawCommand::String(_s) => Vec::new(),
-            RawCommand::Spec(spec) => spec.required_values(),
-        }
-    }
-
-    fn try_template(
-        &mut self,
-        path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
-        match self {
-            RawCommand::String(_s) => Ok(()),
-            RawCommand::Spec(spec) => spec.try_template(path, values),
-        }
-    }
-}
-
-impl Check for RawCommand {
-    fn try_check(
-        &self,
-        path: &mut Vec<String>,
-        src: &Source,
-        ctx: &impl ResolutionContext,
-    ) -> checks::Result<()> {
-        match self {
-            RawCommand::String(_s) => Ok(()),
-            RawCommand::Spec(spec) => spec.try_check(path, src, ctx),
-        }
     }
 }
 
@@ -459,6 +329,7 @@ mod tests {
           name: inline-command.sh
           kind: inline
           content: |
+            #!/usr/bin/env sh
             echo "Hello, world!"
           args:
             - "{{ arg1 }}"
@@ -568,20 +439,18 @@ mod tests {
 
         fn run_command_blocking<'a>(
             &self,
-            prog: &str,
+            _prog: &str,
             args: impl IntoIterator<Item = &'a str>,
             env_vars: &HashMap<String, String>,
         ) -> io::Result<()> {
-            if prog == "WRITE_OUTPUT" {
-                let path = env_vars.get(OUTFILE).expect("outfile env var not set");
-                let content = args.into_iter().next().expect("no args").to_string();
-
+            let path = env_vars.get(OUTFILE).expect("outfile env var not set");
+            let mut iter = args.into_iter();
+            if let Some(content) = iter.next() {
                 self.written_files
                     .lock()
                     .unwrap()
-                    .insert(path.to_string(), content);
+                    .insert(path.to_string(), content.to_string());
             }
-
             Ok(())
         }
 
@@ -645,13 +514,13 @@ mod tests {
 
     fn test_cmd_section() -> CommandSection {
         CommandSection {
-            command: RawCommand::Spec(CommandSpec {
+            command: CommandSpec {
                 name: "example.sh".to_string(),
                 command_provider: CommandProvider::Inline(InlineFile {
                     content: "command".to_string(),
                 }),
                 args: Vec::new(),
-            }),
+            },
             env_vars: [
                 ("FOO", Scalar::from("hello")),
                 ("BAR", Scalar::from("world")),
@@ -781,24 +650,39 @@ mod tests {
         assert_eq!(writes, expected);
     }
 
-    #[test_case("WRITE_OUTPUT foo", "foo"; "with output")]
-    #[test_case("command-with-no-output", "{}"; "without output")]
+    #[test_case(vec![(Field::Resolved("foo".to_string()))], "foo"; "with output")]
+    #[test_case(Vec::new(), "{}"; "without output")]
     #[tokio::test]
     async fn execute_returns_the_contents_of_the_output_file_and_removes_it(
-        command: &str,
+        args: Vec<Field<String>>,
         expected_output: &str,
     ) {
         let c = CommandSection {
             // See the implementation of MockCommandContext::run_command_blocking
-            command: RawCommand::String(command.to_string()),
+            command: CommandSpec {
+                name: "example.sh".to_string(),
+                command_provider: CommandProvider::Inline(InlineFile {
+                    content: "command".to_string(),
+                }),
+                args,
+            },
             env_vars: HashMap::new(),
             file_providers: Vec::new(),
         };
 
-        let ctx = MockCommandContext::default();
+        let mut ctx = MockCommandContext::default();
         let dir = PathBuf::from("/example-dir");
 
-        let output = c.execute(&dir, &ctx).expect("command to succeed");
+        c.run_providers(
+            &dir,
+            &Source::Local {
+                abs_path: "/".into(),
+            },
+            &mut ctx,
+        )
+        .await
+        .expect("providers to run");
+        let output = c.execute(&dir, &ctx).expect("output");
         assert_eq!(output, expected_output, "unexpected output");
 
         let written_files = ctx.written_files.into_inner().unwrap();

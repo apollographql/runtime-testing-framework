@@ -2,7 +2,12 @@ A YAML fragment for a command section that references a file
 that doesn't exist. This should parse but fail to check successfully.
 
 -- config.yaml --
-command: "scripts/curl_get_test.sh"
+command:
+  name: inline-command.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "Hello, world!"
 
 env_vars:
   AUTH_HEADER: "{{ credentials_env_var }}"

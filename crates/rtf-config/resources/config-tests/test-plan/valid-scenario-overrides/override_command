@@ -10,7 +10,12 @@ values:
   - name: foo
     description: "A value foo"
 
-command: "/command.sh"
+command: 
+  name: command.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "Hello, World!"
 
 env_vars:
   SOME_ENV_VAR: "some_env_var"
@@ -25,7 +30,12 @@ file_providers:
       How nice.
 
 -- overrides --
-command: "/override_command.sh"
+command:
+  name: override.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "Hello, override!"
 
 -- expected-config --
 name: valid-scenario
@@ -36,7 +46,12 @@ values:
   - name: foo
     description: "A value foo"
 
-command: "/override_command.sh"
+command:
+  name: override.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "Hello, override!"
 
 env_vars:
   SOME_ENV_VAR: "some_env_var"
