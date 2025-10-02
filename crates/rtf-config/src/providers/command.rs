@@ -191,6 +191,22 @@ impl CommandSection {
 
         Ok(())
     }
+
+    /// Create an empty [CommandSection] for tests
+    #[cfg(test)]
+    pub(crate) fn empty() -> CommandSection {
+        CommandSection {
+            command: CommandSpec {
+                name: Default::default(),
+                command_provider: CommandProvider::Inline(InlineFile {
+                    content: "content".to_string(),
+                }),
+                args: Default::default(),
+            },
+            env_vars: Default::default(),
+            file_providers: Default::default(),
+        }
+    }
 }
 
 impl Check for CommandSection {

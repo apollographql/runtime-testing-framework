@@ -33,6 +33,17 @@ impl ScenarioConfig {
 
         Ok(serde_yaml::from_str(&content)?)
     }
+
+    /// Create an empty [ScenarioConfig] for tests
+    #[cfg(test)]
+    pub(crate) fn empty() -> ScenarioConfig {
+        ScenarioConfig {
+            name: Default::default(),
+            description: Default::default(),
+            values: Default::default(),
+            command: CommandSection::empty(),
+        }
+    }
 }
 
 impl Template for ScenarioConfig {

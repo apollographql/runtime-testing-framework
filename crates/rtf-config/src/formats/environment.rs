@@ -68,6 +68,21 @@ impl EnvironmentConfig {
         self.teardown
             .try_template_nested(path, "teardown", &allowed_values)
     }
+
+    /// Create an empty [EnvironmentConfig] for tests
+    #[cfg(test)]
+    pub(crate) fn empty() -> EnvironmentConfig {
+        EnvironmentConfig {
+            name: Default::default(),
+            description: Default::default(),
+            values: Vec::new(),
+            setup: SetupSection {
+                command: CommandSection::empty(),
+                provides: Vec::new(),
+            },
+            teardown: CommandSection::empty(),
+        }
+    }
 }
 
 impl Template for EnvironmentConfig {
