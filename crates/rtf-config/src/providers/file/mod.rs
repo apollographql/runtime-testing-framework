@@ -208,6 +208,7 @@ pub enum FileProvider {
     BuildRouterFromSource(apollo::BuildRouterFromSource),
     GithubFile(github::GithubFile),
     GraphosCannedOps(apollo::GraphosCannedOps),
+    GraphosCannedOpsById(apollo::GraphosCannedOpsById),
     GraphosSubgraphDockerCompose(apollo::GraphosSubgraphDockerCompose),
     GraphosSubgraphRouterUrlOverrides(apollo::GraphosSubgraphRouterUrlOverrides),
     GraphosSubgraphs(apollo::GraphosSubgraphs),
@@ -246,6 +247,7 @@ enum_impl_file_provider!(
     BuildRouterFromSource,
     GithubFile,
     GraphosCannedOps,
+    GraphosCannedOpsById,
     GraphosSubgraphDockerCompose,
     GraphosSubgraphRouterUrlOverrides,
     GraphosSubgraphs,
@@ -786,6 +788,15 @@ mod tests {
         skip_mutations: "{{ skip_mutations }}"
     "#
     );
+    const GRAPHOS_CANNED_OPS_BY_ID: &str = indoc!(
+        r#"
+        kind: graphos_canned_ops_by_id
+        graph_ref: "{{ graph_ref }}"
+        operation_ids:
+          - "{{ op_1 }}"
+          - "{{ op_2 }}"
+    "#
+    );
     const GRAPHOS_SUBGRAPH_DOCKER_COMPOSE: &str = indoc!(
         r#"
         kind: graphos_subgraph_docker_compose
@@ -880,6 +891,7 @@ mod tests {
     #[test_case(BUILD_ROUTER_FROM_SOURCE, &["git_ref", "rust_version"]; "build_router_from_source")]
     #[test_case(GITHUB_FILE, &["org", "repo", "path", "git_ref"]; "github_file")]
     #[test_case(GRAPHOS_CANNED_OPS, &["graph_ref", "top_n", "skip_mutations"]; "graphos_canned_ops")]
+    #[test_case(GRAPHOS_CANNED_OPS_BY_ID, &["graph_ref", "op_1", "op_2"]; "graphos_canned_ops_by_id")]
     #[test_case(GRAPHOS_SUBGRAPH_DOCKER_COMPOSE, &[
         "graph_ref", "image", "replicas", "resource_limits_cpus", "resource_limits_memory", 
         "resource_reservations_cpus", "resource_reservations_memory", "mem_swappiness", 

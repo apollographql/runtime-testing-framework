@@ -15,7 +15,10 @@ use rtf_core::{
     HttpClient,
     graphos::supergraph::{
         Subgraph, SupergraphDetails,
-        operations::{canned_operations::top_studio_canned_ops, fetch_offline_license},
+        operations::{
+            canned_operations::{CannedOperation, canned_ops_for_ids, top_studio_canned_ops},
+            fetch_offline_license,
+        },
     },
 };
 use rtf_derive::Template;
@@ -702,18 +705,7 @@ impl AsUtf8FileContent for GraphosCannedOps {
         )
         .await?;
 
-        // Create a json line file for each of the canned operations
-        let mut json_file = canned_ops
-            .iter()
-            .map(|v| v.to_json_string())
-            .collect::<Result<Vec<_>, _>>()?
-            .join("\n");
-
-        // This appends a new line to the json file
-        // Without this, when shell scripts iterate over the operations they count the lines to iterate over as N-1
-        json_file.push('\n');
-
-        Ok(json_file)
+        canned_ops_json_lines(canned_ops)
     }
 }
 
@@ -726,6 +718,86 @@ impl Check for GraphosCannedOps {
     ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
     }
+}
+
+/// # GraphOS Canned Operations by ID
+///
+/// The user specifies the graph ref and parameters that should be used to
+/// generate canned GraphQL requests based on operations data obtained from
+/// the GraphOS API.
+///
+/// ```yaml
+/// - name: canned_ops.json
+///   env_var: CANNED_OPS_FILE
+///   kind: graphos_canned_ops_by_id
+///   graph_ref: graph@variant
+///   operation_ids:
+///     - 5b1f8a2a1bd4be697559013a23fcbcb9186afe77
+///     - 3f56aa92aad650bbfc7ba481cbe029aba2f6c5f4
+///     - 50b77d7351052abd84dcd2c2ccb63eff2fa2f94c
+/// ```
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+pub struct GraphosCannedOpsById {
+    /// The Apollo graph ref to pull operations for.
+    pub graph_ref: Field<String>,
+    /// Operation IDs from the Apollo studio API for the operations you want to
+    /// work with as queried from an `OperationInsightsListItem` in the Studio
+    /// graphQL API.
+    pub operation_ids: Vec<Field<String>>,
+}
+
+impl AsUtf8FileContent for GraphosCannedOpsById {
+    async fn try_get_file_content(
+        &self,
+        _src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<String> {
+        let (graph_id, variant) = self
+            .graph_ref
+            .as_resolved()
+            .split_once('@')
+            .expect("validated graph_ref");
+
+        let details: Arc<SupergraphDetails> = ctx
+            .with_supergraph_details(graph_id, variant, |details| Ok(details.clone()))
+            .await?;
+
+        let client = ctx.platform_client().expect("to have a platform client");
+        let ids: Vec<String> = self
+            .operation_ids
+            .iter()
+            .map(|id| id.as_resolved().clone())
+            .collect();
+        let canned_ops = canned_ops_for_ids(&details, ids, client).await?;
+
+        canned_ops_json_lines(canned_ops)
+    }
+}
+
+impl Check for GraphosCannedOpsById {
+    fn try_check(
+        &self,
+        path: &mut Vec<String>,
+        _src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
+    }
+}
+
+fn canned_ops_json_lines(canned_ops: Vec<CannedOperation>) -> providers::Result<String> {
+    // Create a json line file for each of the canned operations
+    let mut json_file = canned_ops
+        .iter()
+        .map(|v| v.to_json_string())
+        .collect::<Result<Vec<_>, _>>()?
+        .join("\n");
+
+    // This appends a new line to the json file
+    // Without this, when shell scripts iterate over the operations they count the lines to iterate over as N-1
+    json_file.push('\n');
+
+    Ok(json_file)
 }
 
 /// # GraphOS Offline License

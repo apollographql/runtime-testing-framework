@@ -219,6 +219,32 @@
       "title": "GraphOS Canned Operations",
       "type": "object"
     },
+    "GraphosCannedOpsById": {
+      "description": "The user specifies the graph ref and parameters that should be used to\ngenerate canned GraphQL requests based on operations data obtained from\nthe GraphOS API.\n\n```yaml\n- name: canned_ops.json\n  env_var: CANNED_OPS_FILE\n  kind: graphos_canned_ops_by_id\n  graph_ref: graph@variant\n  operation_ids:\n    - 5b1f8a2a1bd4be697559013a23fcbcb9186afe77\n    - 3f56aa92aad650bbfc7ba481cbe029aba2f6c5f4\n    - 50b77d7351052abd84dcd2c2ccb63eff2fa2f94c\n```",
+      "properties": {
+        "graph_ref": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The Apollo graph ref to pull operations for."
+        },
+        "operation_ids": {
+          "description": "Operation IDs from the Apollo studio API for the operations you want to\nwork with as queried from an `OperationInsightsListItem` in the Studio\ngraphQL API.",
+          "items": {
+            "$ref": "#/definitions/Templatable%20string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "graph_ref",
+        "operation_ids"
+      ],
+      "title": "GraphOS Canned Operations by ID",
+      "type": "object"
+    },
     "GraphosSubgraphDockerCompose": {
       "description": "The user specifies the graph ref that should be used to fetch the supergraph\nSDL file from the GraphOS API and generates a docker compose file. It runs a\nconfigurable number of subgraph services, mocking based on the supergraph\nschema behind a loadbalancer.\n\n```yaml\n- name: \"subgraph-compose.yaml\"\n  env_var: SUBGRAPH_COMPOSE\n  kind: graphos_subgraph_docker_compose\n  graph_ref: graph@variant\n  image: ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main\n  command:\n  - -schema\n  - /app/supergraph.graphql\n  replicas: 5\n  resource_limits:\n    cpus: '0.5'\n    memory: 1G\n  resource_reservations:\n   cpus: '0.1'\n    memory: 512M\n  mem_swappiness: 0\n  loadbalancer:\n    resource_limits:\n      cpus: '0.5'\n      memory: 1G\n    resource_reservations:\n      cpus: '0.1'\n      memory: 512M\n    mem_swappiness: 0\n```",
       "properties": {
@@ -514,6 +540,23 @@
           "properties": {
             "kind": {
               "const": "graphos_canned_ops",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GraphosCannedOpsById"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphos_canned_ops_by_id",
               "type": "string"
             }
           },
