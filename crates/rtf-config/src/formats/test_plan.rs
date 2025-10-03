@@ -775,7 +775,7 @@ mod tests {
         pretty_assertions::assert_eq!(plan_config, expected);
     }
 
-    #[dir_cases("crates/rtf-config/resources/config-tests/scenario/parse-failures")]
+    #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/parse-failures")]
     #[test]
     fn parse_failures(_path: &str, content: &str) {
         let arr = load_archive(content);
