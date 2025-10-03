@@ -60,16 +60,59 @@ const MAX_DEPTH: usize = 10;
 /// seconds to set how far back to query operations for. We use 30 days as the default behaviour.
 const LAST_30DAYS_SECONDS: i64 = -(60 * 60 * 24 * 30); // TODO: allow customising
 
+/// For a given supergraph, pull the requested operations by ID and generate canned operation data
+/// to be able to use them in requests to a running Router.
+pub async fn canned_ops_for_ids(
+    details: &SupergraphDetails,
+    op_ids: Vec<String>,
+    client: &impl platform_query::Client,
+) -> graphos::Result<Vec<CannedOperation>> {
+    let schema = schema_with_defer_and_stream(&details.supergraph_sdl);
+    let signatures = fetch_operation_signatures(details.graph_id.clone(), op_ids, client)
+        .await
+        .map_err(|cause| {
+            graphos::Error::Fetch(FetchError {
+                cause,
+                graph_id: details.graph_id.clone(),
+                variant: details.variant.clone(),
+            })
+        })?;
+
+    info!("generating canned operations");
+    let mut rng = rand::rng();
+
+    Ok(signatures
+        .into_iter()
+        .filter_map(
+            |sig| match CannedOperation::try_new(sig, &schema, &mut rng) {
+                Ok(op) => Some(op),
+                Err(e) => {
+                    warn!("{e}");
+                    None
+                }
+            },
+        )
+        .collect())
+}
+
 /// For a given supergraph, pull the top n operations as reported by studio and generate canned
 /// operation data to be able to use them in requests to a running Router.
-pub async fn generate_canned_ops(
+pub async fn top_studio_canned_ops(
     details: &SupergraphDetails,
     n: usize,
     skip_mutations: bool,
     client: &impl platform_query::Client,
 ) -> graphos::Result<Vec<CannedOperation>> {
+    let fetch_error = |cause| {
+        graphos::Error::Fetch(FetchError {
+            cause,
+            graph_id: details.graph_id.clone(),
+            variant: details.variant.clone(),
+        })
+    };
+
     let schema = schema_with_defer_and_stream(&details.supergraph_sdl);
-    let signatures = fetch_operation_signatures(
+    let ids = fetch_operation_ids(
         details.graph_id.clone(),
         details.variant.clone(),
         n,
@@ -77,13 +120,11 @@ pub async fn generate_canned_ops(
         client,
     )
     .await
-    .map_err(|cause| {
-        graphos::Error::Fetch(FetchError {
-            cause,
-            graph_id: details.graph_id.clone(),
-            variant: details.variant.clone(),
-        })
-    })?;
+    .map_err(fetch_error)?;
+
+    let signatures = fetch_operation_signatures(details.graph_id.clone(), ids, client)
+        .await
+        .map_err(fetch_error)?;
 
     info!("generating canned operations");
     let mut rng = rand::rng();
@@ -189,15 +230,15 @@ fn stream_definition() -> Node<DirectiveDefinition> {
     })
 }
 
-/// Fetch the top `n` operations for a given graph variant and return their "signatures" for
-/// processing into valid queries that we can then generate structurally valid variable data for.
-async fn fetch_operation_signatures(
+/// Fetch the top `n` operations for a given graph variant and return their operation IDs
+/// which can be used for then fetching operation Signatures for rehydration.
+async fn fetch_operation_ids(
     graph_id: String,
     variant: String,
     n: usize,
     skip_mutations: bool,
     client: &impl platform_query::Client,
-) -> Result<Vec<Signature>, FetchErrorCause> {
+) -> Result<Vec<String>, FetchErrorCause> {
     info!("fetching top {n} operation IDs for {graph_id}@{variant}");
     let max_batch_size = 100; // enforced by the studio API
     let batches = n / max_batch_size;
@@ -258,13 +299,24 @@ async fn fetch_operation_signatures(
         );
     }
 
+    Ok(ids)
+}
+
+/// Fetch the top `n` operations for a given graph variant and return their "signatures" for
+/// processing into valid queries that we can then generate structurally valid variable data for.
+async fn fetch_operation_signatures(
+    graph_id: String,
+    ids: Vec<String>,
+    client: &impl platform_query::Client,
+) -> Result<Vec<Signature>, FetchErrorCause> {
     let mut signatures = Vec::with_capacity(ids.len());
 
-    info!("pulling operation details for {graph_id}@{variant}");
+    info!("pulling operation signatures for {graph_id}");
     let mut n_batches = ids.len() / N_PARALLEL_FETCH;
-    if n % N_PARALLEL_FETCH > 0 {
+    if n_batches % N_PARALLEL_FETCH > 0 {
         n_batches += 1;
     }
+
     for (i, batch) in ids
         .into_iter()
         .chunks(N_PARALLEL_FETCH)

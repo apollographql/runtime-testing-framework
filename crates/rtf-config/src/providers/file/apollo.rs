@@ -15,7 +15,7 @@ use rtf_core::{
     HttpClient,
     graphos::supergraph::{
         Subgraph, SupergraphDetails,
-        operations::{fetch_offline_license, top_studio_operations::generate_canned_ops},
+        operations::{canned_operations::top_studio_canned_ops, fetch_offline_license},
     },
 };
 use rtf_derive::Template;
@@ -694,7 +694,7 @@ impl AsUtf8FileContent for GraphosCannedOps {
             .await?;
 
         let client = ctx.platform_client().expect("to have a platform client");
-        let canned_ops = generate_canned_ops(
+        let canned_ops = top_studio_canned_ops(
             &details,
             *self.top_n.as_resolved(),
             *self.skip_mutations.as_resolved(),
