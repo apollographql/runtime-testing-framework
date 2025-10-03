@@ -4,7 +4,7 @@ use hyper_util::{
     rt::{TokioExecutor, TokioIo},
     server::conn::auto::Builder,
 };
-use std::net::SocketAddr;
+use std::{net::SocketAddr, panic::set_hook};
 use subgraph_mock::{Args, handle::handle_request};
 use tokio::net::TcpListener;
 use tracing::{error, info};
@@ -25,6 +25,19 @@ async fn main() -> anyhow::Result<()> {
         )
         .try_init()
         .expect("unable to set a global tracing subscriber");
+
+    set_hook(Box::new(|panic| {
+        if let Some(loc) = panic.location() {
+            error!(
+                message=%panic,
+                panic.file=loc.file(),
+                panic.line=loc.line(),
+                panic.column=loc.column()
+            );
+        } else {
+            error!(message=%panic);
+        }
+    }));
 
     let port = Args::parse().init()?;
     let listener = TcpListener::bind(SocketAddr::from(([0, 0, 0, 0], port))).await?;
