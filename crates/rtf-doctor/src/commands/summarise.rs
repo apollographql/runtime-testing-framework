@@ -91,7 +91,7 @@ pub async fn summarise_graph(
         ops.reverse();
 
         let mut op_meta: Vec<_> = ops
-            .iter()
+            .into_iter()
             .enumerate()
             .map(|(i, canned_op)| {
                 let doc = &canned_op.doc;
@@ -108,6 +108,7 @@ pub async fn summarise_graph(
 
                 OpMeta {
                     i: i + 1,
+                    id: canned_op.id,
                     ty,
                     sdl_bytes: format_bytes(doc.to_string().len()),
                     raw_sdl_bytes: doc.to_string().len(),
@@ -172,6 +173,7 @@ struct SchemaMeta {
 #[derive(Serialize, Tabled)]
 struct OpMeta {
     i: usize,
+    id: String,
     ty: &'static str,
     sdl_bytes: String,
     #[serde(skip)]
