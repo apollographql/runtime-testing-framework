@@ -145,8 +145,13 @@ where
         path: &mut Vec<String>,
         values: &HashMap<String, Scalar>,
     ) -> Result<()> {
-        self.iter_mut()
-            .try_for_each(|elem| elem.try_template(path, values))
+        let mut errs = ErrorBuilder::new();
+
+        for elem in self.iter_mut() {
+            errs.append(elem.try_template(path, values))
+        }
+
+        errs.into_result(())
     }
 }
 
@@ -794,13 +799,13 @@ mod tests {
         )
     }
 
-    #[test_case(of(Some(p("foo"))); "some optional field")]
-    #[test_case(vf(&[p("foo"), p("bar"), p("baz")]); "multiple vec entries")]
-    #[test_case(vf(&[p("foo")]); "single vec entry")]
-    #[test_case(hmf(&[p("foo"), p("bar"), p("baz")]); "multiple hash map entries")]
-    #[test_case(hmf(&[p("foo")]); "single hash map entry")]
+    #[test_case(of(Some(p("foo"))), &["foo"]; "some optional field")]
+    #[test_case(vf(&[p("foo"), p("bar"), p("baz")]), &["bar", "baz", "foo"]; "multiple vec entries")]
+    #[test_case(vf(&[p("foo")]), &["foo"]; "single vec entry")]
+    #[test_case(hmf(&[p("foo"), p("bar"), p("baz")]), &["bar", "baz", "foo"]; "multiple hash map entries")]
+    #[test_case(hmf(&[p("foo")]), &["foo"]; "single hash map entry")]
     #[test]
-    fn try_template_unknown_value_error(mut t: Box<dyn Template>) {
+    fn try_template_unknown_value_error(mut t: Box<dyn Template>, expected_err_messages: &[&str]) {
         let values = values_map!(["unused"]);
 
         let res = t.try_template(&mut Vec::new(), &values);
@@ -813,5 +818,8 @@ mod tests {
             "expected all errors to be UnknownValue, got {:?}",
             errors
         );
+        let mut messages: Vec<&str> = errors.iter().map(|e| e.message.as_str()).collect();
+        messages.sort();
+        assert_eq!(messages.as_slice(), expected_err_messages);
     }
 }
