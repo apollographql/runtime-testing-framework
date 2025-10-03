@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["license","top_studio_operations"]};
+window.SIDEBAR_ITEMS = {"mod":["canned_operations","license"]};
