@@ -1,17 +1,17 @@
-name: Publish Subgraph Image
+name: Publish Subgraph Mock
 
 on:
   push:
     branches:
       - main
     paths:
-      - "images/router-scale-subgraph/**"
+      - "images/subgraph-mock/**"
 
 env:
   REGISTRY: ghcr.io
 
 jobs:
-  publish-router-scale-subgraph-image:
+  publish-subgraph-mock-image:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -34,7 +34,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/router-scale-subgraph
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/subgraph-mock
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -46,7 +46,7 @@ jobs:
         id: push
         uses: docker/build-push-action@v6
         with:
-          context: ./images/router-scale-subgraph
+          context: ./images/subgraph-mock
           platforms: linux/x86_64, linux/arm64, macOS/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
