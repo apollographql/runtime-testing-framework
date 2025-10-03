@@ -27,7 +27,7 @@ scenario:
       content: |
         #!/usr/bin/env sh
 
-        "scenario command executed"
+        echo "scenario command executed"
 environment:
   inline:
     name: Inline environment config
@@ -69,7 +69,7 @@ scenario:
       content: |
         #!/usr/bin/env sh
 
-        "scenario command executed"
+        echo "$SCENARIO_ENV"
 # --- Add an environment variable ---
     env_vars:
         SCENARIO_ENV: scenario command executed
