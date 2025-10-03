@@ -1,5 +1,6 @@
 use crate::{
-    ADDITIONAL_HEADERS, RESPONSE_GENERATION_CONFIG, SUPERGRAPH_SCHEMA, handle::ByteResponse,
+    ADDITIONAL_HEADERS, CACHE_RESPONSES, RESPONSE_GENERATION_CONFIG, SUPERGRAPH_SCHEMA,
+    handle::ByteResponse,
 };
 use anyhow::anyhow;
 use apollo_compiler::{
@@ -9,6 +10,7 @@ use apollo_compiler::{
     schema::ExtendedType,
     validation::Valid,
 };
+use cached::proc_macro::cached;
 use http_body_util::{BodyExt, Full};
 use hyper::{
     Response, StatusCode,
@@ -18,7 +20,12 @@ use hyper::{
 use rand::{Rng, rngs::ThreadRng, seq::IteratorRandom};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Number, Value, json};
-use std::{collections::HashMap, ops::RangeInclusive};
+use std::{
+    collections::HashMap,
+    hash::{DefaultHasher, Hash, Hasher},
+    ops::RangeInclusive,
+    sync::atomic::Ordering,
+};
 use tracing::{debug, error, trace};
 
 pub async fn handle(body: Incoming) -> anyhow::Result<ByteResponse> {
@@ -38,7 +45,15 @@ pub async fn handle(body: Incoming) -> anyhow::Result<ByteResponse> {
         }
     };
 
-    let (bytes, status_code) = req.into_response_bytes_and_status_code().await;
+    let mut hasher = DefaultHasher::new();
+    req.query.hash(&mut hasher);
+    let query_hash = hasher.finish();
+
+    let (bytes, status_code) = if CACHE_RESPONSES.load(Ordering::Relaxed) {
+        into_response_bytes_and_status_code(req, query_hash).await
+    } else {
+        into_response_bytes_and_status_code_no_cache(req, query_hash).await
+    };
 
     let mut resp = Response::new(Full::new(bytes).map_err(|never| match never {}).boxed());
     *resp.status_mut() = status_code;
@@ -60,67 +75,69 @@ struct GraphQLRequest {
     // extensions: serde_json::Map<String, Value>,
 }
 
-impl GraphQLRequest {
-    #[tracing::instrument(skip(self))]
-    pub async fn into_response_bytes_and_status_code(self) -> (Bytes, StatusCode) {
-        let schema = SUPERGRAPH_SCHEMA.wait();
-        let op_name = self.operation_name.as_deref().unwrap_or("unknown");
+#[tracing::instrument(skip(req))]
+#[cached(key = "u64", convert = "{query_hash}")]
+async fn into_response_bytes_and_status_code(
+    req: GraphQLRequest,
+    query_hash: u64,
+) -> (Bytes, StatusCode) {
+    let schema = SUPERGRAPH_SCHEMA.wait();
+    let op_name = req.operation_name.as_deref().unwrap_or("unknown");
 
-        debug!(query=%self.query, "handling graphql request");
-        trace!(variables=?self.variables, "request variables");
+    debug!(%query_hash, "handling graphql request");
+    trace!(variables=?req.variables, "request variables");
 
-        let doc = match ExecutableDocument::parse_and_validate(schema, &self.query, op_name) {
-            Ok(doc) => doc,
+    let doc = match ExecutableDocument::parse_and_validate(schema, &req.query, op_name) {
+        Ok(doc) => doc,
+        Err(err) => {
+            let errs: Vec<_> = err.errors.iter().map(|d| d.to_json()).collect();
+            error!(?errs, query=%req.query, "invalid graphql query");
+            let bytes = serde_json::to_vec(&json!({ "data": Value::Null, "errors": errs }))
+                .unwrap_or_default();
+            return (bytes.into(), StatusCode::BAD_REQUEST);
+        }
+    };
+
+    let op = doc.operations.iter().next().unwrap();
+    let op_name = op.name.as_ref().map(|name| name.as_str());
+
+    debug!(
+        ?op_name,
+        type=%op.operation_type,
+        n_selections = op.selection_set.selections.len(),
+        "processing operation"
+    );
+
+    let resp = match op.operation_type {
+        OperationType::Query => match generate_response(op_name, &doc, schema) {
+            Ok(resp) => resp,
             Err(err) => {
-                let errs: Vec<_> = err.errors.iter().map(|d| d.to_json()).collect();
-                error!(?errs, query=%self.query, "invalid graphql query");
-                let bytes = serde_json::to_vec(&json!({ "data": Value::Null, "errors": errs }))
-                    .unwrap_or_default();
-                return (bytes.into(), StatusCode::BAD_REQUEST);
-            }
-        };
-
-        let op = doc.operations.iter().next().unwrap();
-        let op_name = op.name.as_ref().map(|name| name.as_str());
-
-        debug!(
-            ?op_name,
-            type=%op.operation_type,
-            n_selections = op.selection_set.selections.len(),
-            "processing operation"
-        );
-
-        let resp = match op.operation_type {
-            OperationType::Query => match generate_response(op_name, &doc, schema) {
-                Ok(resp) => resp,
-                Err(err) => {
-                    error!(%err, "unable to generate response");
-                    return (
-                        Bytes::from("unable to generate response"),
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                    );
-                }
-            },
-
-            // Not currently supporting mutations or subscriptions
-            op_type => {
-                error!("received {op_type} request: not implemented");
+                error!(%err, "unable to generate response");
                 return (
-                    Bytes::from("not implemented"),
+                    Bytes::from("unable to generate response"),
                     StatusCode::INTERNAL_SERVER_ERROR,
                 );
             }
-        };
+        },
 
-        match serde_json::to_vec(&resp) {
-            Ok(bytes) => (bytes.into(), StatusCode::OK),
-            Err(err) => {
-                error!(%err, "unable to serialize response");
-                (
-                    Bytes::from(err.to_string().into_bytes()),
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                )
-            }
+        // Not currently supporting mutations or subscriptions
+        op_type => {
+            error!("received {op_type} request: not implemented");
+            return (
+                Bytes::from("not implemented"),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            );
+        }
+    };
+
+    match serde_json::to_vec(&resp) {
+        Ok(bytes) => (bytes.into(), StatusCode::OK),
+        Err(err) => {
+            error!(%err, "unable to serialize response");
+            (
+                Bytes::from(err.to_string().into_bytes()),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
         }
     }
 }

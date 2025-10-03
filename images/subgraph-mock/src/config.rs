@@ -20,6 +20,16 @@ pub struct Config {
     pub latency: LatencyConfig,
     #[serde(default)]
     pub response_generation: ResponseGenerationConfig,
+    #[serde(default = "default_cache_responses")]
+    pub cache_responses: bool,
+}
+
+fn default_port() -> u16 {
+    8080
+}
+
+fn default_cache_responses() -> bool {
+    true
 }
 
 impl Default for Config {
@@ -29,6 +39,7 @@ impl Default for Config {
             headers: Default::default(),
             latency: Default::default(),
             response_generation: Default::default(),
+            cache_responses: default_cache_responses(),
         }
     }
 }
@@ -38,6 +49,7 @@ impl Config {
         self,
     ) -> (
         u16,
+        bool,
         LatencyGenerator,
         HeaderMap<HeaderValue>,
         ResponseGenerationConfig,
@@ -68,13 +80,10 @@ impl Config {
 
         (
             self.port,
+            self.cache_responses,
             latency_generator,
             additional_headers,
             response_generation,
         )
     }
-}
-
-fn default_port() -> u16 {
-    8080
 }
