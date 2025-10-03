@@ -12,6 +12,7 @@ use rtf_core::graphos::{
     },
 };
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use tabled::{Table, Tabled, settings::Style};
 
 #[derive(Debug, Clone, Copy, Deserialize, ValueEnum)]
@@ -24,6 +25,8 @@ pub enum OpSort {
     Fragments,
     /// Sort by the maximum nesting depth
     Depth,
+    /// Sort by the number of entity types included in the operation
+    Entities,
 }
 
 pub async fn summarise_graph(
@@ -44,12 +47,12 @@ pub async fn summarise_graph(
 
     let sg = SupergraphDetails::fetch(graph_id, variant, platform_client).await?;
     let schema = schema_with_defer_and_stream(&sg.supergraph_sdl);
-    let entities = count_entities(graph_id, variant, platform_client).await?;
+    let entities = find_entities(graph_id, variant, platform_client).await?;
 
     let mut schema_meta = SchemaMeta {
         graph_ref,
         types: schema.types.len(),
-        entities,
+        entities: entities.len(),
         sdl_bytes: format_bytes(sg.supergraph_sdl.len()),
         subgraphs: sg.subgraphs.len(),
         queries: 0,
@@ -106,6 +109,9 @@ pub async fn summarise_graph(
                     "unknown"
                 };
 
+                let (max_depth, op_entities) =
+                    max_depth_and_entities(&op.selection_set, &doc.fragments, &entities);
+
                 OpMeta {
                     i: i + 1,
                     id: canned_op.id,
@@ -114,7 +120,8 @@ pub async fn summarise_graph(
                     raw_sdl_bytes: doc.to_string().len(),
                     fields: op.all_fields(doc).count(),
                     fragments: doc.fragments.len(),
-                    max_depth: max_depth(&op.selection_set, &doc.fragments),
+                    entities: op_entities.len(),
+                    max_depth,
                     request_count: canned_op.request_count,
                     request_count_per_min: canned_op.request_count_per_min,
                 }
@@ -127,6 +134,7 @@ pub async fn summarise_graph(
                 OpSort::Fields => op_meta.sort_by_key(|m| m.fields),
                 OpSort::Fragments => op_meta.sort_by_key(|m| m.fragments),
                 OpSort::Depth => op_meta.sort_by_key(|m| m.max_depth),
+                OpSort::Entities => op_meta.sort_by_key(|m| m.entities),
             }
 
             op_meta.reverse();
@@ -181,44 +189,62 @@ struct OpMeta {
     raw_sdl_bytes: usize,
     fields: usize,
     fragments: usize,
+    entities: usize,
     max_depth: usize,
     request_count: usize,
     request_count_per_min: usize,
 }
 
-fn max_depth(selset: &SelectionSet, fragments: &FragmentMap) -> usize {
+fn max_depth_and_entities(
+    selset: &SelectionSet,
+    fragments: &FragmentMap,
+    entities: &HashSet<String>,
+) -> (usize, HashSet<String>) {
     let mut max = 0;
+    let mut all_entities = HashSet::new();
 
     for sel in selset.selections.iter() {
-        let m = match sel {
+        let (m, sel_entities) = match sel {
             Selection::FragmentSpread(s) => {
                 if let Some(f) = fragments.get(&s.fragment_name) {
-                    max_depth(&f.selection_set, fragments) + 1
+                    max_depth_and_entities(&f.selection_set, fragments, entities)
                 } else {
-                    1
+                    (1, HashSet::new())
                 }
             }
 
             Selection::Field(f) => {
                 if f.selection_set.is_empty() {
-                    1
+                    (1, HashSet::new())
                 } else {
-                    max_depth(&f.selection_set, fragments) + 1
+                    let ty = f.definition.ty.inner_named_type().as_str();
+                    if entities.contains(ty) {
+                        all_entities.insert(ty.to_string());
+                    }
+
+                    max_depth_and_entities(&f.selection_set, fragments, entities)
                 }
             }
 
-            Selection::InlineFragment(f) => max_depth(&f.selection_set, fragments) + 1,
+            Selection::InlineFragment(f) => {
+                max_depth_and_entities(&f.selection_set, fragments, entities)
+            }
         };
 
+        all_entities.extend(sel_entities);
         if m > max {
             max = m;
         }
     }
 
-    max
+    (max + 1, all_entities)
 }
 
-async fn count_entities(graph_id: &str, variant: &str, client: &PlatformClient) -> Result<usize> {
+async fn find_entities(
+    graph_id: &str,
+    variant: &str,
+    client: &PlatformClient,
+) -> Result<HashSet<String>> {
     FetchEntities::fetch(
         fetch_entities::Variables {
             graph_id: graph_id.into(),
@@ -239,10 +265,13 @@ async fn count_entities(graph_id: &str, variant: &str, client: &PlatformClient) 
 pub struct FetchEntities;
 
 impl PlatformQuery for FetchEntities {
-    type Output = usize;
+    type Output = HashSet<String>;
     type Error = anyhow::Error;
 
-    fn try_parse(data: Self::ResponseData, _vars: fetch_entities::Variables) -> Result<usize> {
+    fn try_parse(
+        data: Self::ResponseData,
+        _vars: fetch_entities::Variables,
+    ) -> Result<HashSet<String>> {
         use fetch_entities::FetchEntitiesGraphVariantEntities::*;
 
         let entities = data
@@ -254,7 +283,7 @@ impl PlatformQuery for FetchEntities {
             .ok_or(anyhow!("unable to query entities"))?;
 
         match entities {
-            EntitiesResponse(inner) => Ok(inner.entities.len()),
+            EntitiesResponse(inner) => Ok(inner.entities.into_iter().map(|e| e.typename).collect()),
             EntitiesErrorResponse => Err(anyhow!("error fetching entities")),
         }
     }
