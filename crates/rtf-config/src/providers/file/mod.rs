@@ -962,7 +962,7 @@ mod tests {
         let res = nfp.required_values();
         assert!(
             res == expected,
-            "expected has pending fields to be {expected:?}, got {res:?}"
+            "expected required values to be {expected:?}, got {res:?}"
         )
     }
 
