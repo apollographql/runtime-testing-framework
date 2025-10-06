@@ -2,6 +2,12 @@
 # but support for serving different subgraphs at different routes is planned
 port: 8080
 
+# Whether or not cache responses against the hash of the request 'query' field
+# in order to reduce natural (non-injected) latency and resource usage.
+# This is not always desirable but is sometimes needed when working with graphs
+# that use giant queries like Expedia.
+cache_responses: true
+
 # Additional response headers to set for every response.
 # "Content-type: application/json" is automatically set for all graphQL responses
 # by default.

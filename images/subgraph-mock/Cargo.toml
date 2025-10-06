@@ -9,6 +9,7 @@ edition = "2024"
 anyhow = "1.0.99"
 apollo-compiler = "1.30.0"
 arbitrary = "1.4.2"
+cached = { version = "0.56.0", features = ["async", "async_tokio_rt_multi_thread"] }
 clap = { version = "4.5.47", features = ["derive"] }
 futures = "0.3.31"
 http-body-util = "0.1.3"

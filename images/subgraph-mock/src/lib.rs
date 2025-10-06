@@ -12,7 +12,14 @@ use apollo_compiler::{
     validation::Valid,
 };
 use hyper::{HeaderMap, header::HeaderValue};
-use std::{fs, path::PathBuf, sync::OnceLock};
+use std::{
+    fs,
+    path::PathBuf,
+    sync::{
+        OnceLock,
+        atomic::{AtomicBool, Ordering},
+    },
+};
 use tracing::info;
 
 pub mod config;
@@ -23,6 +30,7 @@ static RESPONSE_GENERATION_CONFIG: OnceLock<ResponseGenerationConfig> = OnceLock
 static ADDITIONAL_HEADERS: OnceLock<HeaderMap<HeaderValue>> = OnceLock::new();
 static LATENCY_GENERATOR: OnceLock<LatencyGenerator> = OnceLock::new();
 static SUPERGRAPH_SCHEMA: OnceLock<Valid<Schema>> = OnceLock::new();
+static CACHE_RESPONSES: AtomicBool = AtomicBool::new(true);
 
 /// A general purpose subgraph mock.
 #[derive(Debug, clap::Parser)]
@@ -51,7 +59,8 @@ impl Args {
             }
         };
 
-        let (port, latency_generator, headers, response_generation) = cfg.into_parts();
+        let (port, cache_responses, latency_generator, headers, response_generation) =
+            cfg.into_parts();
 
         info!(path=%self.schema.display(), "loading and parsing supergraph schema");
         match Schema::parse(fs::read_to_string(&self.schema)?, self.schema) {
@@ -72,6 +81,7 @@ impl Args {
         RESPONSE_GENERATION_CONFIG.set(response_generation).unwrap();
         ADDITIONAL_HEADERS.set(headers).unwrap();
         LATENCY_GENERATOR.set(latency_generator).unwrap();
+        CACHE_RESPONSES.store(cache_responses, Ordering::Relaxed);
 
         Ok(port)
     }
