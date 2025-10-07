@@ -1,0 +1,18 @@
+query LaunchById($graph_id: ID!, $variant: String!, $launch_id: ID!) {
+  graph(id: $graph_id) {
+    variant(name: $variant) {
+      launch(id: $launch_id) {
+        build {
+          result {
+            __typename
+            ... on BuildSuccess {
+              coreSchema {
+                coreDocument
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

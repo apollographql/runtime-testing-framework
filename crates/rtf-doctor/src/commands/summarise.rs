@@ -1,6 +1,10 @@
 use crate::{format_bytes, new_client};
 use anyhow::{Result, anyhow};
-use apollo_compiler::executable::{FragmentMap, Selection, SelectionSet};
+use apollo_compiler::{
+    Schema,
+    executable::{FragmentMap, Selection, SelectionSet},
+    validation::Valid,
+};
 use clap::ValueEnum;
 use graphql_client::GraphQLQuery;
 use rtf_core::graphos::{
@@ -29,6 +33,43 @@ pub enum OpSort {
     Entities,
 }
 
+pub async fn summarise_launch(
+    graph_ref: String,
+    launch_id: String,
+    json_output: bool,
+) -> Result<()> {
+    let (graph_id, variant) = graph_ref
+        .split_once('@')
+        .ok_or(anyhow!("invalid graph ref"))?;
+
+    let client = new_client();
+    let platform_client = client.platform_client().ok_or(anyhow!(
+        "no API credentials provided for making Apollo platform requests"
+    ))?;
+
+    let sg = LaunchById::fetch(
+        launch_by_id::Variables {
+            graph_id: graph_id.to_string(),
+            variant: variant.to_string(),
+            launch_id,
+        },
+        platform_client,
+    )
+    .await?;
+
+    let meta = SchemaMeta::try_new(&sg).await?;
+
+    if json_output {
+        println!("{}", serde_json::to_string(&meta)?);
+    } else {
+        let mut table = Table::new(vec![meta]);
+        table.with(Style::markdown());
+        println!("{table}");
+    }
+
+    Ok(())
+}
+
 pub async fn summarise_graph(
     graph_ref: String,
     n_ops: usize,
@@ -46,45 +87,8 @@ pub async fn summarise_graph(
     ))?;
 
     let sg = SupergraphDetails::fetch(graph_id, variant, platform_client).await?;
-    let schema = schema_with_defer_and_stream(&sg.supergraph_sdl);
-    let entities = find_entities(graph_id, variant, platform_client).await?;
-
-    let mut schema_meta = SchemaMeta {
-        graph_ref,
-        types: schema.types.len(),
-        entities: entities.len(),
-        sdl_bytes: format_bytes(sg.supergraph_sdl.len()),
-        subgraphs: sg.subgraphs.len(),
-        queries: 0,
-        mutations: 0,
-        subscriptions: 0,
-    };
-
-    let roots = [
-        (&schema.schema_definition.query, &mut schema_meta.queries),
-        (
-            &schema.schema_definition.mutation,
-            &mut schema_meta.mutations,
-        ),
-        (
-            &schema.schema_definition.subscription,
-            &mut schema_meta.subscriptions,
-        ),
-    ];
-
-    for (root, field) in roots {
-        let name = match root {
-            Some(r) => &r.name,
-            None => continue,
-        };
-
-        let t = schema.types.get(name).unwrap();
-        let obj = t.as_object().unwrap();
-        *field = obj.fields.len();
-    }
-
     let mut meta = Meta {
-        schema: schema_meta,
+        schema: SchemaMeta::try_new(&sg).await?,
         ops: Vec::new(),
     };
 
@@ -92,6 +96,8 @@ pub async fn summarise_graph(
         let mut ops = top_studio_canned_ops(&sg, n_ops, skip_mutations, platform_client).await?;
         ops.sort_unstable_by_key(|op| op.request_count);
         ops.reverse();
+
+        let entities = find_entities(&sg.graph_id, &sg.variant, platform_client).await?;
 
         let mut op_meta: Vec<_> = ops
             .into_iter()
@@ -178,6 +184,51 @@ struct SchemaMeta {
     subscriptions: usize,
 }
 
+impl SchemaMeta {
+    async fn try_new(sg: &SupergraphDetails) -> Result<Self> {
+        let schema = schema_with_defer_and_stream(&sg.supergraph_sdl);
+        let entities = count_entities(&schema);
+        let sdl_bytes = schema.to_string().len();
+
+        let mut schema_meta = SchemaMeta {
+            graph_ref: format!("{}@{}", sg.graph_id, sg.variant),
+            types: schema.types.len(),
+            entities,
+            sdl_bytes: format_bytes(sdl_bytes),
+            // sdl_bytes: format_bytes(sg.supergraph_sdl.len()),
+            subgraphs: count_subgraphs(&schema),
+            queries: 0,
+            mutations: 0,
+            subscriptions: 0,
+        };
+
+        let roots = [
+            (&schema.schema_definition.query, &mut schema_meta.queries),
+            (
+                &schema.schema_definition.mutation,
+                &mut schema_meta.mutations,
+            ),
+            (
+                &schema.schema_definition.subscription,
+                &mut schema_meta.subscriptions,
+            ),
+        ];
+
+        for (root, field) in roots {
+            let name = match root {
+                Some(r) => &r.name,
+                None => continue,
+            };
+
+            let t = schema.types.get(name).unwrap();
+            let obj = t.as_object().unwrap();
+            *field = obj.fields.len();
+        }
+
+        Ok(schema_meta)
+    }
+}
+
 #[derive(Serialize, Tabled)]
 struct OpMeta {
     i: usize,
@@ -240,6 +291,28 @@ fn max_depth_and_entities(
     (max + 1, all_entities)
 }
 
+fn count_entities(schema: &Valid<Schema>) -> usize {
+    schema
+        .types
+        .values()
+        .filter(|ty| {
+            ty.directives()
+                .iter()
+                .any(|d| d.name == "join__type" && d.arguments.iter().any(|arg| arg.name == "key"))
+        })
+        .count()
+}
+
+fn count_subgraphs(schema: &Valid<Schema>) -> usize {
+    if let Some(ty) = schema.types.get("join__Graph")
+        && let Some(e) = ty.as_enum()
+    {
+        e.values.len()
+    } else {
+        0
+    }
+}
+
 async fn find_entities(
     graph_id: &str,
     variant: &str,
@@ -286,5 +359,55 @@ impl PlatformQuery for FetchEntities {
             EntitiesResponse(inner) => Ok(inner.entities.into_iter().map(|e| e.typename).collect()),
             EntitiesErrorResponse => Err(anyhow!("error fetching entities")),
         }
+    }
+}
+
+type GraphQLDocument = String;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "../rtf-core/resources/engine-prod-schema.graphql",
+    query_path = "resources/queries/launch_by_id.graphql",
+    response_derives = "Deserialize",
+    variables_derives = "Clone"
+)]
+pub struct LaunchById;
+
+impl PlatformQuery for LaunchById {
+    type Output = SupergraphDetails;
+    type Error = anyhow::Error;
+
+    fn try_parse(
+        data: Self::ResponseData,
+        vars: launch_by_id::Variables,
+    ) -> Result<SupergraphDetails> {
+        use launch_by_id::LaunchByIdGraphVariantLaunchBuildResult as BuildRes;
+
+        let build_result = data
+            .graph
+            .ok_or(anyhow!("unknown graph"))?
+            .variant
+            .ok_or(anyhow!("unknown variant"))?
+            .launch
+            .ok_or(anyhow!("unknown launch"))?
+            .build
+            .and_then(|b| b.result)
+            .ok_or(anyhow!("no build"))?;
+
+        let supergraph_sdl = match build_result {
+            BuildRes::BuildFailure => return Err(anyhow!("not a successful build")),
+            BuildRes::BuildSuccess(res) => res.core_schema.core_document,
+        };
+
+        if supergraph_sdl.is_empty() {
+            return Err(anyhow!("empty supergraph schema"));
+        }
+
+        Ok(SupergraphDetails {
+            variant: vars.variant,
+            graph_id: vars.graph_id,
+            supergraph_sdl,
+            subgraphs: Vec::new(),
+        })
     }
 }

@@ -4,6 +4,7 @@ query LaunchHistory($graph_id: ID!, $variant: String!, $limit: Int!, $offset: In
       launchHistory(limit: $limit, offset: $offset) {
         completedAt
         isCompleted
+        id
       }
     }
   }

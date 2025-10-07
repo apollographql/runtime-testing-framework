@@ -6,7 +6,21 @@ use rtf_core::graphos::platform_query::PlatformQuery;
 use serde::Serialize;
 use tabled::{Table, Tabled, settings::Style};
 
-pub async fn get_launch_history(graph_ref: &str, n: usize, json_output: bool) -> Result<()> {
+pub async fn print_launch_history(graph_ref: String, n: usize, json_output: bool) -> Result<()> {
+    let launches = get_launch_history(graph_ref, n).await?;
+
+    if json_output {
+        println!("{}", serde_json::to_string(&launches)?);
+    } else {
+        let mut table = Table::new(launches);
+        table.with(Style::markdown());
+        println!("{table}");
+    }
+
+    Ok(())
+}
+
+pub(crate) async fn get_launch_history(graph_ref: String, n: usize) -> Result<Vec<Launch>> {
     let (graph_id, variant) = graph_ref
         .split_once('@')
         .ok_or(anyhow!("invalid graph ref"))?;
@@ -58,30 +72,23 @@ pub async fn get_launch_history(graph_ref: &str, n: usize, json_output: bool) ->
     }
 
     let mut launches = Vec::with_capacity(raw_launches.len());
-    let mut prev = raw_launches[0];
-    for at in raw_launches {
+    let mut prev = raw_launches[0].1;
+    for (id, at) in raw_launches {
         let delta = prev.signed_duration_since(at);
         let delta_mins = delta.num_minutes();
         prev = at;
 
-        launches.push(Launch { at, delta_mins });
+        launches.push(Launch { id, at, delta_mins });
     }
 
-    if json_output {
-        println!("{}", serde_json::to_string(&launches)?);
-    } else {
-        let mut table = Table::new(launches);
-        table.with(Style::markdown());
-        println!("{table}");
-    }
-
-    Ok(())
+    Ok(launches)
 }
 
 #[derive(Serialize, Tabled)]
-struct Launch {
-    at: Timestamp,
-    delta_mins: i64,
+pub(crate) struct Launch {
+    pub id: String,
+    pub at: Timestamp,
+    pub delta_mins: i64,
 }
 
 type Timestamp = DateTime<Utc>;
@@ -96,13 +103,13 @@ type Timestamp = DateTime<Utc>;
 pub struct LaunchHistory;
 
 impl PlatformQuery for LaunchHistory {
-    type Output = (usize, Vec<Timestamp>);
+    type Output = (usize, Vec<(String, Timestamp)>);
     type Error = anyhow::Error;
 
     fn try_parse(
         data: Self::ResponseData,
         _vars: launch_history::Variables,
-    ) -> Result<(usize, Vec<Timestamp>)> {
+    ) -> Result<(usize, Vec<(String, Timestamp)>)> {
         let launches = data
             .graph
             .ok_or(anyhow!("unknown graph"))?
@@ -118,7 +125,7 @@ impl PlatformQuery for LaunchHistory {
             launches
                 .into_iter()
                 .filter(|l| l.is_completed == Some(true))
-                .flat_map(|l| l.completed_at)
+                .flat_map(|l| l.completed_at.map(|cmp_at| (l.id, cmp_at)))
                 .collect(),
         ))
     }

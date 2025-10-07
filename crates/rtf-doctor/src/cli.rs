@@ -49,4 +49,15 @@ pub enum Command {
         #[arg(short, long, default_value = "100")]
         n: usize,
     },
+
+    /// Summarise a historic launch of a given graph ref
+    SchemaSummary {
+        /// The graph-ref to look at launch history for
+        #[arg(long)]
+        graph_ref: String,
+
+        /// The launch ID to summarise
+        #[arg(long)]
+        launch_id: String,
+    },
 }

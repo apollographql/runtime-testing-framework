@@ -3,7 +3,10 @@ use clap::Parser;
 use rtf_doctor::{
     LOG_LEVEL_ENV_VAR,
     cli::{Args, Command},
-    commands::{launch_history::get_launch_history, summarise::summarise_graph},
+    commands::{
+        launch_history::print_launch_history,
+        summarise::{summarise_graph, summarise_launch},
+    },
 };
 use std::{io::stderr, process::exit};
 use tracing::{Level, error, level_filters::LevelFilter, subscriber::set_global_default};
@@ -29,7 +32,12 @@ async fn main() {
             sort_by,
         } => summarise_graph(graph_ref, n_operations, skip_mutations, sort_by, json).await,
 
-        Command::LaunchHistory { graph_ref, n } => get_launch_history(&graph_ref, n, json).await,
+        Command::LaunchHistory { graph_ref, n } => print_launch_history(graph_ref, n, json).await,
+
+        Command::SchemaSummary {
+            graph_ref,
+            launch_id,
+        } => summarise_launch(graph_ref, launch_id, json).await,
     };
 
     if let Err(e) = res {
