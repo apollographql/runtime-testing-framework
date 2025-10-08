@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["TextFileProvider"],"struct":["MergeYaml"]};
+window.SIDEBAR_ITEMS = {"enum":["TextFileProvider"],"struct":["FromCommand","MergeYaml"]};

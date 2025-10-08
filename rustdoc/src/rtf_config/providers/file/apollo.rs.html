@@ -5,7 +5,7 @@
 <a href=#5 id=5 data-nosnippet>5</a>    context::ResolutionContext,
 <a href=#6 id=6 data-nosnippet>6</a>    providers::{
 <a href=#7 id=7 data-nosnippet>7</a>        <span class="self">self</span>,
-<a href=#8 id=8 data-nosnippet>8</a>        file::{AsUtf8FileContent, ResolveAndWrite, Source},
+<a href=#8 id=8 data-nosnippet>8</a>        file::{AsUtf8FileContent, ResolveFileContent, Source},
 <a href=#9 id=9 data-nosnippet>9</a>    },
 <a href=#10 id=10 data-nosnippet>10</a>    templating::Field,
 <a href=#11 id=11 data-nosnippet>11</a>};
@@ -122,12 +122,12 @@
 <a href=#122 id=122 data-nosnippet>122</a>    </span><span class="kw">pub </span>graph_ref: Field&lt;String&gt;,
 <a href=#123 id=123 data-nosnippet>123</a>}
 <a href=#124 id=124 data-nosnippet>124</a>
-<a href=#125 id=125 data-nosnippet>125</a><span class="kw">impl </span>ResolveAndWrite <span class="kw">for </span>GraphosSubgraphs {
+<a href=#125 id=125 data-nosnippet>125</a><span class="kw">impl </span>ResolveFileContent <span class="kw">for </span>GraphosSubgraphs {
 <a href=#126 id=126 data-nosnippet>126</a>    <span class="kw">async fn </span>try_get_all_file_contents(
 <a href=#127 id=127 data-nosnippet>127</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#128 id=128 data-nosnippet>128</a>        target: <span class="kw">impl </span>AsRef&lt;Path&gt;,
 <a href=#129 id=129 data-nosnippet>129</a>        _src: <span class="kw-2">&amp;</span>Source,
-<a href=#130 id=130 data-nosnippet>130</a>        ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,
+<a href=#130 id=130 data-nosnippet>130</a>        ctx: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>ResolutionContext,
 <a href=#131 id=131 data-nosnippet>131</a>    ) -&gt; providers::Result&lt;Vec&lt;(PathBuf, String)&gt;&gt; {
 <a href=#132 id=132 data-nosnippet>132</a>        <span class="kw">let </span>(graph_id, variant) = <span class="self">self
 <a href=#133 id=133 data-nosnippet>133</a>            </span>.graph_ref
@@ -160,7 +160,7 @@
 <a href=#160 id=160 data-nosnippet>160</a>    }
 <a href=#161 id=161 data-nosnippet>161</a>}
 <a href=#162 id=162 data-nosnippet>162</a>
-<a href=#163 id=163 data-nosnippet>163</a><span class="doccomment">/// # GraphOS Supergraph Docker Compose
+<a href=#163 id=163 data-nosnippet>163</a><span class="doccomment">/// # GraphOS Subgraph Docker Compose
 <a href=#164 id=164 data-nosnippet>164</a>///
 <a href=#165 id=165 data-nosnippet>165</a>/// The user specifies the graph ref that should be used to fetch the supergraph
 <a href=#166 id=166 data-nosnippet>166</a>/// SDL file from the GraphOS API and generates a docker compose file. It runs a

@@ -266,7 +266,7 @@
 <a href=#266 id=266 data-nosnippet>266</a>            </span>.environment
 <a href=#267 id=267 data-nosnippet>267</a>            .setup
 <a href=#268 id=268 data-nosnippet>268</a>            .command
-<a href=#269 id=269 data-nosnippet>269</a>            .run_providers_and_execute(out_dir, <span class="self">self</span>.sources.environment(), ctx)
+<a href=#269 id=269 data-nosnippet>269</a>            .run_providers_and_execute_for_output(out_dir, <span class="self">self</span>.sources.environment(), ctx)
 <a href=#270 id=270 data-nosnippet>270</a>            .<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#271 id=271 data-nosnippet>271</a>
 <a href=#272 id=272 data-nosnippet>272</a>        <span class="kw">let </span>provides: HashMap&lt;String, Scalar&gt; = serde_json::from_str(<span class="kw-2">&amp;</span>raw_output)<span class="question-mark">?</span>;
@@ -292,7 +292,7 @@
 <a href=#292 id=292 data-nosnippet>292</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#293 id=293 data-nosnippet>293</a>        <span class="self">self</span>.environment
 <a href=#294 id=294 data-nosnippet>294</a>            .teardown
-<a href=#295 id=295 data-nosnippet>295</a>            .run_providers_and_execute(out_dir, <span class="self">self</span>.sources.environment(), ctx)
+<a href=#295 id=295 data-nosnippet>295</a>            .run_providers_and_execute_for_output(out_dir, <span class="self">self</span>.sources.environment(), ctx)
 <a href=#296 id=296 data-nosnippet>296</a>            .<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#297 id=297 data-nosnippet>297</a>
 <a href=#298 id=298 data-nosnippet>298</a>        <span class="prelude-val">Ok</span>(())
@@ -305,7 +305,7 @@
 <a href=#305 id=305 data-nosnippet>305</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#306 id=306 data-nosnippet>306</a>        <span class="self">self</span>.scenario
 <a href=#307 id=307 data-nosnippet>307</a>            .command
-<a href=#308 id=308 data-nosnippet>308</a>            .run_providers_and_execute(out_dir, <span class="self">self</span>.sources.scenario(), ctx)
+<a href=#308 id=308 data-nosnippet>308</a>            .run_providers_and_execute_for_output(out_dir, <span class="self">self</span>.sources.scenario(), ctx)
 <a href=#309 id=309 data-nosnippet>309</a>            .<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#310 id=310 data-nosnippet>310</a>
 <a href=#311 id=311 data-nosnippet>311</a>        <span class="prelude-val">Ok</span>(())

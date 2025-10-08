@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["CommandProvider"],"struct":["CommandSection","CommandSpec"]};
+window.SIDEBAR_ITEMS = {"constant":["OUTDIR","OUTPUT_PATH","PROVIDER_DIR"],"enum":["CommandProvider"],"struct":["CommandSection","CommandSpec"]};
