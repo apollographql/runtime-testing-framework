@@ -5,7 +5,7 @@ use crate::{
     context::ResolutionContext,
     providers::{
         self,
-        file::{AsUtf8FileContent, ResolveAndWrite, Source},
+        file::{AsUtf8FileContent, ResolveFileContent, Source},
     },
     templating::Field,
 };
@@ -122,12 +122,12 @@ pub struct GraphosSubgraphs {
     pub graph_ref: Field<String>,
 }
 
-impl ResolveAndWrite for GraphosSubgraphs {
+impl ResolveFileContent for GraphosSubgraphs {
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,
         _src: &Source,
-        ctx: &impl ResolutionContext,
+        ctx: &mut impl ResolutionContext,
     ) -> providers::Result<Vec<(PathBuf, String)>> {
         let (graph_id, variant) = self
             .graph_ref
@@ -160,7 +160,7 @@ impl Check for GraphosSubgraphs {
     }
 }
 
-/// # GraphOS Supergraph Docker Compose
+/// # GraphOS Subgraph Docker Compose
 ///
 /// The user specifies the graph ref that should be used to fetch the supergraph
 /// SDL file from the GraphOS API and generates a docker compose file. It runs a

@@ -23,8 +23,8 @@ pub mod utility;
 
 pub use source::{RawSource, Source};
 
-/// A file provider is something that can obtain or synthesise utf-8 file content based on a user
-/// provided specification.
+/// Something that can obtain or synthesise utf-8 file content based on a user provided
+/// specification.
 ///
 /// This trait is deliberately pub(crate) rather than pub so that the validation and resolution
 /// logic is only exposed through the public API as part of the methods on the config file structs.
@@ -59,7 +59,7 @@ macro_rules! enum_impl_as_utf8_file_content {
     };
 }
 
-impl<T> ResolveAndWrite for T
+impl<T> ResolveFileContent for T
 where
     T: AsUtf8FileContent,
 {
@@ -67,7 +67,7 @@ where
         &self,
         target: impl AsRef<Path>,
         src: &Source,
-        ctx: &impl ResolutionContext,
+        ctx: &mut impl ResolutionContext,
     ) -> providers::Result<Vec<(PathBuf, String)>> {
         Ok(vec![(
             target.as_ref().to_path_buf(),
@@ -76,27 +76,29 @@ where
     }
 }
 
-/// Logic for running a file provider and writing its output to the target [Path].
-///
-/// Most [FileProvider] implementations can safely ignore providing a custom implementation for
-/// this trait if all they need to do is write out a single file, and instead just implement
-/// [AsUtf8FileContent] which will give a default implementation of this trait.
-/// If however you need to write out multiple files or run some additional logic after writing out
-/// a file (such as making it executable) then you should implement this trait directly.
+/// Something that can obtain or synthesise the contents of multiple utf-8 files based on a user
+/// provided specification.
 #[allow(async_fn_in_trait)]
-pub(crate) trait ResolveAndWrite: Check + Serialize + DeserializeOwned + fmt::Debug {
+pub(crate) trait ResolveFileContent:
+    Check + Serialize + DeserializeOwned + fmt::Debug
+{
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,
         src: &Source,
-        ctx: &impl ResolutionContext,
+        ctx: &mut impl ResolutionContext,
     ) -> providers::Result<Vec<(PathBuf, String)>>;
+}
 
+impl<T> ResolveAndWrite for T
+where
+    T: ResolveFileContent,
+{
     async fn resolve_and_write(
         &self,
         target: impl AsRef<Path>,
         src: &Source,
-        ctx: &impl ResolutionContext,
+        ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
         let files = self.try_get_all_file_contents(target, src, ctx).await?;
         for (path, content) in files.into_iter() {
@@ -110,28 +112,35 @@ pub(crate) trait ResolveAndWrite: Check + Serialize + DeserializeOwned + fmt::De
     }
 }
 
+/// Logic for running a file provider and writing its output to the target [Path].
+///
+/// Most [FileProvider] implementations can safely ignore providing a custom implementation for
+/// this trait if all they need to do is write out a single file, and instead just implement
+/// [AsUtf8FileContent] or [ResolveFileContent] which will give a default implementation of this
+/// trait. If however you need to write out multiple files or run some additional logic after
+/// writing out a file (such as making it executable) then you should implement this trait
+/// directly.
+#[allow(async_fn_in_trait)]
+pub(crate) trait ResolveAndWrite: Check + Serialize + DeserializeOwned + fmt::Debug {
+    async fn resolve_and_write(
+        &self,
+        target: impl AsRef<Path>,
+        src: &Source,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<()>;
+}
+
 /// Helper macro for stamping out implementations of the ResolveAndWrite trait on an enum where
 /// each variant is a wrapper around a type that already implements the trait.
 #[macro_export]
 macro_rules! enum_impl_resolve_and_write {
     ($enum:ident => $($variant:ident),+) => {
         impl ResolveAndWrite for $enum {
-            async fn try_get_all_file_contents(
-                &self,
-                target: impl AsRef<Path>,
-                src: &Source,
-                ctx: &impl ResolutionContext,
-            ) -> $crate::providers::Result<Vec<(PathBuf, String)>> {
-                match self {
-                    $(Self::$variant(inner) => inner.try_get_all_file_contents(target, src, ctx).await,)+
-                }
-            }
-
             async fn resolve_and_write(
                 &self,
                 target: impl AsRef<Path>,
                 src: &Source,
-                ctx: &impl ResolutionContext,
+                ctx: &mut impl ResolutionContext,
             ) -> $crate::providers::Result<()> {
                 match self {
                     $(Self::$variant(inner) => inner.resolve_and_write(target, src, ctx).await,)+
@@ -206,6 +215,7 @@ impl Template for NamedFileProvider {
 // the all_fields_templated test in this file
 pub enum FileProvider {
     BuildRouterFromSource(apollo::BuildRouterFromSource),
+    FromCommand(utility::FromCommand),
     GithubFile(github::GithubFile),
     GraphosCannedOps(apollo::GraphosCannedOps),
     GraphosCannedOpsById(apollo::GraphosCannedOpsById),
@@ -214,12 +224,12 @@ pub enum FileProvider {
     GraphosSubgraphs(apollo::GraphosSubgraphs),
     GraphosSupergraph(apollo::GraphosSupergraph),
     Inline(InlineFile),
+    MergeYaml(utility::MergeYaml),
     OfflineGraphosLicense(apollo::OfflineGraphosLicense),
     RelativePath(RelativeFile),
     Required(RequiredFile),
     ResolvedValues(ResolvedValues),
     RouterDownloadScript(apollo::RouterDownloadScript),
-    MergeYaml(utility::MergeYaml),
 }
 
 impl FileProvider {
@@ -245,6 +255,7 @@ macro_rules! enum_impl_file_provider {
 
 enum_impl_file_provider!(
     BuildRouterFromSource,
+    FromCommand,
     GithubFile,
     GraphosCannedOps,
     GraphosCannedOpsById,
@@ -253,12 +264,12 @@ enum_impl_file_provider!(
     GraphosSubgraphs,
     GraphosSupergraph,
     Inline,
+    MergeYaml,
     OfflineGraphosLicense,
     RelativePath,
     Required,
     ResolvedValues,
     RouterDownloadScript,
-    MergeYaml,
 );
 
 /// # Inline File
@@ -608,13 +619,13 @@ mod tests {
         let dir = PathBuf::from("resources/provider-tests/file/expected-file-success")
             .canonicalize()
             .unwrap();
-        let ctx = Context::new();
+        let mut ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
 
         let res = provider.try_check(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected successful check but got: {res:?}");
 
-        let res = provider.resolve_and_write(&file, &src, &ctx).await;
+        let res = provider.resolve_and_write(&file, &src, &mut ctx).await;
         assert!(res.is_ok(), "{res:?}");
 
         let expected = get_file(&arr, "expected-file-content");
@@ -640,13 +651,13 @@ mod tests {
         let dir = PathBuf::from("resources/provider-tests/file/expected-file-success-mock-context")
             .canonicalize()
             .unwrap();
-        let ctx = TxtarContext::with_http(arr.clone(), MockHttpClient::from_archive(&arr));
+        let mut ctx = TxtarContext::with_http(arr.clone(), MockHttpClient::from_archive(&arr));
         let src = Source::local(dir.join("example.yaml"));
 
         let res = provider.try_check(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected successful check but got: {res:?}");
 
-        let res = provider.resolve_and_write(&file, &src, &ctx).await;
+        let res = provider.resolve_and_write(&file, &src, &mut ctx).await;
         assert!(res.is_ok(), "{res:?}");
 
         let expected = get_file(&arr, "expected-file-content");
@@ -668,11 +679,11 @@ mod tests {
         let dir = PathBuf::from("resources/provider-tests/file/resolution-errors")
             .canonicalize()
             .unwrap();
-        let ctx = Context::new();
+        let mut ctx = Context::new();
         let src = Source::local(dir.join("example.yaml"));
         let _ = provider.try_check(&mut Vec::new(), &src, &ctx);
         let res = provider
-            .resolve_and_write("expected-file-content", &src, &ctx)
+            .resolve_and_write("expected-file-content", &src, &mut ctx)
             .await;
 
         assert!(res.is_err(), "expected resolution failures, got {res:?}");
@@ -695,11 +706,11 @@ mod tests {
         let dir = PathBuf::from("resources/provider-tests/file/resolution-errors-mock-context")
             .canonicalize()
             .unwrap();
-        let ctx = TxtarContext::with_http(arr.clone(), MockHttpClient::from_archive(&arr));
+        let mut ctx = TxtarContext::with_http(arr.clone(), MockHttpClient::from_archive(&arr));
         let src = Source::local(dir.join("example.yaml"));
         let _ = provider.try_check(&mut Vec::new(), &src, &ctx);
         let res = provider
-            .resolve_and_write("expected-file-content", &src, &ctx)
+            .resolve_and_write("expected-file-content", &src, &mut ctx)
             .await;
 
         assert!(res.is_err(), "expected resolution failures, got {res:?}");
@@ -823,6 +834,24 @@ mod tests {
         graph_ref: "{{ graph_ref }}"
     "#
     );
+    const FROM_COMMAND: &str = indoc!(
+        r#"
+        kind: from_command
+        command:
+          name: test.sh
+          kind: relative_path
+          path: "{{ test_script }}"
+          args:
+            - "{{ test_arg }}"
+        env_vars:
+          TEST_VAR: "{{ test_var }}"
+        file_providers:
+          - name: test-file.txt
+            env_var: TEST_FILE
+            kind: relative_path
+            path: "{{ test_path }}"
+    "#
+    );
     const INLINE: &str = indoc!(
         r#"
         kind: inline
@@ -887,6 +916,7 @@ mod tests {
     #[test_case(GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES, &["graph_ref"]; "graphos_subgraph_router_url_overrides")]
     #[test_case(GRAPHOS_SUBGRAPHS, &["graph_ref"]; "graphos_subgraphs")]
     #[test_case(GRAPHOS_SUPERGRAPH, &["graph_ref"]; "graphos_supergraph")]
+    #[test_case(FROM_COMMAND, &["test_script", "test_arg", "test_var", "test_path"]; "from_command")]
     #[test_case(INLINE, &[]; "inline")]
     #[test_case(OFFLINE_GRAPHOS_LICENSE, &["graph_id"]; "offline_graphos_license")]
     #[test_case(RELATIVE_PATH, &["path"]; "relative_path")]
