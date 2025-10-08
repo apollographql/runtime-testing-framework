@@ -1,0 +1,29 @@
+A valid yaml fragment for a from command file provider
+
+-- config.yaml --
+kind: from_command
+command:
+  name: test.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo $TEST_VAR > $RTF_OUTPUT
+    echo $* >> $RTF_OUTPUT
+    cat $TEST_FILE >> $RTF_OUTPUT
+  args:
+    - "arg1"
+    - "arg2"
+env_vars:
+  TEST_VAR: "my-env-var"
+file_providers:
+  - name: test-file.txt
+    env_var: TEST_FILE
+    kind: inline
+    content: |
+      Test file content
+
+
+-- expected-file-content --
+my-env-var
+arg1 arg2
+Test file content

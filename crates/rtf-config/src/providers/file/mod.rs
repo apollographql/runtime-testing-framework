@@ -834,6 +834,24 @@ mod tests {
         graph_ref: "{{ graph_ref }}"
     "#
     );
+    const FROM_COMMAND: &str = indoc!(
+        r#"
+        kind: from_command
+        command:
+          name: test.sh
+          kind: relative_path
+          path: "{{ test_script }}"
+          args:
+            - "{{ test_arg }}"
+        env_vars:
+          TEST_VAR: "{{ test_var }}"
+        file_providers:
+          - name: test-file.txt
+            env_var: TEST_FILE
+            kind: relative_path
+            path: "{{ test_path }}"
+    "#
+    );
     const INLINE: &str = indoc!(
         r#"
         kind: inline
@@ -898,6 +916,7 @@ mod tests {
     #[test_case(GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES, &["graph_ref"]; "graphos_subgraph_router_url_overrides")]
     #[test_case(GRAPHOS_SUBGRAPHS, &["graph_ref"]; "graphos_subgraphs")]
     #[test_case(GRAPHOS_SUPERGRAPH, &["graph_ref"]; "graphos_supergraph")]
+    #[test_case(FROM_COMMAND, &["test_script", "test_arg", "test_var", "test_path"]; "from_command")]
     #[test_case(INLINE, &[]; "inline")]
     #[test_case(OFFLINE_GRAPHOS_LICENSE, &["graph_id"]; "offline_graphos_license")]
     #[test_case(RELATIVE_PATH, &["path"]; "relative_path")]
