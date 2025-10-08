@@ -22,6 +22,7 @@ indoc = "2.0.6"
 schemars.workspace = true
 
 [dev-dependencies]
+assert_fs.workspace = true
 pretty_assertions.workspace = true
 simple_test_case.workspace = true
 simple_txtar.workspace = true

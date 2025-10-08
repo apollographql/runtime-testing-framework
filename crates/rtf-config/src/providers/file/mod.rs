@@ -529,6 +529,7 @@ mod tests {
         templating::ErrorKind,
         txtar_context::{MockHttpClient, TxtarContext},
     };
+    use assert_fs::{TempDir, assert::PathAssert, prelude::PathChild};
     use indoc::indoc;
     use simple_test_case::{dir_cases, test_case};
     use simple_txtar::Archive;
@@ -596,6 +597,9 @@ mod tests {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
 
+        let temp = TempDir::new().unwrap();
+        let file = temp.child("provider.txt");
+
         let provider: FileProvider = match serde_yaml::from_str(config) {
             Ok(provider) => provider,
             Err(e) => panic!("expected a valid FileProvider, got: {e}"),
@@ -610,22 +614,11 @@ mod tests {
         let res = provider.try_check(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected successful check but got: {res:?}");
 
-        // We resolve the file provider under a target of "expected-file-content".
-        // For providers returning a single file only, this is the name of the txtar section that
-        // they need to include. For providers that return multiple files the sections should be
-        // named "expected-file-content/$name_of_file".
-        let contents = provider
-            .try_get_all_file_contents("expected-file-content", &src, &ctx)
-            .await
-            .unwrap();
+        let res = provider.resolve_and_write(&file, &src, &ctx).await;
+        assert!(res.is_ok(), "{res:?}");
 
-        assert!(!contents.is_empty(), "no file contents returned");
-
-        for (path, content) in contents.into_iter() {
-            let key = path.display().to_string();
-            let expected = get_file(&arr, &key);
-            assert_eq!(content, expected, "wrong file content");
-        }
+        let expected = get_file(&arr, "expected-file-content");
+        file.assert(expected);
     }
 
     #[dir_cases(
@@ -635,6 +628,9 @@ mod tests {
     async fn expected_file_success_mock_context(_path: &str, content: &str) {
         let arr = load_archive(content);
         let config = get_file(&arr, "config.yaml");
+
+        let temp = TempDir::new().unwrap();
+        let file = temp.child("provider.txt");
 
         let provider: FileProvider = match serde_yaml::from_str(config) {
             Ok(provider) => provider,
@@ -650,22 +646,11 @@ mod tests {
         let res = provider.try_check(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected successful check but got: {res:?}");
 
-        // We resolve the file provider under a target of "expected-file-content".
-        // For providers returning a single file only, this is the name of the txtar section that
-        // they need to include. For providers that return multiple files the sections should be
-        // named "expected-file-content/$name_of_file".
-        let contents = provider
-            .try_get_all_file_contents("expected-file-content", &src, &ctx)
-            .await
-            .unwrap();
+        let res = provider.resolve_and_write(&file, &src, &ctx).await;
+        assert!(res.is_ok(), "{res:?}");
 
-        assert!(!contents.is_empty(), "no file contents returned");
-
-        for (path, content) in contents.into_iter() {
-            let key = path.display().to_string();
-            let expected = get_file(&arr, &key);
-            assert_eq!(content, expected, "wrong file content");
-        }
+        let expected = get_file(&arr, "expected-file-content");
+        file.assert(expected);
     }
 
     #[dir_cases("crates/rtf-config/resources/provider-tests/file/resolution-errors")]
@@ -687,7 +672,7 @@ mod tests {
         let src = Source::local(dir.join("example.yaml"));
         let _ = provider.try_check(&mut Vec::new(), &src, &ctx);
         let res = provider
-            .try_get_all_file_contents("expected-file-content", &src, &ctx)
+            .resolve_and_write("expected-file-content", &src, &ctx)
             .await;
 
         assert!(res.is_err(), "expected resolution failures, got {res:?}");
@@ -714,7 +699,7 @@ mod tests {
         let src = Source::local(dir.join("example.yaml"));
         let _ = provider.try_check(&mut Vec::new(), &src, &ctx);
         let res = provider
-            .try_get_all_file_contents("expected-file-content", &src, &ctx)
+            .resolve_and_write("expected-file-content", &src, &ctx)
             .await;
 
         assert!(res.is_err(), "expected resolution failures, got {res:?}");
