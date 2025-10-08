@@ -52,8 +52,8 @@ impl<C: HttpClient + Clone + 'static> ResolutionContext for TxtarContext<C> {
         unimplemented!()
     }
 
-    fn write(&self, _path: impl AsRef<Path>, _content: impl AsRef<[u8]>) -> io::Result<()> {
-        unimplemented!()
+    fn write(&self, path: impl AsRef<Path>, content: impl AsRef<[u8]>) -> io::Result<()> {
+        std::fs::write(path, content)
     }
 
     fn path_kind(&self, _path: impl AsRef<Path>) -> crate::context::PathKind {
