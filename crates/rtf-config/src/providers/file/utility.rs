@@ -15,7 +15,7 @@ use crate::{
 use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tracing::error;
 
 /// # Text File Provider
@@ -179,15 +179,6 @@ pub struct FromCommand {
 }
 
 impl ResolveAndWrite for FromCommand {
-    async fn try_get_all_file_contents(
-        &self,
-        _target: impl AsRef<Path>,
-        _src: &Source,
-        _ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<Vec<(PathBuf, String)>> {
-        todo!("we need to break this method out of ResolveAndWrite and rework the providers tests");
-    }
-
     async fn resolve_and_write(
         &self,
         target: impl AsRef<Path>,

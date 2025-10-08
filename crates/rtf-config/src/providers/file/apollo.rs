@@ -5,7 +5,7 @@ use crate::{
     context::ResolutionContext,
     providers::{
         self,
-        file::{AsUtf8FileContent, ResolveAndWrite, Source},
+        file::{AsUtf8FileContent, ResolveFileContent, Source},
     },
     templating::Field,
 };
@@ -122,7 +122,7 @@ pub struct GraphosSubgraphs {
     pub graph_ref: Field<String>,
 }
 
-impl ResolveAndWrite for GraphosSubgraphs {
+impl ResolveFileContent for GraphosSubgraphs {
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,

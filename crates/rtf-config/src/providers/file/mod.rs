@@ -23,8 +23,8 @@ pub mod utility;
 
 pub use source::{RawSource, Source};
 
-/// A file provider is something that can obtain or synthesise utf-8 file content based on a user
-/// provided specification.
+/// Something that can obtain or synthesise utf-8 file content based on a user provided
+/// specification.
 ///
 /// This trait is deliberately pub(crate) rather than pub so that the validation and resolution
 /// logic is only exposed through the public API as part of the methods on the config file structs.
@@ -59,7 +59,7 @@ macro_rules! enum_impl_as_utf8_file_content {
     };
 }
 
-impl<T> ResolveAndWrite for T
+impl<T> ResolveFileContent for T
 where
     T: AsUtf8FileContent,
 {
@@ -76,22 +76,24 @@ where
     }
 }
 
-/// Logic for running a file provider and writing its output to the target [Path].
-///
-/// Most [FileProvider] implementations can safely ignore providing a custom implementation for
-/// this trait if all they need to do is write out a single file, and instead just implement
-/// [AsUtf8FileContent] which will give a default implementation of this trait.
-/// If however you need to write out multiple files or run some additional logic after writing out
-/// a file (such as making it executable) then you should implement this trait directly.
+/// Something that can obtain or synthesise the contents of multiple utf-8 files based on a user
+/// provided specification.
 #[allow(async_fn_in_trait)]
-pub(crate) trait ResolveAndWrite: Check + Serialize + DeserializeOwned + fmt::Debug {
+pub(crate) trait ResolveFileContent:
+    Check + Serialize + DeserializeOwned + fmt::Debug
+{
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,
         src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<Vec<(PathBuf, String)>>;
+}
 
+impl<T> ResolveAndWrite for T
+where
+    T: ResolveFileContent,
+{
     async fn resolve_and_write(
         &self,
         target: impl AsRef<Path>,
@@ -110,23 +112,30 @@ pub(crate) trait ResolveAndWrite: Check + Serialize + DeserializeOwned + fmt::De
     }
 }
 
+/// Logic for running a file provider and writing its output to the target [Path].
+///
+/// Most [FileProvider] implementations can safely ignore providing a custom implementation for
+/// this trait if all they need to do is write out a single file, and instead just implement
+/// [AsUtf8FileContent] or [ResolveFileContent] which will give a default implementation of this
+/// trait. If however you need to write out multiple files or run some additional logic after
+/// writing out a file (such as making it executable) then you should implement this trait
+/// directly.
+#[allow(async_fn_in_trait)]
+pub(crate) trait ResolveAndWrite: Check + Serialize + DeserializeOwned + fmt::Debug {
+    async fn resolve_and_write(
+        &self,
+        target: impl AsRef<Path>,
+        src: &Source,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<()>;
+}
+
 /// Helper macro for stamping out implementations of the ResolveAndWrite trait on an enum where
 /// each variant is a wrapper around a type that already implements the trait.
 #[macro_export]
 macro_rules! enum_impl_resolve_and_write {
     ($enum:ident => $($variant:ident),+) => {
         impl ResolveAndWrite for $enum {
-            async fn try_get_all_file_contents(
-                &self,
-                target: impl AsRef<Path>,
-                src: &Source,
-                ctx: &mut impl ResolutionContext,
-            ) -> $crate::providers::Result<Vec<(PathBuf, String)>> {
-                match self {
-                    $(Self::$variant(inner) => inner.try_get_all_file_contents(target, src, ctx).await,)+
-                }
-            }
-
             async fn resolve_and_write(
                 &self,
                 target: impl AsRef<Path>,
