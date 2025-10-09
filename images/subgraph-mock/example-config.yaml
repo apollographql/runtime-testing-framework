@@ -61,3 +61,18 @@ response_generation:
       type: string
       min_len: 1
       max_len: 10
+
+# Any value except the listening port in the configuration can be
+# overridden at a per-subgraph level. Subgraphs do not map 1:1 with
+# running servers so the port must remain a shared configuration.
+subgraph_overrides:
+  # Each subgraph is a top-level key in the overrides and must match
+  # the name that the router will try to hit when making a request.
+  my_subgraph_name:
+    # Any overrides here will be merged with the values provided in
+    # the base configuration.
+    cache_responses: false
+    response_generation:
+      null_ratio: [1, 5]
+      array:
+        min_length: 5

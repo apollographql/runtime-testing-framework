@@ -1,4 +1,5 @@
 use crate::{config::Config, handle::graphql::ResponseGenerationConfig, latency::LatencyGenerator};
+use anyhow::Error;
 use apollo_compiler::{
     Node, Schema,
     ast::{FieldDefinition, InputValueDefinition, Type},
@@ -12,7 +13,9 @@ use apollo_compiler::{
     validation::Valid,
 };
 use hyper::{HeaderMap, header::HeaderValue};
+use serde_yaml::Value;
 use std::{
+    collections::HashMap,
     fs,
     path::PathBuf,
     sync::{
@@ -20,7 +23,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
 };
-use tracing::info;
+use tracing::{info, warn};
 
 pub mod config;
 pub mod handle;
@@ -31,6 +34,16 @@ static ADDITIONAL_HEADERS: OnceLock<HeaderMap<HeaderValue>> = OnceLock::new();
 static LATENCY_GENERATOR: OnceLock<LatencyGenerator> = OnceLock::new();
 static SUPERGRAPH_SCHEMA: OnceLock<Valid<Schema>> = OnceLock::new();
 static CACHE_RESPONSES: AtomicBool = AtomicBool::new(true);
+
+static SUBGRAPH_CACHE_RESPONSES: OnceLock<HashMap<String, bool>> = OnceLock::new();
+static SUBGRAPH_HEADERS: OnceLock<HashMap<String, HeaderMap<HeaderValue>>> = OnceLock::new();
+static SUBGRAPH_LATENCY_GENERATORS: OnceLock<HashMap<String, LatencyGenerator>> = OnceLock::new();
+static SUBGRAPH_RESPONSE_GENERATION_CONFIGS: OnceLock<HashMap<String, ResponseGenerationConfig>> =
+    OnceLock::new();
+
+// Allowed in the YAML, but not represented in the actual Config struct as we
+// neither want nor need that data structure to be recursive.
+const SUBGRAPH_OVERRIDES_KEY: &str = "subgraph_overrides";
 
 /// A general purpose subgraph mock.
 #[derive(Debug, clap::Parser)]
@@ -51,7 +64,70 @@ impl Args {
         let cfg = match self.config {
             Some(path) => {
                 info!(path=%path.display(), "loading and parsing config file");
-                serde_yaml::from_slice(&fs::read(path)?)?
+                let mut base: Value = serde_yaml::from_slice(&fs::read(path)?)?;
+                let mapping = base
+                    .as_mapping_mut()
+                    .ok_or_else(|| Error::msg("config file must be a mapping"))?;
+
+                let mut subgraph_cache_responses = HashMap::new();
+                let mut subgraph_headers = HashMap::new();
+                let mut subgraph_latency_generators = HashMap::new();
+                let mut subgraph_response_generation_configs = HashMap::new();
+
+                if let Some(overrides) = mapping.remove(SUBGRAPH_OVERRIDES_KEY) {
+                    match overrides {
+                        Value::Mapping(mapping) => {
+                            for (subgraph_name, subgraph_override) in mapping {
+                                let mut subgraph_config = base.clone();
+
+                                let override_mapping =
+                                    subgraph_override.as_mapping().ok_or_else(|| {
+                                        Error::msg("subgraph override must be a mapping")
+                                    })?;
+
+                                if override_mapping.contains_key("port") {
+                                    warn!("port overrides for subgraphs will be ignored")
+                                }
+
+                                merge_yaml(subgraph_override, &mut subgraph_config);
+                                let parsed_config: Config =
+                                    serde_yaml::from_value(subgraph_config)?;
+                                let subgraph_name: String = serde_yaml::from_value(subgraph_name)?;
+
+                                info!("generating customized config for {}", subgraph_name);
+                                let (
+                                    _port,
+                                    cache_responses,
+                                    latency_generator,
+                                    headers,
+                                    response_generation,
+                                ) = parsed_config.into_parts();
+
+                                subgraph_cache_responses
+                                    .insert(subgraph_name.clone(), cache_responses);
+                                subgraph_latency_generators
+                                    .insert(subgraph_name.clone(), latency_generator);
+                                subgraph_headers.insert(subgraph_name.clone(), headers);
+                                subgraph_response_generation_configs
+                                    .insert(subgraph_name, response_generation);
+                            }
+                        }
+                        _ => return Err(Error::msg("config file must be a mapping")),
+                    }
+                }
+
+                SUBGRAPH_CACHE_RESPONSES
+                    .set(subgraph_cache_responses)
+                    .unwrap();
+                SUBGRAPH_HEADERS.set(subgraph_headers).unwrap();
+                SUBGRAPH_LATENCY_GENERATORS
+                    .set(subgraph_latency_generators)
+                    .unwrap();
+                SUBGRAPH_RESPONSE_GENERATION_CONFIGS
+                    .set(subgraph_response_generation_configs)
+                    .unwrap();
+
+                serde_yaml::from_value(base)?
             }
             None => {
                 info!("using default config");
@@ -59,6 +135,7 @@ impl Args {
             }
         };
 
+        info!("parsing default subgraph config");
         let (port, cache_responses, latency_generator, headers, response_generation) =
             cfg.into_parts();
 
@@ -84,6 +161,31 @@ impl Args {
         CACHE_RESPONSES.store(cache_responses, Ordering::Relaxed);
 
         Ok(port)
+    }
+}
+
+/// A function for merging yaml overrides with the base config. This differs slightly from rtf-config in that
+/// it does *not* combine arrays, since arrays are effectively scalar values that should be replaced, not merged,
+/// in the context of the subgraph config. We may also want to revisit the mapping merge logic if it ends up being
+/// unintuitive in the context of configuration such as the latency waveforms.
+pub fn merge_yaml(overrides: serde_yaml::Value, base: &mut serde_yaml::Value) {
+    use serde_yaml::Value;
+
+    match (overrides, base) {
+        // If both values are mappings we add all keys from src into dst.
+        (Value::Mapping(override_map), Value::Mapping(base_map)) => {
+            for (key, override_val) in override_map.into_iter() {
+                // If a key is present in both maps then we recursively merge the values,
+                // otherwise we just insert the src key into dst directly.
+                match base_map.get_mut(&key) {
+                    Some(base_val) => merge_yaml(override_val, base_val),
+                    None => _ = base_map.insert(key, override_val),
+                };
+            }
+        }
+
+        // Otherwise we replace base with overrides
+        (overrides, base) => *base = overrides,
     }
 }
 
