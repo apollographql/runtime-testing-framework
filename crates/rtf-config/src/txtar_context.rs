@@ -21,15 +21,6 @@ impl<C: HttpClient + Clone + 'static> TxtarContext<C> {
     }
 }
 
-impl TxtarContext<NullClient> {
-    pub fn new(arr: Archive) -> Self {
-        Self {
-            arr,
-            http: NullClient,
-        }
-    }
-}
-
 impl<C: HttpClient + Clone + 'static> ResolutionContext for TxtarContext<C> {
     type PlatformClient = NullClient;
     type GithubClient = NullClient;

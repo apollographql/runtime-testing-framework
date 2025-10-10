@@ -634,249 +634,48 @@ fn set_source_for_relative_files(val: &mut serde_yaml::Value, src: &serde_yaml::
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{context::Context, templating::Field, txtar_context::TxtarContext};
-    use simple_test_case::dir_cases;
-    use simple_txtar::Archive;
-    use std::path::PathBuf;
+    use crate::{
+        context::Context,
+        formats::environment::SetupSection,
+        providers::{
+            command::{CommandProvider, CommandSection, CommandSpec},
+            file::{FileProvider, InlineFile, NamedFileProvider, RelativeFile},
+        },
+        templating::{ErrorBuilder, ErrorKind, Field},
+    };
+    use assert_fs::{
+        TempDir,
+        prelude::{FileWriteStr, PathChild},
+    };
+    use indoc::indoc;
+    use simple_test_case::test_case;
 
-    /// Load a txtar [Archive] from the given file content and print the top level comment if there
-    /// is one before returning it.
-    fn load_archive(content: &str) -> Archive {
-        let arr = Archive::from(content);
-        let comment = arr.comment();
-        if !comment.is_empty() {
-            println!("{}", comment.trim());
+    // Helper functions
+
+    // Field creation helpers
+
+    /// Return a pending field
+    fn p(name: &str) -> Field<String> {
+        Field::Pending(name.to_string())
+    }
+
+    /// Return a resolved field
+    fn r(name: &str) -> Field<String> {
+        Field::Resolved(name.to_string())
+    }
+
+    /// Return a NamedFileProvider with a field
+    fn named_file_provider_with_field(name: &str, f: Field<String>) -> NamedFileProvider {
+        NamedFileProvider {
+            name: name.to_string(),
+            env_var: name.to_ascii_uppercase(),
+            provider: FileProvider::RelativePath(RelativeFile { path: f, src: None }),
         }
-
-        arr
     }
 
-    /// Read the requested file from the archive, panicking if it is missing
-    fn get_file<'a>(arr: &'a Archive, fname: &str) -> &'a str {
-        match arr.get(fname) {
-            Some(f) => &f.content,
-            None => {
-                panic!("required txtar file section {fname:?} was missing");
-            }
-        }
-    }
+    // Configuration creation helpers
 
-    #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/valid")]
-    #[tokio::test]
-    async fn valid_config(_path: &str, content: &str) {
-        let dir = PathBuf::from("resources/config-tests/test-plan/valid")
-            .canonicalize()
-            .unwrap();
-        let ctx = Context::new();
-        let src = Source::local(dir.join("test-plan.yaml"));
-
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let mut expected: TestPlanConfig =
-            serde_yaml::from_str(get_file(&arr, "expected")).unwrap();
-        expected.sources.test_plan = src.clone();
-
-        let raw_plan: RawTestPlanConfig = match serde_yaml::from_str(config) {
-            Ok(plan) => plan,
-            Err(e) => panic!("expected a valid RawTestPlanConfig, got: {e}"),
-        };
-
-        let res = raw_plan.try_into_test_plan(src.clone(), &ctx).await;
-        assert!(res.is_ok(), "expected a test plan config, got: {res:?}");
-
-        let plan = res.unwrap();
-        let res = plan.try_check(&mut Vec::new(), &src, &ctx);
-        assert!(
-            res.is_ok(),
-            "expected successful test plan check, got {res:?}"
-        );
-        pretty_assertions::assert_eq!(plan, expected, "expected test plan and expected to match");
-    }
-
-    #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/valid-templates")]
-    #[test]
-    fn valid_templates_all(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let provides_values: HashMap<String, Scalar> =
-            serde_yaml::from_str(get_file(&arr, "provides-values")).unwrap();
-        let raw_expected = get_file(&arr, "after-templating");
-
-        let mut plan_config: TestPlanConfig = serde_yaml::from_str(config).unwrap();
-        let expected: TestPlanConfig = serde_yaml::from_str(raw_expected).unwrap();
-
-        // For matrices in this test we just want to check that things are valid so we only make
-        // use of the first element for each value
-        let mut combined_values = provides_values.clone();
-        combined_values.extend(plan_config.expanded_matrix_values().remove(0));
-
-        assert!(plan_config.has_pending_fields(), "fields should be pending");
-
-        let res = plan_config.try_template(&mut Vec::new(), &combined_values);
-        assert!(res.is_ok(), "expected no errors, got {res:?}");
-        assert!(
-            !plan_config.scenario.has_pending_fields(),
-            "fields should be resolved"
-        );
-        assert!(
-            !plan_config.has_pending_fields(),
-            "fields should be resolved"
-        );
-        pretty_assertions::assert_eq!(plan_config, expected);
-    }
-
-    #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/valid-templates")]
-    #[test]
-    fn valid_templates_partial(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let provides_values: HashMap<String, Scalar> =
-            serde_yaml::from_str(get_file(&arr, "provides-values")).unwrap();
-        let raw_expected = get_file(&arr, "after-templating");
-
-        let mut plan_config: TestPlanConfig = serde_yaml::from_str(config).unwrap();
-        let expected: TestPlanConfig = serde_yaml::from_str(raw_expected).unwrap();
-
-        // For matrices in this test we just want to check that things are valid so we only make
-        // use of the first element for each value
-        let values: HashMap<String, Scalar> = plan_config.expanded_matrix_values().remove(0);
-
-        let res = plan_config.check_templating_will_work();
-        assert!(res.is_ok(), "templating should work: {res:?}");
-        assert!(plan_config.has_pending_fields(), "fields should be pending");
-
-        let res = plan_config.try_template_environment_setup(&values);
-        assert!(res.is_ok(), "expected no errors, got {res:?}");
-        assert!(
-            !plan_config.environment.setup.command.has_pending_fields(),
-            "fields should be resolved"
-        );
-
-        let mut combined_values = provides_values.clone();
-        combined_values.extend(values);
-
-        let res = plan_config.try_template_environment_teardown(&combined_values);
-        assert!(res.is_ok(), "expected no errors, got {res:?}");
-        assert!(
-            !plan_config.environment.teardown.has_pending_fields(),
-            "fields should be resolved"
-        );
-
-        let res = plan_config.try_template_scenario(&combined_values);
-        assert!(res.is_ok(), "expected no errors, got {res:?}");
-        assert!(
-            !plan_config.scenario.has_pending_fields(),
-            "fields should be resolved"
-        );
-        assert!(
-            !plan_config.has_pending_fields(),
-            "fields should be resolved"
-        );
-        pretty_assertions::assert_eq!(plan_config, expected);
-    }
-
-    #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/parse-failures")]
-    #[test]
-    fn parse_failures(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let res: serde_yaml::Result<TestPlanConfig> = serde_yaml::from_str(config);
-
-        assert!(res.is_err(), "expected invalid YAML, got: {res:?}");
-    }
-
-    #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/invalid-templates")]
-    #[test]
-    fn invalid_templates(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let expected = get_file(&arr, "templating-errors");
-
-        let mut plan_config: TestPlanConfig = serde_yaml::from_str(config).unwrap();
-        let _values: HashMap<String, Scalar> = plan_config.values.clone();
-
-        assert!(plan_config.has_pending_fields(), "fields should be pending");
-
-        let res = plan_config.check_templating_will_work();
-        assert!(
-            res.is_err(),
-            "expected templating not to work, got: {res:?}"
-        );
-
-        let errs = res.unwrap_err().into_vec();
-        let str_errs: Vec<String> = errs.iter().map(|e| format!("{:?}", e.kind)).collect();
-
-        assert_eq!(str_errs.join("\n"), expected.trim());
-    }
-
-    #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/valid-scenario-overrides")]
-    #[tokio::test]
-    async fn valid_scenario_overrides(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let overrides: serde_yaml::Value =
-            serde_yaml::from_str(get_file(&arr, "overrides")).unwrap();
-        let expected: ScenarioConfig =
-            serde_yaml::from_str(get_file(&arr, "expected-config")).unwrap();
-
-        let config_source: ConfigSpec = ConfigSpec::From {
-            from: RawSource::Local {
-                relative_path: PathBuf::from("scenario.yaml"),
-            },
-            overrides,
-        };
-
-        let ctx = TxtarContext::new(arr);
-        let res = config_source
-            .try_into_config_with_source::<ScenarioConfig>(&Source::local(""), &ctx)
-            .await;
-        assert!(res.is_ok(), "Expected a valid ScenarioConfig, got {res:?}");
-        assert_eq!(
-            res.unwrap().0,
-            expected,
-            "expected scenario configs to match"
-        );
-    }
-
-    #[dir_cases("crates/rtf-config/resources/config-tests/test-plan/valid-environment-overrides")]
-    #[tokio::test]
-    async fn valid_environment_overrides(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let overrides: serde_yaml::Value =
-            serde_yaml::from_str(get_file(&arr, "overrides")).unwrap();
-        let expected: EnvironmentConfig =
-            serde_yaml::from_str(get_file(&arr, "expected-config")).unwrap();
-
-        let config_source: ConfigSpec = ConfigSpec::From {
-            from: RawSource::Local {
-                relative_path: PathBuf::from("environment.yaml"),
-            },
-            overrides,
-        };
-
-        let ctx = TxtarContext::new(arr);
-
-        let res = config_source
-            .try_into_config_with_source::<EnvironmentConfig>(&Source::local(""), &ctx)
-            .await;
-        assert!(
-            res.is_ok(),
-            "Expected a valid EnvironmentConfig, got {res:?}"
-        );
-        assert_eq!(
-            res.unwrap().0,
-            expected,
-            "expected environment configs to match"
-        );
-    }
-
-    macro_rules! values_map {
-        ($($k:expr => $v:expr),+) => {{
-            let mut m = ::std::collections::HashMap::new();
-            $( m.insert($k.to_string(), $crate::templating::Scalar::try_from($v).unwrap()); )+
-            m
-        }};
-    }
-
+    /// Create a ValueDefinition with a default value for tests
     fn value_with_default(name: &str, val: &str) -> ValueDefinition {
         ValueDefinition {
             name: name.into(),
@@ -885,127 +684,1073 @@ mod tests {
         }
     }
 
-    #[test]
-    fn matrix_value_expansion_works_without_any_matrix_values() {
-        let tp = TestPlanConfig {
-            values: values_map!("foo" => 42, "bar" => "life"),
-            ..TestPlanConfig::empty()
-        };
-
-        let all_values = tp.expanded_matrix_values();
-        let expected = vec![values_map!("foo" => 42, "bar" => "life")];
-
-        assert_eq!(all_values, expected);
+    /// Create a HashMap of values from key-value pairs using try_from
+    macro_rules! values_map {
+        ($($k:expr => $v:expr),+) => {{
+            let mut m = ::std::collections::HashMap::new();
+            $( m.insert($k.to_string(), $crate::templating::Scalar::try_from($v).unwrap()); )+
+            m
+        }};
     }
 
-    #[test]
-    fn matrix_value_expansion_works() {
-        let tp = TestPlanConfig {
-            values: values_map!("foo" => 42, "bar" => "life"),
-            matrix: [
-                ("baz".into(), vec![true.into(), false.into()]),
-                ("qux".into(), vec![1.into(), 2.into()]),
-            ]
-            .into_iter()
-            .collect(),
-            ..TestPlanConfig::empty()
-        };
-
-        let all_values = tp.expanded_matrix_values();
-        let expected = vec![
-            values_map!("foo" => 42, "bar" => "life", "baz" => true, "qux" => 1),
-            values_map!("foo" => 42, "bar" => "life", "baz" => true, "qux" => 2),
-            values_map!("foo" => 42, "bar" => "life", "baz" => false, "qux" => 1),
-            values_map!("foo" => 42, "bar" => "life", "baz" => false, "qux" => 2),
-        ];
-
-        assert_eq!(all_values, expected);
-        assert_eq!(tp.n_matrix_variants(), all_values.len());
+    /// Create a basic ValueDefinition for testing
+    fn basic_value_definition(name: &str) -> ValueDefinition {
+        ValueDefinition {
+            name: name.to_string(),
+            description: "".to_string(),
+            default: None,
+        }
     }
 
-    #[test]
-    fn value_definition_defaults_count_as_required_values() {
-        // A test plan with no values defined in it but each of the required values has a default.
-        // This should return no errors around missing values.
-        let mut scenario_env_vars: HashMap<String, Field<String>> = HashMap::new();
-        scenario_env_vars.insert("A".to_string(), Field::Pending("a".to_string()));
-        let mut setup_env_vars: HashMap<String, Field<String>> = HashMap::new();
-        setup_env_vars.insert("B".to_string(), Field::Pending("b".to_string()));
-        let mut teardown_env_vars: HashMap<String, Field<String>> = HashMap::new();
-        teardown_env_vars.insert("C".to_string(), Field::Pending("c".to_string()));
+    /// Create an EnvironmentConfig with a teardown field for testing Template trait methods
+    fn environment_with_teardown_field(f: Field<String>) -> EnvironmentConfig {
+        EnvironmentConfig {
+            values: vec![basic_value_definition("foo")],
+            teardown: CommandSection {
+                file_providers: vec![named_file_provider_with_field("foo", f)],
+                ..CommandSection::empty()
+            },
+            ..EnvironmentConfig::empty()
+        }
+    }
 
-        let tp = TestPlanConfig {
+    /// Create a ScenarioConfig with a field for testing Template trait methods
+    fn scenario_with_field(f: Field<String>) -> ScenarioConfig {
+        ScenarioConfig {
+            values: vec![basic_value_definition("foo")],
+            command: CommandSection {
+                file_providers: vec![named_file_provider_with_field("foo", f)],
+                ..CommandSection::empty()
+            },
+            ..ScenarioConfig::empty()
+        }
+    }
+
+    // Value and provider creation helpers
+
+    /// Create a HashMap of values from string names (each name maps to itself as a Scalar::String)
+    fn value_map(value_names: &[&str]) -> HashMap<String, Scalar> {
+        value_names
+            .iter()
+            .map(|&name| (name.to_string(), Scalar::String(name.to_string())))
+            .collect()
+    }
+
+    /// Create ValueDefinitions from string names with default description
+    fn value_definitions(value_names: &[&str]) -> Vec<ValueDefinition> {
+        value_names
+            .iter()
+            .map(|&name| ValueDefinition {
+                name: name.to_string(),
+                description: "description".to_string(),
+                default: None,
+            })
+            .collect()
+    }
+
+    /// Create NamedFileProviders with pending fields from string names
+    fn file_providers_from_names(field_names: &[&str]) -> Vec<NamedFileProvider> {
+        field_names
+            .iter()
+            .map(|name| named_file_provider_with_field(name, p(name)))
+            .collect()
+    }
+
+    // Error validation helpers
+
+    /// Generate expected error details for fields
+    fn expected_error_details(
+        field_names: &[&str],
+        path_prefix: &str,
+    ) -> (Vec<String>, Vec<String>) {
+        let mut expected_messages: Vec<String> =
+            field_names.iter().map(|name| name.to_string()).collect();
+        expected_messages.sort();
+        let mut expected_paths: Vec<String> = field_names
+            .iter()
+            .map(|name| {
+                format!(
+                    "{}.file_providers.{}.path",
+                    path_prefix,
+                    name.to_ascii_uppercase()
+                )
+            })
+            .collect();
+        expected_paths.sort();
+
+        (expected_messages, expected_paths)
+    }
+
+    /// Create a TestPlanConfig with specific matrix configuration for testing
+    fn create_matrix_test_plan(
+        values: HashMap<String, Scalar>,
+        matrix: HashMap<String, Vec<Scalar>>,
+        scenario_fields: &[&str],
+        setup_fields: &[&str],
+        teardown_fields: &[&str],
+    ) -> TestPlanConfig {
+        let mut env_values = setup_fields.to_vec();
+        env_values.extend_from_slice(teardown_fields);
+
+        TestPlanConfig {
+            values,
+            matrix,
             scenario: ScenarioConfig {
-                values: vec![value_with_default("a", "foo")],
+                values: value_definitions(scenario_fields),
+                command: CommandSection {
+                    file_providers: file_providers_from_names(scenario_fields),
+                    ..CommandSection::empty()
+                },
                 ..ScenarioConfig::empty()
             },
             environment: EnvironmentConfig {
-                values: vec![
-                    value_with_default("b", "bar"),
-                    value_with_default("c", "baz"),
-                ],
+                values: value_definitions(env_values.as_slice()),
+                setup: SetupSection {
+                    command: CommandSection {
+                        file_providers: file_providers_from_names(setup_fields),
+                        ..CommandSection::empty()
+                    },
+                    provides: Vec::new(),
+                },
+                teardown: CommandSection {
+                    file_providers: file_providers_from_names(teardown_fields),
+                    ..CommandSection::empty()
+                },
+                ..EnvironmentConfig::empty()
+            },
+            ..TestPlanConfig::empty()
+        }
+    }
+
+    /// Create a matrix with two values per key provided
+    fn matrix_from_keys(keys: &[&str], no_entries: isize) -> HashMap<String, Vec<Scalar>> {
+        keys.iter()
+            .map(|&key| {
+                (
+                    key.to_string(),
+                    if no_entries <= 0 {
+                        Vec::new()
+                    } else {
+                        (0..no_entries)
+                            .map(|i| format!("{key}{}", i + 1).into())
+                            .collect()
+                    },
+                )
+            })
+            .collect()
+    }
+
+    // Tests
+
+    // Tests for configuration parsing from inline YAML and external files
+
+    const INLINE_TEST_PLAN: &str = indoc!(
+        r#"
+            name: inline-test-plan
+            description: test plan with inline scenario and environment
+            values:
+              foo: "foo"
+              bar: "bar"
+            scenario:
+              inline: 
+                name: inline-scenario
+                description: an inline scenario
+                values:
+                  - name: foo
+                    description: a value foo
+                command: 
+                  name: scenario.sh
+                  kind: inline
+                  content: |
+                    #!/usr/bin/env sh
+                    echo "Hello, World!"
+                env_vars:
+                  FOO: "{{ foo }}"
+            environment:
+              inline:
+                name: inline-environment
+                description: an inline environment
+                values:
+                  - name: bar
+                    description: a value bar
+                setup:
+                  command:
+                    name: setup.sh
+                    kind: inline
+                    content: |
+                      #!/usr/bin/env sh
+                      echo "Hello, world!"
+                  env_vars:
+                    BAR: "{{ bar }}"
+                  provides:
+                    - name: baz
+                      description: a value baz
+                teardown:
+                  command:
+                    name: teardown.sh
+                    kind: inline
+                    content: |
+                      #!/usr/bin/env sh
+                      echo "Hello, world!"
+                  env_vars:
+                    BAZ: "{{ baz }}"
+        "#
+    );
+
+    #[tokio::test]
+    async fn parse_and_template_inline_test_plan_config() {
+        let raw_test_plan: RawTestPlanConfig =
+            serde_yaml::from_str(INLINE_TEST_PLAN).expect("test plan config to parse");
+        let ctx = Context::new();
+
+        let expected_sources = Sources {
+            test_plan: Source::Local {
+                abs_path: "/".into(),
+            },
+            scenario: None,
+            environment: None,
+        };
+
+        let res = raw_test_plan
+            .try_into_test_plan(
+                Source::Local {
+                    abs_path: "/".into(),
+                },
+                &ctx,
+            )
+            .await;
+        assert!(res.is_ok(), "expected TestPlanConfig, got {res:?}");
+
+        let test_plan = res.unwrap();
+        let sources = test_plan.clone().sources;
+        assert_eq!(
+            sources, expected_sources,
+            "test that sources are set correctly"
+        );
+
+        let res = test_plan.required_values();
+        assert_eq!(
+            res,
+            &["bar", "baz", "foo"],
+            "check that test plan returns fields"
+        )
+    }
+
+    const FROM_SAME_DIR_FILES_TEST_PLAN: &str = indoc!(
+        r#"
+            name: from-files-test-plan
+            description: test plan with scenario and environment from files
+            values:
+              foo: "foo"
+              bar: "bar"
+            scenario:
+              from:
+                kind: local
+                relative_path: scenario.yaml
+            environment:
+              from:
+                kind: local
+                relative_path: environment.yaml
+        "#
+    );
+
+    const FROM_NESTED_FILE_PATHS_TEST_PLAN: &str = indoc!(
+        r#"
+            name: from-files-test-plan
+            description: test plan with scenario and environment from files
+            values:
+              foo: "foo"
+              bar: "bar"
+            scenario:
+              from:
+                kind: local
+                relative_path: ../../scenario.yaml
+            environment:
+              from:
+                kind: local
+                relative_path: ./nested/environment.yaml
+        "#
+    );
+
+    #[test_case(FROM_SAME_DIR_FILES_TEST_PLAN, "", "", ""; "environment and scenario in same directory")]
+    #[test_case(FROM_NESTED_FILE_PATHS_TEST_PLAN, "foo/bar/", "", "foo/bar/nested/"; "environment and scenario in nested directories")]
+    #[tokio::test]
+    async fn parse_test_plan_config_from_files(
+        test_plan: &str,
+        test_plan_path: &str,
+        scenario_path: &str,
+        environment_path: &str,
+    ) {
+        let temp = TempDir::new().unwrap();
+
+        let tp_file = temp.child(format!("{}test-plan.yaml", test_plan_path));
+        let scenario_file = temp.child(format!("{}scenario.yaml", scenario_path));
+        let environment_file = temp.child(format!("{}environment.yaml", environment_path));
+
+        tp_file
+            .write_str(test_plan)
+            .expect("failed to write test plan file");
+        scenario_file
+            .write_str(&serde_yaml::to_string(&ScenarioConfig::empty()).unwrap())
+            .expect("failed to write scenario file");
+        environment_file
+            .write_str(&serde_yaml::to_string(&EnvironmentConfig::empty()).unwrap())
+            .expect("failed to write environment file");
+
+        let ctx = Context::new();
+
+        // Build expected sources using the same canonicalization as the implementation
+        let expected_sources = Sources {
+            test_plan: Source::Local {
+                abs_path: ctx.canonicalize_path(&tp_file).unwrap(),
+            },
+            scenario: Some(Source::Local {
+                abs_path: ctx.canonicalize_path(&scenario_file).unwrap(),
+            }),
+            environment: Some(Source::Local {
+                abs_path: ctx.canonicalize_path(&environment_file).unwrap(),
+            }),
+        };
+
+        let res = TestPlanConfig::try_load_and_resolve_from_path(tp_file.to_path_buf(), &ctx).await;
+        assert!(res.is_ok(), "expected TestPlanConfig, got {res:?}");
+
+        let test_plan = res.unwrap();
+        let sources = test_plan.clone().sources;
+        assert_eq!(
+            sources, expected_sources,
+            "test that sources are set correctly"
+        );
+
+        let res = test_plan.required_values();
+        let expected_values: &[&str] = &[];
+        assert_eq!(res, expected_values, "check that test plan returns fields")
+    }
+
+    const OVERRIDES_TEST_PLAN: &str = indoc!(
+        r#"
+            name: from-files-test-plan
+            description: test plan with scenario and environment from files
+            values:
+              foo: "foo"
+              bar: "bar"
+            scenario:
+              from:
+                kind: local
+                relative_path: scenario.yaml
+              overrides:
+                name: scenario
+                command: 
+                  name: scenario.sh
+                  kind: inline
+                  content: |
+                    #!/usr/bin/env sh
+                    echo "Hello, World!"
+            environment:
+              from:
+                kind: local
+                relative_path: environment.yaml
+              overrides:
+                setup:
+                  file_providers:
+                    - name: file.txt
+                      env_var: FILE
+                      kind: inline
+                      content: |
+                        some inline text
+        "#
+    );
+
+    #[tokio::test]
+    async fn parse_test_plan_with_overrides() {
+        let temp = TempDir::new().unwrap();
+
+        let tp_file = temp.child("test-plan.yaml");
+        let scenario_file = temp.child("scenario.yaml");
+        let environment_file = temp.child("environment.yaml");
+
+        tp_file
+            .write_str(OVERRIDES_TEST_PLAN)
+            .expect("failed to write test plan file");
+        scenario_file
+            .write_str(&serde_yaml::to_string(&ScenarioConfig::empty()).unwrap())
+            .expect("failed to write scenario file");
+        environment_file
+            .write_str(&serde_yaml::to_string(&EnvironmentConfig::empty()).unwrap())
+            .expect("failed to write environment file");
+
+        let expected_scenario_name = "scenario";
+        let expected_scenario_command = CommandSection {
+            command: CommandSpec {
+                name: "scenario.sh".to_string(),
+                args: Vec::new(),
+                command_provider: CommandProvider::Inline(InlineFile {
+                    content: "#!/usr/bin/env sh\necho \"Hello, World!\"\n".to_string(),
+                }),
+            },
+            ..CommandSection::empty()
+        };
+        let expected_env_files = vec![NamedFileProvider {
+            name: "file.txt".to_string(),
+            env_var: "FILE".to_string(),
+            provider: FileProvider::Inline(InlineFile {
+                content: "some inline text\n".to_string(),
+            }),
+        }];
+
+        let ctx = Context::new();
+
+        let res = TestPlanConfig::try_load_and_resolve_from_path(tp_file.to_path_buf(), &ctx).await;
+        assert!(res.is_ok(), "expected TestPlanConfig, got {res:?}");
+
+        let test_plan = res.unwrap();
+        let scenario_name = &test_plan.scenario.name;
+        assert_eq!(
+            scenario_name, &expected_scenario_name,
+            "test the scenario name comes from overrides"
+        );
+
+        let scenario_command = &test_plan.scenario.command;
+        assert_eq!(
+            scenario_command, &expected_scenario_command,
+            "test the scenario command comes from overrides"
+        );
+
+        let environment_files = &test_plan.environment.setup.command.file_providers;
+        assert_eq!(
+            environment_files, &expected_env_files,
+            "test the environment setup files come from overrides"
+        );
+
+        let res = test_plan.required_values();
+        let expected_values: &[&str] = &[];
+        assert_eq!(res, expected_values, "check that test plan returns fields")
+    }
+
+    // Tests for the Template trait implementations and field resolution
+    #[test_case(p("foo"), p("bar"), true; "scenario and environment have pending fields is pending")]
+    #[test_case(p("foo"), r("bar"), true; "scenario has pending field is pending")]
+    #[test_case(r("foo"), p("bar"), true; "environment has pending field is pending")]
+    #[test_case(r("foo"), r("bar"), false; "scenario and environment have no pending fields is resolved")]
+    #[test]
+    fn has_pending_fields(
+        scenario_field: Field<String>,
+        environment_field: Field<String>,
+        expected: bool,
+    ) {
+        let test_plan = TestPlanConfig {
+            scenario: scenario_with_field(scenario_field),
+            environment: environment_with_teardown_field(environment_field),
+            ..TestPlanConfig::empty()
+        };
+
+        let res = test_plan.has_pending_fields();
+        assert_eq!(
+            res, expected,
+            "tests that has_pending_values has expected value"
+        )
+    }
+
+    #[test_case(p("scenario"), p("environment"), &["environment", "scenario"]; "scenario and environment fields required")]
+    #[test_case(p("scenario"), r("environment"), &["scenario"]; "scenario field required")]
+    #[test_case(r("scenario"), p("environment"), &["environment"]; "environment field required")]
+    #[test_case(r("scenario"), r("environment"), &[]; "no fields required")]
+    #[test]
+    fn required_values(
+        scenario_field: Field<String>,
+        environment_field: Field<String>,
+        expected: &[&str],
+    ) {
+        let test_plan = TestPlanConfig {
+            scenario: scenario_with_field(scenario_field),
+            environment: environment_with_teardown_field(environment_field),
+            ..TestPlanConfig::empty()
+        };
+
+        let res = test_plan.required_values();
+        assert_eq!(
+            res, expected,
+            "tests that required_values has expected value"
+        )
+    }
+
+    #[test_case(&["scenario"], &["setup"], &["teardown"]; "scenario and setup and teardown have fields")]
+    #[test_case(&["scenario"], &["setup"], &[]; "scenario and setup have fields")]
+    #[test_case(&[], &["setup"], &["teardown"]; "setup and teardown have fields")]
+    #[test_case(&["scenario"], &[], &["teardown"]; "scenario and teardown have fields")]
+    #[test_case(&["scenario"], &[], &[]; "scenario has fields")]
+    #[test_case(&[], &["setup"], &[]; "setup has fields")]
+    #[test_case(&[], &[], &["teardown"]; "teardown has fields")]
+    #[test_case(&[], &[], &[]; "no fields")]
+    #[test_case(&["foo", "bar", "baz"], &[], &[]; "scenario multi value and no environment")]
+    #[test_case(&[], &["foo", "bar"], &[]; "setup multi value and no teardown")]
+    #[test_case(&[], &[], &["foo", "bar"]; "teardown multi value and no setup")]
+    #[test_case(&["s1", "s2"], &["setup1", "setup2"], &[]; "scenario and setup multi value")]
+    #[test_case(&["s1", "s2"], &[], &["teardown1", "teardown2"]; "scenario and teardown multi value")]
+    #[test_case(&[], &["setup1", "setup2"], &["teardown1", "teardown2"]; "setup and teardown multi value")]
+    #[test_case(&["s1", "s2"], &["setup1", "setup2"], &["teardown1", "teardown2"]; "all sections multi value")]
+    #[test]
+    fn try_template_succeeds(
+        scenario_fields: &[&str],
+        setup_fields: &[&str],
+        teardown_fields: &[&str],
+    ) {
+        let mut env_fields = setup_fields.to_vec();
+        env_fields.extend_from_slice(teardown_fields);
+        let mut all_fields = scenario_fields.to_vec();
+        all_fields.extend(&env_fields);
+
+        let mut test_plan = TestPlanConfig {
+            scenario: ScenarioConfig {
+                values: value_definitions(scenario_fields),
+                command: CommandSection {
+                    file_providers: file_providers_from_names(scenario_fields),
+                    ..CommandSection::empty()
+                },
+                ..ScenarioConfig::empty()
+            },
+            environment: EnvironmentConfig {
+                values: value_definitions(env_fields.as_slice()),
+                teardown: CommandSection {
+                    file_providers: file_providers_from_names(env_fields.as_slice()),
+                    ..CommandSection::empty()
+                },
                 ..EnvironmentConfig::empty()
             },
             ..TestPlanConfig::empty()
         };
+        let result = test_plan.try_template(&mut Vec::new(), &value_map(all_fields.as_slice()));
 
-        let mut errs = templating::ErrorBuilder::new();
-        tp.check_required_values(&mut errs);
-        let res = errs.into_result(());
+        assert!(
+            result.is_ok(),
+            "expected templating to succeed, got {:?}",
+            result
+        );
+    }
 
-        assert!(res.is_ok(), "errors: {res:?}");
+    /// Helper for creating a test plan for Template tests
+    fn template_test_plan(
+        scenario_value_defs: &[&str],
+        scenario_fields: &[&str],
+        env_value_defs: &[&str],
+        env_fields: &[&str],
+    ) -> TestPlanConfig {
+        TestPlanConfig {
+            scenario: ScenarioConfig {
+                values: value_definitions(scenario_value_defs),
+                command: CommandSection {
+                    file_providers: file_providers_from_names(scenario_fields),
+                    ..CommandSection::empty()
+                },
+                ..ScenarioConfig::empty()
+            },
+            environment: EnvironmentConfig {
+                values: value_definitions(env_value_defs),
+                teardown: CommandSection {
+                    file_providers: file_providers_from_names(env_fields),
+                    ..CommandSection::empty()
+                },
+                ..EnvironmentConfig::empty()
+            },
+            ..TestPlanConfig::empty()
+        }
+    }
+
+    /// Helper function for asserting template errors are as expected
+    fn assert_template_errors(
+        mut test_plan: TestPlanConfig,
+        values: HashMap<String, Scalar>,
+        expected_scenario_err_fields: &[&str],
+        expected_env_err_fields: &[&str],
+    ) {
+        let (mut expected_err_messages, mut expected_err_paths) =
+            expected_error_details(expected_scenario_err_fields, "scenario.command_section");
+        let (expected_messages, expected_paths) =
+            expected_error_details(expected_env_err_fields, "environment.teardown");
+        expected_err_messages.extend(expected_messages);
+        expected_err_paths.extend(expected_paths);
+        expected_err_messages.sort();
+        expected_err_paths.sort();
+
+        let result = test_plan.try_template(&mut Vec::new(), &values);
+        assert!(
+            result.is_err(),
+            "expected templating to fail, got {:?}",
+            result
+        );
+
+        let errors = result.unwrap_err();
+        assert!(
+            errors
+                .iter()
+                .all(|e| matches!(e.kind, ErrorKind::UnknownValue)),
+            "expected all errors to be UnknownValue, got {:?}",
+            errors
+        );
+
+        let mut actual_messages: Vec<String> = errors.iter().map(|e| e.message.clone()).collect();
+        actual_messages.sort();
+        assert_eq!(
+            actual_messages, expected_err_messages,
+            "error messages don't match"
+        );
+
+        let mut actual_paths: Vec<String> = errors.iter().map(|e| e.path.clone()).collect();
+        actual_paths.sort();
+        assert_eq!(actual_paths, expected_err_paths, "error paths don't match");
+    }
+
+    #[test_case(&["missing"], &["scenario"], &["scenario"]; "single field defined and missing definition")]
+    #[test_case(&["missing1", "missing2"], &["scenario1", "scenario2"], &["scenario1", "scenario2"]; "multiple fields defined and both missing definition")]
+    #[test_case(&["scenario1", "missing2"], &["scenario1", "scenario2"], &["scenario2"]; "multiple fields defined and one missing definition")]
+    #[test_case(&["not_provided"], &["not_provided"], &["not_provided"]; "single field defined with definition but value not provided")]
+    #[test_case(&["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"]; "multiple fields defined with definition but values not provided")]
+    #[test]
+    fn try_template_scenario_missing_value_definitions(
+        value_defs: &[&str],
+        fields: &[&str],
+        expected_err_fields: &[&str],
+    ) {
+        let values = value_map(&["scenario", "scenario1", "scenario2"]);
+        let test_plan = template_test_plan(value_defs, fields, &[], &[]);
+
+        assert_template_errors(test_plan, values, expected_err_fields, &[]);
+    }
+
+    #[test_case(&["missing"], &["environment"], &["environment"]; "single field defined and missing definition")]
+    #[test_case(&["missing1", "missing2"], &["environment1", "environment2"], &["environment1", "environment2"]; "multiple fields defined and both missing definition")]
+    #[test_case(&["environment1", "missing2"], &["environment1", "environment2"], &["environment2"]; "multiple fields defined and one missing definition")]
+    #[test_case(&["not_provided"], &["not_provided"], &["not_provided"]; "single field defined with definition but value not provided")]
+    #[test_case(&["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"]; "multiple fields defined with definition but values not provided")]
+    #[test]
+    fn try_template_environment_missing_value_definitions(
+        value_defs: &[&str],
+        fields: &[&str],
+        expected_err_fields: &[&str],
+    ) {
+        let values = value_map(&["environment", "environment1", "environment2"]);
+        let test_plan = template_test_plan(&[], &[], value_defs, fields);
+
+        assert_template_errors(test_plan, values, &[], expected_err_fields);
     }
 
     #[test]
-    fn override_sources_are_set_correctly() {
-        let s = r#"
-some_key:
-  a:
-    b:
-      c:
-        kind: relative_path
-        path: ../foo.md
-some_seq:
-- kind: foo
-  path: bar
-- kind: relative_path
-  path: baz
-- some_nested_map:
-    kind: relative_path
-    path: qux"#;
+    fn try_template_missing_scenario_and_environment_value_definitions() {
+        let values = value_map(&["scenario", "environment"]);
+        let environment = template_test_plan(&[], &["scenario"], &[], &["environment"]);
 
-        let expected = r#"
-some_key:
-  a:
-    b:
-      c:
-        kind: relative_path
-        path: ../foo.md
-        src:
-          kind: local
-          abs_path: /a/b/c
-some_seq:
-- kind: foo
-  path: bar
-- kind: relative_path
-  path: baz
-  src:
-    kind: local
-    abs_path: /a/b/c
-- some_nested_map:
-    kind: relative_path
-    path: qux
-    src:
-      kind: local
-      abs_path: /a/b/c"#;
+        assert_template_errors(environment, values, &["scenario"], &["environment"]);
+    }
 
-        let mut yaml: serde_yaml::Value = serde_yaml::from_str(s).unwrap();
-        let src = Source::local("/a/b/c");
-        let yaml_src = serde_yaml::to_value(&src).unwrap();
+    #[test]
+    fn try_template_missing_scenario_and_environment_values_not_provided() {
+        let values = value_map(&[]);
+        let environment = template_test_plan(
+            &["scenario"],
+            &["scenario"],
+            &["environment"],
+            &["environment"],
+        );
 
-        set_source_for_relative_files(&mut yaml, &yaml_src);
+        assert_template_errors(environment, values, &["scenario"], &["environment"]);
+    }
 
-        let rewritten = serde_yaml::to_string(&yaml).unwrap();
-        assert_eq!(rewritten.trim(), expected.trim());
+    // Tests for matrix expansion, variants, and matrix-related functionality
+
+    #[test_case(
+        &[],
+        &[],
+        &[
+            HashMap::new()
+        ];
+        "empty matrix and empty values"
+    )]
+    #[test_case(
+        &["foo", "bar"],
+        &[],
+        &[
+            values_map!("foo" => "foo", "bar" => "bar")
+        ];
+        "empty matrix with values"
+    )]
+    #[test_case(
+        &[],
+        &[("key", vec!["a", "b", "c"])],
+        &[
+            values_map!("key" => "a"),
+            values_map!("key" => "b"), 
+            values_map!("key" => "c")
+        ];
+        "single key matrix with multiple entries and no values"
+    )]
+    #[test_case(
+        &["foo"],
+        &[("key", vec!["a", "b", "c"])],
+        &[
+            values_map!("foo" => "foo", "key" => "a"),
+            values_map!("foo" => "foo", "key" => "b"), 
+            values_map!("foo" => "foo", "key" => "c")
+        ];
+        "single key matrix with multiple entries and one value"
+    )]
+    #[test_case(
+        &[],
+        &[("key1", vec!["a", "b", "c"]), ("key2", vec!["1", "2"])],
+        &[
+            values_map!("key1" => "a", "key2" => "1"),
+            values_map!("key1" => "a", "key2" => "2"),
+            values_map!("key1" => "b", "key2" => "1"),
+            values_map!("key1" => "b", "key2" => "2"),
+            values_map!("key1" => "c", "key2" => "1"),
+            values_map!("key1" => "c", "key2" => "2")
+        ];
+        "multiple keys with multiple entries and no values"
+    )]
+    #[test]
+    fn matrix_expansion(
+        values: &[&str],
+        matrix: &[(&str, Vec<&str>)],
+        expected_values_maps: &[HashMap<String, Scalar>],
+    ) {
+        let values = value_map(values);
+        let matrix: HashMap<String, Vec<Scalar>> = matrix
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.iter().map(|s| Scalar::from(*s)).collect()))
+            .collect();
+        let test_plan = TestPlanConfig {
+            values: values.clone(),
+            matrix: matrix.clone(),
+            ..TestPlanConfig::empty()
+        };
+
+        let variants: Vec<_> = test_plan.iter_matrix_variants().collect();
+        assert_eq!(
+            variants.len(),
+            expected_values_maps.len(),
+            "test the variants from iter_matrix_variants has the xepcted combination count"
+        );
+        assert!(
+            variants.iter().all(|v| v.matrix.is_empty()),
+            "expected all variants to have an empty matrix"
+        );
+
+        let res = test_plan.n_matrix_variants();
+        assert_eq!(
+            res,
+            expected_values_maps.len(),
+            "test that the number of variants generated using iter_matrix_variants matches n_matrix_variants"
+        );
+
+        // Get the expanded matrix values to make sure this outputs the same values as iter_matrix_variants
+        let expanded_matrix_values = test_plan.expanded_matrix_values();
+
+        // Check each variant has the expected combinations in the order expected
+        for (i, variant) in variants.iter().enumerate() {
+            let expected_values = expected_values_maps[i].clone();
+            let expanded_values = expanded_matrix_values[i].clone();
+
+            assert_eq!(
+                variant.values, expected_values,
+                "test the combination matches the expected one"
+            );
+            assert_eq!(
+                variant.values, expanded_values,
+                "test the combination from iter_matrix_variants matches the combination in expanded_matrix_variants"
+            );
+        }
+    }
+
+    // Tests for try_templating_will_work and its dependent functions
+    #[test_case(&["scenario", "setup", "teardown"], &[]; "fields for scenario setup and teardown in values")]
+    #[test_case(&["scenario", "setup"], &["teardown"]; "fields for scenario and setup from values and teardown from matrix")]
+    #[test_case(&["scenario", "teardown"], &["setup"]; "fields for scenario and teardown from values and setup from matrix")]
+    #[test_case(&["scenario"], &["setup", "teardown"]; "fields for scenario from values and setup and teardown from matrix")]
+    #[test_case(&["setup"], &["scenario", "teardown"]; "fields for setup from values and scenario and teardown from matrix")]
+    #[test_case(&["setup", "teardown"], &["scenario"]; "fields for setup and teardown from values and scenario from matrix")]
+    #[test_case(&["teardown"], &["scenario", "setup"]; "fields for teardown from values and scenario and setup from matrix")]
+    #[test_case(&[], &["scenario", "setup", "teardown"]; "fields for scenario setup and teardown in matrix")]
+    #[test]
+    fn check_templating_will_work_success(value_keys: &[&str], matrix_keys: &[&str]) {
+        let values = value_map(value_keys);
+        let matrix = matrix_from_keys(matrix_keys, 1);
+        let mut test_plan =
+            create_matrix_test_plan(values, matrix, &["scenario"], &["setup"], &["teardown"]);
+
+        let res = test_plan.check_templating_will_work();
+        assert!(
+            res.is_ok(),
+            "expected templating will work to succeed, got {:?}",
+            res
+        );
+    }
+
+    #[test_case(&["foo"], "foo"; "single conflicting key")]
+    #[test]
+    #[test_case(&["foo", "bar", "baz"], "bar, baz, foo"; "multiple conflicting keys")]
+    fn check_templating_will_work_conflicting_keys_errors(
+        matrix_keys: &[&str],
+        expected_err_message: &str,
+    ) {
+        let values = value_map(&["foo", "bar", "baz"]);
+        let matrix = matrix_from_keys(matrix_keys, 2);
+        let mut test_plan = create_matrix_test_plan(values, matrix, &[], &[], &[]);
+
+        let expected_err_kind = ErrorKind::ConflictingValues;
+
+        let res = test_plan.check_templating_will_work();
+        assert!(
+            res.is_err(),
+            "expected templating will work to fail, got {:?}",
+            res
+        );
+
+        let error = res.unwrap_err().unwrap_single();
+        assert_eq!(
+            error.kind, expected_err_kind,
+            "test that the error kind is as expected"
+        );
+        assert_eq!(
+            error.message, expected_err_message,
+            "test that error message is as expected"
+        );
+    }
+
+    #[test_case(&["foo"], &["foo"]; "single matrix")]
+    #[test_case(&["foo", "bar", "baz"], &["bar", "baz", "foo"]; "multiple matrices")]
+    #[test]
+    fn check_templating_will_work_empty_matrix_errors(
+        matrix_keys: &[&str],
+        expected_err_messages: &[&str],
+    ) {
+        let values = value_map(&[]);
+        let matrix = matrix_from_keys(matrix_keys, 0);
+        let mut test_plan = create_matrix_test_plan(values, matrix, &[], &[], &[]);
+
+        let expected_err_kind = ErrorKind::EmptyMatrixValue;
+
+        let res = test_plan.check_templating_will_work();
+        assert!(
+            res.is_err(),
+            "expected templating will work to fail, got {:?}",
+            res
+        );
+
+        let errors = res.unwrap_err();
+        assert_eq!(
+            errors.iter().count(),
+            expected_err_messages.len(),
+            "test that the expected number of errors occur"
+        );
+        assert!(
+            errors
+                .iter()
+                .all(|e| matches!(e.kind, ErrorKind::EmptyMatrixValue)),
+            "expected all errors to be {:?}, got {:?}",
+            expected_err_kind,
+            errors
+        );
+        let mut err_messages: Vec<String> = errors.iter().map(|f| f.message.clone()).collect();
+        err_messages.sort();
+        assert_eq!(
+            err_messages, expected_err_messages,
+            "test that the error messages are as expected"
+        );
+    }
+
+    #[test]
+    fn check_templating_will_work_inconsistent_matrix_value_errors() {
+        let values = HashMap::new();
+        let mut matrix: HashMap<String, Vec<Scalar>> = HashMap::new();
+        matrix.insert("foo".into(), vec!["a".into(), 42.into()]);
+        let mut test_plan = create_matrix_test_plan(values, matrix, &[], &[], &[]);
+
+        let expected_err_kind = ErrorKind::InconsistentMatrixValue;
+        let expected_err_message = "foo";
+
+        let res = test_plan.check_templating_will_work();
+        assert!(
+            res.is_err(),
+            "expected templating will work to fail, got {:?}",
+            res
+        );
+
+        let error = res.unwrap_err().unwrap_single();
+        assert_eq!(
+            error.kind, expected_err_kind,
+            "test that the error kind is as expected"
+        );
+        assert_eq!(
+            error.message, expected_err_message,
+            "test that error message is as expected"
+        );
+    }
+
+    #[test]
+    fn check_required_values_setup_provides_available_to_scenario_and_teardown() {
+        let provides = vec![ValueDefinition {
+            name: "provides".to_string(),
+            description: "A value provided by setup".to_string(),
+            default: None,
+        }];
+
+        let mut test_plan = TestPlanConfig {
+            environment: EnvironmentConfig {
+                setup: SetupSection {
+                    command: CommandSection {
+                        ..CommandSection::empty()
+                    },
+                    provides,
+                },
+                teardown: CommandSection {
+                    file_providers: vec![named_file_provider_with_field("foo", p("provides"))],
+                    ..CommandSection::empty()
+                },
+                ..EnvironmentConfig::empty()
+            },
+            scenario: ScenarioConfig {
+                command: CommandSection {
+                    file_providers: vec![named_file_provider_with_field("foo", p("provides"))],
+                    ..CommandSection::empty()
+                },
+                ..ScenarioConfig::empty()
+            },
+            ..TestPlanConfig::empty()
+        };
+
+        let res = test_plan.check_templating_will_work();
+        assert!(
+            res.is_ok(),
+            "expected templating will work to succeed, got {:?}",
+            res
+        );
+    }
+
+    #[test_case(&["scenario"], &[], &[], &["scenario"]; "scenario missing values")]
+    #[test_case(&[], &["setup"], &[], &["setup"]; "setup missing values")]
+    #[test_case(&[], &[], &["teardown"], &["teardown"]; "teardown missing values")]
+    #[test_case(&[], &["setup"], &["teardown"], &["setup", "teardown"]; "setup and teardown missing values")]
+    #[test_case(&["scenario"], &["setup"], &[], &["setup", "scenario"]; "scenario and setup missing values")]
+    #[test_case(&["scenario"], &[], &["teardown"], &["teardown", "scenario"]; "scenario and teardown missing values")]
+    #[test_case(&["scenario"], &["setup"], &["teardown"], &["setup", "teardown", "scenario"]; "scenario and setup and teardown missing values")]
+    #[test]
+    fn check_templating_will_work_missing_values_errors(
+        scenario_fields: &[&str],
+        setup_fields: &[&str],
+        teardown_fields: &[&str],
+        expected_err_messages: &[&str],
+    ) {
+        let values = value_map(&["foo"]);
+        let matrix = HashMap::new();
+        let mut test_plan = create_matrix_test_plan(
+            values,
+            matrix,
+            scenario_fields,
+            setup_fields,
+            teardown_fields,
+        );
+
+        let expected_err_kind = ErrorKind::MissingValues;
+
+        let res = test_plan.check_templating_will_work();
+        assert!(
+            res.is_err(),
+            "expected templating will work to fail, got {:?}",
+            res
+        );
+
+        let errors = res.unwrap_err();
+        assert_eq!(
+            errors.iter().count(),
+            expected_err_messages.len(),
+            "test that the expected number of errors occur"
+        );
+
+        assert!(
+            errors
+                .iter()
+                .all(|e| matches!(e.kind, ErrorKind::MissingValues)),
+            "expected all errors to be {:?}, got {:?}",
+            expected_err_kind,
+            errors
+        );
+
+        let error_messages: Vec<String> = errors.iter().map(|f| f.message.clone()).collect();
+        let expected_err_messages: Vec<String> = expected_err_messages
+            .iter()
+            .map(|f| format!("  - {}: \"description\"", f))
+            .collect();
+        assert_eq!(
+            error_messages, expected_err_messages,
+            "test that the error messages are as expected"
+        );
+    }
+
+    #[test]
+    fn check_templating_will_work_combined_errors() {
+        let values = value_map(&["foo", "bar"]);
+        let matrix = matrix_from_keys(&["foo"], 0);
+        let mut test_plan = create_matrix_test_plan(values, matrix, &["scenario"], &[], &[]);
+
+        let mut expected_errs = ErrorBuilder::new();
+        expected_errs.push(ErrorKind::ConflictingValues, "foo", &["".to_string()]);
+        expected_errs.push(ErrorKind::EmptyMatrixValue, "foo", &["".to_string()]);
+        expected_errs.push(
+            ErrorKind::MissingValues,
+            "  - scenario: \"description\"",
+            &["scenario".to_string()],
+        );
+        let expected_errs = expected_errs.into_result("").unwrap_err();
+
+        let res = test_plan.check_templating_will_work();
+        assert!(
+            res.is_err(),
+            "expected templating will work to fail, got {:?}",
+            res
+        );
+        assert_eq!(
+            res.unwrap_err(),
+            expected_errs,
+            "test that combined errors are as expected"
+        );
+    }
+
+    #[test]
+    fn check_required_values_value_definition_defaults_count_as_required_values() {
+        let mut test_plan = TestPlanConfig {
+            environment: EnvironmentConfig {
+                values: vec![
+                    value_with_default("setup", "setup"),
+                    value_with_default("teardown", "teardown"),
+                ],
+                setup: SetupSection {
+                    command: CommandSection {
+                        file_providers: vec![named_file_provider_with_field("setup", p("setup"))],
+                        ..CommandSection::empty()
+                    },
+                    provides: Vec::new(),
+                },
+                teardown: CommandSection {
+                    file_providers: vec![named_file_provider_with_field("teardown", p("teardown"))],
+                    ..CommandSection::empty()
+                },
+                ..EnvironmentConfig::empty()
+            },
+            scenario: ScenarioConfig {
+                values: vec![value_with_default("scenario", "scenario")],
+                command: CommandSection {
+                    file_providers: vec![named_file_provider_with_field("scenario", p("scenario"))],
+                    ..CommandSection::empty()
+                },
+                ..ScenarioConfig::empty()
+            },
+            ..TestPlanConfig::empty()
+        };
+
+        let res = test_plan.check_templating_will_work();
+        assert!(
+            res.is_ok(),
+            "expected templating will work to succeed, got {:?}",
+            res
+        );
     }
 }
