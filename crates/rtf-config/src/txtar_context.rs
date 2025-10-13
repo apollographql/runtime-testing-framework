@@ -44,8 +44,8 @@ impl<C: HttpClient + Clone + 'static> ResolutionContext for TxtarContext<C> {
         Ok(())
     }
 
-    fn http_client(&self) -> Option<&Self::HttpClient> {
-        Some(&self.http)
+    fn http_client(&self) -> &Self::HttpClient {
+        &self.http
     }
 
     fn store_provider_output_path(&mut self, _provider: Provider<'_>, _path: PathBuf) {

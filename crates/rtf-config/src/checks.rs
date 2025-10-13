@@ -33,9 +33,6 @@ pub enum ErrorKind {
 
     #[strum(to_string = "A required file has not been defined")]
     RequiredFileMissing,
-
-    #[strum(to_string = "HTTP client not found")]
-    HttpClientNotFound,
 }
 
 impl crate::error::ErrorKind for ErrorKind {

@@ -58,9 +58,7 @@ pub trait ResolutionContext {
         None
     }
 
-    fn http_client(&self) -> Option<&Self::HttpClient> {
-        None
-    }
+    fn http_client(&self) -> &Self::HttpClient;
 
     /// Record the path that the given provider's output was written to.
     fn store_provider_output_path(&mut self, provider: Provider<'_>, path: PathBuf);
@@ -243,8 +241,8 @@ impl ResolutionContext for Context {
         self.client.github_client()
     }
 
-    fn http_client(&self) -> Option<&Self::HttpClient> {
-        Some(&self.client)
+    fn http_client(&self) -> &Self::HttpClient {
+        &self.client
     }
 
     fn store_provider_output_path(&mut self, provider: Provider<'_>, path: PathBuf) {

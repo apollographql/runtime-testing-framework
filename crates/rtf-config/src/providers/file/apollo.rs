@@ -896,8 +896,7 @@ impl AsUtf8FileContent for RouterDownloadScript {
     ) -> providers::Result<String> {
         let version = self.version.as_resolved();
         let url = format!("https://router.apollo.dev/download/nix/{version}");
-        let client = ctx.http_client().expect("to have an http client");
-        let response = client.get(&url).await?;
+        let response = ctx.http_client().get(&url).await?;
         if response.status == StatusCode::NOT_FOUND {
             return Err(providers::Error::UnknownRouterVersion(version.to_string()));
         }
@@ -912,18 +911,10 @@ impl AsUtf8FileContent for RouterDownloadScript {
 impl Check for RouterDownloadScript {
     fn try_check(
         &self,
-        path: &mut Vec<String>,
+        _path: &mut Vec<String>,
         _src: &Source,
-        ctx: &impl ResolutionContext,
+        _ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        if ctx.http_client().is_none() {
-            return Err(checks::Errors::new(
-                checks::ErrorKind::HttpClientNotFound,
-                "",
-                path,
-            ));
-        }
-
         Ok(())
     }
 }

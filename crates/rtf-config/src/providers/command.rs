@@ -488,6 +488,10 @@ mod tests {
         type GithubClient = NullClient;
         type HttpClient = NullClient;
 
+        fn http_client(&self) -> &Self::HttpClient {
+            &NullClient
+        }
+
         fn store_provider_output_path(&mut self, provider: Provider<'_>, path: PathBuf) {
             let key = serde_yaml::to_string(&provider).unwrap();
 
