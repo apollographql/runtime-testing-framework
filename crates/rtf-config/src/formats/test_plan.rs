@@ -192,14 +192,23 @@ impl TestPlanConfig {
                                 .iter()
                                 .any(|vd| &vd.name == *s && vd.default.is_some()))
                     })
-                    .cloned()
+                    .map(|val| {
+                        format!(
+                            "  - {val}: {:?}",
+                            value_defs
+                                .iter()
+                                .find(|vd| &vd.name == val)
+                                .map(|vd| vd.description.as_str())
+                                .unwrap_or_default()
+                        )
+                    })
                     .collect();
 
                 if !missing_values.is_empty() {
                     missing_values.sort_unstable(); // ensure consistent ordering
                     errs.push(
                         templating::ErrorKind::MissingValues,
-                        missing_values.join(", "),
+                        missing_values.join("\n"),
                         error_path,
                     )
                 }

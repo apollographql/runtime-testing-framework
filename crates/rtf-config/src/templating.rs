@@ -11,23 +11,27 @@ use std::{borrow::Cow, collections::HashMap, fmt, marker::PhantomData};
 /// Paired with an additional message to form an [Error].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display, strum::EnumString)]
 pub enum ErrorKind {
-    #[strum(to_string = "conflicting value definitions")]
+    #[strum(to_string = "Conflicting value and matrix definitions")]
     ConflictingValues,
 
-    #[strum(to_string = "empty matrix value")]
+    #[strum(to_string = "Empty array for matrix value")]
     EmptyMatrixValue,
 
-    #[strum(to_string = "inconsistent types for matrix value")]
+    #[strum(to_string = "Inconsistent types for matrix value")]
     InconsistentMatrixValue,
 
-    #[strum(to_string = "invalid templating value")]
+    #[strum(to_string = "Invalid templating value")]
     InvalidData,
 
-    #[strum(to_string = "missing template values")]
+    #[strum(to_string = "Missing template values")]
     MissingValues,
 
-    #[strum(to_string = "unknown templating value")]
+    #[strum(to_string = "Unknown templating value")]
     UnknownValue,
+}
+
+impl crate::error::ErrorKind for ErrorKind {
+    const HEADER: &str = "Templating failed";
 }
 
 // Type aliases for checks error handling.

@@ -7,35 +7,36 @@ use std::collections::HashSet;
 /// Paired with an additional message to form an [Error].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display, strum::EnumString)]
 pub enum ErrorKind {
-    #[strum(to_string = "non-unique environment variables found.")]
+    #[strum(to_string = "Non-unique environment variables found")]
     DuplicateEnvironmentVariables,
 
-    #[strum(to_string = "non-unique value names found.")]
+    #[strum(to_string = "Non-unique value names found")]
     DuplicateValueNames,
 
-    #[strum(to_string = "the requested file did not exist.")]
+    #[strum(to_string = "The requested file did not exist")]
     FileNotFound,
 
-    #[strum(to_string = "the provided string was not a valid graph ref")]
+    #[strum(to_string = "The provided string was not a valid graph ref")]
     InvalidGraphRef,
 
-    #[strum(to_string = "the given relative path was not a valid path.")]
+    #[strum(to_string = "The given relative path was not a valid path")]
     InvalidRelativePath,
 
-    #[strum(to_string = "a directory was provided when a file was expected.")]
+    #[strum(to_string = "A directory was provided when a file was expected")]
     IsADirectory,
 
-    #[strum(to_string = "no API key provided for calling the GitHub API")]
+    #[strum(to_string = "No API key provided for calling the GitHub API")]
     MissingGithubApiKey,
 
-    #[strum(to_string = "no API key provided for calling the Apollo GraphOS API")]
+    #[strum(to_string = "No API key provided for calling the Apollo GraphOS API")]
     MissingGraphOsApiKey,
 
-    #[strum(to_string = "a required file has not been defined.")]
+    #[strum(to_string = "A required file has not been defined")]
     RequiredFileMissing,
+}
 
-    #[strum(to_string = "http client not found.")]
-    HttpClientNotFound,
+impl crate::error::ErrorKind for ErrorKind {
+    const HEADER: &str = "Static analysis checks failed";
 }
 
 // Type aliases for validation error handling.
