@@ -1,4 +1,4 @@
-use crate::LATENCY_GENERATOR;
+use crate::{LATENCY_GENERATOR, SUBGRAPH_LATENCY_GENERATORS};
 use http_body_util::{BodyExt, Full, combinators::BoxBody};
 use hyper::{
     Method, Request, Response, StatusCode,
@@ -16,8 +16,22 @@ pub async fn handle_request(req: Request<Incoming>) -> anyhow::Result<ByteRespon
     let (parts, body) = req.into_parts();
     let (method, path) = (parts.method, parts.uri.path());
 
-    let res = match (&method, path) {
-        (&Method::POST, "/") => graphql::handle(body).await,
+    let (res, generator_override) = match (&method, path) {
+        // matches routes in the form of `/{subgraph_name}`
+        // all further path elements will be ignored for the sake of not spending too much
+        // compute time on this condition
+        (&Method::POST, route) if route.len() > 1 && route.starts_with('/') => {
+            let subgraph_name = route
+                .split('/')
+                .nth(1)
+                .expect("split will yield at least 2 elements based on the match condition");
+
+            (
+                graphql::handle(body, Some(subgraph_name)).await,
+                SUBGRAPH_LATENCY_GENERATORS.wait().get(subgraph_name),
+            )
+        }
+        (&Method::POST, "/") => (graphql::handle(body, None).await, None),
 
         // default to 404
         (method, path) => {
@@ -29,13 +43,15 @@ pub async fn handle_request(req: Request<Incoming>) -> anyhow::Result<ByteRespon
             );
             *resp.status_mut() = StatusCode::NOT_FOUND;
 
-            Ok(resp)
+            (Ok(resp), None)
         }
     };
 
-    // Skip latency injection when we have an internal server error
+    // Skip latency injection when we have a non-2xx response
     if res.is_ok() {
-        let latency = LATENCY_GENERATOR.wait().generate(Instant::now());
+        let latency = generator_override
+            .unwrap_or_else(|| LATENCY_GENERATOR.wait())
+            .generate(Instant::now());
         trace!(latency_ms = latency.as_millis(), "injecting latency");
         sleep(latency).await;
     }
