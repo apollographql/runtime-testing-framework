@@ -2,6 +2,10 @@
 //! and checks.
 use std::{fmt, slice, vec};
 
+pub trait ErrorKind: fmt::Debug + fmt::Display + Copy {
+    const HEADER: &str;
+}
+
 /// One or more [Error]s.
 ///
 /// If you know that you only have a single error to report then [Errors::new] can be used to
@@ -10,14 +14,14 @@ use std::{fmt, slice, vec};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Errors<K>
 where
-    K: fmt::Debug + fmt::Display + Copy,
+    K: ErrorKind,
 {
     inner: Vec<Error<K>>,
 }
 
 impl<K> Errors<K>
 where
-    K: fmt::Debug + fmt::Display + Copy,
+    K: ErrorKind,
 {
     /// Construct a new [Errors] containing a single [Error].
     ///
@@ -66,7 +70,7 @@ where
 
 impl<K> IntoIterator for Errors<K>
 where
-    K: fmt::Debug + fmt::Display + Copy,
+    K: ErrorKind,
 {
     type Item = Error<K>;
     type IntoIter = vec::IntoIter<Self::Item>;
@@ -78,29 +82,29 @@ where
 
 impl<K> fmt::Display for Errors<K>
 where
-    K: fmt::Debug + fmt::Display + Copy,
+    K: ErrorKind,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let msgs: Vec<String> = self.inner.iter().map(|e| e.to_string()).collect();
 
-        write!(f, "{}", msgs.join("\n"))
+        write!(f, "{}\n{}", K::HEADER, msgs.join("\n\n"))
     }
 }
 
-impl<K> std::error::Error for Errors<K> where K: fmt::Debug + fmt::Display + Copy {}
+impl<K> std::error::Error for Errors<K> where K: ErrorKind {}
 
 /// Programmatically build up an ordered list of errors encountered by a single operation.
 #[derive(Default, Debug)]
 pub struct ErrorBuilder<K>
 where
-    K: fmt::Debug + fmt::Display + Copy,
+    K: ErrorKind,
 {
     inner: Vec<Error<K>>,
 }
 
 impl<K> From<Result<(), Errors<K>>> for ErrorBuilder<K>
 where
-    K: fmt::Debug + fmt::Display + Copy,
+    K: ErrorKind,
 {
     fn from(res: Result<(), Errors<K>>) -> Self {
         match res {
@@ -112,7 +116,7 @@ where
 
 impl<K> ErrorBuilder<K>
 where
-    K: fmt::Debug + fmt::Display + Copy,
+    K: ErrorKind,
 {
     /// Construct a new empty [ErrorBuilder].
     pub fn new() -> Self {
@@ -159,7 +163,7 @@ where
 
 impl<K> Extend<Error<K>> for ErrorBuilder<K>
 where
-    K: fmt::Debug + fmt::Display + Copy,
+    K: ErrorKind,
 {
     fn extend<T>(&mut self, iter: T)
     where
@@ -175,7 +179,7 @@ where
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error<K>
 where
-    K: fmt::Debug + fmt::Display + Copy,
+    K: ErrorKind,
 {
     /// The kind associated with this error.
     pub kind: K,
@@ -187,11 +191,11 @@ where
 
 impl<K> fmt::Display for Error<K>
 where
-    K: fmt::Debug + fmt::Display + Copy,
+    K: ErrorKind,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({}) {}: {}", self.path, self.kind, self.message)
+        write!(f, "({}) {}\n{}", self.path, self.kind, self.message)
     }
 }
 
-impl<K> std::error::Error for Error<K> where K: fmt::Debug + fmt::Display + Copy {}
+impl<K> std::error::Error for Error<K> where K: ErrorKind {}

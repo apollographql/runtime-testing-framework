@@ -38,6 +38,10 @@ pub enum ErrorKind {
     HttpClientNotFound,
 }
 
+impl crate::error::ErrorKind for ErrorKind {
+    const HEADER: &str = "Static analysis checks failed";
+}
+
 // Type aliases for validation error handling.
 // Elsewhere in the codebase we should always refer to these aliases rather than parameterising the
 // generic types from the error module.
