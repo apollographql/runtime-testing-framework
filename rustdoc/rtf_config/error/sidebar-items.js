@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Error","ErrorBuilder","Errors"]};
+window.SIDEBAR_ITEMS = {"struct":["Error","ErrorBuilder","Errors"],"trait":["ErrorKind"]};

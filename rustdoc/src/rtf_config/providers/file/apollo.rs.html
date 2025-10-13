@@ -896,102 +896,93 @@
 <a href=#896 id=896 data-nosnippet>896</a>    ) -&gt; providers::Result&lt;String&gt; {
 <a href=#897 id=897 data-nosnippet>897</a>        <span class="kw">let </span>version = <span class="self">self</span>.version.as_resolved();
 <a href=#898 id=898 data-nosnippet>898</a>        <span class="kw">let </span>url = <span class="macro">format!</span>(<span class="string">"https://router.apollo.dev/download/nix/{version}"</span>);
-<a href=#899 id=899 data-nosnippet>899</a>        <span class="kw">let </span>client = ctx.http_client().expect(<span class="string">"to have an http client"</span>);
-<a href=#900 id=900 data-nosnippet>900</a>        <span class="kw">let </span>response = client.get(<span class="kw-2">&amp;</span>url).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#901 id=901 data-nosnippet>901</a>        <span class="kw">if </span>response.status == StatusCode::NOT_FOUND {
-<a href=#902 id=902 data-nosnippet>902</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(providers::Error::UnknownRouterVersion(version.to_string()));
-<a href=#903 id=903 data-nosnippet>903</a>        }
-<a href=#904 id=904 data-nosnippet>904</a>        <span class="kw">let </span>script = std::str::from_utf8(<span class="kw-2">&amp;</span>response.body)
-<a href=#905 id=905 data-nosnippet>905</a>            .map_err(|<span class="kw">_</span>| providers::Error::Utf8DecodingError)<span class="question-mark">?
-<a href=#906 id=906 data-nosnippet>906</a>            </span>.to_string();
-<a href=#907 id=907 data-nosnippet>907</a>
-<a href=#908 id=908 data-nosnippet>908</a>        <span class="prelude-val">Ok</span>(script)
-<a href=#909 id=909 data-nosnippet>909</a>    }
-<a href=#910 id=910 data-nosnippet>910</a>}
-<a href=#911 id=911 data-nosnippet>911</a>
-<a href=#912 id=912 data-nosnippet>912</a><span class="kw">impl </span>Check <span class="kw">for </span>RouterDownloadScript {
-<a href=#913 id=913 data-nosnippet>913</a>    <span class="kw">fn </span>try_check(
-<a href=#914 id=914 data-nosnippet>914</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#915 id=915 data-nosnippet>915</a>        path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
-<a href=#916 id=916 data-nosnippet>916</a>        _src: <span class="kw-2">&amp;</span>Source,
-<a href=#917 id=917 data-nosnippet>917</a>        ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,
-<a href=#918 id=918 data-nosnippet>918</a>    ) -&gt; checks::Result&lt;()&gt; {
-<a href=#919 id=919 data-nosnippet>919</a>        <span class="kw">if </span>ctx.http_client().is_none() {
-<a href=#920 id=920 data-nosnippet>920</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(checks::Errors::new(
-<a href=#921 id=921 data-nosnippet>921</a>                checks::ErrorKind::HttpClientNotFound,
-<a href=#922 id=922 data-nosnippet>922</a>                <span class="string">""</span>,
-<a href=#923 id=923 data-nosnippet>923</a>                path,
-<a href=#924 id=924 data-nosnippet>924</a>            ));
-<a href=#925 id=925 data-nosnippet>925</a>        }
-<a href=#926 id=926 data-nosnippet>926</a>
-<a href=#927 id=927 data-nosnippet>927</a>        <span class="prelude-val">Ok</span>(())
-<a href=#928 id=928 data-nosnippet>928</a>    }
-<a href=#929 id=929 data-nosnippet>929</a>}
-<a href=#930 id=930 data-nosnippet>930</a>
-<a href=#931 id=931 data-nosnippet>931</a><span class="doccomment">/// # Build Router From Source
-<a href=#932 id=932 data-nosnippet>932</a>///
-<a href=#933 id=933 data-nosnippet>933</a>/// A file provider used for building the Router from source at a specific git commit
-<a href=#934 id=934 data-nosnippet>934</a>/// or reference.
-<a href=#935 id=935 data-nosnippet>935</a>///
-<a href=#936 id=936 data-nosnippet>936</a>/// ```yaml
-<a href=#937 id=937 data-nosnippet>937</a>/// - name: "router-build.sh"
-<a href=#938 id=938 data-nosnippet>938</a>///   env_var: ROUTER_BUILD_SCRIPT
-<a href=#939 id=939 data-nosnippet>939</a>///   kind: build_router_from_source
-<a href=#940 id=940 data-nosnippet>940</a>///   git_ref: "some-ref"
-<a href=#941 id=941 data-nosnippet>941</a>///   rust_version: "1.89.0"
-<a href=#942 id=942 data-nosnippet>942</a>/// ```
-<a href=#943 id=943 data-nosnippet>943</a></span><span class="attr">#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
-<a href=#944 id=944 data-nosnippet>944</a></span><span class="kw">pub struct </span>BuildRouterFromSource {
-<a href=#945 id=945 data-nosnippet>945</a>    <span class="doccomment">/// A git reference that can be passed to `git checkout`. This may be
-<a href=#946 id=946 data-nosnippet>946</a>    /// a full or partial commit hash, branch name, or tag.
-<a href=#947 id=947 data-nosnippet>947</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) git_ref: Field&lt;String&gt;,
-<a href=#948 id=948 data-nosnippet>948</a>
-<a href=#949 id=949 data-nosnippet>949</a>    <span class="doccomment">/// A Rust version string that can be passed to `rustup run {rust_version}`,
-<a href=#950 id=950 data-nosnippet>950</a>    /// such as `"1.78.0"`, `"beta"`, or `"nightly"`.
-<a href=#951 id=951 data-nosnippet>951</a>    ///
-<a href=#952 id=952 data-nosnippet>952</a>    /// Defaults to `"stable"` if unset.
-<a href=#953 id=953 data-nosnippet>953</a>    </span><span class="attr">#[serde(default = <span class="string">"default_rust_version"</span>)]
-<a href=#954 id=954 data-nosnippet>954</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) rust_version: Field&lt;String&gt;,
-<a href=#955 id=955 data-nosnippet>955</a>}
-<a href=#956 id=956 data-nosnippet>956</a>
-<a href=#957 id=957 data-nosnippet>957</a><span class="kw">fn </span>default_rust_version() -&gt; Field&lt;String&gt; {
-<a href=#958 id=958 data-nosnippet>958</a>    Field::Resolved(<span class="string">"stable"</span>.to_string())
-<a href=#959 id=959 data-nosnippet>959</a>}
+<a href=#899 id=899 data-nosnippet>899</a>        <span class="kw">let </span>response = ctx.http_client().get(<span class="kw-2">&amp;</span>url).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#900 id=900 data-nosnippet>900</a>        <span class="kw">if </span>response.status == StatusCode::NOT_FOUND {
+<a href=#901 id=901 data-nosnippet>901</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(providers::Error::UnknownRouterVersion(version.to_string()));
+<a href=#902 id=902 data-nosnippet>902</a>        }
+<a href=#903 id=903 data-nosnippet>903</a>        <span class="kw">let </span>script = std::str::from_utf8(<span class="kw-2">&amp;</span>response.body)
+<a href=#904 id=904 data-nosnippet>904</a>            .map_err(|<span class="kw">_</span>| providers::Error::Utf8DecodingError)<span class="question-mark">?
+<a href=#905 id=905 data-nosnippet>905</a>            </span>.to_string();
+<a href=#906 id=906 data-nosnippet>906</a>
+<a href=#907 id=907 data-nosnippet>907</a>        <span class="prelude-val">Ok</span>(script)
+<a href=#908 id=908 data-nosnippet>908</a>    }
+<a href=#909 id=909 data-nosnippet>909</a>}
+<a href=#910 id=910 data-nosnippet>910</a>
+<a href=#911 id=911 data-nosnippet>911</a><span class="kw">impl </span>Check <span class="kw">for </span>RouterDownloadScript {
+<a href=#912 id=912 data-nosnippet>912</a>    <span class="kw">fn </span>try_check(
+<a href=#913 id=913 data-nosnippet>913</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#914 id=914 data-nosnippet>914</a>        _path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
+<a href=#915 id=915 data-nosnippet>915</a>        _src: <span class="kw-2">&amp;</span>Source,
+<a href=#916 id=916 data-nosnippet>916</a>        _ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,
+<a href=#917 id=917 data-nosnippet>917</a>    ) -&gt; checks::Result&lt;()&gt; {
+<a href=#918 id=918 data-nosnippet>918</a>        <span class="prelude-val">Ok</span>(())
+<a href=#919 id=919 data-nosnippet>919</a>    }
+<a href=#920 id=920 data-nosnippet>920</a>}
+<a href=#921 id=921 data-nosnippet>921</a>
+<a href=#922 id=922 data-nosnippet>922</a><span class="doccomment">/// # Build Router From Source
+<a href=#923 id=923 data-nosnippet>923</a>///
+<a href=#924 id=924 data-nosnippet>924</a>/// A file provider used for building the Router from source at a specific git commit
+<a href=#925 id=925 data-nosnippet>925</a>/// or reference.
+<a href=#926 id=926 data-nosnippet>926</a>///
+<a href=#927 id=927 data-nosnippet>927</a>/// ```yaml
+<a href=#928 id=928 data-nosnippet>928</a>/// - name: "router-build.sh"
+<a href=#929 id=929 data-nosnippet>929</a>///   env_var: ROUTER_BUILD_SCRIPT
+<a href=#930 id=930 data-nosnippet>930</a>///   kind: build_router_from_source
+<a href=#931 id=931 data-nosnippet>931</a>///   git_ref: "some-ref"
+<a href=#932 id=932 data-nosnippet>932</a>///   rust_version: "1.89.0"
+<a href=#933 id=933 data-nosnippet>933</a>/// ```
+<a href=#934 id=934 data-nosnippet>934</a></span><span class="attr">#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+<a href=#935 id=935 data-nosnippet>935</a></span><span class="kw">pub struct </span>BuildRouterFromSource {
+<a href=#936 id=936 data-nosnippet>936</a>    <span class="doccomment">/// A git reference that can be passed to `git checkout`. This may be
+<a href=#937 id=937 data-nosnippet>937</a>    /// a full or partial commit hash, branch name, or tag.
+<a href=#938 id=938 data-nosnippet>938</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) git_ref: Field&lt;String&gt;,
+<a href=#939 id=939 data-nosnippet>939</a>
+<a href=#940 id=940 data-nosnippet>940</a>    <span class="doccomment">/// A Rust version string that can be passed to `rustup run {rust_version}`,
+<a href=#941 id=941 data-nosnippet>941</a>    /// such as `"1.78.0"`, `"beta"`, or `"nightly"`.
+<a href=#942 id=942 data-nosnippet>942</a>    ///
+<a href=#943 id=943 data-nosnippet>943</a>    /// Defaults to `"stable"` if unset.
+<a href=#944 id=944 data-nosnippet>944</a>    </span><span class="attr">#[serde(default = <span class="string">"default_rust_version"</span>)]
+<a href=#945 id=945 data-nosnippet>945</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) rust_version: Field&lt;String&gt;,
+<a href=#946 id=946 data-nosnippet>946</a>}
+<a href=#947 id=947 data-nosnippet>947</a>
+<a href=#948 id=948 data-nosnippet>948</a><span class="kw">fn </span>default_rust_version() -&gt; Field&lt;String&gt; {
+<a href=#949 id=949 data-nosnippet>949</a>    Field::Resolved(<span class="string">"stable"</span>.to_string())
+<a href=#950 id=950 data-nosnippet>950</a>}
+<a href=#951 id=951 data-nosnippet>951</a>
+<a href=#952 id=952 data-nosnippet>952</a><span class="kw">impl </span>AsUtf8FileContent <span class="kw">for </span>BuildRouterFromSource {
+<a href=#953 id=953 data-nosnippet>953</a>    <span class="kw">async fn </span>try_get_file_content(
+<a href=#954 id=954 data-nosnippet>954</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#955 id=955 data-nosnippet>955</a>        _src: <span class="kw-2">&amp;</span>Source,
+<a href=#956 id=956 data-nosnippet>956</a>        _ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,
+<a href=#957 id=957 data-nosnippet>957</a>    ) -&gt; providers::Result&lt;String&gt; {
+<a href=#958 id=958 data-nosnippet>958</a>        <span class="kw">let </span>commit_ref = <span class="self">self</span>.git_ref.as_resolved();
+<a href=#959 id=959 data-nosnippet>959</a>        <span class="kw">let </span>rust_version = <span class="self">self</span>.rust_version.as_resolved();
 <a href=#960 id=960 data-nosnippet>960</a>
-<a href=#961 id=961 data-nosnippet>961</a><span class="kw">impl </span>AsUtf8FileContent <span class="kw">for </span>BuildRouterFromSource {
-<a href=#962 id=962 data-nosnippet>962</a>    <span class="kw">async fn </span>try_get_file_content(
-<a href=#963 id=963 data-nosnippet>963</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#964 id=964 data-nosnippet>964</a>        _src: <span class="kw-2">&amp;</span>Source,
-<a href=#965 id=965 data-nosnippet>965</a>        _ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,
-<a href=#966 id=966 data-nosnippet>966</a>    ) -&gt; providers::Result&lt;String&gt; {
-<a href=#967 id=967 data-nosnippet>967</a>        <span class="kw">let </span>commit_ref = <span class="self">self</span>.git_ref.as_resolved();
-<a href=#968 id=968 data-nosnippet>968</a>        <span class="kw">let </span>rust_version = <span class="self">self</span>.rust_version.as_resolved();
-<a href=#969 id=969 data-nosnippet>969</a>
-<a href=#970 id=970 data-nosnippet>970</a>        <span class="kw">let </span>install_script = <span class="macro">format!</span>(
-<a href=#971 id=971 data-nosnippet>971</a>            <span class="macro">indoc!</span>(
-<a href=#972 id=972 data-nosnippet>972</a>                <span class="string">r#"mkdir router-source &amp;&amp; \
-<a href=#973 id=973 data-nosnippet>973</a>                cd router-source &amp;&amp; \
-<a href=#974 id=974 data-nosnippet>974</a>                git clone https://github.com/apollographql/router.git &amp;&amp; \
-<a href=#975 id=975 data-nosnippet>975</a>                cd router &amp;&amp; \
-<a href=#976 id=976 data-nosnippet>976</a>                git checkout {} &amp;&amp; \
-<a href=#977 id=977 data-nosnippet>977</a>                rustup toolchain install {} &amp;&amp; \
-<a href=#978 id=978 data-nosnippet>978</a>                rustup run {} cargo build --release &amp;&amp; \
-<a href=#979 id=979 data-nosnippet>979</a>                cp ${{CARGO_TARGET_DIR}}/release/router ~/.cargo/bin/"#
-<a href=#980 id=980 data-nosnippet>980</a>            </span>),
-<a href=#981 id=981 data-nosnippet>981</a>            commit_ref, rust_version, rust_version
-<a href=#982 id=982 data-nosnippet>982</a>        );
-<a href=#983 id=983 data-nosnippet>983</a>
-<a href=#984 id=984 data-nosnippet>984</a>        <span class="prelude-val">Ok</span>(install_script)
-<a href=#985 id=985 data-nosnippet>985</a>    }
-<a href=#986 id=986 data-nosnippet>986</a>}
-<a href=#987 id=987 data-nosnippet>987</a>
-<a href=#988 id=988 data-nosnippet>988</a><span class="kw">impl </span>Check <span class="kw">for </span>BuildRouterFromSource {
-<a href=#989 id=989 data-nosnippet>989</a>    <span class="kw">fn </span>try_check(
-<a href=#990 id=990 data-nosnippet>990</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#991 id=991 data-nosnippet>991</a>        _path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
-<a href=#992 id=992 data-nosnippet>992</a>        _src: <span class="kw-2">&amp;</span>Source,
-<a href=#993 id=993 data-nosnippet>993</a>        _ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,
-<a href=#994 id=994 data-nosnippet>994</a>    ) -&gt; checks::Result&lt;()&gt; {
-<a href=#995 id=995 data-nosnippet>995</a>        <span class="prelude-val">Ok</span>(())
-<a href=#996 id=996 data-nosnippet>996</a>    }
-<a href=#997 id=997 data-nosnippet>997</a>}</code></pre></div></section></main></body></html>
+<a href=#961 id=961 data-nosnippet>961</a>        <span class="kw">let </span>install_script = <span class="macro">format!</span>(
+<a href=#962 id=962 data-nosnippet>962</a>            <span class="macro">indoc!</span>(
+<a href=#963 id=963 data-nosnippet>963</a>                <span class="string">r#"mkdir router-source &amp;&amp; \
+<a href=#964 id=964 data-nosnippet>964</a>                cd router-source &amp;&amp; \
+<a href=#965 id=965 data-nosnippet>965</a>                git clone https://github.com/apollographql/router.git &amp;&amp; \
+<a href=#966 id=966 data-nosnippet>966</a>                cd router &amp;&amp; \
+<a href=#967 id=967 data-nosnippet>967</a>                git checkout {} &amp;&amp; \
+<a href=#968 id=968 data-nosnippet>968</a>                rustup toolchain install {} &amp;&amp; \
+<a href=#969 id=969 data-nosnippet>969</a>                rustup run {} cargo build --release &amp;&amp; \
+<a href=#970 id=970 data-nosnippet>970</a>                cp ${{CARGO_TARGET_DIR}}/release/router ~/.cargo/bin/"#
+<a href=#971 id=971 data-nosnippet>971</a>            </span>),
+<a href=#972 id=972 data-nosnippet>972</a>            commit_ref, rust_version, rust_version
+<a href=#973 id=973 data-nosnippet>973</a>        );
+<a href=#974 id=974 data-nosnippet>974</a>
+<a href=#975 id=975 data-nosnippet>975</a>        <span class="prelude-val">Ok</span>(install_script)
+<a href=#976 id=976 data-nosnippet>976</a>    }
+<a href=#977 id=977 data-nosnippet>977</a>}
+<a href=#978 id=978 data-nosnippet>978</a>
+<a href=#979 id=979 data-nosnippet>979</a><span class="kw">impl </span>Check <span class="kw">for </span>BuildRouterFromSource {
+<a href=#980 id=980 data-nosnippet>980</a>    <span class="kw">fn </span>try_check(
+<a href=#981 id=981 data-nosnippet>981</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#982 id=982 data-nosnippet>982</a>        _path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
+<a href=#983 id=983 data-nosnippet>983</a>        _src: <span class="kw-2">&amp;</span>Source,
+<a href=#984 id=984 data-nosnippet>984</a>        _ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,
+<a href=#985 id=985 data-nosnippet>985</a>    ) -&gt; checks::Result&lt;()&gt; {
+<a href=#986 id=986 data-nosnippet>986</a>        <span class="prelude-val">Ok</span>(())
+<a href=#987 id=987 data-nosnippet>987</a>    }
+<a href=#988 id=988 data-nosnippet>988</a>}</code></pre></div></section></main></body></html>
