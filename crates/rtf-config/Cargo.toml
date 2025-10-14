@@ -4,7 +4,10 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+anyhow.workspace = true
+bytes.workspace = true
 futures.workspace = true
+indoc.workspace = true
 itertools.workspace = true
 rtf-core = { path = "../rtf-core" }
 rtf-derive = { path = "../rtf-derive" }
@@ -16,9 +19,6 @@ thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 reqwest.workspace = true
-anyhow = "1.0.99"
-bytes = "1.10.1"
-indoc = "2.0.6"
 schemars.workspace = true
 
 [dev-dependencies]
