@@ -5,7 +5,7 @@ edition.workspace = true
 
 [dependencies]
 apollo-compiler.workspace = true
-bytes = "1.10.1"
+bytes.workspace = true
 futures.workspace = true
 graphql_client = "0.14.0"
 itertools.workspace = true
