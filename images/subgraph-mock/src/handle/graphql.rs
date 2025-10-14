@@ -1,5 +1,6 @@
 use crate::{
-    ADDITIONAL_HEADERS, CACHE_RESPONSES, RESPONSE_GENERATION_CONFIG, SUPERGRAPH_SCHEMA,
+    ADDITIONAL_HEADERS, CACHE_RESPONSES, RESPONSE_GENERATION_CONFIG, SUBGRAPH_CACHE_RESPONSES,
+    SUBGRAPH_HEADERS, SUBGRAPH_RESPONSE_GENERATION_CONFIGS, SUPERGRAPH_SCHEMA,
     handle::ByteResponse,
 };
 use anyhow::anyhow;
@@ -28,7 +29,7 @@ use std::{
 };
 use tracing::{debug, error, trace};
 
-pub async fn handle(body: Incoming) -> anyhow::Result<ByteResponse> {
+pub async fn handle(body: Incoming, subgraph_name: Option<&str>) -> anyhow::Result<ByteResponse> {
     let body_bytes = body.collect().await?.to_bytes().to_vec();
     let req: GraphQLRequest = match serde_json::from_slice(&body_bytes) {
         Ok(req) => req,
@@ -49,16 +50,24 @@ pub async fn handle(body: Incoming) -> anyhow::Result<ByteResponse> {
     req.query.hash(&mut hasher);
     let query_hash = hasher.finish();
 
-    let (bytes, status_code) = if CACHE_RESPONSES.load(Ordering::Relaxed) {
-        into_response_bytes_and_status_code(req, query_hash).await
+    let (bytes, status_code) = if subgraph_name
+        .and_then(|name| SUBGRAPH_CACHE_RESPONSES.wait().get(name).copied())
+        .unwrap_or_else(|| CACHE_RESPONSES.load(Ordering::Relaxed))
+    {
+        into_response_bytes_and_status_code(req, subgraph_name, query_hash).await
     } else {
-        into_response_bytes_and_status_code_no_cache(req, query_hash).await
+        into_response_bytes_and_status_code_no_cache(req, subgraph_name, query_hash).await
     };
 
     let mut resp = Response::new(Full::new(bytes).map_err(|never| match never {}).boxed());
     *resp.status_mut() = status_code;
+
     let headers = resp.headers_mut();
-    headers.extend(ADDITIONAL_HEADERS.wait().clone());
+    headers.extend(
+        subgraph_name
+            .and_then(|name| SUBGRAPH_HEADERS.wait().get(name).cloned())
+            .unwrap_or_else(|| ADDITIONAL_HEADERS.wait().clone()),
+    );
     headers.insert("Content-Type", HeaderValue::from_static("application/json"));
 
     Ok(resp)
@@ -79,6 +88,7 @@ struct GraphQLRequest {
 #[cached(key = "u64", convert = "{query_hash}")]
 async fn into_response_bytes_and_status_code(
     req: GraphQLRequest,
+    subgraph_name: Option<&str>,
     query_hash: u64,
 ) -> (Bytes, StatusCode) {
     let schema = SUPERGRAPH_SCHEMA.wait();
@@ -109,7 +119,7 @@ async fn into_response_bytes_and_status_code(
     );
 
     let resp = match op.operation_type {
-        OperationType::Query => match generate_response(op_name, &doc, schema) {
+        OperationType::Query => match generate_response(op_name, &doc, schema, subgraph_name) {
             Ok(resp) => resp,
             Err(err) => {
                 error!(%err, "unable to generate response");
@@ -146,6 +156,7 @@ fn generate_response(
     op_name: Option<&str>,
     doc: &Valid<ExecutableDocument>,
     schema: &Valid<Schema>,
+    subgraph_name: Option<&str>,
 ) -> anyhow::Result<Value> {
     let op = match doc.operations.get(op_name) {
         Ok(op) => op,
@@ -156,7 +167,9 @@ fn generate_response(
         &mut rand::rng(),
         doc,
         schema,
-        RESPONSE_GENERATION_CONFIG.wait(),
+        subgraph_name
+            .and_then(|name| SUBGRAPH_RESPONSE_GENERATION_CONFIGS.wait().get(name))
+            .unwrap_or_else(|| RESPONSE_GENERATION_CONFIG.wait()),
     )
     .selection_set(&op.selection_set)?;
 
