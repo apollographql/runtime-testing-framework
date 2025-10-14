@@ -738,9 +738,9 @@ mod tests {
     #[test]
     fn has_pending_fields(t: Box<dyn Template>, expected: bool) {
         let res = t.has_pending_fields();
-        assert!(
-            res == expected,
-            "expected has pending fields to be {expected:?}, got {res:?}"
+        assert_eq!(
+            res, expected,
+            "tests that has_pending_fields has expected value"
         )
     }
 
