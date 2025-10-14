@@ -313,7 +313,7 @@ async fn fetch_operation_signatures(
 
     info!("pulling operation signatures for {graph_id}");
     let mut n_batches = ids.len() / N_PARALLEL_FETCH;
-    if n_batches % N_PARALLEL_FETCH > 0 {
+    if !n_batches.is_multiple_of(N_PARALLEL_FETCH) {
         n_batches += 1;
     }
 
