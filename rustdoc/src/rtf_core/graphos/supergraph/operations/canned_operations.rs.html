@@ -313,7 +313,7 @@
 <a href=#313 id=313 data-nosnippet>313</a>
 <a href=#314 id=314 data-nosnippet>314</a>    <span class="macro">info!</span>(<span class="string">"pulling operation signatures for {graph_id}"</span>);
 <a href=#315 id=315 data-nosnippet>315</a>    <span class="kw">let </span><span class="kw-2">mut </span>n_batches = ids.len() / N_PARALLEL_FETCH;
-<a href=#316 id=316 data-nosnippet>316</a>    <span class="kw">if </span>n_batches % N_PARALLEL_FETCH &gt; <span class="number">0 </span>{
+<a href=#316 id=316 data-nosnippet>316</a>    <span class="kw">if </span>!n_batches.is_multiple_of(N_PARALLEL_FETCH) {
 <a href=#317 id=317 data-nosnippet>317</a>        n_batches += <span class="number">1</span>;
 <a href=#318 id=318 data-nosnippet>318</a>    }
 <a href=#319 id=319 data-nosnippet>319</a>
