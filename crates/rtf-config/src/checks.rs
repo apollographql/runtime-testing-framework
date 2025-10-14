@@ -1,6 +1,10 @@
 //! Helpers for checking config files
-use crate::{context::ResolutionContext, providers::file::Source};
-use std::collections::HashSet;
+use crate::{
+    ValueDefinition,
+    context::ResolutionContext,
+    providers::file::{NamedFileProvider, Source},
+};
+use std::{collections::HashMap, hash::Hash, mem};
 
 /// User facing descriptions of the reason that validation failed.
 ///
@@ -103,6 +107,112 @@ macro_rules! enum_impl_check {
     };
 }
 
+#[derive(Debug)]
+pub enum DedupArray<'a> {
+    ValueDef(&'static str, &'a mut Vec<ValueDefinition>),
+    Nfp(&'static str, &'a mut Vec<NamedFileProvider>),
+}
+
+/// Checks for conflicts between different arrays are handled in the implementation of [Check]
+pub trait CheckArrayDuplicates {
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<DedupArray<'a>>;
+
+    fn ensure_no_duplicate_keys(&mut self, path: &mut Vec<String>) -> Result<()> {
+        let mut errs = ErrorBuilder::new();
+
+        for arr in self.deduplicated_arrays() {
+            let (p, duplicates) = match arr {
+                DedupArray::ValueDef(p, vds) => (p, duplicate_keys(vds.iter(), |vd| &vd.name)),
+                DedupArray::Nfp(p, nfps) => (p, duplicate_keys(nfps.iter(), |nfp| &nfp.env_var)),
+            };
+
+            if !duplicates.is_empty() {
+                let mut nested_path = path.clone();
+                nested_path.push(p.to_string());
+                errs.push(
+                    ErrorKind::DuplicateValueNames,
+                    duplicates.join("\n"),
+                    &nested_path,
+                );
+            }
+        }
+
+        errs.into_result(())
+    }
+
+    fn dedup_and_sort(&mut self, path: &mut Vec<String>) -> Result<()> {
+        let mut errs = ErrorBuilder::new();
+
+        for arr in self.deduplicated_arrays() {
+            match arr {
+                DedupArray::ValueDef(p, vds) => {
+                    errs.append(dedup_and_sort_by_key(vds, |vd| vd.name.clone(), path, p))
+                }
+                DedupArray::Nfp(p, nfps) => errs.append(dedup_and_sort_by_key(
+                    nfps,
+                    |nfp| nfp.env_var.clone(),
+                    path,
+                    p,
+                )),
+            }
+        }
+
+        errs.into_result(())
+    }
+}
+
+/// Helper function for deduplicating list entries. We are depulicating in this
+/// way because we know the user is overriding specific items. We are taking
+/// the last entry on the list as the one to keep.
+fn dedup_and_sort_by_key<T>(
+    v: &mut Vec<T>,
+    key_fn: fn(&T) -> String,
+    path: &mut [String],
+    p: &str,
+) -> Result<()> {
+    let duplicates = duplicate_keys_with_threshold(v.iter(), key_fn, 2);
+    if !duplicates.is_empty() {
+        let mut nested_path = path.to_vec();
+        nested_path.push(p.to_string());
+        return Err(Errors::new(
+            ErrorKind::DuplicateValueNames,
+            duplicates.join("\n"),
+            &nested_path,
+        ));
+    }
+
+    let mut m = HashMap::with_capacity(v.len());
+    for item in mem::take(v).into_iter() {
+        m.insert(key_fn(&item), item);
+    }
+    let mut deduped: Vec<T> = m.into_values().collect();
+    deduped.sort_by_key(key_fn);
+
+    *v = deduped;
+
+    Ok(())
+}
+
+fn duplicate_keys_with_threshold<'a, T: 'a, K>(
+    elems: impl Iterator<Item = T>,
+    key_fn: impl Fn(T) -> K,
+    threshold: usize,
+) -> Vec<K>
+where
+    K: Eq + Hash + Ord,
+{
+    let mut counts: HashMap<K, usize> = HashMap::new();
+    for elem in elems.into_iter() {
+        *counts.entry(key_fn(elem)).or_default() += 1;
+    }
+    counts.retain(|_, n| *n > threshold);
+
+    let mut duplicates: Vec<_> = counts.into_keys().collect();
+    duplicates.sort_unstable();
+
+    duplicates
+}
+
 /// Determine if there are any duplicates within a given slices of elements using a given key
 /// function.
 ///
@@ -111,23 +221,7 @@ pub(crate) fn duplicate_keys<'a, T: 'a>(
     elems: impl Iterator<Item = T>,
     key_fn: impl Fn(T) -> &'a str,
 ) -> Vec<&'a str> {
-    let mut seen = HashSet::new();
-    let mut duplicates = Vec::new();
-
-    for elem in elems.into_iter() {
-        let k = key_fn(elem);
-        if seen.contains(k) {
-            duplicates.push(k);
-        } else {
-            seen.insert(k);
-        }
-    }
-
-    // ensure that our reported duplicates are in alphabetical order
-    duplicates.sort_unstable();
-    duplicates.dedup();
-
-    duplicates
+    duplicate_keys_with_threshold(elems, key_fn, 1)
 }
 
 #[cfg(test)]
