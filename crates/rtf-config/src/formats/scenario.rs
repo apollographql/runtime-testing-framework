@@ -82,10 +82,13 @@ impl Check for ScenarioConfig {
 impl CheckArrayDuplicates for ScenarioConfig {
     const BASE_PATH: &str = "scenario";
 
-    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<DedupArray<'a>> {
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
         vec![
-            DedupArray::ValueDef("values", &mut self.values),
-            DedupArray::Nfp("file_providers", &mut self.command.file_providers),
+            ("values", DedupArray::ValueDef(&mut self.values)),
+            (
+                "file_providers",
+                DedupArray::Nfp(&mut self.command.file_providers),
+            ),
         ]
     }
 }

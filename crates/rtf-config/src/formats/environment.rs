@@ -140,15 +140,21 @@ impl Check for EnvironmentConfig {
 impl CheckArrayDuplicates for EnvironmentConfig {
     const BASE_PATH: &str = "environment";
 
-    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<DedupArray<'a>> {
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
         vec![
-            DedupArray::ValueDef("values", &mut self.values),
-            DedupArray::ValueDef("setup.provides", &mut self.setup.provides),
-            DedupArray::Nfp(
-                "setup.file_providers",
-                &mut self.setup.command.file_providers,
+            ("values", DedupArray::ValueDef(&mut self.values)),
+            (
+                "setup.provides",
+                DedupArray::ValueDef(&mut self.setup.provides),
             ),
-            DedupArray::Nfp("teardown.file_providers", &mut self.teardown.file_providers),
+            (
+                "setup.file_providers",
+                DedupArray::Nfp(&mut self.setup.command.file_providers),
+            ),
+            (
+                "teardown.file_providers",
+                DedupArray::Nfp(&mut self.teardown.file_providers),
+            ),
         ]
     }
 }

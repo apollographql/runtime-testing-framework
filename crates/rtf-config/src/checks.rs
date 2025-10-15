@@ -107,42 +107,24 @@ macro_rules! enum_impl_check {
     };
 }
 
-#[derive(Debug)]
-pub enum DedupArray<'a> {
-    ValueDef(&'static str, &'a mut Vec<ValueDefinition>),
-    Nfp(&'static str, &'a mut Vec<NamedFileProvider>),
-}
-
 /// Checks for conflicts between different arrays are handled in the implementation of [Check]
 pub trait CheckArrayDuplicates {
     const BASE_PATH: &str;
 
-    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<DedupArray<'a>>;
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)>;
 
     fn ensure_no_duplicate_keys(&mut self) -> Result<()> {
         let mut errs = ErrorBuilder::new();
-
-        for arr in self.deduplicated_arrays() {
-            let (p, duplicates) = match arr {
-                DedupArray::ValueDef(p, vds) => (p, duplicate_keys(vds.iter(), |vd| &vd.name)),
-                DedupArray::Nfp(p, nfps) => (p, duplicate_keys(nfps.iter(), |nfp| &nfp.env_var)),
-            };
-
-            if !duplicates.is_empty() {
-                let path = vec![Self::BASE_PATH.to_string(), p.to_string()];
-                errs.push(ErrorKind::DuplicateValueNames, duplicates.join("\n"), &path);
-            }
+        for (p, arr) in self.deduplicated_arrays() {
+            errs.append(arr.ensure_no_duplicate_keys(Self::BASE_PATH, p));
         }
 
         errs.into_result(())
     }
 
     fn sort_arrays(&mut self) {
-        for arr in self.deduplicated_arrays() {
-            match arr {
-                DedupArray::ValueDef(_, vds) => vds.sort_by_key(|vd| vd.name.clone()),
-                DedupArray::Nfp(_, nfps) => nfps.sort_by_key(|nfp| nfp.env_var.clone()),
-            };
+        for (_, mut arr) in self.deduplicated_arrays() {
+            arr.sort();
         }
     }
 
@@ -153,67 +135,94 @@ pub trait CheckArrayDuplicates {
         // Allow for up to two duplicates when applying overrides (one in the base and one in the
         // overrides). We check this first to ensure that all arrays are valid before we attempt
         // to deduplicate any of them.
-        for arr in arrs.iter_mut() {
-            match arr {
-                DedupArray::ValueDef(p, vds) => errs.append(at_most_two_duplicates(
-                    vds,
-                    |vd| vd.name.clone(),
-                    Self::BASE_PATH,
-                    p,
-                )),
-                DedupArray::Nfp(p, nfps) => errs.append(at_most_two_duplicates(
-                    nfps,
-                    |nfp| nfp.env_var.clone(),
-                    Self::BASE_PATH,
-                    p,
-                )),
-            }
+        for (p, arr) in arrs.iter_mut() {
+            errs.append(arr.at_most_two_duplicates(Self::BASE_PATH, p));
         }
 
         errs.into_result(())?;
 
-        for arr in arrs {
-            match arr {
-                DedupArray::ValueDef(_, vds) => dedup_and_sort_by_key(vds, |vd| vd.name.clone()),
-                DedupArray::Nfp(_, nfps) => dedup_and_sort_by_key(nfps, |nfp| nfp.env_var.clone()),
-            }
+        for (_, mut arr) in arrs {
+            arr.dedup_and_sort();
         }
 
         Ok(())
     }
 }
 
-fn at_most_two_duplicates<T>(
-    v: &[T],
-    key_fn: fn(&T) -> String,
-    base_path: &str,
-    p: &str,
-) -> Result<()> {
-    let duplicates = duplicate_keys_with_threshold(v.iter(), key_fn, 2);
-    if !duplicates.is_empty() {
-        let path = vec![base_path.to_string(), p.to_string()];
-        return Err(Errors::new(
-            ErrorKind::DuplicateValueNames,
-            duplicates.join("\n"),
-            &path,
-        ));
-    }
-
-    Ok(())
+/// Wrapper around the array types we need to be able to check and dedup as part of merging
+/// overrides in test plans.
+#[derive(Debug)]
+pub enum DedupArray<'a> {
+    ValueDef(&'a mut Vec<ValueDefinition>),
+    Nfp(&'a mut Vec<NamedFileProvider>),
 }
 
-/// Helper function for deduplicating list entries. We are depulicating in this
-/// way because we know the user is overriding specific items. We are taking
-/// the last entry on the list as the one to keep.
-fn dedup_and_sort_by_key<T>(v: &mut Vec<T>, key_fn: fn(&T) -> String) {
-    let mut m = HashMap::with_capacity(v.len());
-    for item in mem::take(v).into_iter() {
-        m.insert(key_fn(&item), item);
-    }
-    let mut deduped: Vec<T> = m.into_values().collect();
-    deduped.sort_by_key(key_fn);
+impl<'a> DedupArray<'a> {
+    fn ensure_no_duplicate_keys(&self, base_path: &str, p: &str) -> Result<()> {
+        let duplicates = match self {
+            DedupArray::ValueDef(vds) => duplicate_keys(vds.iter(), |vd| &vd.name),
+            DedupArray::Nfp(nfps) => duplicate_keys(nfps.iter(), |nfp| &nfp.env_var),
+        };
 
-    *v = deduped;
+        if !duplicates.is_empty() {
+            let path = vec![base_path.to_string(), p.to_string()];
+            return Err(Errors::new(
+                ErrorKind::DuplicateValueNames,
+                duplicates.join("\n"),
+                &path,
+            ));
+        }
+
+        Ok(())
+    }
+
+    fn sort(&mut self) {
+        match self {
+            DedupArray::ValueDef(vds) => vds.sort_by_key(|vd| vd.name.clone()),
+            DedupArray::Nfp(nfps) => nfps.sort_by_key(|nfp| nfp.env_var.clone()),
+        }
+    }
+
+    fn at_most_two_duplicates(&self, base_path: &str, p: &str) -> Result<()> {
+        fn inner<T>(v: &[T], key_fn: fn(&T) -> String, base_path: &str, p: &str) -> Result<()> {
+            let duplicates = duplicate_keys_with_threshold(v.iter(), key_fn, 2);
+            if !duplicates.is_empty() {
+                let path = vec![base_path.to_string(), p.to_string()];
+                return Err(Errors::new(
+                    ErrorKind::DuplicateValueNames,
+                    duplicates.join("\n"),
+                    &path,
+                ));
+            }
+
+            Ok(())
+        }
+
+        match self {
+            DedupArray::ValueDef(vds) => inner(vds, |vd| vd.name.clone(), base_path, p),
+            DedupArray::Nfp(nfps) => inner(nfps, |nfp| nfp.env_var.clone(), base_path, p),
+        }
+    }
+
+    fn dedup_and_sort(&mut self) {
+        /// We are depulicating in this way because we know the user is overriding specific items.
+        /// We are taking the last entry on the list as the one to keep.
+        fn inner<T>(v: &mut Vec<T>, key_fn: fn(&T) -> String) {
+            let mut m = HashMap::with_capacity(v.len());
+            for item in mem::take(v).into_iter() {
+                m.insert(key_fn(&item), item);
+            }
+            let mut deduped: Vec<T> = m.into_values().collect();
+            deduped.sort_by_key(key_fn);
+
+            *v = deduped;
+        }
+
+        match self {
+            DedupArray::ValueDef(vds) => inner(vds, |vd| vd.name.clone()),
+            DedupArray::Nfp(nfps) => inner(nfps, |nfp| nfp.env_var.clone()),
+        }
+    }
 }
 
 fn duplicate_keys_with_threshold<'a, T: 'a, K>(
