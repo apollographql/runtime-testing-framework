@@ -153,7 +153,7 @@ mod tests {
     use crate::{
         context::Context,
         formats::tests::{
-            assert_template_errors, expected_error_details, named_file_provider_with_field, p, r,
+            assert_template_errors, expected_error_details, named_file_providers_with_fields, p, r,
             templatable_file_providers, value_definitions, value_map,
         },
         templating::Field,
@@ -188,37 +188,28 @@ mod tests {
     }
 
     /// Create an EnvironmentConfig for testing Template trait methods (has_pending_fields, required_values)
-    fn template_trait_test_config(
-        setup_field_1: Field<String>,
-        setup_field_2: Field<String>,
-        teardown_field_1: Field<String>,
-        teardown_field_2: Field<String>,
+    fn environment_with_fields(
+        setup_fields: &[Field<String>],
+        teardown_fields: &[Field<String>],
     ) -> EnvironmentConfig {
         EnvironmentConfig {
             setup: SetupSection {
                 command: CommandSection {
-                    file_providers: vec![
-                        named_file_provider_with_field("setup1", setup_field_1),
-                        named_file_provider_with_field("setup2", setup_field_2),
-                    ],
+                    file_providers: named_file_providers_with_fields(setup_fields),
                     ..CommandSection::empty()
                 },
                 provides: Vec::new(),
             },
             teardown: CommandSection {
-                file_providers: vec![
-                    named_file_provider_with_field("teardown1", teardown_field_1),
-                    named_file_provider_with_field("teardown2", teardown_field_2),
-                ],
+                file_providers: named_file_providers_with_fields(teardown_fields),
                 ..CommandSection::empty()
             },
             ..EnvironmentConfig::empty()
         }
     }
 
-    /// Create a test EnvironmentConfig with specified setup and teardown field names
-    /// All field names are added as both value definitions and pending template fields
-    fn test_environment_config(
+    /// Create a test EnvironmentConfig for template
+    fn templatable_environment(
         value_names: &[&str],
         setup_fields: &[&str],
         teardown_fields: &[&str],
@@ -240,27 +231,28 @@ mod tests {
         }
     }
 
-    /// Create a CommandSection with both env vars and file providers for testing scoping
-    fn cmd_section_with_scoping_fields(name: &str, env_var: &str) -> CommandSection {
-        CommandSection {
-            env_vars: [(env_var.to_uppercase(), Field::Pending(env_var.to_string()))]
-                .into_iter()
-                .collect(),
-            file_providers: templatable_file_providers(&[name]),
-            ..CommandSection::empty()
-        }
-    }
-
     /// Create an EnvironmentConfig for testing value scoping behavior
     /// Sets up predefined template fields that reference specific variable names
-    fn scoping_test_config(available_vals: &[&str], provides: &[&str]) -> EnvironmentConfig {
+    fn environment_with_provides(available_vals: &[&str], provides: &[&str]) -> EnvironmentConfig {
         EnvironmentConfig {
             values: value_definitions(available_vals),
             setup: SetupSection {
-                command: cmd_section_with_scoping_fields("setup-path", "foo"),
+                command: CommandSection {
+                    env_vars: [("foo".to_uppercase(), Field::Pending("foo".to_string()))]
+                        .into_iter()
+                        .collect(),
+                    file_providers: templatable_file_providers(&["setup-path"]),
+                    ..CommandSection::empty()
+                },
                 provides: value_definitions(provides),
             },
-            teardown: cmd_section_with_scoping_fields("teardown-path", "bar"),
+            teardown: CommandSection {
+                env_vars: [("bar".to_uppercase(), Field::Pending("bar".to_string()))]
+                    .into_iter()
+                    .collect(),
+                file_providers: templatable_file_providers(&["teardown-path"]),
+                ..CommandSection::empty()
+            },
             ..EnvironmentConfig::empty()
         }
     }
@@ -312,8 +304,6 @@ mod tests {
         assert_eq!(res, &["bar", "foo"], "expected values to match")
     }
 
-    // Tests
-
     #[dir_cases("crates/rtf-config/resources/config-tests/environment/check-failures")]
     #[test]
     fn check_failures(_path: &str, content: &str) {
@@ -361,8 +351,7 @@ mod tests {
         teardown_field: Field<String>,
         expected: bool,
     ) {
-        let environment =
-            template_trait_test_config(setup_field, r("setup2"), teardown_field, r("teardown2"));
+        let environment = environment_with_fields(&[setup_field], &[teardown_field]);
 
         let res = environment.has_pending_fields();
         assert_eq!(
@@ -371,29 +360,22 @@ mod tests {
         )
     }
 
-    #[test_case(p("setup1"), p("setup2"), p("teardown1"), p("teardown2"), &["setup1", "setup2", "teardown1", "teardown2"]; "both setup and both teardown pending requires values")]
-    #[test_case(p("setup1"), p("setup2"), p("teardown1"), r("teardown2"), &["setup1", "setup2", "teardown1"]; "both setup and single teardown pending requires values")]
-    #[test_case(p("setup1"), p("setup2"), r("teardown1"), r("teardown2"), &["setup1", "setup2"]; "both setup and no teardown pending requires values")]
-    #[test_case(p("setup1"), r("setup2"), p("teardown1"), p("teardown2"), &["setup1", "teardown1", "teardown2"]; "single setup and both teardown pending requires values")]
-    #[test_case(p("setup1"), r("setup2"), p("teardown1"), r("teardown2"), &["setup1", "teardown1"]; "single setup and single teardown pending requires values")]
-    #[test_case(p("setup1"), r("setup2"), r("teardown1"), r("teardown2"), &["setup1"]; "single setup and no teardown pending requires values")]
-    #[test_case(r("setup1"), r("setup2"), p("teardown1"), p("teardown2"), &["teardown1", "teardown2"]; "no setup and both teardown pending requires values")]
-    #[test_case(r("setup1"), r("setup2"), p("teardown1"), r("teardown2"), &["teardown1"]; "no setup and single teardown pending requires values")]
-    #[test_case(r("setup1"), r("setup2"), r("teardown1"), r("teardown2"), &[]; "no setup and no teardown pending requires no values")]
+    #[test_case(&[p("setup1"), p("setup2")], &[p("teardown1"), p("teardown2")], &["setup1", "setup2", "teardown1", "teardown2"]; "both setup and both teardown pending requires values")]
+    #[test_case(&[p("setup1"), p("setup2")], &[p("teardown1"), r("teardown2")], &["setup1", "setup2", "teardown1"]; "both setup and single teardown pending requires values")]
+    #[test_case(&[p("setup1"), p("setup2")], &[r("teardown1"), r("teardown2")], &["setup1", "setup2"]; "both setup and no teardown pending requires values")]
+    #[test_case(&[p("setup1"), r("setup2")], &[p("teardown1"), p("teardown2")], &["setup1", "teardown1", "teardown2"]; "single setup and both teardown pending requires values")]
+    #[test_case(&[p("setup1"), r("setup2")], &[p("teardown1"), r("teardown2")], &["setup1", "teardown1"]; "single setup and single teardown pending requires values")]
+    #[test_case(&[p("setup1"), r("setup2")], &[r("teardown1"), r("teardown2")], &["setup1"]; "single setup and no teardown pending requires values")]
+    #[test_case(&[r("setup1"), r("setup2")], &[p("teardown1"), p("teardown2")], &["teardown1", "teardown2"]; "no setup and both teardown pending requires values")]
+    #[test_case(&[r("setup1"), r("setup2")], &[p("teardown1"), r("teardown2")], &["teardown1"]; "no setup and single teardown pending requires values")]
+    #[test_case(&[r("setup1"), r("setup2")], &[r("teardown1"), r("teardown2")], &[]; "no setup and no teardown pending requires no values")]
     #[test]
     fn required_values(
-        setup_field_1: Field<String>,
-        setup_field_2: Field<String>,
-        teardown_field_1: Field<String>,
-        teardown_field_2: Field<String>,
+        setup_fields: &[Field<String>],
+        teardown_fields: &[Field<String>],
         expected: &[&str],
     ) {
-        let environment = template_trait_test_config(
-            setup_field_1,
-            setup_field_2,
-            teardown_field_1,
-            teardown_field_2,
-        );
+        let environment = environment_with_fields(setup_fields, teardown_fields);
 
         let res = environment.required_values();
         assert_eq!(
@@ -418,7 +400,7 @@ mod tests {
 
         let values = value_map(field_names.as_slice());
         let mut environment =
-            test_environment_config(field_names.as_slice(), setup_fields, teardown_fields);
+            templatable_environment(field_names.as_slice(), setup_fields, teardown_fields);
 
         let res = environment.try_template(&mut Vec::new(), &values);
         assert!(
@@ -461,7 +443,7 @@ mod tests {
         expected_err_fields: &[&str],
     ) {
         let values = value_map(&["setup", "setup1", "setup2"]);
-        let mut environment = test_environment_config(value_defs, setup_fields, &[]);
+        let mut environment = templatable_environment(value_defs, setup_fields, &[]);
 
         assert_env_template_errors(&mut environment, values, expected_err_fields, &[]);
     }
@@ -478,7 +460,7 @@ mod tests {
         expected_err_fields: &[&str],
     ) {
         let values = value_map(&["teardown", "teardown1", "teardown2"]);
-        let mut environment = test_environment_config(value_defs, &[], teardown_fields);
+        let mut environment = templatable_environment(value_defs, &[], teardown_fields);
 
         assert_env_template_errors(&mut environment, values, &[], expected_err_fields);
     }
@@ -486,7 +468,7 @@ mod tests {
     #[test]
     fn try_template_missing_setup_and_teardown_value_definitions() {
         let values = value_map(&["setup", "teardown"]);
-        let mut environment = test_environment_config(&[], &["setup"], &["teardown"]);
+        let mut environment = templatable_environment(&[], &["setup"], &["teardown"]);
 
         assert_env_template_errors(&mut environment, values, &["setup"], &["teardown"]);
     }
@@ -495,7 +477,7 @@ mod tests {
     fn try_template_missing_setup_and_teardown_values_not_provided() {
         let values = value_map(&[]);
         let mut environment =
-            test_environment_config(&["setup", "teardown"], &["setup"], &["teardown"]);
+            templatable_environment(&["setup", "teardown"], &["setup"], &["teardown"]);
 
         assert_env_template_errors(&mut environment, values, &["setup"], &["teardown"]);
     }
@@ -505,7 +487,7 @@ mod tests {
     #[test]
     fn try_template_setup_cannot_access_provides_values() {
         // Setup a config where values are only defined in setup.provides, not in top-level values
-        let mut config = scoping_test_config(&[], &["foo", "setup-path"]);
+        let mut config = environment_with_provides(&[], &["foo", "setup-path"]);
 
         // Values exist in the map but are only defined in provides
         let values = value_map(&["foo", "setup-path"]);
@@ -539,7 +521,7 @@ mod tests {
     #[test]
     fn try_template_teardown_can_access_provides_values() {
         // Setup a config where values are only defined in setup.provides, not in top-level values
-        let mut config = scoping_test_config(&[], &["bar", "teardown-path"]);
+        let mut config = environment_with_provides(&[], &["bar", "teardown-path"]);
 
         // Values exist in the map and are defined in provides
         let values = value_map(&["bar", "teardown-path"]);
@@ -558,7 +540,7 @@ mod tests {
     #[test]
     fn try_template_setup_can_access_top_level_values() {
         // Setup a config where values are defined in top-level values
-        let mut config = scoping_test_config(&["foo", "setup-path"], &[]);
+        let mut config = environment_with_provides(&["foo", "setup-path"], &[]);
 
         // Values exist in the map and are defined in top-level values
         let values: HashMap<String, Scalar> = [("foo", "a"), ("setup-path", "b")]
@@ -580,7 +562,7 @@ mod tests {
     #[test]
     fn try_template_teardown_can_access_top_level_values() {
         // Setup a config where values are defined in top-level values
-        let mut config = scoping_test_config(&["bar", "teardown-path"], &[]);
+        let mut config = environment_with_provides(&["bar", "teardown-path"], &[]);
 
         // Values exist in the map and are defined in top-level values
         let values = value_map(&["bar", "teardown-path"]);
