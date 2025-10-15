@@ -148,13 +148,69 @@ pub struct SetupSection {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod test_helpers {
+    use super::*;
+    use crate::{
+        formats::tests::{
+            named_file_providers_with_fields, templatable_file_providers, value_definitions,
+        },
+        templating::Field,
+    };
+
+    /// Create an EnvironmentConfig for testing Template trait methods (has_pending_fields, required_values)
+    pub(crate) fn environment_with_fields(
+        setup_fields: &[Field<String>],
+        teardown_fields: &[Field<String>],
+    ) -> EnvironmentConfig {
+        EnvironmentConfig {
+            setup: SetupSection {
+                command: CommandSection {
+                    file_providers: named_file_providers_with_fields(setup_fields),
+                    ..CommandSection::empty()
+                },
+                provides: Vec::new(),
+            },
+            teardown: CommandSection {
+                file_providers: named_file_providers_with_fields(teardown_fields),
+                ..CommandSection::empty()
+            },
+            ..EnvironmentConfig::empty()
+        }
+    }
+
+    /// Create a test EnvironmentConfig for template tests
+    pub(crate) fn templatable_environment(
+        value_names: &[&str],
+        setup_fields: &[&str],
+        teardown_fields: &[&str],
+    ) -> EnvironmentConfig {
+        EnvironmentConfig {
+            values: value_definitions(value_names),
+            setup: SetupSection {
+                command: CommandSection {
+                    file_providers: templatable_file_providers(setup_fields),
+                    ..CommandSection::empty()
+                },
+                provides: Vec::new(),
+            },
+            teardown: CommandSection {
+                file_providers: templatable_file_providers(teardown_fields),
+                ..CommandSection::empty()
+            },
+            ..EnvironmentConfig::empty()
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
     use super::*;
     use crate::{
         context::Context,
+        formats::environment::test_helpers::{environment_with_fields, templatable_environment},
         formats::tests::{
-            assert_template_errors, expected_error_details, named_file_providers_with_fields, p, r,
-            templatable_file_providers, value_definitions, value_map,
+            assert_template_errors, expected_error_details, p, r, templatable_file_providers,
+            value_definitions, value_map,
         },
         templating::Field,
     };
@@ -184,50 +240,6 @@ mod tests {
             None => {
                 panic!("required txtar file section {fname:?} was missing");
             }
-        }
-    }
-
-    /// Create an EnvironmentConfig for testing Template trait methods (has_pending_fields, required_values)
-    fn environment_with_fields(
-        setup_fields: &[Field<String>],
-        teardown_fields: &[Field<String>],
-    ) -> EnvironmentConfig {
-        EnvironmentConfig {
-            setup: SetupSection {
-                command: CommandSection {
-                    file_providers: named_file_providers_with_fields(setup_fields),
-                    ..CommandSection::empty()
-                },
-                provides: Vec::new(),
-            },
-            teardown: CommandSection {
-                file_providers: named_file_providers_with_fields(teardown_fields),
-                ..CommandSection::empty()
-            },
-            ..EnvironmentConfig::empty()
-        }
-    }
-
-    /// Create a test EnvironmentConfig for template
-    fn templatable_environment(
-        value_names: &[&str],
-        setup_fields: &[&str],
-        teardown_fields: &[&str],
-    ) -> EnvironmentConfig {
-        EnvironmentConfig {
-            values: value_definitions(value_names),
-            setup: SetupSection {
-                command: CommandSection {
-                    file_providers: templatable_file_providers(setup_fields),
-                    ..CommandSection::empty()
-                },
-                provides: Vec::new(),
-            },
-            teardown: CommandSection {
-                file_providers: templatable_file_providers(teardown_fields),
-                ..CommandSection::empty()
-            },
-            ..EnvironmentConfig::empty()
         }
     }
 

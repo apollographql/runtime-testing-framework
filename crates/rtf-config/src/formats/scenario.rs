@@ -80,14 +80,49 @@ impl Check for ScenarioConfig {
 }
 
 #[cfg(test)]
+pub(crate) mod test_helpers {
+    use super::*;
+    use crate::{
+        formats::tests::{
+            named_file_providers_with_fields, templatable_file_providers, value_definitions,
+        },
+        templating::Field,
+    };
+
+    /// Create a ScenarioConfig for testing Template trait methods (has_pending_fields, required_values)
+    pub(crate) fn scenario_with_fields(fields: &[Field<String>]) -> ScenarioConfig {
+        ScenarioConfig {
+            command: CommandSection {
+                file_providers: named_file_providers_with_fields(fields),
+                ..CommandSection::empty()
+            },
+            ..ScenarioConfig::empty()
+        }
+    }
+
+    /// Create a ScenarioConfig for template testing
+    pub(crate) fn templatable_scenario(
+        value_names: &[&str],
+        scenario_fields: &[&str],
+    ) -> ScenarioConfig {
+        ScenarioConfig {
+            values: value_definitions(value_names),
+            command: CommandSection {
+                file_providers: templatable_file_providers(scenario_fields),
+                ..CommandSection::empty()
+            },
+            ..ScenarioConfig::empty()
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
         context::Context,
-        formats::tests::{
-            assert_template_errors, expected_error_details, named_file_providers_with_fields, p, r,
-            templatable_file_providers, value_definitions, value_map,
-        },
+        formats::scenario::test_helpers::{scenario_with_fields, templatable_scenario},
+        formats::tests::{assert_template_errors, expected_error_details, p, r, value_map},
         templating::Field,
     };
     use indoc::indoc;
@@ -116,29 +151,6 @@ mod tests {
             None => {
                 panic!("required txtar file section {fname:?} was missing");
             }
-        }
-    }
-
-    /// Create a ScenarioConfig for testing Template trait methods (has_pending_fields, required_values)
-    fn scenario_with_fields(fields: &[Field<String>]) -> ScenarioConfig {
-        ScenarioConfig {
-            command: CommandSection {
-                file_providers: named_file_providers_with_fields(fields),
-                ..CommandSection::empty()
-            },
-            ..ScenarioConfig::empty()
-        }
-    }
-
-    /// Create a ScenarioConfig for template testing
-    fn templatable_scenario(value_names: &[&str], scenario_fields: &[&str]) -> ScenarioConfig {
-        ScenarioConfig {
-            values: value_definitions(value_names),
-            command: CommandSection {
-                file_providers: templatable_file_providers(scenario_fields),
-                ..CommandSection::empty()
-            },
-            ..ScenarioConfig::empty()
         }
     }
 

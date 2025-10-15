@@ -637,7 +637,11 @@ mod tests {
     use crate::{
         context::Context,
         formats::{
-            environment::SetupSection,
+            environment::{
+                SetupSection,
+                test_helpers::{environment_with_fields, templatable_environment},
+            },
+            scenario::test_helpers::{scenario_with_fields, templatable_scenario},
             tests::{
                 assert_template_errors, expected_error_details, named_file_provider_with_field, p,
                 r, templatable_file_providers, value_definitions, value_map,
@@ -658,9 +662,7 @@ mod tests {
 
     // Helper functions
 
-    // Configuration creation helpers
-
-    /// Create a ValueDefinition with a default value for tests
+    /// Create a ValueDefinition with a default value
     fn value_with_default(name: &str, val: &str) -> ValueDefinition {
         ValueDefinition {
             name: name.into(),
@@ -678,41 +680,20 @@ mod tests {
         }};
     }
 
-    /// Create a basic ValueDefinition for testing
-    fn basic_value_definition(name: &str) -> ValueDefinition {
-        ValueDefinition {
-            name: name.to_string(),
-            description: "".to_string(),
-            default: None,
+    /// Create a TestPlanConfig for testing Template trait methods (has_pending_fields, required_values)
+    fn test_plan_with_fields(
+        scenario_fields: &[Field<String>],
+        environment_fields: &[Field<String>],
+    ) -> TestPlanConfig {
+        TestPlanConfig {
+            scenario: scenario_with_fields(scenario_fields),
+            environment: environment_with_fields(&[], environment_fields),
+            ..TestPlanConfig::empty()
         }
     }
 
-    /// Create an EnvironmentConfig with a teardown field for testing Template trait methods
-    fn environment_with_teardown_field(f: Field<String>) -> EnvironmentConfig {
-        EnvironmentConfig {
-            values: vec![basic_value_definition("foo")],
-            teardown: CommandSection {
-                file_providers: vec![named_file_provider_with_field("foo", f)],
-                ..CommandSection::empty()
-            },
-            ..EnvironmentConfig::empty()
-        }
-    }
-
-    /// Create a ScenarioConfig with a field for testing Template trait methods
-    fn scenario_with_field(f: Field<String>) -> ScenarioConfig {
-        ScenarioConfig {
-            values: vec![basic_value_definition("foo")],
-            command: CommandSection {
-                file_providers: vec![named_file_provider_with_field("foo", f)],
-                ..CommandSection::empty()
-            },
-            ..ScenarioConfig::empty()
-        }
-    }
-
-    /// Create a TestPlanConfig with specific matrix configuration for testing
-    fn create_matrix_test_plan(
+    /// Create a TestPlanConfig for template tests
+    fn templatable_test_plan(
         values: HashMap<String, Scalar>,
         matrix: HashMap<String, Vec<Scalar>>,
         scenario_fields: &[&str],
@@ -725,29 +706,8 @@ mod tests {
         TestPlanConfig {
             values,
             matrix,
-            scenario: ScenarioConfig {
-                values: value_definitions(scenario_fields),
-                command: CommandSection {
-                    file_providers: templatable_file_providers(scenario_fields),
-                    ..CommandSection::empty()
-                },
-                ..ScenarioConfig::empty()
-            },
-            environment: EnvironmentConfig {
-                values: value_definitions(env_values.as_slice()),
-                setup: SetupSection {
-                    command: CommandSection {
-                        file_providers: templatable_file_providers(setup_fields),
-                        ..CommandSection::empty()
-                    },
-                    provides: Vec::new(),
-                },
-                teardown: CommandSection {
-                    file_providers: templatable_file_providers(teardown_fields),
-                    ..CommandSection::empty()
-                },
-                ..EnvironmentConfig::empty()
-            },
+            scenario: templatable_scenario(scenario_fields, scenario_fields),
+            environment: templatable_environment(&env_values, setup_fields, teardown_fields),
             ..TestPlanConfig::empty()
         }
     }
@@ -769,8 +729,6 @@ mod tests {
             })
             .collect()
     }
-
-    // Tests
 
     // Tests for configuration parsing from inline YAML and external files
 
@@ -1068,11 +1026,7 @@ mod tests {
         environment_field: Field<String>,
         expected: bool,
     ) {
-        let test_plan = TestPlanConfig {
-            scenario: scenario_with_field(scenario_field),
-            environment: environment_with_teardown_field(environment_field),
-            ..TestPlanConfig::empty()
-        };
+        let test_plan = test_plan_with_fields(&[scenario_field], &[environment_field]);
 
         let res = test_plan.has_pending_fields();
         assert_eq!(
@@ -1091,11 +1045,7 @@ mod tests {
         environment_field: Field<String>,
         expected: &[&str],
     ) {
-        let test_plan = TestPlanConfig {
-            scenario: scenario_with_field(scenario_field),
-            environment: environment_with_teardown_field(environment_field),
-            ..TestPlanConfig::empty()
-        };
+        let test_plan = test_plan_with_fields(&[scenario_field], &[environment_field]);
 
         let res = test_plan.required_values();
         assert_eq!(
@@ -1379,7 +1329,7 @@ mod tests {
         let values = value_map(value_keys);
         let matrix = matrix_from_keys(matrix_keys, 1);
         let mut test_plan =
-            create_matrix_test_plan(values, matrix, &["scenario"], &["setup"], &["teardown"]);
+            templatable_test_plan(values, matrix, &["scenario"], &["setup"], &["teardown"]);
 
         let res = test_plan.check_templating_will_work();
         assert!(
@@ -1398,7 +1348,7 @@ mod tests {
     ) {
         let values = value_map(&["foo", "bar", "baz"]);
         let matrix = matrix_from_keys(matrix_keys, 2);
-        let mut test_plan = create_matrix_test_plan(values, matrix, &[], &[], &[]);
+        let mut test_plan = templatable_test_plan(values, matrix, &[], &[], &[]);
 
         let expected_err_kind = ErrorKind::ConflictingValues;
 
@@ -1429,7 +1379,7 @@ mod tests {
     ) {
         let values = value_map(&[]);
         let matrix = matrix_from_keys(matrix_keys, 0);
-        let mut test_plan = create_matrix_test_plan(values, matrix, &[], &[], &[]);
+        let mut test_plan = templatable_test_plan(values, matrix, &[], &[], &[]);
 
         let expected_err_kind = ErrorKind::EmptyMatrixValue;
 
@@ -1467,7 +1417,7 @@ mod tests {
         let values = HashMap::new();
         let mut matrix: HashMap<String, Vec<Scalar>> = HashMap::new();
         matrix.insert("foo".into(), vec!["a".into(), 42.into()]);
-        let mut test_plan = create_matrix_test_plan(values, matrix, &[], &[], &[]);
+        let mut test_plan = templatable_test_plan(values, matrix, &[], &[], &[]);
 
         let expected_err_kind = ErrorKind::InconsistentMatrixValue;
         let expected_err_message = "foo";
@@ -1546,7 +1496,7 @@ mod tests {
     ) {
         let values = value_map(&["foo"]);
         let matrix = HashMap::new();
-        let mut test_plan = create_matrix_test_plan(
+        let mut test_plan = templatable_test_plan(
             values,
             matrix,
             scenario_fields,
@@ -1594,7 +1544,7 @@ mod tests {
     fn check_templating_will_work_combined_errors() {
         let values = value_map(&["foo", "bar"]);
         let matrix = matrix_from_keys(&["foo"], 0);
-        let mut test_plan = create_matrix_test_plan(values, matrix, &["scenario"], &[], &[]);
+        let mut test_plan = templatable_test_plan(values, matrix, &["scenario"], &[], &[]);
 
         let mut expected_errs = ErrorBuilder::new();
         expected_errs.push(ErrorKind::ConflictingValues, "foo", &["".to_string()]);
