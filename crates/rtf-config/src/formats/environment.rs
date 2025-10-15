@@ -152,8 +152,11 @@ mod tests {
     use super::*;
     use crate::{
         context::Context,
-        providers::file::{FileProvider, NamedFileProvider, RelativeFile},
-        templating::{ErrorKind, Field},
+        formats::tests::{
+            assert_template_errors, expected_error_details, named_file_provider_with_field, p, r,
+            templatable_file_providers, value_definitions, value_map,
+        },
+        templating::Field,
     };
     use indoc::indoc;
     use simple_test_case::{dir_cases, test_case};
@@ -181,25 +184,6 @@ mod tests {
             None => {
                 panic!("required txtar file section {fname:?} was missing");
             }
-        }
-    }
-
-    /// Return a pending field
-    fn p(name: &str) -> Field<String> {
-        Field::Pending(name.to_string())
-    }
-
-    /// Return a resolved field
-    fn r(name: &str) -> Field<String> {
-        Field::Resolved(name.to_string())
-    }
-
-    /// Return a NamedFileProvider with a field
-    fn named_file_provider_with_field(name: &str, f: Field<String>) -> NamedFileProvider {
-        NamedFileProvider {
-            name: name.to_string(),
-            env_var: name.to_ascii_uppercase(),
-            provider: FileProvider::RelativePath(RelativeFile { path: f, src: None }),
         }
     }
 
@@ -232,34 +216,6 @@ mod tests {
         }
     }
 
-    /// Create a HashMap of values from string names (each name maps to itself as a Scalar::String)
-    fn value_map(value_names: &[&str]) -> HashMap<String, Scalar> {
-        value_names
-            .iter()
-            .map(|&name| (name.to_string(), Scalar::String(name.to_string())))
-            .collect()
-    }
-
-    /// Create ValueDefinitions from string names with default description
-    fn value_definitions(value_names: &[&str]) -> Vec<ValueDefinition> {
-        value_names
-            .iter()
-            .map(|&name| ValueDefinition {
-                name: name.to_string(),
-                description: "description".to_string(),
-                default: None,
-            })
-            .collect()
-    }
-
-    /// Create NamedFileProviders with pending fields from string names
-    fn file_providers_from_names(field_names: &[&str]) -> Vec<NamedFileProvider> {
-        field_names
-            .iter()
-            .map(|name| named_file_provider_with_field(name, p(name)))
-            .collect()
-    }
-
     /// Create a test EnvironmentConfig with specified setup and teardown field names
     /// All field names are added as both value definitions and pending template fields
     fn test_environment_config(
@@ -271,40 +227,17 @@ mod tests {
             values: value_definitions(value_names),
             setup: SetupSection {
                 command: CommandSection {
-                    file_providers: file_providers_from_names(setup_fields),
+                    file_providers: templatable_file_providers(setup_fields),
                     ..CommandSection::empty()
                 },
                 provides: Vec::new(),
             },
             teardown: CommandSection {
-                file_providers: file_providers_from_names(teardown_fields),
+                file_providers: templatable_file_providers(teardown_fields),
                 ..CommandSection::empty()
             },
             ..EnvironmentConfig::empty()
         }
-    }
-
-    /// Generate expected error details for fields
-    fn expected_error_details(
-        field_names: &[&str],
-        path_prefix: &str,
-    ) -> (Vec<String>, Vec<String>) {
-        let mut expected_messages: Vec<String> =
-            field_names.iter().map(|name| name.to_string()).collect();
-        expected_messages.sort();
-        let mut expected_paths: Vec<String> = field_names
-            .iter()
-            .map(|name| {
-                format!(
-                    "{}.file_providers.{}.path",
-                    path_prefix,
-                    name.to_ascii_uppercase()
-                )
-            })
-            .collect();
-        expected_paths.sort();
-
-        (expected_messages, expected_paths)
     }
 
     /// Create a CommandSection with both env vars and file providers for testing scoping
@@ -313,7 +246,7 @@ mod tests {
             env_vars: [(env_var.to_uppercase(), Field::Pending(env_var.to_string()))]
                 .into_iter()
                 .collect(),
-            file_providers: file_providers_from_names(&[name]),
+            file_providers: templatable_file_providers(&[name]),
             ..CommandSection::empty()
         }
     }
@@ -495,8 +428,8 @@ mod tests {
     }
 
     /// Helper function for asserting template errors are as expected
-    fn assert_template_errors(
-        mut environment: EnvironmentConfig,
+    fn assert_env_template_errors(
+        environment: &mut EnvironmentConfig,
         values: HashMap<String, Scalar>,
         expected_setup_err_fields: &[&str],
         expected_teardown_err_fields: &[&str],
@@ -508,30 +441,11 @@ mod tests {
         expected_err_messages.extend(expected_messages);
         expected_err_paths.extend(expected_paths);
 
-        let res = environment.try_template(&mut Vec::new(), &values);
-        assert!(res.is_err(), "expected templating to fail, got {res:?}");
-
-        let errors = res.unwrap_err();
-        assert!(
-            errors
-                .iter()
-                .all(|e| matches!(e.kind, ErrorKind::UnknownValue)),
-            "expected all errors to be UnknownValue, got {:?}",
-            errors
-        );
-
-        let mut messages: Vec<String> = errors.iter().map(|e| e.message.clone()).collect();
-        messages.sort();
-        assert_eq!(
-            messages, expected_err_messages,
-            "we are testing we get all expected error messages"
-        );
-
-        let mut paths: Vec<String> = errors.iter().map(|e| e.path.clone()).collect();
-        paths.sort();
-        assert_eq!(
-            paths, expected_err_paths,
-            "we are testing we get all expected error paths"
+        assert_template_errors(
+            environment,
+            values,
+            expected_err_messages,
+            expected_err_paths,
         );
     }
 
@@ -547,9 +461,9 @@ mod tests {
         expected_err_fields: &[&str],
     ) {
         let values = value_map(&["setup", "setup1", "setup2"]);
-        let environment = test_environment_config(value_defs, setup_fields, &[]);
+        let mut environment = test_environment_config(value_defs, setup_fields, &[]);
 
-        assert_template_errors(environment, values, expected_err_fields, &[]);
+        assert_env_template_errors(&mut environment, values, expected_err_fields, &[]);
     }
 
     #[test_case(&["missing"], &["teardown"], &["teardown"]; "single field defined and missing definition")]
@@ -564,26 +478,26 @@ mod tests {
         expected_err_fields: &[&str],
     ) {
         let values = value_map(&["teardown", "teardown1", "teardown2"]);
-        let environment = test_environment_config(value_defs, &[], teardown_fields);
+        let mut environment = test_environment_config(value_defs, &[], teardown_fields);
 
-        assert_template_errors(environment, values, &[], expected_err_fields);
+        assert_env_template_errors(&mut environment, values, &[], expected_err_fields);
     }
 
     #[test]
     fn try_template_missing_setup_and_teardown_value_definitions() {
         let values = value_map(&["setup", "teardown"]);
-        let environment = test_environment_config(&[], &["setup"], &["teardown"]);
+        let mut environment = test_environment_config(&[], &["setup"], &["teardown"]);
 
-        assert_template_errors(environment, values, &["setup"], &["teardown"]);
+        assert_env_template_errors(&mut environment, values, &["setup"], &["teardown"]);
     }
 
     #[test]
     fn try_template_missing_setup_and_teardown_values_not_provided() {
         let values = value_map(&[]);
-        let environment =
+        let mut environment =
             test_environment_config(&["setup", "teardown"], &["setup"], &["teardown"]);
 
-        assert_template_errors(environment, values, &["setup"], &["teardown"]);
+        assert_env_template_errors(&mut environment, values, &["setup"], &["teardown"]);
     }
 
     /// Tests that setup cannot access values from setup.provides.

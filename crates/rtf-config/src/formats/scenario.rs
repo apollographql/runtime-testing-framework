@@ -84,8 +84,11 @@ mod tests {
     use super::*;
     use crate::{
         context::Context,
-        providers::file::{FileProvider, NamedFileProvider, RelativeFile},
-        templating::{ErrorKind, Field},
+        formats::tests::{
+            assert_template_errors, expected_error_details, named_file_provider_with_field, p, r,
+            templatable_file_providers, value_definitions, value_map,
+        },
+        templating::Field,
     };
     use indoc::indoc;
     use simple_test_case::{dir_cases, test_case};
@@ -113,25 +116,6 @@ mod tests {
             None => {
                 panic!("required txtar file section {fname:?} was missing");
             }
-        }
-    }
-
-    /// Return a pending field
-    fn p(name: &str) -> Field<String> {
-        Field::Pending(name.to_string())
-    }
-
-    /// Return a resolved field
-    fn r(name: &str) -> Field<String> {
-        Field::Resolved(name.to_string())
-    }
-
-    /// Return a NamedFileProvider with a field
-    fn named_file_provider_with_field(name: &str, f: Field<String>) -> NamedFileProvider {
-        NamedFileProvider {
-            name: name.to_string(),
-            env_var: name.to_ascii_uppercase(),
-            provider: FileProvider::RelativePath(RelativeFile { path: f, src: None }),
         }
     }
 
@@ -163,68 +147,17 @@ mod tests {
         }
     }
 
-    /// Create a HashMap of values from string names (each name maps to itself as a Scalar::String)
-    fn value_map(value_names: &[&str]) -> HashMap<String, Scalar> {
-        value_names
-            .iter()
-            .map(|&name| (name.to_string(), Scalar::String(name.to_string())))
-            .collect()
-    }
-
-    /// Create ValueDefinitions from string names with default description
-    fn value_definitions(value_names: &[&str]) -> Vec<ValueDefinition> {
-        value_names
-            .iter()
-            .map(|&name| ValueDefinition {
-                name: name.to_string(),
-                description: "description".to_string(),
-                default: None,
-            })
-            .collect()
-    }
-
-    /// Create NamedFileProviders with pending fields from string names
-    fn file_providers_from_names(field_names: &[&str]) -> Vec<NamedFileProvider> {
-        field_names
-            .iter()
-            .map(|name| named_file_provider_with_field(name, p(name)))
-            .collect()
-    }
-
     /// Create a test ScenarioConfig with specified field names
     /// All field names are added as both value definitions and pending template fields
     fn test_scenario_config(value_names: &[&str], scenario_fields: &[&str]) -> ScenarioConfig {
         ScenarioConfig {
             values: value_definitions(value_names),
             command: CommandSection {
-                file_providers: file_providers_from_names(scenario_fields),
+                file_providers: templatable_file_providers(scenario_fields),
                 ..CommandSection::empty()
             },
             ..ScenarioConfig::empty()
         }
-    }
-
-    /// Generate expected error details for fields
-    fn expected_error_details(
-        field_names: &[&str],
-        path_prefix: &str,
-    ) -> (Vec<String>, Vec<String>) {
-        let mut expected_messages: Vec<String> =
-            field_names.iter().map(|name| name.to_string()).collect();
-        expected_messages.sort();
-        let mut expected_paths: Vec<String> = field_names
-            .iter()
-            .map(|name| {
-                format!(
-                    "{}.file_providers.{}.path",
-                    path_prefix,
-                    name.to_ascii_uppercase()
-                )
-            })
-            .collect();
-        expected_paths.sort();
-
-        (expected_messages, expected_paths)
     }
 
     // An example scenario config to check parsing and templating
@@ -388,30 +321,11 @@ mod tests {
         let (expected_err_messages, expected_err_paths) =
             expected_error_details(expected_err_fields, "command_section");
 
-        let res = scenario.try_template(&mut Vec::new(), &values);
-        assert!(res.is_err(), "expected templating to fail, got {res:?}");
-
-        let errors = res.unwrap_err();
-        assert!(
-            errors
-                .iter()
-                .all(|e| matches!(e.kind, ErrorKind::UnknownValue)),
-            "expected all errors to be UnknownValue, got {:?}",
-            errors
-        );
-
-        let mut messages: Vec<String> = errors.iter().map(|e| e.message.clone()).collect();
-        messages.sort();
-        assert_eq!(
-            messages, expected_err_messages,
-            "we are testing we get all expected error messages"
-        );
-
-        let mut paths: Vec<String> = errors.iter().map(|e| e.path.clone()).collect();
-        paths.sort();
-        assert_eq!(
-            paths, expected_err_paths,
-            "we are testing we get all expected error paths"
+        assert_template_errors(
+            &mut scenario,
+            values,
+            expected_err_messages,
+            expected_err_paths,
         );
     }
 }

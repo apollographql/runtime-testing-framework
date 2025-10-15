@@ -636,10 +636,16 @@ mod tests {
     use super::*;
     use crate::{
         context::Context,
-        formats::environment::SetupSection,
+        formats::{
+            environment::SetupSection,
+            tests::{
+                assert_template_errors, expected_error_details, named_file_provider_with_field, p,
+                r, templatable_file_providers, value_definitions, value_map,
+            },
+        },
         providers::{
             command::{CommandProvider, CommandSection, CommandSpec},
-            file::{FileProvider, InlineFile, NamedFileProvider, RelativeFile},
+            file::{FileProvider, InlineFile, NamedFileProvider},
         },
         templating::{ErrorBuilder, ErrorKind, Field},
     };
@@ -651,27 +657,6 @@ mod tests {
     use simple_test_case::test_case;
 
     // Helper functions
-
-    // Field creation helpers
-
-    /// Return a pending field
-    fn p(name: &str) -> Field<String> {
-        Field::Pending(name.to_string())
-    }
-
-    /// Return a resolved field
-    fn r(name: &str) -> Field<String> {
-        Field::Resolved(name.to_string())
-    }
-
-    /// Return a NamedFileProvider with a field
-    fn named_file_provider_with_field(name: &str, f: Field<String>) -> NamedFileProvider {
-        NamedFileProvider {
-            name: name.to_string(),
-            env_var: name.to_ascii_uppercase(),
-            provider: FileProvider::RelativePath(RelativeFile { path: f, src: None }),
-        }
-    }
 
     // Configuration creation helpers
 
@@ -726,61 +711,6 @@ mod tests {
         }
     }
 
-    // Value and provider creation helpers
-
-    /// Create a HashMap of values from string names (each name maps to itself as a Scalar::String)
-    fn value_map(value_names: &[&str]) -> HashMap<String, Scalar> {
-        value_names
-            .iter()
-            .map(|&name| (name.to_string(), Scalar::String(name.to_string())))
-            .collect()
-    }
-
-    /// Create ValueDefinitions from string names with default description
-    fn value_definitions(value_names: &[&str]) -> Vec<ValueDefinition> {
-        value_names
-            .iter()
-            .map(|&name| ValueDefinition {
-                name: name.to_string(),
-                description: "description".to_string(),
-                default: None,
-            })
-            .collect()
-    }
-
-    /// Create NamedFileProviders with pending fields from string names
-    fn file_providers_from_names(field_names: &[&str]) -> Vec<NamedFileProvider> {
-        field_names
-            .iter()
-            .map(|name| named_file_provider_with_field(name, p(name)))
-            .collect()
-    }
-
-    // Error validation helpers
-
-    /// Generate expected error details for fields
-    fn expected_error_details(
-        field_names: &[&str],
-        path_prefix: &str,
-    ) -> (Vec<String>, Vec<String>) {
-        let mut expected_messages: Vec<String> =
-            field_names.iter().map(|name| name.to_string()).collect();
-        expected_messages.sort();
-        let mut expected_paths: Vec<String> = field_names
-            .iter()
-            .map(|name| {
-                format!(
-                    "{}.file_providers.{}.path",
-                    path_prefix,
-                    name.to_ascii_uppercase()
-                )
-            })
-            .collect();
-        expected_paths.sort();
-
-        (expected_messages, expected_paths)
-    }
-
     /// Create a TestPlanConfig with specific matrix configuration for testing
     fn create_matrix_test_plan(
         values: HashMap<String, Scalar>,
@@ -798,7 +728,7 @@ mod tests {
             scenario: ScenarioConfig {
                 values: value_definitions(scenario_fields),
                 command: CommandSection {
-                    file_providers: file_providers_from_names(scenario_fields),
+                    file_providers: templatable_file_providers(scenario_fields),
                     ..CommandSection::empty()
                 },
                 ..ScenarioConfig::empty()
@@ -807,13 +737,13 @@ mod tests {
                 values: value_definitions(env_values.as_slice()),
                 setup: SetupSection {
                     command: CommandSection {
-                        file_providers: file_providers_from_names(setup_fields),
+                        file_providers: templatable_file_providers(setup_fields),
                         ..CommandSection::empty()
                     },
                     provides: Vec::new(),
                 },
                 teardown: CommandSection {
-                    file_providers: file_providers_from_names(teardown_fields),
+                    file_providers: templatable_file_providers(teardown_fields),
                     ..CommandSection::empty()
                 },
                 ..EnvironmentConfig::empty()
@@ -1204,7 +1134,7 @@ mod tests {
             scenario: ScenarioConfig {
                 values: value_definitions(scenario_fields),
                 command: CommandSection {
-                    file_providers: file_providers_from_names(scenario_fields),
+                    file_providers: templatable_file_providers(scenario_fields),
                     ..CommandSection::empty()
                 },
                 ..ScenarioConfig::empty()
@@ -1212,7 +1142,7 @@ mod tests {
             environment: EnvironmentConfig {
                 values: value_definitions(env_fields.as_slice()),
                 teardown: CommandSection {
-                    file_providers: file_providers_from_names(env_fields.as_slice()),
+                    file_providers: templatable_file_providers(env_fields.as_slice()),
                     ..CommandSection::empty()
                 },
                 ..EnvironmentConfig::empty()
@@ -1239,7 +1169,7 @@ mod tests {
             scenario: ScenarioConfig {
                 values: value_definitions(scenario_value_defs),
                 command: CommandSection {
-                    file_providers: file_providers_from_names(scenario_fields),
+                    file_providers: templatable_file_providers(scenario_fields),
                     ..CommandSection::empty()
                 },
                 ..ScenarioConfig::empty()
@@ -1247,7 +1177,7 @@ mod tests {
             environment: EnvironmentConfig {
                 values: value_definitions(env_value_defs),
                 teardown: CommandSection {
-                    file_providers: file_providers_from_names(env_fields),
+                    file_providers: templatable_file_providers(env_fields),
                     ..CommandSection::empty()
                 },
                 ..EnvironmentConfig::empty()
@@ -1257,8 +1187,8 @@ mod tests {
     }
 
     /// Helper function for asserting template errors are as expected
-    fn assert_template_errors(
-        mut test_plan: TestPlanConfig,
+    fn assert_test_plan_template_errors(
+        test_plan: &mut TestPlanConfig,
         values: HashMap<String, Scalar>,
         expected_scenario_err_fields: &[&str],
         expected_env_err_fields: &[&str],
@@ -1272,32 +1202,7 @@ mod tests {
         expected_err_messages.sort();
         expected_err_paths.sort();
 
-        let result = test_plan.try_template(&mut Vec::new(), &values);
-        assert!(
-            result.is_err(),
-            "expected templating to fail, got {:?}",
-            result
-        );
-
-        let errors = result.unwrap_err();
-        assert!(
-            errors
-                .iter()
-                .all(|e| matches!(e.kind, ErrorKind::UnknownValue)),
-            "expected all errors to be UnknownValue, got {:?}",
-            errors
-        );
-
-        let mut actual_messages: Vec<String> = errors.iter().map(|e| e.message.clone()).collect();
-        actual_messages.sort();
-        assert_eq!(
-            actual_messages, expected_err_messages,
-            "error messages don't match"
-        );
-
-        let mut actual_paths: Vec<String> = errors.iter().map(|e| e.path.clone()).collect();
-        actual_paths.sort();
-        assert_eq!(actual_paths, expected_err_paths, "error paths don't match");
+        assert_template_errors(test_plan, values, expected_err_messages, expected_err_paths);
     }
 
     #[test_case(&["missing"], &["scenario"], &["scenario"]; "single field defined and missing definition")]
@@ -1312,9 +1217,9 @@ mod tests {
         expected_err_fields: &[&str],
     ) {
         let values = value_map(&["scenario", "scenario1", "scenario2"]);
-        let test_plan = template_test_plan(value_defs, fields, &[], &[]);
+        let mut test_plan = template_test_plan(value_defs, fields, &[], &[]);
 
-        assert_template_errors(test_plan, values, expected_err_fields, &[]);
+        assert_test_plan_template_errors(&mut test_plan, values, expected_err_fields, &[]);
     }
 
     #[test_case(&["missing"], &["environment"], &["environment"]; "single field defined and missing definition")]
@@ -1329,30 +1234,30 @@ mod tests {
         expected_err_fields: &[&str],
     ) {
         let values = value_map(&["environment", "environment1", "environment2"]);
-        let test_plan = template_test_plan(&[], &[], value_defs, fields);
+        let mut test_plan = template_test_plan(&[], &[], value_defs, fields);
 
-        assert_template_errors(test_plan, values, &[], expected_err_fields);
+        assert_test_plan_template_errors(&mut test_plan, values, &[], expected_err_fields);
     }
 
     #[test]
     fn try_template_missing_scenario_and_environment_value_definitions() {
         let values = value_map(&["scenario", "environment"]);
-        let environment = template_test_plan(&[], &["scenario"], &[], &["environment"]);
+        let mut test_plan = template_test_plan(&[], &["scenario"], &[], &["environment"]);
 
-        assert_template_errors(environment, values, &["scenario"], &["environment"]);
+        assert_test_plan_template_errors(&mut test_plan, values, &["scenario"], &["environment"]);
     }
 
     #[test]
     fn try_template_missing_scenario_and_environment_values_not_provided() {
         let values = value_map(&[]);
-        let environment = template_test_plan(
+        let mut test_plan = template_test_plan(
             &["scenario"],
             &["scenario"],
             &["environment"],
             &["environment"],
         );
 
-        assert_template_errors(environment, values, &["scenario"], &["environment"]);
+        assert_test_plan_template_errors(&mut test_plan, values, &["scenario"], &["environment"]);
     }
 
     // Tests for matrix expansion, variants, and matrix-related functionality
