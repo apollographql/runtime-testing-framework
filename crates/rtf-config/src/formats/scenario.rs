@@ -85,7 +85,7 @@ mod tests {
     use crate::{
         context::Context,
         formats::tests::{
-            assert_template_errors, expected_error_details, named_file_provider_with_field, p, r,
+            assert_template_errors, expected_error_details, named_file_providers_with_fields, p, r,
             templatable_file_providers, value_definitions, value_map,
         },
         templating::Field,
@@ -120,36 +120,18 @@ mod tests {
     }
 
     /// Create a ScenarioConfig for testing Template trait methods (has_pending_fields, required_values)
-    fn template_trait_test_config(field: Field<String>) -> ScenarioConfig {
+    fn scenario_with_fields(fields: &[Field<String>]) -> ScenarioConfig {
         ScenarioConfig {
             command: CommandSection {
-                file_providers: vec![named_file_provider_with_field("test", field)],
+                file_providers: named_file_providers_with_fields(fields),
                 ..CommandSection::empty()
             },
             ..ScenarioConfig::empty()
         }
     }
 
-    /// Create a ScenarioConfig for testing Template trait methods with multiple fields
-    fn template_trait_test_config_multi(
-        field_1: Field<String>,
-        field_2: Field<String>,
-    ) -> ScenarioConfig {
-        ScenarioConfig {
-            command: CommandSection {
-                file_providers: vec![
-                    named_file_provider_with_field("test1", field_1),
-                    named_file_provider_with_field("test2", field_2),
-                ],
-                ..CommandSection::empty()
-            },
-            ..ScenarioConfig::empty()
-        }
-    }
-
-    /// Create a test ScenarioConfig with specified field names
-    /// All field names are added as both value definitions and pending template fields
-    fn test_scenario_config(value_names: &[&str], scenario_fields: &[&str]) -> ScenarioConfig {
+    /// Create a ScenarioConfig for template testing
+    fn templatable_scenario(value_names: &[&str], scenario_fields: &[&str]) -> ScenarioConfig {
         ScenarioConfig {
             values: value_definitions(value_names),
             command: CommandSection {
@@ -230,13 +212,14 @@ mod tests {
         );
     }
 
-    // Tests
-
-    #[test_case(p("foo"), true; "single field is pending")]
-    #[test_case(r("foo"), false; "single field is resolved")]
+    #[test_case(&[p("foo")], true; "single field is pending")]
+    #[test_case(&[r("foo")], false; "single field is resolved")]
+    #[test_case(&[p("field1"), p("field2")], true; "multiple fields pending is pending")]
+    #[test_case(&[p("field1"), r("field2")], true; "multiple fields with single field pending is pending")]
+    #[test_case(&[r("field1"), r("field2")], false; "multiple fields none pending is resolved")]
     #[test]
-    fn has_pending_fields(field: Field<String>, expected: bool) {
-        let scenario = template_trait_test_config(field);
+    fn has_pending_fields(fields: &[Field<String>], expected: bool) {
+        let scenario = scenario_with_fields(fields);
 
         let res = scenario.has_pending_fields();
         assert_eq!(
@@ -245,39 +228,14 @@ mod tests {
         )
     }
 
-    #[test_case(p("field1"), p("field2"), true; "both fields pending is pending")]
-    #[test_case(p("field1"), r("field2"), true; "single field pending is pending")]
-    #[test_case(r("field1"), r("field2"), false; "no fields pending is resolved")]
+    #[test_case(&[p("foo")], &["foo"]; "single field is required")]
+    #[test_case(&[r("foo")], &[]; "single field resolved requires no values")]
+    #[test_case(&[p("field1"), p("field2")], &["field1", "field2"]; "multiple fields pending requires values")]
+    #[test_case(&[p("field1"), r("field2")], &["field1"]; "multiple fields with single pending requires values")]
+    #[test_case(&[r("field1"), r("field2")], &[]; "multiple fields none pending requires no values")]
     #[test]
-    fn has_pending_fields_multi(field_1: Field<String>, field_2: Field<String>, expected: bool) {
-        let scenario = template_trait_test_config_multi(field_1, field_2);
-
-        let res = scenario.has_pending_fields();
-        assert_eq!(
-            res, expected,
-            "tests that has_pending_fields has expected value"
-        )
-    }
-
-    #[test_case(p("foo"), &["foo"]; "single field is required")]
-    #[test_case(r("foo"), &[]; "single field resolved requires no values")]
-    #[test]
-    fn required_values(field: Field<String>, expected: &[&str]) {
-        let scenario = template_trait_test_config(field);
-
-        let res = scenario.required_values();
-        assert_eq!(
-            res, expected,
-            "tests that required_values has expected value"
-        )
-    }
-
-    #[test_case(p("field1"), p("field2"), &["field1", "field2"]; "both fields pending requires values")]
-    #[test_case(p("field1"), r("field2"), &["field1"]; "single field pending requires values")]
-    #[test_case(r("field1"), r("field2"), &[]; "no fields pending requires no values")]
-    #[test]
-    fn required_values_multi(field_1: Field<String>, field_2: Field<String>, expected: &[&str]) {
-        let scenario = template_trait_test_config_multi(field_1, field_2);
+    fn required_values(fields: &[Field<String>], expected: &[&str]) {
+        let scenario = scenario_with_fields(fields);
 
         let res = scenario.required_values();
         assert_eq!(
@@ -293,7 +251,7 @@ mod tests {
     #[test]
     fn try_template_succeeds(field_names: &[&str]) {
         let values = value_map(field_names);
-        let mut scenario = test_scenario_config(field_names, field_names);
+        let mut scenario = templatable_scenario(field_names, field_names);
 
         let res = scenario.try_template(&mut Vec::new(), &values);
         assert!(
@@ -316,7 +274,7 @@ mod tests {
         expected_err_fields: &[&str],
     ) {
         let values = value_map(values);
-        let mut scenario = test_scenario_config(value_defs, scenario_fields);
+        let mut scenario = templatable_scenario(value_defs, scenario_fields);
 
         let (expected_err_messages, expected_err_paths) =
             expected_error_details(expected_err_fields, "command_section");

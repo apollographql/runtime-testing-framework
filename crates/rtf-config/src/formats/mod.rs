@@ -108,6 +108,17 @@ mod tests {
         }
     }
 
+    /// Return named file providers with fields
+    pub(crate) fn named_file_providers_with_fields(
+        fields: &[Field<String>],
+    ) -> Vec<NamedFileProvider> {
+        fields
+            .iter()
+            .enumerate()
+            .map(|(i, f)| named_file_provider_with_field(&format!("file{}", i), f.clone()))
+            .collect()
+    }
+
     /// Create NamedFileProviders with pending fields from string names
     pub(crate) fn templatable_file_providers(field_names: &[&str]) -> Vec<NamedFileProvider> {
         field_names
