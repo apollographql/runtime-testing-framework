@@ -1,6 +1,6 @@
 use crate::{
     ValueDefinition,
-    checks::{self, Check},
+    checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
     formats::{Result, values_for_config_file},
     providers::{command::CommandSection, file::Source},
@@ -76,6 +76,17 @@ impl Check for ScenarioConfig {
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         self.command.try_check_nested(path, "command", src, ctx)
+    }
+}
+
+impl CheckArrayDuplicates for ScenarioConfig {
+    const BASE_PATH: &str = "scenario";
+
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<DedupArray<'a>> {
+        vec![
+            DedupArray::ValueDef("values", &mut self.values),
+            DedupArray::Nfp("file_providers", &mut self.command.file_providers),
+        ]
     }
 }
 
