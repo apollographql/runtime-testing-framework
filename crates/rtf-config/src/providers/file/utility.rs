@@ -52,11 +52,13 @@ enum_impl_text_file_provider!(
 
 /// # Merge YAML
 ///
-/// Merge the YAML output of two text based file providers into a single YAML file.
+/// Merge the YAML output of text based file providers into a single YAML file.
 ///
 /// Matching keys in the overrides file will replace scalar values, concatenate arrays
 /// and merge keys for maps.
 ///
+/// When merging a single overrides file the overrides provider can be specified directly
+/// under the `overrides` key:
 /// ```yaml
 /// - name: router-config.yaml
 ///   env_var: ROUTER_CONFIG
@@ -65,16 +67,31 @@ enum_impl_text_file_provider!(
 ///     kind: relative_path
 ///     path: "data/base-router-config.yaml"
 ///   overrides:
-///     kind: graphos_subgraph_router_url_overrides
-///     graph_ref: "foo@bar"
-///     url_format: "docker"
+///     kind: relative_path
+///     path: "../my-overrides.yaml"
+/// ```
+///
+/// When merging multiple overrides files, specify the providers in the order you want
+/// to merge them as an array:
+/// ```yaml
+/// - name: router-config.yaml
+///   env_var: ROUTER_CONFIG
+///   kind: merge_yaml
+///   base:
+///     kind: relative_path
+///     path: "data/base-router-config.yaml"
+///   overrides:
+///     - kind: relative_path
+///       path: "../my-overrides.yaml"
+///     - kind: relative_path
+///       path: "../my-other-overrides.yaml"
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct MergeYaml {
     /// A base YAML file to start with.
     pub(crate) base: TextFileProvider,
-    /// An second YAML file to merge on top of the base file.
-    pub(crate) overrides: TextFileProvider,
+    /// One or more YAML files to merge on top of the base file in sequence.
+    pub(crate) overrides: Overrides,
 }
 
 impl AsUtf8FileContent for MergeYaml {
@@ -84,7 +101,16 @@ impl AsUtf8FileContent for MergeYaml {
         ctx: &impl ResolutionContext,
     ) -> Result<String> {
         let base_str = self.base.try_get_file_content(src, ctx).await?;
-        let overrides_str = self.overrides.try_get_file_content(src, ctx).await?;
+        let mut overrides = Vec::with_capacity(self.overrides.len());
+
+        match &self.overrides {
+            Overrides::One(t) => overrides.push(t.try_get_file_content(src, ctx).await?),
+            Overrides::Array(ts) => {
+                for t in ts.iter() {
+                    overrides.push(t.try_get_file_content(src, ctx).await?);
+                }
+            }
+        }
 
         let mut base: serde_yaml::Value = match serde_yaml::from_str(&base_str) {
             Ok(v) => v,
@@ -93,15 +119,21 @@ impl AsUtf8FileContent for MergeYaml {
                 return Err(e.into());
             }
         };
-        let overrides: serde_yaml::Value = match serde_yaml::from_str(&overrides_str) {
-            Ok(v) => v,
-            Err(e) => {
-                error!("found invalid YAML in overrides file for merge_yaml file provider");
-                return Err(e.into());
-            }
-        };
 
-        merge_yaml(overrides, &mut base);
+        for (i, s) in overrides.iter().enumerate() {
+            let overrides: serde_yaml::Value = match serde_yaml::from_str(s) {
+                Ok(v) => v,
+                Err(e) => {
+                    let i = i + 1;
+                    let n = self.overrides.len();
+                    error!(
+                        "found invalid YAML in overrides file {i}/{n} for merge_yaml file provider"
+                    );
+                    return Err(e.into());
+                }
+            };
+            merge_yaml(overrides, &mut base);
+        }
 
         Ok(serde_yaml::to_string(&base)?.trim().to_string())
     }
@@ -116,9 +148,33 @@ impl Check for MergeYaml {
     ) -> checks::Result<()> {
         let mut errs = checks::ErrorBuilder::new();
         errs.append(self.base.try_check(path, src, ctx));
-        errs.append(self.overrides.try_check(path, src, ctx));
+
+        match &self.overrides {
+            Overrides::One(t) => errs.append(t.try_check(path, src, ctx)),
+            Overrides::Array(ts) => {
+                for t in ts.iter() {
+                    errs.append(t.try_check(path, src, ctx));
+                }
+            }
+        }
 
         errs.into_result(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+#[serde(untagged)]
+pub enum Overrides {
+    One(TextFileProvider),
+    Array(Vec<TextFileProvider>),
+}
+
+impl Overrides {
+    fn len(&self) -> usize {
+        match self {
+            Self::One(_) => 1,
+            Self::Array(ts) => ts.len(),
+        }
     }
 }
 
@@ -203,5 +259,59 @@ impl Check for FromCommand {
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         self.inner.try_check(path, src, ctx)
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::context::Context;
+    use simple_test_case::test_case;
+
+    fn one(content: &str) -> Overrides {
+        Overrides::One(TextFileProvider::Inline(InlineFile {
+            content: content.to_string(),
+        }))
+    }
+
+    fn arr(files: &[&str]) -> Overrides {
+        Overrides::Array(
+            files
+                .iter()
+                .map(|content| {
+                    TextFileProvider::Inline(InlineFile {
+                        content: content.to_string(),
+                    })
+                })
+                .collect(),
+        )
+    }
+
+    #[test_case(one("key1: X"), "key1: X\nkey2: B"; "override one")]
+    #[test_case(arr(&["key1: X", "key2: Y"]), "key1: X\nkey2: Y"; "override two")]
+    #[test_case(arr(&["key1: X", "key1: Y"]), "key1: Y\nkey2: B"; "override two replacing same key")]
+    #[test_case(arr(&["key1: X\nkey2: Y", "key1: Z"]), "key1: Z\nkey2: Y"; "override two layered")]
+    #[test_case(arr(&["key3: X", "key1: Y", "key2: Z"]), "key1: Y\nkey2: Z\nkey3: X"; "override three")]
+    #[test_case(arr(&["key1: X", "key1: Y", "key1: Z"]), "key1: Z\nkey2: B"; "override three replacing same key")]
+    #[test_case(arr(&["key3: X\nkey2: Y\nkey4: Z", "key1: W", "key2: V"]), "key1: W\nkey2: V\nkey3: X\nkey4: Z"; "override three layered")]
+    #[tokio::test]
+    async fn merge_yaml_produces_expected_output(overrides: Overrides, expected: &str) {
+        let provider = MergeYaml {
+            base: TextFileProvider::Inline(InlineFile {
+                content: "key1: A\nkey2: B".into(),
+            }),
+            overrides,
+        };
+
+        let src = Source::Local {
+            abs_path: Default::default(),
+        };
+        let ctx = Context::new();
+
+        let s = provider
+            .try_get_file_content(&src, &ctx)
+            .await
+            .expect("provider to run successfully");
+
+        assert_eq!(s, expected);
     }
 }

@@ -901,6 +901,22 @@ mod tests {
             new_key: new_value
     "#
     );
+    const MERGE_YAML_ARRAY: &str = indoc!(
+        r#"
+        kind: merge_yaml
+        base:
+          kind: inline
+          content: |
+            key: value
+        overrides:
+          - kind: inline
+            content: |
+              new_key: new_value
+          - kind: inline
+            content: |
+              another_new_key: another_new_value
+    "#
+    );
 
     #[test_case(BUILD_ROUTER_FROM_SOURCE, &["git_ref", "rust_version"]; "build_router_from_source")]
     #[test_case(GITHUB_FILE, &["org", "repo", "path", "git_ref"]; "github_file")]
@@ -924,6 +940,7 @@ mod tests {
     #[test_case(RESOLVED_VALUES, &[]; "resolved_values")]
     #[test_case(ROUTER_DOWNLOAD_SCRIPT, &["version"]; "router_download_script")]
     #[test_case(MERGE_YAML, &[]; "merge_yaml")]
+    #[test_case(MERGE_YAML_ARRAY, &[]; "merge_yaml_array")]
     #[test]
     fn all_fields_templated(content: &str, expected_values: &[&str]) {
         let config: FileProvider = serde_yaml::from_str(content).unwrap();

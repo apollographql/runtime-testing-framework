@@ -3,19 +3,21 @@
 Available file providers:
 
 - [Build Router From Source](#build-router-from-source)
+- [From command](#from-command)
 - [GitHub File](#github-file)
 - [GraphOS Canned Operations](#graphos-canned-operations)
-- [GraphOS Supergraph Docker Compose](#graphos-supergraph-docker-compose)
+- [GraphOS Canned Operations by ID](#graphos-canned-operations-by-id)
+- [GraphOS Subgraph Docker Compose](#graphos-subgraph-docker-compose)
 - [GraphOS Supergraph Router URL Overrides](#graphos-supergraph-router-url-overrides)
 - [GraphOS Subgraph SDL](#graphos-subgraph-sdl)
 - [GraphOS Supergraph SDL](#graphos-supergraph-sdl)
 - [Inline File](#inline-file)
+- [Merge YAML](#merge-yaml)
 - [GraphOS Offline License](#graphos-offline-license)
 - [Relative Path](#relative-path)
 - [Required File](#required-file)
 - [Resolved Values](#resolved-values)
 - [Router Download Script](#router-download-script)
-- [Merge YAML](#merge-yaml)
 
 ## Build Router From Source
 
@@ -42,6 +44,63 @@ A Rust version string that can be passed to `rustup run {rust_version}`, such as
 `"beta"`, or `"nightly"`.
 
 Defaults to `"stable"` if unset.
+
+## From command
+
+Run a command provider and use its output as a file provider resource.
+
+As with all other command providers, you can provide both environment variables and other file
+providers as inputs to the command being executed. RTF will use the contents of the `$RTF_OUTPUT`
+path as the output of this provider, supporting both writing a single file to that path and creating
+a directory at that path containing multiple files.
+
+```yaml
+- name: vegeta-ops.json
+  env_var: VEGETA_OPS
+  kind: from_command
+  command:
+    name: format-for-vegeta.sh
+    kind: relative_path
+    path: scripts/format-for-vegeta.sh
+  env_vars:
+    ROUTER_URL: "http://127.0.0.1:4000/"
+  file_providers:
+    - name: canned_ops.json
+      env_var: CANNED_OPS_FILE
+      kind: graphos_canned_ops
+      graph_ref: "my@graph"
+      top_n: 20
+      skip_mutations: true
+```
+
+### format-for-vegeta.sh
+
+```bash
+#!/usr/bin/env sh
+while read -r req; do
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    encoded=$(echo "$req" | base64 -b 0)
+  else
+    encoded=$(echo "$req" | base64 -w 0)
+  fi
+   
+  jq -nc \
+    --arg body "$encoded" \
+    --arg url "$ROUTER_URL" \
+    '{
+      "body": $body,
+      "header": { "Content-type": ["application/json"] },
+      "method": "POST",
+      "url": $url
+    }' >> "$RTF_OUTPUT"
+done <"$CANNED_OPS_FILE"
+```
+
+### Fields
+
+#### `inner`
+
+null
 
 ## GitHub File
 
@@ -112,7 +171,34 @@ Whether or not to include mutations in the returned operations.
 
 Defaults to false if unset.
 
-## GraphOS Supergraph Docker Compose
+## GraphOS Canned Operations by ID
+
+The user specifies the graph ref and parameters that should be used to generate canned GraphQL
+requests based on operations data obtained from the GraphOS API.
+
+```yaml
+- name: canned_ops.json
+  env_var: CANNED_OPS_FILE
+  kind: graphos_canned_ops_by_id
+  graph_ref: graph@variant
+  operation_ids:
+    - 5b1f8a2a1bd4be697559013a23fcbcb9186afe77
+    - 3f56aa92aad650bbfc7ba481cbe029aba2f6c5f4
+    - 50b77d7351052abd84dcd2c2ccb63eff2fa2f94c
+```
+
+### Fields
+
+#### `graph_ref`
+
+The Apollo graph ref to pull operations for.
+
+#### `operation_ids`
+
+Operation IDs from the Apollo studio API for the operations you want to work with as queried from an
+`OperationInsightsListItem` in the Studio graphQL API.
+
+## GraphOS Subgraph Docker Compose
 
 The user specifies the graph ref that should be used to fetch the supergraph SDL file from the
 GraphOS API and generates a docker compose file. It runs a configurable number of subgraph services,
@@ -283,6 +369,55 @@ config file.
 
 The text to write out as the contents of the generated file.
 
+## Merge YAML
+
+Merge the YAML output of text based file providers into a single YAML file.
+
+Matching keys in the overrides file will replace scalar values, concatenate arrays and merge keys
+for maps.
+
+When merging a single overrides file the overrides provider can be specified directly under the
+`overrides` key:
+
+```yaml
+- name: router-config.yaml
+  env_var: ROUTER_CONFIG
+  kind: merge_yaml
+  base:
+    kind: relative_path
+    path: "data/base-router-config.yaml"
+  overrides:
+    kind: relative_path
+    path: "../my-overrides.yaml"
+```
+
+When merging multiple overrides files, specify the providers in the order you want to merge them as
+an array:
+
+```yaml
+- name: router-config.yaml
+  env_var: ROUTER_CONFIG
+  kind: merge_yaml
+  base:
+    kind: relative_path
+    path: "data/base-router-config.yaml"
+  overrides:
+    - kind: relative_path
+      path: "../my-overrides.yaml"
+    - kind: relative_path
+      path: "../my-other-overrides.yaml"
+```
+
+### Fields
+
+#### `base`
+
+A base YAML file to start with.
+
+#### `overrides`
+
+One or more YAML files to merge on top of the base file in sequence.
+
 ## GraphOS Offline License
 
 The user specifies the graph id that should be used to fetch an offline license from the GraphOS
@@ -371,33 +506,3 @@ Router.
 #### `version`
 
 The version of the Apollo Router to download.
-
-## Merge YAML
-
-Merge the YAML output of two text based file providers into a single YAML file.
-
-Matching keys in the overrides file will replace scalar values, concatenate arrays and merge keys
-for maps.
-
-```yaml
-- name: router-config.yaml
-  env_var: ROUTER_CONFIG
-  kind: merge_yaml
-  base:
-    kind: relative_path
-    path: "data/base-router-config.yaml"
-  overrides:
-    kind: graphos_subgraph_router_url_overrides
-    graph_ref: "foo@bar"
-    url_format: "docker"
-```
-
-### Fields
-
-#### `base`
-
-A base YAML file to start with.
-
-#### `overrides`
-
-An second YAML file to merge on top of the base file.
