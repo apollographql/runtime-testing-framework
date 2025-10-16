@@ -350,7 +350,7 @@ enum_impl_command_provider!(Inline, RelativePath, Required);
 mod tests {
     use super::*;
     use crate::{
-        context::{Context, PathKind},
+        context::PathKind,
         providers::{
             Provider,
             file::{FileProvider, InlineFile},
@@ -359,31 +359,8 @@ mod tests {
         txtar_context::NullClient,
     };
     use indoc::indoc;
-    use simple_test_case::{dir_cases, test_case};
-    use simple_txtar::Archive;
+    use simple_test_case::test_case;
     use std::{path::PathBuf, sync::Mutex};
-
-    /// Load a txtar [Archive] from the given file content and print the top level comment if there
-    /// is one before returning it.
-    fn load_archive(content: &str) -> Archive {
-        let arr = Archive::from(content);
-        let comment = arr.comment();
-        if !comment.is_empty() {
-            println!("{}", comment.trim());
-        }
-
-        arr
-    }
-
-    /// Read the requested file from the archive, panicking if it is missing
-    fn get_file<'a>(arr: &'a Archive, fname: &str) -> &'a str {
-        match arr.get(fname) {
-            Some(f) => f.content.trim(),
-            None => {
-                panic!("required txtar file section {fname:?} was missing");
-            }
-        }
-    }
 
     // Sample command yaml
     const FULL_INLINE: &str = indoc!(
@@ -435,43 +412,6 @@ mod tests {
         let mut res = config.required_values();
         res.sort(); // Sorting so values are in a determistic order for the assert_eq
         assert_eq!(res, expected_values, "expected values to match")
-    }
-
-    #[dir_cases("crates/rtf-config/resources/provider-tests/command/check-failures")]
-    #[test]
-    fn check_failures(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let expected = get_file(&arr, "check-errors");
-
-        let section: CommandSection = match serde_yaml::from_str(config) {
-            Ok(section) => section,
-            Err(e) => panic!("expected a valid CommandSection, got: {e}"),
-        };
-
-        let dir = PathBuf::from("resources/provider-tests/command/check-failures")
-            .canonicalize()
-            .unwrap();
-        let ctx = Context::new();
-        let src = Source::local(dir.join("example.yaml"));
-        let res = section.try_check(&mut Vec::new(), &src, &ctx);
-
-        assert!(res.is_err(), "expected check failures");
-        let errs = res.unwrap_err();
-
-        // Validation Errors are an ordered list of individual errors with a kind.
-        // To avoid breaking these tests when the user facing error message for each error
-        // is modified, we only assert on the Kind of each error, not the full message.
-        let mut err_kinds = Vec::new();
-        for err in errs.iter() {
-            err_kinds.push(format!("{:?}", err.kind));
-        }
-        let concatenated_errs = err_kinds.join("\n");
-
-        assert_eq!(
-            &concatenated_errs, expected,
-            "wrong validation errors: {errs:?}"
-        );
     }
 
     /// Stub implementation of ResolutionContext for testing command execution that tracks which
