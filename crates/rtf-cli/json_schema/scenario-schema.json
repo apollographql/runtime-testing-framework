@@ -468,7 +468,7 @@
       "type": "object"
     },
     "MergeYaml": {
-      "description": "Merge the YAML output of two text based file providers into a single YAML file.\n\nMatching keys in the overrides file will replace scalar values, concatenate arrays\nand merge keys for maps.\n\n```yaml\n- name: router-config.yaml\n  env_var: ROUTER_CONFIG\n  kind: merge_yaml\n  base:\n    kind: relative_path\n    path: \"data/base-router-config.yaml\"\n  overrides:\n    kind: graphos_subgraph_router_url_overrides\n    graph_ref: \"foo@bar\"\n    url_format: \"docker\"\n```",
+      "description": "Merge the YAML output of text based file providers into a single YAML file.\n\nMatching keys in the overrides file will replace scalar values, concatenate arrays\nand merge keys for maps.\n\nWhen merging a single overrides file the overrides provider can be specified directly\nunder the `overrides` key:\n```yaml\n- name: router-config.yaml\n  env_var: ROUTER_CONFIG\n  kind: merge_yaml\n  base:\n    kind: relative_path\n    path: \"data/base-router-config.yaml\"\n  overrides:\n    kind: relative_path\n    path: \"../my-overrides.yaml\"\n```\n\nWhen merging multiple overrides files, specify the providers in the order you want\nto merge them as an array:\n```yaml\n- name: router-config.yaml\n  env_var: ROUTER_CONFIG\n  kind: merge_yaml\n  base:\n    kind: relative_path\n    path: \"data/base-router-config.yaml\"\n  overrides:\n    - kind: relative_path\n      path: \"../my-overrides.yaml\"\n    - kind: relative_path\n      path: \"../my-other-overrides.yaml\"\n```",
       "properties": {
         "base": {
           "allOf": [
@@ -481,10 +481,10 @@
         "overrides": {
           "allOf": [
             {
-              "$ref": "#/definitions/TextFileProvider"
+              "$ref": "#/definitions/Overrides"
             }
           ],
-          "description": "An second YAML file to merge on top of the base file."
+          "description": "One or more YAML files to merge on top of the base file in sequence."
         }
       },
       "required": [
@@ -806,6 +806,19 @@
       ],
       "title": "GraphOS Offline License",
       "type": "object"
+    },
+    "Overrides": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/TextFileProvider"
+        },
+        {
+          "items": {
+            "$ref": "#/definitions/TextFileProvider"
+          },
+          "type": "array"
+        }
+      ]
     },
     "RelativeFile": {
       "description": "A relative path from the containing config file to a target file that should be made available\nas part of the test run. This provider works both with local files and files within GitHub\nif the containing config file was pulled from a repository.\n\n```yaml\n- name: \"my-file.txt\"\n  env_var: MY_FILE\n  kind: relative_path\n  path: \"../../resources/test-data/my-file.txt\"\n```",
