@@ -6,7 +6,7 @@
 #      breaking changes to the format.
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-DOCS_PAGE="$REPO_ROOT/docs/src/framework/providers.md"
+DOCS_PAGE="$REPO_ROOT/docs/src/framework/file-providers.md"
 RAW="$REPO_ROOT/target/doc/rtf_config.json"
 
 function lookup {
