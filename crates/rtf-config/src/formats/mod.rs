@@ -79,7 +79,9 @@ pub(crate) fn values_for_config_file<'a>(
 mod tests {
     use super::*;
     use crate::{
-        providers::file::{FileProvider, NamedFileProvider, RelativeFile},
+        checks::Check,
+        context::Context,
+        providers::file::{FileProvider, NamedFileProvider, RelativeFile, Source},
         templating::{ErrorKind, Field, Template},
     };
 
@@ -202,6 +204,24 @@ mod tests {
         assert_eq!(
             paths, expected_err_paths,
             "we are testing we get all expected error paths"
+        );
+    }
+
+    /// Assert check errors
+    pub(crate) fn assert_check_errors(
+        c: impl Check,
+        src: &Source,
+        ctx: &Context,
+        expected_err_kinds: &[checks::ErrorKind],
+    ) {
+        let res = c.try_check(&mut Vec::new(), src, ctx);
+        assert!(res.is_err(), "expected check to fail, got {res:?}");
+
+        let err = res.unwrap_err();
+        let err_kinds: Vec<checks::ErrorKind> = err.iter().map(|e| e.kind).collect();
+        assert_eq!(
+            err_kinds, expected_err_kinds,
+            "check the error kind is correct"
         );
     }
 
