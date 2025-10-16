@@ -228,42 +228,23 @@ pub(crate) mod test_helpers {
 pub(crate) mod tests {
     use super::*;
     use crate::{
+        checks::ErrorKind,
         context::Context,
-        formats::environment::test_helpers::{environment_with_fields, templatable_environment},
-        formats::tests::{
-            assert_template_errors, expected_error_details, p, r, templatable_file_providers,
-            value_definitions, value_map,
+        formats::{
+            environment::test_helpers::{environment_with_fields, templatable_environment},
+            tests::{
+                assert_check_errors, assert_template_errors, expected_error_details, p, r,
+                templatable_file_providers, value_definitions, value_map,
+            },
+        },
+        providers::command::{
+            CommandSection,
+            test_helpers::{cmd_with_inline_file, cmd_with_required_file},
         },
         templating::Field,
     };
     use indoc::indoc;
-    use simple_test_case::{dir_cases, test_case};
-    use simple_txtar::Archive;
-    use std::path::PathBuf;
-
-    // Helper functions
-
-    /// Load a txtar [Archive] from the given file content and print the top level comment if there
-    /// is one before returning it.
-    fn load_archive(content: &str) -> Archive {
-        let arr = Archive::from(content);
-        let comment = arr.comment();
-        if !comment.is_empty() {
-            println!("{}", comment.trim());
-        }
-
-        arr
-    }
-
-    /// Read the requested file from the archive, panicking if it is missing
-    fn get_file<'a>(arr: &'a Archive, fname: &str) -> &'a str {
-        match arr.get(fname) {
-            Some(f) => f.content.trim(),
-            None => {
-                panic!("required txtar file section {fname:?} was missing");
-            }
-        }
-    }
+    use simple_test_case::test_case;
 
     /// Create an EnvironmentConfig for testing value scoping behavior
     /// Sets up predefined template fields that reference specific variable names
@@ -336,43 +317,6 @@ pub(crate) mod tests {
         let mut res = config.required_values();
         res.sort(); // Sorting so values are in a determistic order for the assert_eq
         assert_eq!(res, &["bar", "foo"], "expected values to match")
-    }
-
-    #[dir_cases("crates/rtf-config/resources/config-tests/environment/check-failures")]
-    #[test]
-    fn check_failures(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let expected = get_file(&arr, "check-errors");
-
-        let res: serde_yaml::Result<EnvironmentConfig> = serde_yaml::from_str(config);
-        assert!(res.is_ok(), "{res:?}");
-
-        let dir = PathBuf::from("resources/config-tests/environment/check-failures")
-            .canonicalize()
-            .unwrap();
-        let ctx = Context::new();
-        let src = Source::local(dir);
-
-        let env_config = res.unwrap();
-        let res = env_config.try_check(&mut vec!["environment".to_string()], &src, &ctx);
-
-        assert!(res.is_err(), "expected check failures");
-        let errs = res.unwrap_err();
-
-        // Validation Errors are an ordered list of individual errors with a kind.
-        // To avoid breaking these tests when the user facing error message for each error
-        // is modified, we only assert on the Kind of each error, not the full message.
-        let mut err_kinds: Vec<String> = Vec::new();
-        for err in errs.iter() {
-            err_kinds.push(format!("{:?}", err.kind));
-        }
-        let concatenated_errs = err_kinds.join("\n");
-
-        assert_eq!(
-            &concatenated_errs, expected,
-            "wrong validation errors: {errs:?}"
-        );
     }
 
     #[test_case(p("setup"), p("teardown"), true; "setup and teardown pending is pending")]
@@ -608,5 +552,82 @@ pub(crate) mod tests {
             res.is_ok(),
             "expected teardown to succeed when accessing top-level values, got {res:?}"
         );
+    }
+
+    // The success test is here to complete the matrix of failure tests below (i.e. no failure)
+    // It shows all parts of the env config that *could* fail not failing. In reality we could
+    // just use an "empty" config here and get the same result but this is a more illustrative
+    // example
+    #[test]
+    fn try_check_success() {
+        let environment = EnvironmentConfig {
+            setup: SetupSection {
+                command: cmd_with_inline_file(),
+                provides: Vec::new(),
+            },
+            teardown: cmd_with_inline_file(),
+            ..EnvironmentConfig::empty()
+        };
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        let res = environment.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+    }
+
+    #[test_case(
+        cmd_with_required_file(),
+        CommandSection::empty(),
+        &[],
+        &[ErrorKind::RequiredFileMissing];
+        "setup only"
+    )]
+    #[test_case(
+        CommandSection::empty(),
+        cmd_with_required_file(),
+        &[],
+        &[ErrorKind::RequiredFileMissing];
+        "teardown only"
+    )]
+    #[test_case(
+        CommandSection::empty(),
+        CommandSection::empty(),
+        &["foo"],
+        &[ErrorKind::DuplicateValueNames];
+        "duplicate provides value"
+    )]
+    #[test_case(
+        cmd_with_required_file(),
+        cmd_with_required_file(),
+        &["foo", "bar"],
+        &[ErrorKind::DuplicateValueNames, ErrorKind::RequiredFileMissing, ErrorKind::RequiredFileMissing];
+        "setup and teardown and duplicate values"
+    )]
+    #[test]
+    fn try_check_errors(
+        setup_command: CommandSection,
+        teardown_command: CommandSection,
+        provides: &[&str],
+        expected_err_kinds: &[ErrorKind],
+    ) {
+        let environment = EnvironmentConfig {
+            values: value_definitions(provides),
+            setup: SetupSection {
+                command: setup_command,
+                provides: value_definitions(provides),
+            },
+            teardown: teardown_command,
+            ..EnvironmentConfig::empty()
+        };
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        assert_check_errors(environment, &src, &ctx, expected_err_kinds);
     }
 }
