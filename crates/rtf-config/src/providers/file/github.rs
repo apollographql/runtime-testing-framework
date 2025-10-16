@@ -80,3 +80,60 @@ impl Check for GithubFile {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{context::Context, providers::file::tests::assert_check_errors};
+
+    #[test]
+    fn try_check_github_file_success() {
+        // This test works because all that's needed for success in the GitHub case is
+        // a GitHub token to be defined in the context
+        let github_file = GithubFile {
+            org: Field::Resolved("org".to_string()),
+            repo: Field::Resolved("repo".to_string()),
+            path: Field::Resolved("path".to_string()),
+            git_ref: None,
+        };
+
+        let mut ctx = Context::new();
+        ctx.with_github_config("dummy_token");
+        let src = Source::Github {
+            org: "org".to_string(),
+            repo: "repo".to_string(),
+            path: "path".into(),
+            git_ref: None,
+        };
+
+        let res = github_file.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+    }
+
+    #[test]
+    fn try_check_github_file_missing_github_api_key() {
+        // This test works because all that's needed for success in the GitHub case is
+        // a GitHub token to be defined in the context
+        let github_file = GithubFile {
+            org: Field::Resolved("org".to_string()),
+            repo: Field::Resolved("repo".to_string()),
+            path: Field::Resolved("path".to_string()),
+            git_ref: None,
+        };
+
+        let ctx = Context::new();
+        let src = Source::Github {
+            org: "org".to_string(),
+            repo: "repo".to_string(),
+            path: "path".into(),
+            git_ref: None,
+        };
+
+        assert_check_errors(
+            github_file,
+            &src,
+            &ctx,
+            &[checks::ErrorKind::MissingGithubApiKey],
+        );
+    }
+}

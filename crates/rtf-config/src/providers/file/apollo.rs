@@ -986,3 +986,191 @@ impl Check for BuildRouterFromSource {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        checks::ErrorKind,
+        context::Context,
+        providers::file::{FileProvider, tests::assert_check_errors},
+    };
+    use simple_test_case::test_case;
+
+    /// Create a GraphOS Supergraph
+    fn supergraph(graph_ref: &str) -> FileProvider {
+        FileProvider::GraphosSupergraph(GraphosSupergraph {
+            graph_ref: Field::Resolved(graph_ref.to_string()),
+            with_subgraph_overrides: None,
+        })
+    }
+
+    /// Create a GraphOS Subgraphs
+    fn subgraphs(graph_ref: &str) -> FileProvider {
+        FileProvider::GraphosSubgraphs(GraphosSubgraphs {
+            graph_ref: Field::Resolved(graph_ref.to_string()),
+        })
+    }
+
+    /// Create a GraphOS Subgraphs Docker Compose
+    fn subgraphs_compose(graph_ref: &str) -> FileProvider {
+        FileProvider::GraphosSubgraphDockerCompose(GraphosSubgraphDockerCompose {
+            graph_ref: Field::Resolved(graph_ref.to_string()),
+            image: Field::Resolved("image".to_string()),
+            command: Vec::new(),
+            replicas: Field::Resolved(1),
+            resource_limits: Resources {
+                cpus: Field::Resolved("1".to_string()),
+                memory: Field::Resolved("1G".to_string()),
+            },
+            resource_reservations: Resources {
+                cpus: Field::Resolved("1".to_string()),
+                memory: Field::Resolved("1G".to_string()),
+            },
+            mem_swappiness: Field::Resolved(0),
+            loadbalancer: Loadbalancer {
+                resource_limits: Resources {
+                    cpus: Field::Resolved("1".to_string()),
+                    memory: Field::Resolved("1G".to_string()),
+                },
+                resource_reservations: Resources {
+                    cpus: Field::Resolved("1".to_string()),
+                    memory: Field::Resolved("1G".to_string()),
+                },
+                mem_swappiness: Field::Resolved(0),
+            },
+        })
+    }
+
+    /// Create a GraphOS Subgraphs URL Overrides
+    fn subgraphs_overrides(graph_ref: &str) -> FileProvider {
+        FileProvider::GraphosSubgraphRouterUrlOverrides(GraphosSubgraphRouterUrlOverrides {
+            graph_ref: Field::Resolved(graph_ref.to_string()),
+            url_format: UrlFormat::Docker,
+        })
+    }
+
+    /// Create a GraphOS Canned Ops
+    fn canned_ops(graph_ref: &str) -> FileProvider {
+        FileProvider::GraphosCannedOps(GraphosCannedOps {
+            graph_ref: Field::Resolved(graph_ref.to_string()),
+            top_n: Field::Resolved(20),
+            skip_mutations: Field::Resolved(true),
+        })
+    }
+
+    /// Create a GraphOS Canned Ops by ID
+    fn canned_ops_by_id(graph_ref: &str) -> FileProvider {
+        FileProvider::GraphosCannedOpsById(GraphosCannedOpsById {
+            graph_ref: Field::Resolved(graph_ref.to_string()),
+            operation_ids: Vec::new(),
+        })
+    }
+
+    #[test_case(supergraph("graph@variant"), true, &[]; "supergraph success")]
+    #[test_case(supergraph("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "supergraph invalid ref")]
+    #[test_case(supergraph("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "supergraph missing key")]
+    #[test_case(supergraph("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "supergraph invalid ref and missing key")]
+    #[test_case(subgraphs("graph@variant"), true, &[]; "subgraphs success")]
+    #[test_case(subgraphs("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "subgraphs invalid ref")]
+    #[test_case(subgraphs("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "subgraphs missing key")]
+    #[test_case(subgraphs("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "subgraphs invalid ref and missing key")]
+    #[test_case(subgraphs_compose("graph@variant"), true, &[]; "subgraphs compose success")]
+    #[test_case(subgraphs_compose("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "subgraphs compose invalid ref")]
+    #[test_case(subgraphs_compose("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "subgraphs compose missing key")]
+    #[test_case(subgraphs_compose("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "subgraphs compose invalid ref and missing key")]
+    #[test_case(subgraphs_overrides("graph@variant"), true, &[]; "subgraphs overrides success")]
+    #[test_case(subgraphs_overrides("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "subgraphs overrides invalid ref")]
+    #[test_case(subgraphs_overrides("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "subgraphs overrides missing key")]
+    #[test_case(subgraphs_overrides("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "subgraphs overrides invalid ref and missing key")]
+    #[test_case(canned_ops("graph@variant"), true, &[]; "canned ops success")]
+    #[test_case(canned_ops("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "canned ops invalid ref")]
+    #[test_case(canned_ops("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "canned ops missing key")]
+    #[test_case(canned_ops("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "canned ops invalid ref and missing key")]
+    #[test_case(canned_ops_by_id("graph@variant"), true, &[]; "canned ops by id success")]
+    #[test_case(canned_ops_by_id("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "canned ops by id invalid ref")]
+    #[test_case(canned_ops_by_id("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "canned ops by id missing key")]
+    #[test_case(canned_ops_by_id("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "canned ops by id invalid ref and missing key")]
+    #[test]
+    fn try_check_graph_ref_providers(
+        fp: FileProvider,
+        with_platform_config: bool,
+        expected_err_kinds: &[ErrorKind],
+    ) {
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+        let mut ctx = Context::new();
+        if with_platform_config {
+            ctx.with_platform_config("dummy_key", false, false);
+        }
+
+        if !expected_err_kinds.is_empty() {
+            assert_check_errors(fp, &src, &ctx, expected_err_kinds);
+        } else {
+            let res = fp.try_check(&mut Vec::new(), &src, &ctx);
+            assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+        }
+    }
+
+    #[test]
+    fn try_check_offline_license_success() {
+        let offline = OfflineGraphosLicense {
+            graph_id: Field::Resolved("graph".to_string()),
+        };
+
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+        let mut ctx = Context::new();
+        ctx.with_platform_config("dummy_key", false, false);
+
+        let res = offline.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+    }
+
+    #[test]
+    fn try_check_offline_license_missing_api_key() {
+        let offline = OfflineGraphosLicense {
+            graph_id: Field::Resolved("graph".to_string()),
+        };
+
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+        let ctx = Context::new();
+
+        assert_check_errors(offline, &src, &ctx, &[ErrorKind::MissingGraphOsApiKey]);
+    }
+
+    #[test]
+    fn try_check_router_download_script_success() {
+        let router_download = RouterDownloadScript {
+            version: Field::Resolved("v2.0.0".to_string()),
+        };
+
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+        let ctx = Context::new();
+
+        let res = router_download.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+    }
+
+    #[test]
+    fn try_check_build_router_from_source_success() {
+        let build_from_source = BuildRouterFromSource {
+            git_ref: Field::Resolved("ref".to_string()),
+            rust_version: Field::Resolved("1.90.0".to_string()),
+        };
+
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+        let ctx = Context::new();
+
+        let res = build_from_source.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+    }
+}

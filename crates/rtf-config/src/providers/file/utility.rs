@@ -264,7 +264,11 @@ impl Check for FromCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::Context;
+    use crate::{
+        checks::ErrorKind,
+        context::Context,
+        providers::file::{FileProvider, NamedFileProvider, tests::assert_check_errors},
+    };
     use simple_test_case::test_case;
 
     fn one(content: &str) -> Overrides {
@@ -313,5 +317,105 @@ mod tests {
             .expect("provider to run successfully");
 
         assert_eq!(s, expected);
+    }
+
+    #[test]
+    fn try_check_merge_yaml_success() {
+        let merge_yaml = MergeYaml {
+            base: TextFileProvider::Inline(InlineFile {
+                content: "some content".to_string(),
+            }),
+            overrides: Overrides::One(TextFileProvider::Inline(InlineFile {
+                content: "override content".to_string(),
+            })),
+        };
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        let res = merge_yaml.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+    }
+
+    #[test_case(
+        TextFileProvider::Required(RequiredFile {message: "will fail check".to_string(),}),
+        Overrides::One(TextFileProvider::Inline(InlineFile {content: "override content".to_string(),})),
+        &[ErrorKind::RequiredFileMissing];
+        "base only"
+    )]
+    #[test_case(
+        TextFileProvider::Inline(InlineFile {content: "some content".to_string(),}),
+        Overrides::One(TextFileProvider::Required(RequiredFile {message: "will fail check".to_string(),})),
+        &[ErrorKind::RequiredFileMissing];
+        "single override only"
+    )]
+    #[test_case(
+        TextFileProvider::Inline(InlineFile {content: "some content".to_string(),}),
+        Overrides::Array(vec![TextFileProvider::Required(RequiredFile {message: "will fail check".to_string(),}),TextFileProvider::Required(RequiredFile {message: "will fail check".to_string(),})]),
+        &[ErrorKind::RequiredFileMissing, ErrorKind::RequiredFileMissing];
+        "multiple overrides only"
+    )]
+    #[test_case(
+        TextFileProvider::Required(RequiredFile {message: "will fail check".to_string(),}),
+        Overrides::One(TextFileProvider::Required(RequiredFile {message: "will fail check".to_string(),})),
+        &[ErrorKind::RequiredFileMissing, ErrorKind::RequiredFileMissing];
+        "base and single override"
+    )]
+    #[test]
+    fn try_check_merge_yaml_errors(
+        base: TextFileProvider,
+        overrides: Overrides,
+        expected_err_kinds: &[checks::ErrorKind],
+    ) {
+        let merge_yaml = MergeYaml { base, overrides };
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        assert_check_errors(merge_yaml, &src, &ctx, expected_err_kinds);
+    }
+
+    #[test]
+    fn try_check_from_command_success() {
+        let from_command = FromCommand {
+            inner: CommandSection {
+                ..CommandSection::empty()
+            },
+        };
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        let res = from_command.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+    }
+
+    #[test]
+    fn try_check_from_command_errors() {
+        let from_command = FromCommand {
+            inner: CommandSection {
+                file_providers: vec![NamedFileProvider {
+                    name: "required".to_string(),
+                    env_var: "REQUIRED".to_string(),
+                    provider: FileProvider::Required(RequiredFile {
+                        message: "this will error".to_string(),
+                    }),
+                }],
+                ..CommandSection::empty()
+            },
+        };
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        assert_check_errors(from_command, &src, &ctx, &[ErrorKind::RequiredFileMissing]);
     }
 }
