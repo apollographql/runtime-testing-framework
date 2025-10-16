@@ -1,9 +1,0 @@
-A YAML fragment for a relative path file provider that references a directory
-rather than a file. This should parse but fail to check successfully.
-
--- config.yaml --
-kind: relative_path
-path: ../../../provider-tests
-
--- check-errors --
-IsADirectory

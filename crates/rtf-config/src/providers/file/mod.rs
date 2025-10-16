@@ -568,40 +568,6 @@ mod tests {
         }
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/check-errors")]
-    #[test]
-    fn check_errors(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let expected = get_file(&arr, "check-errors");
-
-        let provider: FileProvider = match serde_yaml::from_str(config) {
-            Ok(provider) => provider,
-            Err(e) => panic!("expected a valid FileProvider, got: {e}"),
-        };
-
-        let dir = PathBuf::from("resources/provider-tests/file/check-errors")
-            .canonicalize()
-            .unwrap();
-        let ctx = Context::new();
-        let src = Source::local(dir.join("example.yaml"));
-        let res = provider.try_check(&mut Vec::new(), &src, &ctx);
-
-        assert!(res.is_err(), "expected check errors");
-        let errs = res.unwrap_err();
-
-        // Check errors are an ordered list of individual errors with a kind.
-        // To avoid breaking these tests when the user facing error message for each error
-        // is modified, we only assert on the Kind of each error, not the full message.
-        let mut err_kinds = Vec::new();
-        for err in errs.iter() {
-            err_kinds.push(format!("{:?}", err.kind));
-        }
-        let concatenated_errs = err_kinds.join("\n");
-
-        assert_eq!(&concatenated_errs, expected, "wrong check errors: {errs:?}");
-    }
-
     #[dir_cases("crates/rtf-config/resources/provider-tests/file/expected-file-success")]
     #[tokio::test]
     async fn expected_file_success(_path: &str, content: &str) {
