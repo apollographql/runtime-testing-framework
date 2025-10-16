@@ -1,11 +1,10 @@
 use crate::{
     ValueDefinition,
-    checks::{self, Check},
+    checks::{self, Check, CheckArrayDuplicates},
     context::ResolutionContext,
     formats::{EnvironmentConfig, Error, Result, ScenarioConfig},
     merge_yaml,
     providers::{
-        self,
         command::CommandSection,
         file::{RawSource, Source},
     },
@@ -17,7 +16,6 @@ use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
-    hash::Hash,
     mem,
     path::Path,
 };
@@ -468,11 +466,11 @@ impl RawTestPlanConfig {
             .environment
             .try_into_config_with_source::<EnvironmentConfig>(&tp_source, ctx)
             .await;
-        let (mut environment, environment_source) = match res {
+        let (environment, environment_source) = match res {
             Ok(data) => data,
             Err(err) => {
                 error!("malformed environment config section");
-                return Err(err.into());
+                return Err(err);
             }
         };
 
@@ -480,26 +478,13 @@ impl RawTestPlanConfig {
             .scenario
             .try_into_config_with_source::<ScenarioConfig>(&tp_source, ctx)
             .await;
-        let (mut scenario, scenario_source) = match res {
+        let (scenario, scenario_source) = match res {
             Ok(data) => data,
             Err(err) => {
                 error!("malformed scenario config section");
-                return Err(err.into());
+                return Err(err);
             }
         };
-
-        dedup_and_sort_by_key(&mut environment.values, |v| v.name.clone());
-        dedup_and_sort_by_key(&mut environment.setup.provides, |v| v.name.clone());
-        dedup_and_sort_by_key(&mut environment.setup.command.file_providers, |nfp| {
-            nfp.env_var.clone()
-        });
-        dedup_and_sort_by_key(&mut environment.teardown.file_providers, |nfp| {
-            nfp.env_var.clone()
-        });
-        dedup_and_sort_by_key(&mut scenario.values, |v| v.name.clone());
-        dedup_and_sort_by_key(&mut scenario.command.file_providers, |nfp| {
-            nfp.env_var.clone()
-        });
 
         Ok(TestPlanConfig {
             name: self.name,
@@ -511,23 +496,6 @@ impl RawTestPlanConfig {
             sources: Sources::new(tp_source, scenario_source, environment_source),
         })
     }
-}
-
-/// Helper function for deduplicating list entries. We are depulicating in this
-/// way because we know the user is overriding specific items. We are taking
-/// the last entry on the list as the one to keep.
-fn dedup_and_sort_by_key<T, K>(v: &mut Vec<T>, key_fn: fn(&T) -> K)
-where
-    K: Eq + Hash + Ord,
-{
-    let mut m = HashMap::with_capacity(v.len());
-    for item in mem::take(v).into_iter() {
-        m.insert(key_fn(&item), item);
-    }
-    let mut deduped: Vec<T> = m.into_values().collect();
-    deduped.sort_by_key(key_fn);
-
-    *v = deduped;
 }
 
 /// # Config Spec
@@ -566,13 +534,15 @@ impl ConfigSpec {
         self,
         tp_source: &Source,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<(T, Option<Source>)>
+    ) -> Result<(T, Option<Source>)>
     where
-        T: DeserializeOwned,
+        T: CheckArrayDuplicates + DeserializeOwned,
     {
         match self {
             Self::Inline { inline } => {
-                let t = serde_yaml::from_value(inline)?;
+                let mut t: T = serde_yaml::from_value(inline)?;
+                t.ensure_no_duplicate_keys()?;
+                t.sort_arrays();
 
                 Ok((t, None))
             }
@@ -580,17 +550,29 @@ impl ConfigSpec {
                 from,
                 mut overrides,
             } => {
+                // When applying overrides we need to make sure that the base config file is valid
+                // before we start and then re-validate following the merge.
                 let src = from.try_into_source(tp_source, ctx)?;
                 let file_content = src.try_get_file_content(ctx).await?;
-                let mut base: serde_yaml::Value = serde_yaml::from_str(&file_content)?;
+                let mut t: T = serde_yaml::from_str(&file_content)?;
+                t.ensure_no_duplicate_keys()?;
 
                 if overrides != serde_yaml::Value::Null {
+                    let mut base: serde_yaml::Value = serde_yaml::from_str(&file_content)?;
                     let yaml_src = serde_yaml::to_value(tp_source)?;
                     set_source_for_relative_files(&mut overrides, &yaml_src);
                     merge_yaml(overrides, &mut base);
+
+                    // Now that we've merged we need to handle deduplication of arrays in order to
+                    // retain any data from the overrides in favour of what was in the base config
+                    // file. try_dedup_and_sort can error at this stage if there were duplicates
+                    // within the overrides themselves.
+                    let mut merged: T = serde_yaml::from_value(base)?;
+                    merged.try_dedup_and_sort()?;
+                    t = merged;
                 }
 
-                Ok((serde_yaml::from_value(base)?, Some(src)))
+                Ok((t, Some(src)))
             }
         }
     }

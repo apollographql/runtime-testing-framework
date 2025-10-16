@@ -1,6 +1,10 @@
 //! Helpers for checking config files
-use crate::{context::ResolutionContext, providers::file::Source};
-use std::collections::HashSet;
+use crate::{
+    ValueDefinition,
+    context::ResolutionContext,
+    providers::file::{NamedFileProvider, Source},
+};
+use std::{collections::HashMap, hash::Hash, mem};
 
 /// User facing descriptions of the reason that validation failed.
 ///
@@ -103,6 +107,144 @@ macro_rules! enum_impl_check {
     };
 }
 
+/// Checks for conflicts between different arrays are handled in the implementation of [Check]
+pub trait CheckArrayDuplicates {
+    const BASE_PATH: &str;
+
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)>;
+
+    fn ensure_no_duplicate_keys(&mut self) -> Result<()> {
+        let mut errs = ErrorBuilder::new();
+        for (p, arr) in self.deduplicated_arrays() {
+            errs.append(arr.ensure_no_duplicate_keys(Self::BASE_PATH, p));
+        }
+
+        errs.into_result(())
+    }
+
+    fn sort_arrays(&mut self) {
+        for (_, mut arr) in self.deduplicated_arrays() {
+            arr.sort();
+        }
+    }
+
+    fn try_dedup_and_sort(&mut self) -> Result<()> {
+        let mut errs = ErrorBuilder::new();
+        let mut arrs = self.deduplicated_arrays();
+
+        // Allow for up to two duplicates when applying overrides (one in the base and one in the
+        // overrides). We check this first to ensure that all arrays are valid before we attempt
+        // to deduplicate any of them.
+        for (p, arr) in arrs.iter_mut() {
+            errs.append(arr.at_most_two_duplicates(Self::BASE_PATH, p));
+        }
+
+        errs.into_result(())?;
+
+        for (_, mut arr) in arrs {
+            arr.dedup_and_sort();
+        }
+
+        Ok(())
+    }
+}
+
+/// Wrapper around the array types we need to be able to check and dedup as part of merging
+/// overrides in test plans.
+#[derive(Debug, PartialEq)]
+pub enum DedupArray<'a> {
+    ValueDef(&'a mut Vec<ValueDefinition>),
+    Nfp(&'a mut Vec<NamedFileProvider>),
+}
+
+impl<'a> DedupArray<'a> {
+    fn ensure_no_duplicate_keys(&self, base_path: &str, p: &str) -> Result<()> {
+        let duplicates = match self {
+            DedupArray::ValueDef(vds) => duplicate_keys(vds.iter(), |vd| &vd.name),
+            DedupArray::Nfp(nfps) => duplicate_keys(nfps.iter(), |nfp| &nfp.env_var),
+        };
+
+        if !duplicates.is_empty() {
+            let path = vec![base_path.to_string(), p.to_string()];
+            return Err(Errors::new(
+                ErrorKind::DuplicateValueNames,
+                duplicates.join("\n"),
+                &path,
+            ));
+        }
+
+        Ok(())
+    }
+
+    fn sort(&mut self) {
+        match self {
+            DedupArray::ValueDef(vds) => vds.sort_by_key(|vd| vd.name.clone()),
+            DedupArray::Nfp(nfps) => nfps.sort_by_key(|nfp| nfp.env_var.clone()),
+        }
+    }
+
+    fn at_most_two_duplicates(&self, base_path: &str, p: &str) -> Result<()> {
+        fn inner<T>(v: &[T], key_fn: fn(&T) -> String, base_path: &str, p: &str) -> Result<()> {
+            let duplicates = duplicate_keys_with_threshold(v.iter(), key_fn, 2);
+            if !duplicates.is_empty() {
+                let path = vec![base_path.to_string(), p.to_string()];
+                return Err(Errors::new(
+                    ErrorKind::DuplicateValueNames,
+                    duplicates.join("\n"),
+                    &path,
+                ));
+            }
+
+            Ok(())
+        }
+
+        match self {
+            DedupArray::ValueDef(vds) => inner(vds, |vd| vd.name.clone(), base_path, p),
+            DedupArray::Nfp(nfps) => inner(nfps, |nfp| nfp.env_var.clone(), base_path, p),
+        }
+    }
+
+    fn dedup_and_sort(&mut self) {
+        /// We are depulicating in this way because we know the user is overriding specific items.
+        /// We are taking the last entry on the list as the one to keep.
+        fn inner<T>(v: &mut Vec<T>, key_fn: fn(&T) -> String) {
+            let mut m = HashMap::with_capacity(v.len());
+            for item in mem::take(v).into_iter() {
+                m.insert(key_fn(&item), item);
+            }
+            let mut deduped: Vec<T> = m.into_values().collect();
+            deduped.sort_by_key(key_fn);
+
+            *v = deduped;
+        }
+
+        match self {
+            DedupArray::ValueDef(vds) => inner(vds, |vd| vd.name.clone()),
+            DedupArray::Nfp(nfps) => inner(nfps, |nfp| nfp.env_var.clone()),
+        }
+    }
+}
+
+fn duplicate_keys_with_threshold<'a, T: 'a, K>(
+    elems: impl Iterator<Item = T>,
+    key_fn: impl Fn(T) -> K,
+    threshold: usize,
+) -> Vec<K>
+where
+    K: Eq + Hash + Ord,
+{
+    let mut counts: HashMap<K, usize> = HashMap::new();
+    for elem in elems.into_iter() {
+        *counts.entry(key_fn(elem)).or_default() += 1;
+    }
+    counts.retain(|_, n| *n > threshold);
+
+    let mut duplicates: Vec<_> = counts.into_keys().collect();
+    duplicates.sort_unstable();
+
+    duplicates
+}
+
 /// Determine if there are any duplicates within a given slices of elements using a given key
 /// function.
 ///
@@ -111,28 +253,17 @@ pub(crate) fn duplicate_keys<'a, T: 'a>(
     elems: impl Iterator<Item = T>,
     key_fn: impl Fn(T) -> &'a str,
 ) -> Vec<&'a str> {
-    let mut seen = HashSet::new();
-    let mut duplicates = Vec::new();
-
-    for elem in elems.into_iter() {
-        let k = key_fn(elem);
-        if seen.contains(k) {
-            duplicates.push(k);
-        } else {
-            seen.insert(k);
-        }
-    }
-
-    // ensure that our reported duplicates are in alphabetical order
-    duplicates.sort_unstable();
-    duplicates.dedup();
-
-    duplicates
+    duplicate_keys_with_threshold(elems, key_fn, 1)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        providers::file::{FileProvider, InlineFile},
+        templating::Scalar,
+    };
+    use simple_test_case::test_case;
 
     #[derive(Debug)]
     struct Mapping {
@@ -183,5 +314,238 @@ mod tests {
         let duplicates = duplicate_keys(vals.iter(), |s| s.k);
 
         assert_eq!(duplicates, vec!["c"]);
+    }
+
+    fn vd(name: &str, default: Option<Scalar>) -> ValueDefinition {
+        ValueDefinition {
+            name: name.into(),
+            description: format!("description for {name}"),
+            default,
+        }
+    }
+
+    fn nfp(name: &str, env_var: &str, content: &str) -> NamedFileProvider {
+        NamedFileProvider {
+            name: name.to_string(),
+            env_var: env_var.to_string(),
+            provider: FileProvider::Inline(InlineFile {
+                content: content.to_string(),
+            }),
+        }
+    }
+
+    #[test_case(
+        DedupArray::ValueDef(&mut vec![vd("a", None), vd("b", None)]),
+        false;
+        "vd no duplicates"
+    )]
+    #[test_case(
+        DedupArray::Nfp(&mut vec![nfp("a", "A", ""), nfp("b", "B", "")]),
+        false;
+        "nfp no duplicates"
+    )]
+    #[test_case(
+        DedupArray::ValueDef(&mut vec![vd("a", None), vd("a", None)]),
+        true;
+        "vd single duplicate"
+    )]
+    #[test_case(
+        DedupArray::Nfp(&mut vec![nfp("a", "A", ""), nfp("a", "A", "")]),
+        true;
+        "nfp single duplicate"
+    )]
+    #[test_case(
+        DedupArray::ValueDef(&mut vec![vd("a", None), vd("a", None), vd("a", None)]),
+        true;
+        "vd multiple duplicates"
+    )]
+    #[test_case(
+        DedupArray::Nfp(&mut vec![nfp("a", "A", ""), nfp("a", "A", ""), nfp("a", "A", "")]),
+        true;
+        "nfp multiple duplicates"
+    )]
+    #[test]
+    fn ensure_no_duplicate_keys_errors_correctly(arr: DedupArray<'_>, is_err: bool) {
+        let res = arr.ensure_no_duplicate_keys("BASE", "path");
+
+        assert_eq!(
+            res.is_err(),
+            is_err,
+            "expected is_err={is_err}, got {res:?}"
+        );
+    }
+
+    #[test_case(
+        DedupArray::ValueDef(&mut vec![vd("b", None), vd("c", None), vd("a", None)]),
+        DedupArray::ValueDef(&mut vec![vd("a", None), vd("b", None), vd("c", None)]);
+        "value defs"
+    )]
+    #[test_case(
+        DedupArray::Nfp(&mut vec![nfp("z", "B", ""), nfp("x", "C", ""), nfp("y", "A", "")]),
+        DedupArray::Nfp(&mut vec![nfp("y", "A", ""), nfp("z", "B", ""), nfp("x", "C", "")]);
+        "named file providers"
+    )]
+    #[test]
+    fn dedup_array_sorts_by_the_correct_key(mut arr: DedupArray<'_>, expected: DedupArray<'_>) {
+        arr.sort();
+        assert_eq!(arr, expected);
+    }
+
+    #[test_case(
+        DedupArray::ValueDef(&mut vec![vd("a", None), vd("b", None)]),
+        false;
+        "vd no duplicates"
+    )]
+    #[test_case(
+        DedupArray::Nfp(&mut vec![nfp("a", "A", ""), nfp("b", "B", "")]),
+        false;
+        "nfp no duplicates"
+    )]
+    #[test_case(
+        DedupArray::ValueDef(&mut vec![vd("a", None), vd("a", None)]),
+        false;
+        "vd single duplicate"
+    )]
+    #[test_case(
+        DedupArray::Nfp(&mut vec![nfp("a", "A", ""), nfp("a", "A", "")]),
+        false;
+        "nfp single duplicate"
+    )]
+    #[test_case(
+        DedupArray::ValueDef(&mut vec![vd("a", None), vd("a", None), vd("a", None)]),
+        true;
+        "vd multiple duplicates"
+    )]
+    #[test_case(
+        DedupArray::Nfp(&mut vec![nfp("a", "A", ""), nfp("a", "A", ""), nfp("a", "A", "")]),
+        true;
+        "nfp multiple duplicates"
+    )]
+    #[test]
+    fn at_most_two_duplicates_errors_correctly(arr: DedupArray<'_>, is_err: bool) {
+        let res = arr.at_most_two_duplicates("BASE", "path");
+
+        assert_eq!(
+            res.is_err(),
+            is_err,
+            "expected is_err={is_err}, got {res:?}"
+        );
+    }
+
+    #[test_case(
+        DedupArray::ValueDef(&mut vec![vd("a", Some(42.into())), vd("b", None), vd("a", None)]),
+        DedupArray::ValueDef(&mut vec![vd("a", None), vd("b", None)]);
+        "value defs"
+    )]
+    #[test_case(
+        DedupArray::Nfp(&mut vec![nfp("a", "A", "original"), nfp("b", "B", ""), nfp("a", "A", "override")]),
+        DedupArray::Nfp(&mut vec![nfp("a", "A", "override"), nfp("b", "B", "")]);
+        "named file providers"
+    )]
+    #[test]
+    fn dedup_and_sort_keeps_the_second_element_with_a_given_key(
+        mut arr: DedupArray<'_>,
+        expected: DedupArray<'_>,
+    ) {
+        arr.dedup_and_sort();
+        assert_eq!(arr, expected);
+    }
+
+    #[derive(Debug)]
+    struct DedupMe {
+        values: Vec<ValueDefinition>,
+        providers: Vec<NamedFileProvider>,
+    }
+
+    impl CheckArrayDuplicates for DedupMe {
+        const BASE_PATH: &str = "base";
+
+        fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
+            vec![
+                ("values", DedupArray::ValueDef(&mut self.values)),
+                ("providers", DedupArray::Nfp(&mut self.providers)),
+            ]
+        }
+    }
+
+    #[test]
+    fn ensure_no_duplicate_keys_runs_for_all_arrays() {
+        let mut dedup_me = DedupMe {
+            values: vec![vd("a", Some(42.into())), vd("a", None)],
+            providers: vec![nfp("b", "B", ""), nfp("b", "B", "")],
+        };
+
+        let res = dedup_me.ensure_no_duplicate_keys();
+        assert!(res.is_err(), "expected to error");
+
+        let errs = res.unwrap_err().into_vec();
+        assert_eq!(errs.len(), 2, "expected 2 errors, got {errs:?}");
+    }
+
+    #[test]
+    fn sort_arrays_runs_for_all_arrays() {
+        let mut dedup_me = DedupMe {
+            values: vec![vd("b", None), vd("a", None)],
+            providers: vec![nfp("b", "B", ""), nfp("a", "A", "")],
+        };
+
+        dedup_me.sort_arrays();
+
+        assert_eq!(&dedup_me.values, &[vd("a", None), vd("b", None)]);
+        assert_eq!(&dedup_me.providers, &[nfp("a", "A", ""), nfp("b", "B", "")]);
+    }
+
+    #[test]
+    fn try_dedup_and_sort_doesnt_sort_or_dedup_when_returning_errors() {
+        let mut dedup_me = DedupMe {
+            values: vec![vd("b", None), vd("b", None), vd("b", None), vd("a", None)],
+            providers: vec![
+                nfp("b", "B", ""),
+                nfp("b", "B", ""),
+                nfp("b", "B", ""),
+                nfp("a", "A", ""),
+            ],
+        };
+
+        let res = dedup_me.try_dedup_and_sort();
+
+        assert!(res.is_err(), "expected to error");
+        let errs = res.unwrap_err().into_vec();
+        assert_eq!(errs.len(), 2, "expected 2 errors, got {errs:?}");
+
+        assert_eq!(
+            &dedup_me.values,
+            &[vd("b", None), vd("b", None), vd("b", None), vd("a", None)]
+        );
+        assert_eq!(
+            &dedup_me.providers,
+            &[
+                nfp("b", "B", ""),
+                nfp("b", "B", ""),
+                nfp("b", "B", ""),
+                nfp("a", "A", "")
+            ]
+        );
+    }
+
+    #[test]
+    fn try_dedup_and_sort_runs_for_all_arrays() {
+        let mut dedup_me = DedupMe {
+            values: vec![vd("b", Some(42.into())), vd("b", None), vd("a", None)],
+            providers: vec![
+                nfp("b", "B", "original"),
+                nfp("b", "B", "override"),
+                nfp("a", "A", ""),
+            ],
+        };
+
+        let res = dedup_me.try_dedup_and_sort();
+        assert!(res.is_ok(), "expected OK, got {res:?}");
+
+        assert_eq!(&dedup_me.values, &[vd("a", None), vd("b", None)]);
+        assert_eq!(
+            &dedup_me.providers,
+            &[nfp("a", "A", ""), nfp("b", "B", "override"),]
+        );
     }
 }

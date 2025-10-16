@@ -1,7 +1,7 @@
 //! Parsing of the environment provisioner config file format
 use crate::{
     ValueDefinition,
-    checks::{self, Check, duplicate_keys},
+    checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
     formats::{Result, values_for_config_file},
     providers::{command::CommandSection, file::Source},
@@ -134,6 +134,28 @@ impl Check for EnvironmentConfig {
         errs.append(self.teardown.try_check_nested(path, "teardown", src, ctx));
 
         errs.into_result(())
+    }
+}
+
+impl CheckArrayDuplicates for EnvironmentConfig {
+    const BASE_PATH: &str = "environment";
+
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
+        vec![
+            ("values", DedupArray::ValueDef(&mut self.values)),
+            (
+                "setup.provides",
+                DedupArray::ValueDef(&mut self.setup.provides),
+            ),
+            (
+                "setup.file_providers",
+                DedupArray::Nfp(&mut self.setup.command.file_providers),
+            ),
+            (
+                "teardown.file_providers",
+                DedupArray::Nfp(&mut self.teardown.file_providers),
+            ),
+        ]
     }
 }
 
