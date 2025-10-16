@@ -901,121 +901,138 @@
 <a href=#901 id=901 data-nosnippet>901</a>            new_key: new_value
 <a href=#902 id=902 data-nosnippet>902</a>    "#
 <a href=#903 id=903 data-nosnippet>903</a>    </span>);
-<a href=#904 id=904 data-nosnippet>904</a>
-<a href=#905 id=905 data-nosnippet>905</a>    <span class="attr">#[test_case(BUILD_ROUTER_FROM_SOURCE, <span class="kw-2">&amp;</span>[<span class="string">"git_ref"</span>, <span class="string">"rust_version"</span>]</span>; <span class="string">"build_router_from_source"</span>)]
-<a href=#906 id=906 data-nosnippet>906</a>    <span class="attr">#[test_case(GITHUB_FILE, <span class="kw-2">&amp;</span>[<span class="string">"org"</span>, <span class="string">"repo"</span>, <span class="string">"path"</span>, <span class="string">"git_ref"</span>]</span>; <span class="string">"github_file"</span>)]
-<a href=#907 id=907 data-nosnippet>907</a>    <span class="attr">#[test_case(GRAPHOS_CANNED_OPS, <span class="kw-2">&amp;</span>[<span class="string">"graph_ref"</span>, <span class="string">"top_n"</span>, <span class="string">"skip_mutations"</span>]</span>; <span class="string">"graphos_canned_ops"</span>)]
-<a href=#908 id=908 data-nosnippet>908</a>    <span class="attr">#[test_case(GRAPHOS_CANNED_OPS_BY_ID, <span class="kw-2">&amp;</span>[<span class="string">"graph_ref"</span>, <span class="string">"op_1"</span>, <span class="string">"op_2"</span>]</span>; <span class="string">"graphos_canned_ops_by_id"</span>)]
-<a href=#909 id=909 data-nosnippet>909</a>    <span class="attr">#[test_case(GRAPHOS_SUBGRAPH_DOCKER_COMPOSE, <span class="kw-2">&amp;</span>[
-<a href=#910 id=910 data-nosnippet>910</a>        <span class="string">"graph_ref"</span>, <span class="string">"image"</span>, <span class="string">"replicas"</span>, <span class="string">"resource_limits_cpus"</span>, <span class="string">"resource_limits_memory"</span>, 
-<a href=#911 id=911 data-nosnippet>911</a>        <span class="string">"resource_reservations_cpus"</span>, <span class="string">"resource_reservations_memory"</span>, <span class="string">"mem_swappiness"</span>, 
-<a href=#912 id=912 data-nosnippet>912</a>        <span class="string">"loadbalancer_resource_limits_cpus"</span>, <span class="string">"loadbalancer_resource_limits_memory"</span>, 
-<a href=#913 id=913 data-nosnippet>913</a>        <span class="string">"loadbalancer_resource_reservations_cpus"</span>, <span class="string">"loadbalancer_resource_reservations_memory"</span>, 
-<a href=#914 id=914 data-nosnippet>914</a>        <span class="string">"loadbalancer_mem_swappiness"
-<a href=#915 id=915 data-nosnippet>915</a>    </span>]</span>; <span class="string">"graphos_subgraph_docker_compose"</span>)]
-<a href=#916 id=916 data-nosnippet>916</a>    <span class="attr">#[test_case(GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES, <span class="kw-2">&amp;</span>[<span class="string">"graph_ref"</span>]</span>; <span class="string">"graphos_subgraph_router_url_overrides"</span>)]
-<a href=#917 id=917 data-nosnippet>917</a>    <span class="attr">#[test_case(GRAPHOS_SUBGRAPHS, <span class="kw-2">&amp;</span>[<span class="string">"graph_ref"</span>]</span>; <span class="string">"graphos_subgraphs"</span>)]
-<a href=#918 id=918 data-nosnippet>918</a>    <span class="attr">#[test_case(GRAPHOS_SUPERGRAPH, <span class="kw-2">&amp;</span>[<span class="string">"graph_ref"</span>]</span>; <span class="string">"graphos_supergraph"</span>)]
-<a href=#919 id=919 data-nosnippet>919</a>    <span class="attr">#[test_case(FROM_COMMAND, <span class="kw-2">&amp;</span>[<span class="string">"test_script"</span>, <span class="string">"test_arg"</span>, <span class="string">"test_var"</span>, <span class="string">"test_path"</span>]</span>; <span class="string">"from_command"</span>)]
-<a href=#920 id=920 data-nosnippet>920</a>    <span class="attr">#[test_case(INLINE, <span class="kw-2">&amp;</span>[]</span>; <span class="string">"inline"</span>)]
-<a href=#921 id=921 data-nosnippet>921</a>    <span class="attr">#[test_case(OFFLINE_GRAPHOS_LICENSE, <span class="kw-2">&amp;</span>[<span class="string">"graph_id"</span>]</span>; <span class="string">"offline_graphos_license"</span>)]
-<a href=#922 id=922 data-nosnippet>922</a>    <span class="attr">#[test_case(RELATIVE_PATH, <span class="kw-2">&amp;</span>[<span class="string">"path"</span>]</span>; <span class="string">"relative_path"</span>)]
-<a href=#923 id=923 data-nosnippet>923</a>    <span class="attr">#[test_case(REQUIRED_FILE, <span class="kw-2">&amp;</span>[]</span>; <span class="string">"required"</span>)]
-<a href=#924 id=924 data-nosnippet>924</a>    <span class="attr">#[test_case(RESOLVED_VALUES, <span class="kw-2">&amp;</span>[]</span>; <span class="string">"resolved_values"</span>)]
-<a href=#925 id=925 data-nosnippet>925</a>    <span class="attr">#[test_case(ROUTER_DOWNLOAD_SCRIPT, <span class="kw-2">&amp;</span>[<span class="string">"version"</span>]</span>; <span class="string">"router_download_script"</span>)]
-<a href=#926 id=926 data-nosnippet>926</a>    <span class="attr">#[test_case(MERGE_YAML, <span class="kw-2">&amp;</span>[]</span>; <span class="string">"merge_yaml"</span>)]
-<a href=#927 id=927 data-nosnippet>927</a>    <span class="attr">#[test]
-<a href=#928 id=928 data-nosnippet>928</a>    </span><span class="kw">fn </span>all_fields_templated(content: <span class="kw-2">&amp;</span>str, expected_values: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
-<a href=#929 id=929 data-nosnippet>929</a>        <span class="kw">let </span>config: FileProvider = serde_yaml::from_str(content).unwrap();
-<a href=#930 id=930 data-nosnippet>930</a>
-<a href=#931 id=931 data-nosnippet>931</a>        <span class="kw">let </span>res = config.required_values();
-<a href=#932 id=932 data-nosnippet>932</a>        <span class="macro">assert_eq!</span>(res, expected_values, <span class="string">"expected values to match"</span>)
-<a href=#933 id=933 data-nosnippet>933</a>    }
-<a href=#934 id=934 data-nosnippet>934</a>
-<a href=#935 id=935 data-nosnippet>935</a>    <span class="attr">#[test_case(Field::Pending(<span class="string">"foo"</span>.to_string()), <span class="bool-val">true</span>; <span class="string">"field is pending"</span>)]
-<a href=#936 id=936 data-nosnippet>936</a>    #[test_case(Field::Resolved(<span class="string">"foo"</span>.to_string()), <span class="bool-val">false</span>; <span class="string">"field is resolved"</span>)]
-<a href=#937 id=937 data-nosnippet>937</a>    #[test]
-<a href=#938 id=938 data-nosnippet>938</a>    </span><span class="kw">fn </span>named_file_provider_has_pending_fields(f: Field&lt;String&gt;, expected: bool) {
-<a href=#939 id=939 data-nosnippet>939</a>        <span class="kw">let </span>nfp = NamedFileProvider {
-<a href=#940 id=940 data-nosnippet>940</a>            name: <span class="string">"inline.txt"</span>.to_string(),
-<a href=#941 id=941 data-nosnippet>941</a>            env_var: <span class="string">"INLINE"</span>.to_string(),
-<a href=#942 id=942 data-nosnippet>942</a>            provider: FileProvider::RelativePath(RelativeFile { path: f, src: <span class="prelude-val">None </span>}),
-<a href=#943 id=943 data-nosnippet>943</a>        };
-<a href=#944 id=944 data-nosnippet>944</a>
-<a href=#945 id=945 data-nosnippet>945</a>        <span class="kw">let </span>res = nfp.has_pending_fields();
-<a href=#946 id=946 data-nosnippet>946</a>        <span class="macro">assert_eq!</span>(
-<a href=#947 id=947 data-nosnippet>947</a>            res, expected,
-<a href=#948 id=948 data-nosnippet>948</a>            <span class="string">"tests that has_pending_fields has expected value"
-<a href=#949 id=949 data-nosnippet>949</a>        </span>)
+<a href=#904 id=904 data-nosnippet>904</a>    <span class="kw">const </span>MERGE_YAML_ARRAY: <span class="kw-2">&amp;</span>str = <span class="macro">indoc!</span>(
+<a href=#905 id=905 data-nosnippet>905</a>        <span class="string">r#"
+<a href=#906 id=906 data-nosnippet>906</a>        kind: merge_yaml
+<a href=#907 id=907 data-nosnippet>907</a>        base:
+<a href=#908 id=908 data-nosnippet>908</a>          kind: inline
+<a href=#909 id=909 data-nosnippet>909</a>          content: |
+<a href=#910 id=910 data-nosnippet>910</a>            key: value
+<a href=#911 id=911 data-nosnippet>911</a>        overrides:
+<a href=#912 id=912 data-nosnippet>912</a>          - kind: inline
+<a href=#913 id=913 data-nosnippet>913</a>            content: |
+<a href=#914 id=914 data-nosnippet>914</a>              new_key: new_value
+<a href=#915 id=915 data-nosnippet>915</a>          - kind: inline
+<a href=#916 id=916 data-nosnippet>916</a>            content: |
+<a href=#917 id=917 data-nosnippet>917</a>              another_new_key: another_new_value
+<a href=#918 id=918 data-nosnippet>918</a>    "#
+<a href=#919 id=919 data-nosnippet>919</a>    </span>);
+<a href=#920 id=920 data-nosnippet>920</a>
+<a href=#921 id=921 data-nosnippet>921</a>    <span class="attr">#[test_case(BUILD_ROUTER_FROM_SOURCE, <span class="kw-2">&amp;</span>[<span class="string">"git_ref"</span>, <span class="string">"rust_version"</span>]</span>; <span class="string">"build_router_from_source"</span>)]
+<a href=#922 id=922 data-nosnippet>922</a>    <span class="attr">#[test_case(GITHUB_FILE, <span class="kw-2">&amp;</span>[<span class="string">"org"</span>, <span class="string">"repo"</span>, <span class="string">"path"</span>, <span class="string">"git_ref"</span>]</span>; <span class="string">"github_file"</span>)]
+<a href=#923 id=923 data-nosnippet>923</a>    <span class="attr">#[test_case(GRAPHOS_CANNED_OPS, <span class="kw-2">&amp;</span>[<span class="string">"graph_ref"</span>, <span class="string">"top_n"</span>, <span class="string">"skip_mutations"</span>]</span>; <span class="string">"graphos_canned_ops"</span>)]
+<a href=#924 id=924 data-nosnippet>924</a>    <span class="attr">#[test_case(GRAPHOS_CANNED_OPS_BY_ID, <span class="kw-2">&amp;</span>[<span class="string">"graph_ref"</span>, <span class="string">"op_1"</span>, <span class="string">"op_2"</span>]</span>; <span class="string">"graphos_canned_ops_by_id"</span>)]
+<a href=#925 id=925 data-nosnippet>925</a>    <span class="attr">#[test_case(GRAPHOS_SUBGRAPH_DOCKER_COMPOSE, <span class="kw-2">&amp;</span>[
+<a href=#926 id=926 data-nosnippet>926</a>        <span class="string">"graph_ref"</span>, <span class="string">"image"</span>, <span class="string">"replicas"</span>, <span class="string">"resource_limits_cpus"</span>, <span class="string">"resource_limits_memory"</span>, 
+<a href=#927 id=927 data-nosnippet>927</a>        <span class="string">"resource_reservations_cpus"</span>, <span class="string">"resource_reservations_memory"</span>, <span class="string">"mem_swappiness"</span>, 
+<a href=#928 id=928 data-nosnippet>928</a>        <span class="string">"loadbalancer_resource_limits_cpus"</span>, <span class="string">"loadbalancer_resource_limits_memory"</span>, 
+<a href=#929 id=929 data-nosnippet>929</a>        <span class="string">"loadbalancer_resource_reservations_cpus"</span>, <span class="string">"loadbalancer_resource_reservations_memory"</span>, 
+<a href=#930 id=930 data-nosnippet>930</a>        <span class="string">"loadbalancer_mem_swappiness"
+<a href=#931 id=931 data-nosnippet>931</a>    </span>]</span>; <span class="string">"graphos_subgraph_docker_compose"</span>)]
+<a href=#932 id=932 data-nosnippet>932</a>    <span class="attr">#[test_case(GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES, <span class="kw-2">&amp;</span>[<span class="string">"graph_ref"</span>]</span>; <span class="string">"graphos_subgraph_router_url_overrides"</span>)]
+<a href=#933 id=933 data-nosnippet>933</a>    <span class="attr">#[test_case(GRAPHOS_SUBGRAPHS, <span class="kw-2">&amp;</span>[<span class="string">"graph_ref"</span>]</span>; <span class="string">"graphos_subgraphs"</span>)]
+<a href=#934 id=934 data-nosnippet>934</a>    <span class="attr">#[test_case(GRAPHOS_SUPERGRAPH, <span class="kw-2">&amp;</span>[<span class="string">"graph_ref"</span>]</span>; <span class="string">"graphos_supergraph"</span>)]
+<a href=#935 id=935 data-nosnippet>935</a>    <span class="attr">#[test_case(FROM_COMMAND, <span class="kw-2">&amp;</span>[<span class="string">"test_script"</span>, <span class="string">"test_arg"</span>, <span class="string">"test_var"</span>, <span class="string">"test_path"</span>]</span>; <span class="string">"from_command"</span>)]
+<a href=#936 id=936 data-nosnippet>936</a>    <span class="attr">#[test_case(INLINE, <span class="kw-2">&amp;</span>[]</span>; <span class="string">"inline"</span>)]
+<a href=#937 id=937 data-nosnippet>937</a>    <span class="attr">#[test_case(OFFLINE_GRAPHOS_LICENSE, <span class="kw-2">&amp;</span>[<span class="string">"graph_id"</span>]</span>; <span class="string">"offline_graphos_license"</span>)]
+<a href=#938 id=938 data-nosnippet>938</a>    <span class="attr">#[test_case(RELATIVE_PATH, <span class="kw-2">&amp;</span>[<span class="string">"path"</span>]</span>; <span class="string">"relative_path"</span>)]
+<a href=#939 id=939 data-nosnippet>939</a>    <span class="attr">#[test_case(REQUIRED_FILE, <span class="kw-2">&amp;</span>[]</span>; <span class="string">"required"</span>)]
+<a href=#940 id=940 data-nosnippet>940</a>    <span class="attr">#[test_case(RESOLVED_VALUES, <span class="kw-2">&amp;</span>[]</span>; <span class="string">"resolved_values"</span>)]
+<a href=#941 id=941 data-nosnippet>941</a>    <span class="attr">#[test_case(ROUTER_DOWNLOAD_SCRIPT, <span class="kw-2">&amp;</span>[<span class="string">"version"</span>]</span>; <span class="string">"router_download_script"</span>)]
+<a href=#942 id=942 data-nosnippet>942</a>    <span class="attr">#[test_case(MERGE_YAML, <span class="kw-2">&amp;</span>[]</span>; <span class="string">"merge_yaml"</span>)]
+<a href=#943 id=943 data-nosnippet>943</a>    <span class="attr">#[test_case(MERGE_YAML_ARRAY, <span class="kw-2">&amp;</span>[]</span>; <span class="string">"merge_yaml_array"</span>)]
+<a href=#944 id=944 data-nosnippet>944</a>    <span class="attr">#[test]
+<a href=#945 id=945 data-nosnippet>945</a>    </span><span class="kw">fn </span>all_fields_templated(content: <span class="kw-2">&amp;</span>str, expected_values: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
+<a href=#946 id=946 data-nosnippet>946</a>        <span class="kw">let </span>config: FileProvider = serde_yaml::from_str(content).unwrap();
+<a href=#947 id=947 data-nosnippet>947</a>
+<a href=#948 id=948 data-nosnippet>948</a>        <span class="kw">let </span>res = config.required_values();
+<a href=#949 id=949 data-nosnippet>949</a>        <span class="macro">assert_eq!</span>(res, expected_values, <span class="string">"expected values to match"</span>)
 <a href=#950 id=950 data-nosnippet>950</a>    }
 <a href=#951 id=951 data-nosnippet>951</a>
-<a href=#952 id=952 data-nosnippet>952</a>    <span class="attr">#[test_case(Field::Pending(<span class="string">"foo"</span>.to_string()), <span class="kw-2">&amp;</span>[<span class="string">"foo"</span>]</span>; <span class="string">"field is required"</span>)]
-<a href=#953 id=953 data-nosnippet>953</a>    <span class="attr">#[test_case(Field::Resolved(<span class="string">"foo"</span>.to_string()), <span class="kw-2">&amp;</span>[]</span>; <span class="string">"no fields required"</span>)]
-<a href=#954 id=954 data-nosnippet>954</a>    <span class="attr">#[test]
-<a href=#955 id=955 data-nosnippet>955</a>    </span><span class="kw">fn </span>named_file_provider_required_values(f: Field&lt;String&gt;, expected: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
+<a href=#952 id=952 data-nosnippet>952</a>    <span class="attr">#[test_case(Field::Pending(<span class="string">"foo"</span>.to_string()), <span class="bool-val">true</span>; <span class="string">"field is pending"</span>)]
+<a href=#953 id=953 data-nosnippet>953</a>    #[test_case(Field::Resolved(<span class="string">"foo"</span>.to_string()), <span class="bool-val">false</span>; <span class="string">"field is resolved"</span>)]
+<a href=#954 id=954 data-nosnippet>954</a>    #[test]
+<a href=#955 id=955 data-nosnippet>955</a>    </span><span class="kw">fn </span>named_file_provider_has_pending_fields(f: Field&lt;String&gt;, expected: bool) {
 <a href=#956 id=956 data-nosnippet>956</a>        <span class="kw">let </span>nfp = NamedFileProvider {
 <a href=#957 id=957 data-nosnippet>957</a>            name: <span class="string">"inline.txt"</span>.to_string(),
 <a href=#958 id=958 data-nosnippet>958</a>            env_var: <span class="string">"INLINE"</span>.to_string(),
 <a href=#959 id=959 data-nosnippet>959</a>            provider: FileProvider::RelativePath(RelativeFile { path: f, src: <span class="prelude-val">None </span>}),
 <a href=#960 id=960 data-nosnippet>960</a>        };
 <a href=#961 id=961 data-nosnippet>961</a>
-<a href=#962 id=962 data-nosnippet>962</a>        <span class="kw">let </span>res = nfp.required_values();
+<a href=#962 id=962 data-nosnippet>962</a>        <span class="kw">let </span>res = nfp.has_pending_fields();
 <a href=#963 id=963 data-nosnippet>963</a>        <span class="macro">assert_eq!</span>(
 <a href=#964 id=964 data-nosnippet>964</a>            res, expected,
-<a href=#965 id=965 data-nosnippet>965</a>            <span class="string">"tests that required_values has expected value"
+<a href=#965 id=965 data-nosnippet>965</a>            <span class="string">"tests that has_pending_fields has expected value"
 <a href=#966 id=966 data-nosnippet>966</a>        </span>)
 <a href=#967 id=967 data-nosnippet>967</a>    }
 <a href=#968 id=968 data-nosnippet>968</a>
-<a href=#969 id=969 data-nosnippet>969</a>    <span class="attr">#[test]
-<a href=#970 id=970 data-nosnippet>970</a>    </span><span class="kw">fn </span>named_file_provider_try_template_succeeds() {
-<a href=#971 id=971 data-nosnippet>971</a>        <span class="kw">let </span><span class="kw-2">mut </span>nfp = NamedFileProvider {
-<a href=#972 id=972 data-nosnippet>972</a>            name: <span class="string">"inline.txt"</span>.to_string(),
-<a href=#973 id=973 data-nosnippet>973</a>            env_var: <span class="string">"INLINE"</span>.to_string(),
-<a href=#974 id=974 data-nosnippet>974</a>            provider: FileProvider::RelativePath(RelativeFile {
-<a href=#975 id=975 data-nosnippet>975</a>                path: Field::Pending(<span class="string">"path"</span>.to_string()),
-<a href=#976 id=976 data-nosnippet>976</a>                src: <span class="prelude-val">None</span>,
-<a href=#977 id=977 data-nosnippet>977</a>            }),
-<a href=#978 id=978 data-nosnippet>978</a>        };
-<a href=#979 id=979 data-nosnippet>979</a>        <span class="kw">let </span><span class="kw-2">mut </span>values: HashMap&lt;String, Scalar&gt; = HashMap::new();
-<a href=#980 id=980 data-nosnippet>980</a>        values.insert(<span class="string">"path"</span>.to_string(), Scalar::String(<span class="string">"path"</span>.to_string()));
-<a href=#981 id=981 data-nosnippet>981</a>
-<a href=#982 id=982 data-nosnippet>982</a>        <span class="kw">let </span>res = nfp.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>values);
-<a href=#983 id=983 data-nosnippet>983</a>        <span class="macro">assert!</span>(
-<a href=#984 id=984 data-nosnippet>984</a>            res.is_ok(),
-<a href=#985 id=985 data-nosnippet>985</a>            <span class="string">"expected to template successfully, got {res:?}"
-<a href=#986 id=986 data-nosnippet>986</a>        </span>)
-<a href=#987 id=987 data-nosnippet>987</a>    }
-<a href=#988 id=988 data-nosnippet>988</a>
-<a href=#989 id=989 data-nosnippet>989</a>    <span class="attr">#[test_case(<span class="macro">vec!</span>[]</span>, <span class="string">"file_providers.RELATIVE.path"</span>; <span class="string">"no path entries"</span>)]
-<a href=#990 id=990 data-nosnippet>990</a>    <span class="attr">#[test_case(<span class="macro">vec!</span>[<span class="string">"path"</span>]</span>, <span class="string">"file_providers.RELATIVE.path"</span>; <span class="string">"single path entry"</span>)]
-<a href=#991 id=991 data-nosnippet>991</a>    <span class="attr">#[test_case(<span class="macro">vec!</span>[<span class="string">"two"</span>, <span class="string">"entries"</span>]</span>, <span class="string">"two.file_providers.RELATIVE.path"</span>; <span class="string">"two path entries"</span>)]
-<a href=#992 id=992 data-nosnippet>992</a>    <span class="attr">#[test_case(<span class="macro">vec!</span>[<span class="string">"multiple"</span>, <span class="string">"path"</span>, <span class="string">"entries"</span>]</span>, <span class="string">"multiple.path.file_providers.RELATIVE.path"</span>; <span class="string">"multiple path entries"</span>)]
-<a href=#993 id=993 data-nosnippet>993</a>    <span class="attr">#[test]
-<a href=#994 id=994 data-nosnippet>994</a>    </span><span class="kw">fn </span>named_file_provider_try_template_unknown_value_error(path: Vec&lt;<span class="kw-2">&amp;</span>str&gt;, expected_path: <span class="kw-2">&amp;</span>str) {
-<a href=#995 id=995 data-nosnippet>995</a>        <span class="kw">let </span><span class="kw-2">mut </span>nfp = NamedFileProvider {
-<a href=#996 id=996 data-nosnippet>996</a>            name: <span class="string">"relative.txt"</span>.to_string(),
-<a href=#997 id=997 data-nosnippet>997</a>            env_var: <span class="string">"RELATIVE"</span>.to_string(),
-<a href=#998 id=998 data-nosnippet>998</a>            provider: FileProvider::RelativePath(RelativeFile {
-<a href=#999 id=999 data-nosnippet>999</a>                path: Field::Pending(<span class="string">"path"</span>.to_string()),
-<a href=#1000 id=1000 data-nosnippet>1000</a>                src: <span class="prelude-val">None</span>,
-<a href=#1001 id=1001 data-nosnippet>1001</a>            }),
-<a href=#1002 id=1002 data-nosnippet>1002</a>        };
-<a href=#1003 id=1003 data-nosnippet>1003</a>        <span class="kw">let </span><span class="kw-2">mut </span>values: HashMap&lt;String, Scalar&gt; = HashMap::new();
-<a href=#1004 id=1004 data-nosnippet>1004</a>        values.insert(<span class="string">"unused"</span>.to_string(), Scalar::String(<span class="string">"unused"</span>.to_string()));
-<a href=#1005 id=1005 data-nosnippet>1005</a>        <span class="kw">let </span><span class="kw-2">mut </span>path: Vec&lt;String&gt; = path.into_iter().map(|s| s.to_string()).collect();
-<a href=#1006 id=1006 data-nosnippet>1006</a>
-<a href=#1007 id=1007 data-nosnippet>1007</a>        <span class="kw">let </span>res = nfp.try_template(<span class="kw-2">&amp;mut </span>path, <span class="kw-2">&amp;</span>values);
-<a href=#1008 id=1008 data-nosnippet>1008</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected templating to error, got {res:?}"</span>);
-<a href=#1009 id=1009 data-nosnippet>1009</a>
-<a href=#1010 id=1010 data-nosnippet>1010</a>        <span class="kw">let </span>errors = res.unwrap_err();
-<a href=#1011 id=1011 data-nosnippet>1011</a>        <span class="kw">let </span>error = errors.unwrap_single();
-<a href=#1012 id=1012 data-nosnippet>1012</a>        <span class="kw">let </span>error_kind = error.kind;
-<a href=#1013 id=1013 data-nosnippet>1013</a>        <span class="kw">let </span>error_path = error.path;
-<a href=#1014 id=1014 data-nosnippet>1014</a>        <span class="macro">assert_eq!</span>(
-<a href=#1015 id=1015 data-nosnippet>1015</a>            error_kind,
-<a href=#1016 id=1016 data-nosnippet>1016</a>            ErrorKind::UnknownValue,
-<a href=#1017 id=1017 data-nosnippet>1017</a>            <span class="string">"expected ErrorKind to match"
-<a href=#1018 id=1018 data-nosnippet>1018</a>        </span>);
-<a href=#1019 id=1019 data-nosnippet>1019</a>        <span class="macro">assert_eq!</span>(error_path, expected_path, <span class="string">"expected path to match"</span>)
-<a href=#1020 id=1020 data-nosnippet>1020</a>    }
-<a href=#1021 id=1021 data-nosnippet>1021</a>}</code></pre></div></section></main></body></html>
+<a href=#969 id=969 data-nosnippet>969</a>    <span class="attr">#[test_case(Field::Pending(<span class="string">"foo"</span>.to_string()), <span class="kw-2">&amp;</span>[<span class="string">"foo"</span>]</span>; <span class="string">"field is required"</span>)]
+<a href=#970 id=970 data-nosnippet>970</a>    <span class="attr">#[test_case(Field::Resolved(<span class="string">"foo"</span>.to_string()), <span class="kw-2">&amp;</span>[]</span>; <span class="string">"no fields required"</span>)]
+<a href=#971 id=971 data-nosnippet>971</a>    <span class="attr">#[test]
+<a href=#972 id=972 data-nosnippet>972</a>    </span><span class="kw">fn </span>named_file_provider_required_values(f: Field&lt;String&gt;, expected: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
+<a href=#973 id=973 data-nosnippet>973</a>        <span class="kw">let </span>nfp = NamedFileProvider {
+<a href=#974 id=974 data-nosnippet>974</a>            name: <span class="string">"inline.txt"</span>.to_string(),
+<a href=#975 id=975 data-nosnippet>975</a>            env_var: <span class="string">"INLINE"</span>.to_string(),
+<a href=#976 id=976 data-nosnippet>976</a>            provider: FileProvider::RelativePath(RelativeFile { path: f, src: <span class="prelude-val">None </span>}),
+<a href=#977 id=977 data-nosnippet>977</a>        };
+<a href=#978 id=978 data-nosnippet>978</a>
+<a href=#979 id=979 data-nosnippet>979</a>        <span class="kw">let </span>res = nfp.required_values();
+<a href=#980 id=980 data-nosnippet>980</a>        <span class="macro">assert_eq!</span>(
+<a href=#981 id=981 data-nosnippet>981</a>            res, expected,
+<a href=#982 id=982 data-nosnippet>982</a>            <span class="string">"tests that required_values has expected value"
+<a href=#983 id=983 data-nosnippet>983</a>        </span>)
+<a href=#984 id=984 data-nosnippet>984</a>    }
+<a href=#985 id=985 data-nosnippet>985</a>
+<a href=#986 id=986 data-nosnippet>986</a>    <span class="attr">#[test]
+<a href=#987 id=987 data-nosnippet>987</a>    </span><span class="kw">fn </span>named_file_provider_try_template_succeeds() {
+<a href=#988 id=988 data-nosnippet>988</a>        <span class="kw">let </span><span class="kw-2">mut </span>nfp = NamedFileProvider {
+<a href=#989 id=989 data-nosnippet>989</a>            name: <span class="string">"inline.txt"</span>.to_string(),
+<a href=#990 id=990 data-nosnippet>990</a>            env_var: <span class="string">"INLINE"</span>.to_string(),
+<a href=#991 id=991 data-nosnippet>991</a>            provider: FileProvider::RelativePath(RelativeFile {
+<a href=#992 id=992 data-nosnippet>992</a>                path: Field::Pending(<span class="string">"path"</span>.to_string()),
+<a href=#993 id=993 data-nosnippet>993</a>                src: <span class="prelude-val">None</span>,
+<a href=#994 id=994 data-nosnippet>994</a>            }),
+<a href=#995 id=995 data-nosnippet>995</a>        };
+<a href=#996 id=996 data-nosnippet>996</a>        <span class="kw">let </span><span class="kw-2">mut </span>values: HashMap&lt;String, Scalar&gt; = HashMap::new();
+<a href=#997 id=997 data-nosnippet>997</a>        values.insert(<span class="string">"path"</span>.to_string(), Scalar::String(<span class="string">"path"</span>.to_string()));
+<a href=#998 id=998 data-nosnippet>998</a>
+<a href=#999 id=999 data-nosnippet>999</a>        <span class="kw">let </span>res = nfp.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>values);
+<a href=#1000 id=1000 data-nosnippet>1000</a>        <span class="macro">assert!</span>(
+<a href=#1001 id=1001 data-nosnippet>1001</a>            res.is_ok(),
+<a href=#1002 id=1002 data-nosnippet>1002</a>            <span class="string">"expected to template successfully, got {res:?}"
+<a href=#1003 id=1003 data-nosnippet>1003</a>        </span>)
+<a href=#1004 id=1004 data-nosnippet>1004</a>    }
+<a href=#1005 id=1005 data-nosnippet>1005</a>
+<a href=#1006 id=1006 data-nosnippet>1006</a>    <span class="attr">#[test_case(<span class="macro">vec!</span>[]</span>, <span class="string">"file_providers.RELATIVE.path"</span>; <span class="string">"no path entries"</span>)]
+<a href=#1007 id=1007 data-nosnippet>1007</a>    <span class="attr">#[test_case(<span class="macro">vec!</span>[<span class="string">"path"</span>]</span>, <span class="string">"file_providers.RELATIVE.path"</span>; <span class="string">"single path entry"</span>)]
+<a href=#1008 id=1008 data-nosnippet>1008</a>    <span class="attr">#[test_case(<span class="macro">vec!</span>[<span class="string">"two"</span>, <span class="string">"entries"</span>]</span>, <span class="string">"two.file_providers.RELATIVE.path"</span>; <span class="string">"two path entries"</span>)]
+<a href=#1009 id=1009 data-nosnippet>1009</a>    <span class="attr">#[test_case(<span class="macro">vec!</span>[<span class="string">"multiple"</span>, <span class="string">"path"</span>, <span class="string">"entries"</span>]</span>, <span class="string">"multiple.path.file_providers.RELATIVE.path"</span>; <span class="string">"multiple path entries"</span>)]
+<a href=#1010 id=1010 data-nosnippet>1010</a>    <span class="attr">#[test]
+<a href=#1011 id=1011 data-nosnippet>1011</a>    </span><span class="kw">fn </span>named_file_provider_try_template_unknown_value_error(path: Vec&lt;<span class="kw-2">&amp;</span>str&gt;, expected_path: <span class="kw-2">&amp;</span>str) {
+<a href=#1012 id=1012 data-nosnippet>1012</a>        <span class="kw">let </span><span class="kw-2">mut </span>nfp = NamedFileProvider {
+<a href=#1013 id=1013 data-nosnippet>1013</a>            name: <span class="string">"relative.txt"</span>.to_string(),
+<a href=#1014 id=1014 data-nosnippet>1014</a>            env_var: <span class="string">"RELATIVE"</span>.to_string(),
+<a href=#1015 id=1015 data-nosnippet>1015</a>            provider: FileProvider::RelativePath(RelativeFile {
+<a href=#1016 id=1016 data-nosnippet>1016</a>                path: Field::Pending(<span class="string">"path"</span>.to_string()),
+<a href=#1017 id=1017 data-nosnippet>1017</a>                src: <span class="prelude-val">None</span>,
+<a href=#1018 id=1018 data-nosnippet>1018</a>            }),
+<a href=#1019 id=1019 data-nosnippet>1019</a>        };
+<a href=#1020 id=1020 data-nosnippet>1020</a>        <span class="kw">let </span><span class="kw-2">mut </span>values: HashMap&lt;String, Scalar&gt; = HashMap::new();
+<a href=#1021 id=1021 data-nosnippet>1021</a>        values.insert(<span class="string">"unused"</span>.to_string(), Scalar::String(<span class="string">"unused"</span>.to_string()));
+<a href=#1022 id=1022 data-nosnippet>1022</a>        <span class="kw">let </span><span class="kw-2">mut </span>path: Vec&lt;String&gt; = path.into_iter().map(|s| s.to_string()).collect();
+<a href=#1023 id=1023 data-nosnippet>1023</a>
+<a href=#1024 id=1024 data-nosnippet>1024</a>        <span class="kw">let </span>res = nfp.try_template(<span class="kw-2">&amp;mut </span>path, <span class="kw-2">&amp;</span>values);
+<a href=#1025 id=1025 data-nosnippet>1025</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected templating to error, got {res:?}"</span>);
+<a href=#1026 id=1026 data-nosnippet>1026</a>
+<a href=#1027 id=1027 data-nosnippet>1027</a>        <span class="kw">let </span>errors = res.unwrap_err();
+<a href=#1028 id=1028 data-nosnippet>1028</a>        <span class="kw">let </span>error = errors.unwrap_single();
+<a href=#1029 id=1029 data-nosnippet>1029</a>        <span class="kw">let </span>error_kind = error.kind;
+<a href=#1030 id=1030 data-nosnippet>1030</a>        <span class="kw">let </span>error_path = error.path;
+<a href=#1031 id=1031 data-nosnippet>1031</a>        <span class="macro">assert_eq!</span>(
+<a href=#1032 id=1032 data-nosnippet>1032</a>            error_kind,
+<a href=#1033 id=1033 data-nosnippet>1033</a>            ErrorKind::UnknownValue,
+<a href=#1034 id=1034 data-nosnippet>1034</a>            <span class="string">"expected ErrorKind to match"
+<a href=#1035 id=1035 data-nosnippet>1035</a>        </span>);
+<a href=#1036 id=1036 data-nosnippet>1036</a>        <span class="macro">assert_eq!</span>(error_path, expected_path, <span class="string">"expected path to match"</span>)
+<a href=#1037 id=1037 data-nosnippet>1037</a>    }
+<a href=#1038 id=1038 data-nosnippet>1038</a>}</code></pre></div></section></main></body></html>
