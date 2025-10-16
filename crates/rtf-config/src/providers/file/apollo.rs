@@ -813,7 +813,7 @@ fn canned_ops_json_lines(canned_ops: Vec<CannedOperation>) -> providers::Result<
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct OfflineGraphosLicense {
-    /// The Apollo graph ref to pull an offline license for.
+    /// The Apollo graph id to pull an offline license for.
     pub graph_id: Field<String>,
 }
 
