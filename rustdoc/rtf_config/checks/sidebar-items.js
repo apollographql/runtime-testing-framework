@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ErrorKind"],"trait":["Check"],"type":["Error","ErrorBuilder","Errors","Result"]};
+window.SIDEBAR_ITEMS = {"enum":["DedupArray","ErrorKind"],"trait":["Check","CheckArrayDuplicates"],"type":["Error","ErrorBuilder","Errors","Result"]};
