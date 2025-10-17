@@ -387,13 +387,13 @@ mod tests {
     use super::*;
     use crate::{
         context::{Context, PathKind},
+        mock_context::NullClient,
         providers::{
             Provider,
             command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
             file::{FileProvider, InlineFile},
         },
         templating::Template,
-        txtar_context::NullClient,
     };
     use indoc::indoc;
     use simple_test_case::test_case;
