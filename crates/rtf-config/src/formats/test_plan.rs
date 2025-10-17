@@ -1,8 +1,8 @@
 use crate::{
     ValueDefinition,
-    checks::{self, Check, CheckArrayDuplicates},
+    checks::{self, Check, CheckArrayDuplicates, duplicate_keys},
     context::ResolutionContext,
-    formats::{EnvironmentConfig, Error, Result, ScenarioConfig},
+    formats::{EnvironmentConfig, Error, Matrix, Result, ScenarioConfig},
     merge_yaml,
     providers::{
         command::CommandSection,
@@ -10,13 +10,11 @@ use crate::{
     },
     templating::{self, Scalar, Template},
 };
-use itertools::Itertools;
 use rtf_core::github::{self, Client};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
-    mem,
     path::Path,
 };
 use tracing::error;
@@ -29,7 +27,7 @@ pub struct TestPlanConfig {
     #[serde(default)]
     pub values: HashMap<String, Scalar>,
     #[serde(default)]
-    pub matrix: HashMap<String, Vec<Scalar>>,
+    pub matrix: Matrix,
     pub scenario: ScenarioConfig,
     pub environment: EnvironmentConfig,
     #[serde(skip)]
@@ -71,29 +69,27 @@ impl TestPlanConfig {
         raw.try_into_test_plan(tp_source, ctx).await
     }
 
-    /// Iteratate over all variants of this test plan that arise from
-    /// [expanding](TestPlanConfig::expanded_matrix_values) any matrix values that it contains.
+    /// Iteratate over all variants of this test plan that arise from [expanding](Matrix::expand)
+    /// any matrix values that it contains.
     ///
     /// This will always return at least the base test plan itself if there are no matrix values
     /// defined.
-    pub fn iter_matrix_variants(&self) -> impl Iterator<Item = Self> {
-        // TODO: RR-136 - replaces this with a custom iterator implementation that handles caching
-        // providers that are shared between test plan variants.
-        self.expanded_matrix_values().into_iter().map(|values| {
+    pub fn try_iter_matrix_variants(&self) -> Result<impl Iterator<Item = (String, Self)>> {
+        let expanded = self.matrix.expand(&self.values);
+
+        let duplicates = duplicate_keys(expanded.iter().map(|(name, _)| name.as_str()), |s| s);
+        if !duplicates.is_empty() {
+            let duplicates: Vec<String> = duplicates.into_iter().map(String::from).collect();
+            return Err(Error::NonUniqueMatrixVariantNames { duplicates });
+        }
+
+        Ok(expanded.into_iter().map(|(name, values)| {
             let mut new = self.clone();
             new.values = values;
             new.matrix.clear();
 
-            new
-        })
-    }
-
-    pub fn n_matrix_variants(&self) -> usize {
-        self.matrix
-            .iter()
-            .map(|(k, vals)| vals.iter().map(|v| (k.clone(), v.clone())))
-            .multi_cartesian_product()
-            .count()
+            (name, new)
+        }))
     }
 
     /// The set of allowed templating values that this test plan supports.
@@ -103,75 +99,14 @@ impl TestPlanConfig {
         self.values.keys().chain(self.matrix.keys()).collect()
     }
 
-    /// We expand out matrix values as a cartesean product over all possible sets of values we can
-    /// obtain when combined with any scalar values we have.
-    pub fn expanded_matrix_values(&self) -> Vec<HashMap<String, Scalar>> {
-        if self.matrix.is_empty() {
-            return vec![self.values.clone()];
-        }
-
-        // Ensure that we have a consistent ordering for the vec we return.
-        // The choice of ordering by the map key here is arbitrary but it is easy to document and
-        // quickly check by hand for users when needed.
-        let mut pairs: Vec<_> = self.matrix.iter().collect();
-        pairs.sort_unstable_by(|(k1, _), (k2, _)| k1.cmp(k2));
-
-        pairs
-            .into_iter()
-            .map(|(k, vals)| vals.iter().map(|v| (k.clone(), v.clone())))
-            .multi_cartesian_product()
-            .map(|matrix_vals| {
-                let mut values = self.values.clone();
-                values.extend(matrix_vals);
-                values
-            })
-            .collect()
-    }
-
     pub fn check_templating_will_work(&mut self) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
-        self.check_conflicting_keys(&mut errs);
-        self.check_matrix_values(&mut errs);
+        self.matrix.check_conflicting_keys(&self.values, &mut errs);
+        self.matrix.check_dimensions(&mut errs);
         self.check_required_values(&mut errs);
 
         errs.into_result(())
-    }
-
-    /// Check if we have any conflicts between matrix values and scalar values
-    fn check_conflicting_keys(&self, errs: &mut templating::ErrorBuilder) {
-        let mut conflicting_keys: Vec<String> = self
-            .values
-            .keys()
-            .filter(|k| self.matrix.contains_key(*k))
-            .cloned()
-            .collect();
-
-        if !conflicting_keys.is_empty() {
-            conflicting_keys.sort_unstable(); // ensure consistent ordering
-            errs.push(
-                templating::ErrorKind::ConflictingValues,
-                conflicting_keys.join(", "),
-                &[],
-            )
-        }
-    }
-
-    /// Check that all matrix arrays are non-empty and homogeneous
-    fn check_matrix_values(&self, errs: &mut templating::ErrorBuilder) {
-        for (k, vals) in self.matrix.iter() {
-            let discriminant = match vals.first() {
-                Some(val) => mem::discriminant(val),
-                None => {
-                    errs.push(templating::ErrorKind::EmptyMatrixValue, k, &[]);
-                    continue;
-                }
-            };
-
-            if !vals.iter().all(|v| mem::discriminant(v) == discriminant) {
-                errs.push(templating::ErrorKind::InconsistentMatrixValue, k, &[]);
-            }
-        }
     }
 
     /// Check that all required values have been defined somewhere within the test plan
@@ -449,7 +384,7 @@ pub struct RawTestPlanConfig {
     pub values: HashMap<String, Scalar>,
     /// Sets of templating values to apply to fields within the rest of the test plan as a matrix
     #[serde(default)]
-    pub matrix: HashMap<String, Vec<Scalar>>,
+    pub matrix: RawMatrix,
     /// The test scenario to execute
     pub scenario: ConfigSpec,
     /// The environment setup and teardown to run around the test scenario
@@ -490,11 +425,40 @@ impl RawTestPlanConfig {
             name: self.name,
             description: self.description,
             values: self.values,
-            matrix: self.matrix,
+            matrix: self.matrix.into(),
             scenario,
             environment,
             sources: Sources::new(tp_source, scenario_source, environment_source),
         })
+    }
+}
+
+/// We support only providing dimensions at the top level if the user doesn't care about
+/// customising matrix variant names or using more advanced features.
+///
+/// This enum is only used to upgrade raw dimensions into a [Matrix] when parsing test plans.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[serde(untagged)]
+pub enum RawMatrix {
+    Full(Matrix),
+    Dimensions(HashMap<String, Vec<Scalar>>),
+}
+
+impl Default for RawMatrix {
+    fn default() -> Self {
+        Self::Full(Matrix::default())
+    }
+}
+
+impl From<RawMatrix> for Matrix {
+    fn from(m: RawMatrix) -> Self {
+        match m {
+            RawMatrix::Full(m) => m,
+            RawMatrix::Dimensions(dimensions) => Matrix {
+                variant_names: None,
+                dimensions,
+            },
+        }
     }
 }
 
@@ -691,7 +655,10 @@ mod tests {
 
         TestPlanConfig {
             values,
-            matrix,
+            matrix: Matrix {
+                variant_names: None,
+                dimensions: matrix,
+            },
             scenario: templatable_scenario(scenario_fields, scenario_fields),
             environment: templatable_environment(&env_values, setup_fields, teardown_fields),
             ..TestPlanConfig::empty()
@@ -1254,41 +1221,44 @@ mod tests {
         expected_values_maps: &[HashMap<String, Scalar>],
     ) {
         let values = value_map(values);
-        let matrix: HashMap<String, Vec<Scalar>> = matrix
+        let dimensions: HashMap<String, Vec<Scalar>> = matrix
             .iter()
             .map(|(k, v)| (k.to_string(), v.iter().map(|s| Scalar::from(*s)).collect()))
             .collect();
         let test_plan = TestPlanConfig {
             values: values.clone(),
-            matrix: matrix.clone(),
+            matrix: Matrix {
+                variant_names: None,
+                dimensions,
+            },
             ..TestPlanConfig::empty()
         };
 
-        let variants: Vec<_> = test_plan.iter_matrix_variants().collect();
+        let variants: Vec<_> = test_plan.try_iter_matrix_variants().unwrap().collect();
         assert_eq!(
             variants.len(),
             expected_values_maps.len(),
             "test the variants from iter_matrix_variants has the xepcted combination count"
         );
         assert!(
-            variants.iter().all(|v| v.matrix.is_empty()),
+            variants.iter().all(|(_, v)| v.matrix.is_empty()),
             "expected all variants to have an empty matrix"
         );
 
-        let res = test_plan.n_matrix_variants();
+        let n_variants = test_plan.matrix.n_variants();
         assert_eq!(
-            res,
+            n_variants,
             expected_values_maps.len(),
             "test that the number of variants generated using iter_matrix_variants matches n_matrix_variants"
         );
 
         // Get the expanded matrix values to make sure this outputs the same values as iter_matrix_variants
-        let expanded_matrix_values = test_plan.expanded_matrix_values();
+        let expanded_matrix_values = test_plan.matrix.expand(&test_plan.values);
 
         // Check each variant has the expected combinations in the order expected
-        for (i, variant) in variants.iter().enumerate() {
+        for (i, (_, variant)) in variants.iter().enumerate() {
             let expected_values = expected_values_maps[i].clone();
-            let expanded_values = expanded_matrix_values[i].clone();
+            let expanded_values = expanded_matrix_values[i].1.clone();
 
             assert_eq!(
                 variant.values, expected_values,

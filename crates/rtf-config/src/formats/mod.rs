@@ -3,10 +3,12 @@ use crate::{ValueDefinition, checks, providers, templating::Scalar};
 use std::{collections::HashMap, io};
 
 mod environment;
+mod matrix;
 mod scenario;
 mod test_plan;
 
 pub use environment::EnvironmentConfig;
+pub use matrix::Matrix;
 use rtf_core::github;
 pub use scenario::ScenarioConfig;
 pub use test_plan::{RawTestPlanConfig, TestPlanConfig};
@@ -19,6 +21,9 @@ pub enum Error {
 
     #[error("missing required output fields from environment setup: {missing:?}")]
     InvalidSetupOutput { missing: Vec<String> },
+
+    #[error("the provided variant_names template produced duplicate names: {duplicates:?}")]
+    NonUniqueMatrixVariantNames { duplicates: Vec<String> },
 
     #[error("the config file being parsed was invalid:\n{0}")]
     Validation(#[from] checks::Errors),

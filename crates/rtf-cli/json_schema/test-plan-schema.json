@@ -40,10 +40,52 @@
       "description": "This struct allows the config files to be resolved either from\ninline yaml in the test plan or from a `FileProvider`.",
       "title": "Config Spec"
     },
+    "Matrix": {
+      "description": "A matrix of user provided value dimensions that is expanded out into multiple value sets for\ntemplating the test plan containing the matrix.",
+      "properties": {
+        "dimensions": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/Scalar"
+            },
+            "type": "array"
+          },
+          "type": "object"
+        },
+        "variant_names": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "dimensions"
+      ],
+      "type": "object"
+    },
     "Number": {
       "description": "Represents a number, whether integer or floating point.",
       "title": "Number",
       "type": "number"
+    },
+    "RawMatrix": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Matrix"
+        },
+        {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/definitions/Scalar"
+            },
+            "type": "array"
+          },
+          "type": "object"
+        }
+      ],
+      "description": "We support only providing dimensions at the top level if the user doesn't care about\ncustomising matrix variant names or using more advanced features.\n\nThis enum is only used to upgrade raw dimensions into a [Matrix] when parsing test plans."
     },
     "RawSource": {
       "oneOf": [
@@ -140,15 +182,16 @@
       "description": "The environment setup and teardown to run around the test scenario"
     },
     "matrix": {
-      "additionalProperties": {
-        "items": {
-          "$ref": "#/definitions/Scalar"
-        },
-        "type": "array"
+      "allOf": [
+        {
+          "$ref": "#/definitions/RawMatrix"
+        }
+      ],
+      "default": {
+        "dimensions": {},
+        "variant_names": null
       },
-      "default": {},
-      "description": "Sets of templating values to apply to fields within the rest of the test plan as a matrix",
-      "type": "object"
+      "description": "Sets of templating values to apply to fields within the rest of the test plan as a matrix"
     },
     "name": {
       "description": "The name of this test plan",

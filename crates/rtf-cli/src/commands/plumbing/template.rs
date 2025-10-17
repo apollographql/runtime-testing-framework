@@ -25,12 +25,16 @@ async fn template_test_plan_with_context(
 ) -> anyhow::Result<()> {
     info!("loading and resolving test plan");
     let mut test_plan = TestPlanConfig::try_load_and_resolve_from_path(path, &ctx).await?;
-    values.merge(&mut test_plan.values, &mut test_plan.matrix, &mut ctx)?;
+    values.merge(
+        &mut test_plan.values,
+        &mut test_plan.matrix.dimensions,
+        &mut ctx,
+    )?;
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work()?;
 
-    let values = &test_plan.expanded_matrix_values()[0];
+    let (_, values) = &test_plan.matrix.expand(&test_plan.values)[0];
     test_plan.try_template(&mut Vec::new(), values)?;
 
     if check {
