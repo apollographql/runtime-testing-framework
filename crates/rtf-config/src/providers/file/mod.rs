@@ -464,7 +464,7 @@ impl Check for RelativeFile {
 pub struct RequiredFile {
     /// The error message to display to the user if this provider is not overwritten.
     #[template(skip)]
-    message: String,
+    pub(crate) message: String,
 }
 
 impl AsUtf8FileContent for RequiredFile {
@@ -540,7 +540,11 @@ mod tests {
         templating::ErrorKind,
         txtar_context::{MockHttpClient, TxtarContext},
     };
-    use assert_fs::{TempDir, assert::PathAssert, prelude::PathChild};
+    use assert_fs::{
+        TempDir,
+        assert::PathAssert,
+        prelude::{FileWriteStr, PathChild},
+    };
     use indoc::indoc;
     use simple_test_case::{dir_cases, test_case};
     use simple_txtar::Archive;
@@ -566,40 +570,6 @@ mod tests {
                 panic!("required txtar file section {fname:?} was missing");
             }
         }
-    }
-
-    #[dir_cases("crates/rtf-config/resources/provider-tests/file/check-errors")]
-    #[test]
-    fn check_errors(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let expected = get_file(&arr, "check-errors");
-
-        let provider: FileProvider = match serde_yaml::from_str(config) {
-            Ok(provider) => provider,
-            Err(e) => panic!("expected a valid FileProvider, got: {e}"),
-        };
-
-        let dir = PathBuf::from("resources/provider-tests/file/check-errors")
-            .canonicalize()
-            .unwrap();
-        let ctx = Context::new();
-        let src = Source::local(dir.join("example.yaml"));
-        let res = provider.try_check(&mut Vec::new(), &src, &ctx);
-
-        assert!(res.is_err(), "expected check errors");
-        let errs = res.unwrap_err();
-
-        // Check errors are an ordered list of individual errors with a kind.
-        // To avoid breaking these tests when the user facing error message for each error
-        // is modified, we only assert on the Kind of each error, not the full message.
-        let mut err_kinds = Vec::new();
-        for err in errs.iter() {
-            err_kinds.push(format!("{:?}", err.kind));
-        }
-        let concatenated_errs = err_kinds.join("\n");
-
-        assert_eq!(&concatenated_errs, expected, "wrong check errors: {errs:?}");
     }
 
     #[dir_cases("crates/rtf-config/resources/provider-tests/file/expected-file-success")]
@@ -1034,5 +1004,196 @@ mod tests {
             "expected ErrorKind to match"
         );
         assert_eq!(error_path, expected_path, "expected path to match")
+    }
+
+    #[test]
+    fn try_check_inline_file_success() {
+        let inline = InlineFile {
+            content: "some content".to_string(),
+        };
+
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+        let ctx = Context::new();
+
+        let res = inline.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}")
+    }
+
+    /// Create a RelativeFile for testing - returns the actual file in a tmp dir
+    fn relative_file(path: &str) -> RelativeFile {
+        RelativeFile {
+            path: Field::Resolved(path.to_string()),
+            src: None,
+        }
+    }
+
+    /// Assert check errors
+    pub(crate) fn assert_check_errors(
+        c: impl Check,
+        src: &Source,
+        ctx: &Context,
+        expected_err_kinds: &[checks::ErrorKind],
+    ) {
+        let res = c.try_check(&mut Vec::new(), src, ctx);
+        assert!(res.is_err(), "expected check to fail, got {res:?}");
+
+        let err = res.unwrap_err();
+        let err_kinds: Vec<checks::ErrorKind> = err.iter().map(|e| e.kind).collect();
+        assert_eq!(
+            err_kinds, expected_err_kinds,
+            "check the error kind is correct"
+        );
+    }
+
+    #[test]
+    fn try_check_relative_file_local_success() {
+        let file_name = "file.txt";
+
+        let temp = TempDir::new().unwrap();
+        let file = temp.child(file_name);
+        file.write_str("some content")
+            .expect("failed to write file");
+
+        let relative_file = relative_file(file_name);
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: ctx.canonicalize_path(&file).unwrap(),
+        };
+
+        let res = relative_file.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}")
+    }
+
+    #[test]
+    fn try_check_relative_file_github_success() {
+        // This test works because all that's needed for success in the GitHub case is
+        // a GitHub token to be defined in the context
+        let relative_file = relative_file("file.txt");
+
+        let mut ctx = Context::new();
+        ctx.with_github_config("dummy_token");
+        let src = Source::Github {
+            org: "org".to_string(),
+            repo: "repo".to_string(),
+            path: "path".into(),
+            git_ref: None,
+        };
+
+        let res = relative_file.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}")
+    }
+
+    #[test]
+    fn try_check_relative_file_does_not_exist() {
+        let temp = TempDir::new().unwrap();
+        let file = temp.child("file.txt");
+        file.write_str("some content")
+            .expect("failed to write file");
+
+        let relative_file = relative_file("does-not-exist.txt");
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: ctx.canonicalize_path(&file).unwrap(),
+        };
+
+        assert_check_errors(
+            relative_file,
+            &src,
+            &ctx,
+            &[checks::ErrorKind::FileNotFound],
+        );
+    }
+
+    #[test]
+    fn try_check_relative_file_is_a_directory() {
+        let temp = TempDir::new().unwrap();
+        let file = temp.child("dir/file.txt");
+        file.write_str("some content")
+            .expect("failed to write file.txt");
+
+        let relative_file = relative_file("dir");
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: ctx
+                .canonicalize_path(format!("{}/dir", temp.path().to_string_lossy()))
+                .unwrap(),
+        };
+
+        assert_check_errors(
+            relative_file,
+            &src,
+            &ctx,
+            &[checks::ErrorKind::IsADirectory],
+        );
+    }
+
+    #[test]
+    fn try_check_relative_file_missing_github_api_token() {
+        let temp = TempDir::new().unwrap();
+        let file = temp.child("dir/file.txt");
+        file.write_str("some content")
+            .expect("failed to write file.txt");
+
+        let relative_file = relative_file("dir");
+
+        let ctx = Context::new();
+        let src = Source::Github {
+            org: "org".to_string(),
+            repo: "repo".to_string(),
+            path: "path".into(),
+            git_ref: None,
+        };
+
+        assert_check_errors(
+            relative_file,
+            &src,
+            &ctx,
+            &[checks::ErrorKind::MissingGithubApiKey],
+        );
+    }
+
+    #[test]
+    fn try_check_required_file_is_missing() {
+        let required_file = RequiredFile {
+            message: "need to override".to_string(),
+        };
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        // Not reusing assert_check_error so the message can also be checked
+        let res = required_file.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_err(), "expected check to fail, got {res:?}");
+
+        let err = res.unwrap_err().unwrap_single();
+        assert_eq!(
+            err.kind,
+            checks::ErrorKind::RequiredFileMissing,
+            "check the error kind is correct"
+        );
+        assert_eq!(
+            required_file.message, err.message,
+            "check the error message matches the provider message"
+        );
+    }
+
+    #[test]
+    fn try_check_resolved_values_success() {
+        let resolved_values = ResolvedValues {};
+
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+        let ctx = Context::new();
+
+        let res = resolved_values.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}")
     }
 }

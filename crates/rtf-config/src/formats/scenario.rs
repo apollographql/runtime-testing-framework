@@ -135,38 +135,18 @@ mod tests {
     use super::*;
     use crate::{
         context::Context,
-        formats::scenario::test_helpers::{scenario_with_fields, templatable_scenario},
-        formats::tests::{assert_template_errors, expected_error_details, p, r, value_map},
+        formats::{
+            scenario::test_helpers::{scenario_with_fields, templatable_scenario},
+            tests::{
+                assert_check_errors, assert_template_errors, expected_error_details, p, r,
+                value_map,
+            },
+        },
+        providers::command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
         templating::Field,
     };
     use indoc::indoc;
-    use simple_test_case::{dir_cases, test_case};
-    use simple_txtar::Archive;
-    use std::path::PathBuf;
-
-    // Helper functions
-
-    /// Load a txtar [Archive] from the given file content and print the top level comment if there
-    /// is one before returning it.
-    fn load_archive(content: &str) -> Archive {
-        let arr = Archive::from(content);
-        let comment = arr.comment();
-        if !comment.is_empty() {
-            println!("{}", comment.trim());
-        }
-
-        arr
-    }
-
-    /// Read the requested file from the archive, panicking if it is missing
-    fn get_file<'a>(arr: &'a Archive, fname: &str) -> &'a str {
-        match arr.get(fname) {
-            Some(f) => f.content.trim(),
-            None => {
-                panic!("required txtar file section {fname:?} was missing");
-            }
-        }
-    }
+    use simple_test_case::test_case;
 
     // An example scenario config to check parsing and templating
     const TEMPLATED_SCENARIO: &str = indoc!(
@@ -199,43 +179,6 @@ mod tests {
         let mut res = config.required_values();
         res.sort(); // Sorting so values are in a determistic order for the assert_eq
         assert_eq!(res, &["bar", "foo"], "expected values to match")
-    }
-
-    #[dir_cases("crates/rtf-config/resources/config-tests/scenario/check-failures")]
-    #[test]
-    fn check_failures(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let expected = get_file(&arr, "check-errors");
-
-        let res: serde_yaml::Result<ScenarioConfig> = serde_yaml::from_str(config);
-        assert!(res.is_ok(), "{res:?}");
-
-        let dir = PathBuf::from("resources/config-tests/scenario/check-failures")
-            .canonicalize()
-            .unwrap();
-        let ctx = Context::new();
-        let src = Source::local(dir);
-
-        let scenario_config = res.unwrap();
-        let res = scenario_config.try_check(&mut Vec::new(), &src, &ctx);
-
-        assert!(res.is_err(), "expected check failures");
-        let errs = res.unwrap_err();
-
-        // Validation Errors are an ordered list of individual errors with a kind.
-        // To avoid breaking these tests when the user facing error message for each error
-        // is modified, we only assert on the Kind of each error, not the full message.
-        let mut err_kinds = Vec::new();
-        for err in errs.iter() {
-            err_kinds.push(format!("{:?}", err.kind));
-        }
-        let concatenated_errs = err_kinds.join("\n");
-
-        assert_eq!(
-            &concatenated_errs, expected,
-            "wrong validation errors: {errs:?}"
-        );
     }
 
     #[test_case(&[p("foo")], true; "single field is pending")]
@@ -310,6 +253,42 @@ mod tests {
             values,
             expected_err_messages,
             expected_err_paths,
+        );
+    }
+
+    #[test]
+    fn try_check_success() {
+        let scenario = ScenarioConfig {
+            command: cmd_with_inline_file(),
+            ..ScenarioConfig::empty()
+        };
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        let res = scenario.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+    }
+
+    #[test]
+    fn try_check_command_errors() {
+        let scenario = ScenarioConfig {
+            command: cmd_with_required_file(),
+            ..ScenarioConfig::empty()
+        };
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        assert_check_errors(
+            scenario,
+            &src,
+            &ctx,
+            &[checks::ErrorKind::RequiredFileMissing],
         );
     }
 }

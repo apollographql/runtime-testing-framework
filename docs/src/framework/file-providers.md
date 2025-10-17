@@ -434,7 +434,7 @@ API.
 
 #### `graph_id`
 
-The Apollo graph ref to pull an offline license for.
+The Apollo graph id to pull an offline license for.
 
 ## Relative Path
 

@@ -832,7 +832,7 @@
               "$ref": "#/definitions/Templatable%20string"
             }
           ],
-          "description": "The Apollo graph ref to pull an offline license for."
+          "description": "The Apollo graph id to pull an offline license for."
         }
       },
       "required": [

@@ -252,6 +252,9 @@ impl Check for CommandSection {
             errs.append(nfp.provider.try_check_nested(path, tail, src, ctx));
         }
 
+        // We are checking whether the env vars in the command are duplicates of any env vars
+        // defined in the file providers. Each individual list has been checks for duplicates
+        // by this point.
         let env_var_names = self
             .env_vars
             .keys()
@@ -347,43 +350,54 @@ macro_rules! enum_impl_command_provider {
 enum_impl_command_provider!(Inline, RelativePath, Required);
 
 #[cfg(test)]
+pub(crate) mod test_helpers {
+    use super::*;
+
+    /// Create a Command Section with an inline file
+    pub(crate) fn cmd_with_inline_file() -> CommandSection {
+        CommandSection {
+            command: CommandSpec {
+                name: "name".to_string(),
+                args: Vec::new(),
+                command_provider: CommandProvider::Inline(InlineFile {
+                    content: "some content".to_string(),
+                }),
+            },
+            ..CommandSection::empty()
+        }
+    }
+
+    /// Create a Command Section with a required file
+    pub(crate) fn cmd_with_required_file() -> CommandSection {
+        CommandSection {
+            command: CommandSpec {
+                name: "name".to_string(),
+                args: Vec::new(),
+                command_provider: CommandProvider::Required(RequiredFile {
+                    message: "this will error".to_string(),
+                }),
+            },
+            ..CommandSection::empty()
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
         context::{Context, PathKind},
         providers::{
             Provider,
+            command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
             file::{FileProvider, InlineFile},
         },
         templating::Template,
         txtar_context::NullClient,
     };
     use indoc::indoc;
-    use simple_test_case::{dir_cases, test_case};
-    use simple_txtar::Archive;
+    use simple_test_case::test_case;
     use std::{path::PathBuf, sync::Mutex};
-
-    /// Load a txtar [Archive] from the given file content and print the top level comment if there
-    /// is one before returning it.
-    fn load_archive(content: &str) -> Archive {
-        let arr = Archive::from(content);
-        let comment = arr.comment();
-        if !comment.is_empty() {
-            println!("{}", comment.trim());
-        }
-
-        arr
-    }
-
-    /// Read the requested file from the archive, panicking if it is missing
-    fn get_file<'a>(arr: &'a Archive, fname: &str) -> &'a str {
-        match arr.get(fname) {
-            Some(f) => f.content.trim(),
-            None => {
-                panic!("required txtar file section {fname:?} was missing");
-            }
-        }
-    }
 
     // Sample command yaml
     const FULL_INLINE: &str = indoc!(
@@ -437,40 +451,192 @@ mod tests {
         assert_eq!(res, expected_values, "expected values to match")
     }
 
-    #[dir_cases("crates/rtf-config/resources/provider-tests/command/check-failures")]
     #[test]
-    fn check_failures(_path: &str, content: &str) {
-        let arr = load_archive(content);
-        let config = get_file(&arr, "config.yaml");
-        let expected = get_file(&arr, "check-errors");
-
-        let section: CommandSection = match serde_yaml::from_str(config) {
-            Ok(section) => section,
-            Err(e) => panic!("expected a valid CommandSection, got: {e}"),
+    fn try_check_command_spec_success() {
+        let command = CommandSpec {
+            name: "name".to_string(),
+            args: Vec::new(),
+            command_provider: CommandProvider::Inline(InlineFile {
+                content: "some content".to_string(),
+            }),
         };
 
-        let dir = PathBuf::from("resources/provider-tests/command/check-failures")
-            .canonicalize()
-            .unwrap();
         let ctx = Context::new();
-        let src = Source::local(dir.join("example.yaml"));
-        let res = section.try_check(&mut Vec::new(), &src, &ctx);
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
 
-        assert!(res.is_err(), "expected check failures");
-        let errs = res.unwrap_err();
+        let res = command.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+    }
 
-        // Validation Errors are an ordered list of individual errors with a kind.
-        // To avoid breaking these tests when the user facing error message for each error
-        // is modified, we only assert on the Kind of each error, not the full message.
-        let mut err_kinds = Vec::new();
-        for err in errs.iter() {
-            err_kinds.push(format!("{:?}", err.kind));
-        }
-        let concatenated_errs = err_kinds.join("\n");
+    #[test]
+    fn try_check_command_spec_command_provider_errors() {
+        let command = CommandSpec {
+            name: "name".to_string(),
+            args: Vec::new(),
+            command_provider: CommandProvider::Required(RequiredFile {
+                message: "this will error".to_string(),
+            }),
+        };
 
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        let res = command.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_err(), "expected check to fail, got {res:?}");
+
+        let err = res.unwrap_err().unwrap_single();
         assert_eq!(
-            &concatenated_errs, expected,
-            "wrong validation errors: {errs:?}"
+            err.kind,
+            checks::ErrorKind::RequiredFileMissing,
+            "check the error kind is correct"
+        );
+    }
+
+    #[test]
+    fn try_check_command_section_success() {
+        let command = cmd_with_inline_file();
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        let res = command.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+    }
+
+    #[test]
+    fn try_check_command_section_command_errors() {
+        let command = cmd_with_required_file();
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        let res = command.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_err(), "expected check to fail, got {res:?}");
+
+        let err = res.unwrap_err().unwrap_single();
+        assert_eq!(
+            err.kind,
+            checks::ErrorKind::RequiredFileMissing,
+            "check the error kind is correct"
+        );
+    }
+
+    #[test]
+    fn try_check_command_section_file_provider_errors() {
+        let command = CommandSection {
+            file_providers: vec![NamedFileProvider {
+                name: "required".to_string(),
+                env_var: "REQUIRED".to_string(),
+                provider: FileProvider::Required(RequiredFile {
+                    message: "this will error".to_string(),
+                }),
+            }],
+            ..CommandSection::empty()
+        };
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        let res = command.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_err(), "expected check to fail, got {res:?}");
+
+        let err = res.unwrap_err().unwrap_single();
+        assert_eq!(
+            err.kind,
+            checks::ErrorKind::RequiredFileMissing,
+            "check the error kind is correct"
+        );
+    }
+
+    #[test]
+    fn try_check_command_section_duplicate_env_var_errors() {
+        let mut env_vars: HashMap<String, Field<Scalar>> = HashMap::new();
+        env_vars.insert("A".to_string(), Field::Resolved("A".into()));
+        env_vars.insert("B".to_string(), Field::Resolved("B".into()));
+
+        let command = CommandSection {
+            env_vars,
+            file_providers: vec![NamedFileProvider {
+                name: "inline".to_string(),
+                env_var: "A".to_string(),
+                provider: FileProvider::Inline(InlineFile {
+                    content: "some content".to_string(),
+                }),
+            }],
+            ..CommandSection::empty()
+        };
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        let res = command.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_err(), "expected check to fail, got {res:?}");
+
+        let err = res.unwrap_err().unwrap_single();
+        assert_eq!(
+            err.kind,
+            checks::ErrorKind::DuplicateEnvironmentVariables,
+            "check the error kind is correct"
+        );
+    }
+
+    #[test]
+    fn try_check_command_section_combined_errors() {
+        let mut env_vars: HashMap<String, Field<Scalar>> = HashMap::new();
+        env_vars.insert("A".to_string(), Field::Resolved("A".into()));
+        env_vars.insert("B".to_string(), Field::Resolved("B".into()));
+
+        let command = CommandSection {
+            env_vars,
+            file_providers: vec![
+                NamedFileProvider {
+                    name: "inline".to_string(),
+                    env_var: "A".to_string(),
+                    provider: FileProvider::Inline(InlineFile {
+                        content: "some content".to_string(),
+                    }),
+                },
+                NamedFileProvider {
+                    name: "required".to_string(),
+                    env_var: "REQUIRED".to_string(),
+                    provider: FileProvider::Required(RequiredFile {
+                        message: "this will error".to_string(),
+                    }),
+                },
+            ],
+            ..cmd_with_required_file()
+        };
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        let res = command.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_err(), "expected check to fail, got {res:?}");
+
+        let err = res.unwrap_err();
+        let err_kinds: Vec<checks::ErrorKind> = err.iter().map(|e| e.kind).collect();
+        let expected_kinds = vec![
+            checks::ErrorKind::RequiredFileMissing,
+            checks::ErrorKind::RequiredFileMissing,
+            checks::ErrorKind::DuplicateEnvironmentVariables,
+        ];
+        assert_eq!(
+            err_kinds, expected_kinds,
+            "check the error kinds are correct"
         );
     }
 

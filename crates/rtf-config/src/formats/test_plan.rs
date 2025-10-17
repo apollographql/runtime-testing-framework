@@ -625,12 +625,16 @@ mod tests {
             },
             scenario::test_helpers::{scenario_with_fields, templatable_scenario},
             tests::{
-                assert_template_errors, expected_error_details, named_file_provider_with_field, p,
-                r, templatable_file_providers, value_definitions, value_map,
+                assert_check_errors, assert_template_errors, expected_error_details,
+                named_file_provider_with_field, p, r, templatable_file_providers,
+                value_definitions, value_map,
             },
         },
         providers::{
-            command::{CommandProvider, CommandSection, CommandSpec},
+            command::{
+                CommandProvider, CommandSection, CommandSpec,
+                test_helpers::{cmd_with_inline_file, cmd_with_required_file},
+            },
             file::{FileProvider, InlineFile, NamedFileProvider},
         },
         templating::{ErrorBuilder, ErrorKind, Field},
@@ -1589,5 +1593,72 @@ mod tests {
             "expected templating will work to succeed, got {:?}",
             res
         );
+    }
+
+    #[test]
+    fn try_check_success() {
+        let test_plan = TestPlanConfig {
+            scenario: ScenarioConfig {
+                command: cmd_with_inline_file(),
+                ..ScenarioConfig::empty()
+            },
+            environment: EnvironmentConfig {
+                teardown: cmd_with_inline_file(),
+                ..EnvironmentConfig::empty()
+            },
+            ..TestPlanConfig::empty()
+        };
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        let res = test_plan.try_check(&mut Vec::new(), &src, &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+    }
+
+    #[test_case(
+        cmd_with_required_file(),
+        CommandSection::empty(),
+        &[checks::ErrorKind::RequiredFileMissing];
+        "scenario only"
+    )]
+    #[test_case(
+        CommandSection::empty(),
+        cmd_with_required_file(),
+        &[checks::ErrorKind::RequiredFileMissing];
+        "environment only"
+    )]
+    #[test_case(
+        cmd_with_required_file(),
+        cmd_with_required_file(),
+        &[checks::ErrorKind::RequiredFileMissing, checks::ErrorKind::RequiredFileMissing];
+        "scenario and environment"
+    )]
+    #[test]
+    fn try_check_errors(
+        scenario_cmd: CommandSection,
+        environment_cmd: CommandSection,
+        expected_err_kinds: &[checks::ErrorKind],
+    ) {
+        let test_plan = TestPlanConfig {
+            scenario: ScenarioConfig {
+                command: scenario_cmd,
+                ..ScenarioConfig::empty()
+            },
+            environment: EnvironmentConfig {
+                teardown: environment_cmd,
+                ..EnvironmentConfig::empty()
+            },
+            ..TestPlanConfig::empty()
+        };
+
+        let ctx = Context::new();
+        let src = Source::Local {
+            abs_path: "/".into(),
+        };
+
+        assert_check_errors(test_plan, &src, &ctx, expected_err_kinds);
     }
 }
