@@ -222,6 +222,7 @@ pub enum FileProvider {
     GraphosSubgraphDockerCompose(apollo::GraphosSubgraphDockerCompose),
     GraphosSubgraphRouterUrlOverrides(apollo::GraphosSubgraphRouterUrlOverrides),
     GraphosSubgraphs(apollo::GraphosSubgraphs),
+    GraphosSubgraphNames(apollo::GraphosSubgraphNames),
     GraphosSupergraph(apollo::GraphosSupergraph),
     Inline(InlineFile),
     MergeYaml(utility::MergeYaml),
@@ -262,6 +263,7 @@ enum_impl_file_provider!(
     GraphosSubgraphDockerCompose,
     GraphosSubgraphRouterUrlOverrides,
     GraphosSubgraphs,
+    GraphosSubgraphNames,
     GraphosSupergraph,
     Inline,
     MergeYaml,
@@ -683,6 +685,12 @@ mod tests {
         graph_ref: "{{ graph_ref }}"
     "#
     );
+    const GRAPHOS_SUBGRAPH_NAMES: &str = indoc!(
+        r#"
+        kind: graphos_subgraph_names
+        graph_ref: "{{ graph_ref }}"
+    "#
+    );
     const GRAPHOS_SUPERGRAPH: &str = indoc!(
         r#"
         kind: graphos_supergraph
@@ -786,6 +794,7 @@ mod tests {
     ]; "graphos_subgraph_docker_compose")]
     #[test_case(GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES, &["graph_ref"]; "graphos_subgraph_router_url_overrides")]
     #[test_case(GRAPHOS_SUBGRAPHS, &["graph_ref"]; "graphos_subgraphs")]
+    #[test_case(GRAPHOS_SUBGRAPH_NAMES, &["graph_ref"]; "graphos_subgraph_names")]
     #[test_case(GRAPHOS_SUPERGRAPH, &["graph_ref"]; "graphos_supergraph")]
     #[test_case(FROM_COMMAND, &["test_script", "test_arg", "test_var", "test_path"]; "from_command")]
     #[test_case(INLINE, &[]; "inline")]

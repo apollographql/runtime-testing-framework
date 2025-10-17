@@ -10,6 +10,7 @@ use crate::{
     templating::Field,
 };
 use indoc::indoc;
+use itertools::Itertools;
 use reqwest::StatusCode;
 use rtf_core::{
     HttpClient,
@@ -161,6 +162,58 @@ impl ResolveFileContent for GraphosSubgraphs {
 }
 
 impl Check for GraphosSubgraphs {
+    fn try_check(
+        &self,
+        path: &mut Vec<String>,
+        _src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
+    }
+}
+
+/// # GraphOS Subgraph Names
+///
+/// The user specifies the graph ref that should be used to fetch the names of
+/// subgraphs in the supergraph from the GraphOS API.
+///
+/// This file proivider will output a newline-delimited file of the subgraph names.
+///
+/// ```yaml
+/// - name: "subgraph_names"
+///   env_var: SUBGRAPH_NAMES
+///   kind: graphos_subgraph_names
+///   graph_ref: graph@variant
+/// ```
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+pub struct GraphosSubgraphNames {
+    /// The Apollo graph ref to pull subgraph names for.
+    pub graph_ref: Field<String>,
+}
+
+impl AsUtf8FileContent for GraphosSubgraphNames {
+    async fn try_get_file_content(
+        &self,
+        _src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<String> {
+        let (graph_id, variant) = self
+            .graph_ref
+            .as_resolved()
+            .split_once('@')
+            .expect("validated graph_ref");
+
+        let subgraphs = ctx
+            .with_supergraph_details(graph_id, variant, |details| Ok(details.subgraphs.clone()))
+            .await?;
+
+        let contents = subgraphs.into_iter().map(|sg| sg.name).join("\n");
+
+        Ok(contents)
+    }
+}
+
+impl Check for GraphosSubgraphNames {
     fn try_check(
         &self,
         path: &mut Vec<String>,
@@ -1049,6 +1102,16 @@ mod tests {
         }
     }
 
+    /// Create a GraphOS Subgraph Names
+    fn subgraph_names_fp(graph_ref: &str) -> FileProvider {
+        FileProvider::GraphosSubgraphNames(subgraph_names(graph_ref))
+    }
+    fn subgraph_names(graph_ref: &str) -> GraphosSubgraphNames {
+        GraphosSubgraphNames {
+            graph_ref: Field::Resolved(graph_ref.to_string()),
+        }
+    }
+
     /// Create a GraphOS Subgraphs Docker Compose
     fn subgraphs_compose_fp(graph_ref: &str) -> FileProvider {
         FileProvider::GraphosSubgraphDockerCompose(subgraphs_compose(graph_ref))
@@ -1265,6 +1328,10 @@ mod tests {
     #[test_case(subgraphs_overrides_fp("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "subgraphs overrides invalid ref")]
     #[test_case(subgraphs_overrides_fp("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "subgraphs overrides missing key")]
     #[test_case(subgraphs_overrides_fp("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "subgraphs overrides invalid ref and missing key")]
+    #[test_case(subgraph_names_fp("graph@variant"), true, &[]; "subgraph names success")]
+    #[test_case(subgraph_names_fp("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "subgraph names invalid ref")]
+    #[test_case(subgraph_names_fp("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "subgraph names missing key")]
+    #[test_case(subgraph_names_fp("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "subgraph names invalid ref and missing key")]
     #[test_case(canned_ops("graph@variant"), true, &[]; "canned ops success")]
     #[test_case(canned_ops("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "canned ops invalid ref")]
     #[test_case(canned_ops("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "canned ops missing key")]
