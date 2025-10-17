@@ -1,6 +1,6 @@
 use crate::{
     ValueDefinition,
-    checks::{self, Check, CheckArrayDuplicates, duplicate_keys},
+    checks::{self, Check, CheckArrayDuplicates},
     context::ResolutionContext,
     formats::{EnvironmentConfig, Error, Matrix, Result, ScenarioConfig},
     merge_yaml,
@@ -75,13 +75,7 @@ impl TestPlanConfig {
     /// This will always return at least the base test plan itself if there are no matrix values
     /// defined.
     pub fn try_iter_matrix_variants(&self) -> Result<impl Iterator<Item = (String, Self)>> {
-        let expanded = self.matrix.expand(&self.values);
-
-        let duplicates = duplicate_keys(expanded.iter().map(|(name, _)| name.as_str()), |s| s);
-        if !duplicates.is_empty() {
-            let duplicates: Vec<String> = duplicates.into_iter().map(String::from).collect();
-            return Err(Error::NonUniqueMatrixVariantNames { duplicates });
-        }
+        let expanded = self.matrix.try_expand(&self.values)?;
 
         Ok(expanded.into_iter().map(|(name, values)| {
             let mut new = self.clone();
@@ -1253,7 +1247,10 @@ mod tests {
         );
 
         // Get the expanded matrix values to make sure this outputs the same values as iter_matrix_variants
-        let expanded_matrix_values = test_plan.matrix.expand(&test_plan.values);
+        let expanded_matrix_values = test_plan
+            .matrix
+            .try_expand(&test_plan.values)
+            .expect("expansion to succeed");
 
         // Check each variant has the expected combinations in the order expected
         for (i, (_, variant)) in variants.iter().enumerate() {

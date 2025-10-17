@@ -16,16 +16,21 @@ pub use test_plan::{RawTestPlanConfig, TestPlanConfig};
 /// Errors that can be encountered resolving config files
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("one or more file providers failed to run:\n{}", .errs.join("\n"))]
+    #[error("Tne or more file providers failed to run:\n{}", .errs.join("\n"))]
     FailedFileProviders { errs: Vec<String> },
 
-    #[error("missing required output fields from environment setup: {missing:?}")]
+    #[error("Missing required output fields from environment setup: {missing:?}")]
     InvalidSetupOutput { missing: Vec<String> },
 
-    #[error("the provided variant_names template produced duplicate names: {duplicates:?}")]
+    #[error(
+        "The provided matrix.variant_names template references unknown matrix values: {values:?}"
+    )]
+    UnknownMatrixVariantTemplateValues { values: Vec<String> },
+
+    #[error("The provided variant_names template produced duplicate names: {duplicates:?}")]
     NonUniqueMatrixVariantNames { duplicates: Vec<String> },
 
-    #[error("the config file being parsed was invalid:\n{0}")]
+    #[error("The config file being parsed was invalid:\n{0}")]
     Validation(#[from] checks::Errors),
 
     // wrapped errors

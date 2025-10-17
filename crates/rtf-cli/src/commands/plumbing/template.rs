@@ -34,7 +34,7 @@ async fn template_test_plan_with_context(
     info!("checking if templating will work");
     test_plan.check_templating_will_work()?;
 
-    let (_, values) = &test_plan.matrix.expand(&test_plan.values)[0];
+    let (_, values) = &test_plan.matrix.try_expand(&test_plan.values)?[0];
     test_plan.try_template(&mut Vec::new(), values)?;
 
     if check {
