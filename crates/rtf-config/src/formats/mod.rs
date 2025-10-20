@@ -16,7 +16,7 @@ pub use test_plan::{RawTestPlanConfig, TestPlanConfig};
 /// Errors that can be encountered resolving config files
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("Tne or more file providers failed to run:\n{}", .errs.join("\n"))]
+    #[error("One or more file providers failed to run:\n{}", .errs.join("\n"))]
     FailedFileProviders { errs: Vec<String> },
 
     #[error("Missing required output fields from environment setup: {missing:?}")]

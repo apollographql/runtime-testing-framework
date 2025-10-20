@@ -69,7 +69,7 @@ impl TestPlanConfig {
         raw.try_into_test_plan(tp_source, ctx).await
     }
 
-    /// Iteratate over all variants of this test plan that arise from [expanding](Matrix::expand)
+    /// Iteratate over all variants of this test plan that arise from [expanding](Matrix::try_expand)
     /// any matrix values that it contains.
     ///
     /// This will always return at least the base test plan itself if there are no matrix values
