@@ -1714,6 +1714,7 @@ dependencies = [
  "indoc",
  "itertools",
  "pretty_assertions",
+ "regex",
  "reqwest",
  "rtf-core",
  "rtf-derive",

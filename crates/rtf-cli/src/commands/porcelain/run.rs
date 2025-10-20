@@ -56,7 +56,11 @@ async fn check_and_run_test_plan_with_context(
     out_dir: &Path,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    values.merge(&mut test_plan.values, &mut test_plan.matrix, &mut ctx)?;
+    values.merge(
+        &mut test_plan.values,
+        &mut test_plan.matrix.dimensions,
+        &mut ctx,
+    )?;
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work()?;
@@ -74,12 +78,12 @@ async fn check_and_run_test_plan_with_context(
         return run_one(test_plan, out_dir, &mut ctx).await;
     }
 
-    let n = test_plan.n_matrix_variants();
+    let n = test_plan.matrix.n_variants();
 
-    for (mut i, tp) in test_plan.iter_matrix_variants().enumerate() {
+    for (mut i, (name, tp)) in test_plan.try_iter_matrix_variants()?.enumerate() {
         i += 1;
         ctx.set_values(&tp.values);
-        let sub_dir = out_dir.join(format!("matrix_variant_{i}"));
+        let sub_dir = out_dir.join(name);
         info!("creating output directory for matrix variant {i}/{n}");
         ctx.create_dir_all(&sub_dir)?;
 

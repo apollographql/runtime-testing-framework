@@ -110,3 +110,13 @@ fn resolved_values_provider_works() {
         .stdout(contains(r#""foo":"bar""#))
         .stdout(contains(r#""echo_me":"baz""#));
 }
+
+#[test]
+fn custom_matrix_variant_names_work() {
+    let mut cmd = prepare_rtf_run("resources/custom-matrix-variant-names");
+    cmd.assert().success();
+    cmd.assert_path_exists("output/world!-mother");
+    cmd.assert_path_exists("output/world!-father");
+    cmd.assert_path_exists("output/sailor-mother");
+    cmd.assert_path_exists("output/sailor-father");
+}
