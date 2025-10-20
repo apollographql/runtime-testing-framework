@@ -246,8 +246,8 @@ What if we want to define multiple sets of values and run them _all_ as part of 
 For that, `rtf` provides a **matrix** feature that functions in a similar way to matrices in
 [GitHub Actions][2].
 
-To convert a **value** from a single value to a matrix, move it under the `matrix` section of the
-test plan and provide an array of values you'd like to use:
+To convert a **value** from a single value to a matrix, move it under the `matrix.dimensions`
+section of the test plan and provide an array of values you'd like to use:
 
 > Remember to also remove it from the `values` section or your test plan will fail its check!
 
@@ -258,7 +258,8 @@ test plan and provide an array of values you'd like to use:
    scenario_subject: "darkness my old friend"
 
 +matrix:
-+  setup_subject: [ "world!", "sailor!" ]
++  dimensions:
++    setup_subject: [ "world!", "sailor!" ]
 ```
 
 Running the test plan with two `setup_subject` values produces two results:
@@ -284,8 +285,9 @@ If we also move the `scenario_subject` into the matrix:
 -  scenario_subject: "darkness my old friend"
 +
 +matrix:
-+  setup_subject: [ "world!", "sailor!" ]
-+  scenario_subject: [ "darkness my old friend", "is it me you're looking for?" ]
++  dimensions:
++    setup_subject: [ "world!", "sailor!" ]
++    scenario_subject: [ "darkness my old friend", "is it me you're looking for?" ]
 ```
 
 We'll get a run for every _combination_ of values:
@@ -307,6 +309,24 @@ env-setup :: hello, sailor!
 scenario :: hello, is it me you're looking for?
 ---
 ```
+
+By default, matrix output directories will be named `matrix_variant_$n` with `n` ranging from 1 to
+the number of variants present in the matrix. To override this with a custom, more meaningful, name
+you can set the `matrix.variant_names` key to generate variant names using a simple templating
+syntax:
+
+```yaml
+# The following template will generate variants named "one_3", "one_4", "two_3" and "two_4"
+matrix:
+  variant_names: "${a}_${b}"
+  dimensions:
+    a: [ "one", "two" ]
+    b: [ 3, 4 ]
+```
+
+The syntax used for template strings involves placing _matrix dimension names_ inside of `${}` along
+with static string content in order to generate a unique name for each variant. The resulting string
+is then slugified to remove whitespace and slashes.
 
 [0]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans
 [1]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/hello-world/test-plan.yaml

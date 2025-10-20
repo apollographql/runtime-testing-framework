@@ -381,9 +381,11 @@ name: Hello World
 description: A test plan created as a guide for writing test plans
 # --- Replace values with a matrix ---
 matrix:
-  example_value:
-    - value1
-    - value2
+  variant_names: "${example_value}"
+  dimensions:
+    example_value:
+      - value1
+      - value2
 # ------------------------------------
 scenario:
   inline:
@@ -434,18 +436,18 @@ executed twice. The `output` directory will also have a different structure:
 
 ```bash
 $ ls output/
-matrix_variant_1        matrix_variant_2
+value1        value2
 ```
 
 Let's look at each of those matrix directories to see the different values used per execution:
 
 ```bash
-$ cat output/matrix_variant_1/test-plan-values.json 
+$ cat output/value1/test-plan-values.json 
 {
   "example_value": "value1"
 }
 
-$ cat output/matrix_variant_2/test-plan-values.json
+$ cat output/value2/test-plan-values.json
 {
   "example_value": "value2"
 }

@@ -9,6 +9,7 @@
   - [From a remote file in GitHub](#from-a-remote-file-in-github)
 - [Applying overrides](#applying-overrides)
 - [A note on relative paths](#a-note-on-relative-paths)
+- [Working with matrices](#working-with-matrices)
 - [Full example](#full-example)
 
 ---
@@ -34,9 +35,12 @@ relevant pages under the [Framework][1] section of the documentation.
     rather than in comments or other files (such as a README).
 - `values`: Key value pairs for templating the Test Plan where the values are all scalar.
   - Scalar here is defined to be a number, string or boolean.
-- `matrix`: Key value pairs for templating the Test Plan where the values arrays of scalars.
+- `matrix`: Dimensions specified as key value pairs for templating the Test Plan where the values
+  arrays of scalars.
   - Each matrix entry must have a consistent type for the values array. Mixing different scalar
     values will result in an error when you attempt to run the Test Plan.
+  - An optional `variant_names` key can be provided to customise the names of the output directories
+    used by each variant.
 - `scenario`: A [Config Spec](#config-specs) for the scenario to be run.
   - For full details on the structure of a Scenario see the [Scenario][2] page of the Framework
     documentation.
@@ -190,6 +194,61 @@ config file.
 The intent is that everything works as you would intuitively expect, and that IDE auto-completion of
 paths will always prompt you to write the correct thing.
 
+## Working with matrices
+
+A `matrix` will expand to a set of test plans defined by the [cartesian product][6] of its
+dimensions.
+
+For example, the following matrix:
+
+```yaml
+matrix:
+  dimensions:
+    a: ["foo", "bar"]
+    b: [1, 2, 3]
+```
+
+Expands to six test plans (known as "variants") covering each of the possible combinations of values
+for `a` and `b`.
+
+Each variant is run individually and writes its output to its own subdirectory, named
+`matrix_variant_$n` by default. The order in which variants are run is deterministic: dimensions are
+ordered alphanumerically and the cartesian product is formed from the user provided ordering of
+values for each dimension (as shown below).
+
+- a=foo b=1 (matrix_variant_1)
+- a=foo b=2 (matrix_variant_2)
+- a=foo b=3 (matrix_variant_3)
+- a=bar b=1 (matrix_variant_4)
+- a=bar b=2 (matrix_variant_5)
+- a=bar b=3 (matrix_variant_6)
+
+If you wish to provide more meaningful names for the output subdirectories you can specify the
+`matrix.variant_names` key in your test plan which takes a simple template string for generating the
+variant names:
+
+```yaml
+matrix:
+  variant_names: "${a}_${b}"
+  dimensions:
+    a: ["foo", "bar"]
+    b: [1, 2, 3]
+```
+
+When doing so, the ordering for variants remains the same but the output directory names are
+generated using the template provided:
+
+- a=foo b=1 (foo_1)
+- a=foo b=2 (foo_2)
+- a=foo b=3 (foo_3)
+- a=bar b=1 (bar_1)
+- a=bar b=2 (bar_2)
+- a=bar b=3 (bar_3)
+
+The syntax used for template strings involves placing _matrix dimension names_ inside of `${}` along
+with static string content in order to generate a unique name for each variant. The resulting string
+is then slugified to remove whitespace and slashes.
+
 ## Full example
 
 The following is a minimal "kitchen sink" example of the structure of a valid `test-plan.yaml`.
@@ -202,8 +261,10 @@ values:
   foo: "A value for foo"
 
 matrix:
-  bar: [1, 2, 3]
-  baz: [true, false]
+  variant_names: "${bar}_${baz}"
+  dimensions:
+    bar: [1, 2, 3]
+    baz: [true, false]
 
 scenario:
   inline:
@@ -242,3 +303,4 @@ environment:
 [3]: ./environments.md
 [4]: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
 [5]: ./file-providers.md
+[6]: https://en.wikipedia.org/wiki/Cartesian_product
