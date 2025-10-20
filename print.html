@@ -572,8 +572,8 @@ in version control.</li>
 <p>What if we want to define multiple sets of values and run them <em>all</em> as part of a batch of tests?
 For that, <code>rtf</code> provides a <strong>matrix</strong> feature that functions in a similar way to matrices in
 <a href="https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/running-variations-of-jobs-in-a-workflow">GitHub Actions</a>.</p>
-<p>To convert a <strong>value</strong> from a single value to a matrix, move it under the <code>matrix</code> section of the
-test plan and provide an array of values you'd like to use:</p>
+<p>To convert a <strong>value</strong> from a single value to a matrix, move it under the <code>matrix.dimensions</code>
+section of the test plan and provide an array of values you'd like to use:</p>
 <blockquote>
 <p>Remember to also remove it from the <code>values</code> section or your test plan will fail its check!</p>
 </blockquote>
@@ -583,7 +583,8 @@ test plan and provide an array of values you'd like to use:</p>
    scenario_subject: "darkness my old friend"
 
 +matrix:
-+  setup_subject: [ "world!", "sailor!" ]
++  dimensions:
++    setup_subject: [ "world!", "sailor!" ]
 </code></pre>
 <p>Running the test plan with two <code>setup_subject</code> values produces two results:</p>
 <pre><code>$ rm output -rf
@@ -603,8 +604,9 @@ scenario :: hello, darkness my old friend
 -  scenario_subject: "darkness my old friend"
 +
 +matrix:
-+  setup_subject: [ "world!", "sailor!" ]
-+  scenario_subject: [ "darkness my old friend", "is it me you're looking for?" ]
++  dimensions:
++    setup_subject: [ "world!", "sailor!" ]
++    scenario_subject: [ "darkness my old friend", "is it me you're looking for?" ]
 </code></pre>
 <p>We'll get a run for every <em>combination</em> of values:</p>
 <pre><code>$ rm output -rf
@@ -623,6 +625,20 @@ env-setup :: hello, sailor!
 scenario :: hello, is it me you're looking for?
 ---
 </code></pre>
+<p>By default, matrix output directories will be named <code>matrix_variant_$n</code> with <code>n</code> ranging from 1 to
+the number of variants present in the matrix. To override this with a custom, more meaningful, name
+you can set the <code>matrix.variant_names</code> key to generate variant names using a simple templating
+syntax:</p>
+<pre><code class="language-yaml"># The following template will generate variants named "one_3", "one_4", "two_3" and "two_4"
+matrix:
+  variant_names: "${a}_${b}"
+  dimensions:
+    a: [ "one", "two" ]
+    b: [ 3, 4 ]
+</code></pre>
+<p>The syntax used for template strings involves placing <em>matrix dimension names</em> inside of <code>${}</code> along
+with static string content in order to generate a unique name for each variant. The resulting string
+is then slugified to remove whitespace and slashes.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="the-framework"><a class="header" href="#the-framework">The framework</a></h1>
 <p>The following pages provide reference information for various aspects of the runtime testing
 framework for end users who are interested in writing their own test plans.</p>
@@ -641,6 +657,7 @@ first.</p>
 </li>
 <li><a href="framework/test-plans.html#applying-overrides">Applying overrides</a></li>
 <li><a href="framework/test-plans.html#a-note-on-relative-paths">A note on relative paths</a></li>
+<li><a href="framework/test-plans.html#working-with-matrices">Working with matrices</a></li>
 <li><a href="framework/test-plans.html#full-example">Full example</a></li>
 </ul>
 <hr />
@@ -673,10 +690,13 @@ rather than in comments or other files (such as a README).</li>
 <li>Scalar here is defined to be a number, string or boolean.</li>
 </ul>
 </li>
-<li><code>matrix</code>: Key value pairs for templating the Test Plan where the values arrays of scalars.
+<li><code>matrix</code>: Dimensions specified as key value pairs for templating the Test Plan where the values
+arrays of scalars.
 <ul>
 <li>Each matrix entry must have a consistent type for the values array. Mixing different scalar
 values will result in an error when you attempt to run the Test Plan.</li>
+<li>An optional <code>variant_names</code> key can be provided to customise the names of the output directories
+used by each variant.</li>
 </ul>
 </li>
 <li><code>scenario</code>: A <a href="framework/test-plans.html#config-specs">Config Spec</a> for the scenario to be run.
@@ -812,6 +832,51 @@ are resolved relative to the location of the <code>test-plan.yaml</code> file, <
 config file.</p>
 <p>The intent is that everything works as you would intuitively expect, and that IDE auto-completion of
 paths will always prompt you to write the correct thing.</p>
+<h2 id="working-with-matrices"><a class="header" href="#working-with-matrices">Working with matrices</a></h2>
+<p>A <code>matrix</code> will expand to a set of test plans defined by the <a href="https://en.wikipedia.org/wiki/Cartesian_product">cartesian product</a> of its
+dimensions.</p>
+<p>For example, the following matrix:</p>
+<pre><code class="language-yaml">matrix:
+  dimensions:
+    a: ["foo", "bar"]
+    b: [1, 2, 3]
+</code></pre>
+<p>Expands to six test plans (known as "variants") covering each of the possible combinations of values
+for <code>a</code> and <code>b</code>.</p>
+<p>Each variant is run individually and writes its output to its own subdirectory, named
+<code>matrix_variant_$n</code> by default. The order in which variants are run is deterministic: dimensions are
+ordered alphanumerically and the cartesian product is formed from the user provided ordering of
+values for each dimension (as shown below).</p>
+<ul>
+<li>a=foo b=1 (matrix_variant_1)</li>
+<li>a=foo b=2 (matrix_variant_2)</li>
+<li>a=foo b=3 (matrix_variant_3)</li>
+<li>a=bar b=1 (matrix_variant_4)</li>
+<li>a=bar b=2 (matrix_variant_5)</li>
+<li>a=bar b=3 (matrix_variant_6)</li>
+</ul>
+<p>If you wish to provide more meaningful names for the output subdirectories you can specify the
+<code>matrix.variant_names</code> key in your test plan which takes a simple template string for generating the
+variant names:</p>
+<pre><code class="language-yaml">matrix:
+  variant_names: "${a}_${b}"
+  dimensions:
+    a: ["foo", "bar"]
+    b: [1, 2, 3]
+</code></pre>
+<p>When doing so, the ordering for variants remains the same but the output directory names are
+generated using the template provided:</p>
+<ul>
+<li>a=foo b=1 (foo_1)</li>
+<li>a=foo b=2 (foo_2)</li>
+<li>a=foo b=3 (foo_3)</li>
+<li>a=bar b=1 (bar_1)</li>
+<li>a=bar b=2 (bar_2)</li>
+<li>a=bar b=3 (bar_3)</li>
+</ul>
+<p>The syntax used for template strings involves placing <em>matrix dimension names</em> inside of <code>${}</code> along
+with static string content in order to generate a unique name for each variant. The resulting string
+is then slugified to remove whitespace and slashes.</p>
 <h2 id="full-example"><a class="header" href="#full-example">Full example</a></h2>
 <p>The following is a minimal "kitchen sink" example of the structure of a valid <code>test-plan.yaml</code>.</p>
 <pre><code class="language-yaml">name: example
@@ -821,8 +886,10 @@ values:
   foo: "A value for foo"
 
 matrix:
-  bar: [1, 2, 3]
-  baz: [true, false]
+  variant_names: "${bar}_${baz}"
+  dimensions:
+    bar: [1, 2, 3]
+    baz: [true, false]
 
 scenario:
   inline:
@@ -1837,9 +1904,11 @@ information). A matrix can only be defined in the test plan config.</p>
 description: A test plan created as a guide for writing test plans
 # --- Replace values with a matrix ---
 matrix:
-  example_value:
-    - value1
-    - value2
+  variant_names: "${example_value}"
+  dimensions:
+    example_value:
+      - value1
+      - value2
 # ------------------------------------
 scenario:
   inline:
@@ -1884,15 +1953,15 @@ runs):</p>
 <p>The terminal output will look different this time - the environment and scenario commands are
 executed twice. The <code>output</code> directory will also have a different structure:</p>
 <pre><code class="language-bash">$ ls output/
-matrix_variant_1        matrix_variant_2
+value1        value2
 </code></pre>
 <p>Let's look at each of those matrix directories to see the different values used per execution:</p>
-<pre><code class="language-bash">$ cat output/matrix_variant_1/test-plan-values.json 
+<pre><code class="language-bash">$ cat output/value1/test-plan-values.json 
 {
   "example_value": "value1"
 }
 
-$ cat output/matrix_variant_2/test-plan-values.json
+$ cat output/value2/test-plan-values.json
 {
   "example_value": "value2"
 }

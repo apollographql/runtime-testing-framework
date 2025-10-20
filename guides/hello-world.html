@@ -410,8 +410,8 @@ in version control.</li>
 <p>What if we want to define multiple sets of values and run them <em>all</em> as part of a batch of tests?
 For that, <code>rtf</code> provides a <strong>matrix</strong> feature that functions in a similar way to matrices in
 <a href="https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/running-variations-of-jobs-in-a-workflow">GitHub Actions</a>.</p>
-<p>To convert a <strong>value</strong> from a single value to a matrix, move it under the <code>matrix</code> section of the
-test plan and provide an array of values you'd like to use:</p>
+<p>To convert a <strong>value</strong> from a single value to a matrix, move it under the <code>matrix.dimensions</code>
+section of the test plan and provide an array of values you'd like to use:</p>
 <blockquote>
 <p>Remember to also remove it from the <code>values</code> section or your test plan will fail its check!</p>
 </blockquote>
@@ -421,7 +421,8 @@ test plan and provide an array of values you'd like to use:</p>
    scenario_subject: "darkness my old friend"
 
 +matrix:
-+  setup_subject: [ "world!", "sailor!" ]
++  dimensions:
++    setup_subject: [ "world!", "sailor!" ]
 </code></pre>
 <p>Running the test plan with two <code>setup_subject</code> values produces two results:</p>
 <pre><code>$ rm output -rf
@@ -441,8 +442,9 @@ scenario :: hello, darkness my old friend
 -  scenario_subject: "darkness my old friend"
 +
 +matrix:
-+  setup_subject: [ "world!", "sailor!" ]
-+  scenario_subject: [ "darkness my old friend", "is it me you're looking for?" ]
++  dimensions:
++    setup_subject: [ "world!", "sailor!" ]
++    scenario_subject: [ "darkness my old friend", "is it me you're looking for?" ]
 </code></pre>
 <p>We'll get a run for every <em>combination</em> of values:</p>
 <pre><code>$ rm output -rf
@@ -461,6 +463,20 @@ env-setup :: hello, sailor!
 scenario :: hello, is it me you're looking for?
 ---
 </code></pre>
+<p>By default, matrix output directories will be named <code>matrix_variant_$n</code> with <code>n</code> ranging from 1 to
+the number of variants present in the matrix. To override this with a custom, more meaningful, name
+you can set the <code>matrix.variant_names</code> key to generate variant names using a simple templating
+syntax:</p>
+<pre><code class="language-yaml"># The following template will generate variants named "one_3", "one_4", "two_3" and "two_4"
+matrix:
+  variant_names: "${a}_${b}"
+  dimensions:
+    a: [ "one", "two" ]
+    b: [ 3, 4 ]
+</code></pre>
+<p>The syntax used for template strings involves placing <em>matrix dimension names</em> inside of <code>${}</code> along
+with static string content in order to generate a unique name for each variant. The resulting string
+is then slugified to remove whitespace and slashes.</p>
 
                     </main>
 

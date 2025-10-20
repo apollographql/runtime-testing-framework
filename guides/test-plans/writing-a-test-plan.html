@@ -498,9 +498,11 @@ information). A matrix can only be defined in the test plan config.</p>
 description: A test plan created as a guide for writing test plans
 # --- Replace values with a matrix ---
 matrix:
-  example_value:
-    - value1
-    - value2
+  variant_names: "${example_value}"
+  dimensions:
+    example_value:
+      - value1
+      - value2
 # ------------------------------------
 scenario:
   inline:
@@ -545,15 +547,15 @@ runs):</p>
 <p>The terminal output will look different this time - the environment and scenario commands are
 executed twice. The <code>output</code> directory will also have a different structure:</p>
 <pre><code class="language-bash">$ ls output/
-matrix_variant_1        matrix_variant_2
+value1        value2
 </code></pre>
 <p>Let's look at each of those matrix directories to see the different values used per execution:</p>
-<pre><code class="language-bash">$ cat output/matrix_variant_1/test-plan-values.json 
+<pre><code class="language-bash">$ cat output/value1/test-plan-values.json 
 {
   "example_value": "value1"
 }
 
-$ cat output/matrix_variant_2/test-plan-values.json
+$ cat output/value2/test-plan-values.json
 {
   "example_value": "value2"
 }

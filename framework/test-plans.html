@@ -191,6 +191,7 @@
 </li>
 <li><a href="#applying-overrides">Applying overrides</a></li>
 <li><a href="#a-note-on-relative-paths">A note on relative paths</a></li>
+<li><a href="#working-with-matrices">Working with matrices</a></li>
 <li><a href="#full-example">Full example</a></li>
 </ul>
 <hr />
@@ -223,10 +224,13 @@ rather than in comments or other files (such as a README).</li>
 <li>Scalar here is defined to be a number, string or boolean.</li>
 </ul>
 </li>
-<li><code>matrix</code>: Key value pairs for templating the Test Plan where the values arrays of scalars.
+<li><code>matrix</code>: Dimensions specified as key value pairs for templating the Test Plan where the values
+arrays of scalars.
 <ul>
 <li>Each matrix entry must have a consistent type for the values array. Mixing different scalar
 values will result in an error when you attempt to run the Test Plan.</li>
+<li>An optional <code>variant_names</code> key can be provided to customise the names of the output directories
+used by each variant.</li>
 </ul>
 </li>
 <li><code>scenario</code>: A <a href="#config-specs">Config Spec</a> for the scenario to be run.
@@ -362,6 +366,51 @@ are resolved relative to the location of the <code>test-plan.yaml</code> file, <
 config file.</p>
 <p>The intent is that everything works as you would intuitively expect, and that IDE auto-completion of
 paths will always prompt you to write the correct thing.</p>
+<h2 id="working-with-matrices"><a class="header" href="#working-with-matrices">Working with matrices</a></h2>
+<p>A <code>matrix</code> will expand to a set of test plans defined by the <a href="https://en.wikipedia.org/wiki/Cartesian_product">cartesian product</a> of its
+dimensions.</p>
+<p>For example, the following matrix:</p>
+<pre><code class="language-yaml">matrix:
+  dimensions:
+    a: ["foo", "bar"]
+    b: [1, 2, 3]
+</code></pre>
+<p>Expands to six test plans (known as "variants") covering each of the possible combinations of values
+for <code>a</code> and <code>b</code>.</p>
+<p>Each variant is run individually and writes its output to its own subdirectory, named
+<code>matrix_variant_$n</code> by default. The order in which variants are run is deterministic: dimensions are
+ordered alphanumerically and the cartesian product is formed from the user provided ordering of
+values for each dimension (as shown below).</p>
+<ul>
+<li>a=foo b=1 (matrix_variant_1)</li>
+<li>a=foo b=2 (matrix_variant_2)</li>
+<li>a=foo b=3 (matrix_variant_3)</li>
+<li>a=bar b=1 (matrix_variant_4)</li>
+<li>a=bar b=2 (matrix_variant_5)</li>
+<li>a=bar b=3 (matrix_variant_6)</li>
+</ul>
+<p>If you wish to provide more meaningful names for the output subdirectories you can specify the
+<code>matrix.variant_names</code> key in your test plan which takes a simple template string for generating the
+variant names:</p>
+<pre><code class="language-yaml">matrix:
+  variant_names: "${a}_${b}"
+  dimensions:
+    a: ["foo", "bar"]
+    b: [1, 2, 3]
+</code></pre>
+<p>When doing so, the ordering for variants remains the same but the output directory names are
+generated using the template provided:</p>
+<ul>
+<li>a=foo b=1 (foo_1)</li>
+<li>a=foo b=2 (foo_2)</li>
+<li>a=foo b=3 (foo_3)</li>
+<li>a=bar b=1 (bar_1)</li>
+<li>a=bar b=2 (bar_2)</li>
+<li>a=bar b=3 (bar_3)</li>
+</ul>
+<p>The syntax used for template strings involves placing <em>matrix dimension names</em> inside of <code>${}</code> along
+with static string content in order to generate a unique name for each variant. The resulting string
+is then slugified to remove whitespace and slashes.</p>
 <h2 id="full-example"><a class="header" href="#full-example">Full example</a></h2>
 <p>The following is a minimal "kitchen sink" example of the structure of a valid <code>test-plan.yaml</code>.</p>
 <pre><code class="language-yaml">name: example
@@ -371,8 +420,10 @@ values:
   foo: "A value for foo"
 
 matrix:
-  bar: [1, 2, 3]
-  baz: [true, false]
+  variant_names: "${bar}_${baz}"
+  dimensions:
+    bar: [1, 2, 3]
+    baz: [true, false]
 
 scenario:
   inline:
