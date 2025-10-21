@@ -54,6 +54,23 @@ pub struct GraphosSupergraph {
     pub with_subgraph_overrides: Option<UrlFormat>,
 }
 
+impl GraphosSupergraph {
+    fn content_from_details(&self, mut sg: Arc<SupergraphDetails>) -> String {
+        match self.with_subgraph_overrides.as_ref() {
+            Some(url_format) => {
+                let sg = Arc::make_mut(&mut sg);
+                let subgraph_urls = url_format.urls_for_subgraphs(&sg.subgraphs);
+                sg.rewrite_subgraph_urls(&subgraph_urls)
+                    .expect("unable to rewrite subgraph URLs");
+
+                sg.supergraph_sdl.clone()
+            }
+
+            None => sg.supergraph_sdl.clone(),
+        }
+    }
+}
+
 impl AsUtf8FileContent for GraphosSupergraph {
     async fn try_get_file_content(
         &self,
@@ -66,28 +83,11 @@ impl AsUtf8FileContent for GraphosSupergraph {
             .split_once('@')
             .expect("validated graph_ref");
 
-        match self.with_subgraph_overrides.as_ref() {
-            Some(url_format) => {
-                let mut arc_details = ctx
-                    .with_supergraph_details(graph_id, variant, |details| Ok(details.clone()))
-                    .await?;
+        let sg = ctx
+            .with_supergraph_details(graph_id, variant, |details| Ok(details.clone()))
+            .await?;
 
-                let details = Arc::make_mut(&mut arc_details);
-                let subgraph_urls = url_format.urls_for_subgraphs(&details.subgraphs);
-                details
-                    .rewrite_subgraph_urls(&subgraph_urls)
-                    .expect("unable to rewrite subgraph URLs");
-
-                Ok(details.supergraph_sdl.clone())
-            }
-
-            None => {
-                ctx.with_supergraph_details(graph_id, variant, |details| {
-                    Ok(details.supergraph_sdl.clone())
-                })
-                .await
-            }
-        }
+        Ok(self.content_from_details(sg))
     }
 }
 
@@ -122,6 +122,23 @@ pub struct GraphosSubgraphs {
     pub graph_ref: Field<String>,
 }
 
+impl GraphosSubgraphs {
+    fn content_from_details(
+        &self,
+        sg: Arc<SupergraphDetails>,
+        dir: &Path,
+    ) -> Vec<(PathBuf, String)> {
+        let contents: Vec<_> = sg
+            .subgraphs
+            .clone()
+            .into_iter()
+            .map(|sg| (dir.join(sg.name).with_extension("graphql"), sg.sdl))
+            .collect();
+
+        contents
+    }
+}
+
 impl ResolveFileContent for GraphosSubgraphs {
     async fn try_get_all_file_contents(
         &self,
@@ -135,17 +152,11 @@ impl ResolveFileContent for GraphosSubgraphs {
             .split_once('@')
             .expect("validated graph_ref");
 
-        let subgraphs = ctx
-            .with_supergraph_details(graph_id, variant, |details| Ok(details.subgraphs.clone()))
+        let sg = ctx
+            .with_supergraph_details(graph_id, variant, |details| Ok(details.clone()))
             .await?;
 
-        let dir = target.as_ref();
-        let contents: Vec<_> = subgraphs
-            .into_iter()
-            .map(|sg| (dir.join(sg.name).with_extension("graphql"), sg.sdl))
-            .collect();
-
-        Ok(contents)
+        Ok(self.content_from_details(sg, target.as_ref()))
     }
 }
 
@@ -303,29 +314,12 @@ fn default_loadbalancer() -> Loadbalancer {
     }
 }
 
-impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
-    async fn try_get_file_content(
-        &self,
-        _src: &Source,
-        ctx: &impl ResolutionContext,
-    ) -> providers::Result<String> {
-        let (graph_id, variant) = self
-            .graph_ref
-            .as_resolved()
-            .split_once('@')
-            .expect("validated graph_ref");
-
-        // The current subgraph mock service needs the full supergraph schema to run NOT the subgraph schema.
-        // This is counter-intuitive and will be addressed when we create a new subgraph mocking service.
-        let supergraph = ctx
-            .with_supergraph_details(graph_id, variant, |details| {
-                Ok(details.supergraph_sdl.clone())
-            })
-            .await?;
+impl GraphosSubgraphDockerCompose {
+    fn content_from_details(&self, sg: Arc<SupergraphDetails>) -> providers::Result<String> {
         // We are inlining the supergraph file to a docker compose file. It will interpolate $ by default. To avoid
         // this we escape the $ symbols using $$
         // https://docs.docker.com/reference/compose-file/interpolation/
-        let supergraph = supergraph.replace("$", "$$");
+        let supergraph = sg.supergraph_sdl.replace("$", "$$");
 
         let mut subgraph_resources: HashMap<String, Resource> = HashMap::new();
         subgraph_resources.insert(
@@ -537,6 +531,28 @@ impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
     }
 }
 
+impl AsUtf8FileContent for GraphosSubgraphDockerCompose {
+    async fn try_get_file_content(
+        &self,
+        _src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<String> {
+        let (graph_id, variant) = self
+            .graph_ref
+            .as_resolved()
+            .split_once('@')
+            .expect("validated graph_ref");
+
+        // The current subgraph mock service needs the full supergraph schema to run NOT the subgraph schema.
+        // This is counter-intuitive and will be addressed when we create a new subgraph mocking service.
+        let sg = ctx
+            .with_supergraph_details(graph_id, variant, |details| Ok(details.clone()))
+            .await?;
+
+        self.content_from_details(sg)
+    }
+}
+
 impl Check for GraphosSubgraphDockerCompose {
     fn try_check(
         &self,
@@ -611,6 +627,16 @@ impl UrlFormat {
     }
 }
 
+impl GraphosSubgraphRouterUrlOverrides {
+    fn content_from_details(&self, sg: Arc<SupergraphDetails>) -> providers::Result<String> {
+        let subgraph_urls = self.url_format.urls_for_subgraphs(&sg.subgraphs.clone());
+        let overrides_yaml =
+            serde_yaml::to_string(&serde_json::json!({"override_subgraph_url": subgraph_urls}))?;
+
+        Ok(overrides_yaml)
+    }
+}
+
 impl AsUtf8FileContent for GraphosSubgraphRouterUrlOverrides {
     async fn try_get_file_content(
         &self,
@@ -623,15 +649,11 @@ impl AsUtf8FileContent for GraphosSubgraphRouterUrlOverrides {
             .split_once('@')
             .expect("validated graph_ref");
 
-        let subgraphs = ctx
-            .with_supergraph_details(graph_id, variant, |details| Ok(details.subgraphs.clone()))
+        let sg = ctx
+            .with_supergraph_details(graph_id, variant, |details| Ok(details.clone()))
             .await?;
 
-        let subgraph_urls = self.url_format.urls_for_subgraphs(&subgraphs);
-        let overrides_yaml =
-            serde_yaml::to_string(&serde_json::json!({"override_subgraph_url": subgraph_urls}))?;
-
-        Ok(overrides_yaml)
+        self.content_from_details(sg)
     }
 }
 
@@ -993,28 +1015,46 @@ mod tests {
     use crate::{
         checks::ErrorKind,
         context::Context,
-        providers::file::{FileProvider, tests::assert_check_errors},
+        mock_context::MockContext,
+        providers::file::{
+            FileProvider,
+            tests::{
+                assert_check_errors, assert_resolve_and_write_error,
+                assert_resolve_and_write_success,
+            },
+        },
     };
+    use assert_fs::{TempDir, fixture::PathChild};
+    use predicates::{Predicate, str::contains};
     use simple_test_case::test_case;
 
     /// Create a GraphOS Supergraph
-    fn supergraph(graph_ref: &str) -> FileProvider {
-        FileProvider::GraphosSupergraph(GraphosSupergraph {
+    fn supergraph_fp(graph_ref: &str) -> FileProvider {
+        FileProvider::GraphosSupergraph(supergraph(graph_ref))
+    }
+    fn supergraph(graph_ref: &str) -> GraphosSupergraph {
+        GraphosSupergraph {
             graph_ref: Field::Resolved(graph_ref.to_string()),
             with_subgraph_overrides: None,
-        })
+        }
     }
 
     /// Create a GraphOS Subgraphs
-    fn subgraphs(graph_ref: &str) -> FileProvider {
-        FileProvider::GraphosSubgraphs(GraphosSubgraphs {
+    fn subgraphs_fp(graph_ref: &str) -> FileProvider {
+        FileProvider::GraphosSubgraphs(subgraphs(graph_ref))
+    }
+    fn subgraphs(graph_ref: &str) -> GraphosSubgraphs {
+        GraphosSubgraphs {
             graph_ref: Field::Resolved(graph_ref.to_string()),
-        })
+        }
     }
 
     /// Create a GraphOS Subgraphs Docker Compose
-    fn subgraphs_compose(graph_ref: &str) -> FileProvider {
-        FileProvider::GraphosSubgraphDockerCompose(GraphosSubgraphDockerCompose {
+    fn subgraphs_compose_fp(graph_ref: &str) -> FileProvider {
+        FileProvider::GraphosSubgraphDockerCompose(subgraphs_compose(graph_ref))
+    }
+    fn subgraphs_compose(graph_ref: &str) -> GraphosSubgraphDockerCompose {
+        GraphosSubgraphDockerCompose {
             graph_ref: Field::Resolved(graph_ref.to_string()),
             image: Field::Resolved("image".to_string()),
             command: Vec::new(),
@@ -1039,15 +1079,18 @@ mod tests {
                 },
                 mem_swappiness: Field::Resolved(0),
             },
-        })
+        }
     }
 
     /// Create a GraphOS Subgraphs URL Overrides
-    fn subgraphs_overrides(graph_ref: &str) -> FileProvider {
-        FileProvider::GraphosSubgraphRouterUrlOverrides(GraphosSubgraphRouterUrlOverrides {
+    fn subgraphs_overrides_fp(graph_ref: &str) -> FileProvider {
+        FileProvider::GraphosSubgraphRouterUrlOverrides(subgraphs_overrides(graph_ref))
+    }
+    fn subgraphs_overrides(graph_ref: &str) -> GraphosSubgraphRouterUrlOverrides {
+        GraphosSubgraphRouterUrlOverrides {
             graph_ref: Field::Resolved(graph_ref.to_string()),
             url_format: UrlFormat::Docker,
-        })
+        }
     }
 
     /// Create a GraphOS Canned Ops
@@ -1067,22 +1110,161 @@ mod tests {
         })
     }
 
-    #[test_case(supergraph("graph@variant"), true, &[]; "supergraph success")]
-    #[test_case(supergraph("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "supergraph invalid ref")]
-    #[test_case(supergraph("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "supergraph missing key")]
-    #[test_case(supergraph("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "supergraph invalid ref and missing key")]
-    #[test_case(subgraphs("graph@variant"), true, &[]; "subgraphs success")]
-    #[test_case(subgraphs("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "subgraphs invalid ref")]
-    #[test_case(subgraphs("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "subgraphs missing key")]
-    #[test_case(subgraphs("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "subgraphs invalid ref and missing key")]
-    #[test_case(subgraphs_compose("graph@variant"), true, &[]; "subgraphs compose success")]
-    #[test_case(subgraphs_compose("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "subgraphs compose invalid ref")]
-    #[test_case(subgraphs_compose("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "subgraphs compose missing key")]
-    #[test_case(subgraphs_compose("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "subgraphs compose invalid ref and missing key")]
-    #[test_case(subgraphs_overrides("graph@variant"), true, &[]; "subgraphs overrides success")]
-    #[test_case(subgraphs_overrides("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "subgraphs overrides invalid ref")]
-    #[test_case(subgraphs_overrides("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "subgraphs overrides missing key")]
-    #[test_case(subgraphs_overrides("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "subgraphs overrides invalid ref and missing key")]
+    /// Helper function for supergraph sdl
+    fn supergraph_sdl() -> &'static str {
+        indoc!(
+            r#"
+            schema
+                @link(url: "https://specs.apollo.dev/link/v1.0")
+                @link(url: "https://specs.apollo.dev/join/v0.5", for: EXECUTION)
+            {
+                query: Query
+            }
+
+            directive @join__directive(graphs: [join__Graph!], name: String!, args: join__DirectiveArguments) repeatable on SCHEMA | OBJECT | INTERFACE | FIELD_DEFINITION
+
+            directive @join__enumValue(graph: join__Graph!) repeatable on ENUM_VALUE
+
+            directive @join__field(graph: join__Graph, requires: join__FieldSet, provides: join__FieldSet, type: String, external: Boolean, override: String, usedOverridden: Boolean, overrideLabel: String, contextArguments: [join__ContextArgument!]) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+            directive @join__graph(name: String!, url: String!) on ENUM_VALUE
+
+            directive @join__implements(graph: join__Graph!, interface: String!) repeatable on OBJECT | INTERFACE
+
+            directive @join__type(graph: join__Graph!, key: join__FieldSet, extension: Boolean! = false, resolvable: Boolean! = true, isInterfaceObject: Boolean! = false) repeatable on OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT | SCALAR
+
+            directive @join__unionMember(graph: join__Graph!, member: String!) repeatable on UNION
+
+            directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
+
+            type Bar
+            @join__type(graph: BAR)
+            {
+            id: ID!
+            }
+
+            type Foo
+            @join__type(graph: FOO)
+            {
+                id: ID!
+            }
+
+            input join__ContextArgument {
+                name: String!
+                type: String!
+                context: String!
+                selection: join__FieldValue!
+            }
+
+            scalar join__DirectiveArguments
+
+            scalar join__FieldSet
+
+            scalar join__FieldValue
+
+            enum join__Graph {
+                BAR @join__graph(name: "bar", url: "https://bar.com")
+                FOO @join__graph(name: "foo", url: "https://foo.com")
+            }
+
+            scalar link__Import
+
+            enum link__Purpose {
+            """
+            `SECURITY` features provide metadata necessary to securely resolve fields.
+            """
+            SECURITY
+
+            """
+            `EXECUTION` features provide metadata necessary for operation execution.
+            """
+            EXECUTION
+            }
+
+            type Query
+                @join__type(graph: BAR)
+                @join__type(graph: FOO)
+            {
+                bar: Bar @join__field(graph: BAR)
+                foo: Foo @join__field(graph: FOO)
+            }
+        "#
+        )
+    }
+
+    /// Helper function for subgraph foo schema
+    fn subgraph_foo() -> &'static str {
+        indoc!(
+            r#"
+            extend type Query {
+                foo: Foo
+            }
+
+            type Foo  {
+                id: ID! 
+            }
+
+            extend schema
+            @link(url: "https://specs.apollo.dev/federation/v2.10",
+                    import: ["@key"])
+        "#
+        )
+    }
+
+    /// Helper function for subgraph bar schema
+    fn subgraph_bar() -> &'static str {
+        indoc!(
+            r#"
+            extend type Query {
+                foo: Bar
+            }
+
+            type Bar  {
+                id: ID! 
+            }
+
+            extend schema
+            @link(url: "https://specs.apollo.dev/federation/v2.10",
+                    import: ["@key"])
+        "#
+        )
+    }
+
+    /// Helper function for supergraph details
+    fn supergraph_details() -> Arc<SupergraphDetails> {
+        Arc::new(SupergraphDetails {
+            graph_id: "graph".to_string(),
+            variant: "variant".to_string(),
+            supergraph_sdl: supergraph_sdl().to_string(),
+            subgraphs: vec![
+                Subgraph {
+                    name: "foo".to_string(),
+                    sdl: subgraph_foo().to_string(),
+                },
+                Subgraph {
+                    name: "bar".to_string(),
+                    sdl: subgraph_bar().to_string(),
+                },
+            ],
+        })
+    }
+
+    #[test_case(supergraph_fp("graph@variant"), true, &[]; "supergraph success")]
+    #[test_case(supergraph_fp("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "supergraph invalid ref")]
+    #[test_case(supergraph_fp("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "supergraph missing key")]
+    #[test_case(supergraph_fp("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "supergraph invalid ref and missing key")]
+    #[test_case(subgraphs_fp("graph@variant"), true, &[]; "subgraphs success")]
+    #[test_case(subgraphs_fp("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "subgraphs invalid ref")]
+    #[test_case(subgraphs_fp("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "subgraphs missing key")]
+    #[test_case(subgraphs_fp("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "subgraphs invalid ref and missing key")]
+    #[test_case(subgraphs_compose_fp("graph@variant"), true, &[]; "subgraphs compose success")]
+    #[test_case(subgraphs_compose_fp("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "subgraphs compose invalid ref")]
+    #[test_case(subgraphs_compose_fp("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "subgraphs compose missing key")]
+    #[test_case(subgraphs_compose_fp("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "subgraphs compose invalid ref and missing key")]
+    #[test_case(subgraphs_overrides_fp("graph@variant"), true, &[]; "subgraphs overrides success")]
+    #[test_case(subgraphs_overrides_fp("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "subgraphs overrides invalid ref")]
+    #[test_case(subgraphs_overrides_fp("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "subgraphs overrides missing key")]
+    #[test_case(subgraphs_overrides_fp("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "subgraphs overrides invalid ref and missing key")]
     #[test_case(canned_ops("graph@variant"), true, &[]; "canned ops success")]
     #[test_case(canned_ops("not a valid ref"), true, &[ErrorKind::InvalidGraphRef]; "canned ops invalid ref")]
     #[test_case(canned_ops("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "canned ops missing key")]
@@ -1172,5 +1354,228 @@ mod tests {
 
         let res = build_from_source.try_check(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+    }
+
+    #[tokio::test]
+    async fn content_from_details_supergraph_success() {
+        let details = supergraph_details();
+        let supergraph = supergraph("graph@variant");
+
+        let expected_content = supergraph_sdl();
+        let res = supergraph.content_from_details(details);
+        assert_eq!(res, expected_content)
+    }
+
+    #[tokio::test]
+    async fn content_from_details_supergraph_with_docker_overrides_success() {
+        let details = supergraph_details();
+        let supergraph = GraphosSupergraph {
+            graph_ref: Field::Resolved("graph@variant".to_string()),
+            with_subgraph_overrides: Some(UrlFormat::Docker),
+        };
+
+        // The supergraph file indentation is transformed so that assert_eq is not possible
+        // Instead, we check that the foo and bar url references are as expected
+        let expected_foo_url = r#"FOO @join__graph(name: "foo", url: "http://loadbalancer:8080")"#;
+        let expected_bar_url = r#"BAR @join__graph(name: "bar", url: "http://loadbalancer:8080")"#;
+
+        let res = supergraph.content_from_details(details);
+        assert!(
+            contains(expected_foo_url).eval(&res),
+            "expected file to contain: {expected_foo_url:?}"
+        );
+        assert!(
+            contains(expected_bar_url).eval(&res),
+            "expected file to contain: {expected_bar_url:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn content_from_details_supergraph_with_lcoalhost_overrides_success() {
+        let details = supergraph_details();
+        let supergraph = GraphosSupergraph {
+            graph_ref: Field::Resolved("graph@variant".to_string()),
+            with_subgraph_overrides: Some(UrlFormat::Localhost),
+        };
+
+        // The supergraph file indentation is transformed so that assert_eq is not possible
+        // Instead, we check that the foo and bar url references are as expected
+        let expected_foo_url = r#"FOO @join__graph(name: "foo", url: "http://localhost:4001")"#;
+        let expected_bar_url = r#"BAR @join__graph(name: "bar", url: "http://localhost:4002")"#;
+
+        let res = supergraph.content_from_details(details);
+        assert!(
+            contains(expected_foo_url).eval(&res),
+            "expected file to contain: {expected_foo_url:?}"
+        );
+        assert!(
+            contains(expected_bar_url).eval(&res),
+            "expected file to contain: {expected_bar_url:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn content_from_details_subgraphs_success() {
+        let details = supergraph_details();
+        let subgraphs = subgraphs("graph@variant");
+
+        let base_path = Path::new("subgraphs");
+
+        let expected_content: Vec<(PathBuf, String)> = vec![
+            (base_path.join("foo.graphql"), subgraph_foo().to_string()),
+            (base_path.join("bar.graphql"), subgraph_bar().to_string()),
+        ];
+
+        let res = subgraphs.content_from_details(details, base_path);
+        assert_eq!(res, expected_content)
+    }
+
+    #[tokio::test]
+    async fn content_from_details_subgraph_docker_compose_success() {
+        let details = supergraph_details();
+        let subgraphs_compose = subgraphs_compose("graph@variant");
+
+        // We are testing the supergraph sdl gets added to the file by checking for a snippet of it
+        let expected_contains = "Foo @join__field(graph: FOO)";
+
+        // We are not doing a full content match as the maps in the yaml file do not get
+        // written out in a deterministic order.
+        let res = subgraphs_compose.content_from_details(details);
+        assert!(res.is_ok(), "expected String, got {res:?}");
+        assert!(
+            contains(expected_contains).eval(&res.unwrap()),
+            "expected file to contain: {expected_contains:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn content_from_details_subgraph_url_overrides_success() {
+        let details = supergraph_details();
+        let subgraphs_overrides = subgraphs_overrides("graph@variant");
+
+        let expected_content = "override_subgraph_url:\n  bar: http://loadbalancer:8080\n  foo: http://loadbalancer:8080\n";
+
+        let res = subgraphs_overrides.content_from_details(details);
+        assert!(res.is_ok(), "expected String, got {res:?}");
+        assert_eq!(res.unwrap(), expected_content);
+    }
+
+    #[test]
+    fn canned_ops_json_formats_correctly() {
+        let canned_ops: Vec<CannedOperation> = vec![
+            CannedOperation {
+                id: "1".to_string(),
+                query: "query_1".to_string(),
+                pretty_query: "pretty_query_1".to_string(),
+                vars: HashMap::new(),
+            },
+            CannedOperation {
+                id: "2".to_string(),
+                query: "query_2".to_string(),
+                pretty_query: "pretty_query_2".to_string(),
+                vars: HashMap::new(),
+            },
+        ];
+
+        let expected_content = indoc!(
+            r#"
+            {"query":"query_1","variables":{}}
+            {"query":"query_2","variables":{}}
+            "#
+        );
+
+        let res = canned_ops_json_lines(canned_ops);
+        assert!(res.is_ok(), "expected String, got {res:?}");
+        assert_eq!(res.unwrap(), expected_content);
+    }
+
+    #[tokio::test]
+    async fn resolve_and_write_router_download_success() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("router-download.sh");
+
+        let version = "v2.6.0";
+        let url = format!("https://router.apollo.dev/download/nix/{version}");
+        let expected_content = "router download script";
+
+        let responses = &[(url.as_str(), "200", expected_content)];
+
+        let mut ctx = MockContext::with_http_client(responses);
+        let src = Source::Local {
+            abs_path: PathBuf::new(),
+        };
+
+        let router_download = FileProvider::RouterDownloadScript(RouterDownloadScript {
+            version: Field::Resolved(version.to_string()),
+        });
+
+        assert_resolve_and_write_success(
+            router_download,
+            &target,
+            &src,
+            &mut ctx,
+            expected_content,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn resolve_and_write_router_download_not_found_error() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("router-download.sh");
+
+        let version = "v22.12.6";
+        let url = format!("https://router.apollo.dev/download/nix/{version}");
+        let expected_err = format!("Unknown router version: {version}");
+
+        let responses = &[(url.as_str(), "404", "Not found")];
+
+        let mut ctx = MockContext::with_http_client(responses);
+        let src = Source::Local {
+            abs_path: PathBuf::new(),
+        };
+
+        let router_download = FileProvider::RouterDownloadScript(RouterDownloadScript {
+            version: Field::Resolved(version.to_string()),
+        });
+
+        assert_resolve_and_write_error(router_download, &target, &src, &mut ctx, &expected_err)
+            .await
+    }
+
+    #[tokio::test]
+    async fn resolve_and_write_router_from_source_success() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("build-from-source.sh");
+
+        let mut ctx = Context::new();
+        let src = Source::Local {
+            abs_path: PathBuf::new(),
+        };
+
+        let expected_content = indoc!(
+            r#"
+            mkdir router-source && \
+            cd router-source && \
+            git clone https://github.com/apollographql/router.git && \
+            cd router && \
+            git checkout git_ref && \
+            rustup toolchain install 1.90.0 && \
+            rustup run 1.90.0 cargo build --release && \
+            cp ${CARGO_TARGET_DIR}/release/router ~/.cargo/bin/"#
+        );
+        let router_from_source = FileProvider::BuildRouterFromSource(BuildRouterFromSource {
+            git_ref: Field::Resolved("git_ref".to_string()),
+            rust_version: Field::Resolved("1.90.0".to_string()),
+        });
+
+        assert_resolve_and_write_success(
+            router_from_source,
+            &target,
+            &src,
+            &mut ctx,
+            expected_content,
+        )
+        .await;
     }
 }

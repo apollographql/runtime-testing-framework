@@ -535,54 +535,83 @@ impl Check for ResolvedValues {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{context::Context, templating::ErrorKind};
+    use crate::{
+        context::Context,
+        mock_context::MockContext,
+        providers::test_helpers::{assert_file_content, create_temp_dir_with_file},
+        templating::ErrorKind,
+    };
     use assert_fs::{
         TempDir,
-        prelude::{FileWriteStr, PathChild},
+        assert::PathAssert,
+        fixture::{ChildPath, PathChild},
+        prelude::FileWriteStr,
     };
     use indoc::indoc;
+    use predicates::path;
     use simple_test_case::test_case;
     use std::path::PathBuf;
 
-    #[tokio::test]
-    #[should_panic(
-        expected = "Should not be able to get here. Required file should result in an error when checked."
-    )]
-    async fn required_file_provider_try_into_file_content_panics() {
-        let required_file = RequiredFile {
-            message: "required file must be defined".to_string(),
-        };
-        let ctx = Context::new();
-
-        // Calling try_into_file_content should panic here
-        _ = required_file
-            .try_get_file_content(
-                &Source::Local {
-                    abs_path: PathBuf::new(),
-                },
-                &ctx,
-            )
-            .await;
+    /// Create a RelativeFile for testing - returns the actual file in a tmp dir
+    fn relative_file(path: &str) -> RelativeFile {
+        RelativeFile {
+            path: Field::Resolved(path.to_string()),
+            src: None,
+        }
     }
 
-    #[tokio::test]
-    async fn resolved_values_file_provider_returns_stored_values() {
-        let mut ctx = Context::new();
-        let values: HashMap<String, Scalar> =
-            [("foo".to_string(), "bar".into())].into_iter().collect();
-        ctx.set_values(&values);
+    /// Assert check errors
+    pub(crate) fn assert_check_errors(
+        c: impl Check,
+        src: &Source,
+        ctx: &Context,
+        expected_err_kinds: &[checks::ErrorKind],
+    ) {
+        let res = c.try_check(&mut Vec::new(), src, ctx);
+        assert!(res.is_err(), "expected check to fail, got {res:?}");
 
-        let s = ResolvedValues
-            .try_get_file_content(
-                &Source::Local {
-                    abs_path: PathBuf::new(),
-                },
-                &ctx,
-            )
-            .await
-            .expect("resolution to succeed");
+        let err = res.unwrap_err();
+        let err_kinds: Vec<checks::ErrorKind> = err.iter().map(|e| e.kind).collect();
+        assert_eq!(
+            err_kinds, expected_err_kinds,
+            "check the error kind is correct"
+        );
+    }
 
-        assert_eq!(s, r#"{"foo":"bar"}"#);
+    /// Assert resolve and write success
+    pub(crate) async fn assert_resolve_and_write_success(
+        provider: FileProvider,
+        target: &ChildPath,
+        src: &Source,
+        ctx: &mut impl ResolutionContext,
+        expected_content: &str,
+    ) {
+        let res = provider.resolve_and_write(target, src, ctx).await;
+        assert!(
+            res.is_ok(),
+            "expected file to resolve and write, got {res:?}"
+        );
+
+        assert_file_content(target, expected_content);
+    }
+
+    /// Assert resolve and write error
+    pub(crate) async fn assert_resolve_and_write_error(
+        provider: FileProvider,
+        target: &ChildPath,
+        src: &Source,
+        ctx: &mut impl ResolutionContext,
+        expected_err_str: &str,
+    ) {
+        let res = provider.resolve_and_write(target, src, ctx).await;
+        assert!(
+            res.is_err(),
+            "expected file to fail to resolve and write, got {res:?}"
+        );
+
+        target.assert(path::missing());
+        let err = res.unwrap_err();
+        assert_eq!(err.to_string(), expected_err_str)
     }
 
     // Yaml snippets for all file providers
@@ -877,40 +906,10 @@ mod tests {
         assert!(res.is_ok(), "expected check to succeed, got {res:?}")
     }
 
-    /// Create a RelativeFile for testing - returns the actual file in a tmp dir
-    fn relative_file(path: &str) -> RelativeFile {
-        RelativeFile {
-            path: Field::Resolved(path.to_string()),
-            src: None,
-        }
-    }
-
-    /// Assert check errors
-    pub(crate) fn assert_check_errors(
-        c: impl Check,
-        src: &Source,
-        ctx: &Context,
-        expected_err_kinds: &[checks::ErrorKind],
-    ) {
-        let res = c.try_check(&mut Vec::new(), src, ctx);
-        assert!(res.is_err(), "expected check to fail, got {res:?}");
-
-        let err = res.unwrap_err();
-        let err_kinds: Vec<checks::ErrorKind> = err.iter().map(|e| e.kind).collect();
-        assert_eq!(
-            err_kinds, expected_err_kinds,
-            "check the error kind is correct"
-        );
-    }
-
     #[test]
     fn try_check_relative_file_local_success() {
         let file_name = "file.txt";
-
-        let temp = TempDir::new().unwrap();
-        let file = temp.child(file_name);
-        file.write_str("some content")
-            .expect("failed to write file");
+        let (_temp, file) = create_temp_dir_with_file(file_name, "some content");
 
         let relative_file = relative_file(file_name);
 
@@ -944,10 +943,7 @@ mod tests {
 
     #[test]
     fn try_check_relative_file_does_not_exist() {
-        let temp = TempDir::new().unwrap();
-        let file = temp.child("file.txt");
-        file.write_str("some content")
-            .expect("failed to write file");
+        let (_temp, file) = create_temp_dir_with_file("file.txt", "some content");
 
         let relative_file = relative_file("does-not-exist.txt");
 
@@ -966,10 +962,7 @@ mod tests {
 
     #[test]
     fn try_check_relative_file_is_a_directory() {
-        let temp = TempDir::new().unwrap();
-        let file = temp.child("dir/file.txt");
-        file.write_str("some content")
-            .expect("failed to write file.txt");
+        let (temp, _file) = create_temp_dir_with_file("dir/file.txt", "some content");
 
         let relative_file = relative_file("dir");
 
@@ -990,13 +983,9 @@ mod tests {
 
     #[test]
     fn try_check_relative_file_missing_github_api_token() {
-        let temp = TempDir::new().unwrap();
-        let file = temp.child("dir/file.txt");
-        file.write_str("some content")
-            .expect("failed to write file.txt");
+        let relative_file = relative_file("file.txt");
 
-        let relative_file = relative_file("dir");
-
+        // There is no github client added to this context so this fails
         let ctx = Context::new();
         let src = Source::Github {
             org: "org".to_string(),
@@ -1051,5 +1040,169 @@ mod tests {
 
         let res = resolved_values.try_check(&mut Vec::new(), &src, &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}")
+    }
+
+    #[tokio::test]
+    async fn resolve_and_write_inline_file_success() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("inline.txt");
+
+        let mut ctx = Context::new();
+        let src = Source::Local {
+            abs_path: PathBuf::new(),
+        };
+
+        let expected_content = "some content";
+        let inline = FileProvider::Inline(InlineFile {
+            content: expected_content.to_string(),
+        });
+
+        assert_resolve_and_write_success(inline, &target, &src, &mut ctx, expected_content).await;
+    }
+
+    #[tokio::test]
+    async fn resolve_and_write_local_relative_file_success() {
+        let expected_content = "example file content";
+        let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", expected_content);
+        let test_plan_file = temp.child("test-plan.yaml");
+        test_plan_file
+            .write_str("empty test plan")
+            .expect("unable to write test plan");
+
+        let target = temp.child("output/relative.txt");
+
+        let mut ctx = Context::new();
+        // Relative File paths are resolved relative to the test plan file's location.
+        // We have created an empty test plan file so we can canonicalize its path (it must exist for this to work)
+        // This allows us to read the relative file from the correct path
+        let src = Source::Local {
+            abs_path: ctx.canonicalize_path(&test_plan_file).unwrap(),
+        };
+
+        let relative = FileProvider::RelativePath(relative_file("file.txt"));
+
+        assert_resolve_and_write_success(relative, &target, &src, &mut ctx, expected_content).await
+    }
+
+    #[tokio::test]
+    async fn resolve_and_write_github_relative_file_success() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("output/relative.txt");
+
+        let content = "some content";
+
+        let mut ctx = MockContext::with_github_client(content);
+        let src = Source::Github {
+            org: "org".to_string(),
+            repo: "repo".to_string(),
+            path: "path".into(),
+            git_ref: None,
+        };
+
+        // The file does not exist but this does not matter since we mock a GitHub response
+        let relative = FileProvider::RelativePath(relative_file("file.txt"));
+
+        assert_resolve_and_write_success(relative, &target, &src, &mut ctx, content).await
+    }
+
+    #[tokio::test]
+    async fn resolve_and_write_local_relative_file_does_not_exist() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("output/relative.txt");
+
+        let mut ctx = Context::new();
+        let src = Source::Local {
+            abs_path: ctx.canonicalize_path(&temp).unwrap(),
+        };
+
+        let expected_err = "No such file or directory (os error 2)";
+
+        // The file.txt file has not been created in temp
+        let relative = FileProvider::RelativePath(relative_file("file.txt"));
+
+        assert_resolve_and_write_error(relative, &target, &src, &mut ctx, expected_err).await
+    }
+
+    #[tokio::test]
+    async fn resolve_and_write_local_relative_file_is_not_text() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("file.txt");
+
+        let crate_root_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let file_to_read = crate_root_path.join("resources/frog-no.gif");
+
+        let mut ctx = Context::new();
+        let src = Source::Local {
+            abs_path: ctx.canonicalize_path(&file_to_read).unwrap(),
+        };
+
+        let expected_err = "stream did not contain valid UTF-8";
+
+        // The frog-no.gif cannot be read since the file to read is not utf-8
+        let relative = FileProvider::RelativePath(relative_file("frog-no.gif"));
+
+        assert_resolve_and_write_error(relative, &target, &src, &mut ctx, expected_err).await
+    }
+
+    #[tokio::test]
+    async fn resolve_and_write_github_relative_file_no_github_client() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("output/relative.txt");
+
+        let mut ctx = Context::new();
+        let src = Source::Github {
+            org: "org".to_string(),
+            repo: "repo".to_string(),
+            path: "path".into(),
+            git_ref: None,
+        };
+
+        let expected_err = "no GitHub client available";
+
+        // The file does not exist but this does not matter since we mock a GitHub response
+        let relative = FileProvider::RelativePath(relative_file("file.txt"));
+
+        assert_resolve_and_write_error(relative, &target, &src, &mut ctx, expected_err).await
+    }
+
+    #[tokio::test]
+    #[should_panic(
+        expected = "Should not be able to get here. Required file should result in an error when checked."
+    )]
+    async fn resolve_and_write_required_file_panics() {
+        let mut ctx = Context::new();
+        let src = Source::Local {
+            abs_path: PathBuf::new(),
+        };
+
+        let required = FileProvider::Required(RequiredFile {
+            message: "required file must be defined".to_string(),
+        });
+
+        let _res = required
+            .resolve_and_write(Path::new("required.txt"), &src, &mut ctx)
+            .await;
+    }
+
+    #[tokio::test]
+    async fn resolve_and_write_required_values_success() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("values.json");
+
+        let expected_content = r#"{"foo":"bar"}"#;
+
+        let mut ctx = Context::new();
+        let values: HashMap<String, Scalar> =
+            [("foo".to_string(), "bar".into())].into_iter().collect();
+        ctx.set_values(&values);
+
+        let src = Source::Local {
+            abs_path: PathBuf::new(),
+        };
+
+        let resolved_values = FileProvider::ResolvedValues(ResolvedValues);
+
+        assert_resolve_and_write_success(resolved_values, &target, &src, &mut ctx, expected_content)
+            .await
     }
 }
