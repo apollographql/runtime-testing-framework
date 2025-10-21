@@ -278,7 +278,7 @@
 <a href=#278 id=278 data-nosnippet>278</a><span class="doccomment">/// It is possible that no output is set in the environment setup script. If the output is
 <a href=#279 id=279 data-nosnippet>279</a>/// blank then default to an empty json object. If there is an error reading the user defined
 <a href=#280 id=280 data-nosnippet>280</a>/// output to the file then we still pass that error to the user. This is a quality of life
-<a href=#281 id=281 data-nosnippet>281</a>/// improvement so if the user does define any output the rtf execution will continue.
+<a href=#281 id=281 data-nosnippet>281</a>/// improvement so if the user does not define any output the rtf execution will continue.
 <a href=#282 id=282 data-nosnippet>282</a></span><span class="kw">fn </span>try_read_output_and_remove(
 <a href=#283 id=283 data-nosnippet>283</a>    output_path: <span class="kw-2">&amp;</span>Path,
 <a href=#284 id=284 data-nosnippet>284</a>    ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,
@@ -387,13 +387,13 @@
 <a href=#387 id=387 data-nosnippet>387</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
 <a href=#388 id=388 data-nosnippet>388</a>    <span class="kw">use crate</span>::{
 <a href=#389 id=389 data-nosnippet>389</a>        context::{Context, PathKind},
-<a href=#390 id=390 data-nosnippet>390</a>        providers::{
-<a href=#391 id=391 data-nosnippet>391</a>            Provider,
-<a href=#392 id=392 data-nosnippet>392</a>            command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
-<a href=#393 id=393 data-nosnippet>393</a>            file::{FileProvider, InlineFile},
-<a href=#394 id=394 data-nosnippet>394</a>        },
-<a href=#395 id=395 data-nosnippet>395</a>        templating::Template,
-<a href=#396 id=396 data-nosnippet>396</a>        txtar_context::NullClient,
+<a href=#390 id=390 data-nosnippet>390</a>        mock_context::NullClient,
+<a href=#391 id=391 data-nosnippet>391</a>        providers::{
+<a href=#392 id=392 data-nosnippet>392</a>            Provider,
+<a href=#393 id=393 data-nosnippet>393</a>            command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
+<a href=#394 id=394 data-nosnippet>394</a>            file::{FileProvider, InlineFile},
+<a href=#395 id=395 data-nosnippet>395</a>        },
+<a href=#396 id=396 data-nosnippet>396</a>        templating::Template,
 <a href=#397 id=397 data-nosnippet>397</a>    };
 <a href=#398 id=398 data-nosnippet>398</a>    <span class="kw">use </span>indoc::indoc;
 <a href=#399 id=399 data-nosnippet>399</a>    <span class="kw">use </span>simple_test_case::test_case;
