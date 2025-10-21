@@ -1713,6 +1713,7 @@ dependencies = [
  "futures",
  "indoc",
  "itertools",
+ "predicates",
  "pretty_assertions",
  "regex",
  "reqwest",

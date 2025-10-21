@@ -24,6 +24,7 @@ regex = "1.12.2"
 
 [dev-dependencies]
 assert_fs.workspace = true
+predicates.workspace = true
 pretty_assertions.workspace = true
 simple_test_case.workspace = true
 simple_txtar.workspace = true

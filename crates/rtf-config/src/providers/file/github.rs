@@ -84,18 +84,30 @@ impl Check for GithubFile {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{context::Context, providers::file::tests::assert_check_errors};
+    use crate::{
+        context::Context,
+        mock_context::MockContext,
+        providers::file::{
+            FileProvider, ResolveAndWrite,
+            tests::{assert_check_errors, assert_resolve_and_write_success},
+        },
+    };
+    use assert_fs::{TempDir, fixture::PathChild};
+
+    fn github_file() -> GithubFile {
+        GithubFile {
+            org: Field::Resolved("org".to_string()),
+            repo: Field::Resolved("repo".to_string()),
+            path: Field::Resolved("path".to_string()),
+            git_ref: None,
+        }
+    }
 
     #[test]
     fn try_check_github_file_success() {
         // This test works because all that's needed for success in the GitHub case is
         // a GitHub token to be defined in the context
-        let github_file = GithubFile {
-            org: Field::Resolved("org".to_string()),
-            repo: Field::Resolved("repo".to_string()),
-            path: Field::Resolved("path".to_string()),
-            git_ref: None,
-        };
+        let github_file = github_file();
 
         let mut ctx = Context::new();
         ctx.with_github_config("dummy_token");
@@ -114,12 +126,7 @@ mod tests {
     fn try_check_github_file_missing_github_api_key() {
         // This test works because all that's needed for success in the GitHub case is
         // a GitHub token to be defined in the context
-        let github_file = GithubFile {
-            org: Field::Resolved("org".to_string()),
-            repo: Field::Resolved("repo".to_string()),
-            path: Field::Resolved("path".to_string()),
-            git_ref: None,
-        };
+        let github_file = github_file();
 
         let ctx = Context::new();
         let src = Source::Github {
@@ -135,5 +142,45 @@ mod tests {
             &ctx,
             &[checks::ErrorKind::MissingGithubApiKey],
         );
+    }
+
+    #[tokio::test]
+    async fn resolve_and_write_github_file_success() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("github.txt");
+
+        let expected_content = "some content";
+
+        let mut ctx = MockContext::with_github_client(expected_content);
+        let src = Source::Github {
+            org: "org".to_string(),
+            repo: "repo".to_string(),
+            path: "path".into(),
+            git_ref: None,
+        };
+
+        let github_file = FileProvider::GithubFile(github_file());
+
+        assert_resolve_and_write_success(github_file, &target, &src, &mut ctx, expected_content)
+            .await;
+    }
+
+    #[tokio::test]
+    #[should_panic(expected = "to have a GitHub client")]
+    async fn resolve_and_write_github_file_no_github_client_panics() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("github.txt");
+
+        let mut ctx = Context::new();
+        let src = Source::Github {
+            org: "org".to_string(),
+            repo: "repo".to_string(),
+            path: "path".into(),
+            git_ref: None,
+        };
+
+        let github_file = FileProvider::GithubFile(github_file());
+
+        let _res = github_file.resolve_and_write(&target, &src, &mut ctx).await;
     }
 }

@@ -278,7 +278,7 @@ impl Check for CommandSection {
 /// It is possible that no output is set in the environment setup script. If the output is
 /// blank then default to an empty json object. If there is an error reading the user defined
 /// output to the file then we still pass that error to the user. This is a quality of life
-/// improvement so if the user does define any output the rtf execution will continue.
+/// improvement so if the user does not define any output the rtf execution will continue.
 fn try_read_output_and_remove(
     output_path: &Path,
     ctx: &impl ResolutionContext,
@@ -387,13 +387,13 @@ mod tests {
     use super::*;
     use crate::{
         context::{Context, PathKind},
+        mock_context::NullClient,
         providers::{
             Provider,
             command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
             file::{FileProvider, InlineFile},
         },
         templating::Template,
-        txtar_context::NullClient,
     };
     use indoc::indoc;
     use simple_test_case::test_case;

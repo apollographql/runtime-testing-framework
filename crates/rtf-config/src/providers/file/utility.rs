@@ -263,12 +263,22 @@ impl Check for FromCommand {
 }
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
     use crate::{
         checks::ErrorKind,
         context::Context,
-        providers::file::{FileProvider, NamedFileProvider, tests::assert_check_errors},
+        providers::file::{
+            FileProvider, NamedFileProvider,
+            tests::{
+                assert_check_errors, assert_resolve_and_write_error,
+                assert_resolve_and_write_success,
+            },
+        },
     };
+    use assert_fs::{TempDir, fixture::PathChild};
+    use indoc::indoc;
     use simple_test_case::test_case;
 
     fn one(content: &str) -> Overrides {
@@ -288,6 +298,15 @@ mod tests {
                 })
                 .collect(),
         )
+    }
+
+    fn merge_yaml(base: &str, overrides: Overrides) -> FileProvider {
+        FileProvider::MergeYaml(MergeYaml {
+            base: TextFileProvider::Inline(InlineFile {
+                content: base.to_string(),
+            }),
+            overrides,
+        })
     }
 
     #[test_case(one("key1: X"), "key1: X\nkey2: B"; "override one")]
@@ -417,5 +436,186 @@ mod tests {
         };
 
         assert_check_errors(from_command, &src, &ctx, &[ErrorKind::RequiredFileMissing]);
+    }
+
+    #[tokio::test]
+    async fn resolve_and_write_merge_yaml_single_override_success() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("merged.yaml");
+
+        let base_yaml = indoc!(
+            r#"
+            key1: 
+              nested_key: base1
+            key2: base2
+            key3:
+            - value1
+            - value2
+        "#
+        );
+        let override_yaml = indoc!(
+            r#"
+            key1: 
+              nested_key: override1
+            key2: override2
+            key3:
+            - overridevalue1
+        "#
+        );
+
+        let expected_content = indoc!(
+            r#"
+            key1:
+              nested_key: override1
+            key2: override2
+            key3:
+            - value1
+            - value2
+            - overridevalue1"#
+        );
+
+        let mut ctx = Context::new();
+        let src = Source::Local {
+            abs_path: PathBuf::new(),
+        };
+
+        let merge_yaml = merge_yaml(base_yaml, one(override_yaml));
+
+        assert_resolve_and_write_success(merge_yaml, &target, &src, &mut ctx, expected_content)
+            .await
+    }
+
+    #[tokio::test]
+    async fn resolve_and_write_merge_yaml_multiple_overrides_success() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("merged.yaml");
+
+        let base_yaml = indoc!(
+            r#"
+            key1: 
+              nested_key: base1
+            key2: base2
+            key3:
+            - value1
+            - value2
+        "#
+        );
+        let override_one_yaml = indoc!(
+            r#"
+            key1: 
+              nested_key: override1
+            key3:
+            - overridevalue1
+        "#
+        );
+        let override_two_yaml = indoc!(
+            r#"
+            key2: override2
+        "#
+        );
+
+        let expected_content = indoc!(
+            r#"
+            key1:
+              nested_key: override1
+            key2: override2
+            key3:
+            - value1
+            - value2
+            - overridevalue1"#
+        );
+
+        let mut ctx = Context::new();
+        let src = Source::Local {
+            abs_path: PathBuf::new(),
+        };
+
+        let merge_yaml = merge_yaml(base_yaml, arr(&[override_one_yaml, override_two_yaml]));
+
+        assert_resolve_and_write_success(merge_yaml, &target, &src, &mut ctx, expected_content)
+            .await
+    }
+
+    #[tokio::test]
+    async fn resolve_and_write_merge_yaml_base_not_yaml_errors() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("merged.yaml");
+
+        // Note the opening " after r#" that is NOT closed
+        let base_yaml = indoc!(r#""an unclosed string"#);
+        let override_yaml = indoc!(
+            r#"
+            key: value
+        "#
+        );
+
+        let expected_err =
+            "found unexpected end of stream at line 1 column 20, while scanning a quoted scalar";
+
+        let mut ctx = Context::new();
+        let src = Source::Local {
+            abs_path: PathBuf::new(),
+        };
+
+        let merge_yaml = merge_yaml(base_yaml, one(override_yaml));
+
+        assert_resolve_and_write_error(merge_yaml, &target, &src, &mut ctx, expected_err).await
+    }
+
+    #[tokio::test]
+    async fn resolve_and_write_merge_yaml_single_override_not_yaml_errors() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("merged.yaml");
+
+        let base_yaml = indoc!(
+            r#"
+            key: value
+        "#
+        );
+        // Note the opening " after r#" that is NOT closed
+        let override_yaml = indoc!(r#""an unclosed string"#);
+
+        let expected_err =
+            "found unexpected end of stream at line 1 column 20, while scanning a quoted scalar";
+
+        let mut ctx = Context::new();
+        let src = Source::Local {
+            abs_path: PathBuf::new(),
+        };
+
+        let merge_yaml = merge_yaml(base_yaml, one(override_yaml));
+
+        assert_resolve_and_write_error(merge_yaml, &target, &src, &mut ctx, expected_err).await
+    }
+
+    #[tokio::test]
+    async fn resolve_and_write_merge_yaml_one_of_multiple_overrides_not_yaml_errors() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("merged.yaml");
+
+        let base_yaml = indoc!(
+            r#"
+            key: value
+        "#
+        );
+        let override_one_yaml = indoc!(
+            r#"
+            key:value
+        "#
+        );
+        // Note the opening " after r#" that is NOT closed
+        let override_two_yaml = indoc!(r#""an unclosed string"#);
+
+        let expected_err =
+            "found unexpected end of stream at line 1 column 20, while scanning a quoted scalar";
+
+        let mut ctx = Context::new();
+        let src = Source::Local {
+            abs_path: PathBuf::new(),
+        };
+
+        let merge_yaml = merge_yaml(base_yaml, arr(&[override_one_yaml, override_two_yaml]));
+
+        assert_resolve_and_write_error(merge_yaml, &target, &src, &mut ctx, expected_err).await
     }
 }

@@ -1,8 +1,0 @@
-A valid yaml fragment for a relative path file provider
-
--- config.yaml --
-kind: relative_path
-path: ../../../example.txt
-
--- expected-file-content --
-This file exists for testing relative file paths

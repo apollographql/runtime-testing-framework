@@ -24,10 +24,10 @@ pub mod checks;
 pub mod context;
 pub mod error;
 pub mod formats;
+#[cfg(test)]
+mod mock_context;
 pub mod providers;
 pub mod templating;
-#[cfg(test)]
-mod txtar_context;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct ValueDefinition {
