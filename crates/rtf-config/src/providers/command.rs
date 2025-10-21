@@ -278,7 +278,7 @@ impl Check for CommandSection {
 /// It is possible that no output is set in the environment setup script. If the output is
 /// blank then default to an empty json object. If there is an error reading the user defined
 /// output to the file then we still pass that error to the user. This is a quality of life
-/// improvement so if the user does define any output the rtf execution will continue.
+/// improvement so if the user does not define any output the rtf execution will continue.
 fn try_read_output_and_remove(
     output_path: &Path,
     ctx: &impl ResolutionContext,
