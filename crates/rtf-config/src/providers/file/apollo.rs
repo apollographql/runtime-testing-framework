@@ -1274,7 +1274,7 @@ mod tests {
     #[test_case(canned_ops_by_id("graph@variant"), false, &[ErrorKind::MissingGraphOsApiKey]; "canned ops by id missing key")]
     #[test_case(canned_ops_by_id("not a valid ref"), false, &[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]; "canned ops by id invalid ref and missing key")]
     #[test]
-    fn try_check_graph_ref_providers(
+    fn graphos_providers_check_graph_ref(
         fp: FileProvider,
         with_platform_config: bool,
         expected_err_kinds: &[ErrorKind],
@@ -1296,7 +1296,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_offline_license_success() {
+    fn offline_license_check_success() {
         let offline = OfflineGraphosLicense {
             graph_id: Field::Resolved("graph".to_string()),
         };
@@ -1312,7 +1312,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_offline_license_missing_api_key() {
+    fn offline_license_check_missing_api_key() {
         let offline = OfflineGraphosLicense {
             graph_id: Field::Resolved("graph".to_string()),
         };
@@ -1326,7 +1326,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_router_download_script_success() {
+    fn router_download_script_check_success() {
         let router_download = RouterDownloadScript {
             version: Field::Resolved("v2.0.0".to_string()),
         };
@@ -1341,7 +1341,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_build_router_from_source_success() {
+    fn build_router_from_source_check_success() {
         let build_from_source = BuildRouterFromSource {
             git_ref: Field::Resolved("ref".to_string()),
             rust_version: Field::Resolved("1.90.0".to_string()),
@@ -1357,7 +1357,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn content_from_details_supergraph_success() {
+    async fn supergraph_resolve_success() {
         let details = supergraph_details();
         let supergraph = supergraph("graph@variant");
 
@@ -1367,7 +1367,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn content_from_details_supergraph_with_docker_overrides_success() {
+    async fn supergraph_resolve_with_docker_overrides_success() {
         let details = supergraph_details();
         let supergraph = GraphosSupergraph {
             graph_ref: Field::Resolved("graph@variant".to_string()),
@@ -1391,7 +1391,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn content_from_details_supergraph_with_lcoalhost_overrides_success() {
+    async fn supergraph_resolve_with_localhost_overrides_success() {
         let details = supergraph_details();
         let supergraph = GraphosSupergraph {
             graph_ref: Field::Resolved("graph@variant".to_string()),
@@ -1415,7 +1415,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn content_from_details_subgraphs_success() {
+    async fn subgraphs_resolve_success() {
         let details = supergraph_details();
         let subgraphs = subgraphs("graph@variant");
 
@@ -1431,7 +1431,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn content_from_details_subgraph_docker_compose_success() {
+    async fn subgraph_docker_compose_resolve_success() {
         let details = supergraph_details();
         let subgraphs_compose = subgraphs_compose("graph@variant");
 
@@ -1449,7 +1449,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn content_from_details_subgraph_url_overrides_success() {
+    async fn subgraph_url_overrides_resolve_success() {
         let details = supergraph_details();
         let subgraphs_overrides = subgraphs_overrides("graph@variant");
 
@@ -1461,7 +1461,7 @@ mod tests {
     }
 
     #[test]
-    fn canned_ops_json_formats_correctly() {
+    fn canned_ops_format_json_correctly() {
         let canned_ops: Vec<CannedOperation> = vec![
             CannedOperation {
                 id: "1".to_string(),
@@ -1490,7 +1490,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_write_router_download_success() {
+    async fn router_download_resolve_and_write_success() {
         let temp = TempDir::new().unwrap();
         let target = temp.child("router-download.sh");
 
@@ -1520,7 +1520,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_write_router_download_not_found_error() {
+    async fn router_download_resolve_and_write_not_found_error() {
         let temp = TempDir::new().unwrap();
         let target = temp.child("router-download.sh");
 
@@ -1544,7 +1544,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_write_router_from_source_success() {
+    async fn router_from_source_resolve_and_write_success() {
         let temp = TempDir::new().unwrap();
         let target = temp.child("build-from-source.sh");
 

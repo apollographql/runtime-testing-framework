@@ -892,7 +892,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_inline_file_success() {
+    fn inline_file_check_success() {
         let inline = InlineFile {
             content: "some content".to_string(),
         };
@@ -907,7 +907,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_relative_file_local_success() {
+    fn relative_file_check_local_success() {
         let file_name = "file.txt";
         let (_temp, file) = create_temp_dir_with_file(file_name, "some content");
 
@@ -923,7 +923,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_relative_file_github_success() {
+    fn relative_file_check_github_success() {
         // This test works because all that's needed for success in the GitHub case is
         // a GitHub token to be defined in the context
         let relative_file = relative_file("file.txt");
@@ -942,7 +942,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_relative_file_does_not_exist() {
+    fn relative_file_check_does_not_exist() {
         let (_temp, file) = create_temp_dir_with_file("file.txt", "some content");
 
         let relative_file = relative_file("does-not-exist.txt");
@@ -961,7 +961,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_relative_file_is_a_directory() {
+    fn relative_file_check_is_directory() {
         let (temp, _file) = create_temp_dir_with_file("dir/file.txt", "some content");
 
         let relative_file = relative_file("dir");
@@ -982,7 +982,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_relative_file_missing_github_api_token() {
+    fn relative_file_check_missing_github_api_token() {
         let relative_file = relative_file("file.txt");
 
         // There is no github client added to this context so this fails
@@ -1003,7 +1003,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_required_file_is_missing() {
+    fn required_file_check_is_missing() {
         let required_file = RequiredFile {
             message: "need to override".to_string(),
         };
@@ -1030,7 +1030,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_resolved_values_success() {
+    fn resolved_values_check_success() {
         let resolved_values = ResolvedValues {};
 
         let src = Source::Local {
@@ -1043,7 +1043,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_write_inline_file_success() {
+    async fn inline_file_resolve_and_write_success() {
         let temp = TempDir::new().unwrap();
         let target = temp.child("inline.txt");
 
@@ -1061,7 +1061,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_write_local_relative_file_success() {
+    async fn relative_file_resolve_and_write_local_success() {
         let expected_content = "example file content";
         let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", expected_content);
         let test_plan_file = temp.child("test-plan.yaml");
@@ -1085,7 +1085,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_write_github_relative_file_success() {
+    async fn relative_file_resolve_and_write_github_success() {
         let temp = TempDir::new().unwrap();
         let target = temp.child("output/relative.txt");
 
@@ -1106,7 +1106,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_write_local_relative_file_does_not_exist() {
+    async fn relative_file_resolve_and_write_local_does_not_exist() {
         let temp = TempDir::new().unwrap();
         let target = temp.child("output/relative.txt");
 
@@ -1124,7 +1124,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_write_local_relative_file_is_not_text() {
+    async fn relative_file_resolve_and_write_local_is_not_text() {
         let temp = TempDir::new().unwrap();
         let target = temp.child("file.txt");
 
@@ -1145,7 +1145,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_write_github_relative_file_no_github_client() {
+    async fn relative_file_resolve_and_write_github_no_github_client() {
         let temp = TempDir::new().unwrap();
         let target = temp.child("output/relative.txt");
 
@@ -1169,7 +1169,7 @@ mod tests {
     #[should_panic(
         expected = "Should not be able to get here. Required file should result in an error when checked."
     )]
-    async fn resolve_and_write_required_file_panics() {
+    async fn required_file_resolve_and_write_panics() {
         let mut ctx = Context::new();
         let src = Source::Local {
             abs_path: PathBuf::new(),
@@ -1185,7 +1185,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_write_required_values_success() {
+    async fn resolved_values_resolve_and_write_success() {
         let temp = TempDir::new().unwrap();
         let target = temp.child("values.json");
 

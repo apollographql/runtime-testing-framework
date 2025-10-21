@@ -733,7 +733,7 @@ mod tests {
     );
 
     #[tokio::test]
-    async fn parse_and_template_inline_test_plan_config() {
+    async fn parse_and_template_inline_config() {
         let raw_test_plan: RawTestPlanConfig =
             serde_yaml::from_str(INLINE_TEST_PLAN).expect("test plan config to parse");
         let ctx = Context::new();
@@ -897,7 +897,7 @@ mod tests {
     );
 
     #[tokio::test]
-    async fn parse_test_plan_with_overrides() {
+    async fn parse_with_overrides() {
         let temp = TempDir::new().unwrap();
 
         let tp_file = temp.child("test-plan.yaml");
@@ -1563,7 +1563,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_success() {
+    fn check_success() {
         let test_plan = TestPlanConfig {
             scenario: ScenarioConfig {
                 command: cmd_with_inline_file(),
