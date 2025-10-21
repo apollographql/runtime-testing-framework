@@ -1628,4 +1628,94 @@ mod tests {
 
         assert_check_errors(test_plan, &src, &ctx, expected_err_kinds);
     }
+
+    /// Helper function for environment setup provides
+    fn environment_setup_provides(script: &str) -> TestPlanConfig {
+        TestPlanConfig {
+            environment: EnvironmentConfig {
+                setup: SetupSection {
+                    command: CommandSection {
+                        command: CommandSpec {
+                            name: "setup.sh".to_string(),
+                            command_provider: CommandProvider::Inline(InlineFile {
+                                content: script.to_string(),
+                            }),
+                            args: Vec::new(),
+                        },
+                        ..CommandSection::empty()
+                    },
+                    provides: value_definitions(&["foo", "bar"]),
+                },
+                ..EnvironmentConfig::empty()
+            },
+            ..TestPlanConfig::empty()
+        }
+    }
+
+    #[tokio::test]
+    async fn run_environment_setup_provides_expected_values() {
+        let temp = TempDir::new().unwrap();
+        let mut ctx = Context::new();
+
+        let expected_provides = value_map(&["foo", "bar"]);
+
+        let script = indoc!(
+            r#"
+            #!/usr/bin/env sh
+            echo "{ \"foo\": \"foo\", \"bar\": \"bar\" }" >> "$RTF_OUTPUT"
+            "#
+        );
+        let test_plan = environment_setup_provides(script);
+
+        let res = test_plan.run_environment_setup(&temp, &mut ctx).await;
+        assert!(
+            res.is_ok(),
+            "expected a map of provides values, got {res:?}"
+        );
+        assert_eq!(
+            res.unwrap(),
+            expected_provides,
+            "check the provides values are as expected"
+        )
+    }
+
+    #[tokio::test]
+    async fn run_environment_setup_provides_invalid_json_output() {
+        let temp = TempDir::new().unwrap();
+        let mut ctx = Context::new();
+
+        let expected_err = "expected value at line 1 column 1";
+
+        let script = indoc!(
+            r#"
+            #!/usr/bin/env sh
+            echo "some invalid json" >> "$RTF_OUTPUT"
+            "#
+        );
+        let test_plan = environment_setup_provides(script);
+
+        let res = test_plan.run_environment_setup(&temp, &mut ctx).await;
+        assert!(res.is_err(), "expected a json error, got {res:?}");
+        assert_eq!(res.unwrap_err().to_string(), expected_err);
+    }
+
+    #[tokio::test]
+    async fn run_environment_setup_provides_missing_values() {
+        let temp = TempDir::new().unwrap();
+        let mut ctx = Context::new();
+
+        let expected_err = r#"Missing required output fields from environment setup: ["bar"]"#;
+
+        let script = indoc!(
+            r#"
+            #!/usr/bin/env sh
+            echo "{ \"foo\": \"foo\" }" >> "$RTF_OUTPUT"
+            "#
+        );
+        let test_plan = environment_setup_provides(script);
+
+        let res = test_plan.run_environment_setup(&temp, &mut ctx).await;
+        assert!(res.is_err(), "expected a missing values error, got {res:?}");
+        assert_eq!(res.unwrap_err().to_string(), expected_err);
+    }
 }
