@@ -378,6 +378,24 @@
       "title": "GraphOS Subgraph Docker Compose",
       "type": "object"
     },
+    "GraphosSubgraphNames": {
+      "description": "The user specifies the graph ref that should be used to fetch the names of\nsubgraphs in the supergraph from the GraphOS API.\n\nThis file proivider will output a newline-delimited file of the subgraph names.\n\n```yaml\n- name: \"subgraph_names\"\n  env_var: SUBGRAPH_NAMES\n  kind: graphos_subgraph_names\n  graph_ref: graph@variant\n```",
+      "properties": {
+        "graph_ref": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The Apollo graph ref to pull subgraph names for."
+        }
+      },
+      "required": [
+        "graph_ref"
+      ],
+      "title": "GraphOS Subgraph Names",
+      "type": "object"
+    },
     "GraphosSubgraphRouterUrlOverrides": {
       "description": "The user specifies the graph ref that should be used to fetch subgraph\nSDL files from the GraphOS API and generates a the override_subgraph_urls\nYAML snippet that can be merged into a router config file\n\nThis should be used when generating the subgraph docker compose using\n[GraphosSubgraphDockerCompose]. This will ensure the router subgraph urls\nmap to the loadbalancer url in that compose file.\n\n```yaml\n- name: subgraph-url-overrides.yaml\n  env_var: SUBGRAPH_URL_OVERRIDES\n  kind: graphos_subgraph_router_url_overrides\n  graph_ref: graph@variant\n  url_format: localhost\n```",
       "properties": {
@@ -659,6 +677,23 @@
           "properties": {
             "kind": {
               "const": "graphos_subgraphs",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GraphosSubgraphNames"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphos_subgraph_names",
               "type": "string"
             }
           },
