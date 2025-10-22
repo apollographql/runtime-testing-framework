@@ -1244,6 +1244,7 @@ worrying about the providers running multiple times.</p>
 <li><a href="framework/file-providers.html#graphos-subgraph-docker-compose">GraphOS Subgraph Docker Compose</a></li>
 <li><a href="framework/file-providers.html#graphos-supergraph-router-url-overrides">GraphOS Supergraph Router URL Overrides</a></li>
 <li><a href="framework/file-providers.html#graphos-subgraph-sdl">GraphOS Subgraph SDL</a></li>
+<li><a href="framework/file-providers.html#graphos-subgraph-names">GraphOS Subgraph Names</a></li>
 <li><a href="framework/file-providers.html#graphos-supergraph-sdl">GraphOS Supergraph SDL</a></li>
 <li><a href="framework/file-providers.html#inline-file">Inline File</a></li>
 <li><a href="framework/file-providers.html#merge-yaml">Merge YAML</a></li>
@@ -1457,6 +1458,18 @@ API.</p>
 <h3 id="fields-7"><a class="header" href="#fields-7">Fields</a></h3>
 <h4 id="graph_ref-4"><a class="header" href="#graph_ref-4"><code>graph_ref</code></a></h4>
 <p>The Apollo graph ref to pull subgraph SDL files for.</p>
+<h2 id="graphos-subgraph-names"><a class="header" href="#graphos-subgraph-names">GraphOS Subgraph Names</a></h2>
+<p>The user specifies the graph ref that should be used to fetch the names of subgraphs in the
+supergraph from the GraphOS API.</p>
+<p>This file proivider will output a newline-delimited file of the subgraph names.</p>
+<pre><code class="language-yaml">- name: "subgraph_names"
+  env_var: SUBGRAPH_NAMES
+  kind: graphos_subgraph_names
+  graph_ref: graph@variant
+</code></pre>
+<h3 id="fields-8"><a class="header" href="#fields-8">Fields</a></h3>
+<h4 id="graph_ref-5"><a class="header" href="#graph_ref-5"><code>graph_ref</code></a></h4>
+<p>The Apollo graph ref to pull subgraph names for.</p>
 <h2 id="graphos-supergraph-sdl"><a class="header" href="#graphos-supergraph-sdl">GraphOS Supergraph SDL</a></h2>
 <p>The user specifies the ref that should be used to fetch a supergraph SDL file from the GraphOS API.</p>
 <pre><code class="language-yaml">- name: "supergraph.graphql"
@@ -1465,8 +1478,8 @@ API.</p>
   graph_ref: graph@variant
   with_subgraph_overrides: docker
 </code></pre>
-<h3 id="fields-8"><a class="header" href="#fields-8">Fields</a></h3>
-<h4 id="graph_ref-5"><a class="header" href="#graph_ref-5"><code>graph_ref</code></a></h4>
+<h3 id="fields-9"><a class="header" href="#fields-9">Fields</a></h3>
+<h4 id="graph_ref-6"><a class="header" href="#graph_ref-6"><code>graph_ref</code></a></h4>
 <p>The Apollo graph ref to pull supergraph SDL for.</p>
 <h4 id="with_subgraph_overrides"><a class="header" href="#with_subgraph_overrides"><code>with_subgraph_overrides</code></a></h4>
 <p>Replace the supergraph's subgraph urls with overridden values for testing.</p>
@@ -1481,7 +1494,7 @@ config file.</p>
     my raw file content.
     specified inline within an RTF config file.
 </code></pre>
-<h3 id="fields-9"><a class="header" href="#fields-9">Fields</a></h3>
+<h3 id="fields-10"><a class="header" href="#fields-10">Fields</a></h3>
 <h4 id="content"><a class="header" href="#content"><code>content</code></a></h4>
 <p>The text to write out as the contents of the generated file.</p>
 <h2 id="merge-yaml"><a class="header" href="#merge-yaml">Merge YAML</a></h2>
@@ -1514,7 +1527,7 @@ an array:</p>
     - kind: relative_path
       path: "../my-other-overrides.yaml"
 </code></pre>
-<h3 id="fields-10"><a class="header" href="#fields-10">Fields</a></h3>
+<h3 id="fields-11"><a class="header" href="#fields-11">Fields</a></h3>
 <h4 id="base"><a class="header" href="#base"><code>base</code></a></h4>
 <p>A base YAML file to start with.</p>
 <h4 id="overrides"><a class="header" href="#overrides"><code>overrides</code></a></h4>
@@ -1527,7 +1540,7 @@ API.</p>
   kind: graphos_offline_license
   graph_id: graph
 </code></pre>
-<h3 id="fields-11"><a class="header" href="#fields-11">Fields</a></h3>
+<h3 id="fields-12"><a class="header" href="#fields-12">Fields</a></h3>
 <h4 id="graph_id"><a class="header" href="#graph_id"><code>graph_id</code></a></h4>
 <p>The Apollo graph id to pull an offline license for.</p>
 <h2 id="relative-path"><a class="header" href="#relative-path">Relative Path</a></h2>
@@ -1539,7 +1552,7 @@ containing config file was pulled from a repository.</p>
   kind: relative_path
   path: "../../resources/test-data/my-file.txt"
 </code></pre>
-<h3 id="fields-12"><a class="header" href="#fields-12">Fields</a></h3>
+<h3 id="fields-13"><a class="header" href="#fields-13">Fields</a></h3>
 <h4 id="path-1"><a class="header" href="#path-1"><code>path</code></a></h4>
 <p>The relative path from the containing config file to the target file.</p>
 <h4 id="src"><a class="header" href="#src"><code>src</code></a></h4>
@@ -1554,7 +1567,7 @@ defined file providers.</p>
   kind: required
   message: "you must specify a router config file to use"
 </code></pre>
-<h3 id="fields-13"><a class="header" href="#fields-13">Fields</a></h3>
+<h3 id="fields-14"><a class="header" href="#fields-14">Fields</a></h3>
 <h4 id="message"><a class="header" href="#message"><code>message</code></a></h4>
 <p>The error message to display to the user if this provider is not overwritten.</p>
 <h2 id="resolved-values"><a class="header" href="#resolved-values">Resolved Values</a></h2>
@@ -1571,7 +1584,7 @@ Router.</p>
   kind: router_download_script
   version: "v2.6.0"
 </code></pre>
-<h3 id="fields-14"><a class="header" href="#fields-14">Fields</a></h3>
+<h3 id="fields-15"><a class="header" href="#fields-15">Fields</a></h3>
 <h4 id="version"><a class="header" href="#version"><code>version</code></a></h4>
 <p>The version of the Apollo Router to download.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="writing-test-plans"><a class="header" href="#writing-test-plans">Writing test Plans</a></h1>
