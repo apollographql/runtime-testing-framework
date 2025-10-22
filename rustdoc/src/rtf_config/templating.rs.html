@@ -606,7 +606,7 @@
 <a href=#606 id=606 data-nosnippet>606</a>    #[test_case(<span class="string">"bool: \"{{ foo }}\""</span>, Target::B { bool: Field::Pending(<span class="string">"foo"</span>.to_string()) }; <span class="string">"template bool"</span>)]
 <a href=#607 id=607 data-nosnippet>607</a>    #[test_case(<span class="string">"str: \"{{ foo }}\""</span>, Target::S { str: Field::Pending(<span class="string">"foo"</span>.to_string()) }; <span class="string">"template string"</span>)]
 <a href=#608 id=608 data-nosnippet>608</a>    #[test]
-<a href=#609 id=609 data-nosnippet>609</a>    </span><span class="kw">fn </span>parsing_a_field_works(s: <span class="kw-2">&amp;</span>str, expected: Target) {
+<a href=#609 id=609 data-nosnippet>609</a>    </span><span class="kw">fn </span>field_parse_works(s: <span class="kw-2">&amp;</span>str, expected: Target) {
 <a href=#610 id=610 data-nosnippet>610</a>        <span class="kw">let </span>target: Target = serde_yaml::from_str(s).unwrap();
 <a href=#611 id=611 data-nosnippet>611</a>        <span class="macro">assert_eq!</span>(target, expected)
 <a href=#612 id=612 data-nosnippet>612</a>    }
@@ -622,7 +622,7 @@
 <a href=#622 id=622 data-nosnippet>622</a>    #[test_case(<span class="string">"baz1"</span>; <span class="string">"non leading digit"</span>)]
 <a href=#623 id=623 data-nosnippet>623</a>    #[test_case(<span class="string">"foo_bar"</span>; <span class="string">"internal underscore"</span>)]
 <a href=#624 id=624 data-nosnippet>624</a>    #[test]
-<a href=#625 id=625 data-nosnippet>625</a>    </span><span class="kw">fn </span>valid_value_identifiers_are_accepted(raw: <span class="kw-2">&amp;</span>str) {
+<a href=#625 id=625 data-nosnippet>625</a>    </span><span class="kw">fn </span>field_parse_valid_identifiers(raw: <span class="kw-2">&amp;</span>str) {
 <a href=#626 id=626 data-nosnippet>626</a>        <span class="kw">let </span>s = <span class="macro">format!</span>(<span class="string">"field: \"{{{{ {raw} }}}}\""</span>);
 <a href=#627 id=627 data-nosnippet>627</a>        <span class="kw">let </span>res: serde_yaml::Result&lt;StringField&gt; = serde_yaml::from_str(<span class="kw-2">&amp;</span>s);
 <a href=#628 id=628 data-nosnippet>628</a>        <span class="macro">assert!</span>(res.is_ok(), <span class="string">"expected ok, got {res:?}"</span>);
@@ -638,7 +638,7 @@
 <a href=#638 id=638 data-nosnippet>638</a>    #[test_case(<span class="string">""</span>; <span class="string">"no value name"</span>)]
 <a href=#639 id=639 data-nosnippet>639</a>    #[test_case(<span class="string">"🦊"</span>; <span class="string">"emoji"</span>)]
 <a href=#640 id=640 data-nosnippet>640</a>    #[test]
-<a href=#641 id=641 data-nosnippet>641</a>    </span><span class="kw">fn </span>invalid_value_identifiers_are_rejected(raw: <span class="kw-2">&amp;</span>str) {
+<a href=#641 id=641 data-nosnippet>641</a>    </span><span class="kw">fn </span>field_parse_invalid_identifiers(raw: <span class="kw-2">&amp;</span>str) {
 <a href=#642 id=642 data-nosnippet>642</a>        <span class="kw">let </span>s = <span class="macro">format!</span>(<span class="string">"field: \"{{{{ {raw} }}}}\""</span>);
 <a href=#643 id=643 data-nosnippet>643</a>        <span class="kw">let </span>res: serde_yaml::Result&lt;StringField&gt; = serde_yaml::from_str(<span class="kw-2">&amp;</span>s);
 <a href=#644 id=644 data-nosnippet>644</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected error, got {res:?}"</span>);
@@ -654,13 +654,13 @@
 <a href=#654 id=654 data-nosnippet>654</a>    #[test_case(<span class="string">r#""{{ foo  }}""#</span>; <span class="string">"additional trailing space"</span>)]
 <a href=#655 id=655 data-nosnippet>655</a>    #[test_case(<span class="string">r#""{{ foo\t }}""#</span>; <span class="string">"trailing tab"</span>)]
 <a href=#656 id=656 data-nosnippet>656</a>    #[test]
-<a href=#657 id=657 data-nosnippet>657</a>    </span><span class="kw">fn </span>malformed_templates_error(raw: <span class="kw-2">&amp;</span>str) {
+<a href=#657 id=657 data-nosnippet>657</a>    </span><span class="kw">fn </span>field_parse_malformed_template_string(raw: <span class="kw-2">&amp;</span>str) {
 <a href=#658 id=658 data-nosnippet>658</a>        <span class="kw">let </span>res: serde_yaml::Result&lt;StringField&gt; = serde_yaml::from_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"field: {raw}"</span>));
 <a href=#659 id=659 data-nosnippet>659</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected error, got {res:?}"</span>);
 <a href=#660 id=660 data-nosnippet>660</a>    }
 <a href=#661 id=661 data-nosnippet>661</a>
 <a href=#662 id=662 data-nosnippet>662</a>    <span class="attr">#[test]
-<a href=#663 id=663 data-nosnippet>663</a>    </span><span class="kw">fn </span>single_leading_curly_is_permitted_for_a_string_field() {
+<a href=#663 id=663 data-nosnippet>663</a>    </span><span class="kw">fn </span>field_parse_single_leading_curly_permitted() {
 <a href=#664 id=664 data-nosnippet>664</a>        <span class="kw">let </span>raw = <span class="string">r#"field: "{ \"some\": { \"valid\": [\"json\", \"data\"] }}""#</span>;
 <a href=#665 id=665 data-nosnippet>665</a>        <span class="kw">let </span>res: serde_yaml::Result&lt;StringField&gt; = serde_yaml::from_str(raw);
 <a href=#666 id=666 data-nosnippet>666</a>
@@ -736,7 +736,7 @@
 <a href=#736 id=736 data-nosnippet>736</a>    <span class="attr">#[test_case(hmf(<span class="kw-2">&amp;</span>[r(<span class="string">"foo"</span>)]</span>), <span class="bool-val">false</span>; <span class="string">"hash map single entry resolved"</span>)]
 <a href=#737 id=737 data-nosnippet>737</a>    <span class="attr">#[test_case(hmf(<span class="kw-2">&amp;</span>[]</span>), <span class="bool-val">false</span>; <span class="string">"hash map no entries resolved"</span>)]
 <a href=#738 id=738 data-nosnippet>738</a>    <span class="attr">#[test]
-<a href=#739 id=739 data-nosnippet>739</a>    </span><span class="kw">fn </span>has_pending_fields(t: Box&lt;<span class="kw">dyn </span>Template&gt;, expected: bool) {
+<a href=#739 id=739 data-nosnippet>739</a>    </span><span class="kw">fn </span>template_has_pending_fields(t: Box&lt;<span class="kw">dyn </span>Template&gt;, expected: bool) {
 <a href=#740 id=740 data-nosnippet>740</a>        <span class="kw">let </span>res = t.has_pending_fields();
 <a href=#741 id=741 data-nosnippet>741</a>        <span class="macro">assert_eq!</span>(
 <a href=#742 id=742 data-nosnippet>742</a>            res, expected,
@@ -760,7 +760,7 @@
 <a href=#760 id=760 data-nosnippet>760</a>    <span class="attr">#[test_case(hmf(<span class="kw-2">&amp;</span>[r(<span class="string">"foo"</span>)]</span>), <span class="kw-2">&amp;</span>[]; <span class="string">"hash map single entry is not required"</span>)]
 <a href=#761 id=761 data-nosnippet>761</a>    <span class="attr">#[test_case(hmf(<span class="kw-2">&amp;</span>[]</span>), <span class="kw-2">&amp;</span>[]; <span class="string">"hash map no entries not required"</span>)]
 <a href=#762 id=762 data-nosnippet>762</a>    <span class="attr">#[test]
-<a href=#763 id=763 data-nosnippet>763</a>    </span><span class="kw">fn </span>required_values(t: Box&lt;<span class="kw">dyn </span>Template&gt;, expected: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
+<a href=#763 id=763 data-nosnippet>763</a>    </span><span class="kw">fn </span>template_required_values(t: Box&lt;<span class="kw">dyn </span>Template&gt;, expected: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
 <a href=#764 id=764 data-nosnippet>764</a>        <span class="kw">let </span><span class="kw-2">mut </span>res = t.required_values();
 <a href=#765 id=765 data-nosnippet>765</a>        res.sort(); <span class="comment">// Sorting so values are in a determistic order for the assert_eq
 <a href=#766 id=766 data-nosnippet>766</a>
@@ -790,7 +790,7 @@
 <a href=#790 id=790 data-nosnippet>790</a>    <span class="attr">#[test_case(hmf(<span class="kw-2">&amp;</span>[p(<span class="string">"foo"</span>)]</span>), <span class="kw-2">&amp;</span>[<span class="string">"foo"</span>]; <span class="string">"single hash map entry templates"</span>)]
 <a href=#791 id=791 data-nosnippet>791</a>    <span class="attr">#[test_case(hmf(<span class="kw-2">&amp;</span>[]</span>), <span class="kw-2">&amp;</span>[]; <span class="string">"no hash map entries templates"</span>)]
 <a href=#792 id=792 data-nosnippet>792</a>    <span class="attr">#[test]
-<a href=#793 id=793 data-nosnippet>793</a>    </span><span class="kw">fn </span>try_template(<span class="kw-2">mut </span>t: Box&lt;<span class="kw">dyn </span>Template&gt;, values: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
+<a href=#793 id=793 data-nosnippet>793</a>    </span><span class="kw">fn </span>template_try_template_success(<span class="kw-2">mut </span>t: Box&lt;<span class="kw">dyn </span>Template&gt;, values: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
 <a href=#794 id=794 data-nosnippet>794</a>        <span class="kw">let </span>values = <span class="macro">values_map!</span>(values);
 <a href=#795 id=795 data-nosnippet>795</a>        <span class="kw">let </span>res = t.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>values);
 <a href=#796 id=796 data-nosnippet>796</a>        <span class="macro">assert!</span>(
@@ -805,21 +805,24 @@
 <a href=#805 id=805 data-nosnippet>805</a>    <span class="attr">#[test_case(hmf(<span class="kw-2">&amp;</span>[p(<span class="string">"foo"</span>), p(<span class="string">"bar"</span>), p(<span class="string">"baz"</span>)]</span>), <span class="kw-2">&amp;</span>[<span class="string">"bar"</span>, <span class="string">"baz"</span>, <span class="string">"foo"</span>]; <span class="string">"multiple hash map entries"</span>)]
 <a href=#806 id=806 data-nosnippet>806</a>    <span class="attr">#[test_case(hmf(<span class="kw-2">&amp;</span>[p(<span class="string">"foo"</span>)]</span>), <span class="kw-2">&amp;</span>[<span class="string">"foo"</span>]; <span class="string">"single hash map entry"</span>)]
 <a href=#807 id=807 data-nosnippet>807</a>    <span class="attr">#[test]
-<a href=#808 id=808 data-nosnippet>808</a>    </span><span class="kw">fn </span>try_template_unknown_value_error(<span class="kw-2">mut </span>t: Box&lt;<span class="kw">dyn </span>Template&gt;, expected_err_messages: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
-<a href=#809 id=809 data-nosnippet>809</a>        <span class="kw">let </span>values = <span class="macro">values_map!</span>([<span class="string">"unused"</span>]);
-<a href=#810 id=810 data-nosnippet>810</a>
-<a href=#811 id=811 data-nosnippet>811</a>        <span class="kw">let </span>res = t.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>values);
-<a href=#812 id=812 data-nosnippet>812</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected templating to fail, got {res:?}"</span>);
-<a href=#813 id=813 data-nosnippet>813</a>        <span class="kw">let </span>errors = res.unwrap_err();
-<a href=#814 id=814 data-nosnippet>814</a>        <span class="macro">assert!</span>(
-<a href=#815 id=815 data-nosnippet>815</a>            errors
-<a href=#816 id=816 data-nosnippet>816</a>                .iter()
-<a href=#817 id=817 data-nosnippet>817</a>                .all(|e| <span class="macro">matches!</span>(e.kind, ErrorKind::UnknownValue)),
-<a href=#818 id=818 data-nosnippet>818</a>            <span class="string">"expected all errors to be UnknownValue, got {:?}"</span>,
-<a href=#819 id=819 data-nosnippet>819</a>            errors
-<a href=#820 id=820 data-nosnippet>820</a>        );
-<a href=#821 id=821 data-nosnippet>821</a>        <span class="kw">let </span><span class="kw-2">mut </span>messages: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = errors.iter().map(|e| e.message.as_str()).collect();
-<a href=#822 id=822 data-nosnippet>822</a>        messages.sort();
-<a href=#823 id=823 data-nosnippet>823</a>        <span class="macro">assert_eq!</span>(messages.as_slice(), expected_err_messages);
-<a href=#824 id=824 data-nosnippet>824</a>    }
-<a href=#825 id=825 data-nosnippet>825</a>}</code></pre></div></section></main></body></html>
+<a href=#808 id=808 data-nosnippet>808</a>    </span><span class="kw">fn </span>template_try_template_unknown_value_error(
+<a href=#809 id=809 data-nosnippet>809</a>        <span class="kw-2">mut </span>t: Box&lt;<span class="kw">dyn </span>Template&gt;,
+<a href=#810 id=810 data-nosnippet>810</a>        expected_err_messages: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str],
+<a href=#811 id=811 data-nosnippet>811</a>    ) {
+<a href=#812 id=812 data-nosnippet>812</a>        <span class="kw">let </span>values = <span class="macro">values_map!</span>([<span class="string">"unused"</span>]);
+<a href=#813 id=813 data-nosnippet>813</a>
+<a href=#814 id=814 data-nosnippet>814</a>        <span class="kw">let </span>res = t.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>values);
+<a href=#815 id=815 data-nosnippet>815</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected templating to fail, got {res:?}"</span>);
+<a href=#816 id=816 data-nosnippet>816</a>        <span class="kw">let </span>errors = res.unwrap_err();
+<a href=#817 id=817 data-nosnippet>817</a>        <span class="macro">assert!</span>(
+<a href=#818 id=818 data-nosnippet>818</a>            errors
+<a href=#819 id=819 data-nosnippet>819</a>                .iter()
+<a href=#820 id=820 data-nosnippet>820</a>                .all(|e| <span class="macro">matches!</span>(e.kind, ErrorKind::UnknownValue)),
+<a href=#821 id=821 data-nosnippet>821</a>            <span class="string">"expected all errors to be UnknownValue, got {:?}"</span>,
+<a href=#822 id=822 data-nosnippet>822</a>            errors
+<a href=#823 id=823 data-nosnippet>823</a>        );
+<a href=#824 id=824 data-nosnippet>824</a>        <span class="kw">let </span><span class="kw-2">mut </span>messages: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = errors.iter().map(|e| e.message.as_str()).collect();
+<a href=#825 id=825 data-nosnippet>825</a>        messages.sort();
+<a href=#826 id=826 data-nosnippet>826</a>        <span class="macro">assert_eq!</span>(messages.as_slice(), expected_err_messages);
+<a href=#827 id=827 data-nosnippet>827</a>    }
+<a href=#828 id=828 data-nosnippet>828</a>}</code></pre></div></section></main></body></html>

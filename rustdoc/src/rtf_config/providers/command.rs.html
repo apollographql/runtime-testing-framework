@@ -443,7 +443,7 @@
 <a href=#443 id=443 data-nosnippet>443</a>    <span class="attr">#[test_case(PARTIAL_RELATIVE_PATH, <span class="kw-2">&amp;</span>[<span class="string">"path"</span>]</span>; <span class="string">"partial_relative_path"</span>)]
 <a href=#444 id=444 data-nosnippet>444</a>    <span class="attr">#[test_case(REQUIRED, <span class="kw-2">&amp;</span>[]</span>; <span class="string">"required"</span>)]
 <a href=#445 id=445 data-nosnippet>445</a>    <span class="attr">#[test]
-<a href=#446 id=446 data-nosnippet>446</a>    </span><span class="kw">fn </span>command_parses_and_templates(content: <span class="kw-2">&amp;</span>str, expected_values: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
+<a href=#446 id=446 data-nosnippet>446</a>    </span><span class="kw">fn </span>command_parse_and_template(content: <span class="kw-2">&amp;</span>str, expected_values: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
 <a href=#447 id=447 data-nosnippet>447</a>        <span class="kw">let </span>config: CommandSection = serde_yaml::from_str(content).unwrap();
 <a href=#448 id=448 data-nosnippet>448</a>
 <a href=#449 id=449 data-nosnippet>449</a>        <span class="kw">let </span><span class="kw-2">mut </span>res = config.required_values();
@@ -452,7 +452,7 @@
 <a href=#452 id=452 data-nosnippet>452</a>    }
 <a href=#453 id=453 data-nosnippet>453</a>
 <a href=#454 id=454 data-nosnippet>454</a>    <span class="attr">#[test]
-<a href=#455 id=455 data-nosnippet>455</a>    </span><span class="kw">fn </span>try_check_command_spec_success() {
+<a href=#455 id=455 data-nosnippet>455</a>    </span><span class="kw">fn </span>command_spec_check_success() {
 <a href=#456 id=456 data-nosnippet>456</a>        <span class="kw">let </span>command = CommandSpec {
 <a href=#457 id=457 data-nosnippet>457</a>            name: <span class="string">"name"</span>.to_string(),
 <a href=#458 id=458 data-nosnippet>458</a>            args: Vec::new(),
@@ -471,7 +471,7 @@
 <a href=#471 id=471 data-nosnippet>471</a>    }
 <a href=#472 id=472 data-nosnippet>472</a>
 <a href=#473 id=473 data-nosnippet>473</a>    <span class="attr">#[test]
-<a href=#474 id=474 data-nosnippet>474</a>    </span><span class="kw">fn </span>try_check_command_spec_command_provider_errors() {
+<a href=#474 id=474 data-nosnippet>474</a>    </span><span class="kw">fn </span>command_spec_check_command_provider_errors() {
 <a href=#475 id=475 data-nosnippet>475</a>        <span class="kw">let </span>command = CommandSpec {
 <a href=#476 id=476 data-nosnippet>476</a>            name: <span class="string">"name"</span>.to_string(),
 <a href=#477 id=477 data-nosnippet>477</a>            args: Vec::new(),
@@ -497,7 +497,7 @@
 <a href=#497 id=497 data-nosnippet>497</a>    }
 <a href=#498 id=498 data-nosnippet>498</a>
 <a href=#499 id=499 data-nosnippet>499</a>    <span class="attr">#[test]
-<a href=#500 id=500 data-nosnippet>500</a>    </span><span class="kw">fn </span>try_check_command_section_success() {
+<a href=#500 id=500 data-nosnippet>500</a>    </span><span class="kw">fn </span>command_section_check_success() {
 <a href=#501 id=501 data-nosnippet>501</a>        <span class="kw">let </span>command = cmd_with_inline_file();
 <a href=#502 id=502 data-nosnippet>502</a>
 <a href=#503 id=503 data-nosnippet>503</a>        <span class="kw">let </span>ctx = Context::new();
@@ -510,7 +510,7 @@
 <a href=#510 id=510 data-nosnippet>510</a>    }
 <a href=#511 id=511 data-nosnippet>511</a>
 <a href=#512 id=512 data-nosnippet>512</a>    <span class="attr">#[test]
-<a href=#513 id=513 data-nosnippet>513</a>    </span><span class="kw">fn </span>try_check_command_section_command_errors() {
+<a href=#513 id=513 data-nosnippet>513</a>    </span><span class="kw">fn </span>command_section_check_command_errors() {
 <a href=#514 id=514 data-nosnippet>514</a>        <span class="kw">let </span>command = cmd_with_required_file();
 <a href=#515 id=515 data-nosnippet>515</a>
 <a href=#516 id=516 data-nosnippet>516</a>        <span class="kw">let </span>ctx = Context::new();
@@ -530,7 +530,7 @@
 <a href=#530 id=530 data-nosnippet>530</a>    }
 <a href=#531 id=531 data-nosnippet>531</a>
 <a href=#532 id=532 data-nosnippet>532</a>    <span class="attr">#[test]
-<a href=#533 id=533 data-nosnippet>533</a>    </span><span class="kw">fn </span>try_check_command_section_file_provider_errors() {
+<a href=#533 id=533 data-nosnippet>533</a>    </span><span class="kw">fn </span>command_section_check_file_provider_errors() {
 <a href=#534 id=534 data-nosnippet>534</a>        <span class="kw">let </span>command = CommandSection {
 <a href=#535 id=535 data-nosnippet>535</a>            file_providers: <span class="macro">vec!</span>[NamedFileProvider {
 <a href=#536 id=536 data-nosnippet>536</a>                name: <span class="string">"required"</span>.to_string(),
@@ -559,7 +559,7 @@
 <a href=#559 id=559 data-nosnippet>559</a>    }
 <a href=#560 id=560 data-nosnippet>560</a>
 <a href=#561 id=561 data-nosnippet>561</a>    <span class="attr">#[test]
-<a href=#562 id=562 data-nosnippet>562</a>    </span><span class="kw">fn </span>try_check_command_section_duplicate_env_var_errors() {
+<a href=#562 id=562 data-nosnippet>562</a>    </span><span class="kw">fn </span>command_section_check_duplicate_env_var_errors() {
 <a href=#563 id=563 data-nosnippet>563</a>        <span class="kw">let </span><span class="kw-2">mut </span>env_vars: HashMap&lt;String, Field&lt;Scalar&gt;&gt; = HashMap::new();
 <a href=#564 id=564 data-nosnippet>564</a>        env_vars.insert(<span class="string">"A"</span>.to_string(), Field::Resolved(<span class="string">"A"</span>.into()));
 <a href=#565 id=565 data-nosnippet>565</a>        env_vars.insert(<span class="string">"B"</span>.to_string(), Field::Resolved(<span class="string">"B"</span>.into()));
@@ -593,7 +593,7 @@
 <a href=#593 id=593 data-nosnippet>593</a>    }
 <a href=#594 id=594 data-nosnippet>594</a>
 <a href=#595 id=595 data-nosnippet>595</a>    <span class="attr">#[test]
-<a href=#596 id=596 data-nosnippet>596</a>    </span><span class="kw">fn </span>try_check_command_section_combined_errors() {
+<a href=#596 id=596 data-nosnippet>596</a>    </span><span class="kw">fn </span>command_section_check_combined_errors() {
 <a href=#597 id=597 data-nosnippet>597</a>        <span class="kw">let </span><span class="kw-2">mut </span>env_vars: HashMap&lt;String, Field&lt;Scalar&gt;&gt; = HashMap::new();
 <a href=#598 id=598 data-nosnippet>598</a>        env_vars.insert(<span class="string">"A"</span>.to_string(), Field::Resolved(<span class="string">"A"</span>.into()));
 <a href=#599 id=599 data-nosnippet>599</a>        env_vars.insert(<span class="string">"B"</span>.to_string(), Field::Resolved(<span class="string">"B"</span>.into()));
@@ -785,7 +785,7 @@
 <a href=#785 id=785 data-nosnippet>785</a>    }
 <a href=#786 id=786 data-nosnippet>786</a>
 <a href=#787 id=787 data-nosnippet>787</a>    <span class="attr">#[tokio::test]
-<a href=#788 id=788 data-nosnippet>788</a>    </span><span class="kw">async fn </span>all_env_vars_includes_file_providers() {
+<a href=#788 id=788 data-nosnippet>788</a>    </span><span class="kw">async fn </span>command_section_all_env_vars_includes_file_providers() {
 <a href=#789 id=789 data-nosnippet>789</a>        <span class="kw">let </span>c = test_cmd_section();
 <a href=#790 id=790 data-nosnippet>790</a>        <span class="kw">let </span><span class="kw-2">mut </span>ctx = MockCommandContext::default();
 <a href=#791 id=791 data-nosnippet>791</a>        <span class="kw">let </span>dir = PathBuf::from(<span class="string">"/example-dir"</span>);
@@ -823,7 +823,7 @@
 <a href=#823 id=823 data-nosnippet>823</a>    }
 <a href=#824 id=824 data-nosnippet>824</a>
 <a href=#825 id=825 data-nosnippet>825</a>    <span class="attr">#[tokio::test]
-<a href=#826 id=826 data-nosnippet>826</a>    </span><span class="kw">async fn </span>run_providers_writes_the_expected_files() {
+<a href=#826 id=826 data-nosnippet>826</a>    </span><span class="kw">async fn </span>command_section_run_providers_writes_expected_files() {
 <a href=#827 id=827 data-nosnippet>827</a>        <span class="kw">let </span>c = test_cmd_section();
 <a href=#828 id=828 data-nosnippet>828</a>        <span class="kw">let </span><span class="kw-2">mut </span>ctx = MockCommandContext::default();
 <a href=#829 id=829 data-nosnippet>829</a>        <span class="kw">let </span>dir = PathBuf::from(<span class="string">"/example-dir"</span>);
@@ -848,7 +848,7 @@
 <a href=#848 id=848 data-nosnippet>848</a>    }
 <a href=#849 id=849 data-nosnippet>849</a>
 <a href=#850 id=850 data-nosnippet>850</a>    <span class="attr">#[tokio::test]
-<a href=#851 id=851 data-nosnippet>851</a>    </span><span class="kw">async fn </span>the_provider_cache_is_used_to_avoid_rerunning_providers() {
+<a href=#851 id=851 data-nosnippet>851</a>    </span><span class="kw">async fn </span>command_section_provider_cache_used_to_avoid_rerunning() {
 <a href=#852 id=852 data-nosnippet>852</a>        <span class="kw">let </span>c = test_cmd_section();
 <a href=#853 id=853 data-nosnippet>853</a>        <span class="kw">let </span><span class="kw-2">mut </span>ctx = MockCommandContext::default();
 <a href=#854 id=854 data-nosnippet>854</a>        <span class="kw">let </span>dir = PathBuf::from(<span class="string">"/example-dir"</span>);

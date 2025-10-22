@@ -317,7 +317,7 @@
 <a href=#317 id=317 data-nosnippet>317</a>    <span class="attr">#[test_case(arr(<span class="kw-2">&amp;</span>[<span class="string">"key1: X"</span>, <span class="string">"key1: Y"</span>, <span class="string">"key1: Z"</span>]</span>), <span class="string">"key1: Z\nkey2: B"</span>; <span class="string">"override three replacing same key"</span>)]
 <a href=#318 id=318 data-nosnippet>318</a>    <span class="attr">#[test_case(arr(<span class="kw-2">&amp;</span>[<span class="string">"key3: X\nkey2: Y\nkey4: Z"</span>, <span class="string">"key1: W"</span>, <span class="string">"key2: V"</span>]</span>), <span class="string">"key1: W\nkey2: V\nkey3: X\nkey4: Z"</span>; <span class="string">"override three layered"</span>)]
 <a href=#319 id=319 data-nosnippet>319</a>    <span class="attr">#[tokio::test]
-<a href=#320 id=320 data-nosnippet>320</a>    </span><span class="kw">async fn </span>merge_yaml_produces_expected_output(overrides: Overrides, expected: <span class="kw-2">&amp;</span>str) {
+<a href=#320 id=320 data-nosnippet>320</a>    </span><span class="kw">async fn </span>merge_yaml_resolve_expected_output(overrides: Overrides, expected: <span class="kw-2">&amp;</span>str) {
 <a href=#321 id=321 data-nosnippet>321</a>        <span class="kw">let </span>provider = MergeYaml {
 <a href=#322 id=322 data-nosnippet>322</a>            base: TextFileProvider::Inline(InlineFile {
 <a href=#323 id=323 data-nosnippet>323</a>                content: <span class="string">"key1: A\nkey2: B"</span>.into(),
@@ -339,7 +339,7 @@
 <a href=#339 id=339 data-nosnippet>339</a>    }
 <a href=#340 id=340 data-nosnippet>340</a>
 <a href=#341 id=341 data-nosnippet>341</a>    <span class="attr">#[test]
-<a href=#342 id=342 data-nosnippet>342</a>    </span><span class="kw">fn </span>try_check_merge_yaml_success() {
+<a href=#342 id=342 data-nosnippet>342</a>    </span><span class="kw">fn </span>merge_yaml_check_success() {
 <a href=#343 id=343 data-nosnippet>343</a>        <span class="kw">let </span>merge_yaml = MergeYaml {
 <a href=#344 id=344 data-nosnippet>344</a>            base: TextFileProvider::Inline(InlineFile {
 <a href=#345 id=345 data-nosnippet>345</a>                content: <span class="string">"some content"</span>.to_string(),
@@ -383,7 +383,7 @@
 <a href=#383 id=383 data-nosnippet>383</a>        <span class="string">"base and single override"
 <a href=#384 id=384 data-nosnippet>384</a>    </span>)]
 <a href=#385 id=385 data-nosnippet>385</a>    <span class="attr">#[test]
-<a href=#386 id=386 data-nosnippet>386</a>    </span><span class="kw">fn </span>try_check_merge_yaml_errors(
+<a href=#386 id=386 data-nosnippet>386</a>    </span><span class="kw">fn </span>merge_yaml_check_errors(
 <a href=#387 id=387 data-nosnippet>387</a>        base: TextFileProvider,
 <a href=#388 id=388 data-nosnippet>388</a>        overrides: Overrides,
 <a href=#389 id=389 data-nosnippet>389</a>        expected_err_kinds: <span class="kw-2">&amp;</span>[checks::ErrorKind],
@@ -399,7 +399,7 @@
 <a href=#399 id=399 data-nosnippet>399</a>    }
 <a href=#400 id=400 data-nosnippet>400</a>
 <a href=#401 id=401 data-nosnippet>401</a>    <span class="attr">#[test]
-<a href=#402 id=402 data-nosnippet>402</a>    </span><span class="kw">fn </span>try_check_from_command_success() {
+<a href=#402 id=402 data-nosnippet>402</a>    </span><span class="kw">fn </span>from_command_check_success() {
 <a href=#403 id=403 data-nosnippet>403</a>        <span class="kw">let </span>from_command = FromCommand {
 <a href=#404 id=404 data-nosnippet>404</a>            inner: CommandSection {
 <a href=#405 id=405 data-nosnippet>405</a>                ..CommandSection::empty()
@@ -416,7 +416,7 @@
 <a href=#416 id=416 data-nosnippet>416</a>    }
 <a href=#417 id=417 data-nosnippet>417</a>
 <a href=#418 id=418 data-nosnippet>418</a>    <span class="attr">#[test]
-<a href=#419 id=419 data-nosnippet>419</a>    </span><span class="kw">fn </span>try_check_from_command_errors() {
+<a href=#419 id=419 data-nosnippet>419</a>    </span><span class="kw">fn </span>from_command_check_errors() {
 <a href=#420 id=420 data-nosnippet>420</a>        <span class="kw">let </span>from_command = FromCommand {
 <a href=#421 id=421 data-nosnippet>421</a>            inner: CommandSection {
 <a href=#422 id=422 data-nosnippet>422</a>                file_providers: <span class="macro">vec!</span>[NamedFileProvider {
@@ -439,7 +439,7 @@
 <a href=#439 id=439 data-nosnippet>439</a>    }
 <a href=#440 id=440 data-nosnippet>440</a>
 <a href=#441 id=441 data-nosnippet>441</a>    <span class="attr">#[tokio::test]
-<a href=#442 id=442 data-nosnippet>442</a>    </span><span class="kw">async fn </span>resolve_and_write_merge_yaml_single_override_success() {
+<a href=#442 id=442 data-nosnippet>442</a>    </span><span class="kw">async fn </span>merge_yaml_resolve_and_write_single_override_success() {
 <a href=#443 id=443 data-nosnippet>443</a>        <span class="kw">let </span>temp = TempDir::new().unwrap();
 <a href=#444 id=444 data-nosnippet>444</a>        <span class="kw">let </span>target = temp.child(<span class="string">"merged.yaml"</span>);
 <a href=#445 id=445 data-nosnippet>445</a>
@@ -486,7 +486,7 @@
 <a href=#486 id=486 data-nosnippet>486</a>    </span>}
 <a href=#487 id=487 data-nosnippet>487</a>
 <a href=#488 id=488 data-nosnippet>488</a>    <span class="attr">#[tokio::test]
-<a href=#489 id=489 data-nosnippet>489</a>    </span><span class="kw">async fn </span>resolve_and_write_merge_yaml_multiple_overrides_success() {
+<a href=#489 id=489 data-nosnippet>489</a>    </span><span class="kw">async fn </span>merge_yaml_resolve_and_write_multiple_overrides_success() {
 <a href=#490 id=490 data-nosnippet>490</a>        <span class="kw">let </span>temp = TempDir::new().unwrap();
 <a href=#491 id=491 data-nosnippet>491</a>        <span class="kw">let </span>target = temp.child(<span class="string">"merged.yaml"</span>);
 <a href=#492 id=492 data-nosnippet>492</a>
@@ -537,7 +537,7 @@
 <a href=#537 id=537 data-nosnippet>537</a>    </span>}
 <a href=#538 id=538 data-nosnippet>538</a>
 <a href=#539 id=539 data-nosnippet>539</a>    <span class="attr">#[tokio::test]
-<a href=#540 id=540 data-nosnippet>540</a>    </span><span class="kw">async fn </span>resolve_and_write_merge_yaml_base_not_yaml_errors() {
+<a href=#540 id=540 data-nosnippet>540</a>    </span><span class="kw">async fn </span>merge_yaml_resolve_and_write_base_not_yaml_errors() {
 <a href=#541 id=541 data-nosnippet>541</a>        <span class="kw">let </span>temp = TempDir::new().unwrap();
 <a href=#542 id=542 data-nosnippet>542</a>        <span class="kw">let </span>target = temp.child(<span class="string">"merged.yaml"</span>);
 <a href=#543 id=543 data-nosnippet>543</a>
@@ -563,7 +563,7 @@
 <a href=#563 id=563 data-nosnippet>563</a>    </span>}
 <a href=#564 id=564 data-nosnippet>564</a>
 <a href=#565 id=565 data-nosnippet>565</a>    <span class="attr">#[tokio::test]
-<a href=#566 id=566 data-nosnippet>566</a>    </span><span class="kw">async fn </span>resolve_and_write_merge_yaml_single_override_not_yaml_errors() {
+<a href=#566 id=566 data-nosnippet>566</a>    </span><span class="kw">async fn </span>merge_yaml_resolve_and_write_single_override_not_yaml_errors() {
 <a href=#567 id=567 data-nosnippet>567</a>        <span class="kw">let </span>temp = TempDir::new().unwrap();
 <a href=#568 id=568 data-nosnippet>568</a>        <span class="kw">let </span>target = temp.child(<span class="string">"merged.yaml"</span>);
 <a href=#569 id=569 data-nosnippet>569</a>
@@ -589,7 +589,7 @@
 <a href=#589 id=589 data-nosnippet>589</a>    </span>}
 <a href=#590 id=590 data-nosnippet>590</a>
 <a href=#591 id=591 data-nosnippet>591</a>    <span class="attr">#[tokio::test]
-<a href=#592 id=592 data-nosnippet>592</a>    </span><span class="kw">async fn </span>resolve_and_write_merge_yaml_one_of_multiple_overrides_not_yaml_errors() {
+<a href=#592 id=592 data-nosnippet>592</a>    </span><span class="kw">async fn </span>merge_yaml_resolve_and_write_one_of_multiple_overrides_not_yaml_errors() {
 <a href=#593 id=593 data-nosnippet>593</a>        <span class="kw">let </span>temp = TempDir::new().unwrap();
 <a href=#594 id=594 data-nosnippet>594</a>        <span class="kw">let </span>target = temp.child(<span class="string">"merged.yaml"</span>);
 <a href=#595 id=595 data-nosnippet>595</a>

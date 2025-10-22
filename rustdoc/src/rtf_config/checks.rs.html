@@ -272,7 +272,7 @@
 <a href=#272 id=272 data-nosnippet>272</a>    }
 <a href=#273 id=273 data-nosnippet>273</a>
 <a href=#274 id=274 data-nosnippet>274</a>    <span class="attr">#[test]
-<a href=#275 id=275 data-nosnippet>275</a>    </span><span class="kw">fn </span>duplicate_keys_returns_empty_vec_for_no_duplicates() {
+<a href=#275 id=275 data-nosnippet>275</a>    </span><span class="kw">fn </span>duplicate_keys_returns_empty_for_no_duplicates() {
 <a href=#276 id=276 data-nosnippet>276</a>        <span class="kw">let </span>vals = [
 <a href=#277 id=277 data-nosnippet>277</a>            Mapping { k: <span class="string">"a"</span>, _v: <span class="number">1 </span>},
 <a href=#278 id=278 data-nosnippet>278</a>            Mapping { k: <span class="string">"c"</span>, _v: <span class="number">2 </span>},
@@ -496,7 +496,7 @@
 <a href=#496 id=496 data-nosnippet>496</a>    }
 <a href=#497 id=497 data-nosnippet>497</a>
 <a href=#498 id=498 data-nosnippet>498</a>    <span class="attr">#[test]
-<a href=#499 id=499 data-nosnippet>499</a>    </span><span class="kw">fn </span>try_dedup_and_sort_doesnt_sort_or_dedup_when_returning_errors() {
+<a href=#499 id=499 data-nosnippet>499</a>    </span><span class="kw">fn </span>dedup_array_try_dedup_and_sort_doesnt_sort_when_returning_errors() {
 <a href=#500 id=500 data-nosnippet>500</a>        <span class="kw">let </span><span class="kw-2">mut </span>dedup_me = DedupMe {
 <a href=#501 id=501 data-nosnippet>501</a>            values: <span class="macro">vec!</span>[vd(<span class="string">"b"</span>, <span class="prelude-val">None</span>), vd(<span class="string">"b"</span>, <span class="prelude-val">None</span>), vd(<span class="string">"b"</span>, <span class="prelude-val">None</span>), vd(<span class="string">"a"</span>, <span class="prelude-val">None</span>)],
 <a href=#502 id=502 data-nosnippet>502</a>            providers: <span class="macro">vec!</span>[
@@ -529,7 +529,7 @@
 <a href=#529 id=529 data-nosnippet>529</a>    }
 <a href=#530 id=530 data-nosnippet>530</a>
 <a href=#531 id=531 data-nosnippet>531</a>    <span class="attr">#[test]
-<a href=#532 id=532 data-nosnippet>532</a>    </span><span class="kw">fn </span>try_dedup_and_sort_runs_for_all_arrays() {
+<a href=#532 id=532 data-nosnippet>532</a>    </span><span class="kw">fn </span>dedup_array_try_dedup_and_sort_runs_for_all_arrays() {
 <a href=#533 id=533 data-nosnippet>533</a>        <span class="kw">let </span><span class="kw-2">mut </span>dedup_me = DedupMe {
 <a href=#534 id=534 data-nosnippet>534</a>            values: <span class="macro">vec!</span>[vd(<span class="string">"b"</span>, <span class="prelude-val">Some</span>(<span class="number">42</span>.into())), vd(<span class="string">"b"</span>, <span class="prelude-val">None</span>), vd(<span class="string">"a"</span>, <span class="prelude-val">None</span>)],
 <a href=#535 id=535 data-nosnippet>535</a>            providers: <span class="macro">vec!</span>[

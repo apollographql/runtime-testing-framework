@@ -1274,7 +1274,7 @@
 <a href=#1274 id=1274 data-nosnippet>1274</a>    <span class="attr">#[test_case(canned_ops_by_id(<span class="string">"graph@variant"</span>), <span class="bool-val">false</span>, <span class="kw-2">&amp;</span>[ErrorKind::MissingGraphOsApiKey]</span>; <span class="string">"canned ops by id missing key"</span>)]
 <a href=#1275 id=1275 data-nosnippet>1275</a>    <span class="attr">#[test_case(canned_ops_by_id(<span class="string">"not a valid ref"</span>), <span class="bool-val">false</span>, <span class="kw-2">&amp;</span>[ErrorKind::InvalidGraphRef, ErrorKind::MissingGraphOsApiKey]</span>; <span class="string">"canned ops by id invalid ref and missing key"</span>)]
 <a href=#1276 id=1276 data-nosnippet>1276</a>    <span class="attr">#[test]
-<a href=#1277 id=1277 data-nosnippet>1277</a>    </span><span class="kw">fn </span>try_check_graph_ref_providers(
+<a href=#1277 id=1277 data-nosnippet>1277</a>    </span><span class="kw">fn </span>graphos_providers_check_graph_ref(
 <a href=#1278 id=1278 data-nosnippet>1278</a>        fp: FileProvider,
 <a href=#1279 id=1279 data-nosnippet>1279</a>        with_platform_config: bool,
 <a href=#1280 id=1280 data-nosnippet>1280</a>        expected_err_kinds: <span class="kw-2">&amp;</span>[ErrorKind],
@@ -1296,7 +1296,7 @@
 <a href=#1296 id=1296 data-nosnippet>1296</a>    }
 <a href=#1297 id=1297 data-nosnippet>1297</a>
 <a href=#1298 id=1298 data-nosnippet>1298</a>    <span class="attr">#[test]
-<a href=#1299 id=1299 data-nosnippet>1299</a>    </span><span class="kw">fn </span>try_check_offline_license_success() {
+<a href=#1299 id=1299 data-nosnippet>1299</a>    </span><span class="kw">fn </span>offline_license_check_success() {
 <a href=#1300 id=1300 data-nosnippet>1300</a>        <span class="kw">let </span>offline = OfflineGraphosLicense {
 <a href=#1301 id=1301 data-nosnippet>1301</a>            graph_id: Field::Resolved(<span class="string">"graph"</span>.to_string()),
 <a href=#1302 id=1302 data-nosnippet>1302</a>        };
@@ -1312,7 +1312,7 @@
 <a href=#1312 id=1312 data-nosnippet>1312</a>    }
 <a href=#1313 id=1313 data-nosnippet>1313</a>
 <a href=#1314 id=1314 data-nosnippet>1314</a>    <span class="attr">#[test]
-<a href=#1315 id=1315 data-nosnippet>1315</a>    </span><span class="kw">fn </span>try_check_offline_license_missing_api_key() {
+<a href=#1315 id=1315 data-nosnippet>1315</a>    </span><span class="kw">fn </span>offline_license_check_missing_api_key() {
 <a href=#1316 id=1316 data-nosnippet>1316</a>        <span class="kw">let </span>offline = OfflineGraphosLicense {
 <a href=#1317 id=1317 data-nosnippet>1317</a>            graph_id: Field::Resolved(<span class="string">"graph"</span>.to_string()),
 <a href=#1318 id=1318 data-nosnippet>1318</a>        };
@@ -1326,7 +1326,7 @@
 <a href=#1326 id=1326 data-nosnippet>1326</a>    }
 <a href=#1327 id=1327 data-nosnippet>1327</a>
 <a href=#1328 id=1328 data-nosnippet>1328</a>    <span class="attr">#[test]
-<a href=#1329 id=1329 data-nosnippet>1329</a>    </span><span class="kw">fn </span>try_check_router_download_script_success() {
+<a href=#1329 id=1329 data-nosnippet>1329</a>    </span><span class="kw">fn </span>router_download_script_check_success() {
 <a href=#1330 id=1330 data-nosnippet>1330</a>        <span class="kw">let </span>router_download = RouterDownloadScript {
 <a href=#1331 id=1331 data-nosnippet>1331</a>            version: Field::Resolved(<span class="string">"v2.0.0"</span>.to_string()),
 <a href=#1332 id=1332 data-nosnippet>1332</a>        };
@@ -1341,7 +1341,7 @@
 <a href=#1341 id=1341 data-nosnippet>1341</a>    }
 <a href=#1342 id=1342 data-nosnippet>1342</a>
 <a href=#1343 id=1343 data-nosnippet>1343</a>    <span class="attr">#[test]
-<a href=#1344 id=1344 data-nosnippet>1344</a>    </span><span class="kw">fn </span>try_check_build_router_from_source_success() {
+<a href=#1344 id=1344 data-nosnippet>1344</a>    </span><span class="kw">fn </span>build_router_from_source_check_success() {
 <a href=#1345 id=1345 data-nosnippet>1345</a>        <span class="kw">let </span>build_from_source = BuildRouterFromSource {
 <a href=#1346 id=1346 data-nosnippet>1346</a>            git_ref: Field::Resolved(<span class="string">"ref"</span>.to_string()),
 <a href=#1347 id=1347 data-nosnippet>1347</a>            rust_version: Field::Resolved(<span class="string">"1.90.0"</span>.to_string()),
@@ -1357,7 +1357,7 @@
 <a href=#1357 id=1357 data-nosnippet>1357</a>    }
 <a href=#1358 id=1358 data-nosnippet>1358</a>
 <a href=#1359 id=1359 data-nosnippet>1359</a>    <span class="attr">#[tokio::test]
-<a href=#1360 id=1360 data-nosnippet>1360</a>    </span><span class="kw">async fn </span>content_from_details_supergraph_success() {
+<a href=#1360 id=1360 data-nosnippet>1360</a>    </span><span class="kw">async fn </span>supergraph_resolve_success() {
 <a href=#1361 id=1361 data-nosnippet>1361</a>        <span class="kw">let </span>details = supergraph_details();
 <a href=#1362 id=1362 data-nosnippet>1362</a>        <span class="kw">let </span>supergraph = supergraph(<span class="string">"graph@variant"</span>);
 <a href=#1363 id=1363 data-nosnippet>1363</a>
@@ -1367,7 +1367,7 @@
 <a href=#1367 id=1367 data-nosnippet>1367</a>    }
 <a href=#1368 id=1368 data-nosnippet>1368</a>
 <a href=#1369 id=1369 data-nosnippet>1369</a>    <span class="attr">#[tokio::test]
-<a href=#1370 id=1370 data-nosnippet>1370</a>    </span><span class="kw">async fn </span>content_from_details_supergraph_with_docker_overrides_success() {
+<a href=#1370 id=1370 data-nosnippet>1370</a>    </span><span class="kw">async fn </span>supergraph_resolve_with_docker_overrides_success() {
 <a href=#1371 id=1371 data-nosnippet>1371</a>        <span class="kw">let </span>details = supergraph_details();
 <a href=#1372 id=1372 data-nosnippet>1372</a>        <span class="kw">let </span>supergraph = GraphosSupergraph {
 <a href=#1373 id=1373 data-nosnippet>1373</a>            graph_ref: Field::Resolved(<span class="string">"graph@variant"</span>.to_string()),
@@ -1391,7 +1391,7 @@
 <a href=#1391 id=1391 data-nosnippet>1391</a>    }
 <a href=#1392 id=1392 data-nosnippet>1392</a>
 <a href=#1393 id=1393 data-nosnippet>1393</a>    <span class="attr">#[tokio::test]
-<a href=#1394 id=1394 data-nosnippet>1394</a>    </span><span class="kw">async fn </span>content_from_details_supergraph_with_lcoalhost_overrides_success() {
+<a href=#1394 id=1394 data-nosnippet>1394</a>    </span><span class="kw">async fn </span>supergraph_resolve_with_localhost_overrides_success() {
 <a href=#1395 id=1395 data-nosnippet>1395</a>        <span class="kw">let </span>details = supergraph_details();
 <a href=#1396 id=1396 data-nosnippet>1396</a>        <span class="kw">let </span>supergraph = GraphosSupergraph {
 <a href=#1397 id=1397 data-nosnippet>1397</a>            graph_ref: Field::Resolved(<span class="string">"graph@variant"</span>.to_string()),
@@ -1415,7 +1415,7 @@
 <a href=#1415 id=1415 data-nosnippet>1415</a>    }
 <a href=#1416 id=1416 data-nosnippet>1416</a>
 <a href=#1417 id=1417 data-nosnippet>1417</a>    <span class="attr">#[tokio::test]
-<a href=#1418 id=1418 data-nosnippet>1418</a>    </span><span class="kw">async fn </span>content_from_details_subgraphs_success() {
+<a href=#1418 id=1418 data-nosnippet>1418</a>    </span><span class="kw">async fn </span>subgraphs_resolve_success() {
 <a href=#1419 id=1419 data-nosnippet>1419</a>        <span class="kw">let </span>details = supergraph_details();
 <a href=#1420 id=1420 data-nosnippet>1420</a>        <span class="kw">let </span>subgraphs = subgraphs(<span class="string">"graph@variant"</span>);
 <a href=#1421 id=1421 data-nosnippet>1421</a>
@@ -1431,7 +1431,7 @@
 <a href=#1431 id=1431 data-nosnippet>1431</a>    }
 <a href=#1432 id=1432 data-nosnippet>1432</a>
 <a href=#1433 id=1433 data-nosnippet>1433</a>    <span class="attr">#[tokio::test]
-<a href=#1434 id=1434 data-nosnippet>1434</a>    </span><span class="kw">async fn </span>content_from_details_subgraph_docker_compose_success() {
+<a href=#1434 id=1434 data-nosnippet>1434</a>    </span><span class="kw">async fn </span>subgraph_docker_compose_resolve_success() {
 <a href=#1435 id=1435 data-nosnippet>1435</a>        <span class="kw">let </span>details = supergraph_details();
 <a href=#1436 id=1436 data-nosnippet>1436</a>        <span class="kw">let </span>subgraphs_compose = subgraphs_compose(<span class="string">"graph@variant"</span>);
 <a href=#1437 id=1437 data-nosnippet>1437</a>
@@ -1449,7 +1449,7 @@
 <a href=#1449 id=1449 data-nosnippet>1449</a>    }
 <a href=#1450 id=1450 data-nosnippet>1450</a>
 <a href=#1451 id=1451 data-nosnippet>1451</a>    <span class="attr">#[tokio::test]
-<a href=#1452 id=1452 data-nosnippet>1452</a>    </span><span class="kw">async fn </span>content_from_details_subgraph_url_overrides_success() {
+<a href=#1452 id=1452 data-nosnippet>1452</a>    </span><span class="kw">async fn </span>subgraph_url_overrides_resolve_success() {
 <a href=#1453 id=1453 data-nosnippet>1453</a>        <span class="kw">let </span>details = supergraph_details();
 <a href=#1454 id=1454 data-nosnippet>1454</a>        <span class="kw">let </span>subgraphs_overrides = subgraphs_overrides(<span class="string">"graph@variant"</span>);
 <a href=#1455 id=1455 data-nosnippet>1455</a>
@@ -1461,7 +1461,7 @@
 <a href=#1461 id=1461 data-nosnippet>1461</a>    }
 <a href=#1462 id=1462 data-nosnippet>1462</a>
 <a href=#1463 id=1463 data-nosnippet>1463</a>    <span class="attr">#[test]
-<a href=#1464 id=1464 data-nosnippet>1464</a>    </span><span class="kw">fn </span>canned_ops_json_formats_correctly() {
+<a href=#1464 id=1464 data-nosnippet>1464</a>    </span><span class="kw">fn </span>canned_ops_format_json_correctly() {
 <a href=#1465 id=1465 data-nosnippet>1465</a>        <span class="kw">let </span>canned_ops: Vec&lt;CannedOperation&gt; = <span class="macro">vec!</span>[
 <a href=#1466 id=1466 data-nosnippet>1466</a>            CannedOperation {
 <a href=#1467 id=1467 data-nosnippet>1467</a>                id: <span class="string">"1"</span>.to_string(),
@@ -1490,7 +1490,7 @@
 <a href=#1490 id=1490 data-nosnippet>1490</a>    }
 <a href=#1491 id=1491 data-nosnippet>1491</a>
 <a href=#1492 id=1492 data-nosnippet>1492</a>    <span class="attr">#[tokio::test]
-<a href=#1493 id=1493 data-nosnippet>1493</a>    </span><span class="kw">async fn </span>resolve_and_write_router_download_success() {
+<a href=#1493 id=1493 data-nosnippet>1493</a>    </span><span class="kw">async fn </span>router_download_resolve_and_write_success() {
 <a href=#1494 id=1494 data-nosnippet>1494</a>        <span class="kw">let </span>temp = TempDir::new().unwrap();
 <a href=#1495 id=1495 data-nosnippet>1495</a>        <span class="kw">let </span>target = temp.child(<span class="string">"router-download.sh"</span>);
 <a href=#1496 id=1496 data-nosnippet>1496</a>
@@ -1520,7 +1520,7 @@
 <a href=#1520 id=1520 data-nosnippet>1520</a>    }
 <a href=#1521 id=1521 data-nosnippet>1521</a>
 <a href=#1522 id=1522 data-nosnippet>1522</a>    <span class="attr">#[tokio::test]
-<a href=#1523 id=1523 data-nosnippet>1523</a>    </span><span class="kw">async fn </span>resolve_and_write_router_download_not_found_error() {
+<a href=#1523 id=1523 data-nosnippet>1523</a>    </span><span class="kw">async fn </span>router_download_resolve_and_write_not_found_error() {
 <a href=#1524 id=1524 data-nosnippet>1524</a>        <span class="kw">let </span>temp = TempDir::new().unwrap();
 <a href=#1525 id=1525 data-nosnippet>1525</a>        <span class="kw">let </span>target = temp.child(<span class="string">"router-download.sh"</span>);
 <a href=#1526 id=1526 data-nosnippet>1526</a>
@@ -1544,7 +1544,7 @@
 <a href=#1544 id=1544 data-nosnippet>1544</a>    </span>}
 <a href=#1545 id=1545 data-nosnippet>1545</a>
 <a href=#1546 id=1546 data-nosnippet>1546</a>    <span class="attr">#[tokio::test]
-<a href=#1547 id=1547 data-nosnippet>1547</a>    </span><span class="kw">async fn </span>resolve_and_write_router_from_source_success() {
+<a href=#1547 id=1547 data-nosnippet>1547</a>    </span><span class="kw">async fn </span>router_from_source_resolve_and_write_success() {
 <a href=#1548 id=1548 data-nosnippet>1548</a>        <span class="kw">let </span>temp = TempDir::new().unwrap();
 <a href=#1549 id=1549 data-nosnippet>1549</a>        <span class="kw">let </span>target = temp.child(<span class="string">"build-from-source.sh"</span>);
 <a href=#1550 id=1550 data-nosnippet>1550</a>

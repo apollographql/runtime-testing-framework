@@ -310,7 +310,7 @@
 <a href=#310 id=310 data-nosnippet>310</a>    </span>);
 <a href=#311 id=311 data-nosnippet>311</a>
 <a href=#312 id=312 data-nosnippet>312</a>    <span class="attr">#[test]
-<a href=#313 id=313 data-nosnippet>313</a>    </span><span class="kw">fn </span>environment_parses_and_templates() {
+<a href=#313 id=313 data-nosnippet>313</a>    </span><span class="kw">fn </span>parse_success() {
 <a href=#314 id=314 data-nosnippet>314</a>        <span class="kw">let </span>config: EnvironmentConfig =
 <a href=#315 id=315 data-nosnippet>315</a>            serde_yaml::from_str(TEMPLATED_ENVIRONMENT).expect(<span class="string">"environment config to parse"</span>);
 <a href=#316 id=316 data-nosnippet>316</a>
@@ -559,7 +559,7 @@
 <a href=#559 id=559 data-nosnippet>559</a>    // just use an "empty" config here and get the same result but this is a more illustrative
 <a href=#560 id=560 data-nosnippet>560</a>    // example
 <a href=#561 id=561 data-nosnippet>561</a>    </span><span class="attr">#[test]
-<a href=#562 id=562 data-nosnippet>562</a>    </span><span class="kw">fn </span>try_check_success() {
+<a href=#562 id=562 data-nosnippet>562</a>    </span><span class="kw">fn </span>check_success() {
 <a href=#563 id=563 data-nosnippet>563</a>        <span class="kw">let </span>environment = EnvironmentConfig {
 <a href=#564 id=564 data-nosnippet>564</a>            setup: SetupSection {
 <a href=#565 id=565 data-nosnippet>565</a>                command: cmd_with_inline_file(),

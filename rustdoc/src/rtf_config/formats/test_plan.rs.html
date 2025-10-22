@@ -733,7 +733,7 @@
 <a href=#733 id=733 data-nosnippet>733</a>    </span>);
 <a href=#734 id=734 data-nosnippet>734</a>
 <a href=#735 id=735 data-nosnippet>735</a>    <span class="attr">#[tokio::test]
-<a href=#736 id=736 data-nosnippet>736</a>    </span><span class="kw">async fn </span>parse_and_template_inline_test_plan_config() {
+<a href=#736 id=736 data-nosnippet>736</a>    </span><span class="kw">async fn </span>parse_and_template_inline_config() {
 <a href=#737 id=737 data-nosnippet>737</a>        <span class="kw">let </span>raw_test_plan: RawTestPlanConfig =
 <a href=#738 id=738 data-nosnippet>738</a>            serde_yaml::from_str(INLINE_TEST_PLAN).expect(<span class="string">"test plan config to parse"</span>);
 <a href=#739 id=739 data-nosnippet>739</a>        <span class="kw">let </span>ctx = Context::new();
@@ -897,7 +897,7 @@
 <a href=#897 id=897 data-nosnippet>897</a>    </span>);
 <a href=#898 id=898 data-nosnippet>898</a>
 <a href=#899 id=899 data-nosnippet>899</a>    <span class="attr">#[tokio::test]
-<a href=#900 id=900 data-nosnippet>900</a>    </span><span class="kw">async fn </span>parse_test_plan_with_overrides() {
+<a href=#900 id=900 data-nosnippet>900</a>    </span><span class="kw">async fn </span>parse_with_overrides() {
 <a href=#901 id=901 data-nosnippet>901</a>        <span class="kw">let </span>temp = TempDir::new().unwrap();
 <a href=#902 id=902 data-nosnippet>902</a>
 <a href=#903 id=903 data-nosnippet>903</a>        <span class="kw">let </span>tp_file = temp.child(<span class="string">"test-plan.yaml"</span>);
@@ -1563,7 +1563,7 @@
 <a href=#1563 id=1563 data-nosnippet>1563</a>    }
 <a href=#1564 id=1564 data-nosnippet>1564</a>
 <a href=#1565 id=1565 data-nosnippet>1565</a>    <span class="attr">#[test]
-<a href=#1566 id=1566 data-nosnippet>1566</a>    </span><span class="kw">fn </span>try_check_success() {
+<a href=#1566 id=1566 data-nosnippet>1566</a>    </span><span class="kw">fn </span>check_success() {
 <a href=#1567 id=1567 data-nosnippet>1567</a>        <span class="kw">let </span>test_plan = TestPlanConfig {
 <a href=#1568 id=1568 data-nosnippet>1568</a>            scenario: ScenarioConfig {
 <a href=#1569 id=1569 data-nosnippet>1569</a>                command: cmd_with_inline_file(),

@@ -3823,6 +3823,102 @@ follows:</p>
   }
 }
 <span class="boring">}</span></code></pre></pre>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate uses several testing strategies and tools to ensure comprehensive
+coverage of configuration parsing, validation, and resolution.</p>
+<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing Infrastructure</a></h3>
+<p>The crate leverages the following key testing tools:</p>
+<ul>
+<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Enables parameterized testing with <code>#[test_case]</code> attributes for
+testing multiple input variations with the same test logic</li>
+<li><strong><code>assert_fs</code></strong> - Provides temporary filesystem testing utilities for file operations</li>
+<li><strong><code>predicates</code></strong> - Offers composable assertion predicates for more expressive test assertions</li>
+<li><strong><code>indoc</code></strong> - Allows clean multi-line string literals in tests, particularly useful for YAML
+configurations</li>
+</ul>
+<h3 id="mock-system"><a class="header" href="#mock-system">Mock System</a></h3>
+<p>The crate implements a flexible mock system through <code>MockContext&lt;T&gt;</code> that allows dependency
+injection during testing:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// For HTTP client testing
+let mock_ctx = MockContext::with_http_client(&amp;[
+    ("https://example.com/api", "200", "response body")
+]);
+
+// For GitHub client testing  
+let mock_ctx = MockContext::with_github_client("file content");
+<span class="boring">}</span></code></pre></pre>
+<p>This approach enables testing without external dependencies while maintaining the same interfaces
+used in production code.</p>
+<p>For mocking interactions with GraphOS, a different approach is used. Rather than mocking the GraphOS
+API directly, the tests create mock <code>SupergraphDetails</code> and test the content transformation logic:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[test]
+fn supergraph_resolve_success() {
+    // Create mock supergraph details with known test data
+    let details = Arc::new(SupergraphDetails {
+        graph_id: "test-graph".to_string(),
+        variant: "test-variant".to_string(),
+        supergraph_sdl: "schema { query: Query }".to_string(),
+        subgraphs: vec![/* test subgraphs */],
+    });
+
+    let supergraph = GraphosSupergraph {
+        graph_ref: Field::Resolved("graph@variant".to_string()),
+        with_subgraph_overrides: None,
+    };
+
+    // Test the content transformation directly
+    let result = supergraph.content_from_details(details);
+    assert_eq!(result, "schema { query: Query }");
+}
+<span class="boring">}</span></code></pre></pre>
+<p>This pattern allows testing the core business logic while avoiding the complexity of mocking
+external APIs. The <code>with_supergraph_details</code> method in the production context handles the API
+interaction separately.</p>
+<h3 id="parameterized-testing-patterns"><a class="header" href="#parameterized-testing-patterns">Parameterized Testing Patterns</a></h3>
+<p>Tests extensively use <code>#[test_case]</code> to cover multiple scenarios efficiently:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[test_case("foo"; "ascii")]
+#[test_case("BAR"; "upper case")]
+#[test_case("世界"; "unicode")]
+#[test]
+fn field_parse_valid_identifiers(raw: &amp;str) {
+    // Test logic handles all cases
+}
+<span class="boring">}</span></code></pre></pre>
+<p>Related test cases are grouped into test classes when using parameterized testing, following the
+naming hierarchy described in the <a href="developer/testing/rtf-config.html#organization">Organization</a> section.</p>
+<h3 id="configuration-testing-strategy"><a class="header" href="#configuration-testing-strategy">Configuration Testing Strategy</a></h3>
+<p>The crate employs a systematic approach to testing configuration handling:</p>
+<ol>
+<li><strong>Parsing Tests</strong> - Verify YAML deserialization works correctly for valid inputs and fails
+appropriately for invalid ones</li>
+<li><strong>Template Resolution Tests</strong> - Ensure the <code>{{ value }}</code> templating system works across all
+supported data types. In most cases specific tests are not required for the <code>Template</code> trait
+since this is derived with a proc macro. Whenever there is a custom implementation of this trait
+then tests are defined.</li>
+<li><strong>Validation Tests</strong> - Check that configuration validation catches common errors and edge cases</li>
+<li><strong>Resolve Tests</strong> - Test that providers and configuration resolve and execute correctly.</li>
+</ol>
+<h3 id="test-data-management"><a class="header" href="#test-data-management">Test Data Management</a></h3>
+<p>Test data is organized in two main ways:</p>
+<ul>
+<li><strong>Inline test data</strong> using <code>indoc!</code> for small, focused examples</li>
+<li><strong>Resource files</strong> in <code>resources/</code> for larger, realistic configurations and any non UTF-8 files.</li>
+</ul>
+<h3 id="error-testing"><a class="header" href="#error-testing">Error Testing</a></h3>
+<p>The crate places strong emphasis on testing error conditions:</p>
+<ul>
+<li><strong>Malformed input testing</strong> - Invalid YAML, incorrect template syntax, missing required fields</li>
+<li><strong>Boundary condition testing</strong> - Empty values, special characters, unicode handling</li>
+<li><strong>Error message validation</strong> - Ensuring error messages are helpful for users</li>
+</ul>
+<p>Error tests follow the same organizational patterns as success tests, often using parameterized
+testing to cover multiple error scenarios efficiently.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="rtf-core"><a class="header" href="#rtf-core">rtf-core</a></h1>
 <p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-core"><code>rtf-core</code></a> crate are organized and implemented.</p>
 <h2 id="organization-2"><a class="header" href="#organization-2">Organization</a></h2>
