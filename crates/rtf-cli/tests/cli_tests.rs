@@ -120,3 +120,18 @@ fn custom_matrix_variant_names_work() {
     cmd.assert_path_exists("output/sailor-mother");
     cmd.assert_path_exists("output/sailor-father");
 }
+
+#[test]
+fn matrix_include_works() {
+    prepare_rtf_run("resources/matrix-include")
+        .assert()
+        .success()
+        .stdout(contains("hello, world!"))
+        .stdout(contains("hello, sailor"))
+        .stdout(contains("hello, mother"))
+        .stdout(contains("hello, father"))
+        .stdout(contains("what a wonderful world!"))
+        .stdout(contains("what a wonderful sailor"))
+        .stdout(contains("what a wonderful mother"))
+        .stdout(contains("what a wonderful father"));
+}
