@@ -38,6 +38,7 @@
   - [rtf-cli](developer/testing/rtf-cli.md)
   - [rtf-config](developer/testing/rtf-config.md)
   - [rtf-core](developer/testing/rtf-core.md)
+  - [rtf-derive](developer/testing/rtf-derive.md)
 - [PR checks](developer/pr-checks.md)
 - [Parsing config files](developer/parsing-config-files.md)
 - [Data structures](developer/data-structures/index.md)
