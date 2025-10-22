@@ -236,7 +236,7 @@ mod tests {
     }
 
     #[test]
-    fn value_defaults_are_used_correctly() {
+    fn values_for_config_file_defaults_used_correctly() {
         let all_values: HashMap<String, Scalar> = [
             ("a".into(), 1.into()),
             ("b".into(), "foo".into()),

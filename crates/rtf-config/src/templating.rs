@@ -606,7 +606,7 @@ mod tests {
     #[test_case("bool: \"{{ foo }}\"", Target::B { bool: Field::Pending("foo".to_string()) }; "template bool")]
     #[test_case("str: \"{{ foo }}\"", Target::S { str: Field::Pending("foo".to_string()) }; "template string")]
     #[test]
-    fn parsing_a_field_works(s: &str, expected: Target) {
+    fn field_parse_works(s: &str, expected: Target) {
         let target: Target = serde_yaml::from_str(s).unwrap();
         assert_eq!(target, expected)
     }
@@ -622,7 +622,7 @@ mod tests {
     #[test_case("baz1"; "non leading digit")]
     #[test_case("foo_bar"; "internal underscore")]
     #[test]
-    fn valid_value_identifiers_are_accepted(raw: &str) {
+    fn field_parse_valid_identifiers(raw: &str) {
         let s = format!("field: \"{{{{ {raw} }}}}\"");
         let res: serde_yaml::Result<StringField> = serde_yaml::from_str(&s);
         assert!(res.is_ok(), "expected ok, got {res:?}");
@@ -638,7 +638,7 @@ mod tests {
     #[test_case(""; "no value name")]
     #[test_case("🦊"; "emoji")]
     #[test]
-    fn invalid_value_identifiers_are_rejected(raw: &str) {
+    fn field_parse_invalid_identifiers(raw: &str) {
         let s = format!("field: \"{{{{ {raw} }}}}\"");
         let res: serde_yaml::Result<StringField> = serde_yaml::from_str(&s);
         assert!(res.is_err(), "expected error, got {res:?}");
@@ -654,13 +654,13 @@ mod tests {
     #[test_case(r#""{{ foo  }}""#; "additional trailing space")]
     #[test_case(r#""{{ foo\t }}""#; "trailing tab")]
     #[test]
-    fn malformed_templates_error(raw: &str) {
+    fn field_parse_malformed_template_string(raw: &str) {
         let res: serde_yaml::Result<StringField> = serde_yaml::from_str(&format!("field: {raw}"));
         assert!(res.is_err(), "expected error, got {res:?}");
     }
 
     #[test]
-    fn single_leading_curly_is_permitted_for_a_string_field() {
+    fn field_parse_single_leading_curly_permitted() {
         let raw = r#"field: "{ \"some\": { \"valid\": [\"json\", \"data\"] }}""#;
         let res: serde_yaml::Result<StringField> = serde_yaml::from_str(raw);
 
@@ -736,7 +736,7 @@ mod tests {
     #[test_case(hmf(&[r("foo")]), false; "hash map single entry resolved")]
     #[test_case(hmf(&[]), false; "hash map no entries resolved")]
     #[test]
-    fn has_pending_fields(t: Box<dyn Template>, expected: bool) {
+    fn template_has_pending_fields(t: Box<dyn Template>, expected: bool) {
         let res = t.has_pending_fields();
         assert_eq!(
             res, expected,
@@ -760,7 +760,7 @@ mod tests {
     #[test_case(hmf(&[r("foo")]), &[]; "hash map single entry is not required")]
     #[test_case(hmf(&[]), &[]; "hash map no entries not required")]
     #[test]
-    fn required_values(t: Box<dyn Template>, expected: &[&str]) {
+    fn template_required_values(t: Box<dyn Template>, expected: &[&str]) {
         let mut res = t.required_values();
         res.sort(); // Sorting so values are in a determistic order for the assert_eq
 
@@ -790,7 +790,7 @@ mod tests {
     #[test_case(hmf(&[p("foo")]), &["foo"]; "single hash map entry templates")]
     #[test_case(hmf(&[]), &[]; "no hash map entries templates")]
     #[test]
-    fn try_template(mut t: Box<dyn Template>, values: &[&str]) {
+    fn template_try_template_success(mut t: Box<dyn Template>, values: &[&str]) {
         let values = values_map!(values);
         let res = t.try_template(&mut Vec::new(), &values);
         assert!(
@@ -805,7 +805,10 @@ mod tests {
     #[test_case(hmf(&[p("foo"), p("bar"), p("baz")]), &["bar", "baz", "foo"]; "multiple hash map entries")]
     #[test_case(hmf(&[p("foo")]), &["foo"]; "single hash map entry")]
     #[test]
-    fn try_template_unknown_value_error(mut t: Box<dyn Template>, expected_err_messages: &[&str]) {
+    fn template_try_template_unknown_value_error(
+        mut t: Box<dyn Template>,
+        expected_err_messages: &[&str],
+    ) {
         let values = values_map!(["unused"]);
 
         let res = t.try_template(&mut Vec::new(), &values);

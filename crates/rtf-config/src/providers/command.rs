@@ -443,7 +443,7 @@ mod tests {
     #[test_case(PARTIAL_RELATIVE_PATH, &["path"]; "partial_relative_path")]
     #[test_case(REQUIRED, &[]; "required")]
     #[test]
-    fn command_parses_and_templates(content: &str, expected_values: &[&str]) {
+    fn command_parse_and_template(content: &str, expected_values: &[&str]) {
         let config: CommandSection = serde_yaml::from_str(content).unwrap();
 
         let mut res = config.required_values();
@@ -452,7 +452,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_command_spec_success() {
+    fn command_spec_check_success() {
         let command = CommandSpec {
             name: "name".to_string(),
             args: Vec::new(),
@@ -471,7 +471,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_command_spec_command_provider_errors() {
+    fn command_spec_check_command_provider_errors() {
         let command = CommandSpec {
             name: "name".to_string(),
             args: Vec::new(),
@@ -497,7 +497,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_command_section_success() {
+    fn command_section_check_success() {
         let command = cmd_with_inline_file();
 
         let ctx = Context::new();
@@ -510,7 +510,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_command_section_command_errors() {
+    fn command_section_check_command_errors() {
         let command = cmd_with_required_file();
 
         let ctx = Context::new();
@@ -530,7 +530,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_command_section_file_provider_errors() {
+    fn command_section_check_file_provider_errors() {
         let command = CommandSection {
             file_providers: vec![NamedFileProvider {
                 name: "required".to_string(),
@@ -559,7 +559,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_command_section_duplicate_env_var_errors() {
+    fn command_section_check_duplicate_env_var_errors() {
         let mut env_vars: HashMap<String, Field<Scalar>> = HashMap::new();
         env_vars.insert("A".to_string(), Field::Resolved("A".into()));
         env_vars.insert("B".to_string(), Field::Resolved("B".into()));
@@ -593,7 +593,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_command_section_combined_errors() {
+    fn command_section_check_combined_errors() {
         let mut env_vars: HashMap<String, Field<Scalar>> = HashMap::new();
         env_vars.insert("A".to_string(), Field::Resolved("A".into()));
         env_vars.insert("B".to_string(), Field::Resolved("B".into()));
@@ -785,7 +785,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn all_env_vars_includes_file_providers() {
+    async fn command_section_all_env_vars_includes_file_providers() {
         let c = test_cmd_section();
         let mut ctx = MockCommandContext::default();
         let dir = PathBuf::from("/example-dir");
@@ -823,7 +823,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn run_providers_writes_the_expected_files() {
+    async fn command_section_run_providers_writes_expected_files() {
         let c = test_cmd_section();
         let mut ctx = MockCommandContext::default();
         let dir = PathBuf::from("/example-dir");
@@ -848,7 +848,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_provider_cache_is_used_to_avoid_rerunning_providers() {
+    async fn command_section_provider_cache_used_to_avoid_rerunning() {
         let c = test_cmd_section();
         let mut ctx = MockCommandContext::default();
         let dir = PathBuf::from("/example-dir");

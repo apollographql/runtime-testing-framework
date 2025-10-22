@@ -172,7 +172,7 @@ mod tests {
     );
 
     #[test]
-    fn scenario_parses_and_templates() {
+    fn parse_and_template() {
         let config: ScenarioConfig =
             serde_yaml::from_str(TEMPLATED_SCENARIO).expect("scenario config to parse");
 
@@ -257,7 +257,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_success() {
+    fn check_success() {
         let scenario = ScenarioConfig {
             command: cmd_with_inline_file(),
             ..ScenarioConfig::empty()
@@ -273,7 +273,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_command_errors() {
+    fn check_command_errors() {
         let scenario = ScenarioConfig {
             command: cmd_with_required_file(),
             ..ScenarioConfig::empty()

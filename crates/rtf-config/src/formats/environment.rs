@@ -310,7 +310,7 @@ pub(crate) mod tests {
     );
 
     #[test]
-    fn environment_parses_and_templates() {
+    fn parse_success() {
         let config: EnvironmentConfig =
             serde_yaml::from_str(TEMPLATED_ENVIRONMENT).expect("environment config to parse");
 
@@ -559,7 +559,7 @@ pub(crate) mod tests {
     // just use an "empty" config here and get the same result but this is a more illustrative
     // example
     #[test]
-    fn try_check_success() {
+    fn check_success() {
         let environment = EnvironmentConfig {
             setup: SetupSection {
                 command: cmd_with_inline_file(),

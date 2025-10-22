@@ -104,7 +104,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_github_file_success() {
+    fn github_file_check_success() {
         // This test works because all that's needed for success in the GitHub case is
         // a GitHub token to be defined in the context
         let github_file = github_file();
@@ -123,7 +123,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_github_file_missing_github_api_key() {
+    fn github_file_check_missing_github_api_key() {
         // This test works because all that's needed for success in the GitHub case is
         // a GitHub token to be defined in the context
         let github_file = github_file();
@@ -145,7 +145,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_write_github_file_success() {
+    async fn github_file_resolve_and_write_success() {
         let temp = TempDir::new().unwrap();
         let target = temp.child("github.txt");
 
@@ -167,7 +167,7 @@ mod tests {
 
     #[tokio::test]
     #[should_panic(expected = "to have a GitHub client")]
-    async fn resolve_and_write_github_file_no_github_client_panics() {
+    async fn github_file_resolve_and_write_no_github_client_panics() {
         let temp = TempDir::new().unwrap();
         let target = temp.child("github.txt");
 

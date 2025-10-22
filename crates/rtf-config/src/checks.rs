@@ -272,7 +272,7 @@ mod tests {
     }
 
     #[test]
-    fn duplicate_keys_returns_empty_vec_for_no_duplicates() {
+    fn duplicate_keys_returns_empty_for_no_duplicates() {
         let vals = [
             Mapping { k: "a", _v: 1 },
             Mapping { k: "c", _v: 2 },
@@ -496,7 +496,7 @@ mod tests {
     }
 
     #[test]
-    fn try_dedup_and_sort_doesnt_sort_or_dedup_when_returning_errors() {
+    fn dedup_array_try_dedup_and_sort_doesnt_sort_when_returning_errors() {
         let mut dedup_me = DedupMe {
             values: vec![vd("b", None), vd("b", None), vd("b", None), vd("a", None)],
             providers: vec![
@@ -529,7 +529,7 @@ mod tests {
     }
 
     #[test]
-    fn try_dedup_and_sort_runs_for_all_arrays() {
+    fn dedup_array_try_dedup_and_sort_runs_for_all_arrays() {
         let mut dedup_me = DedupMe {
             values: vec![vd("b", Some(42.into())), vd("b", None), vd("a", None)],
             providers: vec![

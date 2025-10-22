@@ -317,7 +317,7 @@ mod tests {
     #[test_case(arr(&["key1: X", "key1: Y", "key1: Z"]), "key1: Z\nkey2: B"; "override three replacing same key")]
     #[test_case(arr(&["key3: X\nkey2: Y\nkey4: Z", "key1: W", "key2: V"]), "key1: W\nkey2: V\nkey3: X\nkey4: Z"; "override three layered")]
     #[tokio::test]
-    async fn merge_yaml_produces_expected_output(overrides: Overrides, expected: &str) {
+    async fn merge_yaml_resolve_expected_output(overrides: Overrides, expected: &str) {
         let provider = MergeYaml {
             base: TextFileProvider::Inline(InlineFile {
                 content: "key1: A\nkey2: B".into(),
@@ -339,7 +339,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_merge_yaml_success() {
+    fn merge_yaml_check_success() {
         let merge_yaml = MergeYaml {
             base: TextFileProvider::Inline(InlineFile {
                 content: "some content".to_string(),
@@ -383,7 +383,7 @@ mod tests {
         "base and single override"
     )]
     #[test]
-    fn try_check_merge_yaml_errors(
+    fn merge_yaml_check_errors(
         base: TextFileProvider,
         overrides: Overrides,
         expected_err_kinds: &[checks::ErrorKind],
@@ -399,7 +399,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_from_command_success() {
+    fn from_command_check_success() {
         let from_command = FromCommand {
             inner: CommandSection {
                 ..CommandSection::empty()
@@ -416,7 +416,7 @@ mod tests {
     }
 
     #[test]
-    fn try_check_from_command_errors() {
+    fn from_command_check_errors() {
         let from_command = FromCommand {
             inner: CommandSection {
                 file_providers: vec![NamedFileProvider {
@@ -439,7 +439,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_write_merge_yaml_single_override_success() {
+    async fn merge_yaml_resolve_and_write_single_override_success() {
         let temp = TempDir::new().unwrap();
         let target = temp.child("merged.yaml");
 
@@ -486,7 +486,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_write_merge_yaml_multiple_overrides_success() {
+    async fn merge_yaml_resolve_and_write_multiple_overrides_success() {
         let temp = TempDir::new().unwrap();
         let target = temp.child("merged.yaml");
 
@@ -537,7 +537,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_write_merge_yaml_base_not_yaml_errors() {
+    async fn merge_yaml_resolve_and_write_base_not_yaml_errors() {
         let temp = TempDir::new().unwrap();
         let target = temp.child("merged.yaml");
 
@@ -563,7 +563,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_write_merge_yaml_single_override_not_yaml_errors() {
+    async fn merge_yaml_resolve_and_write_single_override_not_yaml_errors() {
         let temp = TempDir::new().unwrap();
         let target = temp.child("merged.yaml");
 
@@ -589,7 +589,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_write_merge_yaml_one_of_multiple_overrides_not_yaml_errors() {
+    async fn merge_yaml_resolve_and_write_one_of_multiple_overrides_not_yaml_errors() {
         let temp = TempDir::new().unwrap();
         let target = temp.child("merged.yaml");
 

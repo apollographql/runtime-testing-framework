@@ -253,7 +253,7 @@ mod tests {
         "github test plan with branch local raw"
     )]
     #[test]
-    fn try_into_source_respects_parent_source_kind(
+    fn raw_source_try_into_source_respects_parent_source_kind(
         raw: RawSource,
         tp_source: Source,
         expected: Source,
