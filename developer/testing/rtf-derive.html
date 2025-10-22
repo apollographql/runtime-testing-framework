@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>rtf-core - Runtime Testing Framework</title>
+        <title>rtf-derive - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -178,72 +178,128 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="rtf-core"><a class="header" href="#rtf-core">rtf-core</a></h1>
-<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-core"><code>rtf-core</code></a> crate are organized and implemented.</p>
+                        <h1 id="rtf-derive"><a class="header" href="#rtf-derive">rtf-derive</a></h1>
+<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate are organized and implemented.</p>
+<p>This crate defines a <a href="https://doc.rust-lang.org/reference/procedural-macros.html">proc macro</a> for deriving the <code>Template</code> trait defined in the
+<a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate. The considerations for testing a proc macro are different from testing a
+standard Rust crate.</p>
 <h2 id="organization"><a class="header" href="#organization">Organization</a></h2>
-<p>Tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-core"><code>rtf-core</code></a> crate are organized using the following hierarchy:</p>
+<p>For the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate, tests are defined in a <code>tests</code> directory at the root of the crate.
+This is because we need to test how the derive macro is applied to a variety of Rust containers. We
+also need to test the conditions under which the macro will fail to compile. Tests will not be named
+based on the module structure for the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a>, so tests must be named by creating modules
+within the test directory itself.</p>
+<p>Tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate are organized into the following modules:</p>
 <ol>
-<li><strong>Module</strong> - A logical grouping of core RTF functionality. Examples include GraphOS (<code>graphos</code>)
-and GitHub (<code>github</code>) API calls. Since this maps directly to the Rust module structure, there are
-likely to be sub-modules in the path. For example, supergraph details could be nested under the
-path <code>graphos::supergraph::details</code>. The primary concern is the logical organization of the Rust
-code for scopes and privacy.</li>
-<li><strong>Function</strong> - The function or logic under test. This most likely maps to a function or trait.
-For example, <code>generate_canned_ops</code> in <code>graphos</code>. It is unlikely that each of these will have a
-specific file in the Rust code. If this is not fully specified in the module path, then it should
-be specified as the first prefix in the test case name.</li>
-<li><strong>Test class</strong> - A logical grouping of test cases, for example, all valid test cases for fetching
-an offline license from GraphOS. This is only defined when using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> to
-create multiple parameterized tests.</li>
-<li><strong>Test case</strong> - The specific test case. This should be uniquely and meaningfully named. Examples
-of test case naming can be seen <a href="./index.html#test-case-naming">here</a>.</li>
+<li><strong><code>compile</code></strong> - The <code>compile</code> tests check the conditions under which the derive macro will fail
+to compile into valid Rust.</li>
+<li><strong><code>template</code></strong> - The <code>template</code> tests check the implementation of the <code>Template</code> trait works as
+expected when the derive macro is applied to a Rust container.</li>
+</ol>
+<p>The structure of the tests within each of these modules is discussed below.</p>
+<h3 id="compile-tests"><a class="header" href="#compile-tests">Compile Tests</a></h3>
+<p>There are two types of compile test: <code>pass</code> and <code>fail</code>. These are organized into separate
+directories within the <code>compile</code> subdirectory of <code>tests</code>.</p>
+<p>The <code>pass</code> tests work by importing the <code>*.rs</code> files into the <code>compile</code> module. These are not
+executed by <code>cargo test</code> but will fail if <code>cargo check</code> is run and they do not result in valid Rust.
+If any of the code in these modules fails to compile then the test should be considered to have
+failed.</p>
+<p>The <code>fail</code> tests use the <a href="https://docs.rs/trybuild/latest/trybuild/"><code>trybuild</code></a> crate. This is specifically to test the conditions under
+which we expect the derive macro to fail to compile valid Rust. The <code>*.rs</code> files in the <code>fail</code>
+directory should be used as examples of Rust containers that should not have the <code>Template</code> derive
+macro applied to them.</p>
+<blockquote>
+<p><strong>Note</strong>: The <code>trybuild</code> crate automatically generates the expected error messages when you run
+the tests with no error messages defined. There is a chance that updates to the Rust version used
+to run tests changes the format of the error messages produced and causes tests to fail. When this
+happens, delete the <code>.stderr</code> files associated with the failing test files and rerun <code>cargo test</code>.
+This should generate a <code>wip</code> directory at the root of the repository with the new <code>.stderr</code> files.
+Copy these into the <code>fail</code> directory and re-run <code>cargo test</code>. Your tests should now pass.</p>
+</blockquote>
+<h3 id="template-tests"><a class="header" href="#template-tests">Template Tests</a></h3>
+<p>The <code>template</code> tests follow a typical Rust unit testing approach. The module defines various valid
+Rust containers the derive macro can be applied to. It then checks, for each of those containers,
+that the <code>Template</code> trait methods work as expected. The <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> crate is used to
+parameterize these containers into a single test function.</p>
+<p>The tests are organized using the following hierarchy:</p>
+<ol>
+<li><strong>Trait method</strong> - The method of the <code>Template</code> trait under test. In cases where the method can
+error, this will also identify the error conditions.</li>
+<li><strong>Data structure</strong> - The Rust container under test. This is defined as part of the
+<a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> test case name.</li>
+<li><strong>Test case</strong> - Additional information required to uniquely identify the test. This is defined as
+part of the <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> test case name.</li>
 </ol>
 <p>Following the hierarchy above leads to the following generic test case paths:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// When simple_test_case is not used
-module::path::tests::function_test_case
-
-// When simple_test_case is used
-module::path::tests::function_test_class::test_case
+</span>// When simple_test_case is used
+template::tests::trait_method::data_structure_test_case
 <span class="boring">}</span></code></pre></pre>
-<h3 id="example---fetching-an-offline-license-from-graphos"><a class="header" href="#example---fetching-an-offline-license-from-graphos">Example - Fetching an Offline License from GraphOS</a></h3>
-<p>This example demonstrates how to test that an offline license can be fetched from GraphOS. Working
-through the hierarchy:</p>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate employs specialized testing strategies tailored to procedural macro
+testing requirements.</p>
+<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing Infrastructure</a></h3>
+<p>The crate leverages the following key testing tools:</p>
+<ul>
+<li><strong><a href="https://docs.rs/trybuild/latest/trybuild/"><code>trybuild</code></a></strong> - Enables testing of procedural macro compilation failures with precise error
+message validation</li>
+<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Provides parameterized testing capabilities for testing the derive
+macro across multiple Rust container types</li>
+<li><strong>Compile-time testing</strong> - Uses the Rust compiler itself as a testing tool to validate successful
+macro expansion</li>
+</ul>
+<h3 id="procedural-macro-testing-strategy"><a class="header" href="#procedural-macro-testing-strategy">Procedural Macro Testing Strategy</a></h3>
+<p>Testing procedural macros requires a different approach from standard unit testing:</p>
 <ol>
-<li><strong>Module</strong> is <code>graphos::supergraph::operations::license</code>. This is where the <code>offline_license</code>
-function is defined.</li>
-<li><strong>Function</strong> is <code>offline_license</code>. This becomes the first prefix in the test case name since the
-module does not uniquely identify the data structure.</li>
-<li><strong>Test class</strong> is omitted since <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is not used.</li>
-<li><strong>Test case</strong> is <code>retrieved</code>.</li>
+<li><strong>Compilation Success Testing</strong> - Verify that the macro successfully generates valid Rust code
+for supported container types</li>
+<li><strong>Compilation Failure Testing</strong> - Ensure the macro fails appropriately with helpful error
+messages for unsupported scenarios</li>
+<li><strong>Generated Code Testing</strong> - Validate that the generated <code>Template</code> trait implementations behave
+correctly at runtime</li>
 </ol>
-<p>This leads to the following full test path:</p>
+<h3 id="error-testing-with-trybuild"><a class="header" href="#error-testing-with-trybuild">Error Testing with trybuild</a></h3>
+<p>The <code>fail</code> tests use <code>trybuild</code> to capture and validate compilation error messages:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>test graphos::supergraph::operations::license::tests::offline_license_retrieved
-<span class="boring">}</span></code></pre></pre>
-<p>To achieve the structure above, the tests are defined in
-<code>src/graphos/supergraph/operations/license.rs</code> and organized as follows:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>mod tests {
-  #[test]
-  fn offline_license_retrieved() {
-    ...
-  }
+</span>#[test]
+fn ui() {
+    let t = trybuild::TestCases::new();
+    t.compile_fail("tests/compile/fail/*.rs");
 }
 <span class="boring">}</span></code></pre></pre>
+<p>This approach ensures that:</p>
+<ul>
+<li>Error messages remain consistent across Rust versions</li>
+<li>Users receive helpful diagnostic information when the macro cannot be applied</li>
+<li>The macro fails early with clear explanations rather than generating invalid code</li>
+</ul>
+<h3 id="parameterized-container-testing"><a class="header" href="#parameterized-container-testing">Parameterized Container Testing</a></h3>
+<p>The <code>template</code> tests extensively use <code>#[test_case]</code> to verify the derive macro works across
+different Rust container types:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[test_case("Struct"; "basic_struct")]
+#[test_case("TupleStruct"; "tuple_struct")]
+#[test_case("UnitStruct"; "unit_struct")]
+#[test]
+fn template_method_works(container_type: &amp;str) {
+    // Test the generated Template implementation
+}
+<span class="boring">}</span></code></pre></pre>
+<p>This pattern allows comprehensive testing of the macro's behavior across the full range of supported
+Rust syntax.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../developer/testing/rtf-config.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../developer/testing/rtf-core.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../../developer/testing/rtf-derive.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../developer/pr-checks.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -253,11 +309,11 @@ module does not uniquely identify the data structure.</li>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../developer/testing/rtf-config.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../developer/testing/rtf-core.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../../developer/testing/rtf-derive.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../developer/pr-checks.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
