@@ -11,5 +11,5 @@ mod compile_pass_tests;
 #[test]
 fn compile() {
     let t = TestCases::new();
-    t.compile_fail("tests/compile/compile_fail/*.rs");
+    t.compile_fail("tests/compile/fail/*.rs");
 }

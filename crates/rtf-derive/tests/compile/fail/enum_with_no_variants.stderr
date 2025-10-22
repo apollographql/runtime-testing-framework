@@ -1,11 +1,11 @@
 error: derive Template not supported for empty enums
- --> tests/compile/compile_fail/enum_with_no_variants.rs:5:6
+ --> tests/compile/fail/enum_with_no_variants.rs:5:6
   |
 5 | enum MyEnum {}
   |      ^^^^^^
 
 warning: unused import: `rtf_config::templating::Field`
- --> tests/compile/compile_fail/enum_with_no_variants.rs:1:5
+ --> tests/compile/fail/enum_with_no_variants.rs:1:5
   |
 1 | use rtf_config::templating::Field;
   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
