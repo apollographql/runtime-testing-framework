@@ -110,6 +110,117 @@ mod tests {
 }
 ```
 
+## Implementation
+
+The [`rtf-config`][0] crate uses several testing strategies and tools to ensure comprehensive
+coverage of configuration parsing, validation, and resolution.
+
+### Testing Infrastructure
+
+The crate leverages the following key testing tools:
+
+- **[`simple_test_case`][1]** - Enables parameterized testing with `#[test_case]` attributes for
+  testing multiple input variations with the same test logic
+- **`assert_fs`** - Provides temporary filesystem testing utilities for file operations
+- **`predicates`** - Offers composable assertion predicates for more expressive test assertions
+- **`indoc`** - Allows clean multi-line string literals in tests, particularly useful for YAML
+  configurations
+
+### Mock System
+
+The crate implements a flexible mock system through `MockContext<T>` that allows dependency
+injection during testing:
+
+```rust
+// For HTTP client testing
+let mock_ctx = MockContext::with_http_client(&[
+    ("https://example.com/api", "200", "response body")
+]);
+
+// For GitHub client testing  
+let mock_ctx = MockContext::with_github_client("file content");
+```
+
+This approach enables testing without external dependencies while maintaining the same interfaces
+used in production code.
+
+For mocking interactions with GraphOS, a different approach is used. Rather than mocking the GraphOS
+API directly, the tests create mock `SupergraphDetails` and test the content transformation logic:
+
+```rust
+#[test]
+fn supergraph_resolve_success() {
+    // Create mock supergraph details with known test data
+    let details = Arc::new(SupergraphDetails {
+        graph_id: "test-graph".to_string(),
+        variant: "test-variant".to_string(),
+        supergraph_sdl: "schema { query: Query }".to_string(),
+        subgraphs: vec![/* test subgraphs */],
+    });
+
+    let supergraph = GraphosSupergraph {
+        graph_ref: Field::Resolved("graph@variant".to_string()),
+        with_subgraph_overrides: None,
+    };
+
+    // Test the content transformation directly
+    let result = supergraph.content_from_details(details);
+    assert_eq!(result, "schema { query: Query }");
+}
+```
+
+This pattern allows testing the core business logic while avoiding the complexity of mocking
+external APIs. The `with_supergraph_details` method in the production context handles the API
+interaction separately.
+
+### Parameterized Testing Patterns
+
+Tests extensively use `#[test_case]` to cover multiple scenarios efficiently:
+
+```rust
+#[test_case("foo"; "ascii")]
+#[test_case("BAR"; "upper case")]
+#[test_case("世界"; "unicode")]
+#[test]
+fn field_parse_valid_identifiers(raw: &str) {
+    // Test logic handles all cases
+}
+```
+
+Related test cases are grouped into test classes when using parameterized testing, following the
+naming hierarchy described in the [Organization](#organization) section.
+
+### Configuration Testing Strategy
+
+The crate employs a systematic approach to testing configuration handling:
+
+1. **Parsing Tests** - Verify YAML deserialization works correctly for valid inputs and fails
+   appropriately for invalid ones
+2. **Template Resolution Tests** - Ensure the `{{ value }}` templating system works across all
+   supported data types. In most cases specific tests are not required for the `Template` trait
+   since this is derived with a proc macro. Whenever there is a custom implementation of this trait
+   then tests are defined.
+3. **Validation Tests** - Check that configuration validation catches common errors and edge cases
+4. **Resolve Tests** - Test that providers and configuration resolve and execute correctly.
+
+### Test Data Management
+
+Test data is organized in two main ways:
+
+- **Inline test data** using `indoc!` for small, focused examples
+- **Resource files** in `resources/` for larger, realistic configurations and any non UTF-8 files.
+
+### Error Testing
+
+The crate places strong emphasis on testing error conditions:
+
+- **Malformed input testing** - Invalid YAML, incorrect template syntax, missing required fields
+- **Boundary condition testing** - Empty values, special characters, unicode handling
+- **Error message validation** - Ensuring error messages are helpful for users
+
+Error tests follow the same organizational patterns as success tests, often using parameterized
+testing to cover multiple error scenarios efficiently.
+
 [0]: https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config
 [1]: https://docs.rs/simple_test_case/latest/simple_test_case/
 [2]: ./index.md#test-case-naming
