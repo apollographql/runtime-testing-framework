@@ -451,6 +451,7 @@ impl From<RawMatrix> for Matrix {
             RawMatrix::Dimensions(dimensions) => Matrix {
                 variant_names: None,
                 dimensions,
+                include: Vec::new(),
             },
         }
     }
@@ -652,6 +653,7 @@ mod tests {
             matrix: Matrix {
                 variant_names: None,
                 dimensions: matrix,
+                include: Vec::new(),
             },
             scenario: templatable_scenario(scenario_fields, scenario_fields),
             environment: templatable_environment(&env_values, setup_fields, teardown_fields),
@@ -1224,6 +1226,7 @@ mod tests {
             matrix: Matrix {
                 variant_names: None,
                 dimensions,
+                include: Vec::new(),
             },
             ..TestPlanConfig::empty()
         };

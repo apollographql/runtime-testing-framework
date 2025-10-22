@@ -50,10 +50,23 @@
             },
             "type": "array"
           },
+          "description": "The actual dimensions and their allowed values that will be used to produce the matrix",
           "type": "object"
+        },
+        "include": {
+          "default": [],
+          "description": "Additional _groups_ of values that will be combined with known dimensions to produce the\nfull set of values for each dimension.\n\nUsed for tying subsets of values together and reducing the number of variants we expand to.\nEach entry within this array is required to define the same keys and scalar value types.",
+          "items": {
+            "additionalProperties": {
+              "$ref": "#/definitions/Scalar"
+            },
+            "type": "object"
+          },
+          "type": "array"
         },
         "variant_names": {
           "default": null,
+          "description": "Optional template string for customising the names of each variants output subdirectory.",
           "type": [
             "string",
             "null"
@@ -189,6 +202,7 @@
       ],
       "default": {
         "dimensions": {},
+        "include": [],
         "variant_names": null
       },
       "description": "Sets of templating values to apply to fields within the rest of the test plan as a matrix"
