@@ -1,4 +1,4 @@
-use crate::{cli::Values, commands::get_context_and_outdir};
+use crate::{cli::Values, commands::get_context_and_check_outdir};
 use anyhow::anyhow;
 use rtf_config::{
     checks::{self, Check},
@@ -18,8 +18,7 @@ pub async fn check_and_run_local_test_plan(
     values: Values,
     out_dir: &str,
 ) -> anyhow::Result<()> {
-    let (ctx, out_dir) = get_context_and_outdir(out_dir)?;
-    let out_dir = ctx.canonicalize_path(out_dir)?;
+    let (ctx, out_dir) = get_context_and_check_outdir(out_dir)?;
 
     info!("loading and resolving test plan");
     let test_plan = TestPlanConfig::try_load_and_resolve_from_path(config_file_path, &ctx).await?;
@@ -33,8 +32,7 @@ pub async fn check_and_run_github_test_plan(
     values: Values,
     out_dir: &str,
 ) -> anyhow::Result<()> {
-    let (ctx, out_dir) = get_context_and_outdir(out_dir)?;
-    let out_dir = ctx.canonicalize_path(out_dir)?;
+    let (ctx, out_dir) = get_context_and_check_outdir(out_dir)?;
 
     let (org, repo_and_path) = org_repo_path
         .split_once('/')
@@ -67,6 +65,7 @@ async fn check_and_run_test_plan_with_context(
 
     info!("creating output directory");
     ctx.create_dir_all(out_dir)?;
+    let out_dir = ctx.canonicalize_path(out_dir)?;
 
     if let Source::Local { abs_path } = test_plan.sources.test_plan() {
         let config_dir = ctx.dir_containing(abs_path);
@@ -75,7 +74,7 @@ async fn check_and_run_test_plan_with_context(
 
     if test_plan.matrix.is_empty() {
         info!("executing test plan");
-        return run_one(test_plan, out_dir, &mut ctx).await;
+        return run_one(test_plan, &out_dir, &mut ctx).await;
     }
 
     let n = test_plan.matrix.n_variants();
