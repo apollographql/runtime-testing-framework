@@ -1,5 +1,6 @@
 mod enum_of_fields;
 mod enum_of_fields_and_structs;
+mod enum_of_fields_and_structs_and_unit_types;
 mod enum_of_structs;
 mod field_skipped;
 mod field_with_struct;

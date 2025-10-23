@@ -1,4 +1,4 @@
-error: Unsupported shape `unnamed fields`. Expected one unnamed field.
+error: Unsupported shape `unnamed fields`. Expected one unnamed field or no fields.
  --> tests/compile/fail/enum_with_no_fields.rs:3:17
   |
 3 | #[derive(Debug, Template)]

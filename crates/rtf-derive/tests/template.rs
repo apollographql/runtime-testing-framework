@@ -144,6 +144,7 @@ fn mns(inner: Field<String>) -> Box<MultiNestedStruct> {
 enum TemplateTypes {
     Field(Field<String>),
     SingleField(SingleField),
+    Unit,
 }
 
 fn ttf(inner: Field<String>) -> Box<TemplateTypes> {
@@ -270,4 +271,23 @@ fn try_template_unknown_value_error(mut t: Box<dyn Template>) {
         "expected all errors to be UnknownValue, got {:?}",
         errors
     );
+}
+
+#[test]
+fn template_enum_unit_skipped() {
+    let mut t = TemplateTypes::Unit;
+    let values = values_map!(["unused"]);
+
+    assert!(
+        !t.has_pending_fields(),
+        "A unit type enum variant should never have pending fields"
+    );
+
+    assert!(
+        t.required_values().is_empty(),
+        "A unit type enum variant should have no required values"
+    );
+
+    let res = t.try_template(&mut Vec::new(), &values);
+    assert!(res.is_ok(), "A unit type enum should template successfully");
 }

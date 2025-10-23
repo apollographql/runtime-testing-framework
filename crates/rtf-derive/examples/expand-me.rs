@@ -7,6 +7,7 @@ pub enum MyEnum {
     A(MyStruct),
     B(Bar),
     C(Field<String>),
+    D,
 }
 
 #[derive(Debug, Template)]

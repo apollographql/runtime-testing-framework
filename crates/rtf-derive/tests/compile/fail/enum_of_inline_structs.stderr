@@ -1,4 +1,4 @@
-error: Unsupported shape `named fields`. Expected one unnamed field.
+error: Unsupported shape `named fields`. Expected one unnamed field or no fields.
  --> tests/compile/fail/enum_of_inline_structs.rs:4:17
   |
 4 | #[derive(Debug, Template)]
