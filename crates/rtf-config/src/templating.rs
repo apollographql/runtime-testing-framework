@@ -17,6 +17,9 @@ pub enum ErrorKind {
     #[strum(to_string = "Empty array for matrix value")]
     EmptyMatrixValue,
 
+    #[strum(to_string = "Inconsistent types for matrix include maps")]
+    InconsistentMatrixInclude,
+
     #[strum(to_string = "Inconsistent types for matrix value")]
     InconsistentMatrixValue,
 

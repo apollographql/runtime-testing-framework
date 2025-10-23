@@ -451,6 +451,7 @@ impl From<RawMatrix> for Matrix {
             RawMatrix::Dimensions(dimensions) => Matrix {
                 variant_names: None,
                 dimensions,
+                include: Vec::new(),
             },
         }
     }
@@ -639,7 +640,8 @@ mod tests {
     /// Create a TestPlanConfig for template tests
     fn templatable_test_plan(
         values: HashMap<String, Scalar>,
-        matrix: HashMap<String, Vec<Scalar>>,
+        dimensions: HashMap<String, Vec<Scalar>>,
+        include: Vec<HashMap<String, Scalar>>,
         scenario_fields: &[&str],
         setup_fields: &[&str],
         teardown_fields: &[&str],
@@ -651,7 +653,8 @@ mod tests {
             values,
             matrix: Matrix {
                 variant_names: None,
-                dimensions: matrix,
+                dimensions,
+                include,
             },
             scenario: templatable_scenario(scenario_fields, scenario_fields),
             environment: templatable_environment(&env_values, setup_fields, teardown_fields),
@@ -660,7 +663,7 @@ mod tests {
     }
 
     /// Create a matrix with two values per key provided
-    fn matrix_from_keys(keys: &[&str], no_entries: isize) -> HashMap<String, Vec<Scalar>> {
+    fn dimensions_from_keys(keys: &[&str], no_entries: isize) -> HashMap<String, Vec<Scalar>> {
         keys.iter()
             .map(|&key| {
                 (
@@ -1162,32 +1165,43 @@ mod tests {
     #[test_case(
         &[],
         &[],
+        &[],
         &[
             HashMap::new()
         ];
-        "empty matrix and empty values"
+        "empty everything"
     )]
     #[test_case(
         &["foo", "bar"],
         &[],
+        &[],
         &[
             values_map!("foo" => "foo", "bar" => "bar")
         ];
-        "empty matrix with values"
+        "just values"
     )]
     #[test_case(
         &[],
         &[("key", vec!["a", "b", "c"])],
+        &[],
         &[
             values_map!("key" => "a"),
             values_map!("key" => "b"), 
             values_map!("key" => "c")
         ];
-        "single key matrix with multiple entries and no values"
+        "just matrix dimensions"
+    )]
+    #[test_case(
+        &[],
+        &[],
+        &[values_map!("foo" => "foo", "bar" => "bar")],
+        &[values_map!("foo" => "foo", "bar" => "bar")];
+        "just include"
     )]
     #[test_case(
         &["foo"],
         &[("key", vec!["a", "b", "c"])],
+        &[],
         &[
             values_map!("foo" => "foo", "key" => "a"),
             values_map!("foo" => "foo", "key" => "b"), 
@@ -1198,6 +1212,7 @@ mod tests {
     #[test_case(
         &[],
         &[("key1", vec!["a", "b", "c"]), ("key2", vec!["1", "2"])],
+        &[],
         &[
             values_map!("key1" => "a", "key2" => "1"),
             values_map!("key1" => "a", "key2" => "2"),
@@ -1208,14 +1223,44 @@ mod tests {
         ];
         "multiple keys with multiple entries and no values"
     )]
+    #[test_case(
+        &["foo"],
+        &[],
+        &[values_map!("bar" => "bar")],
+        &[values_map!("foo" => "foo", "bar" => "bar")];
+        "single include and one value"
+    )]
+    #[test_case(
+        &[],
+        &[("key1", vec!["a", "b", "c"])],
+        &[values_map!("bar" => "bar")],
+        &[
+            values_map!("bar" => "bar", "key1" => "a"),
+            values_map!("bar" => "bar", "key1" => "b"),
+            values_map!("bar" => "bar", "key1" => "c"),
+        ];
+        "single include and single key matrix with multiple entries"
+    )]
+    #[test_case(
+        &["foo"],
+        &[("key1", vec!["a", "b", "c"])],
+        &[values_map!("bar" => "bar")],
+        &[
+            values_map!("foo" => "foo", "bar" => "bar", "key1" => "a"),
+            values_map!("foo" => "foo", "bar" => "bar", "key1" => "b"),
+            values_map!("foo" => "foo", "bar" => "bar", "key1" => "c"),
+        ];
+        "single include single key matrix with multiple entries and one value"
+    )]
     #[test]
     fn matrix_expansion(
         values: &[&str],
-        matrix: &[(&str, Vec<&str>)],
+        dimensions: &[(&str, Vec<&str>)],
+        include: &[HashMap<String, Scalar>],
         expected_values_maps: &[HashMap<String, Scalar>],
     ) {
         let values = value_map(values);
-        let dimensions: HashMap<String, Vec<Scalar>> = matrix
+        let dimensions: HashMap<String, Vec<Scalar>> = dimensions
             .iter()
             .map(|(k, v)| (k.to_string(), v.iter().map(|s| Scalar::from(*s)).collect()))
             .collect();
@@ -1224,6 +1269,7 @@ mod tests {
             matrix: Matrix {
                 variant_names: None,
                 dimensions,
+                include: include.to_vec(),
             },
             ..TestPlanConfig::empty()
         };
@@ -1269,20 +1315,27 @@ mod tests {
     }
 
     // Tests for try_templating_will_work and its dependent functions
-    #[test_case(&["scenario", "setup", "teardown"], &[]; "fields for scenario setup and teardown in values")]
-    #[test_case(&["scenario", "setup"], &["teardown"]; "fields for scenario and setup from values and teardown from matrix")]
-    #[test_case(&["scenario", "teardown"], &["setup"]; "fields for scenario and teardown from values and setup from matrix")]
-    #[test_case(&["scenario"], &["setup", "teardown"]; "fields for scenario from values and setup and teardown from matrix")]
-    #[test_case(&["setup"], &["scenario", "teardown"]; "fields for setup from values and scenario and teardown from matrix")]
-    #[test_case(&["setup", "teardown"], &["scenario"]; "fields for setup and teardown from values and scenario from matrix")]
-    #[test_case(&["teardown"], &["scenario", "setup"]; "fields for teardown from values and scenario and setup from matrix")]
-    #[test_case(&[], &["scenario", "setup", "teardown"]; "fields for scenario setup and teardown in matrix")]
+    #[test_case(&["scenario", "setup", "teardown"], &[], &[]; "all in values")]
+    #[test_case(&[], &["scenario", "setup", "teardown"], &[]; "all in dimensions")]
+    #[test_case(&[], &[], &["scenario", "setup", "teardown"]; "all in include")]
+    #[test_case(&["scenario"], &["setup"], &["teardown"]; "one in each")]
     #[test]
-    fn check_templating_will_work_success(value_keys: &[&str], matrix_keys: &[&str]) {
+    fn check_templating_will_work_success(
+        value_keys: &[&str],
+        dimension_keys: &[&str],
+        include_keys: &[&str],
+    ) {
         let values = value_map(value_keys);
-        let matrix = matrix_from_keys(matrix_keys, 1);
-        let mut test_plan =
-            templatable_test_plan(values, matrix, &["scenario"], &["setup"], &["teardown"]);
+        let matrix = dimensions_from_keys(dimension_keys, 1);
+        let include = vec![value_map(include_keys)];
+        let mut test_plan = templatable_test_plan(
+            values,
+            matrix,
+            include,
+            &["scenario"],
+            &["setup"],
+            &["teardown"],
+        );
 
         let res = test_plan.check_templating_will_work();
         assert!(
@@ -1292,16 +1345,22 @@ mod tests {
         );
     }
 
-    #[test_case(&["foo"], "foo"; "single conflicting key")]
+    #[test_case(&["foo"], &[], "foo"; "single conflicting key dimensions and values")]
+    #[test_case(&["foo", "bar", "baz"], &[], "bar, baz, foo"; "multiple conflicting keys dimensions and values")]
+    #[test_case(&[], &["foo"], "foo"; "single conflicting key include and values")]
+    #[test_case(&[], &["foo", "bar", "baz"], "bar, baz, foo"; "multiple conflicting keys include and values")]
+    #[test_case(&["a"], &["a"], "a"; "single conflicting key dimensions and include")]
+    #[test_case(&["a", "b", "c"], &["a", "b", "c"], "a, b, c"; "multiple conflicting keys dimensions and include")]
     #[test]
-    #[test_case(&["foo", "bar", "baz"], "bar, baz, foo"; "multiple conflicting keys")]
     fn check_templating_will_work_conflicting_keys_errors(
-        matrix_keys: &[&str],
+        dimension_keys: &[&str],
+        include_keys: &[&str],
         expected_err_message: &str,
     ) {
         let values = value_map(&["foo", "bar", "baz"]);
-        let matrix = matrix_from_keys(matrix_keys, 2);
-        let mut test_plan = templatable_test_plan(values, matrix, &[], &[], &[]);
+        let dimensions = dimensions_from_keys(dimension_keys, 2);
+        let include = vec![value_map(include_keys)];
+        let mut test_plan = templatable_test_plan(values, dimensions, include, &[], &[], &[]);
 
         let expected_err_kind = ErrorKind::ConflictingValues;
 
@@ -1326,13 +1385,14 @@ mod tests {
     #[test_case(&["foo"], &["foo"]; "single matrix")]
     #[test_case(&["foo", "bar", "baz"], &["bar", "baz", "foo"]; "multiple matrices")]
     #[test]
-    fn check_templating_will_work_empty_matrix_errors(
-        matrix_keys: &[&str],
+    fn check_templating_will_work_empty_dimension_errors(
+        dimension_keys: &[&str],
         expected_err_messages: &[&str],
     ) {
         let values = value_map(&[]);
-        let matrix = matrix_from_keys(matrix_keys, 0);
-        let mut test_plan = templatable_test_plan(values, matrix, &[], &[], &[]);
+        let dimensions = dimensions_from_keys(dimension_keys, 0);
+        let include = Vec::new();
+        let mut test_plan = templatable_test_plan(values, dimensions, include, &[], &[], &[]);
 
         let expected_err_kind = ErrorKind::EmptyMatrixValue;
 
@@ -1366,14 +1426,45 @@ mod tests {
     }
 
     #[test]
-    fn check_templating_will_work_inconsistent_matrix_value_errors() {
+    fn check_templating_will_work_inconsistent_dimension_value_errors() {
         let values = HashMap::new();
-        let mut matrix: HashMap<String, Vec<Scalar>> = HashMap::new();
-        matrix.insert("foo".into(), vec!["a".into(), 42.into()]);
-        let mut test_plan = templatable_test_plan(values, matrix, &[], &[], &[]);
+        let mut dimensions: HashMap<String, Vec<Scalar>> = HashMap::new();
+        dimensions.insert("foo".into(), vec!["a".into(), 42.into()]);
+        let mut test_plan = templatable_test_plan(values, dimensions, vec![], &[], &[], &[]);
 
         let expected_err_kind = ErrorKind::InconsistentMatrixValue;
         let expected_err_message = "foo";
+
+        let res = test_plan.check_templating_will_work();
+        assert!(
+            res.is_err(),
+            "expected templating will work to fail, got {:?}",
+            res
+        );
+
+        let error = res.unwrap_err().unwrap_single();
+        assert_eq!(
+            error.kind, expected_err_kind,
+            "test that the error kind is as expected"
+        );
+        assert_eq!(
+            error.message, expected_err_message,
+            "test that error message is as expected"
+        );
+    }
+
+    #[test_case(vec![values_map!("foo" => "a"), values_map!("bar" => "b")]; "key names")]
+    #[test_case(vec![values_map!("foo" => "a"), values_map!("foo" => 42)]; "value types")]
+    #[test]
+    fn check_templating_will_work_inconsistent_include_errors(
+        include: Vec<HashMap<String, Scalar>>,
+    ) {
+        let values = HashMap::new();
+        let dimensions = HashMap::new();
+        let mut test_plan = templatable_test_plan(values, dimensions, include, &[], &[], &[]);
+
+        let expected_err_kind = ErrorKind::InconsistentMatrixInclude;
+        let expected_err_message = "matrix include maps must share consistent keys and types";
 
         let res = test_plan.check_templating_will_work();
         assert!(
@@ -1448,10 +1539,12 @@ mod tests {
         expected_err_messages: &[&str],
     ) {
         let values = value_map(&["foo"]);
-        let matrix = HashMap::new();
+        let dimensions = HashMap::new();
+        let include = Vec::new();
         let mut test_plan = templatable_test_plan(
             values,
-            matrix,
+            dimensions,
+            include,
             scenario_fields,
             setup_fields,
             teardown_fields,
@@ -1496,8 +1589,9 @@ mod tests {
     #[test]
     fn check_templating_will_work_combined_errors() {
         let values = value_map(&["foo", "bar"]);
-        let matrix = matrix_from_keys(&["foo"], 0);
-        let mut test_plan = templatable_test_plan(values, matrix, &["scenario"], &[], &[]);
+        let dimensions = dimensions_from_keys(&["foo"], 0);
+        let mut test_plan =
+            templatable_test_plan(values, dimensions, vec![], &["scenario"], &[], &[]);
 
         let mut expected_errs = ErrorBuilder::new();
         expected_errs.push(ErrorKind::ConflictingValues, "foo", &["".to_string()]);
