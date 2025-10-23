@@ -44,6 +44,19 @@ _arguments "${_arguments_options[@]}" : \
 '::test_plan_path -- Relative path to the test plan file that should be executed:_default' \
 && ret=0
 ;;
+(expand-matrix)
+_arguments "${_arguments_options[@]}" : \
+'*--value=[A single additional templating value in the form "key=value"]:VALUE:_default' \
+'--values=[Path to a JSON file containing additional template values]:VALUES:_files' \
+'-c[Return the expanded matrix JSON in compact form]' \
+'--compact[Return the expanded matrix JSON in compact form]' \
+'*-v[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'*--verbose[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':test_plan_path -- Relative path to the test-plan.yaml file that should have its matrix expanded:_default' \
+&& ret=0
+;;
 (template)
 _arguments "${_arguments_options[@]}" : \
 '*--value=[A single additional templating value in the form "key=value"]:VALUE:_default' \
@@ -72,6 +85,10 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(expand-matrix)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
 (template)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -93,19 +110,31 @@ esac
 _rtf_commands() {
     local commands; commands=(
 'run:Check and run a test plan' \
+'expand-matrix:Expand a test plan matrix into JSON' \
 'template:Template a test plan using provided values, outputting the resulting config to stdout' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'rtf commands' commands "$@"
 }
+(( $+functions[_rtf__expand-matrix_commands] )) ||
+_rtf__expand-matrix_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf expand-matrix commands' commands "$@"
+}
 (( $+functions[_rtf__help_commands] )) ||
 _rtf__help_commands() {
     local commands; commands=(
 'run:Check and run a test plan' \
+'expand-matrix:Expand a test plan matrix into JSON' \
 'template:Template a test plan using provided values, outputting the resulting config to stdout' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'rtf help commands' commands "$@"
+}
+(( $+functions[_rtf__help__expand-matrix_commands] )) ||
+_rtf__help__expand-matrix_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf help expand-matrix commands' commands "$@"
 }
 (( $+functions[_rtf__help__help_commands] )) ||
 _rtf__help__help_commands() {
