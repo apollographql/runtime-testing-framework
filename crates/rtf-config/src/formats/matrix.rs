@@ -74,49 +74,54 @@ impl Matrix {
     /// We expand out matrix values as a cartesean product over all possible sets of values we can
     /// obtain when combined with any scalar values we have.
     ///
+    /// The ordering for the expanded dimensions is defined as first being by the ascii-betical
+    /// sort of the base dimension keys, followed by the user provided ordering of each dimension's
+    /// values, followed by the user provided `includes`.
+    ///
     /// When generating variant names from a user provided template we validate the template itself
     /// and also ensure that the generated names are unique.
     pub fn try_expand(
         &self,
         values: &HashMap<String, Scalar>,
     ) -> Result<Vec<(String, HashMap<String, Scalar>)>> {
-        // First, we construct an iterator over the cartesian product of the (sorted) dimesions.
-        // Note, if `self.dimesions` is empty, the iterator returned by `multi_cartesian_product`
-        // will yield exactly one item, which will be an empty vector.
-        let dims = self
+        let variants: Vec<_> = self
             .sorted_dimensions()
             .into_iter()
+            // For each `k: [v...]` dimension, turn it into an iterator of `(k, v)` pairs.
             .map(|(k, vals)| vals.iter().map(|v| (k.clone(), v.clone())))
-            .multi_cartesian_product();
+            // If `self.dimensions` is empty, the iterator returned by `multi_cartesian_product` will
+            // yield a single empty Vec which guarantees that the following flat_map always runs.
+            .multi_cartesian_product()
+            .flat_map(|dimension_vals| {
+                // Merge the values coming from the TestPlan with the values for the base dimension
+                let mut values = values.clone();
+                values.extend(dimension_vals);
 
-        // Next, for each entry in the product, we want to yield a set of sets to `include`. If
-        // `self.include` is empty, we should, at minimum, yield a set a singular empty set.
-        let mut it = self.include.clone().into_iter();
-        let include = std::iter::once(it.next().unwrap_or_default()).chain(it);
+                // To handle the case where `self.include` is empty, we ensure that we at least
+                // yield a single empty HashMap as yielding None at this stage will cause the
+                // entire iterator chain to return None.
+                //
+                // Essentially this is "iter_at_least_once" where we yield a default value if the
+                // iterator was empty.
+                let mut it = self.include.clone().into_iter();
+                let include = std::iter::once(it.next().unwrap_or_default()).chain(it);
 
-        // Lastly, we stitch these together and validate
-        let digest = dims.flat_map(|matrix_vals| {
-            let mut values = values.clone();
-            values.extend(matrix_vals);
-
-            include.clone().map(move |mut include| {
-                include.extend(values.clone());
-                include
+                // Finally, we merge everything we have so far into each map coming from `self.include`
+                // to produce the final expanded dimensions.
+                include.map(move |mut include| {
+                    include.extend(values.clone());
+                    include
+                })
             })
-        });
-
-        self.name_and_validate(digest)
-    }
-
-    fn name_and_validate<I>(&self, it: I) -> Result<Vec<(String, HashMap<String, Scalar>)>>
-    where
-        I: Iterator<Item = HashMap<String, Scalar>>,
-    {
-        let variants: Vec<_> = it
+            // Once we have the expanded dimensions we can enumerate them and generate their output
+            // directory names. We have to do this after fully expanding as we allow users to
+            // reference any value in their TestPlan as part of their variant_names template.
             .enumerate()
             .map(|(i, m)| variant_name(self.variant_names.as_deref(), &m, i).map(|name| (name, m)))
             .collect::<Result<_>>()?;
 
+        // We're not statically guaranteed that the user provided template will produce a unique
+        // name for each variant so we check for duplicates and error if we find any.
         let duplicates = duplicate_keys(variants.iter().map(|(name, _)| name.as_str()), |s| s);
         if !duplicates.is_empty() {
             let duplicates: Vec<String> = duplicates.into_iter().map(String::from).collect();
