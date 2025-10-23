@@ -28,18 +28,15 @@ fn get_context() -> Context {
     Context::new_from_env_vars(env_vars)
 }
 
-fn get_context_and_outdir(out_dir: &str) -> anyhow::Result<(Context, PathBuf)> {
+fn get_context_and_check_outdir(out_dir: &str) -> anyhow::Result<(Context, PathBuf)> {
     let ctx = get_context();
 
-    // output directories are created relative to the directory we were run from
     let out_dir = current_dir()?.join(out_dir);
     match ctx.path_kind(&out_dir) {
         PathKind::File => bail!("{} is not a directory", out_dir.display()),
         PathKind::OccupiedDir => {
             bail!("{} already exists and is non-empty", out_dir.display())
         }
-        _ => ctx.create_dir_all(&out_dir)?,
+        _ => Ok((ctx, out_dir)),
     }
-
-    Ok((ctx, out_dir))
 }
