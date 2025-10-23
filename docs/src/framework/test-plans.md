@@ -10,6 +10,8 @@
 - [Applying overrides](#applying-overrides)
 - [A note on relative paths](#a-note-on-relative-paths)
 - [Working with matrices](#working-with-matrices)
+  - [Naming variants](#naming-variants)
+  - [Including explicit variants](#including-explicit-variants)
 - [Full example](#full-example)
 
 ---
@@ -223,6 +225,8 @@ values for each dimension (as shown below).
 - a=bar b=2 (matrix_variant_5)
 - a=bar b=3 (matrix_variant_6)
 
+### Naming variants
+
 If you wish to provide more meaningful names for the output subdirectories you can specify the
 `matrix.variant_names` key in your test plan which takes a simple template string for generating the
 variant names:
@@ -249,6 +253,92 @@ The syntax used for template strings involves placing _matrix dimension names_ i
 with static string content in order to generate a unique name for each variant. The resulting string
 is then slugified to remove whitespace and slashes.
 
+### Including explicit variants
+
+Sometimes when defining a matrix you will find that you want to limit how the matrix dimensions are
+produced in order to only run a subset of possible combinations of values. For example, the
+following initial matrix expands out to four variants covering different crate revisions for
+inclusion in a Rust build as shown below:
+
+```yaml
+matrix:
+  dimensions:
+    federation_rev: [ "v2.6.2", "v2.7.0" ]
+    compiler_rev: [ "apollo-compiler@1.28.0", "apollo-compiler@1.30.0" ]
+
+# - federation_rev: v2.6.2
+#   compiler_rev: apollo-compiler@1.28.0
+# 
+# - federation_rev: v2.6.2
+#   compiler_rev: apollo-compiler@1.30.0
+#
+# - federation_rev: v2.7.0
+#   compiler_rev: apollo-compiler@1.28.0
+#
+# - federation_rev: v2.7.0
+#   compiler_rev: apollo-compiler@1.30.0
+```
+
+But, if the intention was to only run variants where valid crate revisions are used then two of the
+four variants are invalid and should not be run. This problem is made worse if we add another
+dimension to the matrix (say, `graph_ref`) which will then produce additional undesirable variants.
+
+In this sort of situation you should make use of the `matrix.include` key, which allows you to
+define matrix dimensions as _sets_ of values so long as they all contain the same keys. In our
+example above we would do the following:
+
+```yaml
+matrix:
+  # The dimensions key must always be present, even if it is an empty map
+  dimensions: {}
+
+  include:
+    - federation_rev: v2.6.2
+      compiler_rev: apollo-compiler@1.28.0
+
+    - federation_rev: v2.7.0
+      compiler_rev: apollo-compiler@1.30.0
+
+# - federation_rev: v2.6.2
+#   compiler_rev: apollo-compiler@1.28.0
+# 
+# - federation_rev: v2.7.0
+#   compiler_rev: apollo-compiler@1.30.0
+```
+
+Now we will only get the variants containing the pairs of crate revisions we want. Better still, we
+can add further dimensions to the matrix and obtain the correct variants:
+
+```yaml
+matrix:
+  # The dimensions key must always be present, even if it is an empty map
+  dimensions:
+    graph_ref: [ "graph_1@prod", "graph_2@prod" ]
+
+  include:
+    - federation_rev: v2.6.2
+      compiler_rev: apollo-compiler@1.28.0
+
+    - federation_rev: v2.7.0
+      compiler_rev: apollo-compiler@1.30.0
+
+# - graph_ref: "graph_1@prod"
+#   federation_rev: v2.6.2
+#   compiler_rev: apollo-compiler@1.28.0
+# 
+# - graph_ref: "graph_1@prod"
+#   federation_rev: v2.7.0
+#   compiler_rev: apollo-compiler@1.30.0
+#
+# - graph_ref: "graph_2@prod"
+#   federation_rev: v2.6.2
+#   compiler_rev: apollo-compiler@1.28.0
+# 
+# - graph_ref: "graph_2@prod"
+#   federation_rev: v2.7.0
+#   compiler_rev: apollo-compiler@1.30.0
+```
+
 ## Full example
 
 The following is a minimal "kitchen sink" example of the structure of a valid `test-plan.yaml`.
@@ -261,10 +351,16 @@ values:
   foo: "A value for foo"
 
 matrix:
-  variant_names: "${bar}_${baz}"
+  variant_names: "${bar}_${baz}_${a}_${b}"
   dimensions:
     bar: [1, 2, 3]
     baz: [true, false]
+
+  include:
+    - a: 4
+      b: 5
+    - a: 6
+      b: 7
 
 scenario:
   inline:
