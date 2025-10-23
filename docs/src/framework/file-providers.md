@@ -97,12 +97,6 @@ while read -r req; do
 done <"$CANNED_OPS_FILE"
 ```
 
-### Fields
-
-#### `inner`
-
-null
-
 ## GitHub File
 
 The user specifies a path to a file within a GitHub repository, optionally providing a specific ref

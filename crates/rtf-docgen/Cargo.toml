@@ -1,0 +1,13 @@
+[package]
+name = "rtf-docgen"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+
+convert_case = "0.8"
+# This must match the version printed by the generate-docs script
+rustdoc-types = "0.55"
