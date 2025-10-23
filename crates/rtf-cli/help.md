@@ -6,6 +6,7 @@ This document contains the help content for the `rtf` command-line program.
 
 * [`rtf`↴](#rtf)
 * [`rtf run`↴](#rtf-run)
+* [`rtf expand-matrix`↴](#rtf-expand-matrix)
 * [`rtf template`↴](#rtf-template)
 
 ## `rtf`
@@ -17,6 +18,7 @@ A swiss army knife for testing the Apollo Runtime
 ###### **Subcommands:**
 
 * `run` — Check and run a test plan
+* `expand-matrix` — Expand a test plan matrix into JSON
 * `template` — Template a test plan using provided values, outputting the resulting config to stdout
 
 ###### **Options:**
@@ -44,6 +46,22 @@ Check and run a test plan
 * `--outdir <OUTDIR>` — Output directory for providers when they run
 
   Default value: `output`
+
+
+
+## `rtf expand-matrix`
+
+Expand a test plan matrix into JSON
+
+**Usage:** `rtf expand-matrix [OPTIONS] <TEST_PLAN_PATH>`
+
+###### **Arguments:**
+
+* `<TEST_PLAN_PATH>` — Relative path to the test-plan.yaml file that should have its matrix expanded
+
+###### **Options:**
+
+* `-c`, `--compact` — Return the expanded matrix JSON in compact form
 
 
 

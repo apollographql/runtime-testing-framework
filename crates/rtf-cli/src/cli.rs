@@ -61,6 +61,16 @@ pub enum Command {
     },
 
     // Plumbing commands
+    /// Expand a test plan matrix into JSON
+    ExpandMatrix {
+        /// Relative path to the test-plan.yaml file that should have its matrix expanded
+        test_plan_path: String,
+
+        /// Return the expanded matrix JSON in compact form
+        #[arg(long, short, action)]
+        compact: bool,
+    },
+
     /// Template a test plan using provided values, outputting the resulting config to stdout
     Template {
         /// Relative path to the test-plan.yaml file that should be templated

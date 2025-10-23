@@ -4,7 +4,7 @@ use rtf_cli::{
     LOG_LEVEL_ENV_VAR,
     cli::{Args, Command},
     commands::{
-        plumbing::template_test_plan,
+        plumbing::{expand_test_plan_matrix, template_test_plan},
         porcelain::{check_and_run_github_test_plan, check_and_run_local_test_plan},
     },
 };
@@ -53,6 +53,11 @@ async fn main() {
         },
 
         // plumbing commands
+        Command::ExpandMatrix {
+            test_plan_path,
+            compact,
+        } => expand_test_plan_matrix(&test_plan_path, compact).await,
+
         Command::Template {
             test_plan_path,
             check,
