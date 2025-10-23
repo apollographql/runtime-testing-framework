@@ -657,7 +657,12 @@ first.</p>
 </li>
 <li><a href="framework/test-plans.html#applying-overrides">Applying overrides</a></li>
 <li><a href="framework/test-plans.html#a-note-on-relative-paths">A note on relative paths</a></li>
-<li><a href="framework/test-plans.html#working-with-matrices">Working with matrices</a></li>
+<li><a href="framework/test-plans.html#working-with-matrices">Working with matrices</a>
+<ul>
+<li><a href="framework/test-plans.html#naming-variants">Naming variants</a></li>
+<li><a href="framework/test-plans.html#including-explicit-variants">Including explicit variants</a></li>
+</ul>
+</li>
 <li><a href="framework/test-plans.html#full-example">Full example</a></li>
 </ul>
 <hr />
@@ -855,6 +860,7 @@ values for each dimension (as shown below).</p>
 <li>a=bar b=2 (matrix_variant_5)</li>
 <li>a=bar b=3 (matrix_variant_6)</li>
 </ul>
+<h3 id="naming-variants"><a class="header" href="#naming-variants">Naming variants</a></h3>
 <p>If you wish to provide more meaningful names for the output subdirectories you can specify the
 <code>matrix.variant_names</code> key in your test plan which takes a simple template string for generating the
 variant names:</p>
@@ -877,6 +883,81 @@ generated using the template provided:</p>
 <p>The syntax used for template strings involves placing <em>matrix dimension names</em> inside of <code>${}</code> along
 with static string content in order to generate a unique name for each variant. The resulting string
 is then slugified to remove whitespace and slashes.</p>
+<h3 id="including-explicit-variants"><a class="header" href="#including-explicit-variants">Including explicit variants</a></h3>
+<p>Sometimes when defining a matrix you will find that you want to limit how the matrix dimensions are
+produced in order to only run a subset of possible combinations of values. For example, the
+following initial matrix expands out to four variants covering different crate revisions for
+inclusion in a Rust build as shown below:</p>
+<pre><code class="language-yaml">matrix:
+  dimensions:
+    federation_rev: [ "v2.6.2", "v2.7.0" ]
+    compiler_rev: [ "apollo-compiler@1.28.0", "apollo-compiler@1.30.0" ]
+
+# - federation_rev: v2.6.2
+#   compiler_rev: apollo-compiler@1.28.0
+# 
+# - federation_rev: v2.6.2
+#   compiler_rev: apollo-compiler@1.30.0
+#
+# - federation_rev: v2.7.0
+#   compiler_rev: apollo-compiler@1.28.0
+#
+# - federation_rev: v2.7.0
+#   compiler_rev: apollo-compiler@1.30.0
+</code></pre>
+<p>But, if the intention was to only run variants where valid crate revisions are used then two of the
+four variants are invalid and should not be run. This problem is made worse if we add another
+dimension to the matrix (say, <code>graph_ref</code>) which will then produce additional undesirable variants.</p>
+<p>In this sort of situation you should make use of the <code>matrix.include</code> key, which allows you to
+define matrix dimensions as <em>sets</em> of values so long as they all contain the same keys. In our
+example above we would do the following:</p>
+<pre><code class="language-yaml">matrix:
+  # The dimensions key must always be present, even if it is an empty map
+  dimensions: {}
+
+  include:
+    - federation_rev: v2.6.2
+      compiler_rev: apollo-compiler@1.28.0
+
+    - federation_rev: v2.7.0
+      compiler_rev: apollo-compiler@1.30.0
+
+# - federation_rev: v2.6.2
+#   compiler_rev: apollo-compiler@1.28.0
+# 
+# - federation_rev: v2.7.0
+#   compiler_rev: apollo-compiler@1.30.0
+</code></pre>
+<p>Now we will only get the variants containing the pairs of crate revisions we want. Better still, we
+can add further dimensions to the matrix and obtain the correct variants:</p>
+<pre><code class="language-yaml">matrix:
+  # The dimensions key must always be present, even if it is an empty map
+  dimensions:
+    graph_ref: [ "graph_1@prod", "graph_2@prod" ]
+
+  include:
+    - federation_rev: v2.6.2
+      compiler_rev: apollo-compiler@1.28.0
+
+    - federation_rev: v2.7.0
+      compiler_rev: apollo-compiler@1.30.0
+
+# - graph_ref: "graph_1@prod"
+#   federation_rev: v2.6.2
+#   compiler_rev: apollo-compiler@1.28.0
+# 
+# - graph_ref: "graph_1@prod"
+#   federation_rev: v2.7.0
+#   compiler_rev: apollo-compiler@1.30.0
+#
+# - graph_ref: "graph_2@prod"
+#   federation_rev: v2.6.2
+#   compiler_rev: apollo-compiler@1.28.0
+# 
+# - graph_ref: "graph_2@prod"
+#   federation_rev: v2.7.0
+#   compiler_rev: apollo-compiler@1.30.0
+</code></pre>
 <h2 id="full-example"><a class="header" href="#full-example">Full example</a></h2>
 <p>The following is a minimal "kitchen sink" example of the structure of a valid <code>test-plan.yaml</code>.</p>
 <pre><code class="language-yaml">name: example
@@ -886,10 +967,16 @@ values:
   foo: "A value for foo"
 
 matrix:
-  variant_names: "${bar}_${baz}"
+  variant_names: "${bar}_${baz}_${a}_${b}"
   dimensions:
     bar: [1, 2, 3]
     baz: [true, false]
+
+  include:
+    - a: 4
+      b: 5
+    - a: 6
+      b: 7
 
 scenario:
   inline:
