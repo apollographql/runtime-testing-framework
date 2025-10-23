@@ -1,5 +1,8 @@
-use darling::{FromDeriveInput, FromField, FromVariant, ast};
-use proc_macro2::TokenStream;
+use darling::{
+    FromDeriveInput, FromField, FromVariant,
+    ast::{self, Fields},
+};
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{Ident, Result, parse_macro_input};
 
@@ -42,7 +45,6 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 #[derive(Debug, FromDeriveInput)]
-#[darling(supports(struct_any, enum_newtype))]
 struct InputMeta {
     ident: Ident,
     data: ast::Data<EnumMeta, FieldMeta>,
@@ -61,7 +63,7 @@ impl InputMeta {
                 ));
             }
 
-            ast::Data::Enum(v) => enum_token_streams(v),
+            ast::Data::Enum(v) => enum_token_streams(self.ident.span(), v)?,
         };
 
         Ok((
@@ -121,28 +123,45 @@ fn struct_token_streams(field_meta: Vec<FieldMeta>) -> (TokenStream, TokenStream
     (has_pending_fields, required_values, try_template)
 }
 
-fn enum_token_streams(enum_meta: Vec<EnumMeta>) -> (TokenStream, TokenStream, TokenStream) {
-    let variants: Vec<Ident> = enum_meta.into_iter().map(|v| v.ident).collect();
+fn enum_token_streams(
+    span: Span,
+    enum_meta: Vec<EnumMeta>,
+) -> Result<(TokenStream, TokenStream, TokenStream)> {
+    let variants: Vec<Ident> = enum_meta
+        .into_iter()
+        .filter(|v| !v.skip && !v.fields.is_empty())
+        .map(|v| v.ident)
+        .collect();
+
+    if variants.is_empty() {
+        return Err(syn::Error::new(
+            span,
+            "At least one templatable enum variant must exist",
+        ));
+    }
 
     let has_pending_fields = quote! {
         match self {
             #(Self::#variants(inner) => inner.has_pending_fields(),)*
+            _ => false,
         }
     };
 
     let required_values = quote! {
         match self {
             #(Self::#variants(inner) => inner.required_values(),)*
+            _ => Vec::new(),
         }
     };
 
     let try_template = quote! {
         match self {
             #(Self::#variants(inner) => inner.try_template(path, values),)*
+            _ => Ok(()),
         }
     };
 
-    (has_pending_fields, required_values, try_template)
+    Ok((has_pending_fields, required_values, try_template))
 }
 
 #[derive(Debug, FromField)]
@@ -154,6 +173,11 @@ struct FieldMeta {
 }
 
 #[derive(Debug, FromVariant)]
+#[darling(attributes(template))]
+#[darling(supports(newtype, unit))]
 struct EnumMeta {
     ident: Ident,
+    fields: Fields<FieldMeta>,
+    #[darling(default)]
+    skip: bool,
 }

@@ -1,0 +1,5 @@
+error: At least one templatable enum variant must exist
+ --> tests/compile/fail/enum_of_unit_types.rs:4:6
+  |
+4 | enum MyEnum {
+  |      ^^^^^^
