@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["template_test_plan"]};
+window.SIDEBAR_ITEMS = {"fn":["expand_test_plan_matrix","template_test_plan"]};
