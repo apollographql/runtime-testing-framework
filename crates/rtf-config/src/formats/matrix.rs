@@ -176,21 +176,13 @@ impl Matrix {
         values: &HashMap<String, Scalar>,
         errs: &mut templating::ErrorBuilder,
     ) {
-        let mut conflicting_keys: Vec<String> = values
-            .keys()
-            .filter(|k| {
-                self.dimensions.contains_key(*k)
-                    || self
-                        .include
-                        .first()
-                        .map(|m| m.contains_key(*k))
-                        .unwrap_or(false)
-            })
-            .cloned()
-            .collect();
+        let all_keys = values.keys().chain(self.dimensions.keys());
+        let conflicting_keys = match self.include.first() {
+            Some(m) => duplicate_keys(all_keys.chain(m.keys()), |s| s),
+            None => duplicate_keys(all_keys, |s| s),
+        };
 
         if !conflicting_keys.is_empty() {
-            conflicting_keys.sort_unstable(); // ensure consistent ordering
             errs.push(
                 templating::ErrorKind::ConflictingValues,
                 conflicting_keys.join(", "),
