@@ -80,46 +80,32 @@ impl Matrix {
         &self,
         values: &HashMap<String, Scalar>,
     ) -> Result<Vec<(String, HashMap<String, Scalar>)>> {
-        match (self.dimensions.is_empty(), self.include.is_empty()) {
-            // If the matrix is fully empty then we just return the top level values
-            (true, true) => self.name_and_validate(std::iter::once(values.clone())),
+        // First, we construct an iterator over the cartesian product of the (sorted) dimesions.
+        // Note, if `self.dimesions` is empty, the iterator returned by `multi_cartesian_product`
+        // will yield exactly one item, which will be an empty vector.
+        let dims = self
+            .sorted_dimensions()
+            .into_iter()
+            .map(|(k, vals)| vals.iter().map(|v| (k.clone(), v.clone())))
+            .multi_cartesian_product();
 
-            // If we have no base dimensions then self.include is an explicit list of value maps
-            // that fully define each variant once merged with the base values
-            (true, false) => {
-                self.name_and_validate(self.include.iter().cloned().map(|include_vals| {
-                    let mut values = values.clone();
-                    values.extend(include_vals);
-                    values
-                }))
-            }
+        // Next, for each entry in the product, we want to yield a set of sets to `include`. If
+        // `self.include` is empty, we should, at minimum, yield a set a singular empty set.
+        let mut it = self.include.clone().into_iter();
+        let include = std::iter::once(it.next().unwrap_or_default()).chain(it);
 
-            // Otherwise we need to expand the base dimensions into their cartesian product and
-            // combine with any maps coming from self.includes, creating a variant for each of the
-            // include maps, ordering by the base dimensions first
-            (false, _) => {
-                // We map the expanded dims over self.include so we need to ensure that we at least
-                // have a single empty map to use as a base value to merge everything else into.
-                let mut it = self.include.clone().into_iter();
-                let include = std::iter::once(it.next().unwrap_or_default()).chain(it);
+        // Lastly, we stitch these together and validate
+        let digest = dims.flat_map(|matrix_vals| {
+            let mut values = values.clone();
+            values.extend(matrix_vals);
 
-                self.name_and_validate(
-                    self.sorted_dimensions()
-                        .into_iter()
-                        .map(|(k, vals)| vals.iter().map(|v| (k.clone(), v.clone())))
-                        .multi_cartesian_product()
-                        .flat_map(|matrix_vals| {
-                            let mut values = values.clone();
-                            values.extend(matrix_vals);
+            include.clone().map(move |mut include| {
+                include.extend(values.clone());
+                include
+            })
+        });
 
-                            include.clone().map(move |mut include| {
-                                include.extend(values.clone());
-                                include
-                            })
-                        }),
-                )
-            }
-        }
+        self.name_and_validate(digest)
     }
 
     fn name_and_validate<I>(&self, it: I) -> Result<Vec<(String, HashMap<String, Scalar>)>>
