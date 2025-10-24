@@ -336,6 +336,7 @@ different value in the test plan (this will take presence over a default). Updat
 name: Hello World
 description: A test plan created as a guide for writing test plans
 # --- Add a new value for scenario_value ---
+values:
   scenario_value: "scenario executed with test plan value"
 # ------------------------------------------
 scenario:
