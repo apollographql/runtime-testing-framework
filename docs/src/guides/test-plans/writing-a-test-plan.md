@@ -58,7 +58,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
@@ -174,7 +174,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
@@ -342,7 +342,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
@@ -416,7 +416,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
