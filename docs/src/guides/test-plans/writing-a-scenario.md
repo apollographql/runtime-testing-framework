@@ -278,7 +278,7 @@ command:
   path: ../scripts/scenario.sh
 # --- Use the scenario_value in the environment variables ---
 env_vars:
-  SCENARIO_VALUE: "{{ scenario_value }}"
+  SCENARIO_ENV: "{{ scenario_value }}"
 # -----------------------------------------------------------
 ```
 
@@ -316,7 +316,7 @@ command:
   kind: relative_path
   path: ../scripts/scenario.sh
 env_vars:
-  SCENARIO_VALUE: "{{ scenario_value }}"
+  SCENARIO_ENV: "{{ scenario_value }}"
 ```
 
 Lets run this and see what happens:
