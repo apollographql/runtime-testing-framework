@@ -40,7 +40,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
@@ -107,7 +107,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
@@ -278,7 +278,7 @@ command:
   path: ../scripts/scenario.sh
 # --- Use the scenario_value in the environment variables ---
 env_vars:
-  SCENARIO_VALUE: "{{ scenario_value }}"
+  SCENARIO_ENV: "{{ scenario_value }}"
 # -----------------------------------------------------------
 ```
 
@@ -316,7 +316,7 @@ command:
   kind: relative_path
   path: ../scripts/scenario.sh
 env_vars:
-  SCENARIO_VALUE: "{{ scenario_value }}"
+  SCENARIO_ENV: "{{ scenario_value }}"
 ```
 
 Lets run this and see what happens:
@@ -336,6 +336,7 @@ different value in the test plan (this will take presence over a default). Updat
 name: Hello World
 description: A test plan created as a guide for writing test plans
 # --- Add a new value for scenario_value ---
+values:
   scenario_value: "scenario executed with test plan value"
 # ------------------------------------------
 scenario:
@@ -357,7 +358,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
