@@ -102,6 +102,56 @@
       "title": "Command Spec",
       "type": "object"
     },
+    "CustomUrlFormat": {
+      "description": "Defines a custom URL format to route subgraph requests to.\n\nThe `base_url` and `base_port` components define the base subgraph URL.\nThese produce a subgraph URL of `{base_url}:{base_port}` for all subgraph names as the default.\n\nIf `increment_port` is set to true, each subgraph will get a distinct port number\ngenerated via auto-incrementing the `base_port` for each known subgraph. This is useful\nfor running `n` subgraph servers for `n` named subgraphs in the supergraph.\n\nTo use a single subgraph server with defined per-subgraph behavior, set `add_subgraph_route`\nto true. This will append a route with the subgraph's name to the base URL, producing the form\n`{base_url}:{base_port}/{subgraph_name}` for each subgraph.\n\n```yaml\n- name: subgraph-url-overrides.yaml\n  env_var: SUBGRAPH_URL_OVERRIDES\n  kind: graphos_subgraph_router_url_overrides\n  graph_ref: graph@variant\n  url_format:\n    base_url: \"http://loadbalancer\"\n    base_port: \"8080\"\n    increment_port: false\n    add_subgraph_route: false\n    custom_subgraph_urls:\n      my_subgraph: \"http://my-subgraph-instance:8081\"\n```",
+      "properties": {
+        "add_subgraph_route": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20boolean"
+            }
+          ],
+          "default": false,
+          "description": "Whether or not to include a `/{subgraph_name}` route for each subgraph.\n\nDefaults to false if unset."
+        },
+        "base_port": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20integer"
+            }
+          ],
+          "default": 8080,
+          "description": "The base port that the subgraph requests should use\n\nDefaults to the [UrlFormat::Docker] port if not set."
+        },
+        "base_url": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "default": "http://loadbalancer",
+          "description": "The base URL to route subgraph requests to.\n\nDefaults to the [UrlFormat::Docker] format if not set."
+        },
+        "custom_subgraph_urls": {
+          "additionalProperties": {
+            "$ref": "#/definitions/Templatable%20string"
+          },
+          "default": {},
+          "description": "Custom subgraph URL overrides for routes that do not fit the structure built by the above parameters.",
+          "type": "object"
+        },
+        "increment_port": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20boolean"
+            }
+          ],
+          "default": false,
+          "description": "Whether or not to increment the port number from the base for each subgraph.\n\nDefaults to false if unset."
+        }
+      },
+      "type": "object"
+    },
     "FromCommand": {
       "description": "Run a command provider and use its output as a file provider resource.\n\nAs with all other command providers, you can provide both environment variables\nand other file providers as inputs to the command being executed. RTF will use\nthe contents of the `$RTF_OUTPUT` path as the output of this provider, supporting\nboth writing a single file to that path and creating a directory at that path\ncontaining multiple files.\n\n```yaml\n- name: vegeta-ops.json\n  env_var: VEGETA_OPS\n  kind: from_command\n  command:\n    name: format-for-vegeta.sh\n    kind: relative_path\n    path: scripts/format-for-vegeta.sh\n  env_vars:\n    ROUTER_URL: \"http://127.0.0.1:4000/\"\n  file_providers:\n    - name: canned_ops.json\n      env_var: CANNED_OPS_FILE\n      kind: graphos_canned_ops\n      graph_ref: \"my@graph\"\n      top_n: 20\n      skip_mutations: true\n```\n\n### format-for-vegeta.sh\n```bash\n#!/usr/bin/env sh\nwhile read -r req; do\n  if [[ \"$OSTYPE\" == \"darwin\"* ]]; then\n    encoded=$(echo \"$req\" | base64 -b 0)\n  else\n    encoded=$(echo \"$req\" | base64 -w 0)\n  fi\n  \n  jq -nc \\\n    --arg body \"$encoded\" \\\n    --arg url \"$ROUTER_URL\" \\\n    '{\n      \"body\": $body,\n      \"header\": { \"Content-type\": [\"application/json\"] },\n      \"method\": \"POST\",\n      \"url\": $url\n    }' >> \"$RTF_OUTPUT\"\ndone <\"$CANNED_OPS_FILE\"\n```",
       "properties": {
@@ -1115,11 +1165,27 @@
     },
     "UrlFormat": {
       "description": "The allowed url formats for the [GraphosSubgraphRouterUrlOverrides]",
-      "enum": [
-        "localhost",
-        "docker"
-      ],
-      "type": "string"
+      "oneOf": [
+        {
+          "enum": [
+            "localhost",
+            "docker"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "custom": {
+              "$ref": "#/definitions/CustomUrlFormat"
+            }
+          },
+          "required": [
+            "custom"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "ValueDefinition": {
       "properties": {
