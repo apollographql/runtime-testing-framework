@@ -37,7 +37,7 @@
           "type": "object"
         }
       ],
-      "description": "This struct allows the config files to be resolved either from\ninline yaml in the test plan or from a `FileProvider`.",
+      "description": "This struct allows the config files to be resolved either from\ninline yaml in the test plan or from a [crate::providers::file::FileProvider].",
       "title": "Config Spec"
     },
     "Matrix": {

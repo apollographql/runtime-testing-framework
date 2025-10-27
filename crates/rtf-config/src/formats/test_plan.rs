@@ -460,7 +460,7 @@ impl From<RawMatrix> for Matrix {
 /// # Config Spec
 ///
 /// This struct allows the config files to be resolved either from
-/// inline yaml in the test plan or from a `FileProvider`.
+/// inline yaml in the test plan or from a [crate::providers::file::FileProvider].
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(
     untagged,
@@ -488,7 +488,7 @@ fn arbitrary_map(_gen: &mut SchemaGenerator) -> Schema {
 
 impl ConfigSpec {
     /// Try to convert the [ConfigSpec] into a config yaml. This can read the content
-    /// directly from inline content or a [FileProvider]
+    /// directly from inline content or a [crate::providers::file::FileProvider]
     async fn try_into_config_with_source<T>(
         self,
         tp_source: &Source,
