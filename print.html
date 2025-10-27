@@ -1737,7 +1737,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
@@ -1830,7 +1830,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
@@ -1976,7 +1976,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
@@ -2039,7 +2039,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
@@ -2111,7 +2111,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
@@ -2153,7 +2153,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
@@ -2228,7 +2228,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
@@ -2308,7 +2308,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
@@ -2364,7 +2364,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
@@ -2510,7 +2510,7 @@ command:
   path: ../scripts/scenario.sh
 # --- Use the scenario_value in the environment variables ---
 env_vars:
-  SCENARIO_VALUE: "{{ scenario_value }}"
+  SCENARIO_ENV: "{{ scenario_value }}"
 # -----------------------------------------------------------
 </code></pre>
 <p>Let's explain how this works. The values each have a <code>name</code> and <code>description</code>. The <code>name</code> is the
@@ -2542,7 +2542,7 @@ command:
   kind: relative_path
   path: ../scripts/scenario.sh
 env_vars:
-  SCENARIO_VALUE: "{{ scenario_value }}"
+  SCENARIO_ENV: "{{ scenario_value }}"
 </code></pre>
 <p>Lets run this and see what happens:</p>
 <pre><code class="language-bash">$ rtf run test-plan.yaml
@@ -2556,6 +2556,7 @@ different value in the test plan (this will take presence over a default). Updat
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 # --- Add a new value for scenario_value ---
+values:
   scenario_value: "scenario executed with test plan value"
 # ------------------------------------------
 scenario:
@@ -2577,7 +2578,7 @@ environment:
           echo "environment setup command executed"
     teardown:
       command:
-        name: setup.sh
+        name: teardown.sh
         kind: inline
         content: |
           #!/usr/bin/env sh
