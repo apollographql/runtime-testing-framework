@@ -1,8 +1,10 @@
-use crate::{cli::Values, commands::get_context};
+use crate::{
+    cli::Values,
+    commands::{get_context, load_and_resolve_test_plan},
+};
 use rtf_config::{
     checks::{self, Check},
     context::ResolutionContext,
-    formats::TestPlanConfig,
     templating::Template,
 };
 use tracing::info;
@@ -24,7 +26,7 @@ async fn template_test_plan_with_context(
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
     info!("loading and resolving test plan");
-    let mut test_plan = TestPlanConfig::try_load_and_resolve_from_path(path, &ctx).await?;
+    let mut test_plan = load_and_resolve_test_plan(path, &ctx).await?;
     values.merge(
         &mut test_plan.values,
         &mut test_plan.matrix.dimensions,
