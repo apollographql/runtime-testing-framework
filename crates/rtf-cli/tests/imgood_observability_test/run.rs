@@ -5,9 +5,8 @@
 //! You need to create an API Key with Graph Admin permissions for this graph to successfully
 //! complete the test. The API key should be set in the command for running the test e.g.
 //! APOLLO_KEY=<YOUR_KEY_HERE> cargo test imgood_observability -- --ignored
-pub mod common;
 
-use common::is_valid_test_plan;
+use crate::common::is_valid_test_plan;
 use simple_test_case::test_case;
 
 #[test_case("resources/graphos-supergraph"; "supergraph sdl")]
@@ -17,6 +16,6 @@ use simple_test_case::test_case;
 #[test_case("resources/graphos-canned-ops"; "canned operations")]
 #[test]
 #[ignore = "requires a valid GraphOS API Key"]
-fn imgood_observability_valid_test_plans(dir: &str) {
+fn success(dir: &str) {
     is_valid_test_plan(dir);
 }
