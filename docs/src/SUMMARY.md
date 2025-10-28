@@ -25,6 +25,8 @@
 
 - [Troubleshooting]()
 
+- [Cookbook](cookbook.md)
+
 - [Command Line Help](cli-help.md)
 
 - [Glossary](glossary.md)
