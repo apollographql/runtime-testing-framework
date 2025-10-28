@@ -1243,14 +1243,18 @@
       "description": "The allowed url formats for the [GraphosSubgraphRouterUrlOverrides]",
       "oneOf": [
         {
-          "enum": [
-            "localhost",
-            "docker"
-          ],
+          "const": "localhost",
+          "description": "Overrides to `http://localhost:<port>` for each subgraph.\n\nPort is defined as `4001 + n` where `n` is the nth subgraph, starting at 0.",
+          "type": "string"
+        },
+        {
+          "const": "docker",
+          "description": "Overrides to `http://loadbalancer:8080`.",
           "type": "string"
         },
         {
           "additionalProperties": false,
+          "description": "Accepts a custom formatting configuration that will define the URLs.",
           "properties": {
             "custom": {
               "$ref": "#/definitions/CustomUrlFormat"
