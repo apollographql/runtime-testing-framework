@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["find_fp_variants","get_docs","get_name","lookup_item","main","write_struct_docs","write_table_of_contents"]};

@@ -258,9 +258,6 @@ while read -r req; do
     }' &gt;&gt; "$RTF_OUTPUT"
 done &lt;"$CANNED_OPS_FILE"
 </code></pre>
-<h3 id="fields-1"><a class="header" href="#fields-1">Fields</a></h3>
-<h4 id="inner"><a class="header" href="#inner"><code>inner</code></a></h4>
-<p>null</p>
 <h2 id="github-file"><a class="header" href="#github-file">GitHub File</a></h2>
 <p>The user specifies a path to a file within a GitHub repository, optionally providing a specific ref
 of the repository to pull the file from. If no ref is providing then the provider will pull the
@@ -273,7 +270,7 @@ version of the file found on the default branch.</p>
   path: "resources/test-data/my-file.txt"
   git_ref: "some-ref"
 </code></pre>
-<h3 id="fields-2"><a class="header" href="#fields-2">Fields</a></h3>
+<h3 id="fields-1"><a class="header" href="#fields-1">Fields</a></h3>
 <h4 id="org"><a class="header" href="#org"><code>org</code></a></h4>
 <p>The GitHub org for the repository containing the target file</p>
 <h4 id="repo"><a class="header" href="#repo"><code>repo</code></a></h4>
@@ -294,7 +291,7 @@ requests based on operations data obtained from the GraphOS API.</p>
   top_n: 10
   skip_mutations: true
 </code></pre>
-<h3 id="fields-3"><a class="header" href="#fields-3">Fields</a></h3>
+<h3 id="fields-2"><a class="header" href="#fields-2">Fields</a></h3>
 <h4 id="graph_ref"><a class="header" href="#graph_ref"><code>graph_ref</code></a></h4>
 <p>The Apollo graph ref to pull operations for.</p>
 <h4 id="top_n"><a class="header" href="#top_n"><code>top_n</code></a></h4>
@@ -315,7 +312,7 @@ requests based on operations data obtained from the GraphOS API.</p>
     - 3f56aa92aad650bbfc7ba481cbe029aba2f6c5f4
     - 50b77d7351052abd84dcd2c2ccb63eff2fa2f94c
 </code></pre>
-<h3 id="fields-4"><a class="header" href="#fields-4">Fields</a></h3>
+<h3 id="fields-3"><a class="header" href="#fields-3">Fields</a></h3>
 <h4 id="graph_ref-1"><a class="header" href="#graph_ref-1"><code>graph_ref</code></a></h4>
 <p>The Apollo graph ref to pull operations for.</p>
 <h4 id="operation_ids"><a class="header" href="#operation_ids"><code>operation_ids</code></a></h4>
@@ -350,7 +347,7 @@ mocking based on the supergraph schema behind a loadbalancer.</p>
       memory: 512M
     mem_swappiness: 0
 </code></pre>
-<h3 id="fields-5"><a class="header" href="#fields-5">Fields</a></h3>
+<h3 id="fields-4"><a class="header" href="#fields-4">Fields</a></h3>
 <h4 id="graph_ref-2"><a class="header" href="#graph_ref-2"><code>graph_ref</code></a></h4>
 <p>The Apollo graph ref to pull the supergraph for.</p>
 <h4 id="image"><a class="header" href="#image"><code>image</code></a></h4>
@@ -386,7 +383,7 @@ url in that compose file.</p>
   graph_ref: graph@variant
   url_format: localhost
 </code></pre>
-<h3 id="fields-6"><a class="header" href="#fields-6">Fields</a></h3>
+<h3 id="fields-5"><a class="header" href="#fields-5">Fields</a></h3>
 <h4 id="graph_ref-3"><a class="header" href="#graph_ref-3"><code>graph_ref</code></a></h4>
 <p>The Apollo graph ref to pull the subgraphs for.</p>
 <h4 id="url_format"><a class="header" href="#url_format"><code>url_format</code></a></h4>
@@ -400,7 +397,7 @@ API.</p>
   kind: graphos_subgraphs
   graph_ref: graph@variant
 </code></pre>
-<h3 id="fields-7"><a class="header" href="#fields-7">Fields</a></h3>
+<h3 id="fields-6"><a class="header" href="#fields-6">Fields</a></h3>
 <h4 id="graph_ref-4"><a class="header" href="#graph_ref-4"><code>graph_ref</code></a></h4>
 <p>The Apollo graph ref to pull subgraph SDL files for.</p>
 <h2 id="graphos-subgraph-names"><a class="header" href="#graphos-subgraph-names">GraphOS Subgraph Names</a></h2>
@@ -412,7 +409,7 @@ supergraph from the GraphOS API.</p>
   kind: graphos_subgraph_names
   graph_ref: graph@variant
 </code></pre>
-<h3 id="fields-8"><a class="header" href="#fields-8">Fields</a></h3>
+<h3 id="fields-7"><a class="header" href="#fields-7">Fields</a></h3>
 <h4 id="graph_ref-5"><a class="header" href="#graph_ref-5"><code>graph_ref</code></a></h4>
 <p>The Apollo graph ref to pull subgraph names for.</p>
 <h2 id="graphos-supergraph-sdl"><a class="header" href="#graphos-supergraph-sdl">GraphOS Supergraph SDL</a></h2>
@@ -423,7 +420,7 @@ supergraph from the GraphOS API.</p>
   graph_ref: graph@variant
   with_subgraph_overrides: docker
 </code></pre>
-<h3 id="fields-9"><a class="header" href="#fields-9">Fields</a></h3>
+<h3 id="fields-8"><a class="header" href="#fields-8">Fields</a></h3>
 <h4 id="graph_ref-6"><a class="header" href="#graph_ref-6"><code>graph_ref</code></a></h4>
 <p>The Apollo graph ref to pull supergraph SDL for.</p>
 <h4 id="with_subgraph_overrides"><a class="header" href="#with_subgraph_overrides"><code>with_subgraph_overrides</code></a></h4>
@@ -439,7 +436,7 @@ config file.</p>
     my raw file content.
     specified inline within an RTF config file.
 </code></pre>
-<h3 id="fields-10"><a class="header" href="#fields-10">Fields</a></h3>
+<h3 id="fields-9"><a class="header" href="#fields-9">Fields</a></h3>
 <h4 id="content"><a class="header" href="#content"><code>content</code></a></h4>
 <p>The text to write out as the contents of the generated file.</p>
 <h2 id="merge-yaml"><a class="header" href="#merge-yaml">Merge YAML</a></h2>
@@ -472,7 +469,7 @@ an array:</p>
     - kind: relative_path
       path: "../my-other-overrides.yaml"
 </code></pre>
-<h3 id="fields-11"><a class="header" href="#fields-11">Fields</a></h3>
+<h3 id="fields-10"><a class="header" href="#fields-10">Fields</a></h3>
 <h4 id="base"><a class="header" href="#base"><code>base</code></a></h4>
 <p>A base YAML file to start with.</p>
 <h4 id="overrides"><a class="header" href="#overrides"><code>overrides</code></a></h4>
@@ -485,7 +482,7 @@ API.</p>
   kind: graphos_offline_license
   graph_id: graph
 </code></pre>
-<h3 id="fields-12"><a class="header" href="#fields-12">Fields</a></h3>
+<h3 id="fields-11"><a class="header" href="#fields-11">Fields</a></h3>
 <h4 id="graph_id"><a class="header" href="#graph_id"><code>graph_id</code></a></h4>
 <p>The Apollo graph id to pull an offline license for.</p>
 <h2 id="relative-path"><a class="header" href="#relative-path">Relative Path</a></h2>
@@ -497,7 +494,7 @@ containing config file was pulled from a repository.</p>
   kind: relative_path
   path: "../../resources/test-data/my-file.txt"
 </code></pre>
-<h3 id="fields-13"><a class="header" href="#fields-13">Fields</a></h3>
+<h3 id="fields-12"><a class="header" href="#fields-12">Fields</a></h3>
 <h4 id="path-1"><a class="header" href="#path-1"><code>path</code></a></h4>
 <p>The relative path from the containing config file to the target file.</p>
 <h4 id="src"><a class="header" href="#src"><code>src</code></a></h4>
@@ -512,7 +509,7 @@ defined file providers.</p>
   kind: required
   message: "you must specify a router config file to use"
 </code></pre>
-<h3 id="fields-14"><a class="header" href="#fields-14">Fields</a></h3>
+<h3 id="fields-13"><a class="header" href="#fields-13">Fields</a></h3>
 <h4 id="message"><a class="header" href="#message"><code>message</code></a></h4>
 <p>The error message to display to the user if this provider is not overwritten.</p>
 <h2 id="resolved-values"><a class="header" href="#resolved-values">Resolved Values</a></h2>
@@ -529,7 +526,7 @@ Router.</p>
   kind: router_download_script
   version: "v2.6.0"
 </code></pre>
-<h3 id="fields-15"><a class="header" href="#fields-15">Fields</a></h3>
+<h3 id="fields-14"><a class="header" href="#fields-14">Fields</a></h3>
 <h4 id="version"><a class="header" href="#version"><code>version</code></a></h4>
 <p>The version of the Apollo Router to download.</p>
 
