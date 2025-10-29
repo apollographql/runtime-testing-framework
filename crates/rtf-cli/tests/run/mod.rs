@@ -22,29 +22,29 @@ fn invalid_test_plan_path_errors() {
 
 #[test]
 fn sanity_check_success() {
-    is_valid_test_plan("resources/sanity-check");
+    is_valid_test_plan("resources/valid/sanity-check");
 }
 
 #[test]
 fn matrix_success() {
-    is_valid_test_plan("resources/matrix-values");
+    is_valid_test_plan("resources/valid/matrix-values");
 }
 
 #[test]
 fn command_from_spec_success() {
-    is_valid_test_plan("resources/command-from-spec");
+    is_valid_test_plan("resources/valid/command-from-spec");
 }
 
 #[test]
 fn overriding_values_success() {
     // default echo arg should be foo
-    prepare_rtf_run("resources/value-overrides")
+    prepare_rtf_run("resources/valid/value-overrides")
         .assert()
         .success()
         .stdout(contains("foo"));
 
     // specifying as a command line value should override
-    prepare_rtf_run("resources/value-overrides")
+    prepare_rtf_run("resources/valid/value-overrides")
         .arg("--value")
         .arg("echo_me=bar")
         .assert()
@@ -52,9 +52,9 @@ fn overriding_values_success() {
         .stdout(contains("bar"));
 
     // values.json should override to baz
-    prepare_rtf_run("resources/value-overrides")
+    prepare_rtf_run("resources/valid/value-overrides")
         .arg("--values")
-        .arg("resources/value-overrides/values.json")
+        .arg("resources/valid/value-overrides/values.json")
         .assert()
         .success()
         .stdout(contains("baz"));
@@ -62,19 +62,19 @@ fn overriding_values_success() {
 
 #[test]
 fn resolved_values_provider_success() {
-    prepare_rtf_run("resources/resolved-values")
+    prepare_rtf_run("resources/valid/resolved-values")
         .assert()
         .success()
         .stdout(contains(r#""foo":"bar""#));
 
-    prepare_rtf_run("resources/resolved-values")
+    prepare_rtf_run("resources/valid/resolved-values")
         .arg("--value")
         .arg("foo=baz")
         .assert()
         .success()
         .stdout(contains(r#""foo":"baz""#));
 
-    prepare_rtf_run("resources/resolved-values")
+    prepare_rtf_run("resources/valid/resolved-values")
         .arg("--value")
         .arg("echo_me=baz")
         .assert()
@@ -85,7 +85,7 @@ fn resolved_values_provider_success() {
 
 #[test]
 fn custom_matrix_variant_names_work() {
-    let mut cmd = prepare_rtf_run("resources/custom-matrix-variant-names");
+    let mut cmd = prepare_rtf_run("resources/valid/custom-matrix-variant-names");
     cmd.assert().success();
     cmd.assert_path_exists("output/world!-mother");
     cmd.assert_path_exists("output/world!-father");
@@ -95,7 +95,7 @@ fn custom_matrix_variant_names_work() {
 
 #[test]
 fn matrix_include_success() {
-    prepare_rtf_run("resources/matrix-include")
+    prepare_rtf_run("resources/valid/matrix-include")
         .assert()
         .success()
         .stdout(contains("hello, world!"))

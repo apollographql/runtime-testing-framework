@@ -4,8 +4,8 @@ use assert_fs::{TempDir, prelude::PathChild};
 use predicates::str::contains;
 use simple_test_case::test_case;
 
-#[test_case("resources/github-file"; "github file")]
-#[test_case("resources/github-config-files"; "github config files")]
+#[test_case("resources/valid/github-file"; "github file")]
+#[test_case("resources/valid/github-config-files"; "github config files")]
 #[test]
 #[ignore = "requires a valid GitHub API Token"]
 fn success(dir: &str) {

@@ -24,7 +24,7 @@ fn pretty() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .arg("expand-matrix")
-        .arg("resources/sanity-check/test-plan.yaml")
+        .arg("resources/valid/sanity-check/test-plan.yaml")
         .assert();
 
     let expected_json = json!({
@@ -44,7 +44,7 @@ fn compact() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .arg("expand-matrix")
-        .arg("resources/sanity-check/test-plan.yaml")
+        .arg("resources/valid/sanity-check/test-plan.yaml")
         .arg("--compact")
         .assert();
 
