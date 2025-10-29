@@ -11,7 +11,7 @@ matrix:
       scenario_subject: "father"
 
   dimensions:
-    message: [ "hello, ", "what a wonderful " ]
+    message: ["hello, ", "what a wonderful "]
 
 scenario:
   inline:
