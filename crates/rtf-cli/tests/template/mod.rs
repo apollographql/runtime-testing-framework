@@ -1,4 +1,5 @@
 use assert_cmd::Command;
+use indoc::indoc;
 use predicates::str::contains;
 use simple_test_case::test_case;
 
@@ -22,6 +23,7 @@ fn is_executable() {
 fn with_check_success(test_plan_dir: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
         .arg(format!("resources/valid/{test_plan_dir}/test-plan.yaml"))
         .arg("--check")
@@ -37,6 +39,7 @@ fn with_values_from_cli_success() {
     // The only way to template successfully is to set this value from the cli
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
         .arg("resources/valid/sanity-check/test-plan.yaml")
         .arg("--check")
@@ -87,9 +90,74 @@ fn with_values_from_cli_success() {
 fn load_and_resolve_errors(file: &str, err_contains: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
         .arg(format!("resources/invalid/load-and-resolve/{file}"))
         .assert();
 
     res.stderr(contains(err_contains));
+}
+
+#[test_case(
+    "conflicting-keys.yaml",
+    "(test_plan) Conflicting value and matrix definitions\nfoo";
+    "conflicting keys"
+)]
+#[test_case(
+    "empty-matrix.yaml",
+    "(test_plan) Empty array for matrix value\nfoo";
+    "empty matrix"
+)]
+#[test_case(
+    "inconsistent-matrix-values.yaml",
+    "(test_plan) Inconsistent types for matrix value\nfoo";
+    "inconsistent matrix values"
+)]
+#[test_case(
+    "inconsistent-matrix-include.yaml",
+    "(test_plan) Inconsistent types for matrix include maps\nmatrix include maps must share consistent keys and types";
+    "inconsistent matrix include"
+)]
+#[test_case(
+    "missing-values.yaml",
+    indoc!(r#"
+    (environment.setup) Missing template values definitions. Make sure the value is defined in the scenario or environment config values
+      - bar: ""
+    
+    (environment.teardown) Missing template values definitions. Make sure the value is defined in the scenario or environment config values
+      - baz: ""
+    
+    (scenario) Missing template values definitions. Make sure the value is defined in the scenario or environment config values
+      - foo: ""
+    "#);
+    "missing values"
+)]
+#[test_case(
+    "unknown-values.yaml",
+    "(environment.teardown.env_vars.FOO) Unknown templating value. Make sure a value is defined for this value to resolve to.\nfoo";
+    "unknown values"
+)]
+#[test]
+fn templating_errors(file: &str, err_contains: &str) {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
+        .arg("template")
+        .arg(format!("resources/invalid/templating/{file}"))
+        .assert();
+
+    res.stderr(contains(format!("Templating failed\n{err_contains}")));
+}
+
+#[test]
+fn duplicate_variant_names_errors() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .arg("template")
+        .arg("resources/invalid/templating/duplicate-variant-names.yaml")
+        .assert();
+
+    res.stderr(contains(
+        "The provided variant_names template produced duplicate names: [\"foo\"]",
+    ));
 }

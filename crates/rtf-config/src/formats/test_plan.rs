@@ -1594,8 +1594,16 @@ mod tests {
             templatable_test_plan(values, dimensions, vec![], &["scenario"], &[], &[]);
 
         let mut expected_errs = ErrorBuilder::new();
-        expected_errs.push(ErrorKind::ConflictingValues, "foo", &["".to_string()]);
-        expected_errs.push(ErrorKind::EmptyMatrixValue, "foo", &["".to_string()]);
+        expected_errs.push(
+            ErrorKind::ConflictingValues,
+            "foo",
+            &["test_plan".to_string()],
+        );
+        expected_errs.push(
+            ErrorKind::EmptyMatrixValue,
+            "foo",
+            &["test_plan".to_string()],
+        );
         expected_errs.push(
             ErrorKind::MissingValues,
             "  - scenario: \"description\"",
