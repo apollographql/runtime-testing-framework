@@ -1,0 +1,38 @@
+name: duplicate-value-names
+description: |
+  Check the error shown when a test plan defines duplicate value names
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: an inline scenario
+    values:
+      - name: foo
+        description: a value foo
+      - name: foo
+        description: a value foo
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, World!"
+
+environment:
+  inline:
+    name: inline-environment
+    description: an inline environment
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"

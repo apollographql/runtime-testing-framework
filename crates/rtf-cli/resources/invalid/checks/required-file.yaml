@@ -1,0 +1,39 @@
+name: required-file
+description: |
+  Check the error shown when a required file has not been replaced with a valid
+  provider
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: an inline scenario
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, World!"
+    file_providers:
+      - name: required.txt
+        env_var: REQUIRED
+        kind: required
+        message: this will cause a check failure
+
+environment:
+  inline:
+    name: inline-environment
+    description: an inline environment
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"

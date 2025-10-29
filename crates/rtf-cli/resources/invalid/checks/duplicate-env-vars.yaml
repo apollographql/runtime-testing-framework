@@ -1,0 +1,41 @@
+name: duplicate-env-vars
+description: |
+  Check the error shown when a test plan defines duplicate env vars
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: an inline scenario
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, World!"
+    env_vars:
+      FOO: foo
+      BAR: bar
+    file_providers:
+      - name: inline.txt
+        env_var: FOO
+        kind: inline
+        content: some content
+
+environment:
+  inline:
+    name: inline-environment
+    description: an inline environment
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"

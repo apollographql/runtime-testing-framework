@@ -1,0 +1,42 @@
+name: missing-github-key
+description: |
+  Check the error shown when there is no GitHub key provided when a 
+  GitHub file provider is used. This will fail if GITHUB is not
+  set in the environment variables
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: an inline scenario
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, World!"
+    file_providers:
+      - name: README.md
+        env_var: RTF_README
+        kind: github_file
+        org: "apollographql"
+        repo: "runtime-testing-framework"
+        path: "README.md"
+
+environment:
+  inline:
+    name: inline-environment
+    description: an inline environment
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"

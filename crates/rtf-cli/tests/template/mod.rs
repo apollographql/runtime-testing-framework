@@ -161,3 +161,48 @@ fn duplicate_variant_names_errors() {
         "The provided variant_names template produced duplicate names: [\"foo\"]",
     ));
 }
+
+#[test_case(
+    "missing-relative-file.yaml",
+    "(command.command_provider) The requested file did not exist\nprovided path was Resolved(\"does-not-exist.sh\")";
+    "missing relative file"
+)]
+#[test_case(
+    "missing-graphos-key.yaml",
+    "(offline.license) No API key provided for calling the Apollo GraphOS API\nexpected os env key APOLLO_KEY";
+    "missing graphos key"
+)]
+#[test_case(
+    "missing-github-key.yaml",
+    "(README.md) No API key provided for calling the GitHub API\nexpected os env key GITHUB_TOKEN";
+    "missing github key"
+)]
+#[test_case(
+    "required-file.yaml",
+    "(required.txt) A required file has not been defined\nthis will cause a check failure";
+    "required file"
+)]
+#[test_case(
+    "duplicate-value-names.yaml",
+    "(scenario.values) Non-unique value names found\nfoo";
+    "duplicate value names"
+)]
+#[test_case(
+    "duplicate-env-vars.yaml",
+    "() Non-unique environment variables found\nFOO";
+    "duplicate env vars"
+)]
+#[test]
+fn check_errors(file: &str, err_contains: &str) {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
+        .arg("template")
+        .arg(format!("resources/invalid/checks/{file}"))
+        .arg("--check")
+        .assert();
+
+    res.stderr(contains(format!(
+        "Static analysis checks failed\n{err_contains}"
+    )));
+}

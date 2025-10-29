@@ -410,7 +410,7 @@ impl Check for RelativeFile {
                 return if ctx.github_client().is_none() {
                     Err(checks::Errors::new(
                         checks::ErrorKind::MissingGithubApiKey,
-                        "",
+                        "expected os env key GITHUB_TOKEN",
                         path,
                     ))
                 } else {
