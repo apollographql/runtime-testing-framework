@@ -1,8 +1,10 @@
-use std::{collections::HashMap, fs::File, io::BufReader, path::PathBuf};
+use std::{collections::HashMap, fs::File, io::BufReader, path::PathBuf, sync::OnceLock};
 
 use anyhow::{Result, anyhow};
 use convert_case::{Boundary, Case, Casing};
-use rustdoc_types::{Crate, Id, Item, ItemEnum, StructKind, Type, VariantKind};
+use rustdoc_types::{Attribute, Crate, Id, Item, ItemEnum, StructKind, Type, VariantKind};
+
+static FILE_PROVIDER_IDS: OnceLock<Vec<Id>> = OnceLock::new();
 
 fn lookup_item<'idx>(index: &'idx HashMap<Id, Item>, id: &Id) -> Result<&'idx Item> {
     index
@@ -64,68 +66,160 @@ fn find_fp_variants(index: &HashMap<Id, Item>) -> Option<Vec<Id>> {
 ///
 /// Expects that File Providers will follow the documentation convention of starting their rustdoc
 /// comments with a line in the form of `# {human readable name}`.
-fn write_table_of_contents(index: &HashMap<Id, Item>, variants: &Vec<Id>) -> Result<()> {
+fn write_table_of_contents(index: &HashMap<Id, Item>) -> Result<()> {
     println!("Available file providers:\n");
 
-    for variant in variants {
+    for variant in FILE_PROVIDER_IDS.get().unwrap() {
         let item = lookup_item(index, variant)?;
-
-        let title = get_docs(item)?
-            .lines()
-            .next()
-            .ok_or_else(|| anyhow!("File Provider variants must have a documentation header"))?
-            .replace("# ", "");
-
-        let kebab_title = title
-            .with_boundaries(&[Boundary::SPACE])
-            .to_case(Case::Kebab);
-
-        println!("- [{title}](#{kebab_title})");
+        println!("{}", generate_toc_link(item)?);
     }
     Ok(())
 }
 
-/// Writes the documentation for each variant and its fields. Does not include documentation
-/// for fields of fields at this time.
-fn write_struct_docs(index: &HashMap<Id, Item>, struct_ids: &Vec<Id>) -> Result<()> {
-    for id in struct_ids {
-        let item = lookup_item(index, id)?;
+/// Generates the table of contents link for a File Provider
+fn generate_toc_link(fp_item: &Item) -> Result<String> {
+    let title = get_docs(fp_item)?
+        .lines()
+        .next()
+        .ok_or_else(|| anyhow!("File Provider variants must have a documentation header"))?
+        .replace("# ", "");
 
-        let docs = get_docs(item)?;
-        println!("#{docs}\n");
+    let kebab_title = title
+        .with_boundaries(&[Boundary::SPACE])
+        .to_case(Case::Kebab);
 
-        match &item.inner {
-            ItemEnum::Struct(inner_struct) => {
-                if let StructKind::Plain {
-                    fields: inner_fields,
-                    has_stripped_fields: _,
-                } = &inner_struct.kind
-                {
-                    if inner_fields.iter().any(|inner_id| {
-                        lookup_item(index, inner_id)
-                            .ok()
-                            .and_then(|inner_item| inner_item.docs.as_ref())
-                            .is_some()
-                    }) {
-                        println!("### Fields\n");
-                    }
+    Ok(format!("- [{title}](#{kebab_title})"))
+}
 
-                    // TODO: recurse on inner fields if they are other known types within the crate
-                    for inner_id in inner_fields {
-                        let inner_item = lookup_item(index, inner_id)?;
-                        let name = get_name(inner_item)?;
+/// Writes the top-level documentation for each file provider and recursively documents their fields.
+fn write_file_provider_docs(index: &HashMap<Id, Item>) -> Result<()> {
+    let header = "#";
 
-                        if let Some(inner_docs) = &inner_item.docs {
-                            println!("#### `{name}`\n");
-                            println!("{inner_docs}\n");
-                        }
-                    }
-                }
+    for id in FILE_PROVIDER_IDS.get().unwrap() {
+        if let Some(item) = index.get(id) {
+            if let Ok(docs) = get_docs(item) {
+                println!("{header}{docs}\n");
             }
-            _ => {
-                // TODO: support enums so we can recurse here
+
+            document_item_content(index, &item.inner, &format!("{header}#"))?
+        }
+    }
+    Ok(())
+}
+
+/// Writes out the documentation for a struct's fields or an enum's variants
+fn document_item_content(index: &HashMap<Id, Item>, item: &ItemEnum, header: &str) -> Result<()> {
+    match item {
+        ItemEnum::Struct(inner_struct) => {
+            if let StructKind::Plain {
+                fields: inner_fields,
+                has_stripped_fields: _,
+            } = &inner_struct.kind
+            {
+                if inner_fields.iter().any(|inner_id| {
+                    lookup_item(index, inner_id)
+                        .ok()
+                        .and_then(|inner_item| inner_item.docs.as_ref())
+                        .is_some()
+                }) {
+                    println!("<details>");
+                    println!("<summary>Fields</summary>\n");
+                    document_inner_fields(index, inner_fields, &format!("{header}#"))?;
+                    println!("</details>\n");
+                } else {
+                    document_inner_fields(index, inner_fields, header)?;
+                };
             }
+        }
+        ItemEnum::Enum(inner_enum) => document_inner_variants(index, &inner_enum.variants, header)?,
+        _ => {}
+    };
+    Ok(())
+}
+
+fn document_inner_variants(
+    index: &HashMap<Id, Item>,
+    inner_variants: &Vec<Id>,
+    header: &str,
+) -> Result<()> {
+    println!("<details>");
+    println!("<summary>Variants</summary>\n");
+
+    let mut tuple_variants = Vec::new();
+    for inner_id in inner_variants {
+        let inner_item = lookup_item(index, inner_id)?;
+        let name = get_name(inner_item)?;
+
+        // Tuple variants are written out as maps in the YAML and should be documented
+        // as their full list of supported values after the list of named variants
+        if let ItemEnum::Variant(variant) = &inner_item.inner
+            && let VariantKind::Tuple(meta_items) = &variant.kind
+        {
+            tuple_variants.push((inner_item, meta_items));
+        } else {
+            print!("- `{}`", name.to_case(Case::Snake));
+            if let Some(inner_docs) = &inner_item.docs {
+                print!(": {}", inner_docs.replace("\n", "  "));
+            }
+            println!();
+        }
+    }
+    println!("\n");
+
+    for (tuple_variant, meta_items) in tuple_variants {
+        let name = get_name(tuple_variant)?;
+        if let Some(inner_docs) = &tuple_variant.docs {
+            println!("{header}# `{}`\n", name.to_case(Case::Snake));
+            println!("{}", inner_docs);
+        }
+        document_inner_fields(
+            index,
+            &meta_items.iter().filter_map(|x| *x).collect(),
+            &format!("{header}#"),
+        )?;
+    }
+
+    println!("</details>\n");
+    Ok(())
+}
+
+fn document_inner_fields(
+    index: &HashMap<Id, Item>,
+    inner_fields: &Vec<Id>,
+    header: &str,
+) -> Result<()> {
+    for inner_id in inner_fields {
+        let inner_item = lookup_item(index, inner_id)?;
+        let name = get_name(inner_item)?;
+
+        // Don't write the docs if this was a flattened item or it had no docs
+        if let Some(inner_docs) = &inner_item.docs
+            && !inner_item
+                .attrs
+                .contains(&Attribute::Other("#[serde(flatten)]".to_owned()))
+        {
+            println!("{header} `{name}`\n");
+            println!("{inner_docs}\n");
         };
+
+        if let ItemEnum::StructField(Type::ResolvedPath(resolved)) = &inner_item.inner {
+            // If we recurse back to a reference to a file provider, just provide a TOC link to it and don't
+            // re-document it.
+            if FILE_PROVIDER_IDS.get().unwrap().contains(&resolved.id) {
+                println!("{}", generate_toc_link(lookup_item(index, &resolved.id)?)?);
+            // Only recursively document if:
+            //   * the item is not a Field (those should be considered the same as external primitives)
+            //   * the item is not an untagged enum variant (an implementation detail that doesn't need to be exposed)
+            } else if let Ok(meta_item) = lookup_item(index, &resolved.id)
+                && let Some(meta_name) = meta_item.name.as_ref()
+                && meta_name != "Field"
+                && !meta_item
+                    .attrs
+                    .contains(&Attribute::Other("#[serde(untagged)]".to_owned()))
+            {
+                document_item_content(index, &meta_item.inner, header)?;
+            }
+        }
     }
     Ok(())
 }
@@ -146,10 +240,11 @@ fn main() -> Result<()> {
                 .ok_or_else(|| {
                     anyhow!("Could not find the FileProvider enum variants in the docfile")
                 })?;
+            FILE_PROVIDER_IDS.set(variants).unwrap();
 
             println!("# File Providers\n");
-            write_table_of_contents(&index, &variants)?;
-            write_struct_docs(&index, &variants)?;
+            write_table_of_contents(&index)?;
+            write_file_provider_docs(&index)?;
 
             Ok(())
         }

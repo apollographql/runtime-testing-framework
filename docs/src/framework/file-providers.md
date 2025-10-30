@@ -32,19 +32,22 @@ A file provider used for building the Router from source at a specific git commi
   rust_version: "1.89.0"
 ```
 
-### Fields
+<details>
+<summary>Fields</summary>
 
-#### `git_ref`
+### `git_ref`
 
 A git reference that can be passed to `git checkout`. This may be a full or partial commit hash,
 branch name, or tag.
 
-#### `rust_version`
+### `rust_version`
 
 A Rust version string that can be passed to `rustup run {rust_version}`, such as `"1.78.0"`,
 `"beta"`, or `"nightly"`.
 
 Defaults to `"stable"` if unset.
+
+</details>
 
 ## From command
 
@@ -97,6 +100,45 @@ while read -r req; do
 done <"$CANNED_OPS_FILE"
 ```
 
+<details>
+<summary>Fields</summary>
+
+### `command`
+
+The command to be run
+
+<details>
+<summary>Fields</summary>
+
+#### `name`
+
+The name of the command to run
+
+<details>
+<summary>Variants</summary>
+
+- [Inline File](#inline-file)
+- [Relative Path](#relative-path)
+- [Required File](#required-file)
+
+</details>
+
+#### `args`
+
+Arguments to the command
+
+</details>
+
+### `env_vars`
+
+Environment variables to set
+
+### `file_providers`
+
+File providers to run and make available prior to execution
+
+</details>
+
 ## GitHub File
 
 The user specifies a path to a file within a GitHub repository, optionally providing a specific ref
@@ -113,26 +155,29 @@ version of the file found on the default branch.
   git_ref: "some-ref"
 ```
 
-### Fields
+<details>
+<summary>Fields</summary>
 
-#### `org`
+### `org`
 
 The GitHub org for the repository containing the target file
 
-#### `repo`
+### `repo`
 
 The GitHub repository containing the target file
 
-#### `path`
+### `path`
 
 The absolute path from the root of the repository to the target file
 
-#### `git_ref`
+### `git_ref`
 
 An optional git reference to pull the file from. This may be a full or partial commit hash, branch
 name, or tag.
 
 Defaults to the mainline branch as specified in GitHub if unset.
+
+</details>
 
 ## GraphOS Canned Operations
 
@@ -148,23 +193,26 @@ requests based on operations data obtained from the GraphOS API.
   skip_mutations: true
 ```
 
-### Fields
+<details>
+<summary>Fields</summary>
 
-#### `graph_ref`
+### `graph_ref`
 
 The Apollo graph ref to pull operations for.
 
-#### `top_n`
+### `top_n`
 
 The number of operations to attempt to fetch.
 
 Defaults to 20 if unset.
 
-#### `skip_mutations`
+### `skip_mutations`
 
 Whether or not to include mutations in the returned operations.
 
 Defaults to false if unset.
+
+</details>
 
 ## GraphOS Canned Operations by ID
 
@@ -182,16 +230,19 @@ requests based on operations data obtained from the GraphOS API.
     - 50b77d7351052abd84dcd2c2ccb63eff2fa2f94c
 ```
 
-### Fields
+<details>
+<summary>Fields</summary>
 
-#### `graph_ref`
+### `graph_ref`
 
 The Apollo graph ref to pull operations for.
 
-#### `operation_ids`
+### `operation_ids`
 
 Operation IDs from the Apollo studio API for the operations you want to work with as queried from an
 `OperationInsightsListItem` in the Studio graphQL API.
+
+</details>
 
 ## GraphOS Subgraph Docker Compose
 
@@ -226,51 +277,129 @@ mocking based on the supergraph schema behind a loadbalancer.
     mem_swappiness: 0
 ```
 
-### Fields
+<details>
+<summary>Fields</summary>
 
-#### `graph_ref`
+### `graph_ref`
 
 The Apollo graph ref to pull the supergraph for.
 
-#### `image`
+### `image`
 
 The image the subgraph service runs.
 
 Defaults to ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main if unset.
 
-#### `command`
+### `command`
 
 The command that subgraph server image runs.
 
 Defaults to "-schema /app/supergraph.graphql" if unset.
 
-#### `replicas`
+### `replicas`
 
 The number of subgraph services containers running.
 
 Defaults to 5 if unset.
 
-#### `resource_limits`
+### `resource_limits`
 
 The resource limits for the subgraph containers.
 
 Defaults to cpus=0.5 and memory=1G if unset.
 
-#### `resource_reservations`
+<details>
+<summary>Fields</summary>
+
+#### `cpus`
+
+The cpus allocated for the resource.
+
+#### `memory`
+
+The memory allocated for the resource.
+
+</details>
+
+### `resource_reservations`
 
 The reserved resources for the subgraph containers.
 
 Defaults to cpus=0.1 and memory=512M if unset.
 
-#### `mem_swappiness`
+<details>
+<summary>Fields</summary>
+
+#### `cpus`
+
+The cpus allocated for the resource.
+
+#### `memory`
+
+The memory allocated for the resource.
+
+</details>
+
+### `mem_swappiness`
 
 Enable or disable memory swapping in the subgraph services.
 
 Defaults to 0 (disabled) if unset.
 
-#### `loadbalancer`
+### `loadbalancer`
 
 The configuration for the subgraph's loadbalancer.
+
+<details>
+<summary>Fields</summary>
+
+#### `resource_limits`
+
+The resource limits for the loadbalancer.
+
+Defaults to cpus=0.5 and memory=1G if unset.
+
+<details>
+<summary>Fields</summary>
+
+##### `cpus`
+
+The cpus allocated for the resource.
+
+##### `memory`
+
+The memory allocated for the resource.
+
+</details>
+
+#### `resource_reservations`
+
+The reserved resources for the loadbalancer.
+
+Defaults to cpus=0.1 and memory=512M if unset.
+
+<details>
+<summary>Fields</summary>
+
+##### `cpus`
+
+The cpus allocated for the resource.
+
+##### `memory`
+
+The memory allocated for the resource.
+
+</details>
+
+#### `mem_swappiness`
+
+Enable or disable memory swapping in the loadbalancer.
+
+Defaults to 0 (disabled) if unset.
+
+</details>
+
+</details>
 
 ## GraphOS Supergraph Router URL Overrides
 
@@ -290,15 +419,65 @@ url in that compose file.
   url_format: localhost
 ```
 
-### Fields
+<details>
+<summary>Fields</summary>
 
-#### `graph_ref`
+### `graph_ref`
 
 The Apollo graph ref to pull the subgraphs for.
 
-#### `url_format`
+### `url_format`
 
 The format of the overrides url.
+
+<details>
+<summary>Variants</summary>
+
+- `localhost`: Overrides to `http://localhost:<port>` for each subgraph. Port is defined as
+  `4001 + n` where `n` is the nth subgraph, starting at 0.
+- `docker`: Overrides to `http://loadbalancer:8080`.
+
+#### `custom`
+
+Accepts a custom formatting configuration that will define the URLs.
+
+<details>
+<summary>Fields</summary>
+
+##### `base_url`
+
+The base URL to route subgraph requests to.
+
+Defaults to the [UrlFormat::Docker] format if not set.
+
+##### `base_port`
+
+The base port that the subgraph requests should use
+
+Defaults to the [UrlFormat::Docker] port if not set.
+
+##### `increment_port`
+
+Whether or not to increment the port number from the base for each subgraph.
+
+Defaults to false if unset.
+
+##### `add_subgraph_route`
+
+Whether or not to include a `/{subgraph_name}` route for each subgraph.
+
+Defaults to false if unset.
+
+##### `custom_subgraph_urls`
+
+Custom subgraph URL overrides for routes that do not fit the structure built by the above
+parameters.
+
+</details>
+
+</details>
+
+</details>
 
 ## GraphOS Subgraph SDL
 
@@ -314,11 +493,14 @@ Note that this file proivider will output a directory of SDL schema files, one f
   graph_ref: graph@variant
 ```
 
-### Fields
+<details>
+<summary>Fields</summary>
 
-#### `graph_ref`
+### `graph_ref`
 
 The Apollo graph ref to pull subgraph SDL files for.
+
+</details>
 
 ## GraphOS Subgraph Names
 
@@ -334,11 +516,14 @@ This file proivider will output a newline-delimited file of the subgraph names.
   graph_ref: graph@variant
 ```
 
-### Fields
+<details>
+<summary>Fields</summary>
 
-#### `graph_ref`
+### `graph_ref`
 
 The Apollo graph ref to pull subgraph names for.
+
+</details>
 
 ## GraphOS Supergraph SDL
 
@@ -352,17 +537,20 @@ The user specifies the ref that should be used to fetch a supergraph SDL file fr
   with_subgraph_overrides: docker
 ```
 
-### Fields
+<details>
+<summary>Fields</summary>
 
-#### `graph_ref`
+### `graph_ref`
 
 The Apollo graph ref to pull supergraph SDL for.
 
-#### `with_subgraph_overrides`
+### `with_subgraph_overrides`
 
 Replace the supergraph's subgraph urls with overridden values for testing.
 
 Defaults to null if unset.
+
+</details>
 
 ## Inline File
 
@@ -378,11 +566,14 @@ config file.
     specified inline within an RTF config file.
 ```
 
-### Fields
+<details>
+<summary>Fields</summary>
 
-#### `content`
+### `content`
 
 The text to write out as the contents of the generated file.
+
+</details>
 
 ## Merge YAML
 
@@ -423,15 +614,29 @@ an array:
       path: "../my-other-overrides.yaml"
 ```
 
-### Fields
+<details>
+<summary>Fields</summary>
 
-#### `base`
+### `base`
 
 A base YAML file to start with.
 
-#### `overrides`
+<details>
+<summary>Variants</summary>
+
+- [GitHub File](#github-file)
+- [GraphOS Supergraph Router URL Overrides](#graphos-supergraph-router-url-overrides)
+- [Inline File](#inline-file)
+- [Relative Path](#relative-path)
+- [Required File](#required-file)
+
+</details>
+
+### `overrides`
 
 One or more YAML files to merge on top of the base file in sequence.
+
+</details>
 
 ## GraphOS Offline License
 
@@ -445,11 +650,14 @@ API.
   graph_id: graph
 ```
 
-### Fields
+<details>
+<summary>Fields</summary>
 
-#### `graph_id`
+### `graph_id`
 
 The Apollo graph id to pull an offline license for.
+
+</details>
 
 ## Relative Path
 
@@ -464,16 +672,19 @@ containing config file was pulled from a repository.
   path: "../../resources/test-data/my-file.txt"
 ```
 
-### Fields
+<details>
+<summary>Fields</summary>
 
-#### `path`
+### `path`
 
 The relative path from the containing config file to the target file.
 
-#### `src`
+### `src`
 
 Set during TestPlan parsing as part of overrides. This should only ever be `Some` if this provider
 was defined as part of an `overrides` section in the test plan.
+
+</details>
 
 ## Required File
 
@@ -488,11 +699,14 @@ defined file providers.
   message: "you must specify a router config file to use"
 ```
 
-### Fields
+<details>
+<summary>Fields</summary>
 
-#### `message`
+### `message`
 
 The error message to display to the user if this provider is not overwritten.
+
+</details>
 
 ## Resolved Values
 
@@ -516,8 +730,11 @@ Router.
   version: "v2.6.0"
 ```
 
-### Fields
+<details>
+<summary>Fields</summary>
 
-#### `version`
+### `version`
 
 The version of the Apollo Router to download.
+
+</details>

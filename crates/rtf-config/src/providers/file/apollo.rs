@@ -652,8 +652,13 @@ fn default_url_format() -> UrlFormat {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(rename_all = "snake_case")]
 pub enum UrlFormat {
+    /// Overrides to `http://localhost:<port>` for each subgraph.
+    ///
+    /// Port is defined as `4001 + n` where `n` is the nth subgraph, starting at 0.
     Localhost,
+    /// Overrides to `http://loadbalancer:8080`.
     Docker,
+    /// Accepts a custom formatting configuration that will define the URLs.
     Custom(CustomUrlFormat),
 }
 
