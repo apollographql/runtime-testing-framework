@@ -100,7 +100,7 @@ test github::run::completes_with_no_ref
 test github::run::completes_with_ref
 ```
 
-To achieve the structure above, the tests are defined in `tests/run/github.rs` and organized as
+To achieve the structure above, the tests are defined in `tests/github/run.rs` and organized as
 follows:
 
 ```rust
