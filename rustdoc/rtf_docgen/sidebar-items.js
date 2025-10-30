@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["find_fp_variants","get_docs","get_name","lookup_item","main","write_struct_docs","write_table_of_contents"]};
+window.SIDEBAR_ITEMS = {"fn":["document_inner_fields","document_inner_variants","document_item_content","find_fp_variants","generate_toc_link","get_docs","get_name","lookup_item","main","write_file_provider_docs","write_table_of_contents"],"static":["FILE_PROVIDER_IDS"]};

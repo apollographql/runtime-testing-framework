@@ -1349,14 +1349,16 @@ worrying about the providers running multiple times.</p>
   git_ref: "some-ref"
   rust_version: "1.89.0"
 </code></pre>
-<h3 id="fields"><a class="header" href="#fields">Fields</a></h3>
-<h4 id="git_ref"><a class="header" href="#git_ref"><code>git_ref</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h3 id="git_ref"><a class="header" href="#git_ref"><code>git_ref</code></a></h3>
 <p>A git reference that can be passed to <code>git checkout</code>. This may be a full or partial commit hash,
 branch name, or tag.</p>
-<h4 id="rust_version"><a class="header" href="#rust_version"><code>rust_version</code></a></h4>
+<h3 id="rust_version"><a class="header" href="#rust_version"><code>rust_version</code></a></h3>
 <p>A Rust version string that can be passed to <code>rustup run {rust_version}</code>, such as <code>"1.78.0"</code>,
 <code>"beta"</code>, or <code>"nightly"</code>.</p>
 <p>Defaults to <code>"stable"</code> if unset.</p>
+</details>
 <h2 id="from-command"><a class="header" href="#from-command">From command</a></h2>
 <p>Run a command provider and use its output as a file provider resource.</p>
 <p>As with all other command providers, you can provide both environment variables and other file
@@ -1400,6 +1402,30 @@ while read -r req; do
     }' &gt;&gt; "$RTF_OUTPUT"
 done &lt;"$CANNED_OPS_FILE"
 </code></pre>
+<details>
+<summary>Fields</summary>
+<h3 id="command"><a class="header" href="#command"><code>command</code></a></h3>
+<p>The command to be run</p>
+<details>
+<summary>Fields</summary>
+<h4 id="name"><a class="header" href="#name"><code>name</code></a></h4>
+<p>The name of the command to run</p>
+<details>
+<summary>Variants</summary>
+<ul>
+<li><a href="framework/file-providers.html#inline-file">Inline File</a></li>
+<li><a href="framework/file-providers.html#relative-path">Relative Path</a></li>
+<li><a href="framework/file-providers.html#required-file">Required File</a></li>
+</ul>
+</details>
+<h4 id="args"><a class="header" href="#args"><code>args</code></a></h4>
+<p>Arguments to the command</p>
+</details>
+<h3 id="env_vars"><a class="header" href="#env_vars"><code>env_vars</code></a></h3>
+<p>Environment variables to set</p>
+<h3 id="file_providers"><a class="header" href="#file_providers"><code>file_providers</code></a></h3>
+<p>File providers to run and make available prior to execution</p>
+</details>
 <h2 id="github-file"><a class="header" href="#github-file">GitHub File</a></h2>
 <p>The user specifies a path to a file within a GitHub repository, optionally providing a specific ref
 of the repository to pull the file from. If no ref is providing then the provider will pull the
@@ -1412,17 +1438,19 @@ version of the file found on the default branch.</p>
   path: "resources/test-data/my-file.txt"
   git_ref: "some-ref"
 </code></pre>
-<h3 id="fields-1"><a class="header" href="#fields-1">Fields</a></h3>
-<h4 id="org"><a class="header" href="#org"><code>org</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h3 id="org"><a class="header" href="#org"><code>org</code></a></h3>
 <p>The GitHub org for the repository containing the target file</p>
-<h4 id="repo"><a class="header" href="#repo"><code>repo</code></a></h4>
+<h3 id="repo"><a class="header" href="#repo"><code>repo</code></a></h3>
 <p>The GitHub repository containing the target file</p>
-<h4 id="path"><a class="header" href="#path"><code>path</code></a></h4>
+<h3 id="path"><a class="header" href="#path"><code>path</code></a></h3>
 <p>The absolute path from the root of the repository to the target file</p>
-<h4 id="git_ref-1"><a class="header" href="#git_ref-1"><code>git_ref</code></a></h4>
+<h3 id="git_ref-1"><a class="header" href="#git_ref-1"><code>git_ref</code></a></h3>
 <p>An optional git reference to pull the file from. This may be a full or partial commit hash, branch
 name, or tag.</p>
 <p>Defaults to the mainline branch as specified in GitHub if unset.</p>
+</details>
 <h2 id="graphos-canned-operations"><a class="header" href="#graphos-canned-operations">GraphOS Canned Operations</a></h2>
 <p>The user specifies the graph ref and parameters that should be used to generate canned GraphQL
 requests based on operations data obtained from the GraphOS API.</p>
@@ -1433,15 +1461,17 @@ requests based on operations data obtained from the GraphOS API.</p>
   top_n: 10
   skip_mutations: true
 </code></pre>
-<h3 id="fields-2"><a class="header" href="#fields-2">Fields</a></h3>
-<h4 id="graph_ref"><a class="header" href="#graph_ref"><code>graph_ref</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h3 id="graph_ref"><a class="header" href="#graph_ref"><code>graph_ref</code></a></h3>
 <p>The Apollo graph ref to pull operations for.</p>
-<h4 id="top_n"><a class="header" href="#top_n"><code>top_n</code></a></h4>
+<h3 id="top_n"><a class="header" href="#top_n"><code>top_n</code></a></h3>
 <p>The number of operations to attempt to fetch.</p>
 <p>Defaults to 20 if unset.</p>
-<h4 id="skip_mutations"><a class="header" href="#skip_mutations"><code>skip_mutations</code></a></h4>
+<h3 id="skip_mutations"><a class="header" href="#skip_mutations"><code>skip_mutations</code></a></h3>
 <p>Whether or not to include mutations in the returned operations.</p>
 <p>Defaults to false if unset.</p>
+</details>
 <h2 id="graphos-canned-operations-by-id"><a class="header" href="#graphos-canned-operations-by-id">GraphOS Canned Operations by ID</a></h2>
 <p>The user specifies the graph ref and parameters that should be used to generate canned GraphQL
 requests based on operations data obtained from the GraphOS API.</p>
@@ -1454,12 +1484,14 @@ requests based on operations data obtained from the GraphOS API.</p>
     - 3f56aa92aad650bbfc7ba481cbe029aba2f6c5f4
     - 50b77d7351052abd84dcd2c2ccb63eff2fa2f94c
 </code></pre>
-<h3 id="fields-3"><a class="header" href="#fields-3">Fields</a></h3>
-<h4 id="graph_ref-1"><a class="header" href="#graph_ref-1"><code>graph_ref</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h3 id="graph_ref-1"><a class="header" href="#graph_ref-1"><code>graph_ref</code></a></h3>
 <p>The Apollo graph ref to pull operations for.</p>
-<h4 id="operation_ids"><a class="header" href="#operation_ids"><code>operation_ids</code></a></h4>
+<h3 id="operation_ids"><a class="header" href="#operation_ids"><code>operation_ids</code></a></h3>
 <p>Operation IDs from the Apollo studio API for the operations you want to work with as queried from an
 <code>OperationInsightsListItem</code> in the Studio graphQL API.</p>
+</details>
 <h2 id="graphos-subgraph-docker-compose"><a class="header" href="#graphos-subgraph-docker-compose">GraphOS Subgraph Docker Compose</a></h2>
 <p>The user specifies the graph ref that should be used to fetch the supergraph SDL file from the
 GraphOS API and generates a docker compose file. It runs a configurable number of subgraph services,
@@ -1489,29 +1521,71 @@ mocking based on the supergraph schema behind a loadbalancer.</p>
       memory: 512M
     mem_swappiness: 0
 </code></pre>
-<h3 id="fields-4"><a class="header" href="#fields-4">Fields</a></h3>
-<h4 id="graph_ref-2"><a class="header" href="#graph_ref-2"><code>graph_ref</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h3 id="graph_ref-2"><a class="header" href="#graph_ref-2"><code>graph_ref</code></a></h3>
 <p>The Apollo graph ref to pull the supergraph for.</p>
-<h4 id="image"><a class="header" href="#image"><code>image</code></a></h4>
+<h3 id="image"><a class="header" href="#image"><code>image</code></a></h3>
 <p>The image the subgraph service runs.</p>
 <p>Defaults to ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main if unset.</p>
-<h4 id="command"><a class="header" href="#command"><code>command</code></a></h4>
+<h3 id="command-1"><a class="header" href="#command-1"><code>command</code></a></h3>
 <p>The command that subgraph server image runs.</p>
 <p>Defaults to "-schema /app/supergraph.graphql" if unset.</p>
-<h4 id="replicas"><a class="header" href="#replicas"><code>replicas</code></a></h4>
+<h3 id="replicas"><a class="header" href="#replicas"><code>replicas</code></a></h3>
 <p>The number of subgraph services containers running.</p>
 <p>Defaults to 5 if unset.</p>
-<h4 id="resource_limits"><a class="header" href="#resource_limits"><code>resource_limits</code></a></h4>
+<h3 id="resource_limits"><a class="header" href="#resource_limits"><code>resource_limits</code></a></h3>
 <p>The resource limits for the subgraph containers.</p>
 <p>Defaults to cpus=0.5 and memory=1G if unset.</p>
-<h4 id="resource_reservations"><a class="header" href="#resource_reservations"><code>resource_reservations</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h4 id="cpus"><a class="header" href="#cpus"><code>cpus</code></a></h4>
+<p>The cpus allocated for the resource.</p>
+<h4 id="memory"><a class="header" href="#memory"><code>memory</code></a></h4>
+<p>The memory allocated for the resource.</p>
+</details>
+<h3 id="resource_reservations"><a class="header" href="#resource_reservations"><code>resource_reservations</code></a></h3>
 <p>The reserved resources for the subgraph containers.</p>
 <p>Defaults to cpus=0.1 and memory=512M if unset.</p>
-<h4 id="mem_swappiness"><a class="header" href="#mem_swappiness"><code>mem_swappiness</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h4 id="cpus-1"><a class="header" href="#cpus-1"><code>cpus</code></a></h4>
+<p>The cpus allocated for the resource.</p>
+<h4 id="memory-1"><a class="header" href="#memory-1"><code>memory</code></a></h4>
+<p>The memory allocated for the resource.</p>
+</details>
+<h3 id="mem_swappiness"><a class="header" href="#mem_swappiness"><code>mem_swappiness</code></a></h3>
 <p>Enable or disable memory swapping in the subgraph services.</p>
 <p>Defaults to 0 (disabled) if unset.</p>
-<h4 id="loadbalancer"><a class="header" href="#loadbalancer"><code>loadbalancer</code></a></h4>
+<h3 id="loadbalancer"><a class="header" href="#loadbalancer"><code>loadbalancer</code></a></h3>
 <p>The configuration for the subgraph's loadbalancer.</p>
+<details>
+<summary>Fields</summary>
+<h4 id="resource_limits-1"><a class="header" href="#resource_limits-1"><code>resource_limits</code></a></h4>
+<p>The resource limits for the loadbalancer.</p>
+<p>Defaults to cpus=0.5 and memory=1G if unset.</p>
+<details>
+<summary>Fields</summary>
+<h5 id="cpus-2"><a class="header" href="#cpus-2"><code>cpus</code></a></h5>
+<p>The cpus allocated for the resource.</p>
+<h5 id="memory-2"><a class="header" href="#memory-2"><code>memory</code></a></h5>
+<p>The memory allocated for the resource.</p>
+</details>
+<h4 id="resource_reservations-1"><a class="header" href="#resource_reservations-1"><code>resource_reservations</code></a></h4>
+<p>The reserved resources for the loadbalancer.</p>
+<p>Defaults to cpus=0.1 and memory=512M if unset.</p>
+<details>
+<summary>Fields</summary>
+<h5 id="cpus-3"><a class="header" href="#cpus-3"><code>cpus</code></a></h5>
+<p>The cpus allocated for the resource.</p>
+<h5 id="memory-3"><a class="header" href="#memory-3"><code>memory</code></a></h5>
+<p>The memory allocated for the resource.</p>
+</details>
+<h4 id="mem_swappiness-1"><a class="header" href="#mem_swappiness-1"><code>mem_swappiness</code></a></h4>
+<p>Enable or disable memory swapping in the loadbalancer.</p>
+<p>Defaults to 0 (disabled) if unset.</p>
+</details>
+</details>
 <h2 id="graphos-supergraph-router-url-overrides"><a class="header" href="#graphos-supergraph-router-url-overrides">GraphOS Supergraph Router URL Overrides</a></h2>
 <p>The user specifies the graph ref that should be used to fetch subgraph SDL files from the GraphOS
 API and generates a the override_subgraph_urls YAML snippet that can be merged into a router config
@@ -1525,11 +1599,41 @@ url in that compose file.</p>
   graph_ref: graph@variant
   url_format: localhost
 </code></pre>
-<h3 id="fields-5"><a class="header" href="#fields-5">Fields</a></h3>
-<h4 id="graph_ref-3"><a class="header" href="#graph_ref-3"><code>graph_ref</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h3 id="graph_ref-3"><a class="header" href="#graph_ref-3"><code>graph_ref</code></a></h3>
 <p>The Apollo graph ref to pull the subgraphs for.</p>
-<h4 id="url_format"><a class="header" href="#url_format"><code>url_format</code></a></h4>
+<h3 id="url_format"><a class="header" href="#url_format"><code>url_format</code></a></h3>
 <p>The format of the overrides url.</p>
+<details>
+<summary>Variants</summary>
+<ul>
+<li><code>localhost</code>: Overrides to <code>http://localhost:&lt;port&gt;</code> for each subgraph. Port is defined as
+<code>4001 + n</code> where <code>n</code> is the nth subgraph, starting at 0.</li>
+<li><code>docker</code>: Overrides to <code>http://loadbalancer:8080</code>.</li>
+</ul>
+<h4 id="custom"><a class="header" href="#custom"><code>custom</code></a></h4>
+<p>Accepts a custom formatting configuration that will define the URLs.</p>
+<details>
+<summary>Fields</summary>
+<h5 id="base_url"><a class="header" href="#base_url"><code>base_url</code></a></h5>
+<p>The base URL to route subgraph requests to.</p>
+<p>Defaults to the [UrlFormat::Docker] format if not set.</p>
+<h5 id="base_port"><a class="header" href="#base_port"><code>base_port</code></a></h5>
+<p>The base port that the subgraph requests should use</p>
+<p>Defaults to the [UrlFormat::Docker] port if not set.</p>
+<h5 id="increment_port"><a class="header" href="#increment_port"><code>increment_port</code></a></h5>
+<p>Whether or not to increment the port number from the base for each subgraph.</p>
+<p>Defaults to false if unset.</p>
+<h5 id="add_subgraph_route"><a class="header" href="#add_subgraph_route"><code>add_subgraph_route</code></a></h5>
+<p>Whether or not to include a <code>/{subgraph_name}</code> route for each subgraph.</p>
+<p>Defaults to false if unset.</p>
+<h5 id="custom_subgraph_urls"><a class="header" href="#custom_subgraph_urls"><code>custom_subgraph_urls</code></a></h5>
+<p>Custom subgraph URL overrides for routes that do not fit the structure built by the above
+parameters.</p>
+</details>
+</details>
+</details>
 <h2 id="graphos-subgraph-sdl"><a class="header" href="#graphos-subgraph-sdl">GraphOS Subgraph SDL</a></h2>
 <p>The user specifies the graph ref that should be used to fetch a subgraph SDL files from the GraphOS
 API.</p>
@@ -1539,9 +1643,11 @@ API.</p>
   kind: graphos_subgraphs
   graph_ref: graph@variant
 </code></pre>
-<h3 id="fields-6"><a class="header" href="#fields-6">Fields</a></h3>
-<h4 id="graph_ref-4"><a class="header" href="#graph_ref-4"><code>graph_ref</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h3 id="graph_ref-4"><a class="header" href="#graph_ref-4"><code>graph_ref</code></a></h3>
 <p>The Apollo graph ref to pull subgraph SDL files for.</p>
+</details>
 <h2 id="graphos-subgraph-names"><a class="header" href="#graphos-subgraph-names">GraphOS Subgraph Names</a></h2>
 <p>The user specifies the graph ref that should be used to fetch the names of subgraphs in the
 supergraph from the GraphOS API.</p>
@@ -1551,9 +1657,11 @@ supergraph from the GraphOS API.</p>
   kind: graphos_subgraph_names
   graph_ref: graph@variant
 </code></pre>
-<h3 id="fields-7"><a class="header" href="#fields-7">Fields</a></h3>
-<h4 id="graph_ref-5"><a class="header" href="#graph_ref-5"><code>graph_ref</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h3 id="graph_ref-5"><a class="header" href="#graph_ref-5"><code>graph_ref</code></a></h3>
 <p>The Apollo graph ref to pull subgraph names for.</p>
+</details>
 <h2 id="graphos-supergraph-sdl"><a class="header" href="#graphos-supergraph-sdl">GraphOS Supergraph SDL</a></h2>
 <p>The user specifies the ref that should be used to fetch a supergraph SDL file from the GraphOS API.</p>
 <pre><code class="language-yaml">- name: "supergraph.graphql"
@@ -1562,12 +1670,14 @@ supergraph from the GraphOS API.</p>
   graph_ref: graph@variant
   with_subgraph_overrides: docker
 </code></pre>
-<h3 id="fields-8"><a class="header" href="#fields-8">Fields</a></h3>
-<h4 id="graph_ref-6"><a class="header" href="#graph_ref-6"><code>graph_ref</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h3 id="graph_ref-6"><a class="header" href="#graph_ref-6"><code>graph_ref</code></a></h3>
 <p>The Apollo graph ref to pull supergraph SDL for.</p>
-<h4 id="with_subgraph_overrides"><a class="header" href="#with_subgraph_overrides"><code>with_subgraph_overrides</code></a></h4>
+<h3 id="with_subgraph_overrides"><a class="header" href="#with_subgraph_overrides"><code>with_subgraph_overrides</code></a></h3>
 <p>Replace the supergraph's subgraph urls with overridden values for testing.</p>
 <p>Defaults to null if unset.</p>
+</details>
 <h2 id="inline-file"><a class="header" href="#inline-file">Inline File</a></h2>
 <p>The simplest form of file provider: the user specifies the contents of the file inline within their
 config file.</p>
@@ -1578,9 +1688,11 @@ config file.</p>
     my raw file content.
     specified inline within an RTF config file.
 </code></pre>
-<h3 id="fields-9"><a class="header" href="#fields-9">Fields</a></h3>
-<h4 id="content"><a class="header" href="#content"><code>content</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h3 id="content"><a class="header" href="#content"><code>content</code></a></h3>
 <p>The text to write out as the contents of the generated file.</p>
+</details>
 <h2 id="merge-yaml"><a class="header" href="#merge-yaml">Merge YAML</a></h2>
 <p>Merge the YAML output of text based file providers into a single YAML file.</p>
 <p>Matching keys in the overrides file will replace scalar values, concatenate arrays and merge keys
@@ -1611,11 +1723,23 @@ an array:</p>
     - kind: relative_path
       path: "../my-other-overrides.yaml"
 </code></pre>
-<h3 id="fields-10"><a class="header" href="#fields-10">Fields</a></h3>
-<h4 id="base"><a class="header" href="#base"><code>base</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h3 id="base"><a class="header" href="#base"><code>base</code></a></h3>
 <p>A base YAML file to start with.</p>
-<h4 id="overrides"><a class="header" href="#overrides"><code>overrides</code></a></h4>
+<details>
+<summary>Variants</summary>
+<ul>
+<li><a href="framework/file-providers.html#github-file">GitHub File</a></li>
+<li><a href="framework/file-providers.html#graphos-supergraph-router-url-overrides">GraphOS Supergraph Router URL Overrides</a></li>
+<li><a href="framework/file-providers.html#inline-file">Inline File</a></li>
+<li><a href="framework/file-providers.html#relative-path">Relative Path</a></li>
+<li><a href="framework/file-providers.html#required-file">Required File</a></li>
+</ul>
+</details>
+<h3 id="overrides"><a class="header" href="#overrides"><code>overrides</code></a></h3>
 <p>One or more YAML files to merge on top of the base file in sequence.</p>
+</details>
 <h2 id="graphos-offline-license"><a class="header" href="#graphos-offline-license">GraphOS Offline License</a></h2>
 <p>The user specifies the graph id that should be used to fetch an offline license from the GraphOS
 API.</p>
@@ -1624,9 +1748,11 @@ API.</p>
   kind: graphos_offline_license
   graph_id: graph
 </code></pre>
-<h3 id="fields-11"><a class="header" href="#fields-11">Fields</a></h3>
-<h4 id="graph_id"><a class="header" href="#graph_id"><code>graph_id</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h3 id="graph_id"><a class="header" href="#graph_id"><code>graph_id</code></a></h3>
 <p>The Apollo graph id to pull an offline license for.</p>
+</details>
 <h2 id="relative-path"><a class="header" href="#relative-path">Relative Path</a></h2>
 <p>A relative path from the containing config file to a target file that should be made available as
 part of the test run. This provider works both with local files and files within GitHub if the
@@ -1636,12 +1762,14 @@ containing config file was pulled from a repository.</p>
   kind: relative_path
   path: "../../resources/test-data/my-file.txt"
 </code></pre>
-<h3 id="fields-12"><a class="header" href="#fields-12">Fields</a></h3>
-<h4 id="path-1"><a class="header" href="#path-1"><code>path</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h3 id="path-1"><a class="header" href="#path-1"><code>path</code></a></h3>
 <p>The relative path from the containing config file to the target file.</p>
-<h4 id="src"><a class="header" href="#src"><code>src</code></a></h4>
+<h3 id="src"><a class="header" href="#src"><code>src</code></a></h3>
 <p>Set during TestPlan parsing as part of overrides. This should only ever be <code>Some</code> if this provider
 was defined as part of an <code>overrides</code> section in the test plan.</p>
+</details>
 <h2 id="required-file"><a class="header" href="#required-file">Required File</a></h2>
 <p>The only purpose of this file provider is to throw an error if it still exists when the file
 providers are being checked. All definitions of a required file are expected to be replaced by user
@@ -1651,9 +1779,11 @@ defined file providers.</p>
   kind: required
   message: "you must specify a router config file to use"
 </code></pre>
-<h3 id="fields-13"><a class="header" href="#fields-13">Fields</a></h3>
-<h4 id="message"><a class="header" href="#message"><code>message</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h3 id="message"><a class="header" href="#message"><code>message</code></a></h3>
 <p>The error message to display to the user if this provider is not overwritten.</p>
+</details>
 <h2 id="resolved-values"><a class="header" href="#resolved-values">Resolved Values</a></h2>
 <p>Returns the JSON string representation of the resolved values for the test plan being run.</p>
 <pre><code class="language-yaml">- name: "resolved-values.json"
@@ -1668,9 +1798,11 @@ Router.</p>
   kind: router_download_script
   version: "v2.6.0"
 </code></pre>
-<h3 id="fields-14"><a class="header" href="#fields-14">Fields</a></h3>
-<h4 id="version"><a class="header" href="#version"><code>version</code></a></h4>
+<details>
+<summary>Fields</summary>
+<h3 id="version"><a class="header" href="#version"><code>version</code></a></h3>
 <p>The version of the Apollo Router to download.</p>
+</details>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="writing-test-plans"><a class="header" href="#writing-test-plans">Writing test Plans</a></h1>
 <p>This section will guide you through writing a test plan for rtf from a blank file. The test plan
 will be a simple "Hello, World!" example that introduces you to the concepts of writing RTF test
@@ -1746,7 +1878,7 @@ the simplest test plan it is possible to write in rtf.</p>
 <h2 id="adding-required-fields"><a class="header" href="#adding-required-fields">Adding required fields</a></h2>
 <p>An rtf test plan has four required fields: <code>name</code>, <code>description</code>, <code>scenario</code>, and <code>environment</code>. The
 sections below add each of these required fields and explain them in more detail.</p>
-<h3 id="name"><a class="header" href="#name"><code>name</code></a></h3>
+<h3 id="name-1"><a class="header" href="#name-1"><code>name</code></a></h3>
 <p>Add the <code>name</code> field to the <code>test-plan.yaml</code> file</p>
 <pre><code class="language-yaml">name: Hello World
 </code></pre>
