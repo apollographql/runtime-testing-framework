@@ -3,3 +3,4 @@ target
 *.iml
 .env
 .envrc
+**/output
