@@ -219,7 +219,6 @@ pub enum FileProvider {
     GithubFile(github::GithubFile),
     GraphosCannedOps(apollo::GraphosCannedOps),
     GraphosCannedOpsById(apollo::GraphosCannedOpsById),
-    GraphosSubgraphDockerCompose(apollo::GraphosSubgraphDockerCompose),
     GraphosSubgraphRouterUrlOverrides(apollo::GraphosSubgraphRouterUrlOverrides),
     GraphosSubgraphs(apollo::GraphosSubgraphs),
     GraphosSubgraphNames(apollo::GraphosSubgraphNames),
@@ -260,7 +259,6 @@ enum_impl_file_provider!(
     GithubFile,
     GraphosCannedOps,
     GraphosCannedOpsById,
-    GraphosSubgraphDockerCompose,
     GraphosSubgraphRouterUrlOverrides,
     GraphosSubgraphs,
     GraphosSubgraphNames,
@@ -650,29 +648,6 @@ mod tests {
           - "{{ op_2 }}"
     "#
     );
-    const GRAPHOS_SUBGRAPH_DOCKER_COMPOSE: &str = indoc!(
-        r#"
-        kind: graphos_subgraph_docker_compose
-        graph_ref: "{{ graph_ref }}"
-        image: "{{ image }}"
-        replicas: "{{ replicas }}"
-        resource_limits:
-          cpus: "{{ resource_limits_cpus }}"
-          memory: "{{ resource_limits_memory }}"
-        resource_reservations:
-          cpus: "{{ resource_reservations_cpus }}"
-          memory: "{{ resource_reservations_memory }}"
-        mem_swappiness: "{{ mem_swappiness }}"
-        loadbalancer:
-          resource_limits:
-            cpus: "{{ loadbalancer_resource_limits_cpus }}"
-            memory: "{{ loadbalancer_resource_limits_memory }}"
-          resource_reservations:
-            cpus: "{{ loadbalancer_resource_reservations_cpus }}"
-            memory: "{{ loadbalancer_resource_reservations_memory }}"
-          mem_swappiness: "{{ loadbalancer_mem_swappiness }}"
-    "#
-    );
     const GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES: &str = indoc!(
         r#"
         kind: graphos_subgraph_router_url_overrides
@@ -785,13 +760,6 @@ mod tests {
     #[test_case(GITHUB_FILE, &["org", "repo", "path", "git_ref"]; "github_file")]
     #[test_case(GRAPHOS_CANNED_OPS, &["graph_ref", "top_n", "skip_mutations"]; "graphos_canned_ops")]
     #[test_case(GRAPHOS_CANNED_OPS_BY_ID, &["graph_ref", "op_1", "op_2"]; "graphos_canned_ops_by_id")]
-    #[test_case(GRAPHOS_SUBGRAPH_DOCKER_COMPOSE, &[
-        "graph_ref", "image", "replicas", "resource_limits_cpus", "resource_limits_memory", 
-        "resource_reservations_cpus", "resource_reservations_memory", "mem_swappiness", 
-        "loadbalancer_resource_limits_cpus", "loadbalancer_resource_limits_memory", 
-        "loadbalancer_resource_reservations_cpus", "loadbalancer_resource_reservations_memory", 
-        "loadbalancer_mem_swappiness"
-    ]; "graphos_subgraph_docker_compose")]
     #[test_case(GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES, &["graph_ref"]; "graphos_subgraph_router_url_overrides")]
     #[test_case(GRAPHOS_SUBGRAPHS, &["graph_ref"]; "graphos_subgraphs")]
     #[test_case(GRAPHOS_SUBGRAPH_NAMES, &["graph_ref"]; "graphos_subgraph_names")]

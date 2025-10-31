@@ -329,105 +329,6 @@
       "title": "GraphOS Canned Operations by ID",
       "type": "object"
     },
-    "GraphosSubgraphDockerCompose": {
-      "description": "The user specifies the graph ref that should be used to fetch the supergraph\nSDL file from the GraphOS API and generates a docker compose file. It runs a\nconfigurable number of subgraph services, mocking based on the supergraph\nschema behind a loadbalancer.\n\n```yaml\n- name: \"subgraph-compose.yaml\"\n  env_var: SUBGRAPH_COMPOSE\n  kind: graphos_subgraph_docker_compose\n  graph_ref: graph@variant\n  image: ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main\n  command:\n  - -schema\n  - /app/supergraph.graphql\n  replicas: 5\n  resource_limits:\n    cpus: '0.5'\n    memory: 1G\n  resource_reservations:\n   cpus: '0.1'\n    memory: 512M\n  mem_swappiness: 0\n  loadbalancer:\n    resource_limits:\n      cpus: '0.5'\n      memory: 1G\n    resource_reservations:\n      cpus: '0.1'\n      memory: 512M\n    mem_swappiness: 0\n```",
-      "properties": {
-        "command": {
-          "default": [
-            "-schema",
-            "/app/supergraph.graphql"
-          ],
-          "description": "The command that subgraph server image runs.\n\nDefaults to \"-schema /app/supergraph.graphql\" if unset.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "graph_ref": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/Templatable%20string"
-            }
-          ],
-          "description": "The Apollo graph ref to pull the supergraph for."
-        },
-        "image": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/Templatable%20string"
-            }
-          ],
-          "default": "ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main",
-          "description": "The image the subgraph service runs.\n\nDefaults to ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main if unset."
-        },
-        "loadbalancer": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/Loadbalancer"
-            }
-          ],
-          "default": {
-            "mem_swappiness": 0,
-            "resource_limits": {
-              "cpus": "0.5",
-              "memory": "1G"
-            },
-            "resource_reservations": {
-              "cpus": "0.1",
-              "memory": "512M"
-            }
-          },
-          "description": "The configuration for the subgraph's loadbalancer."
-        },
-        "mem_swappiness": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/Templatable%20integer2"
-            }
-          ],
-          "default": 0,
-          "description": "Enable or disable memory swapping in the subgraph services.\n\nDefaults to 0 (disabled) if unset."
-        },
-        "replicas": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/Templatable%20integer2"
-            }
-          ],
-          "default": 5,
-          "description": "The number of subgraph services containers running.\n\nDefaults to 5 if unset."
-        },
-        "resource_limits": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/Resources"
-            }
-          ],
-          "default": {
-            "cpus": "0.5",
-            "memory": "1G"
-          },
-          "description": "The resource limits for the subgraph containers.\n\nDefaults to cpus=0.5 and memory=1G if unset."
-        },
-        "resource_reservations": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/Resources"
-            }
-          ],
-          "default": {
-            "cpus": "0.1",
-            "memory": "512M"
-          },
-          "description": "The reserved resources for the subgraph containers.\n\nDefaults to cpus=0.1 and memory=512M if unset."
-        }
-      },
-      "required": [
-        "graph_ref"
-      ],
-      "title": "GraphOS Subgraph Docker Compose",
-      "type": "object"
-    },
     "GraphosSubgraphNames": {
       "description": "The user specifies the graph ref that should be used to fetch the names of\nsubgraphs in the supergraph from the GraphOS API.\n\nThis file proivider will output a newline-delimited file of the subgraph names.\n\n```yaml\n- name: \"subgraph_names\"\n  env_var: SUBGRAPH_NAMES\n  kind: graphos_subgraph_names\n  graph_ref: graph@variant\n```",
       "properties": {
@@ -447,7 +348,7 @@
       "type": "object"
     },
     "GraphosSubgraphRouterUrlOverrides": {
-      "description": "The user specifies the graph ref that should be used to fetch subgraph\nSDL files from the GraphOS API and generates a the override_subgraph_urls\nYAML snippet that can be merged into a router config file\n\nThis should be used when generating the subgraph docker compose using\n[GraphosSubgraphDockerCompose]. This will ensure the router subgraph urls\nmap to the loadbalancer url in that compose file.\n\n```yaml\n- name: subgraph-url-overrides.yaml\n  env_var: SUBGRAPH_URL_OVERRIDES\n  kind: graphos_subgraph_router_url_overrides\n  graph_ref: graph@variant\n  url_format: localhost\n```",
+      "description": "The user specifies the graph ref that should be used to fetch subgraph\nSDL files from the GraphOS API and generates a the override_subgraph_urls\nYAML snippet that can be merged into a router config file.\n\nThis should be used whenever subgraph requests need to be mapped to a mock\nserver instead of hitting the real subgraph as defined in the supergraph,\nwhich is typically desirable behavior when working with real graphs.\n\n```yaml\n- name: subgraph-url-overrides.yaml\n  env_var: SUBGRAPH_URL_OVERRIDES\n  kind: graphos_subgraph_router_url_overrides\n  graph_ref: graph@variant\n  url_format: localhost\n```",
       "properties": {
         "graph_ref": {
           "allOf": [
@@ -533,40 +434,6 @@
         "content"
       ],
       "title": "Inline File",
-      "type": "object"
-    },
-    "Loadbalancer": {
-      "properties": {
-        "mem_swappiness": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/Templatable%20integer2"
-            }
-          ],
-          "description": "Enable or disable memory swapping in the loadbalancer.\n\nDefaults to 0 (disabled) if unset."
-        },
-        "resource_limits": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/Resources"
-            }
-          ],
-          "description": "The resource limits for the loadbalancer.\n\nDefaults to cpus=0.5 and memory=1G if unset."
-        },
-        "resource_reservations": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/Resources"
-            }
-          ],
-          "description": "The reserved resources for the loadbalancer.\n\nDefaults to cpus=0.1 and memory=512M if unset."
-        }
-      },
-      "required": [
-        "resource_limits",
-        "resource_reservations",
-        "mem_swappiness"
-      ],
       "type": "object"
     },
     "MergeYaml": {
@@ -676,23 +543,6 @@
           "properties": {
             "kind": {
               "const": "graphos_canned_ops_by_id",
-              "type": "string"
-            }
-          },
-          "required": [
-            "kind"
-          ],
-          "type": "object"
-        },
-        {
-          "allOf": [
-            {
-              "$ref": "#/definitions/GraphosSubgraphDockerCompose"
-            }
-          ],
-          "properties": {
-            "kind": {
-              "const": "graphos_subgraph_docker_compose",
               "type": "string"
             }
           },
@@ -971,31 +821,6 @@
       "title": "Required File",
       "type": "object"
     },
-    "Resources": {
-      "properties": {
-        "cpus": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/Templatable%20string"
-            }
-          ],
-          "description": "The cpus allocated for the resource."
-        },
-        "memory": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/Templatable%20string"
-            }
-          ],
-          "description": "The memory allocated for the resource."
-        }
-      },
-      "required": [
-        "cpus",
-        "memory"
-      ],
-      "type": "object"
-    },
     "RouterDownloadScript": {
       "description": "Produces a POSIX shell script that can be run in order to download a target version of the\nApollo Router.\n\n```yaml\n- name: \"router-download.sh\"\n  env_var: ROUTER_DOWNLOAD\n  kind: router_download_script\n  version: \"v2.6.0\"\n```",
       "properties": {
@@ -1107,20 +932,6 @@
       ]
     },
     "Templatable integer": {
-      "description": "A templatable integer that can be replaced with a user specified value at runtime",
-      "oneOf": [
-        {
-          "description": "The value that should be templated.",
-          "pattern": "^\\{\\{ \\w+ \\}\\}$",
-          "type": "string"
-        },
-        {
-          "description": "Statically provided data.",
-          "type": "integer"
-        }
-      ]
-    },
-    "Templatable integer2": {
       "description": "A templatable integer that can be replaced with a user specified value at runtime",
       "oneOf": [
         {
