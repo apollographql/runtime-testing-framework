@@ -1,7 +1,0 @@
-query getStuff($variableA: InputTypeA, $variableB: InputTypeB! = {}) {
-    doSomething(inputA: $variableA, inputB: $variableB) {
-        a
-        b
-        c
-    }
-}
