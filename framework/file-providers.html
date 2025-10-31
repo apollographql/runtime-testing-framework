@@ -186,7 +186,6 @@
 <li><a href="#github-file">GitHub File</a></li>
 <li><a href="#graphos-canned-operations">GraphOS Canned Operations</a></li>
 <li><a href="#graphos-canned-operations-by-id">GraphOS Canned Operations by ID</a></li>
-<li><a href="#graphos-subgraph-docker-compose">GraphOS Subgraph Docker Compose</a></li>
 <li><a href="#graphos-supergraph-router-url-overrides">GraphOS Supergraph Router URL Overrides</a></li>
 <li><a href="#graphos-subgraph-sdl">GraphOS Subgraph SDL</a></li>
 <li><a href="#graphos-subgraph-names">GraphOS Subgraph Names</a></li>
@@ -350,107 +349,13 @@ requests based on operations data obtained from the GraphOS API.</p>
 <p>Operation IDs from the Apollo studio API for the operations you want to work with as queried from an
 <code>OperationInsightsListItem</code> in the Studio graphQL API.</p>
 </details>
-<h2 id="graphos-subgraph-docker-compose"><a class="header" href="#graphos-subgraph-docker-compose">GraphOS Subgraph Docker Compose</a></h2>
-<p>The user specifies the graph ref that should be used to fetch the supergraph SDL file from the
-GraphOS API and generates a docker compose file. It runs a configurable number of subgraph services,
-mocking based on the supergraph schema behind a loadbalancer.</p>
-<pre><code class="language-yaml">- name: "subgraph-compose.yaml"
-  env_var: SUBGRAPH_COMPOSE
-  kind: graphos_subgraph_docker_compose
-  graph_ref: graph@variant
-  image: ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main
-  command:
-  - -schema
-  - /app/supergraph.graphql
-  replicas: 5
-  resource_limits:
-    cpus: '0.5'
-    memory: 1G
-  resource_reservations:
-   cpus: '0.1'
-    memory: 512M
-  mem_swappiness: 0
-  loadbalancer:
-    resource_limits:
-      cpus: '0.5'
-      memory: 1G
-    resource_reservations:
-      cpus: '0.1'
-      memory: 512M
-    mem_swappiness: 0
-</code></pre>
-<details>
-<summary>Fields</summary>
-<h3 id="graph_ref-2"><a class="header" href="#graph_ref-2"><code>graph_ref</code></a></h3>
-<p>The Apollo graph ref to pull the supergraph for.</p>
-<h3 id="image"><a class="header" href="#image"><code>image</code></a></h3>
-<p>The image the subgraph service runs.</p>
-<p>Defaults to ghcr.io/apollographql/runtime-testing-framework/router-scale-subgraph:main if unset.</p>
-<h3 id="command-1"><a class="header" href="#command-1"><code>command</code></a></h3>
-<p>The command that subgraph server image runs.</p>
-<p>Defaults to "-schema /app/supergraph.graphql" if unset.</p>
-<h3 id="replicas"><a class="header" href="#replicas"><code>replicas</code></a></h3>
-<p>The number of subgraph services containers running.</p>
-<p>Defaults to 5 if unset.</p>
-<h3 id="resource_limits"><a class="header" href="#resource_limits"><code>resource_limits</code></a></h3>
-<p>The resource limits for the subgraph containers.</p>
-<p>Defaults to cpus=0.5 and memory=1G if unset.</p>
-<details>
-<summary>Fields</summary>
-<h4 id="cpus"><a class="header" href="#cpus"><code>cpus</code></a></h4>
-<p>The cpus allocated for the resource.</p>
-<h4 id="memory"><a class="header" href="#memory"><code>memory</code></a></h4>
-<p>The memory allocated for the resource.</p>
-</details>
-<h3 id="resource_reservations"><a class="header" href="#resource_reservations"><code>resource_reservations</code></a></h3>
-<p>The reserved resources for the subgraph containers.</p>
-<p>Defaults to cpus=0.1 and memory=512M if unset.</p>
-<details>
-<summary>Fields</summary>
-<h4 id="cpus-1"><a class="header" href="#cpus-1"><code>cpus</code></a></h4>
-<p>The cpus allocated for the resource.</p>
-<h4 id="memory-1"><a class="header" href="#memory-1"><code>memory</code></a></h4>
-<p>The memory allocated for the resource.</p>
-</details>
-<h3 id="mem_swappiness"><a class="header" href="#mem_swappiness"><code>mem_swappiness</code></a></h3>
-<p>Enable or disable memory swapping in the subgraph services.</p>
-<p>Defaults to 0 (disabled) if unset.</p>
-<h3 id="loadbalancer"><a class="header" href="#loadbalancer"><code>loadbalancer</code></a></h3>
-<p>The configuration for the subgraph's loadbalancer.</p>
-<details>
-<summary>Fields</summary>
-<h4 id="resource_limits-1"><a class="header" href="#resource_limits-1"><code>resource_limits</code></a></h4>
-<p>The resource limits for the loadbalancer.</p>
-<p>Defaults to cpus=0.5 and memory=1G if unset.</p>
-<details>
-<summary>Fields</summary>
-<h5 id="cpus-2"><a class="header" href="#cpus-2"><code>cpus</code></a></h5>
-<p>The cpus allocated for the resource.</p>
-<h5 id="memory-2"><a class="header" href="#memory-2"><code>memory</code></a></h5>
-<p>The memory allocated for the resource.</p>
-</details>
-<h4 id="resource_reservations-1"><a class="header" href="#resource_reservations-1"><code>resource_reservations</code></a></h4>
-<p>The reserved resources for the loadbalancer.</p>
-<p>Defaults to cpus=0.1 and memory=512M if unset.</p>
-<details>
-<summary>Fields</summary>
-<h5 id="cpus-3"><a class="header" href="#cpus-3"><code>cpus</code></a></h5>
-<p>The cpus allocated for the resource.</p>
-<h5 id="memory-3"><a class="header" href="#memory-3"><code>memory</code></a></h5>
-<p>The memory allocated for the resource.</p>
-</details>
-<h4 id="mem_swappiness-1"><a class="header" href="#mem_swappiness-1"><code>mem_swappiness</code></a></h4>
-<p>Enable or disable memory swapping in the loadbalancer.</p>
-<p>Defaults to 0 (disabled) if unset.</p>
-</details>
-</details>
 <h2 id="graphos-supergraph-router-url-overrides"><a class="header" href="#graphos-supergraph-router-url-overrides">GraphOS Supergraph Router URL Overrides</a></h2>
 <p>The user specifies the graph ref that should be used to fetch subgraph SDL files from the GraphOS
 API and generates a the override_subgraph_urls YAML snippet that can be merged into a router config
-file</p>
-<p>This should be used when generating the subgraph docker compose using
-[GraphosSubgraphDockerCompose]. This will ensure the router subgraph urls map to the loadbalancer
-url in that compose file.</p>
+file.</p>
+<p>This should be used whenever subgraph requests need to be mapped to a mock server instead of hitting
+the real subgraph as defined in the supergraph, which is typically desirable behavior when working
+with real graphs.</p>
 <pre><code class="language-yaml">- name: subgraph-url-overrides.yaml
   env_var: SUBGRAPH_URL_OVERRIDES
   kind: graphos_subgraph_router_url_overrides
@@ -459,7 +364,7 @@ url in that compose file.</p>
 </code></pre>
 <details>
 <summary>Fields</summary>
-<h3 id="graph_ref-3"><a class="header" href="#graph_ref-3"><code>graph_ref</code></a></h3>
+<h3 id="graph_ref-2"><a class="header" href="#graph_ref-2"><code>graph_ref</code></a></h3>
 <p>The Apollo graph ref to pull the subgraphs for.</p>
 <h3 id="url_format"><a class="header" href="#url_format"><code>url_format</code></a></h3>
 <p>The format of the overrides url.</p>
@@ -503,7 +408,7 @@ API.</p>
 </code></pre>
 <details>
 <summary>Fields</summary>
-<h3 id="graph_ref-4"><a class="header" href="#graph_ref-4"><code>graph_ref</code></a></h3>
+<h3 id="graph_ref-3"><a class="header" href="#graph_ref-3"><code>graph_ref</code></a></h3>
 <p>The Apollo graph ref to pull subgraph SDL files for.</p>
 </details>
 <h2 id="graphos-subgraph-names"><a class="header" href="#graphos-subgraph-names">GraphOS Subgraph Names</a></h2>
@@ -517,7 +422,7 @@ supergraph from the GraphOS API.</p>
 </code></pre>
 <details>
 <summary>Fields</summary>
-<h3 id="graph_ref-5"><a class="header" href="#graph_ref-5"><code>graph_ref</code></a></h3>
+<h3 id="graph_ref-4"><a class="header" href="#graph_ref-4"><code>graph_ref</code></a></h3>
 <p>The Apollo graph ref to pull subgraph names for.</p>
 </details>
 <h2 id="graphos-supergraph-sdl"><a class="header" href="#graphos-supergraph-sdl">GraphOS Supergraph SDL</a></h2>
@@ -530,7 +435,7 @@ supergraph from the GraphOS API.</p>
 </code></pre>
 <details>
 <summary>Fields</summary>
-<h3 id="graph_ref-6"><a class="header" href="#graph_ref-6"><code>graph_ref</code></a></h3>
+<h3 id="graph_ref-5"><a class="header" href="#graph_ref-5"><code>graph_ref</code></a></h3>
 <p>The Apollo graph ref to pull supergraph SDL for.</p>
 <h3 id="with_subgraph_overrides"><a class="header" href="#with_subgraph_overrides"><code>with_subgraph_overrides</code></a></h3>
 <p>Replace the supergraph's subgraph urls with overridden values for testing.</p>
