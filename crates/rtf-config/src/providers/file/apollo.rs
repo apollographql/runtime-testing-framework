@@ -54,25 +54,36 @@ pub struct GraphosSupergraph {
     #[serde(default)]
     #[template(skip)]
     pub with_subgraph_overrides: Option<UrlFormat>,
+    /// Replace the supergraph's connector urls with overridden values for testing.
+    ///
+    /// Defaults to null if unset.
+    #[serde(default)]
+    #[template(skip)]
+    pub with_connector_overrides: Option<UrlFormat>,
 }
 
 impl GraphosSupergraph {
     fn content_from_details(&self, mut sg: Arc<SupergraphDetails>) -> String {
-        match self.with_subgraph_overrides.as_ref() {
-            Some(url_format) => {
-                let sg = Arc::make_mut(&mut sg);
-                let subgraph_urls = url_format.urls_for_subgraphs(&sg.subgraphs);
-                sg.rewrite_subgraph_urls(&subgraph_urls)
-                    .expect("unable to rewrite subgraph URLs");
-
-                sg.supergraph_sdl.clone()
-            }
-
-            None => sg.supergraph_sdl.clone(),
+        println!("Executing content from details 2");
+        if let Some(url_format) = &self.with_subgraph_overrides {
+            let sg = Arc::make_mut(&mut sg);
+            let subgraph_urls = url_format.urls_for_subgraphs(&sg.subgraphs);
+            sg.rewrite_subgraph_urls(&subgraph_urls)
+                .expect("unable to rewrite subgraph URLs");
         }
+
+        if let Some(connector_format) = &self.with_connector_overrides {
+            let sg = Arc::make_mut(&mut sg);
+            sg.rewrite_connector_urls()
+                .expect("unable to rewrite connector URLs");
+
+            println!("Connector overrides are populated: {:?}", connector_format);
+            // You could do additional processing here if needed
+        }
+
+        sg.supergraph_sdl.clone()
     }
 }
-
 impl AsUtf8FileContent for GraphosSupergraph {
     async fn try_get_file_content(
         &self,
@@ -850,6 +861,7 @@ mod tests {
         GraphosSupergraph {
             graph_ref: Field::Resolved(graph_ref.to_string()),
             with_subgraph_overrides: None,
+            with_connector_overrides: None,
         }
     }
 
@@ -1150,6 +1162,7 @@ mod tests {
         let supergraph = GraphosSupergraph {
             graph_ref: Field::Resolved("graph@variant".to_string()),
             with_subgraph_overrides: Some(UrlFormat::Docker),
+            with_connector_overrides: None,
         };
 
         // The supergraph file indentation is transformed so that assert_eq is not possible
@@ -1185,6 +1198,7 @@ mod tests {
                 .into_iter()
                 .collect(),
             })),
+            with_connector_overrides: None,
         };
 
         // The supergraph file indentation is transformed so that assert_eq is not possible
@@ -1221,6 +1235,7 @@ mod tests {
                 .into_iter()
                 .collect(),
             })),
+            with_connector_overrides: None,
         };
 
         // The supergraph file indentation is transformed so that assert_eq is not possible
@@ -1245,6 +1260,7 @@ mod tests {
         let supergraph = GraphosSupergraph {
             graph_ref: Field::Resolved("graph@variant".to_string()),
             with_subgraph_overrides: Some(UrlFormat::Localhost),
+            with_connector_overrides: None,
         };
 
         // The supergraph file indentation is transformed so that assert_eq is not possible
