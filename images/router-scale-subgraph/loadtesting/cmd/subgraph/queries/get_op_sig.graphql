@@ -1,7 +1,0 @@
-query GetOpSig($serviceId: ID!, $operationId: ID!) {
-  service(id: $serviceId) {
-    operation(id: $operationId) {
-      signature
-    }
-  }
-} 
