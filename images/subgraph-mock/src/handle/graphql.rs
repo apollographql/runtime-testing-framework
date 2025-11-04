@@ -14,9 +14,9 @@ use apollo_compiler::{
 use cached::proc_macro::cached;
 use http_body_util::{BodyExt, Full};
 use hyper::{
-    Response, StatusCode,
+    HeaderMap, Response, StatusCode,
     body::{Bytes, Incoming},
-    header::HeaderValue,
+    header::{HeaderName, HeaderValue},
 };
 use rand::{Rng, rngs::ThreadRng, seq::IteratorRandom};
 use serde::{Deserialize, Serialize};
@@ -50,25 +50,24 @@ pub async fn handle(body: Incoming, subgraph_name: Option<&str>) -> anyhow::Resu
     req.query.hash(&mut hasher);
     let query_hash = hasher.finish();
 
+    let cfg = subgraph_name
+        .and_then(|name| SUBGRAPH_RESPONSE_GENERATION_CONFIGS.wait().get(name))
+        .unwrap_or_else(|| RESPONSE_GENERATION_CONFIG.wait());
+
     let (bytes, status_code) = if subgraph_name
         .and_then(|name| SUBGRAPH_CACHE_RESPONSES.wait().get(name).copied())
         .unwrap_or_else(|| CACHE_RESPONSES.load(Ordering::Relaxed))
     {
-        into_response_bytes_and_status_code(req, subgraph_name, query_hash).await
+        into_response_bytes_and_status_code(cfg, req, query_hash).await
     } else {
-        into_response_bytes_and_status_code_no_cache(req, subgraph_name, query_hash).await
+        into_response_bytes_and_status_code_no_cache(cfg, req, query_hash).await
     };
 
     let mut resp = Response::new(Full::new(bytes).map_err(|never| match never {}).boxed());
     *resp.status_mut() = status_code;
 
     let headers = resp.headers_mut();
-    headers.extend(
-        subgraph_name
-            .and_then(|name| SUBGRAPH_HEADERS.wait().get(name).cloned())
-            .unwrap_or_else(|| ADDITIONAL_HEADERS.wait().clone()),
-    );
-    headers.insert("Content-Type", HeaderValue::from_static("application/json"));
+    add_headers(cfg, subgraph_name, headers);
 
     Ok(resp)
 }
@@ -84,11 +83,46 @@ struct GraphQLRequest {
     // extensions: serde_json::Map<String, Value>,
 }
 
+fn add_headers(
+    cfg: &ResponseGenerationConfig,
+    subgraph_name: Option<&str>,
+    headers: &mut HeaderMap,
+) {
+    let mut rng = rand::rng();
+
+    // HeaderMap is a multimap and yields Some(HeaderName) only for the first element of each multimap.
+    // We have to track the last one we saw and treat that as the key for all subsequent None values as such.
+    // Based on that contract, the first iteration will *always* yield a value so we can safely just initialize
+    // this to a dummy value and trust that it will get overwritten instead of using an Option.
+    let mut last_header_name: HeaderName = HeaderName::from_static("");
+    let mut last_ratio: Option<(u32, u32)> = None;
+
+    for (header_name, header_value) in subgraph_name
+        .and_then(|name| SUBGRAPH_HEADERS.wait().get(name).cloned())
+        .unwrap_or_else(|| ADDITIONAL_HEADERS.wait().clone())
+        .into_iter()
+    {
+        if let Some(name) = header_name {
+            last_ratio = cfg.header_ratio.get(name.as_str()).copied();
+            last_header_name = name;
+        }
+
+        let should_insert = last_ratio
+            .is_none_or(|(numerator, denominator)| rng.random_ratio(numerator, denominator));
+
+        if should_insert {
+            headers.insert(&last_header_name, header_value);
+        }
+    }
+
+    headers.insert("Content-Type", HeaderValue::from_static("application/json"));
+}
+
 #[tracing::instrument(skip(req))]
 #[cached(key = "u64", convert = "{query_hash}")]
 async fn into_response_bytes_and_status_code(
+    cfg: &ResponseGenerationConfig,
     req: GraphQLRequest,
-    subgraph_name: Option<&str>,
     query_hash: u64,
 ) -> (Bytes, StatusCode) {
     let schema = SUPERGRAPH_SCHEMA.wait();
@@ -119,7 +153,7 @@ async fn into_response_bytes_and_status_code(
     );
 
     let resp = match op.operation_type {
-        OperationType::Query => match generate_response(op_name, &doc, schema, subgraph_name) {
+        OperationType::Query => match generate_response(cfg, op_name, &doc, schema) {
             Ok(resp) => resp,
             Err(err) => {
                 error!(%err, "unable to generate response");
@@ -153,25 +187,18 @@ async fn into_response_bytes_and_status_code(
 }
 
 fn generate_response(
+    cfg: &ResponseGenerationConfig,
     op_name: Option<&str>,
     doc: &Valid<ExecutableDocument>,
     schema: &Valid<Schema>,
-    subgraph_name: Option<&str>,
 ) -> anyhow::Result<Value> {
     let op = match doc.operations.get(op_name) {
         Ok(op) => op,
         Err(_) => return Ok(json!({ "data": null })),
     };
 
-    let data = ResponseBuilder::new(
-        &mut rand::rng(),
-        doc,
-        schema,
-        subgraph_name
-            .and_then(|name| SUBGRAPH_RESPONSE_GENERATION_CONFIGS.wait().get(name))
-            .unwrap_or_else(|| RESPONSE_GENERATION_CONFIG.wait()),
-    )
-    .selection_set(&op.selection_set)?;
+    let data = ResponseBuilder::new(&mut rand::rng(), doc, schema, cfg)
+        .selection_set(&op.selection_set)?;
 
     Ok(json!({ "data": data }))
 }
@@ -181,6 +208,7 @@ pub struct ResponseGenerationConfig {
     pub scalars: HashMap<String, ScalarGenerator>,
     pub array: ArraySize,
     pub null_ratio: Option<(u32, u32)>,
+    pub header_ratio: HashMap<String, (u32, u32)>,
 }
 
 impl Default for ResponseGenerationConfig {
@@ -214,6 +242,7 @@ impl Default for ResponseGenerationConfig {
                 max_length: 10,
             },
             null_ratio: Some((1, 2)),
+            header_ratio: HashMap::new(),
         }
     }
 }
