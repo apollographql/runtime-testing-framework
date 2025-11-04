@@ -177,6 +177,7 @@ struct SchemaMeta {
     graph_ref: String,
     types: usize,
     entities: usize,
+    interfaces: usize,
     sdl_bytes: String,
     subgraphs: usize,
     queries: usize,
@@ -194,8 +195,8 @@ impl SchemaMeta {
             graph_ref: format!("{}@{}", sg.graph_id, sg.variant),
             types: schema.types.len(),
             entities,
+            interfaces: count_interfaces(&schema),
             sdl_bytes: format_bytes(sdl_bytes),
-            // sdl_bytes: format_bytes(sg.supergraph_sdl.len()),
             subgraphs: count_subgraphs(&schema),
             queries: 0,
             mutations: 0,
@@ -301,6 +302,10 @@ fn count_entities(schema: &Valid<Schema>) -> usize {
                 .any(|d| d.name == "join__type" && d.arguments.iter().any(|arg| arg.name == "key"))
         })
         .count()
+}
+
+fn count_interfaces(schema: &Valid<Schema>) -> usize {
+    schema.types.values().filter(|ty| ty.is_interface()).count()
 }
 
 fn count_subgraphs(schema: &Valid<Schema>) -> usize {
