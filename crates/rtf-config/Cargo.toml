@@ -21,6 +21,7 @@ schemars.workspace = true
 regex = "1.12.2"
 
 [dev-dependencies]
+apollo-compiler.workspace = true
 assert_fs.workspace = true
 predicates.workspace = true
 pretty_assertions.workspace = true

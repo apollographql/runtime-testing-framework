@@ -832,6 +832,7 @@ mod tests {
             },
         },
     };
+    use apollo_compiler::{ExecutableDocument, Schema};
     use assert_fs::{TempDir, fixture::PathChild};
     use predicates::{Predicate, str::contains};
     use simple_test_case::test_case;
@@ -1300,25 +1301,48 @@ mod tests {
 
     #[test]
     fn canned_ops_format_json_correctly() {
+        let schema = Schema::parse_and_validate(
+            indoc!(
+                r#"
+            type Query { foo: Foo bar: Bar }
+            type Foo  { id: ID! }
+            type Bar  { id: ID! }"#
+            ),
+            "",
+        )
+        .unwrap();
+
         let canned_ops: Vec<CannedOperation> = vec![
             CannedOperation {
                 id: "1".to_string(),
-                query: "query_1".to_string(),
-                pretty_query: "pretty_query_1".to_string(),
+                doc: ExecutableDocument::parse_and_validate(
+                    &schema,
+                    "query { foo { id } }",
+                    "query_1",
+                )
+                .unwrap(),
                 vars: HashMap::new(),
+                request_count: 0,
+                request_count_per_min: 0,
             },
             CannedOperation {
                 id: "2".to_string(),
-                query: "query_2".to_string(),
-                pretty_query: "pretty_query_2".to_string(),
+                doc: ExecutableDocument::parse_and_validate(
+                    &schema,
+                    "query { bar { id } }",
+                    "query_2",
+                )
+                .unwrap(),
                 vars: HashMap::new(),
+                request_count: 0,
+                request_count_per_min: 0,
             },
         ];
 
         let expected_content = indoc!(
             r#"
-            {"query":"query_1","variables":{}}
-            {"query":"query_2","variables":{}}
+            {"query":"{ foo { id } }","variables":{}}
+            {"query":"{ bar { id } }","variables":{}}
             "#
         );
 

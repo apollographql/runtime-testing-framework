@@ -1740,6 +1740,7 @@ dependencies = [
 name = "rtf-config"
 version = "0.1.0"
 dependencies = [
+ "apollo-compiler",
  "assert_fs",
  "bytes",
  "indoc",
