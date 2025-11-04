@@ -72,13 +72,15 @@ impl GraphosSupergraph {
                 .expect("unable to rewrite subgraph URLs");
         }
 
-        if let Some(connector_format) = &self.with_connector_overrides {
+        if let Some(_connector_format) = &self.with_connector_overrides {
             let sg = Arc::make_mut(&mut sg);
-            sg.rewrite_connector_urls()
+            // For now, use a simple localhost:5001 URL for all connectors
+            let connector_urls: HashMap<String, String> =
+                [("ecomm".to_string(), "http://localhost:5001".to_string())]
+                .into_iter()
+                .collect();
+            sg.rewrite_connector_urls(&connector_urls)
                 .expect("unable to rewrite connector URLs");
-
-            println!("Connector overrides are populated: {:?}", connector_format);
-            // You could do additional processing here if needed
         }
 
         sg.supergraph_sdl.clone()

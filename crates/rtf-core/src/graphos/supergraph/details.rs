@@ -3,7 +3,7 @@ use crate::graphos::{
     self,
     platform_query::{self, PlatformQuery},
 };
-use apollo_compiler::{Node, Schema, ast::Value, schema::ExtendedType};
+use apollo_compiler::{Node, Schema, ast::Value, collections::IndexMap, schema::ExtendedType};
 use graphql_client::GraphQLQuery;
 use std::{collections::HashMap, fs, io, path::Path};
 use tracing::{debug, error, info};
@@ -142,8 +142,11 @@ impl SupergraphDetails {
 
     /// Attempt to rewrite the connector url directives in this schema to use the provided urls
     /// instead.
-    pub fn rewrite_connector_urls(&mut self) -> Result<(), &'static str> {
-        match rewrite_connector_urls(&self.supergraph_sdl) {
+    pub fn rewrite_connector_urls(
+        &mut self,
+        connector_urls: &HashMap<String, String>,
+    ) -> Result<(), &'static str> {
+        match rewrite_connector_urls(&self.supergraph_sdl, connector_urls) {
             Some(new_sdl) => {
                 self.supergraph_sdl = new_sdl;
                 Ok(())
@@ -293,11 +296,10 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
 // FIXME: this needs actual logging and testing!
 /// Rewrite the given supergraph SDL to set the provided connector URLs in place of what is
 /// currently there.
-fn rewrite_connector_urls(sdl: &str) -> Option<String> {
-    println!("You got into the method");
-    let schema = Schema::parse(sdl, "supergraph.graphql").unwrap();
+fn rewrite_connector_urls(sdl: &str, connector_urls: &HashMap<String, String>) -> Option<String> {
+    let mut schema = Schema::parse(sdl, "supergraph.graphql").unwrap();
 
-    for directive in &schema.schema_definition.directives {
+    for directive in schema.schema_definition.get_mut()?.directives.0.iter_mut() {
         if directive.name != "join__directive" {
             continue;
         }
@@ -305,22 +307,50 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
             continue;
         }
 
-        println!(
-            "node.args: {:?}",
-            directive
-                .specified_argument_by_name("args")?
-                .as_object()
-                .unwrap()
-                .iter()
-                .find(|(x, _)| x == "http")?
-                .1
-                .as_object()
-                .unwrap()
-                .iter()
-                .find(|(x, _)| x == "baseURL")?
-                .1
-                .as_str()?
-        );
+        // Get the args object (immutably first to extract values)
+        let args_value = directive.specified_argument_by_name("args")?;
+        let args_obj = args_value.as_object()?;
+
+        // Extract the connector name
+        let connector_name = args_obj
+            .iter()
+            .find(|(key, _)| key.as_str() == "name")?
+            .1
+            .as_str()?;
+
+        // Look up the new URL
+        let new_url = connector_urls.get(connector_name)?;
+
+        // Extract the http object
+        let http_obj = args_obj
+            .iter()
+            .find(|(key, _)| key.as_str() == "http")?
+            .1
+            .as_object()?;
+
+        // Rebuild the http object with the new baseURL
+        let mut new_http_obj = IndexMap::default();
+        for (key, value) in http_obj.iter() {
+            if key.as_str() == "baseURL" {
+                new_http_obj.insert(key.clone(), Node::new(Value::String(new_url.clone())));
+            } else {
+                new_http_obj.insert(key.clone(), value.clone());
+            }
+        }
+
+        // Rebuild the args object with the new http object
+        let mut new_args_obj = IndexMap::default();
+        for (key, value) in args_obj.iter() {
+            if key.as_str() == "http" {
+                new_args_obj.insert(key.clone(), Node::new(Value::Object(new_http_obj.clone().into_iter().collect())));
+            } else {
+                new_args_obj.insert(key.clone(), value.clone());
+            }
+        }
+
+        // Replace the args argument with the new object
+        *directive.get_mut()?.specified_argument_by_name_mut("args")? =
+            Node::new(Value::Object(new_args_obj.into_iter().collect()));
     }
 
     Some(schema.to_string())
