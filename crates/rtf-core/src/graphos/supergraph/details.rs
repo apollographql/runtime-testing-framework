@@ -3,7 +3,7 @@ use crate::graphos::{
     self,
     platform_query::{self, PlatformQuery},
 };
-use apollo_compiler::{Node, Schema, ast::Value, collections::IndexMap, schema::ExtendedType};
+use apollo_compiler::{Node, Schema, ast::Value, schema::ExtendedType};
 use graphql_client::GraphQLQuery;
 use std::{collections::HashMap, fs, io, path::Path};
 use tracing::{debug, error, info};
@@ -307,11 +307,9 @@ fn rewrite_connector_urls(sdl: &str, connector_urls: &HashMap<String, String>) -
             continue;
         }
 
-        // Get the args object (immutably first to extract values)
-        let args_value = directive.specified_argument_by_name("args")?;
+        // First, extract the connector name (read-only pass)
+        let args_value = directive.specified_argument_by_name("argsssssssss")?;
         let args_obj = args_value.as_object()?;
-
-        // Extract the connector name
         let connector_name = args_obj
             .iter()
             .find(|(key, _)| key.as_str() == "name")?
@@ -321,36 +319,21 @@ fn rewrite_connector_urls(sdl: &str, connector_urls: &HashMap<String, String>) -
         // Look up the new URL
         let new_url = connector_urls.get(connector_name)?;
 
-        // Extract the http object
-        let http_obj = args_obj
-            .iter()
-            .find(|(key, _)| key.as_str() == "http")?
-            .1
-            .as_object()?;
+        let args_node_mut = directive.get_mut()?.specified_argument_by_name_mut("args")?;
 
-        // Rebuild the http object with the new baseURL
-        let mut new_http_obj = IndexMap::default();
-        for (key, value) in http_obj.iter() {
-            if key.as_str() == "baseURL" {
-                new_http_obj.insert(key.clone(), Node::new(Value::String(new_url.clone())));
-            } else {
-                new_http_obj.insert(key.clone(), value.clone());
+        // Pattern match to get mutable access to the args object
+        if let Value::Object(args_map) = args_node_mut.make_mut() {
+            // Find and mutate the http object
+            if let Some((_http_key, http_node)) = args_map.iter_mut().find(|(key, _)| key.as_str() == "http") {
+                // Pattern match to get mutable access to the http object
+                if let Value::Object(http_map) = http_node.make_mut() {
+                    // Directly update the baseURL field
+                    if let Some((_baseurl_key, baseurl_node)) = http_map.iter_mut().find(|(key, _)| key.as_str() == "baseURL") {
+                        *baseurl_node = Node::new(Value::String(new_url.clone()));
+                    }
+                }
             }
         }
-
-        // Rebuild the args object with the new http object
-        let mut new_args_obj = IndexMap::default();
-        for (key, value) in args_obj.iter() {
-            if key.as_str() == "http" {
-                new_args_obj.insert(key.clone(), Node::new(Value::Object(new_http_obj.clone().into_iter().collect())));
-            } else {
-                new_args_obj.insert(key.clone(), value.clone());
-            }
-        }
-
-        // Replace the args argument with the new object
-        *directive.get_mut()?.specified_argument_by_name_mut("args")? =
-            Node::new(Value::Object(new_args_obj.into_iter().collect()));
     }
 
     Some(schema.to_string())
