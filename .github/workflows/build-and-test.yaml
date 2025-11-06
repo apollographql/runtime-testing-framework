@@ -42,7 +42,7 @@ jobs:
           echo "should_run=true" >> $GITHUB_OUTPUT
         else
           # Check if any files in crates/ directory, Cargo.toml or Cargo.lock were changed
-          git diff --name-only HEAD^ HEAD | grep -q -E "^crates/|^Cargo\.toml$|^Cargo\.lock$" && echo "should_run=true" >> $GITHUB_OUTPUT || echo "should_run=false" >> $GITHUB_OUTPUT
+          git diff --name-only HEAD^ HEAD | grep -q -E "^(crates|images/subgraph-mock)/|^Cargo\.toml$|^Cargo\.lock$" && echo "should_run=true" >> $GITHUB_OUTPUT || echo "should_run=false" >> $GITHUB_OUTPUT
         fi
 
   test-stable:
@@ -57,6 +57,9 @@ jobs:
         rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
     - name: Run tests
       run: cargo test --verbose
+    - name: Run image tests
+      working-directory: ./images/subgraph-mock
+      run: cargo test --verbose
 
   test-beta:
     name: Test Rust beta
@@ -69,6 +72,9 @@ jobs:
       with:
         rust-version: beta
     - name: Run tests
+      run: cargo test --verbose
+    - name: Run image tests
+      working-directory: ./images/subgraph-mock
       run: cargo test --verbose
 
   test-nightly:
@@ -83,6 +89,9 @@ jobs:
         rust-version: nightly
     - name: Run tests
       run: cargo test --verbose
+    - name: Run image tests
+      working-directory: ./images/subgraph-mock
+      run: cargo test --verbose
 
   rustfmt:
     name: Ensure rustfmt is happy
@@ -96,6 +105,8 @@ jobs:
         components: rustfmt
         rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
     - run: cargo pr-format
+    - run: cargo pr-format
+      working-directory: ./images/subgraph-mock
 
   clippy:
     name: Lint the codebase with clippy
@@ -109,6 +120,8 @@ jobs:
         components: clippy
         rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
     - run: cargo pr-clippy
+    - run: cargo pr-clippy
+      working-directory: ./images/subgraph-mock
 
   rustdoc:
     name: Check that rustdoc is happy
@@ -121,6 +134,8 @@ jobs:
       with:
         rust-version: nightly
     - run: RUSTDOCFLAGS="-D warnings -D rustdoc::broken-intra-doc-links" cargo doc --all-features --workspace --no-deps
+    - run: RUSTDOCFLAGS="-D warnings -D rustdoc::broken-intra-doc-links" cargo doc --all-features --workspace --no-deps
+      working-directory: ./images/subgraph-mock
   
   spell-check:
     name: Spell check using the typos-cli crate

@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use anyhow::anyhow;
 use apollo_parser::Parser;
 use apollo_smith::{Document, DocumentBuilder};
@@ -7,6 +5,7 @@ use arbitrary::Unstructured;
 use http_body_util::Full;
 use hyper::{Request, body::Bytes};
 use rand::{RngCore, SeedableRng, rngs::StdRng};
+use std::path::PathBuf;
 use subgraph_mock::{
     Args,
     handle::{ByteResponse, handle_request},

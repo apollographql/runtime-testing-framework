@@ -1,11 +1,10 @@
-use std::error::Error;
-
 use crate::{LATENCY_GENERATOR, SUBGRAPH_LATENCY_GENERATORS};
 use http_body_util::{BodyExt, Full, combinators::BoxBody};
 use hyper::{
     Method, Request, Response, StatusCode,
     body::{Body, Bytes},
 };
+use std::error::Error;
 use tokio::time::{Instant, sleep};
 use tracing::{trace, warn};
 
