@@ -168,7 +168,7 @@ impl Args {
 /// it does *not* combine arrays, since arrays are effectively scalar values that should be replaced, not merged,
 /// in the context of the subgraph config. We may also want to revisit the mapping merge logic if it ends up being
 /// unintuitive in the context of configuration such as the latency waveforms.
-pub fn merge_yaml(overrides: serde_yaml::Value, base: &mut serde_yaml::Value) {
+fn merge_yaml(overrides: serde_yaml::Value, base: &mut serde_yaml::Value) {
     use serde_yaml::Value;
 
     match (overrides, base) {

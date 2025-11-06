@@ -15,7 +15,7 @@ use cached::proc_macro::cached;
 use http_body_util::{BodyExt, Full};
 use hyper::{
     HeaderMap, Response, StatusCode,
-    body::{Bytes, Incoming},
+    body::Bytes,
     header::{HeaderName, HeaderValue},
 };
 use rand::{Rng, rngs::ThreadRng, seq::IteratorRandom};
@@ -29,8 +29,10 @@ use std::{
 };
 use tracing::{debug, error, trace};
 
-pub async fn handle(body: Incoming, subgraph_name: Option<&str>) -> anyhow::Result<ByteResponse> {
-    let body_bytes = body.collect().await?.to_bytes().to_vec();
+pub async fn handle(
+    body_bytes: Vec<u8>,
+    subgraph_name: Option<&str>,
+) -> anyhow::Result<ByteResponse> {
     let req: GraphQLRequest = match serde_json::from_slice(&body_bytes) {
         Ok(req) => req,
         Err(err) => {

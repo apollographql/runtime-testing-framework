@@ -132,10 +132,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo-smith"
+version = "0.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38c8cfeb15595a4f979c46712c30fb781d95335bab2be276554b923cadb120af"
+dependencies = [
+ "apollo-compiler",
+ "apollo-parser",
+ "arbitrary",
+ "indexmap",
+ "once_cell",
+ "serde_json_bytes",
+ "thiserror 2.0.16",
+]
+
+[[package]]
 name = "arbitrary"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1"
+dependencies = [
+ "derive_arbitrary",
+]
 
 [[package]]
 name = "ariadne"
@@ -405,6 +423,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
 dependencies = [
  "darling_core",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "derive_arbitrary"
+version = "1.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e567bd82dcff979e4b03460c307b3cdc9e96fde3d73bed1496d2bc75d9dd62a"
+dependencies = [
+ "proc-macro2",
  "quote",
  "syn",
 ]
@@ -1243,6 +1272,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "apollo-compiler",
+ "apollo-parser",
+ "apollo-smith",
  "arbitrary",
  "cached",
  "clap",

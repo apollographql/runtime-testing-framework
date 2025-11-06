@@ -1,20 +1,27 @@
+use std::error::Error;
+
 use crate::{LATENCY_GENERATOR, SUBGRAPH_LATENCY_GENERATORS};
 use http_body_util::{BodyExt, Full, combinators::BoxBody};
 use hyper::{
     Method, Request, Response, StatusCode,
-    body::{Bytes, Incoming},
+    body::{Body, Bytes},
 };
 use tokio::time::{Instant, sleep};
 use tracing::{trace, warn};
 
 pub mod graphql;
 
-type ByteResponse = Response<BoxBody<Bytes, hyper::Error>>;
+pub type ByteResponse = Response<BoxBody<Bytes, hyper::Error>>;
 
 /// Top level handler function that is called for every incoming request from Hyper.
-pub async fn handle_request(req: Request<Incoming>) -> anyhow::Result<ByteResponse> {
+pub async fn handle_request<B>(req: Request<B>) -> anyhow::Result<ByteResponse>
+where
+    B: Body,
+    B::Error: Error + Send + Sync + 'static,
+{
     let (parts, body) = req.into_parts();
     let (method, path) = (parts.method, parts.uri.path());
+    let body_bytes = body.collect().await?.to_bytes().to_vec();
 
     let (res, generator_override) = match (&method, path) {
         // matches routes in the form of `/{subgraph_name}`
@@ -27,11 +34,11 @@ pub async fn handle_request(req: Request<Incoming>) -> anyhow::Result<ByteRespon
                 .expect("split will yield at least 2 elements based on the match condition");
 
             (
-                graphql::handle(body, Some(subgraph_name)).await,
+                graphql::handle(body_bytes, Some(subgraph_name)).await,
                 SUBGRAPH_LATENCY_GENERATORS.wait().get(subgraph_name),
             )
         }
-        (&Method::POST, "/") => (graphql::handle(body, None).await, None),
+        (&Method::POST, "/") => (graphql::handle(body_bytes, None).await, None),
 
         // default to 404
         (method, path) => {
