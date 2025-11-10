@@ -1,0 +1,17 @@
+use assert_cmd::Command;
+use predicates::str::contains;
+
+#[test]
+#[ignore = "requires a valid GraphOS API Key"]
+fn with_check_success_offline_license() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
+        .arg("template")
+        .arg("resources/valid/graphos-offline-license/test-plan.yaml")
+        .arg("--check")
+        .assert();
+
+    // Check that a test plan gets printed to stdout
+    res.success().stdout(contains("name:"));
+}
