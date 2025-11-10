@@ -1,0 +1,20 @@
+name: invalid-config-spec
+description: |
+  Check the error shown when the environment config is not specified
+  with an inline or from key
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: an inline scenario
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, World!"
+
+environment:
+  not-a-key:
+    kind: local
+    relative_path: environment.yaml

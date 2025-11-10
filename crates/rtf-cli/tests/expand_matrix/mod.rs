@@ -11,15 +11,6 @@ fn is_executable() {
 }
 
 #[test]
-fn invalid_test_plan_path_errors() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
-
-    let res = cmd.arg("expand-matrix").arg("/not/a/file.txt").assert();
-
-    res.stderr(contains("No such file or directory (os error 2)"));
-}
-
-#[test]
 fn pretty() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd

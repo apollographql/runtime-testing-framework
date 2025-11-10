@@ -26,10 +26,14 @@ pub enum ErrorKind {
     #[strum(to_string = "Invalid templating value")]
     InvalidData,
 
-    #[strum(to_string = "Missing template values")]
+    #[strum(
+        to_string = "Missing template values definitions. Make sure the value is defined in the scenario or environment config values"
+    )]
     MissingValues,
 
-    #[strum(to_string = "Unknown templating value")]
+    #[strum(
+        to_string = "Unknown templating value. Make sure a value is defined for this value to resolve to."
+    )]
     UnknownValue,
 }
 

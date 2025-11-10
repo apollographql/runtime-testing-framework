@@ -12,15 +12,6 @@ fn is_executable() {
 }
 
 #[test]
-fn invalid_test_plan_path_errors() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
-
-    let res = cmd.arg("run").arg("/not/a/file.txt").assert();
-
-    res.stderr(contains("No such file or directory (os error 2)"));
-}
-
-#[test]
 fn sanity_check_success() {
     is_valid_test_plan("resources/valid/sanity-check");
 }

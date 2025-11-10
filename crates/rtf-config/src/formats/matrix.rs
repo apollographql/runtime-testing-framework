@@ -138,13 +138,21 @@ impl Matrix {
             let discriminant = match vals.first() {
                 Some(val) => mem::discriminant(val),
                 None => {
-                    errs.push(templating::ErrorKind::EmptyMatrixValue, k, &[]);
+                    errs.push(
+                        templating::ErrorKind::EmptyMatrixValue,
+                        k,
+                        &["test_plan".to_string()],
+                    );
                     continue;
                 }
             };
 
             if !vals.iter().all(|v| mem::discriminant(v) == discriminant) {
-                errs.push(templating::ErrorKind::InconsistentMatrixValue, k, &[]);
+                errs.push(
+                    templating::ErrorKind::InconsistentMatrixValue,
+                    k,
+                    &["test_plan".to_string()],
+                );
             }
         }
 
@@ -164,7 +172,7 @@ impl Matrix {
                 errs.push(
                     templating::ErrorKind::InconsistentMatrixInclude,
                     "matrix include maps must share consistent keys and types",
-                    &[],
+                    &["test_plan".to_string()],
                 );
             }
         }
@@ -186,7 +194,7 @@ impl Matrix {
             errs.push(
                 templating::ErrorKind::ConflictingValues,
                 conflicting_keys.join(", "),
-                &[],
+                &["test_plan".to_string()],
             )
         }
     }

@@ -1637,6 +1637,7 @@ dependencies = [
  "clap",
  "clap-markdown",
  "clap_complete",
+ "indoc",
  "predicates",
  "rtf-config",
  "rtf-core",

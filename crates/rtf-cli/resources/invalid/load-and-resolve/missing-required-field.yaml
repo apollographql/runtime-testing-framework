@@ -1,0 +1,8 @@
+name: missing-required-field
+description: |
+  Check the error shown when the test plan is missing a scenario
+
+environment:
+  from:
+    kind: local
+    relative_path: ../sanity-check/environment.yaml

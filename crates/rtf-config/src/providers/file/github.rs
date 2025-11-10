@@ -72,7 +72,7 @@ impl Check for GithubFile {
         if ctx.github_client().is_none() {
             return Err(checks::Errors::new(
                 checks::ErrorKind::MissingGithubApiKey,
-                "",
+                "expected os env key GITHUB_TOKEN",
                 path,
             ));
         }

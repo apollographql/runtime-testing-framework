@@ -1,0 +1,39 @@
+name: inconsistent-matrix-include
+description: |
+  Check the error shown when there are inconsistent keys in the matrix include
+
+matrix:
+  variant_names: "${foo}"
+  dimensions:
+    foo: ["foo"]
+    bar: ["bar1", "bar2"]
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: an inline scenario
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, World!"
+
+environment:
+  inline:
+    name: inline-environment
+    description: an inline environment
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"

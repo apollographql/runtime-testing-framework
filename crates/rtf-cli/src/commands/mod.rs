@@ -5,7 +5,10 @@
 //!
 //! [0]: https://git-scm.com/docs
 use anyhow::bail;
-use rtf_config::context::{Context, PathKind, ResolutionContext};
+use rtf_config::{
+    context::{Context, PathKind, ResolutionContext},
+    formats::{self, TestPlanConfig},
+};
 use std::{
     collections::HashMap,
     env::{self, current_dir},
@@ -38,5 +41,20 @@ fn get_context_and_check_outdir(out_dir: &str) -> anyhow::Result<(Context, PathB
             bail!("{} already exists and is non-empty", out_dir.display())
         }
         _ => Ok((ctx, out_dir)),
+    }
+}
+
+/// Handles loading the test plan and displaying user facing errors
+async fn load_and_resolve_test_plan(
+    path: &str,
+    ctx: &impl ResolutionContext,
+) -> anyhow::Result<TestPlanConfig> {
+    match TestPlanConfig::try_load_and_resolve_from_path(path, ctx).await {
+        Ok(test_plan) => Ok(test_plan),
+        Err(e) => match e {
+            formats::Error::Io(e) => bail!("Unable to load test plan from {path}: {e}"),
+            formats::Error::Yaml(e) => bail!("Unable to parse test plan yaml: {e}"),
+            _ => bail!("Unable to load and resolve test plan: {e}"),
+        },
     }
 }

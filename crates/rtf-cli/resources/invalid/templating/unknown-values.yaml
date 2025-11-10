@@ -1,0 +1,40 @@
+name: unknown-values
+description: |
+  Check the error shown when there are values not given a value for runtime
+  This is a valid test plan but will result in an error if no values are supplied
+  with the --value flag in the cli
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: an inline scenario
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, World!"
+
+environment:
+  inline:
+    name: inline-environment
+    description: an inline environment
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"
+      provides:
+        - name: foo
+          description: a value foo
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"
+      env_vars:
+        FOO: "{{ foo }}"

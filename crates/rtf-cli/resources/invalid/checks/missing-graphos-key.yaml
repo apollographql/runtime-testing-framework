@@ -1,0 +1,40 @@
+name: missing-graphos-key
+description: |
+  Check the error shown when there is no GraphOS key provided when a 
+  GraphOS file provider is used. This will fail if APOLLO_KEY is not
+  set in the environment variables
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: an inline scenario
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, World!"
+    file_providers:
+      - name: offline.license
+        env_var: LICENSE_FILE
+        kind: offline_graphos_license
+        graph_id: "starstuff"
+
+environment:
+  inline:
+    name: inline-environment
+    description: an inline environment
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"

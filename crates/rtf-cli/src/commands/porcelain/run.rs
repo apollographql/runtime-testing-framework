@@ -1,4 +1,7 @@
-use crate::{cli::Values, commands::get_context_and_check_outdir};
+use crate::{
+    cli::Values,
+    commands::{get_context_and_check_outdir, load_and_resolve_test_plan},
+};
 use anyhow::anyhow;
 use rtf_config::{
     checks::{self, Check},
@@ -21,7 +24,7 @@ pub async fn check_and_run_local_test_plan(
     let (ctx, out_dir) = get_context_and_check_outdir(out_dir)?;
 
     info!("loading and resolving test plan");
-    let test_plan = TestPlanConfig::try_load_and_resolve_from_path(config_file_path, &ctx).await?;
+    let test_plan = load_and_resolve_test_plan(config_file_path, &ctx).await?;
 
     check_and_run_test_plan_with_context(test_plan, values, &out_dir, ctx).await
 }
