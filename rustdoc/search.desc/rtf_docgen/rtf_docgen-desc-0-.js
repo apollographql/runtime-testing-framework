@@ -1,1 +1,0 @@
-searchState.loadedDescShard("rtf_docgen", 0, "Writes out the documentation for a struct’s fields or an …\nReturns all the IDs for the implementations within the …\nGenerates the table of contents link for a File Provider\nWrites the top-level documentation for each file provider …\nWrites the table of contents for all the File Providers …")

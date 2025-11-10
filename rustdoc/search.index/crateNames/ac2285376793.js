@@ -1,0 +1,1 @@
+rd_("grtf_clijrtf_confighrtf_corejrtf_derivejrtf_docgen")
