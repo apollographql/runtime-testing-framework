@@ -433,4 +433,12 @@ mod tests {
         assert!(s.contains(r#"PRODUCTS @join__graph(name: "products", url: "products_url")"#));
         assert!(s.contains(r#"REVIEWS @join__graph(name: "reviews", url: "reviews_url")"#));
     }
+
+    #[test]
+    fn rewriting_connector_urls_works() {
+        let sdl = include_str!("../../../resources/test_data/connectors/connectors.graphql");
+        let s = rewrite_connector_urls(sdl).unwrap();
+
+        assert!(s.contains(r#"{name: "ecomm", http: {baseURL: "www.test.com", headers: []}})"#));
+    }
 }
