@@ -14,11 +14,11 @@ scenario:
     kind: github
     org: apollographql
     repo: runtime-testing-framework
-    path: crates/rtf-cli/resources/sanity-check/nested/scenario.yaml
+    path: crates/rtf-cli/resources/valid/sanity-check/nested/scenario.yaml
 
 environment:
   from:
     kind: github
     org: apollographql
     repo: runtime-testing-framework
-    path: crates/rtf-cli/resources/sanity-check/environment.yaml
+    path: crates/rtf-cli/resources/valid/sanity-check/environment.yaml
