@@ -142,11 +142,8 @@ impl SupergraphDetails {
 
     /// Attempt to rewrite the connector url directives in this schema to use the provided urls
     /// instead.
-    pub fn rewrite_connector_urls(
-        &mut self,
-        connector_urls: &HashMap<String, String>,
-    ) -> Result<(), &'static str> {
-        match rewrite_connector_urls(&self.supergraph_sdl, connector_urls) {
+    pub fn rewrite_connector_urls(&mut self) -> Result<(), &'static str> {
+        match rewrite_connector_urls(&self.supergraph_sdl) {
             Some(new_sdl) => {
                 self.supergraph_sdl = new_sdl;
                 Ok(())
@@ -296,7 +293,7 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
 // FIXME: this needs actual logging and testing!
 /// Rewrite the given supergraph SDL to set the provided connector URLs in place of what is
 /// currently there.
-fn rewrite_connector_urls(sdl: &str, connector_urls: &HashMap<String, String>) -> Option<String> {
+fn rewrite_connector_urls(sdl: &str) -> Option<String> {
     let mut schema = Schema::parse(sdl, "supergraph.graphql").unwrap();
 
     for directive in schema.schema_definition.get_mut()?.directives.0.iter_mut() {
@@ -307,30 +304,21 @@ fn rewrite_connector_urls(sdl: &str, connector_urls: &HashMap<String, String>) -
             continue;
         }
 
-        // First, extract the connector name (read-only pass)
-        let args_value = directive.specified_argument_by_name("argsssssssss")?;
-        let args_obj = args_value.as_object()?;
-        let connector_name = args_obj
-            .iter()
-            .find(|(key, _)| key.as_str() == "name")?
-            .1
-            .as_str()?;
+        let Value::Object(args_map) = directive
+            .get_mut()?
+            .specified_argument_by_name_mut("args")?
+            .get_mut()?
+        else {
+            continue;
+        };
 
-        // Look up the new URL
-        let new_url = connector_urls.get(connector_name)?;
-
-        let args_node_mut = directive.get_mut()?.specified_argument_by_name_mut("args")?;
-
-        // Pattern match to get mutable access to the args object
-        if let Value::Object(args_map) = args_node_mut.make_mut() {
-            // Find and mutate the http object
-            if let Some((_http_key, http_node)) = args_map.iter_mut().find(|(key, _)| key.as_str() == "http") {
-                // Pattern match to get mutable access to the http object
-                if let Value::Object(http_map) = http_node.make_mut() {
-                    // Directly update the baseURL field
-                    if let Some((_baseurl_key, baseurl_node)) = http_map.iter_mut().find(|(key, _)| key.as_str() == "baseURL") {
-                        *baseurl_node = Node::new(Value::String(new_url.clone()));
-                    }
+        if let Some((_, http_node)) = args_map.iter_mut().find(|(key, _)| key.as_str() == "http") {
+            if let Value::Object(http_map) = http_node.get_mut()? {
+                if let Some((_, base_url_node)) = http_map
+                    .iter_mut()
+                    .find(|(key, _)| key.as_str() == "baseURL")
+                {
+                    *base_url_node = Node::new(Value::String("www.test.com".to_string()));
                 }
             }
         }

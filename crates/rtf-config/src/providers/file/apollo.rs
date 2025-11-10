@@ -74,12 +74,7 @@ impl GraphosSupergraph {
 
         if let Some(_connector_format) = &self.with_connector_overrides {
             let sg = Arc::make_mut(&mut sg);
-            // For now, use a simple localhost:5001 URL for all connectors
-            let connector_urls: HashMap<String, String> =
-                [("ecomm".to_string(), "http://localhost:5001".to_string())]
-                .into_iter()
-                .collect();
-            sg.rewrite_connector_urls(&connector_urls)
+            sg.rewrite_connector_urls()
                 .expect("unable to rewrite connector URLs");
         }
 
