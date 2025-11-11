@@ -5,7 +5,7 @@ use crate::{
     context::ResolutionContext,
     formats::{Result, values_for_config_file},
     providers::{command::CommandSection, file::Source},
-    templating::{self, Scalar, Template},
+    templating::{self, Template, TemplateValue},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -43,7 +43,7 @@ impl EnvironmentConfig {
     pub fn try_template_setup(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        values: &HashMap<String, TemplateValue>,
     ) -> templating::Result<()> {
         let definitions = self.values.iter();
         let allowed_values = values_for_config_file(values, definitions);
@@ -60,7 +60,7 @@ impl EnvironmentConfig {
     pub fn try_template_teardown(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        values: &HashMap<String, TemplateValue>,
     ) -> templating::Result<()> {
         let definitions = self.values.iter().chain(self.setup.provides.iter());
         let allowed_values = values_for_config_file(values, definitions);
@@ -100,7 +100,7 @@ impl Template for EnvironmentConfig {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        values: &HashMap<String, TemplateValue>,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::from(self.try_template_setup(path, values));
         errs.append(self.try_template_teardown(path, values));
@@ -241,7 +241,7 @@ pub(crate) mod tests {
             CommandSection,
             test_helpers::{cmd_with_inline_file, cmd_with_required_file},
         },
-        templating::Field,
+        templating::{Field, Scalar},
     };
     use indoc::indoc;
     use simple_test_case::test_case;
@@ -390,7 +390,7 @@ pub(crate) mod tests {
     /// Helper function for asserting template errors are as expected
     fn assert_env_template_errors(
         environment: &mut EnvironmentConfig,
-        values: HashMap<String, Scalar>,
+        values: HashMap<String, TemplateValue>,
         expected_setup_err_fields: &[&str],
         expected_teardown_err_fields: &[&str],
     ) {
@@ -521,9 +521,17 @@ pub(crate) mod tests {
         let mut config = environment_with_provides(&["foo", "setup-path"], &[]);
 
         // Values exist in the map and are defined in top-level values
-        let values: HashMap<String, Scalar> = [("foo", "a"), ("setup-path", "b")]
+        let values: HashMap<String, TemplateValue> = [("foo", "a"), ("setup-path", "b")]
             .iter()
-            .map(|(k, v)| (k.to_string(), Scalar::String(v.to_string())))
+            .map(|(k, v)| {
+                (
+                    k.to_string(),
+                    TemplateValue {
+                        value: Scalar::String(v.to_string()),
+                        source: Source::local("/"),
+                    },
+                )
+            })
             .collect();
 
         let res = config.try_template_setup(&mut Vec::new(), &values);

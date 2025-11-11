@@ -1,5 +1,5 @@
 //! The various different config file formats that we support
-use crate::{ValueDefinition, checks, providers, templating::Scalar};
+use crate::{ValueDefinition, checks, providers, templating::TemplateValue};
 use std::{collections::HashMap, io};
 
 mod environment;
@@ -67,12 +67,16 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// let definitions = self.values.iter().chain(self.setup.provides.iter());
 /// ```
 pub(crate) fn values_for_config_file<'a>(
-    all_values: &HashMap<String, Scalar>,
+    all_values: &HashMap<String, TemplateValue>,
     definitions: impl Iterator<Item = &'a ValueDefinition> + Clone,
-) -> HashMap<String, Scalar> {
-    let mut values: HashMap<String, Scalar> = definitions
+) -> HashMap<String, TemplateValue> {
+    let mut values: HashMap<String, TemplateValue> = definitions
         .clone()
-        .flat_map(|vd| vd.default.clone().map(|v| (vd.name.clone(), v)))
+        .flat_map(|vd| {
+            vd.default
+                .clone()
+                .map(|value| (vd.name.clone(), value.assume_with_source()))
+        })
         .collect();
 
     values.extend(
@@ -89,10 +93,11 @@ pub(crate) fn values_for_config_file<'a>(
 mod tests {
     use super::*;
     use crate::{
+        DefaultValue,
         checks::Check,
         context::Context,
         providers::file::{FileProvider, NamedFileProvider, RelativeFile, Source},
-        templating::{ErrorKind, Field, Template},
+        templating::{ErrorKind, Field, Scalar, Template, TemplateValue},
     };
 
     // Test Helpers
@@ -140,10 +145,18 @@ mod tests {
     }
 
     /// Create a HashMap of values from string names (each name maps to itself as a Scalar::String)
-    pub(crate) fn value_map(value_names: &[&str]) -> HashMap<String, Scalar> {
+    pub(crate) fn value_map(value_names: &[&str]) -> HashMap<String, TemplateValue> {
         value_names
             .iter()
-            .map(|&name| (name.to_string(), Scalar::String(name.to_string())))
+            .map(|&name| {
+                (
+                    name.to_string(),
+                    TemplateValue {
+                        value: Scalar::String(name.to_string()),
+                        source: Source::local("/"),
+                    },
+                )
+            })
             .collect()
     }
 
@@ -186,7 +199,7 @@ mod tests {
     /// Assert template errors
     pub(crate) fn assert_template_errors(
         t: &mut impl Template,
-        values: HashMap<String, Scalar>,
+        values: HashMap<String, TemplateValue>,
         expected_err_messages: Vec<String>,
         expected_err_paths: Vec<String>,
     ) {
@@ -237,10 +250,28 @@ mod tests {
 
     #[test]
     fn values_for_config_file_defaults_used_correctly() {
-        let all_values: HashMap<String, Scalar> = [
-            ("a".into(), 1.into()),
-            ("b".into(), "foo".into()),
-            ("c".into(), true.into()),
+        let all_values: HashMap<String, TemplateValue> = [
+            (
+                "a".into(),
+                TemplateValue {
+                    value: 1.into(),
+                    source: Source::local("/"),
+                },
+            ),
+            (
+                "b".into(),
+                TemplateValue {
+                    value: "foo".into(),
+                    source: Source::local("/"),
+                },
+            ),
+            (
+                "c".into(),
+                TemplateValue {
+                    value: true.into(),
+                    source: Source::local("/"),
+                },
+            ),
         ]
         .into_iter()
         .collect();
@@ -249,7 +280,10 @@ mod tests {
             ValueDefinition {
                 name: "a".into(),
                 description: String::new(),
-                default: Some(2.into()),
+                default: Some(DefaultValue::WithSource(TemplateValue {
+                    value: 2.into(),
+                    source: Source::local("/"),
+                })),
             },
             ValueDefinition {
                 name: "b".into(),
@@ -259,7 +293,10 @@ mod tests {
             ValueDefinition {
                 name: "d".into(),
                 description: String::new(),
-                default: Some("bar".into()),
+                default: Some(DefaultValue::WithSource(TemplateValue {
+                    value: "bar".into(),
+                    source: Source::local("/"),
+                })),
             },
         ];
 
@@ -269,10 +306,28 @@ mod tests {
         // b has an explicit value and no default
         // c is not in the definitions so it is filtered out
         // d has no explicit value so we take the default
-        let expected: HashMap<String, Scalar> = [
-            ("a".into(), 1.into()),
-            ("b".into(), "foo".into()),
-            ("d".into(), "bar".into()),
+        let expected: HashMap<String, TemplateValue> = [
+            (
+                "a".into(),
+                TemplateValue {
+                    value: 1.into(),
+                    source: Source::local("/"),
+                },
+            ),
+            (
+                "b".into(),
+                TemplateValue {
+                    value: "foo".into(),
+                    source: Source::local("/"),
+                },
+            ),
+            (
+                "d".into(),
+                TemplateValue {
+                    value: "bar".into(),
+                    source: Source::local("/"),
+                },
+            ),
         ]
         .into_iter()
         .collect();

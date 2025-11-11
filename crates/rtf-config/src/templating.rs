@@ -1,4 +1,5 @@
 //! Helpers for supporting minimal templating of user config files.
+use crate::providers::file::Source;
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
@@ -66,7 +67,7 @@ pub trait Template {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        values: &HashMap<String, TemplateValue>,
     ) -> Result<()>;
 
     /// Attempt to resolve all pending [Field]s when this type is a child of some parent
@@ -76,7 +77,7 @@ pub trait Template {
         &mut self,
         path: &mut Vec<String>,
         tail: &str,
-        values: &HashMap<String, Scalar>,
+        values: &HashMap<String, TemplateValue>,
     ) -> Result<()> {
         let mut path = path.clone();
         path.push(tail.to_string());
@@ -86,7 +87,10 @@ pub trait Template {
     /// Attempt to resolve all known [Field]s, reporting required values that are not present in
     /// the provided map. If there are any deserialization errors then then this method as an
     /// aggregate operation will fail.
-    fn try_template_known(&mut self, values: &HashMap<String, Scalar>) -> Result<Vec<String>> {
+    fn try_template_known(
+        &mut self,
+        values: &HashMap<String, TemplateValue>,
+    ) -> Result<Vec<String>> {
         let all_errs = match self.try_template(&mut Vec::new(), values) {
             Ok(_) => return Ok(Vec::new()),
             Err(errs) => errs,
@@ -125,7 +129,7 @@ where
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        values: &HashMap<String, TemplateValue>,
     ) -> Result<()> {
         self.as_mut()
             .map(|inner| inner.try_template(path, values))
@@ -150,7 +154,7 @@ where
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        values: &HashMap<String, TemplateValue>,
     ) -> Result<()> {
         let mut errs = ErrorBuilder::new();
 
@@ -180,7 +184,7 @@ where
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        values: &HashMap<String, TemplateValue>,
     ) -> Result<()> {
         let mut errs = ErrorBuilder::new();
 
@@ -190,6 +194,16 @@ where
 
         errs.into_result(())
     }
+}
+
+/// A templating value that is tagged with the [Source] of the config file that it came from.
+///
+/// Needed to be able to correctly resolve relative paths that have been set by a template value.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+pub struct TemplateValue {
+    pub value: Scalar,
+    #[serde(skip)]
+    pub source: Source,
 }
 
 /// A [Field] wraps some scalar type that implements [Template] in order to mark it as
@@ -297,11 +311,11 @@ where
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        values: &HashMap<String, TemplateValue>,
     ) -> Result<()> {
         if let Self::Pending(value) = self {
             match values.get(value) {
-                Some(raw) => match T::try_from_scalar(raw.clone()) {
+                Some(raw) => match T::try_from_scalar(raw.value.clone()) {
                     Ok(t) => *self = Self::Resolved(t),
                     Err(reason) => {
                         return Err(Errors::new(ErrorKind::InvalidData, reason, path));
@@ -782,7 +796,13 @@ mod tests {
         ($slice:expr) => {{
             let mut m = ::std::collections::HashMap::new();
             for k in $slice {
-                m.insert(k.to_string(), Scalar::from(k.to_string()));
+                m.insert(
+                    k.to_string(),
+                    TemplateValue {
+                        value: Scalar::from(k.to_string()),
+                        source: Source::local("/"),
+                    },
+                );
             }
             m
         }};

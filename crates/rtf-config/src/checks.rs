@@ -320,7 +320,7 @@ mod tests {
         ValueDefinition {
             name: name.into(),
             description: format!("description for {name}"),
-            default,
+            default: default.map(Into::into),
         }
     }
 

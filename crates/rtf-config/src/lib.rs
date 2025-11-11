@@ -17,6 +17,7 @@
 #[allow(unused_extern_crates)]
 extern crate self as rtf_config;
 
+use crate::templating::{Scalar, TemplateValue};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -37,7 +38,29 @@ pub struct ValueDefinition {
     pub description: String,
     /// An optional default to use if this value is not provided in the parent test plan
     #[serde(default)]
-    pub default: Option<templating::Scalar>,
+    pub default: Option<DefaultValue>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[serde(untagged)]
+pub enum DefaultValue {
+    Raw(Scalar),
+    WithSource(TemplateValue),
+}
+
+impl DefaultValue {
+    pub(crate) fn assume_with_source(self) -> TemplateValue {
+        match self {
+            Self::Raw(_) => panic!("assumed default value had a source but it didn't"),
+            Self::WithSource(tv) => tv,
+        }
+    }
+}
+
+impl From<Scalar> for DefaultValue {
+    fn from(value: Scalar) -> Self {
+        Self::Raw(value)
+    }
 }
 
 /// A function for merging yaml overrides with the base config. It is expected

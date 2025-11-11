@@ -4,7 +4,7 @@ use crate::{
     context::ResolutionContext,
     formats::{Result, values_for_config_file},
     providers::{command::CommandSection, file::Source},
-    templating::{self, Scalar, Template},
+    templating::{self, Template, TemplateValue},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -58,7 +58,7 @@ impl Template for ScenarioConfig {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        values: &HashMap<String, TemplateValue>,
     ) -> templating::Result<()> {
         let definitions = self.values.iter();
         let allowed_values = values_for_config_file(values, definitions);

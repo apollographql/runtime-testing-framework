@@ -8,7 +8,7 @@ use crate::{
         command::CommandSection,
         file::{RawSource, Source},
     },
-    templating::{self, Scalar, Template},
+    templating::{self, Scalar, Template, TemplateValue},
 };
 use rtf_core::github::{self, Client};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
@@ -25,7 +25,7 @@ pub struct TestPlanConfig {
     pub name: String,
     pub description: String,
     #[serde(default)]
-    pub values: HashMap<String, Scalar>,
+    pub values: HashMap<String, TemplateValue>,
     #[serde(default)]
     pub matrix: Matrix,
     pub scenario: ScenarioConfig,
@@ -171,7 +171,7 @@ impl TestPlanConfig {
 
     pub fn try_template_environment_setup(
         &mut self,
-        values: &HashMap<String, Scalar>,
+        values: &HashMap<String, TemplateValue>,
     ) -> templating::Result<()> {
         let mut path = vec!["environment".to_string()];
         self.environment.try_template_setup(&mut path, values)
@@ -179,7 +179,7 @@ impl TestPlanConfig {
 
     pub fn try_template_environment_teardown(
         &mut self,
-        values: &HashMap<String, Scalar>,
+        values: &HashMap<String, TemplateValue>,
     ) -> templating::Result<()> {
         let mut path = vec!["environment".to_string()];
         self.environment.try_template_teardown(&mut path, values)
@@ -187,7 +187,7 @@ impl TestPlanConfig {
 
     pub fn try_template_scenario(
         &mut self,
-        values: &HashMap<String, Scalar>,
+        values: &HashMap<String, TemplateValue>,
     ) -> templating::Result<()> {
         let mut path = vec!["scenario".to_string()];
         self.scenario.try_template(&mut path, values)
@@ -197,7 +197,7 @@ impl TestPlanConfig {
         &self,
         out_dir: &Path,
         ctx: &mut impl ResolutionContext,
-    ) -> Result<HashMap<String, Scalar>> {
+    ) -> Result<HashMap<String, TemplateValue>> {
         let raw_output = self
             .environment
             .setup
@@ -205,7 +205,19 @@ impl TestPlanConfig {
             .run_providers_and_execute_for_output(out_dir, self.sources.environment(), ctx)
             .await?;
 
-        let provides: HashMap<String, Scalar> = serde_json::from_str(&raw_output)?;
+        let raw_provides: HashMap<String, Scalar> = serde_json::from_str(&raw_output)?;
+        let provides: HashMap<String, TemplateValue> = raw_provides
+            .into_iter()
+            .map(|(k, value)| {
+                (
+                    k,
+                    TemplateValue {
+                        value,
+                        source: self.sources.environment().clone(),
+                    },
+                )
+            })
+            .collect();
 
         let mut missing = Vec::new();
         for val in self.environment.setup.provides.iter() {
@@ -283,7 +295,7 @@ impl Template for TestPlanConfig {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        values: &HashMap<String, TemplateValue>,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::from(self.environment.try_template_nested(
             path,
@@ -418,13 +430,49 @@ impl RawTestPlanConfig {
         Ok(TestPlanConfig {
             name: self.name,
             description: self.description,
-            values: self.values,
-            matrix: self.matrix.into(),
+            values: map_vals(self.values, &tp_source),
+            matrix: self.matrix.into_matrix(&tp_source),
             scenario,
             environment,
             sources: Sources::new(tp_source, scenario_source, environment_source),
         })
     }
+}
+
+fn map_vals(values: HashMap<String, Scalar>, source: &Source) -> HashMap<String, TemplateValue> {
+    values
+        .into_iter()
+        .map(|(k, value)| {
+            (
+                k,
+                TemplateValue {
+                    value,
+                    source: source.clone(),
+                },
+            )
+        })
+        .collect()
+}
+
+fn map_dims(
+    dimensions: HashMap<String, Vec<Scalar>>,
+    source: &Source,
+) -> HashMap<String, Vec<TemplateValue>> {
+    dimensions
+        .into_iter()
+        .map(|(k, values)| {
+            (
+                k,
+                values
+                    .into_iter()
+                    .map(|value| TemplateValue {
+                        value,
+                        source: source.clone(),
+                    })
+                    .collect(),
+            )
+        })
+        .collect()
 }
 
 /// We support only providing dimensions at the top level if the user doesn't care about
@@ -434,27 +482,45 @@ impl RawTestPlanConfig {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(untagged)]
 pub enum RawMatrix {
-    Full(Matrix),
+    Full(RawFullMatrix),
     Dimensions(HashMap<String, Vec<Scalar>>),
 }
 
-impl Default for RawMatrix {
-    fn default() -> Self {
-        Self::Full(Matrix::default())
-    }
-}
+impl RawMatrix {
+    fn into_matrix(self, source: &Source) -> Matrix {
+        match self {
+            RawMatrix::Full(RawFullMatrix {
+                variant_names,
+                dimensions,
+                include,
+            }) => Matrix {
+                variant_names,
+                dimensions: map_dims(dimensions, source),
+                include: include.into_iter().map(|m| map_vals(m, source)).collect(),
+            },
 
-impl From<RawMatrix> for Matrix {
-    fn from(m: RawMatrix) -> Self {
-        match m {
-            RawMatrix::Full(m) => m,
             RawMatrix::Dimensions(dimensions) => Matrix {
                 variant_names: None,
-                dimensions,
+                dimensions: map_dims(dimensions, source),
                 include: Vec::new(),
             },
         }
     }
+}
+
+impl Default for RawMatrix {
+    fn default() -> Self {
+        Self::Full(RawFullMatrix::default())
+    }
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+pub struct RawFullMatrix {
+    #[serde(default)]
+    pub variant_names: Option<String>,
+    pub dimensions: HashMap<String, Vec<Scalar>>,
+    #[serde(default)]
+    pub include: Vec<HashMap<String, Scalar>>,
 }
 
 /// # Config Spec
@@ -576,6 +642,7 @@ fn set_source_for_relative_files(val: &mut serde_yaml::Value, src: &serde_yaml::
 mod tests {
     use super::*;
     use crate::{
+        DefaultValue,
         context::Context,
         formats::{
             environment::{
@@ -612,7 +679,7 @@ mod tests {
         ValueDefinition {
             name: name.into(),
             description: String::default(),
-            default: Some(val.into()),
+            default: Some(DefaultValue::Raw(val.into())),
         }
     }
 
@@ -620,7 +687,15 @@ mod tests {
     macro_rules! values_map {
         ($($k:expr => $v:expr),+) => {{
             let mut m = ::std::collections::HashMap::new();
-            $( m.insert($k.to_string(), $crate::templating::Scalar::try_from($v).unwrap()); )+
+            $(
+                m.insert(
+                    $k.to_string(),
+                    $crate::templating::TemplateValue {
+                        value: $crate::templating::Scalar::from($v),
+                        source: $crate::providers::file::Source::local("/"),
+                    },
+                );
+            )+
             m
         }};
     }
@@ -639,9 +714,9 @@ mod tests {
 
     /// Create a TestPlanConfig for template tests
     fn templatable_test_plan(
-        values: HashMap<String, Scalar>,
-        dimensions: HashMap<String, Vec<Scalar>>,
-        include: Vec<HashMap<String, Scalar>>,
+        values: HashMap<String, TemplateValue>,
+        dimensions: HashMap<String, Vec<TemplateValue>>,
+        include: Vec<HashMap<String, TemplateValue>>,
         scenario_fields: &[&str],
         setup_fields: &[&str],
         teardown_fields: &[&str],
@@ -663,7 +738,10 @@ mod tests {
     }
 
     /// Create a matrix with two values per key provided
-    fn dimensions_from_keys(keys: &[&str], no_entries: isize) -> HashMap<String, Vec<Scalar>> {
+    fn dimensions_from_keys(
+        keys: &[&str],
+        no_entries: isize,
+    ) -> HashMap<String, Vec<TemplateValue>> {
         keys.iter()
             .map(|&key| {
                 (
@@ -672,7 +750,10 @@ mod tests {
                         Vec::new()
                     } else {
                         (0..no_entries)
-                            .map(|i| format!("{key}{}", i + 1).into())
+                            .map(|i| TemplateValue {
+                                value: format!("{key}{}", i + 1).into(),
+                                source: Source::local("/"),
+                            })
                             .collect()
                     },
                 )
@@ -1089,7 +1170,7 @@ mod tests {
     /// Helper function for asserting template errors are as expected
     fn assert_test_plan_template_errors(
         test_plan: &mut TestPlanConfig,
-        values: HashMap<String, Scalar>,
+        values: HashMap<String, TemplateValue>,
         expected_scenario_err_fields: &[&str],
         expected_env_err_fields: &[&str],
     ) {
@@ -1256,13 +1337,23 @@ mod tests {
     fn matrix_expansion(
         values: &[&str],
         dimensions: &[(&str, Vec<&str>)],
-        include: &[HashMap<String, Scalar>],
-        expected_values_maps: &[HashMap<String, Scalar>],
+        include: &[HashMap<String, TemplateValue>],
+        expected_values_maps: &[HashMap<String, TemplateValue>],
     ) {
         let values = value_map(values);
-        let dimensions: HashMap<String, Vec<Scalar>> = dimensions
+        let dimensions: HashMap<String, Vec<TemplateValue>> = dimensions
             .iter()
-            .map(|(k, v)| (k.to_string(), v.iter().map(|s| Scalar::from(*s)).collect()))
+            .map(|(k, v)| {
+                (
+                    k.to_string(),
+                    v.iter()
+                        .map(|s| TemplateValue {
+                            value: Scalar::from(*s),
+                            source: Source::local("/"),
+                        })
+                        .collect(),
+                )
+            })
             .collect();
         let test_plan = TestPlanConfig {
             values: values.clone(),
@@ -1428,8 +1519,20 @@ mod tests {
     #[test]
     fn check_templating_will_work_inconsistent_dimension_value_errors() {
         let values = HashMap::new();
-        let mut dimensions: HashMap<String, Vec<Scalar>> = HashMap::new();
-        dimensions.insert("foo".into(), vec!["a".into(), 42.into()]);
+        let mut dimensions: HashMap<String, Vec<TemplateValue>> = HashMap::new();
+        dimensions.insert(
+            "foo".into(),
+            vec![
+                TemplateValue {
+                    value: "a".into(),
+                    source: Source::local("/"),
+                },
+                TemplateValue {
+                    value: 42.into(),
+                    source: Source::local("/"),
+                },
+            ],
+        );
         let mut test_plan = templatable_test_plan(values, dimensions, vec![], &[], &[], &[]);
 
         let expected_err_kind = ErrorKind::InconsistentMatrixValue;
@@ -1457,7 +1560,7 @@ mod tests {
     #[test_case(vec![values_map!("foo" => "a"), values_map!("foo" => 42)]; "value types")]
     #[test]
     fn check_templating_will_work_inconsistent_include_errors(
-        include: Vec<HashMap<String, Scalar>>,
+        include: Vec<HashMap<String, TemplateValue>>,
     ) {
         let values = HashMap::new();
         let dimensions = HashMap::new();
@@ -1749,6 +1852,11 @@ mod tests {
                     provides: value_definitions(&["foo", "bar"]),
                 },
                 ..EnvironmentConfig::empty()
+            },
+            sources: Sources {
+                test_plan: Source::local("/"),
+                scenario: None,
+                environment: None,
             },
             ..TestPlanConfig::empty()
         }

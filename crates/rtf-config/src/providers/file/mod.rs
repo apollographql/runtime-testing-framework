@@ -3,7 +3,7 @@ use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
     enum_impl_check, providers,
-    templating::{self, Field, Scalar, Template},
+    templating::{self, Field, Template, TemplateValue},
 };
 use rtf_core::github::Client;
 use rtf_derive::Template;
@@ -194,7 +194,7 @@ impl Template for NamedFileProvider {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        values: &HashMap<String, TemplateValue>,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
@@ -552,7 +552,7 @@ mod tests {
         context::Context,
         mock_context::MockContext,
         providers::test_helpers::{assert_file_content, create_temp_dir_with_file},
-        templating::ErrorKind,
+        templating::{ErrorKind, Scalar},
     };
     use assert_fs::{
         TempDir,
@@ -838,8 +838,14 @@ mod tests {
                 src: None,
             }),
         };
-        let mut values: HashMap<String, Scalar> = HashMap::new();
-        values.insert("path".to_string(), Scalar::String("path".to_string()));
+        let mut values: HashMap<String, TemplateValue> = HashMap::new();
+        values.insert(
+            "path".to_string(),
+            TemplateValue {
+                value: Scalar::String("path".to_string()),
+                source: Source::local("/"),
+            },
+        );
 
         let res = nfp.try_template(&mut Vec::new(), &values);
         assert!(
@@ -858,8 +864,14 @@ mod tests {
                 src: None,
             }),
         };
-        let mut values: HashMap<String, Scalar> = HashMap::new();
-        values.insert("unused".to_string(), Scalar::String("unused".to_string()));
+        let mut values: HashMap<String, TemplateValue> = HashMap::new();
+        values.insert(
+            "unused".to_string(),
+            TemplateValue {
+                value: Scalar::String("unused".to_string()),
+                source: Source::local("/"),
+            },
+        );
 
         let res = nfp.try_template(&mut vec!["path".to_string()], &values);
         assert!(res.is_err(), "expected templating to error, got {res:?}");

@@ -34,7 +34,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 path: &mut ::std::vec::Vec<::std::string::String>,
                 values: &::std::collections::HashMap<
                     ::std::string::String,
-                    ::rtf_config::templating::Scalar
+                    ::rtf_config::templating::TemplateValue
                 >,
             ) -> ::rtf_config::templating::Result<()> {
                 #try_template

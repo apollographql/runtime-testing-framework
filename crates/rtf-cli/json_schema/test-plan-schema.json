@@ -40,8 +40,12 @@
       "description": "This struct allows the config files to be resolved either from\ninline yaml in the test plan or from a [crate::providers::file::FileProvider].",
       "title": "Config Spec"
     },
-    "Matrix": {
-      "description": "A matrix of user provided value dimensions that is expanded out into multiple value sets for\ntemplating the test plan containing the matrix.",
+    "Number": {
+      "description": "Represents a number, whether integer or floating point.",
+      "title": "Number",
+      "type": "number"
+    },
+    "RawFullMatrix": {
       "properties": {
         "dimensions": {
           "additionalProperties": {
@@ -50,12 +54,10 @@
             },
             "type": "array"
           },
-          "description": "The actual dimensions and their allowed values that will be used to produce the matrix",
           "type": "object"
         },
         "include": {
           "default": [],
-          "description": "Additional _groups_ of values that will be combined with known dimensions to produce the\nfull set of values for each dimension.\n\nUsed for tying subsets of values together and reducing the number of variants we expand to.\nEach entry within this array is required to define the same keys and scalar value types.",
           "items": {
             "additionalProperties": {
               "$ref": "#/definitions/Scalar"
@@ -66,7 +68,6 @@
         },
         "variant_names": {
           "default": null,
-          "description": "Optional template string for customising the names of each variants output subdirectory.",
           "type": [
             "string",
             "null"
@@ -78,15 +79,10 @@
       ],
       "type": "object"
     },
-    "Number": {
-      "description": "Represents a number, whether integer or floating point.",
-      "title": "Number",
-      "type": "number"
-    },
     "RawMatrix": {
       "anyOf": [
         {
-          "$ref": "#/definitions/Matrix"
+          "$ref": "#/definitions/RawFullMatrix"
         },
         {
           "additionalProperties": {

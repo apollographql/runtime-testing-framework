@@ -186,6 +186,16 @@
       },
       "type": "object"
     },
+    "DefaultValue": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Scalar"
+        },
+        {
+          "$ref": "#/definitions/TemplateValue"
+        }
+      ]
+    },
     "FromCommand": {
       "description": "Run a command provider and use its output as a file provider resource.\n\nAs with all other command providers, you can provide both environment variables\nand other file providers as inputs to the command being executed. RTF will use\nthe contents of the `$RTF_OUTPUT` path as the output of this provider, supporting\nboth writing a single file to that path and creating a directory at that path\ncontaining multiple files.\n\n```yaml\n- name: vegeta-ops.json\n  env_var: VEGETA_OPS\n  kind: from_command\n  command:\n    name: format-for-vegeta.sh\n    kind: relative_path\n    path: scripts/format-for-vegeta.sh\n  env_vars:\n    ROUTER_URL: \"http://127.0.0.1:4000/\"\n  file_providers:\n    - name: canned_ops.json\n      env_var: CANNED_OPS_FILE\n      kind: graphos_canned_ops\n      graph_ref: \"my@graph\"\n      top_n: 20\n      skip_mutations: true\n```\n\n### format-for-vegeta.sh\n```bash\n#!/usr/bin/env sh\nwhile read -r req; do\n  if [[ \"$OSTYPE\" == \"darwin\"* ]]; then\n    encoded=$(echo \"$req\" | base64 -b 0)\n  else\n    encoded=$(echo \"$req\" | base64 -w 0)\n  fi\n  \n  jq -nc \\\n    --arg body \"$encoded\" \\\n    --arg url \"$ROUTER_URL\" \\\n    '{\n      \"body\": $body,\n      \"header\": { \"Content-type\": [\"application/json\"] },\n      \"method\": \"POST\",\n      \"url\": $url\n    }' >> \"$RTF_OUTPUT\"\ndone <\"$CANNED_OPS_FILE\"\n```",
       "properties": {
@@ -959,6 +969,18 @@
         }
       ]
     },
+    "TemplateValue": {
+      "description": "A templating value that is tagged with the [Source] of the config file that it came from.\n\nNeeded to be able to correctly resolve relative paths that have been set by a template value.",
+      "properties": {
+        "value": {
+          "$ref": "#/definitions/Scalar"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "type": "object"
+    },
     "TextFileProvider": {
       "description": "A subset of file providers that can produce arbitrary utf-8 text as their output.",
       "oneOf": [
@@ -1083,7 +1105,7 @@
         "default": {
           "anyOf": [
             {
-              "$ref": "#/definitions/Scalar"
+              "$ref": "#/definitions/DefaultValue"
             },
             {
               "type": "null"

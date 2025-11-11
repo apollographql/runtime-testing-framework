@@ -1,6 +1,9 @@
 #![allow(clippy::disallowed_names)]
 
-use rtf_config::templating::{Field, Scalar, Template, ValidField};
+use rtf_config::{
+    providers::file::Source,
+    templating::{Field, Scalar, Template, TemplateValue, ValidField},
+};
 use rtf_derive::Template;
 use simple_test_case::test_case;
 
@@ -220,7 +223,13 @@ macro_rules! values_map {
     ($slice:expr) => {{
         let mut m = ::std::collections::HashMap::new();
         for k in $slice {
-            m.insert(k.to_string(), Scalar::from(k.to_string()));
+            m.insert(
+                k.to_string(),
+                TemplateValue {
+                    value: Scalar::from(k.to_string()),
+                    source: Source::local("/"),
+                },
+            );
         }
         m
     }};

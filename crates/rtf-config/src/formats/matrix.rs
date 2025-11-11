@@ -1,7 +1,7 @@
 use crate::{
     checks::duplicate_keys,
     formats::{Error, Result},
-    templating::{self, Scalar},
+    templating::{self, Scalar, TemplateValue},
 };
 use itertools::Itertools;
 use regex::Regex;
@@ -27,7 +27,7 @@ pub struct Matrix {
     pub variant_names: Option<String>,
 
     /// The actual dimensions and their allowed values that will be used to produce the matrix
-    pub dimensions: HashMap<String, Vec<Scalar>>,
+    pub dimensions: HashMap<String, Vec<TemplateValue>>,
 
     /// Additional _groups_ of values that will be combined with known dimensions to produce the
     /// full set of values for each dimension.
@@ -35,7 +35,7 @@ pub struct Matrix {
     /// Used for tying subsets of values together and reducing the number of variants we expand to.
     /// Each entry within this array is required to define the same keys and scalar value types.
     #[serde(default)]
-    pub include: Vec<HashMap<String, Scalar>>,
+    pub include: Vec<HashMap<String, TemplateValue>>,
 }
 
 impl Matrix {
@@ -64,7 +64,7 @@ impl Matrix {
     /// Ensure that we have a consistent ordering for the vec we return.
     /// The choice of ordering by the map key here is arbitrary but it is easy to document and
     /// quickly check by hand for users when needed.
-    pub fn sorted_dimensions(&self) -> Vec<(&String, &Vec<Scalar>)> {
+    pub fn sorted_dimensions(&self) -> Vec<(&String, &Vec<TemplateValue>)> {
         let mut pairs: Vec<_> = self.dimensions.iter().collect();
         pairs.sort_unstable_by(|(k1, _), (k2, _)| k1.cmp(k2));
 
@@ -82,8 +82,8 @@ impl Matrix {
     /// and also ensure that the generated names are unique.
     pub fn try_expand(
         &self,
-        values: &HashMap<String, Scalar>,
-    ) -> Result<Vec<(String, HashMap<String, Scalar>)>> {
+        values: &HashMap<String, TemplateValue>,
+    ) -> Result<Vec<(String, HashMap<String, TemplateValue>)>> {
         let variants: Vec<_> = self
             .sorted_dimensions()
             .into_iter()
@@ -136,7 +136,7 @@ impl Matrix {
     pub fn check_dimensions(&self, errs: &mut templating::ErrorBuilder) {
         for (k, vals) in self.dimensions.iter() {
             let discriminant = match vals.first() {
-                Some(val) => mem::discriminant(val),
+                Some(val) => mem::discriminant(&val.value),
                 None => {
                     errs.push(
                         templating::ErrorKind::EmptyMatrixValue,
@@ -147,7 +147,10 @@ impl Matrix {
                 }
             };
 
-            if !vals.iter().all(|v| mem::discriminant(v) == discriminant) {
+            if !vals
+                .iter()
+                .all(|v| mem::discriminant(&v.value) == discriminant)
+            {
                 errs.push(
                     templating::ErrorKind::InconsistentMatrixValue,
                     k,
@@ -162,12 +165,15 @@ impl Matrix {
 
         let expected: HashMap<&String, Discriminant<Scalar>> = self.include[0]
             .iter()
-            .map(|(k, v)| (k, mem::discriminant(v)))
+            .map(|(k, v)| (k, mem::discriminant(&v.value)))
             .collect();
 
         for map in self.include.iter().skip(1) {
-            let key_types: HashMap<&String, Discriminant<Scalar>> =
-                map.iter().map(|(k, v)| (k, mem::discriminant(v))).collect();
+            let key_types: HashMap<&String, Discriminant<Scalar>> = map
+                .iter()
+                .map(|(k, v)| (k, mem::discriminant(&v.value)))
+                .collect();
+
             if key_types != expected {
                 errs.push(
                     templating::ErrorKind::InconsistentMatrixInclude,
@@ -181,7 +187,7 @@ impl Matrix {
     /// Check if we have any conflicts between matrix values and scalar values
     pub fn check_conflicting_keys(
         &self,
-        values: &HashMap<String, Scalar>,
+        values: &HashMap<String, TemplateValue>,
         errs: &mut templating::ErrorBuilder,
     ) {
         let all_keys = values.keys().chain(self.dimensions.keys());
@@ -202,7 +208,7 @@ impl Matrix {
 
 fn variant_name(
     template: Option<&str>,
-    values: &HashMap<String, Scalar>,
+    values: &HashMap<String, TemplateValue>,
     n: usize,
 ) -> Result<String> {
     let mut s = match template {
@@ -212,7 +218,7 @@ fn variant_name(
 
     for (k, v) in values.iter() {
         // ${k} is what we are replacing but we need to escape the curlies
-        s = s.replace(&format!("${{{k}}}"), &v.to_string());
+        s = s.replace(&format!("${{{k}}}"), &v.value.to_string());
     }
 
     // Ensure that all template patterns have been filled
@@ -247,15 +253,26 @@ fn slugify(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::providers::file::Source;
     use simple_test_case::test_case;
 
-    fn dims<T>(dimensions: &[(&str, &[T])]) -> HashMap<String, Vec<Scalar>>
+    fn dims<T>(dimensions: &[(&str, &[T])]) -> HashMap<String, Vec<TemplateValue>>
     where
         T: Copy + Into<Scalar>,
     {
         dimensions
             .iter()
-            .map(|(name, vals)| (name.to_string(), vals.iter().map(|t| (*t).into()).collect()))
+            .map(|(name, vals)| {
+                (
+                    name.to_string(),
+                    vals.iter()
+                        .map(|t| TemplateValue {
+                            value: (*t).into(),
+                            source: Source::local("/"),
+                        })
+                        .collect(),
+                )
+            })
             .collect()
     }
 
@@ -303,9 +320,17 @@ mod tests {
         }
     }
 
-    fn value_map(vals: &[(&str, &str)]) -> HashMap<String, Scalar> {
+    fn value_map(vals: &[(&str, &str)]) -> HashMap<String, TemplateValue> {
         vals.iter()
-            .map(|&(name, val)| (name.to_string(), Scalar::String(val.to_string())))
+            .map(|&(name, val)| {
+                (
+                    name.to_string(),
+                    TemplateValue {
+                        value: Scalar::String(val.to_string()),
+                        source: Source::local("/"),
+                    },
+                )
+            })
             .collect()
     }
 
@@ -354,9 +379,9 @@ mod tests {
     )]
     #[test]
     fn try_expand_generates_the_expected_values(
-        dimensions: HashMap<String, Vec<Scalar>>,
-        include: Vec<HashMap<String, Scalar>>,
-        expected: &[HashMap<String, Scalar>],
+        dimensions: HashMap<String, Vec<TemplateValue>>,
+        include: Vec<HashMap<String, TemplateValue>>,
+        expected: &[HashMap<String, TemplateValue>],
     ) {
         let m = Matrix {
             variant_names: None,
@@ -391,7 +416,13 @@ mod tests {
         expected: &[&str],
     ) {
         let mut m = HashMap::new();
-        m.insert("c".to_string(), Scalar::from("Z"));
+        m.insert(
+            "c".to_string(),
+            TemplateValue {
+                value: Scalar::from("Z"),
+                source: Source::local("/"),
+            },
+        );
 
         let m = Matrix {
             variant_names: variant_names.map(String::from),
