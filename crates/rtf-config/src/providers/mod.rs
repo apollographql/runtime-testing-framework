@@ -29,11 +29,17 @@ pub enum Error {
     #[error(transparent)]
     Yaml(#[from] serde_yaml::Error),
 
-    #[error("Request failed: {0}")]
-    RequestFailed(#[from] reqwest::Error),
+    #[error("Unable to execute command: {0}")]
+    CommandFailed(String),
 
     #[error("Missing provider output for {name}")]
     MissingProviderOutput { name: String },
+
+    #[error("Unable to resolve and write {name} file: {err}")]
+    ResolveAndWriteFailed { name: String, err: String },
+
+    #[error("Request failed: {0}")]
+    RequestFailed(#[from] reqwest::Error),
 
     #[error("Error decoding bytes to utf8")]
     Utf8DecodingError,

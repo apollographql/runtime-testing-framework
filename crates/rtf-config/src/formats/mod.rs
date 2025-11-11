@@ -19,8 +19,11 @@ pub enum Error {
     #[error("One or more file providers failed to run:\n{}", .errs.join("\n"))]
     FailedFileProviders { errs: Vec<String> },
 
+    #[error("Environment setup output not valid json: {output:?}")]
+    MalformedSetupOutputFormat { output: String },
+
     #[error("Missing required output fields from environment setup: {missing:?}")]
-    InvalidSetupOutput { missing: Vec<String> },
+    MissingSetupOutputFields { missing: Vec<String> },
 
     #[error(
         "The provided matrix.variant_names template references unknown matrix values: {values:?}"
