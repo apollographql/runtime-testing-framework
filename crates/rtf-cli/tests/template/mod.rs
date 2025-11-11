@@ -164,22 +164,22 @@ fn duplicate_variant_names_errors() {
 
 #[test_case(
     "missing-relative-file.yaml",
-    "(command.command_provider) The requested file did not exist\nprovided path was Resolved(\"does-not-exist.sh\")";
+    "(scenario.command.command_provider) The requested file did not exist\nprovided path was Resolved(\"does-not-exist.sh\")";
     "missing relative file"
 )]
 #[test_case(
     "missing-graphos-key.yaml",
-    "(LICENSE_FILE) No API key provided for calling the Apollo GraphOS API\nexpected os env key APOLLO_KEY";
+    "(scenario.LICENSE_FILE) No API key provided for calling the Apollo GraphOS API\nexpected os env key APOLLO_KEY";
     "missing graphos key"
 )]
 #[test_case(
     "missing-github-key.yaml",
-    "(RTF_README) No API key provided for calling the GitHub API\nexpected os env key GITHUB_TOKEN";
+    "(scenario.RTF_README) No API key provided for calling the GitHub API\nexpected os env key GITHUB_TOKEN";
     "missing github key"
 )]
 #[test_case(
     "required-file.yaml",
-    "(REQUIRED) A required file has not been defined\nthis will cause a check failure";
+    "(scenario.REQUIRED) A required file has not been defined\nthis will cause a check failure";
     "required file"
 )]
 #[test_case(
@@ -189,7 +189,7 @@ fn duplicate_variant_names_errors() {
 )]
 #[test_case(
     "duplicate-env-vars.yaml",
-    "() Non-unique environment variables found\nFOO";
+    "(scenario) Non-unique environment variables found\nFOO";
     "duplicate env vars"
 )]
 #[test]
