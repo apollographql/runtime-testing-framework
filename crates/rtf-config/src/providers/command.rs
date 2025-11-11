@@ -248,8 +248,7 @@ impl Check for CommandSection {
         errs.append(self.command.try_check_nested(path, "command", src, ctx));
 
         for nfp in self.file_providers.iter() {
-            let tail = nfp.name.clone();
-            errs.append(nfp.provider.try_check_nested(path, tail, src, ctx));
+            errs.append(nfp.try_check(path, src, ctx));
         }
 
         // We are checking whether the env vars in the command are duplicates of any env vars

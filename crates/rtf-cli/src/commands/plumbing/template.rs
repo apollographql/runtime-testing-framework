@@ -43,17 +43,17 @@ async fn template_test_plan_with_context(
         info!("checking test plan");
         let mut builder =
             checks::ErrorBuilder::from(test_plan.environment.setup.command.try_check(
-                &mut Vec::new(),
+                &mut vec!["setup".to_string()],
                 test_plan.sources.environment(),
                 &ctx,
             ));
         builder.append(test_plan.scenario.command.try_check(
-            &mut Vec::new(),
+            &mut vec!["scenario".to_string()],
             test_plan.sources.scenario(),
             &ctx,
         ));
         builder.append(test_plan.environment.teardown.try_check(
-            &mut Vec::new(),
+            &mut vec!["teardown".to_string()],
             test_plan.sources.environment(),
             &ctx,
         ));
