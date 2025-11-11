@@ -169,17 +169,17 @@ fn duplicate_variant_names_errors() {
 )]
 #[test_case(
     "missing-graphos-key.yaml",
-    "(offline.license) No API key provided for calling the Apollo GraphOS API\nexpected os env key APOLLO_KEY";
+    "(LICENSE_FILE) No API key provided for calling the Apollo GraphOS API\nexpected os env key APOLLO_KEY";
     "missing graphos key"
 )]
 #[test_case(
     "missing-github-key.yaml",
-    "(README.md) No API key provided for calling the GitHub API\nexpected os env key GITHUB_TOKEN";
+    "(RTF_README) No API key provided for calling the GitHub API\nexpected os env key GITHUB_TOKEN";
     "missing github key"
 )]
 #[test_case(
     "required-file.yaml",
-    "(required.txt) A required file has not been defined\nthis will cause a check failure";
+    "(REQUIRED) A required file has not been defined\nthis will cause a check failure";
     "required file"
 )]
 #[test_case(

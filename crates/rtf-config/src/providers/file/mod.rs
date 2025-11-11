@@ -198,11 +198,24 @@ impl Template for NamedFileProvider {
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
-        path.pop();
-        path.push("file_providers".to_string());
-
         let tail = self.env_var.clone();
         errs.append(self.provider.try_template_nested(path, &tail, values));
+
+        errs.into_result(())
+    }
+}
+
+impl Check for NamedFileProvider {
+    fn try_check(
+        &self,
+        path: &mut Vec<String>,
+        src: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        let mut errs = checks::ErrorBuilder::new();
+
+        let tail = self.env_var.clone();
+        errs.append(self.provider.try_check_nested(path, tail, src, ctx));
 
         errs.into_result(())
     }
@@ -835,12 +848,8 @@ mod tests {
         )
     }
 
-    #[test_case(vec![], "file_providers.RELATIVE.path"; "no path entries")]
-    #[test_case(vec!["path"], "file_providers.RELATIVE.path"; "single path entry")]
-    #[test_case(vec!["two", "entries"], "two.file_providers.RELATIVE.path"; "two path entries")]
-    #[test_case(vec!["multiple", "path", "entries"], "multiple.path.file_providers.RELATIVE.path"; "multiple path entries")]
     #[test]
-    fn named_file_provider_try_template_unknown_value_error(path: Vec<&str>, expected_path: &str) {
+    fn named_file_provider_try_template_unknown_value_error() {
         let mut nfp = NamedFileProvider {
             name: "relative.txt".to_string(),
             env_var: "RELATIVE".to_string(),
@@ -851,9 +860,8 @@ mod tests {
         };
         let mut values: HashMap<String, Scalar> = HashMap::new();
         values.insert("unused".to_string(), Scalar::String("unused".to_string()));
-        let mut path: Vec<String> = path.into_iter().map(|s| s.to_string()).collect();
 
-        let res = nfp.try_template(&mut path, &values);
+        let res = nfp.try_template(&mut vec!["path".to_string()], &values);
         assert!(res.is_err(), "expected templating to error, got {res:?}");
 
         let errors = res.unwrap_err();
@@ -865,7 +873,30 @@ mod tests {
             ErrorKind::UnknownValue,
             "expected ErrorKind to match"
         );
-        assert_eq!(error_path, expected_path, "expected path to match")
+        assert_eq!(error_path, "path.RELATIVE.path", "expected path to match")
+    }
+
+    #[test]
+    fn named_file_provider_check_error_path_correct() {
+        let nfp = NamedFileProvider {
+            name: "relative.txt".to_string(),
+            env_var: "RELATIVE".to_string(),
+            provider: FileProvider::RelativePath(RelativeFile {
+                path: Field::Resolved("does/not/exist/relative.txt".to_string()),
+                src: None,
+            }),
+        };
+
+        let res = nfp.try_check(
+            &mut vec!["path".to_string()],
+            &Source::Local {
+                abs_path: PathBuf::new(),
+            },
+            &Context::new(),
+        );
+        assert!(res.is_err(), "expected to check to error, got {res:?}");
+        let err = res.unwrap_err().unwrap_single();
+        assert_eq!(err.path, "path.RELATIVE")
     }
 
     #[test]
