@@ -61,3 +61,18 @@ fn compact(test_plan_dir: &str) {
 
     res.stdout(contains(serde_json::to_string(&expected_json).unwrap()));
 }
+
+#[test]
+fn duplicate_variant_names_error() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
+        .arg("expand-matrix")
+        .arg("resources/invalid/expand-matrix/duplicate-variant-names.yaml")
+        .arg("--compact")
+        .assert();
+
+    res.failure().stderr(contains(
+        "The provided variant_names template produced duplicate names: [\"foo\"]",
+    ));
+}
