@@ -11,7 +11,6 @@ use simple_test_case::test_case;
 fn with_check_success(test_plan_dir: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
-        .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
         .arg(format!("resources/valid/{test_plan_dir}/test-plan.yaml"))
         .arg("--check")

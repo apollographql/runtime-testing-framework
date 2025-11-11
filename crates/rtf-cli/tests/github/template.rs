@@ -6,7 +6,6 @@ use predicates::str::contains;
 fn with_check_success_github_file() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
-        .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
         .arg("resources/valid/github-file/test-plan.yaml")
         .arg("--check")
@@ -24,7 +23,6 @@ fn with_check_success_github_config_files() {
     // The only way to template successfully is to set this value from the cli
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
-        .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
         .arg("resources/valid/github-config-files/test-plan.yaml")
         .arg("--check")

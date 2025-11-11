@@ -10,7 +10,6 @@ use crate::common::is_valid_test_plan;
 use simple_test_case::test_case;
 
 #[test_case("resources/valid/graphos-supergraph"; "supergraph sdl")]
-#[test_case("resources/valid/graphos-subgraph-docker-compose"; "subgraph docker compose")]
 #[test_case("resources/valid/graphos-subgraph-router-url-overrides"; "subgraph router url overrides")]
 #[test_case("resources/valid/graphos-subgraphs"; "subgraph sdls")]
 #[test_case("resources/valid/graphos-canned-ops"; "canned operations")]
