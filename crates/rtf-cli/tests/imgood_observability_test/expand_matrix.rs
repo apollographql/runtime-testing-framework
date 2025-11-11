@@ -1,21 +1,26 @@
 use assert_cmd::Command;
 use predicates::str::contains;
+use serde_json::Value;
 use simple_test_case::test_case;
 
 #[test_case("graphos-canned-ops"; "canned ops")]
 #[test_case("graphos-subgraph-router-url-overrides"; "subgraph router url overrides")]
 #[test_case("graphos-subgraphs"; "subgraphs")]
 #[test_case("graphos-supergraph"; "supergraph")]
-#[ignore = "requires a valid GraphOS API Key"]
 #[test]
-fn with_check_success(test_plan_dir: &str) {
+fn pretty(test_plan_dir: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
-        .arg("template")
+        .arg("expand-matrix")
         .arg(format!("resources/valid/{test_plan_dir}/test-plan.yaml"))
-        .arg("--check")
         .assert();
 
-    // Check that a test plan gets printed to stdout
-    res.success().stdout(contains("name:"));
+    let matrix_json_str =
+        std::fs::read_to_string(format!("resources/valid/{test_plan_dir}/matrix.json"))
+            .expect("unable to load matrix.json");
+    let expected_json: Value = serde_json::from_str(&matrix_json_str).unwrap();
+
+    res.stdout(contains(
+        serde_json::to_string_pretty(&expected_json).unwrap(),
+    ));
 }

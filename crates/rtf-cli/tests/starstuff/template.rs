@@ -6,7 +6,6 @@ use predicates::str::contains;
 fn with_check_success_offline_license() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
-        .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
         .arg("resources/valid/graphos-offline-license/test-plan.yaml")
         .arg("--check")

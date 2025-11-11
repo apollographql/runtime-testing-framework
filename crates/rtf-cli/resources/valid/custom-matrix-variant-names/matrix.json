@@ -1,0 +1,36 @@
+{
+    "variants": [
+        {
+            "name": "world!-mother",
+            "values": {
+                "message": "hello, ",
+                "scenario_subject": "mother",
+                "setup_subject": "world!"
+            }
+        },
+        {
+            "name": "sailor-mother",
+            "values": {
+                "message": "hello, ",
+                "scenario_subject": "mother",
+                "setup_subject": "sailor"
+            }
+        },
+        {
+            "name": "world!-father",
+            "values": {
+                "message": "hello, ",
+                "scenario_subject": "father",
+                "setup_subject": "world!"
+            }
+        },
+        {
+            "name": "sailor-father",
+            "values": {
+                "message": "hello, ",
+                "scenario_subject": "father",
+                "setup_subject": "sailor"
+            }
+        }
+    ]
+}
