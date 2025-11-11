@@ -296,6 +296,35 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
 fn rewrite_connector_urls(sdl: &str) -> Option<String> {
     let mut schema = Schema::parse(sdl, "supergraph.graphql").unwrap();
 
+    let ExtendedType::Object(query) = schema.types.get_mut("Query")? else {
+        print!("{}", "I didn't find a query type");
+        return None;
+    };
+
+    for (_, value) in &mut query.get_mut()?.fields {
+        println!("{:?}", value.directives);
+        for directive in value.directives.0.iter_mut() {
+            if directive.name != "join__directive" {
+                continue;
+            }
+            let is_connect = directive.specified_argument_by_name("name")?.as_str()? == "connect";
+            if !is_connect {
+                continue;
+            }
+            let Value::Object(args_map) = directive
+                .get_mut()?
+                .specified_argument_by_name_mut("args")?
+                .get_mut()?
+            else {
+                continue;
+            };
+
+            println!("args: {:?}", args_map);
+        }
+
+        continue;
+    }
+
     for directive in schema.schema_definition.get_mut()?.directives.0.iter_mut() {
         if directive.name != "join__directive" {
             continue;
@@ -440,5 +469,14 @@ mod tests {
         let s = rewrite_connector_urls(sdl).unwrap();
 
         assert!(s.contains(r#"{name: "ecomm", http: {baseURL: "www.test.com", headers: []}})"#));
+    }
+
+    #[test]
+    fn rewriting_sourceless_connector_urls_works() {
+        let sdl =
+            include_str!("../../../resources/test_data/connectors/sourceless-connectors.graphql");
+        let s = rewrite_connector_urls(sdl).unwrap();
+
+        assert!(s.contains(r#"[Product] @join__directive(graphs: [PRODUCTS], name: "connect", args: {http: {GET: "www.test.com"}, selection: "$.products {\nid\nname\ndescription\n}"})"#));
     }
 }
