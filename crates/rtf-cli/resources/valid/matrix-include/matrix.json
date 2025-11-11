@@ -1,0 +1,36 @@
+{
+    "variants": [
+        {
+            "name": "matrix_variant_1",
+            "values": {
+                "message": "hello, ",
+                "scenario_subject": "sailor",
+                "setup_subject": "world!"
+            }
+        },
+        {
+            "name": "matrix_variant_2",
+            "values": {
+                "message": "hello, ",
+                "scenario_subject": "father",
+                "setup_subject": "mother"
+            }
+        },
+        {
+            "name": "matrix_variant_3",
+            "values": {
+                "message": "what a wonderful ",
+                "scenario_subject": "sailor",
+                "setup_subject": "world!"
+            }
+        },
+        {
+            "name": "matrix_variant_4",
+            "values": {
+                "message": "what a wonderful ",
+                "scenario_subject": "father",
+                "setup_subject": "mother"
+            }
+        }
+    ]
+}
