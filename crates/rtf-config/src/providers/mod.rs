@@ -29,8 +29,8 @@ pub enum Error {
     #[error(transparent)]
     Yaml(#[from] serde_yaml::Error),
 
-    #[error("Unable to execute command: {0}")]
-    CommandFailed(String),
+    #[error("Unable to execute the {name} command: {err}")]
+    CommandFailed { name: String, err: String },
 
     #[error("Missing provider output for {name}")]
     MissingProviderOutput { name: String },

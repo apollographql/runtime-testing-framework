@@ -60,7 +60,10 @@ impl CommandSection {
         let output_path = output_path.unwrap_or_else(|| out_dir.join(OUTPUT_PATH));
         self.run_providers(out_dir, src, ctx).await?;
         if let Err(e) = self.execute(out_dir, &output_path, ctx) {
-            return Err(providers::Error::CommandFailed(e.to_string()));
+            return Err(providers::Error::CommandFailed {
+                name: self.command.name.to_string(),
+                err: e.to_string(),
+            });
         };
 
         Ok(output_path)
