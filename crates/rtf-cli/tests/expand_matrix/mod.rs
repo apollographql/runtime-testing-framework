@@ -19,7 +19,7 @@ fn is_executable() {
 #[test_case("resolved-values"; "resolved-values")]
 #[test_case("value-overrides"; "value overrides")]
 #[test]
-fn pretty(test_plan_dir: &str) {
+fn pretty_formats_correctly(test_plan_dir: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
@@ -45,7 +45,7 @@ fn pretty(test_plan_dir: &str) {
 #[test_case("resolved-values"; "resolved-values")]
 #[test_case("value-overrides"; "value overrides")]
 #[test]
-fn compact(test_plan_dir: &str) {
+fn compact_formats_correctly(test_plan_dir: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
@@ -63,7 +63,7 @@ fn compact(test_plan_dir: &str) {
 }
 
 #[test]
-fn duplicate_variant_names_error() {
+fn duplicate_variant_names_fails() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided

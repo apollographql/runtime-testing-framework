@@ -13,22 +13,22 @@ fn is_executable() {
 }
 
 #[test]
-fn sanity_check_success() {
+fn basic_completes() {
     is_valid_test_plan("resources/valid/sanity-check");
 }
 
 #[test]
-fn matrix_success() {
+fn matrix_completes() {
     is_valid_test_plan("resources/valid/matrix-values");
 }
 
 #[test]
-fn command_from_spec_success() {
+fn command_from_spec_completes() {
     is_valid_test_plan("resources/valid/command-from-spec");
 }
 
 #[test]
-fn overriding_values_success() {
+fn values_override_works() {
     // default echo arg should be foo
     prepare_rtf_run("resources/valid/value-overrides")
         .assert()
@@ -53,7 +53,7 @@ fn overriding_values_success() {
 }
 
 #[test]
-fn resolved_values_provider_success() {
+fn override_resolved_values_works() {
     prepare_rtf_run("resources/valid/resolved-values")
         .assert()
         .success()
@@ -76,7 +76,7 @@ fn resolved_values_provider_success() {
 }
 
 #[test]
-fn custom_matrix_variant_names_work() {
+fn matrix_custom_variant_names_work() {
     let mut cmd = prepare_rtf_run("resources/valid/custom-matrix-variant-names");
     cmd.assert().success();
     cmd.assert_path_exists("output/world!-mother");
@@ -86,7 +86,7 @@ fn custom_matrix_variant_names_work() {
 }
 
 #[test]
-fn matrix_include_success() {
+fn matrix_include_completes() {
     prepare_rtf_run("resources/valid/matrix-include")
         .assert()
         .success()
@@ -100,16 +100,42 @@ fn matrix_include_success() {
         .stdout(contains("what a wonderful father"));
 }
 
-#[test_case("setup-execution-fails", "Unable to execute the setup.sh command:"; "setup execution fails")]
-#[test_case("setup-file-provider-fails", "Unable to resolve and write FROG_GIF file: stream did not contain valid UTF-8"; "setup provider error")]
-#[test_case("setup-provides-not-json", "Environment setup output not valid json: \"not valid json output\\n\""; "setup provides not json")]
-#[test_case("setup-provides-missing-key", "Missing required output fields from environment setup: [\"setup_output\"]"; "setup provides missing key")]
-#[test_case("scenario-execution-fails", "Unable to execute the scenario.sh command:"; "scenario execution fails")]
-#[test_case("teardown-execution-fails", "Unable to execute the teardown.sh command:"; "teardown execution fails")]
+#[test_case("setup-execution-fails", "Unable to execute the setup.sh command:"; "setup script execution fails")]
+#[test_case("setup-file-provider-fails", "Unable to resolve and write FROG_GIF file: stream did not contain valid UTF-8"; "setup file provider fails")]
+#[test_case("setup-provides-not-json", "Environment setup output not valid json: \"not valid json output\\n\""; "setup output not json")]
+#[test_case("setup-provides-missing-key", "Missing required output fields from environment setup: [\"setup_output\"]"; "setup missing required output")]
+#[test_case("scenario-execution-fails", "Unable to execute the scenario.sh command:"; "scenario script execution fails")]
+#[test_case("teardown-execution-fails", "Unable to execute the teardown.sh command:"; "teardown script execution fails")]
 #[test]
-fn execution_errors(test_plan_dir: &str, expected_err: &str) {
+fn execution_fails(test_plan_dir: &str, expected_err: &str) {
     prepare_rtf_run(&format!("resources/invalid/run/{test_plan_dir}"))
         .assert()
         .failure()
         .stderr(contains(expected_err));
+}
+
+#[test]
+fn load_and_resolve_from_invalid_github_uri_fails() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
+        .arg("run")
+        .arg("--github")
+        .arg("not a valid github uri")
+        .assert();
+
+    res.failure().stderr(contains("invalid GitHub uri: \"not a valid github uri\" - GitHub uri must be in format ORG/REPO/PATH"));
+}
+
+#[test]
+fn load_and_resolve_from_github_missing_token_fails() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
+        .arg("run")
+        .arg("--github")
+        .arg("org/repo/path")
+        .assert();
+
+    res.failure().stderr(contains("no GitHub client available"));
 }

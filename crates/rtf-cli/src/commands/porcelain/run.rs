@@ -37,12 +37,12 @@ pub async fn check_and_run_github_test_plan(
 ) -> anyhow::Result<()> {
     let (ctx, out_dir) = get_context_and_check_outdir(out_dir)?;
 
-    let (org, repo_and_path) = org_repo_path
-        .split_once('/')
-        .ok_or(anyhow!("invalid GitHub uri"))?;
-    let (repo, path) = repo_and_path
-        .split_once('/')
-        .ok_or(anyhow!("invalid GitHub uri"))?;
+    let (org, repo_and_path) = org_repo_path.split_once('/').ok_or(anyhow!(
+        "invalid GitHub uri: \"{org_repo_path}\" - GitHub uri must be in format ORG/REPO/PATH"
+    ))?;
+    let (repo, path) = repo_and_path.split_once('/').ok_or(anyhow!(
+        "invalid GitHub uri: \"{org_repo_path}\" - GitHub uri must be in format ORG/REPO/PATH"
+    ))?;
 
     info!("fetching and resolving test plan from GitHub");
     let test_plan =

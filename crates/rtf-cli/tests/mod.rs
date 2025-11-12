@@ -1,9 +1,8 @@
 pub mod common;
 pub mod expand_matrix;
 pub mod github;
-pub mod imgood_observability_test;
+pub mod graphos;
 pub mod run;
-pub mod starstuff;
 pub mod template;
 
 use assert_cmd::Command;

@@ -20,7 +20,7 @@ fn is_executable() {
 // Template and check all valid test plans except for the sanity check (which requires a provides value)
 // and the github and graphos test plans which are tested in their respective modules
 #[test]
-fn with_check_success(test_plan_dir: &str) {
+fn check_completes_basic(test_plan_dir: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
@@ -34,7 +34,7 @@ fn with_check_success(test_plan_dir: &str) {
 }
 
 #[test]
-fn with_values_from_cli_success() {
+fn check_completes_with_cli_values() {
     // The sanity-check test plan defines values in the setup.provides
     // The only way to template successfully is to set this value from the cli
     let mut cmd = Command::cargo_bin("rtf").unwrap();
@@ -87,7 +87,7 @@ fn with_values_from_cli_success() {
     "malformed scenario"
 )]
 #[test]
-fn load_and_resolve_errors(file: &str, err_contains: &str) {
+fn load_and_resolve_fails(file: &str, err_contains: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
@@ -138,7 +138,7 @@ fn load_and_resolve_errors(file: &str, err_contains: &str) {
     "unknown values"
 )]
 #[test]
-fn templating_errors(file: &str, err_contains: &str) {
+fn templating_fails(file: &str, err_contains: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
@@ -150,7 +150,7 @@ fn templating_errors(file: &str, err_contains: &str) {
 }
 
 #[test]
-fn duplicate_variant_names_errors() {
+fn duplicate_variant_names_fails() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .arg("template")
@@ -193,7 +193,7 @@ fn duplicate_variant_names_errors() {
     "duplicate env vars"
 )]
 #[test]
-fn check_errors(file: &str, err_contains: &str) {
+fn check_fails(file: &str, err_contains: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided

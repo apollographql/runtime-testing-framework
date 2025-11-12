@@ -8,13 +8,13 @@ use simple_test_case::test_case;
 #[test_case("resources/valid/github-config-files"; "github config files")]
 #[test]
 #[ignore = "requires a valid GitHub API Token"]
-fn success(dir: &str) {
+fn github_flag_completes(dir: &str) {
     is_valid_test_plan(dir);
 }
 
 #[test]
 #[ignore = "requires a valid GitHub API Token"]
-fn output_contains_expected_text() {
+fn github_flag_produces_expected_output() {
     let temp = TempDir::new().unwrap();
     let outdir = temp.child("output");
     let outdir = outdir.path().to_str().unwrap();
@@ -30,4 +30,24 @@ fn output_contains_expected_text() {
     .assert()
     .success()
     .stdout(contains("hello, world!"));
+}
+
+#[test]
+#[ignore = "requires a valid GitHub API Token"]
+fn github_flag_invalid_path_fails() {
+    let temp = TempDir::new().unwrap();
+    let outdir = temp.child("output");
+    let outdir = outdir.path().to_str().unwrap();
+
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    cmd.args([
+        "run",
+        "--github",
+        "apollographql/runtime-testing-framework/not/a/valid/path/to/file.txt",
+        "--outdir",
+        outdir,
+    ])
+    .assert()
+    .failure()
+    .stderr(contains("HTTP status client error (404 Not Found) for url (https://api.github.com/repos/apollographql/runtime-testing-framework/contents/not/a/valid/path/to/file.txt)"));
 }

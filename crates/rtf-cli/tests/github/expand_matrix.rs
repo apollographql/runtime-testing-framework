@@ -4,7 +4,7 @@ use serde_json::Value;
 
 #[ignore = "requires a valid GitHub API Token"]
 #[test]
-fn pretty_config_files() {
+fn pretty_formats_config_files() {
     let test_plan_dir = "github-config-files";
 
     let mut cmd = Command::cargo_bin("rtf").unwrap();
@@ -24,7 +24,7 @@ fn pretty_config_files() {
 }
 
 #[test]
-fn pretty_file() {
+fn pretty_formats_file() {
     let test_plan_dir = "github-file";
 
     let mut cmd = Command::cargo_bin("rtf").unwrap();
