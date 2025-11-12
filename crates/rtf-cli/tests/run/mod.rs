@@ -13,22 +13,22 @@ fn is_executable() {
 }
 
 #[test]
-fn completes_sanity_check() {
+fn basic_completes() {
     is_valid_test_plan("resources/valid/sanity-check");
 }
 
 #[test]
-fn completes_with_matrix() {
+fn matrix_completes() {
     is_valid_test_plan("resources/valid/matrix-values");
 }
 
 #[test]
-fn completes_command_from_spec() {
+fn command_from_spec_completes() {
     is_valid_test_plan("resources/valid/command-from-spec");
 }
 
 #[test]
-fn value_overriding_works() {
+fn values_override_works() {
     // default echo arg should be foo
     prepare_rtf_run("resources/valid/value-overrides")
         .assert()
@@ -76,7 +76,7 @@ fn override_resolved_values_works() {
 }
 
 #[test]
-fn custom_matrix_variant_names_work() {
+fn matrix_custom_variant_names_work() {
     let mut cmd = prepare_rtf_run("resources/valid/custom-matrix-variant-names");
     cmd.assert().success();
     cmd.assert_path_exists("output/world!-mother");
@@ -100,12 +100,12 @@ fn matrix_include_completes() {
         .stdout(contains("what a wonderful father"));
 }
 
-#[test_case("setup-execution-fails", "Unable to execute the setup.sh command:"; "setup execution fails")]
-#[test_case("setup-file-provider-fails", "Unable to resolve and write FROG_GIF file: stream did not contain valid UTF-8"; "setup provider error")]
-#[test_case("setup-provides-not-json", "Environment setup output not valid json: \"not valid json output\\n\""; "setup provides not json")]
-#[test_case("setup-provides-missing-key", "Missing required output fields from environment setup: [\"setup_output\"]"; "setup provides missing key")]
-#[test_case("scenario-execution-fails", "Unable to execute the scenario.sh command:"; "scenario execution fails")]
-#[test_case("teardown-execution-fails", "Unable to execute the teardown.sh command:"; "teardown execution fails")]
+#[test_case("setup-execution-fails", "Unable to execute the setup.sh command:"; "setup script execution fails")]
+#[test_case("setup-file-provider-fails", "Unable to resolve and write FROG_GIF file: stream did not contain valid UTF-8"; "setup file provider fails")]
+#[test_case("setup-provides-not-json", "Environment setup output not valid json: \"not valid json output\\n\""; "setup output not json")]
+#[test_case("setup-provides-missing-key", "Missing required output fields from environment setup: [\"setup_output\"]"; "setup missing required output")]
+#[test_case("scenario-execution-fails", "Unable to execute the scenario.sh command:"; "scenario script execution fails")]
+#[test_case("teardown-execution-fails", "Unable to execute the teardown.sh command:"; "teardown script execution fails")]
 #[test]
 fn execution_fails(test_plan_dir: &str, expected_err: &str) {
     prepare_rtf_run(&format!("resources/invalid/run/{test_plan_dir}"))

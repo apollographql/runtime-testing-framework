@@ -53,13 +53,13 @@ check. Working through the hierarchy:
 1. **Flag(s)** is `check`. The `--check` flag is used in this test and adds significant additional
    logic.
 1. **Test class** is omitted since [`simple_test_case`][1] is not used.
-1. **Test case** is `completes`. A failing test case is `missing_value`.
+1. **Test case** is `completes_basic`. A failing test case is `completes_with_cli_values`.
 
 This leads to the following full test path:
 
 ```rust
-test template::check_completes
-test template::check_with_values_from_cli_completes
+test template::check_completes_basic
+test template::check_completes_with_cli_values
 ```
 
 To achieve the structure above, the tests are defined in `tests/template.rs` and organized as
@@ -67,12 +67,12 @@ follows:
 
 ```rust
 #[test]
-fn check_completes() {
+fn check_completes_basic() {
   ...
 }
 
 #[test]
-fn check_with_values_from_cli_completes() {
+fn check_completes_with_cli_values() {
   ...
 }
 ```
@@ -89,13 +89,14 @@ Working through the hierarchy:
    dependency, so it is omitted. The `--github` flag branches the `run` command significantly, so it
    has to be included in the test case path somewhere (just not twice!).
 1. **Test class** is omitted since [`simple_test_case`][1] is not used.
-1. **Test case** is `completes_no_ref`. An additional test case is `completes_with_ref`.
+1. **Test case** is `github_flag_completes`. An additional test case is
+   `github_flag_produces_expected_output`.
 
 This leads to the following full test path:
 
 ```rust
-test github::run::completes
-test github::run::github_flag_displays_expected_text
+test github::run::github_flag_completes
+test github::run::github_flag_produces_expected_output
 ```
 
 To achieve the structure above, the tests are defined in `tests/github/run.rs` and organized as
@@ -104,13 +105,13 @@ follows:
 ```rust
 #[test]
 #[ignore = "requires a valid GitHub API Token"]
-fn completes() {
+fn github_flag_completes() {
   ...
 }
 
 #[test]
 #[ignore = "requires a valid GitHub API Token"]
-fn github_flag_displays_expected_text() {
+fn github_flag_produces_expected_output() {
   ...
 }
 ```
@@ -169,7 +170,7 @@ Complex scenarios use parameterized testing to cover multiple input variations e
 #[test_case("matrix-values"; "matrix values")]
 #[test_case("resolved-values"; "resolved values")]
 #[test]
-fn with_check_success(test_plan_dir: &str) {
+fn check_completes_basic(test_plan_dir: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .env_clear()
@@ -220,7 +221,7 @@ Error tests are heavily parameterized to cover multiple failure scenarios:
     "unknown values"
 )]
 #[test]
-fn templating_errors(file: &str, err_contains: &str) {
+fn templating_fails(file: &str, err_contains: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .arg("template")

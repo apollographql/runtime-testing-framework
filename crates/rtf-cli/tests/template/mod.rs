@@ -20,7 +20,7 @@ fn is_executable() {
 // Template and check all valid test plans except for the sanity check (which requires a provides value)
 // and the github and graphos test plans which are tested in their respective modules
 #[test]
-fn check_completes(test_plan_dir: &str) {
+fn check_completes_basic(test_plan_dir: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
@@ -34,7 +34,7 @@ fn check_completes(test_plan_dir: &str) {
 }
 
 #[test]
-fn check_with_values_from_cli_completes() {
+fn check_completes_with_cli_values() {
     // The sanity-check test plan defines values in the setup.provides
     // The only way to template successfully is to set this value from the cli
     let mut cmd = Command::cargo_bin("rtf").unwrap();
