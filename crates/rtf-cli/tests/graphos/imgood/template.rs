@@ -6,7 +6,7 @@ use simple_test_case::test_case;
 #[test_case("graphos-subgraph-router-url-overrides"; "subgraph router url overrides")]
 #[test_case("graphos-subgraphs"; "subgraphs")]
 #[test_case("graphos-supergraph"; "supergraph")]
-#[ignore = "requires a valid GraphOS API Key"]
+#[ignore = "requires a valid GraphOS API Key for the imgood-observability-test graph"]
 #[test]
 fn check_completes(test_plan_dir: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();

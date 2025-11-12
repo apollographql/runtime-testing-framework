@@ -2,7 +2,7 @@ use assert_cmd::Command;
 use predicates::str::contains;
 
 #[test]
-#[ignore = "requires a valid GraphOS API Key"]
+#[ignore = "requires a valid GraphOS API Key for the starstuff graph"]
 fn check_completes_offline_license() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd

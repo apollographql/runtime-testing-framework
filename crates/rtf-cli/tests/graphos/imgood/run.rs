@@ -14,7 +14,7 @@ use simple_test_case::test_case;
 #[test_case("resources/valid/graphos-subgraphs"; "subgraph sdls")]
 #[test_case("resources/valid/graphos-canned-ops"; "canned operations")]
 #[test]
-#[ignore = "requires a valid GraphOS API Key"]
+#[ignore = "requires a valid GraphOS API Key for the imgood-observability-test graph"]
 fn completes(dir: &str) {
     is_valid_test_plan(dir);
 }
