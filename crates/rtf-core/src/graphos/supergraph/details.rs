@@ -297,18 +297,15 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
     let mut schema = Schema::parse(sdl, "supergraph.graphql").unwrap();
 
     let ExtendedType::Object(query) = schema.types.get_mut("Query")? else {
-        print!("{}", "I didn't find a query type");
         return None;
     };
 
-    for (_, mut_ref_field_definition_component) in &mut query.get_mut()?.fields {
-        println!("{:?}", mut_ref_field_definition_component.directives);
-        for directive in mut_ref_field_definition_component.get_mut()?.directives.iter_mut() {
+    for (_, field_definition) in &mut query.get_mut()?.fields {
+        for directive in field_definition.get_mut()?.directives.iter_mut() {
             if directive.name != "join__directive" {
                 continue;
             }
-            let is_connect = directive.specified_argument_by_name("name")?.as_str()? == "connect";
-            if !is_connect {
+            if directive.specified_argument_by_name("name")?.as_str()? != "connect" {
                 continue;
             }
             let Value::Object(args_map) = directive
@@ -319,12 +316,12 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
                 continue;
             };
 
-            println!("args: {:?}", args_map);
-            if let Some((_, http_node)) = args_map.iter_mut().find(|(key, _)| key.as_str() == "http") {
+            if let Some((_, http_node)) =
+                args_map.iter_mut().find(|(key, _)| key.as_str() == "http")
+            {
                 if let Value::Object(http_map) = http_node.get_mut()? {
-                    if let Some((_, base_url_node)) = http_map
-                        .iter_mut()
-                        .find(|(key, _)| key.as_str() == "GET")
+                    if let Some((_, base_url_node)) =
+                        http_map.iter_mut().find(|(key, _)| key.as_str() == "GET")
                     {
                         *base_url_node = Node::new(Value::String("www.test.com".to_string()));
                     }
