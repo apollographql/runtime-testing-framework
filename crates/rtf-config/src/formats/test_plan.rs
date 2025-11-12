@@ -8,7 +8,7 @@ use crate::{
         command::CommandSection,
         file::{RawSource, Source},
     },
-    templating::{self, Scalar, Template},
+    templating::{self, Scalar, Template, TemplateValues},
 };
 use rtf_core::github::{self, Client};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
@@ -171,26 +171,26 @@ impl TestPlanConfig {
 
     pub fn try_template_environment_setup(
         &mut self,
-        values: &HashMap<String, Scalar>,
+        values: &TemplateValues,
     ) -> templating::Result<()> {
         let mut path = vec!["environment".to_string()];
-        self.environment.try_template_setup(&mut path, values)
+        self.environment
+            .try_template_setup(&mut path, self.sources.environment(), values)
     }
 
     pub fn try_template_environment_teardown(
         &mut self,
-        values: &HashMap<String, Scalar>,
+        values: &TemplateValues,
     ) -> templating::Result<()> {
         let mut path = vec!["environment".to_string()];
-        self.environment.try_template_teardown(&mut path, values)
+        self.environment
+            .try_template_teardown(&mut path, self.sources.environment(), values)
     }
 
-    pub fn try_template_scenario(
-        &mut self,
-        values: &HashMap<String, Scalar>,
-    ) -> templating::Result<()> {
+    pub fn try_template_scenario(&mut self, values: &TemplateValues) -> templating::Result<()> {
         let mut path = vec!["scenario".to_string()];
-        self.scenario.try_template(&mut path, values)
+        self.scenario
+            .try_template(&mut path, self.sources.scenario(), values)
     }
 
     pub async fn run_environment_setup(
@@ -286,14 +286,19 @@ impl Template for TestPlanConfig {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        source: &Source,
+        values: &TemplateValues,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::from(self.environment.try_template_nested(
             path,
             "environment",
+            source,
             values,
         ));
-        errs.append(self.scenario.try_template_nested(path, "scenario", values));
+        errs.append(
+            self.scenario
+                .try_template_nested(path, "scenario", source, values),
+        );
 
         errs.into_result(())
     }
@@ -588,8 +593,8 @@ mod tests {
             scenario::test_helpers::{scenario_with_fields, templatable_scenario},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details,
-                named_file_provider_with_field, p, r, templatable_file_providers,
-                value_definitions, value_map,
+                named_file_provider_with_field, p, r, templatable_file_providers, template_values,
+                value_definitions,
             },
         },
         providers::{
@@ -1052,7 +1057,11 @@ mod tests {
             },
             ..TestPlanConfig::empty()
         };
-        let result = test_plan.try_template(&mut Vec::new(), &value_map(all_fields.as_slice()));
+        let result = test_plan.try_template(
+            &mut Vec::new(),
+            &Source::local("/"),
+            &template_values(all_fields.as_slice()),
+        );
 
         assert!(
             result.is_ok(),
@@ -1092,7 +1101,7 @@ mod tests {
     /// Helper function for asserting template errors are as expected
     fn assert_test_plan_template_errors(
         test_plan: &mut TestPlanConfig,
-        values: HashMap<String, Scalar>,
+        values: TemplateValues,
         expected_scenario_err_fields: &[&str],
         expected_env_err_fields: &[&str],
     ) {
@@ -1119,7 +1128,7 @@ mod tests {
         fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let values = value_map(&["scenario", "scenario1", "scenario2"]);
+        let values = template_values(&["scenario", "scenario1", "scenario2"]);
         let mut test_plan = template_test_plan(value_defs, fields, &[], &[]);
 
         assert_test_plan_template_errors(&mut test_plan, values, expected_err_fields, &[]);
@@ -1136,7 +1145,7 @@ mod tests {
         fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let values = value_map(&["environment", "environment1", "environment2"]);
+        let values = template_values(&["environment", "environment1", "environment2"]);
         let mut test_plan = template_test_plan(&[], &[], value_defs, fields);
 
         assert_test_plan_template_errors(&mut test_plan, values, &[], expected_err_fields);
@@ -1144,7 +1153,7 @@ mod tests {
 
     #[test]
     fn try_template_missing_scenario_and_environment_value_definitions() {
-        let values = value_map(&["scenario", "environment"]);
+        let values = template_values(&["scenario", "environment"]);
         let mut test_plan = template_test_plan(&[], &["scenario"], &[], &["environment"]);
 
         assert_test_plan_template_errors(&mut test_plan, values, &["scenario"], &["environment"]);
@@ -1152,7 +1161,7 @@ mod tests {
 
     #[test]
     fn try_template_missing_scenario_and_environment_values_not_provided() {
-        let values = value_map(&[]);
+        let values = template_values(&[]);
         let mut test_plan = template_test_plan(
             &["scenario"],
             &["scenario"],
@@ -1262,13 +1271,13 @@ mod tests {
         include: &[HashMap<String, Scalar>],
         expected_values_maps: &[HashMap<String, Scalar>],
     ) {
-        let values = value_map(values);
+        let values = template_values(values);
         let dimensions: HashMap<String, Vec<Scalar>> = dimensions
             .iter()
             .map(|(k, v)| (k.to_string(), v.iter().map(|s| Scalar::from(*s)).collect()))
             .collect();
         let test_plan = TestPlanConfig {
-            values: values.clone(),
+            values: values.inner().clone(),
             matrix: Matrix {
                 variant_names: None,
                 dimensions,
@@ -1328,11 +1337,11 @@ mod tests {
         dimension_keys: &[&str],
         include_keys: &[&str],
     ) {
-        let values = value_map(value_keys);
+        let values = template_values(value_keys);
         let matrix = dimensions_from_keys(dimension_keys, 1);
-        let include = vec![value_map(include_keys)];
+        let include = vec![template_values(include_keys).inner().clone()];
         let mut test_plan = templatable_test_plan(
-            values,
+            values.inner().clone(),
             matrix,
             include,
             &["scenario"],
@@ -1360,9 +1369,9 @@ mod tests {
         include_keys: &[&str],
         expected_err_message: &str,
     ) {
-        let values = value_map(&["foo", "bar", "baz"]);
+        let values = template_values(&["foo", "bar", "baz"]).inner().clone();
         let dimensions = dimensions_from_keys(dimension_keys, 2);
-        let include = vec![value_map(include_keys)];
+        let include = vec![template_values(include_keys).inner().clone()];
         let mut test_plan = templatable_test_plan(values, dimensions, include, &[], &[], &[]);
 
         let expected_err_kind = ErrorKind::ConflictingValues;
@@ -1392,7 +1401,7 @@ mod tests {
         dimension_keys: &[&str],
         expected_err_messages: &[&str],
     ) {
-        let values = value_map(&[]);
+        let values = template_values(&[]).inner().clone();
         let dimensions = dimensions_from_keys(dimension_keys, 0);
         let include = Vec::new();
         let mut test_plan = templatable_test_plan(values, dimensions, include, &[], &[], &[]);
@@ -1541,7 +1550,7 @@ mod tests {
         teardown_fields: &[&str],
         expected_err_messages: &[&str],
     ) {
-        let values = value_map(&["foo"]);
+        let values = template_values(&["foo"]).inner().clone();
         let dimensions = HashMap::new();
         let include = Vec::new();
         let mut test_plan = templatable_test_plan(
@@ -1591,7 +1600,7 @@ mod tests {
 
     #[test]
     fn check_templating_will_work_combined_errors() {
-        let values = value_map(&["foo", "bar"]);
+        let values = template_values(&["foo", "bar"]).inner().clone();
         let dimensions = dimensions_from_keys(&["foo"], 0);
         let mut test_plan =
             templatable_test_plan(values, dimensions, vec![], &["scenario"], &[], &[]);
@@ -1762,7 +1771,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let mut ctx = Context::new();
 
-        let expected_provides = value_map(&["foo", "bar"]);
+        let expected_provides = template_values(&["foo", "bar"]).inner().clone();
 
         let script = indoc!(
             r#"

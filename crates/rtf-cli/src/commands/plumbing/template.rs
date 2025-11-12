@@ -3,9 +3,10 @@ use crate::{
     commands::{get_context, load_and_resolve_test_plan},
 };
 use rtf_config::{
+    Source,
     checks::{self, Check},
     context::ResolutionContext,
-    templating::Template,
+    templating::{Template, TemplateValues},
 };
 use tracing::info;
 
@@ -27,17 +28,20 @@ async fn template_test_plan_with_context(
 ) -> anyhow::Result<()> {
     info!("loading and resolving test plan");
     let mut test_plan = load_and_resolve_test_plan(path, &ctx).await?;
-    values.merge(
-        &mut test_plan.values,
-        &mut test_plan.matrix.dimensions,
+    let override_sources = values.merge(
+        &mut test_plan,
+        &Source::local(ctx.dir_containing(".")),
         &mut ctx,
     )?;
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work()?;
 
-    let (_, values) = &test_plan.matrix.try_expand(&test_plan.values)?[0];
-    test_plan.try_template(&mut Vec::new(), values)?;
+    let (_, values) = test_plan.matrix.try_expand(&test_plan.values)?.remove(0);
+    let source = test_plan.sources.test_plan().clone();
+    let template_values = TemplateValues::new(values, source.clone(), override_sources);
+
+    test_plan.try_template(&mut Vec::new(), &source, &template_values)?;
 
     if check {
         info!("checking test plan");

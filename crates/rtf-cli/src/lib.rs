@@ -1,8 +1,8 @@
 //! Runtime Testing Framework CLI - a swiss army knife for testing the Apollo Runtime
 use anyhow::{Context, anyhow};
-use rtf_config::{context::ResolutionContext, templating::Scalar};
+use rtf_config::{Source, context::ResolutionContext, formats::TestPlanConfig, templating::Scalar};
 use serde::Deserialize;
-use std::{collections::HashMap, io, path::Path};
+use std::collections::HashMap;
 
 pub mod cli;
 pub mod commands;
@@ -27,16 +27,32 @@ impl cli::Values {
     /// existing value or matrix definitions with the same key.
     pub fn merge(
         self,
-        values_from_test_plan: &mut HashMap<String, Scalar>,
-        matrix_from_test_plan: &mut HashMap<String, Vec<Scalar>>,
+        test_plan: &mut TestPlanConfig,
+        cwd_source: &Source,
         ctx: &mut impl ResolutionContext,
-    ) -> anyhow::Result<()> {
-        self.merge_inner(values_from_test_plan, matrix_from_test_plan, |path| {
-            ctx.read_path_to_string(path)
-        })?;
-        ctx.set_values(values_from_test_plan);
+    ) -> anyhow::Result<HashMap<String, Source>> {
+        let value_json_data = match self.values.as_ref() {
+            Some(path) => {
+                let s = ctx.read_path_to_string(path)?;
+                let values_json: HashMap<String, ScalarOrArray> =
+                    serde_json::from_str(&s).context("invalid values file")?;
+                let source = Source::local(ctx.dir_containing(path));
 
-        Ok(())
+                Some((source, values_json))
+            }
+
+            None => None,
+        };
+
+        let override_sources = self.merge_inner(
+            &mut test_plan.values,
+            &mut test_plan.matrix.dimensions,
+            value_json_data,
+            cwd_source,
+        )?;
+        ctx.set_values(&test_plan.values);
+
+        Ok(override_sources)
     }
 
     #[inline]
@@ -44,24 +60,24 @@ impl cli::Values {
         self,
         values_from_test_plan: &mut HashMap<String, Scalar>,
         matrix_from_test_plan: &mut HashMap<String, Vec<Scalar>>,
-        read_file: impl Fn(&Path) -> io::Result<String>,
-    ) -> anyhow::Result<()> {
-        // Values read from a file can be used to specify either individual values or matrix arrays
-        if let Some(path) = self.values.as_ref() {
-            let s = (read_file)(path)
-                .context(format!("unable to read values file {}", path.display()))?;
-            let from_values: HashMap<String, ScalarOrArray> =
-                serde_json::from_str(&s).context("invalid values file")?;
+        values_json_data: Option<(Source, HashMap<String, ScalarOrArray>)>,
+        cwd_source: &Source,
+    ) -> anyhow::Result<HashMap<String, Source>> {
+        let mut override_sources = HashMap::new();
 
+        // Values read from a file can be used to specify either individual values or matrix arrays
+        if let Some((source, from_values)) = values_json_data {
             for (k, v) in from_values.into_iter() {
                 match v {
                     ScalarOrArray::Scalar(s) => {
                         matrix_from_test_plan.remove(&k);
-                        values_from_test_plan.insert(k, s);
+                        values_from_test_plan.insert(k.clone(), s);
+                        override_sources.insert(k, source.clone());
                     }
                     ScalarOrArray::Array(arr) => {
                         values_from_test_plan.remove(&k);
-                        matrix_from_test_plan.insert(k, arr);
+                        matrix_from_test_plan.insert(k.clone(), arr);
+                        override_sources.insert(k, source.clone());
                     }
                 }
             }
@@ -80,9 +96,10 @@ impl cli::Values {
             let v: Scalar = serde_yaml::from_str(v).context(format!("invalid value for {k:?}"))?;
             matrix_from_test_plan.remove(k);
             values_from_test_plan.insert(k.to_string(), v);
+            override_sources.insert(k.to_string(), cwd_source.clone());
         }
 
-        Ok(())
+        Ok(override_sources)
     }
 }
 
@@ -90,6 +107,7 @@ impl cli::Values {
 mod tests {
     use super::*;
     use rtf_config::templating::Scalar;
+    use serde_json::json;
     use simple_test_case::test_case;
     use std::path::PathBuf;
 
@@ -99,6 +117,12 @@ mod tests {
             $( m.insert($k.to_string(), Scalar::try_from($v).unwrap()); )+
             m
         }};
+    }
+
+    macro_rules! values_json {
+        ($($tok:tt)*) => {
+            serde_json::from_value(json!($($tok)*)).unwrap()
+        };
     }
 
     #[test]
@@ -113,11 +137,19 @@ mod tests {
             ],
             values: Some(PathBuf::from("my-values.json")),
         };
-        let read_file =
-            |_: &Path| io::Result::Ok(r#"{ "bar": "laugh", "baz": false }"#.to_string());
 
         from_cli
-            .merge_inner(&mut values, &mut matrix, read_file)
+            .merge_inner(
+                &mut values,
+                &mut matrix,
+                Some((
+                    Source::local("/json_values"),
+                    values_json!({
+                        "bar": "laugh", "baz": false
+                    }),
+                )),
+                &Source::local("/cli"),
+            )
             .unwrap();
 
         assert!(matrix.is_empty());
@@ -150,7 +182,6 @@ mod tests {
             value: vec!["bar=3".to_string()],
             values: Some(PathBuf::from("my-values.json")),
         };
-        let read_file = |_: &Path| io::Result::Ok(r#"{ "foo": [2], "baz": 42 }"#.to_string());
 
         // Keys should start mutually exclusive
         let mut initial_values: Vec<&String> = values.keys().collect();
@@ -162,7 +193,17 @@ mod tests {
         assert_eq!(&initial_matrix_dimensions, &["bar", "baz"]);
 
         from_cli
-            .merge_inner(&mut values, &mut matrix, read_file)
+            .merge_inner(
+                &mut values,
+                &mut matrix,
+                Some((
+                    Source::local("/json_values"),
+                    values_json!({
+                        "foo": [2], "baz": 42
+                    }),
+                )),
+                &Source::local("/cli"),
+            )
             .unwrap();
 
         // Keys should end mutually exclusive but flipped
@@ -189,9 +230,7 @@ mod tests {
 
         let mut vals = HashMap::default();
         let mut mat = HashMap::default();
-        let res = from_cli.merge_inner(&mut vals, &mut mat, |_: &Path| {
-            panic!("should not be called")
-        });
+        let res = from_cli.merge_inner(&mut vals, &mut mat, None, &Source::local("/cli"));
 
         assert!(res.is_err(), "expected error, ended up with {vals:?}");
     }

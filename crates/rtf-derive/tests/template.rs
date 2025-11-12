@@ -1,6 +1,9 @@
 #![allow(clippy::disallowed_names)]
 
-use rtf_config::templating::{Field, Scalar, Template, ValidField};
+use rtf_config::{
+    Source,
+    templating::{Field, Scalar, Template, TemplateValues, ValidField},
+};
 use rtf_derive::Template;
 use simple_test_case::test_case;
 
@@ -222,7 +225,8 @@ macro_rules! values_map {
         for k in $slice {
             m.insert(k.to_string(), Scalar::from(k.to_string()));
         }
-        m
+
+        TemplateValues::new(m, Source::local("/"), Default::default())
     }};
 }
 
@@ -240,7 +244,7 @@ macro_rules! values_map {
 #[test]
 fn try_template_all_fields(mut t: Box<dyn Template>, values: &[&str]) {
     let values = values_map!(values);
-    let res = t.try_template(&mut Vec::new(), &values);
+    let res = t.try_template(&mut Vec::new(), &Source::local("/"), &values);
     assert!(
         res.is_ok(),
         "expected to template successfully, got {res:?}"
@@ -261,7 +265,7 @@ fn try_template_all_fields(mut t: Box<dyn Template>, values: &[&str]) {
 fn try_template_unknown_value_error(mut t: Box<dyn Template>) {
     let values = values_map!(["unused"]);
 
-    let res = t.try_template(&mut Vec::new(), &values);
+    let res = t.try_template(&mut Vec::new(), &Source::local("/"), &values);
     assert!(res.is_err(), "expected templating to fail, got {res:?}");
     let errors = res.unwrap_err();
     assert!(
@@ -288,6 +292,6 @@ fn template_enum_unit_skipped() {
         "A unit type enum variant should have no required values"
     );
 
-    let res = t.try_template(&mut Vec::new(), &values);
+    let res = t.try_template(&mut Vec::new(), &Source::local("/"), &values);
     assert!(res.is_ok(), "A unit type enum should template successfully");
 }

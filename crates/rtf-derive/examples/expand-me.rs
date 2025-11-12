@@ -1,4 +1,7 @@
-use rtf_config::templating::{Field, Template};
+use rtf_config::{
+    Source,
+    templating::{Field, Template, TemplateValues},
+};
 use rtf_derive::Template;
 use std::collections::HashMap;
 
@@ -39,7 +42,13 @@ fn main() {
     let mut vals = HashMap::new();
     vals.insert("FOO".to_string(), "a value for foo".into());
 
-    s.try_template(&mut Vec::new(), &vals).unwrap();
+    s.try_template(
+        &mut Vec::new(),
+        &Source::local("/"),
+        &TemplateValues::new(vals, Source::local("/"), Default::default()),
+    )
+    .unwrap();
+
     println!("{:?}", s.has_pending_fields());
     println!("{:?}", s);
 }

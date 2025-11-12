@@ -3,13 +3,13 @@ use crate::{
     ValueDefinition,
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
-    formats::{Result, values_for_config_file},
+    formats::Result,
     providers::{command::CommandSection, file::Source},
-    templating::{self, Scalar, Template},
+    templating::{self, Template, TemplateValues},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs, path::Path};
+use std::{fs, path::Path};
 
 /// # Environment Config
 ///
@@ -43,14 +43,14 @@ impl EnvironmentConfig {
     pub fn try_template_setup(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        source: &Source,
+        values: &TemplateValues,
     ) -> templating::Result<()> {
-        let definitions = self.values.iter();
-        let allowed_values = values_for_config_file(values, definitions);
+        let allowed_values = values.for_config_file(source, self.values.iter());
 
         self.setup
             .command
-            .try_template_nested(path, "setup", &allowed_values)
+            .try_template_nested(path, "setup", source, &allowed_values)
     }
 
     /// Try to template the teardown [CommandSection].
@@ -60,13 +60,14 @@ impl EnvironmentConfig {
     pub fn try_template_teardown(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        source: &Source,
+        values: &TemplateValues,
     ) -> templating::Result<()> {
-        let definitions = self.values.iter().chain(self.setup.provides.iter());
-        let allowed_values = values_for_config_file(values, definitions);
+        let allowed_values =
+            values.for_config_file(source, self.values.iter().chain(self.setup.provides.iter()));
 
         self.teardown
-            .try_template_nested(path, "teardown", &allowed_values)
+            .try_template_nested(path, "teardown", source, &allowed_values)
     }
 
     /// Create an empty [EnvironmentConfig] for tests
@@ -100,10 +101,12 @@ impl Template for EnvironmentConfig {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        source: &Source,
+        values: &TemplateValues,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::from(self.try_template_setup(path, values));
-        errs.append(self.try_template_teardown(path, values));
+        let mut errs =
+            templating::ErrorBuilder::from(self.try_template_setup(path, source, values));
+        errs.append(self.try_template_teardown(path, source, values));
 
         errs.into_result(())
     }
@@ -234,17 +237,18 @@ pub(crate) mod tests {
             environment::test_helpers::{environment_with_fields, templatable_environment},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
-                templatable_file_providers, value_definitions, value_map,
+                templatable_file_providers, template_values, value_definitions,
             },
         },
         providers::command::{
             CommandSection,
             test_helpers::{cmd_with_inline_file, cmd_with_required_file},
         },
-        templating::Field,
+        templating::{Field, Scalar},
     };
     use indoc::indoc;
     use simple_test_case::test_case;
+    use std::collections::HashMap;
 
     /// Create an EnvironmentConfig for testing value scoping behavior
     /// Sets up predefined template fields that reference specific variable names
@@ -376,11 +380,11 @@ pub(crate) mod tests {
         let mut field_names: Vec<&str> = setup_fields.to_vec();
         field_names.extend_from_slice(teardown_fields);
 
-        let values = value_map(field_names.as_slice());
+        let values = template_values(field_names.as_slice());
         let mut environment =
             templatable_environment(field_names.as_slice(), setup_fields, teardown_fields);
 
-        let res = environment.try_template(&mut Vec::new(), &values);
+        let res = environment.try_template(&mut Vec::new(), &Source::local("/"), &values);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -390,7 +394,7 @@ pub(crate) mod tests {
     /// Helper function for asserting template errors are as expected
     fn assert_env_template_errors(
         environment: &mut EnvironmentConfig,
-        values: HashMap<String, Scalar>,
+        values: TemplateValues,
         expected_setup_err_fields: &[&str],
         expected_teardown_err_fields: &[&str],
     ) {
@@ -420,7 +424,7 @@ pub(crate) mod tests {
         setup_fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let values = value_map(&["setup", "setup1", "setup2"]);
+        let values = template_values(&["setup", "setup1", "setup2"]);
         let mut environment = templatable_environment(value_defs, setup_fields, &[]);
 
         assert_env_template_errors(&mut environment, values, expected_err_fields, &[]);
@@ -437,7 +441,7 @@ pub(crate) mod tests {
         teardown_fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let values = value_map(&["teardown", "teardown1", "teardown2"]);
+        let values = template_values(&["teardown", "teardown1", "teardown2"]);
         let mut environment = templatable_environment(value_defs, &[], teardown_fields);
 
         assert_env_template_errors(&mut environment, values, &[], expected_err_fields);
@@ -445,7 +449,7 @@ pub(crate) mod tests {
 
     #[test]
     fn try_template_missing_setup_and_teardown_value_definitions() {
-        let values = value_map(&["setup", "teardown"]);
+        let values = template_values(&["setup", "teardown"]);
         let mut environment = templatable_environment(&[], &["setup"], &["teardown"]);
 
         assert_env_template_errors(&mut environment, values, &["setup"], &["teardown"]);
@@ -453,7 +457,7 @@ pub(crate) mod tests {
 
     #[test]
     fn try_template_missing_setup_and_teardown_values_not_provided() {
-        let values = value_map(&[]);
+        let values = template_values(&[]);
         let mut environment =
             templatable_environment(&["setup", "teardown"], &["setup"], &["teardown"]);
 
@@ -468,9 +472,9 @@ pub(crate) mod tests {
         let mut config = environment_with_provides(&[], &["foo", "setup-path"]);
 
         // Values exist in the map but are only defined in provides
-        let values = value_map(&["foo", "setup-path"]);
+        let values = template_values(&["foo", "setup-path"]);
 
-        let res = config.try_template_setup(&mut Vec::new(), &values);
+        let res = config.try_template_setup(&mut Vec::new(), &Source::local("/"), &values);
 
         // Setup should fail because it cannot access provides values
         assert!(
@@ -502,9 +506,9 @@ pub(crate) mod tests {
         let mut config = environment_with_provides(&[], &["bar", "teardown-path"]);
 
         // Values exist in the map and are defined in provides
-        let values = value_map(&["bar", "teardown-path"]);
+        let values = template_values(&["bar", "teardown-path"]);
 
-        let res = config.try_template_teardown(&mut Vec::new(), &values);
+        let res = config.try_template_teardown(&mut Vec::new(), &Source::local("/"), &values);
 
         // Teardown should succeed because it can access provides values
         assert!(
@@ -526,7 +530,11 @@ pub(crate) mod tests {
             .map(|(k, v)| (k.to_string(), Scalar::String(v.to_string())))
             .collect();
 
-        let res = config.try_template_setup(&mut Vec::new(), &values);
+        let res = config.try_template_setup(
+            &mut Vec::new(),
+            &Source::local("/"),
+            &TemplateValues::new_stubbed(values),
+        );
 
         // Setup should succeed because it can access top-level values
         assert!(
@@ -543,9 +551,9 @@ pub(crate) mod tests {
         let mut config = environment_with_provides(&["bar", "teardown-path"], &[]);
 
         // Values exist in the map and are defined in top-level values
-        let values = value_map(&["bar", "teardown-path"]);
+        let values = template_values(&["bar", "teardown-path"]);
 
-        let res = config.try_template_teardown(&mut Vec::new(), &values);
+        let res = config.try_template_teardown(&mut Vec::new(), &Source::local("/"), &values);
 
         // Teardown should succeed because it can access top-level values
         assert!(

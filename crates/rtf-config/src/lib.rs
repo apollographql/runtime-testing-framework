@@ -29,6 +29,8 @@ mod mock_context;
 pub mod providers;
 pub mod templating;
 
+pub use providers::file::Source;
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct ValueDefinition {
     /// The templating name for this value

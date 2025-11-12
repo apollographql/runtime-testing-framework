@@ -2,13 +2,13 @@ use crate::{
     ValueDefinition,
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
-    formats::{Result, values_for_config_file},
+    formats::Result,
     providers::{command::CommandSection, file::Source},
-    templating::{self, Scalar, Template},
+    templating::{self, Template, TemplateValues},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs, path::Path};
+use std::{fs, path::Path};
 
 /// # Scenario Config
 ///
@@ -58,13 +58,13 @@ impl Template for ScenarioConfig {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        source: &Source,
+        values: &TemplateValues,
     ) -> templating::Result<()> {
-        let definitions = self.values.iter();
-        let allowed_values = values_for_config_file(values, definitions);
+        let allowed_values = values.for_config_file(source, self.values.iter());
 
         self.command
-            .try_template_nested(path, "command_section", &allowed_values)
+            .try_template_nested(path, "command_section", source, &allowed_values)
     }
 }
 
@@ -139,7 +139,7 @@ mod tests {
             scenario::test_helpers::{scenario_with_fields, templatable_scenario},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
-                value_map,
+                template_values,
             },
         },
         providers::command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
@@ -219,10 +219,10 @@ mod tests {
     #[test_case(&[]; "no values")]
     #[test]
     fn try_template_succeeds(field_names: &[&str]) {
-        let values = value_map(field_names);
+        let values = template_values(field_names);
         let mut scenario = templatable_scenario(field_names, field_names);
 
-        let res = scenario.try_template(&mut Vec::new(), &values);
+        let res = scenario.try_template(&mut Vec::new(), &Source::local("/"), &values);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -242,7 +242,7 @@ mod tests {
         scenario_fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let values = value_map(values);
+        let values = template_values(values);
         let mut scenario = templatable_scenario(value_defs, scenario_fields);
 
         let (expected_err_messages, expected_err_paths) =

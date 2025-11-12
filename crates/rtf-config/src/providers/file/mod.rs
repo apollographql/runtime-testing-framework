@@ -3,14 +3,13 @@ use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
     enum_impl_check, providers,
-    templating::{self, Field, Scalar, Template},
+    templating::{self, Field, Template, TemplateValues},
 };
 use rtf_core::github::Client;
 use rtf_derive::Template;
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
-    collections::HashMap,
     fmt, io,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -194,12 +193,16 @@ impl Template for NamedFileProvider {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        source: &Source,
+        values: &TemplateValues,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
         let tail = self.env_var.clone();
-        errs.append(self.provider.try_template_nested(path, &tail, values));
+        errs.append(
+            self.provider
+                .try_template_nested(path, &tail, source, values),
+        );
 
         errs.into_result(())
     }
@@ -552,7 +555,7 @@ mod tests {
         context::Context,
         mock_context::MockContext,
         providers::test_helpers::{assert_file_content, create_temp_dir_with_file},
-        templating::ErrorKind,
+        templating::{ErrorKind, Scalar},
     };
     use assert_fs::{
         TempDir,
@@ -563,7 +566,18 @@ mod tests {
     use indoc::indoc;
     use predicates::path;
     use simple_test_case::test_case;
-    use std::path::PathBuf;
+    use std::{collections::HashMap, path::PathBuf};
+
+    macro_rules! template_values {
+        ($slice:expr) => {{
+            let mut m = ::std::collections::HashMap::new();
+            for k in $slice {
+                m.insert(k.to_string(), Scalar::from(k.to_string()));
+            }
+
+            TemplateValues::new_stubbed(m)
+        }};
+    }
 
     /// Create a RelativeFile for testing - returns the actual file in a tmp dir
     fn relative_file(path: &str) -> RelativeFile {
@@ -838,10 +852,9 @@ mod tests {
                 src: None,
             }),
         };
-        let mut values: HashMap<String, Scalar> = HashMap::new();
-        values.insert("path".to_string(), Scalar::String("path".to_string()));
+        let values = template_values!(&["path"]);
 
-        let res = nfp.try_template(&mut Vec::new(), &values);
+        let res = nfp.try_template(&mut Vec::new(), &Source::local("/"), &values);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -858,10 +871,9 @@ mod tests {
                 src: None,
             }),
         };
-        let mut values: HashMap<String, Scalar> = HashMap::new();
-        values.insert("unused".to_string(), Scalar::String("unused".to_string()));
+        let values = template_values!(&["unused"]);
 
-        let res = nfp.try_template(&mut vec!["path".to_string()], &values);
+        let res = nfp.try_template(&mut vec!["path".to_string()], &Source::local("/"), &values);
         assert!(res.is_err(), "expected templating to error, got {res:?}");
 
         let errors = res.unwrap_err();

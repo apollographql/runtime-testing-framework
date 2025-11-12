@@ -1,6 +1,6 @@
 //! The various different config file formats that we support
-use crate::{ValueDefinition, checks, providers, templating::Scalar};
-use std::{collections::HashMap, io};
+use crate::{checks, providers};
+use std::io;
 
 mod environment;
 mod matrix;
@@ -55,47 +55,15 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Helper for filtering allowed templating values based on [ValueDefinition]s present in a config
-/// file. This is also where defaults defined in value definitions are applied, being overwritten
-/// by any explicitly provided values coming from `all_values`.
-///
-/// # Constructing the definitions argument
-///
-/// The trait bound here is to support both direct calls to `Vec<ValueDefinition>.iter()` and calls
-/// to [Iterator::chain] to joining together multiple vecs of ValueDefinitions:
-///
-/// ```ignore
-/// // from EnvironmentConfig: both of these will work
-/// let definitions = self.values.iter();
-/// let definitions = self.values.iter().chain(self.setup.provides.iter());
-/// ```
-pub(crate) fn values_for_config_file<'a>(
-    all_values: &HashMap<String, Scalar>,
-    definitions: impl Iterator<Item = &'a ValueDefinition> + Clone,
-) -> HashMap<String, Scalar> {
-    let mut values: HashMap<String, Scalar> = definitions
-        .clone()
-        .flat_map(|vd| vd.default.clone().map(|v| (vd.name.clone(), v)))
-        .collect();
-
-    values.extend(
-        all_values
-            .iter()
-            .filter(|(k, _)| definitions.clone().any(|val| &val.name == *k))
-            .map(|(k, v)| (k.clone(), v.clone())),
-    );
-
-    values
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
+        ValueDefinition,
         checks::Check,
         context::Context,
         providers::file::{FileProvider, NamedFileProvider, RelativeFile, Source},
-        templating::{ErrorKind, Field, Template},
+        templating::{ErrorKind, Field, Scalar, Template, TemplateValues},
     };
 
     // Test Helpers
@@ -143,11 +111,13 @@ mod tests {
     }
 
     /// Create a HashMap of values from string names (each name maps to itself as a Scalar::String)
-    pub(crate) fn value_map(value_names: &[&str]) -> HashMap<String, Scalar> {
-        value_names
-            .iter()
-            .map(|&name| (name.to_string(), Scalar::String(name.to_string())))
-            .collect()
+    pub(crate) fn template_values(value_names: &[&str]) -> TemplateValues {
+        TemplateValues::new_stubbed(
+            value_names
+                .iter()
+                .map(|&name| (name.to_string(), Scalar::String(name.to_string())))
+                .collect(),
+        )
     }
 
     /// Create ValueDefinitions from string names with default description
@@ -189,11 +159,11 @@ mod tests {
     /// Assert template errors
     pub(crate) fn assert_template_errors(
         t: &mut impl Template,
-        values: HashMap<String, Scalar>,
+        values: TemplateValues,
         expected_err_messages: Vec<String>,
         expected_err_paths: Vec<String>,
     ) {
-        let res = t.try_template(&mut Vec::new(), &values);
+        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &values);
         assert!(res.is_err(), "expected templating to fail, got {res:?}");
 
         let errors = res.unwrap_err();
@@ -236,50 +206,5 @@ mod tests {
             err_kinds, expected_err_kinds,
             "check the error kind is correct"
         );
-    }
-
-    #[test]
-    fn values_for_config_file_defaults_used_correctly() {
-        let all_values: HashMap<String, Scalar> = [
-            ("a".into(), 1.into()),
-            ("b".into(), "foo".into()),
-            ("c".into(), true.into()),
-        ]
-        .into_iter()
-        .collect();
-
-        let definitions = [
-            ValueDefinition {
-                name: "a".into(),
-                description: String::new(),
-                default: Some(2.into()),
-            },
-            ValueDefinition {
-                name: "b".into(),
-                description: String::new(),
-                default: None,
-            },
-            ValueDefinition {
-                name: "d".into(),
-                description: String::new(),
-                default: Some("bar".into()),
-            },
-        ];
-
-        let vals = values_for_config_file(&all_values, definitions.iter());
-
-        // a has an explicit value so it overrides the default
-        // b has an explicit value and no default
-        // c is not in the definitions so it is filtered out
-        // d has no explicit value so we take the default
-        let expected: HashMap<String, Scalar> = [
-            ("a".into(), 1.into()),
-            ("b".into(), "foo".into()),
-            ("d".into(), "bar".into()),
-        ]
-        .into_iter()
-        .collect();
-
-        assert_eq!(vals, expected);
     }
 }

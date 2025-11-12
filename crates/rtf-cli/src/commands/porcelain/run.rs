@@ -8,9 +8,9 @@ use rtf_config::{
     context::ResolutionContext,
     formats::TestPlanConfig,
     providers::file::Source,
-    templating,
+    templating::{self, TemplateValues},
 };
-use std::{mem::take, path::Path};
+use std::{collections::HashMap, mem::take, path::Path};
 use tracing::info;
 
 const VALUES_PATH: &str = "test-plan-values.json";
@@ -57,9 +57,9 @@ async fn check_and_run_test_plan_with_context(
     out_dir: &Path,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    values.merge(
-        &mut test_plan.values,
-        &mut test_plan.matrix.dimensions,
+    let override_sources = values.merge(
+        &mut test_plan,
+        &Source::local(ctx.dir_containing(".")),
         &mut ctx,
     )?;
 
@@ -77,7 +77,7 @@ async fn check_and_run_test_plan_with_context(
 
     if test_plan.matrix.is_empty() {
         info!("executing test plan");
-        return run_one(test_plan, &out_dir, &mut ctx).await;
+        return run_one(test_plan, &out_dir, &override_sources, &mut ctx).await;
     }
 
     let n = test_plan.matrix.n_variants();
@@ -90,7 +90,7 @@ async fn check_and_run_test_plan_with_context(
         ctx.create_dir_all(&sub_dir)?;
 
         info!("executing test plan {i}/{n}");
-        run_one(tp, &sub_dir, &mut ctx).await?;
+        run_one(tp, &sub_dir, &override_sources, &mut ctx).await?;
     }
 
     Ok(())
@@ -99,11 +99,17 @@ async fn check_and_run_test_plan_with_context(
 async fn run_one(
     mut test_plan: TestPlanConfig,
     out_dir: &Path,
+    override_sources: &HashMap<String, Source>,
     ctx: &mut impl ResolutionContext,
 ) -> anyhow::Result<()> {
     info!("templating environment setup");
-    let mut values = take(&mut test_plan.values);
-    test_plan.try_template_environment_setup(&values)?;
+    let values = take(&mut test_plan.values);
+    let mut template_values = TemplateValues::new(
+        values,
+        test_plan.sources.test_plan().clone(),
+        override_sources.clone(),
+    );
+    test_plan.try_template_environment_setup(&template_values)?;
 
     info!("checking environment setup");
     test_plan.environment.setup.command.try_check(
@@ -114,11 +120,12 @@ async fn run_one(
 
     info!("executing environment setup");
     let setup_provides = test_plan.run_environment_setup(out_dir, ctx).await?;
-    values.extend(setup_provides);
+    template_values.extend(Source::local(out_dir), setup_provides);
 
     info!("templating scenario and environment teardown commands");
-    let mut builder = templating::ErrorBuilder::from(test_plan.try_template_scenario(&values));
-    builder.append(test_plan.try_template_environment_teardown(&values));
+    let mut builder =
+        templating::ErrorBuilder::from(test_plan.try_template_scenario(&template_values));
+    builder.append(test_plan.try_template_environment_teardown(&template_values));
     builder.into_result(())?;
 
     info!("checking scenario and environment teardown commands");
@@ -143,7 +150,7 @@ async fn run_one(
     info!("writing out resolved test plan and values");
     ctx.write(
         out_dir.join(VALUES_PATH),
-        serde_json::to_string_pretty(&values)?,
+        serde_json::to_string_pretty(template_values.inner())?,
     )?;
     ctx.write(
         out_dir.join(RESOLVED_TP_PATH),
