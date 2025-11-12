@@ -31,3 +31,23 @@ fn github_flag_produces_expected_output() {
     .success()
     .stdout(contains("hello, world!"));
 }
+
+#[test]
+#[ignore = "requires a valid GitHub API Token"]
+fn github_flag_invalid_path_fails() {
+    let temp = TempDir::new().unwrap();
+    let outdir = temp.child("output");
+    let outdir = outdir.path().to_str().unwrap();
+
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    cmd.args([
+        "run",
+        "--github",
+        "apollographql/runtime-testing-framework/not/a/valid/path/to/file.txt",
+        "--outdir",
+        outdir,
+    ])
+    .assert()
+    .failure()
+    .stderr(contains("HTTP status client error (404 Not Found) for url (https://api.github.com/repos/apollographql/runtime-testing-framework/contents/not/a/valid/path/to/file.txt)"));
+}

@@ -113,3 +113,29 @@ fn execution_fails(test_plan_dir: &str, expected_err: &str) {
         .failure()
         .stderr(contains(expected_err));
 }
+
+#[test]
+fn load_and_resolve_from_invalid_github_uri_fails() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
+        .arg("run")
+        .arg("--github")
+        .arg("not a valid github uri")
+        .assert();
+
+    res.failure().stderr(contains("invalid GitHub uri: \"not a valid github uri\" - GitHub uri must be in format ORG/REPO/PATH"));
+}
+
+#[test]
+fn load_and_resolve_from_github_missing_token_fails() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
+        .arg("run")
+        .arg("--github")
+        .arg("org/repo/path")
+        .assert();
+
+    res.failure().stderr(contains("no GitHub client available"));
+}
