@@ -3900,10 +3900,10 @@ of test case naming can be seen <a href="developer/testing/./index.html#test-cas
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// When simple_test_case is not used
-env_dependency::command::tests::flags_test_case
+env_dependency::command::flags_test_case
 
 // When simple_test_case is used
-env_dependency::command::tests::flags_test_class::test_case
+env_dependency::command::flags_test_class::test_case
 <span class="boring">}</span></code></pre></pre>
 <h3 id="example---template-and-check"><a class="header" href="#example---template-and-check">Example - Template and Check</a></h3>
 <p>This example demonstrates how to test that a local test plan can be templated and passes a static
@@ -3914,28 +3914,26 @@ check. Working through the hierarchy:</p>
 <li><strong>Flag(s)</strong> is <code>check</code>. The <code>--check</code> flag is used in this test and adds significant additional
 logic.</li>
 <li><strong>Test class</strong> is omitted since <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is not used.</li>
-<li><strong>Test case</strong> is <code>completes</code>. A failing test case is <code>missing_value</code>.</li>
+<li><strong>Test case</strong> is <code>completes_basic</code>. A failing test case is <code>completes_with_cli_values</code>.</li>
 </ol>
 <p>This leads to the following full test path:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>test template::check_completes
-test template::check_missing_value
+</span>test template::check_completes_basic
+test template::check_completes_with_cli_values
 <span class="boring">}</span></code></pre></pre>
 <p>To achieve the structure above, the tests are defined in <code>tests/template.rs</code> and organized as
 follows:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>mod tests {
-  #[test]
-  fn check_completes() {
-    ...
-  }
+</span>#[test]
+fn check_completes_basic() {
+  ...
+}
 
-  #[test]
-  fn check_missing_value() {
-    ...
-  }
+#[test]
+fn check_completes_with_cli_values() {
+  ...
 }
 <span class="boring">}</span></code></pre></pre>
 <h3 id="example---run-from-github"><a class="header" href="#example---run-from-github">Example - Run from GitHub</a></h3>
@@ -3949,35 +3947,152 @@ run.</li>
 dependency, so it is omitted. The <code>--github</code> flag branches the <code>run</code> command significantly, so it
 has to be included in the test case path somewhere (just not twice!).</li>
 <li><strong>Test class</strong> is omitted since <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is not used.</li>
-<li><strong>Test case</strong> is <code>completes_no_ref</code>. An additional test case is <code>completes_with_ref</code>.</li>
+<li><strong>Test case</strong> is <code>github_flag_completes</code>. An additional test case is
+<code>github_flag_produces_expected_output</code>.</li>
 </ol>
 <p>This leads to the following full test path:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>test github::run::completes_with_no_ref
-test github::run::completes_with_ref
+</span>test github::run::github_flag_completes
+test github::run::github_flag_produces_expected_output
 <span class="boring">}</span></code></pre></pre>
 <p>To achieve the structure above, the tests are defined in <code>tests/github/run.rs</code> and organized as
 follows:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>mod tests {
-  #[test]
-  #[ignore = "requires a valid GitHub API Token"]
-  fn success_no_ref() {
-    ...
-  }
+</span>#[test]
+#[ignore = "requires a valid GitHub API Token"]
+fn github_flag_completes() {
+  ...
+}
 
-  #[test]
-  #[ignore = "requires a valid GitHub API Token"]
-  fn success_with_ref() {
-    ...
-  }
+#[test]
+#[ignore = "requires a valid GitHub API Token"]
+fn github_flag_produces_expected_output() {
+  ...
 }
 <span class="boring">}</span></code></pre></pre>
 <blockquote>
 <p><strong>Note</strong>: The tests are ignored by default as they require a GitHub token to run successfully.</p>
 </blockquote>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate uses specialized testing tools and patterns focused on testing CLI
+behavior, command execution, and user-facing functionality.</p>
+<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing Infrastructure</a></h3>
+<p>The crate leverages the following key testing tools:</p>
+<ul>
+<li><strong><a href="https://docs.rs/assert_cmd/latest/assert_cmd/"><code>assert_cmd</code></a></strong> - Provides utilities for testing command-line applications, including
+spawning commands and asserting on their output and exit status</li>
+<li><strong><a href="https://docs.rs/assert_fs/latest/assert_fs/"><code>assert_fs</code></a></strong> - Offers temporary filesystem testing utilities for file operations and
+directory management</li>
+<li><strong><a href="https://docs.rs/predicates/latest/predicates/"><code>predicates</code></a></strong> - Provides composable assertion predicates for more expressive test
+assertions on command outputs</li>
+<li><strong><a href="https://docs.rs/indoc/latest/indoc/"><code>indoc</code></a></strong> - Allows clean multi-line string literals in tests, particularly useful for
+expected error messages</li>
+<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Enables parameterized testing with <code>#[test_case]</code> attributes for
+testing multiple input variations</li>
+</ul>
+<h3 id="command-testing-patterns"><a class="header" href="#command-testing-patterns">Command Testing Patterns</a></h3>
+<p>The CLI tests focus on three main areas of functionality:</p>
+<ol>
+<li><strong>Command execution and argument parsing</strong> - Testing that commands run correctly with various
+flag combinations</li>
+<li><strong>Output validation</strong> - Ensuring the CLI produces correct stdout/stderr content</li>
+<li><strong>Exit status verification</strong> - Checking that commands succeed or fail with appropriate exit codes</li>
+</ol>
+<h4 id="basic-command-testing"><a class="header" href="#basic-command-testing">Basic Command Testing</a></h4>
+<p>Tests verify that commands are executable and respond appropriately to basic invocations:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[test]
+fn is_executable() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd.arg("template").assert();
+    
+    res.stderr(contains("Usage: rtf template"));
+}
+<span class="boring">}</span></code></pre></pre>
+<h4 id="parameterized-testing-for-multiple-scenarios"><a class="header" href="#parameterized-testing-for-multiple-scenarios">Parameterized Testing for Multiple Scenarios</a></h4>
+<p>Complex scenarios use parameterized testing to cover multiple input variations efficiently:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[test_case("command-from-spec"; "command from spec")]
+#[test_case("matrix-values"; "matrix values")]
+#[test_case("resolved-values"; "resolved values")]
+#[test]
+fn check_completes_basic(test_plan_dir: &amp;str) {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear()
+        .arg("template")
+        .arg(format!("resources/valid/{test_plan_dir}/test-plan.yaml"))
+        .arg("--check")
+        .assert();
+        
+    res.success().stdout(contains("name:"));
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="temporary-directory-management"><a class="header" href="#temporary-directory-management">Temporary Directory Management</a></h3>
+<p>The crate implements a custom <code>CmdWithTmpDir</code> utility that combines command execution with temporary
+directory management:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct CmdWithTmpDir {
+    cmd: Command,
+    tmp: TempDir,
+}
+<span class="boring">}</span></code></pre></pre>
+<p>This ensures that test files and directories are properly cleaned up after test execution while
+providing convenient access to both the command and the temporary filesystem state.</p>
+<h3 id="error-testing-strategy"><a class="header" href="#error-testing-strategy">Error Testing Strategy</a></h3>
+<p>CLI error testing focuses on user-facing error messages and exit codes:</p>
+<ol>
+<li><strong>Input validation errors</strong> - Testing malformed YAML, missing files, and invalid configurations</li>
+<li><strong>Templating errors</strong> - Ensuring template resolution failures are properly reported</li>
+<li><strong>Static analysis failures</strong> - Testing the <code>--check</code> flag's validation logic</li>
+<li><strong>Runtime execution errors</strong> - Verifying that script execution failures are handled gracefully</li>
+</ol>
+<p>Error tests are heavily parameterized to cover multiple failure scenarios:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[test_case(
+    "missing-values.yaml",
+    "Missing template values definitions";
+    "missing values"
+)]
+#[test_case(
+    "unknown-values.yaml", 
+    "Unknown templating value";
+    "unknown values"
+)]
+#[test]
+fn templating_fails(file: &amp;str, err_contains: &amp;str) {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .arg("template")
+        .arg(format!("resources/invalid/templating/{file}"))
+        .assert();
+        
+    res.stderr(contains(format!("Templating failed\n{err_contains}")));
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="integration-testing-approach"><a class="header" href="#integration-testing-approach">Integration Testing Approach</a></h3>
+<p>Since the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate tests are integration tests, they focus on end-to-end functionality
+rather than unit testing individual functions. This includes:</p>
+<ul>
+<li><strong>Full command execution</strong> - Running the compiled binary with real arguments</li>
+<li><strong>File system interactions</strong> - Testing with actual YAML files and directory structures</li>
+<li><strong>Environment isolation</strong> - Using <code>env_clear()</code> to ensure consistent test conditions</li>
+<li><strong>Output capture and validation</strong> - Asserting on complete stdout/stderr content</li>
+</ul>
+<h3 id="test-resource-management"><a class="header" href="#test-resource-management">Test Resource Management</a></h3>
+<p>Test data is organized in a structured resource hierarchy:</p>
+<ul>
+<li><code>resources/valid/</code> - Contains complete, valid test plans for success scenarios</li>
+<li><code>resources/invalid/</code> - Organized by failure category (load-and-resolve, templating, checks, run)</li>
+</ul>
+<p>Each test plan directory is self-contained with all necessary files, enabling realistic integration
+testing scenarios.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="rtf-config"><a class="header" href="#rtf-config">rtf-config</a></h1>
 <p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate are organized and implemented.</p>
 <h2 id="organization-1"><a class="header" href="#organization-1">Organization</a></h2>
@@ -4080,10 +4195,10 @@ follows:</p>
   }
 }
 <span class="boring">}</span></code></pre></pre>
-<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate uses several testing strategies and tools to ensure comprehensive
 coverage of configuration parsing, validation, and resolution.</p>
-<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing Infrastructure</a></h3>
+<h3 id="testing-infrastructure-1"><a class="header" href="#testing-infrastructure-1">Testing Infrastructure</a></h3>
 <p>The crate leverages the following key testing tools:</p>
 <ul>
 <li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Enables parameterized testing with <code>#[test_case]</code> attributes for
@@ -4290,10 +4405,10 @@ part of the <a href="https://docs.rs/simple_test_case/latest/simple_test_case/">
 </span>// When simple_test_case is used
 template::tests::trait_method::data_structure_test_case
 <span class="boring">}</span></code></pre></pre>
-<h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
+<h2 id="implementation-2"><a class="header" href="#implementation-2">Implementation</a></h2>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate employs specialized testing strategies tailored to procedural macro
 testing requirements.</p>
-<h3 id="testing-infrastructure-1"><a class="header" href="#testing-infrastructure-1">Testing Infrastructure</a></h3>
+<h3 id="testing-infrastructure-2"><a class="header" href="#testing-infrastructure-2">Testing Infrastructure</a></h3>
 <p>The crate leverages the following key testing tools:</p>
 <ul>
 <li><strong><a href="https://docs.rs/trybuild/latest/trybuild/"><code>trybuild</code></a></strong> - Enables testing of procedural macro compilation failures with precise error

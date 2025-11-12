@@ -37,12 +37,12 @@
 <a href=#37 id=37 data-nosnippet>37</a>) -&gt; anyhow::Result&lt;()&gt; {
 <a href=#38 id=38 data-nosnippet>38</a>    <span class="kw">let </span>(ctx, out_dir) = get_context_and_check_outdir(out_dir)<span class="question-mark">?</span>;
 <a href=#39 id=39 data-nosnippet>39</a>
-<a href=#40 id=40 data-nosnippet>40</a>    <span class="kw">let </span>(org, repo_and_path) = org_repo_path
-<a href=#41 id=41 data-nosnippet>41</a>        .split_once(<span class="string">'/'</span>)
-<a href=#42 id=42 data-nosnippet>42</a>        .ok_or(<span class="macro">anyhow!</span>(<span class="string">"invalid GitHub uri"</span>))<span class="question-mark">?</span>;
-<a href=#43 id=43 data-nosnippet>43</a>    <span class="kw">let </span>(repo, path) = repo_and_path
-<a href=#44 id=44 data-nosnippet>44</a>        .split_once(<span class="string">'/'</span>)
-<a href=#45 id=45 data-nosnippet>45</a>        .ok_or(<span class="macro">anyhow!</span>(<span class="string">"invalid GitHub uri"</span>))<span class="question-mark">?</span>;
+<a href=#40 id=40 data-nosnippet>40</a>    <span class="kw">let </span>(org, repo_and_path) = org_repo_path.split_once(<span class="string">'/'</span>).ok_or(<span class="macro">anyhow!</span>(
+<a href=#41 id=41 data-nosnippet>41</a>        <span class="string">"invalid GitHub uri: \"{org_repo_path}\" - GitHub uri must be in format ORG/REPO/PATH"
+<a href=#42 id=42 data-nosnippet>42</a>    </span>))<span class="question-mark">?</span>;
+<a href=#43 id=43 data-nosnippet>43</a>    <span class="kw">let </span>(repo, path) = repo_and_path.split_once(<span class="string">'/'</span>).ok_or(<span class="macro">anyhow!</span>(
+<a href=#44 id=44 data-nosnippet>44</a>        <span class="string">"invalid GitHub uri: \"{org_repo_path}\" - GitHub uri must be in format ORG/REPO/PATH"
+<a href=#45 id=45 data-nosnippet>45</a>    </span>))<span class="question-mark">?</span>;
 <a href=#46 id=46 data-nosnippet>46</a>
 <a href=#47 id=47 data-nosnippet>47</a>    <span class="macro">info!</span>(<span class="string">"fetching and resolving test plan from GitHub"</span>);
 <a href=#48 id=48 data-nosnippet>48</a>    <span class="kw">let </span>test_plan =
