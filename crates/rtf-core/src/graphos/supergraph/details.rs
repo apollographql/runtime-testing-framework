@@ -301,9 +301,9 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
         return None;
     };
 
-    for (_, value) in &mut query.get_mut()?.fields {
-        println!("{:?}", value.directives);
-        for directive in value.directives.0.iter_mut() {
+    for (_, mut_ref_field_definition_component) in &mut query.get_mut()?.fields {
+        println!("{:?}", mut_ref_field_definition_component.directives);
+        for directive in mut_ref_field_definition_component.get_mut()?.directives.iter_mut() {
             if directive.name != "join__directive" {
                 continue;
             }
@@ -320,6 +320,16 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
             };
 
             println!("args: {:?}", args_map);
+            if let Some((_, http_node)) = args_map.iter_mut().find(|(key, _)| key.as_str() == "http") {
+                if let Value::Object(http_map) = http_node.get_mut()? {
+                    if let Some((_, base_url_node)) = http_map
+                        .iter_mut()
+                        .find(|(key, _)| key.as_str() == "GET")
+                    {
+                        *base_url_node = Node::new(Value::String("www.test.com".to_string()));
+                    }
+                }
+            }
         }
 
         continue;
