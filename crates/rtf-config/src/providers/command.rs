@@ -59,7 +59,12 @@ impl CommandSection {
     ) -> providers::Result<PathBuf> {
         let output_path = output_path.unwrap_or_else(|| out_dir.join(OUTPUT_PATH));
         self.run_providers(out_dir, src, ctx).await?;
-        self.execute(out_dir, &output_path, ctx)?;
+        if let Err(e) = self.execute(out_dir, &output_path, ctx) {
+            return Err(providers::Error::CommandFailed {
+                name: self.command.name.to_string(),
+                err: e.to_string(),
+            });
+        };
 
         Ok(output_path)
     }
@@ -211,7 +216,15 @@ impl CommandSection {
             // recursively defined because of the FromCommand file provider which is just a wrapper
             // around this struct, meaning that the call to resolve_and_write below ends up calling
             // back into run_providers_and_execute which then calls this method (run_providers).
-            Box::pin(nfp.resolve_and_write(&file_path, src, ctx)).await?;
+            match Box::pin(nfp.resolve_and_write(&file_path, src, ctx)).await {
+                Ok(b) => b,
+                Err(e) => {
+                    return Err(providers::Error::ResolveAndWriteFailed {
+                        name: nfp.env_var.to_string(),
+                        err: e.to_string(),
+                    });
+                }
+            };
 
             ctx.store_provider_output_path(Provider::File { fp: &nfp.provider }, file_path);
         }

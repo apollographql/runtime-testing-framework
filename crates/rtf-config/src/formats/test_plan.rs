@@ -205,7 +205,10 @@ impl TestPlanConfig {
             .run_providers_and_execute_for_output(out_dir, self.sources.environment(), ctx)
             .await?;
 
-        let provides: HashMap<String, Scalar> = serde_json::from_str(&raw_output)?;
+        let provides: HashMap<String, Scalar> = match serde_json::from_str(&raw_output) {
+            Ok(p) => p,
+            Err(_e) => return Err(Error::MalformedSetupOutputFormat { output: raw_output }),
+        };
 
         let mut missing = Vec::new();
         for val in self.environment.setup.provides.iter() {
@@ -217,7 +220,7 @@ impl TestPlanConfig {
         if missing.is_empty() {
             Ok(provides)
         } else {
-            Err(Error::InvalidSetupOutput { missing })
+            Err(Error::MissingSetupOutputFields { missing })
         }
     }
 
@@ -1786,7 +1789,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let mut ctx = Context::new();
 
-        let expected_err = "expected value at line 1 column 1";
+        let expected_err = "Environment setup output not valid json: \"some invalid json\\n\"";
 
         let script = indoc!(
             r#"
