@@ -104,6 +104,8 @@ fn matrix_include_success() {
 #[test_case("setup-file-provider-fails", "Unable to resolve and write FROG_GIF file: stream did not contain valid UTF-8"; "setup provider error")]
 #[test_case("setup-provides-not-json", "Environment setup output not valid json: \"not valid json output\\n\""; "setup provides not json")]
 #[test_case("setup-provides-missing-key", "Missing required output fields from environment setup: [\"setup_output\"]"; "setup provides missing key")]
+#[test_case("scenario-execution-fails", "Unable to execute command:"; "scenario execution fails")]
+#[test_case("teardown-execution-fails", "Unable to execute command:"; "teardown execution fails")]
 #[test]
 fn execution_errors(test_plan_dir: &str, expected_err: &str) {
     prepare_rtf_run(&format!("resources/invalid/run/{test_plan_dir}"))
