@@ -3,7 +3,7 @@ use predicates::str::contains;
 
 #[test]
 #[ignore = "requires a valid GraphOS API Key"]
-fn with_check_success_offline_license() {
+fn check_completes_offline_license() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .arg("template")

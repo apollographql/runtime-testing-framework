@@ -13,22 +13,22 @@ fn is_executable() {
 }
 
 #[test]
-fn sanity_check_success() {
+fn completes_sanity_check() {
     is_valid_test_plan("resources/valid/sanity-check");
 }
 
 #[test]
-fn matrix_success() {
+fn completes_with_matrix() {
     is_valid_test_plan("resources/valid/matrix-values");
 }
 
 #[test]
-fn command_from_spec_success() {
+fn completes_command_from_spec() {
     is_valid_test_plan("resources/valid/command-from-spec");
 }
 
 #[test]
-fn overriding_values_success() {
+fn value_overriding_works() {
     // default echo arg should be foo
     prepare_rtf_run("resources/valid/value-overrides")
         .assert()
@@ -53,7 +53,7 @@ fn overriding_values_success() {
 }
 
 #[test]
-fn resolved_values_provider_success() {
+fn override_resolved_values_works() {
     prepare_rtf_run("resources/valid/resolved-values")
         .assert()
         .success()
@@ -86,7 +86,7 @@ fn custom_matrix_variant_names_work() {
 }
 
 #[test]
-fn matrix_include_success() {
+fn matrix_include_completes() {
     prepare_rtf_run("resources/valid/matrix-include")
         .assert()
         .success()
@@ -107,7 +107,7 @@ fn matrix_include_success() {
 #[test_case("scenario-execution-fails", "Unable to execute the scenario.sh command:"; "scenario execution fails")]
 #[test_case("teardown-execution-fails", "Unable to execute the teardown.sh command:"; "teardown execution fails")]
 #[test]
-fn execution_errors(test_plan_dir: &str, expected_err: &str) {
+fn execution_fails(test_plan_dir: &str, expected_err: &str) {
     prepare_rtf_run(&format!("resources/invalid/run/{test_plan_dir}"))
         .assert()
         .failure()

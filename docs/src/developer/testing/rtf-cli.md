@@ -37,10 +37,10 @@ Following the hierarchy above leads to the following generic test case paths:
 
 ```rust
 // When simple_test_case is not used
-env_dependency::command::tests::flags_test_case
+env_dependency::command::flags_test_case
 
 // When simple_test_case is used
-env_dependency::command::tests::flags_test_class::test_case
+env_dependency::command::flags_test_class::test_case
 ```
 
 ### Example - Template and Check
@@ -59,23 +59,21 @@ This leads to the following full test path:
 
 ```rust
 test template::check_completes
-test template::check_missing_value
+test template::check_with_values_from_cli_completes
 ```
 
 To achieve the structure above, the tests are defined in `tests/template.rs` and organized as
 follows:
 
 ```rust
-mod tests {
-  #[test]
-  fn check_completes() {
-    ...
-  }
+#[test]
+fn check_completes() {
+  ...
+}
 
-  #[test]
-  fn check_missing_value() {
-    ...
-  }
+#[test]
+fn check_with_values_from_cli_completes() {
+  ...
 }
 ```
 
@@ -96,31 +94,167 @@ Working through the hierarchy:
 This leads to the following full test path:
 
 ```rust
-test github::run::completes_with_no_ref
-test github::run::completes_with_ref
+test github::run::completes
+test github::run::github_flag_displays_expected_text
 ```
 
 To achieve the structure above, the tests are defined in `tests/github/run.rs` and organized as
 follows:
 
 ```rust
-mod tests {
-  #[test]
-  #[ignore = "requires a valid GitHub API Token"]
-  fn success_no_ref() {
-    ...
-  }
+#[test]
+#[ignore = "requires a valid GitHub API Token"]
+fn completes() {
+  ...
+}
 
-  #[test]
-  #[ignore = "requires a valid GitHub API Token"]
-  fn success_with_ref() {
-    ...
-  }
+#[test]
+#[ignore = "requires a valid GitHub API Token"]
+fn github_flag_displays_expected_text() {
+  ...
 }
 ```
 
 > **Note**: The tests are ignored by default as they require a GitHub token to run successfully.
 
+## Implementation
+
+The [`rtf-cli`][0] crate uses specialized testing tools and patterns focused on testing CLI
+behavior, command execution, and user-facing functionality.
+
+### Testing Infrastructure
+
+The crate leverages the following key testing tools:
+
+- **[`assert_cmd`][3]** - Provides utilities for testing command-line applications, including
+  spawning commands and asserting on their output and exit status
+- **[`assert_fs`][4]** - Offers temporary filesystem testing utilities for file operations and
+  directory management
+- **[`predicates`][5]** - Provides composable assertion predicates for more expressive test
+  assertions on command outputs
+- **[`indoc`][6]** - Allows clean multi-line string literals in tests, particularly useful for
+  expected error messages
+- **[`simple_test_case`][1]** - Enables parameterized testing with `#[test_case]` attributes for
+  testing multiple input variations
+
+### Command Testing Patterns
+
+The CLI tests focus on three main areas of functionality:
+
+1. **Command execution and argument parsing** - Testing that commands run correctly with various
+   flag combinations
+2. **Output validation** - Ensuring the CLI produces correct stdout/stderr content
+3. **Exit status verification** - Checking that commands succeed or fail with appropriate exit codes
+
+#### Basic Command Testing
+
+Tests verify that commands are executable and respond appropriately to basic invocations:
+
+```rust
+#[test]
+fn is_executable() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd.arg("template").assert();
+    
+    res.stderr(contains("Usage: rtf template"));
+}
+```
+
+#### Parameterized Testing for Multiple Scenarios
+
+Complex scenarios use parameterized testing to cover multiple input variations efficiently:
+
+```rust
+#[test_case("command-from-spec"; "command from spec")]
+#[test_case("matrix-values"; "matrix values")]
+#[test_case("resolved-values"; "resolved values")]
+#[test]
+fn with_check_success(test_plan_dir: &str) {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear()
+        .arg("template")
+        .arg(format!("resources/valid/{test_plan_dir}/test-plan.yaml"))
+        .arg("--check")
+        .assert();
+        
+    res.success().stdout(contains("name:"));
+}
+```
+
+### Temporary Directory Management
+
+The crate implements a custom `CmdWithTmpDir` utility that combines command execution with temporary
+directory management:
+
+```rust
+pub struct CmdWithTmpDir {
+    cmd: Command,
+    tmp: TempDir,
+}
+```
+
+This ensures that test files and directories are properly cleaned up after test execution while
+providing convenient access to both the command and the temporary filesystem state.
+
+### Error Testing Strategy
+
+CLI error testing focuses on user-facing error messages and exit codes:
+
+1. **Input validation errors** - Testing malformed YAML, missing files, and invalid configurations
+2. **Templating errors** - Ensuring template resolution failures are properly reported
+3. **Static analysis failures** - Testing the `--check` flag's validation logic
+4. **Runtime execution errors** - Verifying that script execution failures are handled gracefully
+
+Error tests are heavily parameterized to cover multiple failure scenarios:
+
+```rust
+#[test_case(
+    "missing-values.yaml",
+    "Missing template values definitions";
+    "missing values"
+)]
+#[test_case(
+    "unknown-values.yaml", 
+    "Unknown templating value";
+    "unknown values"
+)]
+#[test]
+fn templating_errors(file: &str, err_contains: &str) {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .arg("template")
+        .arg(format!("resources/invalid/templating/{file}"))
+        .assert();
+        
+    res.stderr(contains(format!("Templating failed\n{err_contains}")));
+}
+```
+
+### Integration Testing Approach
+
+Since the [`rtf-cli`][0] crate tests are integration tests, they focus on end-to-end functionality
+rather than unit testing individual functions. This includes:
+
+- **Full command execution** - Running the compiled binary with real arguments
+- **File system interactions** - Testing with actual YAML files and directory structures
+- **Environment isolation** - Using `env_clear()` to ensure consistent test conditions
+- **Output capture and validation** - Asserting on complete stdout/stderr content
+
+### Test Resource Management
+
+Test data is organized in a structured resource hierarchy:
+
+- `resources/valid/` - Contains complete, valid test plans for success scenarios
+- `resources/invalid/` - Organized by failure category (load-and-resolve, templating, checks, run)
+
+Each test plan directory is self-contained with all necessary files, enabling realistic integration
+testing scenarios.
+
 [0]: https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli
 [1]: https://docs.rs/simple_test_case/latest/simple_test_case/
 [2]: ./index.md#test-case-naming
+[3]: https://docs.rs/assert_cmd/latest/assert_cmd/
+[4]: https://docs.rs/assert_fs/latest/assert_fs/
+[5]: https://docs.rs/predicates/latest/predicates/
+[6]: https://docs.rs/indoc/latest/indoc/

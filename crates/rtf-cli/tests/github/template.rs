@@ -3,7 +3,7 @@ use predicates::str::contains;
 
 #[test]
 #[ignore = "requires a valid GitHub API Token"]
-fn with_check_success_github_file() {
+fn check_completes_with_github_file() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .arg("template")
@@ -17,7 +17,7 @@ fn with_check_success_github_file() {
 
 #[test]
 #[ignore = "requires a valid GitHub API Token"]
-fn with_check_success_github_config_files() {
+fn check_completes_with_github_config_files() {
     // The sanity-check test plan defines values in the setup.provides
     // This test plan uses config from the sanity check
     // The only way to template successfully is to set this value from the cli

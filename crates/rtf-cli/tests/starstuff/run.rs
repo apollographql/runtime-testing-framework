@@ -10,6 +10,6 @@ use simple_test_case::test_case;
 #[test_case("resources/valid/graphos-offline-license"; "offline license")]
 #[test]
 #[ignore = "requires a valid GraphOS API Key"]
-fn success(dir: &str) {
+fn completes(dir: &str) {
     is_valid_test_plan(dir);
 }
