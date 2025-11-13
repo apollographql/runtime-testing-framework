@@ -1,10 +1,10 @@
 use crate::{
-    ValueDefinition,
+    VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
     formats::Result,
     providers::{command::CommandSection, file::Source},
-    templating::{self, Template, TemplateValues},
+    templating::{self, Template, TemplateVariables},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -19,9 +19,10 @@ pub struct ScenarioConfig {
     pub name: String,
     /// A brief description of the purpose / behaviour of this scenario
     pub description: String,
-    /// Definitions for the required values for templating this scenario
-    #[serde(default)]
-    pub values: Vec<ValueDefinition>,
+    /// Definitions for the required variables for templating this scenario
+    #[serde(default, alias = "values")]
+    // This alias is for backwards compatibility with the original name
+    pub variable_definitions: Vec<VariableDefinition>,
     /// The command to execute as this scenario
     #[serde(flatten)]
     pub command: CommandSection,
@@ -40,7 +41,7 @@ impl ScenarioConfig {
         ScenarioConfig {
             name: Default::default(),
             description: Default::default(),
-            values: Default::default(),
+            variable_definitions: Default::default(),
             command: CommandSection::empty(),
         }
     }
@@ -51,20 +52,20 @@ impl Template for ScenarioConfig {
         self.command.has_pending_fields()
     }
 
-    fn required_values(&self) -> Vec<String> {
-        self.command.required_values()
+    fn required_variables(&self) -> Vec<String> {
+        self.command.required_variables()
     }
 
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
         source: &Source,
-        values: &TemplateValues,
+        variables: &TemplateVariables,
     ) -> templating::Result<()> {
-        let allowed_values = values.for_config_file(source, self.values.iter());
+        let allowed_variables = variables.for_config_file(source, self.variable_definitions.iter());
 
         self.command
-            .try_template_nested(path, "command_section", source, &allowed_values)
+            .try_template_nested(path, "command_section", source, &allowed_variables)
     }
 }
 
@@ -83,7 +84,10 @@ impl CheckArrayDuplicates for ScenarioConfig {
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
         vec![
-            ("values", DedupArray::ValueDef(&mut self.values)),
+            (
+                "variables",
+                DedupArray::VariableDef(&mut self.variable_definitions),
+            ),
             (
                 "file_providers",
                 DedupArray::Nfp(&mut self.command.file_providers),
@@ -97,12 +101,12 @@ pub(crate) mod test_helpers {
     use super::*;
     use crate::{
         formats::tests::{
-            named_file_providers_with_fields, templatable_file_providers, value_definitions,
+            named_file_providers_with_fields, templatable_file_providers, variable_definitions,
         },
         templating::Field,
     };
 
-    /// Create a ScenarioConfig for testing Template trait methods (has_pending_fields, required_values)
+    /// Create a ScenarioConfig for testing Template trait methods (has_pending_fields, required_variables)
     pub(crate) fn scenario_with_fields(fields: &[Field<String>]) -> ScenarioConfig {
         ScenarioConfig {
             command: CommandSection {
@@ -115,11 +119,11 @@ pub(crate) mod test_helpers {
 
     /// Create a ScenarioConfig for template testing
     pub(crate) fn templatable_scenario(
-        value_names: &[&str],
+        variable_names: &[&str],
         scenario_fields: &[&str],
     ) -> ScenarioConfig {
         ScenarioConfig {
-            values: value_definitions(value_names),
+            variable_definitions: variable_definitions(variable_names),
             command: CommandSection {
                 file_providers: templatable_file_providers(scenario_fields),
                 ..CommandSection::empty()
@@ -138,7 +142,7 @@ mod tests {
             scenario::test_helpers::{scenario_with_fields, templatable_scenario},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
-                template_values,
+                template_variables,
             },
         },
         providers::command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
@@ -152,7 +156,7 @@ mod tests {
         r#"
         name: scenario
         description: a templated scenario
-        values:
+        variable_definitions:
           - name: foo
             description: a value foo
           - name: bar
@@ -175,9 +179,9 @@ mod tests {
         let config: ScenarioConfig =
             serde_yaml::from_str(TEMPLATED_SCENARIO).expect("scenario config to parse");
 
-        let mut res = config.required_values();
-        res.sort(); // Sorting so values are in a determistic order for the assert_eq
-        assert_eq!(res, &["bar", "foo"], "expected values to match")
+        let mut res = config.required_variables();
+        res.sort(); // Sorting so variables are in a determistic order for the assert_eq
+        assert_eq!(res, &["bar", "foo"], "expected variables to match")
     }
 
     #[test_case(&[p("foo")], true; "single field is pending")]
@@ -197,59 +201,59 @@ mod tests {
     }
 
     #[test_case(&[p("foo")], &["foo"]; "single field is required")]
-    #[test_case(&[r("foo")], &[]; "single field resolved requires no values")]
-    #[test_case(&[p("field1"), p("field2")], &["field1", "field2"]; "multiple fields pending requires values")]
-    #[test_case(&[p("field1"), r("field2")], &["field1"]; "multiple fields with single pending requires values")]
-    #[test_case(&[r("field1"), r("field2")], &[]; "multiple fields none pending requires no values")]
+    #[test_case(&[r("foo")], &[]; "single field resolved requires no variables")]
+    #[test_case(&[p("field1"), p("field2")], &["field1", "field2"]; "multiple fields pending requires variables")]
+    #[test_case(&[p("field1"), r("field2")], &["field1"]; "multiple fields with single pending requires variables")]
+    #[test_case(&[r("field1"), r("field2")], &[]; "multiple fields none pending requires no variables")]
     #[test]
-    fn required_values(fields: &[Field<String>], expected: &[&str]) {
+    fn required_variables(fields: &[Field<String>], expected: &[&str]) {
         let scenario = scenario_with_fields(fields);
 
-        let res = scenario.required_values();
+        let res = scenario.required_variables();
         assert_eq!(
             res, expected,
-            "tests that required_values has expected value"
+            "tests that required_variables has expected value"
         )
     }
 
-    #[test_case(&["foo"]; "single value")]
-    #[test_case(&["foo", "bar"]; "multiple values")]
-    #[test_case(&["foo", "bar", "baz"]; "three values")]
-    #[test_case(&[]; "no values")]
+    #[test_case(&["foo"]; "single variable")]
+    #[test_case(&["foo", "bar"]; "multiple variables")]
+    #[test_case(&["foo", "bar", "baz"]; "three variables")]
+    #[test_case(&[]; "no variables")]
     #[test]
     fn try_template_succeeds(field_names: &[&str]) {
-        let values = template_values(field_names);
+        let variables = template_variables(field_names);
         let mut scenario = templatable_scenario(field_names, field_names);
 
-        let res = scenario.try_template(&mut Vec::new(), &Source::local("/"), &values);
+        let res = scenario.try_template(&mut Vec::new(), &Source::local("/"), &variables);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
         )
     }
 
-    #[test_case(&["foo"], &[], &["foo"], &["foo"]; "single value provided and not defined")]
-    #[test_case(&[], &["foo", "bar", "baz"], &["foo", "bar", "baz"], &["bar", "baz", "foo"]; "no values provided and multiple defined")]
-    #[test_case(&["foo", "bar", "baz"], &["foo", "bar"], &["foo", "bar", "baz"], &["baz"]; "multiple values provided and one not defined")]
-    #[test_case(&[], &["foo"], &["foo"], &["foo"]; "no values provided but single value defined")]
-    #[test_case(&[], &["foo", "bar", "baz"], &["foo", "bar", "baz"], &["bar", "baz", "foo"]; "no values provided but multiple values defined")]
-    #[test_case(&["foo", "bar"], &["foo", "bar", "baz"], &["foo", "bar", "baz"], &["baz"]; "one provided value missing when multiple values defined")]
+    #[test_case(&["foo"], &[], &["foo"], &["foo"]; "single variable provided and not defined")]
+    #[test_case(&[], &["foo", "bar", "baz"], &["foo", "bar", "baz"], &["bar", "baz", "foo"]; "no variables provided and multiple defined")]
+    #[test_case(&["foo", "bar", "baz"], &["foo", "bar"], &["foo", "bar", "baz"], &["baz"]; "multiple variables provided and one not defined")]
+    #[test_case(&[], &["foo"], &["foo"], &["foo"]; "no variables provided but single variable defined")]
+    #[test_case(&[], &["foo", "bar", "baz"], &["foo", "bar", "baz"], &["bar", "baz", "foo"]; "no variables provided but multiple variables defined")]
+    #[test_case(&["foo", "bar"], &["foo", "bar", "baz"], &["foo", "bar", "baz"], &["baz"]; "one provided variable missing when multiple variables defined")]
     #[test]
-    fn try_template_missing_value_definitions(
-        values: &[&str],
-        value_defs: &[&str],
+    fn try_template_missing_variable_definitions(
+        variables: &[&str],
+        variable_defs: &[&str],
         scenario_fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let values = template_values(values);
-        let mut scenario = templatable_scenario(value_defs, scenario_fields);
+        let variables = template_variables(variables);
+        let mut scenario = templatable_scenario(variable_defs, scenario_fields);
 
         let (expected_err_messages, expected_err_paths) =
             expected_error_details(expected_err_fields, "command_section");
 
         assert_template_errors(
             &mut scenario,
-            values,
+            variables,
             expected_err_messages,
             expected_err_paths,
         );

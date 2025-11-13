@@ -8,7 +8,7 @@ use rtf_config::{
     context::ResolutionContext,
     formats::TestPlanConfig,
     providers::file::Source,
-    templating::{self, TemplateValues},
+    templating::{self, TemplateVariables},
 };
 use std::{
     collections::HashMap,
@@ -89,7 +89,7 @@ async fn check_and_run_test_plan_with_context(
 
     for (mut i, (name, tp)) in test_plan.try_iter_matrix_variants()?.enumerate() {
         i += 1;
-        ctx.set_values(&tp.values);
+        ctx.set_variables(&tp.variables);
         let sub_dir = out_dir.join(name);
         info!("creating output directory for matrix variant {i}/{n}");
         ctx.create_dir_all(&sub_dir)?;
@@ -108,8 +108,8 @@ async fn run_one(
     ctx: &mut impl ResolutionContext,
 ) -> anyhow::Result<()> {
     info!("templating environment setup");
-    let values = take(&mut test_plan.values);
-    let mut template_values = TemplateValues::new(
+    let values = take(&mut test_plan.variables);
+    let mut template_values = TemplateVariables::new(
         values,
         test_plan.sources.test_plan().clone(),
         override_sources.clone(),

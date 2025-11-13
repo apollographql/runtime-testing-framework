@@ -6,7 +6,7 @@ use rtf_config::{
     Source,
     checks::{self, Check},
     context::ResolutionContext,
-    templating::{Template, TemplateValues},
+    templating::{Template, TemplateVariables},
 };
 use std::{env::current_dir, path::PathBuf};
 use tracing::info;
@@ -37,9 +37,9 @@ async fn template_test_plan_with_context(
     info!("checking if templating will work");
     test_plan.check_templating_will_work()?;
 
-    let (_, values) = test_plan.matrix.try_expand(&test_plan.values)?.remove(0);
+    let (_, values) = test_plan.matrix.try_expand(&test_plan.variables)?.remove(0);
     let source = test_plan.sources.test_plan().clone();
-    let template_values = TemplateValues::new(values, source.clone(), override_sources);
+    let template_values = TemplateVariables::new(values, source.clone(), override_sources);
 
     test_plan.try_template(&mut Vec::new(), &source, &template_values)?;
 

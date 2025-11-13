@@ -2,7 +2,7 @@
 
 use rtf_config::{
     Source,
-    templating::{Field, Scalar, Template, TemplateValues, ValidField},
+    templating::{Field, Scalar, Template, TemplateVariables, ValidField},
 };
 use rtf_derive::Template;
 use simple_test_case::test_case;
@@ -200,7 +200,7 @@ fn has_pending_fields(t: Box<dyn Template>, expected: bool) {
 #[test_case(mfwis(r("foo"), r("bar"), p("inner")), &["inner"]; "multi_field_with_inner_struct_inner_field_required")]
 #[test_case(mfwis(p("foo"), r("bar"), r("inner")), &["foo"]; "multi_field_with_inner_struct_outer_field_required")]
 #[test_case(mfwis(r("foo"), r("bar"), r("inner")), &[]; "multi_field_with_inner_struct_no_fields_required")]
-#[test_case(skipf(r("foo"), p("bar")), &[]; "skipped_field_does_add_required_value")]
+#[test_case(skipf(r("foo"), p("bar")), &[]; "skipped_field_does_add_required_variable")]
 #[test_case(skipnf(p("foo"), "bar"), &["foo"]; "skipped_not_field_field_required")]
 #[test_case(skipnf(r("foo"), "bar"), &[]; "skipped_not_field_no_field_required")]
 #[test_case(mns(p("inner")), &["inner"]; "nested_inner_structs_field_is_required")]
@@ -210,28 +210,28 @@ fn has_pending_fields(t: Box<dyn Template>, expected: bool) {
 #[test_case(ttsf(p("foo")), &["foo"]; "struct_in_enum_field_is_required")]
 #[test_case(ttsf(r("foo")), &[]; "struct_in_enum_no_field_is_required")]
 #[test]
-fn required_values(t: Box<dyn Template>, expected: &[&str]) {
-    let res = t.required_values();
+fn required_variables(t: Box<dyn Template>, expected: &[&str]) {
+    let res = t.required_variables();
     assert_eq!(
         res.as_slice(),
         expected,
-        "expected required values to be {expected:?}, got {res:?}"
+        "expected required variables to be {expected:?}, got {res:?}"
     )
 }
 
-macro_rules! values_map {
+macro_rules! variables_map {
     ($slice:expr) => {{
         let mut m = ::std::collections::HashMap::new();
         for k in $slice {
             m.insert(k.to_string(), Scalar::from(k.to_string()));
         }
 
-        TemplateValues::new(m, Source::local("/"), Default::default())
+        TemplateVariables::new(m, Source::local("/"), Default::default())
     }};
 }
 
 #[test_case(sinf(p("foo")), &["foo"]; "single_field")]
-#[test_case(sinf(p("foo")), &["foo", "bar"]; "single_field_unused_value")]
+#[test_case(sinf(p("foo")), &["foo", "bar"]; "single_field_unused_variable")]
 #[test_case(ntf("foo", "bar"), &[]; "no_templatable_fields")]
 #[test_case(mf(p("foo"), p("bar"), p("baz")), &["foo", "bar", "baz"]; "multi_field")]
 #[test_case(ns(p("inner")), &["inner"]; "nested_struct")]
@@ -242,9 +242,9 @@ macro_rules! values_map {
 #[test_case(ttf(p("foo")), &["foo"]; "field_in_enum")]
 #[test_case(ttsf(p("foo")), &["foo"]; "struct_in_enum")]
 #[test]
-fn try_template_all_fields(mut t: Box<dyn Template>, values: &[&str]) {
-    let values = values_map!(values);
-    let res = t.try_template(&mut Vec::new(), &Source::local("/"), &values);
+fn try_template_all_fields(mut t: Box<dyn Template>, variables: &[&str]) {
+    let variables = variables_map!(variables);
+    let res = t.try_template(&mut Vec::new(), &Source::local("/"), &variables);
     assert!(
         res.is_ok(),
         "expected to template successfully, got {res:?}"
@@ -252,7 +252,7 @@ fn try_template_all_fields(mut t: Box<dyn Template>, values: &[&str]) {
 }
 
 #[test_case(sinf(p("foo")); "single_field")]
-#[test_case(sinf(p("foo")); "single_field_unused_value")]
+#[test_case(sinf(p("foo")); "single_field_unused_variable")]
 #[test_case(mf(p("foo"), p("bar"), p("baz")); "multi_field")]
 #[test_case(ns(p("inner")); "nested_struct")]
 #[test_case(mfwis(p("foo"), p("bar"), p("inner")); "multi_field_with_inner_struct")]
@@ -262,17 +262,17 @@ fn try_template_all_fields(mut t: Box<dyn Template>, values: &[&str]) {
 #[test_case(ttf(p("foo")); "field_in_enum")]
 #[test_case(ttsf(p("foo")); "struct_in_enum")]
 #[test]
-fn try_template_unknown_value_error(mut t: Box<dyn Template>) {
-    let values = values_map!(["unused"]);
+fn try_template_unknown_variable_error(mut t: Box<dyn Template>) {
+    let variables = variables_map!(["unused"]);
 
-    let res = t.try_template(&mut Vec::new(), &Source::local("/"), &values);
+    let res = t.try_template(&mut Vec::new(), &Source::local("/"), &variables);
     assert!(res.is_err(), "expected templating to fail, got {res:?}");
     let errors = res.unwrap_err();
     assert!(
         errors
             .iter()
-            .all(|e| matches!(e.kind, rtf_config::templating::ErrorKind::UnknownValue)),
-        "expected all errors to be UnknownValue, got {:?}",
+            .all(|e| matches!(e.kind, rtf_config::templating::ErrorKind::UnknownVariable)),
+        "expected all errors to be UnknownVariable, got {:?}",
         errors
     );
 }
@@ -280,7 +280,7 @@ fn try_template_unknown_value_error(mut t: Box<dyn Template>) {
 #[test]
 fn template_enum_unit_skipped() {
     let mut t = TemplateTypes::Unit;
-    let values = values_map!(["unused"]);
+    let variables = variables_map!(["unused"]);
 
     assert!(
         !t.has_pending_fields(),
@@ -288,10 +288,10 @@ fn template_enum_unit_skipped() {
     );
 
     assert!(
-        t.required_values().is_empty(),
-        "A unit type enum variant should have no required values"
+        t.required_variables().is_empty(),
+        "A unit type enum variant should have no required variables"
     );
 
-    let res = t.try_template(&mut Vec::new(), &Source::local("/"), &values);
+    let res = t.try_template(&mut Vec::new(), &Source::local("/"), &variables);
     assert!(res.is_ok(), "A unit type enum should template successfully");
 }

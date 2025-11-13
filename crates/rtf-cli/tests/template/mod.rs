@@ -14,10 +14,10 @@ fn is_executable() {
 #[test_case("command-from-spec"; "command from spec")]
 #[test_case("custom-matrix-variant-names"; "custom matrix variant names")]
 #[test_case("matrix-include"; "matrix include")]
-#[test_case("matrix-values"; "matrix values")]
-#[test_case("resolved-values"; "resolved values")]
-#[test_case("value-overrides"; "value overrides")]
-// Template and check all valid test plans except for the sanity check (which requires a provides value)
+#[test_case("matrix-variables"; "matrix variables")]
+#[test_case("resolved-variables"; "resolved variables")]
+#[test_case("variable-overrides"; "variable overrides")]
+// Template and check all valid test plans except for the sanity check (which requires a provides variable)
 // and the github and graphos test plans which are tested in their respective modules
 #[test]
 fn check_completes_basic(test_plan_dir: &str) {
@@ -34,9 +34,9 @@ fn check_completes_basic(test_plan_dir: &str) {
 }
 
 #[test]
-fn check_completes_with_cli_values() {
-    // The sanity-check test plan defines values in the setup.provides
-    // The only way to template successfully is to set this value from the cli
+fn check_completes_with_cli_variables() {
+    // The sanity-check test plan defines variables in the setup.provides
+    // The only way to template successfully is to set this variable from the cli
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
@@ -100,18 +100,18 @@ fn load_and_resolve_fails(file: &str, err_contains: &str) {
 
 #[test_case(
     "conflicting-keys.yaml",
-    "(test_plan) Conflicting value and matrix definitions\nfoo";
+    "(test_plan) Conflicting variable and matrix definitions\nfoo";
     "conflicting keys"
 )]
 #[test_case(
     "empty-matrix.yaml",
-    "(test_plan) Empty array for matrix value\nfoo";
+    "(test_plan) Empty array for matrix variable\nfoo";
     "empty matrix"
 )]
 #[test_case(
-    "inconsistent-matrix-values.yaml",
-    "(test_plan) Inconsistent types for matrix value\nfoo";
-    "inconsistent matrix values"
+    "inconsistent-matrix-variables.yaml",
+    "(test_plan) Inconsistent types for matrix variable\nfoo";
+    "inconsistent matrix variables"
 )]
 #[test_case(
     "inconsistent-matrix-include.yaml",
@@ -119,23 +119,23 @@ fn load_and_resolve_fails(file: &str, err_contains: &str) {
     "inconsistent matrix include"
 )]
 #[test_case(
-    "missing-values.yaml",
+    "missing-variables.yaml",
     indoc!(r#"
-    (environment.setup) Missing template values definitions. Make sure the value is defined in the scenario or environment config values
+    (environment.setup) Missing template variables definitions. Make sure the variable is defined in the scenario or environment config variable definitions
       - bar: ""
     
-    (environment.teardown) Missing template values definitions. Make sure the value is defined in the scenario or environment config values
+    (environment.teardown) Missing template variables definitions. Make sure the variable is defined in the scenario or environment config variable definitions
       - baz: ""
     
-    (scenario) Missing template values definitions. Make sure the value is defined in the scenario or environment config values
+    (scenario) Missing template variables definitions. Make sure the variable is defined in the scenario or environment config variable definitions
       - foo: ""
     "#);
-    "missing values"
+    "missing variables"
 )]
 #[test_case(
-    "unknown-values.yaml",
-    "(environment.teardown.env_vars.FOO) Unknown templating value. Make sure a value is defined for this value to resolve to.\nfoo";
-    "unknown values"
+    "unknown-variables.yaml",
+    "(environment.teardown.env_vars.FOO) Unknown templating variable. Make sure a variable is defined for this variable to resolve to.\nfoo";
+    "unknown variables"
 )]
 #[test]
 fn templating_fails(file: &str, err_contains: &str) {
@@ -178,9 +178,9 @@ fn duplicate_variant_names_fails() {
     "required file"
 )]
 #[test_case(
-    "duplicate-value-names.yaml",
-    "(scenario.values) Non-unique value names found\nfoo";
-    "duplicate value names"
+    "duplicate-variable-names.yaml",
+    "(scenario.variables) Non-unique variable names found\nfoo";
+    "duplicate variable names"
 )]
 #[test_case(
     "duplicate-env-vars.yaml",

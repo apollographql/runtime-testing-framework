@@ -1,5 +1,5 @@
 use crate::{
-    ValueDefinition,
+    VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates},
     context::ResolutionContext,
     formats::{EnvironmentConfig, Error, Matrix, Result, ScenarioConfig},
@@ -8,7 +8,7 @@ use crate::{
         command::CommandSection,
         file::{RawSource, Source},
     },
-    templating::{self, Scalar, Template, TemplateValues},
+    templating::{self, Scalar, Template, TemplateVariables},
 };
 use rtf_core::github::{self, Client};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
@@ -24,8 +24,9 @@ use tracing::error;
 pub struct TestPlanConfig {
     pub name: String,
     pub description: String,
-    #[serde(default)]
-    pub values: HashMap<String, Scalar>,
+    #[serde(default, alias = "values")]
+    // This alias is for backwards compatibility with the original name
+    pub variables: HashMap<String, Scalar>,
     #[serde(default)]
     pub matrix: Matrix,
     pub scenario: ScenarioConfig,
@@ -70,59 +71,60 @@ impl TestPlanConfig {
     }
 
     /// Iteratate over all variants of this test plan that arise from [expanding](Matrix::try_expand)
-    /// any matrix values that it contains.
+    /// any matrix variables that it contains.
     ///
-    /// This will always return at least the base test plan itself if there are no matrix values
+    /// This will always return at least the base test plan itself if there are no matrix variables
     /// defined.
     pub fn try_iter_matrix_variants(&self) -> Result<impl Iterator<Item = (String, Self)>> {
-        let expanded = self.matrix.try_expand(&self.values)?;
+        let expanded = self.matrix.try_expand(&self.variables)?;
 
-        Ok(expanded.into_iter().map(|(name, values)| {
+        Ok(expanded.into_iter().map(|(name, variables)| {
             let mut new = self.clone();
-            new.values = values;
+            new.variables = variables;
             new.matrix.clear();
 
             (name, new)
         }))
     }
 
-    /// The set of allowed templating values that this test plan supports.
+    /// The set of allowed templating variables that this test plan supports.
     ///
-    /// This is the union of values defined as a scalars and those that are part of a matrix
-    fn allowed_values(&self) -> HashSet<&String> {
-        self.values.keys().chain(self.matrix.keys()).collect()
+    /// This is the union of variables defined as a scalars and those that are part of a matrix
+    fn allowed_variables(&self) -> HashSet<&String> {
+        self.variables.keys().chain(self.matrix.keys()).collect()
     }
 
     pub fn check_templating_will_work(&mut self) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
-        self.matrix.check_conflicting_keys(&self.values, &mut errs);
+        self.matrix
+            .check_conflicting_keys(&self.variables, &mut errs);
         self.matrix.check_dimensions(&mut errs);
-        self.check_required_values(&mut errs);
+        self.check_required_variables(&mut errs);
 
         errs.into_result(())
     }
 
-    /// Check that all required values have been defined somewhere within the test plan
-    fn check_required_values(&self, errs: &mut templating::ErrorBuilder) {
-        let mut check_missing_values =
+    /// Check that all required variables have been defined somewhere within the test plan
+    fn check_required_variables(&self, errs: &mut templating::ErrorBuilder) {
+        let mut check_missing_variables =
             |section: &CommandSection,
              allowed: &HashSet<&String>,
-             value_defs: &[ValueDefinition],
+             variable_defs: &[VariableDefinition],
              error_path: &[String]| {
-                let mut missing_values: Vec<String> = section
-                    .required_values()
+                let mut missing_variables: Vec<String> = section
+                    .required_variables()
                     .iter()
                     .filter(|s| {
                         !(allowed.contains(*s)
-                            || value_defs
+                            || variable_defs
                                 .iter()
                                 .any(|vd| &vd.name == *s && vd.default.is_some()))
                     })
                     .map(|val| {
                         format!(
                             "  - {val}: {:?}",
-                            value_defs
+                            variable_defs
                                 .iter()
                                 .find(|vd| &vd.name == val)
                                 .map(|vd| vd.description.as_str())
@@ -131,66 +133,69 @@ impl TestPlanConfig {
                     })
                     .collect();
 
-                if !missing_values.is_empty() {
-                    missing_values.sort_unstable(); // ensure consistent ordering
+                if !missing_variables.is_empty() {
+                    missing_variables.sort_unstable(); // ensure consistent ordering
                     errs.push(
-                        templating::ErrorKind::MissingValues,
-                        missing_values.join("\n"),
+                        templating::ErrorKind::MissingVariables,
+                        missing_variables.join("\n"),
                         error_path,
                     )
                 }
             };
 
-        let mut allowed_values = self.allowed_values();
+        let mut allowed_variables = self.allowed_variables();
 
-        check_missing_values(
+        check_missing_variables(
             &self.environment.setup.command,
-            &allowed_values,
-            &self.environment.values,
+            &allowed_variables,
+            &self.environment.variable_definitions,
             &["environment".to_string(), "setup".to_string()],
         );
 
-        // The scenario and teardown are permitted to use values coming from setup.provides in
-        // addition to the values declared in the test plan itself
-        allowed_values.extend(self.environment.setup.provides.iter().map(|val| &val.name));
+        // The scenario and teardown are permitted to use variables coming from setup.provides in
+        // addition to the variables declared in the test plan itself
+        allowed_variables.extend(self.environment.setup.provides.iter().map(|val| &val.name));
 
-        check_missing_values(
+        check_missing_variables(
             &self.environment.teardown,
-            &allowed_values,
-            &self.environment.values,
+            &allowed_variables,
+            &self.environment.variable_definitions,
             &["environment".to_string(), "teardown".to_string()],
         );
 
-        check_missing_values(
+        check_missing_variables(
             &self.scenario.command,
-            &allowed_values,
-            &self.scenario.values,
+            &allowed_variables,
+            &self.scenario.variable_definitions,
             &["scenario".to_string()],
         );
     }
 
     pub fn try_template_environment_setup(
         &mut self,
-        values: &TemplateValues,
+        variables: &TemplateVariables,
     ) -> templating::Result<()> {
         let mut path = vec!["environment".to_string()];
         self.environment
-            .try_template_setup(&mut path, self.sources.environment(), values)
+            .try_template_setup(&mut path, self.sources.environment(), variables)
     }
 
     pub fn try_template_environment_teardown(
         &mut self,
-        values: &TemplateValues,
+        variables: &TemplateVariables,
     ) -> templating::Result<()> {
         let mut path = vec!["environment".to_string()];
         self.environment
-            .try_template_teardown(&mut path, self.sources.environment(), values)
+            .try_template_teardown(&mut path, self.sources.environment(), variables)
     }
 
-    pub fn try_template_scenario(&mut self, values: &TemplateValues) -> templating::Result<()> {
+    pub fn try_template_scenario(
+        &mut self,
+        variables: &TemplateVariables,
+    ) -> templating::Result<()> {
         let mut path = vec!["scenario".to_string()];
         self.scenario
-            .try_template(&mut path, self.sources.scenario(), values)
+            .try_template(&mut path, self.sources.scenario(), variables)
     }
 
     pub async fn run_environment_setup(
@@ -256,7 +261,7 @@ impl TestPlanConfig {
         TestPlanConfig {
             name: Default::default(),
             description: Default::default(),
-            values: Default::default(),
+            variables: Default::default(),
             matrix: Default::default(),
             scenario: ScenarioConfig::empty(),
             environment: EnvironmentConfig::empty(),
@@ -276,9 +281,9 @@ impl Template for TestPlanConfig {
         self.environment.has_pending_fields() || self.scenario.has_pending_fields()
     }
 
-    fn required_values(&self) -> Vec<String> {
-        let mut vals = self.environment.required_values();
-        vals.extend(self.scenario.required_values());
+    fn required_variables(&self) -> Vec<String> {
+        let mut vals = self.environment.required_variables();
+        vals.extend(self.scenario.required_variables());
 
         vals
     }
@@ -287,19 +292,19 @@ impl Template for TestPlanConfig {
         &mut self,
         path: &mut Vec<String>,
         _source: &Source,
-        values: &TemplateValues,
+        variables: &TemplateVariables,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::from(self.environment.try_template_nested(
             path,
             "environment",
             self.sources.environment(),
-            values,
+            variables,
         ));
         errs.append(self.scenario.try_template_nested(
             path,
             "scenario",
             self.sources.scenario(),
-            values,
+            variables,
         ));
 
         errs.into_result(())
@@ -378,10 +383,10 @@ pub struct RawTestPlanConfig {
     pub name: String,
     /// A brief description of the purpose / behaviour of this test plan
     pub description: String,
-    /// Templating values to apply to fields within the rest of the test plan
-    #[serde(default)]
-    pub values: HashMap<String, Scalar>,
-    /// Sets of templating values to apply to fields within the rest of the test plan as a matrix
+    /// Templating variables to apply to fields within the rest of the test plan
+    #[serde(default, alias = "values")]
+    pub variables: HashMap<String, Scalar>,
+    /// Sets of templating variables to apply to fields within the rest of the test plan as a matrix
     #[serde(default)]
     pub matrix: RawMatrix,
     /// The test scenario to execute
@@ -423,7 +428,7 @@ impl RawTestPlanConfig {
         Ok(TestPlanConfig {
             name: self.name,
             description: self.description,
-            values: self.values,
+            variables: self.variables,
             matrix: self.matrix.into(),
             scenario,
             environment,
@@ -590,8 +595,8 @@ mod tests {
             scenario::test_helpers::{scenario_with_fields, templatable_scenario},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details,
-                named_file_provider_with_field, p, r, templatable_file_providers, template_values,
-                value_definitions,
+                named_file_provider_with_field, p, r, templatable_file_providers,
+                template_variables, variable_definitions,
             },
         },
         providers::{
@@ -612,17 +617,17 @@ mod tests {
 
     // Helper functions
 
-    /// Create a ValueDefinition with a default value
-    fn value_with_default(name: &str, val: &str) -> ValueDefinition {
-        ValueDefinition {
+    /// Create a VariableDefinition with a default variable
+    fn variable_with_default(name: &str, val: &str) -> VariableDefinition {
+        VariableDefinition {
             name: name.into(),
             description: String::default(),
             default: Some(val.into()),
         }
     }
 
-    /// Create a HashMap of values from key-value pairs using try_from
-    macro_rules! values_map {
+    /// Create a HashMap of variables from key-value pairs using try_from
+    macro_rules! variables_map {
         ($($k:expr => $v:expr),+) => {{
             let mut m = ::std::collections::HashMap::new();
             $( m.insert($k.to_string(), $crate::templating::Scalar::try_from($v).unwrap()); )+
@@ -630,7 +635,7 @@ mod tests {
         }};
     }
 
-    /// Create a TestPlanConfig for testing Template trait methods (has_pending_fields, required_values)
+    /// Create a TestPlanConfig for testing Template trait methods (has_pending_fields, required_variables)
     fn test_plan_with_fields(
         scenario_fields: &[Field<String>],
         environment_fields: &[Field<String>],
@@ -644,30 +649,30 @@ mod tests {
 
     /// Create a TestPlanConfig for template tests
     fn templatable_test_plan(
-        values: HashMap<String, Scalar>,
+        variables: HashMap<String, Scalar>,
         dimensions: HashMap<String, Vec<Scalar>>,
         include: Vec<HashMap<String, Scalar>>,
         scenario_fields: &[&str],
         setup_fields: &[&str],
         teardown_fields: &[&str],
     ) -> TestPlanConfig {
-        let mut env_values = setup_fields.to_vec();
-        env_values.extend_from_slice(teardown_fields);
+        let mut env_variables = setup_fields.to_vec();
+        env_variables.extend_from_slice(teardown_fields);
 
         TestPlanConfig {
-            values,
+            variables,
             matrix: Matrix {
                 variant_names: None,
                 dimensions,
                 include,
             },
             scenario: templatable_scenario(scenario_fields, scenario_fields),
-            environment: templatable_environment(&env_values, setup_fields, teardown_fields),
+            environment: templatable_environment(&env_variables, setup_fields, teardown_fields),
             ..TestPlanConfig::empty()
         }
     }
 
-    /// Create a matrix with two values per key provided
+    /// Create a matrix with two variables per key provided
     fn dimensions_from_keys(keys: &[&str], no_entries: isize) -> HashMap<String, Vec<Scalar>> {
         keys.iter()
             .map(|&key| {
@@ -691,14 +696,14 @@ mod tests {
         r#"
             name: inline-test-plan
             description: test plan with inline scenario and environment
-            values:
+            variables:
               foo: "foo"
               bar: "bar"
             scenario:
               inline: 
                 name: inline-scenario
                 description: an inline scenario
-                values:
+                variable_definitions:
                   - name: foo
                     description: a value foo
                 command: 
@@ -713,7 +718,7 @@ mod tests {
               inline:
                 name: inline-environment
                 description: an inline environment
-                values:
+                variable_definitions:
                   - name: bar
                     description: a value bar
                 setup:
@@ -771,7 +776,7 @@ mod tests {
             "test that sources are set correctly"
         );
 
-        let res = test_plan.required_values();
+        let res = test_plan.required_variables();
         assert_eq!(
             res,
             &["bar", "baz", "foo"],
@@ -783,7 +788,7 @@ mod tests {
         r#"
             name: from-files-test-plan
             description: test plan with scenario and environment from files
-            values:
+            variables:
               foo: "foo"
               bar: "bar"
             scenario:
@@ -801,7 +806,7 @@ mod tests {
         r#"
             name: from-files-test-plan
             description: test plan with scenario and environment from files
-            values:
+            variables:
               foo: "foo"
               bar: "bar"
             scenario:
@@ -865,16 +870,19 @@ mod tests {
             "test that sources are set correctly"
         );
 
-        let res = test_plan.required_values();
-        let expected_values: &[&str] = &[];
-        assert_eq!(res, expected_values, "check that test plan returns fields")
+        let res = test_plan.required_variables();
+        let expected_variables: &[&str] = &[];
+        assert_eq!(
+            res, expected_variables,
+            "check that test plan returns fields"
+        )
     }
 
     const OVERRIDES_TEST_PLAN: &str = indoc!(
         r#"
             name: from-files-test-plan
             description: test plan with scenario and environment from files
-            values:
+            variables:
               foo: "foo"
               bar: "bar"
             scenario:
@@ -965,9 +973,12 @@ mod tests {
             "test the environment setup files come from overrides"
         );
 
-        let res = test_plan.required_values();
-        let expected_values: &[&str] = &[];
-        assert_eq!(res, expected_values, "check that test plan returns fields")
+        let res = test_plan.required_variables();
+        let expected_variables: &[&str] = &[];
+        assert_eq!(
+            res, expected_variables,
+            "check that test plan returns fields"
+        )
     }
 
     // Tests for the Template trait implementations and field resolution
@@ -986,7 +997,7 @@ mod tests {
         let res = test_plan.has_pending_fields();
         assert_eq!(
             res, expected,
-            "tests that has_pending_values has expected value"
+            "tests that has_pending_variables has expected value"
         )
     }
 
@@ -995,17 +1006,17 @@ mod tests {
     #[test_case(r("scenario"), p("environment"), &["environment"]; "environment field required")]
     #[test_case(r("scenario"), r("environment"), &[]; "no fields required")]
     #[test]
-    fn required_values(
+    fn required_variables(
         scenario_field: Field<String>,
         environment_field: Field<String>,
         expected: &[&str],
     ) {
         let test_plan = test_plan_with_fields(&[scenario_field], &[environment_field]);
 
-        let res = test_plan.required_values();
+        let res = test_plan.required_variables();
         assert_eq!(
             res, expected,
-            "tests that required_values has expected value"
+            "tests that required_variables has expected value"
         )
     }
 
@@ -1017,13 +1028,13 @@ mod tests {
     #[test_case(&[], &["setup"], &[]; "setup has fields")]
     #[test_case(&[], &[], &["teardown"]; "teardown has fields")]
     #[test_case(&[], &[], &[]; "no fields")]
-    #[test_case(&["foo", "bar", "baz"], &[], &[]; "scenario multi value and no environment")]
-    #[test_case(&[], &["foo", "bar"], &[]; "setup multi value and no teardown")]
-    #[test_case(&[], &[], &["foo", "bar"]; "teardown multi value and no setup")]
-    #[test_case(&["s1", "s2"], &["setup1", "setup2"], &[]; "scenario and setup multi value")]
-    #[test_case(&["s1", "s2"], &[], &["teardown1", "teardown2"]; "scenario and teardown multi value")]
-    #[test_case(&[], &["setup1", "setup2"], &["teardown1", "teardown2"]; "setup and teardown multi value")]
-    #[test_case(&["s1", "s2"], &["setup1", "setup2"], &["teardown1", "teardown2"]; "all sections multi value")]
+    #[test_case(&["foo", "bar", "baz"], &[], &[]; "scenario multi variable and no environment")]
+    #[test_case(&[], &["foo", "bar"], &[]; "setup multi variable and no teardown")]
+    #[test_case(&[], &[], &["foo", "bar"]; "teardown multi variable and no setup")]
+    #[test_case(&["s1", "s2"], &["setup1", "setup2"], &[]; "scenario and setup multi variable")]
+    #[test_case(&["s1", "s2"], &[], &["teardown1", "teardown2"]; "scenario and teardown multi variable")]
+    #[test_case(&[], &["setup1", "setup2"], &["teardown1", "teardown2"]; "setup and teardown multi variable")]
+    #[test_case(&["s1", "s2"], &["setup1", "setup2"], &["teardown1", "teardown2"]; "all sections multi variable")]
     #[test]
     fn try_template_succeeds(
         scenario_fields: &[&str],
@@ -1037,7 +1048,7 @@ mod tests {
 
         let mut test_plan = TestPlanConfig {
             scenario: ScenarioConfig {
-                values: value_definitions(scenario_fields),
+                variable_definitions: variable_definitions(scenario_fields),
                 command: CommandSection {
                     file_providers: templatable_file_providers(scenario_fields),
                     ..CommandSection::empty()
@@ -1045,7 +1056,7 @@ mod tests {
                 ..ScenarioConfig::empty()
             },
             environment: EnvironmentConfig {
-                values: value_definitions(env_fields.as_slice()),
+                variable_definitions: variable_definitions(env_fields.as_slice()),
                 teardown: CommandSection {
                     file_providers: templatable_file_providers(env_fields.as_slice()),
                     ..CommandSection::empty()
@@ -1057,7 +1068,7 @@ mod tests {
         let result = test_plan.try_template(
             &mut Vec::new(),
             &Source::local("/"),
-            &template_values(all_fields.as_slice()),
+            &template_variables(all_fields.as_slice()),
         );
 
         assert!(
@@ -1069,14 +1080,14 @@ mod tests {
 
     /// Helper for creating a test plan for Template tests
     fn template_test_plan(
-        scenario_value_defs: &[&str],
+        scenario_variable_defs: &[&str],
         scenario_fields: &[&str],
-        env_value_defs: &[&str],
+        env_variable_defs: &[&str],
         env_fields: &[&str],
     ) -> TestPlanConfig {
         TestPlanConfig {
             scenario: ScenarioConfig {
-                values: value_definitions(scenario_value_defs),
+                variable_definitions: variable_definitions(scenario_variable_defs),
                 command: CommandSection {
                     file_providers: templatable_file_providers(scenario_fields),
                     ..CommandSection::empty()
@@ -1084,7 +1095,7 @@ mod tests {
                 ..ScenarioConfig::empty()
             },
             environment: EnvironmentConfig {
-                values: value_definitions(env_value_defs),
+                variable_definitions: variable_definitions(env_variable_defs),
                 teardown: CommandSection {
                     file_providers: templatable_file_providers(env_fields),
                     ..CommandSection::empty()
@@ -1098,7 +1109,7 @@ mod tests {
     /// Helper function for asserting template errors are as expected
     fn assert_test_plan_template_errors(
         test_plan: &mut TestPlanConfig,
-        values: TemplateValues,
+        variables: TemplateVariables,
         expected_scenario_err_fields: &[&str],
         expected_env_err_fields: &[&str],
     ) {
@@ -1111,54 +1122,64 @@ mod tests {
         expected_err_messages.sort();
         expected_err_paths.sort();
 
-        assert_template_errors(test_plan, values, expected_err_messages, expected_err_paths);
+        assert_template_errors(
+            test_plan,
+            variables,
+            expected_err_messages,
+            expected_err_paths,
+        );
     }
 
     #[test_case(&["missing"], &["scenario"], &["scenario"]; "single field defined and missing definition")]
     #[test_case(&["missing1", "missing2"], &["scenario1", "scenario2"], &["scenario1", "scenario2"]; "multiple fields defined and both missing definition")]
     #[test_case(&["scenario1", "missing2"], &["scenario1", "scenario2"], &["scenario2"]; "multiple fields defined and one missing definition")]
-    #[test_case(&["not_provided"], &["not_provided"], &["not_provided"]; "single field defined with definition but value not provided")]
-    #[test_case(&["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"]; "multiple fields defined with definition but values not provided")]
+    #[test_case(&["not_provided"], &["not_provided"], &["not_provided"]; "single field defined with definition but variable not provided")]
+    #[test_case(&["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"]; "multiple fields defined with definition but variables not provided")]
     #[test]
-    fn try_template_scenario_missing_value_definitions(
-        value_defs: &[&str],
+    fn try_template_scenario_missing_variable_definitions(
+        variable_defs: &[&str],
         fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let values = template_values(&["scenario", "scenario1", "scenario2"]);
-        let mut test_plan = template_test_plan(value_defs, fields, &[], &[]);
+        let variables = template_variables(&["scenario", "scenario1", "scenario2"]);
+        let mut test_plan = template_test_plan(variable_defs, fields, &[], &[]);
 
-        assert_test_plan_template_errors(&mut test_plan, values, expected_err_fields, &[]);
+        assert_test_plan_template_errors(&mut test_plan, variables, expected_err_fields, &[]);
     }
 
     #[test_case(&["missing"], &["environment"], &["environment"]; "single field defined and missing definition")]
     #[test_case(&["missing1", "missing2"], &["environment1", "environment2"], &["environment1", "environment2"]; "multiple fields defined and both missing definition")]
     #[test_case(&["environment1", "missing2"], &["environment1", "environment2"], &["environment2"]; "multiple fields defined and one missing definition")]
-    #[test_case(&["not_provided"], &["not_provided"], &["not_provided"]; "single field defined with definition but value not provided")]
-    #[test_case(&["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"]; "multiple fields defined with definition but values not provided")]
+    #[test_case(&["not_provided"], &["not_provided"], &["not_provided"]; "single field defined with definition but variable not provided")]
+    #[test_case(&["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"]; "multiple fields defined with definition but variables not provided")]
     #[test]
-    fn try_template_environment_missing_value_definitions(
-        value_defs: &[&str],
+    fn try_template_environment_missing_variable_definitions(
+        variable_defs: &[&str],
         fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let values = template_values(&["environment", "environment1", "environment2"]);
-        let mut test_plan = template_test_plan(&[], &[], value_defs, fields);
+        let variables = template_variables(&["environment", "environment1", "environment2"]);
+        let mut test_plan = template_test_plan(&[], &[], variable_defs, fields);
 
-        assert_test_plan_template_errors(&mut test_plan, values, &[], expected_err_fields);
+        assert_test_plan_template_errors(&mut test_plan, variables, &[], expected_err_fields);
     }
 
     #[test]
-    fn try_template_missing_scenario_and_environment_value_definitions() {
-        let values = template_values(&["scenario", "environment"]);
+    fn try_template_missing_scenario_and_environment_variable_definitions() {
+        let variables = template_variables(&["scenario", "environment"]);
         let mut test_plan = template_test_plan(&[], &["scenario"], &[], &["environment"]);
 
-        assert_test_plan_template_errors(&mut test_plan, values, &["scenario"], &["environment"]);
+        assert_test_plan_template_errors(
+            &mut test_plan,
+            variables,
+            &["scenario"],
+            &["environment"],
+        );
     }
 
     #[test]
-    fn try_template_missing_scenario_and_environment_values_not_provided() {
-        let values = template_values(&[]);
+    fn try_template_missing_scenario_and_environment_variables_not_provided() {
+        let variables = template_variables(&[]);
         let mut test_plan = template_test_plan(
             &["scenario"],
             &["scenario"],
@@ -1166,7 +1187,12 @@ mod tests {
             &["environment"],
         );
 
-        assert_test_plan_template_errors(&mut test_plan, values, &["scenario"], &["environment"]);
+        assert_test_plan_template_errors(
+            &mut test_plan,
+            variables,
+            &["scenario"],
+            &["environment"],
+        );
     }
 
     // Tests for matrix expansion, variants, and matrix-related functionality
@@ -1185,26 +1211,26 @@ mod tests {
         &[],
         &[],
         &[
-            values_map!("foo" => "foo", "bar" => "bar")
+            variables_map!("foo" => "foo", "bar" => "bar")
         ];
-        "just values"
+        "just variables"
     )]
     #[test_case(
         &[],
         &[("key", vec!["a", "b", "c"])],
         &[],
         &[
-            values_map!("key" => "a"),
-            values_map!("key" => "b"), 
-            values_map!("key" => "c")
+            variables_map!("key" => "a"),
+            variables_map!("key" => "b"), 
+            variables_map!("key" => "c")
         ];
         "just matrix dimensions"
     )]
     #[test_case(
         &[],
         &[],
-        &[values_map!("foo" => "foo", "bar" => "bar")],
-        &[values_map!("foo" => "foo", "bar" => "bar")];
+        &[variables_map!("foo" => "foo", "bar" => "bar")],
+        &[variables_map!("foo" => "foo", "bar" => "bar")];
         "just include"
     )]
     #[test_case(
@@ -1212,69 +1238,69 @@ mod tests {
         &[("key", vec!["a", "b", "c"])],
         &[],
         &[
-            values_map!("foo" => "foo", "key" => "a"),
-            values_map!("foo" => "foo", "key" => "b"), 
-            values_map!("foo" => "foo", "key" => "c")
+            variables_map!("foo" => "foo", "key" => "a"),
+            variables_map!("foo" => "foo", "key" => "b"), 
+            variables_map!("foo" => "foo", "key" => "c")
         ];
-        "single key matrix with multiple entries and one value"
+        "single key matrix with multiple entries and one variable"
     )]
     #[test_case(
         &[],
         &[("key1", vec!["a", "b", "c"]), ("key2", vec!["1", "2"])],
         &[],
         &[
-            values_map!("key1" => "a", "key2" => "1"),
-            values_map!("key1" => "a", "key2" => "2"),
-            values_map!("key1" => "b", "key2" => "1"),
-            values_map!("key1" => "b", "key2" => "2"),
-            values_map!("key1" => "c", "key2" => "1"),
-            values_map!("key1" => "c", "key2" => "2")
+            variables_map!("key1" => "a", "key2" => "1"),
+            variables_map!("key1" => "a", "key2" => "2"),
+            variables_map!("key1" => "b", "key2" => "1"),
+            variables_map!("key1" => "b", "key2" => "2"),
+            variables_map!("key1" => "c", "key2" => "1"),
+            variables_map!("key1" => "c", "key2" => "2")
         ];
-        "multiple keys with multiple entries and no values"
+        "multiple keys with multiple entries and no variables"
     )]
     #[test_case(
         &["foo"],
         &[],
-        &[values_map!("bar" => "bar")],
-        &[values_map!("foo" => "foo", "bar" => "bar")];
-        "single include and one value"
+        &[variables_map!("bar" => "bar")],
+        &[variables_map!("foo" => "foo", "bar" => "bar")];
+        "single include and one variable"
     )]
     #[test_case(
         &[],
         &[("key1", vec!["a", "b", "c"])],
-        &[values_map!("bar" => "bar")],
+        &[variables_map!("bar" => "bar")],
         &[
-            values_map!("bar" => "bar", "key1" => "a"),
-            values_map!("bar" => "bar", "key1" => "b"),
-            values_map!("bar" => "bar", "key1" => "c"),
+            variables_map!("bar" => "bar", "key1" => "a"),
+            variables_map!("bar" => "bar", "key1" => "b"),
+            variables_map!("bar" => "bar", "key1" => "c"),
         ];
         "single include and single key matrix with multiple entries"
     )]
     #[test_case(
         &["foo"],
         &[("key1", vec!["a", "b", "c"])],
-        &[values_map!("bar" => "bar")],
+        &[variables_map!("bar" => "bar")],
         &[
-            values_map!("foo" => "foo", "bar" => "bar", "key1" => "a"),
-            values_map!("foo" => "foo", "bar" => "bar", "key1" => "b"),
-            values_map!("foo" => "foo", "bar" => "bar", "key1" => "c"),
+            variables_map!("foo" => "foo", "bar" => "bar", "key1" => "a"),
+            variables_map!("foo" => "foo", "bar" => "bar", "key1" => "b"),
+            variables_map!("foo" => "foo", "bar" => "bar", "key1" => "c"),
         ];
-        "single include single key matrix with multiple entries and one value"
+        "single include single key matrix with multiple entries and one variable"
     )]
     #[test]
     fn matrix_expansion(
-        values: &[&str],
+        variables: &[&str],
         dimensions: &[(&str, Vec<&str>)],
         include: &[HashMap<String, Scalar>],
-        expected_values_maps: &[HashMap<String, Scalar>],
+        expected_variables_maps: &[HashMap<String, Scalar>],
     ) {
-        let values = template_values(values);
+        let variables = template_variables(variables);
         let dimensions: HashMap<String, Vec<Scalar>> = dimensions
             .iter()
             .map(|(k, v)| (k.to_string(), v.iter().map(|s| Scalar::from(*s)).collect()))
             .collect();
         let test_plan = TestPlanConfig {
-            values: values.inner().clone(),
+            variables: variables.inner().clone(),
             matrix: Matrix {
                 variant_names: None,
                 dimensions,
@@ -1286,7 +1312,7 @@ mod tests {
         let variants: Vec<_> = test_plan.try_iter_matrix_variants().unwrap().collect();
         assert_eq!(
             variants.len(),
-            expected_values_maps.len(),
+            expected_variables_maps.len(),
             "test the variants from iter_matrix_variants has the xepcted combination count"
         );
         assert!(
@@ -1297,48 +1323,48 @@ mod tests {
         let n_variants = test_plan.matrix.n_variants();
         assert_eq!(
             n_variants,
-            expected_values_maps.len(),
+            expected_variables_maps.len(),
             "test that the number of variants generated using iter_matrix_variants matches n_matrix_variants"
         );
 
-        // Get the expanded matrix values to make sure this outputs the same values as iter_matrix_variants
-        let expanded_matrix_values = test_plan
+        // Get the expanded matrix variables to make sure this outputs the same variables as iter_matrix_variants
+        let expanded_matrix_variables = test_plan
             .matrix
-            .try_expand(&test_plan.values)
+            .try_expand(&test_plan.variables)
             .expect("expansion to succeed");
 
         // Check each variant has the expected combinations in the order expected
         for (i, (_, variant)) in variants.iter().enumerate() {
-            let expected_values = expected_values_maps[i].clone();
-            let expanded_values = expanded_matrix_values[i].1.clone();
+            let expected_variables = expected_variables_maps[i].clone();
+            let expanded_variables = expanded_matrix_variables[i].1.clone();
 
             assert_eq!(
-                variant.values, expected_values,
+                variant.variables, expected_variables,
                 "test the combination matches the expected one"
             );
             assert_eq!(
-                variant.values, expanded_values,
+                variant.variables, expanded_variables,
                 "test the combination from iter_matrix_variants matches the combination in expanded_matrix_variants"
             );
         }
     }
 
     // Tests for try_templating_will_work and its dependent functions
-    #[test_case(&["scenario", "setup", "teardown"], &[], &[]; "all in values")]
+    #[test_case(&["scenario", "setup", "teardown"], &[], &[]; "all in variables")]
     #[test_case(&[], &["scenario", "setup", "teardown"], &[]; "all in dimensions")]
     #[test_case(&[], &[], &["scenario", "setup", "teardown"]; "all in include")]
     #[test_case(&["scenario"], &["setup"], &["teardown"]; "one in each")]
     #[test]
     fn check_templating_will_work_success(
-        value_keys: &[&str],
+        variable_keys: &[&str],
         dimension_keys: &[&str],
         include_keys: &[&str],
     ) {
-        let values = template_values(value_keys);
+        let variables = template_variables(variable_keys);
         let matrix = dimensions_from_keys(dimension_keys, 1);
-        let include = vec![template_values(include_keys).inner().clone()];
+        let include = vec![template_variables(include_keys).inner().clone()];
         let mut test_plan = templatable_test_plan(
-            values.inner().clone(),
+            variables.inner().clone(),
             matrix,
             include,
             &["scenario"],
@@ -1354,10 +1380,10 @@ mod tests {
         );
     }
 
-    #[test_case(&["foo"], &[], "foo"; "single conflicting key dimensions and values")]
-    #[test_case(&["foo", "bar", "baz"], &[], "bar, baz, foo"; "multiple conflicting keys dimensions and values")]
-    #[test_case(&[], &["foo"], "foo"; "single conflicting key include and values")]
-    #[test_case(&[], &["foo", "bar", "baz"], "bar, baz, foo"; "multiple conflicting keys include and values")]
+    #[test_case(&["foo"], &[], "foo"; "single conflicting key dimensions and variables")]
+    #[test_case(&["foo", "bar", "baz"], &[], "bar, baz, foo"; "multiple conflicting keys dimensions and variables")]
+    #[test_case(&[], &["foo"], "foo"; "single conflicting key include and variables")]
+    #[test_case(&[], &["foo", "bar", "baz"], "bar, baz, foo"; "multiple conflicting keys include and variables")]
     #[test_case(&["a"], &["a"], "a"; "single conflicting key dimensions and include")]
     #[test_case(&["a", "b", "c"], &["a", "b", "c"], "a, b, c"; "multiple conflicting keys dimensions and include")]
     #[test]
@@ -1366,12 +1392,12 @@ mod tests {
         include_keys: &[&str],
         expected_err_message: &str,
     ) {
-        let values = template_values(&["foo", "bar", "baz"]).inner().clone();
+        let variables = template_variables(&["foo", "bar", "baz"]).inner().clone();
         let dimensions = dimensions_from_keys(dimension_keys, 2);
-        let include = vec![template_values(include_keys).inner().clone()];
-        let mut test_plan = templatable_test_plan(values, dimensions, include, &[], &[], &[]);
+        let include = vec![template_variables(include_keys).inner().clone()];
+        let mut test_plan = templatable_test_plan(variables, dimensions, include, &[], &[], &[]);
 
-        let expected_err_kind = ErrorKind::ConflictingValues;
+        let expected_err_kind = ErrorKind::ConflictingVariables;
 
         let res = test_plan.check_templating_will_work();
         assert!(
@@ -1398,12 +1424,12 @@ mod tests {
         dimension_keys: &[&str],
         expected_err_messages: &[&str],
     ) {
-        let values = template_values(&[]).inner().clone();
+        let variables = template_variables(&[]).inner().clone();
         let dimensions = dimensions_from_keys(dimension_keys, 0);
         let include = Vec::new();
-        let mut test_plan = templatable_test_plan(values, dimensions, include, &[], &[], &[]);
+        let mut test_plan = templatable_test_plan(variables, dimensions, include, &[], &[], &[]);
 
-        let expected_err_kind = ErrorKind::EmptyMatrixValue;
+        let expected_err_kind = ErrorKind::EmptyMatrixVariable;
 
         let res = test_plan.check_templating_will_work();
         assert!(
@@ -1421,7 +1447,7 @@ mod tests {
         assert!(
             errors
                 .iter()
-                .all(|e| matches!(e.kind, ErrorKind::EmptyMatrixValue)),
+                .all(|e| matches!(e.kind, ErrorKind::EmptyMatrixVariable)),
             "expected all errors to be {:?}, got {:?}",
             expected_err_kind,
             errors
@@ -1435,13 +1461,13 @@ mod tests {
     }
 
     #[test]
-    fn check_templating_will_work_inconsistent_dimension_value_errors() {
-        let values = HashMap::new();
+    fn check_templating_will_work_inconsistent_dimension_variable_errors() {
+        let variables = HashMap::new();
         let mut dimensions: HashMap<String, Vec<Scalar>> = HashMap::new();
         dimensions.insert("foo".into(), vec!["a".into(), 42.into()]);
-        let mut test_plan = templatable_test_plan(values, dimensions, vec![], &[], &[], &[]);
+        let mut test_plan = templatable_test_plan(variables, dimensions, vec![], &[], &[], &[]);
 
-        let expected_err_kind = ErrorKind::InconsistentMatrixValue;
+        let expected_err_kind = ErrorKind::InconsistentMatrixVariable;
         let expected_err_message = "foo";
 
         let res = test_plan.check_templating_will_work();
@@ -1462,15 +1488,15 @@ mod tests {
         );
     }
 
-    #[test_case(vec![values_map!("foo" => "a"), values_map!("bar" => "b")]; "key names")]
-    #[test_case(vec![values_map!("foo" => "a"), values_map!("foo" => 42)]; "value types")]
+    #[test_case(vec![variables_map!("foo" => "a"), variables_map!("bar" => "b")]; "key names")]
+    #[test_case(vec![variables_map!("foo" => "a"), variables_map!("foo" => 42)]; "variable types")]
     #[test]
     fn check_templating_will_work_inconsistent_include_errors(
         include: Vec<HashMap<String, Scalar>>,
     ) {
-        let values = HashMap::new();
+        let variables = HashMap::new();
         let dimensions = HashMap::new();
-        let mut test_plan = templatable_test_plan(values, dimensions, include, &[], &[], &[]);
+        let mut test_plan = templatable_test_plan(variables, dimensions, include, &[], &[], &[]);
 
         let expected_err_kind = ErrorKind::InconsistentMatrixInclude;
         let expected_err_message = "matrix include maps must share consistent keys and types";
@@ -1494,10 +1520,10 @@ mod tests {
     }
 
     #[test]
-    fn check_required_values_setup_provides_available_to_scenario_and_teardown() {
-        let provides = vec![ValueDefinition {
+    fn check_required_variables_setup_provides_available_to_scenario_and_teardown() {
+        let provides = vec![VariableDefinition {
             name: "provides".to_string(),
-            description: "A value provided by setup".to_string(),
+            description: "A variable provided by setup".to_string(),
             default: None,
         }];
 
@@ -1533,25 +1559,25 @@ mod tests {
         );
     }
 
-    #[test_case(&["scenario"], &[], &[], &["scenario"]; "scenario missing values")]
-    #[test_case(&[], &["setup"], &[], &["setup"]; "setup missing values")]
-    #[test_case(&[], &[], &["teardown"], &["teardown"]; "teardown missing values")]
-    #[test_case(&[], &["setup"], &["teardown"], &["setup", "teardown"]; "setup and teardown missing values")]
-    #[test_case(&["scenario"], &["setup"], &[], &["setup", "scenario"]; "scenario and setup missing values")]
-    #[test_case(&["scenario"], &[], &["teardown"], &["teardown", "scenario"]; "scenario and teardown missing values")]
-    #[test_case(&["scenario"], &["setup"], &["teardown"], &["setup", "teardown", "scenario"]; "scenario and setup and teardown missing values")]
+    #[test_case(&["scenario"], &[], &[], &["scenario"]; "scenario missing variables")]
+    #[test_case(&[], &["setup"], &[], &["setup"]; "setup missing variables")]
+    #[test_case(&[], &[], &["teardown"], &["teardown"]; "teardown missing variables")]
+    #[test_case(&[], &["setup"], &["teardown"], &["setup", "teardown"]; "setup and teardown missing variables")]
+    #[test_case(&["scenario"], &["setup"], &[], &["setup", "scenario"]; "scenario and setup missing variables")]
+    #[test_case(&["scenario"], &[], &["teardown"], &["teardown", "scenario"]; "scenario and teardown missing variables")]
+    #[test_case(&["scenario"], &["setup"], &["teardown"], &["setup", "teardown", "scenario"]; "scenario and setup and teardown missing variables")]
     #[test]
-    fn check_templating_will_work_missing_values_errors(
+    fn check_templating_will_work_missing_variables_errors(
         scenario_fields: &[&str],
         setup_fields: &[&str],
         teardown_fields: &[&str],
         expected_err_messages: &[&str],
     ) {
-        let values = template_values(&["foo"]).inner().clone();
+        let variables = template_variables(&["foo"]).inner().clone();
         let dimensions = HashMap::new();
         let include = Vec::new();
         let mut test_plan = templatable_test_plan(
-            values,
+            variables,
             dimensions,
             include,
             scenario_fields,
@@ -1559,7 +1585,7 @@ mod tests {
             teardown_fields,
         );
 
-        let expected_err_kind = ErrorKind::MissingValues;
+        let expected_err_kind = ErrorKind::MissingVariables;
 
         let res = test_plan.check_templating_will_work();
         assert!(
@@ -1578,7 +1604,7 @@ mod tests {
         assert!(
             errors
                 .iter()
-                .all(|e| matches!(e.kind, ErrorKind::MissingValues)),
+                .all(|e| matches!(e.kind, ErrorKind::MissingVariables)),
             "expected all errors to be {:?}, got {:?}",
             expected_err_kind,
             errors
@@ -1597,24 +1623,24 @@ mod tests {
 
     #[test]
     fn check_templating_will_work_combined_errors() {
-        let values = template_values(&["foo", "bar"]).inner().clone();
+        let variables = template_variables(&["foo", "bar"]).inner().clone();
         let dimensions = dimensions_from_keys(&["foo"], 0);
         let mut test_plan =
-            templatable_test_plan(values, dimensions, vec![], &["scenario"], &[], &[]);
+            templatable_test_plan(variables, dimensions, vec![], &["scenario"], &[], &[]);
 
         let mut expected_errs = ErrorBuilder::new();
         expected_errs.push(
-            ErrorKind::ConflictingValues,
+            ErrorKind::ConflictingVariables,
             "foo",
             &["test_plan".to_string()],
         );
         expected_errs.push(
-            ErrorKind::EmptyMatrixValue,
+            ErrorKind::EmptyMatrixVariable,
             "foo",
             &["test_plan".to_string()],
         );
         expected_errs.push(
-            ErrorKind::MissingValues,
+            ErrorKind::MissingVariables,
             "  - scenario: \"description\"",
             &["scenario".to_string()],
         );
@@ -1634,12 +1660,12 @@ mod tests {
     }
 
     #[test]
-    fn check_required_values_value_definition_defaults_count_as_required_values() {
+    fn check_required_variables_variable_definition_defaults_count_as_required_variables() {
         let mut test_plan = TestPlanConfig {
             environment: EnvironmentConfig {
-                values: vec![
-                    value_with_default("setup", "setup"),
-                    value_with_default("teardown", "teardown"),
+                variable_definitions: vec![
+                    variable_with_default("setup", "setup"),
+                    variable_with_default("teardown", "teardown"),
                 ],
                 setup: SetupSection {
                     command: CommandSection {
@@ -1655,7 +1681,7 @@ mod tests {
                 ..EnvironmentConfig::empty()
             },
             scenario: ScenarioConfig {
-                values: vec![value_with_default("scenario", "scenario")],
+                variable_definitions: vec![variable_with_default("scenario", "scenario")],
                 command: CommandSection {
                     file_providers: vec![named_file_provider_with_field("scenario", p("scenario"))],
                     ..CommandSection::empty()
@@ -1749,7 +1775,7 @@ mod tests {
                         },
                         ..CommandSection::empty()
                     },
-                    provides: value_definitions(&["foo", "bar"]),
+                    provides: variable_definitions(&["foo", "bar"]),
                 },
                 ..EnvironmentConfig::empty()
             },
@@ -1758,11 +1784,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn run_environment_setup_provides_expected_values() {
+    async fn run_environment_setup_provides_expected_variables() {
         let temp = TempDir::new().unwrap();
         let mut ctx = Context::new();
 
-        let expected_provides = template_values(&["foo", "bar"]).inner().clone();
+        let expected_provides = template_variables(&["foo", "bar"]).inner().clone();
 
         let script = indoc!(
             r#"
@@ -1775,12 +1801,12 @@ mod tests {
         let res = test_plan.run_environment_setup(&temp, &mut ctx).await;
         assert!(
             res.is_ok(),
-            "expected a map of provides values, got {res:?}"
+            "expected a map of provides variables, got {res:?}"
         );
         assert_eq!(
             res.unwrap(),
             expected_provides,
-            "check the provides values are as expected"
+            "check the provides variables are as expected"
         )
     }
 
@@ -1805,7 +1831,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn run_environment_setup_provides_missing_values() {
+    async fn run_environment_setup_provides_missing_variables() {
         let temp = TempDir::new().unwrap();
         let mut ctx = Context::new();
 
@@ -1820,7 +1846,10 @@ mod tests {
         let test_plan = environment_setup_provides(script);
 
         let res = test_plan.run_environment_setup(&temp, &mut ctx).await;
-        assert!(res.is_err(), "expected a missing values error, got {res:?}");
+        assert!(
+            res.is_err(),
+            "expected a missing variables error, got {res:?}"
+        );
         assert_eq!(res.unwrap_err().to_string(), expected_err);
     }
 }

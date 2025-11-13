@@ -26,9 +26,9 @@ pub enum Error {
     MissingSetupOutputFields { missing: Vec<String> },
 
     #[error(
-        "The provided matrix.variant_names template references unknown matrix values: {values:?}"
+        "The provided matrix.variant_names template references unknown matrix variables: {variables:?}"
     )]
-    UnknownMatrixVariantTemplateValues { values: Vec<String> },
+    UnknownMatrixVariantTemplateVariables { variables: Vec<String> },
 
     #[error("The provided variant_names template produced duplicate names: {duplicates:?}")]
     NonUniqueMatrixVariantNames { duplicates: Vec<String> },
@@ -59,11 +59,11 @@ pub type Result<T> = std::result::Result<T, Error>;
 mod tests {
     use super::*;
     use crate::{
-        ValueDefinition,
+        VariableDefinition,
         checks::Check,
         context::Context,
         providers::file::{FileProvider, NamedFileProvider, RelativeFile, Source},
-        templating::{ErrorKind, Field, Scalar, Template, TemplateValues},
+        templating::{ErrorKind, Field, Scalar, Template, TemplateVariables},
     };
 
     // Test Helpers
@@ -110,21 +110,21 @@ mod tests {
             .collect()
     }
 
-    /// Create a HashMap of values from string names (each name maps to itself as a Scalar::String)
-    pub(crate) fn template_values(value_names: &[&str]) -> TemplateValues {
-        TemplateValues::new_stubbed(
-            value_names
+    /// Create a HashMap of variables from string names (each name maps to itself as a Scalar::String)
+    pub(crate) fn template_variables(variable_names: &[&str]) -> TemplateVariables {
+        TemplateVariables::new_stubbed(
+            variable_names
                 .iter()
                 .map(|&name| (name.to_string(), Scalar::String(name.to_string())))
                 .collect(),
         )
     }
 
-    /// Create ValueDefinitions from string names with default description
-    pub(crate) fn value_definitions(value_names: &[&str]) -> Vec<ValueDefinition> {
-        value_names
+    /// Create VariableDefinitions from string names with default description
+    pub(crate) fn variable_definitions(variable_names: &[&str]) -> Vec<VariableDefinition> {
+        variable_names
             .iter()
-            .map(|&name| ValueDefinition {
+            .map(|&name| VariableDefinition {
                 name: name.to_string(),
                 description: "description".to_string(),
                 default: None,
@@ -159,19 +159,19 @@ mod tests {
     /// Assert template errors
     pub(crate) fn assert_template_errors(
         t: &mut impl Template,
-        values: TemplateValues,
+        variables: TemplateVariables,
         expected_err_messages: Vec<String>,
         expected_err_paths: Vec<String>,
     ) {
-        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &values);
+        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &variables);
         assert!(res.is_err(), "expected templating to fail, got {res:?}");
 
         let errors = res.unwrap_err();
         assert!(
             errors
                 .iter()
-                .all(|e| matches!(e.kind, ErrorKind::UnknownValue)),
-            "expected all errors to be UnknownValue, got {:?}",
+                .all(|e| matches!(e.kind, ErrorKind::UnknownVariable)),
+            "expected all errors to be UnknownVariable, got {:?}",
             errors
         );
 

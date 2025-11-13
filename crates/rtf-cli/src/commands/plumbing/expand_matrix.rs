@@ -20,7 +20,7 @@ async fn expand_test_plan_matrix_with_context(
     info!("expanding test plan matrix");
     let expanded: Vec<_> = test_plan
         .matrix
-        .try_expand(&test_plan.values)?
+        .try_expand(&test_plan.variables)?
         .iter()
         .map(|(name, values)| json!({"name": name, "values": values}))
         .collect();

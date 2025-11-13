@@ -1,5 +1,5 @@
 //! Helpers for checking config files
-use crate::{ValueDefinition, context::ResolutionContext, providers::file::NamedFileProvider};
+use crate::{VariableDefinition, context::ResolutionContext, providers::file::NamedFileProvider};
 use std::{collections::HashMap, hash::Hash, mem};
 
 /// User facing descriptions of the reason that validation failed.
@@ -10,8 +10,8 @@ pub enum ErrorKind {
     #[strum(to_string = "Non-unique environment variables found")]
     DuplicateEnvironmentVariables,
 
-    #[strum(to_string = "Non-unique value names found")]
-    DuplicateValueNames,
+    #[strum(to_string = "Non-unique variable names found")]
+    DuplicateVariableNames,
 
     #[strum(to_string = "The requested file did not exist")]
     FileNotFound,
@@ -141,21 +141,21 @@ pub trait CheckArrayDuplicates {
 /// overrides in test plans.
 #[derive(Debug, PartialEq)]
 pub enum DedupArray<'a> {
-    ValueDef(&'a mut Vec<ValueDefinition>),
+    VariableDef(&'a mut Vec<VariableDefinition>),
     Nfp(&'a mut Vec<NamedFileProvider>),
 }
 
 impl<'a> DedupArray<'a> {
     fn ensure_no_duplicate_keys(&self, base_path: &str, p: &str) -> Result<()> {
         let duplicates = match self {
-            DedupArray::ValueDef(vds) => duplicate_keys(vds.iter(), |vd| &vd.name),
+            DedupArray::VariableDef(vds) => duplicate_keys(vds.iter(), |vd| &vd.name),
             DedupArray::Nfp(nfps) => duplicate_keys(nfps.iter(), |nfp| &nfp.env_var),
         };
 
         if !duplicates.is_empty() {
             let path = vec![base_path.to_string(), p.to_string()];
             return Err(Errors::new(
-                ErrorKind::DuplicateValueNames,
+                ErrorKind::DuplicateVariableNames,
                 duplicates.join("\n"),
                 &path,
             ));
@@ -166,7 +166,7 @@ impl<'a> DedupArray<'a> {
 
     fn sort(&mut self) {
         match self {
-            DedupArray::ValueDef(vds) => vds.sort_by_key(|vd| vd.name.clone()),
+            DedupArray::VariableDef(vds) => vds.sort_by_key(|vd| vd.name.clone()),
             DedupArray::Nfp(nfps) => nfps.sort_by_key(|nfp| nfp.env_var.clone()),
         }
     }
@@ -177,7 +177,7 @@ impl<'a> DedupArray<'a> {
             if !duplicates.is_empty() {
                 let path = vec![base_path.to_string(), p.to_string()];
                 return Err(Errors::new(
-                    ErrorKind::DuplicateValueNames,
+                    ErrorKind::DuplicateVariableNames,
                     duplicates.join("\n"),
                     &path,
                 ));
@@ -187,7 +187,7 @@ impl<'a> DedupArray<'a> {
         }
 
         match self {
-            DedupArray::ValueDef(vds) => inner(vds, |vd| vd.name.clone(), base_path, p),
+            DedupArray::VariableDef(vds) => inner(vds, |vd| vd.name.clone(), base_path, p),
             DedupArray::Nfp(nfps) => inner(nfps, |nfp| nfp.env_var.clone(), base_path, p),
         }
     }
@@ -207,7 +207,7 @@ impl<'a> DedupArray<'a> {
         }
 
         match self {
-            DedupArray::ValueDef(vds) => inner(vds, |vd| vd.name.clone()),
+            DedupArray::VariableDef(vds) => inner(vds, |vd| vd.name.clone()),
             DedupArray::Nfp(nfps) => inner(nfps, |nfp| nfp.env_var.clone()),
         }
     }
@@ -304,8 +304,8 @@ mod tests {
         assert_eq!(duplicates, vec!["c"]);
     }
 
-    fn vd(name: &str, default: Option<Scalar>) -> ValueDefinition {
-        ValueDefinition {
+    fn vd(name: &str, default: Option<Scalar>) -> VariableDefinition {
+        VariableDefinition {
             name: name.into(),
             description: format!("description for {name}"),
             default,
@@ -323,7 +323,7 @@ mod tests {
     }
 
     #[test_case(
-        DedupArray::ValueDef(&mut vec![vd("a", None), vd("b", None)]),
+        DedupArray::VariableDef(&mut vec![vd("a", None), vd("b", None)]),
         false;
         "vd no duplicates"
     )]
@@ -333,7 +333,7 @@ mod tests {
         "nfp no duplicates"
     )]
     #[test_case(
-        DedupArray::ValueDef(&mut vec![vd("a", None), vd("a", None)]),
+        DedupArray::VariableDef(&mut vec![vd("a", None), vd("a", None)]),
         true;
         "vd single duplicate"
     )]
@@ -343,7 +343,7 @@ mod tests {
         "nfp single duplicate"
     )]
     #[test_case(
-        DedupArray::ValueDef(&mut vec![vd("a", None), vd("a", None), vd("a", None)]),
+        DedupArray::VariableDef(&mut vec![vd("a", None), vd("a", None), vd("a", None)]),
         true;
         "vd multiple duplicates"
     )]
@@ -364,9 +364,9 @@ mod tests {
     }
 
     #[test_case(
-        DedupArray::ValueDef(&mut vec![vd("b", None), vd("c", None), vd("a", None)]),
-        DedupArray::ValueDef(&mut vec![vd("a", None), vd("b", None), vd("c", None)]);
-        "value defs"
+        DedupArray::VariableDef(&mut vec![vd("b", None), vd("c", None), vd("a", None)]),
+        DedupArray::VariableDef(&mut vec![vd("a", None), vd("b", None), vd("c", None)]);
+        "variable defs"
     )]
     #[test_case(
         DedupArray::Nfp(&mut vec![nfp("z", "B", ""), nfp("x", "C", ""), nfp("y", "A", "")]),
@@ -380,7 +380,7 @@ mod tests {
     }
 
     #[test_case(
-        DedupArray::ValueDef(&mut vec![vd("a", None), vd("b", None)]),
+        DedupArray::VariableDef(&mut vec![vd("a", None), vd("b", None)]),
         false;
         "vd no duplicates"
     )]
@@ -390,7 +390,7 @@ mod tests {
         "nfp no duplicates"
     )]
     #[test_case(
-        DedupArray::ValueDef(&mut vec![vd("a", None), vd("a", None)]),
+        DedupArray::VariableDef(&mut vec![vd("a", None), vd("a", None)]),
         false;
         "vd single duplicate"
     )]
@@ -400,7 +400,7 @@ mod tests {
         "nfp single duplicate"
     )]
     #[test_case(
-        DedupArray::ValueDef(&mut vec![vd("a", None), vd("a", None), vd("a", None)]),
+        DedupArray::VariableDef(&mut vec![vd("a", None), vd("a", None), vd("a", None)]),
         true;
         "vd multiple duplicates"
     )]
@@ -421,9 +421,9 @@ mod tests {
     }
 
     #[test_case(
-        DedupArray::ValueDef(&mut vec![vd("a", Some(42.into())), vd("b", None), vd("a", None)]),
-        DedupArray::ValueDef(&mut vec![vd("a", None), vd("b", None)]);
-        "value defs"
+        DedupArray::VariableDef(&mut vec![vd("a", Some(42.into())), vd("b", None), vd("a", None)]),
+        DedupArray::VariableDef(&mut vec![vd("a", None), vd("b", None)]);
+        "variable defs"
     )]
     #[test_case(
         DedupArray::Nfp(&mut vec![nfp("a", "A", "original"), nfp("b", "B", ""), nfp("a", "A", "override")]),
@@ -441,7 +441,7 @@ mod tests {
 
     #[derive(Debug)]
     struct DedupMe {
-        values: Vec<ValueDefinition>,
+        variables: Vec<VariableDefinition>,
         providers: Vec<NamedFileProvider>,
     }
 
@@ -450,7 +450,7 @@ mod tests {
 
         fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
             vec![
-                ("values", DedupArray::ValueDef(&mut self.values)),
+                ("variables", DedupArray::VariableDef(&mut self.variables)),
                 ("providers", DedupArray::Nfp(&mut self.providers)),
             ]
         }
@@ -459,7 +459,7 @@ mod tests {
     #[test]
     fn ensure_no_duplicate_keys_runs_for_all_arrays() {
         let mut dedup_me = DedupMe {
-            values: vec![vd("a", Some(42.into())), vd("a", None)],
+            variables: vec![vd("a", Some(42.into())), vd("a", None)],
             providers: vec![nfp("b", "B", ""), nfp("b", "B", "")],
         };
 
@@ -473,20 +473,20 @@ mod tests {
     #[test]
     fn sort_arrays_runs_for_all_arrays() {
         let mut dedup_me = DedupMe {
-            values: vec![vd("b", None), vd("a", None)],
+            variables: vec![vd("b", None), vd("a", None)],
             providers: vec![nfp("b", "B", ""), nfp("a", "A", "")],
         };
 
         dedup_me.sort_arrays();
 
-        assert_eq!(&dedup_me.values, &[vd("a", None), vd("b", None)]);
+        assert_eq!(&dedup_me.variables, &[vd("a", None), vd("b", None)]);
         assert_eq!(&dedup_me.providers, &[nfp("a", "A", ""), nfp("b", "B", "")]);
     }
 
     #[test]
     fn dedup_array_try_dedup_and_sort_doesnt_sort_when_returning_errors() {
         let mut dedup_me = DedupMe {
-            values: vec![vd("b", None), vd("b", None), vd("b", None), vd("a", None)],
+            variables: vec![vd("b", None), vd("b", None), vd("b", None), vd("a", None)],
             providers: vec![
                 nfp("b", "B", ""),
                 nfp("b", "B", ""),
@@ -502,7 +502,7 @@ mod tests {
         assert_eq!(errs.len(), 2, "expected 2 errors, got {errs:?}");
 
         assert_eq!(
-            &dedup_me.values,
+            &dedup_me.variables,
             &[vd("b", None), vd("b", None), vd("b", None), vd("a", None)]
         );
         assert_eq!(
@@ -519,7 +519,7 @@ mod tests {
     #[test]
     fn dedup_array_try_dedup_and_sort_runs_for_all_arrays() {
         let mut dedup_me = DedupMe {
-            values: vec![vd("b", Some(42.into())), vd("b", None), vd("a", None)],
+            variables: vec![vd("b", Some(42.into())), vd("b", None), vd("a", None)],
             providers: vec![
                 nfp("b", "B", "original"),
                 nfp("b", "B", "override"),
@@ -530,7 +530,7 @@ mod tests {
         let res = dedup_me.try_dedup_and_sort();
         assert!(res.is_ok(), "expected OK, got {res:?}");
 
-        assert_eq!(&dedup_me.values, &[vd("a", None), vd("b", None)]);
+        assert_eq!(&dedup_me.variables, &[vd("a", None), vd("b", None)]);
         assert_eq!(
             &dedup_me.providers,
             &[nfp("a", "A", ""), nfp("b", "B", "override"),]

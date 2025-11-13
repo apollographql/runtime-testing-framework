@@ -448,12 +448,12 @@ mod tests {
     #[test_case(PARTIAL_RELATIVE_PATH, &["path"]; "partial_relative_path")]
     #[test_case(REQUIRED, &[]; "required")]
     #[test]
-    fn command_parse_and_template(content: &str, expected_values: &[&str]) {
+    fn command_parse_and_template(content: &str, expected_variables: &[&str]) {
         let config: CommandSection = serde_yaml::from_str(content).unwrap();
 
-        let mut res = config.required_values();
-        res.sort(); // Sorting so values are in a determistic order for the assert_eq
-        assert_eq!(res, expected_values, "expected values to match")
+        let mut res = config.required_variables();
+        res.sort(); // Sorting so variables are in a determistic order for the assert_eq
+        assert_eq!(res, expected_variables, "expected variables to match")
     }
 
     #[test]

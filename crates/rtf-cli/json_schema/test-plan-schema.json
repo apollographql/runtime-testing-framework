@@ -41,7 +41,7 @@
       "title": "Config Spec"
     },
     "Matrix": {
-      "description": "A matrix of user provided value dimensions that is expanded out into multiple value sets for\ntemplating the test plan containing the matrix.",
+      "description": "A matrix of user provided variable dimensions that is expanded out into multiple variable sets for\ntemplating the test plan containing the matrix.",
       "properties": {
         "dimensions": {
           "additionalProperties": {
@@ -50,12 +50,12 @@
             },
             "type": "array"
           },
-          "description": "The actual dimensions and their allowed values that will be used to produce the matrix",
+          "description": "The actual dimensions and their allowed variables that will be used to produce the matrix",
           "type": "object"
         },
         "include": {
           "default": [],
-          "description": "Additional _groups_ of values that will be combined with known dimensions to produce the\nfull set of values for each dimension.\n\nUsed for tying subsets of values together and reducing the number of variants we expand to.\nEach entry within this array is required to define the same keys and scalar value types.",
+          "description": "Additional _groups_ of variables that will be combined with known dimensions to produce the\nfull set of variables for each dimension.\n\nUsed for tying subsets of variables together and reducing the number of variants we expand to.\nEach entry within this array is required to define the same keys and scalar variable types.",
           "items": {
             "additionalProperties": {
               "$ref": "#/definitions/Scalar"
@@ -176,7 +176,7 @@
           "type": "string"
         }
       ],
-      "description": "A scalar that is valid to be used as a template value for a [Field].",
+      "description": "A scalar that is valid to be used as a template variable for a [Field].",
       "title": "Scalar"
     }
   },
@@ -205,7 +205,7 @@
         "include": [],
         "variant_names": null
       },
-      "description": "Sets of templating values to apply to fields within the rest of the test plan as a matrix"
+      "description": "Sets of templating variables to apply to fields within the rest of the test plan as a matrix"
     },
     "name": {
       "description": "The name of this test plan",
@@ -219,12 +219,12 @@
       ],
       "description": "The test scenario to execute"
     },
-    "values": {
+    "variables": {
       "additionalProperties": {
         "$ref": "#/definitions/Scalar"
       },
       "default": {},
-      "description": "Templating values to apply to fields within the rest of the test plan",
+      "description": "Templating variables to apply to fields within the rest of the test plan",
       "type": "object"
     }
   },

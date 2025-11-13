@@ -1,5 +1,5 @@
 //! Helpers for supporting minimal templating of user config files.
-use crate::{Source, ValueDefinition};
+use crate::{Source, VariableDefinition};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
@@ -18,30 +18,30 @@ use std::{
 /// Paired with an additional message to form an [Error].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display, strum::EnumString)]
 pub enum ErrorKind {
-    #[strum(to_string = "Conflicting value and matrix definitions")]
-    ConflictingValues,
+    #[strum(to_string = "Conflicting variable and matrix definitions")]
+    ConflictingVariables,
 
-    #[strum(to_string = "Empty array for matrix value")]
-    EmptyMatrixValue,
+    #[strum(to_string = "Empty array for matrix variable")]
+    EmptyMatrixVariable,
 
     #[strum(to_string = "Inconsistent types for matrix include maps")]
     InconsistentMatrixInclude,
 
-    #[strum(to_string = "Inconsistent types for matrix value")]
-    InconsistentMatrixValue,
+    #[strum(to_string = "Inconsistent types for matrix variable")]
+    InconsistentMatrixVariable,
 
-    #[strum(to_string = "Invalid templating value")]
+    #[strum(to_string = "Invalid templating variable")]
     InvalidData,
 
     #[strum(
-        to_string = "Missing template values definitions. Make sure the value is defined in the scenario or environment config values"
+        to_string = "Missing template variables definitions. Make sure the variable is defined in the scenario or environment config variable definitions"
     )]
-    MissingValues,
+    MissingVariables,
 
     #[strum(
-        to_string = "Unknown templating value. Make sure a value is defined for this value to resolve to."
+        to_string = "Unknown templating variable. Make sure a variable is defined for this variable to resolve to."
     )]
-    UnknownValue,
+    UnknownVariable,
 }
 
 impl crate::error::ErrorKind for ErrorKind {
@@ -57,64 +57,64 @@ pub type Errors = crate::error::Errors<ErrorKind>;
 pub type ErrorBuilder = crate::error::ErrorBuilder<ErrorKind>;
 pub type Result<T> = std::result::Result<T, Errors>;
 
-/// Templating values along with provenance of where each value has come from in order to correctly
+/// Templating variables along with provenance of where each variable has come from in order to correctly
 /// handle relative paths.
 #[derive(Debug, Clone)]
-pub struct TemplateValues {
-    values: HashMap<String, Scalar>,
+pub struct TemplateVariables {
+    variables: HashMap<String, Scalar>,
     test_plan_source: Source,
     override_sources: HashMap<String, Source>,
 }
 
-impl TemplateValues {
+impl TemplateVariables {
     pub fn new(
-        values: HashMap<String, Scalar>,
+        variables: HashMap<String, Scalar>,
         test_plan_source: Source,
         override_sources: HashMap<String, Source>,
     ) -> Self {
         Self {
-            values,
+            variables,
             test_plan_source,
             override_sources,
         }
     }
 
     #[cfg(test)]
-    pub(crate) fn new_stubbed(values: HashMap<String, Scalar>) -> Self {
-        Self::new(values, Source::local("/"), Default::default())
+    pub(crate) fn new_stubbed(variables: HashMap<String, Scalar>) -> Self {
+        Self::new(variables, Source::local("/"), Default::default())
     }
 
     pub fn inner(&self) -> &HashMap<String, Scalar> {
-        &self.values
+        &self.variables
     }
 
-    /// Helper for filtering allowed templating values based on [ValueDefinition]s present in a
-    /// config file. This is also where defaults defined in value definitions are applied, being
-    /// overwritten by any explicitly provided values coming from `all_values`.
+    /// Helper for filtering allowed templating variables based on [VariableDefinition]s present in a
+    /// config file. This is also where defaults defined in variable definitions are applied, being
+    /// overwritten by any explicitly provided variables coming from `all_variables`.
     ///
     /// # Constructing the definitions argument
     ///
-    /// The trait bound here is to support both direct calls to `Vec<ValueDefinition>.iter()` and
-    /// calls to [Iterator::chain] to joining together multiple vecs of ValueDefinitions:
+    /// The trait bound here is to support both direct calls to `Vec<VariableDefinition>.iter()` and
+    /// calls to [Iterator::chain] to joining together multiple vecs of VariableDefinitions:
     ///
     /// ```ignore
     /// // from EnvironmentConfig: both of these will work
-    /// let definitions = self.values.iter();
-    /// let definitions = self.values.iter().chain(self.setup.provides.iter());
+    /// let definitions = self.variable_definitions.iter();
+    /// let definitions = self.variable_definitions.iter().chain(self.setup.provides.iter());
     /// ```
     pub(crate) fn for_config_file<'a>(
         &self,
         file_source: &Source,
-        definitions: impl Iterator<Item = &'a ValueDefinition> + Clone,
+        definitions: impl Iterator<Item = &'a VariableDefinition> + Clone,
     ) -> Self {
         let mut new = self.clone();
 
-        new.values
+        new.variables
             .retain(|k, _| definitions.clone().any(|val| &val.name == k));
 
         for vd in definitions {
             if let Some(default) = vd.default.as_ref() {
-                new.values.entry(vd.name.clone()).or_insert_with(|| {
+                new.variables.entry(vd.name.clone()).or_insert_with(|| {
                     new.override_sources
                         .insert(vd.name.clone(), file_source.clone());
 
@@ -126,12 +126,12 @@ impl TemplateValues {
         new
     }
 
-    pub fn extend(&mut self, source: Source, values: HashMap<String, Scalar>) {
-        for k in values.keys() {
+    pub fn extend(&mut self, source: Source, variables: HashMap<String, Scalar>) {
+        for k in variables.keys() {
             self.override_sources.insert(k.to_owned(), source.clone());
         }
 
-        self.values.extend(values);
+        self.variables.extend(variables);
     }
 
     pub fn get<Q>(&self, key: &Q) -> Option<&Scalar>
@@ -139,7 +139,7 @@ impl TemplateValues {
         String: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
     {
-        self.values.get(key)
+        self.variables.get(key)
     }
 
     pub fn get_with_source<Q>(&self, key: &Q) -> Option<(&Source, &Scalar)>
@@ -147,7 +147,7 @@ impl TemplateValues {
         String: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
     {
-        let s = self.values.get(key)?;
+        let s = self.variables.get(key)?;
         let source = self
             .override_sources
             .get(key)
@@ -157,16 +157,16 @@ impl TemplateValues {
     }
 }
 
-/// In order to support controlled templating of config files with [Scalar] values we make use of a
-/// wrapper [Field] type to identify where values need to be injected. A type that implements
+/// In order to support controlled templating of config files with [Scalar] variables we make use of a
+/// wrapper [Field] type to identify where variables need to be injected. A type that implements
 /// [Template] supports walking its contents to locate and template fields using a provided map
-/// of scalar values.
+/// of scalar variables.
 pub trait Template {
-    /// Whether or not there are any pending [Field]s contained within this value.
+    /// Whether or not there are any pending [Field]s contained within this variable.
     fn has_pending_fields(&self) -> bool;
 
-    /// The list of template values that are required to template this type fully.
-    fn required_values(&self) -> Vec<String>;
+    /// The list of template variables that are required to template this type fully.
+    fn required_variables(&self) -> Vec<String>;
 
     /// Attempt to resolve all pending [Field]s, appending encountered errors to the `errs` vec
     /// provided.
@@ -174,7 +174,7 @@ pub trait Template {
         &mut self,
         path: &mut Vec<String>,
         file_source: &Source,
-        values: &TemplateValues,
+        variables: &TemplateVariables,
     ) -> Result<()>;
 
     /// Attempt to resolve all pending [Field]s when this type is a child of some parent
@@ -185,23 +185,23 @@ pub trait Template {
         path: &mut Vec<String>,
         tail: &str,
         file_source: &Source,
-        values: &TemplateValues,
+        variables: &TemplateVariables,
     ) -> Result<()> {
         let mut path = path.clone();
         path.push(tail.to_string());
-        self.try_template(&mut path, file_source, values)
+        self.try_template(&mut path, file_source, variables)
     }
 
-    /// Attempt to resolve all known [Field]s, reporting required values that are not present in
+    /// Attempt to resolve all known [Field]s, reporting required variables that are not present in
     /// the provided map. If there are any deserialization errors then then this method as an
     /// aggregate operation will fail.
     fn try_template_known(
         &mut self,
         path: &mut Vec<String>,
         file_source: &Source,
-        values: &TemplateValues,
+        variables: &TemplateVariables,
     ) -> Result<Vec<String>> {
-        let all_errs = match self.try_template(path, file_source, values) {
+        let all_errs = match self.try_template(path, file_source, variables) {
             Ok(_) => return Ok(Vec::new()),
             Err(errs) => errs,
         };
@@ -211,7 +211,7 @@ pub trait Template {
 
         for err in all_errs.into_iter() {
             match err.kind {
-                ErrorKind::UnknownValue => missing.push(err.message),
+                ErrorKind::UnknownVariable => missing.push(err.message),
                 _ => errs.push_err(err),
             }
         }
@@ -230,9 +230,9 @@ where
             .unwrap_or_default()
     }
 
-    fn required_values(&self) -> Vec<String> {
+    fn required_variables(&self) -> Vec<String> {
         self.as_ref()
-            .map(|inner| inner.required_values())
+            .map(|inner| inner.required_variables())
             .unwrap_or_default()
     }
 
@@ -240,10 +240,10 @@ where
         &mut self,
         path: &mut Vec<String>,
         file_source: &Source,
-        values: &TemplateValues,
+        variables: &TemplateVariables,
     ) -> Result<()> {
         self.as_mut()
-            .map(|inner| inner.try_template(path, file_source, values))
+            .map(|inner| inner.try_template(path, file_source, variables))
             .unwrap_or(Ok(()))
     }
 }
@@ -256,9 +256,9 @@ where
         self.iter().any(|elem| elem.has_pending_fields())
     }
 
-    fn required_values(&self) -> Vec<String> {
+    fn required_variables(&self) -> Vec<String> {
         self.iter()
-            .flat_map(|elem| elem.required_values())
+            .flat_map(|elem| elem.required_variables())
             .collect()
     }
 
@@ -266,12 +266,12 @@ where
         &mut self,
         path: &mut Vec<String>,
         file_source: &Source,
-        values: &TemplateValues,
+        variables: &TemplateVariables,
     ) -> Result<()> {
         let mut errs = ErrorBuilder::new();
 
         for elem in self.iter_mut() {
-            errs.append(elem.try_template(path, file_source, values))
+            errs.append(elem.try_template(path, file_source, variables))
         }
 
         errs.into_result(())
@@ -287,9 +287,9 @@ where
         self.values().any(|elem| elem.has_pending_fields())
     }
 
-    fn required_values(&self) -> Vec<String> {
+    fn required_variables(&self) -> Vec<String> {
         self.values()
-            .flat_map(|elem| elem.required_values())
+            .flat_map(|elem| elem.required_variables())
             .collect()
     }
 
@@ -297,12 +297,12 @@ where
         &mut self,
         path: &mut Vec<String>,
         file_source: &Source,
-        values: &TemplateValues,
+        variables: &TemplateVariables,
     ) -> Result<()> {
         let mut errs = ErrorBuilder::new();
 
         for (name, f) in self.iter_mut() {
-            errs.append(f.try_template_nested(path, name.as_ref(), file_source, values));
+            errs.append(f.try_template_nested(path, name.as_ref(), file_source, variables));
         }
 
         errs.into_result(())
@@ -310,7 +310,7 @@ where
 }
 
 /// A [Field] wraps some scalar type that implements [Template] in order to mark it as
-/// requriring a templated value coming from user provided values as part of resolving the config
+/// requriring a templated variable coming from user provided variables as part of resolving the config
 /// file.
 ///
 /// Fields must be resolved in order to be usable during a test run.
@@ -319,7 +319,7 @@ pub enum Field<T>
 where
     T: ValidField,
 {
-    /// A pending field that should be replaced with the named value when it is available.
+    /// A pending field that should be replaced with the named variable when it is available.
     Pending(String),
     /// A field containing the final data needed for resolving the config file.
     Resolved(T),
@@ -356,12 +356,12 @@ where
 
         json_schema!({
           "description": format!(
-              "A templatable {} that can be replaced with a user specified value at runtime",
+              "A templatable {} that can be replaced with a user specified variable at runtime",
               t_type.as_str().unwrap()
           ),
           "oneOf": [
             {
-              "description": "The value that should be templated.",
+              "description": "The variable that should be templated.",
               "type": "string",
               "pattern": r#"^\{\{ \w+ \}\}$"#
             },
@@ -404,7 +404,7 @@ where
         matches!(self, Self::Pending(_))
     }
 
-    fn required_values(&self) -> Vec<String> {
+    fn required_variables(&self) -> Vec<String> {
         match self {
             Self::Pending(field_name) => vec![field_name.clone()],
             _ => Vec::new(),
@@ -415,17 +415,23 @@ where
         &mut self,
         path: &mut Vec<String>,
         _file_source: &Source,
-        values: &TemplateValues,
+        variables: &TemplateVariables,
     ) -> Result<()> {
-        if let Self::Pending(value) = self {
-            match values.get(value) {
+        if let Self::Pending(variable) = self {
+            match variables.get(variable) {
                 Some(raw) => match T::try_from_scalar(raw.clone()) {
                     Ok(t) => *self = Self::Resolved(t),
                     Err(reason) => {
                         return Err(Errors::new(ErrorKind::InvalidData, reason, path));
                     }
                 },
-                None => return Err(Errors::new(ErrorKind::UnknownValue, value.clone(), path)),
+                None => {
+                    return Err(Errors::new(
+                        ErrorKind::UnknownVariable,
+                        variable.clone(),
+                        path,
+                    ));
+                }
             }
         }
 
@@ -454,7 +460,7 @@ impl<'de, T: ValidField> Deserialize<'de> for Field<T> {
     }
 }
 
-/// A custom serde [Visitor] for locating template strings of the form `"{{ some_value }}"` and
+/// A custom serde [Visitor] for locating template strings of the form `"{{ some_variable }}"` and
 /// marking them as pending fields. Malformed templates are reported as deserialization errors and
 /// fields that do not contain template strings are deserialized as normal by deferring to the
 /// default deserializer implementation for the type found in the input. (If the type in the input
@@ -472,7 +478,7 @@ where
     }
 
     /// When visiting a string we need to check to see if we have a valid template pattern or not.
-    /// If we do then we extract the value name from it an return a Pending, otherwise we defer to
+    /// If we do then we extract the variable name from it an return a Pending, otherwise we defer to
     /// the default handling for strings as with our other supported scalar types.
     /// If we detect a malformed template then we error _here_ rather treating it as a string and
     /// potentially leading to confusing runtime behaviour.
@@ -502,7 +508,7 @@ where
             Ok(Field::Pending(ident.to_string()))
         } else {
             Err(E::custom(
-                "expected value identifier with a single space either side",
+                "expected variable identifier with a single space either side",
             ))
         }
     }
@@ -544,7 +550,7 @@ impl fmt::Display for Number {
 
 /// # Scalar
 ///
-/// A scalar that is valid to be used as a template value for a [Field].
+/// A scalar that is valid to be used as a template variable for a [Field].
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(untagged, expecting = "expecting a valid Number, Boolean or String")]
 pub enum Scalar {
@@ -567,29 +573,29 @@ impl fmt::Display for Scalar {
 }
 
 impl From<bool> for Scalar {
-    fn from(value: bool) -> Self {
-        Scalar::Bool(value)
+    fn from(variable: bool) -> Self {
+        Scalar::Bool(variable)
     }
 }
 
 impl From<String> for Scalar {
-    fn from(value: String) -> Self {
-        Scalar::String(value)
+    fn from(variable: String) -> Self {
+        Scalar::String(variable)
     }
 }
 
 impl From<&str> for Scalar {
-    fn from(value: &str) -> Self {
-        Scalar::String(value.to_string())
+    fn from(variable: &str) -> Self {
+        Scalar::String(variable.to_string())
     }
 }
 
 impl TryFrom<f64> for Scalar {
     type Error = &'static str;
 
-    fn try_from(value: f64) -> std::result::Result<Self, &'static str> {
+    fn try_from(variable: f64) -> std::result::Result<Self, &'static str> {
         Ok(Scalar::Number(Number(
-            serde_json::Number::from_f64(value)
+            serde_json::Number::from_f64(variable)
                 .ok_or("NaN and infinite floats are not supported")?,
         )))
     }
@@ -619,10 +625,10 @@ impl ValidField for bool {
 impl TryFrom<Scalar> for bool {
     type Error = String;
 
-    fn try_from(value: Scalar) -> std::result::Result<Self, Self::Error> {
-        match value {
+    fn try_from(variable: Scalar) -> std::result::Result<Self, Self::Error> {
+        match variable {
             Scalar::Bool(v) => Ok(v),
-            value => Err(format!("invalid value `{value}`, expected bool")),
+            variable => Err(format!("invalid variable `{variable}`, expected bool")),
         }
     }
 }
@@ -636,10 +642,10 @@ impl ValidField for String {
 impl TryFrom<Scalar> for String {
     type Error = String;
 
-    fn try_from(value: Scalar) -> std::result::Result<Self, Self::Error> {
-        match value {
+    fn try_from(variable: Scalar) -> std::result::Result<Self, Self::Error> {
+        match variable {
             Scalar::String(v) => Ok(v),
-            value => Err(format!("invalid value `{value}`, expected String")),
+            variable => Err(format!("invalid variable `{variable}`, expected String")),
         }
     }
 }
@@ -653,13 +659,13 @@ impl ValidField for f64 {
 impl TryFrom<Scalar> for f64 {
     type Error = String;
 
-    fn try_from(value: Scalar) -> std::result::Result<Self, Self::Error> {
-        let maybe_float = match &value {
+    fn try_from(variable: Scalar) -> std::result::Result<Self, Self::Error> {
+        let maybe_float = match &variable {
             Scalar::Number(Number(v)) => v.as_f64(),
             _ => None,
         };
 
-        maybe_float.ok_or_else(|| format!("invalid value `{value}`, expected f64"))
+        maybe_float.ok_or_else(|| format!("invalid variable `{variable}`, expected f64"))
     }
 }
 
@@ -675,21 +681,21 @@ macro_rules! impl_integer_scalars {
             }
 
             impl From<$ty> for Scalar {
-                fn from(value: $ty) -> Self {
-                    Scalar::Number(Number(serde_json::Number::from(value)))
+                fn from(variable: $ty) -> Self {
+                    Scalar::Number(Number(serde_json::Number::from(variable)))
                 }
             }
 
             impl TryFrom<Scalar> for $ty {
                 type Error = String;
 
-                fn try_from(value: Scalar) -> std::result::Result<Self, Self::Error> {
-                    let maybe_t = match &value {
+                fn try_from(variable: Scalar) -> std::result::Result<Self, Self::Error> {
+                    let maybe_t = match &variable {
                         Scalar::Number(Number(v)) => v.$as_method().map(|n| n as $ty),
                         _ => None
                     };
 
-                    maybe_t.ok_or_else(|| format!("invalid value `{value}`, expected {}", stringify!($ty)))
+                    maybe_t.ok_or_else(|| format!("invalid variable `{variable}`, expected {}", stringify!($ty)))
                 }
             }
         )+)+
@@ -708,8 +714,8 @@ mod tests {
     use simple_test_case::test_case;
 
     #[test]
-    fn template_values_for_config_file_defaults_used_correctly() {
-        let all_values: HashMap<String, Scalar> = [
+    fn template_variables_for_config_file_defaults_used_correctly() {
+        let all_variables: HashMap<String, Scalar> = [
             ("a".into(), 1.into()),
             ("b".into(), "foo".into()),
             ("c".into(), true.into()),
@@ -718,30 +724,30 @@ mod tests {
         .collect();
 
         let definitions = [
-            ValueDefinition {
+            VariableDefinition {
                 name: "a".into(),
                 description: String::new(),
                 default: Some(2.into()),
             },
-            ValueDefinition {
+            VariableDefinition {
                 name: "b".into(),
                 description: String::new(),
                 default: None,
             },
-            ValueDefinition {
+            VariableDefinition {
                 name: "d".into(),
                 description: String::new(),
                 default: Some("bar".into()),
             },
         ];
 
-        let original = TemplateValues::new_stubbed(all_values);
+        let original = TemplateVariables::new_stubbed(all_variables);
         let for_config_file = original.for_config_file(&Source::local("/"), definitions.iter());
 
-        // a has an explicit value so it overrides the default
-        // b has an explicit value and no default
+        // a has an explicit variable so it overrides the default
+        // b has an explicit variable and no default
         // c is not in the definitions so it is filtered out
-        // d has no explicit value so we take the default
+        // d has no explicit variable so we take the default
         let expected: HashMap<String, Scalar> = [
             ("a".into(), 1.into()),
             ("b".into(), "foo".into()),
@@ -806,7 +812,7 @@ mod tests {
     #[test_case("1foo"; "leading digit")]
     #[test_case("foo!bar"; "contains punctuation")]
     #[test_case("foo bar"; "contains whitespace")]
-    #[test_case(""; "no value name")]
+    #[test_case(""; "no variable name")]
     #[test_case("🦊"; "emoji")]
     #[test]
     fn field_parse_invalid_identifiers(raw: &str) {
@@ -815,9 +821,9 @@ mod tests {
         assert!(res.is_err(), "expected error, got {res:?}");
     }
 
-    #[test_case(r#""{{foo }}""#; "no space before value name")]
-    #[test_case(r#""{{ foo}}""#; "no space after value name")]
-    #[test_case(r#""{{foo}}""#; "no spaces before or after value name")]
+    #[test_case(r#""{{foo }}""#; "no space before variable name")]
+    #[test_case(r#""{{ foo}}""#; "no space after variable name")]
+    #[test_case(r#""{{foo}}""#; "no spaces before or after variable name")]
     #[test_case(r#""{{ foo""#; "unclosed template")]
     #[test_case(r#""{{ foo }""#; "single closing curly")]
     #[test_case(r#""{{  foo }}""#; "additional leading space")]
@@ -875,8 +881,8 @@ mod tests {
             let mut m = ::std::collections::HashMap::new();
             for field in $slice {
                 match field {
-                    Field::Pending(key) => {
-                        m.insert(key.clone(), field.clone());
+                    Field::Pending(variable) => {
+                        m.insert(variable.clone(), field.clone());
                     }
                     Field::Resolved(value) => {
                         m.insert(value.clone(), field.clone());
@@ -911,7 +917,7 @@ mod tests {
         let res = t.has_pending_fields();
         assert_eq!(
             res, expected,
-            "tests that has_pending_fields has expected value"
+            "tests that has_pending_fields has expected variable"
         )
     }
 
@@ -931,25 +937,25 @@ mod tests {
     #[test_case(hmf(&[r("foo")]), &[]; "hash map single entry is not required")]
     #[test_case(hmf(&[]), &[]; "hash map no entries not required")]
     #[test]
-    fn template_required_values(t: Box<dyn Template>, expected: &[&str]) {
-        let mut res = t.required_values();
-        res.sort(); // Sorting so values are in a determistic order for the assert_eq
+    fn template_required_variables(t: Box<dyn Template>, expected: &[&str]) {
+        let mut res = t.required_variables();
+        res.sort(); // Sorting so variables are in a determistic order for the assert_eq
 
         assert_eq!(
             res.as_slice(),
             expected,
-            "expected required values to be {expected:?}, got {res:?}"
+            "expected required variables to be {expected:?}, got {res:?}"
         )
     }
 
-    macro_rules! template_values {
+    macro_rules! template_variables {
         ($slice:expr) => {{
             let mut m = ::std::collections::HashMap::new();
             for k in $slice {
                 m.insert(k.to_string(), Scalar::from(k.to_string()));
             }
 
-            TemplateValues::new_stubbed(m)
+            TemplateVariables::new_stubbed(m)
         }};
     }
 
@@ -962,9 +968,9 @@ mod tests {
     #[test_case(hmf(&[p("foo")]), &["foo"]; "single hash map entry templates")]
     #[test_case(hmf(&[]), &[]; "no hash map entries templates")]
     #[test]
-    fn template_try_template_success(mut t: Box<dyn Template>, values: &[&str]) {
-        let values = template_values!(values);
-        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &values);
+    fn template_try_template_success(mut t: Box<dyn Template>, variables: &[&str]) {
+        let variables = template_variables!(variables);
+        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &variables);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -977,20 +983,20 @@ mod tests {
     #[test_case(hmf(&[p("foo"), p("bar"), p("baz")]), &["bar", "baz", "foo"]; "multiple hash map entries")]
     #[test_case(hmf(&[p("foo")]), &["foo"]; "single hash map entry")]
     #[test]
-    fn template_try_template_unknown_value_error(
+    fn template_try_template_unknown_variable_error(
         mut t: Box<dyn Template>,
         expected_err_messages: &[&str],
     ) {
-        let values = template_values!(["unused"]);
+        let variables = template_variables!(["unused"]);
 
-        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &values);
+        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &variables);
         assert!(res.is_err(), "expected templating to fail, got {res:?}");
         let errors = res.unwrap_err();
         assert!(
             errors
                 .iter()
-                .all(|e| matches!(e.kind, ErrorKind::UnknownValue)),
-            "expected all errors to be UnknownValue, got {:?}",
+                .all(|e| matches!(e.kind, ErrorKind::UnknownVariable)),
+            "expected all errors to be UnknownVariable, got {:?}",
             errors
         );
         let mut messages: Vec<&str> = errors.iter().map(|e| e.message.as_str()).collect();

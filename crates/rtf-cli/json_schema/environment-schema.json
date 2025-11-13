@@ -705,17 +705,17 @@
           "type": "object"
         },
         {
-          "description": "Returns the JSON string representation of the resolved values for the test plan being run.\n\n```yaml\n- name: \"resolved-values.json\"\n  env_var: VALUES\n  kind: resolved_values\n```",
+          "description": "Returns the JSON string representation of the resolved variables for the test plan being run.\n\n```yaml\n- name: \"resolved-variables.json\"\n  env_var: VARIABLES\n  kind: resolved_variables\n```",
           "properties": {
             "kind": {
-              "const": "resolved_values",
+              "const": "resolved_variables",
               "type": "string"
             }
           },
           "required": [
             "kind"
           ],
-          "title": "Resolved Values",
+          "title": "Resolved Variables",
           "type": "object"
         },
         {
@@ -858,7 +858,7 @@
           "type": "string"
         }
       ],
-      "description": "A scalar that is valid to be used as a template value for a [Field].",
+      "description": "A scalar that is valid to be used as a template variable for a [Field].",
       "title": "Scalar"
     },
     "SetupSection": {
@@ -890,9 +890,9 @@
         },
         "provides": {
           "default": [],
-          "description": "Additional templating values that will be provided through the output of this command",
+          "description": "Additional templating variables that will be provided through the output of this command",
           "items": {
-            "$ref": "#/definitions/ValueDefinition"
+            "$ref": "#/definitions/VariableDefinition"
           },
           "type": "array"
         }
@@ -904,10 +904,10 @@
       "type": "object"
     },
     "Templatable Scalar": {
-      "description": "A templatable Scalar that can be replaced with a user specified value at runtime",
+      "description": "A templatable Scalar that can be replaced with a user specified variable at runtime",
       "oneOf": [
         {
-          "description": "The value that should be templated.",
+          "description": "The variable that should be templated.",
           "pattern": "^\\{\\{ \\w+ \\}\\}$",
           "type": "string"
         },
@@ -918,10 +918,10 @@
       ]
     },
     "Templatable boolean": {
-      "description": "A templatable boolean that can be replaced with a user specified value at runtime",
+      "description": "A templatable boolean that can be replaced with a user specified variable at runtime",
       "oneOf": [
         {
-          "description": "The value that should be templated.",
+          "description": "The variable that should be templated.",
           "pattern": "^\\{\\{ \\w+ \\}\\}$",
           "type": "string"
         },
@@ -932,10 +932,10 @@
       ]
     },
     "Templatable integer": {
-      "description": "A templatable integer that can be replaced with a user specified value at runtime",
+      "description": "A templatable integer that can be replaced with a user specified variable at runtime",
       "oneOf": [
         {
-          "description": "The value that should be templated.",
+          "description": "The variable that should be templated.",
           "pattern": "^\\{\\{ \\w+ \\}\\}$",
           "type": "string"
         },
@@ -946,10 +946,10 @@
       ]
     },
     "Templatable string": {
-      "description": "A templatable string that can be replaced with a user specified value at runtime",
+      "description": "A templatable string that can be replaced with a user specified variable at runtime",
       "oneOf": [
         {
-          "description": "The value that should be templated.",
+          "description": "The variable that should be templated.",
           "pattern": "^\\{\\{ \\w+ \\}\\}$",
           "type": "string"
         },
@@ -1078,7 +1078,7 @@
         }
       ]
     },
-    "ValueDefinition": {
+    "VariableDefinition": {
       "properties": {
         "default": {
           "anyOf": [
@@ -1090,14 +1090,14 @@
             }
           ],
           "default": null,
-          "description": "An optional default to use if this value is not provided in the parent test plan"
+          "description": "An optional default to use if this variable is not provided in the parent test plan"
         },
         "description": {
-          "description": "A brief description of how this value is used",
+          "description": "A brief description of how this variable is used",
           "type": "string"
         },
         "name": {
-          "description": "The templating name for this value",
+          "description": "The templating name for this variable",
           "type": "string"
         }
       },
@@ -1134,11 +1134,11 @@
       ],
       "description": "The command to execute to clean up the environment after executing the test scenario"
     },
-    "values": {
+    "variable_definitions": {
       "default": [],
-      "description": "Definitions for the required values for templating this environment",
+      "description": "Definitions for the required variables for templating this environment",
       "items": {
-        "$ref": "#/definitions/ValueDefinition"
+        "$ref": "#/definitions/VariableDefinition"
       },
       "type": "array"
     }

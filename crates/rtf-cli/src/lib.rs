@@ -44,12 +44,12 @@ impl cli::Values {
         };
 
         let override_sources = self.merge_inner(
-            &mut test_plan.values,
+            &mut test_plan.variables,
             &mut test_plan.matrix.dimensions,
             value_json_data,
             cwd_source,
         )?;
-        ctx.set_values(&test_plan.values);
+        ctx.set_variables(&test_plan.variables);
 
         Ok(override_sources)
     }

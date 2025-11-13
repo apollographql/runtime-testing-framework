@@ -671,17 +671,17 @@
           "type": "object"
         },
         {
-          "description": "Returns the JSON string representation of the resolved values for the test plan being run.\n\n```yaml\n- name: \"resolved-values.json\"\n  env_var: VALUES\n  kind: resolved_values\n```",
+          "description": "Returns the JSON string representation of the resolved variables for the test plan being run.\n\n```yaml\n- name: \"resolved-variables.json\"\n  env_var: VARIABLES\n  kind: resolved_variables\n```",
           "properties": {
             "kind": {
-              "const": "resolved_values",
+              "const": "resolved_variables",
               "type": "string"
             }
           },
           "required": [
             "kind"
           ],
-          "title": "Resolved Values",
+          "title": "Resolved Variables",
           "type": "object"
         },
         {
@@ -824,14 +824,14 @@
           "type": "string"
         }
       ],
-      "description": "A scalar that is valid to be used as a template value for a [Field].",
+      "description": "A scalar that is valid to be used as a template variable for a [Field].",
       "title": "Scalar"
     },
     "Templatable Scalar": {
-      "description": "A templatable Scalar that can be replaced with a user specified value at runtime",
+      "description": "A templatable Scalar that can be replaced with a user specified variable at runtime",
       "oneOf": [
         {
-          "description": "The value that should be templated.",
+          "description": "The variable that should be templated.",
           "pattern": "^\\{\\{ \\w+ \\}\\}$",
           "type": "string"
         },
@@ -842,10 +842,10 @@
       ]
     },
     "Templatable boolean": {
-      "description": "A templatable boolean that can be replaced with a user specified value at runtime",
+      "description": "A templatable boolean that can be replaced with a user specified variable at runtime",
       "oneOf": [
         {
-          "description": "The value that should be templated.",
+          "description": "The variable that should be templated.",
           "pattern": "^\\{\\{ \\w+ \\}\\}$",
           "type": "string"
         },
@@ -856,10 +856,10 @@
       ]
     },
     "Templatable integer": {
-      "description": "A templatable integer that can be replaced with a user specified value at runtime",
+      "description": "A templatable integer that can be replaced with a user specified variable at runtime",
       "oneOf": [
         {
-          "description": "The value that should be templated.",
+          "description": "The variable that should be templated.",
           "pattern": "^\\{\\{ \\w+ \\}\\}$",
           "type": "string"
         },
@@ -870,10 +870,10 @@
       ]
     },
     "Templatable string": {
-      "description": "A templatable string that can be replaced with a user specified value at runtime",
+      "description": "A templatable string that can be replaced with a user specified variable at runtime",
       "oneOf": [
         {
-          "description": "The value that should be templated.",
+          "description": "The variable that should be templated.",
           "pattern": "^\\{\\{ \\w+ \\}\\}$",
           "type": "string"
         },
@@ -1002,7 +1002,7 @@
         }
       ]
     },
-    "ValueDefinition": {
+    "VariableDefinition": {
       "properties": {
         "default": {
           "anyOf": [
@@ -1014,14 +1014,14 @@
             }
           ],
           "default": null,
-          "description": "An optional default to use if this value is not provided in the parent test plan"
+          "description": "An optional default to use if this variable is not provided in the parent test plan"
         },
         "description": {
-          "description": "A brief description of how this value is used",
+          "description": "A brief description of how this variable is used",
           "type": "string"
         },
         "name": {
-          "description": "The templating name for this value",
+          "description": "The templating name for this variable",
           "type": "string"
         }
       },
@@ -1066,11 +1066,11 @@
       "description": "The name of this scenario",
       "type": "string"
     },
-    "values": {
+    "variable_definitions": {
       "default": [],
-      "description": "Definitions for the required values for templating this scenario",
+      "description": "Definitions for the required variables for templating this scenario",
       "items": {
-        "$ref": "#/definitions/ValueDefinition"
+        "$ref": "#/definitions/VariableDefinition"
       },
       "type": "array"
     }
