@@ -4,7 +4,7 @@ use crate::graphos::{
     platform_query::{self, PlatformQuery},
 };
 use apollo_compiler::schema::ObjectType;
-use apollo_compiler::{Node, Schema, ast::Value, schema::ExtendedType};
+use apollo_compiler::{Name, Node, Schema, ast::Value, schema::ExtendedType};
 use graphql_client::GraphQLQuery;
 use std::{collections::HashMap, fs, io, path::Path};
 use tracing::{debug, error, info};
@@ -323,19 +323,24 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
             continue;
         };
 
-        if let Some((_, http_node)) = args_map.iter_mut().find(|(key, _)| key.as_str() == "http") {
-            if let Value::Object(http_map) = http_node.get_mut()? {
-                if let Some((_, base_url_node)) = http_map
-                    .iter_mut()
-                    .find(|(key, _)| key.as_str() == "baseURL")
-                {
-                    *base_url_node = Node::new(Value::String("www.test.com".to_string()));
-                }
-            }
-        }
+        rewrite_url(args_map, &vec!["baseURL"])?;
     }
 
     Some(schema.to_string())
+}
+
+fn rewrite_url(args_map: &mut Vec<(Name, Node<Value>)>, url_keys: &Vec<&str>) -> Option<()> {
+    if let Some((_, http_node)) = args_map.iter_mut().find(|(key, _)| key.as_str() == "http") {
+        if let Value::Object(http_map) = http_node.get_mut()? {
+            if let Some((_, base_url_node)) = http_map
+                .iter_mut()
+                .find(|(key, _)| url_keys.contains(&key.as_str()))
+            {
+                *base_url_node = Node::new(Value::String("www.test.com".to_string()));
+            }
+        }
+    }
+    Some(())
 }
 
 fn replace_query_urls(query: &mut Node<ObjectType>, url_keys: Vec<&str>) -> Option<()> {
@@ -355,18 +360,7 @@ fn replace_query_urls(query: &mut Node<ObjectType>, url_keys: Vec<&str>) -> Opti
                 continue;
             };
 
-            if let Some((_, http_node)) =
-                args_map.iter_mut().find(|(key, _)| key.as_str() == "http")
-            {
-                if let Value::Object(http_map) = http_node.get_mut()? {
-                    if let Some((_, base_url_node)) = http_map
-                        .iter_mut()
-                        .find(|(key, _)| url_keys.contains(&key.as_str()))
-                    {
-                        *base_url_node = Node::new(Value::String("www.test.com".to_string()));
-                    }
-                }
-            }
+            rewrite_url(args_map, &url_keys)?;
         }
 
         continue;
