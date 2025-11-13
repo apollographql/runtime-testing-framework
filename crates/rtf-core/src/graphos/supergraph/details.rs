@@ -309,33 +309,11 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
         )?;
     }
 
-    for directive in schema.schema_definition.get_mut()?.directives.iter_mut() {
-        if directive.name != "join__directive" {
-            continue;
-        }
-        if directive.specified_argument_by_name("name")?.as_str()? != "source" {
-            continue;
-        }
-
-        let Value::Object(args_map) = directive
-            .get_mut()?
-            .specified_argument_by_name_mut("args")?
-            .get_mut()?
-        else {
-            continue;
-        };
-
-        if let Some((_, http_node)) = args_map.iter_mut().find(|(key, _)| key.as_str() == "http") {
-            if let Value::Object(http_map) = http_node.get_mut()? {
-                if let Some((_, base_url_node)) = http_map
-                    .iter_mut()
-                    .find(|(key, _)| key.as_str() == "baseURL")
-                {
-                    *base_url_node = Node::new(Value::String("www.test.com".to_string()));
-                }
-            }
-        }
-    }
+    process_directive_urls(
+        schema.schema_definition.get_mut()?.directives.iter_mut(),
+        "source",
+        "baseURL"
+    )?;
 
     Some(schema.to_string())
 }
