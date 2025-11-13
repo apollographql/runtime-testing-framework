@@ -24,7 +24,7 @@ scenario:
         cat "$VALUES"
 
     file_providers:
-      - name: values.json
+      - name: variables.json
         env_var: VALUES
         kind: resolved_variables
 

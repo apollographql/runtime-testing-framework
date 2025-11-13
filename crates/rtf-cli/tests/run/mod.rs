@@ -43,10 +43,10 @@ fn variables_override_works() {
         .success()
         .stdout(contains("bar"));
 
-    // values.json should override to baz
+    // variables.json should override to baz
     prepare_rtf_run("resources/valid/variable-overrides")
         .arg("--values")
-        .arg("resources/valid/variable-overrides/values.json")
+        .arg("resources/valid/variable-overrides/variables.json")
         .assert()
         .success()
         .stdout(contains("baz"));
@@ -61,14 +61,14 @@ fn regression_relative_path_from_variable() {
         .success()
         .stdout(contains("from test plan dir"));
 
-    // When using a variable from values.json we should resolve relative to the directory
+    // When using a variable from variables.json we should resolve relative to the directory
     // containing the variables file
     prepare_rtf_run("resources/valid/regression-relative-path-from-template-variable")
         .arg("--values")
-        .arg("resources/valid/regression-relative-path-from-template-variable/values-dir/values.json")
+        .arg("resources/valid/regression-relative-path-from-template-variable/variables-dir/variables.json")
         .assert()
         .success()
-        .stdout(contains("from values.json dir"));
+        .stdout(contains("from variables.json dir"));
 
     // When using a command line variable we should resolve relative to the current working directory
     let mut cmd =

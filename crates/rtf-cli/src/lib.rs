@@ -134,7 +134,7 @@ mod tests {
                 "qux=123".to_string(),
                 "qux=456".to_string(),
             ],
-            values: Some(PathBuf::from("my-values.json")),
+            values: Some(PathBuf::from("my-variables.json")),
         };
 
         from_cli
@@ -175,11 +175,11 @@ mod tests {
         matrix.insert("baz".into(), vec![2.into()]);
 
         // change bar to a value from the cli
-        // change baz to a value from values.json
-        // change foo to a matrix dimension from values.json
+        // change baz to a value from variables.json
+        // change foo to a matrix dimension from variables.json
         let from_cli = cli::Values {
             value: vec!["bar=3".to_string()],
-            values: Some(PathBuf::from("my-values.json")),
+            values: Some(PathBuf::from("my-variables.json")),
         };
 
         // Keys should start mutually exclusive

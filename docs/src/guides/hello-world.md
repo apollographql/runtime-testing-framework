@@ -218,14 +218,14 @@ For overriding multiple values, you can use the `--values` flag to provide the l
 file containing the values you want to merge on top of the ones given in the test plan:
 
 ```bash
-$ cat example-test-plans/hello-world/values.json
+$ cat example-test-plans/hello-world/variables.json
 {
   "message": "say hi to the ",
   "setup_subject": "sailor!"
 }
 
 $ rtf run example-test-plans/hello-world/test-plan.yaml \
-  --values example-test-plans/hello-world/values.json
+  --values example-test-plans/hello-world/variables.json
 
 env-setup :: say hi to the sailor!
 scenario :: say hi to the darkness my old friend

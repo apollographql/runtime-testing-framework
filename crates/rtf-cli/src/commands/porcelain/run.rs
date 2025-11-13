@@ -18,7 +18,7 @@ use std::{
 };
 use tracing::info;
 
-const VALUES_PATH: &str = "test-plan-values.json";
+const VALUES_PATH: &str = "test-plan-variables.json";
 const RESOLVED_TP_PATH: &str = "resolved-test-plan.yaml";
 
 pub async fn check_and_run_local_test_plan(

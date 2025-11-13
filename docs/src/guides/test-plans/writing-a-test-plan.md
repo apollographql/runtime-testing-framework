@@ -272,12 +272,12 @@ This results in the following terminal output and an `output` directory:
 "environment teardown command executed"
 ```
 
-The `output` directory contains two files, `resolved-test-plan.yaml` and `test-plan-values.json`.
+The `output` directory contains two files, `resolved-test-plan.yaml` and `test-plan-variables.json`.
 
 - `resolved-test-plan.yaml` contains the fully resolved test plan config. This should be the same as
   what was shown in the `rtf template` command. This is a way to sanity check the test plan that ran
   to give you the output.
-- `test-plan-values.json` contains the values used during the execution of the test plan. This is
+- `test-plan-variables.json` contains the values used during the execution of the test plan. This is
   empty since no values were set.
 
 Remove the output directory before continuing (forgetting to do this will result in an error next
@@ -359,10 +359,10 @@ example value
 environment teardown command executed
 ```
 
-Now, the `test-plan-values.json` file contains the value that we set in the test plan:
+Now, the `test-plan-variables.json` file contains the value that we set in the test plan:
 
 ```bash
-$ cat output/test-plan-values.json 
+$ cat output/test-plan-variables.json 
 {
   "example_value": "example value"
 }
@@ -442,12 +442,12 @@ value1        value2
 Let's look at each of those matrix directories to see the different values used per execution:
 
 ```bash
-$ cat output/value1/test-plan-values.json 
+$ cat output/value1/test-plan-variables.json 
 {
   "example_value": "value1"
 }
 
-$ cat output/value2/test-plan-values.json
+$ cat output/value2/test-plan-variables.json
 {
   "example_value": "value2"
 }
