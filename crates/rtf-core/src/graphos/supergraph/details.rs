@@ -343,8 +343,8 @@ fn rewrite_url(args_map: &mut Vec<(Name, Node<Value>)>, url_keys: &Vec<&str>) ->
     Some(())
 }
 
-fn replace_type_field_url(query: &mut Node<ObjectType>, url_keys: Vec<&str>) -> Option<()> {
-    for (_, field_definition) in &mut query.get_mut()?.fields {
+fn replace_type_field_url(field: &mut Node<ObjectType>, url_keys: Vec<&str>) -> Option<()> {
+    for (_, field_definition) in &mut field.get_mut()?.fields {
         for directive in field_definition.get_mut()?.directives.iter_mut() {
             if directive.name != "join__directive" {
                 continue;
