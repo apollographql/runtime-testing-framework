@@ -303,7 +303,7 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
                 "Attempting to replace connectors urls in {} type",
                 schema_type
             );
-            replace_query_urls(extended_type, vec!["GET", "POST"])?;
+            replace_type_field_url(extended_type, vec!["GET", "POST"])?;
         };
     }
 
@@ -343,7 +343,7 @@ fn rewrite_url(args_map: &mut Vec<(Name, Node<Value>)>, url_keys: &Vec<&str>) ->
     Some(())
 }
 
-fn replace_query_urls(query: &mut Node<ObjectType>, url_keys: Vec<&str>) -> Option<()> {
+fn replace_type_field_url(query: &mut Node<ObjectType>, url_keys: Vec<&str>) -> Option<()> {
     for (_, field_definition) in &mut query.get_mut()?.fields {
         for directive in field_definition.get_mut()?.directives.iter_mut() {
             if directive.name != "join__directive" {
