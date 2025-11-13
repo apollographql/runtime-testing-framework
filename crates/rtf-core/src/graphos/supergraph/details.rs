@@ -297,11 +297,15 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
 fn rewrite_connector_urls(sdl: &str) -> Option<String> {
     let mut schema = Schema::parse(sdl, "supergraph.graphql").unwrap();
 
-    let ExtendedType::Object(query) = schema.types.get_mut("Query")? else {
-        return None;
-    };
-    println!("{}", "Attempting to replace connectors urls in Query type");
-    replace_query_urls(query, "GET")?;
+    for schema_type in vec!["Query"] {
+        if let ExtendedType::Object(extended_type) = schema.types.get_mut(schema_type)? {
+            println!(
+                "Attempting to replace connectors urls in {} type",
+                schema_type
+            );
+            replace_query_urls(extended_type, vec!["GET", "POST"])?;
+        };
+    }
 
     for directive in schema.schema_definition.get_mut()?.directives.iter_mut() {
         if directive.name != "join__directive" {
@@ -334,7 +338,7 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
     Some(schema.to_string())
 }
 
-fn replace_query_urls(query: &mut Node<ObjectType>, url_key: &str) -> Option<()> {
+fn replace_query_urls(query: &mut Node<ObjectType>, url_keys: Vec<&str>) -> Option<()> {
     for (_, field_definition) in &mut query.get_mut()?.fields {
         for directive in field_definition.get_mut()?.directives.iter_mut() {
             if directive.name != "join__directive" {
@@ -355,8 +359,9 @@ fn replace_query_urls(query: &mut Node<ObjectType>, url_key: &str) -> Option<()>
                 args_map.iter_mut().find(|(key, _)| key.as_str() == "http")
             {
                 if let Value::Object(http_map) = http_node.get_mut()? {
-                    if let Some((_, base_url_node)) =
-                        http_map.iter_mut().find(|(key, _)| key.as_str() == url_key)
+                    if let Some((_, base_url_node)) = http_map
+                        .iter_mut()
+                        .find(|(key, _)| url_keys.contains(&key.as_str()))
                     {
                         *base_url_node = Node::new(Value::String("www.test.com".to_string()));
                     }
