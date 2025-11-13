@@ -3,7 +3,7 @@ use crate::graphos::{
     self,
     platform_query::{self, PlatformQuery},
 };
-use apollo_compiler::schema::{Component, FieldDefinition, ObjectType, SchemaDefinition};
+use apollo_compiler::schema::{Component, FieldDefinition, ObjectType};
 use apollo_compiler::{Node, Schema, ast::Value, schema::ExtendedType};
 use graphql_client::GraphQLQuery;
 use std::{collections::HashMap, fs, io, path::Path};
@@ -336,13 +336,12 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
     Some(schema.to_string())
 }
 
-/// Helper function that processes directives from any directive iterator
-fn process_directive_urls<'a>(
-    directives: impl Iterator<Item = &'a mut Node<apollo_compiler::ast::Directive>>,
+fn replace_query_urls(
+    field_definition: &mut Component<FieldDefinition>,
     directive_name: &str,
     url_key: &str,
 ) -> Option<()> {
-    for directive in directives {
+    for directive in field_definition.get_mut()?.directives.iter_mut() {
         if directive.name != "join__directive" {
             continue;
         }
@@ -368,18 +367,6 @@ fn process_directive_urls<'a>(
         }
     }
     Some(())
-}
-
-fn replace_query_urls(
-    field_definition: &mut Component<FieldDefinition>,
-    directive_name: &str,
-    url_key: &str,
-) -> Option<()> {
-    process_directive_urls(
-        field_definition.get_mut()?.directives.iter_mut(),
-        directive_name,
-        url_key,
-    )
 }
 
 #[cfg(test)]
