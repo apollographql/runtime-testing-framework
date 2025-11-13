@@ -300,10 +300,10 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
     let ExtendedType::Object(query) = schema.types.get_mut("Query")? else {
         return None;
     };
+    println!("{}", "Attempting to replace connectors urls in Query type");
+    replace_query_urls(query, "GET")?;
 
-    replace_query_urls(query)?;
-
-    for directive in schema.schema_definition.get_mut()?.directives.0.iter_mut() {
+    for directive in schema.schema_definition.get_mut()?.directives.iter_mut() {
         if directive.name != "join__directive" {
             continue;
         }
@@ -334,7 +334,7 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
     Some(schema.to_string())
 }
 
-fn replace_query_urls(query: &mut Node<ObjectType>) -> Option<()> {
+fn replace_query_urls(query: &mut Node<ObjectType>, url_key: &str) -> Option<()> {
     for (_, field_definition) in &mut query.get_mut()?.fields {
         for directive in field_definition.get_mut()?.directives.iter_mut() {
             if directive.name != "join__directive" {
@@ -356,7 +356,7 @@ fn replace_query_urls(query: &mut Node<ObjectType>) -> Option<()> {
             {
                 if let Value::Object(http_map) = http_node.get_mut()? {
                     if let Some((_, base_url_node)) =
-                        http_map.iter_mut().find(|(key, _)| key.as_str() == "GET")
+                        http_map.iter_mut().find(|(key, _)| key.as_str() == url_key)
                     {
                         *base_url_node = Node::new(Value::String("www.test.com".to_string()));
                     }
