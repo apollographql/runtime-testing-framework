@@ -37,7 +37,7 @@ impl cli::Values {
                 let values_json: HashMap<String, ScalarOrArray> =
                     serde_json::from_str(&s).context("invalid values file")?;
 
-                Some((Source::local(path), values_json))
+                Some((Source::local(ctx.canonicalize_path(path)?), values_json))
             }
 
             None => None,

@@ -10,7 +10,12 @@ use rtf_config::{
     providers::file::Source,
     templating::{self, TemplateValues},
 };
-use std::{collections::HashMap, mem::take, path::Path};
+use std::{
+    collections::HashMap,
+    env::current_dir,
+    mem::take,
+    path::{Path, PathBuf},
+};
 use tracing::info;
 
 const VALUES_PATH: &str = "test-plan-values.json";
@@ -22,11 +27,12 @@ pub async fn check_and_run_local_test_plan(
     out_dir: &str,
 ) -> anyhow::Result<()> {
     let (ctx, out_dir) = get_context_and_check_outdir(out_dir)?;
+    let cwd = current_dir()?;
 
     info!("loading and resolving test plan");
     let test_plan = load_and_resolve_test_plan(config_file_path, &ctx).await?;
 
-    check_and_run_test_plan_with_context(test_plan, values, &out_dir, ctx).await
+    check_and_run_test_plan_with_context(test_plan, values, &out_dir, cwd, ctx).await
 }
 
 pub async fn check_and_run_github_test_plan(
@@ -36,6 +42,7 @@ pub async fn check_and_run_github_test_plan(
     out_dir: &str,
 ) -> anyhow::Result<()> {
     let (ctx, out_dir) = get_context_and_check_outdir(out_dir)?;
+    let cwd = current_dir()?;
 
     let (org, repo_and_path) = org_repo_path.split_once('/').ok_or(anyhow!(
         "invalid GitHub uri: \"{org_repo_path}\" - GitHub uri must be in format ORG/REPO/PATH"
@@ -48,20 +55,18 @@ pub async fn check_and_run_github_test_plan(
     let test_plan =
         TestPlanConfig::try_load_and_resolve_from_github(org, repo, path, git_ref, &ctx).await?;
 
-    check_and_run_test_plan_with_context(test_plan, values, &out_dir, ctx).await
+    check_and_run_test_plan_with_context(test_plan, values, &out_dir, cwd, ctx).await
 }
 
 async fn check_and_run_test_plan_with_context(
     mut test_plan: TestPlanConfig,
     values: Values,
     out_dir: &Path,
+    cwd: PathBuf,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    let override_sources = values.merge(
-        &mut test_plan,
-        &Source::local(ctx.dir_containing(".").join("cli")),
-        &mut ctx,
-    )?;
+    let override_sources =
+        values.merge(&mut test_plan, &Source::local(cwd.join("cli")), &mut ctx)?;
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work()?;

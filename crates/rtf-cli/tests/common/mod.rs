@@ -27,6 +27,11 @@ impl DerefMut for CmdWithTmpDir {
 }
 
 impl CmdWithTmpDir {
+    pub fn cd_to_child(self, child_dir: &str) -> Self {
+        std::env::set_current_dir(self.tmp.child(child_dir)).unwrap();
+        self
+    }
+
     /// Assert that a given path within the test [TempDir] exists.
     pub fn assert_path_exists(&self, path: &str) {
         assert!(self.tmp.child(path).exists(), "{path} does not exist")

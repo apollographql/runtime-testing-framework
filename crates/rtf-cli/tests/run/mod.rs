@@ -53,6 +53,36 @@ fn values_override_works() {
 }
 
 #[test]
+fn regression_relative_path_from_value() {
+    // When using a value from the test plan we should resolve relative to the directory
+    // containing the test plan
+    prepare_rtf_run("resources/valid/regression-relative-path-from-template-value")
+        .assert()
+        .success()
+        .stdout(contains("from test plan dir"));
+
+    // When using a value from values.json we should resolve relative to the directory
+    // containing the values file
+    prepare_rtf_run("resources/valid/regression-relative-path-from-template-value")
+        .arg("--values")
+        .arg("resources/valid/regression-relative-path-from-template-value/values-dir/values.json")
+        .assert()
+        .success()
+        .stdout(contains("from values.json dir"));
+
+    // When using a command line value we should resolve relative to the current working directory
+    //
+    // !! This needs to be run last as we're modifying the working directory
+    prepare_rtf_run("resources/valid/regression-relative-path-from-template-value")
+        .cd_to_child("cli-working-dir")
+        .arg("--value")
+        .arg("cat_path=cat-me.txt")
+        .assert()
+        .success()
+        .stdout(contains("from cli working dir"));
+}
+
+#[test]
 fn override_resolved_values_works() {
     prepare_rtf_run("resources/valid/resolved-values")
         .assert()

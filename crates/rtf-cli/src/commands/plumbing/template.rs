@@ -8,6 +8,7 @@ use rtf_config::{
     context::ResolutionContext,
     templating::{Template, TemplateValues},
 };
+use std::{env::current_dir, path::PathBuf};
 use tracing::info;
 
 pub async fn template_test_plan(
@@ -16,23 +17,22 @@ pub async fn template_test_plan(
     check: bool,
 ) -> anyhow::Result<()> {
     let ctx = get_context();
+    let cwd = current_dir()?;
 
-    template_test_plan_with_context(config_file_path, values, check, ctx).await
+    template_test_plan_with_context(config_file_path, values, check, cwd, ctx).await
 }
 
 async fn template_test_plan_with_context(
     path: &str,
     values: Values,
     check: bool,
+    cwd: PathBuf,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
     info!("loading and resolving test plan");
     let mut test_plan = load_and_resolve_test_plan(path, &ctx).await?;
-    let override_sources = values.merge(
-        &mut test_plan,
-        &Source::local(ctx.dir_containing(".").join("cli")),
-        &mut ctx,
-    )?;
+    let override_sources =
+        values.merge(&mut test_plan, &Source::local(cwd.join("cli")), &mut ctx)?;
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work()?;
