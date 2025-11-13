@@ -1,6 +1,6 @@
 //! Logic for working with Apollo GraphOS
 use apollo_compiler::validation::DiagnosticList;
-use std::{fmt, io};
+use std::{fmt, io, sync::Arc};
 
 pub mod platform_query;
 pub mod supergraph;
@@ -38,10 +38,11 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// An API client backed by [reqwest::Client] that can make requests to the Apollo platform API.
+#[derive(Clone)]
 pub struct PlatformClient {
     pub(crate) inner: reqwest::Client,
-    pub(crate) url: String,
-    pub(crate) api_key: String,
+    pub(crate) url: Arc<str>,
+    pub(crate) api_key: Arc<str>,
     pub(crate) sudo: bool,
 }
 
