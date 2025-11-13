@@ -302,7 +302,11 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
     };
     println!("{}", "Attempting to replace connectors urls in Query type");
     for (_, field_definition) in &mut query.get_mut()?.fields {
-        replace_query_urls(field_definition, "connect", "GET")?;
+        process_directive_urls(
+            field_definition.get_mut()?.directives.iter_mut(),
+            "connect",
+            "GET"
+        )?;
     }
 
     for directive in schema.schema_definition.get_mut()?.directives.iter_mut() {
@@ -368,18 +372,6 @@ fn process_directive_urls<'a>(
         }
     }
     Some(())
-}
-
-fn replace_query_urls(
-    field_definition: &mut Component<FieldDefinition>,
-    directive_name: &str,
-    url_key: &str,
-) -> Option<()> {
-    process_directive_urls(
-        field_definition.get_mut()?.directives.iter_mut(),
-        directive_name,
-        url_key,
-    )
 }
 
 #[cfg(test)]
