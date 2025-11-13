@@ -71,10 +71,10 @@ fn regression_relative_path_from_value() {
         .stdout(contains("from values.json dir"));
 
     // When using a command line value we should resolve relative to the current working directory
-    //
-    // !! This needs to be run last as we're modifying the working directory
-    prepare_rtf_run("resources/valid/regression-relative-path-from-template-value")
-        .cd_to_child("cli-working-dir")
+    let mut cmd = prepare_rtf_run("resources/valid/regression-relative-path-from-template-value");
+    let dir = cmd.child_path("cli-working-dir");
+
+    cmd.current_dir(dir)
         .arg("--value")
         .arg("cat_path=cat-me.txt")
         .assert()

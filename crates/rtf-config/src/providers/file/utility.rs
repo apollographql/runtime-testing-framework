@@ -7,7 +7,7 @@ use crate::{
         self, Result,
         command::CommandSection,
         file::{
-            AsUtf8FileContent, InlineFile, RelativeFile, RequiredFile, ResolveAndWrite, Source,
+            AsUtf8FileContent, InlineFile, RelativeFile, RequiredFile, ResolveAndWrite,
             apollo::GraphosSubgraphRouterUrlOverrides, github::GithubFile,
         },
     },
@@ -95,19 +95,15 @@ pub struct MergeYaml {
 }
 
 impl AsUtf8FileContent for MergeYaml {
-    async fn try_get_file_content(
-        &self,
-        src: &Source,
-        ctx: &impl ResolutionContext,
-    ) -> Result<String> {
-        let base_str = self.base.try_get_file_content(src, ctx).await?;
+    async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String> {
+        let base_str = self.base.try_get_file_content(ctx).await?;
         let mut overrides = Vec::with_capacity(self.overrides.len());
 
         match &self.overrides {
-            Overrides::One(t) => overrides.push(t.try_get_file_content(src, ctx).await?),
+            Overrides::One(t) => overrides.push(t.try_get_file_content(ctx).await?),
             Overrides::Array(ts) => {
                 for t in ts.iter() {
-                    overrides.push(t.try_get_file_content(src, ctx).await?);
+                    overrides.push(t.try_get_file_content(ctx).await?);
                 }
             }
         }
@@ -237,13 +233,12 @@ impl ResolveAndWrite for FromCommand {
     async fn resolve_and_write(
         &self,
         target: impl AsRef<Path>,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
         let target = target.as_ref();
         let out_dir = ctx.dir_containing(target);
         self.inner
-            .run_providers_and_execute(&out_dir, Some(target.into()), src, ctx)
+            .run_providers_and_execute(&out_dir, Some(target.into()), ctx)
             .await?;
 
         Ok(())
@@ -261,8 +256,6 @@ impl Check for FromCommand {
 }
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use super::*;
     use crate::{
         checks::ErrorKind,
@@ -323,13 +316,10 @@ mod tests {
             overrides,
         };
 
-        let src = Source::Local {
-            abs_path: Default::default(),
-        };
         let ctx = Context::new();
 
         let s = provider
-            .try_get_file_content(&src, &ctx)
+            .try_get_file_content(&ctx)
             .await
             .expect("provider to run successfully");
 
@@ -460,14 +450,9 @@ mod tests {
         );
 
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let merge_yaml = merge_yaml(base_yaml, one(override_yaml));
 
-        assert_resolve_and_write_success(merge_yaml, &target, &src, &mut ctx, expected_content)
-            .await
+        assert_resolve_and_write_success(merge_yaml, &target, &mut ctx, expected_content).await
     }
 
     #[tokio::test]
@@ -511,14 +496,9 @@ mod tests {
         );
 
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let merge_yaml = merge_yaml(base_yaml, arr(&[override_one_yaml, override_two_yaml]));
 
-        assert_resolve_and_write_success(merge_yaml, &target, &src, &mut ctx, expected_content)
-            .await
+        assert_resolve_and_write_success(merge_yaml, &target, &mut ctx, expected_content).await
     }
 
     #[tokio::test]
@@ -538,13 +518,9 @@ mod tests {
             "found unexpected end of stream at line 1 column 20, while scanning a quoted scalar";
 
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let merge_yaml = merge_yaml(base_yaml, one(override_yaml));
 
-        assert_resolve_and_write_error(merge_yaml, &target, &src, &mut ctx, expected_err).await
+        assert_resolve_and_write_error(merge_yaml, &target, &mut ctx, expected_err).await
     }
 
     #[tokio::test]
@@ -564,13 +540,9 @@ mod tests {
             "found unexpected end of stream at line 1 column 20, while scanning a quoted scalar";
 
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let merge_yaml = merge_yaml(base_yaml, one(override_yaml));
 
-        assert_resolve_and_write_error(merge_yaml, &target, &src, &mut ctx, expected_err).await
+        assert_resolve_and_write_error(merge_yaml, &target, &mut ctx, expected_err).await
     }
 
     #[tokio::test]
@@ -595,12 +567,8 @@ mod tests {
             "found unexpected end of stream at line 1 column 20, while scanning a quoted scalar";
 
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let merge_yaml = merge_yaml(base_yaml, arr(&[override_one_yaml, override_two_yaml]));
 
-        assert_resolve_and_write_error(merge_yaml, &target, &src, &mut ctx, expected_err).await
+        assert_resolve_and_write_error(merge_yaml, &target, &mut ctx, expected_err).await
     }
 }

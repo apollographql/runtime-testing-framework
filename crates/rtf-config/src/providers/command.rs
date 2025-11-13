@@ -6,7 +6,7 @@ use crate::{
         self, Provider,
         file::{
             AsUtf8FileContent, InlineFile, NamedFileProvider, RelativeFile, RequiredFile,
-            ResolveAndWrite, Source,
+            ResolveAndWrite,
         },
     },
     templating::{Field, Scalar},
@@ -54,11 +54,10 @@ impl CommandSection {
         &self,
         out_dir: &Path,
         output_path: Option<PathBuf>,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<PathBuf> {
         let output_path = output_path.unwrap_or_else(|| out_dir.join(OUTPUT_PATH));
-        self.run_providers(out_dir, src, ctx).await?;
+        self.run_providers(out_dir, ctx).await?;
         if let Err(e) = self.execute(out_dir, &output_path, ctx) {
             return Err(providers::Error::CommandFailed {
                 name: self.command.name.to_string(),
@@ -83,12 +82,9 @@ impl CommandSection {
     pub async fn run_providers_and_execute_for_output(
         &self,
         out_dir: &Path,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
-        let output_path = self
-            .run_providers_and_execute(out_dir, None, src, ctx)
-            .await?;
+        let output_path = self.run_providers_and_execute(out_dir, None, ctx).await?;
 
         try_read_output_and_remove(&output_path, ctx)
     }
@@ -172,7 +168,6 @@ impl CommandSection {
     pub async fn run_providers(
         &self,
         out_dir: &Path,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
         let provider_dir = out_dir.join(PROVIDER_DIR);
@@ -188,7 +183,7 @@ impl CommandSection {
             let file_path = provider_dir.join(&self.command.name);
             self.command
                 .command_provider
-                .resolve_and_write(&file_path, src, ctx)
+                .resolve_and_write(&file_path, ctx)
                 .await?;
             ctx.make_executable(&file_path)?;
             ctx.store_provider_output_path(
@@ -216,7 +211,7 @@ impl CommandSection {
             // recursively defined because of the FromCommand file provider which is just a wrapper
             // around this struct, meaning that the call to resolve_and_write below ends up calling
             // back into run_providers_and_execute which then calls this method (run_providers).
-            match Box::pin(nfp.resolve_and_write(&file_path, src, ctx)).await {
+            match Box::pin(nfp.resolve_and_write(&file_path, ctx)).await {
                 Ok(b) => b,
                 Err(e) => {
                     return Err(providers::Error::ResolveAndWriteFailed {
@@ -772,11 +767,8 @@ mod tests {
         let c = test_cmd_section();
         let mut ctx = MockCommandContext::default();
         let dir = PathBuf::from("/example-dir");
-        let src = Source::Local {
-            abs_path: dir.join("example.yaml"),
-        };
 
-        c.run_providers(&dir, &src, &mut ctx)
+        c.run_providers(&dir, &mut ctx)
             .await
             .expect("providers failed to run");
 
@@ -810,11 +802,8 @@ mod tests {
         let c = test_cmd_section();
         let mut ctx = MockCommandContext::default();
         let dir = PathBuf::from("/example-dir");
-        let src = Source::Local {
-            abs_path: dir.join("example.yaml"),
-        };
 
-        let res = c.run_providers(&dir, &src, &mut ctx).await;
+        let res = c.run_providers(&dir, &mut ctx).await;
         assert!(res.is_ok(), "unexpected error: {res:?}");
 
         let written_files = ctx.written_files.into_inner().unwrap();
@@ -835,9 +824,6 @@ mod tests {
         let c = test_cmd_section();
         let mut ctx = MockCommandContext::default();
         let dir = PathBuf::from("/example-dir");
-        let src = Source::Local {
-            abs_path: dir.join("example.yaml"),
-        };
 
         let writes = ctx.writes.lock().unwrap().clone();
         assert!(
@@ -854,7 +840,7 @@ mod tests {
         .into_iter()
         .collect();
 
-        let res = c.run_providers(&dir, &src, &mut ctx).await;
+        let res = c.run_providers(&dir, &mut ctx).await;
         assert!(res.is_ok(), "unexpected error: {res:?}");
 
         let writes = ctx.writes.lock().unwrap().clone();
@@ -862,7 +848,7 @@ mod tests {
 
         // Running the providers a second time should still succeed and should not result in any
         // further calls to ctx.write
-        let res = c.run_providers(&dir, &src, &mut ctx).await;
+        let res = c.run_providers(&dir, &mut ctx).await;
         assert!(res.is_ok(), "unexpected error: {res:?}");
 
         let writes = ctx.writes.into_inner().unwrap();
@@ -893,13 +879,7 @@ mod tests {
         let dir = PathBuf::from("/example-dir");
 
         let output = c
-            .run_providers_and_execute_for_output(
-                &dir,
-                &Source::Local {
-                    abs_path: PathBuf::new(),
-                },
-                &mut ctx,
-            )
+            .run_providers_and_execute_for_output(&dir, &mut ctx)
             .await
             .expect("command to succeed");
 

@@ -32,11 +32,8 @@ pub(crate) trait AsUtf8FileContent:
     Check + Serialize + DeserializeOwned + fmt::Debug
 {
     /// Attempt to run this file provider and convert it into the required file content.
-    async fn try_get_file_content(
-        &self,
-        src: &Source,
-        ctx: &impl ResolutionContext,
-    ) -> providers::Result<String>;
+    async fn try_get_file_content(&self, ctx: &impl ResolutionContext)
+    -> providers::Result<String>;
 }
 
 /// Helper macro for stamping out implementations of the AsUtf8FileContent trait on an enum where
@@ -47,11 +44,10 @@ macro_rules! enum_impl_as_utf8_file_content {
         impl AsUtf8FileContent for $enum {
             async fn try_get_file_content(
                 &self,
-                src: &Source,
                 ctx: &impl ResolutionContext,
             ) -> providers::Result<String> {
                 match self {
-                    $(Self::$variant(inner) => inner.try_get_file_content(src, ctx).await,)+
+                    $(Self::$variant(inner) => inner.try_get_file_content(ctx).await,)+
                 }
             }
         }
@@ -65,12 +61,11 @@ where
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<Vec<(PathBuf, String)>> {
         Ok(vec![(
             target.as_ref().to_path_buf(),
-            self.try_get_file_content(src, ctx).await?,
+            self.try_get_file_content(ctx).await?,
         )])
     }
 }
@@ -84,7 +79,6 @@ pub(crate) trait ResolveFileContent:
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<Vec<(PathBuf, String)>>;
 }
@@ -96,10 +90,9 @@ where
     async fn resolve_and_write(
         &self,
         target: impl AsRef<Path>,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
-        let files = self.try_get_all_file_contents(target, src, ctx).await?;
+        let files = self.try_get_all_file_contents(target, ctx).await?;
         for (path, content) in files.into_iter() {
             if let Some(parent) = path.parent() {
                 ctx.create_dir_all(parent)?;
@@ -124,7 +117,6 @@ pub(crate) trait ResolveAndWrite: Check + Serialize + DeserializeOwned + fmt::De
     async fn resolve_and_write(
         &self,
         target: impl AsRef<Path>,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()>;
 }
@@ -138,11 +130,10 @@ macro_rules! enum_impl_resolve_and_write {
             async fn resolve_and_write(
                 &self,
                 target: impl AsRef<Path>,
-                src: &Source,
                 ctx: &mut impl ResolutionContext,
             ) -> $crate::providers::Result<()> {
                 match self {
-                    $(Self::$variant(inner) => inner.resolve_and_write(target, src, ctx).await,)+
+                    $(Self::$variant(inner) => inner.resolve_and_write(target, ctx).await,)+
                 }
             }
         }
@@ -310,7 +301,6 @@ pub struct InlineFile {
 impl AsUtf8FileContent for InlineFile {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         Ok(self.content.clone())
@@ -410,7 +400,6 @@ impl Template for RelativeFile {
 impl AsUtf8FileContent for RelativeFile {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         match self.src.as_ref() {
@@ -528,7 +517,6 @@ pub struct RequiredFile {
 impl AsUtf8FileContent for RequiredFile {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         panic!(
@@ -566,7 +554,6 @@ pub struct ResolvedValues;
 impl AsUtf8FileContent for ResolvedValues {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let s = match ctx.values() {
@@ -648,11 +635,10 @@ mod tests {
     pub(crate) async fn assert_resolve_and_write_success(
         provider: FileProvider,
         target: &ChildPath,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
         expected_content: &str,
     ) {
-        let res = provider.resolve_and_write(target, src, ctx).await;
+        let res = provider.resolve_and_write(target, ctx).await;
         assert!(
             res.is_ok(),
             "expected file to resolve and write, got {res:?}"
@@ -665,11 +651,10 @@ mod tests {
     pub(crate) async fn assert_resolve_and_write_error(
         provider: FileProvider,
         target: &ChildPath,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
         expected_err_str: &str,
     ) {
-        let res = provider.resolve_and_write(target, src, ctx).await;
+        let res = provider.resolve_and_write(target, ctx).await;
         assert!(
             res.is_err(),
             "expected file to fail to resolve and write, got {res:?}"
@@ -1067,16 +1052,12 @@ mod tests {
         let target = temp.child("inline.txt");
 
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let expected_content = "some content";
         let inline = FileProvider::Inline(InlineFile {
             content: expected_content.to_string(),
         });
 
-        assert_resolve_and_write_success(inline, &target, &src, &mut ctx, expected_content).await;
+        assert_resolve_and_write_success(inline, &target, &mut ctx, expected_content).await;
     }
 
     #[tokio::test]
@@ -1097,7 +1078,7 @@ mod tests {
         let src = Source::local(ctx.canonicalize_path(&test_plan_file).unwrap());
         let relative = FileProvider::RelativePath(relative_file("file.txt", src.clone()));
 
-        assert_resolve_and_write_success(relative, &target, &src, &mut ctx, expected_content).await
+        assert_resolve_and_write_success(relative, &target, &mut ctx, expected_content).await
     }
 
     #[tokio::test]
@@ -1116,9 +1097,9 @@ mod tests {
         };
 
         // The file does not exist but this does not matter since we mock a GitHub response
-        let relative = FileProvider::RelativePath(relative_file("file.txt", src.clone()));
+        let relative = FileProvider::RelativePath(relative_file("file.txt", src));
 
-        assert_resolve_and_write_success(relative, &target, &src, &mut ctx, content).await
+        assert_resolve_and_write_success(relative, &target, &mut ctx, content).await
     }
 
     #[tokio::test]
@@ -1134,9 +1115,9 @@ mod tests {
         let expected_err = "No such file or directory (os error 2)";
 
         // The file.txt file has not been created in temp
-        let relative = FileProvider::RelativePath(relative_file("file.txt", src.clone()));
+        let relative = FileProvider::RelativePath(relative_file("file.txt", src));
 
-        assert_resolve_and_write_error(relative, &target, &src, &mut ctx, expected_err).await
+        assert_resolve_and_write_error(relative, &target, &mut ctx, expected_err).await
     }
 
     #[tokio::test]
@@ -1155,9 +1136,9 @@ mod tests {
         let expected_err = "stream did not contain valid UTF-8";
 
         // The frog-no.gif cannot be read since the file to read is not utf-8
-        let relative = FileProvider::RelativePath(relative_file("frog-no.gif", src.clone()));
+        let relative = FileProvider::RelativePath(relative_file("frog-no.gif", src));
 
-        assert_resolve_and_write_error(relative, &target, &src, &mut ctx, expected_err).await
+        assert_resolve_and_write_error(relative, &target, &mut ctx, expected_err).await
     }
 
     #[tokio::test]
@@ -1176,9 +1157,9 @@ mod tests {
         let expected_err = "no GitHub client available";
 
         // The file does not exist but this does not matter since we mock a GitHub response
-        let relative = FileProvider::RelativePath(relative_file("file.txt", src.clone()));
+        let relative = FileProvider::RelativePath(relative_file("file.txt", src));
 
-        assert_resolve_and_write_error(relative, &target, &src, &mut ctx, expected_err).await
+        assert_resolve_and_write_error(relative, &target, &mut ctx, expected_err).await
     }
 
     #[tokio::test]
@@ -1187,16 +1168,12 @@ mod tests {
     )]
     async fn required_file_resolve_and_write_panics() {
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let required = FileProvider::Required(RequiredFile {
             message: "required file must be defined".to_string(),
         });
 
         let _res = required
-            .resolve_and_write(Path::new("required.txt"), &src, &mut ctx)
+            .resolve_and_write(Path::new("required.txt"), &mut ctx)
             .await;
     }
 
@@ -1212,13 +1189,8 @@ mod tests {
             [("foo".to_string(), "bar".into())].into_iter().collect();
         ctx.set_values(&values);
 
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let resolved_values = FileProvider::ResolvedValues(ResolvedValues);
 
-        assert_resolve_and_write_success(resolved_values, &target, &src, &mut ctx, expected_content)
-            .await
+        assert_resolve_and_write_success(resolved_values, &target, &mut ctx, expected_content).await
     }
 }

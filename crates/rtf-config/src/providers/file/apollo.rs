@@ -5,7 +5,7 @@ use crate::{
     context::ResolutionContext,
     providers::{
         self,
-        file::{AsUtf8FileContent, ResolveFileContent, Source},
+        file::{AsUtf8FileContent, ResolveFileContent},
     },
     templating::Field,
 };
@@ -76,7 +76,6 @@ impl GraphosSupergraph {
 impl AsUtf8FileContent for GraphosSupergraph {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let (graph_id, variant) = self
@@ -144,7 +143,6 @@ impl ResolveFileContent for GraphosSubgraphs {
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,
-        _src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<Vec<(PathBuf, String)>> {
         let (graph_id, variant) = self
@@ -193,7 +191,6 @@ pub struct GraphosSubgraphNames {
 impl AsUtf8FileContent for GraphosSubgraphNames {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let (graph_id, variant) = self
@@ -445,7 +442,6 @@ impl GraphosSubgraphRouterUrlOverrides {
 impl AsUtf8FileContent for GraphosSubgraphRouterUrlOverrides {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let (graph_id, variant) = self
@@ -509,7 +505,6 @@ fn default_top_n() -> Field<usize> {
 impl AsUtf8FileContent for GraphosCannedOps {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let (graph_id, variant) = self
@@ -574,7 +569,6 @@ pub struct GraphosCannedOpsById {
 impl AsUtf8FileContent for GraphosCannedOpsById {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let (graph_id, variant) = self
@@ -644,7 +638,6 @@ pub struct OfflineGraphosLicense {
 impl AsUtf8FileContent for OfflineGraphosLicense {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let client = ctx.platform_client().expect("to have a platform client");
@@ -714,7 +707,6 @@ pub struct RouterDownloadScript {
 impl AsUtf8FileContent for RouterDownloadScript {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let version = self.version.as_resolved();
@@ -774,7 +766,6 @@ fn default_rust_version() -> Field<String> {
 impl AsUtf8FileContent for BuildRouterFromSource {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let commit_ref = self.git_ref.as_resolved();
@@ -1315,22 +1306,12 @@ mod tests {
         let responses = &[(url.as_str(), "200", expected_content)];
 
         let mut ctx = MockContext::with_http_client(responses);
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let router_download = FileProvider::RouterDownloadScript(RouterDownloadScript {
             version: Field::Resolved(version.to_string()),
         });
 
-        assert_resolve_and_write_success(
-            router_download,
-            &target,
-            &src,
-            &mut ctx,
-            expected_content,
-        )
-        .await;
+        assert_resolve_and_write_success(router_download, &target, &mut ctx, expected_content)
+            .await;
     }
 
     #[tokio::test]
@@ -1345,16 +1326,12 @@ mod tests {
         let responses = &[(url.as_str(), "404", "Not found")];
 
         let mut ctx = MockContext::with_http_client(responses);
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
 
         let router_download = FileProvider::RouterDownloadScript(RouterDownloadScript {
             version: Field::Resolved(version.to_string()),
         });
 
-        assert_resolve_and_write_error(router_download, &target, &src, &mut ctx, &expected_err)
-            .await
+        assert_resolve_and_write_error(router_download, &target, &mut ctx, &expected_err).await
     }
 
     #[tokio::test]
@@ -1363,9 +1340,6 @@ mod tests {
         let target = temp.child("build-from-source.sh");
 
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
 
         let expected_content = indoc!(
             r#"
@@ -1383,13 +1357,7 @@ mod tests {
             rust_version: Field::Resolved("1.90.0".to_string()),
         });
 
-        assert_resolve_and_write_success(
-            router_from_source,
-            &target,
-            &src,
-            &mut ctx,
-            expected_content,
-        )
-        .await;
+        assert_resolve_and_write_success(router_from_source, &target, &mut ctx, expected_content)
+            .await;
     }
 }
