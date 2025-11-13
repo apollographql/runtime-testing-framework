@@ -1,9 +1,5 @@
 //! Helpers for checking config files
-use crate::{
-    ValueDefinition,
-    context::ResolutionContext,
-    providers::file::{NamedFileProvider, Source},
-};
+use crate::{ValueDefinition, context::ResolutionContext, providers::file::NamedFileProvider};
 use std::{collections::HashMap, hash::Hash, mem};
 
 /// User facing descriptions of the reason that validation failed.
@@ -55,24 +51,18 @@ pub type Result<T> = std::result::Result<T, Errors>;
 pub trait Check {
     /// Run any initial static check available to error early if this provider contains
     /// invalid data.
-    fn try_check(
-        &self,
-        path: &mut Vec<String>,
-        src: &Source,
-        ctx: &impl ResolutionContext,
-    ) -> Result<()>;
+    fn try_check(&self, path: &mut Vec<String>, ctx: &impl ResolutionContext) -> Result<()>;
 
     fn try_check_nested(
         &self,
         path: &mut Vec<String>,
         tail: impl Into<String>,
-        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> Result<()> {
         let mut path = path.clone();
         path.push(tail.into());
 
-        self.try_check(&mut path, src, ctx)
+        self.try_check(&mut path, ctx)
     }
 }
 
@@ -85,22 +75,20 @@ macro_rules! enum_impl_check {
             fn try_check(
                 &self,
                 path: &mut Vec<String>,
-                src: &Source,
                 ctx: &impl ResolutionContext,
             ) -> $crate::checks::Result<()> {
                 match self {
-                    $(Self::$variant(inner) => inner.try_check(path, src, ctx),)+
+                    $(Self::$variant(inner) => inner.try_check(path, ctx),)+
                 }
             }
             fn try_check_nested(
                 &self,
                 path: &mut Vec<String>,
                 tail: impl Into<String>,
-                src: &Source,
                 ctx: &impl ResolutionContext,
             ) -> $crate::checks::Result<()> {
                 match self {
-                    $(Self::$variant(inner) => inner.try_check_nested(path, tail, src, ctx),)+
+                    $(Self::$variant(inner) => inner.try_check_nested(path, tail, ctx),)+
                 }
             }
         }

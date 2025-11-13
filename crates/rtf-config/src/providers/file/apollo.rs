@@ -5,7 +5,7 @@ use crate::{
     context::ResolutionContext,
     providers::{
         self,
-        file::{AsUtf8FileContent, ResolveFileContent, Source},
+        file::{AsUtf8FileContent, ResolveFileContent},
     },
     templating::Field,
 };
@@ -76,7 +76,6 @@ impl GraphosSupergraph {
 impl AsUtf8FileContent for GraphosSupergraph {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let (graph_id, variant) = self
@@ -97,7 +96,6 @@ impl Check for GraphosSupergraph {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
@@ -145,7 +143,6 @@ impl ResolveFileContent for GraphosSubgraphs {
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,
-        _src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<Vec<(PathBuf, String)>> {
         let (graph_id, variant) = self
@@ -166,7 +163,6 @@ impl Check for GraphosSubgraphs {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
@@ -195,7 +191,6 @@ pub struct GraphosSubgraphNames {
 impl AsUtf8FileContent for GraphosSubgraphNames {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let (graph_id, variant) = self
@@ -218,7 +213,6 @@ impl Check for GraphosSubgraphNames {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
@@ -448,7 +442,6 @@ impl GraphosSubgraphRouterUrlOverrides {
 impl AsUtf8FileContent for GraphosSubgraphRouterUrlOverrides {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let (graph_id, variant) = self
@@ -469,7 +462,6 @@ impl Check for GraphosSubgraphRouterUrlOverrides {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
@@ -513,7 +505,6 @@ fn default_top_n() -> Field<usize> {
 impl AsUtf8FileContent for GraphosCannedOps {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let (graph_id, variant) = self
@@ -543,7 +534,6 @@ impl Check for GraphosCannedOps {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
@@ -579,7 +569,6 @@ pub struct GraphosCannedOpsById {
 impl AsUtf8FileContent for GraphosCannedOpsById {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let (graph_id, variant) = self
@@ -608,7 +597,6 @@ impl Check for GraphosCannedOpsById {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
@@ -650,7 +638,6 @@ pub struct OfflineGraphosLicense {
 impl AsUtf8FileContent for OfflineGraphosLicense {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let client = ctx.platform_client().expect("to have a platform client");
@@ -664,7 +651,6 @@ impl Check for OfflineGraphosLicense {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_client(path, ctx)
@@ -721,7 +707,6 @@ pub struct RouterDownloadScript {
 impl AsUtf8FileContent for RouterDownloadScript {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let version = self.version.as_resolved();
@@ -742,7 +727,6 @@ impl Check for RouterDownloadScript {
     fn try_check(
         &self,
         _path: &mut Vec<String>,
-        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         Ok(())
@@ -782,7 +766,6 @@ fn default_rust_version() -> Field<String> {
 impl AsUtf8FileContent for BuildRouterFromSource {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let commit_ref = self.git_ref.as_resolved();
@@ -810,7 +793,6 @@ impl Check for BuildRouterFromSource {
     fn try_check(
         &self,
         _path: &mut Vec<String>,
-        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         Ok(())
@@ -1064,18 +1046,15 @@ mod tests {
         with_platform_config: bool,
         expected_err_kinds: &[ErrorKind],
     ) {
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
         let mut ctx = Context::new();
         if with_platform_config {
             ctx.with_platform_config("dummy_key", false, false);
         }
 
         if !expected_err_kinds.is_empty() {
-            assert_check_errors(fp, &src, &ctx, expected_err_kinds);
+            assert_check_errors(fp, &ctx, expected_err_kinds);
         } else {
-            let res = fp.try_check(&mut Vec::new(), &src, &ctx);
+            let res = fp.try_check(&mut Vec::new(), &ctx);
             assert!(res.is_ok(), "expected check to succeed, got {res:?}");
         }
     }
@@ -1086,13 +1065,10 @@ mod tests {
             graph_id: Field::Resolved("graph".to_string()),
         };
 
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
         let mut ctx = Context::new();
         ctx.with_platform_config("dummy_key", false, false);
 
-        let res = offline.try_check(&mut Vec::new(), &src, &ctx);
+        let res = offline.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -1102,12 +1078,9 @@ mod tests {
             graph_id: Field::Resolved("graph".to_string()),
         };
 
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
         let ctx = Context::new();
 
-        assert_check_errors(offline, &src, &ctx, &[ErrorKind::MissingGraphOsApiKey]);
+        assert_check_errors(offline, &ctx, &[ErrorKind::MissingGraphOsApiKey]);
     }
 
     #[test]
@@ -1116,12 +1089,9 @@ mod tests {
             version: Field::Resolved("v2.0.0".to_string()),
         };
 
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
         let ctx = Context::new();
 
-        let res = router_download.try_check(&mut Vec::new(), &src, &ctx);
+        let res = router_download.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -1132,12 +1102,9 @@ mod tests {
             rust_version: Field::Resolved("1.90.0".to_string()),
         };
 
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
         let ctx = Context::new();
 
-        let res = build_from_source.try_check(&mut Vec::new(), &src, &ctx);
+        let res = build_from_source.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -1339,22 +1306,12 @@ mod tests {
         let responses = &[(url.as_str(), "200", expected_content)];
 
         let mut ctx = MockContext::with_http_client(responses);
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let router_download = FileProvider::RouterDownloadScript(RouterDownloadScript {
             version: Field::Resolved(version.to_string()),
         });
 
-        assert_resolve_and_write_success(
-            router_download,
-            &target,
-            &src,
-            &mut ctx,
-            expected_content,
-        )
-        .await;
+        assert_resolve_and_write_success(router_download, &target, &mut ctx, expected_content)
+            .await;
     }
 
     #[tokio::test]
@@ -1369,16 +1326,12 @@ mod tests {
         let responses = &[(url.as_str(), "404", "Not found")];
 
         let mut ctx = MockContext::with_http_client(responses);
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
 
         let router_download = FileProvider::RouterDownloadScript(RouterDownloadScript {
             version: Field::Resolved(version.to_string()),
         });
 
-        assert_resolve_and_write_error(router_download, &target, &src, &mut ctx, &expected_err)
-            .await
+        assert_resolve_and_write_error(router_download, &target, &mut ctx, &expected_err).await
     }
 
     #[tokio::test]
@@ -1387,9 +1340,6 @@ mod tests {
         let target = temp.child("build-from-source.sh");
 
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
 
         let expected_content = indoc!(
             r#"
@@ -1407,13 +1357,7 @@ mod tests {
             rust_version: Field::Resolved("1.90.0".to_string()),
         });
 
-        assert_resolve_and_write_success(
-            router_from_source,
-            &target,
-            &src,
-            &mut ctx,
-            expected_content,
-        )
-        .await;
+        assert_resolve_and_write_success(router_from_source, &target, &mut ctx, expected_content)
+            .await;
     }
 }

@@ -521,11 +521,6 @@ containing config file was pulled from a repository.
 
 The relative path from the containing config file to the target file.
 
-### `src`
-
-Set during TestPlan parsing as part of overrides. This should only ever be `Some` if this provider
-was defined as part of an `overrides` section in the test plan.
-
 </details>
 
 ## Required File

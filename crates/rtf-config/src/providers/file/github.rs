@@ -1,10 +1,7 @@
 use crate::{
     checks::{self, Check},
     context::ResolutionContext,
-    providers::{
-        Result,
-        file::{AsUtf8FileContent, Source},
-    },
+    providers::{Result, file::AsUtf8FileContent},
     templating::Field,
 };
 use rtf_core::github::Client;
@@ -43,11 +40,7 @@ pub struct GithubFile {
 }
 
 impl AsUtf8FileContent for GithubFile {
-    async fn try_get_file_content(
-        &self,
-        _src: &Source,
-        ctx: &impl ResolutionContext,
-    ) -> Result<String> {
+    async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String> {
         let client = ctx.github_client().expect("to have a GitHub client");
         let content = client
             .string_file_content(
@@ -66,7 +59,6 @@ impl Check for GithubFile {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         if ctx.github_client().is_none() {
@@ -111,14 +103,8 @@ mod tests {
 
         let mut ctx = Context::new();
         ctx.with_github_config("dummy_token");
-        let src = Source::Github {
-            org: "org".to_string(),
-            repo: "repo".to_string(),
-            path: "path".into(),
-            git_ref: None,
-        };
 
-        let res = github_file.try_check(&mut Vec::new(), &src, &ctx);
+        let res = github_file.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -129,19 +115,8 @@ mod tests {
         let github_file = github_file();
 
         let ctx = Context::new();
-        let src = Source::Github {
-            org: "org".to_string(),
-            repo: "repo".to_string(),
-            path: "path".into(),
-            git_ref: None,
-        };
 
-        assert_check_errors(
-            github_file,
-            &src,
-            &ctx,
-            &[checks::ErrorKind::MissingGithubApiKey],
-        );
+        assert_check_errors(github_file, &ctx, &[checks::ErrorKind::MissingGithubApiKey]);
     }
 
     #[tokio::test]
@@ -152,17 +127,9 @@ mod tests {
         let expected_content = "some content";
 
         let mut ctx = MockContext::with_github_client(expected_content);
-        let src = Source::Github {
-            org: "org".to_string(),
-            repo: "repo".to_string(),
-            path: "path".into(),
-            git_ref: None,
-        };
-
         let github_file = FileProvider::GithubFile(github_file());
 
-        assert_resolve_and_write_success(github_file, &target, &src, &mut ctx, expected_content)
-            .await;
+        assert_resolve_and_write_success(github_file, &target, &mut ctx, expected_content).await;
     }
 
     #[tokio::test]
@@ -172,15 +139,8 @@ mod tests {
         let target = temp.child("github.txt");
 
         let mut ctx = Context::new();
-        let src = Source::Github {
-            org: "org".to_string(),
-            repo: "repo".to_string(),
-            path: "path".into(),
-            git_ref: None,
-        };
-
         let github_file = FileProvider::GithubFile(github_file());
 
-        let _res = github_file.resolve_and_write(&target, &src, &mut ctx).await;
+        let _res = github_file.resolve_and_write(&target, &mut ctx).await;
     }
 }

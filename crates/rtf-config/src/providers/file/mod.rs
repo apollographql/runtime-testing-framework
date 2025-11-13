@@ -3,14 +3,13 @@ use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
     enum_impl_check, providers,
-    templating::{self, Field, Scalar, Template},
+    templating::{self, Field, Template, TemplateValues},
 };
 use rtf_core::github::Client;
 use rtf_derive::Template;
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
-    collections::HashMap,
     fmt, io,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -33,11 +32,8 @@ pub(crate) trait AsUtf8FileContent:
     Check + Serialize + DeserializeOwned + fmt::Debug
 {
     /// Attempt to run this file provider and convert it into the required file content.
-    async fn try_get_file_content(
-        &self,
-        src: &Source,
-        ctx: &impl ResolutionContext,
-    ) -> providers::Result<String>;
+    async fn try_get_file_content(&self, ctx: &impl ResolutionContext)
+    -> providers::Result<String>;
 }
 
 /// Helper macro for stamping out implementations of the AsUtf8FileContent trait on an enum where
@@ -48,11 +44,10 @@ macro_rules! enum_impl_as_utf8_file_content {
         impl AsUtf8FileContent for $enum {
             async fn try_get_file_content(
                 &self,
-                src: &Source,
                 ctx: &impl ResolutionContext,
             ) -> providers::Result<String> {
                 match self {
-                    $(Self::$variant(inner) => inner.try_get_file_content(src, ctx).await,)+
+                    $(Self::$variant(inner) => inner.try_get_file_content(ctx).await,)+
                 }
             }
         }
@@ -66,12 +61,11 @@ where
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<Vec<(PathBuf, String)>> {
         Ok(vec![(
             target.as_ref().to_path_buf(),
-            self.try_get_file_content(src, ctx).await?,
+            self.try_get_file_content(ctx).await?,
         )])
     }
 }
@@ -85,7 +79,6 @@ pub(crate) trait ResolveFileContent:
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<Vec<(PathBuf, String)>>;
 }
@@ -97,10 +90,9 @@ where
     async fn resolve_and_write(
         &self,
         target: impl AsRef<Path>,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
-        let files = self.try_get_all_file_contents(target, src, ctx).await?;
+        let files = self.try_get_all_file_contents(target, ctx).await?;
         for (path, content) in files.into_iter() {
             if let Some(parent) = path.parent() {
                 ctx.create_dir_all(parent)?;
@@ -125,7 +117,6 @@ pub(crate) trait ResolveAndWrite: Check + Serialize + DeserializeOwned + fmt::De
     async fn resolve_and_write(
         &self,
         target: impl AsRef<Path>,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()>;
 }
@@ -139,11 +130,10 @@ macro_rules! enum_impl_resolve_and_write {
             async fn resolve_and_write(
                 &self,
                 target: impl AsRef<Path>,
-                src: &Source,
                 ctx: &mut impl ResolutionContext,
             ) -> $crate::providers::Result<()> {
                 match self {
-                    $(Self::$variant(inner) => inner.resolve_and_write(target, src, ctx).await,)+
+                    $(Self::$variant(inner) => inner.resolve_and_write(target, ctx).await,)+
                 }
             }
         }
@@ -194,12 +184,16 @@ impl Template for NamedFileProvider {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        file_source: &Source,
+        values: &TemplateValues,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
         let tail = self.env_var.clone();
-        errs.append(self.provider.try_template_nested(path, &tail, values));
+        errs.append(
+            self.provider
+                .try_template_nested(path, &tail, file_source, values),
+        );
 
         errs.into_result(())
     }
@@ -209,13 +203,12 @@ impl Check for NamedFileProvider {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         let mut errs = checks::ErrorBuilder::new();
 
         let tail = self.env_var.clone();
-        errs.append(self.provider.try_check_nested(path, tail, src, ctx));
+        errs.append(self.provider.try_check_nested(path, tail, ctx));
 
         errs.into_result(())
     }
@@ -308,7 +301,6 @@ pub struct InlineFile {
 impl AsUtf8FileContent for InlineFile {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         Ok(self.content.clone())
@@ -319,7 +311,6 @@ impl Check for InlineFile {
     fn try_check(
         &self,
         _path: &mut Vec<String>,
-        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         Ok(())
@@ -338,16 +329,15 @@ impl Check for InlineFile {
 ///   kind: relative_path
 ///   path: "../../resources/test-data/my-file.txt"
 /// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct RelativeFile {
     /// The relative path from the containing config file to the target file.
     pub(crate) path: Field<String>,
 
-    /// Set during TestPlan parsing as part of overrides. This should only ever be `Some` if this
-    /// provider was defined as part of an `overrides` section in the test plan.
+    /// Set during TestPlan parsing as part of overrides and templating.
     #[serde(default, skip_serializing)]
     #[schemars(skip)]
-    #[template(skip)]
+    #[doc(hidden)]
     pub(crate) src: Option<Source>,
 }
 
@@ -357,18 +347,63 @@ impl RelativeFile {
     }
 }
 
+impl Template for RelativeFile {
+    fn has_pending_fields(&self) -> bool {
+        self.path.has_pending_fields()
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        self.path.required_values()
+    }
+
+    fn try_template(
+        &mut self,
+        path: &mut Vec<String>,
+        file_source: &Source,
+        values: &TemplateValues,
+    ) -> templating::Result<()> {
+        use templating::{ErrorKind, Errors, ValidField};
+
+        path.push("path".into());
+
+        match &mut self.path {
+            // If we're pending then we template and store the source of the value we used
+            Field::Pending(value) => match values.get_with_source(value) {
+                Some((source, raw)) => match String::try_from_scalar(raw.clone()) {
+                    Ok(path) => {
+                        self.path = Field::Resolved(path);
+                        self.src = Some(source.clone());
+                    }
+                    Err(reason) => {
+                        return Err(Errors::new(ErrorKind::InvalidData, reason, path));
+                    }
+                },
+                None => return Err(Errors::new(ErrorKind::UnknownValue, value.clone(), path)),
+            },
+
+            // If we aren't already pinned to a source, we store the source of the file we are in
+            Field::Resolved(_) if self.src.is_none() => self.src = Some(file_source.clone()),
+
+            // Otherwise we are resolved and already have a source set
+            Field::Resolved(_) => (),
+        }
+
+        assert!(
+            self.src.is_some(),
+            "should always have a source once we've templated"
+        );
+
+        Ok(())
+    }
+}
+
 impl AsUtf8FileContent for RelativeFile {
     async fn try_get_file_content(
         &self,
-        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
-        // Prefer an explicitly provided Source if one was set during parsing of the test plan
-        // as part of applying overrides.
-        let src = self.src.as_ref().unwrap_or(src);
-
-        match src {
-            Source::Local { abs_path } => {
+        match self.src.as_ref() {
+            Some(Source::Local { abs_path }) => {
                 let dir = match abs_path.parent() {
                     Some(dir) => dir.to_path_buf(),
                     None => PathBuf::new(),
@@ -377,12 +412,12 @@ impl AsUtf8FileContent for RelativeFile {
                 Ok(ctx.read_path_to_string(p)?)
             }
 
-            Source::Github {
+            Some(Source::Github {
                 org,
                 repo,
                 path,
                 git_ref,
-            } => {
+            }) => {
                 let client = ctx
                     .github_client()
                     .ok_or(providers::Error::Github(rtf_core::github::Error::NoClient))?;
@@ -395,6 +430,8 @@ impl AsUtf8FileContent for RelativeFile {
                     .string_file_content(org, repo, &full_path, git_ref.as_ref())
                     .await?)
             }
+
+            None => panic!("attempt to resolve a RelativeFile without a source"),
         }
     }
 }
@@ -403,15 +440,10 @@ impl Check for RelativeFile {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        // Prefer an explicitly provided Source if one was set during parsing of the test plan
-        // as part of applying overrides.
-        let src = self.src.as_ref().unwrap_or(src);
-
-        let res = match src {
-            Source::Local { abs_path } => {
+        let res = match self.src.as_ref() {
+            Some(Source::Local { abs_path }) => {
                 let dir = match abs_path.parent() {
                     Some(dir) => dir.to_path_buf(),
                     None => PathBuf::new(),
@@ -419,7 +451,7 @@ impl Check for RelativeFile {
                 ctx.canonicalize_path(dir.join(self.path.as_resolved()))
             }
 
-            Source::Github { .. } => {
+            Some(Source::Github { .. }) => {
                 return if ctx.github_client().is_none() {
                     Err(checks::Errors::new(
                         checks::ErrorKind::MissingGithubApiKey,
@@ -430,6 +462,8 @@ impl Check for RelativeFile {
                     Ok(())
                 };
             }
+
+            None => panic!("attempt to check a RelativeFile without a source"),
         };
 
         let p = match res {
@@ -483,7 +517,6 @@ pub struct RequiredFile {
 impl AsUtf8FileContent for RequiredFile {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         panic!(
@@ -496,7 +529,6 @@ impl Check for RequiredFile {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         Err(checks::Errors::new(
@@ -522,7 +554,6 @@ pub struct ResolvedValues;
 impl AsUtf8FileContent for ResolvedValues {
     async fn try_get_file_content(
         &self,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         let s = match ctx.values() {
@@ -538,7 +569,6 @@ impl Check for ResolvedValues {
     fn try_check(
         &self,
         _path: &mut Vec<String>,
-        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         Ok(())
@@ -552,7 +582,7 @@ mod tests {
         context::Context,
         mock_context::MockContext,
         providers::test_helpers::{assert_file_content, create_temp_dir_with_file},
-        templating::ErrorKind,
+        templating::{ErrorKind, Scalar},
     };
     use assert_fs::{
         TempDir,
@@ -563,24 +593,34 @@ mod tests {
     use indoc::indoc;
     use predicates::path;
     use simple_test_case::test_case;
-    use std::path::PathBuf;
+    use std::{collections::HashMap, path::PathBuf};
+
+    macro_rules! template_values {
+        ($slice:expr) => {{
+            let mut m = ::std::collections::HashMap::new();
+            for k in $slice {
+                m.insert(k.to_string(), Scalar::from(k.to_string()));
+            }
+
+            TemplateValues::new_stubbed(m)
+        }};
+    }
 
     /// Create a RelativeFile for testing - returns the actual file in a tmp dir
-    fn relative_file(path: &str) -> RelativeFile {
+    fn relative_file(path: &str, source: Source) -> RelativeFile {
         RelativeFile {
             path: Field::Resolved(path.to_string()),
-            src: None,
+            src: Some(source),
         }
     }
 
     /// Assert check errors
     pub(crate) fn assert_check_errors(
         c: impl Check,
-        src: &Source,
         ctx: &Context,
         expected_err_kinds: &[checks::ErrorKind],
     ) {
-        let res = c.try_check(&mut Vec::new(), src, ctx);
+        let res = c.try_check(&mut Vec::new(), ctx);
         assert!(res.is_err(), "expected check to fail, got {res:?}");
 
         let err = res.unwrap_err();
@@ -595,11 +635,10 @@ mod tests {
     pub(crate) async fn assert_resolve_and_write_success(
         provider: FileProvider,
         target: &ChildPath,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
         expected_content: &str,
     ) {
-        let res = provider.resolve_and_write(target, src, ctx).await;
+        let res = provider.resolve_and_write(target, ctx).await;
         assert!(
             res.is_ok(),
             "expected file to resolve and write, got {res:?}"
@@ -612,11 +651,10 @@ mod tests {
     pub(crate) async fn assert_resolve_and_write_error(
         provider: FileProvider,
         target: &ChildPath,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
         expected_err_str: &str,
     ) {
-        let res = provider.resolve_and_write(target, src, ctx).await;
+        let res = provider.resolve_and_write(target, ctx).await;
         assert!(
             res.is_err(),
             "expected file to fail to resolve and write, got {res:?}"
@@ -838,10 +876,9 @@ mod tests {
                 src: None,
             }),
         };
-        let mut values: HashMap<String, Scalar> = HashMap::new();
-        values.insert("path".to_string(), Scalar::String("path".to_string()));
+        let values = template_values!(&["path"]);
 
-        let res = nfp.try_template(&mut Vec::new(), &values);
+        let res = nfp.try_template(&mut Vec::new(), &Source::local("/"), &values);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -858,10 +895,9 @@ mod tests {
                 src: None,
             }),
         };
-        let mut values: HashMap<String, Scalar> = HashMap::new();
-        values.insert("unused".to_string(), Scalar::String("unused".to_string()));
+        let values = template_values!(&["unused"]);
 
-        let res = nfp.try_template(&mut vec!["path".to_string()], &values);
+        let res = nfp.try_template(&mut vec!["path".to_string()], &Source::local("/"), &values);
         assert!(res.is_err(), "expected templating to error, got {res:?}");
 
         let errors = res.unwrap_err();
@@ -883,17 +919,11 @@ mod tests {
             env_var: "RELATIVE".to_string(),
             provider: FileProvider::RelativePath(RelativeFile {
                 path: Field::Resolved("does/not/exist/relative.txt".to_string()),
-                src: None,
+                src: Some(Source::local("/")),
             }),
         };
 
-        let res = nfp.try_check(
-            &mut vec!["path".to_string()],
-            &Source::Local {
-                abs_path: PathBuf::new(),
-            },
-            &Context::new(),
-        );
+        let res = nfp.try_check(&mut vec!["path".to_string()], &Context::new());
         assert!(res.is_err(), "expected to check to error, got {res:?}");
         let err = res.unwrap_err().unwrap_single();
         assert_eq!(err.path, "path.RELATIVE")
@@ -905,12 +935,9 @@ mod tests {
             content: "some content".to_string(),
         };
 
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
         let ctx = Context::new();
 
-        let res = inline.try_check(&mut Vec::new(), &src, &ctx);
+        let res = inline.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}")
     }
 
@@ -919,14 +946,13 @@ mod tests {
         let file_name = "file.txt";
         let (_temp, file) = create_temp_dir_with_file(file_name, "some content");
 
-        let relative_file = relative_file(file_name);
-
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: ctx.canonicalize_path(&file).unwrap(),
-        };
+        let relative_file = relative_file(
+            file_name,
+            Source::local(ctx.canonicalize_path(&file).unwrap()),
+        );
 
-        let res = relative_file.try_check(&mut Vec::new(), &src, &ctx);
+        let res = relative_file.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}")
     }
 
@@ -934,77 +960,54 @@ mod tests {
     fn relative_file_check_github_success() {
         // This test works because all that's needed for success in the GitHub case is
         // a GitHub token to be defined in the context
-        let relative_file = relative_file("file.txt");
+        let relative_file = relative_file(
+            "file.txt",
+            Source::github("org", "repo", "path", Some("ref")),
+        );
 
         let mut ctx = Context::new();
         ctx.with_github_config("dummy_token");
-        let src = Source::Github {
-            org: "org".to_string(),
-            repo: "repo".to_string(),
-            path: "path".into(),
-            git_ref: None,
-        };
 
-        let res = relative_file.try_check(&mut Vec::new(), &src, &ctx);
+        let res = relative_file.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}")
     }
 
     #[test]
     fn relative_file_check_does_not_exist() {
-        let (_temp, file) = create_temp_dir_with_file("file.txt", "some content");
-
-        let relative_file = relative_file("does-not-exist.txt");
-
+        let relative_file = relative_file("does-not-exist.txt", Source::local("/"));
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: ctx.canonicalize_path(&file).unwrap(),
-        };
 
-        assert_check_errors(
-            relative_file,
-            &src,
-            &ctx,
-            &[checks::ErrorKind::FileNotFound],
-        );
+        assert_check_errors(relative_file, &ctx, &[checks::ErrorKind::FileNotFound]);
     }
 
     #[test]
     fn relative_file_check_is_directory() {
         let (temp, _file) = create_temp_dir_with_file("dir/file.txt", "some content");
 
-        let relative_file = relative_file("dir");
-
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: ctx
-                .canonicalize_path(format!("{}/dir", temp.path().to_string_lossy()))
-                .unwrap(),
-        };
-
-        assert_check_errors(
-            relative_file,
-            &src,
-            &ctx,
-            &[checks::ErrorKind::IsADirectory],
+        let relative_file = relative_file(
+            "dir",
+            Source::local(
+                ctx.canonicalize_path(format!("{}/dir", temp.path().to_string_lossy()))
+                    .unwrap(),
+            ),
         );
+
+        assert_check_errors(relative_file, &ctx, &[checks::ErrorKind::IsADirectory]);
     }
 
     #[test]
     fn relative_file_check_missing_github_api_token() {
-        let relative_file = relative_file("file.txt");
+        let relative_file = relative_file(
+            "file.txt",
+            Source::github("org", "repo", "path", Some("ref")),
+        );
 
         // There is no github client added to this context so this fails
         let ctx = Context::new();
-        let src = Source::Github {
-            org: "org".to_string(),
-            repo: "repo".to_string(),
-            path: "path".into(),
-            git_ref: None,
-        };
 
         assert_check_errors(
             relative_file,
-            &src,
             &ctx,
             &[checks::ErrorKind::MissingGithubApiKey],
         );
@@ -1017,12 +1020,9 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
 
         // Not reusing assert_check_error so the message can also be checked
-        let res = required_file.try_check(&mut Vec::new(), &src, &ctx);
+        let res = required_file.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_err(), "expected check to fail, got {res:?}");
 
         let err = res.unwrap_err().unwrap_single();
@@ -1040,13 +1040,9 @@ mod tests {
     #[test]
     fn resolved_values_check_success() {
         let resolved_values = ResolvedValues {};
-
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
         let ctx = Context::new();
 
-        let res = resolved_values.try_check(&mut Vec::new(), &src, &ctx);
+        let res = resolved_values.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}")
     }
 
@@ -1056,16 +1052,12 @@ mod tests {
         let target = temp.child("inline.txt");
 
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let expected_content = "some content";
         let inline = FileProvider::Inline(InlineFile {
             content: expected_content.to_string(),
         });
 
-        assert_resolve_and_write_success(inline, &target, &src, &mut ctx, expected_content).await;
+        assert_resolve_and_write_success(inline, &target, &mut ctx, expected_content).await;
     }
 
     #[tokio::test]
@@ -1083,13 +1075,10 @@ mod tests {
         // Relative File paths are resolved relative to the test plan file's location.
         // We have created an empty test plan file so we can canonicalize its path (it must exist for this to work)
         // This allows us to read the relative file from the correct path
-        let src = Source::Local {
-            abs_path: ctx.canonicalize_path(&test_plan_file).unwrap(),
-        };
+        let src = Source::local(ctx.canonicalize_path(&test_plan_file).unwrap());
+        let relative = FileProvider::RelativePath(relative_file("file.txt", src.clone()));
 
-        let relative = FileProvider::RelativePath(relative_file("file.txt"));
-
-        assert_resolve_and_write_success(relative, &target, &src, &mut ctx, expected_content).await
+        assert_resolve_and_write_success(relative, &target, &mut ctx, expected_content).await
     }
 
     #[tokio::test]
@@ -1108,9 +1097,9 @@ mod tests {
         };
 
         // The file does not exist but this does not matter since we mock a GitHub response
-        let relative = FileProvider::RelativePath(relative_file("file.txt"));
+        let relative = FileProvider::RelativePath(relative_file("file.txt", src));
 
-        assert_resolve_and_write_success(relative, &target, &src, &mut ctx, content).await
+        assert_resolve_and_write_success(relative, &target, &mut ctx, content).await
     }
 
     #[tokio::test]
@@ -1126,9 +1115,9 @@ mod tests {
         let expected_err = "No such file or directory (os error 2)";
 
         // The file.txt file has not been created in temp
-        let relative = FileProvider::RelativePath(relative_file("file.txt"));
+        let relative = FileProvider::RelativePath(relative_file("file.txt", src));
 
-        assert_resolve_and_write_error(relative, &target, &src, &mut ctx, expected_err).await
+        assert_resolve_and_write_error(relative, &target, &mut ctx, expected_err).await
     }
 
     #[tokio::test]
@@ -1147,9 +1136,9 @@ mod tests {
         let expected_err = "stream did not contain valid UTF-8";
 
         // The frog-no.gif cannot be read since the file to read is not utf-8
-        let relative = FileProvider::RelativePath(relative_file("frog-no.gif"));
+        let relative = FileProvider::RelativePath(relative_file("frog-no.gif", src));
 
-        assert_resolve_and_write_error(relative, &target, &src, &mut ctx, expected_err).await
+        assert_resolve_and_write_error(relative, &target, &mut ctx, expected_err).await
     }
 
     #[tokio::test]
@@ -1168,9 +1157,9 @@ mod tests {
         let expected_err = "no GitHub client available";
 
         // The file does not exist but this does not matter since we mock a GitHub response
-        let relative = FileProvider::RelativePath(relative_file("file.txt"));
+        let relative = FileProvider::RelativePath(relative_file("file.txt", src));
 
-        assert_resolve_and_write_error(relative, &target, &src, &mut ctx, expected_err).await
+        assert_resolve_and_write_error(relative, &target, &mut ctx, expected_err).await
     }
 
     #[tokio::test]
@@ -1179,16 +1168,12 @@ mod tests {
     )]
     async fn required_file_resolve_and_write_panics() {
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let required = FileProvider::Required(RequiredFile {
             message: "required file must be defined".to_string(),
         });
 
         let _res = required
-            .resolve_and_write(Path::new("required.txt"), &src, &mut ctx)
+            .resolve_and_write(Path::new("required.txt"), &mut ctx)
             .await;
     }
 
@@ -1204,13 +1189,8 @@ mod tests {
             [("foo".to_string(), "bar".into())].into_iter().collect();
         ctx.set_values(&values);
 
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let resolved_values = FileProvider::ResolvedValues(ResolvedValues);
 
-        assert_resolve_and_write_success(resolved_values, &target, &src, &mut ctx, expected_content)
-            .await
+        assert_resolve_and_write_success(resolved_values, &target, &mut ctx, expected_content).await
     }
 }

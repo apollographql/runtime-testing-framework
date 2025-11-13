@@ -1,10 +1,17 @@
 //! Helpers for supporting minimal templating of user config files.
+use crate::{Source, ValueDefinition};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
     de::{self, DeserializeOwned, Visitor},
 };
-use std::{borrow::Cow, collections::HashMap, fmt, marker::PhantomData};
+use std::{
+    borrow::{Borrow, Cow},
+    collections::HashMap,
+    fmt,
+    hash::Hash,
+    marker::PhantomData,
+};
 
 /// User facing descriptions of the reason that templating a [Field] failed.
 ///
@@ -50,6 +57,106 @@ pub type Errors = crate::error::Errors<ErrorKind>;
 pub type ErrorBuilder = crate::error::ErrorBuilder<ErrorKind>;
 pub type Result<T> = std::result::Result<T, Errors>;
 
+/// Templating values along with provenance of where each value has come from in order to correctly
+/// handle relative paths.
+#[derive(Debug, Clone)]
+pub struct TemplateValues {
+    values: HashMap<String, Scalar>,
+    test_plan_source: Source,
+    override_sources: HashMap<String, Source>,
+}
+
+impl TemplateValues {
+    pub fn new(
+        values: HashMap<String, Scalar>,
+        test_plan_source: Source,
+        override_sources: HashMap<String, Source>,
+    ) -> Self {
+        Self {
+            values,
+            test_plan_source,
+            override_sources,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn new_stubbed(values: HashMap<String, Scalar>) -> Self {
+        Self::new(values, Source::local("/"), Default::default())
+    }
+
+    pub fn inner(&self) -> &HashMap<String, Scalar> {
+        &self.values
+    }
+
+    /// Helper for filtering allowed templating values based on [ValueDefinition]s present in a
+    /// config file. This is also where defaults defined in value definitions are applied, being
+    /// overwritten by any explicitly provided values coming from `all_values`.
+    ///
+    /// # Constructing the definitions argument
+    ///
+    /// The trait bound here is to support both direct calls to `Vec<ValueDefinition>.iter()` and
+    /// calls to [Iterator::chain] to joining together multiple vecs of ValueDefinitions:
+    ///
+    /// ```ignore
+    /// // from EnvironmentConfig: both of these will work
+    /// let definitions = self.values.iter();
+    /// let definitions = self.values.iter().chain(self.setup.provides.iter());
+    /// ```
+    pub(crate) fn for_config_file<'a>(
+        &self,
+        file_source: &Source,
+        definitions: impl Iterator<Item = &'a ValueDefinition> + Clone,
+    ) -> Self {
+        let mut new = self.clone();
+
+        new.values
+            .retain(|k, _| definitions.clone().any(|val| &val.name == k));
+
+        for vd in definitions {
+            if let Some(default) = vd.default.as_ref() {
+                new.values.entry(vd.name.clone()).or_insert_with(|| {
+                    new.override_sources
+                        .insert(vd.name.clone(), file_source.clone());
+
+                    default.clone()
+                });
+            }
+        }
+
+        new
+    }
+
+    pub fn extend(&mut self, source: Source, values: HashMap<String, Scalar>) {
+        for k in values.keys() {
+            self.override_sources.insert(k.to_owned(), source.clone());
+        }
+
+        self.values.extend(values);
+    }
+
+    pub fn get<Q>(&self, key: &Q) -> Option<&Scalar>
+    where
+        String: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        self.values.get(key)
+    }
+
+    pub fn get_with_source<Q>(&self, key: &Q) -> Option<(&Source, &Scalar)>
+    where
+        String: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        let s = self.values.get(key)?;
+        let source = self
+            .override_sources
+            .get(key)
+            .unwrap_or(&self.test_plan_source);
+
+        Some((source, s))
+    }
+}
+
 /// In order to support controlled templating of config files with [Scalar] values we make use of a
 /// wrapper [Field] type to identify where values need to be injected. A type that implements
 /// [Template] supports walking its contents to locate and template fields using a provided map
@@ -66,7 +173,8 @@ pub trait Template {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        file_source: &Source,
+        values: &TemplateValues,
     ) -> Result<()>;
 
     /// Attempt to resolve all pending [Field]s when this type is a child of some parent
@@ -76,18 +184,24 @@ pub trait Template {
         &mut self,
         path: &mut Vec<String>,
         tail: &str,
-        values: &HashMap<String, Scalar>,
+        file_source: &Source,
+        values: &TemplateValues,
     ) -> Result<()> {
         let mut path = path.clone();
         path.push(tail.to_string());
-        self.try_template(&mut path, values)
+        self.try_template(&mut path, file_source, values)
     }
 
     /// Attempt to resolve all known [Field]s, reporting required values that are not present in
     /// the provided map. If there are any deserialization errors then then this method as an
     /// aggregate operation will fail.
-    fn try_template_known(&mut self, values: &HashMap<String, Scalar>) -> Result<Vec<String>> {
-        let all_errs = match self.try_template(&mut Vec::new(), values) {
+    fn try_template_known(
+        &mut self,
+        path: &mut Vec<String>,
+        file_source: &Source,
+        values: &TemplateValues,
+    ) -> Result<Vec<String>> {
+        let all_errs = match self.try_template(path, file_source, values) {
             Ok(_) => return Ok(Vec::new()),
             Err(errs) => errs,
         };
@@ -125,10 +239,11 @@ where
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        file_source: &Source,
+        values: &TemplateValues,
     ) -> Result<()> {
         self.as_mut()
-            .map(|inner| inner.try_template(path, values))
+            .map(|inner| inner.try_template(path, file_source, values))
             .unwrap_or(Ok(()))
     }
 }
@@ -150,12 +265,13 @@ where
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        file_source: &Source,
+        values: &TemplateValues,
     ) -> Result<()> {
         let mut errs = ErrorBuilder::new();
 
         for elem in self.iter_mut() {
-            errs.append(elem.try_template(path, values))
+            errs.append(elem.try_template(path, file_source, values))
         }
 
         errs.into_result(())
@@ -180,12 +296,13 @@ where
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        file_source: &Source,
+        values: &TemplateValues,
     ) -> Result<()> {
         let mut errs = ErrorBuilder::new();
 
         for (name, f) in self.iter_mut() {
-            errs.append(f.try_template_nested(path, name.as_ref(), values));
+            errs.append(f.try_template_nested(path, name.as_ref(), file_source, values));
         }
 
         errs.into_result(())
@@ -297,7 +414,8 @@ where
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        values: &HashMap<String, Scalar>,
+        _file_source: &Source,
+        values: &TemplateValues,
     ) -> Result<()> {
         if let Self::Pending(value) = self {
             match values.get(value) {
@@ -589,6 +707,52 @@ mod tests {
     use rtf_derive::Template;
     use simple_test_case::test_case;
 
+    #[test]
+    fn template_values_for_config_file_defaults_used_correctly() {
+        let all_values: HashMap<String, Scalar> = [
+            ("a".into(), 1.into()),
+            ("b".into(), "foo".into()),
+            ("c".into(), true.into()),
+        ]
+        .into_iter()
+        .collect();
+
+        let definitions = [
+            ValueDefinition {
+                name: "a".into(),
+                description: String::new(),
+                default: Some(2.into()),
+            },
+            ValueDefinition {
+                name: "b".into(),
+                description: String::new(),
+                default: None,
+            },
+            ValueDefinition {
+                name: "d".into(),
+                description: String::new(),
+                default: Some("bar".into()),
+            },
+        ];
+
+        let original = TemplateValues::new_stubbed(all_values);
+        let for_config_file = original.for_config_file(&Source::local("/"), definitions.iter());
+
+        // a has an explicit value so it overrides the default
+        // b has an explicit value and no default
+        // c is not in the definitions so it is filtered out
+        // d has no explicit value so we take the default
+        let expected: HashMap<String, Scalar> = [
+            ("a".into(), 1.into()),
+            ("b".into(), "foo".into()),
+            ("d".into(), "bar".into()),
+        ]
+        .into_iter()
+        .collect();
+
+        assert_eq!(for_config_file.inner(), &expected);
+    }
+
     #[derive(Debug, PartialEq, Deserialize)]
     #[serde(
         untagged,
@@ -778,13 +942,14 @@ mod tests {
         )
     }
 
-    macro_rules! values_map {
+    macro_rules! template_values {
         ($slice:expr) => {{
             let mut m = ::std::collections::HashMap::new();
             for k in $slice {
                 m.insert(k.to_string(), Scalar::from(k.to_string()));
             }
-            m
+
+            TemplateValues::new_stubbed(m)
         }};
     }
 
@@ -798,8 +963,8 @@ mod tests {
     #[test_case(hmf(&[]), &[]; "no hash map entries templates")]
     #[test]
     fn template_try_template_success(mut t: Box<dyn Template>, values: &[&str]) {
-        let values = values_map!(values);
-        let res = t.try_template(&mut Vec::new(), &values);
+        let values = template_values!(values);
+        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &values);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -816,9 +981,9 @@ mod tests {
         mut t: Box<dyn Template>,
         expected_err_messages: &[&str],
     ) {
-        let values = values_map!(["unused"]);
+        let values = template_values!(["unused"]);
 
-        let res = t.try_template(&mut Vec::new(), &values);
+        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &values);
         assert!(res.is_err(), "expected templating to fail, got {res:?}");
         let errors = res.unwrap_err();
         assert!(

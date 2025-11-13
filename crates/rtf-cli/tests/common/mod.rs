@@ -3,7 +3,10 @@ use assert_fs::{
     TempDir,
     prelude::{PathChild, PathCopy},
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    ops::{Deref, DerefMut},
+    path::PathBuf,
+};
 
 /// [TempDir] removes the temp directory it creates on drop so we need to bundle it with the
 /// [Command] we want to execute in order to keep things in place for the duration of the test.
@@ -27,6 +30,10 @@ impl DerefMut for CmdWithTmpDir {
 }
 
 impl CmdWithTmpDir {
+    pub fn child_path(&self, path: &str) -> PathBuf {
+        self.tmp.child(path).to_path_buf()
+    }
+
     /// Assert that a given path within the test [TempDir] exists.
     pub fn assert_path_exists(&self, path: &str) {
         assert!(self.tmp.child(path).exists(), "{path} does not exist")

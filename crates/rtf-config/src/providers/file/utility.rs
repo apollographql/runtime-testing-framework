@@ -7,7 +7,7 @@ use crate::{
         self, Result,
         command::CommandSection,
         file::{
-            AsUtf8FileContent, InlineFile, RelativeFile, RequiredFile, ResolveAndWrite, Source,
+            AsUtf8FileContent, InlineFile, RelativeFile, RequiredFile, ResolveAndWrite,
             apollo::GraphosSubgraphRouterUrlOverrides, github::GithubFile,
         },
     },
@@ -95,19 +95,15 @@ pub struct MergeYaml {
 }
 
 impl AsUtf8FileContent for MergeYaml {
-    async fn try_get_file_content(
-        &self,
-        src: &Source,
-        ctx: &impl ResolutionContext,
-    ) -> Result<String> {
-        let base_str = self.base.try_get_file_content(src, ctx).await?;
+    async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String> {
+        let base_str = self.base.try_get_file_content(ctx).await?;
         let mut overrides = Vec::with_capacity(self.overrides.len());
 
         match &self.overrides {
-            Overrides::One(t) => overrides.push(t.try_get_file_content(src, ctx).await?),
+            Overrides::One(t) => overrides.push(t.try_get_file_content(ctx).await?),
             Overrides::Array(ts) => {
                 for t in ts.iter() {
-                    overrides.push(t.try_get_file_content(src, ctx).await?);
+                    overrides.push(t.try_get_file_content(ctx).await?);
                 }
             }
         }
@@ -143,17 +139,16 @@ impl Check for MergeYaml {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         let mut errs = checks::ErrorBuilder::new();
-        errs.append(self.base.try_check(path, src, ctx));
+        errs.append(self.base.try_check(path, ctx));
 
         match &self.overrides {
-            Overrides::One(t) => errs.append(t.try_check(path, src, ctx)),
+            Overrides::One(t) => errs.append(t.try_check(path, ctx)),
             Overrides::Array(ts) => {
                 for t in ts.iter() {
-                    errs.append(t.try_check(path, src, ctx));
+                    errs.append(t.try_check(path, ctx));
                 }
             }
         }
@@ -238,13 +233,12 @@ impl ResolveAndWrite for FromCommand {
     async fn resolve_and_write(
         &self,
         target: impl AsRef<Path>,
-        src: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
         let target = target.as_ref();
         let out_dir = ctx.dir_containing(target);
         self.inner
-            .run_providers_and_execute(&out_dir, Some(target.into()), src, ctx)
+            .run_providers_and_execute(&out_dir, Some(target.into()), ctx)
             .await?;
 
         Ok(())
@@ -255,16 +249,13 @@ impl Check for FromCommand {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        self.inner.try_check(path, src, ctx)
+        self.inner.try_check(path, ctx)
     }
 }
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use super::*;
     use crate::{
         checks::ErrorKind,
@@ -325,13 +316,10 @@ mod tests {
             overrides,
         };
 
-        let src = Source::Local {
-            abs_path: Default::default(),
-        };
         let ctx = Context::new();
 
         let s = provider
-            .try_get_file_content(&src, &ctx)
+            .try_get_file_content(&ctx)
             .await
             .expect("provider to run successfully");
 
@@ -350,11 +338,7 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
-
-        let res = merge_yaml.try_check(&mut Vec::new(), &src, &ctx);
+        let res = merge_yaml.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -391,11 +375,8 @@ mod tests {
         let merge_yaml = MergeYaml { base, overrides };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
 
-        assert_check_errors(merge_yaml, &src, &ctx, expected_err_kinds);
+        assert_check_errors(merge_yaml, &ctx, expected_err_kinds);
     }
 
     #[test]
@@ -407,11 +388,8 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
 
-        let res = from_command.try_check(&mut Vec::new(), &src, &ctx);
+        let res = from_command.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -431,11 +409,8 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
 
-        assert_check_errors(from_command, &src, &ctx, &[ErrorKind::RequiredFileMissing]);
+        assert_check_errors(from_command, &ctx, &[ErrorKind::RequiredFileMissing]);
     }
 
     #[tokio::test]
@@ -475,14 +450,9 @@ mod tests {
         );
 
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let merge_yaml = merge_yaml(base_yaml, one(override_yaml));
 
-        assert_resolve_and_write_success(merge_yaml, &target, &src, &mut ctx, expected_content)
-            .await
+        assert_resolve_and_write_success(merge_yaml, &target, &mut ctx, expected_content).await
     }
 
     #[tokio::test]
@@ -526,14 +496,9 @@ mod tests {
         );
 
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let merge_yaml = merge_yaml(base_yaml, arr(&[override_one_yaml, override_two_yaml]));
 
-        assert_resolve_and_write_success(merge_yaml, &target, &src, &mut ctx, expected_content)
-            .await
+        assert_resolve_and_write_success(merge_yaml, &target, &mut ctx, expected_content).await
     }
 
     #[tokio::test]
@@ -553,13 +518,9 @@ mod tests {
             "found unexpected end of stream at line 1 column 20, while scanning a quoted scalar";
 
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let merge_yaml = merge_yaml(base_yaml, one(override_yaml));
 
-        assert_resolve_and_write_error(merge_yaml, &target, &src, &mut ctx, expected_err).await
+        assert_resolve_and_write_error(merge_yaml, &target, &mut ctx, expected_err).await
     }
 
     #[tokio::test]
@@ -579,13 +540,9 @@ mod tests {
             "found unexpected end of stream at line 1 column 20, while scanning a quoted scalar";
 
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let merge_yaml = merge_yaml(base_yaml, one(override_yaml));
 
-        assert_resolve_and_write_error(merge_yaml, &target, &src, &mut ctx, expected_err).await
+        assert_resolve_and_write_error(merge_yaml, &target, &mut ctx, expected_err).await
     }
 
     #[tokio::test]
@@ -610,12 +567,8 @@ mod tests {
             "found unexpected end of stream at line 1 column 20, while scanning a quoted scalar";
 
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: PathBuf::new(),
-        };
-
         let merge_yaml = merge_yaml(base_yaml, arr(&[override_one_yaml, override_two_yaml]));
 
-        assert_resolve_and_write_error(merge_yaml, &target, &src, &mut ctx, expected_err).await
+        assert_resolve_and_write_error(merge_yaml, &target, &mut ctx, expected_err).await
     }
 }

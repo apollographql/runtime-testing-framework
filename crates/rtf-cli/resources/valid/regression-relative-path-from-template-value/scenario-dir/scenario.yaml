@@ -1,0 +1,19 @@
+name: repro for RR-395
+description: This will cat out the wrong file
+
+values:
+  - name: cat_path
+    description: "The path to a file to cat out"
+
+command:
+  name: echo-message.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    cat $CAT_PATH
+
+file_providers:
+  - name: cat-me.txt
+    env_var: CAT_PATH
+    kind: relative_path
+    path: "{{ cat_path }}"
