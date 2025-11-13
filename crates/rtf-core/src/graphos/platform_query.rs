@@ -244,7 +244,7 @@ impl Client for PlatformClient {
 
         let mut req_builder = self
             .inner
-            .post(&self.url)
+            .post(self.url.as_ref())
             .json(body)
             .header("x-api-key", api_key)
             .header("apollographql-client-name", "runtime-testing-framework")

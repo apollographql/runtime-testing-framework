@@ -35,7 +35,7 @@ pub const N_PARALLEL_FETCH: usize = 20;
 pub const GITHUB_TOKEN_ENV_VAR: &str = "GITHUB_TOKEN";
 
 /// A client implementation that is backed by a [reqwest::Client].
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ReqwestClient {
     pub(crate) inner: reqwest::Client,
     pub(crate) github: Option<GithubClient>,
@@ -80,7 +80,7 @@ impl ReqwestClient {
         self.platform = Some(PlatformClient {
             inner: self.inner.clone(),
             url: url.into(),
-            api_key: api_key.into(),
+            api_key: api_key.into().into(),
             sudo,
         });
 
@@ -92,7 +92,7 @@ impl ReqwestClient {
         self.github = Some(GithubClient {
             inner: self.inner.clone(),
             base_url: GITHUB_API_URL.into(),
-            api_token: api_token.into(),
+            api_token: api_token.into().into(),
         });
 
         self

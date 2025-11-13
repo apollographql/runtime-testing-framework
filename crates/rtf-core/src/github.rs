@@ -1,6 +1,6 @@
 //! A lightweight GitHub API client
 use bytes::Bytes;
-use std::string::FromUtf8Error;
+use std::{string::FromUtf8Error, sync::Arc};
 
 const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub(crate) const GITHUB_API_URL: &str = "https://api.github.com";
@@ -63,8 +63,8 @@ pub trait Client {
 #[derive(Clone, Debug)]
 pub struct GithubClient {
     pub(crate) inner: reqwest::Client,
-    pub(crate) base_url: String,
-    pub(crate) api_token: String,
+    pub(crate) base_url: Arc<str>,
+    pub(crate) api_token: Arc<str>,
 }
 
 impl GithubClient {
@@ -73,7 +73,7 @@ impl GithubClient {
         Self {
             inner: reqwest::Client::new(),
             base_url: GITHUB_API_URL.into(),
-            api_token: api_token.into(),
+            api_token: api_token.into().into(),
         }
     }
 
@@ -82,8 +82,8 @@ impl GithubClient {
     pub fn new_with_base_url(base_url: impl Into<String>, api_token: impl Into<String>) -> Self {
         Self {
             inner: reqwest::Client::new(),
-            base_url: base_url.into(),
-            api_token: api_token.into(),
+            base_url: base_url.into().into(),
+            api_token: api_token.into().into(),
         }
     }
 }
