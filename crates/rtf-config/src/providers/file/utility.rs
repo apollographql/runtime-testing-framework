@@ -143,17 +143,16 @@ impl Check for MergeYaml {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         let mut errs = checks::ErrorBuilder::new();
-        errs.append(self.base.try_check(path, src, ctx));
+        errs.append(self.base.try_check(path, ctx));
 
         match &self.overrides {
-            Overrides::One(t) => errs.append(t.try_check(path, src, ctx)),
+            Overrides::One(t) => errs.append(t.try_check(path, ctx)),
             Overrides::Array(ts) => {
                 for t in ts.iter() {
-                    errs.append(t.try_check(path, src, ctx));
+                    errs.append(t.try_check(path, ctx));
                 }
             }
         }
@@ -255,10 +254,9 @@ impl Check for FromCommand {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        self.inner.try_check(path, src, ctx)
+        self.inner.try_check(path, ctx)
     }
 }
 #[cfg(test)]
@@ -350,11 +348,7 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
-
-        let res = merge_yaml.try_check(&mut Vec::new(), &src, &ctx);
+        let res = merge_yaml.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -391,11 +385,8 @@ mod tests {
         let merge_yaml = MergeYaml { base, overrides };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
 
-        assert_check_errors(merge_yaml, &src, &ctx, expected_err_kinds);
+        assert_check_errors(merge_yaml, &ctx, expected_err_kinds);
     }
 
     #[test]
@@ -407,11 +398,8 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
 
-        let res = from_command.try_check(&mut Vec::new(), &src, &ctx);
+        let res = from_command.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -431,11 +419,8 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
 
-        assert_check_errors(from_command, &src, &ctx, &[ErrorKind::RequiredFileMissing]);
+        assert_check_errors(from_command, &ctx, &[ErrorKind::RequiredFileMissing]);
     }
 
     #[tokio::test]

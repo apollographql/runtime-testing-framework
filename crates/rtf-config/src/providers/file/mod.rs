@@ -212,13 +212,12 @@ impl Check for NamedFileProvider {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         let mut errs = checks::ErrorBuilder::new();
 
         let tail = self.env_var.clone();
-        errs.append(self.provider.try_check_nested(path, tail, src, ctx));
+        errs.append(self.provider.try_check_nested(path, tail, ctx));
 
         errs.into_result(())
     }
@@ -322,7 +321,6 @@ impl Check for InlineFile {
     fn try_check(
         &self,
         _path: &mut Vec<String>,
-        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         Ok(())
@@ -400,6 +398,11 @@ impl Template for RelativeFile {
             Field::Resolved(_) => (),
         }
 
+        assert!(
+            self.src.is_some(),
+            "should always have a source once we've templated"
+        );
+
         Ok(())
     }
 }
@@ -407,15 +410,11 @@ impl Template for RelativeFile {
 impl AsUtf8FileContent for RelativeFile {
     async fn try_get_file_content(
         &self,
-        src: &Source,
+        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
-        // Prefer an explicitly provided Source if one was set during parsing of the test plan
-        // as part of applying overrides.
-        let src = self.src.as_ref().unwrap_or(src);
-
-        match src {
-            Source::Local { abs_path } => {
+        match self.src.as_ref() {
+            Some(Source::Local { abs_path }) => {
                 let dir = match abs_path.parent() {
                     Some(dir) => dir.to_path_buf(),
                     None => PathBuf::new(),
@@ -424,12 +423,12 @@ impl AsUtf8FileContent for RelativeFile {
                 Ok(ctx.read_path_to_string(p)?)
             }
 
-            Source::Github {
+            Some(Source::Github {
                 org,
                 repo,
                 path,
                 git_ref,
-            } => {
+            }) => {
                 let client = ctx
                     .github_client()
                     .ok_or(providers::Error::Github(rtf_core::github::Error::NoClient))?;
@@ -442,6 +441,8 @@ impl AsUtf8FileContent for RelativeFile {
                     .string_file_content(org, repo, &full_path, git_ref.as_ref())
                     .await?)
             }
+
+            None => panic!("attempt to resolve a RelativeFile without a source"),
         }
     }
 }
@@ -450,15 +451,10 @@ impl Check for RelativeFile {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        // Prefer an explicitly provided Source if one was set during parsing of the test plan
-        // as part of applying overrides.
-        let src = self.src.as_ref().unwrap_or(src);
-
-        let res = match src {
-            Source::Local { abs_path } => {
+        let res = match self.src.as_ref() {
+            Some(Source::Local { abs_path }) => {
                 let dir = match abs_path.parent() {
                     Some(dir) => dir.to_path_buf(),
                     None => PathBuf::new(),
@@ -466,7 +462,7 @@ impl Check for RelativeFile {
                 ctx.canonicalize_path(dir.join(self.path.as_resolved()))
             }
 
-            Source::Github { .. } => {
+            Some(Source::Github { .. }) => {
                 return if ctx.github_client().is_none() {
                     Err(checks::Errors::new(
                         checks::ErrorKind::MissingGithubApiKey,
@@ -477,6 +473,8 @@ impl Check for RelativeFile {
                     Ok(())
                 };
             }
+
+            None => panic!("attempt to check a RelativeFile without a source"),
         };
 
         let p = match res {
@@ -543,7 +541,6 @@ impl Check for RequiredFile {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         Err(checks::Errors::new(
@@ -585,7 +582,6 @@ impl Check for ResolvedValues {
     fn try_check(
         &self,
         _path: &mut Vec<String>,
-        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         Ok(())
@@ -624,21 +620,20 @@ mod tests {
     }
 
     /// Create a RelativeFile for testing - returns the actual file in a tmp dir
-    fn relative_file(path: &str) -> RelativeFile {
+    fn relative_file(path: &str, source: Source) -> RelativeFile {
         RelativeFile {
             path: Field::Resolved(path.to_string()),
-            src: None,
+            src: Some(source),
         }
     }
 
     /// Assert check errors
     pub(crate) fn assert_check_errors(
         c: impl Check,
-        src: &Source,
         ctx: &Context,
         expected_err_kinds: &[checks::ErrorKind],
     ) {
-        let res = c.try_check(&mut Vec::new(), src, ctx);
+        let res = c.try_check(&mut Vec::new(), ctx);
         assert!(res.is_err(), "expected check to fail, got {res:?}");
 
         let err = res.unwrap_err();
@@ -939,17 +934,11 @@ mod tests {
             env_var: "RELATIVE".to_string(),
             provider: FileProvider::RelativePath(RelativeFile {
                 path: Field::Resolved("does/not/exist/relative.txt".to_string()),
-                src: None,
+                src: Some(Source::local("/")),
             }),
         };
 
-        let res = nfp.try_check(
-            &mut vec!["path".to_string()],
-            &Source::Local {
-                abs_path: PathBuf::new(),
-            },
-            &Context::new(),
-        );
+        let res = nfp.try_check(&mut vec!["path".to_string()], &Context::new());
         assert!(res.is_err(), "expected to check to error, got {res:?}");
         let err = res.unwrap_err().unwrap_single();
         assert_eq!(err.path, "path.RELATIVE")
@@ -961,12 +950,9 @@ mod tests {
             content: "some content".to_string(),
         };
 
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
         let ctx = Context::new();
 
-        let res = inline.try_check(&mut Vec::new(), &src, &ctx);
+        let res = inline.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}")
     }
 
@@ -975,14 +961,13 @@ mod tests {
         let file_name = "file.txt";
         let (_temp, file) = create_temp_dir_with_file(file_name, "some content");
 
-        let relative_file = relative_file(file_name);
-
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: ctx.canonicalize_path(&file).unwrap(),
-        };
+        let relative_file = relative_file(
+            file_name,
+            Source::local(ctx.canonicalize_path(&file).unwrap()),
+        );
 
-        let res = relative_file.try_check(&mut Vec::new(), &src, &ctx);
+        let res = relative_file.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}")
     }
 
@@ -990,77 +975,54 @@ mod tests {
     fn relative_file_check_github_success() {
         // This test works because all that's needed for success in the GitHub case is
         // a GitHub token to be defined in the context
-        let relative_file = relative_file("file.txt");
+        let relative_file = relative_file(
+            "file.txt",
+            Source::github("org", "repo", "path", Some("ref")),
+        );
 
         let mut ctx = Context::new();
         ctx.with_github_config("dummy_token");
-        let src = Source::Github {
-            org: "org".to_string(),
-            repo: "repo".to_string(),
-            path: "path".into(),
-            git_ref: None,
-        };
 
-        let res = relative_file.try_check(&mut Vec::new(), &src, &ctx);
+        let res = relative_file.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}")
     }
 
     #[test]
     fn relative_file_check_does_not_exist() {
-        let (_temp, file) = create_temp_dir_with_file("file.txt", "some content");
-
-        let relative_file = relative_file("does-not-exist.txt");
-
+        let relative_file = relative_file("does-not-exist.txt", Source::local("/"));
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: ctx.canonicalize_path(&file).unwrap(),
-        };
 
-        assert_check_errors(
-            relative_file,
-            &src,
-            &ctx,
-            &[checks::ErrorKind::FileNotFound],
-        );
+        assert_check_errors(relative_file, &ctx, &[checks::ErrorKind::FileNotFound]);
     }
 
     #[test]
     fn relative_file_check_is_directory() {
         let (temp, _file) = create_temp_dir_with_file("dir/file.txt", "some content");
 
-        let relative_file = relative_file("dir");
-
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: ctx
-                .canonicalize_path(format!("{}/dir", temp.path().to_string_lossy()))
-                .unwrap(),
-        };
-
-        assert_check_errors(
-            relative_file,
-            &src,
-            &ctx,
-            &[checks::ErrorKind::IsADirectory],
+        let relative_file = relative_file(
+            "dir",
+            Source::local(
+                ctx.canonicalize_path(format!("{}/dir", temp.path().to_string_lossy()))
+                    .unwrap(),
+            ),
         );
+
+        assert_check_errors(relative_file, &ctx, &[checks::ErrorKind::IsADirectory]);
     }
 
     #[test]
     fn relative_file_check_missing_github_api_token() {
-        let relative_file = relative_file("file.txt");
+        let relative_file = relative_file(
+            "file.txt",
+            Source::github("org", "repo", "path", Some("ref")),
+        );
 
         // There is no github client added to this context so this fails
         let ctx = Context::new();
-        let src = Source::Github {
-            org: "org".to_string(),
-            repo: "repo".to_string(),
-            path: "path".into(),
-            git_ref: None,
-        };
 
         assert_check_errors(
             relative_file,
-            &src,
             &ctx,
             &[checks::ErrorKind::MissingGithubApiKey],
         );
@@ -1073,12 +1035,9 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
 
         // Not reusing assert_check_error so the message can also be checked
-        let res = required_file.try_check(&mut Vec::new(), &src, &ctx);
+        let res = required_file.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_err(), "expected check to fail, got {res:?}");
 
         let err = res.unwrap_err().unwrap_single();
@@ -1096,13 +1055,9 @@ mod tests {
     #[test]
     fn resolved_values_check_success() {
         let resolved_values = ResolvedValues {};
-
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
         let ctx = Context::new();
 
-        let res = resolved_values.try_check(&mut Vec::new(), &src, &ctx);
+        let res = resolved_values.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}")
     }
 
@@ -1139,11 +1094,8 @@ mod tests {
         // Relative File paths are resolved relative to the test plan file's location.
         // We have created an empty test plan file so we can canonicalize its path (it must exist for this to work)
         // This allows us to read the relative file from the correct path
-        let src = Source::Local {
-            abs_path: ctx.canonicalize_path(&test_plan_file).unwrap(),
-        };
-
-        let relative = FileProvider::RelativePath(relative_file("file.txt"));
+        let src = Source::local(ctx.canonicalize_path(&test_plan_file).unwrap());
+        let relative = FileProvider::RelativePath(relative_file("file.txt", src.clone()));
 
         assert_resolve_and_write_success(relative, &target, &src, &mut ctx, expected_content).await
     }
@@ -1164,7 +1116,7 @@ mod tests {
         };
 
         // The file does not exist but this does not matter since we mock a GitHub response
-        let relative = FileProvider::RelativePath(relative_file("file.txt"));
+        let relative = FileProvider::RelativePath(relative_file("file.txt", src.clone()));
 
         assert_resolve_and_write_success(relative, &target, &src, &mut ctx, content).await
     }
@@ -1182,7 +1134,7 @@ mod tests {
         let expected_err = "No such file or directory (os error 2)";
 
         // The file.txt file has not been created in temp
-        let relative = FileProvider::RelativePath(relative_file("file.txt"));
+        let relative = FileProvider::RelativePath(relative_file("file.txt", src.clone()));
 
         assert_resolve_and_write_error(relative, &target, &src, &mut ctx, expected_err).await
     }
@@ -1203,7 +1155,7 @@ mod tests {
         let expected_err = "stream did not contain valid UTF-8";
 
         // The frog-no.gif cannot be read since the file to read is not utf-8
-        let relative = FileProvider::RelativePath(relative_file("frog-no.gif"));
+        let relative = FileProvider::RelativePath(relative_file("frog-no.gif", src.clone()));
 
         assert_resolve_and_write_error(relative, &target, &src, &mut ctx, expected_err).await
     }
@@ -1224,7 +1176,7 @@ mod tests {
         let expected_err = "no GitHub client available";
 
         // The file does not exist but this does not matter since we mock a GitHub response
-        let relative = FileProvider::RelativePath(relative_file("file.txt"));
+        let relative = FileProvider::RelativePath(relative_file("file.txt", src.clone()));
 
         assert_resolve_and_write_error(relative, &target, &src, &mut ctx, expected_err).await
     }

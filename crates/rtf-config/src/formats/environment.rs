@@ -116,7 +116,6 @@ impl Check for EnvironmentConfig {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         let mut errs = checks::ErrorBuilder::new();
@@ -133,8 +132,8 @@ impl Check for EnvironmentConfig {
         }
 
         // Check that each command is valid in isolation
-        errs.append(self.setup.command.try_check_nested(path, "setup", src, ctx));
-        errs.append(self.teardown.try_check_nested(path, "teardown", src, ctx));
+        errs.append(self.setup.command.try_check_nested(path, "setup", ctx));
+        errs.append(self.teardown.try_check_nested(path, "teardown", ctx));
 
         errs.into_result(())
     }
@@ -578,11 +577,8 @@ pub(crate) mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
 
-        let res = environment.try_check(&mut Vec::new(), &src, &ctx);
+        let res = environment.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -632,10 +628,7 @@ pub(crate) mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
 
-        assert_check_errors(environment, &src, &ctx, expected_err_kinds);
+        assert_check_errors(environment, &ctx, expected_err_kinds);
     }
 }

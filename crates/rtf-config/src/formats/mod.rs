@@ -193,11 +193,10 @@ mod tests {
     /// Assert check errors
     pub(crate) fn assert_check_errors(
         c: impl Check,
-        src: &Source,
         ctx: &Context,
         expected_err_kinds: &[checks::ErrorKind],
     ) {
-        let res = c.try_check(&mut Vec::new(), src, ctx);
+        let res = c.try_check(&mut Vec::new(), ctx);
         assert!(res.is_err(), "expected check to fail, got {res:?}");
 
         let err = res.unwrap_err();

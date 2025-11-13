@@ -310,16 +310,11 @@ impl Check for TestPlanConfig {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        let mut errs = checks::ErrorBuilder::from(self.environment.try_check_nested(
-            path,
-            "environment",
-            src,
-            ctx,
-        ));
-        errs.append(self.scenario.try_check_nested(path, "scenario", src, ctx));
+        let mut errs =
+            checks::ErrorBuilder::from(self.environment.try_check_nested(path, "environment", ctx));
+        errs.append(self.scenario.try_check_nested(path, "scenario", ctx));
 
         errs.into_result(())
     }
@@ -1693,11 +1688,8 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
 
-        let res = test_plan.try_check(&mut Vec::new(), &src, &ctx);
+        let res = test_plan.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -1738,11 +1730,8 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
 
-        assert_check_errors(test_plan, &src, &ctx, expected_err_kinds);
+        assert_check_errors(test_plan, &ctx, expected_err_kinds);
     }
 
     /// Helper function for environment setup provides

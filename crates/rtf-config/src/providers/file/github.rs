@@ -66,7 +66,6 @@ impl Check for GithubFile {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         if ctx.github_client().is_none() {
@@ -111,14 +110,8 @@ mod tests {
 
         let mut ctx = Context::new();
         ctx.with_github_config("dummy_token");
-        let src = Source::Github {
-            org: "org".to_string(),
-            repo: "repo".to_string(),
-            path: "path".into(),
-            git_ref: None,
-        };
 
-        let res = github_file.try_check(&mut Vec::new(), &src, &ctx);
+        let res = github_file.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -129,19 +122,8 @@ mod tests {
         let github_file = github_file();
 
         let ctx = Context::new();
-        let src = Source::Github {
-            org: "org".to_string(),
-            repo: "repo".to_string(),
-            path: "path".into(),
-            git_ref: None,
-        };
 
-        assert_check_errors(
-            github_file,
-            &src,
-            &ctx,
-            &[checks::ErrorKind::MissingGithubApiKey],
-        );
+        assert_check_errors(github_file, &ctx, &[checks::ErrorKind::MissingGithubApiKey]);
     }
 
     #[tokio::test]

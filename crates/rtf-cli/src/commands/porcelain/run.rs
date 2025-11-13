@@ -112,11 +112,11 @@ async fn run_one(
     test_plan.try_template_environment_setup(&template_values)?;
 
     info!("checking environment setup");
-    test_plan.environment.setup.command.try_check(
-        &mut Vec::new(),
-        test_plan.sources.environment(),
-        ctx,
-    )?;
+    test_plan
+        .environment
+        .setup
+        .command
+        .try_check(&mut Vec::new(), ctx)?;
 
     info!("executing environment setup");
     let setup_provides = test_plan.run_environment_setup(out_dir, ctx).await?;
@@ -129,16 +129,14 @@ async fn run_one(
     builder.into_result(())?;
 
     info!("checking scenario and environment teardown commands");
-    let mut builder = checks::ErrorBuilder::from(test_plan.scenario.command.try_check(
-        &mut Vec::new(),
-        test_plan.sources.scenario(),
-        ctx,
-    ));
-    builder.append(test_plan.environment.teardown.try_check(
-        &mut Vec::new(),
-        test_plan.sources.environment(),
-        ctx,
-    ));
+    let mut builder =
+        checks::ErrorBuilder::from(test_plan.scenario.command.try_check(&mut Vec::new(), ctx));
+    builder.append(
+        test_plan
+            .environment
+            .teardown
+            .try_check(&mut Vec::new(), ctx),
+    );
     builder.into_result(())?;
 
     info!("executing scenario");

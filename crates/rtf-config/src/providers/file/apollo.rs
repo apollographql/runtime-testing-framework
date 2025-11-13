@@ -97,7 +97,6 @@ impl Check for GraphosSupergraph {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
@@ -166,7 +165,6 @@ impl Check for GraphosSubgraphs {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
@@ -218,7 +216,6 @@ impl Check for GraphosSubgraphNames {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
@@ -469,7 +466,6 @@ impl Check for GraphosSubgraphRouterUrlOverrides {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
@@ -543,7 +539,6 @@ impl Check for GraphosCannedOps {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
@@ -608,7 +603,6 @@ impl Check for GraphosCannedOpsById {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
@@ -664,7 +658,6 @@ impl Check for OfflineGraphosLicense {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        _src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         validate_client(path, ctx)
@@ -742,7 +735,6 @@ impl Check for RouterDownloadScript {
     fn try_check(
         &self,
         _path: &mut Vec<String>,
-        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         Ok(())
@@ -810,7 +802,6 @@ impl Check for BuildRouterFromSource {
     fn try_check(
         &self,
         _path: &mut Vec<String>,
-        _src: &Source,
         _ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         Ok(())
@@ -1064,18 +1055,15 @@ mod tests {
         with_platform_config: bool,
         expected_err_kinds: &[ErrorKind],
     ) {
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
         let mut ctx = Context::new();
         if with_platform_config {
             ctx.with_platform_config("dummy_key", false, false);
         }
 
         if !expected_err_kinds.is_empty() {
-            assert_check_errors(fp, &src, &ctx, expected_err_kinds);
+            assert_check_errors(fp, &ctx, expected_err_kinds);
         } else {
-            let res = fp.try_check(&mut Vec::new(), &src, &ctx);
+            let res = fp.try_check(&mut Vec::new(), &ctx);
             assert!(res.is_ok(), "expected check to succeed, got {res:?}");
         }
     }
@@ -1086,13 +1074,10 @@ mod tests {
             graph_id: Field::Resolved("graph".to_string()),
         };
 
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
         let mut ctx = Context::new();
         ctx.with_platform_config("dummy_key", false, false);
 
-        let res = offline.try_check(&mut Vec::new(), &src, &ctx);
+        let res = offline.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -1102,12 +1087,9 @@ mod tests {
             graph_id: Field::Resolved("graph".to_string()),
         };
 
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
         let ctx = Context::new();
 
-        assert_check_errors(offline, &src, &ctx, &[ErrorKind::MissingGraphOsApiKey]);
+        assert_check_errors(offline, &ctx, &[ErrorKind::MissingGraphOsApiKey]);
     }
 
     #[test]
@@ -1116,12 +1098,9 @@ mod tests {
             version: Field::Resolved("v2.0.0".to_string()),
         };
 
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
         let ctx = Context::new();
 
-        let res = router_download.try_check(&mut Vec::new(), &src, &ctx);
+        let res = router_download.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -1132,12 +1111,9 @@ mod tests {
             rust_version: Field::Resolved("1.90.0".to_string()),
         };
 
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
         let ctx = Context::new();
 
-        let res = build_from_source.try_check(&mut Vec::new(), &src, &ctx);
+        let res = build_from_source.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 

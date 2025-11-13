@@ -253,15 +253,14 @@ impl Check for CommandSection {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         let mut errs = checks::ErrorBuilder::new();
 
-        errs.append(self.command.try_check_nested(path, "command", src, ctx));
+        errs.append(self.command.try_check_nested(path, "command", ctx));
 
         for nfp in self.file_providers.iter() {
-            errs.append(nfp.try_check(path, src, ctx));
+            errs.append(nfp.try_check(path, ctx));
         }
 
         // We are checking whether the env vars in the command are duplicates of any env vars
@@ -325,14 +324,13 @@ impl Check for CommandSpec {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         let mut errs = checks::ErrorBuilder::new();
 
         errs.append(
             self.command_provider
-                .try_check_nested(path, "command_provider", src, ctx),
+                .try_check_nested(path, "command_provider", ctx),
         );
 
         errs.into_result(())
@@ -474,11 +472,7 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
-
-        let res = command.try_check(&mut Vec::new(), &src, &ctx);
+        let res = command.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -493,11 +487,7 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
-
-        let res = command.try_check(&mut Vec::new(), &src, &ctx);
+        let res = command.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_err(), "expected check to fail, got {res:?}");
 
         let err = res.unwrap_err().unwrap_single();
@@ -513,11 +503,7 @@ mod tests {
         let command = cmd_with_inline_file();
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
-
-        let res = command.try_check(&mut Vec::new(), &src, &ctx);
+        let res = command.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -526,11 +512,7 @@ mod tests {
         let command = cmd_with_required_file();
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
-
-        let res = command.try_check(&mut Vec::new(), &src, &ctx);
+        let res = command.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_err(), "expected check to fail, got {res:?}");
 
         let err = res.unwrap_err().unwrap_single();
@@ -555,11 +537,8 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
 
-        let res = command.try_check(&mut Vec::new(), &src, &ctx);
+        let res = command.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_err(), "expected check to fail, got {res:?}");
 
         let err = res.unwrap_err().unwrap_single();
@@ -589,11 +568,7 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
-
-        let res = command.try_check(&mut Vec::new(), &src, &ctx);
+        let res = command.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_err(), "expected check to fail, got {res:?}");
 
         let err = res.unwrap_err().unwrap_single();
@@ -632,11 +607,7 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
-
-        let res = command.try_check(&mut Vec::new(), &src, &ctx);
+        let res = command.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_err(), "expected check to fail, got {res:?}");
 
         let err = res.unwrap_err();

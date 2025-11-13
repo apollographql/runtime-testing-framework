@@ -72,10 +72,9 @@ impl Check for ScenarioConfig {
     fn try_check(
         &self,
         path: &mut Vec<String>,
-        src: &Source,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        self.command.try_check_nested(path, "command", src, ctx)
+        self.command.try_check_nested(path, "command", ctx)
     }
 }
 
@@ -264,11 +263,8 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
 
-        let res = scenario.try_check(&mut Vec::new(), &src, &ctx);
+        let res = scenario.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
@@ -280,15 +276,7 @@ mod tests {
         };
 
         let ctx = Context::new();
-        let src = Source::Local {
-            abs_path: "/".into(),
-        };
 
-        assert_check_errors(
-            scenario,
-            &src,
-            &ctx,
-            &[checks::ErrorKind::RequiredFileMissing],
-        );
+        assert_check_errors(scenario, &ctx, &[checks::ErrorKind::RequiredFileMissing]);
     }
 }
