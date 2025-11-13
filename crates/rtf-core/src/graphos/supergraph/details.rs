@@ -297,8 +297,8 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
 fn rewrite_connector_urls(sdl: &str) -> Option<String> {
     let mut schema = Schema::parse(sdl, "supergraph.graphql").unwrap();
 
-    for schema_type in vec!["Query"] {
-        if let ExtendedType::Object(extended_type) = schema.types.get_mut(schema_type)? {
+    for schema_type in vec!["Query", "Mutation"] {
+        if let Some(ExtendedType::Object(extended_type)) = schema.types.get_mut(schema_type) {
             println!(
                 "Attempting to replace connectors urls in {} type",
                 schema_type
