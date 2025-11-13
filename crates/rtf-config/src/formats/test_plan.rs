@@ -286,19 +286,21 @@ impl Template for TestPlanConfig {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        source: &Source,
+        _source: &Source,
         values: &TemplateValues,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::from(self.environment.try_template_nested(
             path,
             "environment",
-            source,
+            self.sources.environment(),
             values,
         ));
-        errs.append(
-            self.scenario
-                .try_template_nested(path, "scenario", source, values),
-        );
+        errs.append(self.scenario.try_template_nested(
+            path,
+            "scenario",
+            self.sources.scenario(),
+            values,
+        ));
 
         errs.into_result(())
     }

@@ -193,7 +193,7 @@ impl Template for NamedFileProvider {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        source: &Source,
+        file_source: &Source,
         values: &TemplateValues,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
@@ -201,7 +201,7 @@ impl Template for NamedFileProvider {
         let tail = self.env_var.clone();
         errs.append(
             self.provider
-                .try_template_nested(path, &tail, source, values),
+                .try_template_nested(path, &tail, file_source, values),
         );
 
         errs.into_result(())
@@ -341,22 +341,66 @@ impl Check for InlineFile {
 ///   kind: relative_path
 ///   path: "../../resources/test-data/my-file.txt"
 /// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct RelativeFile {
     /// The relative path from the containing config file to the target file.
     pub(crate) path: Field<String>,
 
-    /// Set during TestPlan parsing as part of overrides. This should only ever be `Some` if this
-    /// provider was defined as part of an `overrides` section in the test plan.
+    /// Set during TestPlan parsing as part of overrides and templating.
     #[serde(default, skip_serializing)]
     #[schemars(skip)]
-    #[template(skip)]
+    #[doc(hidden)]
     pub(crate) src: Option<Source>,
 }
 
 impl RelativeFile {
     fn format_error_message(&self) -> String {
         format!("provided path was {:?}", self.path)
+    }
+}
+
+impl Template for RelativeFile {
+    fn has_pending_fields(&self) -> bool {
+        self.path.has_pending_fields()
+    }
+
+    fn required_values(&self) -> Vec<String> {
+        self.path.required_values()
+    }
+
+    fn try_template(
+        &mut self,
+        path: &mut Vec<String>,
+        file_source: &Source,
+        values: &TemplateValues,
+    ) -> templating::Result<()> {
+        use templating::{ErrorKind, Errors, ValidField};
+
+        path.push("path".into());
+
+        match &mut self.path {
+            // If we're pending then we template and store the source of the value we used
+            Field::Pending(value) => match values.get_with_source(value) {
+                Some((source, raw)) => match String::try_from_scalar(raw.clone()) {
+                    Ok(path) => {
+                        self.path = Field::Resolved(path);
+                        self.src = Some(source.clone());
+                    }
+                    Err(reason) => {
+                        return Err(Errors::new(ErrorKind::InvalidData, reason, path));
+                    }
+                },
+                None => return Err(Errors::new(ErrorKind::UnknownValue, value.clone(), path)),
+            },
+
+            // If we aren't already pinned to a source, we store the source of the file we are in
+            Field::Resolved(_) if self.src.is_none() => self.src = Some(file_source.clone()),
+
+            // Otherwise we are resolved and already have a source set
+            Field::Resolved(_) => (),
+        }
+
+        Ok(())
     }
 }
 

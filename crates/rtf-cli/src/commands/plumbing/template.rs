@@ -30,7 +30,7 @@ async fn template_test_plan_with_context(
     let mut test_plan = load_and_resolve_test_plan(path, &ctx).await?;
     let override_sources = values.merge(
         &mut test_plan,
-        &Source::local(ctx.dir_containing(".")),
+        &Source::local(ctx.dir_containing(".").join("cli")),
         &mut ctx,
     )?;
 

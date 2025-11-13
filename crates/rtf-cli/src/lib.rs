@@ -36,9 +36,8 @@ impl cli::Values {
                 let s = ctx.read_path_to_string(path)?;
                 let values_json: HashMap<String, ScalarOrArray> =
                     serde_json::from_str(&s).context("invalid values file")?;
-                let source = Source::local(ctx.dir_containing(path));
 
-                Some((source, values_json))
+                Some((Source::local(path), values_json))
             }
 
             None => None,
