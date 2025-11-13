@@ -301,7 +301,7 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
         return None;
     };
     println!("{}", "Attempting to replace connectors urls in Query type");
-    replace_query_urls(query, "GET")?;
+    replace_query_urls(query, "connect", "GET")?;
 
     for directive in schema.schema_definition.get_mut()?.directives.iter_mut() {
         if directive.name != "join__directive" {
@@ -334,13 +334,17 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
     Some(schema.to_string())
 }
 
-fn replace_query_urls(query: &mut Node<ObjectType>, url_key: &str) -> Option<()> {
+fn replace_query_urls(
+    query: &mut Node<ObjectType>,
+    directive_name: &str,
+    url_key: &str,
+) -> Option<()> {
     for (_, field_definition) in &mut query.get_mut()?.fields {
         for directive in field_definition.get_mut()?.directives.iter_mut() {
             if directive.name != "join__directive" {
                 continue;
             }
-            if directive.specified_argument_by_name("name")?.as_str()? != "connect" {
+            if directive.specified_argument_by_name("name")?.as_str()? != directive_name {
                 continue;
             }
             let Value::Object(args_map) = directive
