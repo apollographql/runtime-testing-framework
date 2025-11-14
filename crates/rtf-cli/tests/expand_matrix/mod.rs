@@ -11,6 +11,7 @@ fn is_executable() {
     res.stderr(contains("Usage: rtf expand-matrix"));
 }
 
+#[test_case("backwards-compatible-variable-config"; "backwards compatible variable config")]
 #[test_case("command-from-spec"; "command from spec")]
 #[test_case("custom-matrix-variant-names"; "custom matrix variant names")]
 #[test_case("matrix-include"; "matrix include")]

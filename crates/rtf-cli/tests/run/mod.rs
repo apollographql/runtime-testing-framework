@@ -18,6 +18,11 @@ fn basic_completes() {
 }
 
 #[test]
+fn backwards_compatible_variable_config() {
+    is_valid_test_plan("resources/valid/backwards-compatible-variable-config");
+}
+
+#[test]
 fn matrix_completes() {
     is_valid_test_plan("resources/valid/matrix-variables");
 }

@@ -1,7 +1,7 @@
 name: environment-sanity-check
 description: "Sanity check that we template and run commands correctly in the environment"
 
-values:
+variable_definitions:
   - name: message
     description: "A message to echo out"
 

@@ -1,9 +1,9 @@
 name: hello-world-scenario
 description: |
-  Echo out a simple message based on the template values provided
+  Echo out a simple message based on the template variables provided
   in the test plan.
 
-values:
+variable_definitions:
   - name: message
     description: "The message to echo out"
   - name: scenario_subject

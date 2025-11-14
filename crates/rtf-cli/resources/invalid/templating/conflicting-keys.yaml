@@ -1,8 +1,8 @@
 name: conflicting-keys
 description: |
-  Check the error shown when there are conflicting keys defined in the values and matrix
+  Check the error shown when there are conflicting keys defined in the variables and matrix
 
-values:
+variables:
   foo: foo
   bar: bar
 matrix:

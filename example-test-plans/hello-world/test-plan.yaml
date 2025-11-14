@@ -3,7 +3,7 @@ description: |
   The "hello, world!" of test plans. Intended as a minimal introduction to
   the concepts and functionality found within RTF.
 
-values:
+variables:
   message: "hello, "
   setup_subject: "world!"
   scenario_subject: "darkness my old friend"

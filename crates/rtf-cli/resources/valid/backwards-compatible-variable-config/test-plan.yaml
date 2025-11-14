@@ -1,19 +1,27 @@
-name: unknown-variables
+name: backwards-compatible-variable-config
 description: |
-  Check the error shown when there are variables not given a variable for runtime
-  This is a valid test plan but will result in an error if no variables are supplied
-  with the --value flag in the cli
+  Check that the old names for variables and variable definitions 
+  parse successfully
+
+values:
+  foo: "foo"
+  bar: "bar"
 
 scenario:
   inline:
     name: inline-scenario
     description: an inline scenario
+    values:
+      - name: foo
+        description: A value foo
     command:
       name: scenario.sh
       kind: inline
       content: |
         #!/usr/bin/env sh
         echo "Hello, World!"
+    env_vars:
+      FOO: "{{ foo }}"
 
 environment:
   inline:
@@ -26,9 +34,6 @@ environment:
         content: |
           #!/usr/bin/env sh
           echo "Hello, World!"
-      provides:
-        - name: foo
-          description: a value foo
     teardown:
       command:
         name: teardown.sh
@@ -36,5 +41,3 @@ environment:
         content: |
           #!/usr/bin/env sh
           echo "Hello, World!"
-      env_vars:
-        FOO: "{{ foo }}"

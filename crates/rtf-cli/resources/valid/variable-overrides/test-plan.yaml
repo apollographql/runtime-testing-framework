@@ -1,15 +1,15 @@
-name: value overrides
+name: variable overrides
 description: |
-  Checks that we correctly apply value overrides from the CLI.
+  Checks that we correctly apply variable overrides from the CLI.
 
-values:
+variables:
   echo_me: "foo"
 
 scenario:
   inline:
     name: scenario
-    description: "Echo based on supplied values"
-    values:
+    description: "Echo based on supplied variables"
+    variable_definitions:
       - name: echo_me
         description: "A string to echo out"
 

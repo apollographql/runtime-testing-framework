@@ -1,7 +1,7 @@
-name: missing-values
+name: missing-variables
 description: |
-  Check the error shown when there are template strings using values not defined in the
-  values section of their config
+  Check the error shown when there are template strings using variables not defined in the
+  variables section of their config
 
 scenario:
   inline:

@@ -6,7 +6,7 @@ description: |
     - github config sources
     - relative file providers under a github source
 
-values:
+variables:
   message: "hello, world!"
 
 scenario:

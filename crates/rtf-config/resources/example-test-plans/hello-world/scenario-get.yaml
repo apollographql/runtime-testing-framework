@@ -3,7 +3,7 @@ description: |
   Make a series of GET requests against a running web server and assert on
   getting back the expected responses.
 
-values:
+variables:
   - name: credentials_env_var
     description: "An environment variable that contains a '$user:$pwd' string"
   - name: server_url

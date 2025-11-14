@@ -1,6 +1,6 @@
-name: inconsistent-matrix-value
+name: inconsistent-matrix-variable
 description: |
-  Check the error shown when there are inconsistent value types defined in the matrix
+  Check the error shown when there are inconsistent variable types defined in the matrix
 
 matrix:
   dimensions:

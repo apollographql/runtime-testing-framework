@@ -1,12 +1,12 @@
-name: duplicate-value-names
+name: duplicate-variable-names
 description: |
-  Check the error shown when a test plan defines duplicate value names
+  Check the error shown when a test plan defines duplicate variable names
 
 scenario:
   inline:
     name: inline-scenario
     description: an inline scenario
-    values:
+    variable_definitions:
       - name: foo
         description: a value foo
       - name: foo

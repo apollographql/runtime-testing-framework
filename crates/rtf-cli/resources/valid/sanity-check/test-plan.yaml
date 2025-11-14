@@ -2,7 +2,7 @@ name: sanity-check
 description: |
   Sanity check that we correctly call the specified commands for each stage of a test plan.
 
-values:
+variables:
   message: "hello, world!"
 
 scenario:
