@@ -736,7 +736,7 @@ impl Check for RouterDownloadScript {
 /// # Build Router From Source
 ///
 /// A file provider used for building the Router from source at a specific git commit
-/// or reference.
+/// or reference. A profile and list of features can optionally be provided.
 ///
 /// ```yaml
 /// - name: "router-build.sh"
@@ -744,6 +744,8 @@ impl Check for RouterDownloadScript {
 ///   kind: build_router_from_source
 ///   git_ref: "some-ref"
 ///   rust_version: "1.89.0"
+///   profile: "release"
+///   features: "default"
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct BuildRouterFromSource {

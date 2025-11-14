@@ -21,8 +21,8 @@ Available file providers:
 
 ## Build Router From Source
 
-A file provider used for building the Router from source at a specific git commit or reference.
-A profile or list of features can optionally be provided.
+A file provider used for building the Router from source at a specific git commit or reference. A
+profile and list of features can optionally be provided.
 
 ```yaml
 - name: "router-build.sh"

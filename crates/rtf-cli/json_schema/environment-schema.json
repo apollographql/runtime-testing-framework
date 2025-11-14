@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
     "BuildRouterFromSource": {
-      "description": "A file provider used for building the Router from source at a specific git commit\nor reference.\n\n```yaml\n- name: \"router-build.sh\"\n  env_var: ROUTER_BUILD_SCRIPT\n  kind: build_router_from_source\n  git_ref: \"some-ref\"\n  rust_version: \"1.89.0\"\n```",
+      "description": "A file provider used for building the Router from source at a specific git commit\nor reference. A profile and list of features can optionally be provided.\n\n```yaml\n- name: \"router-build.sh\"\n  env_var: ROUTER_BUILD_SCRIPT\n  kind: build_router_from_source\n  git_ref: \"some-ref\"\n  rust_version: \"1.89.0\"\n  profile: \"release\"\n  features: \"default\"\n```",
       "properties": {
         "features": {
           "allOf": [
