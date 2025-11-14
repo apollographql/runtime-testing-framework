@@ -295,6 +295,7 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
 /// Rewrite the given supergraph SDL to set the provided connector URLs in place of what is
 /// currently there.
 fn rewrite_connector_urls(sdl: &str) -> Option<String> {
+    let base_url = "http://localhost:3000";
     let mut schema = Schema::parse(sdl, "supergraph.graphql").unwrap();
 
     for schema_type in vec!["Query", "Mutation"] {
@@ -303,7 +304,7 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
                 "Attempting to replace connectors urls in {} type",
                 schema_type
             );
-            replace_type_field_url(extended_type, vec!["GET", "POST"])?;
+            replace_type_field_url(extended_type, vec!["GET", "POST"], base_url)?;
         };
     }
 
@@ -323,27 +324,35 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
             continue;
         };
 
-        rewrite_url(args_map, &vec!["baseURL"])?;
+        rewrite_url(args_map, &vec!["baseURL"], base_url)?;
     }
 
     Some(schema.to_string())
 }
 
-fn rewrite_url(args_map: &mut Vec<(Name, Node<Value>)>, url_keys: &Vec<&str>) -> Option<()> {
+fn rewrite_url(
+    args_map: &mut Vec<(Name, Node<Value>)>,
+    url_keys: &Vec<&str>,
+    url: &str,
+) -> Option<()> {
     if let Some((_, http_node)) = args_map.iter_mut().find(|(key, _)| key.as_str() == "http") {
         if let Value::Object(http_map) = http_node.get_mut()? {
             if let Some((_, base_url_node)) = http_map
                 .iter_mut()
                 .find(|(key, _)| url_keys.contains(&key.as_str()))
             {
-                *base_url_node = Node::new(Value::String("www.test.com".to_string()));
+                *base_url_node = Node::new(Value::String(url.to_string()));
             }
         }
     }
     Some(())
 }
 
-fn replace_type_field_url(field: &mut Node<ObjectType>, url_keys: Vec<&str>) -> Option<()> {
+fn replace_type_field_url(
+    field: &mut Node<ObjectType>,
+    url_keys: Vec<&str>,
+    base_url: &str,
+) -> Option<()> {
     for (_, field_definition) in &mut field.get_mut()?.fields {
         for directive in field_definition.get_mut()?.directives.iter_mut() {
             if directive.name != "join__directive" {
@@ -360,7 +369,7 @@ fn replace_type_field_url(field: &mut Node<ObjectType>, url_keys: Vec<&str>) -> 
                 continue;
             };
 
-            rewrite_url(args_map, &url_keys)?;
+            rewrite_url(args_map, &url_keys, base_url)?;
         }
 
         continue;
@@ -480,7 +489,9 @@ mod tests {
         let sdl = include_str!("../../../resources/test_data/connectors/connectors.graphql");
         let s = rewrite_connector_urls(sdl).unwrap();
 
-        assert!(s.contains(r#"{name: "ecomm", http: {baseURL: "www.test.com", headers: []}})"#));
+        assert!(s.contains(
+            r#"{name: "ecomm", http: {baseURL: "http://localhost:3000", headers: []}})"#
+        ));
     }
 
     #[test]
@@ -489,6 +500,6 @@ mod tests {
             include_str!("../../../resources/test_data/connectors/sourceless-connectors.graphql");
         let s = rewrite_connector_urls(sdl).unwrap();
 
-        assert!(s.contains(r#"[Product] @join__directive(graphs: [PRODUCTS], name: "connect", args: {http: {GET: "www.test.com"}, selection: "$.products {\nid\nname\ndescription\n}"})"#));
+        assert!(s.contains(r#"[Product] @join__directive(graphs: [PRODUCTS], name: "connect", args: {http: {GET: "http://localhost:3000"}, selection: "$.products {\nid\nname\ndescription\n}"})"#));
     }
 }
