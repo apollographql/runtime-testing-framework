@@ -1325,7 +1325,6 @@ worrying about the providers running multiple times.</p>
 <li><a href="framework/file-providers.html#graphos-offline-license">GraphOS Offline License</a></li>
 <li><a href="framework/file-providers.html#relative-path">Relative Path</a></li>
 <li><a href="framework/file-providers.html#required-file">Required File</a></li>
-<li><a href="framework/file-providers.html#resolved-variables">Resolved Variables</a></li>
 <li><a href="framework/file-providers.html#router-download-script">Router Download Script</a></li>
 </ul>
 <h2 id="build-router-from-source"><a class="header" href="#build-router-from-source">Build Router From Source</a></h2>
@@ -1683,12 +1682,6 @@ defined file providers.</p>
 <h3 id="message"><a class="header" href="#message"><code>message</code></a></h3>
 <p>The error message to display to the user if this provider is not overwritten.</p>
 </details>
-<h2 id="resolved-variables"><a class="header" href="#resolved-variables">Resolved Variables</a></h2>
-<p>Returns the JSON string representation of the resolved variables for the test plan being run.</p>
-<pre><code class="language-yaml">- name: "resolved-variables.json"
-  env_var: VARIABLES
-  kind: resolved_variables
-</code></pre>
 <h2 id="router-download-script"><a class="header" href="#router-download-script">Router Download Script</a></h2>
 <p>Produces a POSIX shell script that can be run in order to download a target version of the Apollo
 Router.</p>
