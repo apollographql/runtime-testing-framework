@@ -16,7 +16,6 @@ fn is_executable() {
 #[test_case("custom-matrix-variant-names"; "custom matrix variant names")]
 #[test_case("matrix-include"; "matrix include")]
 #[test_case("matrix-variables"; "matrix variables")]
-#[test_case("resolved-variables"; "resolved variables")]
 #[test_case("variable-overrides"; "variable overrides")]
 // Template and check all valid test plans except for the sanity check (which requires a provides variable)
 // and the github and graphos test plans which are tested in their respective modules

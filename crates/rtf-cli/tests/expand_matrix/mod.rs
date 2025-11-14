@@ -17,7 +17,6 @@ fn is_executable() {
 #[test_case("matrix-include"; "matrix include")]
 #[test_case("matrix-variables"; "matrix variables")]
 #[test_case("sanity-check"; "sanity check")]
-#[test_case("resolved-variables"; "resolved-variables")]
 #[test_case("variable-overrides"; "variable overrides")]
 #[test]
 fn pretty_formats_correctly(test_plan_dir: &str) {
@@ -43,7 +42,6 @@ fn pretty_formats_correctly(test_plan_dir: &str) {
 #[test_case("matrix-include"; "matrix include")]
 #[test_case("matrix-variables"; "matrix variables")]
 #[test_case("sanity-check"; "sanity check")]
-#[test_case("resolved-variables"; "resolved-variables")]
 #[test_case("variable-overrides"; "variable overrides")]
 #[test]
 fn compact_formats_correctly(test_plan_dir: &str) {

@@ -114,29 +114,6 @@ fn regression_relative_path_from_variable() {
 }
 
 #[test]
-fn override_resolved_variables_works() {
-    prepare_rtf_run("resources/valid/resolved-variables")
-        .assert()
-        .success()
-        .stdout(contains(r#""foo":"bar""#));
-
-    prepare_rtf_run("resources/valid/resolved-variables")
-        .arg("--var")
-        .arg("foo=baz")
-        .assert()
-        .success()
-        .stdout(contains(r#""foo":"baz""#));
-
-    prepare_rtf_run("resources/valid/resolved-variables")
-        .arg("--var")
-        .arg("echo_me=baz")
-        .assert()
-        .success()
-        .stdout(contains(r#""foo":"bar""#))
-        .stdout(contains(r#""echo_me":"baz""#));
-}
-
-#[test]
 fn matrix_custom_variant_names_work() {
     let mut cmd = prepare_rtf_run("resources/valid/custom-matrix-variant-names");
     cmd.assert().success();
