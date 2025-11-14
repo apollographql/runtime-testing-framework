@@ -7,7 +7,10 @@ use crate::{
 use rtf_core::github::Client;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{io, path::PathBuf};
+use std::{
+    fmt, io,
+    path::{Path, PathBuf},
+};
 
 /// The source of how a particular config file was obtained.
 ///
@@ -56,6 +59,43 @@ impl Source {
         }
     }
 
+    pub(crate) fn to_uri_for(&self, child_path: impl AsRef<Path>) -> String {
+        self.to_uri(Some(child_path))
+    }
+
+    fn to_uri(&self, child_path: Option<impl AsRef<Path>>) -> String {
+        let full_path = |base: &Path| match child_path {
+            Some(tail) => base.parent().unwrap().join(tail),
+            None => base.to_path_buf(),
+        };
+
+        match self {
+            Self::Local { abs_path } => {
+                format!("file://{}", full_path(abs_path).display())
+            }
+
+            Self::Github {
+                org,
+                repo,
+                path,
+                git_ref: Some(git_ref),
+            } => format!(
+                "https://github.com/{org}/{repo}/{}?ref={git_ref}",
+                full_path(path).display()
+            ),
+
+            Self::Github {
+                org,
+                repo,
+                path,
+                git_ref: None,
+            } => format!(
+                "https://github.com/{org}/{repo}/{}",
+                full_path(path).display()
+            ),
+        }
+    }
+
     pub async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String> {
         match self {
             Self::Local { abs_path } => Ok(ctx.read_path_to_string(abs_path)?),
@@ -82,6 +122,12 @@ impl Default for Source {
         Self::Local {
             abs_path: PathBuf::new(),
         }
+    }
+}
+
+impl fmt::Display for Source {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_uri(Option::<&str>::None))
     }
 }
 

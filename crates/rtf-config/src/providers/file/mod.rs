@@ -341,12 +341,6 @@ pub struct RelativeFile {
     pub(crate) src: Option<Source>,
 }
 
-impl RelativeFile {
-    fn format_error_message(&self) -> String {
-        format!("provided path was {:?}", self.path)
-    }
-}
-
 impl Template for RelativeFile {
     fn has_pending_fields(&self) -> bool {
         self.path.has_pending_fields()
@@ -466,6 +460,16 @@ impl Check for RelativeFile {
             None => panic!("attempt to check a RelativeFile without a source"),
         };
 
+        let format_error_message = || {
+            let uri = self
+                .src
+                .as_ref()
+                .expect("we know we have a source")
+                .to_uri_for(self.path.as_resolved());
+
+            format!("provided path was {uri}")
+        };
+
         let p = match res {
             Ok(p) => p,
             Err(e) => {
@@ -475,7 +479,7 @@ impl Check for RelativeFile {
                     checks::ErrorKind::InvalidRelativePath
                 };
 
-                return Err(checks::Errors::new(kind, self.format_error_message(), path));
+                return Err(checks::Errors::new(kind, format_error_message(), path));
             }
         };
 
@@ -483,12 +487,12 @@ impl Check for RelativeFile {
             PathKind::File => Ok(()),
             PathKind::EmptyDir | PathKind::OccupiedDir => Err(checks::Errors::new(
                 checks::ErrorKind::IsADirectory,
-                self.format_error_message(),
+                format_error_message(),
                 path,
             )),
             PathKind::Missing => Err(checks::Errors::new(
                 checks::ErrorKind::FileNotFound,
-                self.format_error_message(),
+                format_error_message(),
                 path,
             )),
         }
@@ -919,7 +923,7 @@ mod tests {
             env_var: "RELATIVE".to_string(),
             provider: FileProvider::RelativePath(RelativeFile {
                 path: Field::Resolved("does/not/exist/relative.txt".to_string()),
-                src: Some(Source::local("/")),
+                src: Some(Source::local("/foo/config.yaml")),
             }),
         };
 
@@ -974,7 +978,7 @@ mod tests {
 
     #[test]
     fn relative_file_check_does_not_exist() {
-        let relative_file = relative_file("does-not-exist.txt", Source::local("/"));
+        let relative_file = relative_file("does-not-exist.txt", Source::local("/foo/config.yaml"));
         let ctx = Context::new();
 
         assert_check_errors(relative_file, &ctx, &[checks::ErrorKind::FileNotFound]);

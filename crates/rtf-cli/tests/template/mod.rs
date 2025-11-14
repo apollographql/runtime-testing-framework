@@ -1,6 +1,6 @@
 use assert_cmd::Command;
 use indoc::indoc;
-use predicates::str::contains;
+use predicates::str::{contains, is_match};
 use simple_test_case::test_case;
 
 #[test]
@@ -163,11 +163,6 @@ fn duplicate_variant_names_fails() {
 }
 
 #[test_case(
-    "missing-relative-file.yaml",
-    "(scenario.command.command_provider) The requested file did not exist\nprovided path was Resolved(\"does-not-exist.sh\")";
-    "missing relative file"
-)]
-#[test_case(
     "missing-graphos-key.yaml",
     "(scenario.LICENSE_FILE) No API key provided for calling the Apollo GraphOS API\nexpected os env key APOLLO_KEY";
     "missing graphos key"
@@ -205,4 +200,26 @@ fn check_fails(file: &str, err_contains: &str) {
     res.stderr(contains(format!(
         "Static analysis checks failed\n{err_contains}"
     )));
+}
+
+// We need to test the error from relative file using a regex match as the error message contains
+// the absolute path to the missing file which will be different on each system that runs the test
+#[test]
+fn check_fails_missing_relative_file() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
+        .arg("template")
+        .arg("resources/invalid/checks/missing-relative-file.yaml")
+        .arg("--check")
+        .assert();
+
+    res.stderr(
+        is_match(
+            r#"Static analysis checks failed
+\(scenario\.command\.command_provider\) The requested file did not exist
+provided path was file://.*/resources/invalid/checks/does-not-exist\.sh"#,
+        )
+        .unwrap(),
+    );
 }
