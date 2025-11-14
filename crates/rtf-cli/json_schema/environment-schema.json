@@ -2,8 +2,17 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
     "BuildRouterFromSource": {
-      "description": "A file provider used for building the Router from source at a specific git commit\nor reference.\n\n```yaml\n- name: \"router-build.sh\"\n  env_var: ROUTER_BUILD_SCRIPT\n  kind: build_router_from_source\n  git_ref: \"some-ref\"\n  rust_version: \"1.89.0\"\n```",
+      "description": "A file provider used for building the Router from source at a specific git commit\nor reference. A profile and list of features can optionally be provided.\n\n```yaml\n- name: \"router-build.sh\"\n  env_var: ROUTER_BUILD_SCRIPT\n  kind: build_router_from_source\n  git_ref: \"some-ref\"\n  rust_version: \"1.89.0\"\n  profile: \"release\"\n  features: \"default\"\n```",
       "properties": {
+        "features": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "default": "default",
+          "description": "Comma separated list of features to build the Router with.\n\nDefaults to `\"default\"` if unset."
+        },
         "git_ref": {
           "allOf": [
             {
@@ -11,6 +20,15 @@
             }
           ],
           "description": "A git reference that can be passed to `git checkout`. This may be\na full or partial commit hash, branch name, or tag."
+        },
+        "profile": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "default": "release",
+          "description": "The profile to build the Router with.\n\nDefaults to `\"release\"` if unset."
         },
         "rust_version": {
           "allOf": [

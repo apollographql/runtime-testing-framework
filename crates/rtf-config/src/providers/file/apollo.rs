@@ -736,7 +736,7 @@ impl Check for RouterDownloadScript {
 /// # Build Router From Source
 ///
 /// A file provider used for building the Router from source at a specific git commit
-/// or reference.
+/// or reference. A profile and list of features can optionally be provided.
 ///
 /// ```yaml
 /// - name: "router-build.sh"
@@ -744,6 +744,8 @@ impl Check for RouterDownloadScript {
 ///   kind: build_router_from_source
 ///   git_ref: "some-ref"
 ///   rust_version: "1.89.0"
+///   profile: "release"
+///   features: "default"
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct BuildRouterFromSource {
@@ -757,10 +759,30 @@ pub struct BuildRouterFromSource {
     /// Defaults to `"stable"` if unset.
     #[serde(default = "default_rust_version")]
     pub(crate) rust_version: Field<String>,
+
+    /// The profile to build the Router with.
+    ///
+    /// Defaults to `"release"` if unset.
+    #[serde(default = "default_profile")]
+    pub(crate) profile: Field<String>,
+
+    /// Comma separated list of features to build the Router with.
+    ///
+    /// Defaults to `"default"` if unset.
+    #[serde(default = "default_features")]
+    pub(crate) features: Field<String>,
 }
 
 fn default_rust_version() -> Field<String> {
     Field::Resolved("stable".to_string())
+}
+
+fn default_profile() -> Field<String> {
+    Field::Resolved("release".to_string())
+}
+
+fn default_features() -> Field<String> {
+    Field::Resolved("default".to_string())
 }
 
 impl AsUtf8FileContent for BuildRouterFromSource {
@@ -770,6 +792,8 @@ impl AsUtf8FileContent for BuildRouterFromSource {
     ) -> providers::Result<String> {
         let commit_ref = self.git_ref.as_resolved();
         let rust_version = self.rust_version.as_resolved();
+        let profile = self.profile.as_resolved();
+        let features = self.features.as_resolved();
 
         let install_script = format!(
             indoc!(
@@ -779,10 +803,10 @@ impl AsUtf8FileContent for BuildRouterFromSource {
                 cd router && \
                 git checkout {} && \
                 rustup toolchain install {} && \
-                rustup run {} cargo build --release && \
-                cp ${{CARGO_TARGET_DIR}}/release/router ~/.cargo/bin/"#
+                rustup run {} cargo build --profile {} --features {} && \
+                cp ${{CARGO_TARGET_DIR}}/{}/router ~/.cargo/bin/"#
             ),
-            commit_ref, rust_version, rust_version
+            commit_ref, rust_version, rust_version, profile, features, profile
         );
 
         Ok(install_script)
@@ -1100,6 +1124,8 @@ mod tests {
         let build_from_source = BuildRouterFromSource {
             git_ref: Field::Resolved("ref".to_string()),
             rust_version: Field::Resolved("1.90.0".to_string()),
+            profile: Field::Resolved("release".to_string()),
+            features: Field::Resolved("default".to_string()),
         };
 
         let ctx = Context::new();
@@ -1349,12 +1375,14 @@ mod tests {
             cd router && \
             git checkout git_ref && \
             rustup toolchain install 1.90.0 && \
-            rustup run 1.90.0 cargo build --release && \
+            rustup run 1.90.0 cargo build --profile release --features default && \
             cp ${CARGO_TARGET_DIR}/release/router ~/.cargo/bin/"#
         );
         let router_from_source = FileProvider::BuildRouterFromSource(BuildRouterFromSource {
             git_ref: Field::Resolved("git_ref".to_string()),
             rust_version: Field::Resolved("1.90.0".to_string()),
+            profile: Field::Resolved("release".to_string()),
+            features: Field::Resolved("default".to_string()),
         });
 
         assert_resolve_and_write_success(router_from_source, &target, &mut ctx, expected_content)

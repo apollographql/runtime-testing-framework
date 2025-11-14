@@ -21,7 +21,8 @@ Available file providers:
 
 ## Build Router From Source
 
-A file provider used for building the Router from source at a specific git commit or reference.
+A file provider used for building the Router from source at a specific git commit or reference. A
+profile and list of features can optionally be provided.
 
 ```yaml
 - name: "router-build.sh"
@@ -29,6 +30,8 @@ A file provider used for building the Router from source at a specific git commi
   kind: build_router_from_source
   git_ref: "some-ref"
   rust_version: "1.89.0"
+  profile: "release"
+  features: "default"
 ```
 
 <details>
@@ -45,6 +48,18 @@ A Rust version string that can be passed to `rustup run {rust_version}`, such as
 `"beta"`, or `"nightly"`.
 
 Defaults to `"stable"` if unset.
+
+### `profile`
+
+The profile to build the Router with.
+
+Defaults to `"release"` if unset.
+
+### `features`
+
+Comma separated list of features to build the Router with.
+
+Defaults to `"default"` if unset.
 
 </details>
 
