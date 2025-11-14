@@ -16,7 +16,7 @@ use tracing_subscriber::{EnvFilter, FmtSubscriber};
 async fn main() {
     let Args {
         command,
-        values,
+        variables,
         verbose,
     } = Args::parse();
 
@@ -33,7 +33,9 @@ async fn main() {
             git_ref,
             outdir,
         } => match (test_plan_path, github, git_ref) {
-            (Some(path), None, None) => check_and_run_local_test_plan(&path, values, &outdir).await,
+            (Some(path), None, None) => {
+                check_and_run_local_test_plan(&path, variables, &outdir).await
+            }
 
             (Some(_), None, Some(_)) => {
                 error!("--ref is not supported for local file paths");
@@ -41,7 +43,7 @@ async fn main() {
             }
 
             (None, Some(org_repo_path), git_ref) => {
-                check_and_run_github_test_plan(org_repo_path, git_ref, values, &outdir).await
+                check_and_run_github_test_plan(org_repo_path, git_ref, variables, &outdir).await
             }
 
             (None, None, _) => {
@@ -61,7 +63,7 @@ async fn main() {
         Command::Template {
             test_plan_path,
             check,
-        } => template_test_plan(&test_plan_path, values, check).await,
+        } => template_test_plan(&test_plan_path, variables, check).await,
     };
 
     if let Err(e) = res {

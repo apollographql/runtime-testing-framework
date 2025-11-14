@@ -42,6 +42,31 @@ fn variables_override_works() {
 
     // specifying as a command line variable should override
     prepare_rtf_run("resources/valid/variable-overrides")
+        .arg("--var")
+        .arg("echo_me=bar")
+        .assert()
+        .success()
+        .stdout(contains("bar"));
+
+    // variables.json should override to baz
+    prepare_rtf_run("resources/valid/variable-overrides")
+        .arg("--vars")
+        .arg("resources/valid/variable-overrides/variables.json")
+        .assert()
+        .success()
+        .stdout(contains("baz"));
+}
+
+#[test]
+fn variables_override_with_backwards_compatible_flag_works() {
+    // default echo arg should be foo
+    prepare_rtf_run("resources/valid/variable-overrides")
+        .assert()
+        .success()
+        .stdout(contains("foo"));
+
+    // specifying as a command line variable should override
+    prepare_rtf_run("resources/valid/variable-overrides")
         .arg("--value")
         .arg("echo_me=bar")
         .assert()
@@ -69,7 +94,7 @@ fn regression_relative_path_from_variable() {
     // When using a variable from variables.json we should resolve relative to the directory
     // containing the variables file
     prepare_rtf_run("resources/valid/regression-relative-path-from-template-variable")
-        .arg("--values")
+        .arg("--vars")
         .arg("resources/valid/regression-relative-path-from-template-variable/variables-dir/variables.json")
         .assert()
         .success()
@@ -81,7 +106,7 @@ fn regression_relative_path_from_variable() {
     let dir = cmd.child_path("cli-working-dir");
 
     cmd.current_dir(dir)
-        .arg("--value")
+        .arg("--var")
         .arg("cat_path=cat-me.txt")
         .assert()
         .success()
@@ -96,14 +121,14 @@ fn override_resolved_variables_works() {
         .stdout(contains(r#""foo":"bar""#));
 
     prepare_rtf_run("resources/valid/resolved-variables")
-        .arg("--value")
+        .arg("--var")
         .arg("foo=baz")
         .assert()
         .success()
         .stdout(contains(r#""foo":"baz""#));
 
     prepare_rtf_run("resources/valid/resolved-variables")
-        .arg("--value")
+        .arg("--var")
         .arg("echo_me=baz")
         .assert()
         .success()

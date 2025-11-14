@@ -2,7 +2,7 @@
     "variants": [
         {
             "name": "matrix_variant_1",
-            "values": {
+            "variables": {
                 "message": "hello, ",
                 "scenario_subject": "sailor",
                 "setup_subject": "world!"
@@ -10,7 +10,7 @@
         },
         {
             "name": "matrix_variant_2",
-            "values": {
+            "variables": {
                 "message": "hello, ",
                 "scenario_subject": "father",
                 "setup_subject": "mother"
@@ -18,7 +18,7 @@
         },
         {
             "name": "matrix_variant_3",
-            "values": {
+            "variables": {
                 "message": "what a wonderful ",
                 "scenario_subject": "sailor",
                 "setup_subject": "world!"
@@ -26,7 +26,7 @@
         },
         {
             "name": "matrix_variant_4",
-            "values": {
+            "variables": {
                 "message": "what a wonderful ",
                 "scenario_subject": "father",
                 "setup_subject": "mother"

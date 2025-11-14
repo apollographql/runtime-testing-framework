@@ -44,6 +44,24 @@ fn check_completes_with_cli_variables() {
         .arg("template")
         .arg("resources/valid/sanity-check/test-plan.yaml")
         .arg("--check")
+        .arg("--var")
+        .arg("setup_output=\"setup output\"")
+        .assert();
+
+    // Check that a test plan gets printed to stdout
+    res.success().stdout(contains("name:"));
+}
+
+#[test]
+fn check_completes_with_backwards_compatible_cli_variables_flag() {
+    // The sanity-check test plan defines variables in the setup.provides
+    // The only way to template successfully is to set this variable from the cli
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
+        .arg("template")
+        .arg("resources/valid/sanity-check/test-plan.yaml")
+        .arg("--check")
         .arg("--value")
         .arg("setup_output=\"setup output\"")
         .assert();

@@ -19,12 +19,12 @@ A swiss army knife for testing the Apollo Runtime
 
 * `run` — Check and run a test plan
 * `expand-matrix` — Expand a test plan matrix into JSON
-* `template` — Template a test plan using provided values, outputting the resulting config to stdout
+* `template` — Template a test plan using provided variables, outputting the resulting config to stdout
 
 ###### **Options:**
 
-* `--value <VALUE>` — A single additional templating value in the form "key=value"
-* `--values <VALUES>` — Path to a JSON file containing additional template values
+* `--variable <VARIABLE>` — A single additional templating variable in the form "key=value"
+* `--variables <VARIABLES>` — Path to a JSON file containing additional template variables
 * `-v`, `--verbose` — Flag to control logging verbosity. Default level is `warn`. `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`
 
 
@@ -67,7 +67,7 @@ Expand a test plan matrix into JSON
 
 ## `rtf template`
 
-Template a test plan using provided values, outputting the resulting config to stdout
+Template a test plan using provided variables, outputting the resulting config to stdout
 
 **Usage:** `rtf template [OPTIONS] <TEST_PLAN_PATH>`
 

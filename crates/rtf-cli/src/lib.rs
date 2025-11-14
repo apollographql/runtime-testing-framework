@@ -22,22 +22,22 @@ enum ScalarOrArray {
     Array(Vec<Scalar>),
 }
 
-impl cli::Values {
-    /// Merge any values obtained from the CLI with the ones found in a test plan, removing any
-    /// existing value or matrix definitions with the same key.
+impl cli::Variables {
+    /// Merge any variables obtained from the CLI with the ones found in a test plan, removing any
+    /// existing variable or matrix definitions with the same key.
     pub fn merge(
         self,
         test_plan: &mut TestPlanConfig,
         cwd_source: &Source,
         ctx: &mut impl ResolutionContext,
     ) -> anyhow::Result<HashMap<String, Source>> {
-        let value_json_data = match self.values.as_ref() {
+        let variable_json_data = match self.vars.as_ref() {
             Some(path) => {
                 let s = ctx.read_path_to_string(path)?;
-                let values_json: HashMap<String, ScalarOrArray> =
-                    serde_json::from_str(&s).context("invalid values file")?;
+                let variables_json: HashMap<String, ScalarOrArray> =
+                    serde_json::from_str(&s).context("invalid variables file")?;
 
-                Some((Source::local(ctx.canonicalize_path(path)?), values_json))
+                Some((Source::local(ctx.canonicalize_path(path)?), variables_json))
             }
 
             None => None,
@@ -46,7 +46,7 @@ impl cli::Values {
         let override_sources = self.merge_inner(
             &mut test_plan.variables,
             &mut test_plan.matrix.dimensions,
-            value_json_data,
+            variable_json_data,
             cwd_source,
         )?;
         ctx.set_variables(&test_plan.variables);
@@ -57,24 +57,24 @@ impl cli::Values {
     #[inline]
     fn merge_inner(
         self,
-        values_from_test_plan: &mut HashMap<String, Scalar>,
+        variables_from_test_plan: &mut HashMap<String, Scalar>,
         matrix_from_test_plan: &mut HashMap<String, Vec<Scalar>>,
-        values_json_data: Option<(Source, HashMap<String, ScalarOrArray>)>,
+        variables_json_data: Option<(Source, HashMap<String, ScalarOrArray>)>,
         cwd_source: &Source,
     ) -> anyhow::Result<HashMap<String, Source>> {
         let mut override_sources = HashMap::new();
 
-        // Values read from a file can be used to specify either individual values or matrix arrays
-        if let Some((source, from_values)) = values_json_data {
-            for (k, v) in from_values.into_iter() {
+        // Variables read from a file can be used to specify either individual variables or matrix arrays
+        if let Some((source, from_variables)) = variables_json_data {
+            for (k, v) in from_variables.into_iter() {
                 match v {
                     ScalarOrArray::Scalar(s) => {
                         matrix_from_test_plan.remove(&k);
-                        values_from_test_plan.insert(k.clone(), s);
+                        variables_from_test_plan.insert(k.clone(), s);
                         override_sources.insert(k, source.clone());
                     }
                     ScalarOrArray::Array(arr) => {
-                        values_from_test_plan.remove(&k);
+                        variables_from_test_plan.remove(&k);
                         matrix_from_test_plan.insert(k.clone(), arr);
                         override_sources.insert(k, source.clone());
                     }
@@ -82,19 +82,19 @@ impl cli::Values {
             }
         }
 
-        // Values provided on the command line always specify a single value
-        for kv in self.value.into_iter() {
+        // Variables provided on the command line always specify a single variable
+        for kv in self.var.into_iter() {
             let (k, v) = kv
                 .split_once('=')
                 .ok_or_else(|| anyhow!("expected \"key=value\", got {kv:?}"))?;
 
             if k.is_empty() {
-                return Err(anyhow!("no key provided for value {v:?}"));
+                return Err(anyhow!("no key provided for variable {v:?}"));
             }
 
             let v: Scalar = serde_yaml::from_str(v).context(format!("invalid value for {k:?}"))?;
             matrix_from_test_plan.remove(k);
-            values_from_test_plan.insert(k.to_string(), v);
+            variables_from_test_plan.insert(k.to_string(), v);
             override_sources.insert(k.to_string(), cwd_source.clone());
         }
 
@@ -110,7 +110,7 @@ mod tests {
     use simple_test_case::test_case;
     use std::path::PathBuf;
 
-    macro_rules! values_map {
+    macro_rules! variables_map {
         ($($k:expr => $v:expr),+) => {{
             let mut m = ::std::collections::HashMap::new();
             $( m.insert($k.to_string(), Scalar::try_from($v).unwrap()); )+
@@ -118,32 +118,32 @@ mod tests {
         }};
     }
 
-    macro_rules! values_json {
+    macro_rules! variables_json {
         ($($tok:tt)*) => {
             serde_json::from_value(json!($($tok)*)).unwrap()
         };
     }
 
     #[test]
-    fn values_are_merged_in_the_correct_order() {
-        let mut values = values_map!("foo" => 42, "bar" => "live", "baz" => true);
+    fn variables_are_merged_in_the_correct_order() {
+        let mut variables = variables_map!("foo" => 42, "bar" => "live", "baz" => true);
         let mut matrix = HashMap::default();
-        let from_cli = cli::Values {
-            value: vec![
+        let from_cli = cli::Variables {
+            var: vec![
                 "bar=love".to_string(),
                 "qux=123".to_string(),
                 "qux=456".to_string(),
             ],
-            values: Some(PathBuf::from("my-variables.json")),
+            vars: Some(PathBuf::from("my-variables.json")),
         };
 
         from_cli
             .merge_inner(
-                &mut values,
+                &mut variables,
                 &mut matrix,
                 Some((
-                    Source::local("/json_values"),
-                    values_json!({
+                    Source::local("/json_variables"),
+                    variables_json!({
                         "bar": "laugh", "baz": false
                     }),
                 )),
@@ -154,50 +154,50 @@ mod tests {
         assert!(matrix.is_empty());
 
         // foo is not overwritten and should remain what was in the test plan
-        assert_eq!(values.get("foo"), Some(&Scalar::from(42)));
+        assert_eq!(variables.get("foo"), Some(&Scalar::from(42)));
 
-        // bar is overwritten from both the values json file and a cli arg: cli should be preferred
-        assert_eq!(values.get("bar"), Some(&Scalar::from("love")));
+        // bar is overwritten from both the variables json file and a cli arg: cli should be preferred
+        assert_eq!(variables.get("bar"), Some(&Scalar::from("love")));
 
-        // baz is overwritten in the values json file
-        assert_eq!(values.get("baz"), Some(&Scalar::from(false)));
+        // baz is overwritten in the variables json file
+        assert_eq!(variables.get("baz"), Some(&Scalar::from(false)));
 
-        // qux is an additional value added as a cli arg twice: we should get the last value set
-        assert_eq!(values.get("qux"), Some(&Scalar::from(456)));
+        // qux is an additional variable added as a cli arg twice: we should get the last variable set
+        assert_eq!(variables.get("qux"), Some(&Scalar::from(456)));
     }
 
     #[test]
     fn overrides_remove_conflicting_existing_keys() {
-        // Start with foo as a value and bar and baz a matrix dimensions
-        let mut values = values_map!("foo" => 42);
+        // Start with foo as a variable and bar and baz a matrix dimensions
+        let mut variables = variables_map!("foo" => 42);
         let mut matrix: HashMap<String, Vec<Scalar>> = HashMap::default();
         matrix.insert("bar".into(), vec![1.into()]);
         matrix.insert("baz".into(), vec![2.into()]);
 
-        // change bar to a value from the cli
-        // change baz to a value from variables.json
+        // change bar to a variable from the cli
+        // change baz to a variable from variables.json
         // change foo to a matrix dimension from variables.json
-        let from_cli = cli::Values {
-            value: vec!["bar=3".to_string()],
-            values: Some(PathBuf::from("my-variables.json")),
+        let from_cli = cli::Variables {
+            var: vec!["bar=3".to_string()],
+            vars: Some(PathBuf::from("my-variables.json")),
         };
 
         // Keys should start mutually exclusive
-        let mut initial_values: Vec<&String> = values.keys().collect();
+        let mut initial_variables: Vec<&String> = variables.keys().collect();
         let mut initial_matrix_dimensions: Vec<&String> = matrix.keys().collect();
-        initial_values.sort_unstable();
+        initial_variables.sort_unstable();
         initial_matrix_dimensions.sort_unstable();
 
-        assert_eq!(&initial_values, &["foo"]);
+        assert_eq!(&initial_variables, &["foo"]);
         assert_eq!(&initial_matrix_dimensions, &["bar", "baz"]);
 
         from_cli
             .merge_inner(
-                &mut values,
+                &mut variables,
                 &mut matrix,
                 Some((
-                    Source::local("/json_values"),
-                    values_json!({
+                    Source::local("/json_variables"),
+                    variables_json!({
                         "foo": [2], "baz": 42
                     }),
                 )),
@@ -206,25 +206,25 @@ mod tests {
             .unwrap();
 
         // Keys should end mutually exclusive but flipped
-        let mut final_values: Vec<&String> = values.keys().collect();
+        let mut final_variables: Vec<&String> = variables.keys().collect();
         let mut final_matrix_dimensions: Vec<&String> = matrix.keys().collect();
-        final_values.sort_unstable();
+        final_variables.sort_unstable();
         final_matrix_dimensions.sort_unstable();
 
-        assert_eq!(&final_values, &["bar", "baz"]);
+        assert_eq!(&final_variables, &["bar", "baz"]);
         assert_eq!(&final_matrix_dimensions, &["foo"]);
     }
 
-    #[test_case("bar should have an equals before value"; "no equals")]
+    #[test_case("bar should have an equals before variable"; "no equals")]
     #[test_case("bar=[1, 2, 3]"; "invalid scalar")]
-    #[test_case("bar="; "no value")]
-    #[test_case("=value"; "no key")]
+    #[test_case("bar="; "no variable")]
+    #[test_case("=variable"; "no key")]
     #[test_case(""; "empty string")]
     #[test]
-    fn an_invalid_value_returns_an_error(val: &str) {
-        let from_cli = cli::Values {
-            value: vec![val.to_string()],
-            values: None,
+    fn an_invalid_variable_returns_an_error(val: &str) {
+        let from_cli = cli::Variables {
+            var: vec![val.to_string()],
+            vars: None,
         };
 
         let mut vals = HashMap::default();
