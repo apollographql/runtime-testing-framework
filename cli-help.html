@@ -194,12 +194,12 @@
 <ul>
 <li><code>run</code> — Check and run a test plan</li>
 <li><code>expand-matrix</code> — Expand a test plan matrix into JSON</li>
-<li><code>template</code> — Template a test plan using provided values, outputting the resulting config to stdout</li>
+<li><code>template</code> — Template a test plan using provided variables, outputting the resulting config to stdout</li>
 </ul>
 <h6 id="options"><a class="header" href="#options"><strong>Options:</strong></a></h6>
 <ul>
-<li><code>--value &lt;VALUE&gt;</code> — A single additional templating value in the form "key=value"</li>
-<li><code>--values &lt;VALUES&gt;</code> — Path to a JSON file containing additional template values</li>
+<li><code>--var &lt;VAR&gt;</code> — A single additional templating variable in the form "key=value"</li>
+<li><code>--vars &lt;VARS&gt;</code> — Path to a JSON file containing additional template variables</li>
 <li><code>-v</code>, <code>--verbose</code> — Flag to control logging verbosity. Default level is <code>warn</code>. <code>-v</code> sets logging level to <code>info</code>,<code>-vv</code> to <code>debug</code> and <code>-vvv</code> to <code>trace</code></li>
 </ul>
 <h2 id="rtf-run"><a class="header" href="#rtf-run"><code>rtf run</code></a></h2>
@@ -234,7 +234,7 @@
 <li><code>-c</code>, <code>--compact</code> — Return the expanded matrix JSON in compact form</li>
 </ul>
 <h2 id="rtf-template"><a class="header" href="#rtf-template"><code>rtf template</code></a></h2>
-<p>Template a test plan using provided values, outputting the resulting config to stdout</p>
+<p>Template a test plan using provided variables, outputting the resulting config to stdout</p>
 <p><strong>Usage:</strong> <code>rtf template [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
 <h6 id="arguments-2"><a class="header" href="#arguments-2"><strong>Arguments:</strong></a></h6>
 <ul>

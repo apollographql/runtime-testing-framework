@@ -182,7 +182,7 @@
 <h2 id="environment"><a class="header" href="#environment">Environment</a></h2>
 <p>An RTF configuration file for specifying how to set up and tear down the services and infrastructure
 under test using Command and File providers. As with all RTF configuration files, it is possible to
-template an Environment configuration using Values provided in the Test Plan.</p>
+template an Environment configuration using Variables provided in the Test Plan.</p>
 <h2 id="provider"><a class="header" href="#provider">Provider</a></h2>
 <p>A self contained piece of functionality within RTF that can provide file content for use in
 executing commands found in a Scenario or Environment configuration. Providers are declared as part
@@ -203,19 +203,19 @@ resolve and run Test Plans.</p>
 <h2 id="scenario"><a class="header" href="#scenario">Scenario</a></h2>
 <p>An RTF configuration file for specifying how to run a test against services spun up by an
 Environment configuration using Command and File providers. As with all RTF configuration files, it
-is possible to template a Scenario configuration using Values provided in the Test Plan.</p>
+is possible to template a Scenario configuration using Variables provided in the Test Plan.</p>
 <h2 id="templating"><a class="header" href="#templating">Templating</a></h2>
 <p>The use of template strings within RTF configuration files for declaring how users of that
 configuration file may specify how to set Provider parameters and Command Provider environment
 variables. Template strings are denoted with opening and closing double braces surrounding the name
-of the Value to inject with a single space at either side: <code>"{{ my_value }}"</code></p>
+of the Variable to inject with a single space at either side: <code>"{{ my_variable }}"</code></p>
 <h2 id="test-plan"><a class="header" href="#test-plan">Test Plan</a></h2>
 <p>The main RTF configuration file that defines an runnable test by combining a Scenario configuration
 with the Environment configuration it should be executed against. If either the Scenario or
-Environment supports Templating Values then they can be specified statically as part of the Test
+Environment supports Templating Variables then they can be specified statically as part of the Test
 Plan itself or dynamically through command line arguments to the RTF CLI.</p>
-<h2 id="values"><a class="header" href="#values">Values</a></h2>
-<p>Templating Values are declared within the Scenario and Environment configuration files and have
+<h2 id="variables"><a class="header" href="#variables">Variables</a></h2>
+<p>Templating Variables are declared within the Scenario and Environment configuration files and have
 their values defined within the Test Plan referencing those configuration files.</p>
 
                     </main>

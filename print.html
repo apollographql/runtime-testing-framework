@@ -346,9 +346,9 @@ of different test cases. It also contains guides for running those test plans.</
 <li><a href="guides/hello-world.html#overview">Overview</a></li>
 <li><a href="guides/hello-world.html#pre-flight-checks">Pre-Flight Checks</a></li>
 <li><a href="guides/hello-world.html#running-a-test-plan">Running a Test Plan</a></li>
-<li><a href="guides/hello-world.html#modifying-values">Modifying Values</a></li>
-<li><a href="guides/hello-world.html#overriding-individual-values">Overriding Individual Values</a></li>
-<li><a href="guides/hello-world.html#matrix-values">Matrix Values</a></li>
+<li><a href="guides/hello-world.html#modifying-variables">Modifying Variables</a></li>
+<li><a href="guides/hello-world.html#overriding-individual-variables">Overriding Individual Variables</a></li>
+<li><a href="guides/hello-world.html#matrix-variables">Matrix Variables</a></li>
 </ul>
 <h2 id="overview-1"><a class="header" href="#overview-1">Overview</a></h2>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans">example_test_plans</a> directory in the rtf repository contains a "hello, world!" test plan
@@ -362,14 +362,14 @@ behaviour.</p>
 <p>For details on how to get started with writing your own test plans from scratch see the
 <a href="guides/./test-plans/index.html">Writing test plans</a> section.</p>
 </blockquote>
-<p>The "hello, world!" test plan contains a brief description, a few values, and references to scenario
-and environment config files:</p>
+<p>The "hello, world!" test plan contains a brief description, a few variables, and references to
+scenario and environment config files:</p>
 <pre><code class="language-yaml">name: hello-world
 description: |
   The "hello, world!" of test plans. Intended as a minimal introduction to
   the concepts and functionality found within RTF.
 
-values:
+variables:
   message: "hello, "
   setup_subject: "world!"
   scenario_subject: "darkness my old friend"
@@ -466,15 +466,15 @@ $ ls | grep output
 more_output
 output
 </code></pre>
-<h2 id="modifying-values"><a class="header" href="#modifying-values">Modifying Values</a></h2>
-<p>The test plan defines several scalar <strong>values</strong> which are then applied to the scenario and
-environment config files.</p>
+<h2 id="modifying-variables"><a class="header" href="#modifying-variables">Modifying Variables</a></h2>
+<p>The test plan defines scalar <strong>values</strong> for templating variables which are then applied to the
+scenario and environment config files.</p>
 <pre><code class="language-yaml">name: hello-world
 description: |
   The "hello, world!" of test plans. Intended as a minimal introduction to
   the concepts and functionality found within RTF.
 
-values:
+variables:
   message: "hello, "
   setup_subject: "world!"
   scenario_subject: "darkness my old friend"
@@ -496,8 +496,8 @@ env-setup :: hello, world!
 scenario :: hello, darkness my old friend
 ---
 </code></pre>
-<p>Edit the <code>test-plan.yaml</code> to change the value being used for the setup command:</p>
-<pre><code class="language-diff"> values:
+<p>Edit the <code>test-plan.yaml</code> to change the variable being used for the setup command:</p>
+<pre><code class="language-diff"> variables:
    message: "hello, "
 -  setup_subject: "world!"
 +  setup_subject: "sailor!"
@@ -511,9 +511,9 @@ env-setup :: hello, sailor!
 scenario :: hello, darkness my old friend
 ---
 </code></pre>
-<p>Now, edit the <code>message</code> value to see that it updates the output for both env-setup and scenario, as
-they both reference the same shared value:</p>
-<pre><code class="language-diff"> values:
+<p>Now, edit the value of the <code>message</code> variable to see that it updates the output for both env-setup
+and scenario, as they both reference the same shared variable:</p>
+<pre><code class="language-diff"> variables:
 -  message: "hello, "
 +  message: "say hi to the "
    setup_subject: "world!"
@@ -526,35 +526,35 @@ env-setup :: say hi to the world!
 scenario :: say hi to the darkness my old friend
 ---
 </code></pre>
-<h2 id="overriding-individual-values"><a class="header" href="#overriding-individual-values">Overriding Individual Values</a></h2>
-<p>If you want to temporarily override a value use the <code>--value</code> or <code>--values</code> flags to specify
+<h2 id="overriding-individual-variables"><a class="header" href="#overriding-individual-variables">Overriding Individual Variables</a></h2>
+<p>If you want to override the value of a variable use the <code>--var</code> or <code>--vars</code> flags to specify
 overrides on the command line:</p>
 <pre><code class="language-bash">$ rtf run example-test-plans/hello-world/test-plan.yaml \
-  --value 'message="say hi to the "'
+  --var 'message="say hi to the "'
 
 env-setup :: say hi to the world!
 scenario :: say hi to the darkness my old friend
 ---
 </code></pre>
-<p>We can also provide the flag multiple times to override multiple values:</p>
+<p>We can also provide the flag multiple times to override multiple variables:</p>
 <pre><code class="language-bash">$ rtf run example-test-plans/hello-world/test-plan.yaml \
-  --value 'message="say hi to the "' \
-  --value 'setup_subject=sailor!'
+  --var 'message="say hi to the "' \
+  --var 'setup_subject=sailor!'
 
 env-setup :: say hi to the sailor!
 scenario :: say hi to the darkness my old friend
 ---
 </code></pre>
-<p>For overriding multiple values, you can use the <code>--values</code> flag to provide the location of a JSON
-file containing the values you want to merge on top of the ones given in the test plan:</p>
-<pre><code class="language-bash">$ cat example-test-plans/hello-world/values.json
+<p>It is also possible to use the <code>--vars</code> flag to provide the location of a JSON file containing the
+variables you want to override on top of the ones given in the test plan:</p>
+<pre><code class="language-bash">$ cat example-test-plans/hello-world/variables.json
 {
   "message": "say hi to the ",
   "setup_subject": "sailor!"
 }
 
 $ rtf run example-test-plans/hello-world/test-plan.yaml \
-  --values example-test-plans/hello-world/values.json
+  --vars example-test-plans/hello-world/variables.json
 
 env-setup :: say hi to the sailor!
 scenario :: say hi to the darkness my old friend
@@ -562,22 +562,22 @@ scenario :: say hi to the darkness my old friend
 </code></pre>
 <p>Each of these options is useful in different ways:</p>
 <ul>
-<li>Using <code>--value</code> to provide individual values on the command line allows you to dynamically set
+<li>Using <code>--var</code> to provide individual variables on the command line allows you to dynamically set
 things using environment variables and other shell commands</li>
-<li>Using <code>--values</code> to provide a JSON file containing multiple values allows you to define variations
-on a test plan without having to edit or duplicate the test plan. Those variations can be stored
-in version control.</li>
+<li>Using <code>--vars</code> to provide a JSON file containing multiple variables allows you to define
+variations on a test plan without having to edit or duplicate the test plan. Those variations can
+be stored in version control.</li>
 </ul>
-<h2 id="matrix-values"><a class="header" href="#matrix-values">Matrix Values</a></h2>
-<p>What if we want to define multiple sets of values and run them <em>all</em> as part of a batch of tests?
+<h2 id="matrix-variables"><a class="header" href="#matrix-variables">Matrix Variables</a></h2>
+<p>What if we want to define multiple sets of variables and run them <em>all</em> as part of a batch of tests?
 For that, <code>rtf</code> provides a <strong>matrix</strong> feature that functions in a similar way to matrices in
 <a href="https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/running-variations-of-jobs-in-a-workflow">GitHub Actions</a>.</p>
-<p>To convert a <strong>value</strong> from a single value to a matrix, move it under the <code>matrix.dimensions</code>
-section of the test plan and provide an array of values you'd like to use:</p>
+<p>To convert a <strong>variable</strong> from a single scalar value to an array of values you'd like to use, move
+it under the <code>matrix.dimensions</code> section of the test plan:</p>
 <blockquote>
-<p>Remember to also remove it from the <code>values</code> section or your test plan will fail its check!</p>
+<p>Remember to also remove it from the <code>variables</code> section or your test plan will fail its check!</p>
 </blockquote>
-<pre><code class="language-diff"> values:
+<pre><code class="language-diff"> variables:
    message: "hello, "
 -  setup_subject: "world!"
    scenario_subject: "darkness my old friend"
@@ -586,7 +586,7 @@ section of the test plan and provide an array of values you'd like to use:</p>
 +  dimensions:
 +    setup_subject: [ "world!", "sailor!" ]
 </code></pre>
-<p>Running the test plan with two <code>setup_subject</code> values produces two results:</p>
+<p>Running the test plan with two <code>setup_subject</code> variables produces two results:</p>
 <pre><code>$ rm output -rf
 $ rtf run example-test-plans/hello-world/test-plan.yaml
 
@@ -598,7 +598,7 @@ scenario :: hello, darkness my old friend
 ---
 </code></pre>
 <p>If we also move the <code>scenario_subject</code> into the matrix:</p>
-<pre><code class="language-diff"> values:
+<pre><code class="language-diff"> variables:
    message: "hello, "
 -  setup_subject: "world!"
 -  scenario_subject: "darkness my old friend"
@@ -608,7 +608,7 @@ scenario :: hello, darkness my old friend
 +    setup_subject: [ "world!", "sailor!" ]
 +    scenario_subject: [ "darkness my old friend", "is it me you're looking for?" ]
 </code></pre>
-<p>We'll get a run for every <em>combination</em> of values:</p>
+<p>We'll get a run for every <em>combination</em> of variables:</p>
 <pre><code>$ rm output -rf
 $ rtf run example-test-plans/hello-world/test-plan.yaml
 
@@ -690,16 +690,16 @@ you write each have unique names that can be used to distinguish them.</li>
 rather than in comments or other files (such as a README).</li>
 </ul>
 </li>
-<li><code>values</code>: Key value pairs for templating the Test Plan where the values are all scalar.
+<li><code>variables</code>: Key value pairs for templating the Test Plan where the variables are all scalar.
 <ul>
 <li>Scalar here is defined to be a number, string or boolean.</li>
 </ul>
 </li>
-<li><code>matrix</code>: Dimensions specified as key value pairs for templating the Test Plan where the values
-arrays of scalars.
+<li><code>matrix</code>: Dimensions specified as key value pairs for templating the Test Plan where the variables
+are arrays of scalars.
 <ul>
-<li>Each matrix entry must have a consistent type for the values array. Mixing different scalar
-values will result in an error when you attempt to run the Test Plan.</li>
+<li>Each matrix entry must have a consistent type for the variables array. Mixing different scalar
+variables will result in an error when you attempt to run the Test Plan.</li>
 <li>An optional <code>variant_names</code> key can be provided to customise the names of the output directories
 used by each variant.</li>
 </ul>
@@ -821,7 +821,7 @@ arrays are then sorted and deduplicated based on an appropriate key in order to 
 array elements:</p>
 <ul>
 <li>For <a href="framework/./file-providers.html">File providers</a> the key used is <code>env_var</code>.</li>
-<li>For value declarations and environment setup "provides" the key used is <code>name</code>.</li>
+<li>For variable declarations and environment setup "provides" the key used is <code>name</code>.</li>
 </ul>
 <h2 id="a-note-on-relative-paths"><a class="header" href="#a-note-on-relative-paths">A note on relative paths</a></h2>
 <p>There are several places within RTF config files that you be required to specify relative paths to
@@ -885,9 +885,9 @@ with static string content in order to generate a unique name for each variant. 
 is then slugified to remove whitespace and slashes.</p>
 <h3 id="including-explicit-variants"><a class="header" href="#including-explicit-variants">Including explicit variants</a></h3>
 <p>Sometimes when defining a matrix you will find that you want to limit how the matrix dimensions are
-produced in order to only run a subset of possible combinations of values. For example, the
-following initial matrix expands out to four variants covering different crate revisions for
-inclusion in a Rust build as shown below:</p>
+produced in order to only run a subset of possible combinations of values for each variable. For
+example, the following initial matrix expands out to four variants covering different crate
+revisions for inclusion in a Rust build as shown below:</p>
 <pre><code class="language-yaml">matrix:
   dimensions:
     federation_rev: [ "v2.6.2", "v2.7.0" ]
@@ -909,8 +909,8 @@ inclusion in a Rust build as shown below:</p>
 four variants are invalid and should not be run. This problem is made worse if we add another
 dimension to the matrix (say, <code>graph_ref</code>) which will then produce additional undesirable variants.</p>
 <p>In this sort of situation you should make use of the <code>matrix.include</code> key, which allows you to
-define matrix dimensions as <em>sets</em> of values so long as they all contain the same keys. In our
-example above we would do the following:</p>
+define matrix dimensions as <em>sets</em> of values so long as they all contain the same variable names. In
+our example above we would do the following:</p>
 <pre><code class="language-yaml">matrix:
   # The dimensions key must always be present, even if it is an empty map
   dimensions: {}
@@ -963,7 +963,7 @@ can add further dimensions to the matrix and obtain the correct variants:</p>
 <pre><code class="language-yaml">name: example
 description: An example description
 
-values:
+variables:
   foo: "A value for foo"
 
 matrix:
@@ -983,7 +983,7 @@ scenario:
     name: An inline scenario
     description: A description for the inline scenario
 
-    values:
+    variable_definitions:
       - name: foo
         description: "A description for foo"
 
@@ -1040,14 +1040,14 @@ you write each have unique names that can be used to distinguish them.</li>
 rather than in comments or other files (such as a README).</li>
 </ul>
 </li>
-<li><code>values</code>: Declarations of the templating values supported by this Environment.
+<li><code>variable_definitions</code>: Declarations of the templating variables supported by this Environment.
 <ul>
-<li>Value declarations require specifying both the value name and a short description of how the
-value is used.</li>
-<li>Value declarations also support an optional <code>default</code> field where you can specify a default
+<li>Variable declarations require specifying both the variable name and a short description of how
+the variable is used.</li>
+<li>Variable declarations also support an optional <code>default</code> field where you can specify a default
 scalar value to use if none is provided within the <a href="framework/./test-plans.html">Test Plan</a>.</li>
-<li>If the same value name is defined in both the Environment and Scenario used by a given Test Plan
-but with different defaults, each config file will fall back to its own default.</li>
+<li>If the same variable name is defined in both the Environment and Scenario used by a given Test
+Plan but with different defaults, each config file will fall back to its own default.</li>
 </ul>
 </li>
 <li><code>setup</code>: A <a href="framework/./command-providers.html">Command Provider</a> that defines how the environment should be set up before the
@@ -1055,20 +1055,14 @@ scenario is run.</li>
 <li><code>teardown</code>: A <a href="framework/./command-providers.html">Command Provider</a> that defines how the environment should be torn down after the
 scenario is run.</li>
 </ul>
-<blockquote>
-<p>We are aware that having the same key name for value declarations in the Scenario / Environment
-config files and the value <em>definitions</em> in the Test plan config file can be confusing. We are
-considering renaming one or both of the keys to make the distinction clearer.</p>
-<p>Please see <a href="https://apollographql.atlassian.net/browse/RR-352">RR-352</a> for more details.</p>
-</blockquote>
 <h2 id="full-example-1"><a class="header" href="#full-example-1">Full example</a></h2>
 <p>The following is a minimal "kitchen sink" example of the structure of a valid <code>environment.yaml</code>.</p>
 <pre><code class="language-yaml">name: example
 description: An example description
 
-values:
-  - name: my_value
-    description: "A description for my value"
+variable_definitions:
+  - name: my_variable
+    description: "A description for my variable"
     default: "foo"
 
 setup:
@@ -1078,7 +1072,7 @@ setup:
     path: scripts/setup.sh
 
   env_vars:
-    MY_VALUE: "{{ my_value }}"
+    MY_VARIABLE: "{{ my_variable }}"
 
 teardown:
   command:
@@ -1124,34 +1118,28 @@ write each have unique names that can be used to distinguish them.</li>
 than in comments or other files (such as a README).</li>
 </ul>
 </li>
-<li><code>values</code>: Declarations of the templating values supported by this Scenario.
+<li><code>variable_definitions</code>: Declarations of the templating variables supported by this Scenario.
 <ul>
-<li>Value declarations require specifying both the value name and a short description of how the
-value is used.</li>
-<li>Value declarations also support an optional <code>default</code> field where you can specify a default
+<li>Variable declarations require specifying both the variable name and a short description of how
+the variable is used.</li>
+<li>Variable declarations also support an optional <code>default</code> field where you can specify a default
 scalar value to use if none is provided within the <a href="framework/./test-plans.html">Test Plan</a>.</li>
-<li>If the same value name is defined in both the Environment and Scenario used by a given Test Plan
-but with different defaults, each config file will fall back to its own default.</li>
+<li>If the same variable name is defined in both the Environment and Scenario used by a given Test
+Plan but with different defaults, each config file will fall back to its own default.</li>
 </ul>
 </li>
 <li><code>command</code>: See <a href="framework/./command-providers.html">Command Provider</a>.</li>
 <li><code>env_vars</code>: See <a href="framework/./command-providers.html">Command Provider</a>.</li>
 <li><code>file_providers</code>: See <a href="framework/./command-providers.html">Command Provider</a>.</li>
 </ul>
-<blockquote>
-<p>We are aware that having the same key name for value declarations in the Scenario / Environment
-config files and the value <em>definitions</em> in the Test plan config file can be confusing. We are
-considering renaming one or both of the keys to make the distinction clearer.</p>
-<p>Please see <a href="https://apollographql.atlassian.net/browse/RR-352">RR-352</a> for more details.</p>
-</blockquote>
 <h2 id="full-example-2"><a class="header" href="#full-example-2">Full example</a></h2>
 <p>The following is a minimal "kitchen sink" example of the structure of a valid <code>scenario.yaml</code>.</p>
 <pre><code class="language-yaml">name: example
 description: An example description
 
-values:
-  - name: my_value
-    description: "A description for my value"
+variable_definitions:
+  - name: my_variable
+    description: "A description for my variable"
     default: "foo"
 
 command:
@@ -1161,7 +1149,7 @@ command:
   args: ["a", "b"]
 
 env_vars:
-  MY_VALUE: "{{ my_value }}"
+  MY_VARIABLE: "{{ my_variable }}"
 
 file_providers:
   - name: my-file.txt
@@ -1190,7 +1178,7 @@ file_providers:
 <p><em>Command Providers</em> are the core executable element making up RTF Test Plans. They allow you, the
 user, to specify how a given command should be run and what resources it needs in order to do so.
 Both the <a href="framework/./environments.html">Environment</a> and <a href="framework/./scenarios.html">Scenario</a> configuration files are simply ways of defining Command
-Providers with known semantics for RTF to execute alongside templating values that can be used to
+Providers with known semantics for RTF to execute alongside templating variables that can be used to
 customise how that command is run.</p>
 <p>The configuration for a Command Provider consists of three top level sections:</p>
 <ol>
@@ -1265,11 +1253,11 @@ failure.</p>
   message: "This command must be provided in the test plan explicitly"
 </code></pre>
 <h2 id="the-env-vars-section"><a class="header" href="#the-env-vars-section">The env vars section</a></h2>
-<p>Environment variables are defined simply as key value pairs under the <code>env_vars</code> key. Values may be
-templated using the <code>"{{ my_value }}"</code> syntax using any scalar value (not just strings). The
+<p>Environment variables are defined simply as key value pairs under the <code>env_vars</code> key. Variables may
+be templated using the <code>"{{ my_variable }}"</code> syntax using any scalar value (not just strings). The
 environment variables explicitly defined under this key will be merged with the environment
 available to RTF itself before your command is executed.</p>
-<pre><code class="language-yaml"># values:
+<pre><code class="language-yaml"># variables:
 #   my_string_env_var: "bar"
 #   my_integer_env_var: 42
 
@@ -1337,7 +1325,7 @@ worrying about the providers running multiple times.</p>
 <li><a href="framework/file-providers.html#graphos-offline-license">GraphOS Offline License</a></li>
 <li><a href="framework/file-providers.html#relative-path">Relative Path</a></li>
 <li><a href="framework/file-providers.html#required-file">Required File</a></li>
-<li><a href="framework/file-providers.html#resolved-values">Resolved Values</a></li>
+<li><a href="framework/file-providers.html#resolved-variables">Resolved Variables</a></li>
 <li><a href="framework/file-providers.html#router-download-script">Router Download Script</a></li>
 </ul>
 <h2 id="build-router-from-source"><a class="header" href="#build-router-from-source">Build Router From Source</a></h2>
@@ -1686,11 +1674,11 @@ defined file providers.</p>
 <h3 id="message"><a class="header" href="#message"><code>message</code></a></h3>
 <p>The error message to display to the user if this provider is not overwritten.</p>
 </details>
-<h2 id="resolved-values"><a class="header" href="#resolved-values">Resolved Values</a></h2>
-<p>Returns the JSON string representation of the resolved values for the test plan being run.</p>
-<pre><code class="language-yaml">- name: "resolved-values.json"
-  env_var: VALUES
-  kind: resolved_values
+<h2 id="resolved-variables"><a class="header" href="#resolved-variables">Resolved Variables</a></h2>
+<p>Returns the JSON string representation of the resolved variables for the test plan being run.</p>
+<pre><code class="language-yaml">- name: "resolved-variables.json"
+  env_var: VARIABLES
+  kind: resolved_variables
 </code></pre>
 <h2 id="router-download-script"><a class="header" href="#router-download-script">Router Download Script</a></h2>
 <p>Produces a POSIX shell script that can be run in order to download a target version of the Apollo
@@ -1729,7 +1717,7 @@ familiar with the rtf CLI and have it properly installed.</p>
 </li>
 <li><a href="guides/test-plans/writing-a-test-plan.html#checking-the-test-plan">Checking the test plan</a></li>
 <li><a href="guides/test-plans/writing-a-test-plan.html#running-the-test-plan">Running the test plan</a></li>
-<li><a href="guides/test-plans/writing-a-test-plan.html#setting-values">Setting values</a></li>
+<li><a href="guides/test-plans/writing-a-test-plan.html#setting-variables">Setting variables</a></li>
 <li><a href="guides/test-plans/writing-a-test-plan.html#using-a-matrix">Using a matrix</a></li>
 </ul>
 <hr />
@@ -1834,8 +1822,6 @@ in a separate file.</p>
 <p>Add the <code>environment</code> field to the <code>test-plan.yaml</code> file:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-values:
-  example_value: "value"
 scenario:
   inline:
     name: Inline scenario config
@@ -1887,13 +1873,11 @@ scripts.</li>
 <p>This should result in the fully templated test plan being printed to the terminal:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-values:
-  example_value: value
 matrix: {}
 scenario:
   name: Inline scenario config
   description: An inline scenario config
-  values: []
+  variable_definitions: []
   command:
     name: scenario.sh
     kind: inline
@@ -1907,7 +1891,7 @@ scenario:
 environment:
   name: Inline environment config
   description: An inline environment config
-  values: []
+  variable_definitions: []
   setup:
     command:
       name: setup.sh
@@ -1932,10 +1916,10 @@ environment:
     env_vars: {}
     file_providers: []
 </code></pre>
-<p>This highlights two optional fields for test plans that have not yet been used; <code>values</code> and
+<p>This highlights two optional fields for test plans that have not yet been used; <code>variables</code> and
 <code>matrix</code>. These are discussed more below.</p>
 <h2 id="running-the-test-plan"><a class="header" href="#running-the-test-plan">Running the test plan</a></h2>
-<p>Before looking at <code>values</code> and <code>matrix</code>, let's run the test plan:</p>
+<p>Before looking at <code>variables</code> and <code>matrix</code>, let's run the test plan:</p>
 <pre><code class="language-bash">rtf run test-plan.yaml
 </code></pre>
 <p>This results in the following terminal output and an <code>output</code> directory:</p>
@@ -1943,13 +1927,13 @@ environment:
 "scenario command executed"
 "environment teardown command executed"
 </code></pre>
-<p>The <code>output</code> directory contains two files, <code>resolved-test-plan.yaml</code> and <code>test-plan-values.json</code>.</p>
+<p>The <code>output</code> directory contains two files, <code>resolved-test-plan.yaml</code> and <code>test-plan-variables.json</code>.</p>
 <ul>
 <li><code>resolved-test-plan.yaml</code> contains the fully resolved test plan config. This should be the same as
 what was shown in the <code>rtf template</code> command. This is a way to sanity check the test plan that ran
 to give you the output.</li>
-<li><code>test-plan-values.json</code> contains the values used during the execution of the test plan. This is
-empty since no values were set.</li>
+<li><code>test-plan-variables.json</code> contains the variables used during the execution of the test plan. This
+is empty since no variables were set.</li>
 </ul>
 <p>Remove the output directory before continuing (forgetting to do this will result in an error next
 time <code>rtf run</code> is used):</p>
@@ -1961,37 +1945,37 @@ you cannot accidentally overwrite output you intend to keep. The <code>--output<
 <code>rtf run</code> to set a different output directory if you want to keep the existing output and run a
 new test.</p>
 </blockquote>
-<h2 id="setting-values"><a class="header" href="#setting-values">Setting values</a></h2>
-<p>The <code>values</code> field is used to set global values that can be referenced in your scenario and/or
-environment. Any values set in the test plan config can be overridden using the <code>--value</code> and
-<code>--values</code> flags in the rtf CLI (see the
-<a href="guides/test-plans/../hello-world.html#modifying-values">modifying values section of the hello world guide</a> for more
-information).</p>
-<p>Let's add some example values to <code>test-plan.yaml</code>. We are also going to update the scenario command
-to use this value. The <a href="guides/test-plans/writing-a-command.html">"Writing a command" section</a> will explain how this
-works, for now just add the configuration:</p>
+<h2 id="setting-variables"><a class="header" href="#setting-variables">Setting variables</a></h2>
+<p>The <code>variables</code> field is used to set global variables that can be referenced in your scenario and/or
+environment. Any variables set in the test plan config can be overridden using the <code>--var</code> and
+<code>--vars</code> flags in the rtf CLI (see the
+<a href="guides/test-plans/../hello-world.html#modifying-variables">modifying variables section of the hello world guide</a> for
+more information).</p>
+<p>Let's add some example variables to <code>test-plan.yaml</code>. We are also going to update the scenario
+command to use this variable. The <a href="guides/test-plans/writing-a-command.html">"Writing a command" section</a> will explain
+how this works, for now just add the configuration:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-# --- Add values ---
-values:
-  example_value: example value
+# --- Add variables ---
+variables:
+  example_variable: example variable
 # ------------------
 scenario:
   inline:
     name: Inline scenario config
     description: An inline scenario config
 # --- Update scenario ---
-    values:
-      - name: example_value
-        description: An example value
+    variable_definitions:
+      - name: example_variable
+        description: An example variable
     command:
       name: scenario.sh
       kind: inline
       content: |
         #!/usr/bin/env sh
-        echo "$EXAMPLE_VALUE"
+        echo "$EXAMPLE_VARIABLE"
     env_vars:
-      EXAMPLE_VALUE: "{{ example_value }}"
+      EXAMPLE_VARIABLE: "{{ example_variable }}"
 # -----------------------
 environment:
   inline:
@@ -2017,45 +2001,45 @@ environment:
 <p>You can see the value being used by running the test plan again:</p>
 <pre><code class="language-bash">$ rtf run test-plan.yaml
 environment setup command executed
-example value
+example variable
 environment teardown command executed
 </code></pre>
-<p>Now, the <code>test-plan-values.json</code> file contains the value that we set in the test plan:</p>
-<pre><code class="language-bash">$ cat output/test-plan-values.json 
+<p>Now, the <code>test-plan-variables.json</code> file contains the variable that we set in the test plan:</p>
+<pre><code class="language-bash">$ cat output/test-plan-variables.json 
 {
-  "example_value": "example value"
+  "example_variable": "example variable"
 }
 </code></pre>
 <h2 id="using-a-matrix"><a class="header" href="#using-a-matrix">Using a matrix</a></h2>
-<p>The <code>matrix</code> field is used to create a matrix of values to iterate over (see the
-<a href="guides/test-plans/../hello-world.html#matrix-values">matrix values section of the hello world guide</a> for more
+<p>The <code>matrix</code> field is used to create a matrix of variable dimensions to iterate over (see the
+<a href="guides/test-plans/../hello-world.html#matrix-variables">matrix variables section of the hello world guide</a> for more
 information). A matrix can only be defined in the test plan config.</p>
-<p>Let's add a matrix to and remove the <code>values</code> from our <code>test-plan.yaml</code>:</p>
+<p>Let's add a matrix to and remove the <code>variables</code> from our <code>test-plan.yaml</code>:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-# --- Replace values with a matrix ---
+# --- Replace variables with a matrix ---
 matrix:
-  variant_names: "${example_value}"
+  variant_names: "${example_variable}"
   dimensions:
-    example_value:
-      - value1
-      - value2
+    example_variable:
+      - variable1
+      - variable2
 # ------------------------------------
 scenario:
   inline:
     name: Inline scenario config
     description: An inline scenario config
-    values:
-      - name: example_value
-        description: An example value
+    variable_definitions:
+      - name: example_variable
+        description: An example variable
     command:
       name: scenario.sh
       kind: inline
       content: |
         #!/usr/bin/env sh
-        echo "$EXAMPLE_VALUE"
+        echo "$EXAMPLE_VARIABLE"
     env_vars:
-      EXAMPLE_VALUE: "{{ example_value }}"
+      EXAMPLE_VARIABLE: "{{ example_variable }}"
 environment:
   inline:
     name: Inline environment config
@@ -2084,20 +2068,21 @@ runs):</p>
 <p>The terminal output will look different this time - the environment and scenario commands are
 executed twice. The <code>output</code> directory will also have a different structure:</p>
 <pre><code class="language-bash">$ ls output/
-value1        value2
+variable1        variable2
 </code></pre>
-<p>Let's look at each of those matrix directories to see the different values used per execution:</p>
-<pre><code class="language-bash">$ cat output/value1/test-plan-values.json 
+<p>Let's look at each of those matrix directories to see the different variable values used per
+execution:</p>
+<pre><code class="language-bash">$ cat output/variable1/test-plan-variables.json 
 {
-  "example_value": "value1"
+  "example_variable": "variable1"
 }
 
-$ cat output/value2/test-plan-values.json
+$ cat output/variable2/test-plan-variables.json
 {
-  "example_value": "value2"
+  "example_variable": "variable2"
 }
 </code></pre>
-<p>The <code>example-value</code>'s value changes per execution.</p>
+<p>The <code>example-variable</code>'s variable changes per execution.</p>
 <hr />
 <p>In this guide we have covered writing the simplest possible test plan. Next, we will guide you
 through how to write more powerful commands.</p>
@@ -2113,7 +2098,7 @@ through how to write more powerful commands.</p>
 <hr />
 <p>This guide assumes you've completed the <a href="guides/test-plans/writing-a-test-plan.html">"Writing a test plan"</a> guide. You
 should already have a <code>test-plan.yaml</code> file in a directory named <code>rtf-hello-world</code>. We're going to
-remove the values and matrix added in the final step of the "Writing a test plan" guide. Your
+remove the variables and matrix added in the final step of the "Writing a test plan" guide. Your
 <code>test-plan.yaml</code> file should contain:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
@@ -2307,7 +2292,7 @@ we'll guide you through how to write a scenario config.</p>
 <li><a href="guides/test-plans/writing-a-scenario.html#getting-started">Getting started</a></li>
 <li><a href="guides/test-plans/writing-a-scenario.html#creating-a-scenario-file">Creating a scenario file</a></li>
 <li><a href="guides/test-plans/writing-a-scenario.html#scenario-config-structure">Scenario config structure</a></li>
-<li><a href="guides/test-plans/writing-a-scenario.html#using-values">Using values</a></li>
+<li><a href="guides/test-plans/writing-a-scenario.html#using-variables">Using variables</a></li>
 </ul>
 <hr />
 <p>This guide assumes you have completed the <a href="guides/test-plans/writing-a-test-plan.html">"Writing a test plan"</a> and
@@ -2408,14 +2393,14 @@ environment:
 <p>This will result in the following YAML being printed to the terminal:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-values: {}
+variables: {}
 matrix: {}
 scenario:
   name: Inline scenario config
   description: An inline scenario config
-  values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
+  variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
     default: scenario executed with default value
   command:
     name: scenario.sh
@@ -2437,7 +2422,7 @@ scenario:
 environment:
   name: Inline environment config
   description: An inline environment config
-  values: []
+  variable_definitions: []
   setup:
     command:
       name: setup.sh
@@ -2491,7 +2476,7 @@ name: Hello World
 description: A test plan created as a guide for writing test plans
 ...
 </code></pre>
-<p>The <code>from</code> key can have two values, <code>local</code> or <code>github</code>. In this case, we are using <code>local</code>. This
+<p>The <code>from</code> key can have two variables, <code>local</code> or <code>github</code>. In this case, we are using <code>local</code>. This
 will import the scenario config from the file on the relative path defined in the <code>relative_path</code>
 key.</p>
 <p>The <code>github</code> key allows the scenario config to be imported from a GitHub repo. It is not discussed
@@ -2505,8 +2490,9 @@ defined in the scenario</p>
 It has no impact on the execution of a scenario.</li>
 <li><code>description</code> (required) is used to give more information about the scenario. It can be any valid
 string. It has no impact on the execution of a scenario.</li>
-<li><code>values</code> (optional) are used to define which values a scenario requires to successfully execute.
-The <a href="guides/test-plans/writing-a-scenario.html#using-values">"using values"</a> section explains this in more detail.</li>
+<li><code>variable_definitions</code> (optional) are used to define which variables a scenario requires to
+successfully execute. The <a href="guides/test-plans/writing-a-scenario.html#using-variables">"using variables"</a> section explains this in more
+detail.</li>
 <li><code>command</code> (required) is used to define what is executed when the scenario is run. The
 <a href="guides/test-plans/writing-a-command.html">"Writing a command" guide</a> explains commands in more detail.</li>
 <li><code>env_vars</code> (optional) is used to define the environment variables that are set when the <code>command</code>
@@ -2515,57 +2501,57 @@ is executed.</li>
 execute. The <a href="guides/test-plans/using-file-providers.html">"Using file providers" guide</a> explains how these are used
 in more detail.</li>
 </ul>
-<h2 id="using-values"><a class="header" href="#using-values">Using values</a></h2>
-<p>We saw how to set values in the test plan in the
-<a href="guides/test-plans/writing-a-test-plan.html#setting-values">"Writing a test plan" guide</a>. However, the value we set was
-not used anywhere in the scenario or environment. To use values in a scenario, we need to define
-them in the <code>values</code> field.</p>
-<p>Defining the values here declares a contract between the scenario and test plan and defines the
-values that must be specified for the scenario to complete. The value can be set using a default in
-the scenario, in the test plan or provided via the CLI. If the value is used by the scenario and not
-set via any of those methods, it will cause the test plan execution to fail. If values are defined
-for usage in the scenario but not defined in the <code>values</code> field then the test plan will fail to
-template.</p>
-<p>Let's see that in action. We are going to replace the static environment variable value with one
-defined using a value. Update <code>scenario.yaml</code>:</p>
+<h2 id="using-variables"><a class="header" href="#using-variables">Using variables</a></h2>
+<p>We saw how to set variables in the test plan in the
+<a href="guides/test-plans/writing-a-test-plan.html#setting-variables">"Writing a test plan" guide</a>. However, the variable we
+set was not used anywhere in the scenario or environment. To use variables in a scenario, we need to
+define them in the <code>variables</code> field.</p>
+<p>Declaring the variables here declares a contract between the scenario and test plan and lists the
+variables that must be specified for the scenario to complete. The value of the variable can be set
+using a default in the scenario, in the test plan or provided via the CLI. If the variable is used
+by the scenario and not set via any of those methods, it will cause the test plan execution to fail.
+If variables are defined for usage in the scenario but not defined in the <code>variables</code> field then the
+test plan will fail to template.</p>
+<p>Let's see that in action. We are going to replace the static environment variable variable with one
+defined using a variable. Update <code>scenario.yaml</code>:</p>
 <pre><code class="language-yaml">name: Inline scenario config
 description: An inline scenario config
-# --- Add a values section ---
-values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
+# --- Add a variables section ---
+variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
 # ----------------------------
 command:
   name: scenario.sh
   kind: relative_path
   path: ../scripts/scenario.sh
-# --- Use the scenario_value in the environment variables ---
+# --- Use the scenario_variable in the environment variables ---
 env_vars:
-  SCENARIO_ENV: "{{ scenario_value }}"
+  SCENARIO_ENV: "{{ scenario_variable }}"
 # -----------------------------------------------------------
 </code></pre>
-<p>Let's explain how this works. The values each have a <code>name</code> and <code>description</code>. The <code>name</code> is the
-value's identifier and is used in the template string. The <code>description</code> is there to give more
-information about how and why the value is used. Values are templated into the config with the
-<code>"{{ ... }}"</code> syntax, where <code>...</code> is replaced by the value's <code>name</code>.</p>
+<p>Let's explain how this works. The variables each have a <code>name</code> and <code>description</code>. The <code>name</code> is the
+variable's identifier and is used in the template string. The <code>description</code> is there to give more
+information about how and why the variable is used. Variables are templated into the config with the
+<code>"{{ ... }}"</code> syntax, where <code>...</code> is replaced by the variable's <code>name</code>.</p>
 <blockquote>
-<p><strong>Note</strong> The double curly braces and space either side of the value name are important here. If
+<p><strong>Note</strong> The double curly braces and space either side of the variable name are important here. If
 the template string does not match this exactly, then rtf will error and call out there is a
 malformed template string.</p>
 </blockquote>
 <p>Let's attempt to template the test plan:</p>
 <pre><code class="language-bash">$ rtf template test-plan.yaml
-ERROR (scenario) missing template values: scenario_value
+ERROR (scenario) missing template variables: scenario_variable
 </code></pre>
-<p>We have successfully defined a value and where it should be used. However, we have not specified
+<p>We have successfully defined a variable and where it should be used. However, we have not specified
 what value it should actually have. If we attempted to run this test plan we would see the same
-error. Let's define a default for this value:</p>
+error. Let's define a default for this variable:</p>
 <pre><code class="language-yaml">name: Inline scenario config
 description: An inline scenario config
-values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
-# --- Set a default for this value ---
+variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
+# --- Set a default for this variable ---
     default: "scenario executed with default value"
 # ------------------------------------
 command:
@@ -2573,7 +2559,7 @@ command:
   kind: relative_path
   path: ../scripts/scenario.sh
 env_vars:
-  SCENARIO_ENV: "{{ scenario_value }}"
+  SCENARIO_ENV: "{{ scenario_variable }}"
 </code></pre>
 <p>Lets run this and see what happens:</p>
 <pre><code class="language-bash">$ rtf run test-plan.yaml
@@ -2582,13 +2568,14 @@ Running scenario from an external file
 scenario executed with default value
 "environment teardown command executed"
 </code></pre>
-<p>The second scenario <code>echo</code> statement uses the default value. We can override this value by setting a
-different value in the test plan (this will take presence over a default). Update <code>test-plan.yaml</code>:</p>
+<p>The second scenario <code>echo</code> statement uses the default variable. We can override this variable by
+setting a different value in the test plan (this will take presence over a default). Update
+<code>test-plan.yaml</code>:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-# --- Add a new value for scenario_value ---
-values:
-  scenario_value: "scenario executed with test plan value"
+# --- Add a new value for scenario_variable ---
+variable_definitions:
+  scenario_variable: "scenario executed with test plan variable"
 # ------------------------------------------
 scenario:
   from:
@@ -2620,20 +2607,20 @@ environment:
 <pre><code class="language-bash">$ run test-plan.yaml
 "environment setup command executed"
 Running scenario from an external file
-scenario executed with test plan value
+scenario executed with test plan variable
 "environment teardown command executed"
 </code></pre>
-<p>We can see that the value from the test plan has overridden the default. Similarly, if the value is
-specified from the CLI it will override both the test plan value and default:</p>
-<pre><code class="language-bash">$ run test-plan.yaml --value scenario_value="scenario executed with cli value"
+<p>We can see that the variable from the test plan has overridden the default. Similarly, if the
+variable is specified from the CLI it will override both the test plan variable and default:</p>
+<pre><code class="language-bash">$ run test-plan.yaml --var scenario_variable="scenario executed with cli variable"
 "environment setup command executed"
 Running scenario from an external file
-scenario executed with cli value
+scenario executed with cli variable
 "environment teardown command executed"
 </code></pre>
 <hr />
-<p>In this guide, we've covered moving scenario config into its own file and using values. Next, we'll
-guide you through how to write an environment config.</p>
+<p>In this guide, we've covered moving scenario config into its own file and using variables. Next,
+we'll guide you through how to write an environment config.</p>
 <p><strong>Next:</strong> <a href="guides/test-plans/writing-an-environment.html">Writing an environment</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="writing-a-new-environment"><a class="header" href="#writing-a-new-environment">Writing a new environment</a></h1>
 <hr />
@@ -2688,7 +2675,8 @@ teardown:
 <p>Finally, update the <code>test-plan.yaml</code> file to use the new <code>environment.yaml</code> file:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-  scenario_value: "scenario executed with test plan value"
+variables:
+  scenario_variable: "scenario executed with test plan variable"
 scenario:
   from:
     kind: local
@@ -2702,16 +2690,15 @@ environment:
 <pre><code class="language-bash">$ rtf template test-plan.yaml --check
 name: Hello World
 description: A test plan created as a guide for writing test plans
-values:
-  scenario_value: scenario executed with test plan value
-  example_value: value
+variables:
+  scenario_variable: scenario executed with test plan variable
 matrix: {}
 scenario:
   name: Inline scenario config
   description: An inline scenario config
-  values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
+  variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
     default: scenario executed with default value
   command:
     name: scenario.sh
@@ -2719,12 +2706,12 @@ scenario:
     path: ../scripts/scenario.sh
     args: []
   env_vars:
-    SCENARIO_ENV: scenario executed with test plan value
+    SCENARIO_ENV: scenario executed with test plan variable
   file_providers: []
 environment:
   name: Inline environment config
   description: An inline environment config
-  values: []
+  variable_definitions: []
   setup:
     command:
       name: setup.sh
@@ -2760,9 +2747,9 @@ called <code>provides</code> which we'll explain in more detail in the
 string. It has no impact on the execution of an environment.</li>
 <li><code>description</code> (required) is used to give more information about the environment. It can be any
 valid string. It has no impact on the execution of an environment.</li>
-<li><code>values</code> (optional) are used to define which values an environment requires to successfully
-execute. This works the same as it does for a scenario and is explained more in the
-<a href="guides/test-plans/writing-a-scenario.html#using-values">"using values"</a> section of that guide.</li>
+<li><code>variable_definitions</code> (optional) are used to define which variables an environment requires to
+successfully execute. This works the same as it does for a scenario and is explained more in the
+<a href="guides/test-plans/writing-a-scenario.html#using-variables">"using variables"</a> section of that guide.</li>
 <li><code>setup</code> (required) is used to define the command that executes at the start of the <code>rtf run</code>
 command. It is intended to be used to create and configure the environment for the scenario to
 test. It requires the following keys:
@@ -2774,8 +2761,9 @@ test. It requires the following keys:
 <li><code>file_providers</code> (optional) is used to define the files and data that the environment setup
 depends on to execute. The <a href="guides/test-plans/using-file-providers.html">"Using file providers" guide</a> explains how
 these are used in more detail.</li>
-<li><code>provides</code> (optional) is unique to the environment setup and is used to set values that can only
-be known at runtime. This is explained more in the <a href="guides/test-plans/writing-an-environment.html#using-provides">"Using provides" section</a>.</li>
+<li><code>provides</code> (optional) is unique to the environment setup and is used to set variables that can
+only be known at runtime. This is explained more in the
+<a href="guides/test-plans/writing-an-environment.html#using-provides">"Using provides" section</a>.</li>
 </ul>
 </li>
 <li><code>teardown</code> (required) is used to define the command that executes at the end of the <code>rtf run</code>
@@ -2793,11 +2781,11 @@ these are used in more detail.</li>
 </li>
 </ul>
 <h2 id="using-provides"><a class="header" href="#using-provides">Using provides</a></h2>
-<p>The <code>provides</code> key is used to take values from the environment setup and make them available to the
-scenario and environment teardown steps. The most common use case for this is when the environment
-setup starts a process with some ID that can only be known at runtime. That ID is required by the
-environment teardown so it can stop the process once the test is done. In practice, this can be used
-to set any value for the scenario and environment teardown to use.</p>
+<p>The <code>provides</code> key is used to take variables from the environment setup and make them available to
+the scenario and environment teardown steps. The most common use case for this is when the
+environment setup starts a process with some ID that can only be known at runtime. That ID is
+required by the environment teardown so it can stop the process once the test is done. In practice,
+this can be used to set any variable for the scenario and environment teardown to use.</p>
 <p>Before we look at how <code>provides</code> works, let's update our environment setup command in
 <code>environment.yaml</code>:</p>
 <pre><code class="language-yaml">name: Inline environment config
@@ -2853,11 +2841,11 @@ teardown:
 <pre><code class="language-bash">$ rtf run test-plan.yaml
 Environment setup complete. PROCESS_ID=1
 Running scenario from an external file
-scenario executed with test plan value
+scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=not yet from setup
 </code></pre>
-<p>The <code>provides</code> key defines values that are specified in the config in the exact same way that
-<code>values</code> are. Let's update the <code>environment.yaml</code>:</p>
+<p>The <code>provides</code> key defines variables that are specified in the config in the exact same way that
+<code>variables</code> are. Let's update the <code>environment.yaml</code>:</p>
 <pre><code class="language-yaml">name: Inline environment config
 description: An inline environment config
 setup:
@@ -2888,9 +2876,9 @@ teardown:
 # -------------------------------
 </code></pre>
 <blockquote>
-<p><strong>Note</strong> If you want to check this templates, you'll need to specify a value for <code>process_id</code>
-using <code>--value process_id="dummy_id"</code>. If you don't do this, you'll get
-<code>ERROR (environment.teardown.env_vars.PROCESS_ID) unknown templating value: process_id</code>.</p>
+<p><strong>Note</strong> If you want to check this templates, you'll need to specify a variable for <code>process_id</code>
+using <code>--var process_id="dummy_id"</code>. If you don't do this, you'll get
+<code>ERROR (environment.teardown.env_vars.PROCESS_ID) unknown templating variable: process_id</code>.</p>
 </blockquote>
 <p>If we try to run this, it won't work:</p>
 <pre><code class="language-bash">$ rtf run test-plan.yaml
@@ -2932,7 +2920,7 @@ teardown:
 <pre><code class="language-bash">$ rtf run test-plan.yaml
 Environment setup complete. PROCESS_ID=1
 Running scenario from an external file
-scenario executed with test plan value
+scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=1
 </code></pre>
 <h2 id="using-overrides"><a class="header" href="#using-overrides">Using overrides</a></h2>
@@ -2956,8 +2944,9 @@ echo "{ \"process_id\": \"$PROCESS_ID\" }" &gt; "$RTF_OUTPUT"
 to <code>test-plan.yaml</code>:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-
-  scenario_value: "scenario executed with test plan value"
+variables:
+  scenario_variable: "scenario executed with test plan variable"
+  process_id: dummy
 scenario:
   from:
     kind: local
@@ -2978,21 +2967,20 @@ environment:
 <p>Before checking if this works, let's look at how it works. We only want to change the
 <code>setup.command</code>, so only that segment of the config is required. rtf will merge the YAML on matching
 keys before checking if it templates. If you run the <code>template</code> command now (pay attention to the
-<code>--value</code> flag here, we need this because of the <code>provides</code> value):</p>
-<pre><code class="language-bash">$ template rtf-hello-world/test-plan.yaml --check --value process_id=dummy`
+<code>--var</code> flag here, we need this because of the <code>provides</code> variable):</p>
+<pre><code class="language-bash">$ template rtf-hello-world/test-plan.yaml --check --var process_id=dummy`
 name: Hello World
 description: A test plan created as a guide for writing test plans
-values:
-  scenario_value: scenario executed with test plan value
-  example_value: value
+variables:
+  scenario_variable: scenario executed with test plan variable
   process_id: dummy
 matrix: {}
 scenario:
   name: Inline scenario config
   description: An inline scenario config
-  values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
+  variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
     default: scenario executed with default value
   command:
     name: scenario.sh
@@ -3000,12 +2988,12 @@ scenario:
     path: ../scripts/scenario.sh
     args: []
   env_vars:
-    SCENARIO_ENV: scenario executed with test plan value
+    SCENARIO_ENV: scenario executed with test plan variable
   file_providers: []
 environment:
   name: Inline environment config
   description: An inline environment config
-  values: []
+  variable_definitions: []
   setup:
     command:
       name: setup.sh
@@ -3037,7 +3025,7 @@ environment:
 Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
-scenario executed with test plan value
+scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=2
 </code></pre>
 <p>This confirms we're successfully using a new <code>setup.sh</code> script for the environment without changing
@@ -3091,16 +3079,16 @@ scenario and just <code>cat</code> the output to the terminal. First, we need to
 <code>file_providers</code> key in the <code>scenario.yaml</code>:</p>
 <pre><code class="language-yaml">name: Inline scenario config
 description: An inline scenario config
-values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
+variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
     default: "scenario executed with default value"
 command:
   name: scenario.sh
   kind: relative_path
   path: ../scripts/scenario.sh
 env_vars:
-  SCENARIO_ENV: "{{ scenario_value }}"
+  SCENARIO_ENV: "{{ scenario_variable }}"
 # --- Add a new file to the scenario ---
 file_providers:
   - name: scenario.txt
@@ -3122,7 +3110,7 @@ when we run the test plan and examine the providers output:</p>
 Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
-scenario executed with test plan value
+scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=2
 
 $ ls output/providers
@@ -3149,7 +3137,7 @@ Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
 Some inline text content for our scenario
-scenario executed with test plan value
+scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=2
 </code></pre>
 <p>We can see the content from <code>scenario.txt</code> being printed to the terminal.</p>
@@ -3181,16 +3169,16 @@ $ touch data/file.txt
 provider:</p>
 <pre><code class="language-yaml">name: Inline scenario config
 description: An inline scenario config
-values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
+variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
     default: "scenario executed with default value"
 command:
   name: scenario.sh
   kind: relative_path
   path: ../scripts/scenario.sh
 env_vars:
-  SCENARIO_ENV: "{{ scenario_value }}"
+  SCENARIO_ENV: "{{ scenario_variable }}"
 file_providers:
   - name: scenario.txt
     env_var: SCENARIO_TXT
@@ -3223,7 +3211,7 @@ Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
 Some inline text content for our scenario
 More content from a file for our scenario
-scenario executed with test plan value
+scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=2
 
 $ ls output/providers 
@@ -3276,7 +3264,7 @@ teardown:
     PROCESS_ID: "{{ process_id }}"
 </code></pre>
 <p>Now, let's see what happens when we try to template this test plan:</p>
-<pre><code class="language-bash">$ rtf template test-plan.yaml --check --value process_id="id"
+<pre><code class="language-bash">$ rtf template test-plan.yaml --check --var process_id="id"
 ERROR (config.txt) a required file has not been defined.: Please specify a config file
 </code></pre>
 <p>We get an error saying we haven't defined a required file, along with the message we put in the
@@ -3284,8 +3272,8 @@ ERROR (config.txt) a required file has not been defined.: Please specify a confi
 <p>To make this work, the test plan user should make use of overrides. Let's update <code>test-plan.yaml</code>:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-
-  scenario_value: "scenario executed with test plan value"
+variables:
+  scenario_variable: "scenario executed with test plan variable"
 scenario:
   from:
     kind: local
@@ -3310,20 +3298,20 @@ environment:
 # --------------------------------------
 </code></pre>
 <p>The override will match based on the <code>name</code> key. If we template now, we get:</p>
-<pre><code class="language-bash">$ rtf template test-plan.yaml --check --value process_id="id"
+<pre><code class="language-bash">$ rtf template test-plan.yaml --check --var process_id="id"
 name: Hello World
 description: A test plan created as a guide for writing test plans
-values:
-  example_value: value
-  scenario_value: scenario executed with test plan value
+variables:
+  example_variable: variable
+  scenario_variable: scenario executed with test plan variable
   process_id: id
 matrix: {}
 scenario:
   name: Inline scenario config
   description: An inline scenario config
-  values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
+  variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
     default: scenario executed with default value
   command:
     name: scenario.sh
@@ -3331,7 +3319,7 @@ scenario:
     path: ../scripts/scenario.sh
     args: []
   env_vars:
-    SCENARIO_ENV: scenario executed with test plan value
+    SCENARIO_ENV: scenario executed with test plan variable
   file_providers:
   - name: file.txt
     env_var: FILE_TXT
@@ -3345,7 +3333,7 @@ scenario:
 environment:
   name: Inline environment config
   description: An inline environment config
-  values: []
+  variable_definitions: []
   setup:
     command:
       name: setup.sh
@@ -3405,7 +3393,7 @@ providing a series of unique values for the dimension:</p>
     n: [0, 1, 2, 3, 4]
     my_dimension: ["foo", "bar"]
 </code></pre>
-<p><strong>Discussion</strong>: You <em>must</em> include your iteration value within your <code>variant_names</code> template in
+<p><strong>Discussion</strong>: You <em>must</em> include your iteration variable within your <code>variant_names</code> template in
 order to produce unique variant names, as each original variant you are wanting to repeat will have
 the same values other than this.</p>
 <p>Using this approach is encouraged over simply running the Test Plan multiple times manually as it
@@ -3415,8 +3403,8 @@ required to generate the output of each provider.</p>
 <p><strong>Problem</strong>: You have written a Test Plan that defines a non-trivial matrix and you want to work out
 something like the expected running time or other properties related to the number of variants being
 run.</p>
-<p><strong>Solution</strong>: The <code>rtf expand-matrix</code> subcommand can be used to output the fully expanded variant
-values in the order they will be executed by <code>rtf run</code>:</p>
+<p><strong>Solution</strong>: The <code>rtf expand-matrix</code> subcommand can be used to output the fully expanded variables
+for each variant in the order they will be executed by <code>rtf run</code>:</p>
 <pre><code class="language-yaml"># Example matrix setup
 matrix:
   variant_names: "${color}_${fruit}_${name}_${count}"
@@ -3434,7 +3422,7 @@ matrix:
   "variants": [
     {
       "name": "red_apple_foo_1",
-      "values": {
+      "variables": {
         "color": "red",
         "count": 1,
         "fruit": "apple",
@@ -3450,10 +3438,10 @@ matrix:
 12
 </code></pre>
 <p><strong>Discussion</strong>: This will work even for Test Plans without a matrix by returning the single
-"variant" representing the top level values for the Test Plan.</p>
+"variant" representing the top level variables for the Test Plan.</p>
 <p>The variants returned by <code>rtf expand-matrix</code> are computed using the Test Plan as it is written.
-Specifying additional matrix dimensions via the <code>--values</code> flag on <code>rtf run</code> will alter the number
-of variants.</p>
+Specifying additional matrix dimensions via the <code>--vars</code> flag on <code>rtf run</code> will alter the number of
+variants.</p>
 <h2 id="previewing-matrix-variant-names"><a class="header" href="#previewing-matrix-variant-names">Previewing matrix variant names</a></h2>
 <p><strong>Problem</strong>: You are specifying a custom matrix variant name template using <code>matrix.variant_names</code>
 and you want to check that it will produce the expected directory names.</p>
@@ -3487,7 +3475,7 @@ red_apple_bar_3
 green_pear_bar_3
 </code></pre>
 <p><strong>Discussion</strong>: The variants returned by <code>rtf expand-matrix</code> are computed using the Test Plan as it
-is written. Specifying additional matrix dimensions via the <code>--values</code> flag on <code>rtf run</code> will alter
+is written. Specifying additional matrix dimensions via the <code>--vars</code> flag on <code>rtf run</code> will alter
 the number of variants which in turn may result in a previously valid <code>variant_names</code> template
 becoming invalid if it now produces non-unique names.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="command-line-help-for-rtf"><a class="header" href="#command-line-help-for-rtf">Command-Line Help for <code>rtf</code></a></h1>
@@ -3506,12 +3494,12 @@ becoming invalid if it now produces non-unique names.</p>
 <ul>
 <li><code>run</code> — Check and run a test plan</li>
 <li><code>expand-matrix</code> — Expand a test plan matrix into JSON</li>
-<li><code>template</code> — Template a test plan using provided values, outputting the resulting config to stdout</li>
+<li><code>template</code> — Template a test plan using provided variables, outputting the resulting config to stdout</li>
 </ul>
 <h6 id="options"><a class="header" href="#options"><strong>Options:</strong></a></h6>
 <ul>
-<li><code>--value &lt;VALUE&gt;</code> — A single additional templating value in the form "key=value"</li>
-<li><code>--values &lt;VALUES&gt;</code> — Path to a JSON file containing additional template values</li>
+<li><code>--var &lt;VAR&gt;</code> — A single additional templating variable in the form "key=value"</li>
+<li><code>--vars &lt;VARS&gt;</code> — Path to a JSON file containing additional template variables</li>
 <li><code>-v</code>, <code>--verbose</code> — Flag to control logging verbosity. Default level is <code>warn</code>. <code>-v</code> sets logging level to <code>info</code>,<code>-vv</code> to <code>debug</code> and <code>-vvv</code> to <code>trace</code></li>
 </ul>
 <h2 id="rtf-run"><a class="header" href="#rtf-run"><code>rtf run</code></a></h2>
@@ -3546,7 +3534,7 @@ becoming invalid if it now produces non-unique names.</p>
 <li><code>-c</code>, <code>--compact</code> — Return the expanded matrix JSON in compact form</li>
 </ul>
 <h2 id="rtf-template"><a class="header" href="#rtf-template"><code>rtf template</code></a></h2>
-<p>Template a test plan using provided values, outputting the resulting config to stdout</p>
+<p>Template a test plan using provided variables, outputting the resulting config to stdout</p>
 <p><strong>Usage:</strong> <code>rtf template [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
 <h6 id="arguments-2"><a class="header" href="#arguments-2"><strong>Arguments:</strong></a></h6>
 <ul>
@@ -3560,7 +3548,7 @@ becoming invalid if it now produces non-unique names.</p>
 <h2 id="environment-1"><a class="header" href="#environment-1">Environment</a></h2>
 <p>An RTF configuration file for specifying how to set up and tear down the services and infrastructure
 under test using Command and File providers. As with all RTF configuration files, it is possible to
-template an Environment configuration using Values provided in the Test Plan.</p>
+template an Environment configuration using Variables provided in the Test Plan.</p>
 <h2 id="provider"><a class="header" href="#provider">Provider</a></h2>
 <p>A self contained piece of functionality within RTF that can provide file content for use in
 executing commands found in a Scenario or Environment configuration. Providers are declared as part
@@ -3581,19 +3569,19 @@ resolve and run Test Plans.</p>
 <h2 id="scenario-1"><a class="header" href="#scenario-1">Scenario</a></h2>
 <p>An RTF configuration file for specifying how to run a test against services spun up by an
 Environment configuration using Command and File providers. As with all RTF configuration files, it
-is possible to template a Scenario configuration using Values provided in the Test Plan.</p>
+is possible to template a Scenario configuration using Variables provided in the Test Plan.</p>
 <h2 id="templating"><a class="header" href="#templating">Templating</a></h2>
 <p>The use of template strings within RTF configuration files for declaring how users of that
 configuration file may specify how to set Provider parameters and Command Provider environment
 variables. Template strings are denoted with opening and closing double braces surrounding the name
-of the Value to inject with a single space at either side: <code>"{{ my_value }}"</code></p>
+of the Variable to inject with a single space at either side: <code>"{{ my_variable }}"</code></p>
 <h2 id="test-plan"><a class="header" href="#test-plan">Test Plan</a></h2>
 <p>The main RTF configuration file that defines an runnable test by combining a Scenario configuration
 with the Environment configuration it should be executed against. If either the Scenario or
-Environment supports Templating Values then they can be specified statically as part of the Test
+Environment supports Templating Variables then they can be specified statically as part of the Test
 Plan itself or dynamically through command line arguments to the RTF CLI.</p>
-<h2 id="values"><a class="header" href="#values">Values</a></h2>
-<p>Templating Values are declared within the Scenario and Environment configuration files and have
+<h2 id="variables"><a class="header" href="#variables">Variables</a></h2>
+<p>Templating Variables are declared within the Scenario and Environment configuration files and have
 their values defined within the Test Plan referencing those configuration files.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="concepts-and-architecture"><a class="header" href="#concepts-and-architecture">Concepts and Architecture</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="error-handling"><a class="header" href="#error-handling">Error handling</a></h1>
@@ -3911,13 +3899,13 @@ check. Working through the hierarchy:</p>
 <li><strong>Flag(s)</strong> is <code>check</code>. The <code>--check</code> flag is used in this test and adds significant additional
 logic.</li>
 <li><strong>Test class</strong> is omitted since <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is not used.</li>
-<li><strong>Test case</strong> is <code>completes_basic</code>. A failing test case is <code>completes_with_cli_values</code>.</li>
+<li><strong>Test case</strong> is <code>completes_basic</code>. A failing test case is <code>completes_with_cli_variables</code>.</li>
 </ol>
 <p>This leads to the following full test path:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>test template::check_completes_basic
-test template::check_completes_with_cli_values
+test template::check_completes_with_cli_variables
 <span class="boring">}</span></code></pre></pre>
 <p>To achieve the structure above, the tests are defined in <code>tests/template.rs</code> and organized as
 follows:</p>
@@ -3929,7 +3917,7 @@ fn check_completes_basic() {
 }
 
 #[test]
-fn check_completes_with_cli_values() {
+fn check_completes_with_cli_variables() {
   ...
 }
 <span class="boring">}</span></code></pre></pre>
@@ -4014,8 +4002,8 @@ fn is_executable() {
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test_case("command-from-spec"; "command from spec")]
-#[test_case("matrix-values"; "matrix values")]
-#[test_case("resolved-values"; "resolved values")]
+#[test_case("matrix-variables"; "matrix variables")]
+#[test_case("resolved-variables"; "resolved variables")]
 #[test]
 fn check_completes_basic(test_plan_dir: &amp;str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
@@ -4053,14 +4041,14 @@ providing convenient access to both the command and the temporary filesystem sta
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test_case(
-    "missing-values.yaml",
-    "Missing template values definitions";
-    "missing values"
+    "missing-variables.yaml",
+    "Missing template variables definitions";
+    "missing variables"
 )]
 #[test_case(
-    "unknown-values.yaml", 
-    "Unknown templating value";
-    "unknown values"
+    "unknown-variables.yaml", 
+    "Unknown templating variable";
+    "unknown variables"
 )]
 #[test]
 fn templating_fails(file: &amp;str, err_contains: &amp;str) {
@@ -4159,7 +4147,7 @@ as follows:</p>
 }
 <span class="boring">}</span></code></pre></pre>
 <h3 id="example---malformed-template-strings"><a class="header" href="#example---malformed-template-strings">Example - Malformed Template Strings</a></h3>
-<p>This example demonstrates how to test that the template string <code>"{{ template_value }}"</code> does not
+<p>This example demonstrates how to test that the template string <code>"{{ template_variable }}"</code> does not
 work when similar, but not acceptable, patterns are specified. Working through the hierarchy:</p>
 <ol>
 <li><strong>Module</strong> is <code>templating</code>. This is where the <code>Field</code> type is defined.</li>
@@ -4169,13 +4157,13 @@ prefix in the test case name since the module does not uniquely identify the dat
 <code>Field</code>. This becomes the second prefix in the test case name.</li>
 <li><strong>Test class</strong> is <code>malformed_template_string</code>. <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is used since there are
 variations in strings that are tested using the same logic.</li>
-<li><strong>Test cases</strong> are a series of uniquely named tests. For example, <code>no_space_after_value_name</code> and
-<code>single_curly_braces</code>.</li>
+<li><strong>Test cases</strong> are a series of uniquely named tests. For example, <code>no_space_after_variable_name</code>
+and <code>single_curly_braces</code>.</li>
 </ol>
 <p>The full test paths are:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>test templating::tests::field_parse_malformed_template_string::no_space_after_value_name
+</span>test templating::tests::field_parse_malformed_template_string::no_space_after_variable_name
 test templating::tests::field_parse_malformed_template_string::single_curly_braces
 <span class="boring">}</span></code></pre></pre>
 <p>To achieve the structure above, the tests are defined in <code>src/templating.rs</code> and organized as
@@ -4184,7 +4172,7 @@ follows:</p>
 </span><span class="boring">fn main() {
 </span>mod tests {
   use simple_test_case::test_case;
-  #[test_case("arg1"; "no_space_after_value_name")]
+  #[test_case("arg1"; "no_space_after_variable_name")]
   #[test_case("arg2"; "single_curly_braces")]
   #[test]
   fn field_parse_malformed_template_string(arg: &amp;str) {
@@ -4266,7 +4254,7 @@ naming hierarchy described in the <a href="developer/testing/rtf-config.html#org
 <ol>
 <li><strong>Parsing Tests</strong> - Verify YAML deserialization works correctly for valid inputs and fails
 appropriately for invalid ones</li>
-<li><strong>Template Resolution Tests</strong> - Ensure the <code>{{ value }}</code> templating system works across all
+<li><strong>Template Resolution Tests</strong> - Ensure the <code>{{ variable }}</code> templating system works across all
 supported data types. In most cases specific tests are not required for the <code>Template</code> trait
 since this is derived with a proc macro. Whenever there is a custom implementation of this trait
 then tests are defined.</li>
@@ -4537,8 +4525,8 @@ written config files.</p>
 <li>Locate and load any required <code>Secenario</code> and <code>Environment</code> files defined in <code>from</code> directives as
 raw YAML. If the test plan defines overrides for either section then deep merge before parsing
 into concrete structs.</li>
-<li>Check that the test plan contains all of the required values for templating to be possible. If it
-doesn't then early exit reporting the missing values.</li>
+<li>Check that the test plan contains all of the required variables for templating to be possible. If
+it doesn't then early exit reporting the missing variables.</li>
 <li>Template the environment <em>setup</em> section before running static analysis checks.</li>
 <li>If all checks pass, run the setup command and use the provided output to finish templating the
 <em>scenario</em> and environment <em>teardown</em> sections.</li>
@@ -4566,8 +4554,8 @@ within config files.</p>
 <p>While hard coded scalar values are parsed directly using <a href="https://serde.rs/">serde</a>, <code>Fields</code> are allowed to be in
 one of two states:</p>
 <ul>
-<li><code>Pending</code>, where they hold the name of templating <em>value</em> that the user must specify as part of
-their test plan.</li>
+<li><code>Pending</code>, where they hold the name of a templating <em>variable</em> that the user must specify as part
+of their test plan.</li>
 <li><code>Resolved</code>, where they hold a concrete <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/templating.rs#L363">scalar</a> value, either because a value was provided
 directly within the config file or following successful templating.</li>
 </ul>
@@ -4576,7 +4564,7 @@ into the <code>Field::Pending</code> enum variant directly using serde. When wri
 make use of templating fields where it makes sense for users to be able to dynamically set values
 when executing a test plan and avoid using them where such flexibility is not required.</p>
 <blockquote>
-<p>For example, we do not allow the <code>inline</code> file provider's content value to be templated as the
+<p>For example, we do not allow the <code>inline</code> file provider's content argument to be templated as the
 intention is for this to always be provided within the test plan itself.</p>
 </blockquote>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="file-providers-1"><a class="header" href="#file-providers-1">File providers</a></h1>
@@ -4600,15 +4588,15 @@ available when the command executes.</p>
 <code>EnvironmentConfig</code> and <code>ScenarioConfig</code>.</p>
 <h3 id="scenario-config"><a class="header" href="#scenario-config">Scenario Config</a></h3>
 <p>The simplest of the three config file formats is the scenario config which simply provides a way for
-the user to pair <a href="developer/data-structures/./fields.html">templating</a> values with a <a href="developer/data-structures/./command-providers.html">command</a>.</p>
+the user to pair <a href="developer/data-structures/./fields.html">templating</a> variables with a <a href="developer/data-structures/./command-providers.html">command</a>.</p>
 <h2 id="environment-config"><a class="header" href="#environment-config">Environment Config</a></h2>
 <p>The environment config file defines a pair of command sections: one for setting up the environment
 before the test is run and another for tearing it down after the test is complete. The setup section
-also requires the user to declare the structure of additional JSON values that will be provided by
-the setup command for it to pass data along to the scenario and teardown sections.</p>
+also requires the user to declare the structure of additional JSON variables that will be provided
+by the setup command for it to pass data along to the scenario and teardown sections.</p>
 <h2 id="test-plan-config"><a class="header" href="#test-plan-config">Test plan config</a></h2>
-<p>The test plan config file is where the user defines the values they wish to use for templating along
-with the scenario and environment configurations, either provided inline or as references to
+<p>The test plan config file is where the user defines the variables they wish to use for templating
+along with the scenario and environment configurations, either provided inline or as references to
 external files.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="traits-for-working-with-config-structs"><a class="header" href="#traits-for-working-with-config-structs">Traits for working with config structs</a></h1>
 <p>We have a set of four traits that are used to provide the shared behaviour needed to parse, validate
@@ -4653,14 +4641,14 @@ inline logic at the CLI struct level.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="global-flags"><a class="header" href="#global-flags">Global flags</a></h1>
 <p>The CLI exposes the following global flags for all subcommands to use:</p>
 <ul>
-<li><code>--value</code></li>
-<li><code>--values</code></li>
+<li><code>--var</code></li>
+<li><code>--vars</code></li>
 </ul>
-<h2 id="the---value-flag"><a class="header" href="#the---value-flag">The <code>--value</code> flag</a></h2>
-<p>This is used to override a single value in a test plan.</p>
-<h2 id="the---values-flag"><a class="header" href="#the---values-flag">The <code>--values</code> flag</a></h2>
-<p>This is used to override multiple values in a test plan. This must be specified as a path to a JSON
-file containing the values.</p>
+<h2 id="the---var-flag"><a class="header" href="#the---var-flag">The <code>--var</code> flag</a></h2>
+<p>This is used to override a single variable in a test plan.</p>
+<h2 id="the---vars-flag"><a class="header" href="#the---vars-flag">The <code>--vars</code> flag</a></h2>
+<p>This is used to override multiple variables in a test plan. This must be specified as a path to a
+JSON file containing the variables.</p>
 
                     </main>
 

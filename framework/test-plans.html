@@ -224,16 +224,16 @@ you write each have unique names that can be used to distinguish them.</li>
 rather than in comments or other files (such as a README).</li>
 </ul>
 </li>
-<li><code>values</code>: Key value pairs for templating the Test Plan where the values are all scalar.
+<li><code>variables</code>: Key value pairs for templating the Test Plan where the variables are all scalar.
 <ul>
 <li>Scalar here is defined to be a number, string or boolean.</li>
 </ul>
 </li>
-<li><code>matrix</code>: Dimensions specified as key value pairs for templating the Test Plan where the values
-arrays of scalars.
+<li><code>matrix</code>: Dimensions specified as key value pairs for templating the Test Plan where the variables
+are arrays of scalars.
 <ul>
-<li>Each matrix entry must have a consistent type for the values array. Mixing different scalar
-values will result in an error when you attempt to run the Test Plan.</li>
+<li>Each matrix entry must have a consistent type for the variables array. Mixing different scalar
+variables will result in an error when you attempt to run the Test Plan.</li>
 <li>An optional <code>variant_names</code> key can be provided to customise the names of the output directories
 used by each variant.</li>
 </ul>
@@ -355,7 +355,7 @@ arrays are then sorted and deduplicated based on an appropriate key in order to 
 array elements:</p>
 <ul>
 <li>For <a href="./file-providers.html">File providers</a> the key used is <code>env_var</code>.</li>
-<li>For value declarations and environment setup "provides" the key used is <code>name</code>.</li>
+<li>For variable declarations and environment setup "provides" the key used is <code>name</code>.</li>
 </ul>
 <h2 id="a-note-on-relative-paths"><a class="header" href="#a-note-on-relative-paths">A note on relative paths</a></h2>
 <p>There are several places within RTF config files that you be required to specify relative paths to
@@ -419,9 +419,9 @@ with static string content in order to generate a unique name for each variant. 
 is then slugified to remove whitespace and slashes.</p>
 <h3 id="including-explicit-variants"><a class="header" href="#including-explicit-variants">Including explicit variants</a></h3>
 <p>Sometimes when defining a matrix you will find that you want to limit how the matrix dimensions are
-produced in order to only run a subset of possible combinations of values. For example, the
-following initial matrix expands out to four variants covering different crate revisions for
-inclusion in a Rust build as shown below:</p>
+produced in order to only run a subset of possible combinations of values for each variable. For
+example, the following initial matrix expands out to four variants covering different crate
+revisions for inclusion in a Rust build as shown below:</p>
 <pre><code class="language-yaml">matrix:
   dimensions:
     federation_rev: [ "v2.6.2", "v2.7.0" ]
@@ -443,8 +443,8 @@ inclusion in a Rust build as shown below:</p>
 four variants are invalid and should not be run. This problem is made worse if we add another
 dimension to the matrix (say, <code>graph_ref</code>) which will then produce additional undesirable variants.</p>
 <p>In this sort of situation you should make use of the <code>matrix.include</code> key, which allows you to
-define matrix dimensions as <em>sets</em> of values so long as they all contain the same keys. In our
-example above we would do the following:</p>
+define matrix dimensions as <em>sets</em> of values so long as they all contain the same variable names. In
+our example above we would do the following:</p>
 <pre><code class="language-yaml">matrix:
   # The dimensions key must always be present, even if it is an empty map
   dimensions: {}
@@ -497,7 +497,7 @@ can add further dimensions to the matrix and obtain the correct variants:</p>
 <pre><code class="language-yaml">name: example
 description: An example description
 
-values:
+variables:
   foo: "A value for foo"
 
 matrix:
@@ -517,7 +517,7 @@ scenario:
     name: An inline scenario
     description: A description for the inline scenario
 
-    values:
+    variable_definitions:
       - name: foo
         description: "A description for foo"
 

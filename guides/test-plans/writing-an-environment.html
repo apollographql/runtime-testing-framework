@@ -231,7 +231,8 @@ teardown:
 <p>Finally, update the <code>test-plan.yaml</code> file to use the new <code>environment.yaml</code> file:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-  scenario_value: "scenario executed with test plan value"
+variables:
+  scenario_variable: "scenario executed with test plan variable"
 scenario:
   from:
     kind: local
@@ -245,16 +246,15 @@ environment:
 <pre><code class="language-bash">$ rtf template test-plan.yaml --check
 name: Hello World
 description: A test plan created as a guide for writing test plans
-values:
-  scenario_value: scenario executed with test plan value
-  example_value: value
+variables:
+  scenario_variable: scenario executed with test plan variable
 matrix: {}
 scenario:
   name: Inline scenario config
   description: An inline scenario config
-  values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
+  variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
     default: scenario executed with default value
   command:
     name: scenario.sh
@@ -262,12 +262,12 @@ scenario:
     path: ../scripts/scenario.sh
     args: []
   env_vars:
-    SCENARIO_ENV: scenario executed with test plan value
+    SCENARIO_ENV: scenario executed with test plan variable
   file_providers: []
 environment:
   name: Inline environment config
   description: An inline environment config
-  values: []
+  variable_definitions: []
   setup:
     command:
       name: setup.sh
@@ -303,9 +303,9 @@ called <code>provides</code> which we'll explain in more detail in the
 string. It has no impact on the execution of an environment.</li>
 <li><code>description</code> (required) is used to give more information about the environment. It can be any
 valid string. It has no impact on the execution of an environment.</li>
-<li><code>values</code> (optional) are used to define which values an environment requires to successfully
-execute. This works the same as it does for a scenario and is explained more in the
-<a href="writing-a-scenario.html#using-values">"using values"</a> section of that guide.</li>
+<li><code>variable_definitions</code> (optional) are used to define which variables an environment requires to
+successfully execute. This works the same as it does for a scenario and is explained more in the
+<a href="writing-a-scenario.html#using-variables">"using variables"</a> section of that guide.</li>
 <li><code>setup</code> (required) is used to define the command that executes at the start of the <code>rtf run</code>
 command. It is intended to be used to create and configure the environment for the scenario to
 test. It requires the following keys:
@@ -317,8 +317,9 @@ test. It requires the following keys:
 <li><code>file_providers</code> (optional) is used to define the files and data that the environment setup
 depends on to execute. The <a href="using-file-providers.html">"Using file providers" guide</a> explains how
 these are used in more detail.</li>
-<li><code>provides</code> (optional) is unique to the environment setup and is used to set values that can only
-be known at runtime. This is explained more in the <a href="#using-provides">"Using provides" section</a>.</li>
+<li><code>provides</code> (optional) is unique to the environment setup and is used to set variables that can
+only be known at runtime. This is explained more in the
+<a href="#using-provides">"Using provides" section</a>.</li>
 </ul>
 </li>
 <li><code>teardown</code> (required) is used to define the command that executes at the end of the <code>rtf run</code>
@@ -336,11 +337,11 @@ these are used in more detail.</li>
 </li>
 </ul>
 <h2 id="using-provides"><a class="header" href="#using-provides">Using provides</a></h2>
-<p>The <code>provides</code> key is used to take values from the environment setup and make them available to the
-scenario and environment teardown steps. The most common use case for this is when the environment
-setup starts a process with some ID that can only be known at runtime. That ID is required by the
-environment teardown so it can stop the process once the test is done. In practice, this can be used
-to set any value for the scenario and environment teardown to use.</p>
+<p>The <code>provides</code> key is used to take variables from the environment setup and make them available to
+the scenario and environment teardown steps. The most common use case for this is when the
+environment setup starts a process with some ID that can only be known at runtime. That ID is
+required by the environment teardown so it can stop the process once the test is done. In practice,
+this can be used to set any variable for the scenario and environment teardown to use.</p>
 <p>Before we look at how <code>provides</code> works, let's update our environment setup command in
 <code>environment.yaml</code>:</p>
 <pre><code class="language-yaml">name: Inline environment config
@@ -396,11 +397,11 @@ teardown:
 <pre><code class="language-bash">$ rtf run test-plan.yaml
 Environment setup complete. PROCESS_ID=1
 Running scenario from an external file
-scenario executed with test plan value
+scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=not yet from setup
 </code></pre>
-<p>The <code>provides</code> key defines values that are specified in the config in the exact same way that
-<code>values</code> are. Let's update the <code>environment.yaml</code>:</p>
+<p>The <code>provides</code> key defines variables that are specified in the config in the exact same way that
+<code>variables</code> are. Let's update the <code>environment.yaml</code>:</p>
 <pre><code class="language-yaml">name: Inline environment config
 description: An inline environment config
 setup:
@@ -431,9 +432,9 @@ teardown:
 # -------------------------------
 </code></pre>
 <blockquote>
-<p><strong>Note</strong> If you want to check this templates, you'll need to specify a value for <code>process_id</code>
-using <code>--value process_id="dummy_id"</code>. If you don't do this, you'll get
-<code>ERROR (environment.teardown.env_vars.PROCESS_ID) unknown templating value: process_id</code>.</p>
+<p><strong>Note</strong> If you want to check this templates, you'll need to specify a variable for <code>process_id</code>
+using <code>--var process_id="dummy_id"</code>. If you don't do this, you'll get
+<code>ERROR (environment.teardown.env_vars.PROCESS_ID) unknown templating variable: process_id</code>.</p>
 </blockquote>
 <p>If we try to run this, it won't work:</p>
 <pre><code class="language-bash">$ rtf run test-plan.yaml
@@ -475,7 +476,7 @@ teardown:
 <pre><code class="language-bash">$ rtf run test-plan.yaml
 Environment setup complete. PROCESS_ID=1
 Running scenario from an external file
-scenario executed with test plan value
+scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=1
 </code></pre>
 <h2 id="using-overrides"><a class="header" href="#using-overrides">Using overrides</a></h2>
@@ -499,8 +500,9 @@ echo "{ \"process_id\": \"$PROCESS_ID\" }" &gt; "$RTF_OUTPUT"
 to <code>test-plan.yaml</code>:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-
-  scenario_value: "scenario executed with test plan value"
+variables:
+  scenario_variable: "scenario executed with test plan variable"
+  process_id: dummy
 scenario:
   from:
     kind: local
@@ -521,21 +523,20 @@ environment:
 <p>Before checking if this works, let's look at how it works. We only want to change the
 <code>setup.command</code>, so only that segment of the config is required. rtf will merge the YAML on matching
 keys before checking if it templates. If you run the <code>template</code> command now (pay attention to the
-<code>--value</code> flag here, we need this because of the <code>provides</code> value):</p>
-<pre><code class="language-bash">$ template rtf-hello-world/test-plan.yaml --check --value process_id=dummy`
+<code>--var</code> flag here, we need this because of the <code>provides</code> variable):</p>
+<pre><code class="language-bash">$ template rtf-hello-world/test-plan.yaml --check --var process_id=dummy`
 name: Hello World
 description: A test plan created as a guide for writing test plans
-values:
-  scenario_value: scenario executed with test plan value
-  example_value: value
+variables:
+  scenario_variable: scenario executed with test plan variable
   process_id: dummy
 matrix: {}
 scenario:
   name: Inline scenario config
   description: An inline scenario config
-  values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
+  variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
     default: scenario executed with default value
   command:
     name: scenario.sh
@@ -543,12 +544,12 @@ scenario:
     path: ../scripts/scenario.sh
     args: []
   env_vars:
-    SCENARIO_ENV: scenario executed with test plan value
+    SCENARIO_ENV: scenario executed with test plan variable
   file_providers: []
 environment:
   name: Inline environment config
   description: An inline environment config
-  values: []
+  variable_definitions: []
   setup:
     command:
       name: setup.sh
@@ -580,7 +581,7 @@ environment:
 Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
-scenario executed with test plan value
+scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=2
 </code></pre>
 <p>This confirms we're successfully using a new <code>setup.sh</code> script for the environment without changing

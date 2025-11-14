@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-config/src/formats/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e56847b5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rtf_config" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.1 (ed61e7d7e 2025-11-07)" data-channel="1.91.1" data-search-js="search-e256b49e.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-6dc2a7f3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rtf_config/formats/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! The various different config file formats that we support
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-config/src/formats/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e56847b5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rtf_config" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.0 (f8297e351 2025-10-28)" data-channel="1.91.0" data-search-js="search-e256b49e.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-6dc2a7f3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rtf_config/formats/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! The various different config file formats that we support
 <a href=#2 id=2 data-nosnippet>2</a></span><span class="kw">use crate</span>::{checks, providers};
 <a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>std::io;
 <a href=#4 id=4 data-nosnippet>4</a>
@@ -26,9 +26,9 @@
 <a href=#26 id=26 data-nosnippet>26</a>    </span>MissingSetupOutputFields { missing: Vec&lt;String&gt; },
 <a href=#27 id=27 data-nosnippet>27</a>
 <a href=#28 id=28 data-nosnippet>28</a>    <span class="attr">#[error(
-<a href=#29 id=29 data-nosnippet>29</a>        <span class="string">"The provided matrix.variant_names template references unknown matrix values: {values:?}"
+<a href=#29 id=29 data-nosnippet>29</a>        <span class="string">"The provided matrix.variant_names template references unknown matrix variables: {variables:?}"
 <a href=#30 id=30 data-nosnippet>30</a>    </span>)]
-<a href=#31 id=31 data-nosnippet>31</a>    </span>UnknownMatrixVariantTemplateValues { values: Vec&lt;String&gt; },
+<a href=#31 id=31 data-nosnippet>31</a>    </span>UnknownMatrixVariantTemplateVariables { variables: Vec&lt;String&gt; },
 <a href=#32 id=32 data-nosnippet>32</a>
 <a href=#33 id=33 data-nosnippet>33</a>    <span class="attr">#[error(<span class="string">"The provided variant_names template produced duplicate names: {duplicates:?}"</span>)]
 <a href=#34 id=34 data-nosnippet>34</a>    </span>NonUniqueMatrixVariantNames { duplicates: Vec&lt;String&gt; },
@@ -59,11 +59,11 @@
 <a href=#59 id=59 data-nosnippet>59</a></span><span class="kw">mod </span>tests {
 <a href=#60 id=60 data-nosnippet>60</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
 <a href=#61 id=61 data-nosnippet>61</a>    <span class="kw">use crate</span>::{
-<a href=#62 id=62 data-nosnippet>62</a>        ValueDefinition,
+<a href=#62 id=62 data-nosnippet>62</a>        VariableDefinition,
 <a href=#63 id=63 data-nosnippet>63</a>        checks::Check,
 <a href=#64 id=64 data-nosnippet>64</a>        context::Context,
 <a href=#65 id=65 data-nosnippet>65</a>        providers::file::{FileProvider, NamedFileProvider, RelativeFile, Source},
-<a href=#66 id=66 data-nosnippet>66</a>        templating::{ErrorKind, Field, Scalar, Template, TemplateValues},
+<a href=#66 id=66 data-nosnippet>66</a>        templating::{ErrorKind, Field, Scalar, Template, TemplateVariables},
 <a href=#67 id=67 data-nosnippet>67</a>    };
 <a href=#68 id=68 data-nosnippet>68</a>
 <a href=#69 id=69 data-nosnippet>69</a>    <span class="comment">// Test Helpers
@@ -110,21 +110,21 @@
 <a href=#110 id=110 data-nosnippet>110</a>            .collect()
 <a href=#111 id=111 data-nosnippet>111</a>    }
 <a href=#112 id=112 data-nosnippet>112</a>
-<a href=#113 id=113 data-nosnippet>113</a>    <span class="doccomment">/// Create a HashMap of values from string names (each name maps to itself as a Scalar::String)
-<a href=#114 id=114 data-nosnippet>114</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>template_values(value_names: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) -&gt; TemplateValues {
-<a href=#115 id=115 data-nosnippet>115</a>        TemplateValues::new_stubbed(
-<a href=#116 id=116 data-nosnippet>116</a>            value_names
+<a href=#113 id=113 data-nosnippet>113</a>    <span class="doccomment">/// Create a HashMap of variables from string names (each name maps to itself as a Scalar::String)
+<a href=#114 id=114 data-nosnippet>114</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>template_variables(variable_names: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) -&gt; TemplateVariables {
+<a href=#115 id=115 data-nosnippet>115</a>        TemplateVariables::new_stubbed(
+<a href=#116 id=116 data-nosnippet>116</a>            variable_names
 <a href=#117 id=117 data-nosnippet>117</a>                .iter()
 <a href=#118 id=118 data-nosnippet>118</a>                .map(|<span class="kw-2">&amp;</span>name| (name.to_string(), Scalar::String(name.to_string())))
 <a href=#119 id=119 data-nosnippet>119</a>                .collect(),
 <a href=#120 id=120 data-nosnippet>120</a>        )
 <a href=#121 id=121 data-nosnippet>121</a>    }
 <a href=#122 id=122 data-nosnippet>122</a>
-<a href=#123 id=123 data-nosnippet>123</a>    <span class="doccomment">/// Create ValueDefinitions from string names with default description
-<a href=#124 id=124 data-nosnippet>124</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>value_definitions(value_names: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) -&gt; Vec&lt;ValueDefinition&gt; {
-<a href=#125 id=125 data-nosnippet>125</a>        value_names
+<a href=#123 id=123 data-nosnippet>123</a>    <span class="doccomment">/// Create VariableDefinitions from string names with default description
+<a href=#124 id=124 data-nosnippet>124</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>variable_definitions(variable_names: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) -&gt; Vec&lt;VariableDefinition&gt; {
+<a href=#125 id=125 data-nosnippet>125</a>        variable_names
 <a href=#126 id=126 data-nosnippet>126</a>            .iter()
-<a href=#127 id=127 data-nosnippet>127</a>            .map(|<span class="kw-2">&amp;</span>name| ValueDefinition {
+<a href=#127 id=127 data-nosnippet>127</a>            .map(|<span class="kw-2">&amp;</span>name| VariableDefinition {
 <a href=#128 id=128 data-nosnippet>128</a>                name: name.to_string(),
 <a href=#129 id=129 data-nosnippet>129</a>                description: <span class="string">"description"</span>.to_string(),
 <a href=#130 id=130 data-nosnippet>130</a>                default: <span class="prelude-val">None</span>,
@@ -159,19 +159,19 @@
 <a href=#159 id=159 data-nosnippet>159</a>    <span class="doccomment">/// Assert template errors
 <a href=#160 id=160 data-nosnippet>160</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_template_errors(
 <a href=#161 id=161 data-nosnippet>161</a>        t: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Template,
-<a href=#162 id=162 data-nosnippet>162</a>        values: TemplateValues,
+<a href=#162 id=162 data-nosnippet>162</a>        variables: TemplateVariables,
 <a href=#163 id=163 data-nosnippet>163</a>        expected_err_messages: Vec&lt;String&gt;,
 <a href=#164 id=164 data-nosnippet>164</a>        expected_err_paths: Vec&lt;String&gt;,
 <a href=#165 id=165 data-nosnippet>165</a>    ) {
-<a href=#166 id=166 data-nosnippet>166</a>        <span class="kw">let </span>res = t.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>Source::local(<span class="string">"/"</span>), <span class="kw-2">&amp;</span>values);
+<a href=#166 id=166 data-nosnippet>166</a>        <span class="kw">let </span>res = t.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>Source::local(<span class="string">"/"</span>), <span class="kw-2">&amp;</span>variables);
 <a href=#167 id=167 data-nosnippet>167</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected templating to fail, got {res:?}"</span>);
 <a href=#168 id=168 data-nosnippet>168</a>
 <a href=#169 id=169 data-nosnippet>169</a>        <span class="kw">let </span>errors = res.unwrap_err();
 <a href=#170 id=170 data-nosnippet>170</a>        <span class="macro">assert!</span>(
 <a href=#171 id=171 data-nosnippet>171</a>            errors
 <a href=#172 id=172 data-nosnippet>172</a>                .iter()
-<a href=#173 id=173 data-nosnippet>173</a>                .all(|e| <span class="macro">matches!</span>(e.kind, ErrorKind::UnknownValue)),
-<a href=#174 id=174 data-nosnippet>174</a>            <span class="string">"expected all errors to be UnknownValue, got {:?}"</span>,
+<a href=#173 id=173 data-nosnippet>173</a>                .all(|e| <span class="macro">matches!</span>(e.kind, ErrorKind::UnknownVariable)),
+<a href=#174 id=174 data-nosnippet>174</a>            <span class="string">"expected all errors to be UnknownVariable, got {:?}"</span>,
 <a href=#175 id=175 data-nosnippet>175</a>            errors
 <a href=#176 id=176 data-nosnippet>176</a>        );
 <a href=#177 id=177 data-nosnippet>177</a>

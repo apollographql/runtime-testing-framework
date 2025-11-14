@@ -194,8 +194,8 @@ written config files.</p>
 <li>Locate and load any required <code>Secenario</code> and <code>Environment</code> files defined in <code>from</code> directives as
 raw YAML. If the test plan defines overrides for either section then deep merge before parsing
 into concrete structs.</li>
-<li>Check that the test plan contains all of the required values for templating to be possible. If it
-doesn't then early exit reporting the missing values.</li>
+<li>Check that the test plan contains all of the required variables for templating to be possible. If
+it doesn't then early exit reporting the missing variables.</li>
 <li>Template the environment <em>setup</em> section before running static analysis checks.</li>
 <li>If all checks pass, run the setup command and use the provided output to finish templating the
 <em>scenario</em> and environment <em>teardown</em> sections.</li>

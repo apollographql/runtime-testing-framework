@@ -184,7 +184,7 @@
 <li><a href="#getting-started">Getting started</a></li>
 <li><a href="#creating-a-scenario-file">Creating a scenario file</a></li>
 <li><a href="#scenario-config-structure">Scenario config structure</a></li>
-<li><a href="#using-values">Using values</a></li>
+<li><a href="#using-variables">Using variables</a></li>
 </ul>
 <hr />
 <p>This guide assumes you have completed the <a href="writing-a-test-plan.html">"Writing a test plan"</a> and
@@ -285,14 +285,14 @@ environment:
 <p>This will result in the following YAML being printed to the terminal:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-values: {}
+variables: {}
 matrix: {}
 scenario:
   name: Inline scenario config
   description: An inline scenario config
-  values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
+  variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
     default: scenario executed with default value
   command:
     name: scenario.sh
@@ -314,7 +314,7 @@ scenario:
 environment:
   name: Inline environment config
   description: An inline environment config
-  values: []
+  variable_definitions: []
   setup:
     command:
       name: setup.sh
@@ -368,7 +368,7 @@ name: Hello World
 description: A test plan created as a guide for writing test plans
 ...
 </code></pre>
-<p>The <code>from</code> key can have two values, <code>local</code> or <code>github</code>. In this case, we are using <code>local</code>. This
+<p>The <code>from</code> key can have two variables, <code>local</code> or <code>github</code>. In this case, we are using <code>local</code>. This
 will import the scenario config from the file on the relative path defined in the <code>relative_path</code>
 key.</p>
 <p>The <code>github</code> key allows the scenario config to be imported from a GitHub repo. It is not discussed
@@ -382,8 +382,9 @@ defined in the scenario</p>
 It has no impact on the execution of a scenario.</li>
 <li><code>description</code> (required) is used to give more information about the scenario. It can be any valid
 string. It has no impact on the execution of a scenario.</li>
-<li><code>values</code> (optional) are used to define which values a scenario requires to successfully execute.
-The <a href="#using-values">"using values"</a> section explains this in more detail.</li>
+<li><code>variable_definitions</code> (optional) are used to define which variables a scenario requires to
+successfully execute. The <a href="#using-variables">"using variables"</a> section explains this in more
+detail.</li>
 <li><code>command</code> (required) is used to define what is executed when the scenario is run. The
 <a href="writing-a-command.html">"Writing a command" guide</a> explains commands in more detail.</li>
 <li><code>env_vars</code> (optional) is used to define the environment variables that are set when the <code>command</code>
@@ -392,57 +393,57 @@ is executed.</li>
 execute. The <a href="using-file-providers.html">"Using file providers" guide</a> explains how these are used
 in more detail.</li>
 </ul>
-<h2 id="using-values"><a class="header" href="#using-values">Using values</a></h2>
-<p>We saw how to set values in the test plan in the
-<a href="writing-a-test-plan.html#setting-values">"Writing a test plan" guide</a>. However, the value we set was
-not used anywhere in the scenario or environment. To use values in a scenario, we need to define
-them in the <code>values</code> field.</p>
-<p>Defining the values here declares a contract between the scenario and test plan and defines the
-values that must be specified for the scenario to complete. The value can be set using a default in
-the scenario, in the test plan or provided via the CLI. If the value is used by the scenario and not
-set via any of those methods, it will cause the test plan execution to fail. If values are defined
-for usage in the scenario but not defined in the <code>values</code> field then the test plan will fail to
-template.</p>
-<p>Let's see that in action. We are going to replace the static environment variable value with one
-defined using a value. Update <code>scenario.yaml</code>:</p>
+<h2 id="using-variables"><a class="header" href="#using-variables">Using variables</a></h2>
+<p>We saw how to set variables in the test plan in the
+<a href="writing-a-test-plan.html#setting-variables">"Writing a test plan" guide</a>. However, the variable we
+set was not used anywhere in the scenario or environment. To use variables in a scenario, we need to
+define them in the <code>variables</code> field.</p>
+<p>Declaring the variables here declares a contract between the scenario and test plan and lists the
+variables that must be specified for the scenario to complete. The value of the variable can be set
+using a default in the scenario, in the test plan or provided via the CLI. If the variable is used
+by the scenario and not set via any of those methods, it will cause the test plan execution to fail.
+If variables are defined for usage in the scenario but not defined in the <code>variables</code> field then the
+test plan will fail to template.</p>
+<p>Let's see that in action. We are going to replace the static environment variable variable with one
+defined using a variable. Update <code>scenario.yaml</code>:</p>
 <pre><code class="language-yaml">name: Inline scenario config
 description: An inline scenario config
-# --- Add a values section ---
-values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
+# --- Add a variables section ---
+variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
 # ----------------------------
 command:
   name: scenario.sh
   kind: relative_path
   path: ../scripts/scenario.sh
-# --- Use the scenario_value in the environment variables ---
+# --- Use the scenario_variable in the environment variables ---
 env_vars:
-  SCENARIO_ENV: "{{ scenario_value }}"
+  SCENARIO_ENV: "{{ scenario_variable }}"
 # -----------------------------------------------------------
 </code></pre>
-<p>Let's explain how this works. The values each have a <code>name</code> and <code>description</code>. The <code>name</code> is the
-value's identifier and is used in the template string. The <code>description</code> is there to give more
-information about how and why the value is used. Values are templated into the config with the
-<code>"{{ ... }}"</code> syntax, where <code>...</code> is replaced by the value's <code>name</code>.</p>
+<p>Let's explain how this works. The variables each have a <code>name</code> and <code>description</code>. The <code>name</code> is the
+variable's identifier and is used in the template string. The <code>description</code> is there to give more
+information about how and why the variable is used. Variables are templated into the config with the
+<code>"{{ ... }}"</code> syntax, where <code>...</code> is replaced by the variable's <code>name</code>.</p>
 <blockquote>
-<p><strong>Note</strong> The double curly braces and space either side of the value name are important here. If
+<p><strong>Note</strong> The double curly braces and space either side of the variable name are important here. If
 the template string does not match this exactly, then rtf will error and call out there is a
 malformed template string.</p>
 </blockquote>
 <p>Let's attempt to template the test plan:</p>
 <pre><code class="language-bash">$ rtf template test-plan.yaml
-ERROR (scenario) missing template values: scenario_value
+ERROR (scenario) missing template variables: scenario_variable
 </code></pre>
-<p>We have successfully defined a value and where it should be used. However, we have not specified
+<p>We have successfully defined a variable and where it should be used. However, we have not specified
 what value it should actually have. If we attempted to run this test plan we would see the same
-error. Let's define a default for this value:</p>
+error. Let's define a default for this variable:</p>
 <pre><code class="language-yaml">name: Inline scenario config
 description: An inline scenario config
-values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
-# --- Set a default for this value ---
+variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
+# --- Set a default for this variable ---
     default: "scenario executed with default value"
 # ------------------------------------
 command:
@@ -450,7 +451,7 @@ command:
   kind: relative_path
   path: ../scripts/scenario.sh
 env_vars:
-  SCENARIO_ENV: "{{ scenario_value }}"
+  SCENARIO_ENV: "{{ scenario_variable }}"
 </code></pre>
 <p>Lets run this and see what happens:</p>
 <pre><code class="language-bash">$ rtf run test-plan.yaml
@@ -459,13 +460,14 @@ Running scenario from an external file
 scenario executed with default value
 "environment teardown command executed"
 </code></pre>
-<p>The second scenario <code>echo</code> statement uses the default value. We can override this value by setting a
-different value in the test plan (this will take presence over a default). Update <code>test-plan.yaml</code>:</p>
+<p>The second scenario <code>echo</code> statement uses the default variable. We can override this variable by
+setting a different value in the test plan (this will take presence over a default). Update
+<code>test-plan.yaml</code>:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-# --- Add a new value for scenario_value ---
-values:
-  scenario_value: "scenario executed with test plan value"
+# --- Add a new value for scenario_variable ---
+variable_definitions:
+  scenario_variable: "scenario executed with test plan variable"
 # ------------------------------------------
 scenario:
   from:
@@ -497,20 +499,20 @@ environment:
 <pre><code class="language-bash">$ run test-plan.yaml
 "environment setup command executed"
 Running scenario from an external file
-scenario executed with test plan value
+scenario executed with test plan variable
 "environment teardown command executed"
 </code></pre>
-<p>We can see that the value from the test plan has overridden the default. Similarly, if the value is
-specified from the CLI it will override both the test plan value and default:</p>
-<pre><code class="language-bash">$ run test-plan.yaml --value scenario_value="scenario executed with cli value"
+<p>We can see that the variable from the test plan has overridden the default. Similarly, if the
+variable is specified from the CLI it will override both the test plan variable and default:</p>
+<pre><code class="language-bash">$ run test-plan.yaml --var scenario_variable="scenario executed with cli variable"
 "environment setup command executed"
 Running scenario from an external file
-scenario executed with cli value
+scenario executed with cli variable
 "environment teardown command executed"
 </code></pre>
 <hr />
-<p>In this guide, we've covered moving scenario config into its own file and using values. Next, we'll
-guide you through how to write an environment config.</p>
+<p>In this guide, we've covered moving scenario config into its own file and using variables. Next,
+we'll guide you through how to write an environment config.</p>
 <p><strong>Next:</strong> <a href="writing-an-environment.html">Writing an environment</a></p>
 
                     </main>

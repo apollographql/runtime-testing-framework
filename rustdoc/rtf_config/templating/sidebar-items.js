@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ErrorKind","Field","Scalar"],"struct":["Number","TemplateValues"],"trait":["Template","ValidField"],"type":["Error","ErrorBuilder","Errors","Result"]};
+window.SIDEBAR_ITEMS = {"enum":["ErrorKind","Field","Scalar"],"struct":["Number","TemplateVariables"],"trait":["Template","ValidField"],"type":["Error","ErrorBuilder","Errors","Result"]};

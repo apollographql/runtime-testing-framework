@@ -210,14 +210,14 @@ you write each have unique names that can be used to distinguish them.</li>
 rather than in comments or other files (such as a README).</li>
 </ul>
 </li>
-<li><code>values</code>: Declarations of the templating values supported by this Environment.
+<li><code>variable_definitions</code>: Declarations of the templating variables supported by this Environment.
 <ul>
-<li>Value declarations require specifying both the value name and a short description of how the
-value is used.</li>
-<li>Value declarations also support an optional <code>default</code> field where you can specify a default
+<li>Variable declarations require specifying both the variable name and a short description of how
+the variable is used.</li>
+<li>Variable declarations also support an optional <code>default</code> field where you can specify a default
 scalar value to use if none is provided within the <a href="./test-plans.html">Test Plan</a>.</li>
-<li>If the same value name is defined in both the Environment and Scenario used by a given Test Plan
-but with different defaults, each config file will fall back to its own default.</li>
+<li>If the same variable name is defined in both the Environment and Scenario used by a given Test
+Plan but with different defaults, each config file will fall back to its own default.</li>
 </ul>
 </li>
 <li><code>setup</code>: A <a href="./command-providers.html">Command Provider</a> that defines how the environment should be set up before the
@@ -225,20 +225,14 @@ scenario is run.</li>
 <li><code>teardown</code>: A <a href="./command-providers.html">Command Provider</a> that defines how the environment should be torn down after the
 scenario is run.</li>
 </ul>
-<blockquote>
-<p>We are aware that having the same key name for value declarations in the Scenario / Environment
-config files and the value <em>definitions</em> in the Test plan config file can be confusing. We are
-considering renaming one or both of the keys to make the distinction clearer.</p>
-<p>Please see <a href="https://apollographql.atlassian.net/browse/RR-352">RR-352</a> for more details.</p>
-</blockquote>
 <h2 id="full-example"><a class="header" href="#full-example">Full example</a></h2>
 <p>The following is a minimal "kitchen sink" example of the structure of a valid <code>environment.yaml</code>.</p>
 <pre><code class="language-yaml">name: example
 description: An example description
 
-values:
-  - name: my_value
-    description: "A description for my value"
+variable_definitions:
+  - name: my_variable
+    description: "A description for my variable"
     default: "foo"
 
 setup:
@@ -248,7 +242,7 @@ setup:
     path: scripts/setup.sh
 
   env_vars:
-    MY_VALUE: "{{ my_value }}"
+    MY_VARIABLE: "{{ my_variable }}"
 
 teardown:
   command:

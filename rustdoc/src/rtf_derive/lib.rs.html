@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-derive/src/lib.rs`."><title>lib.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-e56847b5.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rtf_derive" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.1 (ed61e7d7e 2025-11-07)" data-channel="1.91.1" data-search-js="search-e256b49e.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-6dc2a7f3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rtf_derive/</div>lib.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>darling::{
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-derive/src/lib.rs`."><title>lib.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-e56847b5.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rtf_derive" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.0 (f8297e351 2025-10-28)" data-channel="1.91.0" data-search-js="search-e256b49e.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-6dc2a7f3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rtf_derive/</div>lib.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>darling::{
 <a href=#2 id=2 data-nosnippet>2</a>    FromDeriveInput, FromField, FromVariant,
 <a href=#3 id=3 data-nosnippet>3</a>    ast::{<span class="self">self</span>, Fields},
 <a href=#4 id=4 data-nosnippet>4</a>};
@@ -10,7 +10,7 @@
 <a href=#10 id=10 data-nosnippet>10</a></span><span class="kw">pub fn </span>derive(input: proc_macro::TokenStream) -&gt; proc_macro::TokenStream {
 <a href=#11 id=11 data-nosnippet>11</a>    <span class="kw">let </span>input = <span class="macro">parse_macro_input!</span>(input);
 <a href=#12 id=12 data-nosnippet>12</a>
-<a href=#13 id=13 data-nosnippet>13</a>    <span class="kw">let </span>(ident, has_pending_fields, required_values, try_template) =
+<a href=#13 id=13 data-nosnippet>13</a>    <span class="kw">let </span>(ident, has_pending_fields, required_variables, try_template) =
 <a href=#14 id=14 data-nosnippet>14</a>        <span class="kw">match </span>InputMeta::from_derive_input(<span class="kw-2">&amp;</span>input) {
 <a href=#15 id=15 data-nosnippet>15</a>            <span class="prelude-val">Ok</span>(meta) =&gt; <span class="kw">match </span>meta.into_token_streams() {
 <a href=#16 id=16 data-nosnippet>16</a>                <span class="prelude-val">Ok</span>(parts) =&gt; parts,
@@ -25,15 +25,15 @@
 <a href=#25 id=25 data-nosnippet>25</a>                #has_pending_fields
 <a href=#26 id=26 data-nosnippet>26</a>            }
 <a href=#27 id=27 data-nosnippet>27</a>
-<a href=#28 id=28 data-nosnippet>28</a>            <span class="kw">fn </span>required_values(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ::std::vec::Vec&lt;String&gt; {
-<a href=#29 id=29 data-nosnippet>29</a>                #required_values
+<a href=#28 id=28 data-nosnippet>28</a>            <span class="kw">fn </span>required_variables(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ::std::vec::Vec&lt;String&gt; {
+<a href=#29 id=29 data-nosnippet>29</a>                #required_variables
 <a href=#30 id=30 data-nosnippet>30</a>            }
 <a href=#31 id=31 data-nosnippet>31</a>
 <a href=#32 id=32 data-nosnippet>32</a>            <span class="kw">fn </span>try_template(
 <a href=#33 id=33 data-nosnippet>33</a>                <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#34 id=34 data-nosnippet>34</a>                path: <span class="kw-2">&amp;mut </span>::std::vec::Vec&lt;::std::string::String&gt;,
 <a href=#35 id=35 data-nosnippet>35</a>                source: <span class="kw-2">&amp;</span>::rtf_config::Source,
-<a href=#36 id=36 data-nosnippet>36</a>                values: <span class="kw-2">&amp;</span>::rtf_config::templating::TemplateValues,
+<a href=#36 id=36 data-nosnippet>36</a>                variables: <span class="kw-2">&amp;</span>::rtf_config::templating::TemplateVariables,
 <a href=#37 id=37 data-nosnippet>37</a>            ) -&gt; ::rtf_config::templating::Result&lt;()&gt; {
 <a href=#38 id=38 data-nosnippet>38</a>                #try_template
 <a href=#39 id=39 data-nosnippet>39</a>            }
@@ -51,7 +51,7 @@
 <a href=#51 id=51 data-nosnippet>51</a><span class="kw">impl </span>InputMeta {
 <a href=#52 id=52 data-nosnippet>52</a>    <span class="comment">// All fields that weren't marked as skipped
 <a href=#53 id=53 data-nosnippet>53</a>    </span><span class="kw">fn </span>into_token_streams(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(Ident, TokenStream, TokenStream, TokenStream)&gt; {
-<a href=#54 id=54 data-nosnippet>54</a>        <span class="kw">let </span>(has_pending_fields, required_values, try_template) = <span class="kw">match </span><span class="self">self</span>.data {
+<a href=#54 id=54 data-nosnippet>54</a>        <span class="kw">let </span>(has_pending_fields, required_variables, try_template) = <span class="kw">match </span><span class="self">self</span>.data {
 <a href=#55 id=55 data-nosnippet>55</a>            ast::Data::Struct(s) =&gt; struct_token_streams(s.fields),
 <a href=#56 id=56 data-nosnippet>56</a>
 <a href=#57 id=57 data-nosnippet>57</a>            ast::Data::Enum(v) <span class="kw">if </span>v.is_empty() =&gt; {
@@ -67,7 +67,7 @@
 <a href=#67 id=67 data-nosnippet>67</a>        <span class="prelude-val">Ok</span>((
 <a href=#68 id=68 data-nosnippet>68</a>            <span class="self">self</span>.ident,
 <a href=#69 id=69 data-nosnippet>69</a>            has_pending_fields,
-<a href=#70 id=70 data-nosnippet>70</a>            required_values,
+<a href=#70 id=70 data-nosnippet>70</a>            required_variables,
 <a href=#71 id=71 data-nosnippet>71</a>            try_template,
 <a href=#72 id=72 data-nosnippet>72</a>        ))
 <a href=#73 id=73 data-nosnippet>73</a>    }
@@ -99,9 +99,9 @@
 <a href=#99 id=99 data-nosnippet>99</a>    };
 <a href=#100 id=100 data-nosnippet>100</a>
 <a href=#101 id=101 data-nosnippet>101</a>    <span class="kw">let </span>inner = fields.iter().map(|f| {
-<a href=#102 id=102 data-nosnippet>102</a>        <span class="macro">quote!</span> { vals.extend(<span class="self">self</span>.#f.required_values()); }
+<a href=#102 id=102 data-nosnippet>102</a>        <span class="macro">quote!</span> { vals.extend(<span class="self">self</span>.#f.required_variables()); }
 <a href=#103 id=103 data-nosnippet>103</a>    });
-<a href=#104 id=104 data-nosnippet>104</a>    <span class="kw">let </span>required_values = <span class="macro">quote!</span> {
+<a href=#104 id=104 data-nosnippet>104</a>    <span class="kw">let </span>required_variables = <span class="macro">quote!</span> {
 <a href=#105 id=105 data-nosnippet>105</a>        <span class="kw">let </span><span class="kw-2">mut </span>vals = Vec::new();
 <a href=#106 id=106 data-nosnippet>106</a>        #(#inner)*
 <a href=#107 id=107 data-nosnippet>107</a>        vals
@@ -109,7 +109,7 @@
 <a href=#109 id=109 data-nosnippet>109</a>
 <a href=#110 id=110 data-nosnippet>110</a>    <span class="kw">let </span>inner = fields.iter().map(|f| {
 <a href=#111 id=111 data-nosnippet>111</a>        <span class="macro">quote!</span> {
-<a href=#112 id=112 data-nosnippet>112</a>            errs.append(<span class="self">self</span>.#f.try_template_nested(path, <span class="macro">stringify!</span>(#f), source, values));
+<a href=#112 id=112 data-nosnippet>112</a>            errs.append(<span class="self">self</span>.#f.try_template_nested(path, <span class="macro">stringify!</span>(#f), source, variables));
 <a href=#113 id=113 data-nosnippet>113</a>        }
 <a href=#114 id=114 data-nosnippet>114</a>    });
 <a href=#115 id=115 data-nosnippet>115</a>    <span class="kw">let </span>try_template = <span class="macro">quote!</span> {
@@ -118,7 +118,7 @@
 <a href=#118 id=118 data-nosnippet>118</a>        errs.into_result(())
 <a href=#119 id=119 data-nosnippet>119</a>    };
 <a href=#120 id=120 data-nosnippet>120</a>
-<a href=#121 id=121 data-nosnippet>121</a>    (has_pending_fields, required_values, try_template)
+<a href=#121 id=121 data-nosnippet>121</a>    (has_pending_fields, required_variables, try_template)
 <a href=#122 id=122 data-nosnippet>122</a>}
 <a href=#123 id=123 data-nosnippet>123</a>
 <a href=#124 id=124 data-nosnippet>124</a><span class="kw">fn </span>enum_token_streams(
@@ -145,21 +145,21 @@
 <a href=#145 id=145 data-nosnippet>145</a>        }
 <a href=#146 id=146 data-nosnippet>146</a>    };
 <a href=#147 id=147 data-nosnippet>147</a>
-<a href=#148 id=148 data-nosnippet>148</a>    <span class="kw">let </span>required_values = <span class="macro">quote!</span> {
+<a href=#148 id=148 data-nosnippet>148</a>    <span class="kw">let </span>required_variables = <span class="macro">quote!</span> {
 <a href=#149 id=149 data-nosnippet>149</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#150 id=150 data-nosnippet>150</a>            #(<span class="self">Self</span>::#variants(inner) =&gt; inner.required_values(),)*
+<a href=#150 id=150 data-nosnippet>150</a>            #(<span class="self">Self</span>::#variants(inner) =&gt; inner.required_variables(),)*
 <a href=#151 id=151 data-nosnippet>151</a>            <span class="kw">_ </span>=&gt; Vec::new(),
 <a href=#152 id=152 data-nosnippet>152</a>        }
 <a href=#153 id=153 data-nosnippet>153</a>    };
 <a href=#154 id=154 data-nosnippet>154</a>
 <a href=#155 id=155 data-nosnippet>155</a>    <span class="kw">let </span>try_template = <span class="macro">quote!</span> {
 <a href=#156 id=156 data-nosnippet>156</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#157 id=157 data-nosnippet>157</a>            #(<span class="self">Self</span>::#variants(inner) =&gt; inner.try_template(path, source, values),)*
+<a href=#157 id=157 data-nosnippet>157</a>            #(<span class="self">Self</span>::#variants(inner) =&gt; inner.try_template(path, source, variables),)*
 <a href=#158 id=158 data-nosnippet>158</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(()),
 <a href=#159 id=159 data-nosnippet>159</a>        }
 <a href=#160 id=160 data-nosnippet>160</a>    };
 <a href=#161 id=161 data-nosnippet>161</a>
-<a href=#162 id=162 data-nosnippet>162</a>    <span class="prelude-val">Ok</span>((has_pending_fields, required_values, try_template))
+<a href=#162 id=162 data-nosnippet>162</a>    <span class="prelude-val">Ok</span>((has_pending_fields, required_variables, try_template))
 <a href=#163 id=163 data-nosnippet>163</a>}
 <a href=#164 id=164 data-nosnippet>164</a>
 <a href=#165 id=165 data-nosnippet>165</a><span class="attr">#[derive(Debug, FromField)]

@@ -192,7 +192,7 @@
 </li>
 <li><a href="#checking-the-test-plan">Checking the test plan</a></li>
 <li><a href="#running-the-test-plan">Running the test plan</a></li>
-<li><a href="#setting-values">Setting values</a></li>
+<li><a href="#setting-variables">Setting variables</a></li>
 <li><a href="#using-a-matrix">Using a matrix</a></li>
 </ul>
 <hr />
@@ -297,8 +297,6 @@ in a separate file.</p>
 <p>Add the <code>environment</code> field to the <code>test-plan.yaml</code> file:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-values:
-  example_value: "value"
 scenario:
   inline:
     name: Inline scenario config
@@ -350,13 +348,11 @@ scripts.</li>
 <p>This should result in the fully templated test plan being printed to the terminal:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-values:
-  example_value: value
 matrix: {}
 scenario:
   name: Inline scenario config
   description: An inline scenario config
-  values: []
+  variable_definitions: []
   command:
     name: scenario.sh
     kind: inline
@@ -370,7 +366,7 @@ scenario:
 environment:
   name: Inline environment config
   description: An inline environment config
-  values: []
+  variable_definitions: []
   setup:
     command:
       name: setup.sh
@@ -395,10 +391,10 @@ environment:
     env_vars: {}
     file_providers: []
 </code></pre>
-<p>This highlights two optional fields for test plans that have not yet been used; <code>values</code> and
+<p>This highlights two optional fields for test plans that have not yet been used; <code>variables</code> and
 <code>matrix</code>. These are discussed more below.</p>
 <h2 id="running-the-test-plan"><a class="header" href="#running-the-test-plan">Running the test plan</a></h2>
-<p>Before looking at <code>values</code> and <code>matrix</code>, let's run the test plan:</p>
+<p>Before looking at <code>variables</code> and <code>matrix</code>, let's run the test plan:</p>
 <pre><code class="language-bash">rtf run test-plan.yaml
 </code></pre>
 <p>This results in the following terminal output and an <code>output</code> directory:</p>
@@ -406,13 +402,13 @@ environment:
 "scenario command executed"
 "environment teardown command executed"
 </code></pre>
-<p>The <code>output</code> directory contains two files, <code>resolved-test-plan.yaml</code> and <code>test-plan-values.json</code>.</p>
+<p>The <code>output</code> directory contains two files, <code>resolved-test-plan.yaml</code> and <code>test-plan-variables.json</code>.</p>
 <ul>
 <li><code>resolved-test-plan.yaml</code> contains the fully resolved test plan config. This should be the same as
 what was shown in the <code>rtf template</code> command. This is a way to sanity check the test plan that ran
 to give you the output.</li>
-<li><code>test-plan-values.json</code> contains the values used during the execution of the test plan. This is
-empty since no values were set.</li>
+<li><code>test-plan-variables.json</code> contains the variables used during the execution of the test plan. This
+is empty since no variables were set.</li>
 </ul>
 <p>Remove the output directory before continuing (forgetting to do this will result in an error next
 time <code>rtf run</code> is used):</p>
@@ -424,37 +420,37 @@ you cannot accidentally overwrite output you intend to keep. The <code>--output<
 <code>rtf run</code> to set a different output directory if you want to keep the existing output and run a
 new test.</p>
 </blockquote>
-<h2 id="setting-values"><a class="header" href="#setting-values">Setting values</a></h2>
-<p>The <code>values</code> field is used to set global values that can be referenced in your scenario and/or
-environment. Any values set in the test plan config can be overridden using the <code>--value</code> and
-<code>--values</code> flags in the rtf CLI (see the
-<a href="../hello-world.html#modifying-values">modifying values section of the hello world guide</a> for more
-information).</p>
-<p>Let's add some example values to <code>test-plan.yaml</code>. We are also going to update the scenario command
-to use this value. The <a href="writing-a-command.html">"Writing a command" section</a> will explain how this
-works, for now just add the configuration:</p>
+<h2 id="setting-variables"><a class="header" href="#setting-variables">Setting variables</a></h2>
+<p>The <code>variables</code> field is used to set global variables that can be referenced in your scenario and/or
+environment. Any variables set in the test plan config can be overridden using the <code>--var</code> and
+<code>--vars</code> flags in the rtf CLI (see the
+<a href="../hello-world.html#modifying-variables">modifying variables section of the hello world guide</a> for
+more information).</p>
+<p>Let's add some example variables to <code>test-plan.yaml</code>. We are also going to update the scenario
+command to use this variable. The <a href="writing-a-command.html">"Writing a command" section</a> will explain
+how this works, for now just add the configuration:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-# --- Add values ---
-values:
-  example_value: example value
+# --- Add variables ---
+variables:
+  example_variable: example variable
 # ------------------
 scenario:
   inline:
     name: Inline scenario config
     description: An inline scenario config
 # --- Update scenario ---
-    values:
-      - name: example_value
-        description: An example value
+    variable_definitions:
+      - name: example_variable
+        description: An example variable
     command:
       name: scenario.sh
       kind: inline
       content: |
         #!/usr/bin/env sh
-        echo "$EXAMPLE_VALUE"
+        echo "$EXAMPLE_VARIABLE"
     env_vars:
-      EXAMPLE_VALUE: "{{ example_value }}"
+      EXAMPLE_VARIABLE: "{{ example_variable }}"
 # -----------------------
 environment:
   inline:
@@ -480,45 +476,45 @@ environment:
 <p>You can see the value being used by running the test plan again:</p>
 <pre><code class="language-bash">$ rtf run test-plan.yaml
 environment setup command executed
-example value
+example variable
 environment teardown command executed
 </code></pre>
-<p>Now, the <code>test-plan-values.json</code> file contains the value that we set in the test plan:</p>
-<pre><code class="language-bash">$ cat output/test-plan-values.json 
+<p>Now, the <code>test-plan-variables.json</code> file contains the variable that we set in the test plan:</p>
+<pre><code class="language-bash">$ cat output/test-plan-variables.json 
 {
-  "example_value": "example value"
+  "example_variable": "example variable"
 }
 </code></pre>
 <h2 id="using-a-matrix"><a class="header" href="#using-a-matrix">Using a matrix</a></h2>
-<p>The <code>matrix</code> field is used to create a matrix of values to iterate over (see the
-<a href="../hello-world.html#matrix-values">matrix values section of the hello world guide</a> for more
+<p>The <code>matrix</code> field is used to create a matrix of variable dimensions to iterate over (see the
+<a href="../hello-world.html#matrix-variables">matrix variables section of the hello world guide</a> for more
 information). A matrix can only be defined in the test plan config.</p>
-<p>Let's add a matrix to and remove the <code>values</code> from our <code>test-plan.yaml</code>:</p>
+<p>Let's add a matrix to and remove the <code>variables</code> from our <code>test-plan.yaml</code>:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-# --- Replace values with a matrix ---
+# --- Replace variables with a matrix ---
 matrix:
-  variant_names: "${example_value}"
+  variant_names: "${example_variable}"
   dimensions:
-    example_value:
-      - value1
-      - value2
+    example_variable:
+      - variable1
+      - variable2
 # ------------------------------------
 scenario:
   inline:
     name: Inline scenario config
     description: An inline scenario config
-    values:
-      - name: example_value
-        description: An example value
+    variable_definitions:
+      - name: example_variable
+        description: An example variable
     command:
       name: scenario.sh
       kind: inline
       content: |
         #!/usr/bin/env sh
-        echo "$EXAMPLE_VALUE"
+        echo "$EXAMPLE_VARIABLE"
     env_vars:
-      EXAMPLE_VALUE: "{{ example_value }}"
+      EXAMPLE_VARIABLE: "{{ example_variable }}"
 environment:
   inline:
     name: Inline environment config
@@ -547,20 +543,21 @@ runs):</p>
 <p>The terminal output will look different this time - the environment and scenario commands are
 executed twice. The <code>output</code> directory will also have a different structure:</p>
 <pre><code class="language-bash">$ ls output/
-value1        value2
+variable1        variable2
 </code></pre>
-<p>Let's look at each of those matrix directories to see the different values used per execution:</p>
-<pre><code class="language-bash">$ cat output/value1/test-plan-values.json 
+<p>Let's look at each of those matrix directories to see the different variable values used per
+execution:</p>
+<pre><code class="language-bash">$ cat output/variable1/test-plan-variables.json 
 {
-  "example_value": "value1"
+  "example_variable": "variable1"
 }
 
-$ cat output/value2/test-plan-values.json
+$ cat output/variable2/test-plan-variables.json
 {
-  "example_value": "value2"
+  "example_variable": "variable2"
 }
 </code></pre>
-<p>The <code>example-value</code>'s value changes per execution.</p>
+<p>The <code>example-variable</code>'s variable changes per execution.</p>
 <hr />
 <p>In this guide we have covered writing the simplest possible test plan. Next, we will guide you
 through how to write more powerful commands.</p>

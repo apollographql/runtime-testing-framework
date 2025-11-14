@@ -185,8 +185,8 @@ within config files.</p>
 <p>While hard coded scalar values are parsed directly using <a href="https://serde.rs/">serde</a>, <code>Fields</code> are allowed to be in
 one of two states:</p>
 <ul>
-<li><code>Pending</code>, where they hold the name of templating <em>value</em> that the user must specify as part of
-their test plan.</li>
+<li><code>Pending</code>, where they hold the name of a templating <em>variable</em> that the user must specify as part
+of their test plan.</li>
 <li><code>Resolved</code>, where they hold a concrete <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/templating.rs#L363">scalar</a> value, either because a value was provided
 directly within the config file or following successful templating.</li>
 </ul>
@@ -195,7 +195,7 @@ into the <code>Field::Pending</code> enum variant directly using serde. When wri
 make use of templating fields where it makes sense for users to be able to dynamically set values
 when executing a test plan and avoid using them where such flexibility is not required.</p>
 <blockquote>
-<p>For example, we do not allow the <code>inline</code> file provider's content value to be templated as the
+<p>For example, we do not allow the <code>inline</code> file provider's content argument to be templated as the
 intention is for this to always be provided within the test plan itself.</p>
 </blockquote>
 

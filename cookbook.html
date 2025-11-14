@@ -202,7 +202,7 @@ providing a series of unique values for the dimension:</p>
     n: [0, 1, 2, 3, 4]
     my_dimension: ["foo", "bar"]
 </code></pre>
-<p><strong>Discussion</strong>: You <em>must</em> include your iteration value within your <code>variant_names</code> template in
+<p><strong>Discussion</strong>: You <em>must</em> include your iteration variable within your <code>variant_names</code> template in
 order to produce unique variant names, as each original variant you are wanting to repeat will have
 the same values other than this.</p>
 <p>Using this approach is encouraged over simply running the Test Plan multiple times manually as it
@@ -212,8 +212,8 @@ required to generate the output of each provider.</p>
 <p><strong>Problem</strong>: You have written a Test Plan that defines a non-trivial matrix and you want to work out
 something like the expected running time or other properties related to the number of variants being
 run.</p>
-<p><strong>Solution</strong>: The <code>rtf expand-matrix</code> subcommand can be used to output the fully expanded variant
-values in the order they will be executed by <code>rtf run</code>:</p>
+<p><strong>Solution</strong>: The <code>rtf expand-matrix</code> subcommand can be used to output the fully expanded variables
+for each variant in the order they will be executed by <code>rtf run</code>:</p>
 <pre><code class="language-yaml"># Example matrix setup
 matrix:
   variant_names: "${color}_${fruit}_${name}_${count}"
@@ -231,7 +231,7 @@ matrix:
   "variants": [
     {
       "name": "red_apple_foo_1",
-      "values": {
+      "variables": {
         "color": "red",
         "count": 1,
         "fruit": "apple",
@@ -247,10 +247,10 @@ matrix:
 12
 </code></pre>
 <p><strong>Discussion</strong>: This will work even for Test Plans without a matrix by returning the single
-"variant" representing the top level values for the Test Plan.</p>
+"variant" representing the top level variables for the Test Plan.</p>
 <p>The variants returned by <code>rtf expand-matrix</code> are computed using the Test Plan as it is written.
-Specifying additional matrix dimensions via the <code>--values</code> flag on <code>rtf run</code> will alter the number
-of variants.</p>
+Specifying additional matrix dimensions via the <code>--vars</code> flag on <code>rtf run</code> will alter the number of
+variants.</p>
 <h2 id="previewing-matrix-variant-names"><a class="header" href="#previewing-matrix-variant-names">Previewing matrix variant names</a></h2>
 <p><strong>Problem</strong>: You are specifying a custom matrix variant name template using <code>matrix.variant_names</code>
 and you want to check that it will produce the expected directory names.</p>
@@ -284,7 +284,7 @@ red_apple_bar_3
 green_pear_bar_3
 </code></pre>
 <p><strong>Discussion</strong>: The variants returned by <code>rtf expand-matrix</code> are computed using the Test Plan as it
-is written. Specifying additional matrix dimensions via the <code>--values</code> flag on <code>rtf run</code> will alter
+is written. Specifying additional matrix dimensions via the <code>--vars</code> flag on <code>rtf run</code> will alter
 the number of variants which in turn may result in a previously valid <code>variant_names</code> template
 becoming invalid if it now produces non-unique names.</p>
 

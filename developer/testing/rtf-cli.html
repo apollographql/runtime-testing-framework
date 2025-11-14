@@ -226,13 +226,13 @@ check. Working through the hierarchy:</p>
 <li><strong>Flag(s)</strong> is <code>check</code>. The <code>--check</code> flag is used in this test and adds significant additional
 logic.</li>
 <li><strong>Test class</strong> is omitted since <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is not used.</li>
-<li><strong>Test case</strong> is <code>completes_basic</code>. A failing test case is <code>completes_with_cli_values</code>.</li>
+<li><strong>Test case</strong> is <code>completes_basic</code>. A failing test case is <code>completes_with_cli_variables</code>.</li>
 </ol>
 <p>This leads to the following full test path:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>test template::check_completes_basic
-test template::check_completes_with_cli_values
+test template::check_completes_with_cli_variables
 <span class="boring">}</span></code></pre></pre>
 <p>To achieve the structure above, the tests are defined in <code>tests/template.rs</code> and organized as
 follows:</p>
@@ -244,7 +244,7 @@ fn check_completes_basic() {
 }
 
 #[test]
-fn check_completes_with_cli_values() {
+fn check_completes_with_cli_variables() {
   ...
 }
 <span class="boring">}</span></code></pre></pre>
@@ -329,8 +329,8 @@ fn is_executable() {
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test_case("command-from-spec"; "command from spec")]
-#[test_case("matrix-values"; "matrix values")]
-#[test_case("resolved-values"; "resolved values")]
+#[test_case("matrix-variables"; "matrix variables")]
+#[test_case("resolved-variables"; "resolved variables")]
 #[test]
 fn check_completes_basic(test_plan_dir: &amp;str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
@@ -368,14 +368,14 @@ providing convenient access to both the command and the temporary filesystem sta
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test_case(
-    "missing-values.yaml",
-    "Missing template values definitions";
-    "missing values"
+    "missing-variables.yaml",
+    "Missing template variables definitions";
+    "missing variables"
 )]
 #[test_case(
-    "unknown-values.yaml", 
-    "Unknown templating value";
-    "unknown values"
+    "unknown-variables.yaml", 
+    "Unknown templating variable";
+    "unknown variables"
 )]
 #[test]
 fn templating_fails(file: &amp;str, err_contains: &amp;str) {

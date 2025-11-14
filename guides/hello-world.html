@@ -184,9 +184,9 @@
 <li><a href="#overview">Overview</a></li>
 <li><a href="#pre-flight-checks">Pre-Flight Checks</a></li>
 <li><a href="#running-a-test-plan">Running a Test Plan</a></li>
-<li><a href="#modifying-values">Modifying Values</a></li>
-<li><a href="#overriding-individual-values">Overriding Individual Values</a></li>
-<li><a href="#matrix-values">Matrix Values</a></li>
+<li><a href="#modifying-variables">Modifying Variables</a></li>
+<li><a href="#overriding-individual-variables">Overriding Individual Variables</a></li>
+<li><a href="#matrix-variables">Matrix Variables</a></li>
 </ul>
 <h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans">example_test_plans</a> directory in the rtf repository contains a "hello, world!" test plan
@@ -200,14 +200,14 @@ behaviour.</p>
 <p>For details on how to get started with writing your own test plans from scratch see the
 <a href="./test-plans/index.html">Writing test plans</a> section.</p>
 </blockquote>
-<p>The "hello, world!" test plan contains a brief description, a few values, and references to scenario
-and environment config files:</p>
+<p>The "hello, world!" test plan contains a brief description, a few variables, and references to
+scenario and environment config files:</p>
 <pre><code class="language-yaml">name: hello-world
 description: |
   The "hello, world!" of test plans. Intended as a minimal introduction to
   the concepts and functionality found within RTF.
 
-values:
+variables:
   message: "hello, "
   setup_subject: "world!"
   scenario_subject: "darkness my old friend"
@@ -304,15 +304,15 @@ $ ls | grep output
 more_output
 output
 </code></pre>
-<h2 id="modifying-values"><a class="header" href="#modifying-values">Modifying Values</a></h2>
-<p>The test plan defines several scalar <strong>values</strong> which are then applied to the scenario and
-environment config files.</p>
+<h2 id="modifying-variables"><a class="header" href="#modifying-variables">Modifying Variables</a></h2>
+<p>The test plan defines scalar <strong>values</strong> for templating variables which are then applied to the
+scenario and environment config files.</p>
 <pre><code class="language-yaml">name: hello-world
 description: |
   The "hello, world!" of test plans. Intended as a minimal introduction to
   the concepts and functionality found within RTF.
 
-values:
+variables:
   message: "hello, "
   setup_subject: "world!"
   scenario_subject: "darkness my old friend"
@@ -334,8 +334,8 @@ env-setup :: hello, world!
 scenario :: hello, darkness my old friend
 ---
 </code></pre>
-<p>Edit the <code>test-plan.yaml</code> to change the value being used for the setup command:</p>
-<pre><code class="language-diff"> values:
+<p>Edit the <code>test-plan.yaml</code> to change the variable being used for the setup command:</p>
+<pre><code class="language-diff"> variables:
    message: "hello, "
 -  setup_subject: "world!"
 +  setup_subject: "sailor!"
@@ -349,9 +349,9 @@ env-setup :: hello, sailor!
 scenario :: hello, darkness my old friend
 ---
 </code></pre>
-<p>Now, edit the <code>message</code> value to see that it updates the output for both env-setup and scenario, as
-they both reference the same shared value:</p>
-<pre><code class="language-diff"> values:
+<p>Now, edit the value of the <code>message</code> variable to see that it updates the output for both env-setup
+and scenario, as they both reference the same shared variable:</p>
+<pre><code class="language-diff"> variables:
 -  message: "hello, "
 +  message: "say hi to the "
    setup_subject: "world!"
@@ -364,35 +364,35 @@ env-setup :: say hi to the world!
 scenario :: say hi to the darkness my old friend
 ---
 </code></pre>
-<h2 id="overriding-individual-values"><a class="header" href="#overriding-individual-values">Overriding Individual Values</a></h2>
-<p>If you want to temporarily override a value use the <code>--value</code> or <code>--values</code> flags to specify
+<h2 id="overriding-individual-variables"><a class="header" href="#overriding-individual-variables">Overriding Individual Variables</a></h2>
+<p>If you want to override the value of a variable use the <code>--var</code> or <code>--vars</code> flags to specify
 overrides on the command line:</p>
 <pre><code class="language-bash">$ rtf run example-test-plans/hello-world/test-plan.yaml \
-  --value 'message="say hi to the "'
+  --var 'message="say hi to the "'
 
 env-setup :: say hi to the world!
 scenario :: say hi to the darkness my old friend
 ---
 </code></pre>
-<p>We can also provide the flag multiple times to override multiple values:</p>
+<p>We can also provide the flag multiple times to override multiple variables:</p>
 <pre><code class="language-bash">$ rtf run example-test-plans/hello-world/test-plan.yaml \
-  --value 'message="say hi to the "' \
-  --value 'setup_subject=sailor!'
+  --var 'message="say hi to the "' \
+  --var 'setup_subject=sailor!'
 
 env-setup :: say hi to the sailor!
 scenario :: say hi to the darkness my old friend
 ---
 </code></pre>
-<p>For overriding multiple values, you can use the <code>--values</code> flag to provide the location of a JSON
-file containing the values you want to merge on top of the ones given in the test plan:</p>
-<pre><code class="language-bash">$ cat example-test-plans/hello-world/values.json
+<p>It is also possible to use the <code>--vars</code> flag to provide the location of a JSON file containing the
+variables you want to override on top of the ones given in the test plan:</p>
+<pre><code class="language-bash">$ cat example-test-plans/hello-world/variables.json
 {
   "message": "say hi to the ",
   "setup_subject": "sailor!"
 }
 
 $ rtf run example-test-plans/hello-world/test-plan.yaml \
-  --values example-test-plans/hello-world/values.json
+  --vars example-test-plans/hello-world/variables.json
 
 env-setup :: say hi to the sailor!
 scenario :: say hi to the darkness my old friend
@@ -400,22 +400,22 @@ scenario :: say hi to the darkness my old friend
 </code></pre>
 <p>Each of these options is useful in different ways:</p>
 <ul>
-<li>Using <code>--value</code> to provide individual values on the command line allows you to dynamically set
+<li>Using <code>--var</code> to provide individual variables on the command line allows you to dynamically set
 things using environment variables and other shell commands</li>
-<li>Using <code>--values</code> to provide a JSON file containing multiple values allows you to define variations
-on a test plan without having to edit or duplicate the test plan. Those variations can be stored
-in version control.</li>
+<li>Using <code>--vars</code> to provide a JSON file containing multiple variables allows you to define
+variations on a test plan without having to edit or duplicate the test plan. Those variations can
+be stored in version control.</li>
 </ul>
-<h2 id="matrix-values"><a class="header" href="#matrix-values">Matrix Values</a></h2>
-<p>What if we want to define multiple sets of values and run them <em>all</em> as part of a batch of tests?
+<h2 id="matrix-variables"><a class="header" href="#matrix-variables">Matrix Variables</a></h2>
+<p>What if we want to define multiple sets of variables and run them <em>all</em> as part of a batch of tests?
 For that, <code>rtf</code> provides a <strong>matrix</strong> feature that functions in a similar way to matrices in
 <a href="https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/running-variations-of-jobs-in-a-workflow">GitHub Actions</a>.</p>
-<p>To convert a <strong>value</strong> from a single value to a matrix, move it under the <code>matrix.dimensions</code>
-section of the test plan and provide an array of values you'd like to use:</p>
+<p>To convert a <strong>variable</strong> from a single scalar value to an array of values you'd like to use, move
+it under the <code>matrix.dimensions</code> section of the test plan:</p>
 <blockquote>
-<p>Remember to also remove it from the <code>values</code> section or your test plan will fail its check!</p>
+<p>Remember to also remove it from the <code>variables</code> section or your test plan will fail its check!</p>
 </blockquote>
-<pre><code class="language-diff"> values:
+<pre><code class="language-diff"> variables:
    message: "hello, "
 -  setup_subject: "world!"
    scenario_subject: "darkness my old friend"
@@ -424,7 +424,7 @@ section of the test plan and provide an array of values you'd like to use:</p>
 +  dimensions:
 +    setup_subject: [ "world!", "sailor!" ]
 </code></pre>
-<p>Running the test plan with two <code>setup_subject</code> values produces two results:</p>
+<p>Running the test plan with two <code>setup_subject</code> variables produces two results:</p>
 <pre><code>$ rm output -rf
 $ rtf run example-test-plans/hello-world/test-plan.yaml
 
@@ -436,7 +436,7 @@ scenario :: hello, darkness my old friend
 ---
 </code></pre>
 <p>If we also move the <code>scenario_subject</code> into the matrix:</p>
-<pre><code class="language-diff"> values:
+<pre><code class="language-diff"> variables:
    message: "hello, "
 -  setup_subject: "world!"
 -  scenario_subject: "darkness my old friend"
@@ -446,7 +446,7 @@ scenario :: hello, darkness my old friend
 +    setup_subject: [ "world!", "sailor!" ]
 +    scenario_subject: [ "darkness my old friend", "is it me you're looking for?" ]
 </code></pre>
-<p>We'll get a run for every <em>combination</em> of values:</p>
+<p>We'll get a run for every <em>combination</em> of variables:</p>
 <pre><code>$ rm output -rf
 $ rtf run example-test-plans/hello-world/test-plan.yaml
 

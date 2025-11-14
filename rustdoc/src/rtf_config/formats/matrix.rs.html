@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-config/src/formats/matrix.rs`."><title>matrix.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e56847b5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rtf_config" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.1 (ed61e7d7e 2025-11-07)" data-channel="1.91.1" data-search-js="search-e256b49e.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-6dc2a7f3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rtf_config/formats/</div>matrix.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use crate</span>::{
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-config/src/formats/matrix.rs`."><title>matrix.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e56847b5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rtf_config" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.0 (f8297e351 2025-10-28)" data-channel="1.91.0" data-search-js="search-e256b49e.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-6dc2a7f3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rtf_config/formats/</div>matrix.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use crate</span>::{
 <a href=#2 id=2 data-nosnippet>2</a>    checks::duplicate_keys,
 <a href=#3 id=3 data-nosnippet>3</a>    formats::{Error, <span class="prelude-ty">Result</span>},
 <a href=#4 id=4 data-nosnippet>4</a>    templating::{<span class="self">self</span>, Scalar},
@@ -18,7 +18,7 @@
 <a href=#18 id=18 data-nosnippet>18</a></span><span class="kw">static </span>RE_UNKNOWN_VAL: LazyLock&lt;Regex&gt; =
 <a href=#19 id=19 data-nosnippet>19</a>    LazyLock::new(|| Regex::new(<span class="string">r#"\$\{(.*?)\}"#</span>).expect(<span class="string">"valid regex"</span>));
 <a href=#20 id=20 data-nosnippet>20</a>
-<a href=#21 id=21 data-nosnippet>21</a><span class="doccomment">/// A matrix of user provided value dimensions that is expanded out into multiple value sets for
+<a href=#21 id=21 data-nosnippet>21</a><span class="doccomment">/// A matrix of user provided variable dimensions that is expanded out into multiple variable sets for
 <a href=#22 id=22 data-nosnippet>22</a>/// templating the test plan containing the matrix.
 <a href=#23 id=23 data-nosnippet>23</a></span><span class="attr">#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 <a href=#24 id=24 data-nosnippet>24</a></span><span class="kw">pub struct </span>Matrix {
@@ -26,14 +26,14 @@
 <a href=#26 id=26 data-nosnippet>26</a>    </span><span class="attr">#[serde(default)]
 <a href=#27 id=27 data-nosnippet>27</a>    </span><span class="kw">pub </span>variant_names: <span class="prelude-ty">Option</span>&lt;String&gt;,
 <a href=#28 id=28 data-nosnippet>28</a>
-<a href=#29 id=29 data-nosnippet>29</a>    <span class="doccomment">/// The actual dimensions and their allowed values that will be used to produce the matrix
+<a href=#29 id=29 data-nosnippet>29</a>    <span class="doccomment">/// The actual dimensions and their allowed variables that will be used to produce the matrix
 <a href=#30 id=30 data-nosnippet>30</a>    </span><span class="kw">pub </span>dimensions: HashMap&lt;String, Vec&lt;Scalar&gt;&gt;,
 <a href=#31 id=31 data-nosnippet>31</a>
-<a href=#32 id=32 data-nosnippet>32</a>    <span class="doccomment">/// Additional _groups_ of values that will be combined with known dimensions to produce the
-<a href=#33 id=33 data-nosnippet>33</a>    /// full set of values for each dimension.
+<a href=#32 id=32 data-nosnippet>32</a>    <span class="doccomment">/// Additional _groups_ of variables that will be combined with known dimensions to produce the
+<a href=#33 id=33 data-nosnippet>33</a>    /// full set of variables for each dimension.
 <a href=#34 id=34 data-nosnippet>34</a>    ///
-<a href=#35 id=35 data-nosnippet>35</a>    /// Used for tying subsets of values together and reducing the number of variants we expand to.
-<a href=#36 id=36 data-nosnippet>36</a>    /// Each entry within this array is required to define the same keys and scalar value types.
+<a href=#35 id=35 data-nosnippet>35</a>    /// Used for tying subsets of variables together and reducing the number of variants we expand to.
+<a href=#36 id=36 data-nosnippet>36</a>    /// Each entry within this array is required to define the same keys and scalar variable types.
 <a href=#37 id=37 data-nosnippet>37</a>    </span><span class="attr">#[serde(default)]
 <a href=#38 id=38 data-nosnippet>38</a>    </span><span class="kw">pub </span>include: Vec&lt;HashMap&lt;String, Scalar&gt;&gt;,
 <a href=#39 id=39 data-nosnippet>39</a>}
@@ -71,18 +71,18 @@
 <a href=#71 id=71 data-nosnippet>71</a>        pairs
 <a href=#72 id=72 data-nosnippet>72</a>    }
 <a href=#73 id=73 data-nosnippet>73</a>
-<a href=#74 id=74 data-nosnippet>74</a>    <span class="doccomment">/// We expand out matrix values as a cartesean product over all possible sets of values we can
-<a href=#75 id=75 data-nosnippet>75</a>    /// obtain when combined with any scalar values we have.
+<a href=#74 id=74 data-nosnippet>74</a>    <span class="doccomment">/// We expand out matrix variables as a cartesean product over all possible sets of variables we can
+<a href=#75 id=75 data-nosnippet>75</a>    /// obtain when combined with any scalar variables we have.
 <a href=#76 id=76 data-nosnippet>76</a>    ///
 <a href=#77 id=77 data-nosnippet>77</a>    /// The ordering for the expanded dimensions is defined as first being by the ascii-betical
 <a href=#78 id=78 data-nosnippet>78</a>    /// sort of the base dimension keys, followed by the user provided ordering of each dimension's
-<a href=#79 id=79 data-nosnippet>79</a>    /// values, followed by the user provided `includes`.
+<a href=#79 id=79 data-nosnippet>79</a>    /// variables, followed by the user provided `includes`.
 <a href=#80 id=80 data-nosnippet>80</a>    ///
 <a href=#81 id=81 data-nosnippet>81</a>    /// When generating variant names from a user provided template we validate the template itself
 <a href=#82 id=82 data-nosnippet>82</a>    /// and also ensure that the generated names are unique.
 <a href=#83 id=83 data-nosnippet>83</a>    </span><span class="kw">pub fn </span>try_expand(
 <a href=#84 id=84 data-nosnippet>84</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#85 id=85 data-nosnippet>85</a>        values: <span class="kw-2">&amp;</span>HashMap&lt;String, Scalar&gt;,
+<a href=#85 id=85 data-nosnippet>85</a>        variables: <span class="kw-2">&amp;</span>HashMap&lt;String, Scalar&gt;,
 <a href=#86 id=86 data-nosnippet>86</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(String, HashMap&lt;String, Scalar&gt;)&gt;&gt; {
 <a href=#87 id=87 data-nosnippet>87</a>        <span class="kw">let </span>variants: Vec&lt;<span class="kw">_</span>&gt; = <span class="self">self
 <a href=#88 id=88 data-nosnippet>88</a>            </span>.sorted_dimensions()
@@ -93,15 +93,15 @@
 <a href=#93 id=93 data-nosnippet>93</a>            // yield a single empty Vec which guarantees that the following flat_map always runs.
 <a href=#94 id=94 data-nosnippet>94</a>            </span>.multi_cartesian_product()
 <a href=#95 id=95 data-nosnippet>95</a>            .flat_map(|dimension_vals| {
-<a href=#96 id=96 data-nosnippet>96</a>                <span class="comment">// Merge the values coming from the TestPlan with the values for the base dimension
-<a href=#97 id=97 data-nosnippet>97</a>                </span><span class="kw">let </span><span class="kw-2">mut </span>values = values.clone();
-<a href=#98 id=98 data-nosnippet>98</a>                values.extend(dimension_vals);
+<a href=#96 id=96 data-nosnippet>96</a>                <span class="comment">// Merge the variables coming from the TestPlan with the variables for the base dimension
+<a href=#97 id=97 data-nosnippet>97</a>                </span><span class="kw">let </span><span class="kw-2">mut </span>variables = variables.clone();
+<a href=#98 id=98 data-nosnippet>98</a>                variables.extend(dimension_vals);
 <a href=#99 id=99 data-nosnippet>99</a>
 <a href=#100 id=100 data-nosnippet>100</a>                <span class="comment">// To handle the case where `self.include` is empty, we ensure that we at least
 <a href=#101 id=101 data-nosnippet>101</a>                // yield a single empty HashMap as yielding None at this stage will cause the
 <a href=#102 id=102 data-nosnippet>102</a>                // entire iterator chain to return None.
 <a href=#103 id=103 data-nosnippet>103</a>                //
-<a href=#104 id=104 data-nosnippet>104</a>                // Essentially this is "iter_at_least_once" where we yield a default value if the
+<a href=#104 id=104 data-nosnippet>104</a>                // Essentially this is "iter_at_least_once" where we yield a default variable if the
 <a href=#105 id=105 data-nosnippet>105</a>                // iterator was empty.
 <a href=#106 id=106 data-nosnippet>106</a>                </span><span class="kw">let </span><span class="kw-2">mut </span>it = <span class="self">self</span>.include.clone().into_iter();
 <a href=#107 id=107 data-nosnippet>107</a>                <span class="kw">let </span>include = std::iter::once(it.next().unwrap_or_default()).chain(it);
@@ -109,13 +109,13 @@
 <a href=#109 id=109 data-nosnippet>109</a>                <span class="comment">// Finally, we merge everything we have so far into each map coming from `self.include`
 <a href=#110 id=110 data-nosnippet>110</a>                // to produce the final expanded dimensions.
 <a href=#111 id=111 data-nosnippet>111</a>                </span>include.map(<span class="kw">move </span>|<span class="kw-2">mut </span>include| {
-<a href=#112 id=112 data-nosnippet>112</a>                    include.extend(values.clone());
+<a href=#112 id=112 data-nosnippet>112</a>                    include.extend(variables.clone());
 <a href=#113 id=113 data-nosnippet>113</a>                    include
 <a href=#114 id=114 data-nosnippet>114</a>                })
 <a href=#115 id=115 data-nosnippet>115</a>            })
 <a href=#116 id=116 data-nosnippet>116</a>            <span class="comment">// Once we have the expanded dimensions we can enumerate them and generate their output
 <a href=#117 id=117 data-nosnippet>117</a>            // directory names. We have to do this after fully expanding as we allow users to
-<a href=#118 id=118 data-nosnippet>118</a>            // reference any value in their TestPlan as part of their variant_names template.
+<a href=#118 id=118 data-nosnippet>118</a>            // reference any variable in their TestPlan as part of their variant_names template.
 <a href=#119 id=119 data-nosnippet>119</a>            </span>.enumerate()
 <a href=#120 id=120 data-nosnippet>120</a>            .map(|(i, m)| variant_name(<span class="self">self</span>.variant_names.as_deref(), <span class="kw-2">&amp;</span>m, i).map(|name| (name, m)))
 <a href=#121 id=121 data-nosnippet>121</a>            .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
@@ -139,7 +139,7 @@
 <a href=#139 id=139 data-nosnippet>139</a>                <span class="prelude-val">Some</span>(val) =&gt; mem::discriminant(val),
 <a href=#140 id=140 data-nosnippet>140</a>                <span class="prelude-val">None </span>=&gt; {
 <a href=#141 id=141 data-nosnippet>141</a>                    errs.push(
-<a href=#142 id=142 data-nosnippet>142</a>                        templating::ErrorKind::EmptyMatrixValue,
+<a href=#142 id=142 data-nosnippet>142</a>                        templating::ErrorKind::EmptyMatrixVariable,
 <a href=#143 id=143 data-nosnippet>143</a>                        k,
 <a href=#144 id=144 data-nosnippet>144</a>                        <span class="kw-2">&amp;</span>[<span class="string">"test_plan"</span>.to_string()],
 <a href=#145 id=145 data-nosnippet>145</a>                    );
@@ -149,7 +149,7 @@
 <a href=#149 id=149 data-nosnippet>149</a>
 <a href=#150 id=150 data-nosnippet>150</a>            <span class="kw">if </span>!vals.iter().all(|v| mem::discriminant(v) == discriminant) {
 <a href=#151 id=151 data-nosnippet>151</a>                errs.push(
-<a href=#152 id=152 data-nosnippet>152</a>                    templating::ErrorKind::InconsistentMatrixValue,
+<a href=#152 id=152 data-nosnippet>152</a>                    templating::ErrorKind::InconsistentMatrixVariable,
 <a href=#153 id=153 data-nosnippet>153</a>                    k,
 <a href=#154 id=154 data-nosnippet>154</a>                    <span class="kw-2">&amp;</span>[<span class="string">"test_plan"</span>.to_string()],
 <a href=#155 id=155 data-nosnippet>155</a>                );
@@ -178,13 +178,13 @@
 <a href=#178 id=178 data-nosnippet>178</a>        }
 <a href=#179 id=179 data-nosnippet>179</a>    }
 <a href=#180 id=180 data-nosnippet>180</a>
-<a href=#181 id=181 data-nosnippet>181</a>    <span class="doccomment">/// Check if we have any conflicts between matrix values and scalar values
+<a href=#181 id=181 data-nosnippet>181</a>    <span class="doccomment">/// Check if we have any conflicts between matrix variables and scalar variables
 <a href=#182 id=182 data-nosnippet>182</a>    </span><span class="kw">pub fn </span>check_conflicting_keys(
 <a href=#183 id=183 data-nosnippet>183</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#184 id=184 data-nosnippet>184</a>        values: <span class="kw-2">&amp;</span>HashMap&lt;String, Scalar&gt;,
+<a href=#184 id=184 data-nosnippet>184</a>        variables: <span class="kw-2">&amp;</span>HashMap&lt;String, Scalar&gt;,
 <a href=#185 id=185 data-nosnippet>185</a>        errs: <span class="kw-2">&amp;mut </span>templating::ErrorBuilder,
 <a href=#186 id=186 data-nosnippet>186</a>    ) {
-<a href=#187 id=187 data-nosnippet>187</a>        <span class="kw">let </span>all_keys = values.keys().chain(<span class="self">self</span>.dimensions.keys());
+<a href=#187 id=187 data-nosnippet>187</a>        <span class="kw">let </span>all_keys = variables.keys().chain(<span class="self">self</span>.dimensions.keys());
 <a href=#188 id=188 data-nosnippet>188</a>        <span class="kw">let </span>conflicting_keys = <span class="kw">match </span><span class="self">self</span>.include.first() {
 <a href=#189 id=189 data-nosnippet>189</a>            <span class="prelude-val">Some</span>(m) =&gt; duplicate_keys(all_keys.chain(m.keys()), |s| s),
 <a href=#190 id=190 data-nosnippet>190</a>            <span class="prelude-val">None </span>=&gt; duplicate_keys(all_keys, |s| s),
@@ -192,7 +192,7 @@
 <a href=#192 id=192 data-nosnippet>192</a>
 <a href=#193 id=193 data-nosnippet>193</a>        <span class="kw">if </span>!conflicting_keys.is_empty() {
 <a href=#194 id=194 data-nosnippet>194</a>            errs.push(
-<a href=#195 id=195 data-nosnippet>195</a>                templating::ErrorKind::ConflictingValues,
+<a href=#195 id=195 data-nosnippet>195</a>                templating::ErrorKind::ConflictingVariables,
 <a href=#196 id=196 data-nosnippet>196</a>                conflicting_keys.join(<span class="string">", "</span>),
 <a href=#197 id=197 data-nosnippet>197</a>                <span class="kw-2">&amp;</span>[<span class="string">"test_plan"</span>.to_string()],
 <a href=#198 id=198 data-nosnippet>198</a>            )
@@ -202,7 +202,7 @@
 <a href=#202 id=202 data-nosnippet>202</a>
 <a href=#203 id=203 data-nosnippet>203</a><span class="kw">fn </span>variant_name(
 <a href=#204 id=204 data-nosnippet>204</a>    template: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
-<a href=#205 id=205 data-nosnippet>205</a>    values: <span class="kw-2">&amp;</span>HashMap&lt;String, Scalar&gt;,
+<a href=#205 id=205 data-nosnippet>205</a>    variables: <span class="kw-2">&amp;</span>HashMap&lt;String, Scalar&gt;,
 <a href=#206 id=206 data-nosnippet>206</a>    n: usize,
 <a href=#207 id=207 data-nosnippet>207</a>) -&gt; <span class="prelude-ty">Result</span>&lt;String&gt; {
 <a href=#208 id=208 data-nosnippet>208</a>    <span class="kw">let </span><span class="kw-2">mut </span>s = <span class="kw">match </span>template {
@@ -210,7 +210,7 @@
 <a href=#210 id=210 data-nosnippet>210</a>        <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="macro">format!</span>(<span class="string">"matrix_variant_{}"</span>, n + <span class="number">1</span>)),
 <a href=#211 id=211 data-nosnippet>211</a>    };
 <a href=#212 id=212 data-nosnippet>212</a>
-<a href=#213 id=213 data-nosnippet>213</a>    <span class="kw">for </span>(k, v) <span class="kw">in </span>values.iter() {
+<a href=#213 id=213 data-nosnippet>213</a>    <span class="kw">for </span>(k, v) <span class="kw">in </span>variables.iter() {
 <a href=#214 id=214 data-nosnippet>214</a>        <span class="comment">// ${k} is what we are replacing but we need to escape the curlies
 <a href=#215 id=215 data-nosnippet>215</a>        </span>s = s.replace(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"${{{k}}}"</span>), <span class="kw-2">&amp;</span>v.to_string());
 <a href=#216 id=216 data-nosnippet>216</a>    }
@@ -225,8 +225,8 @@
 <a href=#225 id=225 data-nosnippet>225</a>        .collect();
 <a href=#226 id=226 data-nosnippet>226</a>
 <a href=#227 id=227 data-nosnippet>227</a>    <span class="kw">if </span>!remaining_template_vals.is_empty() {
-<a href=#228 id=228 data-nosnippet>228</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::UnknownMatrixVariantTemplateValues {
-<a href=#229 id=229 data-nosnippet>229</a>            values: remaining_template_vals,
+<a href=#228 id=228 data-nosnippet>228</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::UnknownMatrixVariantTemplateVariables {
+<a href=#229 id=229 data-nosnippet>229</a>            variables: remaining_template_vals,
 <a href=#230 id=230 data-nosnippet>230</a>        });
 <a href=#231 id=231 data-nosnippet>231</a>    }
 <a href=#232 id=232 data-nosnippet>232</a>
@@ -287,7 +287,7 @@
 <a href=#287 id=287 data-nosnippet>287</a>    <span class="attr">#[test_case(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">2</span>]</span>), (<span class="string">"b"</span>, <span class="kw-2">&amp;</span>[<span class="number">3</span>, <span class="number">4</span>])], <span class="number">4</span>; <span class="string">"2x2"</span>)]
 <a href=#288 id=288 data-nosnippet>288</a>    <span class="attr">#[test_case(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">2</span>]</span>), (<span class="string">"b"</span>, <span class="kw-2">&amp;</span>[<span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>]), (<span class="string">"c"</span>, <span class="kw-2">&amp;</span>[<span class="number">6</span>, <span class="number">7</span>])], <span class="number">12</span>; <span class="string">"mixed"</span>)]
 <a href=#289 id=289 data-nosnippet>289</a>    <span class="attr">#[test]
-<a href=#290 id=290 data-nosnippet>290</a>    </span><span class="kw">fn </span>n_variants_returns_the_correct_value(dimensions: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>[usize])], expected: usize) {
+<a href=#290 id=290 data-nosnippet>290</a>    </span><span class="kw">fn </span>n_variants_returns_the_correct_variable(dimensions: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>[usize])], expected: usize) {
 <a href=#291 id=291 data-nosnippet>291</a>        <span class="kw">for </span>n_include <span class="kw">in </span><span class="number">0</span>..<span class="number">3 </span>{
 <a href=#292 id=292 data-nosnippet>292</a>            <span class="kw">let </span>m = Matrix {
 <a href=#293 id=293 data-nosnippet>293</a>                variant_names: <span class="prelude-val">None</span>,
@@ -303,7 +303,7 @@
 <a href=#303 id=303 data-nosnippet>303</a>        }
 <a href=#304 id=304 data-nosnippet>304</a>    }
 <a href=#305 id=305 data-nosnippet>305</a>
-<a href=#306 id=306 data-nosnippet>306</a>    <span class="kw">fn </span>value_map(vals: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str)]) -&gt; HashMap&lt;String, Scalar&gt; {
+<a href=#306 id=306 data-nosnippet>306</a>    <span class="kw">fn </span>variable_map(vals: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str)]) -&gt; HashMap&lt;String, Scalar&gt; {
 <a href=#307 id=307 data-nosnippet>307</a>        vals.iter()
 <a href=#308 id=308 data-nosnippet>308</a>            .map(|<span class="kw-2">&amp;</span>(name, val)| (name.to_string(), Scalar::String(val.to_string())))
 <a href=#309 id=309 data-nosnippet>309</a>            .collect()
@@ -313,47 +313,47 @@
 <a href=#313 id=313 data-nosnippet>313</a>        dims(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="kw-2">&amp;</span>[<span class="string">"X"</span>, <span class="string">"Y"</span>]</span>), (<span class="string">"b"</span>, <span class="kw-2">&amp;</span>[<span class="string">"1"</span>, <span class="string">"2"</span>])]),
 <a href=#314 id=314 data-nosnippet>314</a>        Vec::new(),
 <a href=#315 id=315 data-nosnippet>315</a>        <span class="kw-2">&amp;</span>[
-<a href=#316 id=316 data-nosnippet>316</a>            value_map(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="string">"X"</span>), (<span class="string">"b"</span>, <span class="string">"1"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)]),
-<a href=#317 id=317 data-nosnippet>317</a>            value_map(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="string">"X"</span>), (<span class="string">"b"</span>, <span class="string">"2"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)]),
-<a href=#318 id=318 data-nosnippet>318</a>            value_map(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="string">"Y"</span>), (<span class="string">"b"</span>, <span class="string">"1"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)]),
-<a href=#319 id=319 data-nosnippet>319</a>            value_map(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="string">"Y"</span>), (<span class="string">"b"</span>, <span class="string">"2"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)])
+<a href=#316 id=316 data-nosnippet>316</a>            variable_map(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="string">"X"</span>), (<span class="string">"b"</span>, <span class="string">"1"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)]),
+<a href=#317 id=317 data-nosnippet>317</a>            variable_map(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="string">"X"</span>), (<span class="string">"b"</span>, <span class="string">"2"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)]),
+<a href=#318 id=318 data-nosnippet>318</a>            variable_map(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="string">"Y"</span>), (<span class="string">"b"</span>, <span class="string">"1"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)]),
+<a href=#319 id=319 data-nosnippet>319</a>            variable_map(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="string">"Y"</span>), (<span class="string">"b"</span>, <span class="string">"2"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)])
 <a href=#320 id=320 data-nosnippet>320</a>        ];
 <a href=#321 id=321 data-nosnippet>321</a>        <span class="string">"only dimensions"
 <a href=#322 id=322 data-nosnippet>322</a>    </span>)]
 <a href=#323 id=323 data-nosnippet>323</a>    <span class="attr">#[test_case(
 <a href=#324 id=324 data-nosnippet>324</a>        HashMap::new(),
 <a href=#325 id=325 data-nosnippet>325</a>        <span class="macro">vec!</span>[
-<a href=#326 id=326 data-nosnippet>326</a>            value_map(<span class="kw-2">&amp;</span>[(<span class="string">"b"</span>, <span class="string">"1"</span>), (<span class="string">"c"</span>, <span class="string">"2"</span>)]</span>),
-<a href=#327 id=327 data-nosnippet>327</a>            value_map(<span class="kw-2">&amp;</span>[(<span class="string">"b"</span>, <span class="string">"3"</span>), (<span class="string">"c"</span>, <span class="string">"4"</span>)])
+<a href=#326 id=326 data-nosnippet>326</a>            variable_map(<span class="kw-2">&amp;</span>[(<span class="string">"b"</span>, <span class="string">"1"</span>), (<span class="string">"c"</span>, <span class="string">"2"</span>)]</span>),
+<a href=#327 id=327 data-nosnippet>327</a>            variable_map(<span class="kw-2">&amp;</span>[(<span class="string">"b"</span>, <span class="string">"3"</span>), (<span class="string">"c"</span>, <span class="string">"4"</span>)])
 <a href=#328 id=328 data-nosnippet>328</a>        ],
 <a href=#329 id=329 data-nosnippet>329</a>        <span class="kw-2">&amp;</span>[
-<a href=#330 id=330 data-nosnippet>330</a>            value_map(<span class="kw-2">&amp;</span>[(<span class="string">"b"</span>, <span class="string">"1"</span>), (<span class="string">"c"</span>, <span class="string">"2"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)]),
-<a href=#331 id=331 data-nosnippet>331</a>            value_map(<span class="kw-2">&amp;</span>[(<span class="string">"b"</span>, <span class="string">"3"</span>), (<span class="string">"c"</span>, <span class="string">"4"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)])
+<a href=#330 id=330 data-nosnippet>330</a>            variable_map(<span class="kw-2">&amp;</span>[(<span class="string">"b"</span>, <span class="string">"1"</span>), (<span class="string">"c"</span>, <span class="string">"2"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)]),
+<a href=#331 id=331 data-nosnippet>331</a>            variable_map(<span class="kw-2">&amp;</span>[(<span class="string">"b"</span>, <span class="string">"3"</span>), (<span class="string">"c"</span>, <span class="string">"4"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)])
 <a href=#332 id=332 data-nosnippet>332</a>        ];
 <a href=#333 id=333 data-nosnippet>333</a>        <span class="string">"only include"
 <a href=#334 id=334 data-nosnippet>334</a>    </span>)]
 <a href=#335 id=335 data-nosnippet>335</a>    <span class="attr">#[test_case(
 <a href=#336 id=336 data-nosnippet>336</a>        dims(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="kw-2">&amp;</span>[<span class="string">"X"</span>, <span class="string">"Y"</span>]</span>)]),
 <a href=#337 id=337 data-nosnippet>337</a>        <span class="macro">vec!</span>[
-<a href=#338 id=338 data-nosnippet>338</a>            value_map(<span class="kw-2">&amp;</span>[(<span class="string">"b"</span>, <span class="string">"1"</span>), (<span class="string">"c"</span>, <span class="string">"2"</span>)]),
-<a href=#339 id=339 data-nosnippet>339</a>            value_map(<span class="kw-2">&amp;</span>[(<span class="string">"b"</span>, <span class="string">"3"</span>), (<span class="string">"c"</span>, <span class="string">"4"</span>)])
+<a href=#338 id=338 data-nosnippet>338</a>            variable_map(<span class="kw-2">&amp;</span>[(<span class="string">"b"</span>, <span class="string">"1"</span>), (<span class="string">"c"</span>, <span class="string">"2"</span>)]),
+<a href=#339 id=339 data-nosnippet>339</a>            variable_map(<span class="kw-2">&amp;</span>[(<span class="string">"b"</span>, <span class="string">"3"</span>), (<span class="string">"c"</span>, <span class="string">"4"</span>)])
 <a href=#340 id=340 data-nosnippet>340</a>        ],
 <a href=#341 id=341 data-nosnippet>341</a>        <span class="kw-2">&amp;</span>[
-<a href=#342 id=342 data-nosnippet>342</a>            value_map(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="string">"X"</span>), (<span class="string">"b"</span>, <span class="string">"1"</span>), (<span class="string">"c"</span>, <span class="string">"2"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)]),
-<a href=#343 id=343 data-nosnippet>343</a>            value_map(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="string">"X"</span>), (<span class="string">"b"</span>, <span class="string">"3"</span>), (<span class="string">"c"</span>, <span class="string">"4"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)]),
-<a href=#344 id=344 data-nosnippet>344</a>            value_map(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="string">"Y"</span>), (<span class="string">"b"</span>, <span class="string">"1"</span>), (<span class="string">"c"</span>, <span class="string">"2"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)]),
-<a href=#345 id=345 data-nosnippet>345</a>            value_map(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="string">"Y"</span>), (<span class="string">"b"</span>, <span class="string">"3"</span>), (<span class="string">"c"</span>, <span class="string">"4"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)]),
+<a href=#342 id=342 data-nosnippet>342</a>            variable_map(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="string">"X"</span>), (<span class="string">"b"</span>, <span class="string">"1"</span>), (<span class="string">"c"</span>, <span class="string">"2"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)]),
+<a href=#343 id=343 data-nosnippet>343</a>            variable_map(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="string">"X"</span>), (<span class="string">"b"</span>, <span class="string">"3"</span>), (<span class="string">"c"</span>, <span class="string">"4"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)]),
+<a href=#344 id=344 data-nosnippet>344</a>            variable_map(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="string">"Y"</span>), (<span class="string">"b"</span>, <span class="string">"1"</span>), (<span class="string">"c"</span>, <span class="string">"2"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)]),
+<a href=#345 id=345 data-nosnippet>345</a>            variable_map(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="string">"Y"</span>), (<span class="string">"b"</span>, <span class="string">"3"</span>), (<span class="string">"c"</span>, <span class="string">"4"</span>), (<span class="string">"Z"</span>, <span class="string">"Z"</span>)]),
 <a href=#346 id=346 data-nosnippet>346</a>        ];
 <a href=#347 id=347 data-nosnippet>347</a>        <span class="string">"dimensions and include"
 <a href=#348 id=348 data-nosnippet>348</a>    </span>)]
 <a href=#349 id=349 data-nosnippet>349</a>    <span class="attr">#[test_case(
 <a href=#350 id=350 data-nosnippet>350</a>        HashMap::new(),
 <a href=#351 id=351 data-nosnippet>351</a>        Vec::new(),
-<a href=#352 id=352 data-nosnippet>352</a>        <span class="kw-2">&amp;</span>[value_map(<span class="kw-2">&amp;</span>[(<span class="string">"Z"</span>, <span class="string">"Z"</span>)]</span>)];
+<a href=#352 id=352 data-nosnippet>352</a>        <span class="kw-2">&amp;</span>[variable_map(<span class="kw-2">&amp;</span>[(<span class="string">"Z"</span>, <span class="string">"Z"</span>)]</span>)];
 <a href=#353 id=353 data-nosnippet>353</a>        <span class="string">"no dimensions or include"
 <a href=#354 id=354 data-nosnippet>354</a>    </span>)]
 <a href=#355 id=355 data-nosnippet>355</a>    <span class="attr">#[test]
-<a href=#356 id=356 data-nosnippet>356</a>    </span><span class="kw">fn </span>try_expand_generates_the_expected_values(
+<a href=#356 id=356 data-nosnippet>356</a>    </span><span class="kw">fn </span>try_expand_generates_the_expected_variables(
 <a href=#357 id=357 data-nosnippet>357</a>        dimensions: HashMap&lt;String, Vec&lt;Scalar&gt;&gt;,
 <a href=#358 id=358 data-nosnippet>358</a>        include: Vec&lt;HashMap&lt;String, Scalar&gt;&gt;,
 <a href=#359 id=359 data-nosnippet>359</a>        expected: <span class="kw-2">&amp;</span>[HashMap&lt;String, Scalar&gt;],
@@ -365,7 +365,7 @@
 <a href=#365 id=365 data-nosnippet>365</a>        };
 <a href=#366 id=366 data-nosnippet>366</a>
 <a href=#367 id=367 data-nosnippet>367</a>        <span class="kw">let </span>expanded: Vec&lt;<span class="kw">_</span>&gt; = m
-<a href=#368 id=368 data-nosnippet>368</a>            .try_expand(<span class="kw-2">&amp;</span>value_map(<span class="kw-2">&amp;</span>[(<span class="string">"Z"</span>, <span class="string">"Z"</span>)]))
+<a href=#368 id=368 data-nosnippet>368</a>            .try_expand(<span class="kw-2">&amp;</span>variable_map(<span class="kw-2">&amp;</span>[(<span class="string">"Z"</span>, <span class="string">"Z"</span>)]))
 <a href=#369 id=369 data-nosnippet>369</a>            .unwrap()
 <a href=#370 id=370 data-nosnippet>370</a>            .into_iter()
 <a href=#371 id=371 data-nosnippet>371</a>            .map(|(<span class="kw">_</span>, vals)| vals)
@@ -384,7 +384,7 @@
 <a href=#384 id=384 data-nosnippet>384</a>    <span class="attr">#[test_case(<span class="prelude-val">Some</span>(<span class="string">"${a}/${b}"</span>), <span class="kw-2">&amp;</span>[<span class="string">"X_1"</span>, <span class="string">"X_2"</span>, <span class="string">"Y_1"</span>, <span class="string">"Y_2"</span>]</span>; <span class="string">"template with forward slash"</span>)]
 <a href=#385 id=385 data-nosnippet>385</a>    <span class="attr">#[test_case(<span class="prelude-val">Some</span>(<span class="string">"${a}\\${b}"</span>), <span class="kw-2">&amp;</span>[<span class="string">"X_1"</span>, <span class="string">"X_2"</span>, <span class="string">"Y_1"</span>, <span class="string">"Y_2"</span>]</span>; <span class="string">"template with back slash"</span>)]
 <a href=#386 id=386 data-nosnippet>386</a>    <span class="attr">#[test_case(<span class="prelude-val">Some</span>(<span class="string">"${a} \t${b}"</span>), <span class="kw-2">&amp;</span>[<span class="string">"X__1"</span>, <span class="string">"X__2"</span>, <span class="string">"Y__1"</span>, <span class="string">"Y__2"</span>]</span>; <span class="string">"template with whitespace"</span>)]
-<a href=#387 id=387 data-nosnippet>387</a>    <span class="attr">#[test_case(<span class="prelude-val">Some</span>(<span class="string">"${a}_${b}_${c}"</span>), <span class="kw-2">&amp;</span>[<span class="string">"X_1_Z"</span>, <span class="string">"X_2_Z"</span>, <span class="string">"Y_1_Z"</span>, <span class="string">"Y_2_Z"</span>]</span>; <span class="string">"valid template using include value"</span>)]
+<a href=#387 id=387 data-nosnippet>387</a>    <span class="attr">#[test_case(<span class="prelude-val">Some</span>(<span class="string">"${a}_${b}_${c}"</span>), <span class="kw-2">&amp;</span>[<span class="string">"X_1_Z"</span>, <span class="string">"X_2_Z"</span>, <span class="string">"Y_1_Z"</span>, <span class="string">"Y_2_Z"</span>]</span>; <span class="string">"valid template using include variable"</span>)]
 <a href=#388 id=388 data-nosnippet>388</a>    <span class="attr">#[test]
 <a href=#389 id=389 data-nosnippet>389</a>    </span><span class="kw">fn </span>try_expand_generates_the_expected_variant_names(
 <a href=#390 id=390 data-nosnippet>390</a>        variant_names: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
@@ -407,11 +407,11 @@
 <a href=#407 id=407 data-nosnippet>407</a>        <span class="macro">assert_eq!</span>(names, expected);
 <a href=#408 id=408 data-nosnippet>408</a>    }
 <a href=#409 id=409 data-nosnippet>409</a>
-<a href=#410 id=410 data-nosnippet>410</a>    <span class="attr">#[test_case(<span class="string">"${a}-${b}-${c}"</span>, <span class="kw-2">&amp;</span>[<span class="string">"c"</span>]</span>; <span class="string">"single unknown value with known"</span>)]
-<a href=#411 id=411 data-nosnippet>411</a>    <span class="attr">#[test_case(<span class="string">"${c}"</span>, <span class="kw-2">&amp;</span>[<span class="string">"c"</span>]</span>; <span class="string">"single unknown value"</span>)]
-<a href=#412 id=412 data-nosnippet>412</a>    <span class="attr">#[test_case(<span class="string">"${x}-${c}"</span>, <span class="kw-2">&amp;</span>[<span class="string">"x"</span>, <span class="string">"c"</span>]</span>; <span class="string">"multiple unknown values"</span>)]
+<a href=#410 id=410 data-nosnippet>410</a>    <span class="attr">#[test_case(<span class="string">"${a}-${b}-${c}"</span>, <span class="kw-2">&amp;</span>[<span class="string">"c"</span>]</span>; <span class="string">"single unknown variable with known"</span>)]
+<a href=#411 id=411 data-nosnippet>411</a>    <span class="attr">#[test_case(<span class="string">"${c}"</span>, <span class="kw-2">&amp;</span>[<span class="string">"c"</span>]</span>; <span class="string">"single unknown variable"</span>)]
+<a href=#412 id=412 data-nosnippet>412</a>    <span class="attr">#[test_case(<span class="string">"${x}-${c}"</span>, <span class="kw-2">&amp;</span>[<span class="string">"x"</span>, <span class="string">"c"</span>]</span>; <span class="string">"multiple unknown variables"</span>)]
 <a href=#413 id=413 data-nosnippet>413</a>    <span class="attr">#[test]
-<a href=#414 id=414 data-nosnippet>414</a>    </span><span class="kw">fn </span>try_expand_errors_on_unknown_template_values(variant_names: <span class="kw-2">&amp;</span>str, expected: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
+<a href=#414 id=414 data-nosnippet>414</a>    </span><span class="kw">fn </span>try_expand_errors_on_unknown_template_variables(variant_names: <span class="kw-2">&amp;</span>str, expected: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
 <a href=#415 id=415 data-nosnippet>415</a>        <span class="kw">let </span>m = Matrix {
 <a href=#416 id=416 data-nosnippet>416</a>            variant_names: <span class="prelude-val">Some</span>(variant_names.into()),
 <a href=#417 id=417 data-nosnippet>417</a>            dimensions: dims(<span class="kw-2">&amp;</span>[(<span class="string">"a"</span>, <span class="kw-2">&amp;</span>[<span class="string">"X"</span>, <span class="string">"Y"</span>]), (<span class="string">"b"</span>, <span class="kw-2">&amp;</span>[<span class="string">"1"</span>, <span class="string">"2"</span>])]),
@@ -419,8 +419,8 @@
 <a href=#419 id=419 data-nosnippet>419</a>        };
 <a href=#420 id=420 data-nosnippet>420</a>
 <a href=#421 id=421 data-nosnippet>421</a>        <span class="kw">match </span>m.try_expand(<span class="kw-2">&amp;</span>Default::default()) {
-<a href=#422 id=422 data-nosnippet>422</a>            <span class="prelude-val">Err</span>(Error::UnknownMatrixVariantTemplateValues { values }) =&gt; {
-<a href=#423 id=423 data-nosnippet>423</a>                <span class="macro">assert_eq!</span>(values, expected)
+<a href=#422 id=422 data-nosnippet>422</a>            <span class="prelude-val">Err</span>(Error::UnknownMatrixVariantTemplateVariables { variables }) =&gt; {
+<a href=#423 id=423 data-nosnippet>423</a>                <span class="macro">assert_eq!</span>(variables, expected)
 <a href=#424 id=424 data-nosnippet>424</a>            }
 <a href=#425 id=425 data-nosnippet>425</a>
 <a href=#426 id=426 data-nosnippet>426</a>            <span class="prelude-val">Ok</span>(ok) =&gt; <span class="macro">panic!</span>(<span class="string">"expected error, got {ok:?}"</span>),

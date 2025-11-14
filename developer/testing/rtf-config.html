@@ -247,7 +247,7 @@ as follows:</p>
 }
 <span class="boring">}</span></code></pre></pre>
 <h3 id="example---malformed-template-strings"><a class="header" href="#example---malformed-template-strings">Example - Malformed Template Strings</a></h3>
-<p>This example demonstrates how to test that the template string <code>"{{ template_value }}"</code> does not
+<p>This example demonstrates how to test that the template string <code>"{{ template_variable }}"</code> does not
 work when similar, but not acceptable, patterns are specified. Working through the hierarchy:</p>
 <ol>
 <li><strong>Module</strong> is <code>templating</code>. This is where the <code>Field</code> type is defined.</li>
@@ -257,13 +257,13 @@ prefix in the test case name since the module does not uniquely identify the dat
 <code>Field</code>. This becomes the second prefix in the test case name.</li>
 <li><strong>Test class</strong> is <code>malformed_template_string</code>. <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is used since there are
 variations in strings that are tested using the same logic.</li>
-<li><strong>Test cases</strong> are a series of uniquely named tests. For example, <code>no_space_after_value_name</code> and
-<code>single_curly_braces</code>.</li>
+<li><strong>Test cases</strong> are a series of uniquely named tests. For example, <code>no_space_after_variable_name</code>
+and <code>single_curly_braces</code>.</li>
 </ol>
 <p>The full test paths are:</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>test templating::tests::field_parse_malformed_template_string::no_space_after_value_name
+</span>test templating::tests::field_parse_malformed_template_string::no_space_after_variable_name
 test templating::tests::field_parse_malformed_template_string::single_curly_braces
 <span class="boring">}</span></code></pre></pre>
 <p>To achieve the structure above, the tests are defined in <code>src/templating.rs</code> and organized as
@@ -272,7 +272,7 @@ follows:</p>
 </span><span class="boring">fn main() {
 </span>mod tests {
   use simple_test_case::test_case;
-  #[test_case("arg1"; "no_space_after_value_name")]
+  #[test_case("arg1"; "no_space_after_variable_name")]
   #[test_case("arg2"; "single_curly_braces")]
   #[test]
   fn field_parse_malformed_template_string(arg: &amp;str) {
@@ -354,7 +354,7 @@ naming hierarchy described in the <a href="#organization">Organization</a> secti
 <ol>
 <li><strong>Parsing Tests</strong> - Verify YAML deserialization works correctly for valid inputs and fails
 appropriately for invalid ones</li>
-<li><strong>Template Resolution Tests</strong> - Ensure the <code>{{ value }}</code> templating system works across all
+<li><strong>Template Resolution Tests</strong> - Ensure the <code>{{ variable }}</code> templating system works across all
 supported data types. In most cases specific tests are not required for the <code>Template</code> trait
 since this is derived with a proc macro. Whenever there is a custom implementation of this trait
 then tests are defined.</li>
