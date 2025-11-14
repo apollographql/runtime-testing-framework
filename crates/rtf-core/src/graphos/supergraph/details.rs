@@ -304,11 +304,7 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
                 "Attempting to replace connectors urls in {} type",
                 schema_type
             );
-            relace_sourceless_connector_urls(
-                extended_type,
-                vec!["GET", "POST", "PUT", "PATCH", "DELETE"],
-                base_url,
-            )?;
+            relace_sourceless_connector_urls(extended_type, base_url)?;
         };
     }
 
@@ -352,11 +348,8 @@ fn rewrite_url(
     Some(())
 }
 
-fn relace_sourceless_connector_urls(
-    field: &mut Node<ObjectType>,
-    url_keys: Vec<&str>,
-    base_url: &str,
-) -> Option<()> {
+fn relace_sourceless_connector_urls(field: &mut Node<ObjectType>, base_url: &str) -> Option<()> {
+    let http_verbs = vec!["GET", "POST", "PUT", "PATCH", "DELETE"];
     for (field, field_definition) in &mut field.get_mut()?.fields {
         for directive in field_definition.get_mut()?.directives.iter_mut() {
             if directive.name != "join__directive" {
@@ -378,7 +371,7 @@ fn relace_sourceless_connector_urls(
                 continue;
             }
 
-            rewrite_url(args_map, &url_keys, &format!("{}/{}", base_url, field))?;
+            rewrite_url(args_map, &http_verbs, &format!("{}/{}", base_url, field))?;
         }
 
         continue;
