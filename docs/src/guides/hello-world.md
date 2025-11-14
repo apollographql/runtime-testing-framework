@@ -5,9 +5,9 @@
 - [Overview](#overview)
 - [Pre-Flight Checks](#pre-flight-checks)
 - [Running a Test Plan](#running-a-test-plan)
-- [Modifying Values](#modifying-values)
-- [Overriding Individual Values](#overriding-individual-values)
-- [Matrix Values](#matrix-values)
+- [Modifying Variables](#modifying-variables)
+- [Overriding Individual Variables](#overriding-individual-variables)
+- [Matrix Variables](#matrix-variables)
 
 ## Overview
 
@@ -24,8 +24,8 @@ behaviour.
 > For details on how to get started with writing your own test plans from scratch see the
 > [Writing test plans](./test-plans/index.md) section.
 
-The "hello, world!" test plan contains a brief description, a few values, and references to scenario
-and environment config files:
+The "hello, world!" test plan contains a brief description, a few variables, and references to
+scenario and environment config files:
 
 ```yaml
 {{ #include ../../../example-test-plans/hello-world/test-plan.yaml }}
@@ -128,10 +128,10 @@ more_output
 output
 ```
 
-## Modifying Values
+## Modifying Variables
 
-The test plan defines several scalar **values** which are then applied to the scenario and
-environment config files.
+The test plan defines scalar **values** for templating variables which are then applied to the
+scenario and environment config files.
 
 ```yaml
 {{ #include ../../../example-test-plans/hello-world/test-plan.yaml }}
@@ -147,10 +147,10 @@ scenario :: hello, darkness my old friend
 ---
 ```
 
-Edit the `test-plan.yaml` to change the value being used for the setup command:
+Edit the `test-plan.yaml` to change the variable being used for the setup command:
 
 ```diff
- values:
+ variables:
    message: "hello, "
 -  setup_subject: "world!"
 +  setup_subject: "sailor!"
@@ -168,11 +168,11 @@ scenario :: hello, darkness my old friend
 ---
 ```
 
-Now, edit the `message` value to see that it updates the output for both env-setup and scenario, as
-they both reference the same shared value:
+Now, edit the value of the `message` variable to see that it updates the output for both env-setup
+and scenario, as they both reference the same shared variable:
 
 ```diff
- values:
+ variables:
 -  message: "hello, "
 +  message: "say hi to the "
    setup_subject: "world!"
@@ -188,34 +188,34 @@ scenario :: say hi to the darkness my old friend
 ---
 ```
 
-## Overriding Individual Values
+## Overriding Individual Variables
 
-If you want to temporarily override a value use the `--value` or `--values` flags to specify
+If you want to override the value of a variable use the `--var` or `--vars` flags to specify
 overrides on the command line:
 
 ```bash
 $ rtf run example-test-plans/hello-world/test-plan.yaml \
-  --value 'message="say hi to the "'
+  --var 'message="say hi to the "'
 
 env-setup :: say hi to the world!
 scenario :: say hi to the darkness my old friend
 ---
 ```
 
-We can also provide the flag multiple times to override multiple values:
+We can also provide the flag multiple times to override multiple variables:
 
 ```bash
 $ rtf run example-test-plans/hello-world/test-plan.yaml \
-  --value 'message="say hi to the "' \
-  --value 'setup_subject=sailor!'
+  --var 'message="say hi to the "' \
+  --var 'setup_subject=sailor!'
 
 env-setup :: say hi to the sailor!
 scenario :: say hi to the darkness my old friend
 ---
 ```
 
-For overriding multiple values, you can use the `--values` flag to provide the location of a JSON
-file containing the values you want to merge on top of the ones given in the test plan:
+It is also possible to use the `--vars` flag to provide the location of a JSON file containing the
+variables you want to override on top of the ones given in the test plan:
 
 ```bash
 $ cat example-test-plans/hello-world/variables.json
@@ -225,7 +225,7 @@ $ cat example-test-plans/hello-world/variables.json
 }
 
 $ rtf run example-test-plans/hello-world/test-plan.yaml \
-  --values example-test-plans/hello-world/variables.json
+  --vars example-test-plans/hello-world/variables.json
 
 env-setup :: say hi to the sailor!
 scenario :: say hi to the darkness my old friend
@@ -234,25 +234,25 @@ scenario :: say hi to the darkness my old friend
 
 Each of these options is useful in different ways:
 
-- Using `--value` to provide individual values on the command line allows you to dynamically set
+- Using `--var` to provide individual variables on the command line allows you to dynamically set
   things using environment variables and other shell commands
-- Using `--values` to provide a JSON file containing multiple values allows you to define variations
-  on a test plan without having to edit or duplicate the test plan. Those variations can be stored
-  in version control.
+- Using `--vars` to provide a JSON file containing multiple variables allows you to define
+  variations on a test plan without having to edit or duplicate the test plan. Those variations can
+  be stored in version control.
 
-## Matrix Values
+## Matrix Variables
 
-What if we want to define multiple sets of values and run them _all_ as part of a batch of tests?
+What if we want to define multiple sets of variables and run them _all_ as part of a batch of tests?
 For that, `rtf` provides a **matrix** feature that functions in a similar way to matrices in
 [GitHub Actions][2].
 
-To convert a **value** from a single value to a matrix, move it under the `matrix.dimensions`
-section of the test plan and provide an array of values you'd like to use:
+To convert a **variable** from a single scalar value to an array of values you'd like to use, move
+it under the `matrix.dimensions` section of the test plan:
 
-> Remember to also remove it from the `values` section or your test plan will fail its check!
+> Remember to also remove it from the `variables` section or your test plan will fail its check!
 
 ```diff
- values:
+ variables:
    message: "hello, "
 -  setup_subject: "world!"
    scenario_subject: "darkness my old friend"
@@ -262,7 +262,7 @@ section of the test plan and provide an array of values you'd like to use:
 +    setup_subject: [ "world!", "sailor!" ]
 ```
 
-Running the test plan with two `setup_subject` values produces two results:
+Running the test plan with two `setup_subject` variables produces two results:
 
 ```
 $ rm output -rf
@@ -279,7 +279,7 @@ scenario :: hello, darkness my old friend
 If we also move the `scenario_subject` into the matrix:
 
 ```diff
- values:
+ variables:
    message: "hello, "
 -  setup_subject: "world!"
 -  scenario_subject: "darkness my old friend"
@@ -290,7 +290,7 @@ If we also move the `scenario_subject` into the matrix:
 +    scenario_subject: [ "darkness my old friend", "is it me you're looking for?" ]
 ```
 
-We'll get a run for every _combination_ of values:
+We'll get a run for every _combination_ of variables:
 
 ```
 $ rm output -rf

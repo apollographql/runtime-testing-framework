@@ -4,7 +4,7 @@
 
 An RTF configuration file for specifying how to set up and tear down the services and infrastructure
 under test using Command and File providers. As with all RTF configuration files, it is possible to
-template an Environment configuration using Values provided in the Test Plan.
+template an Environment configuration using Variables provided in the Test Plan.
 
 ## Provider
 
@@ -35,23 +35,23 @@ resolve and run Test Plans.
 
 An RTF configuration file for specifying how to run a test against services spun up by an
 Environment configuration using Command and File providers. As with all RTF configuration files, it
-is possible to template a Scenario configuration using Values provided in the Test Plan.
+is possible to template a Scenario configuration using Variables provided in the Test Plan.
 
 ## Templating
 
 The use of template strings within RTF configuration files for declaring how users of that
 configuration file may specify how to set Provider parameters and Command Provider environment
 variables. Template strings are denoted with opening and closing double braces surrounding the name
-of the Value to inject with a single space at either side: `"{{ my_value }}"`
+of the Variable to inject with a single space at either side: `"{{ my_variable }}"`
 
 ## Test Plan
 
 The main RTF configuration file that defines an runnable test by combining a Scenario configuration
 with the Environment configuration it should be executed against. If either the Scenario or
-Environment supports Templating Values then they can be specified statically as part of the Test
+Environment supports Templating Variables then they can be specified statically as part of the Test
 Plan itself or dynamically through command line arguments to the RTF CLI.
 
-## Values
+## Variables
 
-Templating Values are declared within the Scenario and Environment configuration files and have
+Templating Variables are declared within the Scenario and Environment configuration files and have
 their values defined within the Test Plan referencing those configuration files.

@@ -53,13 +53,13 @@ check. Working through the hierarchy:
 1. **Flag(s)** is `check`. The `--check` flag is used in this test and adds significant additional
    logic.
 1. **Test class** is omitted since [`simple_test_case`][1] is not used.
-1. **Test case** is `completes_basic`. A failing test case is `completes_with_cli_values`.
+1. **Test case** is `completes_basic`. A failing test case is `completes_with_cli_variables`.
 
 This leads to the following full test path:
 
 ```rust
 test template::check_completes_basic
-test template::check_completes_with_cli_values
+test template::check_completes_with_cli_variables
 ```
 
 To achieve the structure above, the tests are defined in `tests/template.rs` and organized as
@@ -72,7 +72,7 @@ fn check_completes_basic() {
 }
 
 #[test]
-fn check_completes_with_cli_values() {
+fn check_completes_with_cli_variables() {
   ...
 }
 ```
@@ -167,8 +167,8 @@ Complex scenarios use parameterized testing to cover multiple input variations e
 
 ```rust
 #[test_case("command-from-spec"; "command from spec")]
-#[test_case("matrix-values"; "matrix values")]
-#[test_case("resolved-values"; "resolved values")]
+#[test_case("matrix-variables"; "matrix variables")]
+#[test_case("resolved-variables"; "resolved variables")]
 #[test]
 fn check_completes_basic(test_plan_dir: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
@@ -211,14 +211,14 @@ Error tests are heavily parameterized to cover multiple failure scenarios:
 
 ```rust
 #[test_case(
-    "missing-values.yaml",
-    "Missing template values definitions";
-    "missing values"
+    "missing-variables.yaml",
+    "Missing template variables definitions";
+    "missing variables"
 )]
 #[test_case(
-    "unknown-values.yaml", 
-    "Unknown templating value";
-    "unknown values"
+    "unknown-variables.yaml", 
+    "Unknown templating variable";
+    "unknown variables"
 )]
 #[test]
 fn templating_fails(file: &str, err_contains: &str) {

@@ -75,7 +75,7 @@ mod tests {
 
 ### Example - Malformed Template Strings
 
-This example demonstrates how to test that the template string `"{{ template_value }}"` does not
+This example demonstrates how to test that the template string `"{{ template_variable }}"` does not
 work when similar, but not acceptable, patterns are specified. Working through the hierarchy:
 
 1. **Module** is `templating`. This is where the `Field` type is defined.
@@ -85,13 +85,13 @@ work when similar, but not acceptable, patterns are specified. Working through t
    `Field`. This becomes the second prefix in the test case name.
 1. **Test class** is `malformed_template_string`. [`simple_test_case`][1] is used since there are
    variations in strings that are tested using the same logic.
-1. **Test cases** are a series of uniquely named tests. For example, `no_space_after_value_name` and
-   `single_curly_braces`.
+1. **Test cases** are a series of uniquely named tests. For example, `no_space_after_variable_name`
+   and `single_curly_braces`.
 
 The full test paths are:
 
 ```rust
-test templating::tests::field_parse_malformed_template_string::no_space_after_value_name
+test templating::tests::field_parse_malformed_template_string::no_space_after_variable_name
 test templating::tests::field_parse_malformed_template_string::single_curly_braces
 ```
 
@@ -101,7 +101,7 @@ follows:
 ```rust
 mod tests {
   use simple_test_case::test_case;
-  #[test_case("arg1"; "no_space_after_value_name")]
+  #[test_case("arg1"; "no_space_after_variable_name")]
   #[test_case("arg2"; "single_curly_braces")]
   #[test]
   fn field_parse_malformed_template_string(arg: &str) {
@@ -196,7 +196,7 @@ The crate employs a systematic approach to testing configuration handling:
 
 1. **Parsing Tests** - Verify YAML deserialization works correctly for valid inputs and fails
    appropriately for invalid ones
-2. **Template Resolution Tests** - Ensure the `{{ value }}` templating system works across all
+2. **Template Resolution Tests** - Ensure the `{{ variable }}` templating system works across all
    supported data types. In most cases specific tests are not required for the `Template` trait
    since this is derived with a proc macro. Whenever there is a custom implementation of this trait
    then tests are defined.

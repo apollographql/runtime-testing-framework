@@ -7,8 +7,8 @@ within config files.
 While hard coded scalar values are parsed directly using [serde][1], `Fields` are allowed to be in
 one of two states:
 
-- `Pending`, where they hold the name of templating _value_ that the user must specify as part of
-  their test plan.
+- `Pending`, where they hold the name of a templating _variable_ that the user must specify as part
+  of their test plan.
 - `Resolved`, where they hold a concrete [scalar][2] value, either because a value was provided
   directly within the config file or following successful templating.
 
@@ -17,7 +17,7 @@ into the `Field::Pending` enum variant directly using serde. When writing new pr
 make use of templating fields where it makes sense for users to be able to dynamically set values
 when executing a test plan and avoid using them where such flexibility is not required.
 
-> For example, we do not allow the `inline` file provider's content value to be templated as the
+> For example, we do not allow the `inline` file provider's content argument to be templated as the
 > intention is for this to always be provided within the test plan itself.
 
 [0]: https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/templating.rs#L205

@@ -23,8 +23,8 @@ A swiss army knife for testing the Apollo Runtime
 
 ###### **Options:**
 
-* `--variable <VARIABLE>` — A single additional templating variable in the form "key=value"
-* `--variables <VARIABLES>` — Path to a JSON file containing additional template variables
+* `--var <VAR>` — A single additional templating variable in the form "key=value"
+* `--vars <VARS>` — Path to a JSON file containing additional template variables
 * `-v`, `--verbose` — Flag to control logging verbosity. Default level is `warn`. `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`
 
 
