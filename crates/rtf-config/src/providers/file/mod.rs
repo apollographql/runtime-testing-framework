@@ -740,11 +740,6 @@ mod tests {
         message: this file is required
     "#
     );
-    const RESOLVED_VARIABLES: &str = indoc!(
-        r#"
-        kind: resolved_variables
-    "#
-    );
     const ROUTER_DOWNLOAD_SCRIPT: &str = indoc!(
         r#"
         kind: router_download_script
@@ -794,7 +789,6 @@ mod tests {
     #[test_case(OFFLINE_GRAPHOS_LICENSE, &["graph_id"]; "offline_graphos_license")]
     #[test_case(RELATIVE_PATH, &["path"]; "relative_path")]
     #[test_case(REQUIRED_FILE, &[]; "required")]
-    #[test_case(RESOLVED_VARIABLES, &[]; "resolved_variables")]
     #[test_case(ROUTER_DOWNLOAD_SCRIPT, &["version"]; "router_download_script")]
     #[test_case(MERGE_YAML, &[]; "merge_yaml")]
     #[test_case(MERGE_YAML_ARRAY, &[]; "merge_yaml_array")]
