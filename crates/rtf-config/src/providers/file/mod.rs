@@ -675,6 +675,8 @@ mod tests {
         kind: build_router_from_source
         git_ref: "{{ git_ref }}"
         rust_version: "{{ rust_version }}"
+        profile: "{{ profile }}"
+        features: "{{ features }}"
     "#
     );
     const GITHUB_FILE: &str = indoc!(
@@ -811,7 +813,7 @@ mod tests {
     "#
     );
 
-    #[test_case(BUILD_ROUTER_FROM_SOURCE, &["git_ref", "rust_version"]; "build_router_from_source")]
+    #[test_case(BUILD_ROUTER_FROM_SOURCE, &["git_ref", "rust_version", "profile", "features"]; "build_router_from_source")]
     #[test_case(GITHUB_FILE, &["org", "repo", "path", "git_ref"]; "github_file")]
     #[test_case(GRAPHOS_CANNED_OPS, &["graph_ref", "top_n", "skip_mutations"]; "graphos_canned_ops")]
     #[test_case(GRAPHOS_CANNED_OPS_BY_ID, &["graph_ref", "op_1", "op_2"]; "graphos_canned_ops_by_id")]
