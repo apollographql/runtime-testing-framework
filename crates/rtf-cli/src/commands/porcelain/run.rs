@@ -89,7 +89,6 @@ async fn check_and_run_test_plan_with_context(
 
     for (mut i, (name, tp)) in test_plan.try_iter_matrix_variants()?.enumerate() {
         i += 1;
-        ctx.set_variables(&tp.variables);
         let sub_dir = out_dir.join(name);
         info!("creating output directory for matrix variant {i}/{n}");
         ctx.create_dir_all(&sub_dir)?;

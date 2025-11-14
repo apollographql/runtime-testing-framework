@@ -1,7 +1,4 @@
-use crate::{
-    providers::{self, Provider},
-    templating::Scalar,
-};
+use crate::providers::{self, Provider};
 use rtf_core::{
     APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, GITHUB_TOKEN_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR,
     HttpClient, ReqwestClient, github,
@@ -66,13 +63,6 @@ pub trait ResolutionContext {
     /// Query the output path of a given provider.
     #[allow(unused_variables)]
     fn known_provider_output_path(&self, provider: Provider<'_>) -> Option<PathBuf> {
-        None
-    }
-
-    #[allow(unused_variables)]
-    fn set_variables(&mut self, variables: &HashMap<String, Scalar>) {}
-
-    fn variables(&self) -> Option<&HashMap<String, Scalar>> {
         None
     }
 
@@ -176,7 +166,6 @@ pub trait ResolutionContext {
 pub struct Context {
     client: ReqwestClient,
     supergraph_details: Mutex<HashMap<String, Arc<SupergraphDetails>>>,
-    variables: HashMap<String, Scalar>,
     fp_output_paths: HashMap<String, PathBuf>,
 }
 
@@ -261,14 +250,6 @@ impl ResolutionContext for Context {
         let key = serde_yaml::to_string(&provider).ok()?;
 
         self.fp_output_paths.get(&key).cloned()
-    }
-
-    fn set_variables(&mut self, variables: &HashMap<String, Scalar>) {
-        self.variables = variables.clone();
-    }
-
-    fn variables(&self) -> Option<&HashMap<String, Scalar>> {
-        Some(&self.variables)
     }
 
     async fn with_supergraph_details<T>(

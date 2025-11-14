@@ -723,20 +723,6 @@
           "type": "object"
         },
         {
-          "description": "Returns the JSON string representation of the resolved variables for the test plan being run.\n\n```yaml\n- name: \"resolved-variables.json\"\n  env_var: VARIABLES\n  kind: resolved_variables\n```",
-          "properties": {
-            "kind": {
-              "const": "resolved_variables",
-              "type": "string"
-            }
-          },
-          "required": [
-            "kind"
-          ],
-          "title": "Resolved Variables",
-          "type": "object"
-        },
-        {
           "allOf": [
             {
               "$ref": "#/definitions/RouterDownloadScript"

@@ -234,7 +234,6 @@ pub enum FileProvider {
     OfflineGraphosLicense(apollo::OfflineGraphosLicense),
     RelativePath(RelativeFile),
     Required(RequiredFile),
-    ResolvedVariables(ResolvedVariables),
     RouterDownloadScript(apollo::RouterDownloadScript),
 }
 
@@ -274,7 +273,6 @@ enum_impl_file_provider!(
     OfflineGraphosLicense,
     RelativePath,
     Required,
-    ResolvedVariables,
     RouterDownloadScript,
 );
 
@@ -549,42 +547,6 @@ impl Check for RequiredFile {
     }
 }
 
-/// # Resolved Variables
-///
-/// Returns the JSON string representation of the resolved variables for the test plan being run.
-///
-/// ```yaml
-/// - name: "resolved-variables.json"
-///   env_var: VARIABLES
-///   kind: resolved_variables
-/// ```
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, Template)]
-pub struct ResolvedVariables;
-
-impl AsUtf8FileContent for ResolvedVariables {
-    async fn try_get_file_content(
-        &self,
-        ctx: &impl ResolutionContext,
-    ) -> providers::Result<String> {
-        let s = match ctx.variables() {
-            Some(variables) => serde_json::to_string(&variables)?,
-            None => "{}".to_string(),
-        };
-
-        Ok(s)
-    }
-}
-
-impl Check for ResolvedVariables {
-    fn try_check(
-        &self,
-        _path: &mut Vec<String>,
-        _ctx: &impl ResolutionContext,
-    ) -> checks::Result<()> {
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -603,7 +565,7 @@ mod tests {
     use indoc::indoc;
     use predicates::path;
     use simple_test_case::test_case;
-    use std::{collections::HashMap, path::PathBuf};
+    use std::path::PathBuf;
 
     macro_rules! template_variables {
         ($slice:expr) => {{
@@ -1053,15 +1015,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn resolved_variables_check_success() {
-        let resolved_variables = ResolvedVariables {};
-        let ctx = Context::new();
-
-        let res = resolved_variables.try_check(&mut Vec::new(), &ctx);
-        assert!(res.is_ok(), "expected check to succeed, got {res:?}")
-    }
-
     #[tokio::test]
     async fn inline_file_resolve_and_write_success() {
         let temp = TempDir::new().unwrap();
@@ -1191,23 +1144,5 @@ mod tests {
         let _res = required
             .resolve_and_write(Path::new("required.txt"), &mut ctx)
             .await;
-    }
-
-    #[tokio::test]
-    async fn resolved_variables_resolve_and_write_success() {
-        let temp = TempDir::new().unwrap();
-        let target = temp.child("variables.json");
-
-        let expected_content = r#"{"foo":"bar"}"#;
-
-        let mut ctx = Context::new();
-        let variables: HashMap<String, Scalar> =
-            [("foo".to_string(), "bar".into())].into_iter().collect();
-        ctx.set_variables(&variables);
-
-        let resolved_variables = FileProvider::ResolvedVariables(ResolvedVariables);
-
-        assert_resolve_and_write_success(resolved_variables, &target, &mut ctx, expected_content)
-            .await
     }
 }

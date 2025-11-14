@@ -49,7 +49,6 @@ impl cli::Variables {
             variable_json_data,
             cwd_source,
         )?;
-        ctx.set_variables(&test_plan.variables);
 
         Ok(override_sources)
     }

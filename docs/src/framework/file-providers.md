@@ -16,7 +16,6 @@ Available file providers:
 - [GraphOS Offline License](#graphos-offline-license)
 - [Relative Path](#relative-path)
 - [Required File](#required-file)
-- [Resolved Variables](#resolved-variables)
 - [Router Download Script](#router-download-script)
 
 ## Build Router From Source
@@ -559,16 +558,6 @@ defined file providers.
 The error message to display to the user if this provider is not overwritten.
 
 </details>
-
-## Resolved Variables
-
-Returns the JSON string representation of the resolved variables for the test plan being run.
-
-```yaml
-- name: "resolved-variables.json"
-  env_var: VARIABLES
-  kind: resolved_variables
-```
 
 ## Router Download Script
 
