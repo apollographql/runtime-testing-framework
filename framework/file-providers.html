@@ -199,12 +199,15 @@
 <li><a href="#router-download-script">Router Download Script</a></li>
 </ul>
 <h2 id="build-router-from-source"><a class="header" href="#build-router-from-source">Build Router From Source</a></h2>
-<p>A file provider used for building the Router from source at a specific git commit or reference.</p>
+<p>A file provider used for building the Router from source at a specific git commit or reference. A
+profile and list of features can optionally be provided.</p>
 <pre><code class="language-yaml">- name: "router-build.sh"
   env_var: ROUTER_BUILD_SCRIPT
   kind: build_router_from_source
   git_ref: "some-ref"
   rust_version: "1.89.0"
+  profile: "release"
+  features: "default"
 </code></pre>
 <details>
 <summary>Fields</summary>
@@ -215,6 +218,12 @@ branch name, or tag.</p>
 <p>A Rust version string that can be passed to <code>rustup run {rust_version}</code>, such as <code>"1.78.0"</code>,
 <code>"beta"</code>, or <code>"nightly"</code>.</p>
 <p>Defaults to <code>"stable"</code> if unset.</p>
+<h3 id="profile"><a class="header" href="#profile"><code>profile</code></a></h3>
+<p>The profile to build the Router with.</p>
+<p>Defaults to <code>"release"</code> if unset.</p>
+<h3 id="features"><a class="header" href="#features"><code>features</code></a></h3>
+<p>Comma separated list of features to build the Router with.</p>
+<p>Defaults to <code>"default"</code> if unset.</p>
 </details>
 <h2 id="from-command"><a class="header" href="#from-command">From command</a></h2>
 <p>Run a command provider and use its output as a file provider resource.</p>
