@@ -3,6 +3,7 @@ run = "typos --write-changes"
 
 [tasks.format-markdown]
 run = "dprint fmt"
+dir = "{{cwd}}"
 
 [tasks.generate-docs]
 run = "$(git rev-parse --show-toplevel)/scripts/generate-docs.sh"
