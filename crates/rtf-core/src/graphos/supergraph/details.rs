@@ -304,7 +304,7 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
                 "Attempting to replace connectors urls in {} type",
                 schema_type
             );
-            replace_type_field_url(
+            relace_sourceless_connector_urls(
                 extended_type,
                 vec!["GET", "POST", "PUT", "PATCH", "DELETE"],
                 base_url,
@@ -341,23 +341,23 @@ fn rewrite_url(
 ) -> Option<()> {
     if let Some((_, http_node)) = args_map.iter_mut().find(|(key, _)| key.as_str() == "http") {
         if let Value::Object(http_map) = http_node.get_mut()? {
-            if let Some((_, base_url_node)) = http_map
+            if let Some((_, url_node)) = http_map
                 .iter_mut()
                 .find(|(key, _)| url_keys.contains(&key.as_str()))
             {
-                *base_url_node = Node::new(Value::String(url.to_string()));
+                *url_node = Node::new(Value::String(url.to_string()));
             }
         }
     }
     Some(())
 }
 
-fn replace_type_field_url(
+fn relace_sourceless_connector_urls(
     field: &mut Node<ObjectType>,
     url_keys: Vec<&str>,
     base_url: &str,
 ) -> Option<()> {
-    for (_, field_definition) in &mut field.get_mut()?.fields {
+    for (field, field_definition) in &mut field.get_mut()?.fields {
         for directive in field_definition.get_mut()?.directives.iter_mut() {
             if directive.name != "join__directive" {
                 continue;
@@ -373,7 +373,12 @@ fn replace_type_field_url(
                 continue;
             };
 
-            rewrite_url(args_map, &url_keys, base_url)?;
+            // Skip connect directives that contain a source, as they are not "sourceless connectors"
+            if args_map.iter().any(|(key, _)| key.as_str() == "source") {
+                continue;
+            }
+
+            rewrite_url(args_map, &url_keys, &format!("{}/{}", base_url, field))?;
         }
 
         continue;
@@ -504,6 +509,6 @@ mod tests {
             include_str!("../../../resources/test_data/connectors/sourceless-connectors.graphql");
         let s = rewrite_connector_urls(sdl).unwrap();
 
-        assert!(s.contains(r#"[Product] @join__directive(graphs: [PRODUCTS], name: "connect", args: {http: {GET: "http://localhost:3000"}, selection: "$.products {\nid\nname\ndescription\n}"})"#));
+        assert!(s.contains(r#"[Product] @join__directive(graphs: [PRODUCTS], name: "connect", args: {http: {GET: "http://localhost:3000/products"}, selection: "$.products {\nid\nname\ndescription\n}"})"#));
     }
 }
