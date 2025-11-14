@@ -20,7 +20,7 @@ pub struct Args {
     pub command: Command,
 
     #[command(flatten)]
-    pub values: Values,
+    pub variables: Variables,
 
     /// Flag to control logging verbosity. Default level is `warn`.
     /// `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`.
@@ -29,14 +29,18 @@ pub struct Args {
 }
 
 #[derive(Debug, clap::Args)]
-pub struct Values {
-    /// A single additional templating value in the form "key=value"
-    #[arg(long, global = true)]
-    pub value: Vec<String>,
+pub struct Variables {
+    /// A single additional templating variable in the form "key=value"
+    #[arg(long, global = true, alias = "value")]
+    // This alias is for backwards compatibility with the original flag
+    // It is hidden from the user documentation
+    pub var: Vec<String>,
 
-    /// Path to a JSON file containing additional template values
-    #[arg(long, global = true)]
-    pub values: Option<PathBuf>,
+    /// Path to a JSON file containing additional template variables
+    #[arg(long, global = true, alias = "values")]
+    // This alias is for backwards compatibility with the original flag
+    // It is hidden from the user documentation
+    pub vars: Option<PathBuf>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -71,7 +75,7 @@ pub enum Command {
         compact: bool,
     },
 
-    /// Template a test plan using provided values, outputting the resulting config to stdout
+    /// Template a test plan using provided variables, outputting the resulting config to stdout
     Template {
         /// Relative path to the test-plan.yaml file that should be templated
         test_plan_path: String,

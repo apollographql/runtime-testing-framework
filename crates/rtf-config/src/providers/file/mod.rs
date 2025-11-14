@@ -3,7 +3,7 @@ use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
     enum_impl_check, providers,
-    templating::{self, Field, Template, TemplateValues},
+    templating::{self, Field, Template, TemplateVariables},
 };
 use rtf_core::github::Client;
 use rtf_derive::Template;
@@ -177,22 +177,22 @@ impl Template for NamedFileProvider {
         self.provider.has_pending_fields()
     }
 
-    fn required_values(&self) -> Vec<String> {
-        self.provider.required_values()
+    fn required_variables(&self) -> Vec<String> {
+        self.provider.required_variables()
     }
 
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
         file_source: &Source,
-        values: &TemplateValues,
+        variables: &TemplateVariables,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
         let tail = self.env_var.clone();
         errs.append(
             self.provider
-                .try_template_nested(path, &tail, file_source, values),
+                .try_template_nested(path, &tail, file_source, variables),
         );
 
         errs.into_result(())
@@ -234,7 +234,7 @@ pub enum FileProvider {
     OfflineGraphosLicense(apollo::OfflineGraphosLicense),
     RelativePath(RelativeFile),
     Required(RequiredFile),
-    ResolvedValues(ResolvedValues),
+    ResolvedVariables(ResolvedVariables),
     RouterDownloadScript(apollo::RouterDownloadScript),
 }
 
@@ -274,7 +274,7 @@ enum_impl_file_provider!(
     OfflineGraphosLicense,
     RelativePath,
     Required,
-    ResolvedValues,
+    ResolvedVariables,
     RouterDownloadScript,
 );
 
@@ -346,23 +346,23 @@ impl Template for RelativeFile {
         self.path.has_pending_fields()
     }
 
-    fn required_values(&self) -> Vec<String> {
-        self.path.required_values()
+    fn required_variables(&self) -> Vec<String> {
+        self.path.required_variables()
     }
 
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
         file_source: &Source,
-        values: &TemplateValues,
+        variables: &TemplateVariables,
     ) -> templating::Result<()> {
         use templating::{ErrorKind, Errors, ValidField};
 
         path.push("path".into());
 
         match &mut self.path {
-            // If we're pending then we template and store the source of the value we used
-            Field::Pending(value) => match values.get_with_source(value) {
+            // If we're pending then we template and store the source of the variable we used
+            Field::Pending(variable) => match variables.get_with_source(variable) {
                 Some((source, raw)) => match String::try_from_scalar(raw.clone()) {
                     Ok(path) => {
                         self.path = Field::Resolved(path);
@@ -372,7 +372,13 @@ impl Template for RelativeFile {
                         return Err(Errors::new(ErrorKind::InvalidData, reason, path));
                     }
                 },
-                None => return Err(Errors::new(ErrorKind::UnknownValue, value.clone(), path)),
+                None => {
+                    return Err(Errors::new(
+                        ErrorKind::UnknownVariable,
+                        variable.clone(),
+                        path,
+                    ));
+                }
             },
 
             // If we aren't already pinned to a source, we store the source of the file we are in
@@ -543,25 +549,25 @@ impl Check for RequiredFile {
     }
 }
 
-/// # Resolved Values
+/// # Resolved Variables
 ///
-/// Returns the JSON string representation of the resolved values for the test plan being run.
+/// Returns the JSON string representation of the resolved variables for the test plan being run.
 ///
 /// ```yaml
-/// - name: "resolved-values.json"
-///   env_var: VALUES
-///   kind: resolved_values
+/// - name: "resolved-variables.json"
+///   env_var: VARIABLES
+///   kind: resolved_variables
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, Template)]
-pub struct ResolvedValues;
+pub struct ResolvedVariables;
 
-impl AsUtf8FileContent for ResolvedValues {
+impl AsUtf8FileContent for ResolvedVariables {
     async fn try_get_file_content(
         &self,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
-        let s = match ctx.values() {
-            Some(values) => serde_json::to_string(&values)?,
+        let s = match ctx.variables() {
+            Some(variables) => serde_json::to_string(&variables)?,
             None => "{}".to_string(),
         };
 
@@ -569,7 +575,7 @@ impl AsUtf8FileContent for ResolvedValues {
     }
 }
 
-impl Check for ResolvedValues {
+impl Check for ResolvedVariables {
     fn try_check(
         &self,
         _path: &mut Vec<String>,
@@ -599,14 +605,14 @@ mod tests {
     use simple_test_case::test_case;
     use std::{collections::HashMap, path::PathBuf};
 
-    macro_rules! template_values {
+    macro_rules! template_variables {
         ($slice:expr) => {{
             let mut m = ::std::collections::HashMap::new();
             for k in $slice {
                 m.insert(k.to_string(), Scalar::from(k.to_string()));
             }
 
-            TemplateValues::new_stubbed(m)
+            TemplateVariables::new_stubbed(m)
         }};
     }
 
@@ -770,9 +776,9 @@ mod tests {
         message: this file is required
     "#
     );
-    const RESOLVED_VALUES: &str = indoc!(
+    const RESOLVED_VARIABLES: &str = indoc!(
         r#"
-        kind: resolved_values
+        kind: resolved_variables
     "#
     );
     const ROUTER_DOWNLOAD_SCRIPT: &str = indoc!(
@@ -824,16 +830,16 @@ mod tests {
     #[test_case(OFFLINE_GRAPHOS_LICENSE, &["graph_id"]; "offline_graphos_license")]
     #[test_case(RELATIVE_PATH, &["path"]; "relative_path")]
     #[test_case(REQUIRED_FILE, &[]; "required")]
-    #[test_case(RESOLVED_VALUES, &[]; "resolved_values")]
+    #[test_case(RESOLVED_VARIABLES, &[]; "resolved_variables")]
     #[test_case(ROUTER_DOWNLOAD_SCRIPT, &["version"]; "router_download_script")]
     #[test_case(MERGE_YAML, &[]; "merge_yaml")]
     #[test_case(MERGE_YAML_ARRAY, &[]; "merge_yaml_array")]
     #[test]
-    fn all_fields_templated(content: &str, expected_values: &[&str]) {
+    fn all_fields_templated(content: &str, expected_variables: &[&str]) {
         let config: FileProvider = serde_yaml::from_str(content).unwrap();
 
-        let res = config.required_values();
-        assert_eq!(res, expected_values, "expected values to match")
+        let res = config.required_variables();
+        assert_eq!(res, expected_variables, "expected variables to match")
     }
 
     #[test_case(Field::Pending("foo".to_string()), true; "field is pending")]
@@ -856,17 +862,17 @@ mod tests {
     #[test_case(Field::Pending("foo".to_string()), &["foo"]; "field is required")]
     #[test_case(Field::Resolved("foo".to_string()), &[]; "no fields required")]
     #[test]
-    fn named_file_provider_required_values(f: Field<String>, expected: &[&str]) {
+    fn named_file_provider_required_variables(f: Field<String>, expected: &[&str]) {
         let nfp = NamedFileProvider {
             name: "inline.txt".to_string(),
             env_var: "INLINE".to_string(),
             provider: FileProvider::RelativePath(RelativeFile { path: f, src: None }),
         };
 
-        let res = nfp.required_values();
+        let res = nfp.required_variables();
         assert_eq!(
             res, expected,
-            "tests that required_values has expected value"
+            "tests that required_variables has expected value"
         )
     }
 
@@ -880,9 +886,9 @@ mod tests {
                 src: None,
             }),
         };
-        let values = template_values!(&["path"]);
+        let variables = template_variables!(&["path"]);
 
-        let res = nfp.try_template(&mut Vec::new(), &Source::local("/"), &values);
+        let res = nfp.try_template(&mut Vec::new(), &Source::local("/"), &variables);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -890,7 +896,7 @@ mod tests {
     }
 
     #[test]
-    fn named_file_provider_try_template_unknown_value_error() {
+    fn named_file_provider_try_template_unknown_variable_error() {
         let mut nfp = NamedFileProvider {
             name: "relative.txt".to_string(),
             env_var: "RELATIVE".to_string(),
@@ -899,9 +905,13 @@ mod tests {
                 src: None,
             }),
         };
-        let values = template_values!(&["unused"]);
+        let variables = template_variables!(&["unused"]);
 
-        let res = nfp.try_template(&mut vec!["path".to_string()], &Source::local("/"), &values);
+        let res = nfp.try_template(
+            &mut vec!["path".to_string()],
+            &Source::local("/"),
+            &variables,
+        );
         assert!(res.is_err(), "expected templating to error, got {res:?}");
 
         let errors = res.unwrap_err();
@@ -910,7 +920,7 @@ mod tests {
         let error_path = error.path;
         assert_eq!(
             error_kind,
-            ErrorKind::UnknownValue,
+            ErrorKind::UnknownVariable,
             "expected ErrorKind to match"
         );
         assert_eq!(error_path, "path.RELATIVE.path", "expected path to match")
@@ -1042,11 +1052,11 @@ mod tests {
     }
 
     #[test]
-    fn resolved_values_check_success() {
-        let resolved_values = ResolvedValues {};
+    fn resolved_variables_check_success() {
+        let resolved_variables = ResolvedVariables {};
         let ctx = Context::new();
 
-        let res = resolved_values.try_check(&mut Vec::new(), &ctx);
+        let res = resolved_variables.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}")
     }
 
@@ -1182,19 +1192,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolved_values_resolve_and_write_success() {
+    async fn resolved_variables_resolve_and_write_success() {
         let temp = TempDir::new().unwrap();
-        let target = temp.child("values.json");
+        let target = temp.child("variables.json");
 
         let expected_content = r#"{"foo":"bar"}"#;
 
         let mut ctx = Context::new();
-        let values: HashMap<String, Scalar> =
+        let variables: HashMap<String, Scalar> =
             [("foo".to_string(), "bar".into())].into_iter().collect();
-        ctx.set_values(&values);
+        ctx.set_variables(&variables);
 
-        let resolved_values = FileProvider::ResolvedValues(ResolvedValues);
+        let resolved_variables = FileProvider::ResolvedVariables(ResolvedVariables);
 
-        assert_resolve_and_write_success(resolved_values, &target, &mut ctx, expected_content).await
+        assert_resolve_and_write_success(resolved_variables, &target, &mut ctx, expected_content)
+            .await
     }
 }

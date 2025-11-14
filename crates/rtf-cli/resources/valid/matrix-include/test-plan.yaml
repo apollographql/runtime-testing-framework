@@ -1,6 +1,6 @@
-name: matrix-values
+name: matrix-include
 description: |
-  This test plan makes use of a matrix to run variations on an underlying test plan.
+  This test plan makes checks that a test plan matrix can be defined using include.
 
 matrix:
   include:
@@ -16,8 +16,8 @@ matrix:
 scenario:
   inline:
     name: scenario
-    description: "simply echo out the values that were provided"
-    values:
+    description: "simply echo out the variables that were provided"
+    variable_definitions:
       - name: message
         description: "A message to echo out"
       - name: scenario_subject
@@ -36,7 +36,7 @@ environment:
   inline:
     name: environment
     description: "runs the same script as the scenario"
-    values:
+    variable_definitions:
       - name: message
         description: "A message to echo out"
       - name: setup_subject

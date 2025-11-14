@@ -2,8 +2,8 @@
     "variants": [
         {
             "name": "matrix_variant_1",
-            "values": {
-                "echo_me": "foo"
+            "variables": {
+                "foo": "bar"
             }
         }
     ]

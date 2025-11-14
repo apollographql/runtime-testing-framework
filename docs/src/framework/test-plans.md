@@ -35,12 +35,12 @@ relevant pages under the [Framework][1] section of the documentation.
 - `description`: A brief, human readable description of the behaviour of the Test Plan.
   - If there are any pre-requesites to running this Test Plan it is best to call them out here
     rather than in comments or other files (such as a README).
-- `values`: Key value pairs for templating the Test Plan where the values are all scalar.
+- `variables`: Key value pairs for templating the Test Plan where the variables are all scalar.
   - Scalar here is defined to be a number, string or boolean.
-- `matrix`: Dimensions specified as key value pairs for templating the Test Plan where the values
-  arrays of scalars.
-  - Each matrix entry must have a consistent type for the values array. Mixing different scalar
-    values will result in an error when you attempt to run the Test Plan.
+- `matrix`: Dimensions specified as key value pairs for templating the Test Plan where the variables
+  are arrays of scalars.
+  - Each matrix entry must have a consistent type for the variables array. Mixing different scalar
+    variables will result in an error when you attempt to run the Test Plan.
   - An optional `variant_names` key can be provided to customise the names of the output directories
     used by each variant.
 - `scenario`: A [Config Spec](#config-specs) for the scenario to be run.
@@ -175,7 +175,7 @@ arrays are then sorted and deduplicated based on an appropriate key in order to 
 array elements:
 
 - For [File providers][5] the key used is `env_var`.
-- For value declarations and environment setup "provides" the key used is `name`.
+- For variable declarations and environment setup "provides" the key used is `name`.
 
 ## A note on relative paths
 
@@ -256,9 +256,9 @@ is then slugified to remove whitespace and slashes.
 ### Including explicit variants
 
 Sometimes when defining a matrix you will find that you want to limit how the matrix dimensions are
-produced in order to only run a subset of possible combinations of values. For example, the
-following initial matrix expands out to four variants covering different crate revisions for
-inclusion in a Rust build as shown below:
+produced in order to only run a subset of possible combinations of values for each variable. For
+example, the following initial matrix expands out to four variants covering different crate
+revisions for inclusion in a Rust build as shown below:
 
 ```yaml
 matrix:
@@ -284,8 +284,8 @@ four variants are invalid and should not be run. This problem is made worse if w
 dimension to the matrix (say, `graph_ref`) which will then produce additional undesirable variants.
 
 In this sort of situation you should make use of the `matrix.include` key, which allows you to
-define matrix dimensions as _sets_ of values so long as they all contain the same keys. In our
-example above we would do the following:
+define matrix dimensions as _sets_ of values so long as they all contain the same variable names. In
+our example above we would do the following:
 
 ```yaml
 matrix:
@@ -347,7 +347,7 @@ The following is a minimal "kitchen sink" example of the structure of a valid `t
 name: example
 description: An example description
 
-values:
+variables:
   foo: "A value for foo"
 
 matrix:
@@ -367,7 +367,7 @@ scenario:
     name: An inline scenario
     description: A description for the inline scenario
 
-    values:
+    variable_definitions:
       - name: foo
         description: "A description for foo"
 

@@ -54,16 +54,16 @@ scenario and just `cat` the output to the terminal. First, we need to make use o
 ```yaml
 name: Inline scenario config
 description: An inline scenario config
-values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
+variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
     default: "scenario executed with default value"
 command:
   name: scenario.sh
   kind: relative_path
   path: ../scripts/scenario.sh
 env_vars:
-  SCENARIO_ENV: "{{ scenario_value }}"
+  SCENARIO_ENV: "{{ scenario_variable }}"
 # --- Add a new file to the scenario ---
 file_providers:
   - name: scenario.txt
@@ -87,7 +87,7 @@ $ rtf run test-plan.yaml
 Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
-scenario executed with test plan value
+scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=2
 
 $ ls output/providers
@@ -120,7 +120,7 @@ Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
 Some inline text content for our scenario
-scenario executed with test plan value
+scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=2
 ```
 
@@ -165,16 +165,16 @@ provider:
 ```yaml
 name: Inline scenario config
 description: An inline scenario config
-values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
+variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
     default: "scenario executed with default value"
 command:
   name: scenario.sh
   kind: relative_path
   path: ../scripts/scenario.sh
 env_vars:
-  SCENARIO_ENV: "{{ scenario_value }}"
+  SCENARIO_ENV: "{{ scenario_variable }}"
 file_providers:
   - name: scenario.txt
     env_var: SCENARIO_TXT
@@ -212,7 +212,7 @@ Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
 Some inline text content for our scenario
 More content from a file for our scenario
-scenario executed with test plan value
+scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=2
 
 $ ls output/providers 
@@ -274,7 +274,7 @@ teardown:
 Now, let's see what happens when we try to template this test plan:
 
 ```bash
-$ rtf template test-plan.yaml --check --value process_id="id"
+$ rtf template test-plan.yaml --check --var process_id="id"
 ERROR (config.txt) a required file has not been defined.: Please specify a config file
 ```
 
@@ -286,8 +286,8 @@ To make this work, the test plan user should make use of overrides. Let's update
 ```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
-
-  scenario_value: "scenario executed with test plan value"
+variables:
+  scenario_variable: "scenario executed with test plan variable"
 scenario:
   from:
     kind: local
@@ -315,20 +315,20 @@ environment:
 The override will match based on the `name` key. If we template now, we get:
 
 ```bash
-$ rtf template test-plan.yaml --check --value process_id="id"
+$ rtf template test-plan.yaml --check --var process_id="id"
 name: Hello World
 description: A test plan created as a guide for writing test plans
-values:
-  example_value: value
-  scenario_value: scenario executed with test plan value
+variables:
+  example_variable: variable
+  scenario_variable: scenario executed with test plan variable
   process_id: id
 matrix: {}
 scenario:
   name: Inline scenario config
   description: An inline scenario config
-  values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
+  variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
     default: scenario executed with default value
   command:
     name: scenario.sh
@@ -336,7 +336,7 @@ scenario:
     path: ../scripts/scenario.sh
     args: []
   env_vars:
-    SCENARIO_ENV: scenario executed with test plan value
+    SCENARIO_ENV: scenario executed with test plan variable
   file_providers:
   - name: file.txt
     env_var: FILE_TXT
@@ -350,7 +350,7 @@ scenario:
 environment:
   name: Inline environment config
   description: An inline environment config
-  values: []
+  variable_definitions: []
   setup:
     command:
       name: setup.sh

@@ -18,7 +18,7 @@ use std::{
 static RE_UNKNOWN_VAL: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"\$\{(.*?)\}"#).expect("valid regex"));
 
-/// A matrix of user provided value dimensions that is expanded out into multiple value sets for
+/// A matrix of user provided variable dimensions that is expanded out into multiple variable sets for
 /// templating the test plan containing the matrix.
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct Matrix {
@@ -26,14 +26,14 @@ pub struct Matrix {
     #[serde(default)]
     pub variant_names: Option<String>,
 
-    /// The actual dimensions and their allowed values that will be used to produce the matrix
+    /// The actual dimensions and their allowed variables that will be used to produce the matrix
     pub dimensions: HashMap<String, Vec<Scalar>>,
 
-    /// Additional _groups_ of values that will be combined with known dimensions to produce the
-    /// full set of values for each dimension.
+    /// Additional _groups_ of variables that will be combined with known dimensions to produce the
+    /// full set of variables for each dimension.
     ///
-    /// Used for tying subsets of values together and reducing the number of variants we expand to.
-    /// Each entry within this array is required to define the same keys and scalar value types.
+    /// Used for tying subsets of variables together and reducing the number of variants we expand to.
+    /// Each entry within this array is required to define the same keys and scalar variable types.
     #[serde(default)]
     pub include: Vec<HashMap<String, Scalar>>,
 }
@@ -71,18 +71,18 @@ impl Matrix {
         pairs
     }
 
-    /// We expand out matrix values as a cartesean product over all possible sets of values we can
-    /// obtain when combined with any scalar values we have.
+    /// We expand out matrix variables as a cartesean product over all possible sets of variables we can
+    /// obtain when combined with any scalar variables we have.
     ///
     /// The ordering for the expanded dimensions is defined as first being by the ascii-betical
     /// sort of the base dimension keys, followed by the user provided ordering of each dimension's
-    /// values, followed by the user provided `includes`.
+    /// variables, followed by the user provided `includes`.
     ///
     /// When generating variant names from a user provided template we validate the template itself
     /// and also ensure that the generated names are unique.
     pub fn try_expand(
         &self,
-        values: &HashMap<String, Scalar>,
+        variables: &HashMap<String, Scalar>,
     ) -> Result<Vec<(String, HashMap<String, Scalar>)>> {
         let variants: Vec<_> = self
             .sorted_dimensions()
@@ -93,15 +93,15 @@ impl Matrix {
             // yield a single empty Vec which guarantees that the following flat_map always runs.
             .multi_cartesian_product()
             .flat_map(|dimension_vals| {
-                // Merge the values coming from the TestPlan with the values for the base dimension
-                let mut values = values.clone();
-                values.extend(dimension_vals);
+                // Merge the variables coming from the TestPlan with the variables for the base dimension
+                let mut variables = variables.clone();
+                variables.extend(dimension_vals);
 
                 // To handle the case where `self.include` is empty, we ensure that we at least
                 // yield a single empty HashMap as yielding None at this stage will cause the
                 // entire iterator chain to return None.
                 //
-                // Essentially this is "iter_at_least_once" where we yield a default value if the
+                // Essentially this is "iter_at_least_once" where we yield a default variable if the
                 // iterator was empty.
                 let mut it = self.include.clone().into_iter();
                 let include = std::iter::once(it.next().unwrap_or_default()).chain(it);
@@ -109,13 +109,13 @@ impl Matrix {
                 // Finally, we merge everything we have so far into each map coming from `self.include`
                 // to produce the final expanded dimensions.
                 include.map(move |mut include| {
-                    include.extend(values.clone());
+                    include.extend(variables.clone());
                     include
                 })
             })
             // Once we have the expanded dimensions we can enumerate them and generate their output
             // directory names. We have to do this after fully expanding as we allow users to
-            // reference any value in their TestPlan as part of their variant_names template.
+            // reference any variable in their TestPlan as part of their variant_names template.
             .enumerate()
             .map(|(i, m)| variant_name(self.variant_names.as_deref(), &m, i).map(|name| (name, m)))
             .collect::<Result<_>>()?;
@@ -139,7 +139,7 @@ impl Matrix {
                 Some(val) => mem::discriminant(val),
                 None => {
                     errs.push(
-                        templating::ErrorKind::EmptyMatrixValue,
+                        templating::ErrorKind::EmptyMatrixVariable,
                         k,
                         &["test_plan".to_string()],
                     );
@@ -149,7 +149,7 @@ impl Matrix {
 
             if !vals.iter().all(|v| mem::discriminant(v) == discriminant) {
                 errs.push(
-                    templating::ErrorKind::InconsistentMatrixValue,
+                    templating::ErrorKind::InconsistentMatrixVariable,
                     k,
                     &["test_plan".to_string()],
                 );
@@ -178,13 +178,13 @@ impl Matrix {
         }
     }
 
-    /// Check if we have any conflicts between matrix values and scalar values
+    /// Check if we have any conflicts between matrix variables and scalar variables
     pub fn check_conflicting_keys(
         &self,
-        values: &HashMap<String, Scalar>,
+        variables: &HashMap<String, Scalar>,
         errs: &mut templating::ErrorBuilder,
     ) {
-        let all_keys = values.keys().chain(self.dimensions.keys());
+        let all_keys = variables.keys().chain(self.dimensions.keys());
         let conflicting_keys = match self.include.first() {
             Some(m) => duplicate_keys(all_keys.chain(m.keys()), |s| s),
             None => duplicate_keys(all_keys, |s| s),
@@ -192,7 +192,7 @@ impl Matrix {
 
         if !conflicting_keys.is_empty() {
             errs.push(
-                templating::ErrorKind::ConflictingValues,
+                templating::ErrorKind::ConflictingVariables,
                 conflicting_keys.join(", "),
                 &["test_plan".to_string()],
             )
@@ -202,7 +202,7 @@ impl Matrix {
 
 fn variant_name(
     template: Option<&str>,
-    values: &HashMap<String, Scalar>,
+    variables: &HashMap<String, Scalar>,
     n: usize,
 ) -> Result<String> {
     let mut s = match template {
@@ -210,7 +210,7 @@ fn variant_name(
         None => return Ok(format!("matrix_variant_{}", n + 1)),
     };
 
-    for (k, v) in values.iter() {
+    for (k, v) in variables.iter() {
         // ${k} is what we are replacing but we need to escape the curlies
         s = s.replace(&format!("${{{k}}}"), &v.to_string());
     }
@@ -225,8 +225,8 @@ fn variant_name(
         .collect();
 
     if !remaining_template_vals.is_empty() {
-        return Err(Error::UnknownMatrixVariantTemplateValues {
-            values: remaining_template_vals,
+        return Err(Error::UnknownMatrixVariantTemplateVariables {
+            variables: remaining_template_vals,
         });
     }
 
@@ -287,7 +287,7 @@ mod tests {
     #[test_case(&[("a", &[1, 2]), ("b", &[3, 4])], 4; "2x2")]
     #[test_case(&[("a", &[1, 2]), ("b", &[3, 4, 5]), ("c", &[6, 7])], 12; "mixed")]
     #[test]
-    fn n_variants_returns_the_correct_value(dimensions: &[(&str, &[usize])], expected: usize) {
+    fn n_variants_returns_the_correct_variable(dimensions: &[(&str, &[usize])], expected: usize) {
         for n_include in 0..3 {
             let m = Matrix {
                 variant_names: None,
@@ -303,7 +303,7 @@ mod tests {
         }
     }
 
-    fn value_map(vals: &[(&str, &str)]) -> HashMap<String, Scalar> {
+    fn variable_map(vals: &[(&str, &str)]) -> HashMap<String, Scalar> {
         vals.iter()
             .map(|&(name, val)| (name.to_string(), Scalar::String(val.to_string())))
             .collect()
@@ -313,47 +313,47 @@ mod tests {
         dims(&[("a", &["X", "Y"]), ("b", &["1", "2"])]),
         Vec::new(),
         &[
-            value_map(&[("a", "X"), ("b", "1"), ("Z", "Z")]),
-            value_map(&[("a", "X"), ("b", "2"), ("Z", "Z")]),
-            value_map(&[("a", "Y"), ("b", "1"), ("Z", "Z")]),
-            value_map(&[("a", "Y"), ("b", "2"), ("Z", "Z")])
+            variable_map(&[("a", "X"), ("b", "1"), ("Z", "Z")]),
+            variable_map(&[("a", "X"), ("b", "2"), ("Z", "Z")]),
+            variable_map(&[("a", "Y"), ("b", "1"), ("Z", "Z")]),
+            variable_map(&[("a", "Y"), ("b", "2"), ("Z", "Z")])
         ];
         "only dimensions"
     )]
     #[test_case(
         HashMap::new(),
         vec![
-            value_map(&[("b", "1"), ("c", "2")]),
-            value_map(&[("b", "3"), ("c", "4")])
+            variable_map(&[("b", "1"), ("c", "2")]),
+            variable_map(&[("b", "3"), ("c", "4")])
         ],
         &[
-            value_map(&[("b", "1"), ("c", "2"), ("Z", "Z")]),
-            value_map(&[("b", "3"), ("c", "4"), ("Z", "Z")])
+            variable_map(&[("b", "1"), ("c", "2"), ("Z", "Z")]),
+            variable_map(&[("b", "3"), ("c", "4"), ("Z", "Z")])
         ];
         "only include"
     )]
     #[test_case(
         dims(&[("a", &["X", "Y"])]),
         vec![
-            value_map(&[("b", "1"), ("c", "2")]),
-            value_map(&[("b", "3"), ("c", "4")])
+            variable_map(&[("b", "1"), ("c", "2")]),
+            variable_map(&[("b", "3"), ("c", "4")])
         ],
         &[
-            value_map(&[("a", "X"), ("b", "1"), ("c", "2"), ("Z", "Z")]),
-            value_map(&[("a", "X"), ("b", "3"), ("c", "4"), ("Z", "Z")]),
-            value_map(&[("a", "Y"), ("b", "1"), ("c", "2"), ("Z", "Z")]),
-            value_map(&[("a", "Y"), ("b", "3"), ("c", "4"), ("Z", "Z")]),
+            variable_map(&[("a", "X"), ("b", "1"), ("c", "2"), ("Z", "Z")]),
+            variable_map(&[("a", "X"), ("b", "3"), ("c", "4"), ("Z", "Z")]),
+            variable_map(&[("a", "Y"), ("b", "1"), ("c", "2"), ("Z", "Z")]),
+            variable_map(&[("a", "Y"), ("b", "3"), ("c", "4"), ("Z", "Z")]),
         ];
         "dimensions and include"
     )]
     #[test_case(
         HashMap::new(),
         Vec::new(),
-        &[value_map(&[("Z", "Z")])];
+        &[variable_map(&[("Z", "Z")])];
         "no dimensions or include"
     )]
     #[test]
-    fn try_expand_generates_the_expected_values(
+    fn try_expand_generates_the_expected_variables(
         dimensions: HashMap<String, Vec<Scalar>>,
         include: Vec<HashMap<String, Scalar>>,
         expected: &[HashMap<String, Scalar>],
@@ -365,7 +365,7 @@ mod tests {
         };
 
         let expanded: Vec<_> = m
-            .try_expand(&value_map(&[("Z", "Z")]))
+            .try_expand(&variable_map(&[("Z", "Z")]))
             .unwrap()
             .into_iter()
             .map(|(_, vals)| vals)
@@ -384,7 +384,7 @@ mod tests {
     #[test_case(Some("${a}/${b}"), &["X_1", "X_2", "Y_1", "Y_2"]; "template with forward slash")]
     #[test_case(Some("${a}\\${b}"), &["X_1", "X_2", "Y_1", "Y_2"]; "template with back slash")]
     #[test_case(Some("${a} \t${b}"), &["X__1", "X__2", "Y__1", "Y__2"]; "template with whitespace")]
-    #[test_case(Some("${a}_${b}_${c}"), &["X_1_Z", "X_2_Z", "Y_1_Z", "Y_2_Z"]; "valid template using include value")]
+    #[test_case(Some("${a}_${b}_${c}"), &["X_1_Z", "X_2_Z", "Y_1_Z", "Y_2_Z"]; "valid template using include variable")]
     #[test]
     fn try_expand_generates_the_expected_variant_names(
         variant_names: Option<&str>,
@@ -407,11 +407,11 @@ mod tests {
         assert_eq!(names, expected);
     }
 
-    #[test_case("${a}-${b}-${c}", &["c"]; "single unknown value with known")]
-    #[test_case("${c}", &["c"]; "single unknown value")]
-    #[test_case("${x}-${c}", &["x", "c"]; "multiple unknown values")]
+    #[test_case("${a}-${b}-${c}", &["c"]; "single unknown variable with known")]
+    #[test_case("${c}", &["c"]; "single unknown variable")]
+    #[test_case("${x}-${c}", &["x", "c"]; "multiple unknown variables")]
     #[test]
-    fn try_expand_errors_on_unknown_template_values(variant_names: &str, expected: &[&str]) {
+    fn try_expand_errors_on_unknown_template_variables(variant_names: &str, expected: &[&str]) {
         let m = Matrix {
             variant_names: Some(variant_names.into()),
             dimensions: dims(&[("a", &["X", "Y"]), ("b", &["1", "2"])]),
@@ -419,8 +419,8 @@ mod tests {
         };
 
         match m.try_expand(&Default::default()) {
-            Err(Error::UnknownMatrixVariantTemplateValues { values }) => {
-                assert_eq!(values, expected)
+            Err(Error::UnknownMatrixVariantTemplateVariables { variables }) => {
+                assert_eq!(variables, expected)
             }
 
             Ok(ok) => panic!("expected error, got {ok:?}"),

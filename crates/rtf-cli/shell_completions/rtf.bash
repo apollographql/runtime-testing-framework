@@ -47,17 +47,17 @@ _rtf() {
 
     case "${cmd}" in
         rtf)
-            opts="-v -h --value --values --verbose --help run expand-matrix template help"
+            opts="-v -h --var --vars --verbose --help run expand-matrix template help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --value)
+                --var)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
-                --values)
+                --vars)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -69,17 +69,17 @@ _rtf() {
             return 0
             ;;
         rtf__expand__matrix)
-            opts="-c -v -h --compact --value --values --verbose --help <TEST_PLAN_PATH>"
+            opts="-c -v -h --compact --var --vars --verbose --help <TEST_PLAN_PATH>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --value)
+                --var)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
-                --values)
+                --vars)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -161,7 +161,7 @@ _rtf() {
             return 0
             ;;
         rtf__run)
-            opts="-v -h --github --ref --outdir --value --values --verbose --help [TEST_PLAN_PATH]"
+            opts="-v -h --github --ref --outdir --var --vars --verbose --help [TEST_PLAN_PATH]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -179,11 +179,11 @@ _rtf() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
-                --value)
+                --var)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
-                --values)
+                --vars)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -195,17 +195,17 @@ _rtf() {
             return 0
             ;;
         rtf__template)
-            opts="-v -h --check --value --values --verbose --help <TEST_PLAN_PATH>"
+            opts="-v -h --check --var --vars --verbose --help <TEST_PLAN_PATH>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --value)
+                --var)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
-                --values)
+                --vars)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;

@@ -1,16 +1,15 @@
-name: duplicate-value-names
+name: inconsistent-matrix-variable
 description: |
-  Check the error shown when a test plan defines duplicate value names
+  Check the error shown when there are inconsistent variable types defined in the matrix
+
+matrix:
+  dimensions:
+    foo: ["foo", 42]
 
 scenario:
   inline:
     name: inline-scenario
     description: an inline scenario
-    values:
-      - name: foo
-        description: a value foo
-      - name: foo
-        description: a value foo
     command:
       name: scenario.sh
       kind: inline

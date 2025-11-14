@@ -1,19 +1,19 @@
-name: matrix-values
+name: matrix-variables
 description: |
   This test plan makes use of a matrix to run variations on an underlying test plan.
 
-values:
+variables:
   message: "hello, "
 
 matrix:
-  setup_subject: [ "world!", "sailor" ]
-  scenario_subject: [ "darkness my old friend", "is it me you're looking for?" ]
+  setup_subject: ["world!", "sailor"]
+  scenario_subject: ["darkness my old friend", "is it me you're looking for?"]
 
 scenario:
   inline:
     name: scenario
-    description: "simply echo out the values that were provided"
-    values:
+    description: "simply echo out the variables that were provided"
+    variable_definitions:
       - name: message
         description: "A message to echo out"
       - name: scenario_subject
@@ -32,7 +32,7 @@ environment:
   inline:
     name: environment
     description: "runs the same script as the scenario"
-    values:
+    variable_definitions:
       - name: message
         description: "A message to echo out"
       - name: setup_subject

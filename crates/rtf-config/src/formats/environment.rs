@@ -1,11 +1,11 @@
 //! Parsing of the environment provisioner config file format
 use crate::{
-    ValueDefinition,
+    VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
     formats::Result,
     providers::{command::CommandSection, file::Source},
-    templating::{self, Template, TemplateValues},
+    templating::{self, Template, TemplateVariables},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -20,9 +20,10 @@ pub struct EnvironmentConfig {
     pub name: String,
     /// A brief description of how this environment setup works
     pub description: String,
-    /// Definitions for the required values for templating this environment
-    #[serde(default)]
-    pub values: Vec<ValueDefinition>,
+    /// Definitions for the required variables for templating this environment
+    #[serde(default, alias = "values")]
+    // This alias is for backwards compatibility with the original name
+    pub variable_definitions: Vec<VariableDefinition>,
     /// The command to execute to prepare the environment for executing the test scenario
     pub setup: SetupSection,
     /// The command to execute to clean up the environment after executing the test scenario
@@ -38,36 +39,40 @@ impl EnvironmentConfig {
 
     /// Try to template the setup [CommandSection].
     ///
-    /// Setup is only allowed to reference values that are declared in the values section of this
+    /// Setup is only allowed to reference variables that are declared in the variables section of this
     /// config file.
     pub fn try_template_setup(
         &mut self,
         path: &mut Vec<String>,
         source: &Source,
-        values: &TemplateValues,
+        variables: &TemplateVariables,
     ) -> templating::Result<()> {
-        let allowed_values = values.for_config_file(source, self.values.iter());
+        let allowed_variables = variables.for_config_file(source, self.variable_definitions.iter());
 
         self.setup
             .command
-            .try_template_nested(path, "setup", source, &allowed_values)
+            .try_template_nested(path, "setup", source, &allowed_variables)
     }
 
     /// Try to template the teardown [CommandSection].
     ///
-    /// Teardown is allowed to reference values that come from the output of setup in addition to
-    /// the values decalered in the values section of this config file.
+    /// Teardown is allowed to reference variables that come from the output of setup in addition to
+    /// the variables decalered in the variables section of this config file.
     pub fn try_template_teardown(
         &mut self,
         path: &mut Vec<String>,
         source: &Source,
-        values: &TemplateValues,
+        variables: &TemplateVariables,
     ) -> templating::Result<()> {
-        let allowed_values =
-            values.for_config_file(source, self.values.iter().chain(self.setup.provides.iter()));
+        let allowed_variables = variables.for_config_file(
+            source,
+            self.variable_definitions
+                .iter()
+                .chain(self.setup.provides.iter()),
+        );
 
         self.teardown
-            .try_template_nested(path, "teardown", source, &allowed_values)
+            .try_template_nested(path, "teardown", source, &allowed_variables)
     }
 
     /// Create an empty [EnvironmentConfig] for tests
@@ -76,7 +81,7 @@ impl EnvironmentConfig {
         EnvironmentConfig {
             name: Default::default(),
             description: Default::default(),
-            values: Vec::new(),
+            variable_definitions: Vec::new(),
             setup: SetupSection {
                 command: CommandSection::empty(),
                 provides: Vec::new(),
@@ -91,9 +96,9 @@ impl Template for EnvironmentConfig {
         self.setup.command.has_pending_fields() || self.teardown.has_pending_fields()
     }
 
-    fn required_values(&self) -> Vec<String> {
-        let mut vals = self.setup.command.required_values();
-        vals.extend(self.teardown.required_values());
+    fn required_variables(&self) -> Vec<String> {
+        let mut vals = self.setup.command.required_variables();
+        vals.extend(self.teardown.required_variables());
 
         vals
     }
@@ -102,11 +107,11 @@ impl Template for EnvironmentConfig {
         &mut self,
         path: &mut Vec<String>,
         source: &Source,
-        values: &TemplateValues,
+        variables: &TemplateVariables,
     ) -> templating::Result<()> {
         let mut errs =
-            templating::ErrorBuilder::from(self.try_template_setup(path, source, values));
-        errs.append(self.try_template_teardown(path, source, values));
+            templating::ErrorBuilder::from(self.try_template_setup(path, source, variables));
+        errs.append(self.try_template_teardown(path, source, variables));
 
         errs.into_result(())
     }
@@ -120,12 +125,15 @@ impl Check for EnvironmentConfig {
     ) -> checks::Result<()> {
         let mut errs = checks::ErrorBuilder::new();
 
-        // Check that hard coded values and the ones coming from setup.provides are unique
-        let all_values = self.values.iter().chain(self.setup.provides.iter());
-        let duplicates = duplicate_keys(all_values, |v| &v.name);
+        // Check that hard coded variables and the ones coming from setup.provides are unique
+        let all_variables = self
+            .variable_definitions
+            .iter()
+            .chain(self.setup.provides.iter());
+        let duplicates = duplicate_keys(all_variables, |v| &v.name);
         if !duplicates.is_empty() {
             errs.push(
-                checks::ErrorKind::DuplicateValueNames,
+                checks::ErrorKind::DuplicateVariableNames,
                 duplicates.join("\n"),
                 path,
             );
@@ -144,10 +152,13 @@ impl CheckArrayDuplicates for EnvironmentConfig {
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
         vec![
-            ("values", DedupArray::ValueDef(&mut self.values)),
+            (
+                "variables",
+                DedupArray::VariableDef(&mut self.variable_definitions),
+            ),
             (
                 "setup.provides",
-                DedupArray::ValueDef(&mut self.setup.provides),
+                DedupArray::VariableDef(&mut self.setup.provides),
             ),
             (
                 "setup.file_providers",
@@ -166,9 +177,9 @@ impl CheckArrayDuplicates for EnvironmentConfig {
 pub struct SetupSection {
     #[serde(flatten)]
     pub command: CommandSection,
-    /// Additional templating values that will be provided through the output of this command
+    /// Additional templating variables that will be provided through the output of this command
     #[serde(default)]
-    pub provides: Vec<ValueDefinition>,
+    pub provides: Vec<VariableDefinition>,
 }
 
 #[cfg(test)]
@@ -176,12 +187,12 @@ pub(crate) mod test_helpers {
     use super::*;
     use crate::{
         formats::tests::{
-            named_file_providers_with_fields, templatable_file_providers, value_definitions,
+            named_file_providers_with_fields, templatable_file_providers, variable_definitions,
         },
         templating::Field,
     };
 
-    /// Create an EnvironmentConfig for testing Template trait methods (has_pending_fields, required_values)
+    /// Create an EnvironmentConfig for testing Template trait methods (has_pending_fields, required_variables)
     pub(crate) fn environment_with_fields(
         setup_fields: &[Field<String>],
         teardown_fields: &[Field<String>],
@@ -204,12 +215,12 @@ pub(crate) mod test_helpers {
 
     /// Create a test EnvironmentConfig for template tests
     pub(crate) fn templatable_environment(
-        value_names: &[&str],
+        variable_names: &[&str],
         setup_fields: &[&str],
         teardown_fields: &[&str],
     ) -> EnvironmentConfig {
         EnvironmentConfig {
-            values: value_definitions(value_names),
+            variable_definitions: variable_definitions(variable_names),
             setup: SetupSection {
                 command: CommandSection {
                     file_providers: templatable_file_providers(setup_fields),
@@ -236,7 +247,7 @@ pub(crate) mod tests {
             environment::test_helpers::{environment_with_fields, templatable_environment},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
-                templatable_file_providers, template_values, value_definitions,
+                templatable_file_providers, template_variables, variable_definitions,
             },
         },
         providers::command::{
@@ -249,11 +260,11 @@ pub(crate) mod tests {
     use simple_test_case::test_case;
     use std::collections::HashMap;
 
-    /// Create an EnvironmentConfig for testing value scoping behavior
+    /// Create an EnvironmentConfig for testing variable scoping behavior
     /// Sets up predefined template fields that reference specific variable names
     fn environment_with_provides(available_vals: &[&str], provides: &[&str]) -> EnvironmentConfig {
         EnvironmentConfig {
-            values: value_definitions(available_vals),
+            variable_definitions: variable_definitions(available_vals),
             setup: SetupSection {
                 command: CommandSection {
                     env_vars: [("foo".to_uppercase(), Field::Pending("foo".to_string()))]
@@ -262,7 +273,7 @@ pub(crate) mod tests {
                     file_providers: templatable_file_providers(&["setup-path"]),
                     ..CommandSection::empty()
                 },
-                provides: value_definitions(provides),
+                provides: variable_definitions(provides),
             },
             teardown: CommandSection {
                 env_vars: [("bar".to_uppercase(), Field::Pending("bar".to_string()))]
@@ -280,7 +291,7 @@ pub(crate) mod tests {
         r#"
         name: environment
         description: a templated environment
-        values:
+        variable_definitions:
           - name: foo
             description: a value foo
           - name: bar
@@ -317,9 +328,9 @@ pub(crate) mod tests {
         let config: EnvironmentConfig =
             serde_yaml::from_str(TEMPLATED_ENVIRONMENT).expect("environment config to parse");
 
-        let mut res = config.required_values();
-        res.sort(); // Sorting so values are in a determistic order for the assert_eq
-        assert_eq!(res, &["bar", "foo"], "expected values to match")
+        let mut res = config.required_variables();
+        res.sort(); // Sorting so variables are in a determistic order for the assert_eq
+        assert_eq!(res, &["bar", "foo"], "expected variables to match")
     }
 
     #[test_case(p("setup"), p("teardown"), true; "setup and teardown pending is pending")]
@@ -341,49 +352,49 @@ pub(crate) mod tests {
         )
     }
 
-    #[test_case(&[p("setup1"), p("setup2")], &[p("teardown1"), p("teardown2")], &["setup1", "setup2", "teardown1", "teardown2"]; "both setup and both teardown pending requires values")]
-    #[test_case(&[p("setup1"), p("setup2")], &[p("teardown1"), r("teardown2")], &["setup1", "setup2", "teardown1"]; "both setup and single teardown pending requires values")]
-    #[test_case(&[p("setup1"), p("setup2")], &[r("teardown1"), r("teardown2")], &["setup1", "setup2"]; "both setup and no teardown pending requires values")]
-    #[test_case(&[p("setup1"), r("setup2")], &[p("teardown1"), p("teardown2")], &["setup1", "teardown1", "teardown2"]; "single setup and both teardown pending requires values")]
-    #[test_case(&[p("setup1"), r("setup2")], &[p("teardown1"), r("teardown2")], &["setup1", "teardown1"]; "single setup and single teardown pending requires values")]
-    #[test_case(&[p("setup1"), r("setup2")], &[r("teardown1"), r("teardown2")], &["setup1"]; "single setup and no teardown pending requires values")]
-    #[test_case(&[r("setup1"), r("setup2")], &[p("teardown1"), p("teardown2")], &["teardown1", "teardown2"]; "no setup and both teardown pending requires values")]
-    #[test_case(&[r("setup1"), r("setup2")], &[p("teardown1"), r("teardown2")], &["teardown1"]; "no setup and single teardown pending requires values")]
-    #[test_case(&[r("setup1"), r("setup2")], &[r("teardown1"), r("teardown2")], &[]; "no setup and no teardown pending requires no values")]
+    #[test_case(&[p("setup1"), p("setup2")], &[p("teardown1"), p("teardown2")], &["setup1", "setup2", "teardown1", "teardown2"]; "both setup and both teardown pending requires variables")]
+    #[test_case(&[p("setup1"), p("setup2")], &[p("teardown1"), r("teardown2")], &["setup1", "setup2", "teardown1"]; "both setup and single teardown pending requires variables")]
+    #[test_case(&[p("setup1"), p("setup2")], &[r("teardown1"), r("teardown2")], &["setup1", "setup2"]; "both setup and no teardown pending requires variables")]
+    #[test_case(&[p("setup1"), r("setup2")], &[p("teardown1"), p("teardown2")], &["setup1", "teardown1", "teardown2"]; "single setup and both teardown pending requires variables")]
+    #[test_case(&[p("setup1"), r("setup2")], &[p("teardown1"), r("teardown2")], &["setup1", "teardown1"]; "single setup and single teardown pending requires variables")]
+    #[test_case(&[p("setup1"), r("setup2")], &[r("teardown1"), r("teardown2")], &["setup1"]; "single setup and no teardown pending requires variables")]
+    #[test_case(&[r("setup1"), r("setup2")], &[p("teardown1"), p("teardown2")], &["teardown1", "teardown2"]; "no setup and both teardown pending requires variables")]
+    #[test_case(&[r("setup1"), r("setup2")], &[p("teardown1"), r("teardown2")], &["teardown1"]; "no setup and single teardown pending requires variables")]
+    #[test_case(&[r("setup1"), r("setup2")], &[r("teardown1"), r("teardown2")], &[]; "no setup and no teardown pending requires no variables")]
     #[test]
-    fn required_values(
+    fn required_variables(
         setup_fields: &[Field<String>],
         teardown_fields: &[Field<String>],
         expected: &[&str],
     ) {
         let environment = environment_with_fields(setup_fields, teardown_fields);
 
-        let res = environment.required_values();
+        let res = environment.required_variables();
         assert_eq!(
             res, expected,
-            "tests that required_values has expected value"
+            "tests that required_variables has expected value"
         )
     }
 
-    #[test_case(&["setup1", "setup2"], &["teardown1", "teardown2"]; "setup multi value and teardown multi value")]
-    #[test_case(&["setup1", "setup2"], &["teardown1"]; "setup multi value and teardown single value")]
-    #[test_case(&["setup1", "setup2"], &[]; "setup multi value and teardown no value")]
-    #[test_case(&["setup1"], &["teardown1", "teardown2"]; "setup single value and teardown multi value")]
-    #[test_case(&["setup1"], &["teardown1"]; "setup single value and teardown single value")]
-    #[test_case(&["setup1"], &[]; "setup single value and teardown no value")]
-    #[test_case(&[], &["teardown1", "teardown2"]; "setup no value and teardown multi value")]
-    #[test_case(&[], &["teardown1"]; "setup no value and teardown single value")]
-    #[test_case(&[], &[]; "setup no value and teardown no value")]
+    #[test_case(&["setup1", "setup2"], &["teardown1", "teardown2"]; "setup multi variable and teardown multi variable")]
+    #[test_case(&["setup1", "setup2"], &["teardown1"]; "setup multi variable and teardown single variable")]
+    #[test_case(&["setup1", "setup2"], &[]; "setup multi variable and teardown no variable")]
+    #[test_case(&["setup1"], &["teardown1", "teardown2"]; "setup single variable and teardown multi variable")]
+    #[test_case(&["setup1"], &["teardown1"]; "setup single variable and teardown single variable")]
+    #[test_case(&["setup1"], &[]; "setup single variable and teardown no variable")]
+    #[test_case(&[], &["teardown1", "teardown2"]; "setup no variable and teardown multi variable")]
+    #[test_case(&[], &["teardown1"]; "setup no variable and teardown single variable")]
+    #[test_case(&[], &[]; "setup no variable and teardown no variable")]
     #[test]
     fn try_template_succeeds(setup_fields: &[&str], teardown_fields: &[&str]) {
         let mut field_names: Vec<&str> = setup_fields.to_vec();
         field_names.extend_from_slice(teardown_fields);
 
-        let values = template_values(field_names.as_slice());
+        let variables = template_variables(field_names.as_slice());
         let mut environment =
             templatable_environment(field_names.as_slice(), setup_fields, teardown_fields);
 
-        let res = environment.try_template(&mut Vec::new(), &Source::local("/"), &values);
+        let res = environment.try_template(&mut Vec::new(), &Source::local("/"), &variables);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -393,7 +404,7 @@ pub(crate) mod tests {
     /// Helper function for asserting template errors are as expected
     fn assert_env_template_errors(
         environment: &mut EnvironmentConfig,
-        values: TemplateValues,
+        variables: TemplateVariables,
         expected_setup_err_fields: &[&str],
         expected_teardown_err_fields: &[&str],
     ) {
@@ -406,7 +417,7 @@ pub(crate) mod tests {
 
         assert_template_errors(
             environment,
-            values,
+            variables,
             expected_err_messages,
             expected_err_paths,
         );
@@ -415,76 +426,76 @@ pub(crate) mod tests {
     #[test_case(&["missing"], &["setup"], &["setup"]; "single field defined and missing definition")]
     #[test_case(&["missing1", "missing2"], &["setup1", "setup2"], &["setup1", "setup2"]; "multiple fields defined and both missing definition")]
     #[test_case(&["setup1", "missing2"], &["setup1", "setup2"], &["setup2"]; "multiple fields defined and one missing definition")]
-    #[test_case(&["not_provided"], &["not_provided"], &["not_provided"]; "single field defined with definition but value not provided")]
-    #[test_case(&["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"]; "multiple fields defined with definition but values not provided")]
+    #[test_case(&["not_provided"], &["not_provided"], &["not_provided"]; "single field defined with definition but variable not provided")]
+    #[test_case(&["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"]; "multiple fields defined with definition but variables not provided")]
     #[test]
-    fn try_template_setup_missing_value_definitions(
-        value_defs: &[&str],
+    fn try_template_setup_missing_variable_definitions(
+        variable_defs: &[&str],
         setup_fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let values = template_values(&["setup", "setup1", "setup2"]);
-        let mut environment = templatable_environment(value_defs, setup_fields, &[]);
+        let variables = template_variables(&["setup", "setup1", "setup2"]);
+        let mut environment = templatable_environment(variable_defs, setup_fields, &[]);
 
-        assert_env_template_errors(&mut environment, values, expected_err_fields, &[]);
+        assert_env_template_errors(&mut environment, variables, expected_err_fields, &[]);
     }
 
     #[test_case(&["missing"], &["teardown"], &["teardown"]; "single field defined and missing definition")]
     #[test_case(&["missing1", "missing2"], &["teardown1", "teardown2"], &["teardown1", "teardown2"]; "multiple fields defined and both missing definition")]
     #[test_case(&["teardown1", "missing2"], &["teardown1", "teardown2"], &["teardown2"]; "multiple fields defined and one missing definition")]
-    #[test_case(&["not_provided"], &["not_provided"], &["not_provided"]; "single field defined with definition but value not provided")]
-    #[test_case(&["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"]; "multiple fields defined with definition but values not provided")]
+    #[test_case(&["not_provided"], &["not_provided"], &["not_provided"]; "single field defined with definition but variable not provided")]
+    #[test_case(&["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"], &["not_provided1", "not_provided2"]; "multiple fields defined with definition but variables not provided")]
     #[test]
-    fn try_template_teardown_missing_value_definitions(
-        value_defs: &[&str],
+    fn try_template_teardown_missing_variable_definitions(
+        variable_defs: &[&str],
         teardown_fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let values = template_values(&["teardown", "teardown1", "teardown2"]);
-        let mut environment = templatable_environment(value_defs, &[], teardown_fields);
+        let variables = template_variables(&["teardown", "teardown1", "teardown2"]);
+        let mut environment = templatable_environment(variable_defs, &[], teardown_fields);
 
-        assert_env_template_errors(&mut environment, values, &[], expected_err_fields);
+        assert_env_template_errors(&mut environment, variables, &[], expected_err_fields);
     }
 
     #[test]
-    fn try_template_missing_setup_and_teardown_value_definitions() {
-        let values = template_values(&["setup", "teardown"]);
+    fn try_template_missing_setup_and_teardown_variable_definitions() {
+        let variables = template_variables(&["setup", "teardown"]);
         let mut environment = templatable_environment(&[], &["setup"], &["teardown"]);
 
-        assert_env_template_errors(&mut environment, values, &["setup"], &["teardown"]);
+        assert_env_template_errors(&mut environment, variables, &["setup"], &["teardown"]);
     }
 
     #[test]
-    fn try_template_missing_setup_and_teardown_values_not_provided() {
-        let values = template_values(&[]);
+    fn try_template_missing_setup_and_teardown_variables_not_provided() {
+        let variables = template_variables(&[]);
         let mut environment =
             templatable_environment(&["setup", "teardown"], &["setup"], &["teardown"]);
 
-        assert_env_template_errors(&mut environment, values, &["setup"], &["teardown"]);
+        assert_env_template_errors(&mut environment, variables, &["setup"], &["teardown"]);
     }
 
-    /// Tests that setup cannot access values from setup.provides.
-    /// Setup can only access values declared in the top-level `values` section.
+    /// Tests that setup cannot access variables from setup.provides.
+    /// Setup can only access variables declared in the top-level `variables` section.
     #[test]
-    fn try_template_setup_cannot_access_provides_values() {
-        // Setup a config where values are only defined in setup.provides, not in top-level values
+    fn try_template_setup_cannot_access_provides_variables() {
+        // Setup a config where variables are only defined in setup.provides, not in top-level variables
         let mut config = environment_with_provides(&[], &["foo", "setup-path"]);
 
-        // Values exist in the map but are only defined in provides
-        let values = template_values(&["foo", "setup-path"]);
+        // Variables exist in the map but are only defined in provides
+        let variables = template_variables(&["foo", "setup-path"]);
 
-        let res = config.try_template_setup(&mut Vec::new(), &Source::local("/"), &values);
+        let res = config.try_template_setup(&mut Vec::new(), &Source::local("/"), &variables);
 
-        // Setup should fail because it cannot access provides values
+        // Setup should fail because it cannot access provides variables
         assert!(
             res.is_err(),
-            "expected setup to fail when accessing provides values"
+            "expected setup to fail when accessing provides variables"
         );
 
         let errors = res.unwrap_err();
         let error_messages: Vec<String> = errors.iter().map(|e| e.message.clone()).collect();
 
-        // Should have errors for both values that setup tried to access from provides
+        // Should have errors for both variables that setup tried to access from provides
         assert!(
             error_messages.contains(&"foo".to_string()),
             "expected error messages to contain foo, got, {:?}",
@@ -497,34 +508,34 @@ pub(crate) mod tests {
         );
     }
 
-    /// Tests that teardown can access values from setup.provides.
-    /// Teardown can access values from both top-level `values` and `setup.provides`.
+    /// Tests that teardown can access variables from setup.provides.
+    /// Teardown can access variables from both top-level `variables` and `setup.provides`.
     #[test]
-    fn try_template_teardown_can_access_provides_values() {
-        // Setup a config where values are only defined in setup.provides, not in top-level values
+    fn try_template_teardown_can_access_provides_variables() {
+        // Setup a config where variables are only defined in setup.provides, not in top-level variables
         let mut config = environment_with_provides(&[], &["bar", "teardown-path"]);
 
-        // Values exist in the map and are defined in provides
-        let values = template_values(&["bar", "teardown-path"]);
+        // Variables exist in the map and are defined in provides
+        let variables = template_variables(&["bar", "teardown-path"]);
 
-        let res = config.try_template_teardown(&mut Vec::new(), &Source::local("/"), &values);
+        let res = config.try_template_teardown(&mut Vec::new(), &Source::local("/"), &variables);
 
-        // Teardown should succeed because it can access provides values
+        // Teardown should succeed because it can access provides variables
         assert!(
             res.is_ok(),
-            "expected teardown to succeed when accessing provides values, got {res:?}"
+            "expected teardown to succeed when accessing provides variables, got {res:?}"
         );
     }
 
-    /// Tests that setup can access values from top-level values.
-    /// Setup can access values declared in the top-level `values` section.
+    /// Tests that setup can access variables from top-level variables.
+    /// Setup can access variables declared in the top-level `variables` section.
     #[test]
-    fn try_template_setup_can_access_top_level_values() {
-        // Setup a config where values are defined in top-level values
+    fn try_template_setup_can_access_top_level_variables() {
+        // Setup a config where variables are defined in top-level variables
         let mut config = environment_with_provides(&["foo", "setup-path"], &[]);
 
-        // Values exist in the map and are defined in top-level values
-        let values: HashMap<String, Scalar> = [("foo", "a"), ("setup-path", "b")]
+        // Variables exist in the map and are defined in top-level variables
+        let variables: HashMap<String, Scalar> = [("foo", "a"), ("setup-path", "b")]
             .iter()
             .map(|(k, v)| (k.to_string(), Scalar::String(v.to_string())))
             .collect();
@@ -532,32 +543,32 @@ pub(crate) mod tests {
         let res = config.try_template_setup(
             &mut Vec::new(),
             &Source::local("/"),
-            &TemplateValues::new_stubbed(values),
+            &TemplateVariables::new_stubbed(variables),
         );
 
-        // Setup should succeed because it can access top-level values
+        // Setup should succeed because it can access top-level variables
         assert!(
             res.is_ok(),
-            "expected setup to succeed when accessing top-level values, got {res:?}"
+            "expected setup to succeed when accessing top-level variables, got {res:?}"
         );
     }
 
-    /// Tests that teardown can access values from top-level values.
-    /// Teardown can access values from both top-level `values` and `setup.provides`.
+    /// Tests that teardown can access variables from top-level variables.
+    /// Teardown can access variables from both top-level `variables` and `setup.provides`.
     #[test]
-    fn try_template_teardown_can_access_top_level_values() {
-        // Setup a config where values are defined in top-level values
+    fn try_template_teardown_can_access_top_level_variables() {
+        // Setup a config where variables are defined in top-level variables
         let mut config = environment_with_provides(&["bar", "teardown-path"], &[]);
 
-        // Values exist in the map and are defined in top-level values
-        let values = template_values(&["bar", "teardown-path"]);
+        // Variables exist in the map and are defined in top-level variables
+        let variables = template_variables(&["bar", "teardown-path"]);
 
-        let res = config.try_template_teardown(&mut Vec::new(), &Source::local("/"), &values);
+        let res = config.try_template_teardown(&mut Vec::new(), &Source::local("/"), &variables);
 
-        // Teardown should succeed because it can access top-level values
+        // Teardown should succeed because it can access top-level variables
         assert!(
             res.is_ok(),
-            "expected teardown to succeed when accessing top-level values, got {res:?}"
+            "expected teardown to succeed when accessing top-level variables, got {res:?}"
         );
     }
 
@@ -600,15 +611,15 @@ pub(crate) mod tests {
         CommandSection::empty(),
         CommandSection::empty(),
         &["foo"],
-        &[ErrorKind::DuplicateValueNames];
-        "duplicate provides value"
+        &[ErrorKind::DuplicateVariableNames];
+        "duplicate provides variable"
     )]
     #[test_case(
         cmd_with_required_file(),
         cmd_with_required_file(),
         &["foo", "bar"],
-        &[ErrorKind::DuplicateValueNames, ErrorKind::RequiredFileMissing, ErrorKind::RequiredFileMissing];
-        "setup and teardown and duplicate values"
+        &[ErrorKind::DuplicateVariableNames, ErrorKind::RequiredFileMissing, ErrorKind::RequiredFileMissing];
+        "setup and teardown and duplicate variables"
     )]
     #[test]
     fn try_check_errors(
@@ -618,10 +629,10 @@ pub(crate) mod tests {
         expected_err_kinds: &[ErrorKind],
     ) {
         let environment = EnvironmentConfig {
-            values: value_definitions(provides),
+            variable_definitions: variable_definitions(provides),
             setup: SetupSection {
                 command: setup_command,
-                provides: value_definitions(provides),
+                provides: variable_definitions(provides),
             },
             teardown: teardown_command,
             ..EnvironmentConfig::empty()

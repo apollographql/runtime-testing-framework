@@ -3,7 +3,7 @@ description: |
   A test plan for running simple HTTP GET requests against a web server
   that requires basic auth.
 
-values:
+variables:
   credentials_env_var: "AUTH_HEADER"
   server_command: "python3 server.py"
 

@@ -1,7 +1,7 @@
 name: scenario-sanity-check
 description: "Sanity check that we template and run commands correctly in the scenario"
 
-values:
+variable_definitions:
   - name: message
     description: "A message to echo out"
   - name: setup_output

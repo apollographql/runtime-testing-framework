@@ -1,13 +1,16 @@
-name: unknown-values
+name: duplicate-variable-names
 description: |
-  Check the error shown when there are values not given a value for runtime
-  This is a valid test plan but will result in an error if no values are supplied
-  with the --value flag in the cli
+  Check the error shown when a test plan defines duplicate variable names
 
 scenario:
   inline:
     name: inline-scenario
     description: an inline scenario
+    variable_definitions:
+      - name: foo
+        description: a value foo
+      - name: foo
+        description: a value foo
     command:
       name: scenario.sh
       kind: inline
@@ -26,9 +29,6 @@ environment:
         content: |
           #!/usr/bin/env sh
           echo "Hello, World!"
-      provides:
-        - name: foo
-          description: a value foo
     teardown:
       command:
         name: teardown.sh
@@ -36,5 +36,3 @@ environment:
         content: |
           #!/usr/bin/env sh
           echo "Hello, World!"
-      env_vars:
-        FOO: "{{ foo }}"

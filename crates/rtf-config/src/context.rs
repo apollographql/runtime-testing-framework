@@ -70,9 +70,9 @@ pub trait ResolutionContext {
     }
 
     #[allow(unused_variables)]
-    fn set_values(&mut self, values: &HashMap<String, Scalar>) {}
+    fn set_variables(&mut self, variables: &HashMap<String, Scalar>) {}
 
-    fn values(&self) -> Option<&HashMap<String, Scalar>> {
+    fn variables(&self) -> Option<&HashMap<String, Scalar>> {
         None
     }
 
@@ -176,7 +176,7 @@ pub trait ResolutionContext {
 pub struct Context {
     client: ReqwestClient,
     supergraph_details: Mutex<HashMap<String, Arc<SupergraphDetails>>>,
-    values: HashMap<String, Scalar>,
+    variables: HashMap<String, Scalar>,
     fp_output_paths: HashMap<String, PathBuf>,
 }
 
@@ -263,12 +263,12 @@ impl ResolutionContext for Context {
         self.fp_output_paths.get(&key).cloned()
     }
 
-    fn set_values(&mut self, values: &HashMap<String, Scalar>) {
-        self.values = values.clone();
+    fn set_variables(&mut self, variables: &HashMap<String, Scalar>) {
+        self.variables = variables.clone();
     }
 
-    fn values(&self) -> Option<&HashMap<String, Scalar>> {
-        Some(&self.values)
+    fn variables(&self) -> Option<&HashMap<String, Scalar>> {
+        Some(&self.variables)
     }
 
     async fn with_supergraph_details<T>(

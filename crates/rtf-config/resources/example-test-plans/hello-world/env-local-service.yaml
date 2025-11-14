@@ -1,7 +1,7 @@
 name: env-local-service
 description: "Spin up a locally running HTTP server"
 
-values:
+variables:
   - name: credentials_env_var
     description: "An environment variable that contains a '$user:$pwd' string"
   - name: server_command

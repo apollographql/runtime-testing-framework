@@ -4,7 +4,7 @@ description: |
   and simply appends a section terminator to the output file during
   teardown.
 
-values:
+variable_definitions:
   - name: message
     description: "The message to echo out during setup"
   - name: setup_subject

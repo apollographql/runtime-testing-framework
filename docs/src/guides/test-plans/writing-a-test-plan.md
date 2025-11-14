@@ -10,7 +10,7 @@
   - [`environment`](#environment)
 - [Checking the test plan](#checking-the-test-plan)
 - [Running the test plan](#running-the-test-plan)
-- [Setting values](#setting-values)
+- [Setting variables](#setting-variables)
 - [Using a matrix](#using-a-matrix)
 
 ---
@@ -147,8 +147,6 @@ Add the `environment` field to the `test-plan.yaml` file:
 ```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
-values:
-  example_value: "value"
 scenario:
   inline:
     name: Inline scenario config
@@ -207,13 +205,11 @@ This should result in the fully templated test plan being printed to the termina
 ```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
-values:
-  example_value: value
 matrix: {}
 scenario:
   name: Inline scenario config
   description: An inline scenario config
-  values: []
+  variable_definitions: []
   command:
     name: scenario.sh
     kind: inline
@@ -227,7 +223,7 @@ scenario:
 environment:
   name: Inline environment config
   description: An inline environment config
-  values: []
+  variable_definitions: []
   setup:
     command:
       name: setup.sh
@@ -253,12 +249,12 @@ environment:
     file_providers: []
 ```
 
-This highlights two optional fields for test plans that have not yet been used; `values` and
+This highlights two optional fields for test plans that have not yet been used; `variables` and
 `matrix`. These are discussed more below.
 
 ## Running the test plan
 
-Before looking at `values` and `matrix`, let's run the test plan:
+Before looking at `variables` and `matrix`, let's run the test plan:
 
 ```bash
 rtf run test-plan.yaml
@@ -272,13 +268,13 @@ This results in the following terminal output and an `output` directory:
 "environment teardown command executed"
 ```
 
-The `output` directory contains two files, `resolved-test-plan.yaml` and `test-plan-values.json`.
+The `output` directory contains two files, `resolved-test-plan.yaml` and `test-plan-variables.json`.
 
 - `resolved-test-plan.yaml` contains the fully resolved test plan config. This should be the same as
   what was shown in the `rtf template` command. This is a way to sanity check the test plan that ran
   to give you the output.
-- `test-plan-values.json` contains the values used during the execution of the test plan. This is
-  empty since no values were set.
+- `test-plan-variables.json` contains the variables used during the execution of the test plan. This
+  is empty since no variables were set.
 
 Remove the output directory before continuing (forgetting to do this will result in an error next
 time `rtf run` is used):
@@ -292,41 +288,41 @@ rm -rf output/
 > `rtf run` to set a different output directory if you want to keep the existing output and run a
 > new test.
 
-## Setting values
+## Setting variables
 
-The `values` field is used to set global values that can be referenced in your scenario and/or
-environment. Any values set in the test plan config can be overridden using the `--value` and
-`--values` flags in the rtf CLI (see the
-[modifying values section of the hello world guide](../hello-world.md#modifying-values) for more
-information).
+The `variables` field is used to set global variables that can be referenced in your scenario and/or
+environment. Any variables set in the test plan config can be overridden using the `--var` and
+`--vars` flags in the rtf CLI (see the
+[modifying variables section of the hello world guide](../hello-world.md#modifying-variables) for
+more information).
 
-Let's add some example values to `test-plan.yaml`. We are also going to update the scenario command
-to use this value. The ["Writing a command" section](writing-a-command.md) will explain how this
-works, for now just add the configuration:
+Let's add some example variables to `test-plan.yaml`. We are also going to update the scenario
+command to use this variable. The ["Writing a command" section](writing-a-command.md) will explain
+how this works, for now just add the configuration:
 
 ```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
-# --- Add values ---
-values:
-  example_value: example value
+# --- Add variables ---
+variables:
+  example_variable: example variable
 # ------------------
 scenario:
   inline:
     name: Inline scenario config
     description: An inline scenario config
 # --- Update scenario ---
-    values:
-      - name: example_value
-        description: An example value
+    variable_definitions:
+      - name: example_variable
+        description: An example variable
     command:
       name: scenario.sh
       kind: inline
       content: |
         #!/usr/bin/env sh
-        echo "$EXAMPLE_VALUE"
+        echo "$EXAMPLE_VARIABLE"
     env_vars:
-      EXAMPLE_VALUE: "{{ example_value }}"
+      EXAMPLE_VARIABLE: "{{ example_variable }}"
 # -----------------------
 environment:
   inline:
@@ -355,53 +351,53 @@ You can see the value being used by running the test plan again:
 ```bash
 $ rtf run test-plan.yaml
 environment setup command executed
-example value
+example variable
 environment teardown command executed
 ```
 
-Now, the `test-plan-values.json` file contains the value that we set in the test plan:
+Now, the `test-plan-variables.json` file contains the variable that we set in the test plan:
 
 ```bash
-$ cat output/test-plan-values.json 
+$ cat output/test-plan-variables.json 
 {
-  "example_value": "example value"
+  "example_variable": "example variable"
 }
 ```
 
 ## Using a matrix
 
-The `matrix` field is used to create a matrix of values to iterate over (see the
-[matrix values section of the hello world guide](../hello-world.md#matrix-values) for more
+The `matrix` field is used to create a matrix of variable dimensions to iterate over (see the
+[matrix variables section of the hello world guide](../hello-world.md#matrix-variables) for more
 information). A matrix can only be defined in the test plan config.
 
-Let's add a matrix to and remove the `values` from our `test-plan.yaml`:
+Let's add a matrix to and remove the `variables` from our `test-plan.yaml`:
 
 ```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
-# --- Replace values with a matrix ---
+# --- Replace variables with a matrix ---
 matrix:
-  variant_names: "${example_value}"
+  variant_names: "${example_variable}"
   dimensions:
-    example_value:
-      - value1
-      - value2
+    example_variable:
+      - variable1
+      - variable2
 # ------------------------------------
 scenario:
   inline:
     name: Inline scenario config
     description: An inline scenario config
-    values:
-      - name: example_value
-        description: An example value
+    variable_definitions:
+      - name: example_variable
+        description: An example variable
     command:
       name: scenario.sh
       kind: inline
       content: |
         #!/usr/bin/env sh
-        echo "$EXAMPLE_VALUE"
+        echo "$EXAMPLE_VARIABLE"
     env_vars:
-      EXAMPLE_VALUE: "{{ example_value }}"
+      EXAMPLE_VARIABLE: "{{ example_variable }}"
 environment:
   inline:
     name: Inline environment config
@@ -436,24 +432,25 @@ executed twice. The `output` directory will also have a different structure:
 
 ```bash
 $ ls output/
-value1        value2
+variable1        variable2
 ```
 
-Let's look at each of those matrix directories to see the different values used per execution:
+Let's look at each of those matrix directories to see the different variable values used per
+execution:
 
 ```bash
-$ cat output/value1/test-plan-values.json 
+$ cat output/variable1/test-plan-variables.json 
 {
-  "example_value": "value1"
+  "example_variable": "variable1"
 }
 
-$ cat output/value2/test-plan-values.json
+$ cat output/variable2/test-plan-variables.json
 {
-  "example_value": "value2"
+  "example_variable": "variable2"
 }
 ```
 
-The `example-value`'s value changes per execution.
+The `example-variable`'s variable changes per execution.
 
 ---
 

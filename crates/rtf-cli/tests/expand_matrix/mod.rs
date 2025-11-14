@@ -11,13 +11,14 @@ fn is_executable() {
     res.stderr(contains("Usage: rtf expand-matrix"));
 }
 
+#[test_case("backwards-compatible-variable-config"; "backwards compatible variable config")]
 #[test_case("command-from-spec"; "command from spec")]
 #[test_case("custom-matrix-variant-names"; "custom matrix variant names")]
 #[test_case("matrix-include"; "matrix include")]
-#[test_case("matrix-values"; "matrix values")]
+#[test_case("matrix-variables"; "matrix variables")]
 #[test_case("sanity-check"; "sanity check")]
-#[test_case("resolved-values"; "resolved-values")]
-#[test_case("value-overrides"; "value overrides")]
+#[test_case("resolved-variables"; "resolved-variables")]
+#[test_case("variable-overrides"; "variable overrides")]
 #[test]
 fn pretty_formats_correctly(test_plan_dir: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
@@ -40,10 +41,10 @@ fn pretty_formats_correctly(test_plan_dir: &str) {
 #[test_case("command-from-spec"; "command from spec")]
 #[test_case("custom-matrix-variant-names"; "custom matrix variant names")]
 #[test_case("matrix-include"; "matrix include")]
-#[test_case("matrix-values"; "matrix values")]
+#[test_case("matrix-variables"; "matrix variables")]
 #[test_case("sanity-check"; "sanity check")]
-#[test_case("resolved-values"; "resolved-values")]
-#[test_case("value-overrides"; "value overrides")]
+#[test_case("resolved-variables"; "resolved-variables")]
+#[test_case("variable-overrides"; "variable overrides")]
 #[test]
 fn compact_formats_correctly(test_plan_dir: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();

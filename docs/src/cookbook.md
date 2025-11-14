@@ -33,7 +33,7 @@ matrix:
     my_dimension: ["foo", "bar"]
 ```
 
-**Discussion**: You _must_ include your iteration value within your `variant_names` template in
+**Discussion**: You _must_ include your iteration variable within your `variant_names` template in
 order to produce unique variant names, as each original variant you are wanting to repeat will have
 the same values other than this.
 
@@ -47,8 +47,8 @@ required to generate the output of each provider.
 something like the expected running time or other properties related to the number of variants being
 run.
 
-**Solution**: The `rtf expand-matrix` subcommand can be used to output the fully expanded variant
-values in the order they will be executed by `rtf run`:
+**Solution**: The `rtf expand-matrix` subcommand can be used to output the fully expanded variables
+for each variant in the order they will be executed by `rtf run`:
 
 ```yaml
 # Example matrix setup
@@ -70,7 +70,7 @@ $ rtf expand-matrix test-plan.yaml
   "variants": [
     {
       "name": "red_apple_foo_1",
-      "values": {
+      "variables": {
         "color": "red",
         "count": 1,
         "fruit": "apple",
@@ -90,11 +90,11 @@ $ rtf test-plan.yaml | jq '.variants | length'
 ```
 
 **Discussion**: This will work even for Test Plans without a matrix by returning the single
-"variant" representing the top level values for the Test Plan.
+"variant" representing the top level variables for the Test Plan.
 
 The variants returned by `rtf expand-matrix` are computed using the Test Plan as it is written.
-Specifying additional matrix dimensions via the `--values` flag on `rtf run` will alter the number
-of variants.
+Specifying additional matrix dimensions via the `--vars` flag on `rtf run` will alter the number of
+variants.
 
 ## Previewing matrix variant names
 
@@ -136,7 +136,7 @@ green_pear_bar_3
 ```
 
 **Discussion**: The variants returned by `rtf expand-matrix` are computed using the Test Plan as it
-is written. Specifying additional matrix dimensions via the `--values` flag on `rtf run` will alter
+is written. Specifying additional matrix dimensions via the `--vars` flag on `rtf run` will alter
 the number of variants which in turn may result in a previously valid `variant_names` template
 becoming invalid if it now produces non-unique names.
 

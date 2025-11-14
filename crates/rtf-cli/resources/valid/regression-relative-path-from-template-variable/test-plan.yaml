@@ -2,10 +2,10 @@ name: Regression test for RR-395
 description: |
   Should correctly pick up the relative path next to the test plan instead of the
   one next to the scenario. Before the fix introduced in RR-395, relative paths
-  set via a template value were incorrectly resolved relative to the file containing
-  the relative_path file provider rather than the source of the template value.
+  set via a template variable were incorrectly resolved relative to the file containing
+  the relative_path file provider rather than the source of the template variable.
 
-values:
+variables:
   cat_path: "cat-me.txt"
 
 scenario:

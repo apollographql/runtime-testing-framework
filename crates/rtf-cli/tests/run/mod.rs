@@ -18,8 +18,13 @@ fn basic_completes() {
 }
 
 #[test]
+fn backwards_compatible_variable_config() {
+    is_valid_test_plan("resources/valid/backwards-compatible-variable-config");
+}
+
+#[test]
 fn matrix_completes() {
-    is_valid_test_plan("resources/valid/matrix-values");
+    is_valid_test_plan("resources/valid/matrix-variables");
 }
 
 #[test]
@@ -28,54 +33,80 @@ fn command_from_spec_completes() {
 }
 
 #[test]
-fn values_override_works() {
+fn variables_override_works() {
     // default echo arg should be foo
-    prepare_rtf_run("resources/valid/value-overrides")
+    prepare_rtf_run("resources/valid/variable-overrides")
         .assert()
         .success()
         .stdout(contains("foo"));
 
-    // specifying as a command line value should override
-    prepare_rtf_run("resources/valid/value-overrides")
-        .arg("--value")
+    // specifying as a command line variable should override
+    prepare_rtf_run("resources/valid/variable-overrides")
+        .arg("--var")
         .arg("echo_me=bar")
         .assert()
         .success()
         .stdout(contains("bar"));
 
-    // values.json should override to baz
-    prepare_rtf_run("resources/valid/value-overrides")
-        .arg("--values")
-        .arg("resources/valid/value-overrides/values.json")
+    // variables.json should override to baz
+    prepare_rtf_run("resources/valid/variable-overrides")
+        .arg("--vars")
+        .arg("resources/valid/variable-overrides/variables.json")
         .assert()
         .success()
         .stdout(contains("baz"));
 }
 
 #[test]
-fn regression_relative_path_from_value() {
-    // When using a value from the test plan we should resolve relative to the directory
+fn variables_override_with_backwards_compatible_flag_works() {
+    // default echo arg should be foo
+    prepare_rtf_run("resources/valid/variable-overrides")
+        .assert()
+        .success()
+        .stdout(contains("foo"));
+
+    // specifying as a command line variable should override
+    prepare_rtf_run("resources/valid/variable-overrides")
+        .arg("--value")
+        .arg("echo_me=bar")
+        .assert()
+        .success()
+        .stdout(contains("bar"));
+
+    // variables.json should override to baz
+    prepare_rtf_run("resources/valid/variable-overrides")
+        .arg("--values")
+        .arg("resources/valid/variable-overrides/variables.json")
+        .assert()
+        .success()
+        .stdout(contains("baz"));
+}
+
+#[test]
+fn regression_relative_path_from_variable() {
+    // When using a variable from the test plan we should resolve relative to the directory
     // containing the test plan
-    prepare_rtf_run("resources/valid/regression-relative-path-from-template-value")
+    prepare_rtf_run("resources/valid/regression-relative-path-from-template-variable")
         .assert()
         .success()
         .stdout(contains("from test plan dir"));
 
-    // When using a value from values.json we should resolve relative to the directory
-    // containing the values file
-    prepare_rtf_run("resources/valid/regression-relative-path-from-template-value")
-        .arg("--values")
-        .arg("resources/valid/regression-relative-path-from-template-value/values-dir/values.json")
+    // When using a variable from variables.json we should resolve relative to the directory
+    // containing the variables file
+    prepare_rtf_run("resources/valid/regression-relative-path-from-template-variable")
+        .arg("--vars")
+        .arg("resources/valid/regression-relative-path-from-template-variable/variables-dir/variables.json")
         .assert()
         .success()
-        .stdout(contains("from values.json dir"));
+        .stdout(contains("from variables.json dir"));
 
-    // When using a command line value we should resolve relative to the current working directory
-    let mut cmd = prepare_rtf_run("resources/valid/regression-relative-path-from-template-value");
+    // When using a command line variable we should resolve relative to the current working directory
+    let mut cmd =
+        prepare_rtf_run("resources/valid/regression-relative-path-from-template-variable");
     let dir = cmd.child_path("cli-working-dir");
 
     cmd.current_dir(dir)
-        .arg("--value")
+        .arg("--var")
         .arg("cat_path=cat-me.txt")
         .assert()
         .success()
@@ -83,21 +114,21 @@ fn regression_relative_path_from_value() {
 }
 
 #[test]
-fn override_resolved_values_works() {
-    prepare_rtf_run("resources/valid/resolved-values")
+fn override_resolved_variables_works() {
+    prepare_rtf_run("resources/valid/resolved-variables")
         .assert()
         .success()
         .stdout(contains(r#""foo":"bar""#));
 
-    prepare_rtf_run("resources/valid/resolved-values")
-        .arg("--value")
+    prepare_rtf_run("resources/valid/resolved-variables")
+        .arg("--var")
         .arg("foo=baz")
         .assert()
         .success()
         .stdout(contains(r#""foo":"baz""#));
 
-    prepare_rtf_run("resources/valid/resolved-values")
-        .arg("--value")
+    prepare_rtf_run("resources/valid/resolved-variables")
+        .arg("--var")
         .arg("echo_me=baz")
         .assert()
         .success()

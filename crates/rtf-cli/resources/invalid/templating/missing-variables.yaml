@@ -1,10 +1,7 @@
-name: inconsistent-matrix-value
+name: missing-variables
 description: |
-  Check the error shown when there are inconsistent value types defined in the matrix
-
-matrix:
-  dimensions:
-    foo: ["foo", 42]
+  Check the error shown when there are template strings using variables not defined in the
+  variables section of their config
 
 scenario:
   inline:
@@ -16,6 +13,8 @@ scenario:
       content: |
         #!/usr/bin/env sh
         echo "Hello, World!"
+    env_vars:
+      FOO: "{{ foo }}"
 
 environment:
   inline:
@@ -28,6 +27,8 @@ environment:
         content: |
           #!/usr/bin/env sh
           echo "Hello, World!"
+      env_vars:
+        BAR: "{{ bar }}"
     teardown:
       command:
         name: teardown.sh
@@ -35,3 +36,5 @@ environment:
         content: |
           #!/usr/bin/env sh
           echo "Hello, World!"
+      env_vars:
+        BAZ: "{{ baz }}"

@@ -1,13 +1,8 @@
-name: conflicting-keys
+name: unknown-variables
 description: |
-  Check the error shown when there are conflicting keys defined in the variables and matrix
-
-variables:
-  foo: foo
-  bar: bar
-matrix:
-  dimensions:
-    foo: ["foo1", "foo2"]
+  Check the error shown when there are variables not given a variable for runtime
+  This is a valid test plan but will result in an error if no variables are supplied
+  with the --var flag in the cli
 
 scenario:
   inline:
@@ -31,6 +26,9 @@ environment:
         content: |
           #!/usr/bin/env sh
           echo "Hello, World!"
+      provides:
+        - name: foo
+          description: a value foo
     teardown:
       command:
         name: teardown.sh
@@ -38,3 +36,5 @@ environment:
         content: |
           #!/usr/bin/env sh
           echo "Hello, World!"
+      env_vars:
+        FOO: "{{ foo }}"

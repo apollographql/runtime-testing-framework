@@ -15,7 +15,7 @@
 _Command Providers_ are the core executable element making up RTF Test Plans. They allow you, the
 user, to specify how a given command should be run and what resources it needs in order to do so.
 Both the [Environment][0] and [Scenario][1] configuration files are simply ways of defining Command
-Providers with known semantics for RTF to execute alongside templating values that can be used to
+Providers with known semantics for RTF to execute alongside templating variables that can be used to
 customise how that command is run.
 
 The configuration for a Command Provider consists of three top level sections:
@@ -111,13 +111,13 @@ command:
 
 ## The env vars section
 
-Environment variables are defined simply as key value pairs under the `env_vars` key. Values may be
-templated using the `"{{ my_value }}"` syntax using any scalar value (not just strings). The
+Environment variables are defined simply as key value pairs under the `env_vars` key. Variables may
+be templated using the `"{{ my_variable }}"` syntax using any scalar value (not just strings). The
 environment variables explicitly defined under this key will be merged with the environment
 available to RTF itself before your command is executed.
 
 ```yaml
-# values:
+# variables:
 #   my_string_env_var: "bar"
 #   my_integer_env_var: 42
 

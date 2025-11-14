@@ -1,7 +1,7 @@
 name: repro for RR-395
 description: This will cat out the wrong file
 
-values:
+variable_definitions:
   - name: cat_path
     description: "The path to a file to cat out"
 

@@ -32,12 +32,12 @@ pub mod templating;
 pub use providers::file::Source;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
-pub struct ValueDefinition {
-    /// The templating name for this value
+pub struct VariableDefinition {
+    /// The templating name for this variable
     pub name: String,
-    /// A brief description of how this value is used
+    /// A brief description of how this variable is used
     pub description: String,
-    /// An optional default to use if this value is not provided in the parent test plan
+    /// An optional default to use if this variable is not provided in the parent test plan
     #[serde(default)]
     pub default: Option<templating::Scalar>,
 }

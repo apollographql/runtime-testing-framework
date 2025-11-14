@@ -1,5 +1,5 @@
 use crate::{
-    cli::Values,
+    cli::Variables,
     commands::{get_context_and_check_outdir, load_and_resolve_test_plan},
 };
 use anyhow::anyhow;
@@ -8,7 +8,7 @@ use rtf_config::{
     context::ResolutionContext,
     formats::TestPlanConfig,
     providers::file::Source,
-    templating::{self, TemplateValues},
+    templating::{self, TemplateVariables},
 };
 use std::{
     collections::HashMap,
@@ -18,12 +18,12 @@ use std::{
 };
 use tracing::info;
 
-const VALUES_PATH: &str = "test-plan-values.json";
+const VARIABLES_PATH: &str = "test-plan-variables.json";
 const RESOLVED_TP_PATH: &str = "resolved-test-plan.yaml";
 
 pub async fn check_and_run_local_test_plan(
     config_file_path: &str,
-    values: Values,
+    variables: Variables,
     out_dir: &str,
 ) -> anyhow::Result<()> {
     let (ctx, out_dir) = get_context_and_check_outdir(out_dir)?;
@@ -32,13 +32,13 @@ pub async fn check_and_run_local_test_plan(
     info!("loading and resolving test plan");
     let test_plan = load_and_resolve_test_plan(config_file_path, &ctx).await?;
 
-    check_and_run_test_plan_with_context(test_plan, values, &out_dir, cwd, ctx).await
+    check_and_run_test_plan_with_context(test_plan, variables, &out_dir, cwd, ctx).await
 }
 
 pub async fn check_and_run_github_test_plan(
     org_repo_path: String,
     git_ref: Option<String>,
-    values: Values,
+    variables: Variables,
     out_dir: &str,
 ) -> anyhow::Result<()> {
     let (ctx, out_dir) = get_context_and_check_outdir(out_dir)?;
@@ -55,18 +55,18 @@ pub async fn check_and_run_github_test_plan(
     let test_plan =
         TestPlanConfig::try_load_and_resolve_from_github(org, repo, path, git_ref, &ctx).await?;
 
-    check_and_run_test_plan_with_context(test_plan, values, &out_dir, cwd, ctx).await
+    check_and_run_test_plan_with_context(test_plan, variables, &out_dir, cwd, ctx).await
 }
 
 async fn check_and_run_test_plan_with_context(
     mut test_plan: TestPlanConfig,
-    values: Values,
+    variables: Variables,
     out_dir: &Path,
     cwd: PathBuf,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
     let override_sources =
-        values.merge(&mut test_plan, &Source::local(cwd.join("cli")), &mut ctx)?;
+        variables.merge(&mut test_plan, &Source::local(cwd.join("cli")), &mut ctx)?;
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work()?;
@@ -89,7 +89,7 @@ async fn check_and_run_test_plan_with_context(
 
     for (mut i, (name, tp)) in test_plan.try_iter_matrix_variants()?.enumerate() {
         i += 1;
-        ctx.set_values(&tp.values);
+        ctx.set_variables(&tp.variables);
         let sub_dir = out_dir.join(name);
         info!("creating output directory for matrix variant {i}/{n}");
         ctx.create_dir_all(&sub_dir)?;
@@ -108,13 +108,13 @@ async fn run_one(
     ctx: &mut impl ResolutionContext,
 ) -> anyhow::Result<()> {
     info!("templating environment setup");
-    let values = take(&mut test_plan.values);
-    let mut template_values = TemplateValues::new(
-        values,
+    let variables = take(&mut test_plan.variables);
+    let mut template_variables = TemplateVariables::new(
+        variables,
         test_plan.sources.test_plan().clone(),
         override_sources.clone(),
     );
-    test_plan.try_template_environment_setup(&template_values)?;
+    test_plan.try_template_environment_setup(&template_variables)?;
 
     info!("checking environment setup");
     test_plan
@@ -125,12 +125,12 @@ async fn run_one(
 
     info!("executing environment setup");
     let setup_provides = test_plan.run_environment_setup(out_dir, ctx).await?;
-    template_values.extend(Source::local(out_dir), setup_provides);
+    template_variables.extend(Source::local(out_dir), setup_provides);
 
     info!("templating scenario and environment teardown commands");
     let mut builder =
-        templating::ErrorBuilder::from(test_plan.try_template_scenario(&template_values));
-    builder.append(test_plan.try_template_environment_teardown(&template_values));
+        templating::ErrorBuilder::from(test_plan.try_template_scenario(&template_variables));
+    builder.append(test_plan.try_template_environment_teardown(&template_variables));
     builder.into_result(())?;
 
     info!("checking scenario and environment teardown commands");
@@ -150,10 +150,10 @@ async fn run_one(
     info!("executing environment teardown");
     test_plan.run_environment_teardown(out_dir, ctx).await?;
 
-    info!("writing out resolved test plan and values");
+    info!("writing out resolved test plan and variables");
     ctx.write(
-        out_dir.join(VALUES_PATH),
-        serde_json::to_string_pretty(template_values.inner())?,
+        out_dir.join(VARIABLES_PATH),
+        serde_json::to_string_pretty(template_variables.inner())?,
     )?;
     ctx.write(
         out_dir.join(RESOLVED_TP_PATH),

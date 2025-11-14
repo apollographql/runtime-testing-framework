@@ -66,7 +66,8 @@ Finally, update the `test-plan.yaml` file to use the new `environment.yaml` file
 ```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
-  scenario_value: "scenario executed with test plan value"
+variables:
+  scenario_variable: "scenario executed with test plan variable"
 scenario:
   from:
     kind: local
@@ -83,16 +84,15 @@ Let's verify this has made no material difference to the templated test plan:
 $ rtf template test-plan.yaml --check
 name: Hello World
 description: A test plan created as a guide for writing test plans
-values:
-  scenario_value: scenario executed with test plan value
-  example_value: value
+variables:
+  scenario_variable: scenario executed with test plan variable
 matrix: {}
 scenario:
   name: Inline scenario config
   description: An inline scenario config
-  values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
+  variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
     default: scenario executed with default value
   command:
     name: scenario.sh
@@ -100,12 +100,12 @@ scenario:
     path: ../scripts/scenario.sh
     args: []
   env_vars:
-    SCENARIO_ENV: scenario executed with test plan value
+    SCENARIO_ENV: scenario executed with test plan variable
   file_providers: []
 environment:
   name: Inline environment config
   description: An inline environment config
-  values: []
+  variable_definitions: []
   setup:
     command:
       name: setup.sh
@@ -143,9 +143,9 @@ called `provides` which we'll explain in more detail in the
   string. It has no impact on the execution of an environment.
 - `description` (required) is used to give more information about the environment. It can be any
   valid string. It has no impact on the execution of an environment.
-- `values` (optional) are used to define which values an environment requires to successfully
-  execute. This works the same as it does for a scenario and is explained more in the
-  ["using values"](writing-a-scenario.md#using-values) section of that guide.
+- `variable_definitions` (optional) are used to define which variables an environment requires to
+  successfully execute. This works the same as it does for a scenario and is explained more in the
+  ["using variables"](writing-a-scenario.md#using-variables) section of that guide.
 - `setup` (required) is used to define the command that executes at the start of the `rtf run`
   command. It is intended to be used to create and configure the environment for the scenario to
   test. It requires the following keys:
@@ -156,8 +156,9 @@ called `provides` which we'll explain in more detail in the
   - `file_providers` (optional) is used to define the files and data that the environment setup
     depends on to execute. The ["Using file providers" guide](using-file-providers.md) explains how
     these are used in more detail.
-  - `provides` (optional) is unique to the environment setup and is used to set values that can only
-    be known at runtime. This is explained more in the ["Using provides" section](#using-provides).
+  - `provides` (optional) is unique to the environment setup and is used to set variables that can
+    only be known at runtime. This is explained more in the
+    ["Using provides" section](#using-provides).
 - `teardown` (required) is used to define the command that executes at the end of the `rtf run`
   command. It is intended to be used to collect results and shutdown the environment the scenario
   tested. It requires the following keys:
@@ -171,11 +172,11 @@ called `provides` which we'll explain in more detail in the
 
 ## Using provides
 
-The `provides` key is used to take values from the environment setup and make them available to the
-scenario and environment teardown steps. The most common use case for this is when the environment
-setup starts a process with some ID that can only be known at runtime. That ID is required by the
-environment teardown so it can stop the process once the test is done. In practice, this can be used
-to set any value for the scenario and environment teardown to use.
+The `provides` key is used to take variables from the environment setup and make them available to
+the scenario and environment teardown steps. The most common use case for this is when the
+environment setup starts a process with some ID that can only be known at runtime. That ID is
+required by the environment teardown so it can stop the process once the test is done. In practice,
+this can be used to set any variable for the scenario and environment teardown to use.
 
 Before we look at how `provides` works, let's update our environment setup command in
 `environment.yaml`:
@@ -240,12 +241,12 @@ Let's verify this works:
 $ rtf run test-plan.yaml
 Environment setup complete. PROCESS_ID=1
 Running scenario from an external file
-scenario executed with test plan value
+scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=not yet from setup
 ```
 
-The `provides` key defines values that are specified in the config in the exact same way that
-`values` are. Let's update the `environment.yaml`:
+The `provides` key defines variables that are specified in the config in the exact same way that
+`variables` are. Let's update the `environment.yaml`:
 
 ```yaml
 name: Inline environment config
@@ -278,9 +279,9 @@ teardown:
 # -------------------------------
 ```
 
-> **Note** If you want to check this templates, you'll need to specify a value for `process_id`
-> using `--value process_id="dummy_id"`. If you don't do this, you'll get
-> `ERROR (environment.teardown.env_vars.PROCESS_ID) unknown templating value: process_id`.
+> **Note** If you want to check this templates, you'll need to specify a variable for `process_id`
+> using `--var process_id="dummy_id"`. If you don't do this, you'll get
+> `ERROR (environment.teardown.env_vars.PROCESS_ID) unknown templating variable: process_id`.
 
 If we try to run this, it won't work:
 
@@ -330,7 +331,7 @@ Now, if we run again, we'll see the `process_id` being successfully used in the 
 $ rtf run test-plan.yaml
 Environment setup complete. PROCESS_ID=1
 Running scenario from an external file
-scenario executed with test plan value
+scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=1
 ```
 
@@ -365,8 +366,9 @@ to `test-plan.yaml`:
 ```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
-
-  scenario_value: "scenario executed with test plan value"
+variables:
+  scenario_variable: "scenario executed with test plan variable"
+  process_id: dummy
 scenario:
   from:
     kind: local
@@ -388,23 +390,22 @@ environment:
 Before checking if this works, let's look at how it works. We only want to change the
 `setup.command`, so only that segment of the config is required. rtf will merge the YAML on matching
 keys before checking if it templates. If you run the `template` command now (pay attention to the
-`--value` flag here, we need this because of the `provides` value):
+`--var` flag here, we need this because of the `provides` variable):
 
 ```bash
-$ template rtf-hello-world/test-plan.yaml --check --value process_id=dummy`
+$ template rtf-hello-world/test-plan.yaml --check --var process_id=dummy`
 name: Hello World
 description: A test plan created as a guide for writing test plans
-values:
-  scenario_value: scenario executed with test plan value
-  example_value: value
+variables:
+  scenario_variable: scenario executed with test plan variable
   process_id: dummy
 matrix: {}
 scenario:
   name: Inline scenario config
   description: An inline scenario config
-  values:
-  - name: scenario_value
-    description: An example value that the scenario expects to be defined
+  variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
     default: scenario executed with default value
   command:
     name: scenario.sh
@@ -412,12 +413,12 @@ scenario:
     path: ../scripts/scenario.sh
     args: []
   env_vars:
-    SCENARIO_ENV: scenario executed with test plan value
+    SCENARIO_ENV: scenario executed with test plan variable
   file_providers: []
 environment:
   name: Inline environment config
   description: An inline environment config
-  values: []
+  variable_definitions: []
   setup:
     command:
       name: setup.sh
@@ -452,7 +453,7 @@ $ rtf run test-plan.yaml
 Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
-scenario executed with test plan value
+scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=2
 ```
 

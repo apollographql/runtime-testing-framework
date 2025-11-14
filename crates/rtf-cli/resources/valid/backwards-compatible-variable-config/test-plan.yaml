@@ -1,12 +1,19 @@
-name: missing-values
+name: backwards-compatible-variable-config
 description: |
-  Check the error shown when there are template strings using values not defined in the
-  values section of their config
+  Check that the old names for variables and variable definitions 
+  parse successfully
+
+values:
+  foo: "foo"
+  bar: "bar"
 
 scenario:
   inline:
     name: inline-scenario
     description: an inline scenario
+    values:
+      - name: foo
+        description: A value foo
     command:
       name: scenario.sh
       kind: inline
@@ -27,8 +34,6 @@ environment:
         content: |
           #!/usr/bin/env sh
           echo "Hello, World!"
-      env_vars:
-        BAR: "{{ bar }}"
     teardown:
       command:
         name: teardown.sh
@@ -36,5 +41,3 @@ environment:
         content: |
           #!/usr/bin/env sh
           echo "Hello, World!"
-      env_vars:
-        BAZ: "{{ baz }}"

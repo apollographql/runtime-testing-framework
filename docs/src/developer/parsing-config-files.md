@@ -18,8 +18,8 @@ The full resolution and execution of a test plan has the following flow:
 2. Locate and load any required `Secenario` and `Environment` files defined in `from` directives as
    raw YAML. If the test plan defines overrides for either section then deep merge before parsing
    into concrete structs.
-3. Check that the test plan contains all of the required values for templating to be possible. If it
-   doesn't then early exit reporting the missing values.
+3. Check that the test plan contains all of the required variables for templating to be possible. If
+   it doesn't then early exit reporting the missing variables.
 4. Template the environment _setup_ section before running static analysis checks.
 5. If all checks pass, run the setup command and use the provided output to finish templating the
    _scenario_ and environment _teardown_ sections.

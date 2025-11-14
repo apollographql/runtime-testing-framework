@@ -3,7 +3,7 @@
         {
             "name": "matrix_variant_1",
             "variables": {
-                "message": "hello, world!"
+                "echo_me": "foo"
             }
         }
     ]

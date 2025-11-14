@@ -2,14 +2,14 @@
 
 The CLI exposes the following global flags for all subcommands to use:
 
-- `--value`
-- `--values`
+- `--var`
+- `--vars`
 
-## The `--value` flag
+## The `--var` flag
 
-This is used to override a single value in a test plan.
+This is used to override a single variable in a test plan.
 
-## The `--values` flag
+## The `--vars` flag
 
-This is used to override multiple values in a test plan. This must be specified as a path to a JSON
-file containing the values.
+This is used to override multiple variables in a test plan. This must be specified as a path to a
+JSON file containing the variables.
