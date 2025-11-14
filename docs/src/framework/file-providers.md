@@ -46,6 +46,18 @@ A Rust version string that can be passed to `rustup run {rust_version}`, such as
 
 Defaults to `"stable"` if unset.
 
+### `profile`
+
+The profile to build the Router with.
+
+Defaults to `"release"` if unset.
+
+### `features`
+
+Comma separated list of features to build the Router with.
+
+Defaults to `"default"` if unset.
+
 </details>
 
 ## From command
