@@ -304,7 +304,11 @@ fn rewrite_connector_urls(sdl: &str) -> Option<String> {
                 "Attempting to replace connectors urls in {} type",
                 schema_type
             );
-            replace_type_field_url(extended_type, vec!["GET", "POST"], base_url)?;
+            replace_type_field_url(
+                extended_type,
+                vec!["GET", "POST", "PUT", "PATCH", "DELETE"],
+                base_url,
+            )?;
         };
     }
 
