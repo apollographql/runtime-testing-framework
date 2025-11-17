@@ -2,16 +2,18 @@ use crate::{
     cli::Variables,
     commands::{get_context, load_and_resolve_test_plan},
 };
+use anyhow::anyhow;
 use rtf_config::{
     Source,
     checks::{self, Check},
     context::ResolutionContext,
+    formats::TestPlanConfig,
     templating::{Template, TemplateVariables},
 };
 use std::{env::current_dir, path::PathBuf};
 use tracing::info;
 
-pub async fn template_test_plan(
+pub async fn template_test_plan_local(
     config_file_path: &str,
     variables: Variables,
     check: bool,
@@ -19,18 +21,42 @@ pub async fn template_test_plan(
     let ctx = get_context();
     let cwd = current_dir()?;
 
-    template_test_plan_with_context(config_file_path, variables, check, cwd, ctx).await
+    info!("loading and resolving test plan");
+    let test_plan = load_and_resolve_test_plan(config_file_path, &ctx).await?;
+
+    template_test_plan_with_context(test_plan, variables, check, cwd, ctx).await
+}
+
+pub async fn template_test_plan_github(
+    org_repo_path: String,
+    git_ref: Option<String>,
+    variables: Variables,
+    check: bool,
+) -> anyhow::Result<()> {
+    let ctx = get_context();
+    let cwd = current_dir()?;
+
+    let (org, repo_and_path) = org_repo_path.split_once('/').ok_or(anyhow!(
+        "invalid GitHub uri: \"{org_repo_path}\" - GitHub uri must be in format ORG/REPO/PATH"
+    ))?;
+    let (repo, path) = repo_and_path.split_once('/').ok_or(anyhow!(
+        "invalid GitHub uri: \"{org_repo_path}\" - GitHub uri must be in format ORG/REPO/PATH"
+    ))?;
+
+    info!("fetching and resolving test plan from GitHub");
+    let test_plan =
+        TestPlanConfig::try_load_and_resolve_from_github(org, repo, path, git_ref, &ctx).await?;
+
+    template_test_plan_with_context(test_plan, variables, check, cwd, ctx).await
 }
 
 async fn template_test_plan_with_context(
-    path: &str,
+    mut test_plan: TestPlanConfig,
     variables: Variables,
     check: bool,
     cwd: PathBuf,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    info!("loading and resolving test plan");
-    let mut test_plan = load_and_resolve_test_plan(path, &ctx).await?;
     let override_sources =
         variables.merge(&mut test_plan, &Source::local(cwd.join("cli")), &mut ctx)?;
 

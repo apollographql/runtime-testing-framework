@@ -78,10 +78,18 @@ pub enum Command {
     /// Template a test plan using provided variables, outputting the resulting config to stdout
     Template {
         /// Relative path to the test-plan.yaml file that should be templated
-        test_plan_path: String,
+        test_plan_path: Option<String>,
 
         /// Run a static check of the resulting test plan after templating
         #[arg(long, action)]
         check: bool,
+
+        /// Template a test plan file in GitHub instead of from a local path
+        #[arg(long, value_name = "ORG/REPO/PATH", conflicts_with = "test_plan_path")]
+        github: Option<String>,
+
+        /// Optional git ref to pull files from when using --github
+        #[arg(long = "ref", requires = "github")]
+        git_ref: Option<String>,
     },
 }

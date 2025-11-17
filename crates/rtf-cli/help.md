@@ -69,7 +69,7 @@ Expand a test plan matrix into JSON
 
 Template a test plan using provided variables, outputting the resulting config to stdout
 
-**Usage:** `rtf template [OPTIONS] <TEST_PLAN_PATH>`
+**Usage:** `rtf template [OPTIONS] [TEST_PLAN_PATH]`
 
 ###### **Arguments:**
 
@@ -78,6 +78,8 @@ Template a test plan using provided variables, outputting the resulting config t
 ###### **Options:**
 
 * `--check` — Run a static check of the resulting test plan after templating
+* `--github <ORG/REPO/PATH>` — Template a test plan file in GitHub instead of from a local path
+* `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
 
 
 

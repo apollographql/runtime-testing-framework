@@ -4,7 +4,7 @@ use rtf_cli::{
     LOG_LEVEL_ENV_VAR,
     cli::{Args, Command},
     commands::{
-        plumbing::{expand_test_plan_matrix, template_test_plan},
+        plumbing::{expand_test_plan_matrix, template_test_plan_github, template_test_plan_local},
         porcelain::{check_and_run_github_test_plan, check_and_run_local_test_plan},
     },
 };
@@ -63,7 +63,23 @@ async fn main() {
         Command::Template {
             test_plan_path,
             check,
-        } => template_test_plan(&test_plan_path, variables, check).await,
+            github,
+            git_ref,
+        } => match (test_plan_path, github, git_ref) {
+            (Some(path), None, None) => template_test_plan_local(&path, variables, check).await,
+            (Some(_), None, Some(_)) => {
+                error!("--ref is not supported for local file paths");
+                exit(1)
+            }
+            (None, Some(org_repo_path), git_ref) => {
+                template_test_plan_github(org_repo_path, git_ref, variables, check).await
+            }
+            (None, None, _) => {
+                error!("no test plan provided");
+                exit(1)
+            }
+            (Some(_), Some(_), _) => unreachable!(),
+        },
     };
 
     if let Err(e) = res {
