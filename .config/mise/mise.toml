@@ -3,7 +3,8 @@ run = "typos --write-changes"
 
 [tasks.format-markdown]
 run = "dprint fmt"
-dir = "{{cwd}}"
+# This changes the working directory for format-markdown to the project root
+dir = "../../"
 
 [tasks.generate-docs]
 run = "$(git rev-parse --show-toplevel)/scripts/generate-docs.sh"
@@ -29,6 +30,8 @@ run = "cargo pr-format"
 
 [tasks.pr-markdown]
 run = "dprint check"
+# This changes the working directory for pr-markdown to the project root
+dir = "../../"
 
 [tasks.pr-spell-check]
 run = "typos"
