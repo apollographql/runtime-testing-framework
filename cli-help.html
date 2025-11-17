@@ -235,7 +235,7 @@
 </ul>
 <h2 id="rtf-template"><a class="header" href="#rtf-template"><code>rtf template</code></a></h2>
 <p>Template a test plan using provided variables, outputting the resulting config to stdout</p>
-<p><strong>Usage:</strong> <code>rtf template [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
+<p><strong>Usage:</strong> <code>rtf template [OPTIONS] [TEST_PLAN_PATH]</code></p>
 <h6 id="arguments-2"><a class="header" href="#arguments-2"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test-plan.yaml file that should be templated</li>
@@ -243,6 +243,8 @@
 <h6 id="options-3"><a class="header" href="#options-3"><strong>Options:</strong></a></h6>
 <ul>
 <li><code>--check</code> — Run a static check of the resulting test plan after templating</li>
+<li><code>--github &lt;ORG/REPO/PATH&gt;</code> — Template a test plan file in GitHub instead of from a local path</li>
+<li><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using --github</li>
 </ul>
 
                     </main>

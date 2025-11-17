@@ -78,10 +78,18 @@
 <a href=#78 id=78 data-nosnippet>78</a>    <span class="doccomment">/// Template a test plan using provided variables, outputting the resulting config to stdout
 <a href=#79 id=79 data-nosnippet>79</a>    </span>Template {
 <a href=#80 id=80 data-nosnippet>80</a>        <span class="doccomment">/// Relative path to the test-plan.yaml file that should be templated
-<a href=#81 id=81 data-nosnippet>81</a>        </span>test_plan_path: String,
+<a href=#81 id=81 data-nosnippet>81</a>        </span>test_plan_path: <span class="prelude-ty">Option</span>&lt;String&gt;,
 <a href=#82 id=82 data-nosnippet>82</a>
 <a href=#83 id=83 data-nosnippet>83</a>        <span class="doccomment">/// Run a static check of the resulting test plan after templating
 <a href=#84 id=84 data-nosnippet>84</a>        </span><span class="attr">#[arg(long, action)]
 <a href=#85 id=85 data-nosnippet>85</a>        </span>check: bool,
-<a href=#86 id=86 data-nosnippet>86</a>    },
-<a href=#87 id=87 data-nosnippet>87</a>}</code></pre></div></section></main></body></html>
+<a href=#86 id=86 data-nosnippet>86</a>
+<a href=#87 id=87 data-nosnippet>87</a>        <span class="doccomment">/// Template a test plan file in GitHub instead of from a local path
+<a href=#88 id=88 data-nosnippet>88</a>        </span><span class="attr">#[arg(long, value_name = <span class="string">"ORG/REPO/PATH"</span>, conflicts_with = <span class="string">"test_plan_path"</span>)]
+<a href=#89 id=89 data-nosnippet>89</a>        </span>github: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#90 id=90 data-nosnippet>90</a>
+<a href=#91 id=91 data-nosnippet>91</a>        <span class="doccomment">/// Optional git ref to pull files from when using --github
+<a href=#92 id=92 data-nosnippet>92</a>        </span><span class="attr">#[arg(long = <span class="string">"ref"</span>, requires = <span class="string">"github"</span>)]
+<a href=#93 id=93 data-nosnippet>93</a>        </span>git_ref: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#94 id=94 data-nosnippet>94</a>    },
+<a href=#95 id=95 data-nosnippet>95</a>}</code></pre></div></section></main></body></html>
