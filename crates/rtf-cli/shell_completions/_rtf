@@ -59,6 +59,8 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (template)
 _arguments "${_arguments_options[@]}" : \
+'()--github=[Template a test plan file in GitHub instead of from a local path]:ORG/REPO/PATH:_default' \
+'--ref=[Optional git ref to pull files from when using --github]:GIT_REF:_default' \
 '*--var=[A single additional templating variable in the form "key=value"]:VAR:_default' \
 '--vars=[Path to a JSON file containing additional template variables]:VARS:_files' \
 '--check[Run a static check of the resulting test plan after templating]' \
@@ -66,7 +68,7 @@ _arguments "${_arguments_options[@]}" : \
 '*--verbose[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
 '-h[Print help]' \
 '--help[Print help]' \
-':test_plan_path -- Relative path to the test-plan.yaml file that should be templated:_default' \
+'::test_plan_path -- Relative path to the test-plan.yaml file that should be templated:_default' \
 && ret=0
 ;;
 (help)

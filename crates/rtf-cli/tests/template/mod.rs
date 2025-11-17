@@ -8,7 +8,7 @@ fn is_executable() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd.arg("template").assert();
 
-    res.stderr(contains("Usage: rtf template"));
+    res.stderr(contains("no test plan provided"));
 }
 
 #[test_case("backwards-compatible-variable-config"; "backwards compatible variable config")]
@@ -240,4 +240,30 @@ provided path was file://.*/resources/invalid/checks/does-not-exist\.sh"#,
         )
         .unwrap(),
     );
+}
+
+#[test]
+fn load_and_resolve_from_invalid_github_uri_fails() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
+        .arg("template")
+        .arg("--github")
+        .arg("not a valid github uri")
+        .assert();
+
+    res.failure().stderr(contains("invalid GitHub uri: \"not a valid github uri\" - GitHub uri must be in format ORG/REPO/PATH"));
+}
+
+#[test]
+fn load_and_resolve_from_github_missing_token_fails() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
+        .arg("template")
+        .arg("--github")
+        .arg("org/repo/path")
+        .assert();
+
+    res.failure().stderr(contains("no GitHub client available"));
 }

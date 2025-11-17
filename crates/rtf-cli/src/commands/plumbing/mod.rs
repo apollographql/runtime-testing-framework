@@ -4,4 +4,4 @@ mod expand_matrix;
 mod template;
 
 pub use expand_matrix::expand_test_plan_matrix;
-pub use template::template_test_plan;
+pub use template::{template_test_plan_github, template_test_plan_local};
