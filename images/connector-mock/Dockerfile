@@ -14,7 +14,7 @@ RUN rm src/*.rs
 COPY ./src ./src
 
 # build for release
-RUN rm -f target/release/deps/connector_mock* target/release/connector-mock
+RUN rm -f target/release/deps/connector_mock* target/release/connector-mock*
 RUN cargo build --release
 
 
