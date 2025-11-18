@@ -8,7 +8,7 @@ use crate::{
         command::CommandSection,
         file::{RawSource, Source},
     },
-    templating::{self, Scalar, Template, TemplateVariables},
+    templating::{self, Scalar, Template, TemplateContext},
 };
 use rtf_core::github::{self, Client};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
@@ -173,29 +173,26 @@ impl TestPlanConfig {
 
     pub fn try_template_environment_setup(
         &mut self,
-        variables: &TemplateVariables,
+        ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut path = vec!["environment".to_string()];
         self.environment
-            .try_template_setup(&mut path, self.sources.environment(), variables)
+            .try_template_setup(&mut path, self.sources.environment(), ctx)
     }
 
     pub fn try_template_environment_teardown(
         &mut self,
-        variables: &TemplateVariables,
+        ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut path = vec!["environment".to_string()];
         self.environment
-            .try_template_teardown(&mut path, self.sources.environment(), variables)
+            .try_template_teardown(&mut path, self.sources.environment(), ctx)
     }
 
-    pub fn try_template_scenario(
-        &mut self,
-        variables: &TemplateVariables,
-    ) -> templating::Result<()> {
+    pub fn try_template_scenario(&mut self, ctx: &TemplateContext) -> templating::Result<()> {
         let mut path = vec!["scenario".to_string()];
         self.scenario
-            .try_template(&mut path, self.sources.scenario(), variables)
+            .try_template(&mut path, self.sources.scenario(), ctx)
     }
 
     pub async fn run_environment_setup(
@@ -292,19 +289,19 @@ impl Template for TestPlanConfig {
         &mut self,
         path: &mut Vec<String>,
         _source: &Source,
-        variables: &TemplateVariables,
+        ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::from(self.environment.try_template_nested(
             path,
             "environment",
             self.sources.environment(),
-            variables,
+            ctx,
         ));
         errs.append(self.scenario.try_template_nested(
             path,
             "scenario",
             self.sources.scenario(),
-            variables,
+            ctx,
         ));
 
         errs.into_result(())
@@ -595,8 +592,8 @@ mod tests {
             scenario::test_helpers::{scenario_with_fields, templatable_scenario},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details,
-                named_file_provider_with_field, p, r, templatable_file_providers,
-                template_variables, variable_definitions,
+                named_file_provider_with_field, p, r, templatable_file_providers, template_context,
+                variable_definitions,
             },
         },
         providers::{
@@ -1068,7 +1065,7 @@ mod tests {
         let result = test_plan.try_template(
             &mut Vec::new(),
             &Source::local("/"),
-            &template_variables(all_fields.as_slice()),
+            &template_context(all_fields.as_slice()),
         );
 
         assert!(
@@ -1109,7 +1106,7 @@ mod tests {
     /// Helper function for asserting template errors are as expected
     fn assert_test_plan_template_errors(
         test_plan: &mut TestPlanConfig,
-        variables: TemplateVariables,
+        ctx: TemplateContext,
         expected_scenario_err_fields: &[&str],
         expected_env_err_fields: &[&str],
     ) {
@@ -1122,12 +1119,7 @@ mod tests {
         expected_err_messages.sort();
         expected_err_paths.sort();
 
-        assert_template_errors(
-            test_plan,
-            variables,
-            expected_err_messages,
-            expected_err_paths,
-        );
+        assert_template_errors(test_plan, ctx, expected_err_messages, expected_err_paths);
     }
 
     #[test_case(&["missing"], &["scenario"], &["scenario"]; "single field defined and missing definition")]
@@ -1141,10 +1133,10 @@ mod tests {
         fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let variables = template_variables(&["scenario", "scenario1", "scenario2"]);
+        let ctx = template_context(&["scenario", "scenario1", "scenario2"]);
         let mut test_plan = template_test_plan(variable_defs, fields, &[], &[]);
 
-        assert_test_plan_template_errors(&mut test_plan, variables, expected_err_fields, &[]);
+        assert_test_plan_template_errors(&mut test_plan, ctx, expected_err_fields, &[]);
     }
 
     #[test_case(&["missing"], &["environment"], &["environment"]; "single field defined and missing definition")]
@@ -1158,28 +1150,23 @@ mod tests {
         fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let variables = template_variables(&["environment", "environment1", "environment2"]);
+        let ctx = template_context(&["environment", "environment1", "environment2"]);
         let mut test_plan = template_test_plan(&[], &[], variable_defs, fields);
 
-        assert_test_plan_template_errors(&mut test_plan, variables, &[], expected_err_fields);
+        assert_test_plan_template_errors(&mut test_plan, ctx, &[], expected_err_fields);
     }
 
     #[test]
     fn try_template_missing_scenario_and_environment_variable_definitions() {
-        let variables = template_variables(&["scenario", "environment"]);
+        let ctx = template_context(&["scenario", "environment"]);
         let mut test_plan = template_test_plan(&[], &["scenario"], &[], &["environment"]);
 
-        assert_test_plan_template_errors(
-            &mut test_plan,
-            variables,
-            &["scenario"],
-            &["environment"],
-        );
+        assert_test_plan_template_errors(&mut test_plan, ctx, &["scenario"], &["environment"]);
     }
 
     #[test]
     fn try_template_missing_scenario_and_environment_variables_not_provided() {
-        let variables = template_variables(&[]);
+        let ctx = template_context(&[]);
         let mut test_plan = template_test_plan(
             &["scenario"],
             &["scenario"],
@@ -1187,12 +1174,7 @@ mod tests {
             &["environment"],
         );
 
-        assert_test_plan_template_errors(
-            &mut test_plan,
-            variables,
-            &["scenario"],
-            &["environment"],
-        );
+        assert_test_plan_template_errors(&mut test_plan, ctx, &["scenario"], &["environment"]);
     }
 
     // Tests for matrix expansion, variants, and matrix-related functionality
@@ -1294,13 +1276,13 @@ mod tests {
         include: &[HashMap<String, Scalar>],
         expected_variables_maps: &[HashMap<String, Scalar>],
     ) {
-        let variables = template_variables(variables);
+        let variables = template_context(variables);
         let dimensions: HashMap<String, Vec<Scalar>> = dimensions
             .iter()
             .map(|(k, v)| (k.to_string(), v.iter().map(|s| Scalar::from(*s)).collect()))
             .collect();
         let test_plan = TestPlanConfig {
-            variables: variables.inner().clone(),
+            variables: variables.variables().clone(),
             matrix: Matrix {
                 variant_names: None,
                 dimensions,
@@ -1360,11 +1342,11 @@ mod tests {
         dimension_keys: &[&str],
         include_keys: &[&str],
     ) {
-        let variables = template_variables(variable_keys);
+        let variables = template_context(variable_keys);
         let matrix = dimensions_from_keys(dimension_keys, 1);
-        let include = vec![template_variables(include_keys).inner().clone()];
+        let include = vec![template_context(include_keys).variables().clone()];
         let mut test_plan = templatable_test_plan(
-            variables.inner().clone(),
+            variables.variables().clone(),
             matrix,
             include,
             &["scenario"],
@@ -1392,9 +1374,9 @@ mod tests {
         include_keys: &[&str],
         expected_err_message: &str,
     ) {
-        let variables = template_variables(&["foo", "bar", "baz"]).inner().clone();
+        let variables = template_context(&["foo", "bar", "baz"]).variables().clone();
         let dimensions = dimensions_from_keys(dimension_keys, 2);
-        let include = vec![template_variables(include_keys).inner().clone()];
+        let include = vec![template_context(include_keys).variables().clone()];
         let mut test_plan = templatable_test_plan(variables, dimensions, include, &[], &[], &[]);
 
         let expected_err_kind = ErrorKind::ConflictingVariables;
@@ -1424,7 +1406,7 @@ mod tests {
         dimension_keys: &[&str],
         expected_err_messages: &[&str],
     ) {
-        let variables = template_variables(&[]).inner().clone();
+        let variables = template_context(&[]).variables().clone();
         let dimensions = dimensions_from_keys(dimension_keys, 0);
         let include = Vec::new();
         let mut test_plan = templatable_test_plan(variables, dimensions, include, &[], &[], &[]);
@@ -1573,7 +1555,7 @@ mod tests {
         teardown_fields: &[&str],
         expected_err_messages: &[&str],
     ) {
-        let variables = template_variables(&["foo"]).inner().clone();
+        let variables = template_context(&["foo"]).variables().clone();
         let dimensions = HashMap::new();
         let include = Vec::new();
         let mut test_plan = templatable_test_plan(
@@ -1623,7 +1605,7 @@ mod tests {
 
     #[test]
     fn check_templating_will_work_combined_errors() {
-        let variables = template_variables(&["foo", "bar"]).inner().clone();
+        let variables = template_context(&["foo", "bar"]).variables().clone();
         let dimensions = dimensions_from_keys(&["foo"], 0);
         let mut test_plan =
             templatable_test_plan(variables, dimensions, vec![], &["scenario"], &[], &[]);
@@ -1788,7 +1770,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let mut ctx = Context::new();
 
-        let expected_provides = template_variables(&["foo", "bar"]).inner().clone();
+        let expected_provides = template_context(&["foo", "bar"]).variables().clone();
 
         let script = indoc!(
             r#"

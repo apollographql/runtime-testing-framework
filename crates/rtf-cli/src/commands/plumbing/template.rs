@@ -8,7 +8,7 @@ use rtf_config::{
     checks::{self, Check},
     context::ResolutionContext,
     formats::TestPlanConfig,
-    templating::{Template, TemplateVariables},
+    templating::{Template, TemplateContext},
 };
 use std::{env::current_dir, path::PathBuf};
 use tracing::info;
@@ -65,9 +65,9 @@ async fn template_test_plan_with_context(
 
     let (_, variables) = test_plan.matrix.try_expand(&test_plan.variables)?.remove(0);
     let source = test_plan.sources.test_plan().clone();
-    let template_variables = TemplateVariables::new(variables, source.clone(), override_sources);
+    let template_ctx = TemplateContext::new(variables, source.clone(), override_sources);
 
-    test_plan.try_template(&mut Vec::new(), &source, &template_variables)?;
+    test_plan.try_template(&mut Vec::new(), &source, &template_ctx)?;
 
     if check {
         info!("checking test plan");

@@ -57,16 +57,18 @@ pub type Errors = crate::error::Errors<ErrorKind>;
 pub type ErrorBuilder = crate::error::ErrorBuilder<ErrorKind>;
 pub type Result<T> = std::result::Result<T, Errors>;
 
-/// Templating variables along with provenance of where each variable has come from in order to correctly
-/// handle relative paths.
+/// A context for the [Template] trait.
+///
+/// This allows for tracking the provenance of where each variable has come from in order to
+/// correctly handle relative paths.
 #[derive(Debug, Clone)]
-pub struct TemplateVariables {
+pub struct TemplateContext {
     variables: HashMap<String, Scalar>,
     test_plan_source: Source,
     override_sources: HashMap<String, Source>,
 }
 
-impl TemplateVariables {
+impl TemplateContext {
     pub fn new(
         variables: HashMap<String, Scalar>,
         test_plan_source: Source,
@@ -84,7 +86,7 @@ impl TemplateVariables {
         Self::new(variables, Source::local("/"), Default::default())
     }
 
-    pub fn inner(&self) -> &HashMap<String, Scalar> {
+    pub fn variables(&self) -> &HashMap<String, Scalar> {
         &self.variables
     }
 
@@ -174,7 +176,7 @@ pub trait Template {
         &mut self,
         path: &mut Vec<String>,
         file_source: &Source,
-        variables: &TemplateVariables,
+        ctx: &TemplateContext,
     ) -> Result<()>;
 
     /// Attempt to resolve all pending [Field]s when this type is a child of some parent
@@ -185,11 +187,11 @@ pub trait Template {
         path: &mut Vec<String>,
         tail: &str,
         file_source: &Source,
-        variables: &TemplateVariables,
+        ctx: &TemplateContext,
     ) -> Result<()> {
         let mut path = path.clone();
         path.push(tail.to_string());
-        self.try_template(&mut path, file_source, variables)
+        self.try_template(&mut path, file_source, ctx)
     }
 
     /// Attempt to resolve all known [Field]s, reporting required variables that are not present in
@@ -199,9 +201,9 @@ pub trait Template {
         &mut self,
         path: &mut Vec<String>,
         file_source: &Source,
-        variables: &TemplateVariables,
+        ctx: &TemplateContext,
     ) -> Result<Vec<String>> {
-        let all_errs = match self.try_template(path, file_source, variables) {
+        let all_errs = match self.try_template(path, file_source, ctx) {
             Ok(_) => return Ok(Vec::new()),
             Err(errs) => errs,
         };
@@ -240,10 +242,10 @@ where
         &mut self,
         path: &mut Vec<String>,
         file_source: &Source,
-        variables: &TemplateVariables,
+        ctx: &TemplateContext,
     ) -> Result<()> {
         self.as_mut()
-            .map(|inner| inner.try_template(path, file_source, variables))
+            .map(|inner| inner.try_template(path, file_source, ctx))
             .unwrap_or(Ok(()))
     }
 }
@@ -266,12 +268,12 @@ where
         &mut self,
         path: &mut Vec<String>,
         file_source: &Source,
-        variables: &TemplateVariables,
+        ctx: &TemplateContext,
     ) -> Result<()> {
         let mut errs = ErrorBuilder::new();
 
         for elem in self.iter_mut() {
-            errs.append(elem.try_template(path, file_source, variables))
+            errs.append(elem.try_template(path, file_source, ctx))
         }
 
         errs.into_result(())
@@ -297,12 +299,12 @@ where
         &mut self,
         path: &mut Vec<String>,
         file_source: &Source,
-        variables: &TemplateVariables,
+        ctx: &TemplateContext,
     ) -> Result<()> {
         let mut errs = ErrorBuilder::new();
 
         for (name, f) in self.iter_mut() {
-            errs.append(f.try_template_nested(path, name.as_ref(), file_source, variables));
+            errs.append(f.try_template_nested(path, name.as_ref(), file_source, ctx));
         }
 
         errs.into_result(())
@@ -415,10 +417,10 @@ where
         &mut self,
         path: &mut Vec<String>,
         _file_source: &Source,
-        variables: &TemplateVariables,
+        ctx: &TemplateContext,
     ) -> Result<()> {
         if let Self::Pending(variable) = self {
-            match variables.get(variable) {
+            match ctx.get(variable) {
                 Some(raw) => match T::try_from_scalar(raw.clone()) {
                     Ok(t) => *self = Self::Resolved(t),
                     Err(reason) => {
@@ -741,7 +743,7 @@ mod tests {
             },
         ];
 
-        let original = TemplateVariables::new_stubbed(all_variables);
+        let original = TemplateContext::new_stubbed(all_variables);
         let for_config_file = original.for_config_file(&Source::local("/"), definitions.iter());
 
         // a has an explicit variable so it overrides the default
@@ -756,7 +758,7 @@ mod tests {
         .into_iter()
         .collect();
 
-        assert_eq!(for_config_file.inner(), &expected);
+        assert_eq!(for_config_file.variables(), &expected);
     }
 
     #[derive(Debug, PartialEq, Deserialize)]
@@ -948,14 +950,14 @@ mod tests {
         )
     }
 
-    macro_rules! template_variables {
+    macro_rules! template_context {
         ($slice:expr) => {{
             let mut m = ::std::collections::HashMap::new();
             for k in $slice {
                 m.insert(k.to_string(), Scalar::from(k.to_string()));
             }
 
-            TemplateVariables::new_stubbed(m)
+            TemplateContext::new_stubbed(m)
         }};
     }
 
@@ -968,9 +970,9 @@ mod tests {
     #[test_case(hmf(&[p("foo")]), &["foo"]; "single hash map entry templates")]
     #[test_case(hmf(&[]), &[]; "no hash map entries templates")]
     #[test]
-    fn template_try_template_success(mut t: Box<dyn Template>, variables: &[&str]) {
-        let variables = template_variables!(variables);
-        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &variables);
+    fn template_try_template_success(mut t: Box<dyn Template>, variable: &[&str]) {
+        let template_ctx = template_context!(variable);
+        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &template_ctx);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -987,9 +989,9 @@ mod tests {
         mut t: Box<dyn Template>,
         expected_err_messages: &[&str],
     ) {
-        let variables = template_variables!(["unused"]);
+        let template_ctx = template_context!(["unused"]);
 
-        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &variables);
+        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &template_ctx);
         assert!(res.is_err(), "expected templating to fail, got {res:?}");
         let errors = res.unwrap_err();
         assert!(

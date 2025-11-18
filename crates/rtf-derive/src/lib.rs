@@ -33,7 +33,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 &mut self,
                 path: &mut ::std::vec::Vec<::std::string::String>,
                 source: &::rtf_config::Source,
-                variables: &::rtf_config::templating::TemplateVariables,
+                ctx: &::rtf_config::templating::TemplateContext,
             ) -> ::rtf_config::templating::Result<()> {
                 #try_template
             }
@@ -109,7 +109,7 @@ fn struct_token_streams(field_meta: Vec<FieldMeta>) -> (TokenStream, TokenStream
 
     let inner = fields.iter().map(|f| {
         quote! {
-            errs.append(self.#f.try_template_nested(path, stringify!(#f), source, variables));
+            errs.append(self.#f.try_template_nested(path, stringify!(#f), source, ctx));
         }
     });
     let try_template = quote! {
@@ -154,7 +154,7 @@ fn enum_token_streams(
 
     let try_template = quote! {
         match self {
-            #(Self::#variants(inner) => inner.try_template(path, source, variables),)*
+            #(Self::#variants(inner) => inner.try_template(path, source, ctx),)*
             _ => Ok(()),
         }
     };

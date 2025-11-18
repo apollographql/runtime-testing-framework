@@ -1,6 +1,6 @@
 use rtf_config::{
     Source,
-    templating::{Field, Template, TemplateVariables},
+    templating::{Field, Template, TemplateContext},
 };
 use rtf_derive::Template;
 use std::collections::HashMap;
@@ -45,7 +45,7 @@ fn main() {
     s.try_template(
         &mut Vec::new(),
         &Source::local("/"),
-        &TemplateVariables::new(vals, Source::local("/"), Default::default()),
+        &TemplateContext::new(vals, Source::local("/"), Default::default()),
     )
     .unwrap();
 

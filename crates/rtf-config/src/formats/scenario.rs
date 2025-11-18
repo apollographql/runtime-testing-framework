@@ -4,7 +4,7 @@ use crate::{
     context::ResolutionContext,
     formats::Result,
     providers::{command::CommandSection, file::Source},
-    templating::{self, Template, TemplateVariables},
+    templating::{self, Template, TemplateContext},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -60,12 +60,12 @@ impl Template for ScenarioConfig {
         &mut self,
         path: &mut Vec<String>,
         source: &Source,
-        variables: &TemplateVariables,
+        ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let allowed_variables = variables.for_config_file(source, self.variable_definitions.iter());
+        let ctx_for_file = ctx.for_config_file(source, self.variable_definitions.iter());
 
         self.command
-            .try_template_nested(path, "command_section", source, &allowed_variables)
+            .try_template_nested(path, "command_section", source, &ctx_for_file)
     }
 }
 
@@ -142,7 +142,7 @@ mod tests {
             scenario::test_helpers::{scenario_with_fields, templatable_scenario},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
-                template_variables,
+                template_context,
             },
         },
         providers::command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
@@ -222,10 +222,10 @@ mod tests {
     #[test_case(&[]; "no variables")]
     #[test]
     fn try_template_succeeds(field_names: &[&str]) {
-        let variables = template_variables(field_names);
+        let ctx = template_context(field_names);
         let mut scenario = templatable_scenario(field_names, field_names);
 
-        let res = scenario.try_template(&mut Vec::new(), &Source::local("/"), &variables);
+        let res = scenario.try_template(&mut Vec::new(), &Source::local("/"), &ctx);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -245,7 +245,7 @@ mod tests {
         scenario_fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let variables = template_variables(variables);
+        let ctx = template_context(variables);
         let mut scenario = templatable_scenario(variable_defs, scenario_fields);
 
         let (expected_err_messages, expected_err_paths) =
@@ -253,7 +253,7 @@ mod tests {
 
         assert_template_errors(
             &mut scenario,
-            variables,
+            ctx,
             expected_err_messages,
             expected_err_paths,
         );

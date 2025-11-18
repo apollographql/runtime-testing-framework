@@ -5,7 +5,7 @@ use crate::{
     context::ResolutionContext,
     formats::Result,
     providers::{command::CommandSection, file::Source},
-    templating::{self, Template, TemplateVariables},
+    templating::{self, Template, TemplateContext},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -45,13 +45,13 @@ impl EnvironmentConfig {
         &mut self,
         path: &mut Vec<String>,
         source: &Source,
-        variables: &TemplateVariables,
+        ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let allowed_variables = variables.for_config_file(source, self.variable_definitions.iter());
+        let ctx_for_file = ctx.for_config_file(source, self.variable_definitions.iter());
 
         self.setup
             .command
-            .try_template_nested(path, "setup", source, &allowed_variables)
+            .try_template_nested(path, "setup", source, &ctx_for_file)
     }
 
     /// Try to template the teardown [CommandSection].
@@ -62,9 +62,9 @@ impl EnvironmentConfig {
         &mut self,
         path: &mut Vec<String>,
         source: &Source,
-        variables: &TemplateVariables,
+        ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let allowed_variables = variables.for_config_file(
+        let ctx_for_file = ctx.for_config_file(
             source,
             self.variable_definitions
                 .iter()
@@ -72,7 +72,7 @@ impl EnvironmentConfig {
         );
 
         self.teardown
-            .try_template_nested(path, "teardown", source, &allowed_variables)
+            .try_template_nested(path, "teardown", source, &ctx_for_file)
     }
 
     /// Create an empty [EnvironmentConfig] for tests
@@ -107,11 +107,10 @@ impl Template for EnvironmentConfig {
         &mut self,
         path: &mut Vec<String>,
         source: &Source,
-        variables: &TemplateVariables,
+        ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let mut errs =
-            templating::ErrorBuilder::from(self.try_template_setup(path, source, variables));
-        errs.append(self.try_template_teardown(path, source, variables));
+        let mut errs = templating::ErrorBuilder::from(self.try_template_setup(path, source, ctx));
+        errs.append(self.try_template_teardown(path, source, ctx));
 
         errs.into_result(())
     }
@@ -247,7 +246,7 @@ pub(crate) mod tests {
             environment::test_helpers::{environment_with_fields, templatable_environment},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
-                templatable_file_providers, template_variables, variable_definitions,
+                templatable_file_providers, template_context, variable_definitions,
             },
         },
         providers::command::{
@@ -390,11 +389,11 @@ pub(crate) mod tests {
         let mut field_names: Vec<&str> = setup_fields.to_vec();
         field_names.extend_from_slice(teardown_fields);
 
-        let variables = template_variables(field_names.as_slice());
+        let ctx = template_context(field_names.as_slice());
         let mut environment =
             templatable_environment(field_names.as_slice(), setup_fields, teardown_fields);
 
-        let res = environment.try_template(&mut Vec::new(), &Source::local("/"), &variables);
+        let res = environment.try_template(&mut Vec::new(), &Source::local("/"), &ctx);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -404,7 +403,7 @@ pub(crate) mod tests {
     /// Helper function for asserting template errors are as expected
     fn assert_env_template_errors(
         environment: &mut EnvironmentConfig,
-        variables: TemplateVariables,
+        ctx: TemplateContext,
         expected_setup_err_fields: &[&str],
         expected_teardown_err_fields: &[&str],
     ) {
@@ -415,12 +414,7 @@ pub(crate) mod tests {
         expected_err_messages.extend(expected_messages);
         expected_err_paths.extend(expected_paths);
 
-        assert_template_errors(
-            environment,
-            variables,
-            expected_err_messages,
-            expected_err_paths,
-        );
+        assert_template_errors(environment, ctx, expected_err_messages, expected_err_paths);
     }
 
     #[test_case(&["missing"], &["setup"], &["setup"]; "single field defined and missing definition")]
@@ -434,10 +428,10 @@ pub(crate) mod tests {
         setup_fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let variables = template_variables(&["setup", "setup1", "setup2"]);
+        let ctx = template_context(&["setup", "setup1", "setup2"]);
         let mut environment = templatable_environment(variable_defs, setup_fields, &[]);
 
-        assert_env_template_errors(&mut environment, variables, expected_err_fields, &[]);
+        assert_env_template_errors(&mut environment, ctx, expected_err_fields, &[]);
     }
 
     #[test_case(&["missing"], &["teardown"], &["teardown"]; "single field defined and missing definition")]
@@ -451,27 +445,27 @@ pub(crate) mod tests {
         teardown_fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let variables = template_variables(&["teardown", "teardown1", "teardown2"]);
+        let ctx = template_context(&["teardown", "teardown1", "teardown2"]);
         let mut environment = templatable_environment(variable_defs, &[], teardown_fields);
 
-        assert_env_template_errors(&mut environment, variables, &[], expected_err_fields);
+        assert_env_template_errors(&mut environment, ctx, &[], expected_err_fields);
     }
 
     #[test]
     fn try_template_missing_setup_and_teardown_variable_definitions() {
-        let variables = template_variables(&["setup", "teardown"]);
+        let ctx = template_context(&["setup", "teardown"]);
         let mut environment = templatable_environment(&[], &["setup"], &["teardown"]);
 
-        assert_env_template_errors(&mut environment, variables, &["setup"], &["teardown"]);
+        assert_env_template_errors(&mut environment, ctx, &["setup"], &["teardown"]);
     }
 
     #[test]
     fn try_template_missing_setup_and_teardown_variables_not_provided() {
-        let variables = template_variables(&[]);
+        let ctx = template_context(&[]);
         let mut environment =
             templatable_environment(&["setup", "teardown"], &["setup"], &["teardown"]);
 
-        assert_env_template_errors(&mut environment, variables, &["setup"], &["teardown"]);
+        assert_env_template_errors(&mut environment, ctx, &["setup"], &["teardown"]);
     }
 
     /// Tests that setup cannot access variables from setup.provides.
@@ -482,9 +476,9 @@ pub(crate) mod tests {
         let mut config = environment_with_provides(&[], &["foo", "setup-path"]);
 
         // Variables exist in the map but are only defined in provides
-        let variables = template_variables(&["foo", "setup-path"]);
+        let ctx = template_context(&["foo", "setup-path"]);
 
-        let res = config.try_template_setup(&mut Vec::new(), &Source::local("/"), &variables);
+        let res = config.try_template_setup(&mut Vec::new(), &Source::local("/"), &ctx);
 
         // Setup should fail because it cannot access provides variables
         assert!(
@@ -516,9 +510,9 @@ pub(crate) mod tests {
         let mut config = environment_with_provides(&[], &["bar", "teardown-path"]);
 
         // Variables exist in the map and are defined in provides
-        let variables = template_variables(&["bar", "teardown-path"]);
+        let ctx = template_context(&["bar", "teardown-path"]);
 
-        let res = config.try_template_teardown(&mut Vec::new(), &Source::local("/"), &variables);
+        let res = config.try_template_teardown(&mut Vec::new(), &Source::local("/"), &ctx);
 
         // Teardown should succeed because it can access provides variables
         assert!(
@@ -543,7 +537,7 @@ pub(crate) mod tests {
         let res = config.try_template_setup(
             &mut Vec::new(),
             &Source::local("/"),
-            &TemplateVariables::new_stubbed(variables),
+            &TemplateContext::new_stubbed(variables),
         );
 
         // Setup should succeed because it can access top-level variables
@@ -561,9 +555,9 @@ pub(crate) mod tests {
         let mut config = environment_with_provides(&["bar", "teardown-path"], &[]);
 
         // Variables exist in the map and are defined in top-level variables
-        let variables = template_variables(&["bar", "teardown-path"]);
+        let ctx = template_context(&["bar", "teardown-path"]);
 
-        let res = config.try_template_teardown(&mut Vec::new(), &Source::local("/"), &variables);
+        let res = config.try_template_teardown(&mut Vec::new(), &Source::local("/"), &ctx);
 
         // Teardown should succeed because it can access top-level variables
         assert!(

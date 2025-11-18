@@ -8,7 +8,7 @@ use rtf_config::{
     context::ResolutionContext,
     formats::TestPlanConfig,
     providers::file::Source,
-    templating::{self, TemplateVariables},
+    templating::{self, TemplateContext},
 };
 use std::{
     collections::HashMap,
@@ -108,12 +108,12 @@ async fn run_one(
 ) -> anyhow::Result<()> {
     info!("templating environment setup");
     let variables = take(&mut test_plan.variables);
-    let mut template_variables = TemplateVariables::new(
+    let mut template_ctx = TemplateContext::new(
         variables,
         test_plan.sources.test_plan().clone(),
         override_sources.clone(),
     );
-    test_plan.try_template_environment_setup(&template_variables)?;
+    test_plan.try_template_environment_setup(&template_ctx)?;
 
     info!("checking environment setup");
     test_plan
@@ -124,12 +124,12 @@ async fn run_one(
 
     info!("executing environment setup");
     let setup_provides = test_plan.run_environment_setup(out_dir, ctx).await?;
-    template_variables.extend(Source::local(out_dir), setup_provides);
+    template_ctx.extend(Source::local(out_dir), setup_provides);
 
     info!("templating scenario and environment teardown commands");
     let mut builder =
-        templating::ErrorBuilder::from(test_plan.try_template_scenario(&template_variables));
-    builder.append(test_plan.try_template_environment_teardown(&template_variables));
+        templating::ErrorBuilder::from(test_plan.try_template_scenario(&template_ctx));
+    builder.append(test_plan.try_template_environment_teardown(&template_ctx));
     builder.into_result(())?;
 
     info!("checking scenario and environment teardown commands");
@@ -152,7 +152,7 @@ async fn run_one(
     info!("writing out resolved test plan and variables");
     ctx.write(
         out_dir.join(VARIABLES_PATH),
-        serde_json::to_string_pretty(template_variables.inner())?,
+        serde_json::to_string_pretty(template_ctx.variables())?,
     )?;
     ctx.write(
         out_dir.join(RESOLVED_TP_PATH),
