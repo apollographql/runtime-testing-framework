@@ -379,7 +379,16 @@ mod tests {
 
     #[tokio::test]
     async fn declaration_try_load_all_github_success() {
-        let ctx = MockContext::with_github_client(TEMPLATED_CUSTOM_PROVIDER);
+        let ctx = MockContext::with_github_client(&[
+            (
+                "my-org/my-repo/providers/my_provider.yaml",
+                TEMPLATED_CUSTOM_PROVIDER,
+            ),
+            (
+                "my-org/my-repo/providers/my_other_provider.yaml",
+                TEMPLATED_CUSTOM_PROVIDER,
+            ),
+        ]);
 
         let declaration = CustomProviderDeclaration {
             source: RawSource::Github {

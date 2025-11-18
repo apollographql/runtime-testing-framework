@@ -1047,7 +1047,7 @@ mod tests {
 
         let content = "some content";
 
-        let mut ctx = MockContext::with_github_client(content);
+        let mut ctx = MockContext::with_github_client(&[("org/repo/file.txt", content)]);
         let src = Source::Github {
             org: "org".to_string(),
             repo: "repo".to_string(),

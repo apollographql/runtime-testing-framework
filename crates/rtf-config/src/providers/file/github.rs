@@ -126,7 +126,7 @@ mod tests {
 
         let expected_content = "some content";
 
-        let mut ctx = MockContext::with_github_client(expected_content);
+        let mut ctx = MockContext::with_github_client(&[("org/repo/path", expected_content)]);
         let github_file = FileProvider::GithubFile(github_file());
 
         assert_resolve_and_write_success(github_file, &target, &mut ctx, expected_content).await;
