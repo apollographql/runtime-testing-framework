@@ -1,15 +1,5 @@
 # Writing a new environment
 
----
-
-- [Getting started](#getting-started)
-- [Creating an environment file](#creating-an-environment-file)
-- [Environment config structure](#environment-config-structure)
-- [Using provides](#using-provides)
-- [Using overrides](#using-overrides)
-
----
-
 This guide assumes you've completed the ["Writing a scenario"](writing-a-scenario.md) guide. You
 should already have the files in a directory named `rtf-hello-world`. Your directory should be in
 the state it was at the end of that guide.

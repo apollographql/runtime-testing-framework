@@ -1,14 +1,5 @@
 # Writing a new scenario
 
----
-
-- [Getting started](#getting-started)
-- [Creating a scenario file](#creating-a-scenario-file)
-- [Scenario config structure](#scenario-config-structure)
-- [Using variables](#using-variables)
-
----
-
 This guide assumes you have completed the ["Writing a test plan"](writing-a-test-plan.md) and
 ["Writing a command"](writing-a-command.md) guides. You should already have a `test-plan.yaml` file
 in a directory named `rtf-hello-world`. Your `test-plan.yaml` file should contain:

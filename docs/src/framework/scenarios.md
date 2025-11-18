@@ -1,12 +1,5 @@
 # Scenarios
 
----
-
-- [Top level keys](#top-level-keys)
-- [Full example](#full-example)
-
----
-
 As outlined in the [Test Plan][0] overview, your Scenario configuration is one of the two main
 pieces of configuration needed in order to run tests under RTF. Conceptually, a Scenario simply a
 [Command providers][1] with enforced semantics within the overall execution of the Test Plan, being

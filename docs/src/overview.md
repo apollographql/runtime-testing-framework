@@ -1,15 +1,5 @@
 # Overview
 
----
-
-- [What RTF is](#what-rtf-is)
-- [What RTF is not](#what-rtf-is-not)
-- [Pay for what you use](#pay-for-what-you-use)
-- [So, what's actually on offer?](#so-whats-actually-on-offer)
-- [Next steps](#next-steps)
-
----
-
 Throughout the rest of the _User Documentation_ you'll see us talking about RTF both as the
 framework itself and as part of the richer tooling and testing capabilities provided by the Runtime
 Readiness team. We feel that it is important to draw a distinction between these two areas in order
