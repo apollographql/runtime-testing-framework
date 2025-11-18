@@ -295,7 +295,7 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
 /// Rewrite the given supergraph SDL to set the provided connector URLs in place of what is
 /// currently there.
 fn rewrite_connector_urls(sdl: &str) -> Option<String> {
-    let base_url = "http://localhost:3000";
+    let base_url = "http://host.docker.internal:3000";
     let mut schema = Schema::parse(sdl, "supergraph.graphql").unwrap();
 
     for schema_type in vec!["Query", "Mutation"] {
