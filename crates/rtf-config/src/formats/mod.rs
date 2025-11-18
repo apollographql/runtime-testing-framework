@@ -8,7 +8,7 @@ mod matrix;
 mod scenario;
 mod test_plan;
 
-pub use custom_provider::CustomProviderDefinition;
+pub use custom_provider::{CustomProviderDeclaration, CustomProviderDefinition};
 pub use environment::EnvironmentConfig;
 pub use matrix::Matrix;
 use rtf_core::github;
