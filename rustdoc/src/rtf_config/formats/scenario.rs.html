@@ -4,7 +4,7 @@
 <a href=#4 id=4 data-nosnippet>4</a>    context::ResolutionContext,
 <a href=#5 id=5 data-nosnippet>5</a>    formats::Result,
 <a href=#6 id=6 data-nosnippet>6</a>    providers::{command::CommandSection, file::Source},
-<a href=#7 id=7 data-nosnippet>7</a>    templating::{<span class="self">self</span>, Template, TemplateVariables},
+<a href=#7 id=7 data-nosnippet>7</a>    templating::{<span class="self">self</span>, Template, TemplateContext},
 <a href=#8 id=8 data-nosnippet>8</a>};
 <a href=#9 id=9 data-nosnippet>9</a><span class="kw">use </span>schemars::JsonSchema;
 <a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -60,12 +60,12 @@
 <a href=#60 id=60 data-nosnippet>60</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#61 id=61 data-nosnippet>61</a>        path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
 <a href=#62 id=62 data-nosnippet>62</a>        source: <span class="kw-2">&amp;</span>Source,
-<a href=#63 id=63 data-nosnippet>63</a>        variables: <span class="kw-2">&amp;</span>TemplateVariables,
+<a href=#63 id=63 data-nosnippet>63</a>        ctx: <span class="kw-2">&amp;</span>TemplateContext,
 <a href=#64 id=64 data-nosnippet>64</a>    ) -&gt; templating::Result&lt;()&gt; {
-<a href=#65 id=65 data-nosnippet>65</a>        <span class="kw">let </span>allowed_variables = variables.for_config_file(source, <span class="self">self</span>.variable_definitions.iter());
+<a href=#65 id=65 data-nosnippet>65</a>        <span class="kw">let </span>ctx_for_file = ctx.for_config_file(source, <span class="self">self</span>.variable_definitions.iter());
 <a href=#66 id=66 data-nosnippet>66</a>
 <a href=#67 id=67 data-nosnippet>67</a>        <span class="self">self</span>.command
-<a href=#68 id=68 data-nosnippet>68</a>            .try_template_nested(path, <span class="string">"command_section"</span>, source, <span class="kw-2">&amp;</span>allowed_variables)
+<a href=#68 id=68 data-nosnippet>68</a>            .try_template_nested(path, <span class="string">"command_section"</span>, source, <span class="kw-2">&amp;</span>ctx_for_file)
 <a href=#69 id=69 data-nosnippet>69</a>    }
 <a href=#70 id=70 data-nosnippet>70</a>}
 <a href=#71 id=71 data-nosnippet>71</a>
@@ -142,7 +142,7 @@
 <a href=#142 id=142 data-nosnippet>142</a>            scenario::test_helpers::{scenario_with_fields, templatable_scenario},
 <a href=#143 id=143 data-nosnippet>143</a>            tests::{
 <a href=#144 id=144 data-nosnippet>144</a>                assert_check_errors, assert_template_errors, expected_error_details, p, r,
-<a href=#145 id=145 data-nosnippet>145</a>                template_variables,
+<a href=#145 id=145 data-nosnippet>145</a>                template_context,
 <a href=#146 id=146 data-nosnippet>146</a>            },
 <a href=#147 id=147 data-nosnippet>147</a>        },
 <a href=#148 id=148 data-nosnippet>148</a>        providers::command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
@@ -222,10 +222,10 @@
 <a href=#222 id=222 data-nosnippet>222</a>    <span class="attr">#[test_case(<span class="kw-2">&amp;</span>[]</span>; <span class="string">"no variables"</span>)]
 <a href=#223 id=223 data-nosnippet>223</a>    <span class="attr">#[test]
 <a href=#224 id=224 data-nosnippet>224</a>    </span><span class="kw">fn </span>try_template_succeeds(field_names: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
-<a href=#225 id=225 data-nosnippet>225</a>        <span class="kw">let </span>variables = template_variables(field_names);
+<a href=#225 id=225 data-nosnippet>225</a>        <span class="kw">let </span>ctx = template_context(field_names);
 <a href=#226 id=226 data-nosnippet>226</a>        <span class="kw">let </span><span class="kw-2">mut </span>scenario = templatable_scenario(field_names, field_names);
 <a href=#227 id=227 data-nosnippet>227</a>
-<a href=#228 id=228 data-nosnippet>228</a>        <span class="kw">let </span>res = scenario.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>Source::local(<span class="string">"/"</span>), <span class="kw-2">&amp;</span>variables);
+<a href=#228 id=228 data-nosnippet>228</a>        <span class="kw">let </span>res = scenario.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>Source::local(<span class="string">"/"</span>), <span class="kw-2">&amp;</span>ctx);
 <a href=#229 id=229 data-nosnippet>229</a>        <span class="macro">assert!</span>(
 <a href=#230 id=230 data-nosnippet>230</a>            res.is_ok(),
 <a href=#231 id=231 data-nosnippet>231</a>            <span class="string">"expected to template successfully, got {res:?}"
@@ -245,7 +245,7 @@
 <a href=#245 id=245 data-nosnippet>245</a>        scenario_fields: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str],
 <a href=#246 id=246 data-nosnippet>246</a>        expected_err_fields: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str],
 <a href=#247 id=247 data-nosnippet>247</a>    ) {
-<a href=#248 id=248 data-nosnippet>248</a>        <span class="kw">let </span>variables = template_variables(variables);
+<a href=#248 id=248 data-nosnippet>248</a>        <span class="kw">let </span>ctx = template_context(variables);
 <a href=#249 id=249 data-nosnippet>249</a>        <span class="kw">let </span><span class="kw-2">mut </span>scenario = templatable_scenario(variable_defs, scenario_fields);
 <a href=#250 id=250 data-nosnippet>250</a>
 <a href=#251 id=251 data-nosnippet>251</a>        <span class="kw">let </span>(expected_err_messages, expected_err_paths) =
@@ -253,7 +253,7 @@
 <a href=#253 id=253 data-nosnippet>253</a>
 <a href=#254 id=254 data-nosnippet>254</a>        assert_template_errors(
 <a href=#255 id=255 data-nosnippet>255</a>            <span class="kw-2">&amp;mut </span>scenario,
-<a href=#256 id=256 data-nosnippet>256</a>            variables,
+<a href=#256 id=256 data-nosnippet>256</a>            ctx,
 <a href=#257 id=257 data-nosnippet>257</a>            expected_err_messages,
 <a href=#258 id=258 data-nosnippet>258</a>            expected_err_paths,
 <a href=#259 id=259 data-nosnippet>259</a>        );

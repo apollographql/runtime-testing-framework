@@ -8,7 +8,7 @@
 <a href=#8 id=8 data-nosnippet>8</a>    checks::{<span class="self">self</span>, Check},
 <a href=#9 id=9 data-nosnippet>9</a>    context::ResolutionContext,
 <a href=#10 id=10 data-nosnippet>10</a>    formats::TestPlanConfig,
-<a href=#11 id=11 data-nosnippet>11</a>    templating::{Template, TemplateVariables},
+<a href=#11 id=11 data-nosnippet>11</a>    templating::{Template, TemplateContext},
 <a href=#12 id=12 data-nosnippet>12</a>};
 <a href=#13 id=13 data-nosnippet>13</a><span class="kw">use </span>std::{env::current_dir, path::PathBuf};
 <a href=#14 id=14 data-nosnippet>14</a><span class="kw">use </span>tracing::info;
@@ -65,9 +65,9 @@
 <a href=#65 id=65 data-nosnippet>65</a>
 <a href=#66 id=66 data-nosnippet>66</a>    <span class="kw">let </span>(<span class="kw">_</span>, variables) = test_plan.matrix.try_expand(<span class="kw-2">&amp;</span>test_plan.variables)<span class="question-mark">?</span>.remove(<span class="number">0</span>);
 <a href=#67 id=67 data-nosnippet>67</a>    <span class="kw">let </span>source = test_plan.sources.test_plan().clone();
-<a href=#68 id=68 data-nosnippet>68</a>    <span class="kw">let </span>template_variables = TemplateVariables::new(variables, source.clone(), override_sources);
+<a href=#68 id=68 data-nosnippet>68</a>    <span class="kw">let </span>template_ctx = TemplateContext::new(variables, source.clone(), override_sources);
 <a href=#69 id=69 data-nosnippet>69</a>
-<a href=#70 id=70 data-nosnippet>70</a>    test_plan.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>source, <span class="kw-2">&amp;</span>template_variables)<span class="question-mark">?</span>;
+<a href=#70 id=70 data-nosnippet>70</a>    test_plan.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>source, <span class="kw-2">&amp;</span>template_ctx)<span class="question-mark">?</span>;
 <a href=#71 id=71 data-nosnippet>71</a>
 <a href=#72 id=72 data-nosnippet>72</a>    <span class="kw">if </span>check {
 <a href=#73 id=73 data-nosnippet>73</a>        <span class="macro">info!</span>(<span class="string">"checking test plan"</span>);

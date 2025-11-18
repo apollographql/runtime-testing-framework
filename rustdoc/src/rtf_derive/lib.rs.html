@@ -33,7 +33,7 @@
 <a href=#33 id=33 data-nosnippet>33</a>                <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#34 id=34 data-nosnippet>34</a>                path: <span class="kw-2">&amp;mut </span>::std::vec::Vec&lt;::std::string::String&gt;,
 <a href=#35 id=35 data-nosnippet>35</a>                source: <span class="kw-2">&amp;</span>::rtf_config::Source,
-<a href=#36 id=36 data-nosnippet>36</a>                variables: <span class="kw-2">&amp;</span>::rtf_config::templating::TemplateVariables,
+<a href=#36 id=36 data-nosnippet>36</a>                ctx: <span class="kw-2">&amp;</span>::rtf_config::templating::TemplateContext,
 <a href=#37 id=37 data-nosnippet>37</a>            ) -&gt; ::rtf_config::templating::Result&lt;()&gt; {
 <a href=#38 id=38 data-nosnippet>38</a>                #try_template
 <a href=#39 id=39 data-nosnippet>39</a>            }
@@ -109,7 +109,7 @@
 <a href=#109 id=109 data-nosnippet>109</a>
 <a href=#110 id=110 data-nosnippet>110</a>    <span class="kw">let </span>inner = fields.iter().map(|f| {
 <a href=#111 id=111 data-nosnippet>111</a>        <span class="macro">quote!</span> {
-<a href=#112 id=112 data-nosnippet>112</a>            errs.append(<span class="self">self</span>.#f.try_template_nested(path, <span class="macro">stringify!</span>(#f), source, variables));
+<a href=#112 id=112 data-nosnippet>112</a>            errs.append(<span class="self">self</span>.#f.try_template_nested(path, <span class="macro">stringify!</span>(#f), source, ctx));
 <a href=#113 id=113 data-nosnippet>113</a>        }
 <a href=#114 id=114 data-nosnippet>114</a>    });
 <a href=#115 id=115 data-nosnippet>115</a>    <span class="kw">let </span>try_template = <span class="macro">quote!</span> {
@@ -154,7 +154,7 @@
 <a href=#154 id=154 data-nosnippet>154</a>
 <a href=#155 id=155 data-nosnippet>155</a>    <span class="kw">let </span>try_template = <span class="macro">quote!</span> {
 <a href=#156 id=156 data-nosnippet>156</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#157 id=157 data-nosnippet>157</a>            #(<span class="self">Self</span>::#variants(inner) =&gt; inner.try_template(path, source, variables),)*
+<a href=#157 id=157 data-nosnippet>157</a>            #(<span class="self">Self</span>::#variants(inner) =&gt; inner.try_template(path, source, ctx),)*
 <a href=#158 id=158 data-nosnippet>158</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>(()),
 <a href=#159 id=159 data-nosnippet>159</a>        }
 <a href=#160 id=160 data-nosnippet>160</a>    };

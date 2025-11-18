@@ -13,21 +13,20 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon.svg">
-        <link rel="shortcut icon" href="favicon.png">
-        <link rel="stylesheet" href="css/variables.css">
-        <link rel="stylesheet" href="css/general.css">
-        <link rel="stylesheet" href="css/chrome.css">
-        <link rel="stylesheet" href="css/print.css" media="print">
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-2459343d.css">
+        <link rel="stylesheet" href="css/chrome-9dfbd86b.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="fonts/fonts.css">
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="highlight-css" href="highlight.css">
-        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
-        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
@@ -37,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex.js";
+            window.path_to_searchindex_js = "searchindex-8bc9a972.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc.js"></script>
+        <script src="toc-9fe9db0f.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -54,7 +53,7 @@
             </div>
         </div>
     </div>
-    <div id="body-container">
+    <div id="mdbook-body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
             try {
@@ -83,12 +82,12 @@
             html.classList.add("js");
         </script>
 
-        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
 
         <!-- Hide / unhide sidebar before it is displayed -->
         <script>
             let sidebar = null;
-            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
@@ -103,39 +102,39 @@
             }
         </script>
 
-        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
                 <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
             </noscript>
-            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
             </div>
         </nav>
 
-        <div id="page-wrapper" class="page-wrapper">
+        <div id="mdbook-page-wrapper" class="page-wrapper">
 
             <div class="page">
-                <div id="menu-bar-hover-placeholder"></div>
-                <div id="menu-bar" class="menu-bar sticky">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
-                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
-                            <i class="fa fa-bars"></i>
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
                         </label>
-                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
-                            <i class="fa fa-paint-brush"></i>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
                         </button>
-                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
                         </ul>
-                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
-                            <i class="fa fa-search"></i>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
                         </button>
                     </div>
 
@@ -143,41 +142,41 @@
 
                     <div class="right-buttons">
                         <a href="print.html" title="Print this book" aria-label="Print this book">
-                            <i id="print-button" class="fa fa-print"></i>
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/apollographql/runtime-testing-framework" title="Git repository" aria-label="Git repository">
-                            <i id="git-repository-button" class="fa fa-github"></i>
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
                         </a>
 
                     </div>
                 </div>
 
-                <div id="search-wrapper" class="hidden">
-                    <form id="searchbar-outer" class="searchbar-outer">
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
                         <div class="search-wrapper">
-                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
                             <div class="spinner-wrapper">
-                                <i class="fa fa-spinner fa-spin"></i>
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
                             </div>
                         </div>
                     </form>
-                    <div id="searchresults-outer" class="searchresults-outer hidden">
-                        <div id="searchresults-header" class="searchresults-header"></div>
-                        <ul id="searchresults">
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
                         </ul>
                     </div>
                 </div>
 
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
                 <script>
-                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
-                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
-                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
                         link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
                     });
                 </script>
 
-                <div id="content" class="content">
+                <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="the-apollo-runtime-testing-framework"><a class="header" href="#the-apollo-runtime-testing-framework">The Apollo Runtime Testing Framework</a></h1>
 <p>Welcome to <a href="https://github.com/apollographql/runtime-testing-framework">RTF</a>!</p>
@@ -188,8 +187,8 @@ the contents of the tutorials and guides may require you to have already worked 
 sections in some places. Where this is the case, links will be provided to the relevant sections of
 the documentation.</p>
 <h3 id="who-are-these-docs-for"><a class="header" href="#who-are-these-docs-for">Who are these docs for?</a></h3>
-<p>The documentation is split into two main sections: "User Documentation" and "Developer
-Documentation".</p>
+<p>The documentation is split into two main sections: “User Documentation” and “Developer
+Documentation”.</p>
 <p><strong>User Documentation</strong> covers both how to make use of the <code>rtf</code> CLI for running existing Test Plans
 (such as those found in the <a href="https://github.com/apollographql/rtf-morgue">rtf-morgue</a> repo) and how to write your own Test Plans.</p>
 <p><strong>Develop Documentation</strong> covers details on the internal design of RTF and how to work within the
@@ -205,30 +204,22 @@ can find links to our intake process and other useful information in the channel
 workflows for running tests of the Apollo Router. This repo is maintained by the Runtime Readiness
 team in order to support Router Core with release validation, regression testing and running
 investigations into customer issues.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="overview"><a class="header" href="#overview">Overview</a></h1>
-<hr />
-<ul>
-<li><a href="overview.html#what-rtf-is">What RTF is</a></li>
-<li><a href="overview.html#what-rtf-is-not">What RTF is not</a></li>
-<li><a href="overview.html#pay-for-what-you-use">Pay for what you use</a></li>
-<li><a href="overview.html#so-whats-actually-on-offer">So, what's actually on offer?</a></li>
-<li><a href="overview.html#next-steps">Next steps</a></li>
-</ul>
-<hr />
-<p>Throughout the rest of the <em>User Documentation</em> you'll see us talking about RTF both as the
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="overview"><a class="header" href="#overview">Overview</a></h1>
+<p>Throughout the rest of the <em>User Documentation</em> you’ll see us talking about RTF both as the
 framework itself and as part of the richer tooling and testing capabilities provided by the Runtime
 Readiness team. We feel that it is important to draw a distinction between these two areas in order
 to be able to make the best use of each.</p>
-<p>So, while the rest of our documentation tends to focus on the "how" of using RTF and its related
-tooling, this page instead covers some of the "why" around how things are set up and the different
+<p>So, while the rest of our documentation tends to focus on the “how” of using RTF and its related
+tooling, this page instead covers some of the “why” around how things are set up and the different
 options available for making use of it. To kick things off, its probably best to cover what RTF <em>is</em>
-(and importantly, what it <em>isn't</em>).</p>
+(and importantly, what it <em>isn’t</em>).</p>
 <h2 id="what-rtf-is"><a class="header" href="#what-rtf-is">What RTF <em>is</em></a></h2>
 <h3 id="compositional-glue"><a class="header" href="#compositional-glue">Compositional Glue</a></h3>
 <p>The most important thing to understand about RTF is that it truly is <em>all</em> glue code and meta-data.
-RTF Test plans follow a simple "setup, run, teardown" execution model and providers are all self
+RTF Test plans follow a simple “setup, run, teardown” execution model and providers are all self
 contained functions of their inputs. Need access to a resource inside of your test scenario? Add the
-appropriate provider. Need access to the same resource when you're spinning up your test
+appropriate provider. Need access to the same resource when you’re spinning up your test
 environment? Add the provider there as well: RTF will handle de-duplicating the resources for you.</p>
 <h3 id="once-size-fits-most-not-all"><a class="header" href="#once-size-fits-most-not-all">Once size fits most (not all)</a></h3>
 <p>Aiming to provide a working out of the box solution for every use case we come across inevitably
@@ -242,37 +233,37 @@ their semantics to pull them in to the managed set of providers and base configu
 <h2 id="what-rtf-is-not"><a class="header" href="#what-rtf-is-not">What RTF is <em>not</em></a></h2>
 <h3 id="a-magic-bullet"><a class="header" href="#a-magic-bullet">A magic bullet</a></h3>
 <p>While it is certainly possible to rewrite all of your existing test suites to run under RTF we
-wouldn't recommend it. For anyone. The value add for using a framework like RTF is that it can
+wouldn’t recommend it. For anyone. The value add for using a framework like RTF is that it can
 handle pulling together resources and test data for you in a standardised, reliable way. If all you
 need to do is run something that looks like a unit test with no external dependencies, then RTF is
 almost guaranteed to be overkill.</p>
 <h3 id="purpose-built-for-your-exact-use-case"><a class="header" href="#purpose-built-for-your-exact-use-case">Purpose built for your exact use case</a></h3>
 <p>By design, RTF is a general purpose framework that focuses on giving users the tools to write their
 own test plans and tooling. Given the nature of the types of tests we typically see run under RTF,
-you may be inclined to ask why the framework doesn't offer built in support for things like running
+you may be inclined to ask why the framework doesn’t offer built in support for things like running
 Terraform or managing Kubernetes clusters. The answer is relatively simple: RTF is designed to
 <em>compose</em> with other tools rather than embed them directly. By setting things up this way we make it
 possible for end users to leverage the tooling they are already familiar with alongside RTF rather
 than being forced to pick from a limited set of options that we happed to have added support for.</p>
 <h2 id="pay-for-what-you-use"><a class="header" href="#pay-for-what-you-use">Pay for what you use</a></h2>
-<p>So if that's what RTF is / is not in terms of design, what does it look like to actually use?</p>
+<p>So if that’s what RTF is / is not in terms of design, what does it look like to actually use?</p>
 <p>We here at Runtime Readiness are <em>big</em> fans of the Unix Philosophy (as stated by Doug McIlroy):</p>
 <blockquote>
-<p>Write programs that do one thing and do it well.<br/> Write programs to work together.<br/> Write
+<p>Write programs that do one thing and do it well.<br /> Write programs to work together.<br /> Write
 programs to handle text streams, because that is a universal interface.</p>
 </blockquote>
-<p>In our case, as with most developer tooling, "text streams" is better replaced with structured data
+<p>In our case, as with most developer tooling, “text streams” is better replaced with structured data
 in the form of YAML and JSON but the spirit of the philosophy remains.</p>
 <p>We certainly require a variety of machinery to automate spinning up the services under test and
 pulling together all of the data and configuration required to run representative test scenarios.
 But we always make sure that each piece of what we write is usable independently (as far as
-possible) and that if you don't want or need something, you shouldn't have to even know that it
+possible) and that if you don’t want or need something, you shouldn’t have to even know that it
 exists.</p>
 <p>To achieve that, our tooling is written as a collection of layers that you are free to pick and
 chose from as you see fit. Each individual piece will have its own requirements and expectations for
 you to be able to make use of it, but you should quickly see that many of those are shared so you
 get quite a lot of bang for your buck!</p>
-<h2 id="so-whats-actually-on-offer"><a class="header" href="#so-whats-actually-on-offer">So, what's actually on offer?</a></h2>
+<h2 id="so-whats-actually-on-offer"><a class="header" href="#so-whats-actually-on-offer">So, what’s actually on offer?</a></h2>
 <p>RTF and the additional tooling surrounding it is organised as a set of three distinct layers that
 work together to allow you, the user, to determine how and where to focus your time and resources.
 With each option there are a different set of trade offs involved which mainly concern whether you
@@ -281,7 +272,7 @@ configure things just the way you like them. As you might imagine, the further d
 go, the more control you have but also fewer guarantees.</p>
 <h3 id="layer-3-custom-user-facing-functionality-built-using-rtf"><a class="header" href="#layer-3-custom-user-facing-functionality-built-using-rtf">Layer 3: Custom user facing functionality built using RTF</a></h3>
 <p>At one end of the scale we have custom applications built using RTF as a foundation such as the
-<a href="https://apollographql.atlassian.net/wiki/spaces/RUNTIMEREADINESS/pages/1814036490/Router+Release+Validation">Router release validation tests</a>. Here RTF is very much an implementation detail from the user's
+<a href="https://apollographql.atlassian.net/wiki/spaces/RUNTIMEREADINESS/pages/1814036490/Router+Release+Validation">Router release validation tests</a>. Here RTF is very much an implementation detail from the user’s
 perspective and the focus is entirely on addressing a particular testing need. If the application in
 question is one you want or need to make use of, it will have accompanying documentation to guide
 you through the process. If you are interested in developing your own testing capabilities on top of
@@ -299,26 +290,27 @@ directory of the <code>rtf-morgue</code> repo.</p>
 cases which require coordinating elements that make use of shared semantics or configuration.</p>
 <p>As far as possible, anything that is done by one of our <em>Layer 3</em> applications is also made
 available as part of <em>Layer 2</em> for direct use as well. If you find yourself needing to do something
-that isn't yet supported by our APIs or libraries, please do reach out to us in the
+that isn’t yet supported by our APIs or libraries, please do reach out to us in the
 <code>#proj-runtime-testing-framework</code> channel in Slack to let us know! Chances are that other users
 would like the same functionality and it might make sense to support it natively from our side.</p>
 <h3 id="layer-1-rtf-core"><a class="header" href="#layer-1-rtf-core">Layer 1: RTF core</a></h3>
 <p>The final layer is RTF itself. Here we provide the <code>rtf</code> CLI which supports a number of
-<a href="./framework/file-providers.html">built-in providers</a> that serve as a minimal foundation for writing test plans. At this layer you
+<a href="#file-providers">built-in providers</a> that serve as a minimal foundation for writing test plans. At this layer you
 have maximum flexibility to implement what you need but at the cost of minimal guarantees around how
 you have composed together the different elements that make up your test plan.</p>
-<p>We should emphasise that "minimal" here is in comparison to what is available from Layers 2 and 3:
+<p>We should emphasise that “minimal” here is in comparison to what is available from Layers 2 and 3:
 RTF provides a variety of debugging commands and rich error output to help you write and debug your
-test plans. What it <em>doesn't</em> provide out of the box is a way for ensuring that you've set up your
+test plans. What it <em>doesn’t</em> provide out of the box is a way for ensuring that you’ve set up your
 providers and test scripts in a self consistent way.</p>
 <h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
-<p>Now that you've read a little of the "why" its time to dig into the "how". Unsurprisingly, the
-<a href="./guides/index.html">Getting started</a> section is where we recommend you start first if your goal is to learn about
+<p>Now that you’ve read a little of the “why” its time to dig into the “how”. Unsurprisingly, the
+<a href="#getting-started">Getting started</a> section is where we recommend you start first if your goal is to learn about
 how RTF works and how you can work with pre-existing test plans. If you want to dig more into the
-framework itself, then the <a href="./guides/test-plans/index.html">Test plans</a> and <a href="./framework/index.html">framework</a> sections are more likely what you are
+framework itself, then the <a href="#writing-test-plans">Test plans</a> and <a href="#the-framework">framework</a> sections are more likely what you are
 after.</p>
 <p>Happy testing!</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="getting-started"><a class="header" href="#getting-started">Getting started</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="getting-started"><a class="header" href="#getting-started">Getting started</a></h1>
 <p>To build <code>rtf</code> from source, start by cloning the repo locally:</p>
 <pre><code class="language-bash">git clone git@github.com:apollographql/runtime-testing-framework.git
 cd runtime-testing-framework
@@ -333,36 +325,28 @@ other dependencies. After installing <code>mise</code>, trust the mise config fi
 <p>Verify installation:</p>
 <pre><code class="language-bash">rtf
 </code></pre>
-<p>This should print the rtf help output to your terminal. With that done, you're ready to run some
+<p>This should print the rtf help output to your terminal. With that done, you’re ready to run some
 test plans!</p>
 <h2 id="example-test-plans"><a class="header" href="#example-test-plans">Example test plans</a></h2>
-<p>This repo contains a "Hello, world!" test plan to introduce you to rtf concepts. Start by following
-the <a href="guides/./hello-world.html">"Hello, world!"</a> guide.</p>
+<p>This repo contains a “Hello, world!” test plan to introduce you to rtf concepts. Start by following
+the <a href="#hello-world">“Hello, world!”</a> guide.</p>
 <p>The <a href="https://github.com/apollographql/rtf-morgue">rtf-morgue</a> contains the most up-to-date examples of how to write test plans for a variety
 of different test cases. It also contains guides for running those test plans.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="hello-world"><a class="header" href="#hello-world">Hello, world!</a></h1>
-<h3 id="table-of-contents"><a class="header" href="#table-of-contents">Table of contents</a></h3>
-<ul>
-<li><a href="guides/hello-world.html#overview">Overview</a></li>
-<li><a href="guides/hello-world.html#pre-flight-checks">Pre-Flight Checks</a></li>
-<li><a href="guides/hello-world.html#running-a-test-plan">Running a Test Plan</a></li>
-<li><a href="guides/hello-world.html#modifying-variables">Modifying Variables</a></li>
-<li><a href="guides/hello-world.html#overriding-individual-variables">Overriding Individual Variables</a></li>
-<li><a href="guides/hello-world.html#matrix-variables">Matrix Variables</a></li>
-</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="hello-world"><a class="header" href="#hello-world">Hello, world!</a></h1>
 <h2 id="overview-1"><a class="header" href="#overview-1">Overview</a></h2>
-<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans">example_test_plans</a> directory in the rtf repository contains a "hello, world!" test plan
+<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans">example_test_plans</a> directory in the rtf repository contains a “hello, world!” test plan
 that you can edit and run to learn about the concepts and terminology involved with using rtf.</p>
-<p>We'll start with templating and running the test plan as it is written. Then, we'll take a quick
+<p>We’ll start with templating and running the test plan as it is written. Then, we’ll take a quick
 look at a couple of simple ways we can make changes to the config files in order to alter its
 behaviour.</p>
 <blockquote>
 <p>For more information on the structure of RTF test plan config files see the
-<a href="guides/../framework/test-plans.html">Framework / Test Plans</a> page.</p>
+<a href="#test-plans">Framework / Test Plans</a> page.</p>
 <p>For details on how to get started with writing your own test plans from scratch see the
-<a href="guides/./test-plans/index.html">Writing test plans</a> section.</p>
+<a href="#writing-test-plans">Writing test plans</a> section.</p>
 </blockquote>
-<p>The "hello, world!" test plan contains a brief description, a few variables, and references to
+<p>The “hello, world!” test plan contains a brief description, a few variables, and references to
 scenario and environment config files:</p>
 <pre><code class="language-yaml">name: hello-world
 description: |
@@ -572,7 +556,7 @@ be stored in version control.</li>
 <p>What if we want to define multiple sets of variables and run them <em>all</em> as part of a batch of tests?
 For that, <code>rtf</code> provides a <strong>matrix</strong> feature that functions in a similar way to matrices in
 <a href="https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/running-variations-of-jobs-in-a-workflow">GitHub Actions</a>.</p>
-<p>To convert a <strong>variable</strong> from a single scalar value to an array of values you'd like to use, move
+<p>To convert a <strong>variable</strong> from a single scalar value to an array of values you’d like to use, move
 it under the <code>matrix.dimensions</code> section of the test plan:</p>
 <blockquote>
 <p>Remember to also remove it from the <code>variables</code> section or your test plan will fail its check!</p>
@@ -608,7 +592,7 @@ scenario :: hello, darkness my old friend
 +    setup_subject: [ "world!", "sailor!" ]
 +    scenario_subject: [ "darkness my old friend", "is it me you're looking for?" ]
 </code></pre>
-<p>We'll get a run for every <em>combination</em> of variables:</p>
+<p>We’ll get a run for every <em>combination</em> of variables:</p>
 <pre><code>$ rm output -rf
 $ rtf run example-test-plans/hello-world/test-plan.yaml
 
@@ -639,41 +623,22 @@ matrix:
 <p>The syntax used for template strings involves placing <em>matrix dimension names</em> inside of <code>${}</code> along
 with static string content in order to generate a unique name for each variant. The resulting string
 is then slugified to remove whitespace and slashes.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="the-framework"><a class="header" href="#the-framework">The framework</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="the-framework"><a class="header" href="#the-framework">The framework</a></h1>
 <p>The following pages provide reference information for various aspects of the runtime testing
 framework for end users who are interested in writing their own test plans.</p>
-<p>If you are just getting started with RTF then we recommend reading through the <a href="framework/../guides/index.html">guides</a> section
+<p>If you are just getting started with RTF then we recommend reading through the <a href="#getting-started">guides</a> section
 first.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="test-plans"><a class="header" href="#test-plans">Test Plans</a></h1>
-<hr />
-<ul>
-<li><a href="framework/test-plans.html#top-level-keys">Top level keys</a></li>
-<li><a href="framework/test-plans.html#config-specs">Config Specs</a>
-<ul>
-<li><a href="framework/test-plans.html#inline-configuration">Inline configuration</a></li>
-<li><a href="framework/test-plans.html#from-a-local-file">From a local file</a></li>
-<li><a href="framework/test-plans.html#from-a-remote-file-in-github">From a remote file in GitHub</a></li>
-</ul>
-</li>
-<li><a href="framework/test-plans.html#applying-overrides">Applying overrides</a></li>
-<li><a href="framework/test-plans.html#a-note-on-relative-paths">A note on relative paths</a></li>
-<li><a href="framework/test-plans.html#working-with-matrices">Working with matrices</a>
-<ul>
-<li><a href="framework/test-plans.html#naming-variants">Naming variants</a></li>
-<li><a href="framework/test-plans.html#including-explicit-variants">Including explicit variants</a></li>
-</ul>
-</li>
-<li><a href="framework/test-plans.html#full-example">Full example</a></li>
-</ul>
-<hr />
-<p>As we saw in the <a href="framework/../guides/hello-world.html">hello, world!</a> guide, the top level entry point for running tests under RTF is
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="test-plans"><a class="header" href="#test-plans">Test Plans</a></h1>
+<p>As we saw in the <a href="#hello-world">hello, world!</a> guide, the top level entry point for running tests under RTF is
 the <code>test-plan.yaml</code> config file. Depending on exactly how you want to set things up there are
 several options available for how you organise this, but the core structure remains the same.</p>
 <p>In this page we will cover the available keys within a Test Plan and outline the structure and
 semantics of each. For more detailed information on specific aspects of the framework please see the
-relevant pages under the <a href="framework/./index.html">Framework</a> section of the documentation.</p>
+relevant pages under the <a href="#the-framework">Framework</a> section of the documentation.</p>
 <blockquote>
-<p>An example of a valid <code>test-plan.yaml</code> is provided in the <a href="framework/test-plans.html#full-example">Full example</a> section
+<p>An example of a valid <code>test-plan.yaml</code> is provided in the <a href="#full-example">Full example</a> section
 below.</p>
 </blockquote>
 <h2 id="top-level-keys"><a class="header" href="#top-level-keys">Top level keys</a></h2>
@@ -704,15 +669,15 @@ variables will result in an error when you attempt to run the Test Plan.</li>
 used by each variant.</li>
 </ul>
 </li>
-<li><code>scenario</code>: A <a href="framework/test-plans.html#config-specs">Config Spec</a> for the scenario to be run.
+<li><code>scenario</code>: A <a href="#config-specs">Config Spec</a> for the scenario to be run.
 <ul>
-<li>For full details on the structure of a Scenario see the <a href="framework/./scenarios.html">Scenario</a> page of the Framework
+<li>For full details on the structure of a Scenario see the <a href="#scenarios">Scenario</a> page of the Framework
 documentation.</li>
 </ul>
 </li>
-<li><code>environment</code>: A <a href="framework/test-plans.html#config-specs">Config Spec</a> for the test environment to provision.
+<li><code>environment</code>: A <a href="#config-specs">Config Spec</a> for the test environment to provision.
 <ul>
-<li>For full details on the structure of an Environment see the <a href="framework/./environments.html">Environment</a> page of the
+<li>For full details on the structure of an Environment see the <a href="#environments">Environment</a> page of the
 Framework documentation.</li>
 </ul>
 </li>
@@ -748,7 +713,7 @@ relative path <em>from the test-plan.yaml file</em> under the <code>relative_pat
 your override configuration under that key. The structure here is <em>not</em> required to parse as a full
 config file so you are free to only specify the keys that you need.</p>
 <blockquote>
-<p>For details on how overrides are applied, see <a href="framework/test-plans.html#applying-overrides">Applying Overrides</a> below.</p>
+<p>For details on how overrides are applied, see <a href="#applying-overrides">Applying Overrides</a> below.</p>
 </blockquote>
 <pre><code class="language-yaml">scenario:
   from:
@@ -773,14 +738,14 @@ is not specified then RTF will default to pulling from the mainline branch.</p>
 <blockquote>
 <p>You <em>must</em> have a valid GitHub access token with permissions to interact with your chosen
 repoisitory exported as <code>GITHUB_TOKEN</code> in your shell environment for this method to work. See
-<a href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens">here</a> for GitHub's documentation on how to create and manage access tokens.</p>
+<a href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens">here</a> for GitHub’s documentation on how to create and manage access tokens.</p>
 </blockquote>
-<p>As with using a <a href="framework/test-plans.html#from-a-local-file">local file</a>, <em>overrides</em> can be defined by adding the
+<p>As with using a <a href="#from-a-local-file">local file</a>, <em>overrides</em> can be defined by adding the
 <code>overrides</code> key at the same indentation level as <code>from</code> and then adding your override configuration
 under that key. The structure here is <em>not</em> required to parse as a full config file so you are free
 to only specify the keys that you need.</p>
 <blockquote>
-<p>For details on how overrides are applied, see <a href="framework/test-plans.html#applying-overrides">Applying Overrides</a> below.</p>
+<p>For details on how overrides are applied, see <a href="#applying-overrides">Applying Overrides</a> below.</p>
 </blockquote>
 <pre><code class="language-yaml">scenario:
   from:
@@ -820,8 +785,8 @@ with the one provided in the overrides.</li>
 arrays are then sorted and deduplicated based on an appropriate key in order to support replacing
 array elements:</p>
 <ul>
-<li>For <a href="framework/./file-providers.html">File providers</a> the key used is <code>env_var</code>.</li>
-<li>For variable declarations and environment setup "provides" the key used is <code>name</code>.</li>
+<li>For <a href="#file-providers">File providers</a> the key used is <code>env_var</code>.</li>
+<li>For variable declarations and environment setup “provides” the key used is <code>name</code>.</li>
 </ul>
 <h2 id="a-note-on-relative-paths"><a class="header" href="#a-note-on-relative-paths">A note on relative paths</a></h2>
 <p>There are several places within RTF config files that you be required to specify relative paths to
@@ -846,7 +811,7 @@ dimensions.</p>
     a: ["foo", "bar"]
     b: [1, 2, 3]
 </code></pre>
-<p>Expands to six test plans (known as "variants") covering each of the possible combinations of values
+<p>Expands to six test plans (known as “variants”) covering each of the possible combinations of values
 for <code>a</code> and <code>b</code>.</p>
 <p>Each variant is run individually and writes its output to its own subdirectory, named
 <code>matrix_variant_$n</code> by default. The order in which variants are run is deterministic: dimensions are
@@ -959,7 +924,7 @@ can add further dimensions to the matrix and obtain the correct variants:</p>
 #   compiler_rev: apollo-compiler@1.30.0
 </code></pre>
 <h2 id="full-example"><a class="header" href="#full-example">Full example</a></h2>
-<p>The following is a minimal "kitchen sink" example of the structure of a valid <code>test-plan.yaml</code>.</p>
+<p>The following is a minimal “kitchen sink” example of the structure of a valid <code>test-plan.yaml</code>.</p>
 <pre><code class="language-yaml">name: example
 description: An example description
 
@@ -1008,22 +973,17 @@ environment:
         content: |
           An additional file that wasn't present in the original environment.yaml
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="environments"><a class="header" href="#environments">Environments</a></h1>
-<hr />
-<ul>
-<li><a href="framework/environments.html#top-level-keys">Top level keys</a></li>
-<li><a href="framework/environments.html#full-example">Full example</a></li>
-</ul>
-<hr />
-<p>As outlined in the <a href="framework/./test-plans.html">Test Plan</a> overview, your Environment configuration is one of the two main
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="environments"><a class="header" href="#environments">Environments</a></h1>
+<p>As outlined in the <a href="#test-plans">Test Plan</a> overview, your Environment configuration is one of the two main
 pieces of configuration needed in order to run tests under RTF. Conceptually, an Environment
-configuration is a pair of <a href="framework/./command-providers.html">Command providers</a> that are run either side of the test scenario you
+configuration is a pair of <a href="#command-providers">Command providers</a> that are run either side of the test scenario you
 want to run in order to setup and teardown the resources required for running the test.</p>
 <p>In this page we will cover the available keys within an Environment and outline the structure and
 semantics of each. For more detailed information on specific aspects of the framework please see the
-relevant pages under the <a href="framework/./index.html">Framework</a> section of the documentation.</p>
+relevant pages under the <a href="#the-framework">Framework</a> section of the documentation.</p>
 <blockquote>
-<p>An example of a valid <code>environment.yaml</code> is provided in the <a href="framework/environments.html#full-example">Full example</a> section
+<p>An example of a valid <code>environment.yaml</code> is provided in the <a href="#full-example-1">Full example</a> section
 below.</p>
 </blockquote>
 <h2 id="top-level-keys-1"><a class="header" href="#top-level-keys-1">Top level keys</a></h2>
@@ -1045,18 +1005,18 @@ rather than in comments or other files (such as a README).</li>
 <li>Variable declarations require specifying both the variable name and a short description of how
 the variable is used.</li>
 <li>Variable declarations also support an optional <code>default</code> field where you can specify a default
-scalar value to use if none is provided within the <a href="framework/./test-plans.html">Test Plan</a>.</li>
+scalar value to use if none is provided within the <a href="#test-plans">Test Plan</a>.</li>
 <li>If the same variable name is defined in both the Environment and Scenario used by a given Test
 Plan but with different defaults, each config file will fall back to its own default.</li>
 </ul>
 </li>
-<li><code>setup</code>: A <a href="framework/./command-providers.html">Command Provider</a> that defines how the environment should be set up before the
+<li><code>setup</code>: A <a href="#command-providers">Command Provider</a> that defines how the environment should be set up before the
 scenario is run.</li>
-<li><code>teardown</code>: A <a href="framework/./command-providers.html">Command Provider</a> that defines how the environment should be torn down after the
+<li><code>teardown</code>: A <a href="#command-providers">Command Provider</a> that defines how the environment should be torn down after the
 scenario is run.</li>
 </ul>
 <h2 id="full-example-1"><a class="header" href="#full-example-1">Full example</a></h2>
-<p>The following is a minimal "kitchen sink" example of the structure of a valid <code>environment.yaml</code>.</p>
+<p>The following is a minimal “kitchen sink” example of the structure of a valid <code>environment.yaml</code>.</p>
 <pre><code class="language-yaml">name: example
 description: An example description
 
@@ -1086,22 +1046,17 @@ teardown:
       kind: inline
       content: My inline content
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="scenarios"><a class="header" href="#scenarios">Scenarios</a></h1>
-<hr />
-<ul>
-<li><a href="framework/scenarios.html#top-level-keys">Top level keys</a></li>
-<li><a href="framework/scenarios.html#full-example">Full example</a></li>
-</ul>
-<hr />
-<p>As outlined in the <a href="framework/./test-plans.html">Test Plan</a> overview, your Scenario configuration is one of the two main
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="scenarios"><a class="header" href="#scenarios">Scenarios</a></h1>
+<p>As outlined in the <a href="#test-plans">Test Plan</a> overview, your Scenario configuration is one of the two main
 pieces of configuration needed in order to run tests under RTF. Conceptually, a Scenario simply a
-<a href="framework/./command-providers.html">Command providers</a> with enforced semantics within the overall execution of the Test Plan, being
-run inbetween the Environment's setup and teardown commands.</p>
+<a href="#command-providers">Command providers</a> with enforced semantics within the overall execution of the Test Plan, being
+run inbetween the Environment’s setup and teardown commands.</p>
 <p>In this page we will cover the available keys within a Scenario and outline the structure and
 semantics of each. For more detailed information on specific aspects of the framework please see the
-relevant pages under the <a href="framework/./index.html">Framework</a> section of the documentation.</p>
+relevant pages under the <a href="#the-framework">Framework</a> section of the documentation.</p>
 <blockquote>
-<p>An example of a valid <code>scenario.yaml</code> is provided in the <a href="framework/scenarios.html#full-example">Full example</a> section
+<p>An example of a valid <code>scenario.yaml</code> is provided in the <a href="#full-example-2">Full example</a> section
 below.</p>
 </blockquote>
 <h2 id="top-level-keys-2"><a class="header" href="#top-level-keys-2">Top level keys</a></h2>
@@ -1123,17 +1078,17 @@ than in comments or other files (such as a README).</li>
 <li>Variable declarations require specifying both the variable name and a short description of how
 the variable is used.</li>
 <li>Variable declarations also support an optional <code>default</code> field where you can specify a default
-scalar value to use if none is provided within the <a href="framework/./test-plans.html">Test Plan</a>.</li>
+scalar value to use if none is provided within the <a href="#test-plans">Test Plan</a>.</li>
 <li>If the same variable name is defined in both the Environment and Scenario used by a given Test
 Plan but with different defaults, each config file will fall back to its own default.</li>
 </ul>
 </li>
-<li><code>command</code>: See <a href="framework/./command-providers.html">Command Provider</a>.</li>
-<li><code>env_vars</code>: See <a href="framework/./command-providers.html">Command Provider</a>.</li>
-<li><code>file_providers</code>: See <a href="framework/./command-providers.html">Command Provider</a>.</li>
+<li><code>command</code>: See <a href="#command-providers">Command Provider</a>.</li>
+<li><code>env_vars</code>: See <a href="#command-providers">Command Provider</a>.</li>
+<li><code>file_providers</code>: See <a href="#command-providers">Command Provider</a>.</li>
 </ul>
 <h2 id="full-example-2"><a class="header" href="#full-example-2">Full example</a></h2>
-<p>The following is a minimal "kitchen sink" example of the structure of a valid <code>scenario.yaml</code>.</p>
+<p>The following is a minimal “kitchen sink” example of the structure of a valid <code>scenario.yaml</code>.</p>
 <pre><code class="language-yaml">name: example
 description: An example description
 
@@ -1157,39 +1112,23 @@ file_providers:
     kind: inline
     content: My inline content
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="command-providers"><a class="header" href="#command-providers">Command providers</a></h1>
-<hr />
-<ul>
-<li><a href="framework/command-providers.html#the-command-section">The command section</a>
-<ul>
-<li><a href="framework/command-providers.html#inline-scripts">Inline scripts</a></li>
-<li><a href="framework/command-providers.html#relative-paths">Relative paths</a></li>
-<li><a href="framework/command-providers.html#required-commands">Required commands</a></li>
-</ul>
-</li>
-<li><a href="framework/command-providers.html#the-env-vars-section">The env vars section</a></li>
-<li><a href="framework/command-providers.html#the-file-providers-section">The file providers section</a>
-<ul>
-<li><a href="framework/command-providers.html#a-note-on-providers-as-resources">A note on providers as resources</a></li>
-</ul>
-</li>
-</ul>
-<hr />
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="command-providers"><a class="header" href="#command-providers">Command providers</a></h1>
 <p><em>Command Providers</em> are the core executable element making up RTF Test Plans. They allow you, the
 user, to specify how a given command should be run and what resources it needs in order to do so.
-Both the <a href="framework/./environments.html">Environment</a> and <a href="framework/./scenarios.html">Scenario</a> configuration files are simply ways of defining Command
+Both the <a href="#environments">Environment</a> and <a href="#scenarios">Scenario</a> configuration files are simply ways of defining Command
 Providers with known semantics for RTF to execute alongside templating variables that can be used to
 customise how that command is run.</p>
 <p>The configuration for a Command Provider consists of three top level sections:</p>
 <ol>
 <li>The command itself.</li>
 <li>Environment variables that should be set before the command is run.</li>
-<li>A set of <a href="framework/./file-providers.html">File Providers</a> that should be run and made available before the command is run.</li>
+<li>A set of <a href="#file-providers">File Providers</a> that should be run and made available before the command is run.</li>
 </ol>
 <p>The details of each section are outlined below.</p>
 <blockquote>
 <p>For full examples of what command sections look like inside of RTF test plans, please see the
-examples found in the <a href="framework/./environments.html#full-example">Environment</a> and <a href="framework/./scenarios.html#full-example">Scenario</a> pages.</p>
+examples found in the <a href="#full-example-1">Environment</a> and <a href="#full-example-2">Scenario</a> pages.</p>
 </blockquote>
 <h2 id="the-command-section"><a class="header" href="#the-command-section">The command section</a></h2>
 <p>You can define your command in two ways:</p>
@@ -1215,14 +1154,14 @@ fi
 </code></pre>
 </blockquote>
 <p>It is also possible to instead mark that the command is <em>required</em> as an override specified in the
-user's Test Plan. This is primarily used as part of a Scenario or Environment configuration where
+user’s Test Plan. This is primarily used as part of a Scenario or Environment configuration where
 you want to set up supporting resources and data around an arbitrary user specified command.</p>
 <p>In each of the three options you will need to provide the <code>name</code> of the command as well as a <code>kind</code>
 the specifies which strategy you want to use to define your command.</p>
 <h3 id="inline-scripts"><a class="header" href="#inline-scripts">Inline scripts</a></h3>
 <p>To provide your command as an inline script simply specify the kind as <code>inline</code> and provide your
 script contents under the <code>content</code> key.</p>
-<p>It is worth familiarising yourself with YAML's support for multiline strings in order to ensure that
+<p>It is worth familiarising yourself with YAML’s support for multiline strings in order to ensure that
 you have the correct indentation within your scripts. <a href="https://yaml-multiline.info/">This site</a> serves as a nice minimal
 reference for the relevant YAML syntax.</p>
 <pre><code class="language-yaml">command:
@@ -1234,7 +1173,7 @@ reference for the relevant YAML syntax.</p>
 </code></pre>
 <h3 id="relative-paths"><a class="header" href="#relative-paths">Relative paths</a></h3>
 <p>To use a pre-existing script as your command simply specify the kind as <code>relative_path</code> and provide
-the relative path to your script under the <code>path</code> key. (See <a href="framework/./test-plans.html#a-note-on-relative-paths">here</a> for details on how relative
+the relative path to your script under the <code>path</code> key. (See <a href="#a-note-on-relative-paths">here</a> for details on how relative
 paths are handled by RTF).</p>
 <pre><code class="language-yaml">command:
   name: my-shell-script.sh
@@ -1244,7 +1183,7 @@ paths are handled by RTF).</p>
 <h3 id="required-commands"><a class="header" href="#required-commands">Required commands</a></h3>
 <p>To mark a command as required, but not specified by default, you can use the <code>required</code> kind which
 supports providing an accompanying <code>message</code> to inform the user of how they should define their own
-command. If the user fails to provide an override for the command in their <a href="framework/./test-plans.html">Test Plan</a>, RTF will
+command. If the user fails to provide an override for the command in their <a href="#test-plans">Test Plan</a>, RTF will
 error at the templating stage of execution and print your error message as the reason for the
 failure.</p>
 <pre><code class="language-yaml">command:
@@ -1268,7 +1207,7 @@ env_vars:
 </code></pre>
 <h2 id="the-file-providers-section"><a class="header" href="#the-file-providers-section">The file providers section</a></h2>
 <p>Under the <code>file_providers</code> key you may specify any number of <em>File Providers</em> as resources that will
-be made available to your command prior to execution. The <a href="framework/./file-providers.html">File Providers</a> page covers the
+be made available to your command prior to execution. The <a href="#file-providers">File Providers</a> page covers the
 specifics of each of the built-in file providers within RTF so here we will focus instead on their
 shared structure and semantics.</p>
 <p>When defined under a <em>Command Provider</em> the following shared keys are added to the variant specific
@@ -1284,7 +1223,7 @@ by the provider.
 outputs.</li>
 </ul>
 </li>
-<li><code>kind</code>: the variant "kind" which then sets the expected keys required for the rest of the provider
+<li><code>kind</code>: the variant “kind” which then sets the expected keys required for the rest of the provider
 block.</li>
 </ul>
 <pre><code class="language-yaml">file_providers:
@@ -1308,24 +1247,25 @@ relationships without warning.</p>
 file providers that share identical keys, so you are free to duplicate providers between different
 <em>Command Providers</em>. Allowing you to share resources between different <em>Command Providers</em> without
 worrying about the providers running multiple times.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="file-providers"><a class="header" href="#file-providers">File Providers</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="file-providers"><a class="header" href="#file-providers">File Providers</a></h1>
 <p>Available file providers:</p>
 <ul>
-<li><a href="framework/file-providers.html#build-router-from-source">Build Router From Source</a></li>
-<li><a href="framework/file-providers.html#from-command">From command</a></li>
-<li><a href="framework/file-providers.html#github-file">GitHub File</a></li>
-<li><a href="framework/file-providers.html#graphos-canned-operations">GraphOS Canned Operations</a></li>
-<li><a href="framework/file-providers.html#graphos-canned-operations-by-id">GraphOS Canned Operations by ID</a></li>
-<li><a href="framework/file-providers.html#graphos-supergraph-router-url-overrides">GraphOS Supergraph Router URL Overrides</a></li>
-<li><a href="framework/file-providers.html#graphos-subgraph-sdl">GraphOS Subgraph SDL</a></li>
-<li><a href="framework/file-providers.html#graphos-subgraph-names">GraphOS Subgraph Names</a></li>
-<li><a href="framework/file-providers.html#graphos-supergraph-sdl">GraphOS Supergraph SDL</a></li>
-<li><a href="framework/file-providers.html#inline-file">Inline File</a></li>
-<li><a href="framework/file-providers.html#merge-yaml">Merge YAML</a></li>
-<li><a href="framework/file-providers.html#graphos-offline-license">GraphOS Offline License</a></li>
-<li><a href="framework/file-providers.html#relative-path">Relative Path</a></li>
-<li><a href="framework/file-providers.html#required-file">Required File</a></li>
-<li><a href="framework/file-providers.html#router-download-script">Router Download Script</a></li>
+<li><a href="#build-router-from-source">Build Router From Source</a></li>
+<li><a href="#from-command">From command</a></li>
+<li><a href="#github-file">GitHub File</a></li>
+<li><a href="#graphos-canned-operations">GraphOS Canned Operations</a></li>
+<li><a href="#graphos-canned-operations-by-id">GraphOS Canned Operations by ID</a></li>
+<li><a href="#graphos-supergraph-router-url-overrides">GraphOS Supergraph Router URL Overrides</a></li>
+<li><a href="#graphos-subgraph-sdl">GraphOS Subgraph SDL</a></li>
+<li><a href="#graphos-subgraph-names">GraphOS Subgraph Names</a></li>
+<li><a href="#graphos-supergraph-sdl">GraphOS Supergraph SDL</a></li>
+<li><a href="#inline-file">Inline File</a></li>
+<li><a href="#merge-yaml">Merge YAML</a></li>
+<li><a href="#graphos-offline-license">GraphOS Offline License</a></li>
+<li><a href="#relative-path">Relative Path</a></li>
+<li><a href="#required-file">Required File</a></li>
+<li><a href="#router-download-script">Router Download Script</a></li>
 </ul>
 <h2 id="build-router-from-source"><a class="header" href="#build-router-from-source">Build Router From Source</a></h2>
 <p>A file provider used for building the Router from source at a specific git commit or reference. A
@@ -1408,9 +1348,9 @@ done &lt;"$CANNED_OPS_FILE"
 <details>
 <summary>Variants</summary>
 <ul>
-<li><a href="framework/file-providers.html#inline-file">Inline File</a></li>
-<li><a href="framework/file-providers.html#relative-path">Relative Path</a></li>
-<li><a href="framework/file-providers.html#required-file">Required File</a></li>
+<li><a href="#inline-file">Inline File</a></li>
+<li><a href="#relative-path">Relative Path</a></li>
+<li><a href="#required-file">Required File</a></li>
 </ul>
 </details>
 <h4 id="args"><a class="header" href="#args"><code>args</code></a></h4>
@@ -1576,7 +1516,7 @@ supergraph from the GraphOS API.</p>
 <h3 id="graph_ref-5"><a class="header" href="#graph_ref-5"><code>graph_ref</code></a></h3>
 <p>The Apollo graph ref to pull supergraph SDL for.</p>
 <h3 id="with_subgraph_overrides"><a class="header" href="#with_subgraph_overrides"><code>with_subgraph_overrides</code></a></h3>
-<p>Replace the supergraph's subgraph urls with overridden values for testing.</p>
+<p>Replace the supergraph’s subgraph urls with overridden values for testing.</p>
 <p>Defaults to null if unset.</p>
 </details>
 <h2 id="inline-file"><a class="header" href="#inline-file">Inline File</a></h2>
@@ -1631,11 +1571,11 @@ an array:</p>
 <details>
 <summary>Variants</summary>
 <ul>
-<li><a href="framework/file-providers.html#github-file">GitHub File</a></li>
-<li><a href="framework/file-providers.html#graphos-supergraph-router-url-overrides">GraphOS Supergraph Router URL Overrides</a></li>
-<li><a href="framework/file-providers.html#inline-file">Inline File</a></li>
-<li><a href="framework/file-providers.html#relative-path">Relative Path</a></li>
-<li><a href="framework/file-providers.html#required-file">Required File</a></li>
+<li><a href="#github-file">GitHub File</a></li>
+<li><a href="#graphos-supergraph-router-url-overrides">GraphOS Supergraph Router URL Overrides</a></li>
+<li><a href="#inline-file">Inline File</a></li>
+<li><a href="#relative-path">Relative Path</a></li>
+<li><a href="#required-file">Required File</a></li>
 </ul>
 </details>
 <h3 id="overrides"><a class="header" href="#overrides"><code>overrides</code></a></h3>
@@ -1695,34 +1635,19 @@ Router.</p>
 <h3 id="version"><a class="header" href="#version"><code>version</code></a></h3>
 <p>The version of the Apollo Router to download.</p>
 </details>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="writing-test-plans"><a class="header" href="#writing-test-plans">Writing test Plans</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="writing-test-plans"><a class="header" href="#writing-test-plans">Writing test Plans</a></h1>
 <p>This section will guide you through writing a test plan for rtf from a blank file. The test plan
-will be a simple "Hello, World!" example that introduces you to the concepts of writing RTF test
+will be a simple “Hello, World!” example that introduces you to the concepts of writing RTF test
 plans. For examples of test plans that can be used for specific testing use cases, please refer to
 the <a href="https://github.com/apollographql/rtf-morgue">morgue</a>.</p>
 <h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
-<p>We recommend completing the <a href="guides/test-plans/../hello-world.html">"Hello, World!"</a> guide first to ensure you're
+<p>We recommend completing the <a href="#hello-world">“Hello, World!”</a> guide first to ensure you’re
 familiar with the rtf CLI and have it properly installed.</p>
-<hr />
-<p><strong>Next:</strong> <a href="guides/test-plans/writing-a-test-plan.html">Writing a test plan</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="writing-a-test-plan"><a class="header" href="#writing-a-test-plan">Writing a test plan</a></h1>
-<hr />
-<ul>
-<li><a href="guides/test-plans/writing-a-test-plan.html#getting-started">Getting started</a></li>
-<li><a href="guides/test-plans/writing-a-test-plan.html#adding-required-fields">Adding required fields</a>
-<ul>
-<li><a href="guides/test-plans/writing-a-test-plan.html#name"><code>name</code></a></li>
-<li><a href="guides/test-plans/writing-a-test-plan.html#description"><code>description</code></a></li>
-<li><a href="guides/test-plans/writing-a-test-plan.html#scenario"><code>scenario</code></a></li>
-<li><a href="guides/test-plans/writing-a-test-plan.html#environment"><code>environment</code></a></li>
-</ul>
-</li>
-<li><a href="guides/test-plans/writing-a-test-plan.html#checking-the-test-plan">Checking the test plan</a></li>
-<li><a href="guides/test-plans/writing-a-test-plan.html#running-the-test-plan">Running the test plan</a></li>
-<li><a href="guides/test-plans/writing-a-test-plan.html#setting-variables">Setting variables</a></li>
-<li><a href="guides/test-plans/writing-a-test-plan.html#using-a-matrix">Using a matrix</a></li>
-</ul>
-<hr />
+<hr>
+<p><strong>Next:</strong> <a href="#writing-a-test-plan">Writing a test plan</a></p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="writing-a-test-plan"><a class="header" href="#writing-a-test-plan">Writing a test plan</a></h1>
 <p>Create an empty directory and make it your working directory:</p>
 <pre><code class="language-bash">mkdir rtf-hello-world
 cd rtf-hello-world
@@ -1789,8 +1714,8 @@ adding that context to inline comments.</p>
 <h3 id="scenario"><a class="header" href="#scenario"><code>scenario</code></a></h3>
 <p>The <code>scenario</code> is used to define the configuration and command that runs the actual testing logic in
 the test plan. The <code>scenario</code> can be defined inline within the test plan or in its own file. In this
-guide, we'll define the scenario inline. The guide on
-<a href="guides/test-plans/writing-a-scenario.html">writing a new scenario</a> covers how to define a scenario in a separate file.</p>
+guide, we’ll define the scenario inline. The guide on
+<a href="#writing-a-new-scenario">writing a new scenario</a> covers how to define a scenario in a separate file.</p>
 <p>Add the <code>scenario</code> field to the <code>test-plan.yaml</code> file.</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
@@ -1812,14 +1737,14 @@ scenario:
 <li>The <code>name</code> and <code>description</code> fields are required and used to identify the scenario and work the
 same as <code>name</code> and <code>description</code> in the test plan.</li>
 <li><code>command</code> defines what will be executed when rtf executes the scenario. This is the simplest case
-which executes a single command. The guide on <a href="guides/test-plans/writing-a-scenario.html">writing a new scenario</a>
+which executes a single command. The guide on <a href="#writing-a-new-scenario">writing a new scenario</a>
 covers how to execute files or more complex scripts.</li>
 </ul>
 <h3 id="environment"><a class="header" href="#environment"><code>environment</code></a></h3>
 <p>The <code>environment</code> is used to define the configuration and commands that setup the environment for
 testing and tear it down after the test has completed. The <code>environment</code> can be defined inline
-within the test plan or in its own file. In this guide, we'll define the environment inline. The
-guide on <a href="guides/test-plans/writing-an-environment.html">writing a new environment</a> covers how to define an environment
+within the test plan or in its own file. In this guide, we’ll define the environment inline. The
+guide on <a href="#writing-a-new-environment">writing a new environment</a> covers how to define an environment
 in a separate file.</p>
 <p>Add the <code>environment</code> field to the <code>test-plan.yaml</code> file:</p>
 <pre><code class="language-yaml">name: Hello World
@@ -1865,11 +1790,11 @@ same as <code>name</code> and <code>description</code> in the test plan.</li>
 <li>The <code>teardown</code> field defines what will happen during the environment teardown phase of <code>rtf run</code>.</li>
 <li><code>command</code> defines what will be executed when rtf executes the <code>setup</code> and <code>teardown</code>. This is the
 simplest case which executes a single command. The guide on
-<a href="guides/test-plans/writing-an-environment.html">writing a new environment</a> covers how to execute files or more complex
+<a href="#writing-a-new-environment">writing a new environment</a> covers how to execute files or more complex
 scripts.</li>
 </ul>
 <h2 id="checking-the-test-plan"><a class="header" href="#checking-the-test-plan">Checking the test plan</a></h2>
-<p>Now, let's check that the test plan has been defined correctly:</p>
+<p>Now, let’s check that the test plan has been defined correctly:</p>
 <pre><code class="language-bash">rtf template test-plan.yaml
 </code></pre>
 <p>This should result in the fully templated test plan being printed to the terminal:</p>
@@ -1921,7 +1846,7 @@ environment:
 <p>This highlights two optional fields for test plans that have not yet been used; <code>variables</code> and
 <code>matrix</code>. These are discussed more below.</p>
 <h2 id="running-the-test-plan"><a class="header" href="#running-the-test-plan">Running the test plan</a></h2>
-<p>Before looking at <code>variables</code> and <code>matrix</code>, let's run the test plan:</p>
+<p>Before looking at <code>variables</code> and <code>matrix</code>, let’s run the test plan:</p>
 <pre><code class="language-bash">rtf run test-plan.yaml
 </code></pre>
 <p>This results in the following terminal output and an <code>output</code> directory:</p>
@@ -1951,10 +1876,10 @@ new test.</p>
 <p>The <code>variables</code> field is used to set global variables that can be referenced in your scenario and/or
 environment. Any variables set in the test plan config can be overridden using the <code>--var</code> and
 <code>--vars</code> flags in the rtf CLI (see the
-<a href="guides/test-plans/../hello-world.html#modifying-variables">modifying variables section of the hello world guide</a> for
+<a href="#modifying-variables">modifying variables section of the hello world guide</a> for
 more information).</p>
-<p>Let's add some example variables to <code>test-plan.yaml</code>. We are also going to update the scenario
-command to use this variable. The <a href="guides/test-plans/writing-a-command.html">"Writing a command" section</a> will explain
+<p>Let’s add some example variables to <code>test-plan.yaml</code>. We are also going to update the scenario
+command to use this variable. The <a href="#writing-a-command">“Writing a command” section</a> will explain
 how this works, for now just add the configuration:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
@@ -2014,9 +1939,9 @@ environment teardown command executed
 </code></pre>
 <h2 id="using-a-matrix"><a class="header" href="#using-a-matrix">Using a matrix</a></h2>
 <p>The <code>matrix</code> field is used to create a matrix of variable dimensions to iterate over (see the
-<a href="guides/test-plans/../hello-world.html#matrix-variables">matrix variables section of the hello world guide</a> for more
+<a href="#matrix-variables">matrix variables section of the hello world guide</a> for more
 information). A matrix can only be defined in the test plan config.</p>
-<p>Let's add a matrix to and remove the <code>variables</code> from our <code>test-plan.yaml</code>:</p>
+<p>Let’s add a matrix to and remove the <code>variables</code> from our <code>test-plan.yaml</code>:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 # --- Replace variables with a matrix ---
@@ -2072,7 +1997,7 @@ executed twice. The <code>output</code> directory will also have a different str
 <pre><code class="language-bash">$ ls output/
 variable1        variable2
 </code></pre>
-<p>Let's look at each of those matrix directories to see the different variable values used per
+<p>Let’s look at each of those matrix directories to see the different variable values used per
 execution:</p>
 <pre><code class="language-bash">$ cat output/variable1/test-plan-variables.json 
 {
@@ -2084,23 +2009,16 @@ $ cat output/variable2/test-plan-variables.json
   "example_variable": "variable2"
 }
 </code></pre>
-<p>The <code>example-variable</code>'s variable changes per execution.</p>
-<hr />
+<p>The <code>example-variable</code>’s variable changes per execution.</p>
+<hr>
 <p>In this guide we have covered writing the simplest possible test plan. Next, we will guide you
 through how to write more powerful commands.</p>
-<p><strong>Next:</strong> <a href="guides/test-plans/writing-a-command.html">Writing a command</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="writing-a-command"><a class="header" href="#writing-a-command">Writing a command</a></h1>
-<hr />
-<ul>
-<li><a href="guides/test-plans/writing-a-command.html#getting-started">Getting started</a></li>
-<li><a href="guides/test-plans/writing-a-command.html#environment-variables">Environment variables</a></li>
-<li><a href="guides/test-plans/writing-a-command.html#inline-command-file">Inline command file</a></li>
-<li><a href="guides/test-plans/writing-a-command.html#local-command-file">Local command file</a></li>
-</ul>
-<hr />
-<p>This guide assumes you've completed the <a href="guides/test-plans/writing-a-test-plan.html">"Writing a test plan"</a> guide. You
-should already have a <code>test-plan.yaml</code> file in a directory named <code>rtf-hello-world</code>. We're going to
-remove the variables and matrix added in the final step of the "Writing a test plan" guide. Your
+<p><strong>Next:</strong> <a href="#writing-a-command">Writing a command</a></p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="writing-a-command"><a class="header" href="#writing-a-command">Writing a command</a></h1>
+<p>This guide assumes you’ve completed the <a href="#writing-a-test-plan">“Writing a test plan”</a> guide. You
+should already have a <code>test-plan.yaml</code> file in a directory named <code>rtf-hello-world</code>. We’re going to
+remove the variables and matrix added in the final step of the “Writing a test plan” guide. Your
 <code>test-plan.yaml</code> file should contain:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
@@ -2137,9 +2055,9 @@ environment:
           echo "environment teardown command executed"
 </code></pre>
 <h2 id="environment-variables"><a class="header" href="#environment-variables">Environment variables</a></h2>
-<p>Wherever it's possible to specify a <code>command</code>, it's also possible to specify <code>env_vars</code>. Any
+<p>Wherever it’s possible to specify a <code>command</code>, it’s also possible to specify <code>env_vars</code>. Any
 environment variables defined in the test plan config will be made available to the command when it
-is being executed. Let's try to use an environment variable in our scenario command:</p>
+is being executed. Let’s try to use an environment variable in our scenario command:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 scenario:
@@ -2178,7 +2096,7 @@ environment:
 
           echo "environment teardown command executed"
 </code></pre>
-<p>We're now hoping to echo the exact same message, but this time using an environment variable. If we
+<p>We’re now hoping to echo the exact same message, but this time using an environment variable. If we
 run the test plan:</p>
 <pre><code class="language-bash">$ rtf run test-plan.yaml
 "environment setup command executed"
@@ -2187,7 +2105,7 @@ run the test plan:</p>
 </code></pre>
 <p>This works exactly as we hoped!</p>
 <h2 id="inline-command-file"><a class="header" href="#inline-command-file">Inline command file</a></h2>
-<p>Let's look at the structure of the <code>command</code> configuration. We have three fields: <code>name</code>, <code>kind</code>,
+<p>Let’s look at the structure of the <code>command</code> configuration. We have three fields: <code>name</code>, <code>kind</code>,
 and <code>content</code>.</p>
 <ul>
 <li><code>name</code> is the name of the file that the scenario will execute. We will be able to see that file in
@@ -2196,17 +2114,17 @@ the output when we execute the test plan.</li>
 file content <code>inline</code> to the test plan config. The next section will discuss how we can refer to
 separate file.</li>
 <li><code>content</code> is a key specifically required when the <code>kind</code> is <code>inline</code> and is used to define the
-file's content.</li>
+file’s content.</li>
 </ul>
 <blockquote>
 <p><strong>Note</strong> Under the hood, the <code>command</code> is using a subset of file providers. These are discussed
-more in the <a href="guides/test-plans/using-file-providers.html">"Using file providers" guide</a></p>
+more in the <a href="#using-file-providers">“Using file providers” guide</a></p>
 </blockquote>
 <h2 id="local-command-file"><a class="header" href="#local-command-file">Local command file</a></h2>
 <p>Defining command files inline makes sense for very simple shell scripts but would quickly become
 unmanageable for more complex files. You can also save your command scripts in a separate file and
 refer to that file in your command config.</p>
-<p>Let's start by creating a <code>scenario.sh</code> file in a <code>scripts</code> subdirectory:</p>
+<p>Let’s start by creating a <code>scenario.sh</code> file in a <code>scripts</code> subdirectory:</p>
 <pre><code class="language-bash">$ mkdir scripts
 $ touch scripts/scenario.sh
 </code></pre>
@@ -2216,7 +2134,7 @@ $ touch scripts/scenario.sh
 echo "Running scenario from an external file"
 echo "$SCENARIO_ENV"
 </code></pre>
-<p>Finally, let's update our <code>test-plan.yaml</code> to point to this file, instead of using the inline
+<p>Finally, let’s update our <code>test-plan.yaml</code> to point to this file, instead of using the inline
 content:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
@@ -2253,24 +2171,24 @@ environment:
 
           echo "environment teardown command executed"
 </code></pre>
-<p>There are two updates to note here. First, we've changed <code>kind</code> from <code>inline</code> to <code>relative_path</code>.
+<p>There are two updates to note here. First, we’ve changed <code>kind</code> from <code>inline</code> to <code>relative_path</code>.
 This updates our test plan to look for the command file at a relative path. The <code>content</code> key is no
 longer required for this <code>kind</code>; instead, the <code>path</code> key is used to define where the file is stored.
-The <code>name</code> doesn't have to match the filename on the <code>path</code> - it just sets what rtf will store the
+The <code>name</code> doesn’t have to match the filename on the <code>path</code> - it just sets what rtf will store the
 file as in the <code>providers</code> directory.</p>
 <blockquote>
-<p><strong>Note</strong> The path is relative to the <code>test-plan.yaml</code> file's location, not relative to where the
+<p><strong>Note</strong> The path is relative to the <code>test-plan.yaml</code> file’s location, not relative to where the
 CLI is run from. This is so that the test plan can refer to files in the directory structure in a
 predictable way.</p>
 </blockquote>
-<p>Let's run the test plan again:</p>
+<p>Let’s run the test plan again:</p>
 <pre><code class="language-bash">$ rtf run test-plan.yaml
 "environment setup command executed"
 Running scenario from an external file
 scenario command executed
 "environment teardown command executed"
 </code></pre>
-<p>The extra echo confirms we've used the new <code>scenario.sh</code> file. You should also see that the
+<p>The extra echo confirms we’ve used the new <code>scenario.sh</code> file. You should also see that the
 <code>scenario.sh</code> file in the <code>output/providers</code> directory matches what was defined in the <code>scenario.sh</code>
 file we just created. Copying files in this way is intentional behavior for the <code>relative_path</code> file
 provider, other providers have files generated by rtf directly, this is one of the few that
@@ -2284,21 +2202,14 @@ echo "$SCENARIO_ENV"
 </code></pre>
 <p>We have only updated the <code>command</code> for the <code>scenario</code> in this guide. The <code>command</code> in
 <code>environment.setup</code> and <code>environment.teardown</code> works in exactly the same way.</p>
-<hr />
-<p>In this guide, we've covered writing more powerful commands both inline and in other files. Next,
-we'll guide you through how to write a scenario config.</p>
-<p><strong>Next:</strong> <a href="guides/test-plans/writing-a-scenario.html">Writing a scenario</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="writing-a-new-scenario"><a class="header" href="#writing-a-new-scenario">Writing a new scenario</a></h1>
-<hr />
-<ul>
-<li><a href="guides/test-plans/writing-a-scenario.html#getting-started">Getting started</a></li>
-<li><a href="guides/test-plans/writing-a-scenario.html#creating-a-scenario-file">Creating a scenario file</a></li>
-<li><a href="guides/test-plans/writing-a-scenario.html#scenario-config-structure">Scenario config structure</a></li>
-<li><a href="guides/test-plans/writing-a-scenario.html#using-variables">Using variables</a></li>
-</ul>
-<hr />
-<p>This guide assumes you have completed the <a href="guides/test-plans/writing-a-test-plan.html">"Writing a test plan"</a> and
-<a href="guides/test-plans/writing-a-command.html">"Writing a command"</a> guides. You should already have a <code>test-plan.yaml</code> file
+<hr>
+<p>In this guide, we’ve covered writing more powerful commands both inline and in other files. Next,
+we’ll guide you through how to write a scenario config.</p>
+<p><strong>Next:</strong> <a href="#writing-a-new-scenario">Writing a scenario</a></p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="writing-a-new-scenario"><a class="header" href="#writing-a-new-scenario">Writing a new scenario</a></h1>
+<p>This guide assumes you have completed the <a href="#writing-a-test-plan">“Writing a test plan”</a> and
+<a href="#writing-a-command">“Writing a command”</a> guides. You should already have a <code>test-plan.yaml</code> file
 in a directory named <code>rtf-hello-world</code>. Your <code>test-plan.yaml</code> file should contain:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
@@ -2340,8 +2251,8 @@ store your scenario config and update your test plan to refer to that file. As w
 maintainability benefits this also means the same scenario can be reused in multiple test plans. It
 is also possible to update the base scenario (and environment) config using overrides in the test
 plan. We cover how to use overrides in the
-<a href="guides/test-plans/writing-an-environment.html#using-overrides">"Writing an environment" guide</a>.</p>
-<p>Let's walkthrough how to create a scenario config. First, create a <code>configs</code> directory and an empty
+<a href="#using-overrides">“Writing an environment” guide</a>.</p>
+<p>Let’s walkthrough how to create a scenario config. First, create a <code>configs</code> directory and an empty
 YAML file inside it:</p>
 <pre><code class="language-bash">mkdir configs
 touch configs/scenario.yaml
@@ -2453,13 +2364,13 @@ environment:
 template command is inlining the config ahead of execution.</p>
 <p>When writing configs with a lot of files on relative paths, it is good practice to use the <code>--check</code>
 flag when running the <code>template</code> command. This will check that files on relative paths can be found.
-Let's see what happens when we run with that flag:</p>
+Let’s see what happens when we run with that flag:</p>
 <pre><code class="language-bash">$ rtf template test-plan.yaml --check
 ERROR (command.command_provider) the requested file did not exist.: provided path was Resolved("scripts/scenario.sh")
 </code></pre>
 <p>When copying over our inline scenario config we forgot to account for the fact that our
 <code>scenario.yaml</code> file is on a different path to our <code>test-plan.yaml</code> file. Relative paths are always
-relative to the file they are defined in. Let's fix our mistake in the <code>scenario.yaml</code> file:</p>
+relative to the file they are defined in. Let’s fix our mistake in the <code>scenario.yaml</code> file:</p>
 <pre><code class="language-yaml">name: Inline scenario config
 description: An inline scenario config
 command:
@@ -2482,10 +2393,10 @@ description: A test plan created as a guide for writing test plans
 will import the scenario config from the file on the relative path defined in the <code>relative_path</code>
 key.</p>
 <p>The <code>github</code> key allows the scenario config to be imported from a GitHub repo. It is not discussed
-in detail in this guide, please refer to the <a href="guides/test-plans/../../framework/index.html">framework reference docs</a>
+in detail in this guide, please refer to the <a href="#the-framework">framework reference docs</a>
 reference for more detail.</p>
 <h2 id="scenario-config-structure"><a class="header" href="#scenario-config-structure">Scenario config structure</a></h2>
-<p>Let's take a moment to review how scenario config is structured. There are six fields that can be
+<p>Let’s take a moment to review how scenario config is structured. There are six fields that can be
 defined in the scenario</p>
 <ul>
 <li><code>name</code> (required) is used to give the scenario an identifiable title. It can be any valid string.
@@ -2493,19 +2404,19 @@ It has no impact on the execution of a scenario.</li>
 <li><code>description</code> (required) is used to give more information about the scenario. It can be any valid
 string. It has no impact on the execution of a scenario.</li>
 <li><code>variable_definitions</code> (optional) are used to define which variables a scenario requires to
-successfully execute. The <a href="guides/test-plans/writing-a-scenario.html#using-variables">"using variables"</a> section explains this in more
+successfully execute. The <a href="#using-variables">“using variables”</a> section explains this in more
 detail.</li>
 <li><code>command</code> (required) is used to define what is executed when the scenario is run. The
-<a href="guides/test-plans/writing-a-command.html">"Writing a command" guide</a> explains commands in more detail.</li>
+<a href="#writing-a-command">“Writing a command” guide</a> explains commands in more detail.</li>
 <li><code>env_vars</code> (optional) is used to define the environment variables that are set when the <code>command</code>
 is executed.</li>
 <li><code>file_providers</code> (optional) is used to define the files and data that the scenario depends on to
-execute. The <a href="guides/test-plans/using-file-providers.html">"Using file providers" guide</a> explains how these are used
+execute. The <a href="#using-file-providers">“Using file providers” guide</a> explains how these are used
 in more detail.</li>
 </ul>
 <h2 id="using-variables"><a class="header" href="#using-variables">Using variables</a></h2>
 <p>We saw how to set variables in the test plan in the
-<a href="guides/test-plans/writing-a-test-plan.html#setting-variables">"Writing a test plan" guide</a>. However, the variable we
+<a href="#setting-variables">“Writing a test plan” guide</a>. However, the variable we
 set was not used anywhere in the scenario or environment. To use variables in a scenario, we need to
 define them in the <code>variables</code> field.</p>
 <p>Declaring the variables here declares a contract between the scenario and test plan and lists the
@@ -2514,7 +2425,7 @@ using a default in the scenario, in the test plan or provided via the CLI. If th
 by the scenario and not set via any of those methods, it will cause the test plan execution to fail.
 If variables are defined for usage in the scenario but not defined in the <code>variables</code> field then the
 test plan will fail to template.</p>
-<p>Let's see that in action. We are going to replace the static environment variable variable with one
+<p>Let’s see that in action. We are going to replace the static environment variable variable with one
 defined using a variable. Update <code>scenario.yaml</code>:</p>
 <pre><code class="language-yaml">name: Inline scenario config
 description: An inline scenario config
@@ -2532,22 +2443,22 @@ env_vars:
   SCENARIO_ENV: "{{ scenario_variable }}"
 # -----------------------------------------------------------
 </code></pre>
-<p>Let's explain how this works. The variables each have a <code>name</code> and <code>description</code>. The <code>name</code> is the
-variable's identifier and is used in the template string. The <code>description</code> is there to give more
+<p>Let’s explain how this works. The variables each have a <code>name</code> and <code>description</code>. The <code>name</code> is the
+variable’s identifier and is used in the template string. The <code>description</code> is there to give more
 information about how and why the variable is used. Variables are templated into the config with the
-<code>"{{ ... }}"</code> syntax, where <code>...</code> is replaced by the variable's <code>name</code>.</p>
+<code>"{{ ... }}"</code> syntax, where <code>...</code> is replaced by the variable’s <code>name</code>.</p>
 <blockquote>
 <p><strong>Note</strong> The double curly braces and space either side of the variable name are important here. If
 the template string does not match this exactly, then rtf will error and call out there is a
 malformed template string.</p>
 </blockquote>
-<p>Let's attempt to template the test plan:</p>
+<p>Let’s attempt to template the test plan:</p>
 <pre><code class="language-bash">$ rtf template test-plan.yaml
 ERROR (scenario) missing template variables: scenario_variable
 </code></pre>
 <p>We have successfully defined a variable and where it should be used. However, we have not specified
 what value it should actually have. If we attempted to run this test plan we would see the same
-error. Let's define a default for this variable:</p>
+error. Let’s define a default for this variable:</p>
 <pre><code class="language-yaml">name: Inline scenario config
 description: An inline scenario config
 variable_definitions:
@@ -2620,21 +2531,13 @@ Running scenario from an external file
 scenario executed with cli variable
 "environment teardown command executed"
 </code></pre>
-<hr />
-<p>In this guide, we've covered moving scenario config into its own file and using variables. Next,
-we'll guide you through how to write an environment config.</p>
-<p><strong>Next:</strong> <a href="guides/test-plans/writing-an-environment.html">Writing an environment</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="writing-a-new-environment"><a class="header" href="#writing-a-new-environment">Writing a new environment</a></h1>
-<hr />
-<ul>
-<li><a href="guides/test-plans/writing-an-environment.html#getting-started">Getting started</a></li>
-<li><a href="guides/test-plans/writing-an-environment.html#creating-an-environment-file">Creating an environment file</a></li>
-<li><a href="guides/test-plans/writing-an-environment.html#environment-config-structure">Environment config structure</a></li>
-<li><a href="guides/test-plans/writing-an-environment.html#using-provides">Using provides</a></li>
-<li><a href="guides/test-plans/writing-an-environment.html#using-overrides">Using overrides</a></li>
-</ul>
-<hr />
-<p>This guide assumes you've completed the <a href="guides/test-plans/writing-a-scenario.html">"Writing a scenario"</a> guide. You
+<hr>
+<p>In this guide, we’ve covered moving scenario config into its own file and using variables. Next,
+we’ll guide you through how to write an environment config.</p>
+<p><strong>Next:</strong> <a href="#writing-a-new-environment">Writing an environment</a></p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="writing-a-new-environment"><a class="header" href="#writing-a-new-environment">Writing a new environment</a></h1>
+<p>This guide assumes you’ve completed the <a href="#writing-a-new-scenario">“Writing a scenario”</a> guide. You
 should already have the files in a directory named <code>rtf-hello-world</code>. Your directory should be in
 the state it was at the end of that guide.</p>
 <pre><code class="language-bash">$ ls -R
@@ -2649,8 +2552,8 @@ scenario.sh
 <h2 id="creating-an-environment-file"><a class="header" href="#creating-an-environment-file">Creating an environment file</a></h2>
 <p>Creating a separate environment file works exactly the same way and has the same benefits as
 creating a separate scenario file outlined in the
-<a href="guides/test-plans/writing-a-scenario.html#creating-a-scenario-file">"Writing a scenario" guide</a>.</p>
-<p>Let's update our test plan to specify the environment in a separate file:</p>
+<a href="#creating-a-scenario-file">“Writing a scenario” guide</a>.</p>
+<p>Let’s update our test plan to specify the environment in a separate file:</p>
 <pre><code class="language-bash">touch configs/environment.yaml
 </code></pre>
 <p>Make sure the <code>environment.yaml</code> contains a copy of the environment config currently in your
@@ -2688,7 +2591,7 @@ environment:
     kind: local
     relative_path: configs/environment.yaml
 </code></pre>
-<p>Let's verify this has made no material difference to the templated test plan:</p>
+<p>Let’s verify this has made no material difference to the templated test plan:</p>
 <pre><code class="language-bash">$ rtf template test-plan.yaml --check
 name: Hello World
 description: A test plan created as a guide for writing test plans
@@ -2740,10 +2643,10 @@ environment:
 </code></pre>
 <h2 id="environment-config-structure"><a class="header" href="#environment-config-structure">Environment config structure</a></h2>
 <p>Now is a good time to review how the environment config is structured. The main difference compared
-to the <a href="guides/test-plans/writing-a-scenario.html#scenario-config-structure">scenario config</a> is that an environment can
+to the <a href="#scenario-config-structure">scenario config</a> is that an environment can
 run two commands using the <code>setup</code> and <code>teardown</code> keys. The <code>setup</code> key has an additional field
-called <code>provides</code> which we'll explain in more detail in the
-<a href="guides/test-plans/writing-an-environment.html#using-provides">"Using provides" section</a>. The fields in an environment config are:</p>
+called <code>provides</code> which we’ll explain in more detail in the
+<a href="#using-provides">“Using provides” section</a>. The fields in an environment config are:</p>
 <ul>
 <li><code>name</code> (required) is used to give the environment an identifiable title. It can be any valid
 string. It has no impact on the execution of an environment.</li>
@@ -2751,21 +2654,21 @@ string. It has no impact on the execution of an environment.</li>
 valid string. It has no impact on the execution of an environment.</li>
 <li><code>variable_definitions</code> (optional) are used to define which variables an environment requires to
 successfully execute. This works the same as it does for a scenario and is explained more in the
-<a href="guides/test-plans/writing-a-scenario.html#using-variables">"using variables"</a> section of that guide.</li>
+<a href="#using-variables">“using variables”</a> section of that guide.</li>
 <li><code>setup</code> (required) is used to define the command that executes at the start of the <code>rtf run</code>
 command. It is intended to be used to create and configure the environment for the scenario to
 test. It requires the following keys:
 <ul>
 <li><code>command</code> (required) is used to define what is executed when the environment setup is run. The
-<a href="guides/test-plans/writing-a-command.html">"Writing a command" guide</a> explains commands in more detail.</li>
+<a href="#writing-a-command">“Writing a command” guide</a> explains commands in more detail.</li>
 <li><code>env_vars</code> (optional) is used to define the environment variables that are set when the
 <code>command</code> is executed.</li>
 <li><code>file_providers</code> (optional) is used to define the files and data that the environment setup
-depends on to execute. The <a href="guides/test-plans/using-file-providers.html">"Using file providers" guide</a> explains how
+depends on to execute. The <a href="#using-file-providers">“Using file providers” guide</a> explains how
 these are used in more detail.</li>
 <li><code>provides</code> (optional) is unique to the environment setup and is used to set variables that can
 only be known at runtime. This is explained more in the
-<a href="guides/test-plans/writing-an-environment.html#using-provides">"Using provides" section</a>.</li>
+<a href="#using-provides">“Using provides” section</a>.</li>
 </ul>
 </li>
 <li><code>teardown</code> (required) is used to define the command that executes at the end of the <code>rtf run</code>
@@ -2773,11 +2676,11 @@ command. It is intended to be used to collect results and shutdown the environme
 tested. It requires the following keys:
 <ul>
 <li><code>command</code> (required) is used to define what is executed when the environment teardown is run.
-The <a href="guides/test-plans/writing-a-command.html">"Writing a command" guide</a> explains commands in more detail.</li>
+The <a href="#writing-a-command">“Writing a command” guide</a> explains commands in more detail.</li>
 <li><code>env_vars</code> (optional) is used to define the environment variables that are set when the
 <code>command</code> is executed.</li>
 <li><code>file_providers</code> (optional) is used to define the files and data that the environment teardown
-depends on to execute. The <a href="guides/test-plans/using-file-providers.html">"Using file providers" guide</a> explains how
+depends on to execute. The <a href="#using-file-providers">“Using file providers” guide</a> explains how
 these are used in more detail.</li>
 </ul>
 </li>
@@ -2788,7 +2691,7 @@ the scenario and environment teardown steps. The most common use case for this i
 environment setup starts a process with some ID that can only be known at runtime. That ID is
 required by the environment teardown so it can stop the process once the test is done. In practice,
 this can be used to set any variable for the scenario and environment teardown to use.</p>
-<p>Before we look at how <code>provides</code> works, let's update our environment setup command in
+<p>Before we look at how <code>provides</code> works, let’s update our environment setup command in
 <code>environment.yaml</code>:</p>
 <pre><code class="language-yaml">name: Inline environment config
 description: An inline environment config
@@ -2812,8 +2715,8 @@ teardown:
 
       echo "environment teardown command executed"
 </code></pre>
-<p>The environment setup now creates a <code>PROCESS_ID</code> with a value of <code>1</code>. We'll want to be able to use
-this in our teardown script. In preparation, let's update the teardown command so it can use a
+<p>The environment setup now creates a <code>PROCESS_ID</code> with a value of <code>1</code>. We’ll want to be able to use
+this in our teardown script. In preparation, let’s update the teardown command so it can use a
 <code>PROCESS_ID</code> environment variable that will eventually come from the setup:</p>
 <pre><code class="language-yaml">name: Inline environment config
 description: An inline environment config
@@ -2839,7 +2742,7 @@ teardown:
     PROCESS_ID: "not yet from setup"
 # -----------------------------------
 </code></pre>
-<p>Let's verify this works:</p>
+<p>Let’s verify this works:</p>
 <pre><code class="language-bash">$ rtf run test-plan.yaml
 Environment setup complete. PROCESS_ID=1
 Running scenario from an external file
@@ -2847,7 +2750,7 @@ scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=not yet from setup
 </code></pre>
 <p>The <code>provides</code> key defines variables that are specified in the config in the exact same way that
-<code>variables</code> are. Let's update the <code>environment.yaml</code>:</p>
+<code>variables</code> are. Let’s update the <code>environment.yaml</code>:</p>
 <pre><code class="language-yaml">name: Inline environment config
 description: An inline environment config
 setup:
@@ -2878,17 +2781,17 @@ teardown:
 # -------------------------------
 </code></pre>
 <blockquote>
-<p><strong>Note</strong> If you want to check this templates, you'll need to specify a variable for <code>process_id</code>
-using <code>--var process_id="dummy_id"</code>. If you don't do this, you'll get
+<p><strong>Note</strong> If you want to check this templates, you’ll need to specify a variable for <code>process_id</code>
+using <code>--var process_id="dummy_id"</code>. If you don’t do this, you’ll get
 <code>ERROR (environment.teardown.env_vars.PROCESS_ID) unknown templating variable: process_id</code>.</p>
 </blockquote>
-<p>If we try to run this, it won't work:</p>
+<p>If we try to run this, it won’t work:</p>
 <pre><code class="language-bash">$ rtf run test-plan.yaml
 Environment setup complete. PROCESS_ID=1
 ERROR missing required output fields from environment setup: ["process_id"]
 </code></pre>
 <p>This is because we need to update our setup script to output the <code>process_id</code>. To do this, rtf has a
-reserved file that output needs to be <code>echo</code>'d to called <code>RTF_OUTPUT</code>. Let's look at this in an
+reserved file that output needs to be <code>echo</code>’d to called <code>RTF_OUTPUT</code>. Let’s look at this in an
 updated <code>environment.yaml</code>:</p>
 <pre><code class="language-yaml">name: Inline environment config
 description: An inline environment config
@@ -2918,7 +2821,7 @@ teardown:
   env_vars:
     PROCESS_ID: "{{ process_id }}"
 </code></pre>
-<p>Now, if we run again, we'll see the <code>process_id</code> being successfully used in the teardown:</p>
+<p>Now, if we run again, we’ll see the <code>process_id</code> being successfully used in the teardown:</p>
 <pre><code class="language-bash">$ rtf run test-plan.yaml
 Environment setup complete. PROCESS_ID=1
 Running scenario from an external file
@@ -2928,13 +2831,13 @@ Environment teardown complete. PROCESS_ID=1
 <h2 id="using-overrides"><a class="header" href="#using-overrides">Using overrides</a></h2>
 <p>One of the main benefits of defining environment (and scenario) config in a separate file is that it
 can be reused across multiple test plans. There will be occasions where you want to reuse the
-majority of what's defined in an environment config but make small edits. Instead of making a new
+majority of what’s defined in an environment config but make small edits. Instead of making a new
 file with the edits, you can use <code>overrides</code>.</p>
-<p>Before we look at overrides, let's create a new <code>setup.sh</code> script. We'll use this instead of the
+<p>Before we look at overrides, let’s create a new <code>setup.sh</code> script. We’ll use this instead of the
 current inline script in <code>environment.yaml</code>:</p>
 <pre><code class="language-bash">touch scripts/setup.sh
 </code></pre>
-<p>Add the following to the <code>setup.sh</code> file (this will make it obvious we've run the intended setup):</p>
+<p>Add the following to the <code>setup.sh</code> file (this will make it obvious we’ve run the intended setup):</p>
 <pre><code class="language-sh">#!/usr/bin/env sh
 
 PROCESS_ID="2"
@@ -2966,7 +2869,7 @@ environment:
         path: scripts/setup.sh
 # ---------------------------------------------
 </code></pre>
-<p>Before checking if this works, let's look at how it works. We only want to change the
+<p>Before checking if this works, let’s look at how it works. We only want to change the
 <code>setup.command</code>, so only that segment of the config is required. rtf will merge the YAML on matching
 keys before checking if it templates. If you run the <code>template</code> command now (pay attention to the
 <code>--var</code> flag here, we need this because of the <code>provides</code> variable):</p>
@@ -3030,25 +2933,16 @@ Running scenario from an external file
 scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=2
 </code></pre>
-<p>This confirms we're successfully using a new <code>setup.sh</code> script for the environment without changing
+<p>This confirms we’re successfully using a new <code>setup.sh</code> script for the environment without changing
 any other config for the environment.</p>
-<hr />
-<p>In this guide, we've covered moving environment config into its own file, using provides in the
-setup, and using overrides in the test plan. Next, we'll guide you through how to use file
+<hr>
+<p>In this guide, we’ve covered moving environment config into its own file, using provides in the
+setup, and using overrides in the test plan. Next, we’ll guide you through how to use file
 providers.</p>
-<p><strong>Next:</strong> <a href="guides/test-plans/using-file-providers.html">Using file providers</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="using-file-providers"><a class="header" href="#using-file-providers">Using file providers</a></h1>
-<hr />
-<ul>
-<li><a href="guides/test-plans/using-file-providers.html#getting-started">Getting started</a></li>
-<li><a href="guides/test-plans/using-file-providers.html#what-are-file-providers">What are file providers?</a></li>
-<li><a href="guides/test-plans/using-file-providers.html#adding-an-inline-file">Adding an inline file</a></li>
-<li><a href="guides/test-plans/using-file-providers.html#file-provider-config-structure">File provider config structure</a></li>
-<li><a href="guides/test-plans/using-file-providers.html#adding-a-file-from-a-relative-path">Adding a file from a relative path</a></li>
-<li><a href="guides/test-plans/using-file-providers.html#required-files">Required files</a></li>
-</ul>
-<hr />
-<p>This guide assumes you've completed the <a href="guides/test-plans/writing-an-environment.html">"Writing an environment"</a> guide.
+<p><strong>Next:</strong> <a href="#using-file-providers">Using file providers</a></p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="using-file-providers"><a class="header" href="#using-file-providers">Using file providers</a></h1>
+<p>This guide assumes you’ve completed the <a href="#writing-a-new-environment">“Writing an environment”</a> guide.
 You should already have the files in a directory named <code>rtf-hello-world</code>. Your directory should be
 in the state it was at the end of that guide:</p>
 <pre><code class="language-bash">$ ls -R
@@ -3061,22 +2955,22 @@ rtf-hello-world/scripts:
 scenario.sh     setup.sh
 </code></pre>
 <h2 id="what-are-file-providers"><a class="header" href="#what-are-file-providers">What are file providers?</a></h2>
-<p>We've already been using file providers in the <code>command</code> configuration throughout the previous
-guides. File providers are rtf's way of referring to files and data that are required for the
+<p>We’ve already been using file providers in the <code>command</code> configuration throughout the previous
+guides. File providers are rtf’s way of referring to files and data that are required for the
 environment setup, environment teardown, and scenario to run successfully. Commands make use of two
 kinds of file providers, <code>inline</code> and <code>relative_path</code>. These are the most commonly used file
 providers as they provide the file content either from the local filesystem or from within the test
 plan configuration itself.</p>
 <p>There are additional file providers that, amongst other things, can pull data from APIs (such as
 GraphOS specific providers). These will not be discussed in this guide but can be seen in the
-<a href="guides/test-plans/../../framework/file-providers.html">framework reference</a>.</p>
+<a href="#file-providers">framework reference</a>.</p>
 <p>All file providers follow the same basic principle - they create one or more files and place it on a
 path for rtf to make use of. If you need to know that path (for your command script, for example),
-rtf will assign an environment variable that contains the file's path. This is a deliberate design
+rtf will assign an environment variable that contains the file’s path. This is a deliberate design
 choice that allows rtf to make changes to how it stores files obtained from providers without
 breaking assumptions made about paths in user-written scripts.</p>
 <h2 id="adding-an-inline-file"><a class="header" href="#adding-an-inline-file">Adding an inline file</a></h2>
-<p>Let's see how file providers can be used in our test plan config. We'll add an inline file to our
+<p>Let’s see how file providers can be used in our test plan config. We’ll add an inline file to our
 scenario and just <code>cat</code> the output to the terminal. First, we need to make use of the
 <code>file_providers</code> key in the <code>scenario.yaml</code>:</p>
 <pre><code class="language-yaml">name: Inline scenario config
@@ -3106,7 +3000,7 @@ it works in the exact same way as specified here. Files defined in the environme
 be referred to in the scenario and environment teardown using the same <code>env_var</code>. Similarly, files
 defined in the scenario will also be available to the teardown.</p>
 </blockquote>
-<p>We haven't yet updated the scenario's command to make use of this, but let's look at what happens
+<p>We haven’t yet updated the scenario’s command to make use of this, but let’s look at what happens
 when we run the test plan and examine the providers output:</p>
 <pre><code class="language-bash">$ rtf run test-plan.yaml
 Using the override setup script
@@ -3121,10 +3015,10 @@ scenario.sh     scenario.txt    setup.sh        teardown.sh
 $ cat output/providers/scenario.txt 
 Some inline text content for our scenario
 </code></pre>
-<p>We've successfully updated our test plan to write a new <code>scenario.txt</code> file to the output with the
-content we specified inline. Let's make use of this in our command script. Note that when specifying
+<p>We’ve successfully updated our test plan to write a new <code>scenario.txt</code> file to the output with the
+content we specified inline. Let’s make use of this in our command script. Note that when specifying
 file providers, we must set an <code>env_var</code>. This is the name of the environment variable that will be
-set when this is run and it will contain the path to the file. Let's update our <code>scenario.sh</code>
+set when this is run and it will contain the path to the file. Let’s update our <code>scenario.sh</code>
 script:</p>
 <pre><code class="language-sh">#!/usr/bin/env sh
 
@@ -3144,22 +3038,22 @@ Environment teardown complete. PROCESS_ID=2
 </code></pre>
 <p>We can see the content from <code>scenario.txt</code> being printed to the terminal.</p>
 <h2 id="file-provider-config-structure"><a class="header" href="#file-provider-config-structure">File provider config structure</a></h2>
-<p>Now that we've seen a file provider being defined, let's discuss how the config is structured. There
+<p>Now that we’ve seen a file provider being defined, let’s discuss how the config is structured. There
 are three required fields:</p>
 <ol>
 <li><code>name</code> is the name the file will be saved with in the <code>providers</code> directory of the output.</li>
-<li><code>env_var</code> is the environment variable the file's path will be stored in. This is used by
+<li><code>env_var</code> is the environment variable the file’s path will be stored in. This is used by
 subsequent commands to refer to the file.</li>
 <li><code>kind</code> is used to set which kind of file provider is being used. See the
-<a href="guides/test-plans/../../framework/providers.html">file provider reference</a> for details on all the providers
+<a href="framework/providers.html">file provider reference</a> for details on all the providers
 available.</li>
 </ol>
 <p>Each file provider will have other fields that need to be defined, like <code>content</code> for <code>inline</code>.
 These are specific to each provider type, and the <code>template</code> command will highlight any missing or
 incorrectly defined keys.</p>
 <h2 id="adding-a-file-from-a-relative-path"><a class="header" href="#adding-a-file-from-a-relative-path">Adding a file from a relative path</a></h2>
-<p>Let's add a file from a relative path to the scenario config. The <code>file_provider</code> field can accept
-as many files as you need via a list. Before adding the new file to the config, let's create the
+<p>Let’s add a file from a relative path to the scenario config. The <code>file_provider</code> field can accept
+as many files as you need via a list. Before adding the new file to the config, let’s create the
 file itself:</p>
 <pre><code class="language-bash">$ mkdir data
 $ touch data/file.txt
@@ -3167,7 +3061,7 @@ $ touch data/file.txt
 <p>Add the following content to <code>file.txt</code>:</p>
 <pre><code>More content from a file for our scenario
 </code></pre>
-<p>Let's update <code>scenario.yaml</code> to refer to this file, this time using the <code>relative_path</code> file
+<p>Let’s update <code>scenario.yaml</code> to refer to this file, this time using the <code>relative_path</code> file
 provider:</p>
 <pre><code class="language-yaml">name: Inline scenario config
 description: An inline scenario config
@@ -3197,7 +3091,7 @@ file_providers:
 <blockquote>
 <p><strong>Note</strong> The path is relative to the <code>scenario.yaml</code> file!</p>
 </blockquote>
-<p>Let's update our <code>scenario.sh</code> script too:</p>
+<p>Let’s update our <code>scenario.sh</code> script too:</p>
 <pre><code class="language-sh">#!/usr/bin/env sh
 
 echo "Running scenario from an external file"
@@ -3206,7 +3100,7 @@ cat $SCENARIO_TXT
 cat $FILE_TXT
 echo "$SCENARIO_ENV"
 </code></pre>
-<p>Now, let's run the test plan:</p>
+<p>Now, let’s run the test plan:</p>
 <pre><code class="language-bash">$ rtf run test-plan.yaml
 Using the override setup script
 Environment setup complete. PROCESS_ID=2
@@ -3227,11 +3121,11 @@ to be reused. For config designed to be reused often, you might want to force th
 plan to define a file, but not give them a default file to work with. For this use case, the
 <code>required</code> file provider is the perfect solution. Any test plan that tries to execute with a
 <code>required</code> file provider will fail and tell the user to specify the file themselves (normally this
-is done using <code>overrides</code>). Let's walk through how <code>required</code> can be used:</p>
-<p>Let's say we need a configuration file for our environment setup. We don't want to give a base
+is done using <code>overrides</code>). Let’s walk through how <code>required</code> can be used:</p>
+<p>Let’s say we need a configuration file for our environment setup. We don’t want to give a base
 example because users might end up using that without thinking about what configuration they
-actually need for their specific test. In other words, we don't want it to "just work" by design.
-Let's add a <code>required</code> file to our <code>environment.yaml</code>:</p>
+actually need for their specific test. In other words, we don’t want it to “just work” by design.
+Let’s add a <code>required</code> file to our <code>environment.yaml</code>:</p>
 <pre><code class="language-yaml">name: Inline environment config
 description: An inline environment config
 setup:
@@ -3265,13 +3159,13 @@ teardown:
   env_vars:
     PROCESS_ID: "{{ process_id }}"
 </code></pre>
-<p>Now, let's see what happens when we try to template this test plan:</p>
+<p>Now, let’s see what happens when we try to template this test plan:</p>
 <pre><code class="language-bash">$ rtf template test-plan.yaml --check --var process_id="id"
 ERROR (config.txt) a required file has not been defined.: Please specify a config file
 </code></pre>
-<p>We get an error saying we haven't defined a required file, along with the message we put in the
-<code>message</code> field. We'd get the same error if we tried <code>rtf run</code>.</p>
-<p>To make this work, the test plan user should make use of overrides. Let's update <code>test-plan.yaml</code>:</p>
+<p>We get an error saying we haven’t defined a required file, along with the message we put in the
+<code>message</code> field. We’d get the same error if we tried <code>rtf run</code>.</p>
+<p>To make this work, the test plan user should make use of overrides. Let’s update <code>test-plan.yaml</code>:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 variables:
@@ -3369,18 +3263,19 @@ environment:
 <p>If you look at <code>setup.file_providers</code>, you can see that <code>config.txt</code> now uses the config from the
 overrides. Our test plan no longer contains a <code>required</code> file, so we no longer get that error. The
 <code>rtf run</code> command can also complete successfully now.</p>
-<hr />
-<p>Congratulations! You've now completed the guide on how to write test plans.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="cookbook"><a class="header" href="#cookbook">Cookbook</a></h1>
+<hr>
+<p>Congratulations! You’ve now completed the guide on how to write test plans.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="cookbook"><a class="header" href="#cookbook">Cookbook</a></h1>
 <p><em>Common patterns and idioms for working with RTF</em></p>
 <p>This page is a collection of short configuration snippets and strategies for working with RTF Test
 Plans to achieve specific goals. For an introductory overview of how to work with RTF please refer
-to the <a href="./src/guides/index.html">getting started guide</a>. For a technical reference on RTF as a whole please refer to the
-<a href="./framework/index.html">framework section of the docs</a>.</p>
+to the <a href="src/guides/index.html">getting started guide</a>. For a technical reference on RTF as a whole please refer to the
+<a href="#the-framework">framework section of the docs</a>.</p>
 <h2 id="running-multiple-iterations-of-a-test-plan"><a class="header" href="#running-multiple-iterations-of-a-test-plan">Running multiple iterations of a Test Plan</a></h2>
 <p><strong>Problem</strong>: You have a test plan that you would like to run multiple times in order to collect
 results that can be analysed statistically.</p>
-<p><strong>Solution</strong>: RTF's <a href="./framework/test-plans.html#working-with-matrices">matrix</a> feature can be used with a dummy dimension that will be expanded
+<p><strong>Solution</strong>: RTF’s <a href="#working-with-matrices">matrix</a> feature can be used with a dummy dimension that will be expanded
 over to produce <code>n</code> copies of a given test plan (or dimensions within an existing matrix) by
 providing a series of unique values for the dimension:</p>
 <pre><code class="language-yaml">matrix:
@@ -3440,7 +3335,7 @@ matrix:
 12
 </code></pre>
 <p><strong>Discussion</strong>: This will work even for Test Plans without a matrix by returning the single
-"variant" representing the top level variables for the Test Plan.</p>
+“variant” representing the top level variables for the Test Plan.</p>
 <p>The variants returned by <code>rtf expand-matrix</code> are computed using the Test Plan as it is written.
 Specifying additional matrix dimensions via the <code>--vars</code> flag on <code>rtf run</code> will alter the number of
 variants.</p>
@@ -3480,14 +3375,15 @@ green_pear_bar_3
 is written. Specifying additional matrix dimensions via the <code>--vars</code> flag on <code>rtf run</code> will alter
 the number of variants which in turn may result in a previously valid <code>variant_names</code> template
 becoming invalid if it now produces non-unique names.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="command-line-help-for-rtf"><a class="header" href="#command-line-help-for-rtf">Command-Line Help for <code>rtf</code></a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="command-line-help-for-rtf"><a class="header" href="#command-line-help-for-rtf">Command-Line Help for <code>rtf</code></a></h1>
 <p>This document contains the help content for the <code>rtf</code> command-line program.</p>
 <p><strong>Command Overview:</strong></p>
 <ul>
-<li><a href="cli-help.html#rtf"><code>rtf</code>↴</a></li>
-<li><a href="cli-help.html#rtf-run"><code>rtf run</code>↴</a></li>
-<li><a href="cli-help.html#rtf-expand-matrix"><code>rtf expand-matrix</code>↴</a></li>
-<li><a href="cli-help.html#rtf-template"><code>rtf template</code>↴</a></li>
+<li><a href="#rtf"><code>rtf</code>↴</a></li>
+<li><a href="#rtf-run"><code>rtf run</code>↴</a></li>
+<li><a href="#rtf-expand-matrix"><code>rtf expand-matrix</code>↴</a></li>
+<li><a href="#rtf-template"><code>rtf template</code>↴</a></li>
 </ul>
 <h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
 <p>A swiss army knife for testing the Apollo Runtime</p>
@@ -3500,7 +3396,7 @@ becoming invalid if it now produces non-unique names.</p>
 </ul>
 <h6 id="options"><a class="header" href="#options"><strong>Options:</strong></a></h6>
 <ul>
-<li><code>--var &lt;VAR&gt;</code> — A single additional templating variable in the form "key=value"</li>
+<li><code>--var &lt;VAR&gt;</code> — A single additional templating variable in the form “key=value”</li>
 <li><code>--vars &lt;VARS&gt;</code> — Path to a JSON file containing additional template variables</li>
 <li><code>-v</code>, <code>--verbose</code> — Flag to control logging verbosity. Default level is <code>warn</code>. <code>-v</code> sets logging level to <code>info</code>,<code>-vv</code> to <code>debug</code> and <code>-vvv</code> to <code>trace</code></li>
 </ul>
@@ -3517,7 +3413,7 @@ becoming invalid if it now produces non-unique names.</p>
 <p><code>--github &lt;ORG/REPO/PATH&gt;</code> — Execute a test plan file in GitHub instead of from a local path</p>
 </li>
 <li>
-<p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using --github</p>
+<p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
 </li>
 <li>
 <p><code>--outdir &lt;OUTDIR&gt;</code> — Output directory for providers when they run</p>
@@ -3546,9 +3442,10 @@ becoming invalid if it now produces non-unique names.</p>
 <ul>
 <li><code>--check</code> — Run a static check of the resulting test plan after templating</li>
 <li><code>--github &lt;ORG/REPO/PATH&gt;</code> — Template a test plan file in GitHub instead of from a local path</li>
-<li><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using --github</li>
+<li><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="glossary"><a class="header" href="#glossary">Glossary</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="glossary"><a class="header" href="#glossary">Glossary</a></h1>
 <h2 id="environment-1"><a class="header" href="#environment-1">Environment</a></h2>
 <p>An RTF configuration file for specifying how to set up and tear down the services and infrastructure
 under test using Command and File providers. As with all RTF configuration files, it is possible to
@@ -3563,7 +3460,7 @@ File Providers whose content will be made available to the command when it is ru
 each of the Scenario and Environment configuration files is to parameterise, resolve and run one or
 more Command Providers.</p>
 <h3 id="file-provider"><a class="header" href="#file-provider">File Provider</a></h3>
-<p>A Provider that will write out one or more files into a Test Plan's output directory when resolved.
+<p>A Provider that will write out one or more files into a Test Plan’s output directory when resolved.
 File Providers range from being completely general purpose (e.g. pulling an arbitrary file from
 GitHub) to generating data specific to the Test Plan being resolved (e.g. generating valid GraphQL
 operations to run against the supergraph under test).</p>
@@ -3587,8 +3484,10 @@ Plan itself or dynamically through command line arguments to the RTF CLI.</p>
 <h2 id="variables"><a class="header" href="#variables">Variables</a></h2>
 <p>Templating Variables are declared within the Scenario and Environment configuration files and have
 their values defined within the Test Plan referencing those configuration files.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="concepts-and-architecture"><a class="header" href="#concepts-and-architecture">Concepts and Architecture</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="error-handling"><a class="header" href="#error-handling">Error handling</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="concepts-and-architecture"><a class="header" href="#concepts-and-architecture">Concepts and Architecture</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="error-handling"><a class="header" href="#error-handling">Error handling</a></h1>
 <p>Wherever possible we aim to provide users with as much debugging information as possible when rtf
 encounters an problem that prevents continuing execution (as opposed to early exiting with the first
 error encountered). To support this, the <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/error.rs">error</a> module in the <code>rtf-config</code> crate provides a
@@ -3598,22 +3497,29 @@ templating, validation and static analysis checks. So long as there are no side 
 being run, you should try to make use of an error builder to collect related errors where possible.</p>
 <p>See the implementation of <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/command.rs#L181">try_template</a> for the <code>CommandSection</code> struct for an example of what
 this looks like in practice.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="logging"><a class="header" href="#logging">Logging</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="logging"><a class="header" href="#logging">Logging</a></h1>
 <p>This guide covers when and how to use different log levels in the Runtime Testing Framework. The
 project uses the <a href="https://tracing.rs/"><code>tracing</code></a> crate for structured logging.</p>
-<p>We want RTF to take the "no news is good news" approach and be quiet by default. Logging is
+<p>We want RTF to take the “no news is good news” approach and be quiet by default. Logging is
 primarily there to help debug issues and provide feedback when things go wrong. When adding log
 statements to RTF, consider whether the information is helpful and avoid overwhelming users with
 unnecessary data.</p>
 <h2 id="log-levels-overview"><a class="header" href="#log-levels-overview">Log levels overview</a></h2>
 <p>The Runtime Testing Framework uses five log levels, from most to least verbose:</p>
-<div class="table-wrapper"><table><thead><tr><th>Level</th><th>Verbosity Flag</th><th>Purpose</th><th>Audience</th></tr></thead><tbody>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Level</th><th>Verbosity Flag</th><th>Purpose</th><th>Audience</th></tr>
+</thead>
+<tbody>
 <tr><td><code>TRACE</code></td><td><code>-vvv</code></td><td>Extremely detailed execution flow</td><td>Framework developers debugging</td></tr>
 <tr><td><code>DEBUG</code></td><td><code>-vv</code></td><td>Detailed diagnostic information</td><td>Developers and end users troubleshooting</td></tr>
 <tr><td><code>INFO</code></td><td><code>-v</code></td><td>High-level progress indicators</td><td>End users</td></tr>
 <tr><td><code>WARN</code></td><td>(default)</td><td>Potentially problematic situations</td><td>End users</td></tr>
 <tr><td><code>ERROR</code></td><td>(always shown)</td><td>Error conditions that prevent normal operation</td><td>End users</td></tr>
-</tbody></table>
+</tbody>
+</table>
 </div>
 <h2 id="when-to-use-each-level"><a class="header" href="#when-to-use-each-level">When to use each level</a></h2>
 <h3 id="error-level"><a class="header" href="#error-level">ERROR level</a></h3>
@@ -3633,7 +3539,7 @@ significant functionality to fail.</p>
 <li>Expected validation failures</li>
 </ul>
 <h3 id="warn-level"><a class="header" href="#warn-level">WARN level</a></h3>
-<p>Use <code>warn!</code> for situations that are unusual or potentially problematic but don't prevent the
+<p>Use <code>warn!</code> for situations that are unusual or potentially problematic but don’t prevent the
 operation from continuing. WARN is the default log level shown to end users, so these messages
 should provide useful context about what users should look for if errors occur later in the process.</p>
 <p><strong>Examples:</strong></p>
@@ -3681,9 +3587,9 @@ these could be sensitive.</li>
 <h2 id="logging-best-practices"><a class="header" href="#logging-best-practices">Logging best practices</a></h2>
 <h3 id="use-structured-fields"><a class="header" href="#use-structured-fields">Use Structured Fields</a></h3>
 <p>Take advantage of
-<a href="https://docs.rs/tracing/latest/tracing/#recording-fields">tracing's structured logging capabilities</a>
+<a href="https://docs.rs/tracing/latest/tracing/#recording-fields">tracing’s structured logging capabilities</a>
 by including relevant context as fields:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// Good: structured fields for easy filtering and analysis
 info!(%graph_id, %variant, "pulling supergraph details");
@@ -3691,7 +3597,7 @@ warn!(error = %e, "failed to parse configuration");
 
 // Avoid: embedding everything in the message
 info!("pulling supergraph details for graph_id={} variant={}", graph_id, variant);
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <h3 id="common-field-naming-conventions"><a class="header" href="#common-field-naming-conventions">Common field naming conventions</a></h3>
 <p>Use these prefixes to control how values are formatted in log output:</p>
 <ul>
@@ -3701,7 +3607,7 @@ info!("pulling supergraph details for graph_id={} variant={}", graph_id, variant
 <li>Use descriptive field names: <code>operation_count</code>, <code>file_path</code>, <code>duration_ms</code></li>
 </ul>
 <p><strong>Examples:</strong></p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// Good field names
 debug!(file_path = %path, size_bytes = file_size, "reading configuration file");
@@ -3709,17 +3615,17 @@ warn!(retry_count = attempts, max_retries = MAX_ATTEMPTS, "operation failed, ret
 
 // Avoid generic or unclear names
 debug!(thing = %path, num = file_size, "reading file");
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <h3 id="error-context"><a class="header" href="#error-context">Error context</a></h3>
 <p>Always include relevant context when logging errors:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// Good: includes context about what failed
 error!(path = %config_path, "failed to read configuration file: {e}");
 
 // Avoid: generic error without context
 error!("file operation failed: {e}");
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <h2 id="performance-considerations"><a class="header" href="#performance-considerations">Performance considerations</a></h2>
 <p>Logging performance is not a primary concern in RTF. The framework is expected to become I/O bound
 (waiting for network requests, file operations, etc.) before logging becomes a bottleneck.</p>
@@ -3727,7 +3633,7 @@ error!("file operation failed: {e}");
 <ul>
 <li>Avoid expensive computations solely for log messages</li>
 <li>Use structured fields instead of string formatting when possible</li>
-<li>Don't worry about the overhead of log statements that won't be displayed</li>
+<li>Don’t worry about the overhead of log statements that won’t be displayed</li>
 </ul>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <p>The logging level can be controlled in several ways:</p>
@@ -3767,7 +3673,7 @@ in situations where it is expected and required to give helpful feedback. Tests 
 <li><strong>TRACE</strong>: Extremely detailed execution flow for debugging</li>
 </ul>
 <h3 id="common-patterns"><a class="header" href="#common-patterns">Common patterns</a></h3>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// Error with context
 error!(path = %config_path, "failed to read configuration file: {e}");
@@ -3780,7 +3686,7 @@ debug!(endpoint = %url, method = "POST", "making API request");
 
 // Warning about potential issues
 warn!(feature = "deprecated_option", "using deprecated configuration option");
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <h3 id="verbosity-flags"><a class="header" href="#verbosity-flags">Verbosity flags</a></h3>
 <ul>
 <li>Default: <code>WARN</code> and <code>ERROR</code> only</li>
@@ -3788,14 +3694,15 @@ warn!(feature = "deprecated_option", "using deprecated configuration option");
 <li><code>-vv</code>: Add <code>DEBUG</code> messages</li>
 <li><code>-vvv</code>: Add <code>TRACE</code> messages</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
 <p>As developers of a testing framework, we believe in the importance of comprehensive,
 well-structured, automated tests. High-quality testing enables safe, rapid iteration and continuous
 delivery. This document serves as our implementation guide for delivering well-tested software.</p>
 <p>Each crate has its own page within the docs explaining test structure and how tests are implemented.
 Testing guidance applicable across all crates is documented on this page.</p>
 <h2 id="organizing-tests"><a class="header" href="#organizing-tests">Organizing Tests</a></h2>
-<p>Each crate's page describes a hierarchy that should be followed for all tests in that crate.
+<p>Each crate’s page describes a hierarchy that should be followed for all tests in that crate.
 Examples are included for additional guidance.</p>
 <p>The key aim of the hierarchies is to ensure that all tests related to the same level in the
 hierarchy are named consistently, making it easy to find related tests. The hierarchies will be
@@ -3848,14 +3755,15 @@ APOLLO_KEY="$APOLLO_KEY" APOLLO_SUDO="true" cargo llvm-cov --test imgood_observa
 <p>The report should be manually inspected to ensure that all branches that should have at least one
 test case are covered. Two points to consider:</p>
 <ol>
-<li>100% coverage for any given area should not be treated as "this is fully tested." It just means
+<li>100% coverage for any given area should not be treated as “this is fully tested.” It just means
 the code was executed at least once during testing. It is likely that calling code once during
 tests is not sufficient to test all scenarios.</li>
 <li>Conversely, there may be good reasons why certain areas of the code are not executed during
 tests. Where there is a justifiable reason, it is valid to not cover every single line of code
 during tests.</li>
 </ol>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="rtf-cli"><a class="header" href="#rtf-cli">rtf-cli</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="rtf-cli"><a class="header" href="#rtf-cli">rtf-cli</a></h1>
 <p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate are organized and implemented.</p>
 <h2 id="organization"><a class="header" href="#organization">Organization</a></h2>
 <p>For the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate, tests are defined in a <code>tests</code> directory at the root of the crate.
@@ -3883,17 +3791,17 @@ name.</li>
 using the <code>--check</code> flag. This is only defined when using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> to create
 multiple parameterized tests.</li>
 <li><strong>Test case</strong> - The specific test case. This should be uniquely and meaningfully named. Examples
-of test case naming can be seen <a href="developer/testing/./index.html#test-case-naming">here</a>.</li>
+of test case naming can be seen <a href="#test-case-naming">here</a>.</li>
 </ol>
 <p>Following the hierarchy above leads to the following generic test case paths:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// When simple_test_case is not used
 env_dependency::command::flags_test_case
 
 // When simple_test_case is used
 env_dependency::command::flags_test_class::test_case
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <h3 id="example---template-and-check"><a class="header" href="#example---template-and-check">Example - Template and Check</a></h3>
 <p>This example demonstrates how to test that a local test plan can be templated and passes a static
 check. Working through the hierarchy:</p>
@@ -3906,14 +3814,14 @@ logic.</li>
 <li><strong>Test case</strong> is <code>completes_basic</code>. A failing test case is <code>completes_with_cli_variables</code>.</li>
 </ol>
 <p>This leads to the following full test path:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>test template::check_completes_basic
 test template::check_completes_with_cli_variables
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <p>To achieve the structure above, the tests are defined in <code>tests/template.rs</code> and organized as
 follows:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test]
 fn check_completes_basic() {
@@ -3924,7 +3832,7 @@ fn check_completes_basic() {
 fn check_completes_with_cli_variables() {
   ...
 }
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <h3 id="example---run-from-github"><a class="header" href="#example---run-from-github">Example - Run from GitHub</a></h3>
 <p>This example demonstrates how to test that the run command can execute a test plan stored in GitHub.
 Working through the hierarchy:</p>
@@ -3940,14 +3848,14 @@ has to be included in the test case path somewhere (just not twice!).</li>
 <code>github_flag_produces_expected_output</code>.</li>
 </ol>
 <p>This leads to the following full test path:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>test github::run::github_flag_completes
 test github::run::github_flag_produces_expected_output
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <p>To achieve the structure above, the tests are defined in <code>tests/github/run.rs</code> and organized as
 follows:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test]
 #[ignore = "requires a valid GitHub API Token"]
@@ -3960,7 +3868,7 @@ fn github_flag_completes() {
 fn github_flag_produces_expected_output() {
   ...
 }
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <blockquote>
 <p><strong>Note</strong>: The tests are ignored by default as they require a GitHub token to run successfully.</p>
 </blockquote>
@@ -3991,7 +3899,7 @@ flag combinations</li>
 </ol>
 <h4 id="basic-command-testing"><a class="header" href="#basic-command-testing">Basic Command Testing</a></h4>
 <p>Tests verify that commands are executable and respond appropriately to basic invocations:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test]
 fn is_executable() {
@@ -4000,10 +3908,10 @@ fn is_executable() {
     
     res.stderr(contains("Usage: rtf template"));
 }
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <h4 id="parameterized-testing-for-multiple-scenarios"><a class="header" href="#parameterized-testing-for-multiple-scenarios">Parameterized Testing for Multiple Scenarios</a></h4>
 <p>Complex scenarios use parameterized testing to cover multiple input variations efficiently:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test_case("command-from-spec"; "command from spec")]
 #[test_case("matrix-variables"; "matrix variables")]
@@ -4020,17 +3928,17 @@ fn check_completes_basic(test_plan_dir: &amp;str) {
         
     res.success().stdout(contains("name:"));
 }
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <h3 id="temporary-directory-management"><a class="header" href="#temporary-directory-management">Temporary Directory Management</a></h3>
 <p>The crate implements a custom <code>CmdWithTmpDir</code> utility that combines command execution with temporary
 directory management:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct CmdWithTmpDir {
     cmd: Command,
     tmp: TempDir,
 }
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <p>This ensures that test files and directories are properly cleaned up after test execution while
 providing convenient access to both the command and the temporary filesystem state.</p>
 <h3 id="error-testing-strategy"><a class="header" href="#error-testing-strategy">Error Testing Strategy</a></h3>
@@ -4038,11 +3946,11 @@ providing convenient access to both the command and the temporary filesystem sta
 <ol>
 <li><strong>Input validation errors</strong> - Testing malformed YAML, missing files, and invalid configurations</li>
 <li><strong>Templating errors</strong> - Ensuring template resolution failures are properly reported</li>
-<li><strong>Static analysis failures</strong> - Testing the <code>--check</code> flag's validation logic</li>
+<li><strong>Static analysis failures</strong> - Testing the <code>--check</code> flag’s validation logic</li>
 <li><strong>Runtime execution errors</strong> - Verifying that script execution failures are handled gracefully</li>
 </ol>
 <p>Error tests are heavily parameterized to cover multiple failure scenarios:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test_case(
     "missing-variables.yaml",
@@ -4064,7 +3972,7 @@ fn templating_fails(file: &amp;str, err_contains: &amp;str) {
         
     res.stderr(contains(format!("Templating failed\n{err_contains}")));
 }
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <h3 id="integration-testing-approach"><a class="header" href="#integration-testing-approach">Integration Testing Approach</a></h3>
 <p>Since the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate tests are integration tests, they focus on end-to-end functionality
 rather than unit testing individual functions. This includes:</p>
@@ -4082,7 +3990,8 @@ rather than unit testing individual functions. This includes:</p>
 </ul>
 <p>Each test plan directory is self-contained with all necessary files, enabling realistic integration
 testing scenarios.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="rtf-config"><a class="header" href="#rtf-config">rtf-config</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="rtf-config"><a class="header" href="#rtf-config">rtf-config</a></h1>
 <p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate are organized and implemented.</p>
 <h2 id="organization-1"><a class="header" href="#organization-1">Organization</a></h2>
 <p>Tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate are organized using the following hierarchy:</p>
@@ -4104,17 +4013,17 @@ prefix in the test case name.</li>
 a file provider. This is only defined when using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> to create multiple
 parameterized tests.</li>
 <li><strong>Test case</strong> - The specific test case. This should be uniquely and meaningfully named. Examples
-of test case naming can be seen <a href="developer/testing/./index.html#test-case-naming">here</a>.</li>
+of test case naming can be seen <a href="#test-case-naming">here</a>.</li>
 </ol>
 <p>Following the hierarchy above leads to the following generic test case paths:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// When simple_test_case is not used
 module::path::tests::data_structure_functionality_test_case
 
 // When simple_test_case is used
 module::path::tests::data_structure_functionality_test_class::test_case
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <h3 id="example---resolving-a-file-provider"><a class="header" href="#example---resolving-a-file-provider">Example - Resolving a File Provider</a></h3>
 <p>This example demonstrates how to test that the file provider, <code>RelativePath</code>, can be resolved into
 file content. Working through the hierarchy:</p>
@@ -4129,14 +4038,14 @@ data structure.</li>
 included as well.</li>
 </ol>
 <p>The full test paths are:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>test provider::file::tests::relative_path_resolve_into_text
 test provider::file::tests::relative_path_resolve_file_not_text
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <p>To achieve the structure above, the tests are defined in <code>src/providers/file/mod.rs</code> and organized
 as follows:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>mod tests {
   #[test]
@@ -4149,7 +4058,7 @@ as follows:</p>
     ...
   }
 }
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <h3 id="example---malformed-template-strings"><a class="header" href="#example---malformed-template-strings">Example - Malformed Template Strings</a></h3>
 <p>This example demonstrates how to test that the template string <code>"{{ template_variable }}"</code> does not
 work when similar, but not acceptable, patterns are specified. Working through the hierarchy:</p>
@@ -4165,14 +4074,14 @@ variations in strings that are tested using the same logic.</li>
 and <code>single_curly_braces</code>.</li>
 </ol>
 <p>The full test paths are:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>test templating::tests::field_parse_malformed_template_string::no_space_after_variable_name
 test templating::tests::field_parse_malformed_template_string::single_curly_braces
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <p>To achieve the structure above, the tests are defined in <code>src/templating.rs</code> and organized as
 follows:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>mod tests {
   use simple_test_case::test_case;
@@ -4183,7 +4092,7 @@ follows:</p>
     ...
   }
 }
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate uses several testing strategies and tools to ensure comprehensive
 coverage of configuration parsing, validation, and resolution.</p>
@@ -4200,7 +4109,7 @@ configurations</li>
 <h3 id="mock-system"><a class="header" href="#mock-system">Mock System</a></h3>
 <p>The crate implements a flexible mock system through <code>MockContext&lt;T&gt;</code> that allows dependency
 injection during testing:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// For HTTP client testing
 let mock_ctx = MockContext::with_http_client(&amp;[
@@ -4209,12 +4118,12 @@ let mock_ctx = MockContext::with_http_client(&amp;[
 
 // For GitHub client testing  
 let mock_ctx = MockContext::with_github_client("file content");
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <p>This approach enables testing without external dependencies while maintaining the same interfaces
 used in production code.</p>
 <p>For mocking interactions with GraphOS, a different approach is used. Rather than mocking the GraphOS
 API directly, the tests create mock <code>SupergraphDetails</code> and test the content transformation logic:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test]
 fn supergraph_resolve_success() {
@@ -4235,13 +4144,13 @@ fn supergraph_resolve_success() {
     let result = supergraph.content_from_details(details);
     assert_eq!(result, "schema { query: Query }");
 }
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <p>This pattern allows testing the core business logic while avoiding the complexity of mocking
 external APIs. The <code>with_supergraph_details</code> method in the production context handles the API
 interaction separately.</p>
 <h3 id="parameterized-testing-patterns"><a class="header" href="#parameterized-testing-patterns">Parameterized Testing Patterns</a></h3>
 <p>Tests extensively use <code>#[test_case]</code> to cover multiple scenarios efficiently:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test_case("foo"; "ascii")]
 #[test_case("BAR"; "upper case")]
@@ -4250,9 +4159,9 @@ interaction separately.</p>
 fn field_parse_valid_identifiers(raw: &amp;str) {
     // Test logic handles all cases
 }
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <p>Related test cases are grouped into test classes when using parameterized testing, following the
-naming hierarchy described in the <a href="developer/testing/rtf-config.html#organization">Organization</a> section.</p>
+naming hierarchy described in the <a href="#organization-1">Organization</a> section.</p>
 <h3 id="configuration-testing-strategy"><a class="header" href="#configuration-testing-strategy">Configuration Testing Strategy</a></h3>
 <p>The crate employs a systematic approach to testing configuration handling:</p>
 <ol>
@@ -4280,7 +4189,8 @@ then tests are defined.</li>
 </ul>
 <p>Error tests follow the same organizational patterns as success tests, often using parameterized
 testing to cover multiple error scenarios efficiently.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="rtf-core"><a class="header" href="#rtf-core">rtf-core</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="rtf-core"><a class="header" href="#rtf-core">rtf-core</a></h1>
 <p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-core"><code>rtf-core</code></a> crate are organized and implemented.</p>
 <h2 id="organization-2"><a class="header" href="#organization-2">Organization</a></h2>
 <p>Tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-core"><code>rtf-core</code></a> crate are organized using the following hierarchy:</p>
@@ -4298,17 +4208,17 @@ be specified as the first prefix in the test case name.</li>
 an offline license from GraphOS. This is only defined when using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> to
 create multiple parameterized tests.</li>
 <li><strong>Test case</strong> - The specific test case. This should be uniquely and meaningfully named. Examples
-of test case naming can be seen <a href="developer/testing/./index.html#test-case-naming">here</a>.</li>
+of test case naming can be seen <a href="#test-case-naming">here</a>.</li>
 </ol>
 <p>Following the hierarchy above leads to the following generic test case paths:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// When simple_test_case is not used
 module::path::tests::function_test_case
 
 // When simple_test_case is used
 module::path::tests::function_test_class::test_case
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <h3 id="example---fetching-an-offline-license-from-graphos"><a class="header" href="#example---fetching-an-offline-license-from-graphos">Example - Fetching an Offline License from GraphOS</a></h3>
 <p>This example demonstrates how to test that an offline license can be fetched from GraphOS. Working
 through the hierarchy:</p>
@@ -4321,13 +4231,13 @@ module does not uniquely identify the data structure.</li>
 <li><strong>Test case</strong> is <code>retrieved</code>.</li>
 </ol>
 <p>This leads to the following full test path:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>test graphos::supergraph::operations::license::tests::offline_license_retrieved
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <p>To achieve the structure above, the tests are defined in
 <code>src/graphos/supergraph/operations/license.rs</code> and organized as follows:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>mod tests {
   #[test]
@@ -4335,8 +4245,9 @@ module does not uniquely identify the data structure.</li>
     ...
   }
 }
-<span class="boring">}</span></code></pre></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="rtf-derive"><a class="header" href="#rtf-derive">rtf-derive</a></h1>
+<span class="boring">}</span></code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="rtf-derive"><a class="header" href="#rtf-derive">rtf-derive</a></h1>
 <p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate are organized and implemented.</p>
 <p>This crate defines a <a href="https://doc.rust-lang.org/reference/procedural-macros.html">proc macro</a> for deriving the <code>Template</code> trait defined in the
 <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate. The considerations for testing a proc macro are different from testing a
@@ -4389,11 +4300,11 @@ error, this will also identify the error conditions.</li>
 part of the <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> test case name.</li>
 </ol>
 <p>Following the hierarchy above leads to the following generic test case paths:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// When simple_test_case is used
 template::tests::trait_method::data_structure_test_case
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <h2 id="implementation-2"><a class="header" href="#implementation-2">Implementation</a></h2>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate employs specialized testing strategies tailored to procedural macro
 testing requirements.</p>
@@ -4419,14 +4330,14 @@ correctly at runtime</li>
 </ol>
 <h3 id="error-testing-with-trybuild"><a class="header" href="#error-testing-with-trybuild">Error Testing with trybuild</a></h3>
 <p>The <code>fail</code> tests use <code>trybuild</code> to capture and validate compilation error messages:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test]
 fn ui() {
     let t = trybuild::TestCases::new();
     t.compile_fail("tests/compile/fail/*.rs");
 }
-<span class="boring">}</span></code></pre></pre>
+<span class="boring">}</span></code></pre>
 <p>This approach ensures that:</p>
 <ul>
 <li>Error messages remain consistent across Rust versions</li>
@@ -4436,7 +4347,7 @@ fn ui() {
 <h3 id="parameterized-container-testing"><a class="header" href="#parameterized-container-testing">Parameterized Container Testing</a></h3>
 <p>The <code>template</code> tests extensively use <code>#[test_case]</code> to verify the derive macro works across
 different Rust container types:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test_case("Struct"; "basic_struct")]
 #[test_case("TupleStruct"; "tuple_struct")]
@@ -4445,10 +4356,11 @@ different Rust container types:</p>
 fn template_method_works(container_type: &amp;str) {
     // Test the generated Template implementation
 }
-<span class="boring">}</span></code></pre></pre>
-<p>This pattern allows comprehensive testing of the macro's behavior across the full range of supported
+<span class="boring">}</span></code></pre>
+<p>This pattern allows comprehensive testing of the macro’s behavior across the full range of supported
 Rust syntax.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="pr-checks"><a class="header" href="#pr-checks">PR checks</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="pr-checks"><a class="header" href="#pr-checks">PR checks</a></h1>
 <p>This page documents all the checks that run when raising a PR, how to run the corresponding checks
 locally and how to resolve them.</p>
 <p>All the tasks required to run these checks locally are defined using <a href="https://mise.jdx.dev/tasks/">mise tasks</a>. To run all the
@@ -4483,7 +4395,7 @@ checks the code complies with rust <code>clippy</code>.</p>
 </code></pre>
 <p>This will show details for all doclink issues.</p>
 <blockquote>
-<p><strong>Note</strong>: Most of the <code>cargo docs</code> output will be warnings. This might be quite noisey but won't
+<p><strong>Note</strong>: Most of the <code>cargo docs</code> output will be warnings. This might be quite noisey but won’t
 necessarily fail your PR checks.</p>
 </blockquote>
 <h2 id="spell-check"><a class="header" href="#spell-check">spell-check</a></h2>
@@ -4513,13 +4425,14 @@ then <a href="https://github.com/crate-ci/typos?tab=readme-ov-file#false-positiv
 </code></pre>
 <p>Before committing to <code>main</code>, manually review the diff to check all formatting fixes are desired.</p>
 <p>Files can be excluded using the <code>dprint.json</code> file at the root of the repo.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="parsing-config-files"><a class="header" href="#parsing-config-files">Parsing config files</a></h1>
-<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config">rtf-config</a> crate provides parsers for the <a href="developer/./data-structures/config-files.html">three config files</a> used by RTF, along with
-parsers for the <a href="developer/./data-structures/file-providers.html">various</a> <a href="developer/./data-structures/command-providers.html">provider</a> fragments that are used to expose the rest of the
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="parsing-config-files"><a class="header" href="#parsing-config-files">Parsing config files</a></h1>
+<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config">rtf-config</a> crate provides parsers for the <a href="#config-file-formats">three config files</a> used by RTF, along with
+parsers for the <a href="#file-providers-1">various</a> <a href="#command-providers-1">provider</a> fragments that are used to expose the rest of the
 framework to users through those config files.</p>
 <p>The parsers for <code>TestPlanConfig</code>, <code>EnvironmentConfig</code> and <code>ScenarioConfig</code> live in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config/src/formats">formats</a>
 module. Each exposes a similar API for how they are parsed from YAML data files, templated,
-validated and executed. The shared behaviour used to do this is defined in a <a href="developer/./config-traits.html">set of traits</a> that
+validated and executed. The shared behaviour used to do this is defined in a <a href="#traits-for-working-with-config-structs">set of traits</a> that
 provide tree-walk based methods for traversing the nested data structures obtained from parsing user
 written config files.</p>
 <h2 id="config-resolution--execution"><a class="header" href="#config-resolution--execution">Config resolution &amp; execution</a></h2>
@@ -4530,7 +4443,7 @@ written config files.</p>
 raw YAML. If the test plan defines overrides for either section then deep merge before parsing
 into concrete structs.</li>
 <li>Check that the test plan contains all of the required variables for templating to be possible. If
-it doesn't then early exit reporting the missing variables.</li>
+it doesn’t then early exit reporting the missing variables.</li>
 <li>Template the environment <em>setup</em> section before running static analysis checks.</li>
 <li>If all checks pass, run the setup command and use the provided output to finish templating the
 <em>scenario</em> and environment <em>teardown</em> sections.</li>
@@ -4545,13 +4458,15 @@ the user as a batch operation. Each of the config file structs provides an API f
 checks and templating so that end users are able to efficiently debug and iterate on their config
 files.</p>
 </blockquote>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="data-structures"><a class="header" href="#data-structures">Data structures</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="data-structures"><a class="header" href="#data-structures">Data structures</a></h1>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config">rtf-config</a> crate provides a number of data structures for working with user written YAML
 config files, forming an overall tree structure that is used to execute commands in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli">CLI</a>.</p>
 <p>The following pages provide a brief overview of the various data data structures we use and how they
 relate to one another, starting from the leaves of the tree and working up to the
 <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/formats/test_plan.rs#L23">TestPlanConfig</a> struct that acts as the root.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="templating-fields"><a class="header" href="#templating-fields">Templating fields</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="templating-fields"><a class="header" href="#templating-fields">Templating fields</a></h1>
 <p>The leaves of the config data structures are either concrete scalar values (such as numbers, strings
 and booleans) or <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/templating.rs#L205">Fields</a> which is how we support a limited form of type-checked templating
 within config files.</p>
@@ -4568,10 +4483,11 @@ into the <code>Field::Pending</code> enum variant directly using serde. When wri
 make use of templating fields where it makes sense for users to be able to dynamically set values
 when executing a test plan and avoid using them where such flexibility is not required.</p>
 <blockquote>
-<p>For example, we do not allow the <code>inline</code> file provider's content argument to be templated as the
+<p>For example, we do not allow the <code>inline</code> file provider’s content argument to be templated as the
 intention is for this to always be provided within the test plan itself.</p>
 </blockquote>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="file-providers-1"><a class="header" href="#file-providers-1">File providers</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="file-providers-1"><a class="header" href="#file-providers-1">File providers</a></h1>
 <p><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L224">File providers</a> are the primary way that rtf exposes useful functionality to users. Each
 provider is defined as a struct that can be parsed from a YAML snippet within a larger config file,
 with fields that serve as inputs to business logic from the <a href="https://github.com/apollographql/runtime-testing-framework/tree/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-core">rtf-core</a> crate. Running a file
@@ -4580,19 +4496,21 @@ then be referenced by the commands being run as part of a test plan.</p>
 <p>Within config files, file providers are always wrapped in a <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L201">NamedFileProvider</a> that adds
 filename and environment variable fields along with logic for running the provider and outputting
 the new resources in the correct location on the filesystem.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="command-providers-1"><a class="header" href="#command-providers-1">Command providers</a></h1>
-<p><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/command.rs#L363">Command providers</a> support running a subset of <a href="developer/data-structures/./file-providers.html">file providers</a> in order to obtain an
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="command-providers-1"><a class="header" href="#command-providers-1">Command providers</a></h1>
+<p><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/command.rs#L363">Command providers</a> support running a subset of <a href="#file-providers-1">file providers</a> in order to obtain an
 executable file that can be used as one of the environment setup, environment teardown or scenario
 commands. Within config files they are wrapped in a <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/command.rs#L300">CommandSpec</a> which allows the user to
 provide command line arguments.</p>
 <p>Each command section supports specifying environment variables and file providers that will be made
 available when the command executes.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="config-file-formats"><a class="header" href="#config-file-formats">Config file formats</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="config-file-formats"><a class="header" href="#config-file-formats">Config file formats</a></h1>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config">rtf-config</a> crate provides parsers for the three config files used by RTF: <code>TestPlanConfig</code>,
 <code>EnvironmentConfig</code> and <code>ScenarioConfig</code>.</p>
 <h3 id="scenario-config"><a class="header" href="#scenario-config">Scenario Config</a></h3>
 <p>The simplest of the three config file formats is the scenario config which simply provides a way for
-the user to pair <a href="developer/data-structures/./fields.html">templating</a> variables with a <a href="developer/data-structures/./command-providers.html">command</a>.</p>
+the user to pair <a href="#templating-fields">templating</a> variables with a <a href="#command-providers-1">command</a>.</p>
 <h2 id="environment-config"><a class="header" href="#environment-config">Environment Config</a></h2>
 <p>The environment config file defines a pair of command sections: one for setting up the environment
 before the test is run and another for tearing it down after the test is complete. The setup section
@@ -4602,11 +4520,12 @@ by the setup command for it to pass data along to the scenario and teardown sect
 <p>The test plan config file is where the user defines the variables they wish to use for templating
 along with the scenario and environment configurations, either provided inline or as references to
 external files.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="traits-for-working-with-config-structs"><a class="header" href="#traits-for-working-with-config-structs">Traits for working with config structs</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="traits-for-working-with-config-structs"><a class="header" href="#traits-for-working-with-config-structs">Traits for working with config structs</a></h1>
 <p>We have a set of four traits that are used to provide the shared behaviour needed to parse, validate
 and execute rtf config files:</p>
 <ul>
-<li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/templating.rs#L45">Template</a>: used to locate and resolve templatable <a href="developer/./data-structures/fields.html">fields</a> within larger config data
+<li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/templating.rs#L45">Template</a>: used to locate and resolve templatable <a href="#templating-fields">fields</a> within larger config data
 structures.</li>
 <li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/checks.rs#L47">Check</a>: used to run side-effect free static analysis checks on config files before they are
 executed.</li>
@@ -4615,34 +4534,39 @@ their content is generated.</li>
 <li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L118">ResolveAndWrite</a>: used by providers to define how they generate their content and write it out
 to the user specified output directory.</li>
 </ul>
-<p>All <a href="developer/./data-structures/file-providers.html">file providers</a> are required to implement the <code>Template</code> and <code>Check</code> traits and <em>either</em> the
+<p>All <a href="#file-providers-1">file providers</a> are required to implement the <code>Template</code> and <code>Check</code> traits and <em>either</em> the
 <code>AsUtf8FileContent</code> trait or the <code>ResolveAndWrite</code> trait. You should prefer implementing
 <code>AsUtf8FileContent</code> where possible as it will handle some of the boiler plate logic for you.</p>
 <blockquote>
 <p>This is possible whenever your provider is writing out a single utf8 encoded file as its output.</p>
 </blockquote>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="use-of-io-in-providers"><a class="header" href="#use-of-io-in-providers">Use of IO in providers</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="use-of-io-in-providers"><a class="header" href="#use-of-io-in-providers">Use of IO in providers</a></h1>
 <p>All IO that is run as part of provider logic <em>must</em> be run using the <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs">context</a> argument that is
 passed to methods. This allows the CLI logic to control how providers are run as well as allowing us
 to swap out real IO for mock implementations within tests.</p>
 <p>If you are writing a new provider and need to perform IO that is not currently possible via the
 existing <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L35">ResolutionContext</a> methods, you will need to first expose the functionality through
-that trait and provide a default "live" implementation for the concrete <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L157">Context</a> struct that is
+that trait and provide a default “live” implementation for the concrete <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L157">Context</a> struct that is
 used by the CLI.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="cli-subcommand-design"><a class="header" href="#cli-subcommand-design">CLI subcommand design</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="cli-subcommand-design"><a class="header" href="#cli-subcommand-design">CLI subcommand design</a></h1>
 <p>The following pages provide an overview of how the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli">CLI</a> subcommands and flags are designed.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="plumbing-vs-porcelain"><a class="header" href="#plumbing-vs-porcelain">Plumbing vs porcelain</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="plumbing-vs-porcelain"><a class="header" href="#plumbing-vs-porcelain">Plumbing vs porcelain</a></h1>
 <p>The CLI subcommands are split into two different concepts; porcelain and plumbing.</p>
 <p>The porcelain commands expose full end-to-end functionality to the users. They can be thought of as
-pipelines running the functionality in the plumbing commands sequentially to achieve the user's
+pipelines running the functionality in the plumbing commands sequentially to achieve the user’s
 desired outcome.</p>
 <p>The plumbing commands expose ways for a user to run a subset of the porcelain commands. These
 commands are primarily used for debugging when the porcelain command has errored or so the user can
 test a portion of their configuration ahead of running a porcelain command.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="no-built-in-magic"><a class="header" href="#no-built-in-magic">No built-in magic</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="no-built-in-magic"><a class="header" href="#no-built-in-magic">No built-in magic</a></h1>
 <p>CLI subcommands should reference functions that handle the logic of the command. There should be no
 inline logic at the CLI struct level.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="global-flags"><a class="header" href="#global-flags">Global flags</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="global-flags"><a class="header" href="#global-flags">Global flags</a></h1>
 <p>The CLI exposes the following global flags for all subcommands to use:</p>
 <ul>
 <li><code>--var</code></li>
@@ -4671,6 +4595,11 @@ JSON file containing the variables.</p>
 
         </div>
 
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
 
 
 
@@ -4678,19 +4607,19 @@ JSON file containing the variables.</p>
             window.playground_copyable = true;
         </script>
 
-        <script src="ace.js"></script>
-        <script src="mode-rust.js"></script>
-        <script src="editor.js"></script>
-        <script src="theme-dawn.js"></script>
-        <script src="theme-tomorrow_night.js"></script>
+        <script src="ace-2a3cd908.js"></script>
+        <script src="mode-rust-2c9d5c9a.js"></script>
+        <script src="editor-16ca416c.js"></script>
+        <script src="theme-dawn-4493f9c8.js"></script>
+        <script src="theme-tomorrow_night-9dbe62a9.js"></script>
 
-        <script src="elasticlunr.min.js"></script>
-        <script src="mark.min.js"></script>
-        <script src="searcher.js"></script>
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-c2a407aa.js"></script>
 
-        <script src="clipboard.min.js"></script>
-        <script src="highlight.js"></script>
-        <script src="book.js"></script>
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-a0b12cfe.js"></script>
 
         <!-- Custom JS scripts -->
 
