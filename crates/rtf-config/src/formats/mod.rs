@@ -2,11 +2,13 @@
 use crate::{checks, providers};
 use std::io;
 
+mod custom_provider;
 mod environment;
 mod matrix;
 mod scenario;
 mod test_plan;
 
+pub use custom_provider::CustomProviderDefinition;
 pub use environment::EnvironmentConfig;
 pub use matrix::Matrix;
 use rtf_core::github;
