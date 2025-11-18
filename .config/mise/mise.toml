@@ -44,7 +44,7 @@ run = "cargo test"
 "cargo:cargo-llvm-cov" = "0.6.18"
 "cargo:typos-cli" = "1.34.0"
 dprint = "0.48.0"
-mdbook = "0.4.51"
+mdbook = "0.5.0"
 rust = "1.90.0"
 
 [env]
