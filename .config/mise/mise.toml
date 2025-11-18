@@ -1,5 +1,6 @@
 [tasks.fix-spelling]
 run = "typos --write-changes"
+dir = "../../"
 
 [tasks.format-markdown]
 run = "dprint fmt"
@@ -35,6 +36,7 @@ dir = "../../"
 
 [tasks.pr-spell-check]
 run = "typos"
+dir = "../../"
 
 [tasks.pr-test]
 run = "cargo test"
