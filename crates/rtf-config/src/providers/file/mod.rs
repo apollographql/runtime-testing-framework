@@ -865,11 +865,7 @@ mod tests {
         };
         let ctx = template_context!(&["unused"]);
 
-        let res = nfp.try_template(
-            &mut vec!["path".to_string()],
-            &Source::local("/"),
-            &ctx,
-        );
+        let res = nfp.try_template(&mut vec!["path".to_string()], &Source::local("/"), &ctx);
         assert!(res.is_err(), "expected templating to error, got {res:?}");
 
         let errors = res.unwrap_err();

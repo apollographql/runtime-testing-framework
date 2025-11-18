@@ -142,7 +142,7 @@ mod tests {
             scenario::test_helpers::{scenario_with_fields, templatable_scenario},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
-                template_variables,
+                template_context,
             },
         },
         providers::command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
@@ -222,7 +222,7 @@ mod tests {
     #[test_case(&[]; "no variables")]
     #[test]
     fn try_template_succeeds(field_names: &[&str]) {
-        let ctx = template_variables(field_names);
+        let ctx = template_context(field_names);
         let mut scenario = templatable_scenario(field_names, field_names);
 
         let res = scenario.try_template(&mut Vec::new(), &Source::local("/"), &ctx);
@@ -245,7 +245,7 @@ mod tests {
         scenario_fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let ctx = template_variables(variables);
+        let ctx = template_context(variables);
         let mut scenario = templatable_scenario(variable_defs, scenario_fields);
 
         let (expected_err_messages, expected_err_paths) =

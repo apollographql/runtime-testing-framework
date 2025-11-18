@@ -111,7 +111,7 @@ mod tests {
     }
 
     /// Create a HashMap of variables from string names (each name maps to itself as a Scalar::String)
-    pub(crate) fn template_variables(variable_names: &[&str]) -> TemplateContext {
+    pub(crate) fn template_context(variable_names: &[&str]) -> TemplateContext {
         TemplateContext::new_stubbed(
             variable_names
                 .iter()
