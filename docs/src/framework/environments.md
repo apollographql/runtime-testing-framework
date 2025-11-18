@@ -1,12 +1,5 @@
 # Environments
 
----
-
-- [Top level keys](#top-level-keys)
-- [Full example](#full-example)
-
----
-
 As outlined in the [Test Plan][0] overview, your Environment configuration is one of the two main
 pieces of configuration needed in order to run tests under RTF. Conceptually, an Environment
 configuration is a pair of [Command providers][1] that are run either side of the test scenario you

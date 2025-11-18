@@ -1,7 +1,6 @@
 [book]
 authors = ["Runtime Readiness"]
 language = "en"
-multilingual = false
 src = "src"
 title = "Runtime Testing Framework"
 
@@ -10,7 +9,7 @@ git-repository-url = "https://github.com/apollographql/runtime-testing-framework
 
 [output.html.playpen]
 editable = true
-editor = "ace"
 
 [output.html.fold]
 enable = true
+level = 0         # the depth to start folding

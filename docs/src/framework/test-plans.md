@@ -1,21 +1,5 @@
 # Test Plans
 
----
-
-- [Top level keys](#top-level-keys)
-- [Config Specs](#config-specs)
-  - [Inline configuration](#inline-configuration)
-  - [From a local file](#from-a-local-file)
-  - [From a remote file in GitHub](#from-a-remote-file-in-github)
-- [Applying overrides](#applying-overrides)
-- [A note on relative paths](#a-note-on-relative-paths)
-- [Working with matrices](#working-with-matrices)
-  - [Naming variants](#naming-variants)
-  - [Including explicit variants](#including-explicit-variants)
-- [Full example](#full-example)
-
----
-
 As we saw in the [hello, world!][0] guide, the top level entry point for running tests under RTF is
 the `test-plan.yaml` config file. Depending on exactly how you want to set things up there are
 several options available for how you organise this, but the core structure remains the same.

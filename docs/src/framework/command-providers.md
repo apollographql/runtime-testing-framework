@@ -1,17 +1,5 @@
 # Command providers
 
----
-
-- [The command section](#the-command-section)
-  - [Inline scripts](#inline-scripts)
-  - [Relative paths](#relative-paths)
-  - [Required commands](#required-commands)
-- [The env vars section](#the-env-vars-section)
-- [The file providers section](#the-file-providers-section)
-  - [A note on providers as resources](#a-note-on-providers-as-resources)
-
----
-
 _Command Providers_ are the core executable element making up RTF Test Plans. They allow you, the
 user, to specify how a given command should be run and what resources it needs in order to do so.
 Both the [Environment][0] and [Scenario][1] configuration files are simply ways of defining Command

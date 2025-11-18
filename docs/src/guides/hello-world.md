@@ -1,14 +1,5 @@
 # Hello, world!
 
-### Table of contents
-
-- [Overview](#overview)
-- [Pre-Flight Checks](#pre-flight-checks)
-- [Running a Test Plan](#running-a-test-plan)
-- [Modifying Variables](#modifying-variables)
-- [Overriding Individual Variables](#overriding-individual-variables)
-- [Matrix Variables](#matrix-variables)
-
 ## Overview
 
 The [example_test_plans][0] directory in the rtf repository contains a "hello, world!" test plan

@@ -1,20 +1,5 @@
 # Writing a test plan
 
----
-
-- [Getting started](#getting-started)
-- [Adding required fields](#adding-required-fields)
-  - [`name`](#name)
-  - [`description`](#description)
-  - [`scenario`](#scenario)
-  - [`environment`](#environment)
-- [Checking the test plan](#checking-the-test-plan)
-- [Running the test plan](#running-the-test-plan)
-- [Setting variables](#setting-variables)
-- [Using a matrix](#using-a-matrix)
-
----
-
 Create an empty directory and make it your working directory:
 
 ```bash

@@ -1,16 +1,5 @@
 # Using file providers
 
----
-
-- [Getting started](#getting-started)
-- [What are file providers?](#what-are-file-providers)
-- [Adding an inline file](#adding-an-inline-file)
-- [File provider config structure](#file-provider-config-structure)
-- [Adding a file from a relative path](#adding-a-file-from-a-relative-path)
-- [Required files](#required-files)
-
----
-
 This guide assumes you've completed the ["Writing an environment"](writing-an-environment.md) guide.
 You should already have the files in a directory named `rtf-hello-world`. Your directory should be
 in the state it was at the end of that guide:
