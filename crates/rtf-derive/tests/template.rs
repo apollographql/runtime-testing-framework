@@ -2,7 +2,7 @@
 
 use rtf_config::{
     Source,
-    templating::{Field, Scalar, Template, TemplateVariables, ValidField},
+    templating::{Field, Scalar, Template, TemplateContext, ValidField},
 };
 use rtf_derive::Template;
 use simple_test_case::test_case;
@@ -219,14 +219,14 @@ fn required_variables(t: Box<dyn Template>, expected: &[&str]) {
     )
 }
 
-macro_rules! variables_map {
+macro_rules! template_context {
     ($slice:expr) => {{
         let mut m = ::std::collections::HashMap::new();
         for k in $slice {
             m.insert(k.to_string(), Scalar::from(k.to_string()));
         }
 
-        TemplateVariables::new(m, Source::local("/"), Default::default())
+        TemplateContext::new(m, Source::local("/"), Default::default())
     }};
 }
 
@@ -241,15 +241,15 @@ macro_rules! variables_map {
 #[test_case(mns(p("inner")), &["inner"]; "nested_inner_structs")]
 #[test_case(ttf(p("foo")), &["foo"]; "field_in_enum")]
 #[test_case(ttsf(p("foo")), &["foo"]; "struct_in_enum")]
-#[test]
-fn try_template_all_fields(mut t: Box<dyn Template>, variables: &[&str]) {
-    let variables = variables_map!(variables);
-    let res = t.try_template(&mut Vec::new(), &Source::local("/"), &variables);
-    assert!(
-        res.is_ok(),
-        "expected to template successfully, got {res:?}"
-    )
-}
+    #[test]
+    fn try_template_all_fields(mut t: Box<dyn Template>, variables: &[&str]) {
+        let template_ctx = template_context!(variables);
+        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &template_ctx);
+        assert!(
+            res.is_ok(),
+            "expected to template successfully, got {res:?}"
+        )
+    }
 
 #[test_case(sinf(p("foo")); "single_field")]
 #[test_case(sinf(p("foo")); "single_field_unused_variable")]
@@ -261,37 +261,37 @@ fn try_template_all_fields(mut t: Box<dyn Template>, variables: &[&str]) {
 #[test_case(mns(p("inner")); "nested_inner_structs")]
 #[test_case(ttf(p("foo")); "field_in_enum")]
 #[test_case(ttsf(p("foo")); "struct_in_enum")]
-#[test]
-fn try_template_unknown_variable_error(mut t: Box<dyn Template>) {
-    let variables = variables_map!(["unused"]);
+    #[test]
+    fn try_template_unknown_variable_error(mut t: Box<dyn Template>) {
+        let template_ctx = template_context!(["unused"]);
 
-    let res = t.try_template(&mut Vec::new(), &Source::local("/"), &variables);
-    assert!(res.is_err(), "expected templating to fail, got {res:?}");
-    let errors = res.unwrap_err();
-    assert!(
-        errors
-            .iter()
-            .all(|e| matches!(e.kind, rtf_config::templating::ErrorKind::UnknownVariable)),
-        "expected all errors to be UnknownVariable, got {:?}",
-        errors
-    );
-}
+        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &template_ctx);
+        assert!(res.is_err(), "expected templating to fail, got {res:?}");
+        let errors = res.unwrap_err();
+        assert!(
+            errors
+                .iter()
+                .all(|e| matches!(e.kind, rtf_config::templating::ErrorKind::UnknownVariable)),
+            "expected all errors to be UnknownVariable, got {:?}",
+            errors
+        );
+    }
 
-#[test]
-fn template_enum_unit_skipped() {
-    let mut t = TemplateTypes::Unit;
-    let variables = variables_map!(["unused"]);
+    #[test]
+    fn template_enum_unit_skipped() {
+        let mut t = TemplateTypes::Unit;
+        let template_ctx = template_context!(["unused"]);
 
-    assert!(
-        !t.has_pending_fields(),
-        "A unit type enum variant should never have pending fields"
-    );
+        assert!(
+            !t.has_pending_fields(),
+            "A unit type enum variant should never have pending fields"
+        );
 
-    assert!(
-        t.required_variables().is_empty(),
-        "A unit type enum variant should have no required variables"
-    );
+        assert!(
+            t.required_variables().is_empty(),
+            "A unit type enum variant should have no required variables"
+        );
 
-    let res = t.try_template(&mut Vec::new(), &Source::local("/"), &variables);
-    assert!(res.is_ok(), "A unit type enum should template successfully");
-}
+        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &template_ctx);
+        assert!(res.is_ok(), "A unit type enum should template successfully");
+    }

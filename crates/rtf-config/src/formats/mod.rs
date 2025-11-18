@@ -63,7 +63,7 @@ mod tests {
         checks::Check,
         context::Context,
         providers::file::{FileProvider, NamedFileProvider, RelativeFile, Source},
-        templating::{ErrorKind, Field, Scalar, Template, TemplateVariables},
+        templating::{ErrorKind, Field, Scalar, Template, TemplateContext},
     };
 
     // Test Helpers
@@ -111,8 +111,8 @@ mod tests {
     }
 
     /// Create a HashMap of variables from string names (each name maps to itself as a Scalar::String)
-    pub(crate) fn template_variables(variable_names: &[&str]) -> TemplateVariables {
-        TemplateVariables::new_stubbed(
+    pub(crate) fn template_variables(variable_names: &[&str]) -> TemplateContext {
+        TemplateContext::new_stubbed(
             variable_names
                 .iter()
                 .map(|&name| (name.to_string(), Scalar::String(name.to_string())))
@@ -159,11 +159,11 @@ mod tests {
     /// Assert template errors
     pub(crate) fn assert_template_errors(
         t: &mut impl Template,
-        variables: TemplateVariables,
+        ctx: TemplateContext,
         expected_err_messages: Vec<String>,
         expected_err_paths: Vec<String>,
     ) {
-        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &variables);
+        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &ctx);
         assert!(res.is_err(), "expected templating to fail, got {res:?}");
 
         let errors = res.unwrap_err();

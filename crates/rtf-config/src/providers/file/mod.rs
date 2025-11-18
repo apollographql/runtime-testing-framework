@@ -3,7 +3,7 @@ use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
     enum_impl_check, providers,
-    templating::{self, Field, Template, TemplateVariables},
+    templating::{self, Field, Template, TemplateContext},
 };
 use rtf_core::github::Client;
 use rtf_derive::Template;
@@ -185,14 +185,14 @@ impl Template for NamedFileProvider {
         &mut self,
         path: &mut Vec<String>,
         file_source: &Source,
-        variables: &TemplateVariables,
+        ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
         let tail = self.env_var.clone();
         errs.append(
             self.provider
-                .try_template_nested(path, &tail, file_source, variables),
+                .try_template_nested(path, &tail, file_source, ctx),
         );
 
         errs.into_result(())
@@ -352,7 +352,7 @@ impl Template for RelativeFile {
         &mut self,
         path: &mut Vec<String>,
         file_source: &Source,
-        variables: &TemplateVariables,
+        ctx: &TemplateContext,
     ) -> templating::Result<()> {
         use templating::{ErrorKind, Errors, ValidField};
 
@@ -360,7 +360,7 @@ impl Template for RelativeFile {
 
         match &mut self.path {
             // If we're pending then we template and store the source of the variable we used
-            Field::Pending(variable) => match variables.get_with_source(variable) {
+            Field::Pending(variable) => match ctx.get_with_source(variable) {
                 Some((source, raw)) => match String::try_from_scalar(raw.clone()) {
                     Ok(path) => {
                         self.path = Field::Resolved(path);
@@ -567,14 +567,14 @@ mod tests {
     use simple_test_case::test_case;
     use std::path::PathBuf;
 
-    macro_rules! template_variables {
+    macro_rules! template_context {
         ($slice:expr) => {{
             let mut m = ::std::collections::HashMap::new();
             for k in $slice {
                 m.insert(k.to_string(), Scalar::from(k.to_string()));
             }
 
-            TemplateVariables::new_stubbed(m)
+            TemplateContext::new_stubbed(m)
         }};
     }
 
@@ -844,9 +844,9 @@ mod tests {
                 src: None,
             }),
         };
-        let variables = template_variables!(&["path"]);
+        let ctx = template_context!(&["path"]);
 
-        let res = nfp.try_template(&mut Vec::new(), &Source::local("/"), &variables);
+        let res = nfp.try_template(&mut Vec::new(), &Source::local("/"), &ctx);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -863,12 +863,12 @@ mod tests {
                 src: None,
             }),
         };
-        let variables = template_variables!(&["unused"]);
+        let ctx = template_context!(&["unused"]);
 
         let res = nfp.try_template(
             &mut vec!["path".to_string()],
             &Source::local("/"),
-            &variables,
+            &ctx,
         );
         assert!(res.is_err(), "expected templating to error, got {res:?}");
 
