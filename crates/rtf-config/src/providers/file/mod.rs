@@ -16,6 +16,7 @@ use std::{
 };
 
 pub mod apollo;
+pub mod custom;
 pub mod github;
 mod source;
 pub mod utility;
