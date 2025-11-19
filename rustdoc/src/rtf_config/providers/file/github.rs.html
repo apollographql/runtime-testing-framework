@@ -126,7 +126,7 @@
 <a href=#126 id=126 data-nosnippet>126</a>
 <a href=#127 id=127 data-nosnippet>127</a>        <span class="kw">let </span>expected_content = <span class="string">"some content"</span>;
 <a href=#128 id=128 data-nosnippet>128</a>
-<a href=#129 id=129 data-nosnippet>129</a>        <span class="kw">let </span><span class="kw-2">mut </span>ctx = MockContext::with_github_client(expected_content);
+<a href=#129 id=129 data-nosnippet>129</a>        <span class="kw">let </span><span class="kw-2">mut </span>ctx = MockContext::with_github_client(<span class="kw-2">&amp;</span>[(<span class="string">"org/repo/path"</span>, expected_content)]);
 <a href=#130 id=130 data-nosnippet>130</a>        <span class="kw">let </span>github_file = FileProvider::GithubFile(github_file());
 <a href=#131 id=131 data-nosnippet>131</a>
 <a href=#132 id=132 data-nosnippet>132</a>        assert_resolve_and_write_success(github_file, <span class="kw-2">&amp;</span>target, <span class="kw-2">&amp;mut </span>ctx, expected_content).<span class="kw">await</span>;

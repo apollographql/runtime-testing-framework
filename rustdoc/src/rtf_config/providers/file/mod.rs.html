@@ -1047,11 +1047,11 @@
 <a href=#1047 id=1047 data-nosnippet>1047</a>
 <a href=#1048 id=1048 data-nosnippet>1048</a>        <span class="kw">let </span>content = <span class="string">"some content"</span>;
 <a href=#1049 id=1049 data-nosnippet>1049</a>
-<a href=#1050 id=1050 data-nosnippet>1050</a>        <span class="kw">let </span><span class="kw-2">mut </span>ctx = MockContext::with_github_client(content);
+<a href=#1050 id=1050 data-nosnippet>1050</a>        <span class="kw">let </span><span class="kw-2">mut </span>ctx = MockContext::with_github_client(<span class="kw-2">&amp;</span>[(<span class="string">"org/repo/my-tests/file.txt"</span>, content)]);
 <a href=#1051 id=1051 data-nosnippet>1051</a>        <span class="kw">let </span>src = Source::Github {
 <a href=#1052 id=1052 data-nosnippet>1052</a>            org: <span class="string">"org"</span>.to_string(),
 <a href=#1053 id=1053 data-nosnippet>1053</a>            repo: <span class="string">"repo"</span>.to_string(),
-<a href=#1054 id=1054 data-nosnippet>1054</a>            path: <span class="string">"path"</span>.into(),
+<a href=#1054 id=1054 data-nosnippet>1054</a>            path: <span class="string">"my-tests/test-plan.yaml"</span>.into(),
 <a href=#1055 id=1055 data-nosnippet>1055</a>            git_ref: <span class="prelude-val">None</span>,
 <a href=#1056 id=1056 data-nosnippet>1056</a>        };
 <a href=#1057 id=1057 data-nosnippet>1057</a>
