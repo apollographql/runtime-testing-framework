@@ -117,7 +117,7 @@ impl CustomProviderDeclaration {
         &self,
         file_source: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<HashMap<String, CustomProviderDefinition>> {
+    ) -> Result<HashMap<String, (Source, CustomProviderDefinition)>> {
         let mut providers = HashMap::with_capacity(self.using.len());
 
         for (provider_name, filename) in self.using.iter() {
@@ -128,7 +128,7 @@ impl CustomProviderDeclaration {
             let content = definition_source.try_get_file_content(ctx).await?;
             let definition: CustomProviderDefinition = serde_yaml::from_str(&content)?;
 
-            providers.insert(provider_name.clone(), definition);
+            providers.insert(provider_name.clone(), (definition_source, definition));
         }
 
         Ok(providers)
@@ -373,8 +373,20 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(definitions.contains_key("my_provider"));
-        assert!(definitions.contains_key("my_other_provider"));
+        assert_eq!(
+            &definitions.get("my_provider").unwrap().0,
+            &Source::local(providers.join("my_provider.yaml").canonicalize().unwrap())
+        );
+
+        assert_eq!(
+            &definitions.get("my_other_provider").unwrap().0,
+            &Source::local(
+                providers
+                    .join("my_other_provider.yaml")
+                    .canonicalize()
+                    .unwrap()
+            )
+        );
     }
 
     #[tokio::test]
@@ -410,7 +422,21 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(definitions.contains_key("my_provider"));
-        assert!(definitions.contains_key("my_other_provider"));
+        let no_ref: Option<&str> = None;
+
+        assert_eq!(
+            &definitions.get("my_provider").unwrap().0,
+            &Source::github("my-org", "my-repo", "providers/my_provider.yaml", no_ref),
+        );
+
+        assert_eq!(
+            &definitions.get("my_other_provider").unwrap().0,
+            &Source::github(
+                "my-org",
+                "my-repo",
+                "providers/my_other_provider.yaml",
+                no_ref
+            ),
+        );
     }
 }
