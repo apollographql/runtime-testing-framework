@@ -1047,11 +1047,11 @@ mod tests {
 
         let content = "some content";
 
-        let mut ctx = MockContext::with_github_client(content);
+        let mut ctx = MockContext::with_github_client(&[("org/repo/my-tests/file.txt", content)]);
         let src = Source::Github {
             org: "org".to_string(),
             repo: "repo".to_string(),
-            path: "path".into(),
+            path: "my-tests/test-plan.yaml".into(),
             git_ref: None,
         };
 

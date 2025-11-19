@@ -1,13 +1,14 @@
 use crate::{
     VariableDefinition,
+    context::ResolutionContext,
     formats::Result,
     providers::command::CommandSection,
-    providers::file::Source,
+    providers::file::{RawSource, Source},
     templating::{self, Template, TemplateContext},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{fs, path::Path};
+use std::{collections::HashMap, fs, path::Path};
 
 /// # Custom Provider Definition
 ///
@@ -72,6 +73,68 @@ impl Template for CustomProviderDefinition {
     }
 }
 
+/// # Custom Provider Declaration
+///
+/// Allows for declaring one or more custom providers that should be loaded from the given
+/// directory. The directory can be specified as a relative path from the file containing
+/// this declaration or as coming from a GitHub repository.
+///
+/// ## Example using a relative directory
+///
+/// ```yaml
+/// kind: local
+/// relative_path: ../providers
+/// using:
+///   my_custom_provider: my_custom_provider.yaml
+///   my_other_provider: my_other_provider.yaml
+/// ```
+///
+/// ## Example using a directory from a GitHub repository
+///
+/// ```yaml
+/// kind: github
+/// org: my-org
+/// repo: my-repo
+/// path: path/to/providers
+/// git_ref: main
+/// using:
+///   my_custom_provider: my_custom_provider.yaml
+///   my_other_provider: my_other_provider.yaml
+/// ```
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+pub struct CustomProviderDeclaration {
+    /// The source directory containing the custom provider definition files
+    #[serde(flatten)]
+    pub source: RawSource,
+
+    /// A map of the name to use for a given custom provider to the child path within this
+    /// directory containing the definition for that provider.
+    pub using: HashMap<String, String>,
+}
+
+impl CustomProviderDeclaration {
+    pub async fn try_load_all(
+        &self,
+        file_source: &Source,
+        ctx: &impl ResolutionContext,
+    ) -> Result<HashMap<String, CustomProviderDefinition>> {
+        let mut providers = HashMap::with_capacity(self.using.len());
+
+        for (provider_name, filename) in self.using.iter() {
+            let definition_source = self
+                .source
+                .with_child_path(filename)
+                .try_into_source(file_source, ctx)?;
+            let content = definition_source.try_get_file_content(ctx).await?;
+            let definition: CustomProviderDefinition = serde_yaml::from_str(&content)?;
+
+            providers.insert(provider_name.clone(), definition);
+        }
+
+        Ok(providers)
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod test_helpers {
     use super::*;
@@ -115,13 +178,20 @@ pub(crate) mod test_helpers {
 mod tests {
     use super::*;
     use crate::{
+        context::Context,
         formats::{
             custom_provider::test_helpers::{
                 custom_provider_with_fields, templatable_custom_provider,
             },
+            providers::test_helpers::create_temp_dir_with_file,
             tests::{assert_template_errors, expected_error_details, p, r, template_context},
         },
+        mock_context::MockContext,
         templating::Field,
+    };
+    use assert_fs::{
+        fixture::PathChild,
+        prelude::{FileWriteStr, PathCreateDir},
     };
     use indoc::indoc;
     use serde_yaml;
@@ -231,5 +301,116 @@ mod tests {
             expected_err_messages,
             expected_err_paths,
         );
+    }
+
+    const RELATIVE_DIR_DECLARATION: &str = indoc!(
+        r#"
+        kind: local
+        relative_path: ../providers
+        using:
+          my_custom_provider: my_custom_provider.yaml
+        "#
+    );
+
+    const GITHUB_DIR_DECLARATION: &str = indoc!(
+        r#"
+        kind: github
+        org: my-org
+        repo: my-repo
+        path: path/to/providers
+        git_ref: main
+        using:
+          my_custom_provider: my_custom_provider.yaml
+        "#
+    );
+
+    const GITHUB_DIR_DECLARATION_NO_REF: &str = indoc!(
+        r#"
+        kind: github
+        org: my-org
+        repo: my-repo
+        path: path/to/providers
+        using:
+          my_custom_provider: my_custom_provider.yaml
+        "#
+    );
+
+    #[test_case(RELATIVE_DIR_DECLARATION; "relative dir")]
+    #[test_case(GITHUB_DIR_DECLARATION; "github dir")]
+    #[test_case(GITHUB_DIR_DECLARATION_NO_REF; "github dir without ref")]
+    #[test]
+    fn parse_declaration(raw: &str) {
+        assert!(serde_yaml::from_str::<'_, CustomProviderDeclaration>(raw).is_ok());
+    }
+
+    #[tokio::test]
+    async fn declaration_try_load_all_local_success() {
+        let (temp, source_file) = create_temp_dir_with_file("config.yaml", "");
+
+        let providers = temp.child("providers");
+        providers.create_dir_all().unwrap();
+        for fname in ["my_provider.yaml", "my_other_provider.yaml"] {
+            providers
+                .child(fname)
+                .write_str(TEMPLATED_CUSTOM_PROVIDER)
+                .unwrap();
+        }
+
+        let declaration = CustomProviderDeclaration {
+            source: RawSource::Local {
+                relative_path: "providers".into(),
+            },
+            using: [
+                ("my_provider".into(), "my_provider.yaml".into()),
+                ("my_other_provider".into(), "my_other_provider.yaml".into()),
+            ]
+            .into_iter()
+            .collect(),
+        };
+
+        let definitions = declaration
+            .try_load_all(&Source::local(source_file.path()), &Context::new())
+            .await
+            .unwrap();
+
+        assert!(definitions.contains_key("my_provider"));
+        assert!(definitions.contains_key("my_other_provider"));
+    }
+
+    #[tokio::test]
+    async fn declaration_try_load_all_github_success() {
+        let ctx = MockContext::with_github_client(&[
+            (
+                "my-org/my-repo/providers/my_provider.yaml",
+                TEMPLATED_CUSTOM_PROVIDER,
+            ),
+            (
+                "my-org/my-repo/providers/my_other_provider.yaml",
+                TEMPLATED_CUSTOM_PROVIDER,
+            ),
+        ]);
+
+        let declaration = CustomProviderDeclaration {
+            source: RawSource::Github {
+                org: "my-org".to_string(),
+                repo: "my-repo".to_string(),
+                path: "providers".into(),
+                git_ref: None,
+            },
+            using: [
+                ("my_provider".into(), "my_provider.yaml".into()),
+                ("my_other_provider".into(), "my_other_provider.yaml".into()),
+            ]
+            .into_iter()
+            .collect(),
+        };
+
+        let definitions = declaration
+            .try_load_all(&Source::local("config.yaml"), &ctx)
+            .await
+            .unwrap();
+
+        assert!(definitions.contains_key("my_provider"));
+        assert!(definitions.contains_key("my_other_provider"));
     }
 }

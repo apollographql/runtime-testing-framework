@@ -145,7 +145,7 @@ pub enum RawSource {
         /// The GitHub repository to pull the config file from
         repo: String,
         /// The absolute path to the config file within the target GitHub repository
-        path: String,
+        path: PathBuf,
         /// An optional git ref to pull the config file from (defaults to mainline)
         #[serde(default)]
         git_ref: Option<String>,
@@ -155,10 +155,10 @@ pub enum RawSource {
 impl RawSource {
     pub fn try_into_source(
         self,
-        tp_source: &Source,
+        file_source: &Source,
         ctx: &impl ResolutionContext,
     ) -> io::Result<Source> {
-        match self.try_into_source_without_canonical_path(tp_source) {
+        match self.try_into_source_without_canonical_path(file_source) {
             Source::Local { abs_path } => Ok(Source::Local {
                 abs_path: ctx.canonicalize_path(abs_path)?,
             }),
@@ -167,13 +167,23 @@ impl RawSource {
         }
     }
 
-    fn try_into_source_without_canonical_path(self, tp_source: &Source) -> Source {
+    pub(crate) fn with_child_path(&self, child_path: impl AsRef<Path>) -> Self {
+        let mut new = self.clone();
+        match &mut new {
+            Self::Local { relative_path } => *relative_path = relative_path.join(child_path),
+            Self::Github { path, .. } => *path = path.join(child_path),
+        }
+
+        new
+    }
+
+    fn try_into_source_without_canonical_path(self, file_source: &Source) -> Source {
         match self {
-            Self::Local { relative_path } => match tp_source {
+            Self::Local { relative_path } => match file_source {
                 Source::Local {
-                    abs_path: test_plan_path,
+                    abs_path: containing_file_path,
                 } => {
-                    let abs_path = match test_plan_path.parent() {
+                    let abs_path = match containing_file_path.parent() {
                         Some(parent) => parent.join(relative_path),
                         None => relative_path,
                     };
@@ -184,10 +194,10 @@ impl RawSource {
                 Source::Github {
                     org,
                     repo,
-                    path: test_plan_path,
+                    path: containing_file_path,
                     git_ref,
                 } => {
-                    let path = match test_plan_path.parent() {
+                    let path = match containing_file_path.parent() {
                         Some(parent) => parent.join(relative_path),
                         None => relative_path,
                     };
@@ -209,7 +219,7 @@ impl RawSource {
             } => Source::Github {
                 org,
                 repo,
-                path: PathBuf::from(path),
+                path,
                 git_ref,
             },
         }
