@@ -75,13 +75,8 @@ impl Template for CustomProviderDefinition {
     ) -> templating::Result<()> {
         let file_ctx = ctx.for_config_file(file_source, None, self.variable_definitions.iter());
 
-        self.command.validate_context_nested(
-            path,
-            "command_section",
-            allowed_variables,
-            file_source,
-            &file_ctx,
-        )
+        self.command
+            .validate_context(path, allowed_variables, file_source, &file_ctx)
     }
 
     fn try_template(

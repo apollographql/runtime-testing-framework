@@ -40,6 +40,11 @@ pub enum ErrorKind {
     MissingVariable,
 
     #[strum(
+        to_string = "Missing custom provider definition. Make sure the provider is declared in the config file that is using it."
+    )]
+    MissingCustomProvider,
+
+    #[strum(
         to_string = "Unknown templating variable. Make sure a value is defined for this variable to resolve to."
     )]
     UnknownVariable,

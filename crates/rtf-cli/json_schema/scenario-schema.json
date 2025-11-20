@@ -120,6 +120,23 @@
       "title": "Command Spec",
       "type": "object"
     },
+    "CustomProvider": {
+      "additionalProperties": {
+        "$ref": "#/definitions/Templatable%20Scalar"
+      },
+      "description": "Use a custom provider to execute a command and produce a set of files.\n\n```yaml\n- name: \"router-docker-compose\"\n  env_var: ROUTER_DOCKER_COMPOSE\n  kind: custom_provider\n  type: \"router-docker-compose\"\n  graph_ref: \"graph@variant\"\n  router_version: \"v2.x.y\"\n  build_router_from_source: \"false\"\n```",
+      "properties": {
+        "type": {
+          "description": "The type of custom provider to use. This is the name of the custom provider to use.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "Custom Provider",
+      "type": "object"
+    },
     "CustomProviderDeclaration": {
       "description": "Allows for declaring one or more custom providers that should be loaded from the given\ndirectory. The directory can be specified as a relative path from the file containing\nthis declaration or as coming from a GitHub repository.\n\n## Example using a relative directory\n\n```yaml\nkind: local\nrelative_path: ../providers\nusing:\n  my_custom_provider: my_custom_provider.yaml\n  my_other_provider: my_other_provider.yaml\n```\n\n## Example using a directory from a GitHub repository\n\n```yaml\nkind: github\norg: my-org\nrepo: my-repo\npath: path/to/providers\ngit_ref: main\nusing:\n  my_custom_provider: my_custom_provider.yaml\n  my_other_provider: my_other_provider.yaml\n```",
       "oneOf": [
@@ -530,6 +547,23 @@
           "properties": {
             "kind": {
               "const": "build_router_from_source",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CustomProvider"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "custom_provider",
               "type": "string"
             }
           },

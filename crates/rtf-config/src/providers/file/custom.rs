@@ -7,12 +7,11 @@ use crate::{
         self,
         file::{AsUtf8FileContent, utility::FromCommand},
     },
-    templating::{self, Field, Result, Scalar, Template, TemplateContext},
+    templating::{self, ErrorKind, Errors, Field, Result, Scalar, Template, TemplateContext},
 };
-use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// # Custom Provider
 ///
@@ -27,11 +26,10 @@ use std::collections::HashMap;
 ///   router_version: "v2.x.y"
 ///   build_router_from_source: "false"
 /// ```
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct CustomProvider {
     /// The type of custom provider to use. This is the name of the custom provider to use.
     #[serde(rename = "type")]
-    #[template(skip)]
     pub(crate) ty: String,
 
     /// The arguments to pass to the custom provider.
@@ -41,7 +39,6 @@ pub struct CustomProvider {
     /// Set during TestPlan parsing as part of overrides and templating.
     #[serde(default, skip_serializing)]
     #[schemars(skip)]
-    #[template(skip)]
     #[doc(hidden)]
     pub(crate) src: Option<Source>,
 }
@@ -53,9 +50,18 @@ impl CustomProvider {
         path: &mut Vec<String>,
         file_source: &Source,
         file_ctx: &TemplateContext,
-        mut definition: CustomProviderDefinition,
-        definition_src: &Source,
     ) -> Result<FromCommand> {
+        let (definition_src, mut definition) = match file_ctx.custom_provider_definition(&self.ty) {
+            Some((src, def)) => (src, def.clone()),
+            None => {
+                return Err(Errors::new(
+                    ErrorKind::MissingCustomProvider,
+                    &self.ty,
+                    path,
+                ));
+            }
+        };
+
         let definition_ctx = self.build_templating_context(
             path,
             file_source,
@@ -119,10 +125,58 @@ impl CustomProvider {
         // and we extend that with the resolved arguments from above. The extend method
         // will preserve the source of each variable.
         let mut definition_ctx =
-            file_ctx.for_config_file(definition_src, definition.variable_definitions.iter());
+            file_ctx.for_config_file(definition_src, None, definition.variable_definitions.iter());
         definition_ctx.extend_with_sources(argument_sources, resolved_arguments);
 
         Ok(definition_ctx)
+    }
+}
+
+impl Template for CustomProvider {
+    fn has_pending_fields(&self) -> bool {
+        self.arguments.values().any(|v| v.has_pending_fields())
+    }
+
+    fn required_variables(&self) -> Vec<String> {
+        self.arguments
+            .values()
+            .flat_map(|v| v.required_variables())
+            .collect()
+    }
+
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        let mut errs = templating::ErrorBuilder::new();
+        errs.append(
+            self.arguments
+                .validate_context(path, allowed_variables, file_source, ctx),
+        );
+
+        match ctx.custom_provider_definition(&self.ty) {
+            Some((def_src, def)) => {
+                let ctx = ctx.for_config_file(def_src, None, def.variable_definitions.iter());
+                let allowed_variables: HashSet<&String> = self.arguments.keys().collect();
+                errs.append(def.validate_context(path, &allowed_variables, def_src, &ctx));
+            }
+
+            None => errs.push(ErrorKind::MissingCustomProvider, &self.ty, path),
+        };
+
+        errs.into_result(())
+    }
+
+    fn try_template(
+        &mut self,
+        path: &mut Vec<String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        self.arguments.try_template(path, file_source, ctx)
     }
 }
 
@@ -165,49 +219,7 @@ mod tests {
         },
         templating::ErrorKind,
     };
-    use indoc::indoc;
     use simple_test_case::test_case;
-
-    const CUSTOM_PROVIDER_YAML: &str = indoc!(
-        r#"
-        type: "my-custom-provider"
-        key1: "{{ value1 }}"
-        key2: "value2"
-        key3: "value3"
-        "#
-    );
-
-    // I've included this test as a sanity check while we have not added CustomProvider to the NamedFileProviders.
-    // Once we have added CustomProvider to the NamedFileProviders, we can remove this test and add a test for the
-    // CustomProvider to the mod.rs tests for parsing all the NamedFileProviders.
-    #[test]
-    fn parse_custom_provider_success() {
-        let config: CustomProvider = serde_yaml::from_str(CUSTOM_PROVIDER_YAML).unwrap();
-        assert_eq!(config.ty, "my-custom-provider");
-        assert_eq!(config.arguments.len(), 3);
-        assert_eq!(
-            config.arguments.get("key1").unwrap(),
-            &Field::Pending("value1".to_string())
-        );
-        assert_eq!(
-            config
-                .arguments
-                .get("key2")
-                .unwrap()
-                .as_resolved()
-                .to_string(),
-            "value2".to_string()
-        );
-        assert_eq!(
-            config
-                .arguments
-                .get("key3")
-                .unwrap()
-                .as_resolved()
-                .to_string(),
-            "value3".to_string()
-        );
-    }
 
     // A helper function for testing the `build_templating_context` method
     fn test_build_templating_context(
@@ -274,6 +286,7 @@ mod tests {
             variables,
             Source::local("/test-plan/test-plan.yaml"),
             override_sources,
+            Default::default(),
         );
 
         provider.build_templating_context(
