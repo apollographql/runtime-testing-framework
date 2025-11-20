@@ -8,7 +8,7 @@ use crate::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{fs, path::Path};
+use std::{collections::HashSet, fs, path::Path};
 
 /// # Scenario Config
 ///
@@ -58,6 +58,26 @@ impl Template for ScenarioConfig {
 
     fn required_variables(&self) -> Vec<String> {
         self.command.required_variables()
+    }
+
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        let mut allowed_variables = allowed_variables.clone();
+        allowed_variables.extend(self.variable_definitions.iter().map(|vd| &vd.name));
+
+        let ctx = ctx.for_config_file(
+            file_source,
+            Some(FileType::Scenario),
+            self.variable_definitions.iter(),
+        );
+
+        self.command
+            .validate_context(path, &allowed_variables, file_source, &ctx)
     }
 
     fn try_template(

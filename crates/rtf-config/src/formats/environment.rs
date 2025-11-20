@@ -9,7 +9,7 @@ use crate::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{fs, path::Path};
+use std::{collections::HashSet, fs, path::Path};
 
 /// # Environment Config
 ///
@@ -40,6 +40,24 @@ impl EnvironmentConfig {
         Ok(serde_yaml::from_str(&content)?)
     }
 
+    fn ctx_for_setup(&self, source: &Source, ctx: &TemplateContext) -> TemplateContext {
+        ctx.for_config_file(
+            source,
+            Some(FileType::Environment),
+            self.variable_definitions.iter(),
+        )
+    }
+
+    fn ctx_for_teardown(&self, source: &Source, ctx: &TemplateContext) -> TemplateContext {
+        ctx.for_config_file(
+            source,
+            Some(FileType::Environment),
+            self.variable_definitions
+                .iter()
+                .chain(self.setup.provides.iter()),
+        )
+    }
+
     /// Try to template the setup [CommandSection].
     ///
     /// Setup is only allowed to reference variables that are declared in the variables section of this
@@ -50,15 +68,12 @@ impl EnvironmentConfig {
         source: &Source,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let ctx_for_file = ctx.for_config_file(
+        self.setup.command.try_template_nested(
+            path,
+            "setup",
             source,
-            Some(FileType::Environment),
-            self.variable_definitions.iter(),
-        );
-
-        self.setup
-            .command
-            .try_template_nested(path, "setup", source, &ctx_for_file)
+            &self.ctx_for_setup(source, ctx),
+        )
     }
 
     /// Try to template the teardown [CommandSection].
@@ -71,16 +86,12 @@ impl EnvironmentConfig {
         source: &Source,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let ctx_for_file = ctx.for_config_file(
+        self.teardown.try_template_nested(
+            path,
+            "teardown",
             source,
-            Some(FileType::Environment),
-            self.variable_definitions
-                .iter()
-                .chain(self.setup.provides.iter()),
-        );
-
-        self.teardown
-            .try_template_nested(path, "teardown", source, &ctx_for_file)
+            &self.ctx_for_teardown(source, ctx),
+        )
     }
 
     /// Create an empty [EnvironmentConfig] for tests
@@ -110,6 +121,35 @@ impl Template for EnvironmentConfig {
         vals.extend(self.teardown.required_variables());
 
         vals
+    }
+
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        source: &Source,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        let mut allowed_variables = allowed_variables.clone();
+        allowed_variables.extend(self.variable_definitions.iter().map(|vd| &vd.name));
+
+        let mut errs = templating::ErrorBuilder::from(self.setup.command.validate_context_nested(
+            path,
+            "setup",
+            &allowed_variables,
+            source,
+            &self.ctx_for_setup(source, ctx),
+        ));
+
+        errs.append(self.teardown.validate_context_nested(
+            path,
+            "teardown",
+            &allowed_variables,
+            source,
+            &self.ctx_for_teardown(source, ctx),
+        ));
+
+        errs.into_result(())
     }
 
     fn try_template(

@@ -10,6 +10,7 @@ use rtf_derive::Template;
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
+    collections::HashSet,
     fmt, io,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -182,21 +183,27 @@ impl Template for NamedFileProvider {
         self.provider.required_variables()
     }
 
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        let tail = self.env_var.clone();
+        self.provider
+            .validate_context_nested(path, &tail, allowed_variables, file_source, ctx)
+    }
+
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
         file_source: &Source,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
-
         let tail = self.env_var.clone();
-        errs.append(
-            self.provider
-                .try_template_nested(path, &tail, file_source, ctx),
-        );
-
-        errs.into_result(())
+        self.provider
+            .try_template_nested(path, &tail, file_source, ctx)
     }
 }
 
@@ -347,6 +354,17 @@ impl Template for RelativeFile {
 
     fn required_variables(&self) -> Vec<String> {
         self.path.required_variables()
+    }
+
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        self.path
+            .validate_context_nested(path, "path", allowed_variables, file_source, ctx)
     }
 
     fn try_template(

@@ -1,15 +1,11 @@
 use crate::{
-    VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates},
     context::ResolutionContext,
     formats::{
         CustomProviderDeclaration, EnvironmentConfig, Error, Matrix, Result, ScenarioConfig,
     },
     merge_yaml,
-    providers::{
-        command::CommandSection,
-        file::{RawSource, Source},
-    },
+    providers::file::{RawSource, Source},
     templating::{self, CustomProviderDefinitions, Scalar, Template, TemplateContext},
 };
 use rtf_core::github::{self, Client};
@@ -96,84 +92,39 @@ impl TestPlanConfig {
     ///
     /// This is the union of variables defined as a scalars and those that are part of a matrix
     fn allowed_variables(&self) -> HashSet<&String> {
-        self.variables.keys().chain(self.matrix.keys()).collect()
+        self.variables
+            .keys()
+            .chain(self.matrix.keys())
+            .chain(self.environment.setup.provides.iter().map(|val| &val.name))
+            .collect()
     }
 
     pub fn check_templating_will_work(&mut self) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
+        let stub_variables = self
+            .allowed_variables()
+            .into_iter()
+            .map(|var| (var.to_string(), Scalar::String(var.to_string())))
+            .collect();
 
+        let ctx = TemplateContext::new(
+            stub_variables,
+            self.sources.test_plan.clone(),
+            HashMap::new(),
+            self.sources.custom_providers(),
+        );
+
+        let mut errs = templating::ErrorBuilder::new();
         self.matrix
             .check_conflicting_keys(&self.variables, &mut errs);
         self.matrix.check_dimensions(&mut errs);
-        self.check_required_variables(&mut errs);
+        errs.append(self.validate_context(
+            &mut Vec::new(),
+            &HashSet::new(), // overwritten in self.validate_context
+            self.sources.test_plan(),
+            &ctx,
+        ));
 
         errs.into_result(())
-    }
-
-    /// Check that all required variables have been defined somewhere within the test plan
-    fn check_required_variables(&self, errs: &mut templating::ErrorBuilder) {
-        let mut check_missing_variables =
-            |section: &CommandSection,
-             allowed: &HashSet<&String>,
-             variable_defs: &[VariableDefinition],
-             error_path: &[String]| {
-                let mut missing_variables: Vec<String> = section
-                    .required_variables()
-                    .iter()
-                    .filter(|s| {
-                        !(allowed.contains(*s)
-                            || variable_defs
-                                .iter()
-                                .any(|vd| &vd.name == *s && vd.default.is_some()))
-                    })
-                    .map(|val| {
-                        format!(
-                            "  - {val}: {:?}",
-                            variable_defs
-                                .iter()
-                                .find(|vd| &vd.name == val)
-                                .map(|vd| vd.description.as_str())
-                                .unwrap_or_default()
-                        )
-                    })
-                    .collect();
-
-                if !missing_variables.is_empty() {
-                    missing_variables.sort_unstable(); // ensure consistent ordering
-                    errs.push(
-                        templating::ErrorKind::MissingVariables,
-                        missing_variables.join("\n"),
-                        error_path,
-                    )
-                }
-            };
-
-        let mut allowed_variables = self.allowed_variables();
-
-        check_missing_variables(
-            &self.environment.setup.command,
-            &allowed_variables,
-            &self.environment.variable_definitions,
-            &["environment".to_string(), "setup".to_string()],
-        );
-
-        // The scenario and teardown are permitted to use variables coming from setup.provides in
-        // addition to the variables declared in the test plan itself
-        allowed_variables.extend(self.environment.setup.provides.iter().map(|val| &val.name));
-
-        check_missing_variables(
-            &self.environment.teardown,
-            &allowed_variables,
-            &self.environment.variable_definitions,
-            &["environment".to_string(), "teardown".to_string()],
-        );
-
-        check_missing_variables(
-            &self.scenario.command,
-            &allowed_variables,
-            &self.scenario.variable_definitions,
-            &["scenario".to_string()],
-        );
     }
 
     pub fn try_template_environment_setup(
@@ -283,6 +234,32 @@ impl Template for TestPlanConfig {
         vals.extend(self.scenario.required_variables());
 
         vals
+    }
+
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        _allowed_variables: &HashSet<&String>,
+        _file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        let allowed_variables = self.allowed_variables();
+        let mut errs = templating::ErrorBuilder::from(self.environment.validate_context_nested(
+            path,
+            "environment",
+            &allowed_variables,
+            self.sources.environment(),
+            ctx,
+        ));
+        errs.append(self.scenario.validate_context_nested(
+            path,
+            "scenario",
+            &allowed_variables,
+            self.sources.scenario(),
+            ctx,
+        ));
+
+        errs.into_result(())
     }
 
     fn try_template(
@@ -644,6 +621,7 @@ fn set_source_for_relative_files(val: &mut serde_yaml::Value, src: &serde_yaml::
 mod tests {
     use super::*;
     use crate::{
+        VariableDefinition,
         context::Context,
         formats::{
             environment::{
@@ -1574,6 +1552,7 @@ mod tests {
 
         let mut test_plan = TestPlanConfig {
             environment: EnvironmentConfig {
+                variable_definitions: variable_definitions(&["provides"]),
                 setup: SetupSection {
                     command: CommandSection {
                         ..CommandSection::empty()
@@ -1587,6 +1566,7 @@ mod tests {
                 ..EnvironmentConfig::empty()
             },
             scenario: ScenarioConfig {
+                variable_definitions: variable_definitions(&["provides"]),
                 command: CommandSection {
                     file_providers: vec![named_file_provider_with_field("foo", p("provides"))],
                     ..CommandSection::empty()
@@ -1630,8 +1610,6 @@ mod tests {
             teardown_fields,
         );
 
-        let expected_err_kind = ErrorKind::MissingVariables;
-
         let res = test_plan.check_templating_will_work();
         assert!(
             res.is_err(),
@@ -1649,9 +1627,9 @@ mod tests {
         assert!(
             errors
                 .iter()
-                .all(|e| matches!(e.kind, ErrorKind::MissingVariables)),
+                .all(|e| matches!(e.kind, ErrorKind::MissingVariable)),
             "expected all errors to be {:?}, got {:?}",
-            expected_err_kind,
+            ErrorKind::MissingVariable,
             errors
         );
 
@@ -1685,9 +1663,9 @@ mod tests {
             &["test_plan".to_string()],
         );
         expected_errs.push(
-            ErrorKind::MissingVariables,
+            ErrorKind::MissingVariable,
             "  - scenario: \"description\"",
-            &["scenario".to_string()],
+            &["scenario.file_providers.SCENARIO.path".to_string()],
         );
         let expected_errs = expected_errs.into_result("").unwrap_err();
 

@@ -7,7 +7,7 @@ use serde::{
 };
 use std::{
     borrow::{Borrow, Cow},
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt,
     hash::Hash,
     marker::PhantomData,
@@ -35,12 +35,12 @@ pub enum ErrorKind {
     InvalidData,
 
     #[strum(
-        to_string = "Missing template variables definitions. Make sure the variable is defined in the scenario or environment config variable definitions"
+        to_string = "Missing template variables definition. Make sure the variable is defined in the scenario or environment config variable definitions"
     )]
-    MissingVariables,
+    MissingVariable,
 
     #[strum(
-        to_string = "Unknown templating variable. Make sure a variable is defined for this variable to resolve to."
+        to_string = "Unknown templating variable. Make sure a value is defined for this variable to resolve to."
     )]
     UnknownVariable,
 }
@@ -69,6 +69,7 @@ pub struct TemplateContext {
     override_sources: HashMap<String, Source>,
     resolve_for: FileType,
     custom_provider_definitions: Arc<CustomProviderDefinitions>,
+    variable_definitions: Vec<VariableDefinition>,
 }
 
 impl TemplateContext {
@@ -84,6 +85,7 @@ impl TemplateContext {
             override_sources,
             resolve_for: FileType::Environment,
             custom_provider_definitions,
+            variable_definitions: Vec::new(),
         }
     }
 
@@ -108,17 +110,18 @@ impl TemplateContext {
         &self,
         file_source: &Source,
         resolve_for: Option<FileType>,
-        variable_definitions: impl Iterator<Item = &'a VariableDefinition> + Clone,
+        variable_definitions: impl Iterator<Item = &'a VariableDefinition>,
     ) -> Self {
         let mut new = self.clone();
         if let Some(resolve_for) = resolve_for {
             new.resolve_for = resolve_for;
         }
 
+        new.variable_definitions = variable_definitions.cloned().collect();
         new.variables
-            .retain(|k, _| variable_definitions.clone().any(|val| &val.name == k));
+            .retain(|k, _| new.variable_definitions.iter().any(|val| &val.name == k));
 
-        for vd in variable_definitions {
+        for vd in new.variable_definitions.iter() {
             if let Some(default) = vd.default.as_ref() {
                 new.variables.entry(vd.name.clone()).or_insert_with(|| {
                     new.override_sources
@@ -171,6 +174,12 @@ impl TemplateContext {
         Some((source, s))
     }
 
+    pub fn variable_definition(&self, key: impl AsRef<str>) -> Option<&VariableDefinition> {
+        self.variable_definitions
+            .iter()
+            .find(|vd| vd.name == key.as_ref())
+    }
+
     pub fn custom_provider_definition<Q>(
         &self,
         key: &Q,
@@ -220,6 +229,29 @@ pub trait Template {
 
     /// The list of template variables that are required to template this type fully.
     fn required_variables(&self) -> Vec<String>;
+
+    /// Check that the provided [TemplateContext] is sufficient for templating all fields and
+    /// custom providers under this type.
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> Result<()>;
+
+    fn validate_context_nested(
+        &self,
+        path: &mut Vec<String>,
+        tail: &str,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> Result<()> {
+        let mut path = path.clone();
+        path.push(tail.to_string());
+        self.validate_context(&mut path, allowed_variables, file_source, ctx)
+    }
 
     /// Attempt to resolve all pending [Field]s, appending encountered errors to the `errs` vec
     /// provided.
@@ -289,6 +321,18 @@ where
             .unwrap_or_default()
     }
 
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> Result<()> {
+        self.as_ref()
+            .map(|inner| inner.validate_context(path, allowed_variables, file_source, ctx))
+            .unwrap_or(Ok(()))
+    }
+
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
@@ -313,6 +357,22 @@ where
         self.iter()
             .flat_map(|elem| elem.required_variables())
             .collect()
+    }
+
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> Result<()> {
+        let mut errs = ErrorBuilder::new();
+
+        for elem in self.iter() {
+            errs.append(elem.validate_context(path, allowed_variables, file_source, ctx));
+        }
+
+        errs.into_result(())
     }
 
     fn try_template(
@@ -344,6 +404,28 @@ where
         self.values()
             .flat_map(|elem| elem.required_variables())
             .collect()
+    }
+
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> Result<()> {
+        let mut errs = ErrorBuilder::new();
+
+        for (name, f) in self.iter() {
+            errs.append(f.validate_context_nested(
+                path,
+                name.as_ref(),
+                allowed_variables,
+                file_source,
+                ctx,
+            ));
+        }
+
+        errs.into_result(())
     }
 
     fn try_template(
@@ -465,8 +547,35 @@ where
 
     fn required_variables(&self) -> Vec<String> {
         match self {
-            Self::Pending(field_name) => vec![field_name.clone()],
-            _ => Vec::new(),
+            Self::Pending(var) => vec![var.clone()],
+            Self::Resolved(_) => Vec::new(),
+        }
+    }
+
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        _file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> Result<()> {
+        match self {
+            Self::Pending(var) if !allowed_variables.contains(var) => {
+                Err(Errors::new(ErrorKind::UnknownVariable, var, path))
+            }
+
+            Self::Pending(var) if ctx.get(var).is_none() => Err(Errors::new(
+                ErrorKind::MissingVariable,
+                format!(
+                    "  - {var}: {:?}",
+                    ctx.variable_definition(var)
+                        .map(|vd| vd.description.as_str())
+                        .unwrap_or_default()
+                ),
+                path,
+            )),
+
+            _ => Ok(()),
         }
     }
 

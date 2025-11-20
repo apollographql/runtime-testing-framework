@@ -10,7 +10,11 @@ use crate::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+    path::Path,
+};
 
 /// # Custom Provider Definition
 ///
@@ -60,6 +64,24 @@ impl Template for CustomProviderDefinition {
 
     fn required_variables(&self) -> Vec<String> {
         self.command.required_variables()
+    }
+
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        let file_ctx = ctx.for_config_file(file_source, None, self.variable_definitions.iter());
+
+        self.command.validate_context_nested(
+            path,
+            "command_section",
+            allowed_variables,
+            file_source,
+            &file_ctx,
+        )
     }
 
     fn try_template(
