@@ -229,6 +229,12 @@ pub struct FromCommand {
     inner: CommandSection,
 }
 
+impl FromCommand {
+    pub(crate) fn new(inner: CommandSection) -> Self {
+        Self { inner }
+    }
+}
+
 impl ResolveAndWrite for FromCommand {
     async fn resolve_and_write(
         &self,

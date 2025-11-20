@@ -136,6 +136,15 @@ impl TemplateContext {
         self.variables.extend(variables);
     }
 
+    pub fn extend_with_sources(
+        &mut self,
+        sources: HashMap<String, Source>,
+        variables: HashMap<String, Scalar>,
+    ) {
+        self.override_sources.extend(sources);
+        self.variables.extend(variables);
+    }
+
     pub fn get<Q>(&self, key: &Q) -> Option<&Scalar>
     where
         String: Borrow<Q>,
@@ -380,8 +389,14 @@ impl<T> Field<T>
 where
     T: ValidField,
 {
-    // FIXME: RR-78 will remove the need for this (required for MVP)
     pub(crate) fn as_resolved(&self) -> &T {
+        match self {
+            Self::Pending(_) => panic!("field is still pending"),
+            Self::Resolved(t) => t,
+        }
+    }
+
+    pub(crate) fn into_resolved(self) -> T {
         match self {
             Self::Pending(_) => panic!("field is still pending"),
             Self::Resolved(t) => t,
