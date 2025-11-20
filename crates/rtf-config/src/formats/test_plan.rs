@@ -2,13 +2,15 @@ use crate::{
     VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates},
     context::ResolutionContext,
-    formats::{EnvironmentConfig, Error, Matrix, Result, ScenarioConfig},
+    formats::{
+        CustomProviderDeclaration, EnvironmentConfig, Error, Matrix, Result, ScenarioConfig,
+    },
     merge_yaml,
     providers::{
         command::CommandSection,
         file::{RawSource, Source},
     },
-    templating::{self, Scalar, Template, TemplateContext},
+    templating::{self, CustomProviderDefinitions, Scalar, Template, TemplateContext},
 };
 use rtf_core::github::{self, Client};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
@@ -16,6 +18,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
+    sync::Arc,
 };
 use tracing::error;
 
@@ -29,6 +32,8 @@ pub struct TestPlanConfig {
     pub variables: HashMap<String, Scalar>,
     #[serde(default)]
     pub matrix: Matrix,
+    #[serde(default)]
+    pub custom_providers: Vec<CustomProviderDeclaration>,
     pub scenario: ScenarioConfig,
     pub environment: EnvironmentConfig,
     #[serde(skip)]
@@ -260,15 +265,10 @@ impl TestPlanConfig {
             description: Default::default(),
             variables: Default::default(),
             matrix: Default::default(),
+            custom_providers: Default::default(),
             scenario: ScenarioConfig::empty(),
             environment: EnvironmentConfig::empty(),
-            sources: Sources {
-                test_plan: Source::Local {
-                    abs_path: Default::default(),
-                },
-                scenario: Default::default(),
-                environment: Default::default(),
-            },
+            sources: Sources::default(),
         }
     }
 }
@@ -333,6 +333,8 @@ pub struct Sources {
     test_plan: Source,
     scenario: Option<Source>,
     environment: Option<Source>,
+    #[serde(default, skip)]
+    custom_providers: Arc<CustomProviderDefinitions>,
 }
 
 impl Sources {
@@ -341,7 +343,48 @@ impl Sources {
             test_plan,
             scenario,
             environment,
+            custom_providers: Default::default(),
         }
+    }
+
+    async fn try_load_custom_providers(
+        &mut self,
+        tp: &[CustomProviderDeclaration],
+        scenario: &[CustomProviderDeclaration],
+        environment: &[CustomProviderDeclaration],
+        ctx: &impl ResolutionContext,
+    ) -> Result<()> {
+        let mut errs = Vec::new();
+        let mut custom_providers = CustomProviderDefinitions::default();
+
+        for declaration in tp.iter() {
+            match declaration.try_load_all(self.test_plan(), ctx).await {
+                Ok(providers) => custom_providers.test_plan.extend(providers),
+                Err(err) => errs.push(format!("test plan: {err}")),
+            }
+        }
+
+        for declaration in scenario.iter() {
+            match declaration.try_load_all(self.scenario(), ctx).await {
+                Ok(providers) => custom_providers.scenario.extend(providers),
+                Err(err) => errs.push(format!("scenario: {err}")),
+            }
+        }
+
+        for declaration in environment.iter() {
+            match declaration.try_load_all(self.environment(), ctx).await {
+                Ok(providers) => custom_providers.environment.extend(providers),
+                Err(err) => errs.push(format!("environment: {err}")),
+            }
+        }
+
+        if !errs.is_empty() {
+            return Err(Error::FailedCustomProviderDefinitions { errs });
+        }
+
+        self.custom_providers = Arc::new(custom_providers);
+
+        Ok(())
     }
 
     pub fn test_plan(&self) -> &Source {
@@ -367,6 +410,10 @@ impl Sources {
             None => &self.test_plan,
         }
     }
+
+    pub fn custom_providers(&self) -> Arc<CustomProviderDefinitions> {
+        self.custom_providers.clone()
+    }
 }
 
 /// The raw format for parsing scenario config. This allows the [ScenarioConfig]
@@ -386,6 +433,9 @@ pub struct RawTestPlanConfig {
     /// Sets of templating variables to apply to fields within the rest of the test plan as a matrix
     #[serde(default)]
     pub matrix: RawMatrix,
+    /// Custom provider declarations to load for this test plan
+    #[serde(default)]
+    pub custom_providers: Vec<CustomProviderDeclaration>,
     /// The test scenario to execute
     pub scenario: ConfigSpec,
     /// The environment setup and teardown to run around the test scenario
@@ -422,14 +472,25 @@ impl RawTestPlanConfig {
             }
         };
 
+        let mut sources = Sources::new(tp_source, scenario_source, environment_source);
+        sources
+            .try_load_custom_providers(
+                &self.custom_providers,
+                &scenario.custom_providers,
+                &environment.custom_providers,
+                ctx,
+            )
+            .await?;
+
         Ok(TestPlanConfig {
             name: self.name,
             description: self.description,
             variables: self.variables,
             matrix: self.matrix.into(),
+            custom_providers: self.custom_providers,
             scenario,
             environment,
-            sources: Sources::new(tp_source, scenario_source, environment_source),
+            sources,
         })
     }
 }
@@ -754,6 +815,7 @@ mod tests {
             },
             scenario: None,
             environment: None,
+            custom_providers: Default::default(),
         };
 
         let res = raw_test_plan
@@ -855,6 +917,7 @@ mod tests {
             environment: Some(Source::Local {
                 abs_path: ctx.canonicalize_path(&environment_file).unwrap(),
             }),
+            custom_providers: Default::default(),
         };
 
         let res = TestPlanConfig::try_load_and_resolve_from_path(tp_file.to_path_buf(), &ctx).await;

@@ -21,6 +21,9 @@ pub enum Error {
     #[error("One or more file providers failed to run:\n{}", .errs.join("\n"))]
     FailedFileProviders { errs: Vec<String> },
 
+    #[error("One or more custom provider definitions failed to load:\n{}", .errs.join("\n"))]
+    FailedCustomProviderDefinitions { errs: Vec<String> },
+
     #[error("Environment setup output not valid json: {output:?}")]
     MalformedSetupOutputFormat { output: String },
 

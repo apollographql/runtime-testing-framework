@@ -45,7 +45,12 @@ fn main() {
     s.try_template(
         &mut Vec::new(),
         &Source::local("/"),
-        &TemplateContext::new(vals, Source::local("/"), Default::default()),
+        &TemplateContext::new(
+            vals,
+            Source::local("/"),
+            Default::default(),
+            Default::default(),
+        ),
     )
     .unwrap();
 

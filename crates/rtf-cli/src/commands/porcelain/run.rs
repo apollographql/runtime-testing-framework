@@ -112,6 +112,7 @@ async fn run_one(
         variables,
         test_plan.sources.test_plan().clone(),
         override_sources.clone(),
+        test_plan.sources.custom_providers(),
     );
     test_plan.try_template_environment_setup(&template_ctx)?;
 

@@ -3,9 +3,9 @@ use crate::{
     VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
-    formats::Result,
+    formats::{CustomProviderDeclaration, Result},
     providers::{command::CommandSection, file::Source},
-    templating::{self, Template, TemplateContext},
+    templating::{self, FileType, Template, TemplateContext},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -24,6 +24,9 @@ pub struct EnvironmentConfig {
     #[serde(default, alias = "values")]
     // This alias is for backwards compatibility with the original name
     pub variable_definitions: Vec<VariableDefinition>,
+    /// Custom provider declarations to load for this environment
+    #[serde(default)]
+    pub custom_providers: Vec<CustomProviderDeclaration>,
     /// The command to execute to prepare the environment for executing the test scenario
     pub setup: SetupSection,
     /// The command to execute to clean up the environment after executing the test scenario
@@ -47,7 +50,11 @@ impl EnvironmentConfig {
         source: &Source,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let ctx_for_file = ctx.for_config_file(source, self.variable_definitions.iter());
+        let ctx_for_file = ctx.for_config_file(
+            source,
+            Some(FileType::Environment),
+            self.variable_definitions.iter(),
+        );
 
         self.setup
             .command
@@ -66,6 +73,7 @@ impl EnvironmentConfig {
     ) -> templating::Result<()> {
         let ctx_for_file = ctx.for_config_file(
             source,
+            Some(FileType::Environment),
             self.variable_definitions
                 .iter()
                 .chain(self.setup.provides.iter()),
@@ -82,6 +90,7 @@ impl EnvironmentConfig {
             name: Default::default(),
             description: Default::default(),
             variable_definitions: Vec::new(),
+            custom_providers: Default::default(),
             setup: SetupSection {
                 command: CommandSection::empty(),
                 provides: Vec::new(),

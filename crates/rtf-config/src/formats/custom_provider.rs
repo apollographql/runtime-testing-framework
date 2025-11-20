@@ -1,9 +1,11 @@
 use crate::{
     VariableDefinition,
     context::ResolutionContext,
-    formats::Result,
     providers::command::CommandSection,
-    providers::file::{RawSource, Source},
+    providers::{
+        self,
+        file::{RawSource, Source},
+    },
     templating::{self, Template, TemplateContext},
 };
 use schemars::JsonSchema;
@@ -27,7 +29,7 @@ pub struct CustomProviderDefinition {
 }
 
 impl CustomProviderDefinition {
-    pub fn try_load_from_path(p: impl AsRef<Path>) -> Result<Self> {
+    pub fn try_load_from_path(p: impl AsRef<Path>) -> providers::Result<Self> {
         let content = fs::read_to_string(p)?;
 
         Ok(serde_yaml::from_str(&content)?)
@@ -66,10 +68,10 @@ impl Template for CustomProviderDefinition {
         source: &Source,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let allowed_variables = ctx.for_config_file(source, self.variable_definitions.iter());
+        let file_ctx = ctx.for_config_file(source, None, self.variable_definitions.iter());
 
         self.command
-            .try_template_nested(path, "command_section", source, &allowed_variables)
+            .try_template_nested(path, "command_section", source, &file_ctx)
     }
 }
 
@@ -117,7 +119,7 @@ impl CustomProviderDeclaration {
         &self,
         file_source: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<HashMap<String, (Source, CustomProviderDefinition)>> {
+    ) -> providers::Result<HashMap<String, (Source, CustomProviderDefinition)>> {
         let mut providers = HashMap::with_capacity(self.using.len());
 
         for (provider_name, filename) in self.using.iter() {

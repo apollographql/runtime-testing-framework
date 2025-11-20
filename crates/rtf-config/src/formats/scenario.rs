@@ -2,9 +2,9 @@ use crate::{
     VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
-    formats::Result,
+    formats::{CustomProviderDeclaration, Result},
     providers::{command::CommandSection, file::Source},
-    templating::{self, Template, TemplateContext},
+    templating::{self, FileType, Template, TemplateContext},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -23,6 +23,9 @@ pub struct ScenarioConfig {
     #[serde(default, alias = "values")]
     // This alias is for backwards compatibility with the original name
     pub variable_definitions: Vec<VariableDefinition>,
+    /// Custom provider declarations to load for this scenario
+    #[serde(default)]
+    pub custom_providers: Vec<CustomProviderDeclaration>,
     /// The command to execute as this scenario
     #[serde(flatten)]
     pub command: CommandSection,
@@ -42,6 +45,7 @@ impl ScenarioConfig {
             name: Default::default(),
             description: Default::default(),
             variable_definitions: Default::default(),
+            custom_providers: Default::default(),
             command: CommandSection::empty(),
         }
     }
@@ -62,10 +66,14 @@ impl Template for ScenarioConfig {
         source: &Source,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let ctx_for_file = ctx.for_config_file(source, self.variable_definitions.iter());
+        let ctx = ctx.for_config_file(
+            source,
+            Some(FileType::Scenario),
+            self.variable_definitions.iter(),
+        );
 
         self.command
-            .try_template_nested(path, "command_section", source, &ctx_for_file)
+            .try_template_nested(path, "command_section", source, &ctx)
     }
 }
 

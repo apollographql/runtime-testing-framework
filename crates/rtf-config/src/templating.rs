@@ -1,5 +1,5 @@
 //! Helpers for supporting minimal templating of user config files.
-use crate::{Source, VariableDefinition};
+use crate::{Source, VariableDefinition, formats::CustomProviderDefinition};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
@@ -11,6 +11,7 @@ use std::{
     fmt,
     hash::Hash,
     marker::PhantomData,
+    sync::Arc,
 };
 
 /// User facing descriptions of the reason that templating a [Field] failed.
@@ -66,6 +67,8 @@ pub struct TemplateContext {
     variables: HashMap<String, Scalar>,
     test_plan_source: Source,
     override_sources: HashMap<String, Source>,
+    resolve_for: FileType,
+    custom_provider_definitions: Arc<CustomProviderDefinitions>,
 }
 
 impl TemplateContext {
@@ -73,17 +76,25 @@ impl TemplateContext {
         variables: HashMap<String, Scalar>,
         test_plan_source: Source,
         override_sources: HashMap<String, Source>,
+        custom_provider_definitions: Arc<CustomProviderDefinitions>,
     ) -> Self {
         Self {
             variables,
             test_plan_source,
             override_sources,
+            resolve_for: FileType::Environment,
+            custom_provider_definitions,
         }
     }
 
     #[cfg(test)]
     pub(crate) fn new_stubbed(variables: HashMap<String, Scalar>) -> Self {
-        Self::new(variables, Source::local("/"), Default::default())
+        Self::new(
+            variables,
+            Source::local("/"),
+            Default::default(),
+            Default::default(),
+        )
     }
 
     pub fn variables(&self) -> &HashMap<String, Scalar> {
@@ -93,28 +104,21 @@ impl TemplateContext {
     /// Helper for filtering allowed templating variables based on [VariableDefinition]s present in a
     /// config file. This is also where defaults defined in variable definitions are applied, being
     /// overwritten by any explicitly provided variables coming from `all_variables`.
-    ///
-    /// # Constructing the definitions argument
-    ///
-    /// The trait bound here is to support both direct calls to `Vec<VariableDefinition>.iter()` and
-    /// calls to [Iterator::chain] to joining together multiple vecs of VariableDefinitions:
-    ///
-    /// ```ignore
-    /// // from EnvironmentConfig: both of these will work
-    /// let definitions = self.variable_definitions.iter();
-    /// let definitions = self.variable_definitions.iter().chain(self.setup.provides.iter());
-    /// ```
     pub(crate) fn for_config_file<'a>(
         &self,
         file_source: &Source,
-        definitions: impl Iterator<Item = &'a VariableDefinition> + Clone,
+        resolve_for: Option<FileType>,
+        variable_definitions: impl Iterator<Item = &'a VariableDefinition> + Clone,
     ) -> Self {
         let mut new = self.clone();
+        if let Some(resolve_for) = resolve_for {
+            new.resolve_for = resolve_for;
+        }
 
         new.variables
-            .retain(|k, _| definitions.clone().any(|val| &val.name == k));
+            .retain(|k, _| variable_definitions.clone().any(|val| &val.name == k));
 
-        for vd in definitions {
+        for vd in variable_definitions {
             if let Some(default) = vd.default.as_ref() {
                 new.variables.entry(vd.name.clone()).or_insert_with(|| {
                     new.override_sources
@@ -165,6 +169,44 @@ impl TemplateContext {
             .unwrap_or(&self.test_plan_source);
 
         Some((source, s))
+    }
+
+    pub fn custom_provider_definition<Q>(
+        &self,
+        key: &Q,
+    ) -> Option<&(Source, CustomProviderDefinition)>
+    where
+        String: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        self.custom_provider_definitions.get(key, self.resolve_for)
+    }
+}
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, Deserialize, Serialize)]
+pub enum FileType {
+    #[default]
+    Environment,
+    Scenario,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
+pub struct CustomProviderDefinitions {
+    pub(crate) test_plan: HashMap<String, (Source, CustomProviderDefinition)>,
+    pub(crate) scenario: HashMap<String, (Source, CustomProviderDefinition)>,
+    pub(crate) environment: HashMap<String, (Source, CustomProviderDefinition)>,
+}
+
+impl CustomProviderDefinitions {
+    fn get<Q>(&self, k: &Q, resolve_for: FileType) -> Option<&(Source, CustomProviderDefinition)>
+    where
+        String: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        match resolve_for {
+            FileType::Scenario => self.scenario.get(k).or_else(|| self.test_plan.get(k)),
+            FileType::Environment => self.environment.get(k).or_else(|| self.test_plan.get(k)),
+        }
     }
 }
 
@@ -759,7 +801,8 @@ mod tests {
         ];
 
         let original = TemplateContext::new_stubbed(all_variables);
-        let for_config_file = original.for_config_file(&Source::local("/"), definitions.iter());
+        let for_config_file =
+            original.for_config_file(&Source::local("/"), None, definitions.iter());
 
         // a has an explicit variable so it overrides the default
         // b has an explicit variable and no default
