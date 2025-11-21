@@ -47,6 +47,7 @@
   - [Templating fields](developer/data-structures/fields.md)
   - [File providers](developer/data-structures/file-providers.md)
   - [Command providers](developer/data-structures/command-providers.md)
+  - [Custom providers](developer/data-structures/custom-providers.md)
   - [Config file formats](developer/data-structures/config-files.md)
 - [Traits for working with config structs](developer/config-traits.md)
 - [Use of IO in providers](developer/context.md)
