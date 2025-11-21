@@ -87,7 +87,8 @@ impl Template for CustomProviderDefinition {
     ) -> templating::Result<()> {
         let file_ctx = ctx.for_config_file(source, None, self.variable_definitions.iter());
 
-        self.command.try_template(path, source, &file_ctx)
+        self.command
+            .try_template_nested(path, "command_section", source, &file_ctx)
     }
 }
 
