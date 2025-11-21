@@ -10,11 +10,7 @@ use crate::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{HashMap, HashSet},
-    fs,
-    path::Path,
-};
+use std::collections::{HashMap, HashSet};
 
 /// # Custom Provider Definition
 ///
@@ -33,12 +29,6 @@ pub struct CustomProviderDefinition {
 }
 
 impl CustomProviderDefinition {
-    pub fn try_load_from_path(p: impl AsRef<Path>) -> providers::Result<Self> {
-        let content = fs::read_to_string(p)?;
-
-        Ok(serde_yaml::from_str(&content)?)
-    }
-
     /// Create an empty [CustomProviderDefinition] for tests
     #[cfg(test)]
     pub(crate) fn empty() -> CustomProviderDefinition {
@@ -166,8 +156,15 @@ async fn load_one(
 ) -> providers::Result<(Source, CustomProviderDefinition)> {
     let definition_source = source.try_into_source(file_source, ctx)?;
     let content = definition_source.try_get_file_content(ctx).await?;
+    let raw: serde_yaml::Value = serde_yaml::from_str(&content)?;
 
-    Ok((definition_source, serde_yaml::from_str(&content)?))
+    if let Some(mapping) = raw.as_mapping()
+        && mapping.contains_key("custom_providers")
+    {
+        return Err(providers::Error::NestedCustomProvider);
+    }
+
+    Ok((definition_source, serde_yaml::from_value(raw)?))
 }
 
 #[cfg(test)]
