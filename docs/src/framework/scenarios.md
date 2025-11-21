@@ -27,6 +27,10 @@ relevant pages under the [Framework][2] section of the documentation.
     scalar value to use if none is provided within the [Test Plan][0].
   - If the same variable name is defined in both the Environment and Scenario used by a given Test
     Plan but with different defaults, each config file will fall back to its own default.
+- `custom_providers`: A list of custom provider declarations that make reusable custom providers
+  available to this scenario configuration.
+  - For full details on custom providers see the [Custom Providers][3] page of the Framework
+    documentation.
 - `command`: See [Command Provider][1].
 - `env_vars`: See [Command Provider][1].
 - `file_providers`: See [Command Provider][1].
@@ -63,3 +67,4 @@ file_providers:
 [0]: ./test-plans.md
 [1]: ./command-providers.md
 [2]: ./index.md
+[3]: ./custom-providers.md

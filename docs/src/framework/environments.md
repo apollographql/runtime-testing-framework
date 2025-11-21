@@ -27,6 +27,10 @@ relevant pages under the [Framework][2] section of the documentation.
     scalar value to use if none is provided within the [Test Plan][0].
   - If the same variable name is defined in both the Environment and Scenario used by a given Test
     Plan but with different defaults, each config file will fall back to its own default.
+- `custom_providers`: A list of custom provider declarations that make reusable custom providers
+  available to this environment configuration.
+  - For full details on custom providers see the [Custom Providers][3] page of the Framework
+    documentation.
 - `setup`: A [Command Provider][1] that defines how the environment should be set up before the
   scenario is run.
 - `teardown`: A [Command Provider][1] that defines how the environment should be torn down after the
@@ -70,3 +74,4 @@ teardown:
 [0]: ./test-plans.md
 [1]: ./command-providers.md
 [2]: ./index.md
+[3]: ./custom-providers.md

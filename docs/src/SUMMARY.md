@@ -14,6 +14,7 @@
   - [Environments](framework/environments.md)
   - [Scenarios](framework/scenarios.md)
   - [Command providers](framework/command-providers.md)
+  - [Custom providers](framework/custom-providers.md)
   - [File providers](framework/file-providers.md)
 
 - [Writing test plans](guides/test-plans/index.md)

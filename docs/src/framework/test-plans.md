@@ -27,6 +27,10 @@ relevant pages under the [Framework][1] section of the documentation.
     variables will result in an error when you attempt to run the Test Plan.
   - An optional `variant_names` key can be provided to customise the names of the output directories
     used by each variant.
+- `custom_providers`: A list of custom provider declarations that make reusable custom providers
+  available to this test plan.
+  - For full details on custom providers see the [Custom Providers][6] page of the Framework
+    documentation.
 - `scenario`: A [Config Spec](#config-specs) for the scenario to be run.
   - For full details on the structure of a Scenario see the [Scenario][2] page of the Framework
     documentation.
@@ -182,7 +186,7 @@ paths will always prompt you to write the correct thing.
 
 ## Working with matrices
 
-A `matrix` will expand to a set of test plans defined by the [cartesian product][6] of its
+A `matrix` will expand to a set of test plans defined by the [cartesian product][7] of its
 dimensions.
 
 For example, the following matrix:
@@ -383,4 +387,5 @@ environment:
 [3]: ./environments.md
 [4]: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
 [5]: ./file-providers.md
-[6]: https://en.wikipedia.org/wiki/Cartesian_product
+[6]: ./custom-providers.md
+[7]: https://en.wikipedia.org/wiki/Cartesian_product
