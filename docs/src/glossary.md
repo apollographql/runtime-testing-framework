@@ -26,6 +26,28 @@ File Providers range from being completely general purpose (e.g. pulling an arbi
 GitHub) to generating data specific to the Test Plan being resolved (e.g. generating valid GraphQL
 operations to run against the supergraph under test).
 
+### Custom Provider
+
+A File Provider that executes a custom command to produce a set of files. Custom Providers are
+declared in configuration files using Custom Provider Declarations and are referenced in File
+Provider sections by specifying a `type` field that identifies the custom provider to use and any
+arguments it requires. The Custom Provider `type` must match a name supplied in the Custom Provider
+Declaration(s).
+
+### Custom Provider Definition
+
+A YAML file that defines a reusable custom provider. A Custom Provider Definition specifies the
+name, description, variable definitions, and command to execute for a custom provider. These
+definition files are loaded from directories specified in Custom Provider Declarations. It is
+possible to template a Custom Provider Definition using the arguments from a Custom Provider.
+
+### Custom Provider Declaration
+
+A declaration in a Test Plan, Environment, or Scenario configuration file that specifies where to
+load Custom Provider Definitions from (either a local directory or a GitHub repository) and maps
+provider names to their definition files. Custom Provider Declarations make custom providers
+available for use in Custom Providers.
+
 ## RTF
 
 May refer to either the Runtime Testing Framework as a whole or the `rtf` CLI which is used to
