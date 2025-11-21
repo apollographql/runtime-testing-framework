@@ -700,7 +700,7 @@ mod tests {
     ) -> TestPlanConfig {
         TestPlanConfig {
             scenario: scenario_with_fields(scenario_fields),
-            environment: environment_with_fields(&[], environment_fields),
+            environment: environment_with_fields(&[], environment_fields, &[]),
             ..TestPlanConfig::empty()
         }
     }
@@ -725,7 +725,12 @@ mod tests {
                 include,
             },
             scenario: templatable_scenario(scenario_fields, scenario_fields),
-            environment: templatable_environment(&env_variables, setup_fields, teardown_fields),
+            environment: templatable_environment(
+                &env_variables,
+                setup_fields,
+                teardown_fields,
+                &[],
+            ),
             ..TestPlanConfig::empty()
         }
     }
