@@ -668,10 +668,11 @@ mod tests {
     };
     use assert_fs::{
         TempDir,
-        prelude::{FileWriteStr, PathChild},
+        prelude::{FileWriteStr, PathChild, PathCreateDir},
     };
     use indoc::indoc;
     use simple_test_case::test_case;
+    use std::path::PathBuf;
 
     // Helper functions
 
@@ -697,9 +698,11 @@ mod tests {
     fn test_plan_with_fields(
         scenario_fields: &[Field<String>],
         environment_fields: &[Field<String>],
+        custom_providers: &[CustomProviderDeclaration],
     ) -> TestPlanConfig {
         TestPlanConfig {
-            scenario: scenario_with_fields(scenario_fields),
+            custom_providers: custom_providers.to_vec(),
+            scenario: scenario_with_fields(scenario_fields, &[]),
             environment: environment_with_fields(&[], environment_fields, &[]),
             ..TestPlanConfig::empty()
         }
@@ -713,6 +716,7 @@ mod tests {
         scenario_fields: &[&str],
         setup_fields: &[&str],
         teardown_fields: &[&str],
+        custom_providers: &[CustomProviderDeclaration],
     ) -> TestPlanConfig {
         let mut env_variables = setup_fields.to_vec();
         env_variables.extend_from_slice(teardown_fields);
@@ -724,7 +728,8 @@ mod tests {
                 dimensions,
                 include,
             },
-            scenario: templatable_scenario(scenario_fields, scenario_fields),
+            custom_providers: custom_providers.to_vec(),
+            scenario: templatable_scenario(scenario_fields, scenario_fields, &[]),
             environment: templatable_environment(
                 &env_variables,
                 setup_fields,
@@ -754,6 +759,53 @@ mod tests {
     }
 
     // Tests for configuration parsing from inline YAML and external files
+
+    const RAW_TEST_PLAN_WITH_CUSTOM_PROVIDERS: &str = indoc!(
+        r#"
+            name: test-plan-with-custom-providers
+            description: test plan with custom providers
+            custom_providers:
+              - kind: local
+                relative_path: ../providers
+                using:
+                  my_custom_provider: my_custom_provider.yaml
+              - kind: github
+                org: apollographql
+                repo: test-providers
+                path: /providers
+                git_ref: main
+                using:
+                  another_provider: another_provider.yaml
+            scenario:
+              inline:
+                name: scenario
+                description: a scenario
+                command:
+                  name: scenario.sh
+                  kind: inline
+                  content: |
+                    #!/usr/bin/env sh
+                    echo "Hello!"
+            environment:
+              inline:
+                name: environment
+                description: an environment
+                setup:
+                  command:
+                    name: setup.sh
+                    kind: inline
+                    content: |
+                      #!/usr/bin/env sh
+                      echo "Setup!"
+                teardown:
+                  command:
+                    name: teardown.sh
+                    kind: inline
+                    content: |
+                      #!/usr/bin/env sh
+                      echo "Teardown!"
+        "#
+    );
 
     const INLINE_TEST_PLAN: &str = indoc!(
         r#"
@@ -848,6 +900,639 @@ mod tests {
         )
     }
 
+    #[test]
+    fn parse_custom_providers() {
+        let config: RawTestPlanConfig = serde_yaml::from_str(RAW_TEST_PLAN_WITH_CUSTOM_PROVIDERS)
+            .expect("test plan config to parse");
+
+        assert_eq!(config.custom_providers.len(), 2);
+
+        let cp = &config.custom_providers[0];
+        assert_eq!(
+            cp.source,
+            RawSource::Local {
+                relative_path: PathBuf::from("../providers")
+            }
+        );
+        assert_eq!(cp.using.len(), 1);
+        assert_eq!(
+            cp.using.get("my_custom_provider").unwrap(),
+            "my_custom_provider.yaml"
+        );
+
+        let cp = &config.custom_providers[1];
+        assert_eq!(
+            cp.source,
+            RawSource::Github {
+                org: "apollographql".to_string(),
+                repo: "test-providers".to_string(),
+                path: PathBuf::from("/providers"),
+                git_ref: Some("main".to_string())
+            }
+        );
+        assert_eq!(cp.using.len(), 1);
+        assert_eq!(
+            cp.using.get("another_provider").unwrap(),
+            "another_provider.yaml"
+        );
+    }
+
+    #[tokio::test]
+    async fn custom_providers_all_levels_integration() {
+        let temp = TempDir::new().unwrap();
+
+        let test_plan_providers = temp.child("test_plan_providers");
+        test_plan_providers.create_dir_all().unwrap();
+
+        let scenario_providers = temp.child("scenario_providers");
+        scenario_providers.create_dir_all().unwrap();
+
+        let environment_providers = temp.child("environment_providers");
+        environment_providers.create_dir_all().unwrap();
+
+        let test_plan_provider_yaml = indoc!(
+            r#"
+                name: test-plan-provider
+                description: provider from test plan level
+                variable_definitions: []
+                command:
+                  name: test-plan.sh
+                  kind: inline
+                  content: |
+                    #!/usr/bin/env sh
+                    echo "test plan provider"
+            "#
+        );
+        test_plan_providers
+            .child("tp_provider.yaml")
+            .write_str(test_plan_provider_yaml)
+            .unwrap();
+
+        let scenario_provider_yaml = indoc!(
+            r#"
+                name: scenario-provider
+                description: provider from scenario level
+                variable_definitions: []
+                command:
+                  name: scenario.sh
+                  kind: inline
+                  content: |
+                    #!/usr/bin/env sh
+                    echo "scenario provider"
+            "#
+        );
+        scenario_providers
+            .child("sc_provider.yaml")
+            .write_str(scenario_provider_yaml)
+            .unwrap();
+
+        let environment_provider_yaml = indoc!(
+            r#"
+                name: environment-provider
+                description: provider from environment level
+                variable_definitions: []
+                command:
+                  name: env.sh
+                  kind: inline
+                  content: |
+                    #!/usr/bin/env sh
+                    echo "environment provider"
+            "#
+        );
+        environment_providers
+            .child("env_provider.yaml")
+            .write_str(environment_provider_yaml)
+            .unwrap();
+
+        let test_plan_config = indoc!(
+            r#"
+                name: test-plan-with-all-levels
+                description: test plan with custom providers at all levels
+                custom_providers:
+                  - kind: local
+                    relative_path: test_plan_providers
+                    using:
+                      tp_provider: tp_provider.yaml
+                scenario:
+                  inline:
+                    name: scenario
+                    description: a scenario
+                    custom_providers:
+                      - kind: local
+                        relative_path: scenario_providers
+                        using:
+                          sc_provider: sc_provider.yaml
+                    command:
+                      name: scenario.sh
+                      kind: inline
+                      content: |
+                        #!/usr/bin/env sh
+                        echo "Hello!"
+                environment:
+                  inline:
+                    name: environment
+                    description: an environment
+                    custom_providers:
+                      - kind: local
+                        relative_path: environment_providers
+                        using:
+                          env_provider: env_provider.yaml
+                    setup:
+                      command:
+                        name: setup.sh
+                        kind: inline
+                        content: |
+                          #!/usr/bin/env sh
+                          echo "Setup!"
+                    teardown:
+                      command:
+                        name: teardown.sh
+                        kind: inline
+                        content: |
+                          #!/usr/bin/env sh
+                          echo "Teardown!"
+            "#
+        );
+
+        let test_plan_file = temp.child("test-plan.yaml");
+        test_plan_file.write_str(test_plan_config).unwrap();
+
+        let ctx = Context::new();
+        let res =
+            TestPlanConfig::try_load_and_resolve_from_path(test_plan_file.to_path_buf(), &ctx)
+                .await;
+
+        assert!(res.is_ok(), "expected TestPlanConfig, got {res:?}");
+
+        let test_plan = res.unwrap();
+        let sources = &test_plan.sources;
+
+        assert_eq!(sources.custom_providers.test_plan.len(), 1);
+        assert!(
+            sources
+                .custom_providers
+                .test_plan
+                .contains_key("tp_provider")
+        );
+
+        assert_eq!(sources.custom_providers.scenario.len(), 1);
+        assert!(
+            sources
+                .custom_providers
+                .scenario
+                .contains_key("sc_provider")
+        );
+
+        assert_eq!(sources.custom_providers.environment.len(), 1);
+        assert!(
+            sources
+                .custom_providers
+                .environment
+                .contains_key("env_provider")
+        );
+    }
+
+    const CUSTOM_PROVIDER_WITH_NESTED: &str = indoc!(
+        r#"
+        name: invalid provider
+        description: A custom provider with nested custom_providers
+        variable_definitions: []
+        command:
+          name: script.sh
+          kind: relative_path
+          path: ./script.sh
+        custom_providers:
+          - kind: local
+            relative_path: ./nested
+            using:
+              nested_provider: nested.yaml
+        "#
+    );
+
+    #[tokio::test]
+    async fn custom_providers_test_plan_level_missing_file_errors() {
+        let temp = TempDir::new().unwrap();
+
+        let providers_dir = temp.child("providers");
+        providers_dir.create_dir_all().unwrap();
+
+        let test_plan_config = indoc!(
+            r#"
+                name: test-plan-with-missing-provider
+                description: test plan with missing provider file
+                custom_providers:
+                  - kind: local
+                    relative_path: providers
+                    using:
+                      missing_provider: missing.yaml
+                scenario:
+                  inline:
+                    name: scenario
+                    description: a scenario
+                    command:
+                      name: scenario.sh
+                      kind: inline
+                      content: |
+                        #!/usr/bin/env sh
+                        echo "Hello!"
+                environment:
+                  inline:
+                    name: environment
+                    description: an environment
+                    setup:
+                      command:
+                        name: setup.sh
+                        kind: inline
+                        content: |
+                          #!/usr/bin/env sh
+                          echo "Setup!"
+                    teardown:
+                      command:
+                        name: teardown.sh
+                        kind: inline
+                        content: |
+                          #!/usr/bin/env sh
+                          echo "Teardown!"
+            "#
+        );
+
+        let test_plan_file = temp.child("test-plan.yaml");
+        test_plan_file.write_str(test_plan_config).unwrap();
+
+        let ctx = Context::new();
+        let res =
+            TestPlanConfig::try_load_and_resolve_from_path(test_plan_file.to_path_buf(), &ctx)
+                .await;
+
+        assert!(res.is_err(), "expected error for missing file");
+
+        match res {
+            Err(Error::FailedCustomProviderDefinitions { errs }) => {
+                assert_eq!(errs.len(), 1);
+                assert!(
+                    errs[0].contains("test plan:"),
+                    "error should be prefixed with 'test plan:'"
+                );
+                assert!(
+                    errs[0].contains("missing_provider"),
+                    "error should mention the provider name"
+                );
+            }
+            _ => panic!("expected FailedCustomProviderDefinitions error, got {res:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn custom_providers_test_plan_level_invalid_yaml_errors() {
+        let temp = TempDir::new().unwrap();
+
+        let providers_dir = temp.child("providers");
+        providers_dir.create_dir_all().unwrap();
+
+        providers_dir
+            .child("invalid.yaml")
+            .write_str("not valid yaml: {{{]}")
+            .unwrap();
+
+        let test_plan_config = indoc!(
+            r#"
+                name: test-plan-with-invalid-provider
+                description: test plan with invalid provider yaml
+                custom_providers:
+                  - kind: local
+                    relative_path: providers
+                    using:
+                      invalid_provider: invalid.yaml
+                scenario:
+                  inline:
+                    name: scenario
+                    description: a scenario
+                    command:
+                      name: scenario.sh
+                      kind: inline
+                      content: |
+                        #!/usr/bin/env sh
+                        echo "Hello!"
+                environment:
+                  inline:
+                    name: environment
+                    description: an environment
+                    setup:
+                      command:
+                        name: setup.sh
+                        kind: inline
+                        content: |
+                          #!/usr/bin/env sh
+                          echo "Setup!"
+                    teardown:
+                      command:
+                        name: teardown.sh
+                        kind: inline
+                        content: |
+                          #!/usr/bin/env sh
+                          echo "Teardown!"
+            "#
+        );
+
+        let test_plan_file = temp.child("test-plan.yaml");
+        test_plan_file.write_str(test_plan_config).unwrap();
+
+        let ctx = Context::new();
+        let res =
+            TestPlanConfig::try_load_and_resolve_from_path(test_plan_file.to_path_buf(), &ctx)
+                .await;
+
+        assert!(res.is_err(), "expected error for invalid YAML");
+
+        match res {
+            Err(Error::FailedCustomProviderDefinitions { errs }) => {
+                assert_eq!(errs.len(), 1);
+                assert!(
+                    errs[0].contains("test plan:"),
+                    "error should be prefixed with 'test plan:'"
+                );
+                assert!(
+                    errs[0].contains("invalid_provider"),
+                    "error should mention the provider name"
+                );
+            }
+            _ => panic!("expected FailedCustomProviderDefinitions error, got {res:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn custom_providers_test_plan_level_nested_custom_providers_errors() {
+        let temp = TempDir::new().unwrap();
+
+        let providers_dir = temp.child("providers");
+        providers_dir.create_dir_all().unwrap();
+
+        providers_dir
+            .child("nested.yaml")
+            .write_str(CUSTOM_PROVIDER_WITH_NESTED)
+            .unwrap();
+
+        let test_plan_config = indoc!(
+            r#"
+                name: test-plan-with-nested-provider
+                description: test plan with nested custom provider
+                custom_providers:
+                  - kind: local
+                    relative_path: providers
+                    using:
+                      nested_provider: nested.yaml
+                scenario:
+                  inline:
+                    name: scenario
+                    description: a scenario
+                    command:
+                      name: scenario.sh
+                      kind: inline
+                      content: |
+                        #!/usr/bin/env sh
+                        echo "Hello!"
+                environment:
+                  inline:
+                    name: environment
+                    description: an environment
+                    setup:
+                      command:
+                        name: setup.sh
+                        kind: inline
+                        content: |
+                          #!/usr/bin/env sh
+                          echo "Setup!"
+                    teardown:
+                      command:
+                        name: teardown.sh
+                        kind: inline
+                        content: |
+                          #!/usr/bin/env sh
+                          echo "Teardown!"
+            "#
+        );
+
+        let test_plan_file = temp.child("test-plan.yaml");
+        test_plan_file.write_str(test_plan_config).unwrap();
+
+        let ctx = Context::new();
+        let res =
+            TestPlanConfig::try_load_and_resolve_from_path(test_plan_file.to_path_buf(), &ctx)
+                .await;
+
+        assert!(res.is_err(), "expected error for nested custom providers");
+
+        match res {
+            Err(Error::FailedCustomProviderDefinitions { errs }) => {
+                assert_eq!(errs.len(), 1);
+                assert!(
+                    errs[0].contains("test plan:"),
+                    "error should be prefixed with 'test plan:'"
+                );
+                assert!(
+                    errs[0].contains("nested_provider"),
+                    "error should mention the provider name"
+                );
+            }
+            _ => panic!("expected FailedCustomProviderDefinitions error, got {res:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn custom_providers_mixed_levels_with_errors() {
+        let temp = TempDir::new().unwrap();
+
+        let test_plan_providers = temp.child("test_plan_providers");
+        test_plan_providers.create_dir_all().unwrap();
+
+        let scenario_providers = temp.child("scenario_providers");
+        scenario_providers.create_dir_all().unwrap();
+
+        let environment_providers = temp.child("environment_providers");
+        environment_providers.create_dir_all().unwrap();
+
+        scenario_providers
+            .child("invalid.yaml")
+            .write_str("not valid yaml: {{{]}")
+            .unwrap();
+
+        environment_providers
+            .child("nested.yaml")
+            .write_str(CUSTOM_PROVIDER_WITH_NESTED)
+            .unwrap();
+
+        let test_plan_config = indoc!(
+            r#"
+                name: test-plan-with-mixed-errors
+                description: test plan with errors at all levels
+                custom_providers:
+                  - kind: local
+                    relative_path: test_plan_providers
+                    using:
+                      missing_provider: missing.yaml
+                scenario:
+                  inline:
+                    name: scenario
+                    description: a scenario
+                    custom_providers:
+                      - kind: local
+                        relative_path: scenario_providers
+                        using:
+                          invalid_provider: invalid.yaml
+                    command:
+                      name: scenario.sh
+                      kind: inline
+                      content: |
+                        #!/usr/bin/env sh
+                        echo "Hello!"
+                environment:
+                  inline:
+                    name: environment
+                    description: an environment
+                    custom_providers:
+                      - kind: local
+                        relative_path: environment_providers
+                        using:
+                          nested_provider: nested.yaml
+                    setup:
+                      command:
+                        name: setup.sh
+                        kind: inline
+                        content: |
+                          #!/usr/bin/env sh
+                          echo "Setup!"
+                    teardown:
+                      command:
+                        name: teardown.sh
+                        kind: inline
+                        content: |
+                          #!/usr/bin/env sh
+                          echo "Teardown!"
+            "#
+        );
+
+        let test_plan_file = temp.child("test-plan.yaml");
+        test_plan_file.write_str(test_plan_config).unwrap();
+
+        let ctx = Context::new();
+        let res =
+            TestPlanConfig::try_load_and_resolve_from_path(test_plan_file.to_path_buf(), &ctx)
+                .await;
+
+        match res {
+            Err(Error::FailedCustomProviderDefinitions { errs }) => {
+                assert_eq!(errs.len(), 3, "expected errors from all three levels");
+
+                let has_test_plan_error = errs.iter().any(|e| e.contains("test plan:"));
+                let has_scenario_error = errs.iter().any(|e| e.contains("scenario:"));
+                let has_environment_error = errs.iter().any(|e| e.contains("environment:"));
+
+                assert!(has_test_plan_error);
+                assert!(has_scenario_error);
+                assert!(has_environment_error);
+
+                let error_str = errs.join("\n");
+                assert!(error_str.contains("missing_provider"));
+                assert!(error_str.contains("invalid_provider"));
+                assert!(error_str.contains("nested_provider"));
+            }
+
+            _ => panic!("expected FailedCustomProviderDefinitions error, got {res:?}"),
+        }
+    }
+
+    const TEST_PLAN_WITH_SCENARIO_CUSTOM_PROVIDER_OVERRIDE: &str = indoc!(
+        r#"
+            name: test-plan-scenario-override-custom-providers
+            description: test plan with scenario overrides containing custom_providers
+            scenario:
+              from:
+                kind: local
+                relative_path: scenario.yaml
+              overrides:
+                custom_providers:
+                  - kind: local
+                    relative_path: providers
+                    using:
+                      my_provider: provider.yaml
+            environment:
+              inline:
+                name: environment
+                description: an environment
+                setup:
+                  command:
+                    name: setup.sh
+                    kind: inline
+                    content: |
+                      #!/usr/bin/env sh
+                      echo "Setup!"
+                teardown:
+                  command:
+                    name: teardown.sh
+                    kind: inline
+                    content: |
+                      #!/usr/bin/env sh
+                      echo "Teardown!"
+        "#
+    );
+
+    const TEST_PLAN_WITH_ENVIRONMENT_CUSTOM_PROVIDER_OVERRIDE: &str = indoc!(
+        r#"
+            name: test-plan-environment-override-custom-providers
+            description: test plan with environment overrides containing custom_providers
+            scenario:
+              inline:
+                name: scenario
+                description: a scenario
+                command:
+                  name: scenario.sh
+                  kind: inline
+                  content: |
+                    #!/usr/bin/env sh
+                    echo "Hello!"
+            environment:
+              from:
+                kind: local
+                relative_path: environment.yaml
+              overrides:
+                custom_providers:
+                  - kind: local
+                    relative_path: providers
+                    using:
+                      my_provider: provider.yaml
+        "#
+    );
+
+    #[test_case(TEST_PLAN_WITH_SCENARIO_CUSTOM_PROVIDER_OVERRIDE; "scenario overrides with custom providers")]
+    #[test_case(TEST_PLAN_WITH_ENVIRONMENT_CUSTOM_PROVIDER_OVERRIDE; "environment overrides with custom providers")]
+    #[tokio::test]
+    async fn custom_providers_in_overrides_should_error(test_plan_yaml: &str) {
+        let temp = TempDir::new().unwrap();
+
+        let scenario_file = temp.child("scenario.yaml");
+        scenario_file
+            .write_str(&serde_yaml::to_string(&ScenarioConfig::empty()).unwrap())
+            .unwrap();
+
+        let environment_file = temp.child("environment.yaml");
+        environment_file
+            .write_str(&serde_yaml::to_string(&EnvironmentConfig::empty()).unwrap())
+            .unwrap();
+
+        let test_plan_file = temp.child("test-plan.yaml");
+        test_plan_file.write_str(test_plan_yaml).unwrap();
+
+        let ctx = Context::new();
+        let res =
+            TestPlanConfig::try_load_and_resolve_from_path(test_plan_file.to_path_buf(), &ctx)
+                .await;
+
+        match res {
+            Err(Error::InvalidCustomProviderOverride) => (),
+            _ => panic!("expected InvalidCustomProviderOverride error, got {res:?}"),
+        }
+    }
+
     const FROM_SAME_DIR_FILES_TEST_PLAN: &str = indoc!(
         r#"
             name: from-files-test-plan
@@ -911,7 +1596,6 @@ mod tests {
 
         let ctx = Context::new();
 
-        // Build expected sources using the same canonicalization as the implementation
         let expected_sources = Sources {
             test_plan: Source::Local {
                 abs_path: ctx.canonicalize_path(&tp_file).unwrap(),
@@ -1057,7 +1741,7 @@ mod tests {
         environment_field: Field<String>,
         expected: bool,
     ) {
-        let test_plan = test_plan_with_fields(&[scenario_field], &[environment_field]);
+        let test_plan = test_plan_with_fields(&[scenario_field], &[environment_field], &[]);
 
         let res = test_plan.has_pending_fields();
         assert_eq!(
@@ -1076,7 +1760,7 @@ mod tests {
         environment_field: Field<String>,
         expected: &[&str],
     ) {
-        let test_plan = test_plan_with_fields(&[scenario_field], &[environment_field]);
+        let test_plan = test_plan_with_fields(&[scenario_field], &[environment_field], &[]);
 
         let res = test_plan.required_variables();
         assert_eq!(
@@ -1420,6 +2104,7 @@ mod tests {
             &["scenario"],
             &["setup"],
             &["teardown"],
+            &[],
         );
 
         let res = test_plan.check_templating_will_work();
@@ -1445,7 +2130,8 @@ mod tests {
         let variables = template_context(&["foo", "bar", "baz"]).variables().clone();
         let dimensions = dimensions_from_keys(dimension_keys, 2);
         let include = vec![template_context(include_keys).variables().clone()];
-        let mut test_plan = templatable_test_plan(variables, dimensions, include, &[], &[], &[]);
+        let mut test_plan =
+            templatable_test_plan(variables, dimensions, include, &[], &[], &[], &[]);
 
         let expected_err_kind = ErrorKind::ConflictingVariables;
 
@@ -1477,7 +2163,8 @@ mod tests {
         let variables = template_context(&[]).variables().clone();
         let dimensions = dimensions_from_keys(dimension_keys, 0);
         let include = Vec::new();
-        let mut test_plan = templatable_test_plan(variables, dimensions, include, &[], &[], &[]);
+        let mut test_plan =
+            templatable_test_plan(variables, dimensions, include, &[], &[], &[], &[]);
 
         let expected_err_kind = ErrorKind::EmptyMatrixVariable;
 
@@ -1515,7 +2202,8 @@ mod tests {
         let variables = HashMap::new();
         let mut dimensions: HashMap<String, Vec<Scalar>> = HashMap::new();
         dimensions.insert("foo".into(), vec!["a".into(), 42.into()]);
-        let mut test_plan = templatable_test_plan(variables, dimensions, vec![], &[], &[], &[]);
+        let mut test_plan =
+            templatable_test_plan(variables, dimensions, vec![], &[], &[], &[], &[]);
 
         let expected_err_kind = ErrorKind::InconsistentMatrixVariable;
         let expected_err_message = "foo";
@@ -1546,7 +2234,8 @@ mod tests {
     ) {
         let variables = HashMap::new();
         let dimensions = HashMap::new();
-        let mut test_plan = templatable_test_plan(variables, dimensions, include, &[], &[], &[]);
+        let mut test_plan =
+            templatable_test_plan(variables, dimensions, include, &[], &[], &[], &[]);
 
         let expected_err_kind = ErrorKind::InconsistentMatrixInclude;
         let expected_err_message = "matrix include maps must share consistent keys and types";
@@ -1635,6 +2324,7 @@ mod tests {
             scenario_fields,
             setup_fields,
             teardown_fields,
+            &[],
         );
 
         let res = test_plan.check_templating_will_work();
@@ -1676,7 +2366,7 @@ mod tests {
         let variables = template_context(&["foo", "bar"]).variables().clone();
         let dimensions = dimensions_from_keys(&["foo"], 0);
         let mut test_plan =
-            templatable_test_plan(variables, dimensions, vec![], &["scenario"], &[], &[]);
+            templatable_test_plan(variables, dimensions, vec![], &["scenario"], &[], &[], &[]);
 
         let mut expected_errs = ErrorBuilder::new();
         expected_errs.push(
