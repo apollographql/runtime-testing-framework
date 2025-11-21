@@ -8,10 +8,10 @@ in the state it was at the end of that guide:
 $ ls -R
 configs         scripts         test-plan.yaml
 
-rtf-hello-world/configs:
+configs:
 environment.yaml        scenario.yaml
 
-rtf-hello-world/scripts:
+scripts:
 scenario.sh     setup.sh
 ```
 
@@ -309,7 +309,6 @@ $ rtf template test-plan.yaml --check --var process_id="id"
 name: Hello World
 description: A test plan created as a guide for writing test plans
 variables:
-  example_variable: variable
   scenario_variable: scenario executed with test plan variable
   process_id: id
 matrix: {}

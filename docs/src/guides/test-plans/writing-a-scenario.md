@@ -122,27 +122,15 @@ matrix: {}
 scenario:
   name: Inline scenario config
   description: An inline scenario config
-  variable_definitions:
-  - name: scenario_variable
-    description: An example variable that the scenario expects to be defined
-    default: scenario executed with default value
+  variable_definitions: []
   command:
     name: scenario.sh
     kind: relative_path
     path: ../scripts/scenario.sh
     args: []
   env_vars:
-    SCENARIO_ENV: scenario executed with default value
-  file_providers:
-  - name: file.txt
-    env_var: FILE_TXT
-    kind: relative_path
-    path: ../data/file.txt
-  - name: scenario.txt
-    env_var: SCENARIO_TXT
-    kind: inline
-    content: |
-      Some inline text content for our scenario
+    SCENARIO_ENV: scenario command executed
+  file_providers: []
 environment:
   name: Inline environment config
   description: An inline environment config
@@ -330,7 +318,7 @@ setting a different value in the test plan (this will take presence over a defau
 name: Hello World
 description: A test plan created as a guide for writing test plans
 # --- Add a new value for scenario_variable ---
-variable_definitions:
+variables:
   scenario_variable: "scenario executed with test plan variable"
 # ------------------------------------------
 scenario:
@@ -363,7 +351,7 @@ environment:
 Now if we run:
 
 ```bash
-$ run test-plan.yaml
+$ rtf run test-plan.yaml
 "environment setup command executed"
 Running scenario from an external file
 scenario executed with test plan variable

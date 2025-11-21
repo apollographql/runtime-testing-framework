@@ -88,8 +88,12 @@ setup:
       PROCESS_ID="1"
       echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
       echo "{ \"process_id\": \"$PROCESS_ID\" }" > "$RTF_OUTPUT"
-# --- Add custom provider to file_providers ---
   file_providers:
+    - name: config.txt
+      env_var: CONFIG
+      kind: required
+      message: Please specify a config file
+# --- Add custom provider to file_providers ---
     - name: service-config
       env_var: SERVICE_CONFIG_DIR
       kind: custom_provider
