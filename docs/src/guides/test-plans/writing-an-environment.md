@@ -145,7 +145,8 @@ called `provides` which we'll explain in more detail in the
     `command` is executed.
   - `file_providers` (optional) is used to define the files and data that the environment setup
     depends on to execute. The ["Using file providers" guide](using-file-providers.md) explains how
-    these are used in more detail.
+    these are used in more detail. Custom providers, which can generate files dynamically, are
+    covered in later guides.
   - `provides` (optional) is unique to the environment setup and is used to set variables that can
     only be known at runtime. This is explained more in the
     ["Using provides" section](#using-provides).
@@ -158,7 +159,8 @@ called `provides` which we'll explain in more detail in the
     `command` is executed.
   - `file_providers` (optional) is used to define the files and data that the environment teardown
     depends on to execute. The ["Using file providers" guide](using-file-providers.md) explains how
-    these are used in more detail.
+    these are used in more detail. Custom providers, which can generate files dynamically, are
+    covered in later guides.
 
 ## Using provides
 

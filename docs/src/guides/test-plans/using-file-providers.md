@@ -25,8 +25,9 @@ providers as they provide the file content either from the local filesystem or f
 plan configuration itself.
 
 There are additional file providers that, amongst other things, can pull data from APIs (such as
-GraphOS specific providers). These will not be discussed in this guide but can be seen in the
-[framework reference](../../framework/file-providers.md).
+GraphOS specific providers) or execute custom commands to generate files (custom providers). Custom
+providers will be covered in detail in later guides, but for now you can see all available providers
+in the [framework reference](../../framework/file-providers.md).
 
 All file providers follow the same basic principle - they create one or more files and place it on a
 path for rtf to make use of. If you need to know that path (for your command script, for example),
@@ -377,4 +378,8 @@ overrides. Our test plan no longer contains a `required` file, so we no longer g
 
 ---
 
-Congratulations! You've now completed the guide on how to write test plans.
+In this guide, we've covered the basic file providers: inline, relative_path, and required. Next,
+we'll take a detour to learn how to create reusable custom providers that can generate files
+dynamically.
+
+**Next:** [Creating a custom provider](creating-a-custom-provider.md)

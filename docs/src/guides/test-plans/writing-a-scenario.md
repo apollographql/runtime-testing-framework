@@ -237,7 +237,8 @@ defined in the scenario
   is executed.
 - `file_providers` (optional) is used to define the files and data that the scenario depends on to
   execute. The ["Using file providers" guide](using-file-providers.md) explains how these are used
-  in more detail.
+  in more detail. Custom providers, which can generate files dynamically, are covered in later
+  guides.
 
 ## Using variables
 

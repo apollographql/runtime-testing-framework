@@ -23,6 +23,8 @@
   - [Writing a new scenario](guides/test-plans/writing-a-scenario.md)
   - [Writing a new environment](guides/test-plans/writing-an-environment.md)
   - [Using file providers](guides/test-plans/using-file-providers.md)
+  - [Creating a custom provider](guides/test-plans/creating-a-custom-provider.md)
+  - [Using a custom provider](guides/test-plans/using-a-custom-provider.md)
 
 - [Troubleshooting]()
 
