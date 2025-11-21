@@ -5,9 +5,13 @@ use crate::{
         CustomProviderDeclaration, EnvironmentConfig, Error, Matrix, Result, ScenarioConfig,
     },
     merge_yaml,
-    providers::file::{RawSource, Source},
+    providers::{
+        self,
+        file::{RawSource, Source},
+    },
     templating::{self, CustomProviderDefinitions, Scalar, Template, TemplateContext},
 };
+use itertools::Itertools;
 use rtf_core::github::{self, Client};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -334,24 +338,34 @@ impl Sources {
         let mut errs = Vec::new();
         let mut custom_providers = CustomProviderDefinitions::default();
 
+        let format_errors = |section: &str, errors: Vec<(String, providers::Error)>| {
+            format!(
+                "{section}:\n{}",
+                errors
+                    .into_iter()
+                    .map(|(provider_name, e)| format!(" - {provider_name}: {e}"))
+                    .join("\n")
+            )
+        };
+
         for declaration in tp.iter() {
             match declaration.try_load_all(self.test_plan(), ctx).await {
                 Ok(providers) => custom_providers.test_plan.extend(providers),
-                Err(err) => errs.push(format!("test plan: {err}")),
+                Err(errors) => errs.push(format_errors("test plan", errors)),
             }
         }
 
         for declaration in scenario.iter() {
             match declaration.try_load_all(self.scenario(), ctx).await {
                 Ok(providers) => custom_providers.scenario.extend(providers),
-                Err(err) => errs.push(format!("scenario: {err}")),
+                Err(errors) => errs.push(format_errors("scenario", errors)),
             }
         }
 
         for declaration in environment.iter() {
             match declaration.try_load_all(self.environment(), ctx).await {
                 Ok(providers) => custom_providers.environment.extend(providers),
-                Err(err) => errs.push(format!("environment: {err}")),
+                Err(errors) => errs.push(format_errors("environment", errors)),
             }
         }
 

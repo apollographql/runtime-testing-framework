@@ -87,8 +87,7 @@ impl Template for CustomProviderDefinition {
     ) -> templating::Result<()> {
         let file_ctx = ctx.for_config_file(source, None, self.variable_definitions.iter());
 
-        self.command
-            .try_template_nested(path, "command_section", source, &file_ctx)
+        self.command.try_template(path, source, &file_ctx)
     }
 }
 
@@ -136,22 +135,38 @@ impl CustomProviderDeclaration {
         &self,
         file_source: &Source,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<HashMap<String, (Source, CustomProviderDefinition)>> {
+    ) -> Result<HashMap<String, (Source, CustomProviderDefinition)>, Vec<(String, providers::Error)>>
+    {
         let mut providers = HashMap::with_capacity(self.using.len());
+        let mut errs = Vec::new();
 
         for (provider_name, filename) in self.using.iter() {
-            let definition_source = self
-                .source
-                .with_child_path(filename)
-                .try_into_source(file_source, ctx)?;
-            let content = definition_source.try_get_file_content(ctx).await?;
-            let definition: CustomProviderDefinition = serde_yaml::from_str(&content)?;
-
-            providers.insert(provider_name.clone(), (definition_source, definition));
+            match load_one(self.source.with_child_path(filename), file_source, ctx).await {
+                Ok((src, def)) => {
+                    providers.insert(provider_name.clone(), (src, def));
+                }
+                Err(e) => errs.push((provider_name.clone(), e)),
+            }
         }
 
-        Ok(providers)
+        if errs.is_empty() {
+            Ok(providers)
+        } else {
+            errs.sort_by(|l, r| l.0.cmp(&r.0));
+            Err(errs)
+        }
     }
+}
+
+async fn load_one(
+    source: RawSource,
+    file_source: &Source,
+    ctx: &impl ResolutionContext,
+) -> providers::Result<(Source, CustomProviderDefinition)> {
+    let definition_source = source.try_into_source(file_source, ctx)?;
+    let content = definition_source.try_get_file_content(ctx).await?;
+
+    Ok((definition_source, serde_yaml::from_str(&content)?))
 }
 
 #[cfg(test)]
