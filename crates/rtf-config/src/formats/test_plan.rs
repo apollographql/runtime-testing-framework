@@ -578,7 +578,7 @@ impl ConfigSpec {
                 if overrides != serde_yaml::Value::Null {
                     let mut base: serde_yaml::Value = serde_yaml::from_str(&file_content)?;
                     let yaml_src = serde_yaml::to_value(tp_source)?;
-                    set_source_for_relative_files(&mut overrides, &yaml_src);
+                    set_source_for_relative_paths(&mut overrides, &yaml_src);
                     merge_yaml(overrides, &mut base);
 
                     // Now that we've merged we need to handle deduplication of arrays in order to
@@ -596,34 +596,36 @@ impl ConfigSpec {
     }
 }
 
-/// Relative files set as part of overrides need to be resolved relative to the test plan source
-/// location rather than the source location of the file they are being merged into.
+/// Relative files and Custom Providers defined as part of overrides need to be resolved relative
+/// to the test plan source location rather than the source location of the file they are being
+/// merged into.
 ///
-/// To support this we tag any RelativeFile file providers we can find with the source of the test
-/// plan before we merge _at the YAML level_. We do it this way to avoid having to define Rust
-/// types for the overrides where every field is optional, but this does mean that we have zero
-/// type safety around this.
+/// To support this we tag any RelativeFile or CustomProvider file providers we can find with the
+/// source of the test plan before we merge _at the YAML level_. We do it this way to avoid having
+/// to define Rust types for the overrides where every field is optional, but this does mean that
+/// we have zero type safety around this.
 ///
 /// !! If something strange is happening around relative paths defined in test plan overrides then
 ///    this is likely the best place to start looking!
-fn set_source_for_relative_files(val: &mut serde_yaml::Value, src: &serde_yaml::Value) {
+fn set_source_for_relative_paths(val: &mut serde_yaml::Value, src: &serde_yaml::Value) {
     use serde_yaml::Value;
 
     match val {
         Value::Mapping(map) => {
-            if map.get("kind").and_then(|v| v.as_str()) == Some("relative_path") {
+            let kind = map.get("kind").and_then(|v| v.as_str());
+            if matches!(kind, Some("relative_path" | "custom_provider")) {
                 map.insert(Value::String("src".into()), src.clone());
                 return;
             }
 
             for v in map.values_mut() {
-                set_source_for_relative_files(v, src);
+                set_source_for_relative_paths(v, src);
             }
         }
 
         Value::Sequence(seq) => {
             for v in seq {
-                set_source_for_relative_files(v, src);
+                set_source_for_relative_paths(v, src);
             }
         }
 
