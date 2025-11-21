@@ -24,19 +24,22 @@ pub enum Error {
     #[error("One or more custom provider definitions failed to load:\n{}", .errs.join("\n"))]
     FailedCustomProviderDefinitions { errs: Vec<String> },
 
+    #[error("Custom provider declarations can not be specified as part of overrides.")]
+    InvalidCustomProviderOverride,
+
     #[error("Environment setup output not valid json: {output:?}")]
     MalformedSetupOutputFormat { output: String },
 
     #[error("Missing required output fields from environment setup: {missing:?}")]
     MissingSetupOutputFields { missing: Vec<String> },
 
+    #[error("The provided variant_names template produced duplicate names: {duplicates:?}")]
+    NonUniqueMatrixVariantNames { duplicates: Vec<String> },
+
     #[error(
         "The provided matrix.variant_names template references unknown matrix variables: {variables:?}"
     )]
     UnknownMatrixVariantTemplateVariables { variables: Vec<String> },
-
-    #[error("The provided variant_names template produced duplicate names: {duplicates:?}")]
-    NonUniqueMatrixVariantNames { duplicates: Vec<String> },
 
     #[error("The config file being parsed was invalid:\n{0}")]
     Validation(#[from] checks::Errors),

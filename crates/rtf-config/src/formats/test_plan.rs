@@ -576,6 +576,12 @@ impl ConfigSpec {
                 t.ensure_no_duplicate_keys()?;
 
                 if overrides != serde_yaml::Value::Null {
+                    if let Some(m) = overrides.as_mapping()
+                        && m.contains_key("custom_providers")
+                    {
+                        return Err(Error::InvalidCustomProviderOverride);
+                    }
+
                     let mut base: serde_yaml::Value = serde_yaml::from_str(&file_content)?;
                     let yaml_src = serde_yaml::to_value(tp_source)?;
                     set_source_for_relative_paths(&mut overrides, &yaml_src);
