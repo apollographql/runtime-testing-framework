@@ -40,6 +40,77 @@
       "description": "This struct allows the config files to be resolved either from\ninline yaml in the test plan or from a [crate::providers::file::FileProvider].",
       "title": "Config Spec"
     },
+    "CustomProviderDeclaration": {
+      "description": "Allows for declaring one or more custom providers that should be loaded from the given\ndirectory. The directory can be specified as a relative path from the file containing\nthis declaration or as coming from a GitHub repository.\n\n## Example using a relative directory\n\n```yaml\nkind: local\nrelative_path: ../providers\nusing:\n  my_custom_provider: my_custom_provider.yaml\n  my_other_provider: my_other_provider.yaml\n```\n\n## Example using a directory from a GitHub repository\n\n```yaml\nkind: github\norg: my-org\nrepo: my-repo\npath: path/to/providers\ngit_ref: main\nusing:\n  my_custom_provider: my_custom_provider.yaml\n  my_other_provider: my_other_provider.yaml\n```",
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "local",
+              "type": "string"
+            },
+            "relative_path": {
+              "description": "A relative path to the target config file",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "relative_path"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "git_ref": {
+              "default": null,
+              "description": "An optional git ref to pull the config file from (defaults to mainline)",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "const": "github",
+              "type": "string"
+            },
+            "org": {
+              "description": "The GitHub org to pull the config file from",
+              "type": "string"
+            },
+            "path": {
+              "description": "The absolute path to the config file within the target GitHub repository",
+              "type": "string"
+            },
+            "repo": {
+              "description": "The GitHub repository to pull the config file from",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "org",
+            "repo",
+            "path"
+          ],
+          "type": "object"
+        }
+      ],
+      "properties": {
+        "using": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "A map of the name to use for a given custom provider to the child path within this\ndirectory containing the definition for that provider.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "using"
+      ],
+      "title": "Custom Provider Declaration",
+      "type": "object"
+    },
     "Matrix": {
       "description": "A matrix of user provided variable dimensions that is expanded out into multiple variable sets for\ntemplating the test plan containing the matrix.",
       "properties": {
@@ -182,6 +253,14 @@
   },
   "description": "The top level config file for specifying an RTF test plan",
   "properties": {
+    "custom_providers": {
+      "default": [],
+      "description": "Custom provider declarations to load for this test plan",
+      "items": {
+        "$ref": "#/definitions/CustomProviderDeclaration"
+      },
+      "type": "array"
+    },
     "description": {
       "description": "A brief description of the purpose / behaviour of this test plan",
       "type": "string"

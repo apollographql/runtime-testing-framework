@@ -120,6 +120,94 @@
       "title": "Command Spec",
       "type": "object"
     },
+    "CustomProvider": {
+      "additionalProperties": {
+        "$ref": "#/definitions/Templatable%20Scalar"
+      },
+      "description": "Use a custom provider to execute a command and produce a set of files.\n\n```yaml\n- name: \"router-docker-compose\"\n  env_var: ROUTER_DOCKER_COMPOSE\n  kind: custom_provider\n  type: \"router-docker-compose\"\n  graph_ref: \"graph@variant\"\n  router_version: \"v2.x.y\"\n  build_router_from_source: \"false\"\n```",
+      "properties": {
+        "type": {
+          "description": "The type of custom provider to use. This is the name of the custom provider to use.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "Custom Provider",
+      "type": "object"
+    },
+    "CustomProviderDeclaration": {
+      "description": "Allows for declaring one or more custom providers that should be loaded from the given\ndirectory. The directory can be specified as a relative path from the file containing\nthis declaration or as coming from a GitHub repository.\n\n## Example using a relative directory\n\n```yaml\nkind: local\nrelative_path: ../providers\nusing:\n  my_custom_provider: my_custom_provider.yaml\n  my_other_provider: my_other_provider.yaml\n```\n\n## Example using a directory from a GitHub repository\n\n```yaml\nkind: github\norg: my-org\nrepo: my-repo\npath: path/to/providers\ngit_ref: main\nusing:\n  my_custom_provider: my_custom_provider.yaml\n  my_other_provider: my_other_provider.yaml\n```",
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "local",
+              "type": "string"
+            },
+            "relative_path": {
+              "description": "A relative path to the target config file",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "relative_path"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "git_ref": {
+              "default": null,
+              "description": "An optional git ref to pull the config file from (defaults to mainline)",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "const": "github",
+              "type": "string"
+            },
+            "org": {
+              "description": "The GitHub org to pull the config file from",
+              "type": "string"
+            },
+            "path": {
+              "description": "The absolute path to the config file within the target GitHub repository",
+              "type": "string"
+            },
+            "repo": {
+              "description": "The GitHub repository to pull the config file from",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "org",
+            "repo",
+            "path"
+          ],
+          "type": "object"
+        }
+      ],
+      "properties": {
+        "using": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "A map of the name to use for a given custom provider to the child path within this\ndirectory containing the definition for that provider.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "using"
+      ],
+      "title": "Custom Provider Declaration",
+      "type": "object"
+    },
     "CustomUrlFormat": {
       "description": "Defines a custom URL format to route subgraph requests to.\n\nThe `base_url` and `base_port` components define the base subgraph URL.\nThese produce a subgraph URL of `{base_url}:{base_port}` for all subgraph names as the default.\n\nIf `increment_port` is set to true, each subgraph will get a distinct port number\ngenerated via auto-incrementing the `base_port` for each known subgraph. This is useful\nfor running `n` subgraph servers for `n` named subgraphs in the supergraph.\n\nTo use a single subgraph server with defined per-subgraph behavior, set `add_subgraph_route`\nto true. This will append a route with the subgraph's name to the base URL, producing the form\n`{base_url}:{base_port}/{subgraph_name}` for each subgraph.\n\n```yaml\n- name: subgraph-url-overrides.yaml\n  env_var: SUBGRAPH_URL_OVERRIDES\n  kind: graphos_subgraph_router_url_overrides\n  graph_ref: graph@variant\n  url_format:\n    base_url: \"http://loadbalancer\"\n    base_port: \"8080\"\n    increment_port: false\n    add_subgraph_route: false\n    custom_subgraph_urls:\n      my_subgraph: \"http://my-subgraph-instance:8081\"\n```",
       "properties": {
@@ -459,6 +547,23 @@
           "properties": {
             "kind": {
               "const": "build_router_from_source",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CustomProvider"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "custom_provider",
               "type": "string"
             }
           },
@@ -1045,6 +1150,14 @@
         }
       ],
       "description": "The command to be run"
+    },
+    "custom_providers": {
+      "default": [],
+      "description": "Custom provider declarations to load for this scenario",
+      "items": {
+        "$ref": "#/definitions/CustomProviderDeclaration"
+      },
+      "type": "array"
     },
     "description": {
       "description": "A brief description of the purpose / behaviour of this scenario",

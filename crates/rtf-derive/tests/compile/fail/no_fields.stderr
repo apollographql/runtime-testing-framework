@@ -30,6 +30,22 @@ error[E0599]: no method named `required_variables` found for type `usize` in the
   |
   = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
 
+error[E0599]: no method named `validate_context_nested` found for struct `std::string::String` in the current scope
+ --> tests/compile/fail/no_fields.rs:3:17
+  |
+3 | #[derive(Debug, Template)]
+  |                 ^^^^^^^^ method not found in `std::string::String`
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `validate_context_nested` found for type `usize` in the current scope
+ --> tests/compile/fail/no_fields.rs:3:17
+  |
+3 | #[derive(Debug, Template)]
+  |                 ^^^^^^^^ method not found in `usize`
+  |
+  = note: this error originates in the derive macro `Template` (in Nightly builds, run with -Z macro-backtrace for more info)
+
 error[E0599]: no method named `try_template_nested` found for struct `std::string::String` in the current scope
  --> tests/compile/fail/no_fields.rs:3:17
   |

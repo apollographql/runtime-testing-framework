@@ -226,7 +226,12 @@ macro_rules! template_context {
             m.insert(k.to_string(), Scalar::from(k.to_string()));
         }
 
-        TemplateContext::new(m, Source::local("/"), Default::default())
+        TemplateContext::new(
+            m,
+            Source::local("/"),
+            Default::default(),
+            Default::default(),
+        )
     }};
 }
 

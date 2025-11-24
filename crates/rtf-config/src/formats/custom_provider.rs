@@ -1,14 +1,16 @@
 use crate::{
     VariableDefinition,
     context::ResolutionContext,
-    formats::Result,
     providers::command::CommandSection,
-    providers::file::{RawSource, Source},
+    providers::{
+        self,
+        file::{RawSource, Source},
+    },
     templating::{self, Template, TemplateContext},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs, path::Path};
+use std::collections::{HashMap, HashSet};
 
 /// # Custom Provider Definition
 ///
@@ -27,12 +29,6 @@ pub struct CustomProviderDefinition {
 }
 
 impl CustomProviderDefinition {
-    pub fn try_load_from_path(p: impl AsRef<Path>) -> Result<Self> {
-        let content = fs::read_to_string(p)?;
-
-        Ok(serde_yaml::from_str(&content)?)
-    }
-
     /// Create an empty [CustomProviderDefinition] for tests
     #[cfg(test)]
     pub(crate) fn empty() -> CustomProviderDefinition {
@@ -60,16 +56,29 @@ impl Template for CustomProviderDefinition {
         self.command.required_variables()
     }
 
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        let file_ctx = ctx.for_config_file(file_source, None, self.variable_definitions.iter());
+
+        self.command
+            .validate_context(path, allowed_variables, file_source, &file_ctx)
+    }
+
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
         source: &Source,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let allowed_variables = ctx.for_config_file(source, self.variable_definitions.iter());
+        let file_ctx = ctx.for_config_file(source, None, self.variable_definitions.iter());
 
         self.command
-            .try_template_nested(path, "command_section", source, &allowed_variables)
+            .try_template_nested(path, "command_section", source, &file_ctx)
     }
 }
 
@@ -117,22 +126,45 @@ impl CustomProviderDeclaration {
         &self,
         file_source: &Source,
         ctx: &impl ResolutionContext,
-    ) -> Result<HashMap<String, CustomProviderDefinition>> {
+    ) -> Result<HashMap<String, (Source, CustomProviderDefinition)>, Vec<(String, providers::Error)>>
+    {
         let mut providers = HashMap::with_capacity(self.using.len());
+        let mut errs = Vec::new();
 
         for (provider_name, filename) in self.using.iter() {
-            let definition_source = self
-                .source
-                .with_child_path(filename)
-                .try_into_source(file_source, ctx)?;
-            let content = definition_source.try_get_file_content(ctx).await?;
-            let definition: CustomProviderDefinition = serde_yaml::from_str(&content)?;
-
-            providers.insert(provider_name.clone(), definition);
+            match load_one(self.source.with_child_path(filename), file_source, ctx).await {
+                Ok((src, def)) => {
+                    providers.insert(provider_name.clone(), (src, def));
+                }
+                Err(e) => errs.push((provider_name.clone(), e)),
+            }
         }
 
-        Ok(providers)
+        if errs.is_empty() {
+            Ok(providers)
+        } else {
+            errs.sort_by(|l, r| l.0.cmp(&r.0));
+            Err(errs)
+        }
     }
+}
+
+async fn load_one(
+    source: RawSource,
+    file_source: &Source,
+    ctx: &impl ResolutionContext,
+) -> providers::Result<(Source, CustomProviderDefinition)> {
+    let definition_source = source.try_into_source(file_source, ctx)?;
+    let content = definition_source.try_get_file_content(ctx).await?;
+    let raw: serde_yaml::Value = serde_yaml::from_str(&content)?;
+
+    if let Some(mapping) = raw.as_mapping()
+        && mapping.contains_key("custom_providers")
+    {
+        return Err(providers::Error::NestedCustomProvider);
+    }
+
+    Ok((definition_source, serde_yaml::from_value(raw)?))
 }
 
 #[cfg(test)]
@@ -373,8 +405,20 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(definitions.contains_key("my_provider"));
-        assert!(definitions.contains_key("my_other_provider"));
+        assert_eq!(
+            &definitions.get("my_provider").unwrap().0,
+            &Source::local(providers.join("my_provider.yaml").canonicalize().unwrap())
+        );
+
+        assert_eq!(
+            &definitions.get("my_other_provider").unwrap().0,
+            &Source::local(
+                providers
+                    .join("my_other_provider.yaml")
+                    .canonicalize()
+                    .unwrap()
+            )
+        );
     }
 
     #[tokio::test]
@@ -410,7 +454,21 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(definitions.contains_key("my_provider"));
-        assert!(definitions.contains_key("my_other_provider"));
+        let no_ref: Option<&str> = None;
+
+        assert_eq!(
+            &definitions.get("my_provider").unwrap().0,
+            &Source::github("my-org", "my-repo", "providers/my_provider.yaml", no_ref),
+        );
+
+        assert_eq!(
+            &definitions.get("my_other_provider").unwrap().0,
+            &Source::github(
+                "my-org",
+                "my-repo",
+                "providers/my_other_provider.yaml",
+                no_ref
+            ),
+        );
     }
 }

@@ -1,5 +1,5 @@
 //! Helpers for supporting minimal templating of user config files.
-use crate::{Source, VariableDefinition};
+use crate::{Source, VariableDefinition, formats::CustomProviderDefinition};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
@@ -7,10 +7,11 @@ use serde::{
 };
 use std::{
     borrow::{Borrow, Cow},
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt,
     hash::Hash,
     marker::PhantomData,
+    sync::Arc,
 };
 
 /// User facing descriptions of the reason that templating a [Field] failed.
@@ -34,12 +35,17 @@ pub enum ErrorKind {
     InvalidData,
 
     #[strum(
-        to_string = "Missing template variables definitions. Make sure the variable is defined in the scenario or environment config variable definitions"
+        to_string = "Missing template variables definition. Make sure the variable is defined in the scenario or environment config variable definitions"
     )]
-    MissingVariables,
+    MissingVariable,
 
     #[strum(
-        to_string = "Unknown templating variable. Make sure a variable is defined for this variable to resolve to."
+        to_string = "Missing custom provider definition. Make sure the provider is declared in the config file that is using it."
+    )]
+    MissingCustomProvider,
+
+    #[strum(
+        to_string = "Unknown templating variable. Make sure a value is defined for this variable to resolve to."
     )]
     UnknownVariable,
 }
@@ -66,6 +72,9 @@ pub struct TemplateContext {
     variables: HashMap<String, Scalar>,
     test_plan_source: Source,
     override_sources: HashMap<String, Source>,
+    resolve_for: FileType,
+    custom_provider_definitions: Arc<CustomProviderDefinitions>,
+    variable_definitions: Vec<VariableDefinition>,
 }
 
 impl TemplateContext {
@@ -73,17 +82,26 @@ impl TemplateContext {
         variables: HashMap<String, Scalar>,
         test_plan_source: Source,
         override_sources: HashMap<String, Source>,
+        custom_provider_definitions: Arc<CustomProviderDefinitions>,
     ) -> Self {
         Self {
             variables,
             test_plan_source,
             override_sources,
+            resolve_for: FileType::Environment,
+            custom_provider_definitions,
+            variable_definitions: Vec::new(),
         }
     }
 
     #[cfg(test)]
     pub(crate) fn new_stubbed(variables: HashMap<String, Scalar>) -> Self {
-        Self::new(variables, Source::local("/"), Default::default())
+        Self::new(
+            variables,
+            Source::local("/"),
+            Default::default(),
+            Default::default(),
+        )
     }
 
     pub fn variables(&self) -> &HashMap<String, Scalar> {
@@ -93,28 +111,22 @@ impl TemplateContext {
     /// Helper for filtering allowed templating variables based on [VariableDefinition]s present in a
     /// config file. This is also where defaults defined in variable definitions are applied, being
     /// overwritten by any explicitly provided variables coming from `all_variables`.
-    ///
-    /// # Constructing the definitions argument
-    ///
-    /// The trait bound here is to support both direct calls to `Vec<VariableDefinition>.iter()` and
-    /// calls to [Iterator::chain] to joining together multiple vecs of VariableDefinitions:
-    ///
-    /// ```ignore
-    /// // from EnvironmentConfig: both of these will work
-    /// let definitions = self.variable_definitions.iter();
-    /// let definitions = self.variable_definitions.iter().chain(self.setup.provides.iter());
-    /// ```
     pub(crate) fn for_config_file<'a>(
         &self,
         file_source: &Source,
-        definitions: impl Iterator<Item = &'a VariableDefinition> + Clone,
+        resolve_for: Option<FileType>,
+        variable_definitions: impl Iterator<Item = &'a VariableDefinition>,
     ) -> Self {
         let mut new = self.clone();
+        if let Some(resolve_for) = resolve_for {
+            new.resolve_for = resolve_for;
+        }
 
+        new.variable_definitions = variable_definitions.cloned().collect();
         new.variables
-            .retain(|k, _| definitions.clone().any(|val| &val.name == k));
+            .retain(|k, _| new.variable_definitions.iter().any(|val| &val.name == k));
 
-        for vd in definitions {
+        for vd in new.variable_definitions.iter() {
             if let Some(default) = vd.default.as_ref() {
                 new.variables.entry(vd.name.clone()).or_insert_with(|| {
                     new.override_sources
@@ -166,6 +178,50 @@ impl TemplateContext {
 
         Some((source, s))
     }
+
+    pub fn variable_definition(&self, key: impl AsRef<str>) -> Option<&VariableDefinition> {
+        self.variable_definitions
+            .iter()
+            .find(|vd| vd.name == key.as_ref())
+    }
+
+    pub fn custom_provider_definition<Q>(
+        &self,
+        key: &Q,
+    ) -> Option<&(Source, CustomProviderDefinition)>
+    where
+        String: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        self.custom_provider_definitions.get(key, self.resolve_for)
+    }
+}
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, Deserialize, Serialize)]
+pub enum FileType {
+    #[default]
+    Environment,
+    Scenario,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
+pub struct CustomProviderDefinitions {
+    pub(crate) test_plan: HashMap<String, (Source, CustomProviderDefinition)>,
+    pub(crate) scenario: HashMap<String, (Source, CustomProviderDefinition)>,
+    pub(crate) environment: HashMap<String, (Source, CustomProviderDefinition)>,
+}
+
+impl CustomProviderDefinitions {
+    fn get<Q>(&self, k: &Q, resolve_for: FileType) -> Option<&(Source, CustomProviderDefinition)>
+    where
+        String: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        match resolve_for {
+            FileType::Scenario => self.scenario.get(k).or_else(|| self.test_plan.get(k)),
+            FileType::Environment => self.environment.get(k).or_else(|| self.test_plan.get(k)),
+        }
+    }
 }
 
 /// In order to support controlled templating of config files with [Scalar] variables we make use of a
@@ -178,6 +234,29 @@ pub trait Template {
 
     /// The list of template variables that are required to template this type fully.
     fn required_variables(&self) -> Vec<String>;
+
+    /// Check that the provided [TemplateContext] is sufficient for templating all fields and
+    /// custom providers under this type.
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> Result<()>;
+
+    fn validate_context_nested(
+        &self,
+        path: &mut Vec<String>,
+        tail: &str,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> Result<()> {
+        let mut path = path.clone();
+        path.push(tail.to_string());
+        self.validate_context(&mut path, allowed_variables, file_source, ctx)
+    }
 
     /// Attempt to resolve all pending [Field]s, appending encountered errors to the `errs` vec
     /// provided.
@@ -247,6 +326,18 @@ where
             .unwrap_or_default()
     }
 
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> Result<()> {
+        self.as_ref()
+            .map(|inner| inner.validate_context(path, allowed_variables, file_source, ctx))
+            .unwrap_or(Ok(()))
+    }
+
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
@@ -271,6 +362,22 @@ where
         self.iter()
             .flat_map(|elem| elem.required_variables())
             .collect()
+    }
+
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> Result<()> {
+        let mut errs = ErrorBuilder::new();
+
+        for elem in self.iter() {
+            errs.append(elem.validate_context(path, allowed_variables, file_source, ctx));
+        }
+
+        errs.into_result(())
     }
 
     fn try_template(
@@ -302,6 +409,28 @@ where
         self.values()
             .flat_map(|elem| elem.required_variables())
             .collect()
+    }
+
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> Result<()> {
+        let mut errs = ErrorBuilder::new();
+
+        for (name, f) in self.iter() {
+            errs.append(f.validate_context_nested(
+                path,
+                name.as_ref(),
+                allowed_variables,
+                file_source,
+                ctx,
+            ));
+        }
+
+        errs.into_result(())
     }
 
     fn try_template(
@@ -423,8 +552,35 @@ where
 
     fn required_variables(&self) -> Vec<String> {
         match self {
-            Self::Pending(field_name) => vec![field_name.clone()],
-            _ => Vec::new(),
+            Self::Pending(var) => vec![var.clone()],
+            Self::Resolved(_) => Vec::new(),
+        }
+    }
+
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        _file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> Result<()> {
+        match self {
+            Self::Pending(var) if !allowed_variables.contains(var) => {
+                Err(Errors::new(ErrorKind::UnknownVariable, var, path))
+            }
+
+            Self::Pending(var) if ctx.get(var).is_none() => Err(Errors::new(
+                ErrorKind::MissingVariable,
+                format!(
+                    "  - {var}: {:?}",
+                    ctx.variable_definition(var)
+                        .map(|vd| vd.description.as_str())
+                        .unwrap_or_default()
+                ),
+                path,
+            )),
+
+            _ => Ok(()),
         }
     }
 
@@ -759,7 +915,8 @@ mod tests {
         ];
 
         let original = TemplateContext::new_stubbed(all_variables);
-        let for_config_file = original.for_config_file(&Source::local("/"), definitions.iter());
+        let for_config_file =
+            original.for_config_file(&Source::local("/"), None, definitions.iter());
 
         // a has an explicit variable so it overrides the default
         // b has an explicit variable and no default

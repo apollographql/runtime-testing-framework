@@ -1,0 +1,17 @@
+name: custom provider
+description: A templated custom provider
+variable_definitions:
+  - name: file_path
+    description: the path to file.txt
+    default: providers.txt
+command:
+  name: custom_provider.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    cat "$FILE" >> "$RTF_OUTPUT"
+file_providers:
+  - name: file.txt
+    env_var: FILE
+    kind: relative_path
+    path: "{{ file_path }}"

@@ -3,6 +3,7 @@
 Available file providers:
 
 - [Build Router From Source](#build-router-from-source)
+- [Custom Provider](#custom-provider)
 - [From command](#from-command)
 - [GitHub File](#github-file)
 - [GraphOS Canned Operations](#graphos-canned-operations)
@@ -59,6 +60,29 @@ Defaults to `"release"` if unset.
 Comma separated list of features to build the Router with.
 
 Defaults to `"default"` if unset.
+
+</details>
+
+## Custom Provider
+
+Use a custom provider to execute a command and produce a set of files.
+
+```yaml
+- name: "router-docker-compose"
+  env_var: ROUTER_DOCKER_COMPOSE
+  kind: custom_provider
+  type: "router-docker-compose"
+  graph_ref: "graph@variant"
+  router_version: "v2.x.y"
+  build_router_from_source: "false"
+```
+
+<details>
+<summary>Fields</summary>
+
+### `ty`
+
+The type of custom provider to use. This is the name of the custom provider to use.
 
 </details>
 

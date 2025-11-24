@@ -33,6 +33,22 @@ fn command_from_spec_completes() {
 }
 
 #[test]
+fn custom_provider_default_value_completes() {
+    prepare_rtf_run("resources/valid/custom-provider-default-value")
+        .assert()
+        .success()
+        .stdout(contains("default custom provider text file"));
+}
+
+#[test]
+fn custom_provider_templated_variable_completes() {
+    prepare_rtf_run("resources/valid/custom-provider-templated-variable")
+        .assert()
+        .success()
+        .stdout(contains("scenario specified custom provider text file"));
+}
+
+#[test]
 fn variables_override_works() {
     // default echo arg should be foo
     prepare_rtf_run("resources/valid/variable-overrides")

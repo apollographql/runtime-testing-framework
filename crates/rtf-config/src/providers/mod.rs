@@ -1,9 +1,8 @@
 //! Providers are how we expose the rest of the framework to user facing config.
+use crate::providers::{command::CommandProvider, file::FileProvider};
 use rtf_core::graphos::supergraph::FetchError;
 use serde::Serialize;
 use std::io;
-
-use crate::providers::{command::CommandProvider, file::FileProvider};
 
 pub mod command;
 pub mod file;
@@ -34,6 +33,9 @@ pub enum Error {
 
     #[error("Missing provider output for {name}")]
     MissingProviderOutput { name: String },
+
+    #[error("Custom providers are not permitted to make use of nested custom providers")]
+    NestedCustomProvider,
 
     #[error("Unable to resolve and write {name} file: {err}")]
     ResolveAndWriteFailed { name: String, err: String },

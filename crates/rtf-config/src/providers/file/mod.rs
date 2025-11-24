@@ -10,6 +10,7 @@ use rtf_derive::Template;
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
+    collections::HashSet,
     fmt, io,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -182,21 +183,38 @@ impl Template for NamedFileProvider {
         self.provider.required_variables()
     }
 
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        let tail = self.env_var.clone();
+        self.provider
+            .validate_context_nested(path, &tail, allowed_variables, file_source, ctx)
+    }
+
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
         file_source: &Source,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
-
         let tail = self.env_var.clone();
-        errs.append(
-            self.provider
-                .try_template_nested(path, &tail, file_source, ctx),
-        );
 
-        errs.into_result(())
+        match &mut self.provider {
+            FileProvider::CustomProvider(cp) => {
+                let from_command = cp.expand_and_template(path, file_source, ctx)?;
+                self.provider = FileProvider::FromCommand(from_command);
+            }
+
+            _ => self
+                .provider
+                .try_template_nested(path, &tail, file_source, ctx)?,
+        }
+
+        Ok(())
     }
 }
 
@@ -222,6 +240,7 @@ impl Check for NamedFileProvider {
 // the all_fields_templated test in this file
 pub enum FileProvider {
     BuildRouterFromSource(apollo::BuildRouterFromSource),
+    CustomProvider(custom::CustomProvider),
     FromCommand(utility::FromCommand),
     GithubFile(github::GithubFile),
     GraphosCannedOps(apollo::GraphosCannedOps),
@@ -261,6 +280,7 @@ macro_rules! enum_impl_file_provider {
 
 enum_impl_file_provider!(
     BuildRouterFromSource,
+    CustomProvider,
     FromCommand,
     GithubFile,
     GraphosCannedOps,
@@ -347,6 +367,17 @@ impl Template for RelativeFile {
 
     fn required_variables(&self) -> Vec<String> {
         self.path.required_variables()
+    }
+
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &Source,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        self.path
+            .validate_context_nested(path, "path", allowed_variables, file_source, ctx)
     }
 
     fn try_template(
@@ -648,6 +679,15 @@ mod tests {
         features: "{{ features }}"
     "#
     );
+    const CUSTOM_PROVIDER_YAML: &str = indoc!(
+        r#"
+        kind: custom_provider
+        type: "my-custom-provider"
+        key1: "{{ value1 }}"
+        key2: "value2"
+        key3: "value3"
+        "#
+    );
     const GITHUB_FILE: &str = indoc!(
         r#"
         kind: github_file
@@ -778,6 +818,7 @@ mod tests {
     );
 
     #[test_case(BUILD_ROUTER_FROM_SOURCE, &["git_ref", "rust_version", "profile", "features"]; "build_router_from_source")]
+    #[test_case(CUSTOM_PROVIDER_YAML, &["value1"]; "custom_provider")]
     #[test_case(GITHUB_FILE, &["org", "repo", "path", "git_ref"]; "github_file")]
     #[test_case(GRAPHOS_CANNED_OPS, &["graph_ref", "top_n", "skip_mutations"]; "graphos_canned_ops")]
     #[test_case(GRAPHOS_CANNED_OPS_BY_ID, &["graph_ref", "op_1", "op_2"]; "graphos_canned_ops_by_id")]
