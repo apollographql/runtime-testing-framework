@@ -143,8 +143,8 @@ impl SupergraphDetails {
 
     /// Attempt to rewrite the connector url directives in this schema to use the provided urls
     /// instead.
-    pub fn rewrite_connector_urls(&mut self) -> Result<(), &'static str> {
-        match rewrite_connector_urls(&self.supergraph_sdl) {
+    pub fn rewrite_connector_urls(&mut self, base_url: &str) -> Result<(), &'static str> {
+        match rewrite_connector_urls(&self.supergraph_sdl, base_url) {
             Some(new_sdl) => {
                 self.supergraph_sdl = new_sdl;
                 Ok(())
@@ -294,8 +294,7 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
 // FIXME: this needs actual logging and testing!
 /// Rewrite the given supergraph SDL to set the provided connector URLs in place of what is
 /// currently there.
-fn rewrite_connector_urls(sdl: &str) -> Option<String> {
-    let base_url = "http://host.docker.internal:3000";
+fn rewrite_connector_urls(sdl: &str, base_url: &str) -> Option<String> {
     let mut schema = Schema::parse(sdl, "supergraph.graphql").unwrap();
 
     for schema_type in vec!["Query", "Mutation"] {
@@ -489,10 +488,10 @@ mod tests {
     #[test]
     fn rewriting_connector_urls_works() {
         let sdl = include_str!("../../../resources/test_data/connectors/connectors.graphql");
-        let s = rewrite_connector_urls(sdl).unwrap();
+        let s = rewrite_connector_urls(sdl, "http://host.docker.internal:3000").unwrap();
 
         assert!(s.contains(
-            r#"{name: "ecomm", http: {baseURL: "http://localhost:3000", headers: []}})"#
+            r#"{name: "ecomm", http: {baseURL: "http://host.docker.internal:3000", headers: []}})"#
         ));
     }
 
@@ -500,8 +499,8 @@ mod tests {
     fn rewriting_sourceless_connector_urls_works() {
         let sdl =
             include_str!("../../../resources/test_data/connectors/sourceless-connectors.graphql");
-        let s = rewrite_connector_urls(sdl).unwrap();
+        let s = rewrite_connector_urls(sdl, "http://host.docker.internal:3000").unwrap();
 
-        assert!(s.contains(r#"[Product] @join__directive(graphs: [PRODUCTS], name: "connect", args: {http: {GET: "http://localhost:3000/products"}, selection: "$.products {\nid\nname\ndescription\n}"})"#));
+        assert!(s.contains(r#"[Product] @join__directive(graphs: [PRODUCTS], name: "connect", args: {http: {GET: "http://host.docker.internal:3000/products"}, selection: "$.products {\nid\nname\ndescription\n}"})"#));
     }
 }
