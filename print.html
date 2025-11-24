@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-8bc9a972.js";
+            window.path_to_searchindex_js = "searchindex-61cb3307.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-491d8d1c.js"></script>
@@ -1252,6 +1252,7 @@ worrying about the providers running multiple times.</p>
 <p>Available file providers:</p>
 <ul>
 <li><a href="#build-router-from-source">Build Router From Source</a></li>
+<li><a href="#custom-provider">Custom Provider</a></li>
 <li><a href="#from-command">From command</a></li>
 <li><a href="#github-file">GitHub File</a></li>
 <li><a href="#graphos-canned-operations">GraphOS Canned Operations</a></li>
@@ -1293,6 +1294,21 @@ branch name, or tag.</p>
 <h3 id="features"><a class="header" href="#features"><code>features</code></a></h3>
 <p>Comma separated list of features to build the Router with.</p>
 <p>Defaults to <code>"default"</code> if unset.</p>
+</details>
+<h2 id="custom-provider"><a class="header" href="#custom-provider">Custom Provider</a></h2>
+<p>Use a custom provider to execute a command and produce a set of files.</p>
+<pre><code class="language-yaml">- name: "router-docker-compose"
+  env_var: ROUTER_DOCKER_COMPOSE
+  kind: custom_provider
+  type: "router-docker-compose"
+  graph_ref: "graph@variant"
+  router_version: "v2.x.y"
+  build_router_from_source: "false"
+</code></pre>
+<details>
+<summary>Fields</summary>
+<h3 id="ty"><a class="header" href="#ty"><code>ty</code></a></h3>
+<p>The type of custom provider to use. This is the name of the custom provider to use.</p>
 </details>
 <h2 id="from-command"><a class="header" href="#from-command">From command</a></h2>
 <p>Run a command provider and use its output as a file provider resource.</p>
