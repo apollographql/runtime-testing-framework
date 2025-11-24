@@ -72,9 +72,10 @@ impl GraphosSupergraph {
                 .expect("unable to rewrite subgraph URLs");
         }
 
-        if let Some(_connector_format) = &self.with_connector_overrides {
+        if let Some(connector_format) = &self.with_connector_overrides {
             let sg = Arc::make_mut(&mut sg);
-            sg.rewrite_connector_urls()
+            let connector_url = connector_format.connector_base_url();
+            sg.rewrite_connector_urls(&connector_url)
                 .expect("unable to rewrite connector URLs");
         }
 
@@ -372,6 +373,22 @@ impl UrlFormat {
             format!("{base_url}:{port}/{name}")
         } else {
             format!("{base_url}:{port}")
+        }
+    }
+
+    /// Generate the base URL for connector mock services.
+    ///
+    /// Unlike subgraphs which may have different URLs per subgraph, connectors
+    /// all point to the same connector-mock service.
+    fn connector_base_url(&self) -> String {
+        match self {
+            UrlFormat::Localhost => "http://localhost:3000".to_string(),
+            UrlFormat::Docker => "http://connector-mock:3000".to_string(),
+            UrlFormat::Custom(config) => {
+                let base_url = config.base_url.as_resolved();
+                let base_port = *config.base_port.as_resolved();
+                format!("{base_url}:{base_port}")
+            }
         }
     }
 }
