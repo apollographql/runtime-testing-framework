@@ -2,8 +2,7 @@ name: Publish Connector Mock
 
 on:
   push:
-    branches:
-      - override-connector-urls
+    branches: [ override-connector-urls ]
     paths:
       - "images/connector-mock/**"
 
