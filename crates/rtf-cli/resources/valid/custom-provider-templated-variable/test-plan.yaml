@@ -1,0 +1,34 @@
+name: custom-provider
+description: |
+  Check that a custom provider can be imported and executed via the test plan using a 
+  variable templated via the scenario or test plan config
+
+variables:
+  scenario_file_path: scenario/scenario.txt
+
+custom_providers:
+  - kind: local
+    relative_path: providers
+    using:
+      my_custom_provider: my-custom-provider.yaml
+
+scenario:
+  from:
+    kind: local
+    relative_path: scenario/scenario.yaml
+
+environment:
+  inline:
+    name: environment-custom-provider
+    description: "No environment config is required for this test"
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: "#!/usr/bin/env sh"
+
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: "#!/usr/bin/env sh"

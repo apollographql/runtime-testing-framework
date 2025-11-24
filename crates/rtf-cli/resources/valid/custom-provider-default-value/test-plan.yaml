@@ -1,0 +1,31 @@
+name: custom-provider-default-value
+description: |
+  Check that a custom provider can be imported and executed via the test plan
+  using a default variable value
+
+custom_providers:
+  - kind: local
+    relative_path: providers
+    using:
+      my_custom_provider: my-custom-provider.yaml
+
+scenario:
+  from:
+    kind: local
+    relative_path: scenario.yaml
+
+environment:
+  inline:
+    name: environment-custom-provider
+    description: "No environment config is required for this test"
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: "#!/usr/bin/env sh"
+
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: "#!/usr/bin/env sh"

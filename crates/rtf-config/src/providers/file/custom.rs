@@ -159,8 +159,22 @@ impl Template for CustomProvider {
 
         match ctx.custom_provider_definition(&self.ty) {
             Some((def_src, def)) => {
+                // We don't reuse `build_templating_context` here as that actually resolves the
+                // fields in our `arguments` map and cares about the value associated with each
+                // variable. Here, all we care about is the fact that the correct variables are
+                // defined.
                 let ctx = ctx.for_config_file(def_src, None, def.variable_definitions.iter());
-                let allowed_variables: HashSet<&String> = self.arguments.keys().collect();
+                let allowed_variables: HashSet<&String> = self
+                    .arguments
+                    .keys()
+                    .chain(
+                        def.variable_definitions
+                            .iter()
+                            .filter(|vd| vd.default.is_some())
+                            .map(|vd| &vd.name),
+                    )
+                    .collect();
+
                 errs.append(def.validate_context(path, &allowed_variables, def_src, &ctx));
             }
 
@@ -217,9 +231,10 @@ mod tests {
             command::CommandSection,
             file::{FileProvider, NamedFileProvider, RelativeFile},
         },
-        templating::ErrorKind,
+        templating::{CustomProviderDefinitions, ErrorKind},
     };
     use simple_test_case::test_case;
+    use std::sync::Arc;
 
     // A helper function for testing the `build_templating_context` method
     fn test_build_templating_context(
@@ -525,5 +540,56 @@ mod tests {
         let ctx = Context::new();
 
         let _res = custom_provider.try_get_file_content(&ctx).await;
+    }
+
+    #[test]
+    fn custom_provider_validate_context_uses_variable_defaults() {
+        let definition = CustomProviderDefinition {
+            variable_definitions: vec![VariableDefinition {
+                name: "var_with_default".to_string(),
+                description: "".to_string(),
+                // Attempting to validate a context without any variables using this definition
+                // should succeed due to this default value
+                default: Some(1.into()),
+            }],
+            command: CommandSection {
+                file_providers: vec![NamedFileProvider {
+                    name: "relative.txt".to_string(),
+                    env_var: "RELATIVE".to_string(),
+                    provider: FileProvider::RelativePath(RelativeFile {
+                        path: Field::Pending("var_with_default".into()),
+                        src: None,
+                    }),
+                }],
+                ..CommandSection::empty()
+            },
+            ..CustomProviderDefinition::empty()
+        };
+
+        let custom_provider = CustomProvider {
+            ty: "my-custom-provider".to_string(),
+            arguments: HashMap::new(),
+            src: None,
+        };
+
+        let res = custom_provider.validate_context(
+            &mut Vec::new(),
+            &HashSet::new(),
+            &Source::local("/config.yaml"),
+            &TemplateContext::new(
+                HashMap::new(),
+                Source::local("/test-plan.yaml"),
+                HashMap::new(),
+                Arc::new(CustomProviderDefinitions {
+                    test_plan: HashMap::from([(
+                        "my-custom-provider".to_string(),
+                        (Source::local("/providers/custom.yaml"), definition),
+                    )]),
+                    ..Default::default()
+                }),
+            ),
+        );
+
+        assert!(res.is_ok(), "expected validation to succeed, got {res:?}");
     }
 }

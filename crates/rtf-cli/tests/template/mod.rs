@@ -14,6 +14,8 @@ fn is_executable() {
 #[test_case("backwards-compatible-variable-config"; "backwards compatible variable config")]
 #[test_case("command-from-spec"; "command from spec")]
 #[test_case("custom-matrix-variant-names"; "custom matrix variant names")]
+#[test_case("custom-provider-default-value"; "custom provider default value")]
+#[test_case("custom-provider-templated-variable"; "custom provider templated variable")]
 #[test_case("matrix-include"; "matrix include")]
 #[test_case("matrix-variables"; "matrix variables")]
 #[test_case("variable-overrides"; "variable overrides")]

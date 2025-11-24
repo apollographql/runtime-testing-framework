@@ -1,0 +1,13 @@
+name: scenario-custom-provider
+description: "Check that a custom provider works"
+command:
+  name: command.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    cat "$CUSTOM"
+file_providers:
+  - name: custom-provider.txt
+    env_var: CUSTOM
+    kind: custom_provider
+    type: my_custom_provider
