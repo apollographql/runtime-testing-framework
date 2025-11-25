@@ -92,4 +92,20 @@ pub enum Command {
         #[arg(long = "ref", requires = "github")]
         git_ref: Option<String>,
     },
+
+    /// Check a custom provider definition without executing it
+    CustomProviderCheck {
+        /// Relative path to the custom provider definition file
+        definition_path: String,
+    },
+
+    /// Execute a custom provider definition
+    CustomProviderRun {
+        /// Relative path to the custom provider definition file
+        definition_path: String,
+
+        /// Output directory for provider execution
+        #[arg(long, default_value = "output")]
+        outdir: String,
+    },
 }

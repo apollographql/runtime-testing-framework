@@ -31,6 +31,8 @@ complete -c rtf -n "__fish_rtf_needs_command" -s h -l help -d 'Print help'
 complete -c rtf -n "__fish_rtf_needs_command" -f -a "run" -d 'Check and run a test plan'
 complete -c rtf -n "__fish_rtf_needs_command" -f -a "expand-matrix" -d 'Expand a test plan matrix into JSON'
 complete -c rtf -n "__fish_rtf_needs_command" -f -a "template" -d 'Template a test plan using provided variables, outputting the resulting config to stdout'
+complete -c rtf -n "__fish_rtf_needs_command" -f -a "custom-provider-check" -d 'Check a custom provider definition without executing it'
+complete -c rtf -n "__fish_rtf_needs_command" -f -a "custom-provider-run" -d 'Execute a custom provider definition'
 complete -c rtf -n "__fish_rtf_needs_command" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c rtf -n "__fish_rtf_using_subcommand run" -l github -d 'Execute a test plan file in GitHub instead of from a local path' -r
 complete -c rtf -n "__fish_rtf_using_subcommand run" -l ref -d 'Optional git ref to pull files from when using --github' -r
@@ -51,7 +53,18 @@ complete -c rtf -n "__fish_rtf_using_subcommand template" -l vars -d 'Path to a 
 complete -c rtf -n "__fish_rtf_using_subcommand template" -l check -d 'Run a static check of the resulting test plan after templating'
 complete -c rtf -n "__fish_rtf_using_subcommand template" -s v -l verbose -d 'Flag to control logging verbosity. Default level is `warn`. `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`'
 complete -c rtf -n "__fish_rtf_using_subcommand template" -s h -l help -d 'Print help'
-complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template help" -f -a "run" -d 'Check and run a test plan'
-complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template help" -f -a "expand-matrix" -d 'Expand a test plan matrix into JSON'
-complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template help" -f -a "template" -d 'Template a test plan using provided variables, outputting the resulting config to stdout'
-complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c rtf -n "__fish_rtf_using_subcommand custom-provider-check" -l var -d 'A single additional templating variable in the form "key=value"' -r
+complete -c rtf -n "__fish_rtf_using_subcommand custom-provider-check" -l vars -d 'Path to a JSON file containing additional template variables' -r -F
+complete -c rtf -n "__fish_rtf_using_subcommand custom-provider-check" -s v -l verbose -d 'Flag to control logging verbosity. Default level is `warn`. `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`'
+complete -c rtf -n "__fish_rtf_using_subcommand custom-provider-check" -s h -l help -d 'Print help'
+complete -c rtf -n "__fish_rtf_using_subcommand custom-provider-run" -l outdir -d 'Output directory for provider execution' -r
+complete -c rtf -n "__fish_rtf_using_subcommand custom-provider-run" -l var -d 'A single additional templating variable in the form "key=value"' -r
+complete -c rtf -n "__fish_rtf_using_subcommand custom-provider-run" -l vars -d 'Path to a JSON file containing additional template variables' -r -F
+complete -c rtf -n "__fish_rtf_using_subcommand custom-provider-run" -s v -l verbose -d 'Flag to control logging verbosity. Default level is `warn`. `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`'
+complete -c rtf -n "__fish_rtf_using_subcommand custom-provider-run" -s h -l help -d 'Print help'
+complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider-check custom-provider-run help" -f -a "run" -d 'Check and run a test plan'
+complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider-check custom-provider-run help" -f -a "expand-matrix" -d 'Expand a test plan matrix into JSON'
+complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider-check custom-provider-run help" -f -a "template" -d 'Template a test plan using provided variables, outputting the resulting config to stdout'
+complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider-check custom-provider-run help" -f -a "custom-provider-check" -d 'Check a custom provider definition without executing it'
+complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider-check custom-provider-run help" -f -a "custom-provider-run" -d 'Execute a custom provider definition'
+complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider-check custom-provider-run help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'

@@ -71,6 +71,29 @@ _arguments "${_arguments_options[@]}" : \
 '::test_plan_path -- Relative path to the test-plan.yaml file that should be templated:_default' \
 && ret=0
 ;;
+(custom-provider-check)
+_arguments "${_arguments_options[@]}" : \
+'*--var=[A single additional templating variable in the form "key=value"]:VAR:_default' \
+'--vars=[Path to a JSON file containing additional template variables]:VARS:_files' \
+'*-v[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'*--verbose[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':definition_path -- Relative path to the custom provider definition file:_default' \
+&& ret=0
+;;
+(custom-provider-run)
+_arguments "${_arguments_options[@]}" : \
+'--outdir=[Output directory for provider execution]:OUTDIR:_default' \
+'*--var=[A single additional templating variable in the form "key=value"]:VAR:_default' \
+'--vars=[Path to a JSON file containing additional template variables]:VARS:_files' \
+'*-v[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'*--verbose[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':definition_path -- Relative path to the custom provider definition file:_default' \
+&& ret=0
+;;
 (help)
 _arguments "${_arguments_options[@]}" : \
 ":: :_rtf__help_commands" \
@@ -95,6 +118,14 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(custom-provider-check)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(custom-provider-run)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
 (help)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -114,9 +145,21 @@ _rtf_commands() {
 'run:Check and run a test plan' \
 'expand-matrix:Expand a test plan matrix into JSON' \
 'template:Template a test plan using provided variables, outputting the resulting config to stdout' \
+'custom-provider-check:Check a custom provider definition without executing it' \
+'custom-provider-run:Execute a custom provider definition' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'rtf commands' commands "$@"
+}
+(( $+functions[_rtf__custom-provider-check_commands] )) ||
+_rtf__custom-provider-check_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf custom-provider-check commands' commands "$@"
+}
+(( $+functions[_rtf__custom-provider-run_commands] )) ||
+_rtf__custom-provider-run_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf custom-provider-run commands' commands "$@"
 }
 (( $+functions[_rtf__expand-matrix_commands] )) ||
 _rtf__expand-matrix_commands() {
@@ -129,9 +172,21 @@ _rtf__help_commands() {
 'run:Check and run a test plan' \
 'expand-matrix:Expand a test plan matrix into JSON' \
 'template:Template a test plan using provided variables, outputting the resulting config to stdout' \
+'custom-provider-check:Check a custom provider definition without executing it' \
+'custom-provider-run:Execute a custom provider definition' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'rtf help commands' commands "$@"
+}
+(( $+functions[_rtf__help__custom-provider-check_commands] )) ||
+_rtf__help__custom-provider-check_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf help custom-provider-check commands' commands "$@"
+}
+(( $+functions[_rtf__help__custom-provider-run_commands] )) ||
+_rtf__help__custom-provider-run_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf help custom-provider-run commands' commands "$@"
 }
 (( $+functions[_rtf__help__expand-matrix_commands] )) ||
 _rtf__help__expand-matrix_commands() {
