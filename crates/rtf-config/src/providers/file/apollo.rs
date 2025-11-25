@@ -383,7 +383,7 @@ impl UrlFormat {
     fn connector_base_url(&self) -> String {
         match self {
             UrlFormat::Localhost => "http://localhost:3000".to_string(),
-            UrlFormat::Docker => "http://connector-mock:3000".to_string(),
+            UrlFormat::Docker => "http://connector:3000".to_string(),
             UrlFormat::Custom(config) => {
                 let base_url = config.base_url.as_resolved();
                 let base_port = *config.base_port.as_resolved();
