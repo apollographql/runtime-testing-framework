@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-61cb3307.js";
+            window.path_to_searchindex_js = "searchindex-25af86ba.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-491d8d1c.js"></script>
@@ -3400,6 +3400,9 @@ becoming invalid if it now produces non-unique names.</p>
 <li><a href="#rtf-run"><code>rtf run</code>↴</a></li>
 <li><a href="#rtf-expand-matrix"><code>rtf expand-matrix</code>↴</a></li>
 <li><a href="#rtf-template"><code>rtf template</code>↴</a></li>
+<li><a href="#rtf-custom-provider"><code>rtf custom-provider</code>↴</a></li>
+<li><a href="#rtf-custom-provider-template"><code>rtf custom-provider template</code>↴</a></li>
+<li><a href="#rtf-custom-provider-run"><code>rtf custom-provider run</code>↴</a></li>
 </ul>
 <h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
 <p>A swiss army knife for testing the Apollo Runtime</p>
@@ -3409,6 +3412,7 @@ becoming invalid if it now produces non-unique names.</p>
 <li><code>run</code> — Check and run a test plan</li>
 <li><code>expand-matrix</code> — Expand a test plan matrix into JSON</li>
 <li><code>template</code> — Template a test plan using provided variables, outputting the resulting config to stdout</li>
+<li><code>custom-provider</code> — Work directly with custom file provider definitions</li>
 </ul>
 <h6 id="options"><a class="header" href="#options"><strong>Options:</strong></a></h6>
 <ul>
@@ -3459,6 +3463,39 @@ becoming invalid if it now produces non-unique names.</p>
 <li><code>--check</code> — Run a static check of the resulting test plan after templating</li>
 <li><code>--github &lt;ORG/REPO/PATH&gt;</code> — Template a test plan file in GitHub instead of from a local path</li>
 <li><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</li>
+</ul>
+<h2 id="rtf-custom-provider"><a class="header" href="#rtf-custom-provider"><code>rtf custom-provider</code></a></h2>
+<p>Work directly with custom file provider definitions</p>
+<p><strong>Usage:</strong> <code>rtf custom-provider &lt;COMMAND&gt;</code></p>
+<h6 id="subcommands-1"><a class="header" href="#subcommands-1"><strong>Subcommands:</strong></a></h6>
+<ul>
+<li><code>template</code> — Template a custom provider definition, outputting the resulting config to stdout</li>
+<li><code>run</code> — Execute a custom provider definition</li>
+</ul>
+<h2 id="rtf-custom-provider-template"><a class="header" href="#rtf-custom-provider-template"><code>rtf custom-provider template</code></a></h2>
+<p>Template a custom provider definition, outputting the resulting config to stdout</p>
+<p><strong>Usage:</strong> <code>rtf custom-provider template [OPTIONS] &lt;DEFINITION_PATH&gt;</code></p>
+<h6 id="arguments-3"><a class="header" href="#arguments-3"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;DEFINITION_PATH&gt;</code> — Relative path to the custom provider definition file</li>
+</ul>
+<h6 id="options-4"><a class="header" href="#options-4"><strong>Options:</strong></a></h6>
+<ul>
+<li><code>--check</code> — Run a static check of the resulting test plan after templating</li>
+</ul>
+<h2 id="rtf-custom-provider-run"><a class="header" href="#rtf-custom-provider-run"><code>rtf custom-provider run</code></a></h2>
+<p>Execute a custom provider definition</p>
+<p><strong>Usage:</strong> <code>rtf custom-provider run [OPTIONS] &lt;DEFINITION_PATH&gt;</code></p>
+<h6 id="arguments-4"><a class="header" href="#arguments-4"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;DEFINITION_PATH&gt;</code> — Relative path to the custom provider definition file</li>
+</ul>
+<h6 id="options-5"><a class="header" href="#options-5"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--outdir &lt;OUTDIR&gt;</code> — Output directory for provider execution</p>
+<p>Default value: <code>output</code></p>
+</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="glossary"><a class="header" href="#glossary">Glossary</a></h1>
