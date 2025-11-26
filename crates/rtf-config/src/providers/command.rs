@@ -46,17 +46,15 @@ pub struct CommandSection {
 impl CommandSection {
     /// Run all of the [FileProviders][0] associated with this command and write out their file
     /// contents to the specified directory before executing the command with the specified
-    /// environment, returning the the output path passed to the command. If no `output_path` is
-    /// specified it will be defaulted to `out_dir`/[OUTPUT_PATH].
+    /// environment, returning the the output path passed to the command.
     ///
     /// [0]: crate::providers::file::FileProvider
     pub async fn run_providers_and_execute(
         &self,
         out_dir: &Path,
-        output_path: Option<PathBuf>,
+        output_path: PathBuf,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<PathBuf> {
-        let output_path = output_path.unwrap_or_else(|| out_dir.join(OUTPUT_PATH));
         self.run_providers(out_dir, ctx).await?;
         if let Err(e) = self.execute(out_dir, &output_path, ctx) {
             return Err(providers::Error::CommandFailed {
@@ -84,7 +82,9 @@ impl CommandSection {
         out_dir: &Path,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
-        let output_path = self.run_providers_and_execute(out_dir, None, ctx).await?;
+        let output_path = self
+            .run_providers_and_execute(out_dir, out_dir.join(OUTPUT_PATH), ctx)
+            .await?;
 
         try_read_output_and_remove(&output_path, ctx)
     }

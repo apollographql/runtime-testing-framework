@@ -244,7 +244,7 @@ impl ResolveAndWrite for FromCommand {
         let target = target.as_ref();
         let out_dir = ctx.dir_containing(target);
         self.inner
-            .run_providers_and_execute(&out_dir, Some(target.into()), ctx)
+            .run_providers_and_execute(&out_dir, target.to_path_buf(), ctx)
             .await?;
 
         Ok(())

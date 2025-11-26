@@ -10,6 +10,7 @@ use rtf_config::{
     checks::Check,
     context::ResolutionContext,
     formats::CustomProviderDefinition,
+    providers::command::OUTPUT_PATH,
     templating::{Template, TemplateContext},
 };
 use std::env::current_dir;
@@ -98,7 +99,7 @@ pub async fn run_custom_provider(
     info!("executing custom provider");
     definition
         .command
-        .run_providers_and_execute(&out_dir, None, &mut ctx)
+        .run_providers_and_execute(&out_dir, out_dir.join(OUTPUT_PATH), &mut ctx)
         .await?;
 
     info!("writing out resolved provider and variables");
