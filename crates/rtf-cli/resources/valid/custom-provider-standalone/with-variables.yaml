@@ -1,0 +1,13 @@
+name: provider with variables
+description: A custom provider that requires variables
+variable_definitions:
+  - name: message
+    description: The message to output
+command:
+  name: echo-message.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "$MESSAGE" >> "$RTF_OUTPUT"
+env_vars:
+  MESSAGE: "{{ message }}"

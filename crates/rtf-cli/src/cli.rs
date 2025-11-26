@@ -93,14 +93,27 @@ pub enum Command {
         git_ref: Option<String>,
     },
 
-    /// Check a custom provider definition without executing it
-    CustomProviderCheck {
+    /// Work directly with custom file provider definitions
+    CustomProvider {
+        #[clap(subcommand)]
+        subcommand: CustomProviderSubcommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum CustomProviderSubcommand {
+    /// Template a custom provider definition, outputting the resulting config to stdout
+    Template {
         /// Relative path to the custom provider definition file
         definition_path: String,
+
+        /// Run a static check of the resulting test plan after templating
+        #[arg(long, action)]
+        check: bool,
     },
 
     /// Execute a custom provider definition
-    CustomProviderRun {
+    Run {
         /// Relative path to the custom provider definition file
         definition_path: String,
 

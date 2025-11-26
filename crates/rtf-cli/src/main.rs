@@ -2,10 +2,10 @@ use anyhow::Context;
 use clap::Parser;
 use rtf_cli::{
     LOG_LEVEL_ENV_VAR,
-    cli::{Args, Command},
+    cli::{Args, Command, CustomProviderSubcommand},
     commands::{
         plumbing::{
-            check_custom_provider, expand_test_plan_matrix, run_custom_provider,
+            expand_test_plan_matrix, run_custom_provider, template_custom_provider,
             template_test_plan_github, template_test_plan_local,
         },
         porcelain::{check_and_run_github_test_plan, check_and_run_local_test_plan},
@@ -84,13 +84,20 @@ async fn main() {
             (Some(_), Some(_), _) => unreachable!(),
         },
 
-        Command::CustomProviderCheck { definition_path } => {
-            check_custom_provider(&definition_path, variables).await
-        }
+        Command::CustomProvider {
+            subcommand:
+                CustomProviderSubcommand::Template {
+                    definition_path,
+                    check,
+                },
+        } => template_custom_provider(&definition_path, variables, check).await,
 
-        Command::CustomProviderRun {
-            definition_path,
-            outdir,
+        Command::CustomProvider {
+            subcommand:
+                CustomProviderSubcommand::Run {
+                    definition_path,
+                    outdir,
+                },
         } => run_custom_provider(&definition_path, variables, &outdir).await,
     };
 
