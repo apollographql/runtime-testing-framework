@@ -1,7 +1,9 @@
 🧪
+
 # RTF is the Apollo Runtime Testing Framework - a CLI tool for executing test plans against GraphOS services.
 
 ## Build & Test Commands
+
 ```bash
 # Install from source
 cargo install --path crates/rtf-cli
@@ -35,7 +37,8 @@ mise run fix-spelling     # auto-fix typos
 ### Crate Structure
 
 - **rtf-cli**: Command-line interface, integration tests in `tests/` directory
-- **rtf-config**: Config file parsing (TestPlan, Environment, Scenario YAML files), providers, templating, validation
+- **rtf-config**: Config file parsing (TestPlan, Environment, Scenario YAML files), providers,
+  templating, validation
 - **rtf-core**: Core functionality - GraphOS and GitHub API calls, wrapped for CLI/server use
 - **rtf-derive**: Proc macros for config traits
 - **rtf-docgen**: Documentation generation utilities
@@ -57,11 +60,13 @@ mise run fix-spelling     # auto-fix typos
 
 ### Provider IO Pattern
 
-All IO in providers must go through the `ResolutionContext` trait passed to methods. This enables mocking in tests and CLI control over execution.
+All IO in providers must go through the `ResolutionContext` trait passed to methods. This enables
+mocking in tests and CLI control over execution.
 
 ### Error Handling
 
-Use `ErrorBuilder` from `rtf-config::error` to collect and report multiple errors in batch operations (templating, validation, static analysis).
+Use `ErrorBuilder` from `rtf-config::error` to collect and report multiple errors in batch
+operations (templating, validation, static analysis).
 
 ## Testing Conventions
 
@@ -70,4 +75,11 @@ Test naming follows hierarchies documented in `docs/src/developer/testing/`. Key
 - **rtf-core**: `module::path::tests::function_test_case`
 - **rtf-cli**: `env_dependency::command::flags_test_case`
 
-CLI tests are integration tests using `assert_cmd`, `assert_fs`, and `predicates`. Tests requiring API tokens (GitHub, Apollo) are `#[ignore]` by default.
+CLI tests are integration tests using `assert_cmd`, `assert_fs`, and `predicates`. Tests requiring
+API tokens (GitHub, Apollo) are `#[ignore]` by default.
+
+## Forbidden behaviours
+
+- You MUST NOT delete existing tests without explicit confirmation
+  - This applies even if you think the test in question is now obsolete or has compile errors
+- You MUST NOT break public APIs without explicit confirmation
