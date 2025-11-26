@@ -193,3 +193,14 @@ fn load_and_resolve_from_github_missing_token_fails() {
 
     res.failure().stderr(contains("no GitHub client available"));
 }
+
+#[test]
+fn from_command_writes_to_same_providers_directory() {
+    let mut cmd = prepare_rtf_run("resources/valid/from-command-provider-dir");
+    cmd.assert().success();
+
+    // The nested file provider (input.txt) should be in output/providers/
+    cmd.assert_path_exists("output/providers/input.txt");
+    cmd.assert_path_exists("output/providers/generate-file.sh");
+    cmd.assert_path_exists("output/providers/from_command_output.txt");
+}

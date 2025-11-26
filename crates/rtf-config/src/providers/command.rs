@@ -46,18 +46,17 @@ pub struct CommandSection {
 impl CommandSection {
     /// Run all of the [FileProviders][0] associated with this command and write out their file
     /// contents to the specified directory before executing the command with the specified
-    /// environment, returning the the output path passed to the command. If no `output_path` is
-    /// specified it will be defaulted to `out_dir`/[OUTPUT_PATH].
+    /// environment, returning the the output path passed to the command.
     ///
     /// [0]: crate::providers::file::FileProvider
     pub async fn run_providers_and_execute(
         &self,
         out_dir: &Path,
-        output_path: Option<PathBuf>,
+        output_path: PathBuf,
+        providers_dir: PathBuf,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<PathBuf> {
-        let output_path = output_path.unwrap_or_else(|| out_dir.join(OUTPUT_PATH));
-        self.run_providers(out_dir, ctx).await?;
+        self.run_providers(&providers_dir, ctx).await?;
         if let Err(e) = self.execute(out_dir, &output_path, ctx) {
             return Err(providers::Error::CommandFailed {
                 name: self.command.name.to_string(),
@@ -84,7 +83,14 @@ impl CommandSection {
         out_dir: &Path,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
-        let output_path = self.run_providers_and_execute(out_dir, None, ctx).await?;
+        let output_path = self
+            .run_providers_and_execute(
+                out_dir,
+                out_dir.join(OUTPUT_PATH),
+                out_dir.join(PROVIDER_DIR),
+                ctx,
+            )
+            .await?;
 
         try_read_output_and_remove(&output_path, ctx)
     }
@@ -167,11 +173,9 @@ impl CommandSection {
     /// [0]: crate::providers::file::FileProvider
     pub async fn run_providers(
         &self,
-        out_dir: &Path,
+        providers_dir: &Path,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
-        let provider_dir = out_dir.join(PROVIDER_DIR);
-
         if ctx
             .known_provider_output_path(Provider::Command {
                 name: &self.command.name,
@@ -180,7 +184,7 @@ impl CommandSection {
             .is_none()
         {
             trace!(name=%self.command.name, "running command provider");
-            let file_path = provider_dir.join(&self.command.name);
+            let file_path = providers_dir.join(&self.command.name);
             self.command
                 .command_provider
                 .resolve_and_write(&file_path, ctx)
@@ -204,7 +208,7 @@ impl CommandSection {
             }
 
             trace!(name=%nfp.name, "running command provider");
-            let file_path = provider_dir.join(&nfp.name);
+            let file_path = providers_dir.join(&nfp.name);
 
             // We need to box the future here in order to prevent us ending up with a recursive
             // type definition for the Future we are building with this method. We end up being
@@ -768,7 +772,7 @@ mod tests {
         let mut ctx = MockCommandContext::default();
         let dir = PathBuf::from("/example-dir");
 
-        c.run_providers(&dir, &mut ctx)
+        c.run_providers(&dir.join(PROVIDER_DIR), &mut ctx)
             .await
             .expect("providers failed to run");
 
@@ -803,7 +807,7 @@ mod tests {
         let mut ctx = MockCommandContext::default();
         let dir = PathBuf::from("/example-dir");
 
-        let res = c.run_providers(&dir, &mut ctx).await;
+        let res = c.run_providers(&dir.join(PROVIDER_DIR), &mut ctx).await;
         assert!(res.is_ok(), "unexpected error: {res:?}");
 
         let written_files = ctx.written_files.into_inner().unwrap();
@@ -840,7 +844,7 @@ mod tests {
         .into_iter()
         .collect();
 
-        let res = c.run_providers(&dir, &mut ctx).await;
+        let res = c.run_providers(&dir.join(PROVIDER_DIR), &mut ctx).await;
         assert!(res.is_ok(), "unexpected error: {res:?}");
 
         let writes = ctx.writes.lock().unwrap().clone();
@@ -848,7 +852,7 @@ mod tests {
 
         // Running the providers a second time should still succeed and should not result in any
         // further calls to ctx.write
-        let res = c.run_providers(&dir, &mut ctx).await;
+        let res = c.run_providers(&dir.join(PROVIDER_DIR), &mut ctx).await;
         assert!(res.is_ok(), "unexpected error: {res:?}");
 
         let writes = ctx.writes.into_inner().unwrap();

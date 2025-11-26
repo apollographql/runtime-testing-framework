@@ -243,8 +243,10 @@ impl ResolveAndWrite for FromCommand {
     ) -> providers::Result<()> {
         let target = target.as_ref();
         let out_dir = ctx.dir_containing(target);
+        // out_dir is already the providers directory (e.g., /output/providers/), so we pass it
+        // directly as providers_dir without appending PROVIDER_DIR again.
         self.inner
-            .run_providers_and_execute(&out_dir, Some(target.into()), ctx)
+            .run_providers_and_execute(&out_dir, target.to_path_buf(), out_dir.to_path_buf(), ctx)
             .await?;
 
         Ok(())
