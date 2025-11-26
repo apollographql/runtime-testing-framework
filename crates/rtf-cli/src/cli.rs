@@ -92,4 +92,33 @@ pub enum Command {
         #[arg(long = "ref", requires = "github")]
         git_ref: Option<String>,
     },
+
+    /// Work directly with custom file provider definitions
+    CustomProvider {
+        #[clap(subcommand)]
+        subcommand: CustomProviderSubcommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum CustomProviderSubcommand {
+    /// Template a custom provider definition, outputting the resulting config to stdout
+    Template {
+        /// Relative path to the custom provider definition file
+        definition_path: String,
+
+        /// Run a static check of the resulting test plan after templating
+        #[arg(long, action)]
+        check: bool,
+    },
+
+    /// Execute a custom provider definition
+    Run {
+        /// Relative path to the custom provider definition file
+        definition_path: String,
+
+        /// Output directory for provider execution
+        #[arg(long, default_value = "output")]
+        outdir: String,
+    },
 }

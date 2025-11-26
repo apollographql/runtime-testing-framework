@@ -23,14 +23,12 @@ enum ScalarOrArray {
 }
 
 impl cli::Variables {
-    /// Merge any variables obtained from the CLI with the ones found in a test plan, removing any
-    /// existing variable or matrix definitions with the same key.
-    pub fn merge(
+    /// Parse variables coming from CLI flags into a form that we can merge with the test plan
+    pub(crate) fn parse(
         self,
-        test_plan: &mut TestPlanConfig,
         cwd_source: &Source,
-        ctx: &mut impl ResolutionContext,
-    ) -> anyhow::Result<HashMap<String, Source>> {
+        ctx: &impl ResolutionContext,
+    ) -> anyhow::Result<ParsedVariables> {
         let variable_json_data = match self.vars.as_ref() {
             Some(path) => {
                 let s = ctx.read_path_to_string(path)?;
@@ -43,45 +41,35 @@ impl cli::Variables {
             None => None,
         };
 
-        let override_sources = self.merge_inner(
-            &mut test_plan.variables,
-            &mut test_plan.matrix.dimensions,
-            variable_json_data,
-            cwd_source,
-        )?;
-
-        Ok(override_sources)
+        self.parse_inner(variable_json_data, cwd_source)
     }
 
-    #[inline]
-    fn merge_inner(
+    fn parse_inner(
         self,
-        variables_from_test_plan: &mut HashMap<String, Scalar>,
-        matrix_from_test_plan: &mut HashMap<String, Vec<Scalar>>,
-        variables_json_data: Option<(Source, HashMap<String, ScalarOrArray>)>,
+        variable_json_data: Option<(Source, HashMap<String, ScalarOrArray>)>,
         cwd_source: &Source,
-    ) -> anyhow::Result<HashMap<String, Source>> {
+    ) -> anyhow::Result<ParsedVariables> {
+        let mut variables = HashMap::new();
+        let mut matrix_dimensions = HashMap::new();
         let mut override_sources = HashMap::new();
 
-        // Variables read from a file can be used to specify either individual variables or matrix arrays
-        if let Some((source, from_variables)) = variables_json_data {
+        // --vars variables read from a file can be individual variables or matrix dimensions
+        if let Some((source, from_variables)) = variable_json_data {
             for (k, v) in from_variables.into_iter() {
                 match v {
                     ScalarOrArray::Scalar(s) => {
-                        matrix_from_test_plan.remove(&k);
-                        variables_from_test_plan.insert(k.clone(), s);
-                        override_sources.insert(k, source.clone());
+                        variables.insert(k.clone(), s);
                     }
                     ScalarOrArray::Array(arr) => {
-                        variables_from_test_plan.remove(&k);
-                        matrix_from_test_plan.insert(k.clone(), arr);
-                        override_sources.insert(k, source.clone());
+                        matrix_dimensions.insert(k.clone(), arr);
                     }
                 }
+
+                override_sources.insert(k, source.clone());
             }
         }
 
-        // Variables provided on the command line always specify a single variable
+        // -v variables are always scalar
         for kv in self.var.into_iter() {
             let (k, v) = kv
                 .split_once('=')
@@ -92,12 +80,56 @@ impl cli::Variables {
             }
 
             let v: Scalar = serde_yaml::from_str(v).context(format!("invalid value for {k:?}"))?;
-            matrix_from_test_plan.remove(k);
-            variables_from_test_plan.insert(k.to_string(), v);
             override_sources.insert(k.to_string(), cwd_source.clone());
+            variables.insert(k.to_string(), v);
         }
 
-        Ok(override_sources)
+        Ok(ParsedVariables {
+            variables,
+            matrix_dimensions,
+            override_sources,
+        })
+    }
+
+    /// Merge any variables obtained from the CLI with the ones found in a test plan, removing any
+    /// existing variable or matrix definitions with the same key.
+    pub fn merge(
+        self,
+        test_plan: &mut TestPlanConfig,
+        cwd_source: &Source,
+        ctx: &mut impl ResolutionContext,
+    ) -> anyhow::Result<HashMap<String, Source>> {
+        self.parse(cwd_source, ctx)?
+            .merge_inner(&mut test_plan.variables, &mut test_plan.matrix.dimensions)
+    }
+}
+
+/// Result of parsing CLI variables, containing scalar variables, array variables, and their sources.
+#[derive(Debug)]
+pub(crate) struct ParsedVariables {
+    variables: HashMap<String, Scalar>,
+    matrix_dimensions: HashMap<String, Vec<Scalar>>,
+    override_sources: HashMap<String, Source>,
+}
+
+impl ParsedVariables {
+    #[inline]
+    fn merge_inner(
+        self,
+        variables_from_test_plan: &mut HashMap<String, Scalar>,
+        matrix_from_test_plan: &mut HashMap<String, Vec<Scalar>>,
+    ) -> anyhow::Result<HashMap<String, Source>> {
+        for (k, dim) in self.matrix_dimensions.into_iter() {
+            variables_from_test_plan.remove(&k);
+            matrix_from_test_plan.insert(k.clone(), dim);
+        }
+
+        for (k, v) in self.variables.into_iter() {
+            matrix_from_test_plan.remove(&k);
+            variables_from_test_plan.insert(k.clone(), v);
+        }
+
+        Ok(self.override_sources)
     }
 }
 
@@ -136,10 +168,8 @@ mod tests {
             vars: Some(PathBuf::from("my-variables.json")),
         };
 
-        from_cli
-            .merge_inner(
-                &mut variables,
-                &mut matrix,
+        let parsed = from_cli
+            .parse_inner(
                 Some((
                     Source::local("/json_variables"),
                     variables_json!({
@@ -149,6 +179,7 @@ mod tests {
                 &Source::local("/cli"),
             )
             .unwrap();
+        parsed.merge_inner(&mut variables, &mut matrix).unwrap();
 
         assert!(matrix.is_empty());
 
@@ -190,10 +221,8 @@ mod tests {
         assert_eq!(&initial_variables, &["foo"]);
         assert_eq!(&initial_matrix_dimensions, &["bar", "baz"]);
 
-        from_cli
-            .merge_inner(
-                &mut variables,
-                &mut matrix,
+        let parsed = from_cli
+            .parse_inner(
                 Some((
                     Source::local("/json_variables"),
                     variables_json!({
@@ -203,6 +232,7 @@ mod tests {
                 &Source::local("/cli"),
             )
             .unwrap();
+        parsed.merge_inner(&mut variables, &mut matrix).unwrap();
 
         // Keys should end mutually exclusive but flipped
         let mut final_variables: Vec<&String> = variables.keys().collect();
@@ -226,10 +256,8 @@ mod tests {
             vars: None,
         };
 
-        let mut vals = HashMap::default();
-        let mut mat = HashMap::default();
-        let res = from_cli.merge_inner(&mut vals, &mut mat, None, &Source::local("/cli"));
+        let res = from_cli.parse_inner(None, &Source::local("/cli"));
 
-        assert!(res.is_err(), "expected error, ended up with {vals:?}");
+        assert!(res.is_err(), "expected error, ended up with {res:?}");
     }
 }

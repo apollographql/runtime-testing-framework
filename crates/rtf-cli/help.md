@@ -8,6 +8,9 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf run`↴](#rtf-run)
 * [`rtf expand-matrix`↴](#rtf-expand-matrix)
 * [`rtf template`↴](#rtf-template)
+* [`rtf custom-provider`↴](#rtf-custom-provider)
+* [`rtf custom-provider template`↴](#rtf-custom-provider-template)
+* [`rtf custom-provider run`↴](#rtf-custom-provider-run)
 
 ## `rtf`
 
@@ -20,6 +23,7 @@ A swiss army knife for testing the Apollo Runtime
 * `run` — Check and run a test plan
 * `expand-matrix` — Expand a test plan matrix into JSON
 * `template` — Template a test plan using provided variables, outputting the resulting config to stdout
+* `custom-provider` — Work directly with custom file provider definitions
 
 ###### **Options:**
 
@@ -80,6 +84,53 @@ Template a test plan using provided variables, outputting the resulting config t
 * `--check` — Run a static check of the resulting test plan after templating
 * `--github <ORG/REPO/PATH>` — Template a test plan file in GitHub instead of from a local path
 * `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
+
+
+
+## `rtf custom-provider`
+
+Work directly with custom file provider definitions
+
+**Usage:** `rtf custom-provider <COMMAND>`
+
+###### **Subcommands:**
+
+* `template` — Template a custom provider definition, outputting the resulting config to stdout
+* `run` — Execute a custom provider definition
+
+
+
+## `rtf custom-provider template`
+
+Template a custom provider definition, outputting the resulting config to stdout
+
+**Usage:** `rtf custom-provider template [OPTIONS] <DEFINITION_PATH>`
+
+###### **Arguments:**
+
+* `<DEFINITION_PATH>` — Relative path to the custom provider definition file
+
+###### **Options:**
+
+* `--check` — Run a static check of the resulting test plan after templating
+
+
+
+## `rtf custom-provider run`
+
+Execute a custom provider definition
+
+**Usage:** `rtf custom-provider run [OPTIONS] <DEFINITION_PATH>`
+
+###### **Arguments:**
+
+* `<DEFINITION_PATH>` — Relative path to the custom provider definition file
+
+###### **Options:**
+
+* `--outdir <OUTDIR>` — Output directory for provider execution
+
+  Default value: `output`
 
 
 
