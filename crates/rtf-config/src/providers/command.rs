@@ -53,9 +53,10 @@ impl CommandSection {
         &self,
         out_dir: &Path,
         output_path: PathBuf,
+        providers_dir: PathBuf,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<PathBuf> {
-        self.run_providers(&out_dir.join(PROVIDER_DIR), ctx).await?;
+        self.run_providers(&providers_dir, ctx).await?;
         if let Err(e) = self.execute(out_dir, &output_path, ctx) {
             return Err(providers::Error::CommandFailed {
                 name: self.command.name.to_string(),
@@ -83,7 +84,12 @@ impl CommandSection {
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
         let output_path = self
-            .run_providers_and_execute(out_dir, out_dir.join(OUTPUT_PATH), ctx)
+            .run_providers_and_execute(
+                out_dir,
+                out_dir.join(OUTPUT_PATH),
+                out_dir.join(PROVIDER_DIR),
+                ctx,
+            )
             .await?;
 
         try_read_output_and_remove(&output_path, ctx)
