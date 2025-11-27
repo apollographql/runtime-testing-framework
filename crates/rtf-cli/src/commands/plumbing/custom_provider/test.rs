@@ -84,7 +84,8 @@ pub async fn test_custom_provider(
         println!("\n━━━ FAILURES ━━━\n");
         for (name, outcome) in failures.iter() {
             println!("── {name} ──");
-            if let Some(detail) = outcome.detail() {
+            let detail = outcome.detail();
+            if !detail.is_empty() {
                 println!("{detail}");
             }
         }
@@ -293,12 +294,12 @@ impl Outcome {
         }
     }
 
-    fn detail(&self) -> Option<String> {
+    fn detail(&self) -> String {
         match self {
-            Outcome::Success => None,
-            Outcome::Template { err } => Some(format!("Template error:\n  {err}")),
-            Outcome::Check { err } => Some(format!("Check failed:\n  {err}")),
-            Outcome::Run { err } => Some(format!("Run error:\n  {err}")),
+            Outcome::Success => String::new(),
+            Outcome::Template { err } => format!("Template error:\n  {err}"),
+            Outcome::Check { err } => format!("Check failed:\n  {err}"),
+            Outcome::Run { err } => format!("Run error:\n  {err}"),
             Outcome::OutputDiff {
                 missing,
                 unexpected,
@@ -315,7 +316,7 @@ impl Outcome {
                     s.push_str(&format!("  {path}:\n{diff}\n"));
                 }
 
-                Some(s)
+                s
             }
         }
     }
@@ -349,23 +350,27 @@ fn output_files(p: &Path) -> io::Result<HashMap<String, String>> {
 mod tests {
     use super::*;
     use assert_fs::{TempDir, prelude::*};
+    use simple_test_case::test_case;
 
     #[test]
     fn output_file_results_collects_all_files() {
-        let test_dir =
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/valid/output-file-results-test");
+        let tmp = TempDir::new().unwrap();
+        tmp.child("root.txt").write_str("root content\n").unwrap();
+        tmp.child("nested/child.txt")
+            .write_str("nested content\n")
+            .unwrap();
 
-        let results = output_files(&test_dir).expect("should read directory");
+        let results = output_files(tmp.path()).expect("should read directory");
 
         assert_eq!(results.len(), 2, "should find 2 files");
         assert_eq!(
             results.get("root.txt").map(|s| s.as_str()),
-            Some("root file content\n"),
+            Some("root content\n"),
             "should find root.txt with correct content"
         );
         assert_eq!(
             results.get("nested/child.txt").map(|s| s.as_str()),
-            Some("nested file content\n"),
+            Some("nested content\n"),
             "should find nested/child.txt with correct content"
         );
     }
@@ -409,5 +414,91 @@ mod tests {
             result.is_err(),
             "non-existent directory should return error"
         );
+    }
+
+    #[test_case(Outcome::Success, true; "success")]
+    #[test_case(Outcome::Template { err: "e".into() }, false; "template")]
+    #[test_case(Outcome::Check { err: "e".into() }, false; "check")]
+    #[test_case(Outcome::Run { err: "e".into() }, false; "run")]
+    #[test_case(Outcome::OutputDiff { missing: vec![], unexpected: vec![], with_diff: vec![] }, false; "output_diff")]
+    #[test]
+    fn outcome_is_success(outcome: Outcome, expected: bool) {
+        assert_eq!(outcome.is_success(), expected);
+    }
+
+    #[test_case(Outcome::Success, "passed"; "success")]
+    #[test_case(Outcome::Template { err: "e".into() }, "template error"; "template")]
+    #[test_case(Outcome::Check { err: "e".into() }, "check failed"; "check")]
+    #[test_case(Outcome::Run { err: "e".into() }, "run error"; "run")]
+    #[test_case(Outcome::OutputDiff { missing: vec![], unexpected: vec![], with_diff: vec![] }, "output mismatch"; "output_diff")]
+    #[test]
+    fn outcome_summary(outcome: Outcome, expected: &str) {
+        assert_eq!(outcome.summary(), expected);
+    }
+
+    #[test_case(Outcome::Success, ""; "success_returns_empty")]
+    #[test_case(
+        Outcome::Template { err: "variable not found".into() },
+        "Template error:\n  variable not found";
+        "template_formats_error"
+    )]
+    #[test_case(
+        Outcome::Check { err: "file not found".into() },
+        "Check failed:\n  file not found";
+        "check_formats_error"
+    )]
+    #[test_case(
+        Outcome::Run { err: "command failed".into() },
+        "Run error:\n  command failed";
+        "run_formats_error"
+    )]
+    #[test_case(
+        Outcome::OutputDiff {
+            missing: vec![],
+            unexpected: vec![],
+            with_diff: vec![]
+        },
+        "";
+        "output_diff_empty"
+    )]
+    #[test_case(
+        Outcome::OutputDiff {
+            missing: vec!["a.txt".into(), "b.txt".into()],
+            unexpected: vec![],
+            with_diff: vec![]
+        },
+        "  missing: a.txt\n  missing: b.txt\n";
+        "output_diff_missing_files"
+    )]
+    #[test_case(
+        Outcome::OutputDiff {
+            missing: vec![],
+            unexpected: vec!["extra.log".into()],
+            with_diff: vec![]
+        },
+        "  unexpected: extra.log\n";
+        "output_diff_unexpected_files"
+    )]
+    #[test_case(
+        Outcome::OutputDiff {
+            missing: vec![],
+            unexpected: vec![],
+            with_diff: vec![("config.json".into(), "-old\n+new\n".into())]
+        },
+        "  config.json:\n-old\n+new\n\n";
+        "output_diff_with_diffs"
+    )]
+    #[test_case(
+        Outcome::OutputDiff {
+            missing: vec!["m.txt".into()],
+            unexpected: vec!["u.txt".into()],
+            with_diff: vec![("d.txt".into(), "-a\n+b\n".into())]
+        },
+        "  missing: m.txt\n  unexpected: u.txt\n  d.txt:\n-a\n+b\n\n";
+        "output_diff_combined"
+    )]
+    #[test]
+    fn outcome_detail(outcome: Outcome, expected: &str) {
+        assert_eq!(outcome.detail(), expected);
     }
 }
