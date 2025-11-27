@@ -501,4 +501,35 @@ mod tests {
     fn outcome_detail(outcome: Outcome, expected: &str) {
         assert_eq!(outcome.detail(), expected);
     }
+
+    #[test_case(r#"{"key": "value", "num": 42, "flag": true}"#, 3; "valid_with_entries")]
+    #[test_case(r#"{}"#, 0; "empty_object")]
+    #[test]
+    fn load_variables_valid(json_content: &str, expected_count: usize) {
+        let tmp = TempDir::new().unwrap();
+        tmp.child("variables.json")
+            .write_str(json_content)
+            .unwrap();
+
+        let result = load_variables(&tmp.path().join("variables.json"));
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), expected_count);
+    }
+
+    #[test_case("nonexistent.json", None; "missing_file")]
+    #[test_case("malformed.json", Some("{not valid json"); "malformed_json")]
+    #[test_case("variables.json", Some(r#"{"key": [1, 2, 3]}"#); "array_value")]
+    #[test_case("variables.json", Some(r#"{"key": {"nested": "value"}}"#); "nested_object")]
+    #[test]
+    fn load_variables_returns_error(filename: &str, content: Option<&str>) {
+        let tmp = TempDir::new().unwrap();
+        if let Some(content) = content {
+            tmp.child(filename).write_str(content).unwrap();
+        }
+
+        let result = load_variables(&tmp.path().join(filename));
+
+        assert!(result.is_err());
+    }
 }
