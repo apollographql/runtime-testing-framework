@@ -40,6 +40,9 @@ _rtf() {
             rtf__custom__provider,template)
                 cmd="rtf__custom__provider__template"
                 ;;
+            rtf__custom__provider,test)
+                cmd="rtf__custom__provider__test"
+                ;;
             rtf__custom__provider__help,help)
                 cmd="rtf__custom__provider__help__help"
                 ;;
@@ -48,6 +51,9 @@ _rtf() {
                 ;;
             rtf__custom__provider__help,template)
                 cmd="rtf__custom__provider__help__template"
+                ;;
+            rtf__custom__provider__help,test)
+                cmd="rtf__custom__provider__help__test"
                 ;;
             rtf__help,custom-provider)
                 cmd="rtf__help__custom__provider"
@@ -69,6 +75,9 @@ _rtf() {
                 ;;
             rtf__help__custom__provider,template)
                 cmd="rtf__help__custom__provider__template"
+                ;;
+            rtf__help__custom__provider,test)
+                cmd="rtf__help__custom__provider__test"
                 ;;
             *)
                 ;;
@@ -99,7 +108,7 @@ _rtf() {
             return 0
             ;;
         rtf__custom__provider)
-            opts="-v -h --var --vars --verbose --help template run help"
+            opts="-v -h --var --vars --verbose --help template run test help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -121,7 +130,7 @@ _rtf() {
             return 0
             ;;
         rtf__custom__provider__help)
-            opts="template run help"
+            opts="template run test help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -163,6 +172,20 @@ _rtf() {
             return 0
             ;;
         rtf__custom__provider__help__template)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        rtf__custom__provider__help__test)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -224,6 +247,32 @@ _rtf() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        rtf__custom__provider__test)
+            opts="-v -h --test-cases-dir --error-on-empty --var --vars --verbose --help <DEFINITION_PATH>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --test-cases-dir)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --var)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --vars)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         rtf__expand__matrix)
             opts="-c -v -h --compact --var --vars --verbose --help <TEST_PLAN_PATH>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
@@ -261,7 +310,7 @@ _rtf() {
             return 0
             ;;
         rtf__help__custom__provider)
-            opts="template run"
+            opts="template run test"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -289,6 +338,20 @@ _rtf() {
             return 0
             ;;
         rtf__help__custom__provider__template)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        rtf__help__custom__provider__test)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
