@@ -137,7 +137,7 @@ impl TestCase {
             let expected_output_dir = path.join(EXPECTED_RUN_OUTPUT_DIR);
             // if !expect_failure {
             if !expected_output_dir.exists() {
-                return Err(io_err(io::ErrorKind::NotFound, &vars_file));
+                return Err(io_err(io::ErrorKind::NotFound, &expected_output_dir));
             } else if !expected_output_dir.is_dir() {
                 return Err(io_err(io::ErrorKind::NotADirectory, &expected_output_dir));
             }
@@ -197,8 +197,8 @@ impl TestCase {
 
         // check that the output is as expected
         debug!("processing output");
-        let actual = output_file_results(&output_dir)?;
-        let expected = output_file_results(&self.path.join(EXPECTED_RUN_OUTPUT_DIR))?;
+        let actual = output_files(&output_dir)?;
+        let expected = output_files(&self.path.join(EXPECTED_RUN_OUTPUT_DIR))?;
 
         let mut missing = Vec::new();
         let mut unexpected = Vec::new();
@@ -330,15 +330,84 @@ fn load_variables(path: &Path) -> anyhow::Result<HashMap<String, Scalar>> {
     Ok(vars)
 }
 
-fn output_file_results(p: &Path) -> io::Result<HashMap<String, String>> {
-    WalkDir::new(p)
-        .into_iter()
-        .filter_entry(|entry| entry.path().is_file())
-        .map(|entry| {
-            entry.map_err(Into::into).and_then(|e| {
-                fs::read_to_string(e.path())
-                    .map(|s| (e.path().strip_prefix(p).unwrap().display().to_string(), s))
-            })
-        })
-        .collect()
+fn output_files(p: &Path) -> io::Result<HashMap<String, String>> {
+    let mut files = HashMap::new();
+
+    for entry in WalkDir::new(p) {
+        let entry = entry.map_err(|e| io::Error::other(e.to_string()))?;
+        if entry.path().is_file() {
+            let content = fs::read_to_string(entry.path())?;
+            let key = entry.path().strip_prefix(p).unwrap().display().to_string();
+            files.insert(key, content);
+        }
+    }
+
+    Ok(files)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use assert_fs::{TempDir, prelude::*};
+
+    #[test]
+    fn output_file_results_collects_all_files() {
+        let test_dir =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/valid/output-file-results-test");
+
+        let results = output_files(&test_dir).expect("should read directory");
+
+        assert_eq!(results.len(), 2, "should find 2 files");
+        assert_eq!(
+            results.get("root.txt").map(|s| s.as_str()),
+            Some("root file content\n"),
+            "should find root.txt with correct content"
+        );
+        assert_eq!(
+            results.get("nested/child.txt").map(|s| s.as_str()),
+            Some("nested file content\n"),
+            "should find nested/child.txt with correct content"
+        );
+    }
+
+    #[test]
+    fn output_file_results_empty_directory() {
+        let tmp = TempDir::new().unwrap();
+        let results = output_files(tmp.path()).expect("should read directory");
+        assert_eq!(
+            results.len(),
+            0,
+            "empty directory should return empty HashMap"
+        );
+    }
+
+    #[test]
+    fn output_file_results_nested_files_only() {
+        let tmp = TempDir::new().unwrap();
+        tmp.child("subdir/file.txt")
+            .write_str("nested content\n")
+            .unwrap();
+
+        let results = output_files(tmp.path()).expect("should read directory");
+
+        assert_eq!(results.len(), 1, "should find 1 nested file");
+        assert_eq!(
+            results.get("subdir/file.txt").map(|s| s.as_str()),
+            Some("nested content\n"),
+            "should find nested file with correct content"
+        );
+    }
+
+    #[test]
+    fn output_file_results_nonexistent_directory() {
+        let tmp = TempDir::new().unwrap();
+        let nonexistent = tmp.path().join("does-not-exist");
+
+        let result = output_files(&nonexistent);
+
+        assert!(
+            result.is_err(),
+            "non-existent directory should return error"
+        );
+    }
 }
