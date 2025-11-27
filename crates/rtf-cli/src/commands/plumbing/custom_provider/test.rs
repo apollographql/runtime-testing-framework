@@ -360,16 +360,16 @@ mod tests {
             .write_str("nested content\n")
             .unwrap();
 
-        let results = output_files(tmp.path()).expect("should read directory");
+        let res = output_files(tmp.path()).expect("should read directory");
 
-        assert_eq!(results.len(), 2, "should find 2 files");
+        assert_eq!(res.len(), 2, "should find 2 files");
         assert_eq!(
-            results.get("root.txt").map(|s| s.as_str()),
+            res.get("root.txt").map(|s| s.as_str()),
             Some("root content\n"),
             "should find root.txt with correct content"
         );
         assert_eq!(
-            results.get("nested/child.txt").map(|s| s.as_str()),
+            res.get("nested/child.txt").map(|s| s.as_str()),
             Some("nested content\n"),
             "should find nested/child.txt with correct content"
         );
@@ -378,12 +378,8 @@ mod tests {
     #[test]
     fn output_file_results_empty_directory() {
         let tmp = TempDir::new().unwrap();
-        let results = output_files(tmp.path()).expect("should read directory");
-        assert_eq!(
-            results.len(),
-            0,
-            "empty directory should return empty HashMap"
-        );
+        let res = output_files(tmp.path()).expect("should read directory");
+        assert_eq!(res.len(), 0, "empty directory should return empty HashMap");
     }
 
     #[test]
@@ -393,11 +389,11 @@ mod tests {
             .write_str("nested content\n")
             .unwrap();
 
-        let results = output_files(tmp.path()).expect("should read directory");
+        let res = output_files(tmp.path()).expect("should read directory");
 
-        assert_eq!(results.len(), 1, "should find 1 nested file");
+        assert_eq!(res.len(), 1, "should find 1 nested file");
         assert_eq!(
-            results.get("subdir/file.txt").map(|s| s.as_str()),
+            res.get("subdir/file.txt").map(|s| s.as_str()),
             Some("nested content\n"),
             "should find nested file with correct content"
         );
@@ -408,12 +404,9 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let nonexistent = tmp.path().join("does-not-exist");
 
-        let result = output_files(&nonexistent);
+        let res = output_files(&nonexistent);
 
-        assert!(
-            result.is_err(),
-            "non-existent directory should return error"
-        );
+        assert!(res.is_err(), "non-existent directory should return error");
     }
 
     #[test_case(Outcome::Success, true; "success")]
@@ -507,14 +500,12 @@ mod tests {
     #[test]
     fn load_variables_valid(json_content: &str, expected_count: usize) {
         let tmp = TempDir::new().unwrap();
-        tmp.child("variables.json")
-            .write_str(json_content)
-            .unwrap();
+        tmp.child("variables.json").write_str(json_content).unwrap();
 
-        let result = load_variables(&tmp.path().join("variables.json"));
+        let res = load_variables(&tmp.path().join("variables.json"));
 
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), expected_count);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap().len(), expected_count);
     }
 
     #[test_case("nonexistent.json", None; "missing_file")]
@@ -528,8 +519,49 @@ mod tests {
             tmp.child(filename).write_str(content).unwrap();
         }
 
-        let result = load_variables(&tmp.path().join(filename));
+        let res = load_variables(&tmp.path().join(filename));
 
-        assert!(result.is_err());
+        assert!(res.is_err());
+    }
+
+    fn create_valid_test_case(tmp: &TempDir, name: &str) {
+        tmp.child(format!("{name}/variables.json"))
+            .write_str("{}")
+            .unwrap();
+        tmp.child(format!("{name}/expected-run-output"))
+            .create_dir_all()
+            .unwrap();
+    }
+
+    #[test_case(0; "empty_directory")]
+    #[test_case(1; "single_test_case")]
+    #[test_case(3; "multiple_test_cases")]
+    #[test]
+    fn try_load_all_valid(case_count: usize) {
+        let tmp = TempDir::new().unwrap();
+        for i in 0..case_count {
+            create_valid_test_case(&tmp, &format!("case-{i}"));
+        }
+
+        let res = TestCase::try_load_all(tmp.path());
+
+        assert!(res.is_ok(), "try_load_all should succeed: {res:?}");
+        assert_eq!(res.unwrap().len(), case_count);
+    }
+
+    #[test]
+    fn try_load_all_returns_sorted_test_cases() {
+        let tmp = TempDir::new().unwrap();
+        create_valid_test_case(&tmp, "zebra");
+        create_valid_test_case(&tmp, "alpha");
+        create_valid_test_case(&tmp, "middle");
+
+        let res = TestCase::try_load_all(tmp.path()).unwrap();
+
+        let names: Vec<_> = res
+            .iter()
+            .map(|tc| tc.path.file_name().unwrap().to_string_lossy().to_string())
+            .collect();
+        assert_eq!(names, vec!["alpha", "middle", "zebra"]);
     }
 }
