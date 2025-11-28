@@ -201,51 +201,7 @@ impl TestCase {
         let actual = output_files(&output_dir)?;
         let expected = output_files(&self.path.join(EXPECTED_RUN_OUTPUT_DIR))?;
 
-        let mut missing = Vec::new();
-        let mut unexpected = Vec::new();
-        let mut with_diff = Vec::new();
-
-        for (file_path, _) in expected.iter() {
-            if !actual.contains_key(file_path) {
-                missing.push(file_path.to_owned());
-                continue;
-            }
-        }
-
-        for (file_path, actual_file) in actual.iter() {
-            let expected_file = match expected.get(file_path) {
-                Some(s) => s,
-                None => {
-                    unexpected.push(file_path.to_owned());
-                    continue;
-                }
-            };
-            let diff = TextDiff::from_lines(expected_file, actual_file);
-            let mut s = String::new();
-
-            for change in diff.iter_all_changes() {
-                let sign = match change.tag() {
-                    ChangeTag::Delete => "-",
-                    ChangeTag::Insert => "+",
-                    ChangeTag::Equal => continue,
-                };
-                s.push_str(&format!("{sign}{change}"));
-            }
-
-            if !s.is_empty() {
-                with_diff.push((file_path.to_owned(), s));
-            }
-        }
-
-        if missing.is_empty() && unexpected.is_empty() && with_diff.is_empty() {
-            Ok(Outcome::Success)
-        } else {
-            Ok(Outcome::OutputDiff {
-                missing,
-                unexpected,
-                with_diff,
-            })
-        }
+        Ok(compare_outputs(&actual, &expected))
     }
 }
 
@@ -253,6 +209,7 @@ impl TestCase {
 /// custom provider itself.
 ///
 /// Failures from IO around setting up and running the test itself are reported separately
+#[derive(Debug)]
 enum Outcome {
     Success,
 
@@ -318,6 +275,56 @@ impl Outcome {
 
                 s
             }
+        }
+    }
+}
+
+fn compare_outputs(
+    actual: &HashMap<String, String>,
+    expected: &HashMap<String, String>,
+) -> Outcome {
+    let mut missing = Vec::new();
+    let mut unexpected = Vec::new();
+    let mut with_diff = Vec::new();
+
+    for file_path in expected.keys() {
+        if !actual.contains_key(file_path) {
+            missing.push(file_path.to_owned());
+        }
+    }
+
+    for (file_path, actual_content) in actual.iter() {
+        let expected_content = match expected.get(file_path) {
+            Some(s) => s,
+            None => {
+                unexpected.push(file_path.to_owned());
+                continue;
+            }
+        };
+        let diff = TextDiff::from_lines(expected_content, actual_content);
+        let mut s = String::new();
+
+        for change in diff.iter_all_changes() {
+            let sign = match change.tag() {
+                ChangeTag::Delete => "-",
+                ChangeTag::Insert => "+",
+                ChangeTag::Equal => continue,
+            };
+            s.push_str(&format!("{sign}{change}"));
+        }
+
+        if !s.is_empty() {
+            with_diff.push((file_path.to_owned(), s));
+        }
+    }
+
+    if missing.is_empty() && unexpected.is_empty() && with_diff.is_empty() {
+        Outcome::Success
+    } else {
+        Outcome::OutputDiff {
+            missing,
+            unexpected,
+            with_diff,
         }
     }
 }
@@ -413,7 +420,7 @@ mod tests {
     #[test_case(Outcome::Template { err: "e".into() }, false; "template")]
     #[test_case(Outcome::Check { err: "e".into() }, false; "check")]
     #[test_case(Outcome::Run { err: "e".into() }, false; "run")]
-    #[test_case(Outcome::OutputDiff { missing: vec![], unexpected: vec![], with_diff: vec![] }, false; "output_diff")]
+    #[test_case(Outcome::OutputDiff { missing: vec![], unexpected: vec![], with_diff: vec![] }, false; "output diff")]
     #[test]
     fn outcome_is_success(outcome: Outcome, expected: bool) {
         assert_eq!(outcome.is_success(), expected);
@@ -423,27 +430,27 @@ mod tests {
     #[test_case(Outcome::Template { err: "e".into() }, "template error"; "template")]
     #[test_case(Outcome::Check { err: "e".into() }, "check failed"; "check")]
     #[test_case(Outcome::Run { err: "e".into() }, "run error"; "run")]
-    #[test_case(Outcome::OutputDiff { missing: vec![], unexpected: vec![], with_diff: vec![] }, "output mismatch"; "output_diff")]
+    #[test_case(Outcome::OutputDiff { missing: vec![], unexpected: vec![], with_diff: vec![] }, "output mismatch"; "output diff")]
     #[test]
     fn outcome_summary(outcome: Outcome, expected: &str) {
         assert_eq!(outcome.summary(), expected);
     }
 
-    #[test_case(Outcome::Success, ""; "success_returns_empty")]
+    #[test_case(Outcome::Success, ""; "success returns empty")]
     #[test_case(
         Outcome::Template { err: "variable not found".into() },
         "Template error:\n  variable not found";
-        "template_formats_error"
+        "template formats error"
     )]
     #[test_case(
         Outcome::Check { err: "file not found".into() },
         "Check failed:\n  file not found";
-        "check_formats_error"
+        "check formats error"
     )]
     #[test_case(
         Outcome::Run { err: "command failed".into() },
         "Run error:\n  command failed";
-        "run_formats_error"
+        "run formats error"
     )]
     #[test_case(
         Outcome::OutputDiff {
@@ -452,7 +459,7 @@ mod tests {
             with_diff: vec![]
         },
         "";
-        "output_diff_empty"
+        "output diff empty"
     )]
     #[test_case(
         Outcome::OutputDiff {
@@ -461,7 +468,7 @@ mod tests {
             with_diff: vec![]
         },
         "  missing: a.txt\n  missing: b.txt\n";
-        "output_diff_missing_files"
+        "output diff missing files"
     )]
     #[test_case(
         Outcome::OutputDiff {
@@ -470,7 +477,7 @@ mod tests {
             with_diff: vec![]
         },
         "  unexpected: extra.log\n";
-        "output_diff_unexpected_files"
+        "output diff unexpected files"
     )]
     #[test_case(
         Outcome::OutputDiff {
@@ -479,7 +486,7 @@ mod tests {
             with_diff: vec![("config.json".into(), "-old\n+new\n".into())]
         },
         "  config.json:\n-old\n+new\n\n";
-        "output_diff_with_diffs"
+        "output diff with diffs"
     )]
     #[test_case(
         Outcome::OutputDiff {
@@ -488,15 +495,15 @@ mod tests {
             with_diff: vec![("d.txt".into(), "-a\n+b\n".into())]
         },
         "  missing: m.txt\n  unexpected: u.txt\n  d.txt:\n-a\n+b\n\n";
-        "output_diff_combined"
+        "output diff combined"
     )]
     #[test]
     fn outcome_detail(outcome: Outcome, expected: &str) {
         assert_eq!(outcome.detail(), expected);
     }
 
-    #[test_case(r#"{"key": "value", "num": 42, "flag": true}"#, 3; "valid_with_entries")]
-    #[test_case(r#"{}"#, 0; "empty_object")]
+    #[test_case(r#"{"key": "value", "num": 42, "flag": true}"#, 3; "valid with entries")]
+    #[test_case(r#"{}"#, 0; "empty object")]
     #[test]
     fn load_variables_valid(json_content: &str, expected_count: usize) {
         let tmp = TempDir::new().unwrap();
@@ -508,10 +515,10 @@ mod tests {
         assert_eq!(res.unwrap().len(), expected_count);
     }
 
-    #[test_case("nonexistent.json", None; "missing_file")]
-    #[test_case("malformed.json", Some("{not valid json"); "malformed_json")]
-    #[test_case("variables.json", Some(r#"{"key": [1, 2, 3]}"#); "array_value")]
-    #[test_case("variables.json", Some(r#"{"key": {"nested": "value"}}"#); "nested_object")]
+    #[test_case("nonexistent.json", None; "missing file")]
+    #[test_case("malformed.json", Some("{not valid json"); "malformed json")]
+    #[test_case("variables.json", Some(r#"{"key": [1, 2, 3]}"#); "array value")]
+    #[test_case("variables.json", Some(r#"{"key": {"nested": "value"}}"#); "nested object")]
     #[test]
     fn load_variables_returns_error(filename: &str, content: Option<&str>) {
         let tmp = TempDir::new().unwrap();
@@ -533,9 +540,9 @@ mod tests {
             .unwrap();
     }
 
-    #[test_case(0; "empty_directory")]
-    #[test_case(1; "single_test_case")]
-    #[test_case(3; "multiple_test_cases")]
+    #[test_case(0; "empty directory")]
+    #[test_case(1; "single test case")]
+    #[test_case(3; "multiple test cases")]
     #[test]
     fn try_load_all_valid(case_count: usize) {
         let tmp = TempDir::new().unwrap();
@@ -563,5 +570,231 @@ mod tests {
             .map(|tc| tc.path.file_name().unwrap().to_string_lossy().to_string())
             .collect();
         assert_eq!(names, vec!["alpha", "middle", "zebra"]);
+    }
+
+    #[test_case(
+        HashMap::from([("a.txt", "content")]),
+        HashMap::from([("a.txt", "content")]),
+        true;
+        "identical single file"
+    )]
+    #[test_case(
+        HashMap::from([("a.txt", "hello"), ("b.txt", "world")]),
+        HashMap::from([("a.txt", "hello"), ("b.txt", "world")]),
+        true;
+        "identical multiple files"
+    )]
+    #[test_case(
+        HashMap::from([]),
+        HashMap::from([]),
+        true;
+        "both empty"
+    )]
+    #[test_case(
+        HashMap::from([("a.txt", "content")]),
+        HashMap::from([("a.txt", "different")]),
+        false;
+        "content differs"
+    )]
+    #[test_case(
+        HashMap::from([]),
+        HashMap::from([("a.txt", "content")]),
+        false;
+        "missing file"
+    )]
+    #[test_case(
+        HashMap::from([("a.txt", "content"), ("b.txt", "extra")]),
+        HashMap::from([("a.txt", "content")]),
+        false;
+        "unexpected file"
+    )]
+    #[test]
+    fn compare_outputs_is_success(
+        actual: HashMap<&str, &str>,
+        expected: HashMap<&str, &str>,
+        should_succeed: bool,
+    ) {
+        let actual: HashMap<String, String> = actual
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+        let expected: HashMap<String, String> = expected
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+
+        let outcome = compare_outputs(&actual, &expected);
+        assert_eq!(outcome.is_success(), should_succeed);
+    }
+
+    #[test]
+    fn compare_outputs_missing_files() {
+        let actual = HashMap::new();
+        let expected = HashMap::from([
+            ("a.txt".to_string(), "content".to_string()),
+            ("b.txt".to_string(), "more".to_string()),
+        ]);
+
+        let outcome = compare_outputs(&actual, &expected);
+
+        match outcome {
+            Outcome::OutputDiff {
+                mut missing,
+                unexpected,
+                with_diff,
+            } => {
+                missing.sort();
+                assert_eq!(missing, vec!["a.txt", "b.txt"]);
+                assert!(unexpected.is_empty());
+                assert!(with_diff.is_empty());
+            }
+            _ => panic!("expected OutputDiff, got {outcome:?}"),
+        }
+    }
+
+    #[test]
+    fn compare_outputs_unexpected_files() {
+        let actual = HashMap::from([
+            ("extra1.txt".to_string(), "content".to_string()),
+            ("extra2.txt".to_string(), "more".to_string()),
+        ]);
+        let expected = HashMap::new();
+
+        let outcome = compare_outputs(&actual, &expected);
+
+        match outcome {
+            Outcome::OutputDiff {
+                missing,
+                mut unexpected,
+                with_diff,
+            } => {
+                assert!(missing.is_empty());
+                unexpected.sort();
+                assert_eq!(unexpected, vec!["extra1.txt", "extra2.txt"]);
+                assert!(with_diff.is_empty());
+            }
+            _ => panic!("expected OutputDiff, got {outcome:?}"),
+        }
+    }
+
+    #[test]
+    fn compare_outputs_with_diffs() {
+        let actual = HashMap::from([("file.txt".to_string(), "new line\n".to_string())]);
+        let expected = HashMap::from([("file.txt".to_string(), "old line\n".to_string())]);
+
+        let outcome = compare_outputs(&actual, &expected);
+
+        match outcome {
+            Outcome::OutputDiff {
+                missing,
+                unexpected,
+                with_diff,
+            } => {
+                assert!(missing.is_empty());
+                assert!(unexpected.is_empty());
+                assert_eq!(with_diff.len(), 1);
+                let (path, diff) = &with_diff[0];
+                assert_eq!(path, "file.txt");
+                assert!(diff.contains("-old line"));
+                assert!(diff.contains("+new line"));
+            }
+            _ => panic!("expected OutputDiff, got {outcome:?}"),
+        }
+    }
+
+    #[test]
+    fn compare_outputs_combined() {
+        let actual = HashMap::from([
+            ("changed.txt".to_string(), "new\n".to_string()),
+            ("extra.txt".to_string(), "unexpected\n".to_string()),
+        ]);
+        let expected = HashMap::from([
+            ("changed.txt".to_string(), "old\n".to_string()),
+            ("missing.txt".to_string(), "gone\n".to_string()),
+        ]);
+
+        let outcome = compare_outputs(&actual, &expected);
+
+        match outcome {
+            Outcome::OutputDiff {
+                missing,
+                unexpected,
+                with_diff,
+            } => {
+                assert_eq!(missing, vec!["missing.txt"]);
+                assert_eq!(unexpected, vec!["extra.txt"]);
+                assert_eq!(with_diff.len(), 1);
+                assert_eq!(with_diff[0].0, "changed.txt");
+            }
+            _ => panic!("expected OutputDiff, got {outcome:?}"),
+        }
+    }
+
+    enum TestAsset {
+        Dir(&'static str),
+        File(&'static str, &'static str),
+    }
+
+    #[test_case(
+        &[],
+        Some("does-not-exist"),
+        io::ErrorKind::NotFound;
+        "nonexistent"
+    )]
+    #[test_case(
+        &[TestAsset::File("a-file.txt", "")],
+        Some("a-file.txt"),
+        io::ErrorKind::NotADirectory;
+        "path is file"
+    )]
+    #[test_case(
+        &[TestAsset::File("not-a-dir.txt", "")],
+        None,
+        io::ErrorKind::NotADirectory;
+        "entry is file"
+    )]
+    #[test_case(
+        &[TestAsset::Dir("case-a/expected-run-output")],
+        None,
+        io::ErrorKind::NotFound;
+        "missing variables"
+    )]
+    #[test_case(
+        &[TestAsset::Dir("case-a/variables.json"), TestAsset::Dir("case-a/expected-run-output")],
+        None,
+        io::ErrorKind::IsADirectory;
+        "variables is dir"
+    )]
+    #[test_case(
+        &[TestAsset::File("case-a/variables.json", "{}")],
+        None,
+        io::ErrorKind::NotFound;
+        "missing expected output"
+    )]
+    #[test_case(
+        &[TestAsset::File("case-a/variables.json", "{}"), TestAsset::File("case-a/expected-run-output", "")],
+        None,
+        io::ErrorKind::NotADirectory;
+        "expected output is file"
+    )]
+    #[test]
+    fn try_load_all_error(assets: &[TestAsset], subpath: Option<&str>, expected: io::ErrorKind) {
+        let tmp = TempDir::new().unwrap();
+        for asset in assets {
+            match asset {
+                TestAsset::Dir(p) => tmp.child(*p).create_dir_all().unwrap(),
+                TestAsset::File(p, content) => tmp.child(*p).write_str(content).unwrap(),
+            }
+        }
+        let path = match subpath {
+            Some(s) => tmp.path().join(s),
+            None => tmp.path().to_path_buf(),
+        };
+        let res = TestCase::try_load_all(&path);
+        assert!(res.is_err());
+        assert_eq!(
+            res.unwrap_err().downcast_ref::<io::Error>().unwrap().kind(),
+            expected
+        );
     }
 }
