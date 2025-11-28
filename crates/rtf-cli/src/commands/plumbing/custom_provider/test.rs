@@ -5,8 +5,7 @@ use assert_fs::TempDir;
 use rtf_config::{
     Source,
     checks::Check,
-    context::Context,
-    context::ResolutionContext,
+    context::{Context, ResolutionContext},
     formats::CustomProviderDefinition,
     providers::command::{OUTPUT_PATH, PROVIDER_DIR},
     templating::{Scalar, Template, TemplateContext},
@@ -17,6 +16,8 @@ use std::{
     fs,
     io::{self, IsTerminal, stdout},
     path::{Path, PathBuf},
+    sync::mpsc::{self, Receiver},
+    thread,
     time::{Duration, Instant},
 };
 use tracing::{debug, error};
@@ -37,7 +38,6 @@ pub async fn test_custom_provider(
     no_capture: bool,
 ) -> anyhow::Result<()> {
     let ctx = get_context();
-
     let (source, definition) = load_definition(definition_path, &ctx).await?;
 
     let abs_path = ctx
@@ -60,45 +60,30 @@ pub async fn test_custom_provider(
     }
 
     let total = test_cases.len();
-    let mut outcomes: Vec<Outcome> = Vec::new();
     let total_start = Instant::now();
     let is_tty = stdout().is_terminal();
 
-    for case in test_cases.into_iter() {
-        let name = case
-            .path
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "unknown".into());
+    let mut outcomes: Vec<Outcome> = Vec::with_capacity(total);
+    let rx = spawn_cases(definition, source, test_cases);
 
-        // We need a fresh context for each test to avoid incorrectly trying to used cached
-        // provider output that was just removed in the temp dir of a previous run
-        let mut ctx = get_context();
-        ctx.enable_output_capture();
+    for result in rx.into_iter() {
+        println!(
+            "{}",
+            format_result_line(&result.name, &result.outcome, result.elapsed, is_tty)
+        );
 
-        let start = Instant::now();
-        let outcome = match case.run(&source, definition.clone(), &mut ctx).await {
-            Ok(outcome) => outcome,
-            Err(e) => Outcome::Run { err: e.to_string() },
-        };
-        let elapsed = start.elapsed();
-
-        println!("{}", format_result_line(&name, &outcome, elapsed, is_tty));
-
-        if !outcome.is_success() {
-            let detail = outcome.detail();
+        if !result.outcome.is_success() {
+            let detail = result.outcome.detail();
             if !detail.is_empty() {
                 println!("{}", format_diff_detail(&detail, is_tty));
             }
 
             if no_capture {
-                let stdout = ctx.captured_stdout();
-                let stderr = ctx.captured_stderr();
-                print_captured_output(&stdout, &stderr, is_tty);
+                print_captured_output(&result.captured_stdout, &result.captured_stderr, is_tty);
             }
         }
 
-        outcomes.push(outcome);
+        outcomes.push(result.outcome);
     }
 
     let total_elapsed = total_start.elapsed();
@@ -125,6 +110,67 @@ pub async fn test_custom_provider(
     } else {
         Ok(())
     }
+}
+
+fn spawn_cases(
+    definition: CustomProviderDefinition,
+    source: Source,
+    test_cases: Vec<TestCase>,
+) -> Receiver<TestResult> {
+    let (tx, rx) = mpsc::channel();
+
+    for case in test_cases.into_iter() {
+        let source = source.clone();
+        let definition = definition.clone();
+        let tx = tx.clone();
+
+        thread::spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("failed to create tokio runtime");
+
+            rt.block_on(async {
+                let name = case
+                    .path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "unknown".into());
+
+                // We need a fresh context for each test to avoid incorrectly trying to use cached
+                // provider output that was just removed in the temp dir of a previous run
+                let mut ctx = get_context();
+                ctx.enable_output_capture();
+
+                let start = Instant::now();
+                let outcome = match case.run(&source, definition, &mut ctx).await {
+                    Ok(outcome) => outcome,
+                    Err(e) => Outcome::Run { err: e.to_string() },
+                };
+
+                let _ = tx.send(TestResult {
+                    name,
+                    outcome,
+                    elapsed: start.elapsed(),
+                    captured_stdout: ctx.captured_stdout(),
+                    captured_stderr: ctx.captured_stderr(),
+                });
+            });
+        });
+    }
+
+    // Dropping the sender when we return ensures that the channel closes when all threads finish
+
+    rx
+}
+
+#[derive(Debug)]
+struct TestResult {
+    name: String,
+    outcome: Outcome,
+    elapsed: Duration,
+    captured_stdout: String,
+    captured_stderr: String,
 }
 
 fn io_err(kind: io::ErrorKind, p: &Path) -> io::Error {
