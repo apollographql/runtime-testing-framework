@@ -1,10 +1,11 @@
 //! Run validation tests for a custom provider
 use crate::commands::{get_context, plumbing::custom_provider::load_definition};
-use anyhow::{Context, anyhow};
+use anyhow::{Context as _, anyhow};
 use assert_fs::TempDir;
 use rtf_config::{
     Source,
     checks::Check,
+    context::Context,
     context::ResolutionContext,
     formats::CustomProviderDefinition,
     providers::command::{OUTPUT_PATH, PROVIDER_DIR},
@@ -21,13 +22,13 @@ use std::{
 use tracing::{debug, error};
 use walkdir::WalkDir;
 
-// const EXPECTED_RUN_ERROR_FILE: &str = "expected-run-error.txt";
-const EXPECTED_RUN_OUTPUT_DIR: &str = "expected-run-output";
-const VARIABLES_FILE: &str = "variables.json";
-const TEST_CASES_DIR: &str = "test-cases";
-const ANSI_RED: &str = "\x1b[31m";
 const ANSI_GREEN: &str = "\x1b[32m";
+const ANSI_RED: &str = "\x1b[31m";
 const ANSI_RESET: &str = "\x1b[0m";
+const EXPECTED_RUN_ERROR_FILE: &str = "expected-run-error.txt";
+const EXPECTED_RUN_OUTPUT_DIR: &str = "expected-run-output";
+const TEST_CASES_DIR: &str = "test-cases";
+const VARIABLES_FILE: &str = "variables.json";
 
 pub async fn test_custom_provider(
     definition_path: &str,
@@ -126,52 +127,62 @@ pub async fn test_custom_provider(
     }
 }
 
+fn io_err(kind: io::ErrorKind, p: &Path) -> io::Error {
+    io::Error::new(kind, p.display().to_string())
+}
+
+fn expect_file(p: &Path) -> io::Result<()> {
+    if !p.exists() {
+        return Err(io_err(io::ErrorKind::NotFound, p));
+    } else if p.is_dir() {
+        return Err(io_err(io::ErrorKind::IsADirectory, p));
+    }
+
+    Ok(())
+}
+
+fn expect_dir(p: &Path) -> io::Result<()> {
+    if !p.exists() {
+        return Err(io_err(io::ErrorKind::NotFound, p));
+    } else if !p.is_dir() {
+        return Err(io_err(io::ErrorKind::NotADirectory, p));
+    }
+
+    Ok(())
+}
+
 #[derive(Debug)]
 struct TestCase {
     path: PathBuf,
-    // expect_failure: bool,
+    expect_failure: bool,
 }
 
 impl TestCase {
     fn try_load_all(dir: &Path) -> anyhow::Result<Vec<Self>> {
-        let io_err =
-            |kind: io::ErrorKind, p: &Path| io::Error::new(kind, p.display().to_string()).into();
+        expect_dir(dir)?;
 
         let mut test_cases = Vec::new();
-
-        if !dir.exists() {
-            return Err(io_err(io::ErrorKind::NotFound, dir));
-        } else if !dir.is_dir() {
-            return Err(io_err(io::ErrorKind::NotADirectory, dir));
-        }
 
         for entry in dir.read_dir()? {
             let entry = entry?;
             let path = entry.path();
-            if !path.is_dir() {
-                return Err(io_err(io::ErrorKind::NotADirectory, dir));
-            }
+            expect_dir(&path)?;
 
             let vars_file = path.join(VARIABLES_FILE);
-            if !vars_file.exists() {
-                return Err(io_err(io::ErrorKind::NotFound, &vars_file));
-            } else if vars_file.is_dir() {
-                return Err(io_err(io::ErrorKind::IsADirectory, &vars_file));
-            }
+            expect_file(&vars_file)?;
 
-            // let expect_failure = path.join(EXPECTED_RUN_ERROR_FILE).exists();
-            let expected_output_dir = path.join(EXPECTED_RUN_OUTPUT_DIR);
-            // if !expect_failure {
-            if !expected_output_dir.exists() {
-                return Err(io_err(io::ErrorKind::NotFound, &expected_output_dir));
-            } else if !expected_output_dir.is_dir() {
-                return Err(io_err(io::ErrorKind::NotADirectory, &expected_output_dir));
+            let expected_failure_file = path.join(EXPECTED_RUN_ERROR_FILE);
+            let expect_failure = expected_failure_file.exists();
+
+            if expect_failure {
+                expect_file(&expected_failure_file)?;
+            } else {
+                expect_dir(&path.join(EXPECTED_RUN_OUTPUT_DIR))?;
             }
-            // }
 
             test_cases.push(TestCase {
                 path,
-                // expect_failure,
+                expect_failure,
             });
         }
 
@@ -180,11 +191,42 @@ impl TestCase {
         Ok(test_cases)
     }
 
+    fn check_expected_failure(&self, stdout: String, stderr: String) -> Outcome {
+        assert!(
+            self.expect_failure,
+            "attempt to check expected failure on a test that expected to pass"
+        );
+
+        let expected = match fs::read_to_string(self.path.join(EXPECTED_RUN_ERROR_FILE)) {
+            Ok(s) => s,
+            Err(e) => {
+                return Outcome::Run {
+                    err: format!("unable to read {EXPECTED_RUN_ERROR_FILE}: {e}"),
+                };
+            }
+        };
+
+        let mut actual = String::new();
+        if !stdout.is_empty() {
+            actual = format!("stdout: {stdout}");
+        }
+        if !stderr.is_empty() {
+            let join = if actual.is_empty() { "" } else { "\n" };
+            actual = format!("{actual}{join}stderr: {stderr}");
+        }
+
+        if actual == expected {
+            Outcome::Success
+        } else {
+            Outcome::ExpectedError { expected, actual }
+        }
+    }
+
     async fn run(
         self,
         source: &Source,
         mut definition: CustomProviderDefinition,
-        ctx: &mut impl ResolutionContext,
+        ctx: &mut Context,
     ) -> anyhow::Result<Outcome> {
         debug!("building templating context");
         let template_ctx = TemplateContext::new(
@@ -196,11 +238,23 @@ impl TestCase {
 
         debug!("templating provider");
         if let Err(e) = definition.try_template(&mut Vec::new(), source, &template_ctx) {
-            return Ok(Outcome::Template { err: e.to_string() });
+            return if self.expect_failure {
+                let stdout = ctx.captured_stdout();
+                let stderr = ctx.captured_stderr();
+                Ok(self.check_expected_failure(stdout, stderr))
+            } else {
+                Ok(Outcome::Template { err: e.to_string() })
+            };
         }
         debug!("running checks");
         if let Err(e) = definition.command.try_check(&mut Vec::new(), ctx) {
-            return Ok(Outcome::Check { err: e.to_string() });
+            return if self.expect_failure {
+                let stdout = ctx.captured_stdout();
+                let stderr = ctx.captured_stderr();
+                Ok(self.check_expected_failure(stdout, stderr))
+            } else {
+                Ok(Outcome::Check { err: e.to_string() })
+            };
         }
 
         // We run the provider in an self-removing temp directory so we don't need to worry about
@@ -218,15 +272,19 @@ impl TestCase {
             .await;
 
         if let Err(e) = res {
-            return Ok(Outcome::Run { err: e.to_string() });
+            return if self.expect_failure {
+                let stdout = ctx.captured_stdout();
+                let stderr = ctx.captured_stderr();
+                Ok(self.check_expected_failure(stdout, stderr))
+            } else {
+                Ok(Outcome::Run { err: e.to_string() })
+            };
         }
 
-        // check that the output is as expected
         debug!("processing output");
         let actual = output_files(&output_dir)?;
         let expected = output_files(&self.path.join(EXPECTED_RUN_OUTPUT_DIR))?;
 
-        // Normalize temp directory paths in actual output to match $OUTDIR placeholders
         let actual: HashMap<String, String> = actual
             .into_iter()
             .map(|(k, v)| (k, normalize_paths(&v, out_dir)))
@@ -261,10 +319,11 @@ enum Outcome {
         unexpected: Vec<String>,
         with_diff: Vec<(String, String)>,
     },
-    // ExpectedError {
-    //     expected: String,
-    //     actual: String,
-    // },
+
+    ExpectedError {
+        expected: String,
+        actual: String,
+    },
 }
 
 impl Outcome {
@@ -279,6 +338,7 @@ impl Outcome {
             Outcome::Check { .. } => "check failed",
             Outcome::Run { .. } => "run error",
             Outcome::OutputDiff { .. } => "output mismatch",
+            Outcome::ExpectedError { .. } => "wrong error output",
         }
     }
 
@@ -305,6 +365,10 @@ impl Outcome {
                 }
 
                 s
+            }
+
+            Outcome::ExpectedError { expected, actual } => {
+                format!("expected:\n{expected}\n\n  actual:\n{actual}")
             }
         }
     }
@@ -530,6 +594,7 @@ mod tests {
     #[test_case(Outcome::Check { err: "e".into() }, false; "check")]
     #[test_case(Outcome::Run { err: "e".into() }, false; "run")]
     #[test_case(Outcome::OutputDiff { missing: vec![], unexpected: vec![], with_diff: vec![] }, false; "output diff")]
+    #[test_case(Outcome::ExpectedError { expected: "e".into(), actual: "a".into() }, false; "expected error")]
     #[test]
     fn outcome_is_success(outcome: Outcome, expected: bool) {
         assert_eq!(outcome.is_success(), expected);
@@ -540,6 +605,7 @@ mod tests {
     #[test_case(Outcome::Check { err: "e".into() }, "check failed"; "check")]
     #[test_case(Outcome::Run { err: "e".into() }, "run error"; "run")]
     #[test_case(Outcome::OutputDiff { missing: vec![], unexpected: vec![], with_diff: vec![] }, "output mismatch"; "output diff")]
+    #[test_case(Outcome::ExpectedError { expected: "e".into(), actual: "a".into() }, "wrong error output"; "expected error")]
     #[test]
     fn outcome_summary(outcome: Outcome, expected: &str) {
         assert_eq!(outcome.summary(), expected);
@@ -606,6 +672,11 @@ mod tests {
         "  missing: m.txt\n  unexpected: u.txt\n  d.txt:\n-a\n+b\n\n";
         "output diff combined"
     )]
+    #[test_case(
+        Outcome::ExpectedError { expected: "expected msg".into(), actual: "actual msg".into() },
+        "expected:\nexpected msg\n\n  actual:\nactual msg";
+        "expected error formats both"
+    )]
     #[test]
     fn outcome_detail(outcome: Outcome, expected: &str) {
         assert_eq!(outcome.detail(), expected);
@@ -649,6 +720,15 @@ mod tests {
             .unwrap();
     }
 
+    fn create_failure_test_case(tmp: &TempDir, name: &str, expected_error: &str) {
+        tmp.child(format!("{name}/variables.json"))
+            .write_str("{}")
+            .unwrap();
+        tmp.child(format!("{name}/expected-run-error.txt"))
+            .write_str(expected_error)
+            .unwrap();
+    }
+
     #[test_case(0; "empty directory")]
     #[test_case(1; "single test case")]
     #[test_case(3; "multiple test cases")]
@@ -679,6 +759,31 @@ mod tests {
             .map(|tc| tc.path.file_name().unwrap().to_string_lossy().to_string())
             .collect();
         assert_eq!(names, vec!["alpha", "middle", "zebra"]);
+    }
+
+    #[test]
+    fn try_load_all_failure_case_sets_expect_failure() {
+        let tmp = TempDir::new().unwrap();
+        create_failure_test_case(&tmp, "fail-case", "expected error");
+
+        let cases = TestCase::try_load_all(tmp.path()).unwrap();
+
+        assert_eq!(cases.len(), 1);
+        assert!(cases[0].expect_failure);
+    }
+
+    #[test]
+    fn try_load_all_mixed_success_and_failure() {
+        let tmp = TempDir::new().unwrap();
+        create_valid_test_case(&tmp, "success-case");
+        create_failure_test_case(&tmp, "fail-case", "error");
+
+        let cases = TestCase::try_load_all(tmp.path()).unwrap();
+
+        assert_eq!(cases.len(), 2);
+        // Sorted alphabetically: fail-case, success-case
+        assert!(cases[0].expect_failure);
+        assert!(!cases[1].expect_failure);
     }
 
     #[test_case(
@@ -886,6 +991,12 @@ mod tests {
         io::ErrorKind::NotADirectory;
         "expected output is file"
     )]
+    #[test_case(
+        &[TestAsset::File("case/variables.json", "{}"), TestAsset::Dir("case/expected-run-error.txt")],
+        None,
+        io::ErrorKind::IsADirectory;
+        "expected error file is dir"
+    )]
     #[test]
     fn try_load_all_error(assets: &[TestAsset], subpath: Option<&str>, expected: io::ErrorKind) {
         let tmp = TempDir::new().unwrap();
@@ -950,6 +1061,11 @@ mod tests {
         Outcome::OutputDiff { missing: vec![], unexpected: vec![], with_diff: vec![] },
         "output mismatch";
         "output mismatch"
+    )]
+    #[test_case(
+        Outcome::ExpectedError { expected: "e".into(), actual: "a".into() },
+        "wrong error output";
+        "expected error"
     )]
     #[test]
     fn format_result_line_includes_correct_reason(outcome: Outcome, expected_reason: &str) {
@@ -1033,5 +1149,67 @@ mod tests {
         let result = normalize_paths("", temp_dir);
 
         assert_eq!(result, "");
+    }
+
+    #[test_case("stdout: msg", "msg", ""; "stdout only")]
+    #[test_case("stderr: msg", "", "msg"; "stderr only")]
+    #[test_case("stdout: out\nstderr: err", "out", "err"; "both")]
+    #[test]
+    fn check_expected_failure_matching(expected_content: &str, stdout: &str, stderr: &str) {
+        let tmp = TempDir::new().unwrap();
+        create_failure_test_case(&tmp, "case", expected_content);
+
+        let case = TestCase {
+            path: tmp.path().join("case"),
+            expect_failure: true,
+        };
+
+        let outcome = case.check_expected_failure(stdout.into(), stderr.into());
+        assert!(outcome.is_success());
+    }
+
+    #[test]
+    fn check_expected_failure_mismatch_returns_expected_error() {
+        let tmp = TempDir::new().unwrap();
+        create_failure_test_case(&tmp, "case", "stdout: expected");
+
+        let case = TestCase {
+            path: tmp.path().join("case"),
+            expect_failure: true,
+        };
+
+        let outcome = case.check_expected_failure("actual".into(), String::new());
+
+        match outcome {
+            Outcome::ExpectedError { expected, actual } => {
+                assert_eq!(expected, "stdout: expected");
+                assert_eq!(actual, "stdout: actual");
+            }
+            _ => panic!("expected ExpectedError, got {outcome:?}"),
+        }
+    }
+
+    #[test]
+    fn check_expected_failure_file_read_error() {
+        let tmp = TempDir::new().unwrap();
+        // Only create variables.json, not expected-run-error.txt
+        tmp.child("case/variables.json").write_str("{}").unwrap();
+
+        let case = TestCase {
+            path: tmp.path().join("case"),
+            expect_failure: true,
+        };
+
+        let outcome = case.check_expected_failure("out".into(), "err".into());
+
+        match outcome {
+            Outcome::Run { err } => {
+                assert!(
+                    err.contains("unable to read expected-run-error.txt"),
+                    "expected error about missing file, got: {err}"
+                );
+            }
+            _ => panic!("expected Run error, got {outcome:?}"),
+        }
     }
 }

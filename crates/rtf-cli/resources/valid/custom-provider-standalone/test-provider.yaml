@@ -1,0 +1,10 @@
+name: test provider
+description: A provider that writes to an output directory (for testing)
+variable_definitions: []
+command:
+  name: test.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    mkdir -p "$RTF_OUTPUT"
+    echo "Hello from test provider" > "$RTF_OUTPUT/output.txt"

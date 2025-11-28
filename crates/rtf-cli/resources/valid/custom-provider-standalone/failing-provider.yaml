@@ -1,0 +1,10 @@
+name: failing provider
+description: A custom provider that always fails for testing expected errors
+variable_definitions: []
+command:
+  name: fail.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "this is an error message" >&2
+    exit 1
