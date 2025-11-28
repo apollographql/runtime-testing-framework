@@ -134,5 +134,9 @@ pub enum CustomProviderSubcommand {
         /// Whether or not having zero test cases is considered an error
         #[arg(long, action)]
         error_on_empty: bool,
+
+        /// Show captured stdout/stderr for failed tests
+        #[arg(long, action)]
+        no_capture: bool,
     },
 }

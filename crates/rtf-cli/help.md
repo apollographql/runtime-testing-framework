@@ -150,6 +150,7 @@ Run tests for the given provider
 
 * `--test-cases-dir <TEST_CASES_DIR>` — The directory that contains the test cases
 * `--error-on-empty` — Whether or not having zero test cases is considered an error
+* `--no-capture` — Show captured stdout/stderr for failed tests
 
 
 

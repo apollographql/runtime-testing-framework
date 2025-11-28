@@ -74,6 +74,7 @@ complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen_subcommand_from test" -l var -d 'A single additional templating variable in the form "key=value"' -r
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen_subcommand_from test" -l vars -d 'Path to a JSON file containing additional template variables' -r -F
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen_subcommand_from test" -l error-on-empty -d 'Whether or not having zero test cases is considered an error'
+complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen_subcommand_from test" -l no-capture -d 'Show captured stdout/stderr for failed tests'
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen_subcommand_from test" -s v -l verbose -d 'Flag to control logging verbosity. Default level is `warn`. `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`'
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen_subcommand_from test" -s h -l help -d 'Print help'
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen_subcommand_from help" -f -a "template" -d 'Template a custom provider definition, outputting the resulting config to stdout'

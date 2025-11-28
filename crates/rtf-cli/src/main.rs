@@ -106,8 +106,11 @@ async fn main() {
                     definition_path,
                     test_cases_dir,
                     error_on_empty,
+                    no_capture,
                 },
-        } => test_custom_provider(&definition_path, test_cases_dir, error_on_empty).await,
+        } => {
+            test_custom_provider(&definition_path, test_cases_dir, error_on_empty, no_capture).await
+        }
     };
 
     if let Err(e) = res {

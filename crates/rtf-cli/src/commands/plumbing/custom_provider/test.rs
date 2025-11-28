@@ -13,8 +13,10 @@ use rtf_config::{
 use similar::{ChangeTag, TextDiff};
 use std::{
     collections::HashMap,
-    fs, io,
+    fs,
+    io::{self, IsTerminal, stdout},
     path::{Path, PathBuf},
+    time::{Duration, Instant},
 };
 use tracing::{debug, error};
 use walkdir::WalkDir;
@@ -23,11 +25,15 @@ use walkdir::WalkDir;
 const EXPECTED_RUN_OUTPUT_DIR: &str = "expected-run-output";
 const VARIABLES_FILE: &str = "variables.json";
 const TEST_CASES_DIR: &str = "test-cases";
+const ANSI_RED: &str = "\x1b[31m";
+const ANSI_GREEN: &str = "\x1b[32m";
+const ANSI_RESET: &str = "\x1b[0m";
 
 pub async fn test_custom_provider(
     definition_path: &str,
     test_cases_dir: Option<String>,
     error_on_empty: bool,
+    no_capture: bool,
 ) -> anyhow::Result<()> {
     let ctx = get_context();
 
@@ -53,8 +59,9 @@ pub async fn test_custom_provider(
     }
 
     let total = test_cases.len();
-    let mut failures = Vec::new();
-    let mut passed = 0;
+    let mut outcomes: Vec<Outcome> = Vec::new();
+    let total_start = Instant::now();
+    let is_tty = stdout().is_terminal();
 
     for case in test_cases.into_iter() {
         let name = case
@@ -63,36 +70,54 @@ pub async fn test_custom_provider(
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "unknown".into());
 
-        let outcome = match case
-            .run(&source, definition.clone(), &mut get_context())
-            .await
-        {
+        // We need a fresh context for each test to avoid incorrectly trying to used cached
+        // provider output that was just removed in the temp dir of a previous run
+        let mut ctx = get_context();
+        ctx.enable_output_capture();
+
+        let start = Instant::now();
+        let outcome = match case.run(&source, definition.clone(), &mut ctx).await {
             Ok(outcome) => outcome,
             Err(e) => Outcome::Run { err: e.to_string() },
         };
+        let elapsed = start.elapsed();
 
-        println!("{name} {} ", outcome.summary());
+        println!("{}", format_result_line(&name, &outcome, elapsed, is_tty));
 
         if !outcome.is_success() {
-            failures.push((name, outcome));
-        } else {
-            passed += 1;
-        }
-    }
-
-    if !failures.is_empty() {
-        println!("\n━━━ FAILURES ━━━\n");
-        for (name, outcome) in failures.iter() {
-            println!("── {name} ──");
             let detail = outcome.detail();
             if !detail.is_empty() {
-                println!("{detail}");
+                println!("{}", format_diff_detail(&detail, is_tty));
+            }
+
+            if no_capture {
+                let stdout = ctx.captured_stdout();
+                let stderr = ctx.captured_stderr();
+                print_captured_output(&stdout, &stderr, is_tty);
             }
         }
+
+        outcomes.push(outcome);
     }
 
+    let total_elapsed = total_start.elapsed();
+    let passed = outcomes.iter().filter(|o| o.is_success()).count();
+    let failures: Vec<_> = outcomes.iter().filter(|o| !o.is_success()).collect();
     let failed = failures.len();
-    println!("\n{passed}/{total} passed, {failed} failed");
+
+    let (color_start, color_end) = if is_tty {
+        (if failed > 0 { ANSI_RED } else { ANSI_GREEN }, ANSI_RESET)
+    } else {
+        ("", "")
+    };
+
+    println!(
+        "\n {color_start}Summary{color_end} [{:>7.3}s] {} tests run: {} passed, {} failed",
+        total_elapsed.as_secs_f64(),
+        total,
+        passed,
+        failed
+    );
 
     if failed > 0 {
         Err(anyhow!("{failed} test(s) failed"))
@@ -200,6 +225,12 @@ impl TestCase {
         debug!("processing output");
         let actual = output_files(&output_dir)?;
         let expected = output_files(&self.path.join(EXPECTED_RUN_OUTPUT_DIR))?;
+
+        // Normalize temp directory paths in actual output to match $OUTDIR placeholders
+        let actual: HashMap<String, String> = actual
+            .into_iter()
+            .map(|(k, v)| (k, normalize_paths(&v, out_dir)))
+            .collect();
 
         Ok(compare_outputs(&actual, &expected))
     }
@@ -338,6 +369,15 @@ fn load_variables(path: &Path) -> anyhow::Result<HashMap<String, Scalar>> {
     Ok(vars)
 }
 
+/// Replace occurrences of the temp directory path with `$OUTDIR` placeholder.
+///
+/// This allows expected output files to use `$OUTDIR` as a placeholder that matches
+/// against the actual absolute temp directory path used during test execution.
+#[inline]
+fn normalize_paths(content: &str, temp_dir: &Path) -> String {
+    content.replace(&temp_dir.display().to_string(), "$OUTDIR")
+}
+
 fn output_files(p: &Path) -> io::Result<HashMap<String, String>> {
     let mut files = HashMap::new();
 
@@ -351,6 +391,75 @@ fn output_files(p: &Path) -> io::Result<HashMap<String, String>> {
     }
 
     Ok(files)
+}
+
+fn format_result_line(name: &str, outcome: &Outcome, elapsed: Duration, is_tty: bool) -> String {
+    let status = if outcome.is_success() { "PASS" } else { "FAIL" };
+    let mut color_start = "";
+    let mut color_end = "";
+
+    if is_tty {
+        if outcome.is_success() {
+            color_start = ANSI_GREEN;
+        } else {
+            color_start = ANSI_RED;
+        };
+
+        color_end = ANSI_RESET;
+    }
+    let secs = elapsed.as_secs_f64();
+
+    if outcome.is_success() {
+        format!("{color_start}{status:>8}{color_end} [{secs:>7.3}s] {name}")
+    } else {
+        format!(
+            "{color_start}{status:>8}{color_end} [{secs:>7.3}s] {name} - {}",
+            outcome.summary()
+        )
+    }
+}
+
+fn diff_line(line: &str, is_tty: bool) -> String {
+    if !is_tty {
+        return line.to_string();
+    }
+
+    if let Some(rest) = line.strip_prefix('-') {
+        format!("{ANSI_RED}-{rest}{ANSI_RESET}")
+    } else if let Some(rest) = line.strip_prefix('+') {
+        format!("{ANSI_GREEN}+{rest}{ANSI_RESET}")
+    } else {
+        line.to_string()
+    }
+}
+
+fn format_diff_detail(detail: &str, is_tty: bool) -> String {
+    detail
+        .lines()
+        .map(|line| format!("        {}", diff_line(line, is_tty)))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn print_captured_output(stdout: &str, stderr: &str, is_tty: bool) {
+    let (color_start, color_end) = if is_tty {
+        (ANSI_RED, ANSI_RESET)
+    } else {
+        ("", "")
+    };
+
+    if !stdout.is_empty() {
+        println!("\n        {color_start}--- stdout ---{color_end}");
+        for line in stdout.lines() {
+            println!("        {line}");
+        }
+    }
+    if !stderr.is_empty() {
+        println!("\n        {color_start}--- stderr ---{color_end}");
+        for line in stderr.lines() {
+            println!("        {line}");
+        }
+    }
 }
 
 #[cfg(test)]
@@ -796,5 +905,133 @@ mod tests {
             res.unwrap_err().downcast_ref::<io::Error>().unwrap().kind(),
             expected
         );
+    }
+
+    #[test]
+    fn format_result_line_success() {
+        let outcome = Outcome::Success;
+        let elapsed = Duration::from_millis(42);
+
+        let line = format_result_line("test_name", &outcome, elapsed, false);
+
+        assert_eq!(line, "    PASS [  0.042s] test_name");
+    }
+
+    #[test]
+    fn format_result_line_failure_includes_reason() {
+        let outcome = Outcome::OutputDiff {
+            missing: vec![],
+            unexpected: vec![],
+            with_diff: vec![],
+        };
+        let elapsed = Duration::from_millis(156);
+
+        let line = format_result_line("test_name", &outcome, elapsed, false);
+
+        assert_eq!(line, "    FAIL [  0.156s] test_name - output mismatch");
+    }
+
+    #[test_case(
+        Outcome::Template { err: "e".into() },
+        "template error";
+        "template error"
+    )]
+    #[test_case(
+        Outcome::Check { err: "e".into() },
+        "check failed";
+        "check failed"
+    )]
+    #[test_case(
+        Outcome::Run { err: "e".into() },
+        "run error";
+        "run error"
+    )]
+    #[test_case(
+        Outcome::OutputDiff { missing: vec![], unexpected: vec![], with_diff: vec![] },
+        "output mismatch";
+        "output mismatch"
+    )]
+    #[test]
+    fn format_result_line_includes_correct_reason(outcome: Outcome, expected_reason: &str) {
+        let elapsed = Duration::from_millis(100);
+
+        let line = format_result_line("test", &outcome, elapsed, false);
+
+        assert!(
+            line.ends_with(&format!(" - {expected_reason}")),
+            "expected line to end with ' - {expected_reason}', got: {line}"
+        );
+    }
+
+    #[test]
+    fn format_result_line_timing_sub_second() {
+        let outcome = Outcome::Success;
+        let elapsed = Duration::from_millis(3);
+
+        let line = format_result_line("test", &outcome, elapsed, false);
+
+        assert!(line.contains("[  0.003s]"), "got: {line}");
+    }
+
+    #[test]
+    fn format_result_line_timing_multi_second() {
+        let outcome = Outcome::Success;
+        let elapsed = Duration::from_secs(12) + Duration::from_millis(345);
+
+        let line = format_result_line("test", &outcome, elapsed, false);
+
+        assert!(line.contains("[ 12.345s]"), "got: {line}");
+    }
+
+    #[test]
+    fn format_result_line_alignment_preserved() {
+        let outcome = Outcome::Success;
+        let elapsed = Duration::from_millis(1);
+
+        let short = format_result_line("a", &outcome, elapsed, false);
+        let long = format_result_line("very_long_test_name", &outcome, elapsed, false);
+
+        // Both should have same prefix up to the name (status + timing)
+        let prefix_len = "    PASS [  0.001s] ".len();
+        assert_eq!(&short[..prefix_len], &long[..prefix_len]);
+    }
+
+    #[test]
+    fn normalize_paths_replaces_temp_dir() {
+        let temp_dir = Path::new("/tmp/test123");
+        let content = "export FILE=\"/tmp/test123/RTF_OUTPUT/file.txt\"";
+
+        let result = normalize_paths(content, temp_dir);
+
+        assert_eq!(result, "export FILE=\"$OUTDIR/RTF_OUTPUT/file.txt\"");
+    }
+
+    #[test]
+    fn normalize_paths_replaces_multiple_occurrences() {
+        let temp_dir = Path::new("/var/folders/abc");
+        let content = "A=/var/folders/abc/one\nB=/var/folders/abc/two";
+
+        let result = normalize_paths(content, temp_dir);
+
+        assert_eq!(result, "A=$OUTDIR/one\nB=$OUTDIR/two");
+    }
+
+    #[test]
+    fn normalize_paths_no_match_unchanged() {
+        let temp_dir = Path::new("/tmp/test123");
+        let content = "no paths here";
+
+        let result = normalize_paths(content, temp_dir);
+
+        assert_eq!(result, "no paths here");
+    }
+
+    #[test]
+    fn normalize_paths_empty_content() {
+        let temp_dir = Path::new("/tmp/test");
+
+        let result = normalize_paths("", temp_dir);
+
+        assert_eq!(result, "");
     }
 }

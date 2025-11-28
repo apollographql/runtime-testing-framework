@@ -248,7 +248,7 @@ _rtf() {
             return 0
             ;;
         rtf__custom__provider__test)
-            opts="-v -h --test-cases-dir --error-on-empty --var --vars --verbose --help <DEFINITION_PATH>"
+            opts="-v -h --test-cases-dir --error-on-empty --no-capture --var --vars --verbose --help <DEFINITION_PATH>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

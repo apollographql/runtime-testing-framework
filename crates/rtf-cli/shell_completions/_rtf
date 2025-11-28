@@ -119,6 +119,7 @@ _arguments "${_arguments_options[@]}" : \
 '*--var=[A single additional templating variable in the form "key=value"]:VAR:_default' \
 '--vars=[Path to a JSON file containing additional template variables]:VARS:_files' \
 '--error-on-empty[Whether or not having zero test cases is considered an error]' \
+'--no-capture[Show captured stdout/stderr for failed tests]' \
 '*-v[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
 '*--verbose[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
 '-h[Print help]' \
