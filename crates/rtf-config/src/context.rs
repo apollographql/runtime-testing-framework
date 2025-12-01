@@ -12,7 +12,7 @@ use std::{
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
     process::Command,
-    sync::Arc,
+    sync::{Arc, RwLock},
 };
 use tokio::sync::Mutex;
 use tracing::error;
@@ -167,6 +167,9 @@ pub struct Context {
     client: ReqwestClient,
     supergraph_details: Mutex<HashMap<String, Arc<SupergraphDetails>>>,
     fp_output_paths: HashMap<String, PathBuf>,
+    capture_output: bool,
+    captured_stdout: RwLock<Vec<u8>>,
+    captured_stderr: RwLock<Vec<u8>>,
 }
 
 impl Context {
@@ -214,6 +217,30 @@ impl Context {
     pub fn with_github_config(&mut self, api_token: impl Into<String>) -> &mut Self {
         self.client.with_github_config(api_token);
         self
+    }
+
+    /// Enable output capture mode. When enabled, `run_command_blocking` will
+    /// suppress stdout/stderr and store the output in internal buffers.
+    pub fn enable_output_capture(&mut self) {
+        self.capture_output = true;
+    }
+
+    /// Clear the captured stdout and stderr buffers.
+    pub fn clear_captured_output(&self) {
+        self.captured_stdout.write().unwrap().clear();
+        self.captured_stderr.write().unwrap().clear();
+    }
+
+    /// Returns captured stdout as a string, using lossy UTF-8 conversion.
+    pub fn captured_stdout(&self) -> String {
+        let guard = self.captured_stdout.read().unwrap();
+        String::from_utf8_lossy(&guard).into_owned()
+    }
+
+    /// Returns captured stderr as a string, using lossy UTF-8 conversion.
+    pub fn captured_stderr(&self) -> String {
+        let guard = self.captured_stderr.read().unwrap();
+        String::from_utf8_lossy(&guard).into_owned()
     }
 }
 
@@ -317,16 +344,29 @@ impl ResolutionContext for Context {
         args: impl IntoIterator<Item = &'a str>,
         env_vars: &HashMap<String, String>,
     ) -> io::Result<()> {
-        let status = Command::new(prog)
-            .args(args)
-            .envs(env_vars)
-            .spawn()?
-            .wait()?;
+        if self.capture_output {
+            let output = Command::new(prog).args(args).envs(env_vars).output()?;
 
-        if !status.success() {
-            return Err(io::Error::other(format!(
-                "{prog:?} failed to terminate successfully"
-            )));
+            self.captured_stdout.write().unwrap().extend(&output.stdout);
+            self.captured_stderr.write().unwrap().extend(&output.stderr);
+
+            if !output.status.success() {
+                return Err(io::Error::other(format!(
+                    "{prog:?} failed to terminate successfully"
+                )));
+            }
+        } else {
+            let status = Command::new(prog)
+                .args(args)
+                .envs(env_vars)
+                .spawn()?
+                .wait()?;
+
+            if !status.success() {
+                return Err(io::Error::other(format!(
+                    "{prog:?} failed to terminate successfully"
+                )));
+            }
         }
 
         Ok(())

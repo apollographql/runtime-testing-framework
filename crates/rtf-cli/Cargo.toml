@@ -13,6 +13,7 @@ rtf-config = { path = "../rtf-config" }
 rtf-core = { path = "../rtf-core" }
 
 anyhow.workspace = true 
+assert_fs.workspace = true
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -20,10 +21,11 @@ serde_yaml.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+similar = "2.7.0"
+walkdir = "2.5.0"
 
 [dev-dependencies]
 assert_cmd.workspace = true
-assert_fs.workspace = true
 indoc.workspace = true
 predicates.workspace = true
 simple_test_case.workspace = true

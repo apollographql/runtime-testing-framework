@@ -121,4 +121,23 @@ pub enum CustomProviderSubcommand {
         #[arg(long, default_value = "output")]
         outdir: String,
     },
+
+    /// !!EXPERIMENTAL!! Run tests for the given provider
+    #[command(hide = true)]
+    Test {
+        /// Relative path to the custom provider definition file
+        definition_path: String,
+
+        /// The directory that contains the test cases
+        #[arg(long)]
+        test_cases_dir: Option<String>,
+
+        /// Whether or not having zero test cases is considered an error
+        #[arg(long, action)]
+        error_on_empty: bool,
+
+        /// Show captured stdout/stderr for failed tests
+        #[arg(long, action)]
+        no_capture: bool,
+    },
 }

@@ -279,3 +279,104 @@ fn run_with_file_provider_creates_expected_output() {
     let content = std::fs::read_to_string(output_file.path()).unwrap();
     assert!(content.contains("This is test input"));
 }
+
+#[test]
+fn test_is_executable() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd.arg("custom-provider").arg("test").assert();
+
+    res.failure()
+        .stderr(contains("required arguments were not provided"));
+}
+
+#[test]
+fn test_passing_case() {
+    let tmp = TempDir::new().unwrap();
+    tmp.copy_from(
+        "resources/valid/custom-provider-standalone",
+        &["test-provider.yaml", "test-provider-test-cases/**"],
+    )
+    .unwrap();
+
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("test")
+        .arg(tmp.child("test-provider.yaml").path())
+        .arg("--test-cases-dir")
+        .arg(tmp.child("test-provider-test-cases").path())
+        .assert();
+
+    res.success().stdout(contains("PASS"));
+}
+
+#[test]
+fn test_expected_failure_matches() {
+    let tmp = TempDir::new().unwrap();
+    tmp.copy_from(
+        "resources/valid/custom-provider-standalone",
+        &["failing-provider.yaml", "failing-provider-test-match/**"],
+    )
+    .unwrap();
+
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("test")
+        .arg(tmp.child("failing-provider.yaml").path())
+        .arg("--test-cases-dir")
+        .arg(tmp.child("failing-provider-test-match").path())
+        .assert();
+
+    res.success().stdout(contains("PASS"));
+}
+
+#[test]
+fn test_expected_failure_mismatch() {
+    let tmp = TempDir::new().unwrap();
+    tmp.copy_from(
+        "resources/valid/custom-provider-standalone",
+        &["failing-provider.yaml", "failing-provider-test-mismatch/**"],
+    )
+    .unwrap();
+
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("test")
+        .arg(tmp.child("failing-provider.yaml").path())
+        .arg("--test-cases-dir")
+        .arg(tmp.child("failing-provider-test-mismatch").path())
+        .assert();
+
+    res.failure()
+        .stdout(contains("FAIL"))
+        .stdout(contains("wrong error output"));
+}
+
+#[test]
+fn test_error_on_empty() {
+    let tmp = TempDir::new().unwrap();
+    tmp.copy_from(
+        "resources/valid/custom-provider-standalone",
+        &["simple-provider.yaml"],
+    )
+    .unwrap();
+    tmp.child("empty-test-cases").create_dir_all().unwrap();
+
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("test")
+        .arg(tmp.child("simple-provider.yaml").path())
+        .arg("--test-cases-dir")
+        .arg(tmp.child("empty-test-cases").path())
+        .arg("--error-on-empty")
+        .assert();
+
+    res.failure().stderr(contains("No test cases found"));
+}

@@ -6,7 +6,7 @@ use rtf_cli::{
     commands::{
         plumbing::{
             expand_test_plan_matrix, run_custom_provider, template_custom_provider,
-            template_test_plan_github, template_test_plan_local,
+            template_test_plan_github, template_test_plan_local, test_custom_provider,
         },
         porcelain::{check_and_run_github_test_plan, check_and_run_local_test_plan},
     },
@@ -99,6 +99,18 @@ async fn main() {
                     outdir,
                 },
         } => run_custom_provider(&definition_path, variables, &outdir).await,
+
+        Command::CustomProvider {
+            subcommand:
+                CustomProviderSubcommand::Test {
+                    definition_path,
+                    test_cases_dir,
+                    error_on_empty,
+                    no_capture,
+                },
+        } => {
+            test_custom_provider(&definition_path, test_cases_dir, error_on_empty, no_capture).await
+        }
     };
 
     if let Err(e) = res {

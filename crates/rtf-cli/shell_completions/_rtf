@@ -113,6 +113,20 @@ _arguments "${_arguments_options[@]}" : \
 ':definition_path -- Relative path to the custom provider definition file:_default' \
 && ret=0
 ;;
+(test)
+_arguments "${_arguments_options[@]}" : \
+'--test-cases-dir=[The directory that contains the test cases]:TEST_CASES_DIR:_default' \
+'*--var=[A single additional templating variable in the form "key=value"]:VAR:_default' \
+'--vars=[Path to a JSON file containing additional template variables]:VARS:_files' \
+'--error-on-empty[Whether or not having zero test cases is considered an error]' \
+'--no-capture[Show captured stdout/stderr for failed tests]' \
+'*-v[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'*--verbose[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':definition_path -- Relative path to the custom provider definition file:_default' \
+&& ret=0
+;;
 (help)
 _arguments "${_arguments_options[@]}" : \
 ":: :_rtf__custom-provider__help_commands" \
@@ -130,6 +144,10 @@ _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
 (run)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(test)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -189,6 +207,10 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(test)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
         esac
     ;;
 esac
@@ -222,6 +244,7 @@ _rtf__custom-provider_commands() {
     local commands; commands=(
 'template:Template a custom provider definition, outputting the resulting config to stdout' \
 'run:Execute a custom provider definition' \
+'test:!!EXPERIMENTAL!! Run tests for the given provider' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'rtf custom-provider commands' commands "$@"
@@ -231,6 +254,7 @@ _rtf__custom-provider__help_commands() {
     local commands; commands=(
 'template:Template a custom provider definition, outputting the resulting config to stdout' \
 'run:Execute a custom provider definition' \
+'test:!!EXPERIMENTAL!! Run tests for the given provider' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'rtf custom-provider help commands' commands "$@"
@@ -250,6 +274,11 @@ _rtf__custom-provider__help__template_commands() {
     local commands; commands=()
     _describe -t commands 'rtf custom-provider help template commands' commands "$@"
 }
+(( $+functions[_rtf__custom-provider__help__test_commands] )) ||
+_rtf__custom-provider__help__test_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf custom-provider help test commands' commands "$@"
+}
 (( $+functions[_rtf__custom-provider__run_commands] )) ||
 _rtf__custom-provider__run_commands() {
     local commands; commands=()
@@ -259,6 +288,11 @@ _rtf__custom-provider__run_commands() {
 _rtf__custom-provider__template_commands() {
     local commands; commands=()
     _describe -t commands 'rtf custom-provider template commands' commands "$@"
+}
+(( $+functions[_rtf__custom-provider__test_commands] )) ||
+_rtf__custom-provider__test_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf custom-provider test commands' commands "$@"
 }
 (( $+functions[_rtf__expand-matrix_commands] )) ||
 _rtf__expand-matrix_commands() {
@@ -281,6 +315,7 @@ _rtf__help__custom-provider_commands() {
     local commands; commands=(
 'template:Template a custom provider definition, outputting the resulting config to stdout' \
 'run:Execute a custom provider definition' \
+'test:!!EXPERIMENTAL!! Run tests for the given provider' \
     )
     _describe -t commands 'rtf help custom-provider commands' commands "$@"
 }
@@ -293,6 +328,11 @@ _rtf__help__custom-provider__run_commands() {
 _rtf__help__custom-provider__template_commands() {
     local commands; commands=()
     _describe -t commands 'rtf help custom-provider template commands' commands "$@"
+}
+(( $+functions[_rtf__help__custom-provider__test_commands] )) ||
+_rtf__help__custom-provider__test_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf help custom-provider test commands' commands "$@"
 }
 (( $+functions[_rtf__help__expand-matrix_commands] )) ||
 _rtf__help__expand-matrix_commands() {
