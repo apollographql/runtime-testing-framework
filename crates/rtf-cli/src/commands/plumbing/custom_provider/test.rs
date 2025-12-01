@@ -20,7 +20,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 use walkdir::WalkDir;
 
 const ANSI_GREEN: &str = "\x1b[32m";
@@ -37,6 +37,8 @@ pub async fn test_custom_provider(
     error_on_empty: bool,
     no_capture: bool,
 ) -> anyhow::Result<()> {
+    warn!("This is an experimental sub-command that is subject to changes in behaviour!");
+
     let ctx = get_context();
     let (source, definition) = load_definition(definition_path, &ctx).await?;
 

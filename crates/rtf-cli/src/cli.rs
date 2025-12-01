@@ -122,7 +122,8 @@ pub enum CustomProviderSubcommand {
         outdir: String,
     },
 
-    /// Run tests for the given provider
+    /// !!EXPERIMENTAL!! Run tests for the given provider
+    #[command(hide = true)]
     Test {
         /// Relative path to the custom provider definition file
         definition_path: String,

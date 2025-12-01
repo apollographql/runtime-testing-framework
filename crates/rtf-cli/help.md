@@ -11,7 +11,6 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf custom-provider`↴](#rtf-custom-provider)
 * [`rtf custom-provider template`↴](#rtf-custom-provider-template)
 * [`rtf custom-provider run`↴](#rtf-custom-provider-run)
-* [`rtf custom-provider test`↴](#rtf-custom-provider-test)
 
 ## `rtf`
 
@@ -98,7 +97,6 @@ Work directly with custom file provider definitions
 
 * `template` — Template a custom provider definition, outputting the resulting config to stdout
 * `run` — Execute a custom provider definition
-* `test` — Run tests for the given provider
 
 
 
@@ -133,24 +131,6 @@ Execute a custom provider definition
 * `--outdir <OUTDIR>` — Output directory for provider execution
 
   Default value: `output`
-
-
-
-## `rtf custom-provider test`
-
-Run tests for the given provider
-
-**Usage:** `rtf custom-provider test [OPTIONS] <DEFINITION_PATH>`
-
-###### **Arguments:**
-
-* `<DEFINITION_PATH>` — Relative path to the custom provider definition file
-
-###### **Options:**
-
-* `--test-cases-dir <TEST_CASES_DIR>` — The directory that contains the test cases
-* `--error-on-empty` — Whether or not having zero test cases is considered an error
-* `--no-capture` — Show captured stdout/stderr for failed tests
 
 
 

@@ -58,7 +58,7 @@ complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and not __fish_
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and not __fish_seen_subcommand_from template run test help" -s h -l help -d 'Print help'
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and not __fish_seen_subcommand_from template run test help" -f -a "template" -d 'Template a custom provider definition, outputting the resulting config to stdout'
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and not __fish_seen_subcommand_from template run test help" -f -a "run" -d 'Execute a custom provider definition'
-complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and not __fish_seen_subcommand_from template run test help" -f -a "test" -d 'Run tests for the given provider'
+complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and not __fish_seen_subcommand_from template run test help" -f -a "test" -d '!!EXPERIMENTAL!! Run tests for the given provider'
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and not __fish_seen_subcommand_from template run test help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen_subcommand_from template" -l var -d 'A single additional templating variable in the form "key=value"' -r
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen_subcommand_from template" -l vars -d 'Path to a JSON file containing additional template variables' -r -F
@@ -79,7 +79,7 @@ complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen_subcommand_from test" -s h -l help -d 'Print help'
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen_subcommand_from help" -f -a "template" -d 'Template a custom provider definition, outputting the resulting config to stdout'
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen_subcommand_from help" -f -a "run" -d 'Execute a custom provider definition'
-complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen_subcommand_from help" -f -a "test" -d 'Run tests for the given provider'
+complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen_subcommand_from help" -f -a "test" -d '!!EXPERIMENTAL!! Run tests for the given provider'
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and __fish_seen_subcommand_from help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider help" -f -a "run" -d 'Check and run a test plan'
 complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider help" -f -a "expand-matrix" -d 'Expand a test plan matrix into JSON'
@@ -88,4 +88,4 @@ complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcom
 complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c rtf -n "__fish_rtf_using_subcommand help; and __fish_seen_subcommand_from custom-provider" -f -a "template" -d 'Template a custom provider definition, outputting the resulting config to stdout'
 complete -c rtf -n "__fish_rtf_using_subcommand help; and __fish_seen_subcommand_from custom-provider" -f -a "run" -d 'Execute a custom provider definition'
-complete -c rtf -n "__fish_rtf_using_subcommand help; and __fish_seen_subcommand_from custom-provider" -f -a "test" -d 'Run tests for the given provider'
+complete -c rtf -n "__fish_rtf_using_subcommand help; and __fish_seen_subcommand_from custom-provider" -f -a "test" -d '!!EXPERIMENTAL!! Run tests for the given provider'
