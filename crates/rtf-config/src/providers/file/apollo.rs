@@ -481,6 +481,7 @@ impl Check for GraphosSubgraphRouterUrlOverrides {
 ///   graph_ref: graph@variant
 ///   top_n: 10
 ///   skip_mutations: true
+///   time_range: 7d
 /// ```
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct GraphosCannedOps {
@@ -496,10 +497,20 @@ pub struct GraphosCannedOps {
     /// Defaults to false if unset.
     #[serde(default)]
     pub skip_mutations: Field<bool>,
+    /// How far back to query for operations.
+    ///
+    /// Accepts duration strings like "30d", "7d", "12h".
+    /// Defaults to "30d" if unset.
+    #[serde(default = "default_time_range")]
+    pub time_range: Field<String>,
 }
 
 fn default_top_n() -> Field<usize> {
     Field::Resolved(20)
+}
+
+fn default_time_range() -> Field<String> {
+    Field::Resolved("30d".to_string())
 }
 
 impl AsUtf8FileContent for GraphosCannedOps {
@@ -536,7 +547,18 @@ impl Check for GraphosCannedOps {
         path: &mut Vec<String>,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
+        let mut errs = checks::ErrorBuilder::new();
+        errs.append(validate_graph_ref_and_client(
+            self.graph_ref.as_resolved(),
+            path,
+            ctx,
+        ));
+
+        if let Err(e) = humantime::parse_duration(self.time_range.as_resolved()) {
+            errs.push(checks::ErrorKind::InvalidDuration, e.to_string(), path);
+        }
+
+        errs.into_result(())
     }
 }
 
@@ -890,7 +912,18 @@ mod tests {
             graph_ref: Field::Resolved(graph_ref.to_string()),
             top_n: Field::Resolved(20),
             skip_mutations: Field::Resolved(true),
+            time_range: Field::Resolved("30d".to_string()),
         })
+    }
+
+    /// Create a GraphOS Canned Ops with a specific time_range
+    fn canned_ops_with_time_range(time_range: &str) -> GraphosCannedOps {
+        GraphosCannedOps {
+            graph_ref: Field::Resolved("graph@variant".to_string()),
+            top_n: Field::Resolved(20),
+            skip_mutations: Field::Resolved(true),
+            time_range: Field::Resolved(time_range.to_string()),
+        }
     }
 
     /// Create a GraphOS Canned Ops by ID
@@ -1081,6 +1114,35 @@ mod tests {
             let res = fp.try_check(&mut Vec::new(), &ctx);
             assert!(res.is_ok(), "expected check to succeed, got {res:?}");
         }
+    }
+
+    #[test_case("30d"; "days")]
+    #[test_case("7d"; "week")]
+    #[test_case("12h"; "hours")]
+    #[test_case("30m"; "minutes")]
+    #[test_case("1d 12h"; "compound")]
+    #[test]
+    fn canned_ops_check_valid_time_range(time_range: &str) {
+        let canned_ops = canned_ops_with_time_range(time_range);
+
+        let mut ctx = Context::new();
+        ctx.with_platform_config("dummy_key", false, false);
+
+        let res = canned_ops.try_check(&mut Vec::new(), &ctx);
+        assert!(res.is_ok(), "expected check to succeed for '{time_range}', got {res:?}");
+    }
+
+    #[test_case("not a duration"; "invalid string")]
+    #[test_case("30"; "missing unit")]
+    #[test_case("-7d"; "negative duration")]
+    #[test]
+    fn canned_ops_check_invalid_time_range(time_range: &str) {
+        let canned_ops = canned_ops_with_time_range(time_range);
+
+        let mut ctx = Context::new();
+        ctx.with_platform_config("dummy_key", false, false);
+
+        assert_check_errors(canned_ops, &ctx, &[ErrorKind::InvalidDuration]);
     }
 
     #[test]
