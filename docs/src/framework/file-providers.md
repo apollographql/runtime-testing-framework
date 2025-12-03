@@ -228,6 +228,7 @@ requests based on operations data obtained from the GraphOS API.
   graph_ref: graph@variant
   top_n: 10
   skip_mutations: true
+  time_range: 7d
 ```
 
 <details>
@@ -248,6 +249,12 @@ Defaults to 20 if unset.
 Whether or not to include mutations in the returned operations.
 
 Defaults to false if unset.
+
+### `time_range`
+
+How far back to query for operations.
+
+Accepts duration strings like "30d", "7d", "12h". Defaults to "30d" if unset.
 
 </details>
 

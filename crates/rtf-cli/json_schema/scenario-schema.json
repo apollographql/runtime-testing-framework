@@ -340,7 +340,7 @@
       "type": "object"
     },
     "GraphosCannedOps": {
-      "description": "The user specifies the graph ref and parameters that should be used to\ngenerate canned GraphQL requests based on operations data obtained from\nthe GraphOS API.\n\n```yaml\n- name: canned_ops.json\n  env_var: CANNED_OPS_FILE\n  kind: graphos_canned_ops\n  graph_ref: graph@variant\n  top_n: 10\n  skip_mutations: true\n```",
+      "description": "The user specifies the graph ref and parameters that should be used to\ngenerate canned GraphQL requests based on operations data obtained from\nthe GraphOS API.\n\n```yaml\n- name: canned_ops.json\n  env_var: CANNED_OPS_FILE\n  kind: graphos_canned_ops\n  graph_ref: graph@variant\n  top_n: 10\n  skip_mutations: true\n  time_range: 7d\n```",
       "properties": {
         "graph_ref": {
           "allOf": [
@@ -358,6 +358,15 @@
           ],
           "default": false,
           "description": "Whether or not to include mutations in the returned operations.\n\nDefaults to false if unset."
+        },
+        "time_range": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "default": "30d",
+          "description": "How far back to query for operations.\n\nAccepts duration strings like \"30d\", \"7d\", \"12h\".\nDefaults to \"30d\" if unset."
         },
         "top_n": {
           "allOf": [
