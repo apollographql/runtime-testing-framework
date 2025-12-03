@@ -1,0 +1,15 @@
+name: copy provider
+description: A provider that copies a source file to output (for testing copied files index)
+variable_definitions: []
+command:
+  name: copy.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    mkdir -p "$RTF_OUTPUT"
+    cp "$SOURCE_FILE" "$RTF_OUTPUT/copied.txt"
+file_providers:
+  - name: source.txt
+    env_var: SOURCE_FILE
+    kind: relative_path
+    path: copy-provider-source.txt
