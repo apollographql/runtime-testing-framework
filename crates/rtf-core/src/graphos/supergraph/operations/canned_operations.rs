@@ -56,10 +56,6 @@ const MAX_NULL_DEPTH: usize = 3;
 /// Hard cut off at which we panic to avoid becoming too deeply nested
 const MAX_DEPTH: usize = 10;
 
-/// The from field in the filter for fetching operations takes a negative integer as an offset in
-/// seconds to set how far back to query operations for. We use 30 days as the default behaviour.
-const LAST_30DAYS_SECONDS: i64 = -(60 * 60 * 24 * 30); // TODO: allow customising
-
 /// For a given supergraph, pull the requested operations by ID and generate canned operation data
 /// to be able to use them in requests to a running Router.
 pub async fn canned_ops_for_ids(
@@ -101,6 +97,7 @@ pub async fn top_studio_canned_ops(
     details: &SupergraphDetails,
     n: usize,
     skip_mutations: bool,
+    from_seconds: i64,
     client: &impl platform_query::Client,
 ) -> graphos::Result<Vec<CannedOperation>> {
     let fetch_error = |cause| {
@@ -117,6 +114,7 @@ pub async fn top_studio_canned_ops(
         details.variant.clone(),
         n,
         skip_mutations,
+        from_seconds,
         client,
     )
     .await
@@ -237,6 +235,7 @@ async fn fetch_operation_ids(
     variant: String,
     n: usize,
     skip_mutations: bool,
+    from_seconds: i64,
     client: &impl platform_query::Client,
 ) -> Result<Vec<String>, FetchErrorCause> {
     info!("fetching top {n} operation IDs for {graph_id}@{variant}");
@@ -252,6 +251,7 @@ async fn fetch_operation_ids(
             &graph_id,
             &variant,
             skip_mutations,
+            from_seconds,
             max_batch_size as i64,
             after,
             client,
@@ -273,6 +273,7 @@ async fn fetch_operation_ids(
             &graph_id,
             &variant,
             skip_mutations,
+            from_seconds,
             overflow as i64,
             after,
             client,
@@ -356,6 +357,7 @@ impl FetchOperationIds {
         graph_id: &str,
         variant: &str,
         skip_mutations: bool,
+        from_seconds: i64,
         first: i64,
         after: Option<String>,
         client: &impl platform_query::Client,
@@ -371,7 +373,7 @@ impl FetchOperationIds {
                 } else {
                     vec![OperationType::QUERY, OperationType::MUTATION]
                 },
-                from: LAST_30DAYS_SECONDS,
+                from: from_seconds,
                 first,
                 after,
             },

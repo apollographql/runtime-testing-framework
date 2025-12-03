@@ -529,10 +529,14 @@ impl AsUtf8FileContent for GraphosCannedOps {
             .await?;
 
         let client = ctx.platform_client().expect("to have a platform client");
+        let from_seconds = -(humantime::parse_duration(self.time_range.as_resolved())
+            .expect("validated time_range")
+            .as_secs() as i64);
         let canned_ops = top_studio_canned_ops(
             &details,
             *self.top_n.as_resolved(),
             *self.skip_mutations.as_resolved(),
+            from_seconds,
             client,
         )
         .await?;
@@ -1129,7 +1133,10 @@ mod tests {
         ctx.with_platform_config("dummy_key", false, false);
 
         let res = canned_ops.try_check(&mut Vec::new(), &ctx);
-        assert!(res.is_ok(), "expected check to succeed for '{time_range}', got {res:?}");
+        assert!(
+            res.is_ok(),
+            "expected check to succeed for '{time_range}', got {res:?}"
+        );
     }
 
     #[test_case("not a duration"; "invalid string")]
@@ -1143,6 +1150,23 @@ mod tests {
         ctx.with_platform_config("dummy_key", false, false);
 
         assert_check_errors(canned_ops, &ctx, &[ErrorKind::InvalidDuration]);
+    }
+
+    #[test]
+    fn canned_ops_time_range_defaults_to_30d() {
+        let yaml = indoc!(
+            r#"
+            kind: graphos_canned_ops
+            graph_ref: graph@variant
+            "#
+        );
+
+        let provider: FileProvider = serde_yaml::from_str(yaml).expect("valid yaml");
+        let FileProvider::GraphosCannedOps(canned_ops) = provider else {
+            panic!("expected GraphosCannedOps variant");
+        };
+
+        assert_eq!(canned_ops.time_range.as_resolved(), "30d");
     }
 
     #[test]
