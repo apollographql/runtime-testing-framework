@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-25af86ba.js";
+            window.path_to_searchindex_js = "../searchindex-38825348.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-491d8d1c.js"></script>
@@ -340,6 +340,7 @@ requests based on operations data obtained from the GraphOS API.</p>
   graph_ref: graph@variant
   top_n: 10
   skip_mutations: true
+  time_range: 7d
 </code></pre>
 <details>
 <summary>Fields</summary>
@@ -351,6 +352,9 @@ requests based on operations data obtained from the GraphOS API.</p>
 <h3 id="skip_mutations"><a class="header" href="#skip_mutations"><code>skip_mutations</code></a></h3>
 <p>Whether or not to include mutations in the returned operations.</p>
 <p>Defaults to false if unset.</p>
+<h3 id="time_range"><a class="header" href="#time_range"><code>time_range</code></a></h3>
+<p>How far back to query for operations.</p>
+<p>Accepts duration strings like “30d”, “7d”, “12h”. Defaults to “30d” if unset.</p>
 </details>
 <h2 id="graphos-canned-operations-by-id"><a class="header" href="#graphos-canned-operations-by-id">GraphOS Canned Operations by ID</a></h2>
 <p>The user specifies the graph ref and parameters that should be used to generate canned GraphQL
