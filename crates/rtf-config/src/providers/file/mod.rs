@@ -703,6 +703,7 @@ mod tests {
         graph_ref: "{{ graph_ref }}"
         top_n: "{{ top_n }}"
         skip_mutations: "{{ skip_mutations }}"
+        time_range: "{{ time_range }}"
     "#
     );
     const GRAPHOS_CANNED_OPS_BY_ID: &str = indoc!(
@@ -820,7 +821,7 @@ mod tests {
     #[test_case(BUILD_ROUTER_FROM_SOURCE, &["git_ref", "rust_version", "profile", "features"]; "build_router_from_source")]
     #[test_case(CUSTOM_PROVIDER_YAML, &["value1"]; "custom_provider")]
     #[test_case(GITHUB_FILE, &["org", "repo", "path", "git_ref"]; "github_file")]
-    #[test_case(GRAPHOS_CANNED_OPS, &["graph_ref", "top_n", "skip_mutations"]; "graphos_canned_ops")]
+    #[test_case(GRAPHOS_CANNED_OPS, &["graph_ref", "top_n", "skip_mutations", "time_range"]; "graphos_canned_ops")]
     #[test_case(GRAPHOS_CANNED_OPS_BY_ID, &["graph_ref", "op_1", "op_2"]; "graphos_canned_ops_by_id")]
     #[test_case(GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES, &["graph_ref"]; "graphos_subgraph_router_url_overrides")]
     #[test_case(GRAPHOS_SUBGRAPHS, &["graph_ref"]; "graphos_subgraphs")]
