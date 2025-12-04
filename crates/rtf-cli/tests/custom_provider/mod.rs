@@ -380,3 +380,29 @@ fn test_error_on_empty() {
 
     res.failure().stderr(contains("No test cases found"));
 }
+
+#[test]
+fn test_with_copied_files_index() {
+    let tmp = TempDir::new().unwrap();
+    tmp.copy_from(
+        "resources/valid/custom-provider-standalone",
+        &[
+            "copy-provider.yaml",
+            "copy-provider-source.txt",
+            "copy-provider-test-cases/**",
+        ],
+    )
+    .unwrap();
+
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("test")
+        .arg(tmp.child("copy-provider.yaml").path())
+        .arg("--test-cases-dir")
+        .arg(tmp.child("copy-provider-test-cases").path())
+        .assert();
+
+    res.success().stdout(contains("PASS"));
+}

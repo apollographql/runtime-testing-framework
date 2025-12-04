@@ -1,0 +1,2 @@
+This is the source file content.
+It will be copied by the provider.

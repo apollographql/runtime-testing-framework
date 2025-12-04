@@ -26,6 +26,7 @@ use walkdir::WalkDir;
 const ANSI_GREEN: &str = "\x1b[32m";
 const ANSI_RED: &str = "\x1b[31m";
 const ANSI_RESET: &str = "\x1b[0m";
+const EXPECTED_COPIED_FILES: &str = "expected-copied-files.json";
 const EXPECTED_RUN_ERROR_FILE: &str = "expected-run-error.txt";
 const EXPECTED_RUN_OUTPUT_DIR: &str = "expected-run-output";
 const TEST_CASES_DIR: &str = "test-cases";
@@ -200,12 +201,27 @@ fn expect_dir(p: &Path) -> io::Result<()> {
 }
 
 #[derive(Debug)]
+enum TestCaseData {
+    Failure(String),
+    Success(HashMap<String, String>),
+}
+
+#[derive(Debug)]
 struct TestCase {
     path: PathBuf,
-    expect_failure: bool,
+    data: TestCaseData,
 }
 
 impl TestCase {
+    fn is_expected_failure(&self) -> bool {
+        matches!(self.data, TestCaseData::Failure(_))
+    }
+
+    #[cfg(test)]
+    fn is_expected_success(&self) -> bool {
+        matches!(self.data, TestCaseData::Success(_))
+    }
+
     fn try_load_all(dir: &Path) -> anyhow::Result<Vec<Self>> {
         expect_dir(dir)?;
 
@@ -222,16 +238,40 @@ impl TestCase {
             let expected_failure_file = path.join(EXPECTED_RUN_ERROR_FILE);
             let expect_failure = expected_failure_file.exists();
 
-            if expect_failure {
-                expect_file(&expected_failure_file)?;
+            let data = if expect_failure {
+                TestCaseData::Failure(fs::read_to_string(&expected_failure_file).with_context(
+                    || format!("unable to read {}", expected_failure_file.display()),
+                )?)
             } else {
-                expect_dir(&path.join(EXPECTED_RUN_OUTPUT_DIR))?;
-            }
+                let expected_output_path = path.join(EXPECTED_RUN_OUTPUT_DIR);
+                let mut expected_files = load_expected_copied_files(&path)?;
 
-            test_cases.push(TestCase {
-                path,
-                expect_failure,
-            });
+                if expected_output_path.exists() {
+                    expect_dir(&expected_output_path)?;
+                    let explicit_files = output_files(&expected_output_path)?;
+                    let conflicts: Vec<_> = expected_files
+                        .keys()
+                        .filter(|k| explicit_files.contains_key(*k))
+                        .cloned()
+                        .collect();
+
+                    if !conflicts.is_empty() {
+                        return Err(anyhow!(
+                            "Invalid test case '{}': {EXPECTED_COPIED_FILES} and {EXPECTED_RUN_OUTPUT_DIR} have conflicting paths - {}",
+                            path.display(),
+                            conflicts.join(", ")
+                        ));
+                    }
+
+                    expected_files.extend(explicit_files);
+                } else if expected_files.is_empty() {
+                    return Err(io_err(io::ErrorKind::NotFound, &expected_output_path).into());
+                }
+
+                TestCaseData::Success(expected_files)
+            };
+
+            test_cases.push(TestCase { path, data });
         }
 
         test_cases.sort_by(|l, r| l.path.cmp(&r.path));
@@ -240,17 +280,10 @@ impl TestCase {
     }
 
     fn check_expected_failure(&self, stdout: String, stderr: String) -> Outcome {
-        assert!(
-            self.expect_failure,
-            "attempt to check expected failure on a test that expected to pass"
-        );
-
-        let expected = match fs::read_to_string(self.path.join(EXPECTED_RUN_ERROR_FILE)) {
-            Ok(s) => s,
-            Err(e) => {
-                return Outcome::Run {
-                    err: format!("unable to read {EXPECTED_RUN_ERROR_FILE}: {e}"),
-                };
+        let expected = match &self.data {
+            TestCaseData::Failure(s) => s,
+            TestCaseData::Success(_) => {
+                panic!("attempt to check expected failure for a test that expected to pass")
             }
         };
 
@@ -263,10 +296,13 @@ impl TestCase {
             actual = format!("{actual}{join}stderr: {stderr}");
         }
 
-        if actual == expected {
+        if &actual == expected {
             Outcome::Success
         } else {
-            Outcome::ExpectedError { expected, actual }
+            Outcome::ExpectedError {
+                expected: expected.clone(),
+                actual,
+            }
         }
     }
 
@@ -286,7 +322,7 @@ impl TestCase {
 
         debug!("templating provider");
         if let Err(e) = definition.try_template(&mut Vec::new(), source, &template_ctx) {
-            return if self.expect_failure {
+            return if self.is_expected_failure() {
                 let stdout = ctx.captured_stdout();
                 let stderr = ctx.captured_stderr();
                 Ok(self.check_expected_failure(stdout, stderr))
@@ -296,7 +332,7 @@ impl TestCase {
         }
         debug!("running checks");
         if let Err(e) = definition.command.try_check(&mut Vec::new(), ctx) {
-            return if self.expect_failure {
+            return if self.is_expected_failure() {
                 let stdout = ctx.captured_stdout();
                 let stderr = ctx.captured_stderr();
                 Ok(self.check_expected_failure(stdout, stderr))
@@ -320,7 +356,7 @@ impl TestCase {
             .await;
 
         if let Err(e) = res {
-            return if self.expect_failure {
+            return if self.is_expected_failure() {
                 let stdout = ctx.captured_stdout();
                 let stderr = ctx.captured_stderr();
                 Ok(self.check_expected_failure(stdout, stderr))
@@ -330,15 +366,19 @@ impl TestCase {
         }
 
         debug!("processing output");
-        let actual = output_files(&output_dir)?;
-        let expected = output_files(&self.path.join(EXPECTED_RUN_OUTPUT_DIR))?;
-
-        let actual: HashMap<String, String> = actual
+        let actual: HashMap<String, String> = output_files(&output_dir)?
             .into_iter()
             .map(|(k, v)| (k, normalize_paths(&v, out_dir)))
             .collect();
 
-        Ok(compare_outputs(&actual, &expected))
+        let expected = match &self.data {
+            TestCaseData::Success(m) => m,
+            TestCaseData::Failure(_) => {
+                panic!("attempt to check output data for a test that expected to fail")
+            }
+        };
+
+        Ok(compare_outputs(&actual, expected))
     }
 }
 
@@ -479,6 +519,43 @@ fn load_variables(path: &Path) -> anyhow::Result<HashMap<String, Scalar>> {
         .with_context(|| format!("Failed to parse variables JSON: {}", path.display()))?;
 
     Ok(vars)
+}
+
+fn load_expected_copied_files(test_case_path: &Path) -> anyhow::Result<HashMap<String, String>> {
+    let index_path = test_case_path.join(EXPECTED_COPIED_FILES);
+    if !index_path.exists() {
+        return Ok(HashMap::new());
+    }
+
+    let content = fs::read_to_string(&index_path).with_context(|| {
+        format!(
+            "Failed to read copied files index: {}",
+            index_path.display()
+        )
+    })?;
+
+    let raw_index: HashMap<String, String> = serde_json::from_str(&content).with_context(|| {
+        format!(
+            "Failed to parse copied files index: {}",
+            index_path.display()
+        )
+    })?;
+
+    let mut expected = HashMap::new();
+    for (output_path, relative_source) in raw_index {
+        let source_path = test_case_path.join(&relative_source);
+        let source_path = source_path.canonicalize().with_context(|| {
+            format!(
+                "Source file not found for '{}': {}",
+                output_path,
+                source_path.display()
+            )
+        })?;
+        let content = fs::read_to_string(source_path)?;
+        expected.insert(output_path, content);
+    }
+
+    Ok(expected)
 }
 
 /// Replace occurrences of the temp directory path with `$OUTDIR` placeholder.
@@ -759,6 +836,70 @@ mod tests {
         assert!(res.is_err());
     }
 
+    #[test]
+    fn load_expected_copied_files_nonexistent_returns_empty() {
+        let tmp = TempDir::new().unwrap();
+        let expected = load_expected_copied_files(tmp.path()).expect("should succeed");
+
+        assert_eq!(expected, HashMap::new());
+    }
+
+    #[test]
+    fn load_expected_copied_files_empty_object_valid() {
+        let tmp = TempDir::new().unwrap();
+        tmp.child(EXPECTED_COPIED_FILES).write_str("{}").unwrap();
+        let expected = load_expected_copied_files(tmp.path()).expect("should succeed");
+
+        assert_eq!(expected, HashMap::new());
+    }
+
+    #[test]
+    fn load_expected_copied_files_resolves_paths() {
+        let tmp = TempDir::new().unwrap();
+        tmp.child("source/file.txt")
+            .write_str("source content")
+            .unwrap();
+        tmp.child("case").create_dir_all().unwrap();
+        tmp.child(format!("case/{EXPECTED_COPIED_FILES}"))
+            .write_str(r#"{"output.txt": "../source/file.txt"}"#)
+            .unwrap();
+
+        let res = load_expected_copied_files(&tmp.path().join("case")).expect("should succeed");
+
+        assert_eq!(res.len(), 1, "should have one entry");
+        let content = res.get("output.txt").expect("should have output.txt key");
+        assert_eq!(content, "source content");
+    }
+
+    #[test]
+    fn load_expected_copied_files_missing_source_errors() {
+        let tmp = TempDir::new().unwrap();
+        tmp.child(EXPECTED_COPIED_FILES)
+            .write_str(r#"{"output.txt": "nonexistent.txt"}"#)
+            .unwrap();
+
+        let res = load_expected_copied_files(tmp.path());
+
+        assert!(res.is_err(), "should error when source file doesn't exist");
+        let err = res.unwrap_err().to_string();
+        assert!(err.contains("Source file not found"), "{err}");
+        assert!(err.contains("output.txt"), "{err}");
+    }
+
+    #[test]
+    fn load_expected_copied_files_malformed_json_errors() {
+        let tmp = TempDir::new().unwrap();
+        tmp.child(EXPECTED_COPIED_FILES)
+            .write_str("{not valid json")
+            .unwrap();
+
+        let res = load_expected_copied_files(tmp.path());
+
+        assert!(res.is_err(), "should error on malformed JSON");
+        let err = res.unwrap_err().to_string();
+        assert!(err.contains("Failed to parse copied files index"), "{err}");
+    }
+
     fn create_valid_test_case(tmp: &TempDir, name: &str) {
         tmp.child(format!("{name}/variables.json"))
             .write_str("{}")
@@ -817,7 +958,7 @@ mod tests {
         let cases = TestCase::try_load_all(tmp.path()).unwrap();
 
         assert_eq!(cases.len(), 1);
-        assert!(cases[0].expect_failure);
+        assert!(cases[0].is_expected_failure());
     }
 
     #[test]
@@ -830,8 +971,134 @@ mod tests {
 
         assert_eq!(cases.len(), 2);
         // Sorted alphabetically: fail-case, success-case
-        assert!(cases[0].expect_failure);
-        assert!(!cases[1].expect_failure);
+        assert!(cases[0].is_expected_failure());
+        assert!(cases[1].is_expected_success());
+    }
+
+    #[test]
+    fn try_load_all_with_copied_files_only() {
+        let tmp = TempDir::new().unwrap();
+        tmp.child("case/variables.json").write_str("{}").unwrap();
+        tmp.child("case/source.txt")
+            .write_str("source content")
+            .unwrap();
+        tmp.child(format!("case/{EXPECTED_COPIED_FILES}"))
+            .write_str(r#"{"output.txt": "source.txt"}"#)
+            .unwrap();
+
+        let cases = TestCase::try_load_all(tmp.path()).expect("should succeed");
+
+        assert_eq!(cases.len(), 1);
+
+        let expected = match &cases[0].data {
+            TestCaseData::Success(m) => m,
+            TestCaseData::Failure(_) => panic!("should have been a success case"),
+        };
+
+        assert_eq!(expected.len(), 1);
+        assert!(expected.contains_key("output.txt"));
+    }
+
+    #[test]
+    fn try_load_all_without_data_errors() {
+        let tmp = TempDir::new().unwrap();
+        tmp.child("case/variables.json").write_str("{}").unwrap();
+
+        let res = TestCase::try_load_all(tmp.path());
+
+        assert!(res.is_err(), "expected error, got {res:?}");
+        let err = res.unwrap_err();
+        assert_eq!(
+            err.downcast_ref::<io::Error>().unwrap().kind(),
+            io::ErrorKind::NotFound
+        );
+    }
+
+    #[test]
+    fn try_load_all_loads_copied_files_index() {
+        let tmp = TempDir::new().unwrap();
+        tmp.child("case/variables.json").write_str("{}").unwrap();
+        tmp.child("case/expected-run-output")
+            .create_dir_all()
+            .unwrap();
+        tmp.child("case/sources/a.txt")
+            .write_str("content a")
+            .unwrap();
+        tmp.child("case/sources/b.txt")
+            .write_str("content b")
+            .unwrap();
+        tmp.child(format!("case/{EXPECTED_COPIED_FILES}"))
+            .write_str(r#"{"out/a.txt": "sources/a.txt", "out/b.txt": "sources/b.txt"}"#)
+            .unwrap();
+
+        let cases = TestCase::try_load_all(tmp.path()).expect("should succeed");
+
+        assert_eq!(cases.len(), 1);
+
+        let expected = match &cases[0].data {
+            TestCaseData::Success(m) => m,
+            TestCaseData::Failure(_) => panic!("should have been a success case"),
+        };
+
+        assert_eq!(expected.len(), 2);
+        assert!(expected.contains_key("out/a.txt"));
+        assert!(expected.contains_key("out/b.txt"));
+    }
+
+    #[test]
+    fn try_load_all_conflict_errors() {
+        let tmp = TempDir::new().unwrap();
+        // Create test case where same path appears in both index and expected-run-output
+        tmp.child("case/variables.json").write_str("{}").unwrap();
+        tmp.child("case/source.txt")
+            .write_str("source content")
+            .unwrap();
+        // Index references "conflict.txt"
+        tmp.child(format!("case/{EXPECTED_COPIED_FILES}"))
+            .write_str(r#"{"conflict.txt": "source.txt"}"#)
+            .unwrap();
+        // expected-run-output also has "conflict.txt"
+        tmp.child("case/expected-run-output/conflict.txt")
+            .write_str("explicit content")
+            .unwrap();
+
+        let res = TestCase::try_load_all(tmp.path());
+
+        assert!(res.is_err(), "expected error, got {res:?}");
+        let err = res.unwrap_err().to_string();
+        assert!(err.contains("Invalid test case"), "{err}");
+        assert!(err.contains("conflict.txt"), "{err}");
+    }
+
+    #[test]
+    fn try_load_all_no_conflict_with_different_paths() {
+        let tmp = TempDir::new().unwrap();
+        // Create test case where index and expected-run-output have different paths
+        tmp.child("case/variables.json").write_str("{}").unwrap();
+        tmp.child("case/source.txt")
+            .write_str("source content")
+            .unwrap();
+
+        tmp.child(format!("case/{EXPECTED_COPIED_FILES}"))
+            .write_str(r#"{"from-index.txt": "source.txt"}"#)
+            .unwrap();
+
+        tmp.child("case/expected-run-output/from-dir.txt")
+            .write_str("explicit content")
+            .unwrap();
+
+        let cases = TestCase::try_load_all(tmp.path()).expect("should succeed with no conflicts");
+
+        assert_eq!(cases.len(), 1);
+
+        let expected = match &cases[0].data {
+            TestCaseData::Success(m) => m,
+            TestCaseData::Failure(_) => panic!("should have been a success case"),
+        };
+
+        assert_eq!(expected.len(), 2);
+        assert!(expected.contains_key("from-index.txt"));
+        assert!(expected.contains_key("from-dir.txt"));
     }
 
     #[test_case(
@@ -1209,7 +1476,7 @@ mod tests {
 
         let case = TestCase {
             path: tmp.path().join("case"),
-            expect_failure: true,
+            data: TestCaseData::Failure(expected_content.to_string()),
         };
 
         let outcome = case.check_expected_failure(stdout.into(), stderr.into());
@@ -1223,7 +1490,7 @@ mod tests {
 
         let case = TestCase {
             path: tmp.path().join("case"),
-            expect_failure: true,
+            data: TestCaseData::Failure("stdout: expected".to_string()),
         };
 
         let outcome = case.check_expected_failure("actual".into(), String::new());
@@ -1243,21 +1510,7 @@ mod tests {
         // Only create variables.json, not expected-run-error.txt
         tmp.child("case/variables.json").write_str("{}").unwrap();
 
-        let case = TestCase {
-            path: tmp.path().join("case"),
-            expect_failure: true,
-        };
-
-        let outcome = case.check_expected_failure("out".into(), "err".into());
-
-        match outcome {
-            Outcome::Run { err } => {
-                assert!(
-                    err.contains("unable to read expected-run-error.txt"),
-                    "expected error about missing file, got: {err}"
-                );
-            }
-            _ => panic!("expected Run error, got {outcome:?}"),
-        }
+        let res = TestCase::try_load_all(tmp.path());
+        assert!(res.is_err());
     }
 }
