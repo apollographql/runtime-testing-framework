@@ -24,6 +24,10 @@
   - [Writing a new environment](guides/test-plans/writing-an-environment.md)
   - [Using file providers](guides/test-plans/using-file-providers.md)
 
+- [Writing custom providers](guides/custom-providers/index.md)
+  - [Writing a custom provider definition](guides/custom-providers/writing-a-custom-provider-definition.md)
+  - [Using a custom provider](guides/custom-providers/using-a-custom-provider.md)
+
 - [Troubleshooting]()
 
 - [Cookbook](cookbook.md)
