@@ -51,12 +51,15 @@ impl CommandSection {
     /// [0]: crate::providers::file::FileProvider
     pub async fn run_providers_and_execute(
         &self,
+        name: &str,
         out_dir: &Path,
         output_path: PathBuf,
         providers_dir: PathBuf,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<PathBuf> {
-        self.run_providers(&providers_dir, ctx).await?;
+        self.run_providers(&providers_dir.join(format!("{name}_providers")), ctx)
+            .await?;
+
         if let Err(e) = self.execute(out_dir, &output_path, ctx) {
             return Err(providers::Error::CommandFailed {
                 name: self.command.name.to_string(),
@@ -80,11 +83,13 @@ impl CommandSection {
     /// [1]: CommandSection::run_providers_and_execute
     pub async fn run_providers_and_execute_for_output(
         &self,
+        name: &str,
         out_dir: &Path,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
         let output_path = self
             .run_providers_and_execute(
+                name,
                 out_dir,
                 out_dir.join(OUTPUT_PATH),
                 out_dir.join(PROVIDER_DIR),
@@ -171,7 +176,7 @@ impl CommandSection {
     /// contents to the specified directory.
     ///
     /// [0]: crate::providers::file::FileProvider
-    pub async fn run_providers(
+    async fn run_providers(
         &self,
         providers_dir: &Path,
         ctx: &mut impl ResolutionContext,
@@ -925,7 +930,7 @@ mod tests {
         let dir = PathBuf::from("/example-dir");
 
         let output = c
-            .run_providers_and_execute_for_output(&dir, &mut ctx)
+            .run_providers_and_execute_for_output("test", &dir, &mut ctx)
             .await
             .expect("command to succeed");
 

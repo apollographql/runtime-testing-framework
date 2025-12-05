@@ -62,6 +62,7 @@ pub async fn run_custom_provider(
     definition
         .command
         .run_providers_and_execute(
+            "unknown",
             &out_dir,
             out_dir.join(OUTPUT_PATH),
             out_dir.join(PROVIDER_DIR),

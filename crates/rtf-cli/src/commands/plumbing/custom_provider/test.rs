@@ -352,7 +352,7 @@ impl TestCase {
         debug!("running provider");
         let res = definition
             .command
-            .run_providers_and_execute(out_dir, output_dir.clone(), provider_dir, ctx)
+            .run_providers_and_execute("test", out_dir, output_dir.clone(), provider_dir, ctx)
             .await;
 
         if let Err(e) = res {

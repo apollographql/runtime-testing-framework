@@ -195,12 +195,22 @@ fn load_and_resolve_from_github_missing_token_fails() {
 }
 
 #[test]
-fn from_command_writes_to_same_providers_directory() {
+fn from_command_writes_to_correct_providers_directory() {
     let mut cmd = prepare_rtf_run("resources/valid/from-command-provider-dir");
     cmd.assert().success();
 
-    // The nested file provider (input.txt) should be in output/providers/
-    cmd.assert_path_exists("output/providers/input.txt");
-    cmd.assert_path_exists("output/providers/generate-file.sh");
-    cmd.assert_path_exists("output/providers/from_command_output.txt");
+    cmd.list_files(); // Debug output to check the paths we ended up with
+
+    // input.txt and generate-file.sh are coming from file providers that the from_command provider
+    // is using to generate its output, so they should be in the namespaced directory for the
+    // from_command provider
+    cmd.assert_path_exists(
+        "output/providers/scenario_providers/from_command_output_providers/input.txt",
+    );
+    cmd.assert_path_exists(
+        "output/providers/scenario_providers/from_command_output_providers/generate-file.sh",
+    );
+    // from_command_output.txt is the output file so it should be in the namedspaced directory for
+    // the command section containing the from_command provider. In this case, the scenario.
+    cmd.assert_path_exists("output/providers/scenario_providers/from_command_output.txt");
 }
