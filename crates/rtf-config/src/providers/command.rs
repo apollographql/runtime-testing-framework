@@ -51,12 +51,15 @@ impl CommandSection {
     /// [0]: crate::providers::file::FileProvider
     pub async fn run_providers_and_execute(
         &self,
+        name: &str,
         out_dir: &Path,
         output_path: PathBuf,
         providers_dir: PathBuf,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<PathBuf> {
-        self.run_providers(&providers_dir, ctx).await?;
+        self.run_providers(&providers_dir.join(format!("{name}_providers")), ctx)
+            .await?;
+
         if let Err(e) = self.execute(out_dir, &output_path, ctx) {
             return Err(providers::Error::CommandFailed {
                 name: self.command.name.to_string(),
@@ -80,11 +83,13 @@ impl CommandSection {
     /// [1]: CommandSection::run_providers_and_execute
     pub async fn run_providers_and_execute_for_output(
         &self,
+        name: &str,
         out_dir: &Path,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
         let output_path = self
             .run_providers_and_execute(
+                name,
                 out_dir,
                 out_dir.join(OUTPUT_PATH),
                 out_dir.join(PROVIDER_DIR),
@@ -171,7 +176,7 @@ impl CommandSection {
     /// contents to the specified directory.
     ///
     /// [0]: crate::providers::file::FileProvider
-    pub async fn run_providers(
+    async fn run_providers(
         &self,
         providers_dir: &Path,
         ctx: &mut impl ResolutionContext,
@@ -276,6 +281,18 @@ impl Check for CommandSection {
         if !duplicates.is_empty() {
             errs.push(
                 checks::ErrorKind::DuplicateEnvironmentVariables,
+                duplicates.join("\n"),
+                path,
+            );
+        }
+
+        let duplicates = duplicate_keys(
+            self.file_providers.iter().map(|f| f.name.as_str()),
+            |name| name,
+        );
+        if !duplicates.is_empty() {
+            errs.push(
+                checks::ErrorKind::DuplicateFileProviderNames,
                 duplicates.join("\n"),
                 path,
             );
@@ -546,6 +563,36 @@ mod tests {
             checks::ErrorKind::RequiredFileMissing,
             "check the error kind is correct"
         );
+    }
+
+    #[test]
+    fn command_section_check_duplicate_file_provider_name_errors() {
+        let command = CommandSection {
+            file_providers: vec![
+                NamedFileProvider {
+                    name: "same-name.txt".to_string(),
+                    env_var: "A".to_string(),
+                    provider: FileProvider::Inline(InlineFile {
+                        content: "first".to_string(),
+                    }),
+                },
+                NamedFileProvider {
+                    name: "same-name.txt".to_string(),
+                    env_var: "B".to_string(),
+                    provider: FileProvider::Inline(InlineFile {
+                        content: "second".to_string(),
+                    }),
+                },
+            ],
+            ..CommandSection::empty()
+        };
+
+        let ctx = Context::new();
+        let res = command.try_check(&mut Vec::new(), &ctx);
+        assert!(res.is_err(), "expected check to fail, got {res:?}");
+
+        let err = res.unwrap_err().unwrap_single();
+        assert_eq!(err.kind, checks::ErrorKind::DuplicateFileProviderNames);
     }
 
     #[test]
@@ -883,7 +930,7 @@ mod tests {
         let dir = PathBuf::from("/example-dir");
 
         let output = c
-            .run_providers_and_execute_for_output(&dir, &mut ctx)
+            .run_providers_and_execute_for_output("test", &dir, &mut ctx)
             .await
             .expect("command to succeed");
 

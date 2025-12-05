@@ -10,6 +10,9 @@ pub enum ErrorKind {
     #[strum(to_string = "Non-unique environment variables found")]
     DuplicateEnvironmentVariables,
 
+    #[strum(to_string = "Non-unique file provider names found")]
+    DuplicateFileProviderNames,
+
     #[strum(to_string = "Non-unique variable names found")]
     DuplicateVariableNames,
 

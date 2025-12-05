@@ -22,6 +22,11 @@ use std::{
 };
 use tracing::error;
 
+// Namespace directories for containing the file provider output from each command section
+const SETUP_PROVIDER_DIR: &str = "setup";
+const SCENARIO_PROVIDER_DIR: &str = "scenario";
+const TEARDOWN_PROVIDER_DIR: &str = "teardown";
+
 /// The format for parsing scenario config
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct TestPlanConfig {
@@ -164,7 +169,7 @@ impl TestPlanConfig {
             .environment
             .setup
             .command
-            .run_providers_and_execute_for_output(out_dir, ctx)
+            .run_providers_and_execute_for_output(SETUP_PROVIDER_DIR, out_dir, ctx)
             .await?;
 
         let provides: HashMap<String, Scalar> = match serde_json::from_str(&raw_output) {
@@ -193,7 +198,7 @@ impl TestPlanConfig {
     ) -> Result<()> {
         self.environment
             .teardown
-            .run_providers_and_execute_for_output(out_dir, ctx)
+            .run_providers_and_execute_for_output(TEARDOWN_PROVIDER_DIR, out_dir, ctx)
             .await?;
 
         Ok(())
@@ -206,7 +211,7 @@ impl TestPlanConfig {
     ) -> Result<()> {
         self.scenario
             .command
-            .run_providers_and_execute_for_output(out_dir, ctx)
+            .run_providers_and_execute_for_output(SCENARIO_PROVIDER_DIR, out_dir, ctx)
             .await?;
 
         Ok(())

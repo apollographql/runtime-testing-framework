@@ -242,11 +242,26 @@ impl ResolveAndWrite for FromCommand {
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
         let target = target.as_ref();
-        let out_dir = ctx.dir_containing(target);
+
+        // We construct the sub-directory for namespacing file provider output from the
+        // CommandSection using the file stem (file name minus extension).
+        let file_stem = target
+            .file_stem()
+            .expect("to have a file stem")
+            .to_string_lossy();
+
         // out_dir is already the providers directory (e.g., /output/providers/), so we pass it
         // directly as providers_dir without appending PROVIDER_DIR again.
+        let out_dir = ctx.dir_containing(target);
+
         self.inner
-            .run_providers_and_execute(&out_dir, target.to_path_buf(), out_dir.to_path_buf(), ctx)
+            .run_providers_and_execute(
+                &file_stem,
+                &out_dir,
+                target.to_path_buf(),
+                out_dir.to_path_buf(),
+                ctx,
+            )
             .await?;
 
         Ok(())
@@ -262,6 +277,7 @@ impl Check for FromCommand {
         self.inner.try_check(path, ctx)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
