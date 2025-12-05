@@ -406,3 +406,37 @@ fn test_with_copied_files_index() {
 
     res.success().stdout(contains("PASS"));
 }
+
+#[test]
+fn test_expected_failure_but_provider_passes() {
+    let tmp = TempDir::new().unwrap();
+    tmp.copy_from(
+        "resources/valid/custom-provider-standalone",
+        &["test-provider.yaml"],
+    )
+    .unwrap();
+
+    // Create test case that expects failure but uses a passing provider
+    tmp.child("test-cases/case/variables.json")
+        .write_str("{}")
+        .unwrap();
+    tmp.child("test-cases/case/expected-run-error.txt")
+        .write_str("stderr: some expected error")
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("test")
+        .arg(tmp.child("test-provider.yaml").path())
+        .arg("--test-cases-dir")
+        .arg(tmp.child("test-cases").path())
+        .assert();
+
+    res.failure()
+        .stdout(contains("FAIL"))
+        .stdout(contains("output mismatch"))
+        .stdout(contains("unexpected"))
+        .stderr(contains("Expected-failure case passed"));
+}

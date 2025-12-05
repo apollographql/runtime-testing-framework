@@ -373,8 +373,9 @@ impl TestCase {
 
         let expected = match &self.data {
             TestCaseData::Success(m) => m,
-            TestCaseData::Failure(_) => {
-                panic!("attempt to check output data for a test that expected to fail")
+            TestCaseData::Failure(s) => {
+                error!("Expected-failure case passed. Expected: {s}");
+                &HashMap::new()
             }
         };
 
