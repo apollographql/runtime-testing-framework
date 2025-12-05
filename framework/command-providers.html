@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-38825348.js";
+            window.path_to_searchindex_js = "../searchindex-bbb86e31.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-491d8d1c.js"></script>
+        <script src="../toc-0ee976b5.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,11 +178,9 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="command-providers"><a class="header" href="#command-providers">Command providers</a></h1>
-<p><em>Command Providers</em> are the core executable element making up RTF Test Plans. They allow you, the
-user, to specify how a given command should be run and what resources it needs in order to do so.
-Both the <a href="./environments.html">Environment</a> and <a href="./scenarios.html">Scenario</a> configuration files are simply ways of defining Command
-Providers with known semantics for RTF to execute alongside templating variables that can be used to
-customise how that command is run.</p>
+<p>Command Providers are the core executable element of RTF Test Plans. They specify how a command runs
+and what resources it needs. <a href="./environments.html">Environment</a> and <a href="./scenarios.html">Scenario</a> configurations are Command Providers
+with defined execution semantics.</p>
 <p>The configuration for a Command Provider consists of three top level sections:</p>
 <ol>
 <li>The command itself.</li>
@@ -191,8 +189,7 @@ customise how that command is run.</p>
 </ol>
 <p>The details of each section are outlined below.</p>
 <blockquote>
-<p>For full examples of what command sections look like inside of RTF test plans, please see the
-examples found in the <a href="./environments.html#full-example">Environment</a> and <a href="./scenarios.html#full-example">Scenario</a> pages.</p>
+<p>Full examples appear in the <a href="./environments.html#full-example">Environment</a> and <a href="./scenarios.html#full-example">Scenario</a> pages.</p>
 </blockquote>
 <h2 id="the-command-section"><a class="header" href="#the-command-section">The command section</a></h2>
 <p>You can define your command in two ways:</p>
@@ -223,11 +220,9 @@ you want to set up supporting resources and data around an arbitrary user specif
 <p>In each of the three options you will need to provide the <code>name</code> of the command as well as a <code>kind</code>
 the specifies which strategy you want to use to define your command.</p>
 <h3 id="inline-scripts"><a class="header" href="#inline-scripts">Inline scripts</a></h3>
-<p>To provide your command as an inline script simply specify the kind as <code>inline</code> and provide your
-script contents under the <code>content</code> key.</p>
-<p>It is worth familiarising yourself with YAML’s support for multiline strings in order to ensure that
-you have the correct indentation within your scripts. <a href="https://yaml-multiline.info/">This site</a> serves as a nice minimal
-reference for the relevant YAML syntax.</p>
+<p>To provide your command as an inline script, specify the kind as <code>inline</code> and provide your script
+contents under the <code>content</code> key.</p>
+<p>For multiline script content, see <a href="https://yaml-multiline.info/">YAML multiline string syntax</a>.</p>
 <pre><code class="language-yaml">command:
   name: my-shell-script.sh
   kind: inline
@@ -236,9 +231,9 @@ reference for the relevant YAML syntax.</p>
     echo "Hello from RTF"
 </code></pre>
 <h3 id="relative-paths"><a class="header" href="#relative-paths">Relative paths</a></h3>
-<p>To use a pre-existing script as your command simply specify the kind as <code>relative_path</code> and provide
-the relative path to your script under the <code>path</code> key. (See <a href="./test-plans.html#a-note-on-relative-paths">here</a> for details on how relative
-paths are handled by RTF).</p>
+<p>To use a pre-existing script, specify the kind as <code>relative_path</code> and provide the relative path to
+your script under the <code>path</code> key. (See <a href="./test-plans.html#a-note-on-relative-paths">here</a> for details on how relative paths are handled by
+RTF).</p>
 <pre><code class="language-yaml">command:
   name: my-shell-script.sh
   kind: relative_path
@@ -270,10 +265,9 @@ env_vars:
   BAZ: "{{ my_integer_env_var }}"
 </code></pre>
 <h2 id="the-file-providers-section"><a class="header" href="#the-file-providers-section">The file providers section</a></h2>
-<p>Under the <code>file_providers</code> key you may specify any number of <em>File Providers</em> as resources that will
-be made available to your command prior to execution. The <a href="./file-providers.html">File Providers</a> page covers the
-specifics of each of the built-in file providers within RTF so here we will focus instead on their
-shared structure and semantics.</p>
+<p>The <code>file_providers</code> key accepts any number of File Providers as resources made available before
+command execution. See <a href="./file-providers.html">File Providers</a> for provider-specific details. This section covers shared
+structure and semantics.</p>
 <p>When defined under a <em>Command Provider</em> the following shared keys are added to the variant specific
 keys defined by each file provider:</p>
 <ul>
@@ -301,16 +295,14 @@ block.</li>
     graph_ref: "foo@bar"
     with_subgraph_overrides: docker
 </code></pre>
-<h3 id="a-note-on-providers-as-resources"><a class="header" href="#a-note-on-providers-as-resources">A note on providers as resources</a></h3>
-<p>You must ensure that <em>every</em> resource that you need to make available to your <em>Command Provider</em> is
-specified via a <em>File Provider</em>. RTF will only guarantee that the absolute paths it places in
-provider environment variables are correct. You must not attempt to construct relative paths between
-resources or from command scripts themselves as RTF can (and will) break such relative path
-relationships without warning.</p>
-<p>To help with managing the resources you need for your commands, RTF internally caches and reuses
-file providers that share identical keys, so you are free to duplicate providers between different
-<em>Command Providers</em>. Allowing you to share resources between different <em>Command Providers</em> without
-worrying about the providers running multiple times.</p>
+<blockquote>
+<p><strong>Note</strong>: Every resource needed by a Command Provider must be specified via a File Provider. RTF
+only guarantees paths set in provider environment variables. Do not construct relative paths
+between resources or from command scripts.</p>
+</blockquote>
+<p>RTF internally caches and reuses file providers that share identical keys, so you are free to
+duplicate providers between different Command Providers. This allows sharing resources without
+providers running multiple times.</p>
 
                     </main>
 

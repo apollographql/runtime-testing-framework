@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-38825348.js";
+            window.path_to_searchindex_js = "../searchindex-bbb86e31.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-491d8d1c.js"></script>
+        <script src="../toc-0ee976b5.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,12 +178,8 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="test-plans"><a class="header" href="#test-plans">Test Plans</a></h1>
-<p>As we saw in the <a href="../guides/hello-world.html">hello, world!</a> guide, the top level entry point for running tests under RTF is
-the <code>test-plan.yaml</code> config file. Depending on exactly how you want to set things up there are
-several options available for how you organise this, but the core structure remains the same.</p>
-<p>In this page we will cover the available keys within a Test Plan and outline the structure and
-semantics of each. For more detailed information on specific aspects of the framework please see the
-relevant pages under the <a href="./index.html">Framework</a> section of the documentation.</p>
+<p>The Test Plan is the top-level entry point for RTF. It defines variables, matrix dimensions, and
+references to Scenario and Environment configurations.</p>
 <blockquote>
 <p>An example of a valid <code>test-plan.yaml</code> is provided in the <a href="#full-example">Full example</a> section
 below.</p>
@@ -216,6 +212,12 @@ variables will result in an error when you attempt to run the Test Plan.</li>
 used by each variant.</li>
 </ul>
 </li>
+<li><code>custom_providers</code>: Declarations for loading Custom Provider Definitions.
+<ul>
+<li>For full details on the structure of Custom Provider Declarations and Definitions see the
+<a href="./custom-providers.html">Custom Providers</a> page of the Framework documentation.</li>
+</ul>
+</li>
 <li><code>scenario</code>: A <a href="#config-specs">Config Spec</a> for the scenario to be run.
 <ul>
 <li>For full details on the structure of a Scenario see the <a href="./scenarios.html">Scenario</a> page of the Framework
@@ -230,20 +232,19 @@ Framework documentation.</li>
 </li>
 </ul>
 <h2 id="config-specs"><a class="header" href="#config-specs">Config Specs</a></h2>
-<p>Both the <code>scenario</code> and <code>environment</code> keys map to a structure known as a <em>Config Spec</em>, which is a
-way telling RTF how to find the appropriate configuration for that aspect of the Test Plan.
-Currently there are three options available for doing this:</p>
+<p>Both the <code>scenario</code> and <code>environment</code> keys map to a structure known as a <em>Config Spec</em>, which tells
+RTF how to find the appropriate configuration for that aspect of the Test Plan. Config Specs support
+three source types:</p>
 <ol>
-<li>Embedding the relevant config file inline within the Test Plan itself.</li>
-<li>Specifying a local relative path to an appropriate config file to use as a base.</li>
-<li>Specifying an absolute path within a GitHub repository to use as a base.</li>
+<li><code>inline</code>: Embed configuration directly in the Test Plan</li>
+<li><code>local</code>: Reference a local file by relative path</li>
+<li><code>github</code>: Fetch from a GitHub repository</li>
 </ol>
-<p>For options 2 and 3 you then also have the opportunity to define <em>overrides</em> that will be merged on
-top of the base config file before the Test Plan is templated and checked.</p>
+<p>The <code>local</code> and <code>github</code> types support optional <code>overrides</code> that merge on top of the base
+configuration before the Test Plan is templated and checked.</p>
 <h3 id="inline-configuration"><a class="header" href="#inline-configuration">Inline configuration</a></h3>
-<p>To provide your configuration inline simply add <code>inline</code> key under the relevant top level <code>scenario</code>
-or <code>environment</code> key and then write your config file as normal. (Remember to ensure that your
-indentation levels are adjusted appropriately!)</p>
+<p>To provide your configuration inline, add an <code>inline</code> key under the relevant top level <code>scenario</code> or
+<code>environment</code> key and then write your config file as normal.</p>
 <pre><code class="language-yaml">scenario:
   inline:
     # your scenario.yaml configuration goes here
@@ -253,9 +254,9 @@ indentation levels are adjusted appropriately!)</p>
     # your environment.yaml configuration goes here
 </code></pre>
 <h3 id="from-a-local-file"><a class="header" href="#from-a-local-file">From a local file</a></h3>
-<p>To use a local file as a base with optional overrides simply add a top level <code>from</code> key under the
-relevant top level <code>scenario</code> or <code>environment</code> key, specifying the <code>kind</code> as <code>local</code> and giving the
-relative path <em>from the test-plan.yaml file</em> under the <code>relative_path</code> key.</p>
+<p>To use a local file as a base, add a <code>from</code> key under the relevant top level <code>scenario</code> or
+<code>environment</code> key, specifying the <code>kind</code> as <code>local</code> and giving the relative path <em>from the
+test-plan.yaml file</em> under the <code>relative_path</code> key.</p>
 <p>To define <em>overrides</em>, add the <code>overrides</code> key at the same indentation level as <code>from</code> and then add
 your override configuration under that key. The structure here is <em>not</em> required to parse as a full
 config file so you are free to only specify the keys that you need.</p>
@@ -277,14 +278,14 @@ config file so you are free to only specify the keys that you need.</p>
     # overrides go here
 </code></pre>
 <h3 id="from-a-remote-file-in-github"><a class="header" href="#from-a-remote-file-in-github">From a remote file in GitHub</a></h3>
-<p>To use a remote file from a GitHub repository as a base with optional overrides simply add a top
-level <code>from</code> key under the relevant top level <code>scenario</code> or <code>environment</code> key, specifying the <code>kind</code>
-as <code>github</code> along with details for the <code>org</code>, <code>repo</code> and <code>path</code> to the file relative to the root of
-the repository. It is also possible to optionally provide a <code>git_ref</code> to pull the file from. If this
-is not specified then RTF will default to pulling from the mainline branch.</p>
+<p>To fetch from a GitHub repository, add a <code>from</code> key under the relevant top level <code>scenario</code> or
+<code>environment</code> key, specifying the <code>kind</code> as <code>github</code> along with details for the <code>org</code>, <code>repo</code> and
+<code>path</code> to the file relative to the root of the repository. It is also possible to optionally provide
+a <code>git_ref</code> to pull the file from. If this is not specified then RTF will default to pulling from
+the mainline branch.</p>
 <blockquote>
 <p>You <em>must</em> have a valid GitHub access token with permissions to interact with your chosen
-repoisitory exported as <code>GITHUB_TOKEN</code> in your shell environment for this method to work. See
+repository exported as <code>GITHUB_TOKEN</code> in your shell environment for this method to work. See
 <a href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens">here</a> for GitHub’s documentation on how to create and manage access tokens.</p>
 </blockquote>
 <p>As with using a <a href="#from-a-local-file">local file</a>, <em>overrides</em> can be defined by adding the
@@ -319,14 +320,10 @@ to only specify the keys that you need.</p>
 <code>from</code> key as raw YAML before the configuration is parsed by RTF.</p>
 <p>The merging strategy used is as follows:</p>
 <ul>
-<li>For maps, keys are iterated from the overrides and merged on top of matching keys found within the
-base configuration file. If a key is present in both the base and the overrides then we
-recursively merge the values under that key, otherwise we insert the overrides key into the base
-directly.</li>
-<li>If both maps contain an array under a given overrides key then the overrides are appended to the
-values already present in the base.</li>
-<li>If the values under a given key differ in type (or are scalar) we replace the value in the base
-with the one provided in the overrides.</li>
+<li>For maps, keys from overrides merge on top of matching keys in the base. If a key exists in both,
+RTF recursively merges the values; otherwise, RTF inserts the override key directly.</li>
+<li>For arrays, override values are appended to base values.</li>
+<li>For differing types or scalars, RTF replaces the base value with the override.</li>
 </ul>
 <p>Once the overrides have been applied and the resulting config file is successfully parsed, all
 arrays are then sorted and deduplicated based on an appropriate key in order to support replacing
@@ -347,10 +344,8 @@ to the path that the config file was loaded from (this is also true when pulling
 GitHub). When <code>overrides</code> are then applied from the Test Plan, any new relative paths found there
 are resolved relative to the location of the <code>test-plan.yaml</code> file, <em>not</em> the location of the base
 config file.</p>
-<p>The intent is that everything works as you would intuitively expect, and that IDE auto-completion of
-paths will always prompt you to write the correct thing.</p>
 <h2 id="working-with-matrices"><a class="header" href="#working-with-matrices">Working with matrices</a></h2>
-<p>A <code>matrix</code> will expand to a set of test plans defined by the <a href="https://en.wikipedia.org/wiki/Cartesian_product">cartesian product</a> of its
+<p>The <code>matrix</code> key expands to multiple test plan variants via the <a href="https://en.wikipedia.org/wiki/Cartesian_product">cartesian product</a> of its
 dimensions.</p>
 <p>For example, the following matrix:</p>
 <pre><code class="language-yaml">matrix:
@@ -373,9 +368,8 @@ values for each dimension (as shown below).</p>
 <li>a=bar b=3 (matrix_variant_6)</li>
 </ul>
 <h3 id="naming-variants"><a class="header" href="#naming-variants">Naming variants</a></h3>
-<p>If you wish to provide more meaningful names for the output subdirectories you can specify the
-<code>matrix.variant_names</code> key in your test plan which takes a simple template string for generating the
-variant names:</p>
+<p>To customize output subdirectory names, specify the <code>matrix.variant_names</code> key in your test plan
+with a template string for generating the variant names:</p>
 <pre><code class="language-yaml">matrix:
   variant_names: "${a}_${b}"
   dimensions:
@@ -396,9 +390,8 @@ generated using the template provided:</p>
 with static string content in order to generate a unique name for each variant. The resulting string
 is then slugified to remove whitespace and slashes.</p>
 <h3 id="including-explicit-variants"><a class="header" href="#including-explicit-variants">Including explicit variants</a></h3>
-<p>Sometimes when defining a matrix you will find that you want to limit how the matrix dimensions are
-produced in order to only run a subset of possible combinations of values for each variable. For
-example, the following initial matrix expands out to four variants covering different crate
+<p>Use <code>matrix.include</code> to define explicit variable combinations instead of full cartesian expansion.
+For example, the following initial matrix expands out to four variants covering different crate
 revisions for inclusion in a Rust build as shown below:</p>
 <pre><code class="language-yaml">matrix:
   dimensions:
@@ -417,12 +410,10 @@ revisions for inclusion in a Rust build as shown below:</p>
 # - federation_rev: v2.7.0
 #   compiler_rev: apollo-compiler@1.30.0
 </code></pre>
-<p>But, if the intention was to only run variants where valid crate revisions are used then two of the
-four variants are invalid and should not be run. This problem is made worse if we add another
-dimension to the matrix (say, <code>graph_ref</code>) which will then produce additional undesirable variants.</p>
-<p>In this sort of situation you should make use of the <code>matrix.include</code> key, which allows you to
-define matrix dimensions as <em>sets</em> of values so long as they all contain the same variable names. In
-our example above we would do the following:</p>
+<p>If only certain combinations are valid, two of four variants are invalid. Adding another dimension
+(e.g., <code>graph_ref</code>) compounds the problem with more undesirable variants.</p>
+<p>Use <code>matrix.include</code> to define explicit variable sets. All sets must contain the same variable
+names:</p>
 <pre><code class="language-yaml">matrix:
   # The dimensions key must always be present, even if it is an empty map
   dimensions: {}
@@ -440,8 +431,8 @@ our example above we would do the following:</p>
 # - federation_rev: v2.7.0
 #   compiler_rev: apollo-compiler@1.30.0
 </code></pre>
-<p>Now we will only get the variants containing the pairs of crate revisions we want. Better still, we
-can add further dimensions to the matrix and obtain the correct variants:</p>
+<p>This produces only the valid revision pairs. You can add further dimensions to the matrix while
+preserving the correct combinations:</p>
 <pre><code class="language-yaml">matrix:
   # The dimensions key must always be present, even if it is an empty map
   dimensions:
@@ -489,6 +480,12 @@ matrix:
       b: 5
     - a: 6
       b: 7
+
+custom_providers:
+  - kind: local
+    relative_path: ./providers
+    using:
+      my_provider: my_provider.yaml
 
 scenario:
   inline:

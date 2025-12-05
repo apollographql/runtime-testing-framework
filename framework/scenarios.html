@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-38825348.js";
+            window.path_to_searchindex_js = "../searchindex-bbb86e31.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-491d8d1c.js"></script>
+        <script src="../toc-0ee976b5.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,13 +178,8 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="scenarios"><a class="header" href="#scenarios">Scenarios</a></h1>
-<p>As outlined in the <a href="./test-plans.html">Test Plan</a> overview, your Scenario configuration is one of the two main
-pieces of configuration needed in order to run tests under RTF. Conceptually, a Scenario simply a
-<a href="./command-providers.html">Command providers</a> with enforced semantics within the overall execution of the Test Plan, being
-run inbetween the Environment’s setup and teardown commands.</p>
-<p>In this page we will cover the available keys within a Scenario and outline the structure and
-semantics of each. For more detailed information on specific aspects of the framework please see the
-relevant pages under the <a href="./index.html">Framework</a> section of the documentation.</p>
+<p>A Scenario defines the test command to execute within a Test Plan. It is a <a href="./command-providers.html">Command Provider</a>
+that runs between the Environment’s setup and teardown phases.</p>
 <blockquote>
 <p>An example of a valid <code>scenario.yaml</code> is provided in the <a href="#full-example">Full example</a> section
 below.</p>
@@ -213,6 +208,12 @@ scalar value to use if none is provided within the <a href="./test-plans.html">T
 Plan but with different defaults, each config file will fall back to its own default.</li>
 </ul>
 </li>
+<li><code>custom_providers</code>: Declarations for loading Custom Provider Definitions.
+<ul>
+<li>For full details on the structure of Custom Provider Declarations and Definitions see the
+<a href="./custom-providers.html">Custom Providers</a> page of the Framework documentation.</li>
+</ul>
+</li>
 <li><code>command</code>: See <a href="./command-providers.html">Command Provider</a>.</li>
 <li><code>env_vars</code>: See <a href="./command-providers.html">Command Provider</a>.</li>
 <li><code>file_providers</code>: See <a href="./command-providers.html">Command Provider</a>.</li>
@@ -226,6 +227,12 @@ variable_definitions:
   - name: my_variable
     description: "A description for my variable"
     default: "foo"
+
+custom_providers:
+  - kind: local
+    relative_path: ./providers
+    using:
+      my_provider: my_provider.yaml
 
 command:
   name: my-scenario-command.sh

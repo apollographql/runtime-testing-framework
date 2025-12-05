@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-38825348.js";
+            window.path_to_searchindex_js = "searchindex-bbb86e31.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-491d8d1c.js"></script>
+        <script src="toc-0ee976b5.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -627,16 +627,11 @@ is then slugified to remove whitespace and slashes.</p>
 <h1 id="the-framework"><a class="header" href="#the-framework">The framework</a></h1>
 <p>The following pages provide reference information for various aspects of the runtime testing
 framework for end users who are interested in writing their own test plans.</p>
-<p>If you are just getting started with RTF then we recommend reading through the <a href="#getting-started">guides</a> section
-first.</p>
+<p>New users should start with the <a href="#getting-started">guides</a> section.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="test-plans"><a class="header" href="#test-plans">Test Plans</a></h1>
-<p>As we saw in the <a href="#hello-world">hello, world!</a> guide, the top level entry point for running tests under RTF is
-the <code>test-plan.yaml</code> config file. Depending on exactly how you want to set things up there are
-several options available for how you organise this, but the core structure remains the same.</p>
-<p>In this page we will cover the available keys within a Test Plan and outline the structure and
-semantics of each. For more detailed information on specific aspects of the framework please see the
-relevant pages under the <a href="#the-framework">Framework</a> section of the documentation.</p>
+<p>The Test Plan is the top-level entry point for RTF. It defines variables, matrix dimensions, and
+references to Scenario and Environment configurations.</p>
 <blockquote>
 <p>An example of a valid <code>test-plan.yaml</code> is provided in the <a href="#full-example">Full example</a> section
 below.</p>
@@ -669,6 +664,12 @@ variables will result in an error when you attempt to run the Test Plan.</li>
 used by each variant.</li>
 </ul>
 </li>
+<li><code>custom_providers</code>: Declarations for loading Custom Provider Definitions.
+<ul>
+<li>For full details on the structure of Custom Provider Declarations and Definitions see the
+<a href="#custom-providers">Custom Providers</a> page of the Framework documentation.</li>
+</ul>
+</li>
 <li><code>scenario</code>: A <a href="#config-specs">Config Spec</a> for the scenario to be run.
 <ul>
 <li>For full details on the structure of a Scenario see the <a href="#scenarios">Scenario</a> page of the Framework
@@ -683,20 +684,19 @@ Framework documentation.</li>
 </li>
 </ul>
 <h2 id="config-specs"><a class="header" href="#config-specs">Config Specs</a></h2>
-<p>Both the <code>scenario</code> and <code>environment</code> keys map to a structure known as a <em>Config Spec</em>, which is a
-way telling RTF how to find the appropriate configuration for that aspect of the Test Plan.
-Currently there are three options available for doing this:</p>
+<p>Both the <code>scenario</code> and <code>environment</code> keys map to a structure known as a <em>Config Spec</em>, which tells
+RTF how to find the appropriate configuration for that aspect of the Test Plan. Config Specs support
+three source types:</p>
 <ol>
-<li>Embedding the relevant config file inline within the Test Plan itself.</li>
-<li>Specifying a local relative path to an appropriate config file to use as a base.</li>
-<li>Specifying an absolute path within a GitHub repository to use as a base.</li>
+<li><code>inline</code>: Embed configuration directly in the Test Plan</li>
+<li><code>local</code>: Reference a local file by relative path</li>
+<li><code>github</code>: Fetch from a GitHub repository</li>
 </ol>
-<p>For options 2 and 3 you then also have the opportunity to define <em>overrides</em> that will be merged on
-top of the base config file before the Test Plan is templated and checked.</p>
+<p>The <code>local</code> and <code>github</code> types support optional <code>overrides</code> that merge on top of the base
+configuration before the Test Plan is templated and checked.</p>
 <h3 id="inline-configuration"><a class="header" href="#inline-configuration">Inline configuration</a></h3>
-<p>To provide your configuration inline simply add <code>inline</code> key under the relevant top level <code>scenario</code>
-or <code>environment</code> key and then write your config file as normal. (Remember to ensure that your
-indentation levels are adjusted appropriately!)</p>
+<p>To provide your configuration inline, add an <code>inline</code> key under the relevant top level <code>scenario</code> or
+<code>environment</code> key and then write your config file as normal.</p>
 <pre><code class="language-yaml">scenario:
   inline:
     # your scenario.yaml configuration goes here
@@ -706,9 +706,9 @@ indentation levels are adjusted appropriately!)</p>
     # your environment.yaml configuration goes here
 </code></pre>
 <h3 id="from-a-local-file"><a class="header" href="#from-a-local-file">From a local file</a></h3>
-<p>To use a local file as a base with optional overrides simply add a top level <code>from</code> key under the
-relevant top level <code>scenario</code> or <code>environment</code> key, specifying the <code>kind</code> as <code>local</code> and giving the
-relative path <em>from the test-plan.yaml file</em> under the <code>relative_path</code> key.</p>
+<p>To use a local file as a base, add a <code>from</code> key under the relevant top level <code>scenario</code> or
+<code>environment</code> key, specifying the <code>kind</code> as <code>local</code> and giving the relative path <em>from the
+test-plan.yaml file</em> under the <code>relative_path</code> key.</p>
 <p>To define <em>overrides</em>, add the <code>overrides</code> key at the same indentation level as <code>from</code> and then add
 your override configuration under that key. The structure here is <em>not</em> required to parse as a full
 config file so you are free to only specify the keys that you need.</p>
@@ -730,14 +730,14 @@ config file so you are free to only specify the keys that you need.</p>
     # overrides go here
 </code></pre>
 <h3 id="from-a-remote-file-in-github"><a class="header" href="#from-a-remote-file-in-github">From a remote file in GitHub</a></h3>
-<p>To use a remote file from a GitHub repository as a base with optional overrides simply add a top
-level <code>from</code> key under the relevant top level <code>scenario</code> or <code>environment</code> key, specifying the <code>kind</code>
-as <code>github</code> along with details for the <code>org</code>, <code>repo</code> and <code>path</code> to the file relative to the root of
-the repository. It is also possible to optionally provide a <code>git_ref</code> to pull the file from. If this
-is not specified then RTF will default to pulling from the mainline branch.</p>
+<p>To fetch from a GitHub repository, add a <code>from</code> key under the relevant top level <code>scenario</code> or
+<code>environment</code> key, specifying the <code>kind</code> as <code>github</code> along with details for the <code>org</code>, <code>repo</code> and
+<code>path</code> to the file relative to the root of the repository. It is also possible to optionally provide
+a <code>git_ref</code> to pull the file from. If this is not specified then RTF will default to pulling from
+the mainline branch.</p>
 <blockquote>
 <p>You <em>must</em> have a valid GitHub access token with permissions to interact with your chosen
-repoisitory exported as <code>GITHUB_TOKEN</code> in your shell environment for this method to work. See
+repository exported as <code>GITHUB_TOKEN</code> in your shell environment for this method to work. See
 <a href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens">here</a> for GitHub’s documentation on how to create and manage access tokens.</p>
 </blockquote>
 <p>As with using a <a href="#from-a-local-file">local file</a>, <em>overrides</em> can be defined by adding the
@@ -772,14 +772,10 @@ to only specify the keys that you need.</p>
 <code>from</code> key as raw YAML before the configuration is parsed by RTF.</p>
 <p>The merging strategy used is as follows:</p>
 <ul>
-<li>For maps, keys are iterated from the overrides and merged on top of matching keys found within the
-base configuration file. If a key is present in both the base and the overrides then we
-recursively merge the values under that key, otherwise we insert the overrides key into the base
-directly.</li>
-<li>If both maps contain an array under a given overrides key then the overrides are appended to the
-values already present in the base.</li>
-<li>If the values under a given key differ in type (or are scalar) we replace the value in the base
-with the one provided in the overrides.</li>
+<li>For maps, keys from overrides merge on top of matching keys in the base. If a key exists in both,
+RTF recursively merges the values; otherwise, RTF inserts the override key directly.</li>
+<li>For arrays, override values are appended to base values.</li>
+<li>For differing types or scalars, RTF replaces the base value with the override.</li>
 </ul>
 <p>Once the overrides have been applied and the resulting config file is successfully parsed, all
 arrays are then sorted and deduplicated based on an appropriate key in order to support replacing
@@ -800,10 +796,8 @@ to the path that the config file was loaded from (this is also true when pulling
 GitHub). When <code>overrides</code> are then applied from the Test Plan, any new relative paths found there
 are resolved relative to the location of the <code>test-plan.yaml</code> file, <em>not</em> the location of the base
 config file.</p>
-<p>The intent is that everything works as you would intuitively expect, and that IDE auto-completion of
-paths will always prompt you to write the correct thing.</p>
 <h2 id="working-with-matrices"><a class="header" href="#working-with-matrices">Working with matrices</a></h2>
-<p>A <code>matrix</code> will expand to a set of test plans defined by the <a href="https://en.wikipedia.org/wiki/Cartesian_product">cartesian product</a> of its
+<p>The <code>matrix</code> key expands to multiple test plan variants via the <a href="https://en.wikipedia.org/wiki/Cartesian_product">cartesian product</a> of its
 dimensions.</p>
 <p>For example, the following matrix:</p>
 <pre><code class="language-yaml">matrix:
@@ -826,9 +820,8 @@ values for each dimension (as shown below).</p>
 <li>a=bar b=3 (matrix_variant_6)</li>
 </ul>
 <h3 id="naming-variants"><a class="header" href="#naming-variants">Naming variants</a></h3>
-<p>If you wish to provide more meaningful names for the output subdirectories you can specify the
-<code>matrix.variant_names</code> key in your test plan which takes a simple template string for generating the
-variant names:</p>
+<p>To customize output subdirectory names, specify the <code>matrix.variant_names</code> key in your test plan
+with a template string for generating the variant names:</p>
 <pre><code class="language-yaml">matrix:
   variant_names: "${a}_${b}"
   dimensions:
@@ -849,9 +842,8 @@ generated using the template provided:</p>
 with static string content in order to generate a unique name for each variant. The resulting string
 is then slugified to remove whitespace and slashes.</p>
 <h3 id="including-explicit-variants"><a class="header" href="#including-explicit-variants">Including explicit variants</a></h3>
-<p>Sometimes when defining a matrix you will find that you want to limit how the matrix dimensions are
-produced in order to only run a subset of possible combinations of values for each variable. For
-example, the following initial matrix expands out to four variants covering different crate
+<p>Use <code>matrix.include</code> to define explicit variable combinations instead of full cartesian expansion.
+For example, the following initial matrix expands out to four variants covering different crate
 revisions for inclusion in a Rust build as shown below:</p>
 <pre><code class="language-yaml">matrix:
   dimensions:
@@ -870,12 +862,10 @@ revisions for inclusion in a Rust build as shown below:</p>
 # - federation_rev: v2.7.0
 #   compiler_rev: apollo-compiler@1.30.0
 </code></pre>
-<p>But, if the intention was to only run variants where valid crate revisions are used then two of the
-four variants are invalid and should not be run. This problem is made worse if we add another
-dimension to the matrix (say, <code>graph_ref</code>) which will then produce additional undesirable variants.</p>
-<p>In this sort of situation you should make use of the <code>matrix.include</code> key, which allows you to
-define matrix dimensions as <em>sets</em> of values so long as they all contain the same variable names. In
-our example above we would do the following:</p>
+<p>If only certain combinations are valid, two of four variants are invalid. Adding another dimension
+(e.g., <code>graph_ref</code>) compounds the problem with more undesirable variants.</p>
+<p>Use <code>matrix.include</code> to define explicit variable sets. All sets must contain the same variable
+names:</p>
 <pre><code class="language-yaml">matrix:
   # The dimensions key must always be present, even if it is an empty map
   dimensions: {}
@@ -893,8 +883,8 @@ our example above we would do the following:</p>
 # - federation_rev: v2.7.0
 #   compiler_rev: apollo-compiler@1.30.0
 </code></pre>
-<p>Now we will only get the variants containing the pairs of crate revisions we want. Better still, we
-can add further dimensions to the matrix and obtain the correct variants:</p>
+<p>This produces only the valid revision pairs. You can add further dimensions to the matrix while
+preserving the correct combinations:</p>
 <pre><code class="language-yaml">matrix:
   # The dimensions key must always be present, even if it is an empty map
   dimensions:
@@ -943,6 +933,12 @@ matrix:
     - a: 6
       b: 7
 
+custom_providers:
+  - kind: local
+    relative_path: ./providers
+    using:
+      my_provider: my_provider.yaml
+
 scenario:
   inline:
     name: An inline scenario
@@ -975,13 +971,8 @@ environment:
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="environments"><a class="header" href="#environments">Environments</a></h1>
-<p>As outlined in the <a href="#test-plans">Test Plan</a> overview, your Environment configuration is one of the two main
-pieces of configuration needed in order to run tests under RTF. Conceptually, an Environment
-configuration is a pair of <a href="#command-providers">Command providers</a> that are run either side of the test scenario you
-want to run in order to setup and teardown the resources required for running the test.</p>
-<p>In this page we will cover the available keys within an Environment and outline the structure and
-semantics of each. For more detailed information on specific aspects of the framework please see the
-relevant pages under the <a href="#the-framework">Framework</a> section of the documentation.</p>
+<p>An Environment defines setup and teardown commands that bracket a Scenario’s execution. Each phase
+is a <a href="#command-providers">Command Provider</a>.</p>
 <blockquote>
 <p>An example of a valid <code>environment.yaml</code> is provided in the <a href="#full-example-1">Full example</a> section
 below.</p>
@@ -1010,8 +1001,20 @@ scalar value to use if none is provided within the <a href="#test-plans">Test Pl
 Plan but with different defaults, each config file will fall back to its own default.</li>
 </ul>
 </li>
+<li><code>custom_providers</code>: Declarations for loading Custom Provider Definitions.
+<ul>
+<li>For full details on the structure of Custom Provider Declarations and Definitions see the
+<a href="#custom-providers">Custom Providers</a> page of the Framework documentation.</li>
+</ul>
+</li>
 <li><code>setup</code>: A <a href="#command-providers">Command Provider</a> that defines how the environment should be set up before the
-scenario is run.</li>
+scenario is run.
+<ul>
+<li><code>provides</code>: An optional list of variable definitions that will be populated from the JSON output
+of the setup command. These variables become available for templating the <code>teardown</code> section but
+are not available to the Scenario.</li>
+</ul>
+</li>
 <li><code>teardown</code>: A <a href="#command-providers">Command Provider</a> that defines how the environment should be torn down after the
 scenario is run.</li>
 </ul>
@@ -1025,6 +1028,12 @@ variable_definitions:
     description: "A description for my variable"
     default: "foo"
 
+custom_providers:
+  - kind: local
+    relative_path: ./providers
+    using:
+      my_provider: my_provider.yaml
+
 setup:
   command:
     name: my-setup-command.sh
@@ -1033,6 +1042,10 @@ setup:
 
   env_vars:
     MY_VARIABLE: "{{ my_variable }}"
+  
+  provides:
+      - name: cluster_id
+        description: "The ID of the provisioned cluster"
 
 teardown:
   command:
@@ -1048,13 +1061,8 @@ teardown:
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="scenarios"><a class="header" href="#scenarios">Scenarios</a></h1>
-<p>As outlined in the <a href="#test-plans">Test Plan</a> overview, your Scenario configuration is one of the two main
-pieces of configuration needed in order to run tests under RTF. Conceptually, a Scenario simply a
-<a href="#command-providers">Command providers</a> with enforced semantics within the overall execution of the Test Plan, being
-run inbetween the Environment’s setup and teardown commands.</p>
-<p>In this page we will cover the available keys within a Scenario and outline the structure and
-semantics of each. For more detailed information on specific aspects of the framework please see the
-relevant pages under the <a href="#the-framework">Framework</a> section of the documentation.</p>
+<p>A Scenario defines the test command to execute within a Test Plan. It is a <a href="#command-providers">Command Provider</a>
+that runs between the Environment’s setup and teardown phases.</p>
 <blockquote>
 <p>An example of a valid <code>scenario.yaml</code> is provided in the <a href="#full-example-2">Full example</a> section
 below.</p>
@@ -1083,6 +1091,12 @@ scalar value to use if none is provided within the <a href="#test-plans">Test Pl
 Plan but with different defaults, each config file will fall back to its own default.</li>
 </ul>
 </li>
+<li><code>custom_providers</code>: Declarations for loading Custom Provider Definitions.
+<ul>
+<li>For full details on the structure of Custom Provider Declarations and Definitions see the
+<a href="#custom-providers">Custom Providers</a> page of the Framework documentation.</li>
+</ul>
+</li>
 <li><code>command</code>: See <a href="#command-providers">Command Provider</a>.</li>
 <li><code>env_vars</code>: See <a href="#command-providers">Command Provider</a>.</li>
 <li><code>file_providers</code>: See <a href="#command-providers">Command Provider</a>.</li>
@@ -1096,6 +1110,12 @@ variable_definitions:
   - name: my_variable
     description: "A description for my variable"
     default: "foo"
+
+custom_providers:
+  - kind: local
+    relative_path: ./providers
+    using:
+      my_provider: my_provider.yaml
 
 command:
   name: my-scenario-command.sh
@@ -1114,11 +1134,9 @@ file_providers:
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="command-providers"><a class="header" href="#command-providers">Command providers</a></h1>
-<p><em>Command Providers</em> are the core executable element making up RTF Test Plans. They allow you, the
-user, to specify how a given command should be run and what resources it needs in order to do so.
-Both the <a href="#environments">Environment</a> and <a href="#scenarios">Scenario</a> configuration files are simply ways of defining Command
-Providers with known semantics for RTF to execute alongside templating variables that can be used to
-customise how that command is run.</p>
+<p>Command Providers are the core executable element of RTF Test Plans. They specify how a command runs
+and what resources it needs. <a href="#environments">Environment</a> and <a href="#scenarios">Scenario</a> configurations are Command Providers
+with defined execution semantics.</p>
 <p>The configuration for a Command Provider consists of three top level sections:</p>
 <ol>
 <li>The command itself.</li>
@@ -1127,8 +1145,7 @@ customise how that command is run.</p>
 </ol>
 <p>The details of each section are outlined below.</p>
 <blockquote>
-<p>For full examples of what command sections look like inside of RTF test plans, please see the
-examples found in the <a href="#full-example-1">Environment</a> and <a href="#full-example-2">Scenario</a> pages.</p>
+<p>Full examples appear in the <a href="#full-example-1">Environment</a> and <a href="#full-example-2">Scenario</a> pages.</p>
 </blockquote>
 <h2 id="the-command-section"><a class="header" href="#the-command-section">The command section</a></h2>
 <p>You can define your command in two ways:</p>
@@ -1159,11 +1176,9 @@ you want to set up supporting resources and data around an arbitrary user specif
 <p>In each of the three options you will need to provide the <code>name</code> of the command as well as a <code>kind</code>
 the specifies which strategy you want to use to define your command.</p>
 <h3 id="inline-scripts"><a class="header" href="#inline-scripts">Inline scripts</a></h3>
-<p>To provide your command as an inline script simply specify the kind as <code>inline</code> and provide your
-script contents under the <code>content</code> key.</p>
-<p>It is worth familiarising yourself with YAML’s support for multiline strings in order to ensure that
-you have the correct indentation within your scripts. <a href="https://yaml-multiline.info/">This site</a> serves as a nice minimal
-reference for the relevant YAML syntax.</p>
+<p>To provide your command as an inline script, specify the kind as <code>inline</code> and provide your script
+contents under the <code>content</code> key.</p>
+<p>For multiline script content, see <a href="https://yaml-multiline.info/">YAML multiline string syntax</a>.</p>
 <pre><code class="language-yaml">command:
   name: my-shell-script.sh
   kind: inline
@@ -1172,9 +1187,9 @@ reference for the relevant YAML syntax.</p>
     echo "Hello from RTF"
 </code></pre>
 <h3 id="relative-paths"><a class="header" href="#relative-paths">Relative paths</a></h3>
-<p>To use a pre-existing script as your command simply specify the kind as <code>relative_path</code> and provide
-the relative path to your script under the <code>path</code> key. (See <a href="#a-note-on-relative-paths">here</a> for details on how relative
-paths are handled by RTF).</p>
+<p>To use a pre-existing script, specify the kind as <code>relative_path</code> and provide the relative path to
+your script under the <code>path</code> key. (See <a href="#a-note-on-relative-paths">here</a> for details on how relative paths are handled by
+RTF).</p>
 <pre><code class="language-yaml">command:
   name: my-shell-script.sh
   kind: relative_path
@@ -1206,10 +1221,9 @@ env_vars:
   BAZ: "{{ my_integer_env_var }}"
 </code></pre>
 <h2 id="the-file-providers-section"><a class="header" href="#the-file-providers-section">The file providers section</a></h2>
-<p>Under the <code>file_providers</code> key you may specify any number of <em>File Providers</em> as resources that will
-be made available to your command prior to execution. The <a href="#file-providers">File Providers</a> page covers the
-specifics of each of the built-in file providers within RTF so here we will focus instead on their
-shared structure and semantics.</p>
+<p>The <code>file_providers</code> key accepts any number of File Providers as resources made available before
+command execution. See <a href="#file-providers">File Providers</a> for provider-specific details. This section covers shared
+structure and semantics.</p>
 <p>When defined under a <em>Command Provider</em> the following shared keys are added to the variant specific
 keys defined by each file provider:</p>
 <ul>
@@ -1237,16 +1251,14 @@ block.</li>
     graph_ref: "foo@bar"
     with_subgraph_overrides: docker
 </code></pre>
-<h3 id="a-note-on-providers-as-resources"><a class="header" href="#a-note-on-providers-as-resources">A note on providers as resources</a></h3>
-<p>You must ensure that <em>every</em> resource that you need to make available to your <em>Command Provider</em> is
-specified via a <em>File Provider</em>. RTF will only guarantee that the absolute paths it places in
-provider environment variables are correct. You must not attempt to construct relative paths between
-resources or from command scripts themselves as RTF can (and will) break such relative path
-relationships without warning.</p>
-<p>To help with managing the resources you need for your commands, RTF internally caches and reuses
-file providers that share identical keys, so you are free to duplicate providers between different
-<em>Command Providers</em>. Allowing you to share resources between different <em>Command Providers</em> without
-worrying about the providers running multiple times.</p>
+<blockquote>
+<p><strong>Note</strong>: Every resource needed by a Command Provider must be specified via a File Provider. RTF
+only guarantees paths set in provider environment variables. Do not construct relative paths
+between resources or from command scripts.</p>
+</blockquote>
+<p>RTF internally caches and reuses file providers that share identical keys, so you are free to
+duplicate providers between different Command Providers. This allows sharing resources without
+providers running multiple times.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="file-providers"><a class="header" href="#file-providers">File Providers</a></h1>
 <p>Available file providers:</p>
@@ -1498,7 +1510,7 @@ parameters.</p>
 <h2 id="graphos-subgraph-sdl"><a class="header" href="#graphos-subgraph-sdl">GraphOS Subgraph SDL</a></h2>
 <p>The user specifies the graph ref that should be used to fetch a subgraph SDL files from the GraphOS
 API.</p>
-<p>Note that this file proivider will output a directory of SDL schema files, one for each subgraph.</p>
+<p>Note that this file provider will output a directory of SDL schema files, one for each subgraph.</p>
 <pre><code class="language-yaml">- name: "subgraphs"
   env_var: SUBGRAPHS
   kind: graphos_subgraphs
@@ -1512,7 +1524,7 @@ API.</p>
 <h2 id="graphos-subgraph-names"><a class="header" href="#graphos-subgraph-names">GraphOS Subgraph Names</a></h2>
 <p>The user specifies the graph ref that should be used to fetch the names of subgraphs in the
 supergraph from the GraphOS API.</p>
-<p>This file proivider will output a newline-delimited file of the subgraph names.</p>
+<p>This file provider will output a newline-delimited file of the subgraph names.</p>
 <pre><code class="language-yaml">- name: "subgraph_names"
   env_var: SUBGRAPH_NAMES
   kind: graphos_subgraph_names
@@ -1655,6 +1667,157 @@ Router.</p>
 <h3 id="version"><a class="header" href="#version"><code>version</code></a></h3>
 <p>The version of the Apollo Router to download.</p>
 </details>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="custom-providers"><a class="header" href="#custom-providers">Custom providers</a></h1>
+<p>Custom Providers are reusable file providers that execute commands to produce files. They
+encapsulate file generation logic for sharing across test plans, environments, and scenarios.</p>
+<blockquote>
+<p>An example of a valid Custom Provider Definition is provided in the <a href="#full-example-3">Full example</a>
+section below.</p>
+</blockquote>
+<h2 id="custom-provider-definitions"><a class="header" href="#custom-provider-definitions">Custom provider definitions</a></h2>
+<p>A <em>Custom Provider Definition</em> is a YAML file that defines a reusable custom provider. They execute
+commands to produce one or more files for other RTF config files to use, whereas Scenarios execute
+test actions. Custom provider definitions cannot reference other custom providers. They are
+templated using the arguments provided to the custom provider in a configuration file.</p>
+<h3 id="top-level-keys-3"><a class="header" href="#top-level-keys-3">Top level keys</a></h3>
+<ul>
+<li><code>name</code>: The name for this Custom Provider Definition.
+<ul>
+<li>Uniqueness is not enforced by the <code>rtf</code> CLI but it is worthwhile ensuring that the custom
+providers you write each have unique names that can be used to distinguish them.</li>
+</ul>
+</li>
+<li><code>description</code>: A brief, human readable description of the behaviour of the Custom Provider.
+<ul>
+<li>If there are any pre-requisites to using this Custom Provider it is best to call them out here
+rather than in comments or other files (such as a README).</li>
+</ul>
+</li>
+<li><code>variable_definitions</code>: Declarations of the templating variables supported by this Custom
+Provider.
+<ul>
+<li>Variable declarations require specifying both the variable name and a short description of how
+the variable is used.</li>
+<li>Variable declarations also support an optional <code>default</code> field where you can specify a default
+scalar value to use if none is provided when the Custom Provider is invoked.</li>
+</ul>
+</li>
+<li><code>command</code>: See <a href="#command-providers">Command Provider</a>.</li>
+<li><code>env_vars</code>: See <a href="#command-providers">Command Provider</a>.</li>
+<li><code>file_providers</code>: See <a href="#command-providers">Command Provider</a>.</li>
+</ul>
+<h3 id="full-example-3"><a class="header" href="#full-example-3">Full example</a></h3>
+<p>The following is a minimal “kitchen sink” example of the structure of a valid Custom Provider
+Definition file.</p>
+<pre><code class="language-yaml">name: example
+description: An example Custom Provider that generates a configuration file
+
+variable_definitions:
+  - name: config_name
+    description: "The name to use in the generated configuration"
+  - name: config_value
+    description: "The value to include in the configuration"
+    default: "default_value"
+
+command:
+  name: generate-config.sh
+  kind: relative_path
+  path: scripts/generate-config.sh
+
+env_vars:
+  CONFIG_NAME: "{{ config_name }}"
+  CONFIG_VALUE: "{{ config_value }}"
+
+file_providers:
+  - name: template.txt
+    env_var: TEMPLATE_FILE
+    kind: inline
+    content: |
+      some inline file content
+</code></pre>
+<h2 id="custom-provider-declarations"><a class="header" href="#custom-provider-declarations">Custom provider declarations</a></h2>
+<p>Custom provider definitions are loaded into config files through <em>Custom Provider Declarations</em>.
+These declarations specify a source directory (either a local relative path or a GitHub repository)
+and a mapping of provider names to definition files within that directory. The provider names are
+the names referenced when using the custom providers.</p>
+<p>Custom provider declarations can be specified at three levels:</p>
+<ul>
+<li><strong>Test Plan level</strong>: Custom providers declared in the test plan are only available to any
+overrides defined within the test plan itself. Unlike variables, custom providers DO NOT become
+available globally. If referencing a custom provider directly in an environment or scenario
+config, the declaration for that provider MUST be in that config file.</li>
+<li><strong>Environment level</strong>: Custom providers declared in an environment config are only available
+within that environment’s setup and teardown command sections.</li>
+<li><strong>Scenario level</strong>: Custom providers declared in a scenario config are only available within that
+scenario’s command section.</li>
+</ul>
+<h3 id="structure"><a class="header" href="#structure">Structure</a></h3>
+<ul>
+<li><code>kind</code>: The source directory containing the custom provider definition files. This can be
+specified as either:
+<ul>
+<li>A local relative path using <code>kind: local</code> and <code>relative_path</code></li>
+<li>A GitHub repository using <code>kind: github</code> along with <code>org</code>, <code>repo</code>, <code>path</code>, and optionally
+<code>git_ref</code></li>
+</ul>
+</li>
+<li><code>using</code>: A map of provider names to definition file paths. The provider name is what you will use
+in the <code>type</code> field when referencing the custom provider in file provider sections.</li>
+</ul>
+<h3 id="local-path-example"><a class="header" href="#local-path-example">Local path example</a></h3>
+<pre><code class="language-yaml">custom_providers:
+  - kind: local
+    relative_path: ./providers
+    using:
+      my_provider: my_provider.yaml
+      another_provider: another_provider.yaml
+</code></pre>
+<h3 id="github-repository-example"><a class="header" href="#github-repository-example">GitHub repository example</a></h3>
+<p>The <code>git_ref</code> field is optional and should be used if you want to target a branch that is not the
+repository default.</p>
+<blockquote>
+<p>You <em>must</em> have a valid GitHub access token with permissions to interact with your chosen
+repository exported as <code>GITHUB_TOKEN</code> in your shell environment for this method to work. See
+<a href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens">here</a> for GitHub’s documentation on how to create and manage access tokens.</p>
+</blockquote>
+<pre><code class="language-yaml">custom_providers:
+  - kind: github
+    org: my-org
+    repo: my-repo
+    path: path/to/providers
+    # git_ref: main
+    using:
+      my_provider: my_provider.yaml
+      another_provider: another_provider.yaml
+</code></pre>
+<h2 id="using-custom-providers"><a class="header" href="#using-custom-providers">Using custom providers</a></h2>
+<p>Custom providers appear in the <code>file_providers</code> list with <code>kind: custom_provider</code>.</p>
+<h3 id="structure-1"><a class="header" href="#structure-1">Structure</a></h3>
+<ul>
+<li><code>name</code>: The name for the output file produced by this custom provider. This is common to all file
+providers.</li>
+<li><code>env_var</code>: The environment variable that will be set to the path of the output file. This is
+common to all file providers.</li>
+<li><code>kind</code>: Must be <code>custom_provider</code>.</li>
+<li><code>type</code>: The name of the custom provider to use. This must match a name from the <code>using</code> map in a
+Custom Provider Declaration.</li>
+<li>Additional keys are passed as arguments to the custom provider and should match the
+<code>variable_definitions</code> in the Custom Provider Definition. Arguments can be literal values or
+template strings referencing variables from the config file.</li>
+</ul>
+<h3 id="example"><a class="header" href="#example">Example</a></h3>
+<p>The following example uses a custom provider named <code>my_provider</code> (which must be declared in the
+config file’s <code>custom_providers</code> section) to generate a configuration file:</p>
+<pre><code class="language-yaml">file_providers:
+  - name: generated-config.yaml
+    env_var: GENERATED_CONFIG
+    kind: custom_provider
+    type: my_provider
+    config_name: "my-service"
+    config_value: "{{ service_value }}"
+</code></pre>
+<p>In this example, <code>config_name</code> and <code>config_value</code> are the arguments to <code>my_provider</code>.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="writing-test-plans"><a class="header" href="#writing-test-plans">Writing test Plans</a></h1>
 <p>This section will guide you through writing a test plan for rtf from a blank file. The test plan
@@ -3286,6 +3449,669 @@ overrides. Our test plan no longer contains a <code>required</code> file, so we 
 <hr>
 <p>Congratulations! You’ve now completed the guide on how to write test plans.</p>
 <div style="break-before: page; page-break-before: always;"></div>
+<h1 id="writing-custom-providers"><a class="header" href="#writing-custom-providers">Writing custom providers</a></h1>
+<p>This section will guide you through writing a custom provider for rtf from a blank file. The custom
+provider will be a simple example that introduces you to the concepts of writing RTF custom
+providers and why they are helpful. For examples of custom providers that can be used for specific
+use cases, please refer to the <a href="https://github.com/apollographql/rtf-morgue">morgue</a>.</p>
+<h2 id="prerequisites-1"><a class="header" href="#prerequisites-1">Prerequisites</a></h2>
+<p>We recommend completing the <a href="#writing-test-plans">“Writing test plans”</a> guide first to ensure
+you’re familiar with rtf test plans. Many of the concepts in that guide will be reused here.</p>
+<hr>
+<p><strong>Next:</strong> <a href="#writing-a-custom-provider-definition">Writing a custom provider definition</a></p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="writing-a-custom-provider-definition"><a class="header" href="#writing-a-custom-provider-definition">Writing a custom provider definition</a></h1>
+<p>Create an empty directory and make it your working directory:</p>
+<pre><code class="language-bash">mkdir rtf-custom-provider
+cd rtf-custom-provider
+</code></pre>
+<p>Create an empty YAML file for the custom provider definition:</p>
+<pre><code class="language-bash">touch my-provider.yaml
+</code></pre>
+<p>We will now step through creating a simple custom provider definition.</p>
+<h2 id="adding-required-fields-1"><a class="header" href="#adding-required-fields-1">Adding required fields</a></h2>
+<p>A custom provider definition has three required fields: <code>name</code>, <code>description</code>, and <code>command</code>. The
+sections below add each of these required fields and explain them in more detail.</p>
+<h3 id="name-2"><a class="header" href="#name-2"><code>name</code></a></h3>
+<p>Add the <code>name</code> field to the <code>my-provider.yaml</code> file:</p>
+<pre><code class="language-yaml">name: env-generator
+</code></pre>
+<p><code>name</code> is used to give each custom provider an identifiable title. It can be any valid string. The
+value used for the <code>name</code> field has no impact on the execution of the custom provider. This makes it
+easier to work with the custom provider programmatically.</p>
+<h3 id="description-1"><a class="header" href="#description-1"><code>description</code></a></h3>
+<p>Add the <code>description</code> field to the <code>my-provider.yaml</code> file:</p>
+<pre><code class="language-yaml">name: env-generator
+description: |
+  Generates an ENV_VARS.txt file with configuration for downstream scripts.
+
+  Output directory contains:
+  - ENV_VARS.txt (environment variables for setup scripts)
+  - base-config.txt (a base configuration file)
+</code></pre>
+<p><code>description</code> is used to give more information about the custom provider for future users. It can be
+any valid string. The value used for the <code>description</code> field has no impact on the execution of the
+custom provider itself. This is a useful place to document what files the provider generates and how
+they should be used.</p>
+<h3 id="command-1"><a class="header" href="#command-1"><code>command</code></a></h3>
+<p>The <code>command</code> is used to define what will be executed when the custom provider runs. The command is
+responsible for generating output files in the <code>$RTF_OUTPUT</code> directory.</p>
+<p>Add the <code>command</code> field to the <code>my-provider.yaml</code> file:</p>
+<pre><code class="language-yaml">name: env-generator
+description: |
+  Generates an ENV_VARS.txt file with configuration for downstream scripts.
+
+  Output directory contains:
+  - ENV_VARS.txt (environment variables for setup scripts)
+  - base-config.txt (a base configuration file)
+
+command:
+  name: generate.sh
+  kind: relative_path
+  path: scripts/generate.sh
+</code></pre>
+<p>This references a script file that we will create in the
+<a href="#custom-provider-commands">custom provider commands</a> section. Before we can run the custom
+provider, we need to create this script.</p>
+<h2 id="custom-provider-commands"><a class="header" href="#custom-provider-commands">Custom provider commands</a></h2>
+<p>Before we can run the custom provider, we need to create the script referenced in the <code>command</code>
+section. Create a <code>scripts</code> directory and the <code>generate.sh</code> file:</p>
+<pre><code class="language-bash">mkdir scripts
+touch scripts/generate.sh
+</code></pre>
+<p>Add the following content to <code>scripts/generate.sh</code>:</p>
+<pre><code class="language-bash">#!/usr/bin/env bash
+set -e
+
+mkdir -p "$RTF_OUTPUT"
+
+cat &gt; "$RTF_OUTPUT/ENV_VARS.txt" &lt;&lt; EOF
+# Environment variables for project setup
+# Generated by env-generator provider
+
+export PROJECT_NAME="default-project"
+export LOG_LEVEL="info"
+EOF
+
+echo "Generated environment config in $RTF_OUTPUT"
+</code></pre>
+<p>This script does the following:</p>
+<ul>
+<li>Creates the output directory using the <code>$RTF_OUTPUT</code> environment variable, which is automatically
+set by rtf to the directory where output files should be written. All custom provider command
+scripts must write to this location.</li>
+<li>Writes an <code>ENV_VARS.txt</code> file with environment variable exports that can be sourced by downstream
+scripts. This is not a required pattern for a custom provider but can be useful in many use cases
+which is why it is included in this guide.</li>
+<li>Prints a message confirming the generation was successful.</li>
+</ul>
+<p>The key difference between a command in a custom provider and one in a config file is that the
+command in a custom provider MUST write one or more files to RTF_OUTPUT. Commands in config files
+perform an action, for example, setting up an environment, whereas commands in a custom provider
+write files for config files to make use of.</p>
+<p>Make the script executable:</p>
+<pre><code class="language-bash">chmod +x scripts/generate.sh
+</code></pre>
+<p>Your directory structure should now look like this:</p>
+<pre><code class="language-bash">$ ls -R
+my-provider.yaml scripts
+
+./scripts:
+generate.sh
+</code></pre>
+<h2 id="checking-the-custom-provider"><a class="header" href="#checking-the-custom-provider">Checking the custom provider</a></h2>
+<p>Now, let’s check that the custom provider has been defined correctly:</p>
+<pre><code class="language-bash">rtf custom-provider template my-provider.yaml
+</code></pre>
+<p>This should result in the fully templated custom provider being printed to the terminal:</p>
+<pre><code class="language-yaml">name: env-generator
+description: |
+  Generates an ENV_VARS.txt file with configuration for downstream scripts.
+
+  Output directory contains:
+  - ENV_VARS.txt (environment variables for setup scripts)
+  - base-config.txt (a base configuration file)
+variable_definitions: []
+command:
+  name: generate.sh
+  kind: relative_path
+  path: scripts/generate.sh
+  args: []
+env_vars: {}
+file_providers: []
+</code></pre>
+<p>This highlights the optional fields for custom providers that have not yet been used:
+<code>variable_definitions</code>, <code>env_vars</code>, and <code>file_providers</code>. These are discussed in the following
+sections.</p>
+<h2 id="running-the-custom-provider"><a class="header" href="#running-the-custom-provider">Running the custom provider</a></h2>
+<p>Before looking at the optional fields, let’s run the custom provider:</p>
+<pre><code class="language-bash">rtf custom-provider run my-provider.yaml
+</code></pre>
+<p>This results in the following terminal output and an <code>output</code> directory:</p>
+<pre><code class="language-bash">Generated environment config in /path/to/rtf-custom-provider/output/RTF_OUTPUT
+</code></pre>
+<p>The <code>output</code> directory contains the generated files. Let’s examine what was created:</p>
+<pre><code class="language-bash">$ cat output/RTF_OUTPUT/ENV_VARS.txt
+# Environment variables for project setup
+# Generated by env-generator provider
+
+export PROJECT_NAME="default-project"
+export LOG_LEVEL="info"
+</code></pre>
+<p>Remove the output directory before continuing:</p>
+<pre><code class="language-bash">rm -rf output/
+</code></pre>
+<blockquote>
+<p><strong>Note</strong> rtf is deliberately configured to not overwrite an existing output directory. This is so
+you cannot accidentally overwrite output you intend to keep. The <code>--output</code> flag can be used with
+<code>rtf custom-provider run</code> to set a different output directory if you want to keep the existing
+output and run a new test.</p>
+</blockquote>
+<h2 id="defining-variables"><a class="header" href="#defining-variables">Defining variables</a></h2>
+<p>The <code>variable_definitions</code> field is used to define parameters that the custom provider accepts. When
+the custom provider is used in a test plan, these variables are passed as arguments. The
+<a href="#using-a-custom-provider">using a custom provider</a> guide covers how to pass arguments to a custom
+provider in detail.</p>
+<p>For now, let’s add a variable to make the project name configurable. We are also going to update the
+script to use this variable. The <code>env_vars</code> field is used to pass variable values to the command as
+environment variables.</p>
+<p>Update <code>my-provider.yaml</code>:</p>
+<pre><code class="language-yaml">name: env-generator
+description: |
+  Generates an ENV_VARS.txt file with configuration for downstream scripts.
+
+  Output directory contains:
+  - ENV_VARS.txt (environment variables for setup scripts)
+  - base-config.txt (a base configuration file)
+
+# --- Add variable definitions ---
+variable_definitions:
+  - name: project_name
+    description: "The name of the project"
+# --------------------------------
+
+command:
+  name: generate.sh
+  kind: relative_path
+  path: scripts/generate.sh
+
+# --- Add env_vars to pass variables to the command ---
+env_vars:
+  PROJECT_NAME: "{{ project_name }}"
+# -----------------------------------------------------
+</code></pre>
+<p>Update <code>scripts/generate.sh</code> to use the environment variable:</p>
+<pre><code class="language-bash">#!/usr/bin/env bash
+set -e
+
+mkdir -p "$RTF_OUTPUT"
+
+cat &gt; "$RTF_OUTPUT/ENV_VARS.txt" &lt;&lt; EOF
+# Environment variables for project setup
+# Generated by env-generator provider
+
+export PROJECT_NAME="$PROJECT_NAME"
+EOF
+
+echo "Generated environment config in $RTF_OUTPUT"
+</code></pre>
+<p>Now run the custom provider with the <code>--var</code> flag to set the variable:</p>
+<pre><code class="language-bash">$ rtf custom-provider run my-provider.yaml --var project_name=my-app
+Generated environment config in /path/to/rtf-custom-provider/output/RTF_OUTPUT
+
+$ cat output/RTF_OUTPUT/ENV_VARS.txt
+# Environment variables for project setup
+# Generated by env-generator provider
+
+export PROJECT_NAME="my-app"
+</code></pre>
+<p>The <code>project_name</code> variable is now configurable. Remove the output directory before continuing:</p>
+<pre><code class="language-bash">rm -rf output/
+</code></pre>
+<h3 id="adding-a-default-value"><a class="header" href="#adding-a-default-value">Adding a default value</a></h3>
+<p>Variables can have default values, like in config files. Let’s add a <code>log_level</code> variable with a
+default value of <code>"info"</code>.</p>
+<p>Update <code>my-provider.yaml</code>:</p>
+<pre><code class="language-yaml">name: env-generator
+description: |
+  Generates an ENV_VARS.txt file with configuration for downstream scripts.
+
+  Output directory contains:
+  - ENV_VARS.txt (environment variables for setup scripts)
+  - base-config.txt (a base configuration file)
+
+variable_definitions:
+  - name: project_name
+    description: "The name of the project"
+
+# --- Add a variable with a default ---
+  - name: log_level
+    description: "Logging verbosity level"
+    default: "info"
+# -------------------------------------
+
+command:
+  name: generate.sh
+  kind: relative_path
+  path: scripts/generate.sh
+
+env_vars:
+  PROJECT_NAME: "{{ project_name }}"
+# --- Add LOG_LEVEL ---
+  LOG_LEVEL: "{{ log_level }}"
+# ---------------------
+</code></pre>
+<p>Update <code>scripts/generate.sh</code>:</p>
+<pre><code class="language-bash">#!/usr/bin/env bash
+set -e
+
+mkdir -p "$RTF_OUTPUT"
+
+cat &gt; "$RTF_OUTPUT/ENV_VARS.txt" &lt;&lt; EOF
+# Environment variables for project setup
+# Generated by env-generator provider
+
+export PROJECT_NAME="$PROJECT_NAME"
+export LOG_LEVEL="$LOG_LEVEL"
+EOF
+
+echo "Generated environment config in $RTF_OUTPUT"
+</code></pre>
+<p>Now run the custom provider without specifying <code>log_level</code>:</p>
+<pre><code class="language-bash">$ rtf custom-provider run my-provider.yaml --var project_name=my-app
+Generated environment config in /path/to/rtf-custom-provider/output/RTF_OUTPUT
+
+$ cat output/RTF_OUTPUT/ENV_VARS.txt
+# Environment variables for project setup
+# Generated by env-generator provider
+
+export PROJECT_NAME="my-app"
+export LOG_LEVEL="info"
+</code></pre>
+<p>The default value <code>"info"</code> is used. You can override it by passing <code>--var log_level=debug</code>.</p>
+<p>Remove the output directory before continuing:</p>
+<pre><code class="language-bash">rm -rf output/
+</code></pre>
+<h2 id="using-file-providers-1"><a class="header" href="#using-file-providers-1">Using file providers</a></h2>
+<p>The <code>file_providers</code> field is used to make files available to the command script. Each file provider
+creates a file and sets an environment variable containing the path to that file. This allows the
+command script to read input files or copy template files to the output directory.</p>
+<p>Let’s add a base configuration file that the command will copy to the output. Update
+<code>my-provider.yaml</code>:</p>
+<pre><code class="language-yaml">name: env-generator
+description: |
+  Generates an ENV_VARS.txt file with configuration for downstream scripts.
+
+  Output directory contains:
+  - ENV_VARS.txt (environment variables for setup scripts)
+  - base-config.txt (a base configuration file)
+
+variable_definitions:
+  - name: project_name
+    description: "The name of the project"
+
+  - name: log_level
+    description: "Logging verbosity level"
+    default: "info"
+
+command:
+  name: generate.sh
+  kind: relative_path
+  path: scripts/generate.sh
+
+# --- Add file providers ---
+file_providers:
+  - name: base-config.txt
+    env_var: BASE_CONFIG
+    kind: inline
+    content: |
+      # Base configuration
+      # Project-specific values set via ENV_VARS.txt
+# -------------------------
+
+env_vars:
+  PROJECT_NAME: "{{ project_name }}"
+  LOG_LEVEL: "{{ log_level }}"
+</code></pre>
+<p>The file provider defines:</p>
+<ul>
+<li><code>name</code>: The filename used when the file is written to the providers directory.</li>
+<li><code>env_var</code>: The environment variable that will contain the path to the file.</li>
+<li><code>kind</code>: The type of file provider. Here we use <code>inline</code> to define the content directly.</li>
+<li><code>content</code>: The file content (for <code>inline</code> providers).</li>
+</ul>
+<p>Update <code>scripts/generate.sh</code> to copy the base config to the output:</p>
+<pre><code class="language-bash">#!/usr/bin/env bash
+set -e
+
+mkdir -p "$RTF_OUTPUT"
+
+cat &gt; "$RTF_OUTPUT/ENV_VARS.txt" &lt;&lt; EOF
+# Environment variables for project setup
+# Generated by env-generator provider
+
+export PROJECT_NAME="$PROJECT_NAME"
+export LOG_LEVEL="$LOG_LEVEL"
+export BASE_CONFIG="$RTF_OUTPUT/base-config.txt"
+EOF
+
+# Copy the base config to output
+cp "$BASE_CONFIG" "$RTF_OUTPUT/base-config.txt"
+
+echo "Generated environment config in $RTF_OUTPUT"
+</code></pre>
+<p>Now run the custom provider:</p>
+<pre><code class="language-bash">$ rtf custom-provider run my-provider.yaml --var project_name=my-app
+Generated environment config in /path/to/rtf-custom-provider/output/RTF_OUTPUT
+
+$ cat output/RTF_OUTPUT/base-config.txt
+# Base configuration
+# Project-specific values set via ENV_VARS.txt
+</code></pre>
+<p>The base configuration file is now included in the output. Remove the output directory before
+continuing:</p>
+<pre><code class="language-bash">rm -rf output/
+</code></pre>
+<p>This completes the custom provider definition.</p>
+<hr>
+<p>In this guide we have covered writing a simple custom provider definition. Next, we will guide you
+through how to use it in a test plan.</p>
+<p><strong>Next:</strong> <a href="#using-a-custom-provider">Using a custom provider</a></p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="using-a-custom-provider"><a class="header" href="#using-a-custom-provider">Using a custom provider</a></h1>
+<p>This guide assumes you’ve completed the
+<a href="#writing-a-custom-provider-definition">“Writing a custom provider definition”</a> guide. You should
+already have the files in a directory named <code>rtf-custom-provider</code>. Your directory should be in the
+state it was at the end of that guide.</p>
+<pre><code class="language-bash">$ ls -R
+my-provider.yaml scripts
+
+./scripts:
+generate.sh
+</code></pre>
+<p>You should also have no <code>output</code> directory. If you do, remove it before continuing:</p>
+<pre><code class="language-bash">rm -rf output/
+</code></pre>
+<h2 id="creating-a-test-plan"><a class="header" href="#creating-a-test-plan">Creating a test plan</a></h2>
+<p>Now that we have a custom provider, let’s use it in a test plan. Create an empty test plan file:</p>
+<pre><code class="language-bash">touch test-plan.yaml
+</code></pre>
+<p>Add the following content to <code>test-plan.yaml</code>:</p>
+<pre><code class="language-yaml">name: Custom Provider Test
+description: A test plan that uses the env-generator custom provider
+custom_providers:
+  - kind: local
+    relative_path: .
+    using:
+      env_generator: my-provider.yaml
+scenario:
+  inline:
+    name: Empty scenario
+    description: A scenario that does nothing
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+environment:
+  inline:
+    name: Custom provider environment
+    description: An environment that uses the env-generator custom provider
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+
+          echo "=== ENV_VARS.txt contents ==="
+          source "$ENV_GENERATOR/ENV_VARS.txt"
+          echo "PROJECT_NAME=$PROJECT_NAME"
+          echo "LOG_LEVEL=$LOG_LEVEL"
+          echo ""
+          echo "=== base-config.txt contents ==="
+          cat "$ENV_GENERATOR/base-config.txt"
+      file_providers:
+        - name: env-generator
+          env_var: ENV_GENERATOR
+          kind: custom_provider
+          type: env_generator
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+</code></pre>
+<p>This test plan does the following:</p>
+<ul>
+<li>The <code>custom_providers</code> section registers the custom provider definition. Each entry specifies:
+<ul>
+<li><code>kind: local</code>: indicates the provider definition is in the local filesystem.</li>
+<li><code>relative_path</code>: the directory containing the provider definition file.</li>
+<li><code>using</code>: a map of names to provider definition files. The name (<code>env_generator</code>) is used to
+reference the provider in file providers.</li>
+</ul>
+</li>
+<li>The <code>scenario</code> is an empty command that does nothing. This is acceptable for testing the custom
+provider.</li>
+<li>The <code>environment.setup</code> uses the custom provider as a file provider. The <code>file_providers</code> entry
+specifies:
+<ul>
+<li><code>name</code>: a name for this file provider instance.</li>
+<li><code>env_var</code>: the environment variable that will contain the path to the provider’s output
+directory.</li>
+<li><code>kind: custom_provider</code>: indicates this is a custom provider.</li>
+<li><code>type</code>: the name registered in <code>custom_providers</code> (in this case, <code>env_generator</code>).</li>
+</ul>
+</li>
+<li>The setup command sources the <code>ENV_VARS.txt</code> file using <code>$ENV_GENERATOR/ENV_VARS.txt</code> and prints
+the values it sets, then prints the contents of <code>base-config.txt</code>.</li>
+<li>The <code>teardown</code> is an empty command that does nothing.</li>
+</ul>
+<h2 id="first-template-attempt"><a class="header" href="#first-template-attempt">First template attempt</a></h2>
+<p>Let’s check if the test plan templates correctly:</p>
+<pre><code class="language-bash">rtf template test-plan.yaml
+</code></pre>
+<p>This fails with an error:</p>
+<pre><code>ERROR (environment.setup.file_providers.ENV_GENERATOR.definition) missing required custom provider arguments: ["project_name"]
+</code></pre>
+<p>This error occurs because the <code>env-generator</code> custom provider has a <code>project_name</code> variable with no
+default value. Notice that <code>log_level</code> is not in the error because it has a default value of
+<code>"info"</code>.</p>
+<h2 id="adding-arguments-to-the-custom-provider"><a class="header" href="#adding-arguments-to-the-custom-provider">Adding arguments to the custom provider</a></h2>
+<p>To fix this, we need to provide the required <code>project_name</code> argument. Arguments are added as
+additional fields on the file provider. Update the <code>file_providers</code> section in <code>test-plan.yaml</code>:</p>
+<pre><code class="language-yaml">name: Custom Provider Test
+description: A test plan that uses the env-generator custom provider
+custom_providers:
+  - kind: local
+    relative_path: .
+    using:
+      env_generator: my-provider.yaml
+scenario:
+  inline:
+    name: Empty scenario
+    description: A scenario that does nothing
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+environment:
+  inline:
+    name: Custom provider environment
+    description: An environment that uses the env-generator custom provider
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+
+          echo "=== ENV_VARS.txt contents ==="
+          source "$ENV_GENERATOR/ENV_VARS.txt"
+          echo "PROJECT_NAME=$PROJECT_NAME"
+          echo "LOG_LEVEL=$LOG_LEVEL"
+          echo ""
+          echo "=== base-config.txt contents ==="
+          cat "$ENV_GENERATOR/base-config.txt"
+      file_providers:
+        - name: env-generator
+          env_var: ENV_GENERATOR
+          kind: custom_provider
+          type: env_generator
+# --- Add the required argument ---
+          project_name: my-test-project
+# ---------------------------------
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+</code></pre>
+<p>Now run the template command again:</p>
+<pre><code class="language-bash">rtf template test-plan.yaml
+</code></pre>
+<p>This time the command succeeds and outputs the fully templated test plan. The custom provider’s
+arguments are resolved and used to template the provider definition.</p>
+<h2 id="running-the-test-plan-1"><a class="header" href="#running-the-test-plan-1">Running the test plan</a></h2>
+<p>Let’s run the test plan to see the custom provider in action:</p>
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>The output shows:</p>
+<pre><code>Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+=== ENV_VARS.txt contents ===
+PROJECT_NAME=my-test-project
+LOG_LEVEL=info
+
+=== base-config.txt contents ===
+# Base configuration
+# Project-specific values set via ENV_VARS.txt
+</code></pre>
+<p>This confirms:</p>
+<ol>
+<li>The custom provider ran and generated its output files.</li>
+<li>The <code>PROJECT_NAME</code> is set to the value we provided as an argument.</li>
+<li>The <code>LOG_LEVEL</code> uses the default value of <code>"info"</code>.</li>
+<li>The <code>base-config.txt</code> file is available to the setup command.</li>
+</ol>
+<p>Remove the output directory before continuing:</p>
+<pre><code class="language-bash">rm -rf output/
+</code></pre>
+<h2 id="overriding-the-default-value"><a class="header" href="#overriding-the-default-value">Overriding the default value</a></h2>
+<p>You can override the default <code>log_level</code> value by adding it as an argument. Update the
+<code>file_providers</code> section:</p>
+<pre><code class="language-yaml">      file_providers:
+        - name: env-generator
+          env_var: ENV_GENERATOR
+          kind: custom_provider
+          type: env_generator
+          project_name: my-test-project
+# --- Override the default ---
+          log_level: debug
+# ----------------------------
+</code></pre>
+<p>Run the test plan again:</p>
+<pre><code class="language-bash">$ rtf run test-plan.yaml
+Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+=== ENV_VARS.txt contents ===
+PROJECT_NAME=my-test-project
+LOG_LEVEL=debug
+
+=== base-config.txt contents ===
+# Base configuration
+# Project-specific values set via ENV_VARS.txt
+</code></pre>
+<p>The <code>LOG_LEVEL</code> is now <code>"debug"</code> instead of the default <code>"info"</code>.</p>
+<p>Remove the output directory before continuing:</p>
+<pre><code class="language-bash">rm -rf output/
+</code></pre>
+<h2 id="using-test-plan-variables-for-arguments"><a class="header" href="#using-test-plan-variables-for-arguments">Using test plan variables for arguments</a></h2>
+<p>Instead of hardcoding values in the arguments, you can use test plan variables. This allows the same
+test plan to be run with different configurations. Update <code>test-plan.yaml</code>:</p>
+<pre><code class="language-yaml">name: Custom Provider Test
+description: A test plan that uses the env-generator custom provider
+# --- Add variables ---
+variables:
+  project_name: my-variable-project
+# ---------------------
+custom_providers:
+  - kind: local
+    relative_path: .
+    using:
+      env_generator: my-provider.yaml
+scenario:
+  inline:
+    name: Empty scenario
+    description: A scenario that does nothing
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+environment:
+  inline:
+    name: Custom provider environment
+    description: An environment that uses the env-generator custom provider
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+
+          echo "=== ENV_VARS.txt contents ==="
+          source "$ENV_GENERATOR/ENV_VARS.txt"
+          echo "PROJECT_NAME=$PROJECT_NAME"
+          echo "LOG_LEVEL=$LOG_LEVEL"
+          echo ""
+          echo "=== base-config.txt contents ==="
+          cat "$ENV_GENERATOR/base-config.txt"
+      file_providers:
+        - name: env-generator
+          env_var: ENV_GENERATOR
+          kind: custom_provider
+          type: env_generator
+# --- Use templating for the argument value ---
+          project_name: "{{ project_name }}"
+          log_level: debug
+# ---------------------------------------------
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+</code></pre>
+<p>Run the test plan:</p>
+<pre><code class="language-bash">$ rtf run test-plan.yaml
+Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+=== ENV_VARS.txt contents ===
+PROJECT_NAME=my-variable-project
+LOG_LEVEL=debug
+
+=== base-config.txt contents ===
+# Base configuration
+# Project-specific values set via ENV_VARS.txt
+</code></pre>
+<p>The <code>PROJECT_NAME</code> is now set from the test plan variable. You can also override this at runtime
+using the <code>--var</code> flag:</p>
+<pre><code class="language-bash">$ rtf run test-plan.yaml --var project_name=runtime-override
+Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+=== ENV_VARS.txt contents ===
+PROJECT_NAME=runtime-override
+LOG_LEVEL=debug
+
+=== base-config.txt contents ===
+# Base configuration
+# Project-specific values set via ENV_VARS.txt
+</code></pre>
+<hr>
+<p>In this guide, we have covered how to use a custom provider in a test plan, pass arguments to it,
+and use test plan variables for dynamic configuration.</p>
+<div style="break-before: page; page-break-before: always;"></div>
 <h1 id="cookbook"><a class="header" href="#cookbook">Cookbook</a></h1>
 <p><em>Common patterns and idioms for working with RTF</em></p>
 <p>This page is a collection of short configuration snippets and strategies for working with RTF Test
@@ -3503,10 +4329,20 @@ becoming invalid if it now produces non-unique names.</p>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="glossary"><a class="header" href="#glossary">Glossary</a></h1>
+<h2 id="custom-provider-declaration"><a class="header" href="#custom-provider-declaration">Custom Provider Declaration</a></h2>
+<p>A YAML snippet within an RTF configuration file (Test Plan, Environment or Scenario) that specifies
+where to load Custom Provider Definitions from. This maps Custom Provider Definitions to the name
+used to reference them in a Custom Provider. An RTF configuration file can only use Custom Providers
+defined in its Custom Provider Declaration.</p>
+<h2 id="custom-provider-definition"><a class="header" href="#custom-provider-definition">Custom Provider Definition</a></h2>
+<p>An RTF YAML file for specifying a reusable Custom Provider. A Custom Provider Definition specifies
+the Variables, File Providers and Command required to produce one or more files from the arguments
+supplied to a Custom Provider. Custom Provider Definitions support Templating using arguments from
+the invoking Custom Provider.</p>
 <h2 id="environment-1"><a class="header" href="#environment-1">Environment</a></h2>
 <p>An RTF configuration file for specifying how to set up and tear down the services and infrastructure
-under test using Command and File providers. As with all RTF configuration files, it is possible to
-template an Environment configuration using Variables provided in the Test Plan.</p>
+under test using Command and File providers. Like all RTF configuration files, Environment
+configurations support Templating using Variables from the Test Plan.</p>
 <h2 id="provider"><a class="header" href="#provider">Provider</a></h2>
 <p>A self contained piece of functionality within RTF that can provide file content for use in
 executing commands found in a Scenario or Environment configuration. Providers are declared as part
@@ -3516,6 +4352,9 @@ of RTF configuration files by specifying their kind and the parameters needed to
 File Providers whose content will be made available to the command when it is run. The purpose of
 each of the Scenario and Environment configuration files is to parameterise, resolve and run one or
 more Command Providers.</p>
+<h3 id="custom-provider-1"><a class="header" href="#custom-provider-1">Custom Provider</a></h3>
+<p>A Provider that uses a Custom Provider Definition to execute a Command to produce one or more files.
+Custom Providers generate file(s) using the arguments provided.</p>
 <h3 id="file-provider"><a class="header" href="#file-provider">File Provider</a></h3>
 <p>A Provider that will write out one or more files into a Test Plan’s output directory when resolved.
 File Providers range from being completely general purpose (e.g. pulling an arbitrary file from
@@ -3526,8 +4365,8 @@ operations to run against the supergraph under test).</p>
 resolve and run Test Plans.</p>
 <h2 id="scenario-1"><a class="header" href="#scenario-1">Scenario</a></h2>
 <p>An RTF configuration file for specifying how to run a test against services spun up by an
-Environment configuration using Command and File providers. As with all RTF configuration files, it
-is possible to template a Scenario configuration using Variables provided in the Test Plan.</p>
+Environment configuration using Command and File providers. Like all RTF configuration files,
+Scenario configurations support Templating using Variables from the Test Plan.</p>
 <h2 id="templating"><a class="header" href="#templating">Templating</a></h2>
 <p>The use of template strings within RTF configuration files for declaring how users of that
 configuration file may specify how to set Provider parameters and Command Provider environment

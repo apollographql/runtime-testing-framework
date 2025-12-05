@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-38825348.js";
+            window.path_to_searchindex_js = "../searchindex-bbb86e31.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-491d8d1c.js"></script>
+        <script src="../toc-0ee976b5.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,13 +178,8 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="environments"><a class="header" href="#environments">Environments</a></h1>
-<p>As outlined in the <a href="./test-plans.html">Test Plan</a> overview, your Environment configuration is one of the two main
-pieces of configuration needed in order to run tests under RTF. Conceptually, an Environment
-configuration is a pair of <a href="./command-providers.html">Command providers</a> that are run either side of the test scenario you
-want to run in order to setup and teardown the resources required for running the test.</p>
-<p>In this page we will cover the available keys within an Environment and outline the structure and
-semantics of each. For more detailed information on specific aspects of the framework please see the
-relevant pages under the <a href="./index.html">Framework</a> section of the documentation.</p>
+<p>An Environment defines setup and teardown commands that bracket a Scenario’s execution. Each phase
+is a <a href="./command-providers.html">Command Provider</a>.</p>
 <blockquote>
 <p>An example of a valid <code>environment.yaml</code> is provided in the <a href="#full-example">Full example</a> section
 below.</p>
@@ -213,8 +208,20 @@ scalar value to use if none is provided within the <a href="./test-plans.html">T
 Plan but with different defaults, each config file will fall back to its own default.</li>
 </ul>
 </li>
+<li><code>custom_providers</code>: Declarations for loading Custom Provider Definitions.
+<ul>
+<li>For full details on the structure of Custom Provider Declarations and Definitions see the
+<a href="./custom-providers.html">Custom Providers</a> page of the Framework documentation.</li>
+</ul>
+</li>
 <li><code>setup</code>: A <a href="./command-providers.html">Command Provider</a> that defines how the environment should be set up before the
-scenario is run.</li>
+scenario is run.
+<ul>
+<li><code>provides</code>: An optional list of variable definitions that will be populated from the JSON output
+of the setup command. These variables become available for templating the <code>teardown</code> section but
+are not available to the Scenario.</li>
+</ul>
+</li>
 <li><code>teardown</code>: A <a href="./command-providers.html">Command Provider</a> that defines how the environment should be torn down after the
 scenario is run.</li>
 </ul>
@@ -228,6 +235,12 @@ variable_definitions:
     description: "A description for my variable"
     default: "foo"
 
+custom_providers:
+  - kind: local
+    relative_path: ./providers
+    using:
+      my_provider: my_provider.yaml
+
 setup:
   command:
     name: my-setup-command.sh
@@ -236,6 +249,10 @@ setup:
 
   env_vars:
     MY_VARIABLE: "{{ my_variable }}"
+  
+  provides:
+      - name: cluster_id
+        description: "The ID of the provisioned cluster"
 
 teardown:
   command:

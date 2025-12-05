@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-38825348.js";
+            window.path_to_searchindex_js = "searchindex-bbb86e31.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-491d8d1c.js"></script>
+        <script src="toc-0ee976b5.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,10 +178,20 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="glossary"><a class="header" href="#glossary">Glossary</a></h1>
+<h2 id="custom-provider-declaration"><a class="header" href="#custom-provider-declaration">Custom Provider Declaration</a></h2>
+<p>A YAML snippet within an RTF configuration file (Test Plan, Environment or Scenario) that specifies
+where to load Custom Provider Definitions from. This maps Custom Provider Definitions to the name
+used to reference them in a Custom Provider. An RTF configuration file can only use Custom Providers
+defined in its Custom Provider Declaration.</p>
+<h2 id="custom-provider-definition"><a class="header" href="#custom-provider-definition">Custom Provider Definition</a></h2>
+<p>An RTF YAML file for specifying a reusable Custom Provider. A Custom Provider Definition specifies
+the Variables, File Providers and Command required to produce one or more files from the arguments
+supplied to a Custom Provider. Custom Provider Definitions support Templating using arguments from
+the invoking Custom Provider.</p>
 <h2 id="environment"><a class="header" href="#environment">Environment</a></h2>
 <p>An RTF configuration file for specifying how to set up and tear down the services and infrastructure
-under test using Command and File providers. As with all RTF configuration files, it is possible to
-template an Environment configuration using Variables provided in the Test Plan.</p>
+under test using Command and File providers. Like all RTF configuration files, Environment
+configurations support Templating using Variables from the Test Plan.</p>
 <h2 id="provider"><a class="header" href="#provider">Provider</a></h2>
 <p>A self contained piece of functionality within RTF that can provide file content for use in
 executing commands found in a Scenario or Environment configuration. Providers are declared as part
@@ -191,6 +201,9 @@ of RTF configuration files by specifying their kind and the parameters needed to
 File Providers whose content will be made available to the command when it is run. The purpose of
 each of the Scenario and Environment configuration files is to parameterise, resolve and run one or
 more Command Providers.</p>
+<h3 id="custom-provider"><a class="header" href="#custom-provider">Custom Provider</a></h3>
+<p>A Provider that uses a Custom Provider Definition to execute a Command to produce one or more files.
+Custom Providers generate file(s) using the arguments provided.</p>
 <h3 id="file-provider"><a class="header" href="#file-provider">File Provider</a></h3>
 <p>A Provider that will write out one or more files into a Test Plan’s output directory when resolved.
 File Providers range from being completely general purpose (e.g. pulling an arbitrary file from
@@ -201,8 +214,8 @@ operations to run against the supergraph under test).</p>
 resolve and run Test Plans.</p>
 <h2 id="scenario"><a class="header" href="#scenario">Scenario</a></h2>
 <p>An RTF configuration file for specifying how to run a test against services spun up by an
-Environment configuration using Command and File providers. As with all RTF configuration files, it
-is possible to template a Scenario configuration using Variables provided in the Test Plan.</p>
+Environment configuration using Command and File providers. Like all RTF configuration files,
+Scenario configurations support Templating using Variables from the Test Plan.</p>
 <h2 id="templating"><a class="header" href="#templating">Templating</a></h2>
 <p>The use of template strings within RTF configuration files for declaring how users of that
 configuration file may specify how to set Provider parameters and Command Provider environment
