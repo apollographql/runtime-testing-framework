@@ -445,7 +445,7 @@
       "type": "object"
     },
     "GraphosSubgraphNames": {
-      "description": "The user specifies the graph ref that should be used to fetch the names of\nsubgraphs in the supergraph from the GraphOS API.\n\nThis file proivider will output a newline-delimited file of the subgraph names.\n\n```yaml\n- name: \"subgraph_names\"\n  env_var: SUBGRAPH_NAMES\n  kind: graphos_subgraph_names\n  graph_ref: graph@variant\n```",
+      "description": "The user specifies the graph ref that should be used to fetch the names of\nsubgraphs in the supergraph from the GraphOS API.\n\nThis file provider will output a newline-delimited file of the subgraph names.\n\n```yaml\n- name: \"subgraph_names\"\n  env_var: SUBGRAPH_NAMES\n  kind: graphos_subgraph_names\n  graph_ref: graph@variant\n```",
       "properties": {
         "graph_ref": {
           "allOf": [
@@ -490,7 +490,7 @@
       "type": "object"
     },
     "GraphosSubgraphs": {
-      "description": "The user specifies the graph ref that should be used to fetch a subgraph\nSDL files from the GraphOS API.\n\nNote that this file proivider will output a directory of SDL schema files, one for each\nsubgraph.\n\n```yaml\n- name: \"subgraphs\"\n  env_var: SUBGRAPHS\n  kind: graphos_subgraphs\n  graph_ref: graph@variant\n```",
+      "description": "The user specifies the graph ref that should be used to fetch a subgraph\nSDL files from the GraphOS API.\n\nNote that this file provider will output a directory of SDL schema files, one for each\nsubgraph.\n\n```yaml\n- name: \"subgraphs\"\n  env_var: SUBGRAPHS\n  kind: graphos_subgraphs\n  graph_ref: graph@variant\n```",
       "properties": {
         "graph_ref": {
           "allOf": [

@@ -1,13 +1,7 @@
 # Environments
 
-As outlined in the [Test Plan][0] overview, your Environment configuration is one of the two main
-pieces of configuration needed in order to run tests under RTF. Conceptually, an Environment
-configuration is a pair of [Command providers][1] that are run either side of the test scenario you
-want to run in order to setup and teardown the resources required for running the test.
-
-In this page we will cover the available keys within an Environment and outline the structure and
-semantics of each. For more detailed information on specific aspects of the framework please see the
-relevant pages under the [Framework][2] section of the documentation.
+An Environment defines setup and teardown commands that bracket a Scenario's execution. Each phase
+is a [Command Provider][1].
 
 > An example of a valid `environment.yaml` is provided in the [Full example](#full-example) section
 > below.
@@ -27,8 +21,14 @@ relevant pages under the [Framework][2] section of the documentation.
     scalar value to use if none is provided within the [Test Plan][0].
   - If the same variable name is defined in both the Environment and Scenario used by a given Test
     Plan but with different defaults, each config file will fall back to its own default.
+- `custom_providers`: Declarations for loading Custom Provider Definitions.
+  - For full details on the structure of Custom Provider Declarations and Definitions see the
+    [Custom Providers][3] page of the Framework documentation.
 - `setup`: A [Command Provider][1] that defines how the environment should be set up before the
   scenario is run.
+  - `provides`: An optional list of variable definitions that will be populated from the JSON output
+    of the setup command. These variables become available for templating the `teardown` section but
+    are not available to the Scenario.
 - `teardown`: A [Command Provider][1] that defines how the environment should be torn down after the
   scenario is run.
 
@@ -45,6 +45,12 @@ variable_definitions:
     description: "A description for my variable"
     default: "foo"
 
+custom_providers:
+  - kind: local
+    relative_path: ./providers
+    using:
+      my_provider: my_provider.yaml
+
 setup:
   command:
     name: my-setup-command.sh
@@ -53,6 +59,10 @@ setup:
 
   env_vars:
     MY_VARIABLE: "{{ my_variable }}"
+  
+  provides:
+      - name: cluster_id
+        description: "The ID of the provisioned cluster"
 
 teardown:
   command:
@@ -70,3 +80,4 @@ teardown:
 [0]: ./test-plans.md
 [1]: ./command-providers.md
 [2]: ./index.md
+[3]: ./custom-providers.md

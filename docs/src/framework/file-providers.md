@@ -371,7 +371,7 @@ parameters.
 The user specifies the graph ref that should be used to fetch a subgraph SDL files from the GraphOS
 API.
 
-Note that this file proivider will output a directory of SDL schema files, one for each subgraph.
+Note that this file provider will output a directory of SDL schema files, one for each subgraph.
 
 ```yaml
 - name: "subgraphs"
@@ -394,7 +394,7 @@ The Apollo graph ref to pull subgraph SDL files for.
 The user specifies the graph ref that should be used to fetch the names of subgraphs in the
 supergraph from the GraphOS API.
 
-This file proivider will output a newline-delimited file of the subgraph names.
+This file provider will output a newline-delimited file of the subgraph names.
 
 ```yaml
 - name: "subgraph_names"
