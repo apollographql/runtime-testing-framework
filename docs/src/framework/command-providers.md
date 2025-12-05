@@ -1,10 +1,8 @@
 # Command providers
 
-_Command Providers_ are the core executable element making up RTF Test Plans. They allow you, the
-user, to specify how a given command should be run and what resources it needs in order to do so.
-Both the [Environment][0] and [Scenario][1] configuration files are simply ways of defining Command
-Providers with known semantics for RTF to execute alongside templating variables that can be used to
-customise how that command is run.
+Command Providers are the core executable element of RTF Test Plans. They specify how a command runs
+and what resources it needs. [Environment][0] and [Scenario][1] configurations are Command Providers
+with defined execution semantics.
 
 The configuration for a Command Provider consists of three top level sections:
 
@@ -14,8 +12,7 @@ The configuration for a Command Provider consists of three top level sections:
 
 The details of each section are outlined below.
 
-> For full examples of what command sections look like inside of RTF test plans, please see the
-> examples found in the [Environment][3] and [Scenario][4] pages.
+> Full examples appear in the [Environment][3] and [Scenario][4] pages.
 
 ## The command section
 
@@ -53,12 +50,10 @@ the specifies which strategy you want to use to define your command.
 
 ### Inline scripts
 
-To provide your command as an inline script simply specify the kind as `inline` and provide your
-script contents under the `content` key.
+To provide your command as an inline script, specify the kind as `inline` and provide your script
+contents under the `content` key.
 
-It is worth familiarising yourself with YAML's support for multiline strings in order to ensure that
-you have the correct indentation within your scripts. [This site][6] serves as a nice minimal
-reference for the relevant YAML syntax.
+For multiline script content, see [YAML multiline string syntax][6].
 
 ```yaml
 command:
@@ -71,9 +66,9 @@ command:
 
 ### Relative paths
 
-To use a pre-existing script as your command simply specify the kind as `relative_path` and provide
-the relative path to your script under the `path` key. (See [here][7] for details on how relative
-paths are handled by RTF).
+To use a pre-existing script, specify the kind as `relative_path` and provide the relative path to
+your script under the `path` key. (See [here][7] for details on how relative paths are handled by
+RTF).
 
 ```yaml
 command:
@@ -117,10 +112,9 @@ env_vars:
 
 ## The file providers section
 
-Under the `file_providers` key you may specify any number of _File Providers_ as resources that will
-be made available to your command prior to execution. The [File Providers][2] page covers the
-specifics of each of the built-in file providers within RTF so here we will focus instead on their
-shared structure and semantics.
+The `file_providers` key accepts any number of File Providers as resources made available before
+command execution. See [File Providers][2] for provider-specific details. This section covers shared
+structure and semantics.
 
 When defined under a _Command Provider_ the following shared keys are added to the variant specific
 keys defined by each file provider:
@@ -148,18 +142,13 @@ file_providers:
     with_subgraph_overrides: docker
 ```
 
-### A note on providers as resources
+> **Note**: Every resource needed by a Command Provider must be specified via a File Provider. RTF
+> only guarantees paths set in provider environment variables. Do not construct relative paths
+> between resources or from command scripts.
 
-You must ensure that _every_ resource that you need to make available to your _Command Provider_ is
-specified via a _File Provider_. RTF will only guarantee that the absolute paths it places in
-provider environment variables are correct. You must not attempt to construct relative paths between
-resources or from command scripts themselves as RTF can (and will) break such relative path
-relationships without warning.
-
-To help with managing the resources you need for your commands, RTF internally caches and reuses
-file providers that share identical keys, so you are free to duplicate providers between different
-_Command Providers_. Allowing you to share resources between different _Command Providers_ without
-worrying about the providers running multiple times.
+RTF internally caches and reuses file providers that share identical keys, so you are free to
+duplicate providers between different Command Providers. This allows sharing resources without
+providers running multiple times.
 
 [0]: ./environments.md
 [1]: ./scenarios.md

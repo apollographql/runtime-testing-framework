@@ -15,6 +15,7 @@
   - [Scenarios](framework/scenarios.md)
   - [Command providers](framework/command-providers.md)
   - [File providers](framework/file-providers.md)
+  - [Custom providers](framework/custom-providers.md)
 
 - [Writing test plans](guides/test-plans/index.md)
   - [Writing a new test plan](guides/test-plans/writing-a-test-plan.md)
@@ -22,6 +23,10 @@
   - [Writing a new scenario](guides/test-plans/writing-a-scenario.md)
   - [Writing a new environment](guides/test-plans/writing-an-environment.md)
   - [Using file providers](guides/test-plans/using-file-providers.md)
+
+- [Writing custom providers](guides/custom-providers/index.md)
+  - [Writing a custom provider definition](guides/custom-providers/writing-a-custom-provider-definition.md)
+  - [Using a custom provider](guides/custom-providers/using-a-custom-provider.md)
 
 - [Troubleshooting]()
 
