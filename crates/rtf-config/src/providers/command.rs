@@ -281,6 +281,18 @@ impl Check for CommandSection {
             );
         }
 
+        let duplicates = duplicate_keys(
+            self.file_providers.iter().map(|f| f.name.as_str()),
+            |name| name,
+        );
+        if !duplicates.is_empty() {
+            errs.push(
+                checks::ErrorKind::DuplicateFileProviderNames,
+                duplicates.join("\n"),
+                path,
+            );
+        }
+
         errs.into_result(())
     }
 }
@@ -546,6 +558,36 @@ mod tests {
             checks::ErrorKind::RequiredFileMissing,
             "check the error kind is correct"
         );
+    }
+
+    #[test]
+    fn command_section_check_duplicate_file_provider_name_errors() {
+        let command = CommandSection {
+            file_providers: vec![
+                NamedFileProvider {
+                    name: "same-name.txt".to_string(),
+                    env_var: "A".to_string(),
+                    provider: FileProvider::Inline(InlineFile {
+                        content: "first".to_string(),
+                    }),
+                },
+                NamedFileProvider {
+                    name: "same-name.txt".to_string(),
+                    env_var: "B".to_string(),
+                    provider: FileProvider::Inline(InlineFile {
+                        content: "second".to_string(),
+                    }),
+                },
+            ],
+            ..CommandSection::empty()
+        };
+
+        let ctx = Context::new();
+        let res = command.try_check(&mut Vec::new(), &ctx);
+        assert!(res.is_err(), "expected check to fail, got {res:?}");
+
+        let err = res.unwrap_err().unwrap_single();
+        assert_eq!(err.kind, checks::ErrorKind::DuplicateFileProviderNames);
     }
 
     #[test]
