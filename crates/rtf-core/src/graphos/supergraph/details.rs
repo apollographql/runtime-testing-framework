@@ -324,11 +324,8 @@ fn rewrite_connector_urls(sdl: &str, base_url: &str) -> Option<String> {
 
     for schema_type in vec!["Query", "Mutation"] {
         if let Some(ExtendedType::Object(extended_type)) = schema.types.get_mut(schema_type) {
-            println!(
-                "Attempting to replace connectors urls in {} type",
-                schema_type
-            );
             relace_sourceless_connector_urls(extended_type, base_url)?;
+            debug!(schema_type, "replacing connector URLs in type");
         };
     }
 
@@ -350,6 +347,8 @@ fn rewrite_connector_urls(sdl: &str, base_url: &str) -> Option<String> {
 
         rewrite_url(args_map, &vec!["baseURL"], base_url)?;
     }
+
+    debug!("rewrote connector URLs in supergraph SDL");
 
     Some(schema.to_string())
 }
