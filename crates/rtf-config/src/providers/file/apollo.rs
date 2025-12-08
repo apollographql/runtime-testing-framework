@@ -64,7 +64,6 @@ pub struct GraphosSupergraph {
 
 impl GraphosSupergraph {
     fn content_from_details(&self, mut sg: Arc<SupergraphDetails>) -> String {
-        println!("Executing content from details 2");
         if let Some(url_format) = &self.with_subgraph_overrides {
             let sg = Arc::make_mut(&mut sg);
             let subgraph_urls = url_format.urls_for_subgraphs(&sg.subgraphs);
