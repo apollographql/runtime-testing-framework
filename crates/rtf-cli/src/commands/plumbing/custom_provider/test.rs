@@ -3,7 +3,7 @@ use crate::commands::{get_context, plumbing::custom_provider::load_definition};
 use anyhow::{Context as _, anyhow};
 use assert_fs::TempDir;
 use rtf_config::{
-    Source,
+    SourceDir,
     checks::Check,
     context::{Context, ResolutionContext},
     formats::CustomProviderDefinition,
@@ -117,7 +117,7 @@ pub async fn test_custom_provider(
 
 fn spawn_cases(
     definition: CustomProviderDefinition,
-    source: Source,
+    source: SourceDir,
     test_cases: Vec<TestCase>,
 ) -> Receiver<TestResult> {
     let (tx, rx) = mpsc::channel();
@@ -308,7 +308,7 @@ impl TestCase {
 
     async fn run(
         self,
-        source: &Source,
+        source: &SourceDir,
         mut definition: CustomProviderDefinition,
         ctx: &mut Context,
     ) -> anyhow::Result<Outcome> {

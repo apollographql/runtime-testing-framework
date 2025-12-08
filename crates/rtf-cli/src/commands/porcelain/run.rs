@@ -7,7 +7,7 @@ use rtf_config::{
     checks::{self, Check},
     context::ResolutionContext,
     formats::TestPlanConfig,
-    providers::file::Source,
+    providers::file::SourceDir,
     templating::{self, TemplateContext},
 };
 use std::{
@@ -65,8 +65,7 @@ async fn check_and_run_test_plan_with_context(
     cwd: PathBuf,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    let override_sources =
-        variables.merge(&mut test_plan, &Source::local(cwd.join("cli")), &mut ctx)?;
+    let override_sources = variables.merge(&mut test_plan, &SourceDir::local(cwd), &mut ctx)?;
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work()?;
@@ -75,7 +74,7 @@ async fn check_and_run_test_plan_with_context(
     ctx.create_dir_all(out_dir)?;
     let out_dir = ctx.canonicalize_path(out_dir)?;
 
-    if let Source::Local { abs_path } = test_plan.sources.test_plan() {
+    if let SourceDir::Local { abs_path } = test_plan.sources.test_plan() {
         let config_dir = ctx.dir_containing(abs_path);
         ctx.set_current_dir(config_dir)?;
     }
@@ -103,7 +102,7 @@ async fn check_and_run_test_plan_with_context(
 async fn run_one(
     mut test_plan: TestPlanConfig,
     out_dir: &Path,
-    override_sources: &HashMap<String, Source>,
+    override_sources: &HashMap<String, SourceDir>,
     ctx: &mut impl ResolutionContext,
 ) -> anyhow::Result<()> {
     info!("templating environment setup");
@@ -125,7 +124,7 @@ async fn run_one(
 
     info!("executing environment setup");
     let setup_provides = test_plan.run_environment_setup(out_dir, ctx).await?;
-    template_ctx.extend(Source::local(out_dir), setup_provides);
+    template_ctx.extend(SourceDir::local(out_dir), setup_provides);
 
     info!("templating scenario and environment teardown commands");
     let mut builder =

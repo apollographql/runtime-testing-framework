@@ -1,5 +1,5 @@
 //! Helpers for supporting minimal templating of user config files.
-use crate::{Source, VariableDefinition, formats::CustomProviderDefinition};
+use crate::{SourceDir, VariableDefinition, formats::CustomProviderDefinition};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
@@ -70,8 +70,8 @@ pub type Result<T> = std::result::Result<T, Errors>;
 #[derive(Debug, Clone)]
 pub struct TemplateContext {
     variables: HashMap<String, Scalar>,
-    test_plan_source: Source,
-    override_sources: HashMap<String, Source>,
+    test_plan_source: SourceDir,
+    override_sources: HashMap<String, SourceDir>,
     resolve_for: FileType,
     custom_provider_definitions: Arc<CustomProviderDefinitions>,
     variable_definitions: Vec<VariableDefinition>,
@@ -80,8 +80,8 @@ pub struct TemplateContext {
 impl TemplateContext {
     pub fn new(
         variables: HashMap<String, Scalar>,
-        test_plan_source: Source,
-        override_sources: HashMap<String, Source>,
+        test_plan_source: SourceDir,
+        override_sources: HashMap<String, SourceDir>,
         custom_provider_definitions: Arc<CustomProviderDefinitions>,
     ) -> Self {
         Self {
@@ -98,7 +98,7 @@ impl TemplateContext {
     pub(crate) fn new_stubbed(variables: HashMap<String, Scalar>) -> Self {
         Self::new(
             variables,
-            Source::local("/"),
+            SourceDir::local("/"),
             Default::default(),
             Default::default(),
         )
@@ -113,7 +113,7 @@ impl TemplateContext {
     /// overwritten by any explicitly provided variables coming from `all_variables`.
     pub(crate) fn for_config_file<'a>(
         &self,
-        file_source: &Source,
+        file_source: &SourceDir,
         resolve_for: Option<FileType>,
         variable_definitions: impl Iterator<Item = &'a VariableDefinition>,
     ) -> Self {
@@ -140,7 +140,7 @@ impl TemplateContext {
         new
     }
 
-    pub fn extend(&mut self, source: Source, variables: HashMap<String, Scalar>) {
+    pub fn extend(&mut self, source: SourceDir, variables: HashMap<String, Scalar>) {
         for k in variables.keys() {
             self.override_sources.insert(k.to_owned(), source.clone());
         }
@@ -150,7 +150,7 @@ impl TemplateContext {
 
     pub fn extend_with_sources(
         &mut self,
-        sources: HashMap<String, Source>,
+        sources: HashMap<String, SourceDir>,
         variables: HashMap<String, Scalar>,
     ) {
         self.override_sources.extend(sources);
@@ -165,7 +165,7 @@ impl TemplateContext {
         self.variables.get(key)
     }
 
-    pub fn get_with_source<Q>(&self, key: &Q) -> Option<(&Source, &Scalar)>
+    pub fn get_with_source<Q>(&self, key: &Q) -> Option<(&SourceDir, &Scalar)>
     where
         String: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
@@ -188,7 +188,7 @@ impl TemplateContext {
     pub fn custom_provider_definition<Q>(
         &self,
         key: &Q,
-    ) -> Option<&(Source, CustomProviderDefinition)>
+    ) -> Option<&(SourceDir, CustomProviderDefinition)>
     where
         String: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
@@ -206,13 +206,13 @@ pub enum FileType {
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
 pub struct CustomProviderDefinitions {
-    pub(crate) test_plan: HashMap<String, (Source, CustomProviderDefinition)>,
-    pub(crate) scenario: HashMap<String, (Source, CustomProviderDefinition)>,
-    pub(crate) environment: HashMap<String, (Source, CustomProviderDefinition)>,
+    pub(crate) test_plan: HashMap<String, (SourceDir, CustomProviderDefinition)>,
+    pub(crate) scenario: HashMap<String, (SourceDir, CustomProviderDefinition)>,
+    pub(crate) environment: HashMap<String, (SourceDir, CustomProviderDefinition)>,
 }
 
 impl CustomProviderDefinitions {
-    fn get<Q>(&self, k: &Q, resolve_for: FileType) -> Option<&(Source, CustomProviderDefinition)>
+    fn get<Q>(&self, k: &Q, resolve_for: FileType) -> Option<&(SourceDir, CustomProviderDefinition)>
     where
         String: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
@@ -241,7 +241,7 @@ pub trait Template {
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> Result<()>;
 
@@ -250,7 +250,7 @@ pub trait Template {
         path: &mut Vec<String>,
         tail: &str,
         allowed_variables: &HashSet<&String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> Result<()> {
         let mut path = path.clone();
@@ -263,7 +263,7 @@ pub trait Template {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> Result<()>;
 
@@ -274,7 +274,7 @@ pub trait Template {
         &mut self,
         path: &mut Vec<String>,
         tail: &str,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> Result<()> {
         let mut path = path.clone();
@@ -288,7 +288,7 @@ pub trait Template {
     fn try_template_known(
         &mut self,
         path: &mut Vec<String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> Result<Vec<String>> {
         let all_errs = match self.try_template(path, file_source, ctx) {
@@ -330,7 +330,7 @@ where
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> Result<()> {
         self.as_ref()
@@ -341,7 +341,7 @@ where
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> Result<()> {
         self.as_mut()
@@ -368,7 +368,7 @@ where
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> Result<()> {
         let mut errs = ErrorBuilder::new();
@@ -383,7 +383,7 @@ where
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> Result<()> {
         let mut errs = ErrorBuilder::new();
@@ -415,7 +415,7 @@ where
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> Result<()> {
         let mut errs = ErrorBuilder::new();
@@ -436,7 +436,7 @@ where
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> Result<()> {
         let mut errs = ErrorBuilder::new();
@@ -561,7 +561,7 @@ where
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        _file_source: &Source,
+        _file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> Result<()> {
         match self {
@@ -587,7 +587,7 @@ where
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        _file_source: &Source,
+        _file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> Result<()> {
         if let Self::Pending(variable) = self {
@@ -916,7 +916,7 @@ mod tests {
 
         let original = TemplateContext::new_stubbed(all_variables);
         let for_config_file =
-            original.for_config_file(&Source::local("/"), None, definitions.iter());
+            original.for_config_file(&SourceDir::local("/"), None, definitions.iter());
 
         // a has an explicit variable so it overrides the default
         // b has an explicit variable and no default
@@ -1144,7 +1144,7 @@ mod tests {
     #[test]
     fn template_try_template_success(mut t: Box<dyn Template>, variable: &[&str]) {
         let template_ctx = template_context!(variable);
-        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &template_ctx);
+        let res = t.try_template(&mut Vec::new(), &SourceDir::local("/"), &template_ctx);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -1163,7 +1163,7 @@ mod tests {
     ) {
         let template_ctx = template_context!(["unused"]);
 
-        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &template_ctx);
+        let res = t.try_template(&mut Vec::new(), &SourceDir::local("/"), &template_ctx);
         assert!(res.is_err(), "expected templating to fail, got {res:?}");
         let errors = res.unwrap_err();
         assert!(

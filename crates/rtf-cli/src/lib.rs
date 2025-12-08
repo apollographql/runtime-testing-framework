@@ -1,6 +1,8 @@
 //! Runtime Testing Framework CLI - a swiss army knife for testing the Apollo Runtime
 use anyhow::{Context, anyhow};
-use rtf_config::{Source, context::ResolutionContext, formats::TestPlanConfig, templating::Scalar};
+use rtf_config::{
+    SourceDir, context::ResolutionContext, formats::TestPlanConfig, templating::Scalar,
+};
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -26,7 +28,7 @@ impl cli::Variables {
     /// Parse variables coming from CLI flags into a form that we can merge with the test plan
     pub(crate) fn parse(
         self,
-        cwd_source: &Source,
+        cwd_source: &SourceDir,
         ctx: &impl ResolutionContext,
     ) -> anyhow::Result<ParsedVariables> {
         let variable_json_data = match self.vars.as_ref() {
@@ -35,7 +37,13 @@ impl cli::Variables {
                 let variables_json: HashMap<String, ScalarOrArray> =
                     serde_json::from_str(&s).context("invalid variables file")?;
 
-                Some((Source::local(ctx.canonicalize_path(path)?), variables_json))
+                let source_dir = ctx
+                    .canonicalize_path(path)?
+                    .parent()
+                    .expect("we just read the file so we know it has a parent")
+                    .to_owned();
+
+                Some((SourceDir::local(source_dir), variables_json))
             }
 
             None => None,
@@ -46,8 +54,8 @@ impl cli::Variables {
 
     fn parse_inner(
         self,
-        variable_json_data: Option<(Source, HashMap<String, ScalarOrArray>)>,
-        cwd_source: &Source,
+        variable_json_data: Option<(SourceDir, HashMap<String, ScalarOrArray>)>,
+        cwd_source: &SourceDir,
     ) -> anyhow::Result<ParsedVariables> {
         let mut variables = HashMap::new();
         let mut matrix_dimensions = HashMap::new();
@@ -96,9 +104,9 @@ impl cli::Variables {
     pub fn merge(
         self,
         test_plan: &mut TestPlanConfig,
-        cwd_source: &Source,
+        cwd_source: &SourceDir,
         ctx: &mut impl ResolutionContext,
-    ) -> anyhow::Result<HashMap<String, Source>> {
+    ) -> anyhow::Result<HashMap<String, SourceDir>> {
         self.parse(cwd_source, ctx)?
             .merge_inner(&mut test_plan.variables, &mut test_plan.matrix.dimensions)
     }
@@ -109,7 +117,7 @@ impl cli::Variables {
 pub(crate) struct ParsedVariables {
     variables: HashMap<String, Scalar>,
     matrix_dimensions: HashMap<String, Vec<Scalar>>,
-    override_sources: HashMap<String, Source>,
+    override_sources: HashMap<String, SourceDir>,
 }
 
 impl ParsedVariables {
@@ -118,7 +126,7 @@ impl ParsedVariables {
         self,
         variables_from_test_plan: &mut HashMap<String, Scalar>,
         matrix_from_test_plan: &mut HashMap<String, Vec<Scalar>>,
-    ) -> anyhow::Result<HashMap<String, Source>> {
+    ) -> anyhow::Result<HashMap<String, SourceDir>> {
         for (k, dim) in self.matrix_dimensions.into_iter() {
             variables_from_test_plan.remove(&k);
             matrix_from_test_plan.insert(k.clone(), dim);
@@ -171,12 +179,12 @@ mod tests {
         let parsed = from_cli
             .parse_inner(
                 Some((
-                    Source::local("/json_variables"),
+                    SourceDir::local("/json_variables"),
                     variables_json!({
                         "bar": "laugh", "baz": false
                     }),
                 )),
-                &Source::local("/cli"),
+                &SourceDir::local("/cli"),
             )
             .unwrap();
         parsed.merge_inner(&mut variables, &mut matrix).unwrap();
@@ -224,12 +232,12 @@ mod tests {
         let parsed = from_cli
             .parse_inner(
                 Some((
-                    Source::local("/json_variables"),
+                    SourceDir::local("/json_variables"),
                     variables_json!({
                         "foo": [2], "baz": 42
                     }),
                 )),
-                &Source::local("/cli"),
+                &SourceDir::local("/cli"),
             )
             .unwrap();
         parsed.merge_inner(&mut variables, &mut matrix).unwrap();
@@ -256,7 +264,7 @@ mod tests {
             vars: None,
         };
 
-        let res = from_cli.parse_inner(None, &Source::local("/cli"));
+        let res = from_cli.parse_inner(None, &SourceDir::local("/cli"));
 
         assert!(res.is_err(), "expected error, ended up with {res:?}");
     }

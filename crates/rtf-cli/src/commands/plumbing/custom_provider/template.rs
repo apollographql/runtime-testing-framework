@@ -8,7 +8,7 @@ use crate::{
     },
 };
 use rtf_config::{
-    Source,
+    SourceDir,
     checks::Check,
     templating::{Template, TemplateContext},
 };
@@ -22,7 +22,7 @@ pub async fn template_custom_provider(
 ) -> anyhow::Result<()> {
     let ctx = get_context();
     let cwd = current_dir()?;
-    let cwd_source = Source::local(cwd.join("cli"));
+    let cwd_source = SourceDir::local(cwd);
 
     info!("loading custom provider definition");
     let (source, mut definition) = load_definition(definition_path, &ctx).await?;

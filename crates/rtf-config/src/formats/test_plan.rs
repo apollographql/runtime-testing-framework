@@ -7,7 +7,7 @@ use crate::{
     merge_yaml,
     providers::{
         self,
-        file::{RawSource, Source},
+        file::{RawSource, SourceDir},
     },
     templating::{self, CustomProviderDefinitions, Scalar, Template, TemplateContext},
 };
@@ -17,7 +17,7 @@ use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
-    path::Path,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 use tracing::error;
@@ -53,7 +53,7 @@ impl TestPlanConfig {
         let content = ctx.read_path_to_string(p.as_ref())?;
         let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
         let abs_path = ctx.canonicalize_path(p.as_ref())?;
-        let tp_source = Source::local(abs_path);
+        let tp_source = SourceDir::local(abs_path.parent().unwrap());
 
         raw.try_into_test_plan(tp_source, ctx).await
     }
@@ -75,7 +75,8 @@ impl TestPlanConfig {
             .await?;
 
         let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
-        let tp_source = Source::github(org, repo, path, git_ref);
+        let tp_source =
+            SourceDir::github(org, repo, PathBuf::from(path).parent().unwrap(), git_ref);
 
         raw.try_into_test_plan(tp_source, ctx).await
     }
@@ -249,7 +250,7 @@ impl Template for TestPlanConfig {
         &self,
         path: &mut Vec<String>,
         _allowed_variables: &HashSet<&String>,
-        _file_source: &Source,
+        _file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let allowed_variables = self.allowed_variables();
@@ -274,7 +275,7 @@ impl Template for TestPlanConfig {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        _source: &Source,
+        _source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::from(self.environment.try_template_nested(
@@ -316,15 +317,19 @@ impl Check for TestPlanConfig {
 /// [RawTestPlanConfig].
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Sources {
-    test_plan: Source,
-    scenario: Option<Source>,
-    environment: Option<Source>,
+    test_plan: SourceDir,
+    scenario: Option<SourceDir>,
+    environment: Option<SourceDir>,
     #[serde(default, skip)]
     custom_providers: Arc<CustomProviderDefinitions>,
 }
 
 impl Sources {
-    fn new(test_plan: Source, scenario: Option<Source>, environment: Option<Source>) -> Self {
+    fn new(
+        test_plan: SourceDir,
+        scenario: Option<SourceDir>,
+        environment: Option<SourceDir>,
+    ) -> Self {
         Self {
             test_plan,
             scenario,
@@ -383,14 +388,14 @@ impl Sources {
         Ok(())
     }
 
-    pub fn test_plan(&self) -> &Source {
+    pub fn test_plan(&self) -> &SourceDir {
         &self.test_plan
     }
 
     /// The [Source] of the [EnvironmentConfig] in this test plan.
     ///
     /// Defaults to the source of the test plan itself if the environment was specified inline.
-    pub fn environment(&self) -> &Source {
+    pub fn environment(&self) -> &SourceDir {
         match self.environment.as_ref() {
             Some(source) => source,
             None => &self.test_plan,
@@ -400,7 +405,7 @@ impl Sources {
     /// The [Source] of the [ScenarioConfig] in this test plan.
     ///
     /// Defaults to the source of the test plan itself if the scenario was specified inline.
-    pub fn scenario(&self) -> &Source {
+    pub fn scenario(&self) -> &SourceDir {
         match self.scenario.as_ref() {
             Some(source) => source,
             None => &self.test_plan,
@@ -441,7 +446,7 @@ pub struct RawTestPlanConfig {
 impl RawTestPlanConfig {
     async fn try_into_test_plan(
         self,
-        tp_source: Source,
+        tp_source: SourceDir,
         ctx: &impl ResolutionContext,
     ) -> Result<TestPlanConfig> {
         let res = self
@@ -555,9 +560,9 @@ impl ConfigSpec {
     /// directly from inline content or a [crate::providers::file::FileProvider]
     async fn try_into_config_with_source<T>(
         self,
-        tp_source: &Source,
+        tp_source: &SourceDir,
         ctx: &impl ResolutionContext,
-    ) -> Result<(T, Option<Source>)>
+    ) -> Result<(T, Option<SourceDir>)>
     where
         T: CheckArrayDuplicates + DeserializeOwned,
     {
@@ -575,8 +580,8 @@ impl ConfigSpec {
             } => {
                 // When applying overrides we need to make sure that the base config file is valid
                 // before we start and then re-validate following the merge.
-                let src = from.try_into_source(tp_source, ctx)?;
-                let file_content = src.try_get_file_content(ctx).await?;
+                let (src, file_name) = from.try_into_source_and_filename(tp_source, ctx)?;
+                let file_content = src.try_get_file_content(file_name, ctx).await?;
                 let mut t: T = serde_yaml::from_str(&file_content)?;
                 t.ensure_no_duplicate_keys()?;
 
@@ -872,7 +877,7 @@ mod tests {
         let ctx = Context::new();
 
         let expected_sources = Sources {
-            test_plan: Source::Local {
+            test_plan: SourceDir::Local {
                 abs_path: "/".into(),
             },
             scenario: None,
@@ -882,7 +887,7 @@ mod tests {
 
         let res = raw_test_plan
             .try_into_test_plan(
-                Source::Local {
+                SourceDir::Local {
                     abs_path: "/".into(),
                 },
                 &ctx,
@@ -1601,15 +1606,23 @@ mod tests {
 
         let ctx = Context::new();
 
+        let config_file_dir = |p: &Path| {
+            ctx.canonicalize_path(p)
+                .unwrap()
+                .parent()
+                .unwrap()
+                .to_owned()
+        };
+
         let expected_sources = Sources {
-            test_plan: Source::Local {
-                abs_path: ctx.canonicalize_path(&tp_file).unwrap(),
+            test_plan: SourceDir::Local {
+                abs_path: config_file_dir(&tp_file),
             },
-            scenario: Some(Source::Local {
-                abs_path: ctx.canonicalize_path(&scenario_file).unwrap(),
+            scenario: Some(SourceDir::Local {
+                abs_path: config_file_dir(&scenario_file),
             }),
-            environment: Some(Source::Local {
-                abs_path: ctx.canonicalize_path(&environment_file).unwrap(),
+            environment: Some(SourceDir::Local {
+                abs_path: config_file_dir(&environment_file),
             }),
             custom_providers: Default::default(),
         };
@@ -1821,7 +1834,7 @@ mod tests {
         };
         let result = test_plan.try_template(
             &mut Vec::new(),
-            &Source::local("/"),
+            &SourceDir::local("/"),
             &template_context(all_fields.as_slice()),
         );
 

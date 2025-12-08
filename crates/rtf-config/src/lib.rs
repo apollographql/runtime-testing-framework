@@ -29,7 +29,7 @@ mod mock_context;
 pub mod providers;
 pub mod templating;
 
-pub use providers::file::Source;
+pub use providers::file::SourceDir;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct VariableDefinition {

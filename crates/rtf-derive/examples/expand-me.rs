@@ -1,5 +1,5 @@
 use rtf_config::{
-    Source,
+    SourceDir,
     templating::{Field, Template, TemplateContext},
 };
 use rtf_derive::Template;
@@ -44,10 +44,10 @@ fn main() {
 
     s.try_template(
         &mut Vec::new(),
-        &Source::local("/"),
+        &SourceDir::local("/"),
         &TemplateContext::new(
             vals,
-            Source::local("/"),
+            SourceDir::local("/"),
             Default::default(),
             Default::default(),
         ),

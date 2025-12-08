@@ -1,5 +1,5 @@
 use crate::{
-    Source,
+    SourceDir,
     checks::{self, Check},
     context::ResolutionContext,
     formats::CustomProviderDefinition,
@@ -40,7 +40,7 @@ pub struct CustomProvider {
     #[serde(default, skip_serializing)]
     #[schemars(skip)]
     #[doc(hidden)]
-    pub(crate) src: Option<Source>,
+    pub(crate) src: Option<SourceDir>,
 }
 
 impl CustomProvider {
@@ -48,7 +48,7 @@ impl CustomProvider {
     pub fn expand_and_template(
         &mut self,
         path: &mut Vec<String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         file_ctx: &TemplateContext,
     ) -> Result<FromCommand> {
         let (definition_src, mut definition) = match file_ctx.custom_provider_definition(&self.ty) {
@@ -79,10 +79,10 @@ impl CustomProvider {
     fn build_templating_context(
         &mut self,
         path: &[String],
-        file_src: &Source,
+        file_src: &SourceDir,
         file_ctx: &TemplateContext,
         definition: &CustomProviderDefinition,
-        definition_src: &Source,
+        definition_src: &SourceDir,
     ) -> Result<TemplateContext> {
         // First we template the arguments of this `CustomProvider` using the
         // source and context for the file containing it. As we template arguments
@@ -148,7 +148,7 @@ impl Template for CustomProvider {
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
@@ -187,7 +187,7 @@ impl Template for CustomProvider {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         self.arguments.try_template(path, file_source, ctx)
@@ -242,7 +242,7 @@ mod tests {
         def_field: Field<String>,
         provider_argument: Option<(&str, Field<Scalar>)>,
         provider_src: Option<&str>,
-        file_ctx: Option<(&str, &str, Source)>,
+        file_ctx: Option<(&str, &str, SourceDir)>,
     ) -> Result<TemplateContext> {
         // There are two parts of the `CustomProviderDefinition`` we want to parameterise
         // 1. The default value for the definition variable (Some or None)
@@ -285,7 +285,7 @@ mod tests {
         let mut provider = CustomProvider {
             ty: "custom-provider".to_string(),
             arguments,
-            src: provider_src.map(Source::local),
+            src: provider_src.map(SourceDir::local),
         };
 
         // The file context can either contain no variables or sources or,
@@ -299,22 +299,22 @@ mod tests {
         }
         let file_ctx = TemplateContext::new(
             variables,
-            Source::local("/test-plan/test-plan.yaml"),
+            SourceDir::local("/test-plan"),
             override_sources,
             Default::default(),
         );
 
         provider.build_templating_context(
-            &[], // The path is empty as this is not used in the test assertions
-            &Source::local("/provider/provider.yaml"), // This is the source for the file the custom provider is defined in
+            &[],                            // The path is empty as this is not used in the test assertions
+            &SourceDir::local("/provider"), // This is the source for the file the custom provider is defined in
             &file_ctx,
             &definition,
-            &Source::local("/definition/definition.yaml"), // This is the source for the file the custom provider definition is in
+            &SourceDir::local("/definition"), // This is the source for the file the custom provider definition is in
         )
     }
 
     #[test_case(None; "provider not from overrides")]
-    #[test_case(Some("/test-plan/test-plan.yaml"); "provider from overrides")]
+    #[test_case(Some("/test-plan"); "provider from overrides")]
     #[test]
     /// This is the simplest test case for `build_templating_context`. The custom provider definition has no fields that need templating,
     /// so no variables come back from the context
@@ -337,7 +337,7 @@ mod tests {
     }
 
     #[test_case(None; "provider not from overrides")]
-    #[test_case(Some("/test-plan/test-plan.yaml"); "provider from overrides")]
+    #[test_case(Some("/test-plan"); "provider from overrides")]
     /// This is counter-intuitive and included for completeness
     /// This is not a valid state but is not an error condition we catch in this function. It should be caught in pre-templating checks and,
     /// if not, should error in `expand_and_template`.
@@ -362,7 +362,7 @@ mod tests {
     }
 
     #[test_case(None; "provider not from overrides")]
-    #[test_case(Some("/test-plan/test-plan.yaml"); "provider from overrides")]
+    #[test_case(Some("/test-plan"); "provider from overrides")]
     #[test]
     /// This is counter-intuitive and included for completeness
     /// This is not a valid state but is not an error condition we catch in this function. It should be caught in pre-templating checks and,
@@ -387,7 +387,7 @@ mod tests {
     }
 
     #[test_case(None; "provider not from overrides")]
-    #[test_case(Some("/test-plan/test-plan.yaml"); "provider from overrides")]
+    #[test_case(Some("/test-plan"); "provider from overrides")]
     #[test]
     /// This is the next simplest success case, there are no values provided in either the provider arguments or file variables.
     /// The value used is from the provider definition's default.
@@ -409,14 +409,14 @@ mod tests {
         assert_eq!(
             ctx.get_with_source("definition_variable"),
             Some((
-                &Source::local("/definition/definition.yaml"),
+                &SourceDir::local("/definition"),
                 &"definition default value".into()
             ))
         );
     }
 
-    #[test_case(None, Source::local("/provider/provider.yaml"); "provider not from overrides")]
-    #[test_case(Some("/test-plan/test-plan.yaml"), Source::local("/test-plan/test-plan.yaml"); "provider from overrides")]
+    #[test_case(None, SourceDir::local("/provider"); "provider not from overrides")]
+    #[test_case(Some("/test-plan"), SourceDir::local("/test-plan"); "provider from overrides")]
     #[test]
     /// This tests a variable's value coming from the provider arguments. A default is included to show that the argument value takes precedence.
     /// This is the situation where the custom provider's source is relevant.
@@ -426,7 +426,7 @@ mod tests {
     /// [FileContext(No variable values)] -> [CustomProvider(Resolved(argument))] -> [CustomProviderDefinition(Default value)] -> [Pending(FileProvider)]
     fn custom_provider_build_templating_context_pending_field_in_definition_uses_resolved_provider_argument_success(
         provider_src: Option<&str>,
-        expected_src: Source,
+        expected_src: SourceDir,
     ) {
         let res = test_build_templating_context(
             Some("definition_default_value".into()), // We still supply a default to sanity check the value from provider arguments overrides it
@@ -448,7 +448,7 @@ mod tests {
     }
 
     #[test_case(None; "provider not from overrides")]
-    #[test_case(Some("/test-plan/test-plan.yaml"); "provider from overrides")]
+    #[test_case(Some("/test-plan"); "provider from overrides")]
     /// This tests a variable's value coming from the file context's variables.
     /// It checks that the variable's source is from the file context and superceeds any defaults
     ///
@@ -468,7 +468,7 @@ mod tests {
             Some((
                 "provider_variable",
                 "value from file context",
-                Source::local("wherever this variable came from"),
+                SourceDir::local("wherever this variable came from"),
             )),
         );
         assert!(res.is_ok(), "expected TemplateContext, got {res:?}");
@@ -477,14 +477,14 @@ mod tests {
         assert_eq!(
             ctx.get_with_source("definition_variable"),
             Some((
-                &Source::local("wherever this variable came from"),
+                &SourceDir::local("wherever this variable came from"),
                 &"value from file context".into()
             ))
         );
     }
 
     #[test_case(None; "provider not from overrides")]
-    #[test_case(Some("/test-plan/test-plan.yaml"); "provider from overrides")]
+    #[test_case(Some("/test-plan"); "provider from overrides")]
     #[test]
     /// This tests an error path, the custom provider argument is pending, but no variable values are set in the
     /// file context. This will fail with an UnknownVariable error.
@@ -575,15 +575,15 @@ mod tests {
         let res = custom_provider.validate_context(
             &mut Vec::new(),
             &HashSet::new(),
-            &Source::local("/config.yaml"),
+            &SourceDir::local("/"),
             &TemplateContext::new(
                 HashMap::new(),
-                Source::local("/test-plan.yaml"),
+                SourceDir::local("/"),
                 HashMap::new(),
                 Arc::new(CustomProviderDefinitions {
                     test_plan: HashMap::from([(
                         "my-custom-provider".to_string(),
-                        (Source::local("/providers/custom.yaml"), definition),
+                        (SourceDir::local("/providers"), definition),
                     )]),
                     ..Default::default()
                 }),

@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::anyhow;
 use rtf_config::{
-    Source,
+    SourceDir,
     checks::{self, Check},
     context::ResolutionContext,
     formats::TestPlanConfig,
@@ -57,8 +57,7 @@ async fn template_test_plan_with_context(
     cwd: PathBuf,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    let override_sources =
-        variables.merge(&mut test_plan, &Source::local(cwd.join("cli")), &mut ctx)?;
+    let override_sources = variables.merge(&mut test_plan, &SourceDir::local(cwd), &mut ctx)?;
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work()?;

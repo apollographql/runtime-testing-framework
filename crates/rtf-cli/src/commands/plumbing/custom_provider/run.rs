@@ -10,7 +10,7 @@ use crate::{
     },
 };
 use rtf_config::{
-    Source,
+    SourceDir,
     checks::Check,
     context::ResolutionContext,
     providers::command::{OUTPUT_PATH, PROVIDER_DIR},
@@ -26,7 +26,7 @@ pub async fn run_custom_provider(
 ) -> anyhow::Result<()> {
     let (mut ctx, out_dir) = get_context_and_check_outdir(out_dir)?;
     let cwd = current_dir()?;
-    let cwd_source = Source::local(cwd.join("cli"));
+    let cwd_source = SourceDir::local(cwd);
 
     info!("loading custom provider definition");
     let (source, mut definition) = load_definition(definition_path, &ctx).await?;
@@ -53,7 +53,7 @@ pub async fn run_custom_provider(
     ctx.create_dir_all(&out_dir)?;
     let out_dir = ctx.canonicalize_path(&out_dir)?;
 
-    if let Source::Local { abs_path } = &source {
+    if let SourceDir::Local { abs_path } = &source {
         let definition_dir = ctx.dir_containing(abs_path);
         ctx.set_current_dir(definition_dir)?;
     }
