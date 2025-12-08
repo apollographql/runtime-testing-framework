@@ -362,7 +362,7 @@ mod tests {
     }
 
     #[test]
-    fn rewriting_subgraph_urls_works() {
+    fn rewrite_subgraph_urls_all_urls_updated() {
         let sdl = include_str!("../../../resources/test_data/simple-supergraph.graphql");
         let subgraph_urls: HashMap<String, String> = [
             ("accounts".into(), "accounts_url".into()),
