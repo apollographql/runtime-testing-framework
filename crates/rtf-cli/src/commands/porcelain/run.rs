@@ -156,7 +156,7 @@ async fn run_one(
     )?;
     ctx.write(
         out_dir.join(RESOLVED_TP_PATH),
-        serde_yaml::to_string(&test_plan)?,
+        test_plan.as_yaml_string_without_sources()?,
     )?;
 
     info!("done");

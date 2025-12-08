@@ -232,6 +232,13 @@ impl TestPlanConfig {
             sources: Sources::default(),
         }
     }
+
+    pub fn as_yaml_string_without_sources(&self) -> Result<String> {
+        let mut val = serde_yaml::to_value(self)?;
+        strip_sources_for_relative_paths(&mut val);
+
+        Ok(serde_yaml::to_string(&val)?)
+    }
 }
 
 impl Template for TestPlanConfig {
@@ -642,6 +649,36 @@ fn set_source_for_relative_paths(val: &mut serde_yaml::Value, src: &serde_yaml::
         Value::Sequence(seq) => {
             for v in seq {
                 set_source_for_relative_paths(v, src);
+            }
+        }
+
+        _ => (),
+    }
+}
+
+/// This is the inverse of `set_source_for_relative_paths`.
+///
+/// We use this to keep sources as an internal detail of Test Plans when serializing out the
+/// resolved Test Plan at the end of test runs.
+pub(super) fn strip_sources_for_relative_paths(val: &mut serde_yaml::Value) {
+    use serde_yaml::Value;
+
+    match val {
+        Value::Mapping(map) => {
+            let kind = map.get("kind").and_then(|v| v.as_str());
+            if matches!(kind, Some("relative_path" | "custom_provider")) {
+                map.remove("src");
+                return;
+            }
+
+            for v in map.values_mut() {
+                strip_sources_for_relative_paths(v);
+            }
+        }
+
+        Value::Sequence(seq) => {
+            for v in seq {
+                strip_sources_for_relative_paths(v);
             }
         }
 

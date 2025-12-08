@@ -354,7 +354,7 @@ pub struct RelativeFile {
     pub(crate) path: Field<String>,
 
     /// Set during TestPlan parsing as part of overrides and templating.
-    #[serde(default, skip_serializing)]
+    #[serde(default)]
     #[schemars(skip)]
     #[doc(hidden)]
     pub(crate) src: Option<SourceDir>,

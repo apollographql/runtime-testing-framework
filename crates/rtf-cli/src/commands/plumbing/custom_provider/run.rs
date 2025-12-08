@@ -77,7 +77,7 @@ pub async fn run_custom_provider(
     )?;
     ctx.write(
         out_dir.join(RESOLVED_PROVIDER_PATH),
-        serde_yaml::to_string(&definition)?,
+        definition.as_yaml_string_without_sources()?,
     )?;
 
     info!("done");
