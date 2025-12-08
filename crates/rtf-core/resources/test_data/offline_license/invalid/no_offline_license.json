@@ -1,0 +1,10 @@
+{
+  "expected_error": "OfflineLicenseNotEnabled",
+  "data": {
+    "graph": {
+      "account": {
+        "offlineLicense": null
+      }
+    }
+  }
+}

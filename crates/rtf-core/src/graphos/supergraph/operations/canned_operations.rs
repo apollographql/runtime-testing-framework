@@ -1038,7 +1038,7 @@ mod tests {
     const SCHEMA: &str = include_str!("../../../../resources/engine-prod-schema.graphql");
 
     #[test]
-    fn fill_missing_input_fields_works() -> anyhow::Result<()> {
+    fn fill_missing_input_fields_empty_object_populated() -> anyhow::Result<()> {
         let schema = Schema::parse_and_validate(
             include_str!(
                 "../../../../resources/test_data/input_object_tests/schema_with_input_objects.graphql"
@@ -1093,7 +1093,7 @@ mod tests {
     }
 
     #[test]
-    fn find_used_vars_in_selset_works() {
+    fn find_used_vars_in_selset_returns_referenced_variables() {
         let q =
             include_str!("../../../../resources/test_data/queries/query_with_unused_vars.graphql");
         let schema = Schema::parse_and_validate(SCHEMA, "supergraph.graphql").unwrap();
@@ -1135,7 +1135,7 @@ mod tests {
     }
 
     #[test]
-    fn fix_unused_vars_works() {
+    fn fix_unused_vars_removes_unreferenced_variables() {
         let q =
             include_str!("../../../../resources/test_data/queries/query_with_unused_vars.graphql");
         let schema = Schema::parse_and_validate(SCHEMA, "supergraph.graphql").unwrap();
@@ -1183,7 +1183,7 @@ mod tests {
     }
 
     #[test]
-    fn fix_aliases_works() {
+    fn fix_aliases_adds_aliases_for_duplicate_fields() {
         let q =
             include_str!("../../../../resources/test_data/queries/query_requiring_aliases.graphql");
         let schema = Schema::parse_and_validate(SCHEMA, "supergraph.graphql").unwrap();
@@ -1199,7 +1199,7 @@ mod tests {
     }
 
     #[test]
-    fn fix_missing_input_fields_works() {
+    fn fix_missing_input_fields_validates_after_filling() {
         let q = include_str!(
             "../../../../resources/test_data/queries/query_with_missing_input_fields.graphql"
         );
@@ -1218,7 +1218,7 @@ mod tests {
 
     #[dir_cases("crates/rtf-core/resources/test_data/queries")]
     #[test]
-    fn parse_and_fix_works(path: &str, contents: &str) {
+    fn parse_and_fix(path: &str, contents: &str) {
         let schema = Schema::parse_and_validate(SCHEMA, "supergraph.graphql").unwrap();
         let sig = Signature {
             id: path.to_string(),
