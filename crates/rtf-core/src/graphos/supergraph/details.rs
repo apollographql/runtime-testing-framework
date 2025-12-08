@@ -320,7 +320,7 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
 /// Rewrite the given supergraph SDL to set the provided connector URLs in place of what is
 /// currently there.
 fn rewrite_connector_urls(sdl: &str, base_url: &str) -> Option<String> {
-    let mut schema = Schema::parse(sdl, "supergraph.graphql").unwrap();
+    let mut schema = Schema::parse(sdl, "supergraph.graphql").ok()?;
 
     for schema_type in vec!["Query", "Mutation"] {
         if let Some(ExtendedType::Object(extended_type)) = schema.types.get_mut(schema_type) {
@@ -579,5 +579,19 @@ mod tests {
         let s = rewrite_connector_urls(sdl, "http://host.docker.internal:3000").unwrap();
 
         assert!(s.contains(r#"[Product] @join__directive(graphs: [PRODUCTS], name: "connect", args: {http: {GET: "http://host.docker.internal:3000/products"}, selection: "$.products {\nid\nname\ndescription\n}"})"#));
+    }
+
+    #[test]
+    fn rewrite_connector_urls_invalid_sdl_returns_none() {
+        let result = rewrite_connector_urls("not valid graphql {{{", "http://localhost:3000");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn rewrite_connector_urls_no_connectors_succeeds() {
+        let sdl = "type Query { hello: String }";
+        let result = rewrite_connector_urls(sdl, "http://localhost:3000");
+        // Should succeed even without connectors - just a no-op
+        assert!(result.is_some());
     }
 }
