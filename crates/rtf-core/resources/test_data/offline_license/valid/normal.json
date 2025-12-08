@@ -1,0 +1,9 @@
+{
+  "graph": {
+    "account": {
+      "offlineLicense": {
+        "jwt": "test-jwt-token"
+      }
+    }
+  }
+}
