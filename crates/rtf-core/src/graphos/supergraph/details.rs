@@ -316,13 +316,12 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
     Some(schema.to_string())
 }
 
-// FIXME: this needs actual logging and testing!
 /// Rewrite the given supergraph SDL to set the provided connector URLs in place of what is
 /// currently there.
 fn rewrite_connector_urls(sdl: &str, base_url: &str) -> Option<String> {
     let mut schema = Schema::parse(sdl, "supergraph.graphql").ok()?;
 
-    for schema_type in vec!["Query", "Mutation"] {
+    for schema_type in ["Query", "Mutation"] {
         if let Some(ExtendedType::Object(extended_type)) = schema.types.get_mut(schema_type) {
             debug!(schema_type, "replacing connector URLs in type");
             replace_sourceless_connector_urls(extended_type, base_url)?;
@@ -345,7 +344,7 @@ fn rewrite_connector_urls(sdl: &str, base_url: &str) -> Option<String> {
             continue;
         };
 
-        rewrite_url(args_map, &vec!["baseURL"], base_url)?;
+        rewrite_url(args_map, &["baseURL"], base_url)?;
     }
 
     debug!("rewrote connector URLs in supergraph SDL");
@@ -354,8 +353,8 @@ fn rewrite_connector_urls(sdl: &str, base_url: &str) -> Option<String> {
 }
 
 fn rewrite_url(
-    args_map: &mut Vec<(Name, Node<Value>)>,
-    url_keys: &Vec<&str>,
+    args_map: &mut [(Name, Node<Value>)],
+    url_keys: &[&str],
     url: &str,
 ) -> Option<()> {
     if let Some((_, http_node)) = args_map.iter_mut().find(|(key, _)| key.as_str() == "http") {
