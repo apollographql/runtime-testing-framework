@@ -4,7 +4,7 @@ use crate::{
     providers::command::CommandSection,
     providers::{
         self,
-        file::{RawSource, Source},
+        file::{RawSource, SourceDir},
     },
     templating::{self, Template, TemplateContext},
 };
@@ -60,7 +60,7 @@ impl Template for CustomProviderDefinition {
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let file_ctx = ctx.for_config_file(file_source, None, self.variable_definitions.iter());
@@ -72,7 +72,7 @@ impl Template for CustomProviderDefinition {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        source: &Source,
+        source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let file_ctx = ctx.for_config_file(source, None, self.variable_definitions.iter());
@@ -124,10 +124,12 @@ pub struct CustomProviderDeclaration {
 impl CustomProviderDeclaration {
     pub async fn try_load_all(
         &self,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &impl ResolutionContext,
-    ) -> Result<HashMap<String, (Source, CustomProviderDefinition)>, Vec<(String, providers::Error)>>
-    {
+    ) -> Result<
+        HashMap<String, (SourceDir, CustomProviderDefinition)>,
+        Vec<(String, providers::Error)>,
+    > {
         let mut providers = HashMap::with_capacity(self.using.len());
         let mut errs = Vec::new();
 
@@ -151,9 +153,9 @@ impl CustomProviderDeclaration {
 
 async fn load_one(
     source: RawSource,
-    file_source: &Source,
+    file_source: &SourceDir,
     ctx: &impl ResolutionContext,
-) -> providers::Result<(Source, CustomProviderDefinition)> {
+) -> providers::Result<(SourceDir, CustomProviderDefinition)> {
     let (definition_source, file_name) = source.try_into_source_and_filename(file_source, ctx)?;
     let content = definition_source
         .try_get_file_content(file_name, ctx)
@@ -303,7 +305,7 @@ mod tests {
         let mut config = templatable_custom_provider(field_names, field_names);
         let variables = template_context(field_names);
 
-        let res = config.try_template(&mut Vec::new(), &Source::local("/"), &variables);
+        let res = config.try_template(&mut Vec::new(), &SourceDir::local("/"), &variables);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -403,18 +405,18 @@ mod tests {
         };
 
         let definitions = declaration
-            .try_load_all(&Source::local(temp.path()), &Context::new())
+            .try_load_all(&SourceDir::local(temp.path()), &Context::new())
             .await
             .unwrap();
 
         assert_eq!(
             &definitions.get("my_provider").unwrap().0,
-            &Source::local(providers.canonicalize().unwrap())
+            &SourceDir::local(providers.canonicalize().unwrap())
         );
 
         assert_eq!(
             &definitions.get("my_other_provider").unwrap().0,
-            &Source::local(providers.canonicalize().unwrap())
+            &SourceDir::local(providers.canonicalize().unwrap())
         );
     }
 
@@ -447,7 +449,7 @@ mod tests {
         };
 
         let definitions = declaration
-            .try_load_all(&Source::local("/config"), &ctx)
+            .try_load_all(&SourceDir::local("/config"), &ctx)
             .await
             .unwrap();
 
@@ -455,12 +457,12 @@ mod tests {
 
         assert_eq!(
             &definitions.get("my_provider").unwrap().0,
-            &Source::github("my-org", "my-repo", "providers", no_ref),
+            &SourceDir::github("my-org", "my-repo", "providers", no_ref),
         );
 
         assert_eq!(
             &definitions.get("my_other_provider").unwrap().0,
-            &Source::github("my-org", "my-repo", "providers", no_ref),
+            &SourceDir::github("my-org", "my-repo", "providers", no_ref),
         );
     }
 }

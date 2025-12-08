@@ -22,7 +22,7 @@ pub mod github;
 mod source;
 pub mod utility;
 
-pub use source::{RawSource, Source};
+pub use source::{RawSource, SourceDir};
 
 /// Something that can obtain or synthesise utf-8 file content based on a user provided
 /// specification.
@@ -187,7 +187,7 @@ impl Template for NamedFileProvider {
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let tail = self.env_var.clone();
@@ -198,7 +198,7 @@ impl Template for NamedFileProvider {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let tail = self.env_var.clone();
@@ -357,7 +357,7 @@ pub struct RelativeFile {
     #[serde(default, skip_serializing)]
     #[schemars(skip)]
     #[doc(hidden)]
-    pub(crate) src: Option<Source>,
+    pub(crate) src: Option<SourceDir>,
 }
 
 impl Template for RelativeFile {
@@ -373,7 +373,7 @@ impl Template for RelativeFile {
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         self.path
@@ -383,7 +383,7 @@ impl Template for RelativeFile {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         use templating::{ErrorKind, Errors, ValidField};
@@ -433,12 +433,12 @@ impl AsUtf8FileContent for RelativeFile {
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         match self.src.as_ref() {
-            Some(Source::Local { abs_path }) => {
+            Some(SourceDir::Local { abs_path }) => {
                 let p = abs_path.join(self.path.as_resolved());
                 Ok(ctx.read_path_to_string(p)?)
             }
 
-            Some(Source::Github {
+            Some(SourceDir::Github {
                 org,
                 repo,
                 path,
@@ -466,11 +466,11 @@ impl Check for RelativeFile {
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         let res = match self.src.as_ref() {
-            Some(Source::Local { abs_path }) => {
+            Some(SourceDir::Local { abs_path }) => {
                 ctx.canonicalize_path(abs_path.join(self.path.as_resolved()))
             }
 
-            Some(Source::Github { .. }) => {
+            Some(SourceDir::Github { .. }) => {
                 return if ctx.github_client().is_none() {
                     Err(checks::Errors::new(
                         checks::ErrorKind::MissingGithubApiKey,
@@ -600,7 +600,7 @@ mod tests {
     }
 
     /// Create a RelativeFile for testing - returns the actual file in a tmp dir
-    fn relative_file(path: &str, source: Source) -> RelativeFile {
+    fn relative_file(path: &str, source: SourceDir) -> RelativeFile {
         RelativeFile {
             path: Field::Resolved(path.to_string()),
             src: Some(source),
@@ -878,7 +878,7 @@ mod tests {
         };
         let ctx = template_context!(&["path"]);
 
-        let res = nfp.try_template(&mut Vec::new(), &Source::local("/"), &ctx);
+        let res = nfp.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -897,7 +897,7 @@ mod tests {
         };
         let ctx = template_context!(&["unused"]);
 
-        let res = nfp.try_template(&mut vec!["path".to_string()], &Source::local("/"), &ctx);
+        let res = nfp.try_template(&mut vec!["path".to_string()], &SourceDir::local("/"), &ctx);
         assert!(res.is_err(), "expected templating to error, got {res:?}");
 
         let errors = res.unwrap_err();
@@ -919,7 +919,7 @@ mod tests {
             env_var: "RELATIVE".to_string(),
             provider: FileProvider::RelativePath(RelativeFile {
                 path: Field::Resolved("does/not/exist/relative.txt".to_string()),
-                src: Some(Source::local("/foo")),
+                src: Some(SourceDir::local("/foo")),
             }),
         };
 
@@ -947,7 +947,7 @@ mod tests {
         let (temp, _) = create_temp_dir_with_file(file_name, "some content");
 
         let ctx = Context::new();
-        let relative_file = relative_file(file_name, Source::local(temp.path()));
+        let relative_file = relative_file(file_name, SourceDir::local(temp.path()));
 
         let res = relative_file.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}")
@@ -959,7 +959,7 @@ mod tests {
         // a GitHub token to be defined in the context
         let relative_file = relative_file(
             "file.txt",
-            Source::github("org", "repo", "path", Some("ref")),
+            SourceDir::github("org", "repo", "path", Some("ref")),
         );
 
         let mut ctx = Context::new();
@@ -971,7 +971,7 @@ mod tests {
 
     #[test]
     fn relative_file_check_does_not_exist() {
-        let relative_file = relative_file("does-not-exist.txt", Source::local("/foo"));
+        let relative_file = relative_file("does-not-exist.txt", SourceDir::local("/foo"));
         let ctx = Context::new();
 
         assert_check_errors(relative_file, &ctx, &[checks::ErrorKind::FileNotFound]);
@@ -984,7 +984,7 @@ mod tests {
         let ctx = Context::new();
         let relative_file = relative_file(
             "dir",
-            Source::local(ctx.canonicalize_path(temp.path()).unwrap()),
+            SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap()),
         );
 
         assert_check_errors(relative_file, &ctx, &[checks::ErrorKind::IsADirectory]);
@@ -994,7 +994,7 @@ mod tests {
     fn relative_file_check_missing_github_api_token() {
         let relative_file = relative_file(
             "file.txt",
-            Source::github("org", "repo", "path", Some("ref")),
+            SourceDir::github("org", "repo", "path", Some("ref")),
         );
 
         // There is no github client added to this context so this fails
@@ -1060,7 +1060,7 @@ mod tests {
         // Relative File paths are resolved relative to the test plan file's location.
         // We have created an empty test plan file so we can canonicalize its path (it must exist for this to work)
         // This allows us to read the relative file from the correct path
-        let src = Source::local(ctx.canonicalize_path(temp.path()).unwrap());
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
         let relative = FileProvider::RelativePath(relative_file("file.txt", src.clone()));
 
         assert_resolve_and_write_success(relative, &target, &mut ctx, expected_content).await
@@ -1074,7 +1074,7 @@ mod tests {
         let content = "some content";
 
         let mut ctx = MockContext::with_github_client(&[("org/repo/my-tests/file.txt", content)]);
-        let src = Source::Github {
+        let src = SourceDir::Github {
             org: "org".to_string(),
             repo: "repo".to_string(),
             path: "my-tests".into(),
@@ -1093,7 +1093,7 @@ mod tests {
         let target = temp.child("output/relative.txt");
 
         let mut ctx = Context::new();
-        let src = Source::Local {
+        let src = SourceDir::Local {
             abs_path: ctx.canonicalize_path(&temp).unwrap(),
         };
 
@@ -1113,7 +1113,7 @@ mod tests {
         let crate_root_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
         let mut ctx = Context::new();
-        let src = Source::Local {
+        let src = SourceDir::Local {
             abs_path: ctx
                 .canonicalize_path(crate_root_path.join("resources"))
                 .unwrap(),
@@ -1133,7 +1133,7 @@ mod tests {
         let target = temp.child("output/relative.txt");
 
         let mut ctx = Context::new();
-        let src = Source::Github {
+        let src = SourceDir::Github {
             org: "org".to_string(),
             repo: "repo".to_string(),
             path: "path".into(),

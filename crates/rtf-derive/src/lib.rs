@@ -33,7 +33,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 &self,
                 path: &mut ::std::vec::Vec<::std::string::String>,
                 allowed_variables: &::std::collections::HashSet<&::std::string::String>,
-                source: &::rtf_config::Source,
+                source: &::rtf_config::SourceDir,
                 ctx: &::rtf_config::templating::TemplateContext,
             ) -> ::rtf_config::templating::Result<()> {
                 #validate_context
@@ -42,7 +42,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             fn try_template(
                 &mut self,
                 path: &mut ::std::vec::Vec<::std::string::String>,
-                source: &::rtf_config::Source,
+                source: &::rtf_config::SourceDir,
                 ctx: &::rtf_config::templating::TemplateContext,
             ) -> ::rtf_config::templating::Result<()> {
                 #try_template

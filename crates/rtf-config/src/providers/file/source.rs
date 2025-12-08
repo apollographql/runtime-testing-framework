@@ -12,13 +12,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// The source of how a particular config file was obtained.
+/// The source directory of where a particular config file was obtained.
 ///
 /// In its simplest form this is a local file path to the directory containing the config file, but
 /// this may also include things like pulling the file over the network.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
-pub enum Source {
+pub enum SourceDir {
     /// The config file was read from disk
     Local {
         /// The absolute path to the config file
@@ -38,7 +38,7 @@ pub enum Source {
     },
 }
 
-impl Source {
+impl SourceDir {
     pub fn local(abs_path: impl Into<PathBuf>) -> Self {
         Self::Local {
             abs_path: abs_path.into(),
@@ -126,7 +126,7 @@ impl Source {
     }
 }
 
-impl Default for Source {
+impl Default for SourceDir {
     fn default() -> Self {
         Self::Local {
             abs_path: PathBuf::new(),
@@ -134,7 +134,7 @@ impl Default for Source {
     }
 }
 
-impl fmt::Display for Source {
+impl fmt::Display for SourceDir {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_uri(Option::<&str>::None))
     }
@@ -164,11 +164,11 @@ pub enum RawSource {
 impl RawSource {
     pub fn try_into_source_and_filename(
         self,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &impl ResolutionContext,
-    ) -> io::Result<(Source, String)> {
+    ) -> io::Result<(SourceDir, String)> {
         let (mut src, file_name) = self.try_into_source_without_canonical_path(file_source)?;
-        if let Source::Local { abs_path } = &mut src {
+        if let SourceDir::Local { abs_path } = &mut src {
             *abs_path = ctx.canonicalize_path(&*abs_path)?;
         }
 
@@ -187,8 +187,8 @@ impl RawSource {
 
     fn try_into_source_without_canonical_path(
         self,
-        file_source: &Source,
-    ) -> io::Result<(Source, String)> {
+        file_source: &SourceDir,
+    ) -> io::Result<(SourceDir, String)> {
         let split = |p: PathBuf| {
             let file_name = p
                 .file_name()
@@ -205,18 +205,18 @@ impl RawSource {
                 let (relative_dir, file_name) = split(relative_path)?;
 
                 let src = match file_source {
-                    Source::Local {
+                    SourceDir::Local {
                         abs_path: containing_dir,
-                    } => Source::Local {
+                    } => SourceDir::Local {
                         abs_path: containing_dir.join(relative_dir),
                     },
 
-                    Source::Github {
+                    SourceDir::Github {
                         org,
                         repo,
                         path: containing_dir,
                         git_ref,
-                    } => Source::Github {
+                    } => SourceDir::Github {
                         org: org.clone(),
                         repo: repo.clone(),
                         path: containing_dir.join(relative_dir),
@@ -235,7 +235,7 @@ impl RawSource {
             } => {
                 let (path, file_name) = split(path)?;
 
-                let src = Source::Github {
+                let src = SourceDir::Github {
                     org,
                     repo,
                     path,
@@ -275,66 +275,66 @@ mod tests {
     // directly from their raw to "cooked" counterpart
     #[test_case(
         raw_gh("org", "repo", "bar/environment.yaml", STR_NONE),
-        Source::local("foo"),
-        Source::github("org", "repo", "bar", STR_NONE);
+        SourceDir::local("foo"),
+        SourceDir::github("org", "repo", "bar", STR_NONE);
         "local test plan github raw"
     )]
     #[test_case(
         raw_gh("org", "repo", "bar/environment.yaml", Some("branch")),
-        Source::local("foo"),
-        Source::github("org", "repo", "bar", Some("branch"));
+        SourceDir::local("foo"),
+        SourceDir::github("org", "repo", "bar", Some("branch"));
         "local test plan github raw with branch"
     )]
     #[test_case(
         raw_gh("org", "repo", "bar/environment.yaml", STR_NONE),
-        Source::github("org", "repo", "foo", STR_NONE),
-        Source::github("org", "repo", "bar", STR_NONE);
+        SourceDir::github("org", "repo", "foo", STR_NONE),
+        SourceDir::github("org", "repo", "bar", STR_NONE);
         "github test plan github raw"
     )]
     #[test_case(
         raw_gh("org", "repo", "bar/environment.yaml", Some("branch")),
-        Source::github("org", "repo", "foo", Some("branch")),
-        Source::github("org", "repo", "bar", Some("branch"));
+        SourceDir::github("org", "repo", "foo", Some("branch")),
+        SourceDir::github("org", "repo", "bar", Some("branch"));
         "github test plan github raw with branch"
     )]
     #[test_case(
         raw_gh("org", "repo", "bar/environment.yaml", Some("branch")),
-        Source::github("org", "repo", "foo", STR_NONE),
-        Source::github("org", "repo", "bar", Some("branch"));
+        SourceDir::github("org", "repo", "foo", STR_NONE),
+        SourceDir::github("org", "repo", "bar", Some("branch"));
         "github test plan without branch github raw with branch"
     )]
     #[test_case(
         raw_gh("org", "repo", "bar/environment.yaml", Some("branch")),
-        Source::github("org", "repo", "foo", Some("other-branch")),
-        Source::github("org", "repo", "bar", Some("branch"));
+        SourceDir::github("org", "repo", "foo", Some("other-branch")),
+        SourceDir::github("org", "repo", "bar", Some("branch"));
         "github test plan with different branch github raw with branch"
     )]
     // Local TP + local raw should update the relative path based on the directory containing the
     // test plan
     #[test_case(
         raw_local("bar/environment.yaml"),
-        Source::local("foo"),
-        Source::local("foo/bar");
+        SourceDir::local("foo"),
+        SourceDir::local("foo/bar");
         "local test plan local raw"
     )]
     // Github test plan source should rewrite local raw sources to be github sources as well
     #[test_case(
         raw_local("bar/environment.yaml"),
-        Source::github("org", "repo", "foo", STR_NONE),
-        Source::github("org", "repo", "foo/bar", STR_NONE);
+        SourceDir::github("org", "repo", "foo", STR_NONE),
+        SourceDir::github("org", "repo", "foo/bar", STR_NONE);
         "github test plan local raw"
     )]
     #[test_case(
         raw_local("bar/environment.yaml"),
-        Source::github("org", "repo", "foo", Some("branch")),
-        Source::github("org", "repo", "foo/bar", Some("branch"));
+        SourceDir::github("org", "repo", "foo", Some("branch")),
+        SourceDir::github("org", "repo", "foo/bar", Some("branch"));
         "github test plan with branch local raw"
     )]
     #[test]
     fn raw_source_try_into_source_respects_parent_source_kind(
         raw: RawSource,
-        tp_source: Source,
-        expected: Source,
+        tp_source: SourceDir,
+        expected: SourceDir,
     ) {
         let (src, _file_name) = raw
             .try_into_source_without_canonical_path(&tp_source)

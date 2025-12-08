@@ -70,7 +70,7 @@ mod tests {
         VariableDefinition,
         checks::Check,
         context::Context,
-        providers::file::{FileProvider, NamedFileProvider, RelativeFile, Source},
+        providers::file::{FileProvider, NamedFileProvider, RelativeFile, SourceDir},
         templating::{ErrorKind, Field, Scalar, Template, TemplateContext},
     };
 
@@ -171,7 +171,7 @@ mod tests {
         expected_err_messages: Vec<String>,
         expected_err_paths: Vec<String>,
     ) {
-        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &ctx);
+        let res = t.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
         assert!(res.is_err(), "expected templating to fail, got {res:?}");
 
         let errors = res.unwrap_err();

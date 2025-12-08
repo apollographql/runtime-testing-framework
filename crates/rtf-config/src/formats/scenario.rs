@@ -3,7 +3,7 @@ use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
     formats::{CustomProviderDeclaration, Result},
-    providers::{command::CommandSection, file::Source},
+    providers::{command::CommandSection, file::SourceDir},
     templating::{self, FileType, Template, TemplateContext},
 };
 use schemars::JsonSchema;
@@ -64,7 +64,7 @@ impl Template for ScenarioConfig {
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        file_source: &Source,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut allowed_variables = allowed_variables.clone();
@@ -83,7 +83,7 @@ impl Template for ScenarioConfig {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        source: &Source,
+        source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let ctx = ctx.for_config_file(
@@ -182,7 +182,7 @@ mod tests {
         providers::{
             self,
             command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
-            file::{RawSource, Source},
+            file::{RawSource, SourceDir},
             test_helpers::create_temp_dir_with_file,
         },
         templating::Field,
@@ -329,7 +329,7 @@ mod tests {
         let ctx = template_context(field_names);
         let mut scenario = templatable_scenario(field_names, field_names, &[]);
 
-        let res = scenario.try_template(&mut Vec::new(), &Source::local("/"), &ctx);
+        let res = scenario.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -443,7 +443,7 @@ mod tests {
 
         let declaration = &scenario_config.custom_providers[0];
         let loaded_providers = declaration
-            .try_load_all(&Source::local(temp.path()), &Context::new())
+            .try_load_all(&SourceDir::local(temp.path()), &Context::new())
             .await
             .expect("custom providers should load successfully");
 
@@ -454,7 +454,7 @@ mod tests {
             .expect("provider1 should exist");
         assert_eq!(
             provider1_source,
-            &Source::local(providers_dir.canonicalize().unwrap())
+            &SourceDir::local(providers_dir.canonicalize().unwrap())
         );
         assert_eq!(provider1_def.name, "simple provider");
         assert_eq!(
@@ -468,7 +468,7 @@ mod tests {
             .expect("provider2 should exist");
         assert_eq!(
             provider2_source,
-            &Source::local(providers_dir.canonicalize().unwrap())
+            &SourceDir::local(providers_dir.canonicalize().unwrap())
         );
         assert_eq!(provider2_def.name, "simple provider");
         assert_eq!(
@@ -493,7 +493,7 @@ mod tests {
         };
 
         let res = declaration
-            .try_load_all(&Source::local(temp.path()), &Context::new())
+            .try_load_all(&SourceDir::local(temp.path()), &Context::new())
             .await;
 
         assert!(res.is_err(), "expected error for missing file");
@@ -524,7 +524,7 @@ mod tests {
         };
 
         let res = declaration
-            .try_load_all(&Source::local(temp.path()), &Context::new())
+            .try_load_all(&SourceDir::local(temp.path()), &Context::new())
             .await;
 
         assert!(res.is_err(), "expected error for invalid YAML");
@@ -555,7 +555,7 @@ mod tests {
         };
 
         let result = declaration
-            .try_load_all(&Source::local(temp.path()), &Context::new())
+            .try_load_all(&SourceDir::local(temp.path()), &Context::new())
             .await;
 
         assert!(result.is_err(), "expected error for nested custom provider");
@@ -610,7 +610,7 @@ mod tests {
         };
 
         let result = declaration
-            .try_load_all(&Source::local(temp.path()), &Context::new())
+            .try_load_all(&SourceDir::local(temp.path()), &Context::new())
             .await;
 
         assert!(

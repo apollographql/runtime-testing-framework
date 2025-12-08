@@ -4,7 +4,7 @@ use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
     formats::{CustomProviderDeclaration, Result},
-    providers::{command::CommandSection, file::Source},
+    providers::{command::CommandSection, file::SourceDir},
     templating::{self, FileType, Template, TemplateContext},
 };
 use schemars::JsonSchema;
@@ -40,7 +40,7 @@ impl EnvironmentConfig {
         Ok(serde_yaml::from_str(&content)?)
     }
 
-    fn ctx_for_setup(&self, source: &Source, ctx: &TemplateContext) -> TemplateContext {
+    fn ctx_for_setup(&self, source: &SourceDir, ctx: &TemplateContext) -> TemplateContext {
         ctx.for_config_file(
             source,
             Some(FileType::Environment),
@@ -48,7 +48,7 @@ impl EnvironmentConfig {
         )
     }
 
-    fn ctx_for_teardown(&self, source: &Source, ctx: &TemplateContext) -> TemplateContext {
+    fn ctx_for_teardown(&self, source: &SourceDir, ctx: &TemplateContext) -> TemplateContext {
         ctx.for_config_file(
             source,
             Some(FileType::Environment),
@@ -65,7 +65,7 @@ impl EnvironmentConfig {
     pub fn try_template_setup(
         &mut self,
         path: &mut Vec<String>,
-        source: &Source,
+        source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         self.setup.command.try_template_nested(
@@ -83,7 +83,7 @@ impl EnvironmentConfig {
     pub fn try_template_teardown(
         &mut self,
         path: &mut Vec<String>,
-        source: &Source,
+        source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         self.teardown.try_template_nested(
@@ -127,7 +127,7 @@ impl Template for EnvironmentConfig {
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        source: &Source,
+        source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut allowed_variables = allowed_variables.clone();
@@ -155,7 +155,7 @@ impl Template for EnvironmentConfig {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        source: &Source,
+        source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::from(self.try_template_setup(path, source, ctx));
@@ -308,7 +308,7 @@ pub(crate) mod tests {
                 CommandSection,
                 test_helpers::{cmd_with_inline_file, cmd_with_required_file},
             },
-            file::{RawSource, Source},
+            file::{RawSource, SourceDir},
             test_helpers::create_temp_dir_with_file,
         },
         templating::{Field, Scalar},
@@ -503,7 +503,7 @@ pub(crate) mod tests {
         let mut environment =
             templatable_environment(field_names.as_slice(), setup_fields, teardown_fields, &[]);
 
-        let res = environment.try_template(&mut Vec::new(), &Source::local("/"), &ctx);
+        let res = environment.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -588,7 +588,7 @@ pub(crate) mod tests {
         // Variables exist in the map but are only defined in provides
         let ctx = template_context(&["foo", "setup-path"]);
 
-        let res = config.try_template_setup(&mut Vec::new(), &Source::local("/"), &ctx);
+        let res = config.try_template_setup(&mut Vec::new(), &SourceDir::local("/"), &ctx);
 
         // Setup should fail because it cannot access provides variables
         assert!(
@@ -622,7 +622,7 @@ pub(crate) mod tests {
         // Variables exist in the map and are defined in provides
         let ctx = template_context(&["bar", "teardown-path"]);
 
-        let res = config.try_template_teardown(&mut Vec::new(), &Source::local("/"), &ctx);
+        let res = config.try_template_teardown(&mut Vec::new(), &SourceDir::local("/"), &ctx);
 
         // Teardown should succeed because it can access provides variables
         assert!(
@@ -646,7 +646,7 @@ pub(crate) mod tests {
 
         let res = config.try_template_setup(
             &mut Vec::new(),
-            &Source::local("/"),
+            &SourceDir::local("/"),
             &TemplateContext::new_stubbed(variables),
         );
 
@@ -667,7 +667,7 @@ pub(crate) mod tests {
         // Variables exist in the map and are defined in top-level variables
         let ctx = template_context(&["bar", "teardown-path"]);
 
-        let res = config.try_template_teardown(&mut Vec::new(), &Source::local("/"), &ctx);
+        let res = config.try_template_teardown(&mut Vec::new(), &SourceDir::local("/"), &ctx);
 
         // Teardown should succeed because it can access top-level variables
         assert!(
@@ -762,7 +762,7 @@ pub(crate) mod tests {
         };
 
         let res = declaration
-            .try_load_all(&Source::local(temp.path()), &Context::new())
+            .try_load_all(&SourceDir::local(temp.path()), &Context::new())
             .await;
 
         assert!(res.is_err());
@@ -810,7 +810,7 @@ pub(crate) mod tests {
         };
 
         let result = declaration
-            .try_load_all(&Source::local(temp.path()), &Context::new())
+            .try_load_all(&SourceDir::local(temp.path()), &Context::new())
             .await;
 
         assert!(result.is_err());
@@ -865,7 +865,7 @@ pub(crate) mod tests {
         };
 
         let result = declaration
-            .try_load_all(&Source::local(temp.path()), &Context::new())
+            .try_load_all(&SourceDir::local(temp.path()), &Context::new())
             .await;
 
         assert!(result.is_err());
@@ -945,7 +945,7 @@ pub(crate) mod tests {
 
         let declaration = &env_config.custom_providers[0];
         let loaded_providers = declaration
-            .try_load_all(&Source::local(temp.path()), &Context::new())
+            .try_load_all(&SourceDir::local(temp.path()), &Context::new())
             .await
             .expect("custom providers should load successfully");
 
@@ -956,7 +956,7 @@ pub(crate) mod tests {
             .expect("provider1 should exist");
         assert_eq!(
             provider1_source,
-            &Source::local(providers_dir.canonicalize().unwrap())
+            &SourceDir::local(providers_dir.canonicalize().unwrap())
         );
         assert_eq!(provider1_def.name, "simple provider");
         assert_eq!(
@@ -970,7 +970,7 @@ pub(crate) mod tests {
             .expect("provider2 should exist");
         assert_eq!(
             provider2_source,
-            &Source::local(providers_dir.canonicalize().unwrap())
+            &SourceDir::local(providers_dir.canonicalize().unwrap())
         );
         assert_eq!(provider2_def.name, "simple provider");
         assert_eq!(
