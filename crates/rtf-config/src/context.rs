@@ -391,7 +391,7 @@ impl ResolutionContext for Context {
 mod tests {
     use super::*;
     use crate::{
-        Source,
+        SourceDir,
         providers::file::{FileProvider, RelativeFile},
         templating::Field,
     };
@@ -410,12 +410,12 @@ mod tests {
     ) {
         let provider_1 = FileProvider::RelativePath(RelativeFile {
             path: Field::Resolved("scripts/run.sh".to_string()),
-            src: source_1.map(Source::local),
+            src: source_1.map(SourceDir::local),
         });
 
         let provider_2 = FileProvider::RelativePath(RelativeFile {
             path: Field::Resolved("scripts/run.sh".to_string()),
-            src: source_2.map(Source::local),
+            src: source_2.map(SourceDir::local),
         });
 
         let mut ctx = Context::new();
@@ -442,12 +442,12 @@ mod tests {
     ) {
         let provider_1 = FileProvider::RelativePath(RelativeFile {
             path: Field::Resolved("scripts/run.sh".to_string()),
-            src: source_1.map(|path| Source::github("org", "repo", path, Some("git_ref"))),
+            src: source_1.map(|path| SourceDir::github("org", "repo", path, Some("git_ref"))),
         });
 
         let provider_2 = FileProvider::RelativePath(RelativeFile {
             path: Field::Resolved("scripts/run.sh".to_string()),
-            src: source_2.map(|path| Source::github("org", "repo", path, Some("git_ref"))),
+            src: source_2.map(|path| SourceDir::github("org", "repo", path, Some("git_ref"))),
         });
 
         let mut ctx = Context::new();

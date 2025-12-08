@@ -48,7 +48,7 @@ pub async fn template_custom_provider(
             .try_check(&mut vec!["custom_provider".to_string()], &ctx)?;
     }
 
-    println!("{}", serde_yaml::to_string(&definition)?);
+    println!("{}", definition.as_yaml_string_without_sources()?);
 
     Ok(())
 }

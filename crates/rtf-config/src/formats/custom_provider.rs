@@ -1,6 +1,7 @@
 use crate::{
     VariableDefinition,
     context::ResolutionContext,
+    formats::{self, test_plan::strip_sources_for_relative_paths},
     providers::command::CommandSection,
     providers::{
         self,
@@ -29,6 +30,13 @@ pub struct CustomProviderDefinition {
 }
 
 impl CustomProviderDefinition {
+    pub fn as_yaml_string_without_sources(&self) -> formats::Result<String> {
+        let mut val = serde_yaml::to_value(self)?;
+        strip_sources_for_relative_paths(&mut val);
+
+        Ok(serde_yaml::to_string(&val)?)
+    }
+
     /// Create an empty [CustomProviderDefinition] for tests
     #[cfg(test)]
     pub(crate) fn empty() -> CustomProviderDefinition {
