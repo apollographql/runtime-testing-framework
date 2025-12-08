@@ -3,24 +3,26 @@ use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
     enum_impl_check, providers,
-    templating::{self, Field, Template, TemplateVariables},
+    templating::{self, Field, Template, TemplateContext},
 };
 use rtf_core::github::Client;
 use rtf_derive::Template;
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
+    collections::HashSet,
     fmt, io,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
 
 pub mod apollo;
+pub mod custom;
 pub mod github;
 mod source;
 pub mod utility;
 
-pub use source::{RawSource, Source};
+pub use source::{RawSource, SourceDir};
 
 /// Something that can obtain or synthesise utf-8 file content based on a user provided
 /// specification.
@@ -181,21 +183,38 @@ impl Template for NamedFileProvider {
         self.provider.required_variables()
     }
 
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &SourceDir,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        let tail = self.env_var.clone();
+        self.provider
+            .validate_context_nested(path, &tail, allowed_variables, file_source, ctx)
+    }
+
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        file_source: &Source,
-        variables: &TemplateVariables,
+        file_source: &SourceDir,
+        ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::new();
-
         let tail = self.env_var.clone();
-        errs.append(
-            self.provider
-                .try_template_nested(path, &tail, file_source, variables),
-        );
 
-        errs.into_result(())
+        match &mut self.provider {
+            FileProvider::CustomProvider(cp) => {
+                let from_command = cp.expand_and_template(path, file_source, ctx)?;
+                self.provider = FileProvider::FromCommand(from_command);
+            }
+
+            _ => self
+                .provider
+                .try_template_nested(path, &tail, file_source, ctx)?,
+        }
+
+        Ok(())
     }
 }
 
@@ -221,6 +240,7 @@ impl Check for NamedFileProvider {
 // the all_fields_templated test in this file
 pub enum FileProvider {
     BuildRouterFromSource(apollo::BuildRouterFromSource),
+    CustomProvider(custom::CustomProvider),
     FromCommand(utility::FromCommand),
     GithubFile(github::GithubFile),
     GraphosCannedOps(apollo::GraphosCannedOps),
@@ -260,6 +280,7 @@ macro_rules! enum_impl_file_provider {
 
 enum_impl_file_provider!(
     BuildRouterFromSource,
+    CustomProvider,
     FromCommand,
     GithubFile,
     GraphosCannedOps,
@@ -333,10 +354,10 @@ pub struct RelativeFile {
     pub(crate) path: Field<String>,
 
     /// Set during TestPlan parsing as part of overrides and templating.
-    #[serde(default, skip_serializing)]
+    #[serde(default)]
     #[schemars(skip)]
     #[doc(hidden)]
-    pub(crate) src: Option<Source>,
+    pub(crate) src: Option<SourceDir>,
 }
 
 impl Template for RelativeFile {
@@ -348,11 +369,22 @@ impl Template for RelativeFile {
         self.path.required_variables()
     }
 
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &SourceDir,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        self.path
+            .validate_context_nested(path, "path", allowed_variables, file_source, ctx)
+    }
+
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        file_source: &Source,
-        variables: &TemplateVariables,
+        file_source: &SourceDir,
+        ctx: &TemplateContext,
     ) -> templating::Result<()> {
         use templating::{ErrorKind, Errors, ValidField};
 
@@ -360,7 +392,7 @@ impl Template for RelativeFile {
 
         match &mut self.path {
             // If we're pending then we template and store the source of the variable we used
-            Field::Pending(variable) => match variables.get_with_source(variable) {
+            Field::Pending(variable) => match ctx.get_with_source(variable) {
                 Some((source, raw)) => match String::try_from_scalar(raw.clone()) {
                     Ok(path) => {
                         self.path = Field::Resolved(path);
@@ -401,16 +433,12 @@ impl AsUtf8FileContent for RelativeFile {
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
         match self.src.as_ref() {
-            Some(Source::Local { abs_path }) => {
-                let dir = match abs_path.parent() {
-                    Some(dir) => dir.to_path_buf(),
-                    None => PathBuf::new(),
-                };
-                let p = dir.join(self.path.as_resolved());
+            Some(SourceDir::Local { abs_path }) => {
+                let p = abs_path.join(self.path.as_resolved());
                 Ok(ctx.read_path_to_string(p)?)
             }
 
-            Some(Source::Github {
+            Some(SourceDir::Github {
                 org,
                 repo,
                 path,
@@ -419,10 +447,7 @@ impl AsUtf8FileContent for RelativeFile {
                 let client = ctx
                     .github_client()
                     .ok_or(providers::Error::Github(rtf_core::github::Error::NoClient))?;
-                let full_path = match path.parent() {
-                    Some(parent) => parent.join(self.path.as_resolved()).display().to_string(),
-                    None => self.path.as_resolved().to_string(),
-                };
+                let full_path = path.join(self.path.as_resolved()).display().to_string();
 
                 Ok(client
                     .string_file_content(org, repo, &full_path, git_ref.as_ref())
@@ -441,15 +466,11 @@ impl Check for RelativeFile {
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         let res = match self.src.as_ref() {
-            Some(Source::Local { abs_path }) => {
-                let dir = match abs_path.parent() {
-                    Some(dir) => dir.to_path_buf(),
-                    None => PathBuf::new(),
-                };
-                ctx.canonicalize_path(dir.join(self.path.as_resolved()))
+            Some(SourceDir::Local { abs_path }) => {
+                ctx.canonicalize_path(abs_path.join(self.path.as_resolved()))
             }
 
-            Some(Source::Github { .. }) => {
+            Some(SourceDir::Github { .. }) => {
                 return if ctx.github_client().is_none() {
                     Err(checks::Errors::new(
                         checks::ErrorKind::MissingGithubApiKey,
@@ -567,19 +588,19 @@ mod tests {
     use simple_test_case::test_case;
     use std::path::PathBuf;
 
-    macro_rules! template_variables {
+    macro_rules! template_context {
         ($slice:expr) => {{
             let mut m = ::std::collections::HashMap::new();
             for k in $slice {
                 m.insert(k.to_string(), Scalar::from(k.to_string()));
             }
 
-            TemplateVariables::new_stubbed(m)
+            TemplateContext::new_stubbed(m)
         }};
     }
 
     /// Create a RelativeFile for testing - returns the actual file in a tmp dir
-    fn relative_file(path: &str, source: Source) -> RelativeFile {
+    fn relative_file(path: &str, source: SourceDir) -> RelativeFile {
         RelativeFile {
             path: Field::Resolved(path.to_string()),
             src: Some(source),
@@ -647,6 +668,15 @@ mod tests {
         features: "{{ features }}"
     "#
     );
+    const CUSTOM_PROVIDER_YAML: &str = indoc!(
+        r#"
+        kind: custom_provider
+        type: "my-custom-provider"
+        key1: "{{ value1 }}"
+        key2: "value2"
+        key3: "value3"
+        "#
+    );
     const GITHUB_FILE: &str = indoc!(
         r#"
         kind: github_file
@@ -662,6 +692,7 @@ mod tests {
         graph_ref: "{{ graph_ref }}"
         top_n: "{{ top_n }}"
         skip_mutations: "{{ skip_mutations }}"
+        time_range: "{{ time_range }}"
     "#
     );
     const GRAPHOS_CANNED_OPS_BY_ID: &str = indoc!(
@@ -777,8 +808,9 @@ mod tests {
     );
 
     #[test_case(BUILD_ROUTER_FROM_SOURCE, &["git_ref", "rust_version", "profile", "features"]; "build_router_from_source")]
+    #[test_case(CUSTOM_PROVIDER_YAML, &["value1"]; "custom_provider")]
     #[test_case(GITHUB_FILE, &["org", "repo", "path", "git_ref"]; "github_file")]
-    #[test_case(GRAPHOS_CANNED_OPS, &["graph_ref", "top_n", "skip_mutations"]; "graphos_canned_ops")]
+    #[test_case(GRAPHOS_CANNED_OPS, &["graph_ref", "top_n", "skip_mutations", "time_range"]; "graphos_canned_ops")]
     #[test_case(GRAPHOS_CANNED_OPS_BY_ID, &["graph_ref", "op_1", "op_2"]; "graphos_canned_ops_by_id")]
     #[test_case(GRAPHOS_SUBGRAPH_ROUTER_URL_OVERRIDES, &["graph_ref"]; "graphos_subgraph_router_url_overrides")]
     #[test_case(GRAPHOS_SUBGRAPHS, &["graph_ref"]; "graphos_subgraphs")]
@@ -844,9 +876,9 @@ mod tests {
                 src: None,
             }),
         };
-        let variables = template_variables!(&["path"]);
+        let ctx = template_context!(&["path"]);
 
-        let res = nfp.try_template(&mut Vec::new(), &Source::local("/"), &variables);
+        let res = nfp.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -863,13 +895,9 @@ mod tests {
                 src: None,
             }),
         };
-        let variables = template_variables!(&["unused"]);
+        let ctx = template_context!(&["unused"]);
 
-        let res = nfp.try_template(
-            &mut vec!["path".to_string()],
-            &Source::local("/"),
-            &variables,
-        );
+        let res = nfp.try_template(&mut vec!["path".to_string()], &SourceDir::local("/"), &ctx);
         assert!(res.is_err(), "expected templating to error, got {res:?}");
 
         let errors = res.unwrap_err();
@@ -891,7 +919,7 @@ mod tests {
             env_var: "RELATIVE".to_string(),
             provider: FileProvider::RelativePath(RelativeFile {
                 path: Field::Resolved("does/not/exist/relative.txt".to_string()),
-                src: Some(Source::local("/foo/config.yaml")),
+                src: Some(SourceDir::local("/foo")),
             }),
         };
 
@@ -916,13 +944,10 @@ mod tests {
     #[test]
     fn relative_file_check_local_success() {
         let file_name = "file.txt";
-        let (_temp, file) = create_temp_dir_with_file(file_name, "some content");
+        let (temp, _) = create_temp_dir_with_file(file_name, "some content");
 
         let ctx = Context::new();
-        let relative_file = relative_file(
-            file_name,
-            Source::local(ctx.canonicalize_path(&file).unwrap()),
-        );
+        let relative_file = relative_file(file_name, SourceDir::local(temp.path()));
 
         let res = relative_file.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}")
@@ -934,7 +959,7 @@ mod tests {
         // a GitHub token to be defined in the context
         let relative_file = relative_file(
             "file.txt",
-            Source::github("org", "repo", "path", Some("ref")),
+            SourceDir::github("org", "repo", "path", Some("ref")),
         );
 
         let mut ctx = Context::new();
@@ -946,7 +971,7 @@ mod tests {
 
     #[test]
     fn relative_file_check_does_not_exist() {
-        let relative_file = relative_file("does-not-exist.txt", Source::local("/foo/config.yaml"));
+        let relative_file = relative_file("does-not-exist.txt", SourceDir::local("/foo"));
         let ctx = Context::new();
 
         assert_check_errors(relative_file, &ctx, &[checks::ErrorKind::FileNotFound]);
@@ -959,10 +984,7 @@ mod tests {
         let ctx = Context::new();
         let relative_file = relative_file(
             "dir",
-            Source::local(
-                ctx.canonicalize_path(format!("{}/dir", temp.path().to_string_lossy()))
-                    .unwrap(),
-            ),
+            SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap()),
         );
 
         assert_check_errors(relative_file, &ctx, &[checks::ErrorKind::IsADirectory]);
@@ -972,7 +994,7 @@ mod tests {
     fn relative_file_check_missing_github_api_token() {
         let relative_file = relative_file(
             "file.txt",
-            Source::github("org", "repo", "path", Some("ref")),
+            SourceDir::github("org", "repo", "path", Some("ref")),
         );
 
         // There is no github client added to this context so this fails
@@ -1038,7 +1060,7 @@ mod tests {
         // Relative File paths are resolved relative to the test plan file's location.
         // We have created an empty test plan file so we can canonicalize its path (it must exist for this to work)
         // This allows us to read the relative file from the correct path
-        let src = Source::local(ctx.canonicalize_path(&test_plan_file).unwrap());
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
         let relative = FileProvider::RelativePath(relative_file("file.txt", src.clone()));
 
         assert_resolve_and_write_success(relative, &target, &mut ctx, expected_content).await
@@ -1051,11 +1073,11 @@ mod tests {
 
         let content = "some content";
 
-        let mut ctx = MockContext::with_github_client(content);
-        let src = Source::Github {
+        let mut ctx = MockContext::with_github_client(&[("org/repo/my-tests/file.txt", content)]);
+        let src = SourceDir::Github {
             org: "org".to_string(),
             repo: "repo".to_string(),
-            path: "path".into(),
+            path: "my-tests".into(),
             git_ref: None,
         };
 
@@ -1071,7 +1093,7 @@ mod tests {
         let target = temp.child("output/relative.txt");
 
         let mut ctx = Context::new();
-        let src = Source::Local {
+        let src = SourceDir::Local {
             abs_path: ctx.canonicalize_path(&temp).unwrap(),
         };
 
@@ -1089,11 +1111,12 @@ mod tests {
         let target = temp.child("file.txt");
 
         let crate_root_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let file_to_read = crate_root_path.join("resources/frog-no.gif");
 
         let mut ctx = Context::new();
-        let src = Source::Local {
-            abs_path: ctx.canonicalize_path(&file_to_read).unwrap(),
+        let src = SourceDir::Local {
+            abs_path: ctx
+                .canonicalize_path(crate_root_path.join("resources"))
+                .unwrap(),
         };
 
         let expected_err = "stream did not contain valid UTF-8";
@@ -1110,7 +1133,7 @@ mod tests {
         let target = temp.child("output/relative.txt");
 
         let mut ctx = Context::new();
-        let src = Source::Github {
+        let src = SourceDir::Github {
             org: "org".to_string(),
             repo: "repo".to_string(),
             path: "path".into(),

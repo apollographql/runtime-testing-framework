@@ -1,0 +1,4 @@
+name: invalid provider
+description: This provider is missing the required command field
+variable_definitions: []
+# command: is missing

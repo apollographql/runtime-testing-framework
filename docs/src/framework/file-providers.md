@@ -3,6 +3,7 @@
 Available file providers:
 
 - [Build Router From Source](#build-router-from-source)
+- [Custom Provider](#custom-provider)
 - [From command](#from-command)
 - [GitHub File](#github-file)
 - [GraphOS Canned Operations](#graphos-canned-operations)
@@ -59,6 +60,29 @@ Defaults to `"release"` if unset.
 Comma separated list of features to build the Router with.
 
 Defaults to `"default"` if unset.
+
+</details>
+
+## Custom Provider
+
+Use a custom provider to execute a command and produce a set of files.
+
+```yaml
+- name: "router-docker-compose"
+  env_var: ROUTER_DOCKER_COMPOSE
+  kind: custom_provider
+  type: "router-docker-compose"
+  graph_ref: "graph@variant"
+  router_version: "v2.x.y"
+  build_router_from_source: "false"
+```
+
+<details>
+<summary>Fields</summary>
+
+### `ty`
+
+The type of custom provider to use. This is the name of the custom provider to use.
 
 </details>
 
@@ -204,6 +228,7 @@ requests based on operations data obtained from the GraphOS API.
   graph_ref: graph@variant
   top_n: 10
   skip_mutations: true
+  time_range: 7d
 ```
 
 <details>
@@ -224,6 +249,12 @@ Defaults to 20 if unset.
 Whether or not to include mutations in the returned operations.
 
 Defaults to false if unset.
+
+### `time_range`
+
+How far back to query for operations.
+
+Accepts duration strings like "30d", "7d", "12h". Defaults to "30d" if unset.
 
 </details>
 
@@ -340,7 +371,7 @@ parameters.
 The user specifies the graph ref that should be used to fetch a subgraph SDL files from the GraphOS
 API.
 
-Note that this file proivider will output a directory of SDL schema files, one for each subgraph.
+Note that this file provider will output a directory of SDL schema files, one for each subgraph.
 
 ```yaml
 - name: "subgraphs"
@@ -363,7 +394,7 @@ The Apollo graph ref to pull subgraph SDL files for.
 The user specifies the graph ref that should be used to fetch the names of subgraphs in the
 supergraph from the GraphOS API.
 
-This file proivider will output a newline-delimited file of the subgraph names.
+This file provider will output a newline-delimited file of the subgraph names.
 
 ```yaml
 - name: "subgraph_names"

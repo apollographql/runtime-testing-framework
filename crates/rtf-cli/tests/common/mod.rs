@@ -7,6 +7,7 @@ use std::{
     ops::{Deref, DerefMut},
     path::PathBuf,
 };
+use walkdir::WalkDir;
 
 /// [TempDir] removes the temp directory it creates on drop so we need to bundle it with the
 /// [Command] we want to execute in order to keep things in place for the duration of the test.
@@ -37,6 +38,18 @@ impl CmdWithTmpDir {
     /// Assert that a given path within the test [TempDir] exists.
     pub fn assert_path_exists(&self, path: &str) {
         assert!(self.tmp.child(path).exists(), "{path} does not exist")
+    }
+
+    /// Debugging helper for showing what the contents of this test's temp directory were.
+    pub fn list_files(&self) {
+        println!(">> Temp directory contents:");
+        for entry in WalkDir::new(self.tmp.path()) {
+            let entry = entry.unwrap();
+            if entry.path().is_file() {
+                let p = entry.path().strip_prefix(self.tmp.path()).unwrap();
+                println!("{}", p.display());
+            }
+        }
     }
 }
 

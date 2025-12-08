@@ -2,11 +2,13 @@
 use crate::{checks, providers};
 use std::io;
 
+mod custom_provider;
 mod environment;
 mod matrix;
 mod scenario;
 mod test_plan;
 
+pub use custom_provider::{CustomProviderDeclaration, CustomProviderDefinition};
 pub use environment::EnvironmentConfig;
 pub use matrix::Matrix;
 use rtf_core::github;
@@ -19,19 +21,25 @@ pub enum Error {
     #[error("One or more file providers failed to run:\n{}", .errs.join("\n"))]
     FailedFileProviders { errs: Vec<String> },
 
+    #[error("One or more custom provider definitions failed to load:\n{}", .errs.join("\n"))]
+    FailedCustomProviderDefinitions { errs: Vec<String> },
+
+    #[error("Custom provider declarations can not be specified as part of overrides.")]
+    InvalidCustomProviderOverride,
+
     #[error("Environment setup output not valid json: {output:?}")]
     MalformedSetupOutputFormat { output: String },
 
     #[error("Missing required output fields from environment setup: {missing:?}")]
     MissingSetupOutputFields { missing: Vec<String> },
 
+    #[error("The provided variant_names template produced duplicate names: {duplicates:?}")]
+    NonUniqueMatrixVariantNames { duplicates: Vec<String> },
+
     #[error(
         "The provided matrix.variant_names template references unknown matrix variables: {variables:?}"
     )]
     UnknownMatrixVariantTemplateVariables { variables: Vec<String> },
-
-    #[error("The provided variant_names template produced duplicate names: {duplicates:?}")]
-    NonUniqueMatrixVariantNames { duplicates: Vec<String> },
 
     #[error("The config file being parsed was invalid:\n{0}")]
     Validation(#[from] checks::Errors),
@@ -62,8 +70,8 @@ mod tests {
         VariableDefinition,
         checks::Check,
         context::Context,
-        providers::file::{FileProvider, NamedFileProvider, RelativeFile, Source},
-        templating::{ErrorKind, Field, Scalar, Template, TemplateVariables},
+        providers::file::{FileProvider, NamedFileProvider, RelativeFile, SourceDir},
+        templating::{ErrorKind, Field, Scalar, Template, TemplateContext},
     };
 
     // Test Helpers
@@ -111,8 +119,8 @@ mod tests {
     }
 
     /// Create a HashMap of variables from string names (each name maps to itself as a Scalar::String)
-    pub(crate) fn template_variables(variable_names: &[&str]) -> TemplateVariables {
-        TemplateVariables::new_stubbed(
+    pub(crate) fn template_context(variable_names: &[&str]) -> TemplateContext {
+        TemplateContext::new_stubbed(
             variable_names
                 .iter()
                 .map(|&name| (name.to_string(), Scalar::String(name.to_string())))
@@ -159,11 +167,11 @@ mod tests {
     /// Assert template errors
     pub(crate) fn assert_template_errors(
         t: &mut impl Template,
-        variables: TemplateVariables,
+        ctx: TemplateContext,
         expected_err_messages: Vec<String>,
         expected_err_paths: Vec<String>,
     ) {
-        let res = t.try_template(&mut Vec::new(), &Source::local("/"), &variables);
+        let res = t.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
         assert!(res.is_err(), "expected templating to fail, got {res:?}");
 
         let errors = res.unwrap_err();

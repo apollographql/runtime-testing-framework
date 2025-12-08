@@ -8,12 +8,14 @@ fn is_executable() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd.arg("template").assert();
 
-    res.stderr(contains("Usage: rtf template"));
+    res.stderr(contains("no test plan provided"));
 }
 
 #[test_case("backwards-compatible-variable-config"; "backwards compatible variable config")]
 #[test_case("command-from-spec"; "command from spec")]
 #[test_case("custom-matrix-variant-names"; "custom matrix variant names")]
+#[test_case("custom-provider-default-value"; "custom provider default value")]
+#[test_case("custom-provider-templated-variable"; "custom provider templated variable")]
 #[test_case("matrix-include"; "matrix include")]
 #[test_case("matrix-variables"; "matrix variables")]
 #[test_case("variable-overrides"; "variable overrides")]
@@ -139,20 +141,20 @@ fn load_and_resolve_fails(file: &str, err_contains: &str) {
 #[test_case(
     "missing-variables.yaml",
     indoc!(r#"
-    (environment.setup) Missing template variables definitions. Make sure the variable is defined in the scenario or environment config variable definitions
-      - bar: ""
+    (environment.setup.env_vars.BAR) Missing template variables definition. Make sure the variable is defined in the scenario or environment config variable definitions
+      - bar: "BAR"
     
-    (environment.teardown) Missing template variables definitions. Make sure the variable is defined in the scenario or environment config variable definitions
-      - baz: ""
+    (environment.teardown.env_vars.BAZ) Missing template variables definition. Make sure the variable is defined in the scenario or environment config variable definitions
+      - baz: "BAZ"
     
-    (scenario) Missing template variables definitions. Make sure the variable is defined in the scenario or environment config variable definitions
-      - foo: ""
+    (scenario.env_vars.FOO) Missing template variables definition. Make sure the variable is defined in the scenario or environment config variable definitions
+      - foo: "FOO"
     "#);
     "missing variables"
 )]
 #[test_case(
     "unknown-variables.yaml",
-    "(environment.teardown.env_vars.FOO) Unknown templating variable. Make sure a variable is defined for this variable to resolve to.\nfoo";
+    "(environment.teardown.env_vars.FOO) Unknown templating variable. Make sure a value is defined for this variable to resolve to.\nfoo";
     "unknown variables"
 )]
 #[test]
@@ -240,4 +242,30 @@ provided path was file://.*/resources/invalid/checks/does-not-exist\.sh"#,
         )
         .unwrap(),
     );
+}
+
+#[test]
+fn load_and_resolve_from_invalid_github_uri_fails() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
+        .arg("template")
+        .arg("--github")
+        .arg("not a valid github uri")
+        .assert();
+
+    res.failure().stderr(contains("invalid GitHub uri: \"not a valid github uri\" - GitHub uri must be in format ORG/REPO/PATH"));
+}
+
+#[test]
+fn load_and_resolve_from_github_missing_token_fails() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let res = cmd
+        .env_clear() // Clear the environment to ensure no keys have been provided
+        .arg("template")
+        .arg("--github")
+        .arg("org/repo/path")
+        .assert();
+
+    res.failure().stderr(contains("no GitHub client available"));
 }

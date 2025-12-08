@@ -56,10 +56,6 @@ const MAX_NULL_DEPTH: usize = 3;
 /// Hard cut off at which we panic to avoid becoming too deeply nested
 const MAX_DEPTH: usize = 10;
 
-/// The from field in the filter for fetching operations takes a negative integer as an offset in
-/// seconds to set how far back to query operations for. We use 30 days as the default behaviour.
-const LAST_30DAYS_SECONDS: i64 = -(60 * 60 * 24 * 30); // TODO: allow customising
-
 /// For a given supergraph, pull the requested operations by ID and generate canned operation data
 /// to be able to use them in requests to a running Router.
 pub async fn canned_ops_for_ids(
@@ -101,6 +97,7 @@ pub async fn top_studio_canned_ops(
     details: &SupergraphDetails,
     n: usize,
     skip_mutations: bool,
+    from_seconds: i64,
     client: &impl platform_query::Client,
 ) -> graphos::Result<Vec<CannedOperation>> {
     let fetch_error = |cause| {
@@ -117,6 +114,7 @@ pub async fn top_studio_canned_ops(
         details.variant.clone(),
         n,
         skip_mutations,
+        from_seconds,
         client,
     )
     .await
@@ -237,6 +235,7 @@ async fn fetch_operation_ids(
     variant: String,
     n: usize,
     skip_mutations: bool,
+    from_seconds: i64,
     client: &impl platform_query::Client,
 ) -> Result<Vec<String>, FetchErrorCause> {
     info!("fetching top {n} operation IDs for {graph_id}@{variant}");
@@ -252,6 +251,7 @@ async fn fetch_operation_ids(
             &graph_id,
             &variant,
             skip_mutations,
+            from_seconds,
             max_batch_size as i64,
             after,
             client,
@@ -273,6 +273,7 @@ async fn fetch_operation_ids(
             &graph_id,
             &variant,
             skip_mutations,
+            from_seconds,
             overflow as i64,
             after,
             client,
@@ -356,6 +357,7 @@ impl FetchOperationIds {
         graph_id: &str,
         variant: &str,
         skip_mutations: bool,
+        from_seconds: i64,
         first: i64,
         after: Option<String>,
         client: &impl platform_query::Client,
@@ -371,7 +373,7 @@ impl FetchOperationIds {
                 } else {
                     vec![OperationType::QUERY, OperationType::MUTATION]
                 },
-                from: LAST_30DAYS_SECONDS,
+                from: from_seconds,
                 first,
                 after,
             },
@@ -1036,7 +1038,7 @@ mod tests {
     const SCHEMA: &str = include_str!("../../../../resources/engine-prod-schema.graphql");
 
     #[test]
-    fn fill_missing_input_fields_works() -> anyhow::Result<()> {
+    fn fill_missing_input_fields_empty_object_populated() -> anyhow::Result<()> {
         let schema = Schema::parse_and_validate(
             include_str!(
                 "../../../../resources/test_data/input_object_tests/schema_with_input_objects.graphql"
@@ -1091,7 +1093,7 @@ mod tests {
     }
 
     #[test]
-    fn find_used_vars_in_selset_works() {
+    fn find_used_vars_in_selset_returns_referenced_variables() {
         let q =
             include_str!("../../../../resources/test_data/queries/query_with_unused_vars.graphql");
         let schema = Schema::parse_and_validate(SCHEMA, "supergraph.graphql").unwrap();
@@ -1133,7 +1135,7 @@ mod tests {
     }
 
     #[test]
-    fn fix_unused_vars_works() {
+    fn fix_unused_vars_removes_unreferenced_variables() {
         let q =
             include_str!("../../../../resources/test_data/queries/query_with_unused_vars.graphql");
         let schema = Schema::parse_and_validate(SCHEMA, "supergraph.graphql").unwrap();
@@ -1181,7 +1183,7 @@ mod tests {
     }
 
     #[test]
-    fn fix_aliases_works() {
+    fn fix_aliases_adds_aliases_for_duplicate_fields() {
         let q =
             include_str!("../../../../resources/test_data/queries/query_requiring_aliases.graphql");
         let schema = Schema::parse_and_validate(SCHEMA, "supergraph.graphql").unwrap();
@@ -1197,7 +1199,7 @@ mod tests {
     }
 
     #[test]
-    fn fix_missing_input_fields_works() {
+    fn fix_missing_input_fields_validates_after_filling() {
         let q = include_str!(
             "../../../../resources/test_data/queries/query_with_missing_input_fields.graphql"
         );
@@ -1216,7 +1218,7 @@ mod tests {
 
     #[dir_cases("crates/rtf-core/resources/test_data/queries")]
     #[test]
-    fn parse_and_fix_works(path: &str, contents: &str) {
+    fn parse_and_fix(path: &str, contents: &str) {
         let schema = Schema::parse_and_validate(SCHEMA, "supergraph.graphql").unwrap();
         let sig = Signature {
             id: path.to_string(),

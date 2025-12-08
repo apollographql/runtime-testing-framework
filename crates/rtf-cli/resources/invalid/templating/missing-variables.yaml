@@ -7,6 +7,9 @@ scenario:
   inline:
     name: inline-scenario
     description: an inline scenario
+    variable_definitions:
+      - name: foo
+        description: "FOO"
     command:
       name: scenario.sh
       kind: inline
@@ -20,6 +23,11 @@ environment:
   inline:
     name: inline-environment
     description: an inline environment
+    variable_definitions:
+      - name: bar
+        description: "BAR"
+      - name: baz
+        description: "BAZ"
     setup:
       command:
         name: setup.sh

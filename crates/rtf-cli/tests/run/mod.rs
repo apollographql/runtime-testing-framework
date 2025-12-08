@@ -33,6 +33,22 @@ fn command_from_spec_completes() {
 }
 
 #[test]
+fn custom_provider_default_value_completes() {
+    prepare_rtf_run("resources/valid/custom-provider-default-value")
+        .assert()
+        .success()
+        .stdout(contains("default custom provider text file"));
+}
+
+#[test]
+fn custom_provider_templated_variable_completes() {
+    prepare_rtf_run("resources/valid/custom-provider-templated-variable")
+        .assert()
+        .success()
+        .stdout(contains("scenario specified custom provider text file"));
+}
+
+#[test]
 fn variables_override_works() {
     // default echo arg should be foo
     prepare_rtf_run("resources/valid/variable-overrides")
@@ -176,4 +192,25 @@ fn load_and_resolve_from_github_missing_token_fails() {
         .assert();
 
     res.failure().stderr(contains("no GitHub client available"));
+}
+
+#[test]
+fn from_command_writes_to_correct_providers_directory() {
+    let mut cmd = prepare_rtf_run("resources/valid/from-command-provider-dir");
+    cmd.assert().success();
+
+    cmd.list_files(); // Debug output to check the paths we ended up with
+
+    // input.txt and generate-file.sh are coming from file providers that the from_command provider
+    // is using to generate its output, so they should be in the namespaced directory for the
+    // from_command provider
+    cmd.assert_path_exists(
+        "output/providers/scenario_providers/from_command_output_providers/input.txt",
+    );
+    cmd.assert_path_exists(
+        "output/providers/scenario_providers/from_command_output_providers/generate-file.sh",
+    );
+    // from_command_output.txt is the output file so it should be in the namedspaced directory for
+    // the command section containing the from_command provider. In this case, the scenario.
+    cmd.assert_path_exists("output/providers/scenario_providers/from_command_output.txt");
 }

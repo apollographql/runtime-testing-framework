@@ -7,7 +7,7 @@ use apollo_compiler::schema::ObjectType;
 use apollo_compiler::{Name, Node, Schema, ast::Value, schema::ExtendedType};
 use graphql_client::GraphQLQuery;
 use std::{collections::HashMap, fs, io, path::Path};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 /// An error encountered while attempting to fetch details for a supergraph from the platform API.
 #[derive(Debug, thiserror::Error)]
@@ -230,8 +230,7 @@ impl PlatformQuery for RawSupergraphDetails {
 
         let subgraphs: Vec<_> = match graph_variant.source_variant {
             Some(v) => {
-                // TODO: have a better log message here (this is just lifted from fetchsup)
-                info!("this variant is a contract; using fallback subgraph location");
+                info!("variant is a contract; fetching subgraph schemas from source variant");
                 v.subgraphs
                     .ok_or(FetchErrorCause::NoSubgraphs)?
                     .into_iter()
@@ -265,15 +264,24 @@ impl PlatformQuery for RawSupergraphDetails {
     }
 }
 
-// FIXME: this needs actual logging and testing!
 /// Rewrite the given supergraph SDL to set the provided subgraph URLs in place of what is
 /// currently there.
 fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> Option<String> {
-    let mut schema = Schema::parse(sdl, "supergraph.graphql").unwrap();
-    let join_graph_enum = match schema.types.get_mut("join__Graph")? {
-        ExtendedType::Enum(e) => e,
-        _ => return None,
+    let mut schema = Schema::parse(sdl, "supergraph.graphql").ok()?;
+
+    let join_graph_enum = match schema.types.get_mut("join__Graph") {
+        Some(ExtendedType::Enum(e)) => e,
+        Some(_) => {
+            warn!("join__Graph exists but is not an enum type");
+            return None;
+        }
+        None => {
+            warn!("supergraph SDL missing join__Graph enum");
+            return None;
+        }
     };
+
+    let mut rewritten_count = 0;
 
     for value_def in join_graph_enum.get_mut()?.values.values_mut() {
         for directive in value_def.get_mut()?.directives.0.iter_mut() {
@@ -282,11 +290,28 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
             }
 
             let sg_name = directive.specified_argument_by_name("name")?;
-            let url = subgraph_urls.get(sg_name.as_str()?)?;
+            let sg_name_str = sg_name.as_str()?;
+
+            let url = match subgraph_urls.get(sg_name_str) {
+                Some(u) => u,
+                None => {
+                    warn!("URL map missing entry for a subgraph in the schema");
+                    return None;
+                }
+            };
+
             *directive.get_mut()?.specified_argument_by_name_mut("url")? =
                 Node::new(Value::String(url.clone()));
+
+            rewritten_count += 1;
         }
     }
+
+    debug!(
+        rewritten = rewritten_count,
+        provided = subgraph_urls.len(),
+        "rewrote subgraph URLs in supergraph SDL"
+    );
 
     Some(schema.to_string())
 }
@@ -466,7 +491,7 @@ mod tests {
     }
 
     #[test]
-    fn rewriting_subgraph_urls_works() {
+    fn rewrite_subgraph_urls_all_urls_updated() {
         let sdl = include_str!("../../../resources/test_data/simple-supergraph.graphql");
         let subgraph_urls: HashMap<String, String> = [
             ("accounts".into(), "accounts_url".into()),
@@ -484,6 +509,59 @@ mod tests {
         assert!(s.contains(r#"PRODUCTS @join__graph(name: "products", url: "products_url")"#));
         assert!(s.contains(r#"REVIEWS @join__graph(name: "reviews", url: "reviews_url")"#));
     }
+
+    #[test]
+    fn rewrite_subgraph_urls_invalid_sdl_returns_none() {
+        let result = rewrite_subgraph_urls("not valid graphql {{{", &HashMap::new());
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn rewrite_subgraph_urls_missing_join_graph_returns_none() {
+        let sdl = "type Query { hello: String }";
+        let result = rewrite_subgraph_urls(sdl, &HashMap::new());
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn rewrite_subgraph_urls_join_graph_wrong_type_returns_none() {
+        // join__Graph exists but as a scalar, not an enum
+        let sdl = "scalar join__Graph\ntype Query { hello: String }";
+        let result = rewrite_subgraph_urls(sdl, &HashMap::new());
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn rewrite_subgraph_urls_partial_url_map_returns_none() {
+        let sdl = include_str!("../../../resources/test_data/simple-supergraph.graphql");
+        let partial_urls: HashMap<String, String> = [
+            ("accounts".into(), "http://accounts".into()),
+            // missing inventory, products, reviews
+        ]
+        .into_iter()
+        .collect();
+
+        let result = rewrite_subgraph_urls(sdl, &partial_urls);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn rewrite_subgraph_urls_extra_urls_ignored() {
+        let sdl = include_str!("../../../resources/test_data/simple-supergraph.graphql");
+        let subgraph_urls: HashMap<String, String> = [
+            ("accounts".into(), "accounts_url".into()),
+            ("inventory".into(), "inventory_url".into()),
+            ("products".into(), "products_url".into()),
+            ("reviews".into(), "reviews_url".into()),
+            ("nonexistent".into(), "should_be_ignored".into()),
+        ]
+        .into_iter()
+        .collect();
+
+        let result = rewrite_subgraph_urls(sdl, &subgraph_urls);
+        assert!(result.is_some());
+    }
+
 
     #[test]
     fn rewriting_connector_urls_works() {

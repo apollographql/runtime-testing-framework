@@ -1,28 +1,7 @@
 # Test Plans
 
----
-
-- [Top level keys](#top-level-keys)
-- [Config Specs](#config-specs)
-  - [Inline configuration](#inline-configuration)
-  - [From a local file](#from-a-local-file)
-  - [From a remote file in GitHub](#from-a-remote-file-in-github)
-- [Applying overrides](#applying-overrides)
-- [A note on relative paths](#a-note-on-relative-paths)
-- [Working with matrices](#working-with-matrices)
-  - [Naming variants](#naming-variants)
-  - [Including explicit variants](#including-explicit-variants)
-- [Full example](#full-example)
-
----
-
-As we saw in the [hello, world!][0] guide, the top level entry point for running tests under RTF is
-the `test-plan.yaml` config file. Depending on exactly how you want to set things up there are
-several options available for how you organise this, but the core structure remains the same.
-
-In this page we will cover the available keys within a Test Plan and outline the structure and
-semantics of each. For more detailed information on specific aspects of the framework please see the
-relevant pages under the [Framework][1] section of the documentation.
+The Test Plan is the top-level entry point for RTF. It defines variables, matrix dimensions, and
+references to Scenario and Environment configurations.
 
 > An example of a valid `test-plan.yaml` is provided in the [Full example](#full-example) section
 > below.
@@ -43,6 +22,9 @@ relevant pages under the [Framework][1] section of the documentation.
     variables will result in an error when you attempt to run the Test Plan.
   - An optional `variant_names` key can be provided to customise the names of the output directories
     used by each variant.
+- `custom_providers`: Declarations for loading Custom Provider Definitions.
+  - For full details on the structure of Custom Provider Declarations and Definitions see the
+    [Custom Providers][7] page of the Framework documentation.
 - `scenario`: A [Config Spec](#config-specs) for the scenario to be run.
   - For full details on the structure of a Scenario see the [Scenario][2] page of the Framework
     documentation.
@@ -52,22 +34,21 @@ relevant pages under the [Framework][1] section of the documentation.
 
 ## Config Specs
 
-Both the `scenario` and `environment` keys map to a structure known as a _Config Spec_, which is a
-way telling RTF how to find the appropriate configuration for that aspect of the Test Plan.
-Currently there are three options available for doing this:
+Both the `scenario` and `environment` keys map to a structure known as a _Config Spec_, which tells
+RTF how to find the appropriate configuration for that aspect of the Test Plan. Config Specs support
+three source types:
 
-1. Embedding the relevant config file inline within the Test Plan itself.
-2. Specifying a local relative path to an appropriate config file to use as a base.
-3. Specifying an absolute path within a GitHub repository to use as a base.
+1. `inline`: Embed configuration directly in the Test Plan
+2. `local`: Reference a local file by relative path
+3. `github`: Fetch from a GitHub repository
 
-For options 2 and 3 you then also have the opportunity to define _overrides_ that will be merged on
-top of the base config file before the Test Plan is templated and checked.
+The `local` and `github` types support optional `overrides` that merge on top of the base
+configuration before the Test Plan is templated and checked.
 
 ### Inline configuration
 
-To provide your configuration inline simply add `inline` key under the relevant top level `scenario`
-or `environment` key and then write your config file as normal. (Remember to ensure that your
-indentation levels are adjusted appropriately!)
+To provide your configuration inline, add an `inline` key under the relevant top level `scenario` or
+`environment` key and then write your config file as normal.
 
 ```yaml
 scenario:
@@ -83,9 +64,9 @@ environment:
 
 ### From a local file
 
-To use a local file as a base with optional overrides simply add a top level `from` key under the
-relevant top level `scenario` or `environment` key, specifying the `kind` as `local` and giving the
-relative path _from the test-plan.yaml file_ under the `relative_path` key.
+To use a local file as a base, add a `from` key under the relevant top level `scenario` or
+`environment` key, specifying the `kind` as `local` and giving the relative path _from the
+test-plan.yaml file_ under the `relative_path` key.
 
 To define _overrides_, add the `overrides` key at the same indentation level as `from` and then add
 your override configuration under that key. The structure here is _not_ required to parse as a full
@@ -113,14 +94,14 @@ environment:
 
 ### From a remote file in GitHub
 
-To use a remote file from a GitHub repository as a base with optional overrides simply add a top
-level `from` key under the relevant top level `scenario` or `environment` key, specifying the `kind`
-as `github` along with details for the `org`, `repo` and `path` to the file relative to the root of
-the repository. It is also possible to optionally provide a `git_ref` to pull the file from. If this
-is not specified then RTF will default to pulling from the mainline branch.
+To fetch from a GitHub repository, add a `from` key under the relevant top level `scenario` or
+`environment` key, specifying the `kind` as `github` along with details for the `org`, `repo` and
+`path` to the file relative to the root of the repository. It is also possible to optionally provide
+a `git_ref` to pull the file from. If this is not specified then RTF will default to pulling from
+the mainline branch.
 
 > You _must_ have a valid GitHub access token with permissions to interact with your chosen
-> repoisitory exported as `GITHUB_TOKEN` in your shell environment for this method to work. See
+> repository exported as `GITHUB_TOKEN` in your shell environment for this method to work. See
 > [here][4] for GitHub's documentation on how to create and manage access tokens.
 
 As with using a [local file](#from-a-local-file), _overrides_ can be defined by adding the
@@ -161,14 +142,10 @@ The `overrides` section of a _Config Spec_ is merged with the configuration file
 
 The merging strategy used is as follows:
 
-- For maps, keys are iterated from the overrides and merged on top of matching keys found within the
-  base configuration file. If a key is present in both the base and the overrides then we
-  recursively merge the values under that key, otherwise we insert the overrides key into the base
-  directly.
-- If both maps contain an array under a given overrides key then the overrides are appended to the
-  values already present in the base.
-- If the values under a given key differ in type (or are scalar) we replace the value in the base
-  with the one provided in the overrides.
+- For maps, keys from overrides merge on top of matching keys in the base. If a key exists in both,
+  RTF recursively merges the values; otherwise, RTF inserts the override key directly.
+- For arrays, override values are appended to base values.
+- For differing types or scalars, RTF replaces the base value with the override.
 
 Once the overrides have been applied and the resulting config file is successfully parsed, all
 arrays are then sorted and deduplicated based on an appropriate key in order to support replacing
@@ -193,12 +170,9 @@ GitHub). When `overrides` are then applied from the Test Plan, any new relative 
 are resolved relative to the location of the `test-plan.yaml` file, _not_ the location of the base
 config file.
 
-The intent is that everything works as you would intuitively expect, and that IDE auto-completion of
-paths will always prompt you to write the correct thing.
-
 ## Working with matrices
 
-A `matrix` will expand to a set of test plans defined by the [cartesian product][6] of its
+The `matrix` key expands to multiple test plan variants via the [cartesian product][6] of its
 dimensions.
 
 For example, the following matrix:
@@ -227,9 +201,8 @@ values for each dimension (as shown below).
 
 ### Naming variants
 
-If you wish to provide more meaningful names for the output subdirectories you can specify the
-`matrix.variant_names` key in your test plan which takes a simple template string for generating the
-variant names:
+To customize output subdirectory names, specify the `matrix.variant_names` key in your test plan
+with a template string for generating the variant names:
 
 ```yaml
 matrix:
@@ -255,9 +228,8 @@ is then slugified to remove whitespace and slashes.
 
 ### Including explicit variants
 
-Sometimes when defining a matrix you will find that you want to limit how the matrix dimensions are
-produced in order to only run a subset of possible combinations of values for each variable. For
-example, the following initial matrix expands out to four variants covering different crate
+Use `matrix.include` to define explicit variable combinations instead of full cartesian expansion.
+For example, the following initial matrix expands out to four variants covering different crate
 revisions for inclusion in a Rust build as shown below:
 
 ```yaml
@@ -279,13 +251,11 @@ matrix:
 #   compiler_rev: apollo-compiler@1.30.0
 ```
 
-But, if the intention was to only run variants where valid crate revisions are used then two of the
-four variants are invalid and should not be run. This problem is made worse if we add another
-dimension to the matrix (say, `graph_ref`) which will then produce additional undesirable variants.
+If only certain combinations are valid, two of four variants are invalid. Adding another dimension
+(e.g., `graph_ref`) compounds the problem with more undesirable variants.
 
-In this sort of situation you should make use of the `matrix.include` key, which allows you to
-define matrix dimensions as _sets_ of values so long as they all contain the same variable names. In
-our example above we would do the following:
+Use `matrix.include` to define explicit variable sets. All sets must contain the same variable
+names:
 
 ```yaml
 matrix:
@@ -306,8 +276,8 @@ matrix:
 #   compiler_rev: apollo-compiler@1.30.0
 ```
 
-Now we will only get the variants containing the pairs of crate revisions we want. Better still, we
-can add further dimensions to the matrix and obtain the correct variants:
+This produces only the valid revision pairs. You can add further dimensions to the matrix while
+preserving the correct combinations:
 
 ```yaml
 matrix:
@@ -362,6 +332,12 @@ matrix:
     - a: 6
       b: 7
 
+custom_providers:
+  - kind: local
+    relative_path: ./providers
+    using:
+      my_provider: my_provider.yaml
+
 scenario:
   inline:
     name: An inline scenario
@@ -400,3 +376,4 @@ environment:
 [4]: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
 [5]: ./file-providers.md
 [6]: https://en.wikipedia.org/wiki/Cartesian_product
+[7]: ./custom-providers.md

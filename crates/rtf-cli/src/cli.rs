@@ -78,10 +78,66 @@ pub enum Command {
     /// Template a test plan using provided variables, outputting the resulting config to stdout
     Template {
         /// Relative path to the test-plan.yaml file that should be templated
-        test_plan_path: String,
+        test_plan_path: Option<String>,
 
         /// Run a static check of the resulting test plan after templating
         #[arg(long, action)]
         check: bool,
+
+        /// Template a test plan file in GitHub instead of from a local path
+        #[arg(long, value_name = "ORG/REPO/PATH", conflicts_with = "test_plan_path")]
+        github: Option<String>,
+
+        /// Optional git ref to pull files from when using --github
+        #[arg(long = "ref", requires = "github")]
+        git_ref: Option<String>,
+    },
+
+    /// Work directly with custom file provider definitions
+    CustomProvider {
+        #[clap(subcommand)]
+        subcommand: CustomProviderSubcommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum CustomProviderSubcommand {
+    /// Template a custom provider definition, outputting the resulting config to stdout
+    Template {
+        /// Relative path to the custom provider definition file
+        definition_path: String,
+
+        /// Run a static check of the resulting test plan after templating
+        #[arg(long, action)]
+        check: bool,
+    },
+
+    /// Execute a custom provider definition
+    Run {
+        /// Relative path to the custom provider definition file
+        definition_path: String,
+
+        /// Output directory for provider execution
+        #[arg(long, default_value = "output")]
+        outdir: String,
+    },
+
+    /// !!EXPERIMENTAL!! Run tests for the given provider
+    #[command(hide = true)]
+    Test {
+        /// Relative path to the custom provider definition file
+        definition_path: String,
+
+        /// The directory that contains the test cases
+        #[arg(long)]
+        test_cases_dir: Option<String>,
+
+        /// Whether or not having zero test cases is considered an error
+        #[arg(long, action)]
+        error_on_empty: bool,
+
+        /// Show captured stdout/stderr for failed tests
+        #[arg(long, action)]
+        no_capture: bool,
     },
 }

@@ -1,8 +1,8 @@
 #![allow(clippy::disallowed_names)]
 
 use rtf_config::{
-    Source,
-    templating::{Field, Scalar, Template, TemplateVariables, ValidField},
+    SourceDir,
+    templating::{Field, Scalar, Template, TemplateContext, ValidField},
 };
 use rtf_derive::Template;
 use simple_test_case::test_case;
@@ -219,14 +219,19 @@ fn required_variables(t: Box<dyn Template>, expected: &[&str]) {
     )
 }
 
-macro_rules! variables_map {
+macro_rules! template_context {
     ($slice:expr) => {{
         let mut m = ::std::collections::HashMap::new();
         for k in $slice {
             m.insert(k.to_string(), Scalar::from(k.to_string()));
         }
 
-        TemplateVariables::new(m, Source::local("/"), Default::default())
+        TemplateContext::new(
+            m,
+            SourceDir::local("/"),
+            Default::default(),
+            Default::default(),
+        )
     }};
 }
 
@@ -243,8 +248,8 @@ macro_rules! variables_map {
 #[test_case(ttsf(p("foo")), &["foo"]; "struct_in_enum")]
 #[test]
 fn try_template_all_fields(mut t: Box<dyn Template>, variables: &[&str]) {
-    let variables = variables_map!(variables);
-    let res = t.try_template(&mut Vec::new(), &Source::local("/"), &variables);
+    let template_ctx = template_context!(variables);
+    let res = t.try_template(&mut Vec::new(), &SourceDir::local("/"), &template_ctx);
     assert!(
         res.is_ok(),
         "expected to template successfully, got {res:?}"
@@ -263,9 +268,9 @@ fn try_template_all_fields(mut t: Box<dyn Template>, variables: &[&str]) {
 #[test_case(ttsf(p("foo")); "struct_in_enum")]
 #[test]
 fn try_template_unknown_variable_error(mut t: Box<dyn Template>) {
-    let variables = variables_map!(["unused"]);
+    let template_ctx = template_context!(["unused"]);
 
-    let res = t.try_template(&mut Vec::new(), &Source::local("/"), &variables);
+    let res = t.try_template(&mut Vec::new(), &SourceDir::local("/"), &template_ctx);
     assert!(res.is_err(), "expected templating to fail, got {res:?}");
     let errors = res.unwrap_err();
     assert!(
@@ -280,7 +285,7 @@ fn try_template_unknown_variable_error(mut t: Box<dyn Template>) {
 #[test]
 fn template_enum_unit_skipped() {
     let mut t = TemplateTypes::Unit;
-    let variables = variables_map!(["unused"]);
+    let template_ctx = template_context!(["unused"]);
 
     assert!(
         !t.has_pending_fields(),
@@ -292,6 +297,6 @@ fn template_enum_unit_skipped() {
         "A unit type enum variant should have no required variables"
     );
 
-    let res = t.try_template(&mut Vec::new(), &Source::local("/"), &variables);
+    let res = t.try_template(&mut Vec::new(), &SourceDir::local("/"), &template_ctx);
     assert!(res.is_ok(), "A unit type enum should template successfully");
 }

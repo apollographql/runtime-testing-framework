@@ -10,11 +10,17 @@ pub enum ErrorKind {
     #[strum(to_string = "Non-unique environment variables found")]
     DuplicateEnvironmentVariables,
 
+    #[strum(to_string = "Non-unique file provider names found")]
+    DuplicateFileProviderNames,
+
     #[strum(to_string = "Non-unique variable names found")]
     DuplicateVariableNames,
 
     #[strum(to_string = "The requested file did not exist")]
     FileNotFound,
+
+    #[strum(to_string = "The provided string was not a valid duration")]
+    InvalidDuration,
 
     #[strum(to_string = "The provided string was not a valid graph ref")]
     InvalidGraphRef,

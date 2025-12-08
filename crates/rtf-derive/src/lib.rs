@@ -10,7 +10,7 @@ use syn::{Ident, Result, parse_macro_input};
 pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input);
 
-    let (ident, has_pending_fields, required_variables, try_template) =
+    let (ident, has_pending_fields, required_variables, validate_context, try_template) =
         match InputMeta::from_derive_input(&input) {
             Ok(meta) => match meta.into_token_streams() {
                 Ok(parts) => parts,
@@ -29,11 +29,21 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 #required_variables
             }
 
+            fn validate_context(
+                &self,
+                path: &mut ::std::vec::Vec<::std::string::String>,
+                allowed_variables: &::std::collections::HashSet<&::std::string::String>,
+                source: &::rtf_config::SourceDir,
+                ctx: &::rtf_config::templating::TemplateContext,
+            ) -> ::rtf_config::templating::Result<()> {
+                #validate_context
+            }
+
             fn try_template(
                 &mut self,
                 path: &mut ::std::vec::Vec<::std::string::String>,
-                source: &::rtf_config::Source,
-                variables: &::rtf_config::templating::TemplateVariables,
+                source: &::rtf_config::SourceDir,
+                ctx: &::rtf_config::templating::TemplateContext,
             ) -> ::rtf_config::templating::Result<()> {
                 #try_template
             }
@@ -50,30 +60,36 @@ struct InputMeta {
 
 impl InputMeta {
     // All fields that weren't marked as skipped
-    fn into_token_streams(self) -> Result<(Ident, TokenStream, TokenStream, TokenStream)> {
-        let (has_pending_fields, required_variables, try_template) = match self.data {
-            ast::Data::Struct(s) => struct_token_streams(s.fields),
+    fn into_token_streams(
+        self,
+    ) -> Result<(Ident, TokenStream, TokenStream, TokenStream, TokenStream)> {
+        let (has_pending_fields, required_variables, validate_context, try_template) =
+            match self.data {
+                ast::Data::Struct(s) => struct_token_streams(s.fields),
 
-            ast::Data::Enum(v) if v.is_empty() => {
-                return Err(syn::Error::new(
-                    self.ident.span(),
-                    "derive Template not supported for empty enums",
-                ));
-            }
+                ast::Data::Enum(v) if v.is_empty() => {
+                    return Err(syn::Error::new(
+                        self.ident.span(),
+                        "derive Template not supported for empty enums",
+                    ));
+                }
 
-            ast::Data::Enum(v) => enum_token_streams(self.ident.span(), v)?,
-        };
+                ast::Data::Enum(v) => enum_token_streams(self.ident.span(), v)?,
+            };
 
         Ok((
             self.ident,
             has_pending_fields,
             required_variables,
+            validate_context,
             try_template,
         ))
     }
 }
 
-fn struct_token_streams(field_meta: Vec<FieldMeta>) -> (TokenStream, TokenStream, TokenStream) {
+fn struct_token_streams(
+    field_meta: Vec<FieldMeta>,
+) -> (TokenStream, TokenStream, TokenStream, TokenStream) {
     let fields: Vec<Ident> = field_meta
         .into_iter()
         .filter(|fm| !fm.skip)
@@ -87,6 +103,7 @@ fn struct_token_streams(field_meta: Vec<FieldMeta>) -> (TokenStream, TokenStream
         return (
             quote! {false},
             quote! {::std::vec::Vec::new()},
+            quote! {Ok(())},
             quote! {Ok(())},
         );
     }
@@ -109,7 +126,18 @@ fn struct_token_streams(field_meta: Vec<FieldMeta>) -> (TokenStream, TokenStream
 
     let inner = fields.iter().map(|f| {
         quote! {
-            errs.append(self.#f.try_template_nested(path, stringify!(#f), source, variables));
+            errs.append(self.#f.validate_context_nested(path, stringify!(#f), allowed_variables, source, ctx));
+        }
+    });
+    let validate_context = quote! {
+        let mut errs = ::rtf_config::templating::ErrorBuilder::new();
+        #(#inner)*
+        errs.into_result(())
+    };
+
+    let inner = fields.iter().map(|f| {
+        quote! {
+            errs.append(self.#f.try_template_nested(path, stringify!(#f), source, ctx));
         }
     });
     let try_template = quote! {
@@ -118,13 +146,18 @@ fn struct_token_streams(field_meta: Vec<FieldMeta>) -> (TokenStream, TokenStream
         errs.into_result(())
     };
 
-    (has_pending_fields, required_variables, try_template)
+    (
+        has_pending_fields,
+        required_variables,
+        validate_context,
+        try_template,
+    )
 }
 
 fn enum_token_streams(
     span: Span,
     enum_meta: Vec<EnumMeta>,
-) -> Result<(TokenStream, TokenStream, TokenStream)> {
+) -> Result<(TokenStream, TokenStream, TokenStream, TokenStream)> {
     let variants: Vec<Ident> = enum_meta
         .into_iter()
         .filter(|v| !v.skip && !v.fields.is_empty())
@@ -152,14 +185,26 @@ fn enum_token_streams(
         }
     };
 
-    let try_template = quote! {
+    let validate_context = quote! {
         match self {
-            #(Self::#variants(inner) => inner.try_template(path, source, variables),)*
+            #(Self::#variants(inner) => inner.validate_context(path, allowed_variables, source, ctx),)*
             _ => Ok(()),
         }
     };
 
-    Ok((has_pending_fields, required_variables, try_template))
+    let try_template = quote! {
+        match self {
+            #(Self::#variants(inner) => inner.try_template(path, source, ctx),)*
+            _ => Ok(()),
+        }
+    };
+
+    Ok((
+        has_pending_fields,
+        required_variables,
+        validate_context,
+        try_template,
+    ))
 }
 
 #[derive(Debug, FromField)]

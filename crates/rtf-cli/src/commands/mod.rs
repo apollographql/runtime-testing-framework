@@ -18,7 +18,7 @@ use std::{
 pub mod plumbing;
 pub mod porcelain;
 
-fn get_context() -> Context {
+pub(crate) fn get_context() -> Context {
     let env_vars: HashMap<String, String> = env::vars_os()
         .map(|(k, v)| {
             (
@@ -31,7 +31,7 @@ fn get_context() -> Context {
     Context::new_from_env_vars(env_vars)
 }
 
-fn get_context_and_check_outdir(out_dir: &str) -> anyhow::Result<(Context, PathBuf)> {
+pub(crate) fn get_context_and_check_outdir(out_dir: &str) -> anyhow::Result<(Context, PathBuf)> {
     let ctx = get_context();
 
     let out_dir = current_dir()?.join(out_dir);

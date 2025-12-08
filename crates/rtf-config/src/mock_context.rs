@@ -30,11 +30,14 @@ impl MockContext<MockHttpClient> {
 }
 
 impl MockContext<NullClient> {
-    pub(crate) fn with_github_client(str_response: &str) -> Self {
+    pub(crate) fn with_github_client(responses: &[(&str, &str)]) -> Self {
         MockContext {
             http: NullClient,
             github: Some(MockGithubClient {
-                str_response: str_response.to_string(),
+                responses: responses
+                    .iter()
+                    .map(|(url, content)| (url.to_string(), content.to_string()))
+                    .collect(),
             }),
         }
     }
@@ -152,7 +155,7 @@ impl HttpClient for MockHttpClient {
 }
 
 pub(crate) struct MockGithubClient {
-    str_response: String,
+    responses: HashMap<String, String>,
 }
 
 impl github::Client for MockGithubClient {
@@ -170,12 +173,23 @@ impl github::Client for MockGithubClient {
 
     async fn string_file_content(
         &self,
-        _org: &str,
-        _repo: &str,
-        _path: &str,
-        _git_ref: Option<impl AsRef<str>>,
+        org: &str,
+        repo: &str,
+        path: &str,
+        git_ref: Option<impl AsRef<str>>,
     ) -> Result<String, github::Error> {
-        Ok(self.str_response.clone())
+        let git_ref = match git_ref {
+            Some(s) => format!("?ref={}", s.as_ref()),
+            None => String::new(),
+        };
+
+        let key = format!("{org}/{repo}/{path}{git_ref}");
+
+        Ok(self
+            .responses
+            .get(&key)
+            .unwrap_or_else(|| panic!("unknown key: {key}"))
+            .to_owned())
     }
 }
 

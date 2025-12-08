@@ -1,0 +1,45 @@
+name: from-command-provider-dir-test
+description: Test that FromCommand writes to the same providers directory as other file providers
+
+scenario:
+  inline:
+    name: scenario
+    description: A scenario with a from_command file provider
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "Hello, World!"
+    file_providers:
+      - name: from_command_output.txt
+        env_var: FROM_COMMAND_OUTPUT
+        kind: from_command
+        command:
+          name: generate-file.sh
+          kind: relative_path
+          path: scripts/generate-file.sh
+        file_providers:
+          - name: input.txt
+            env_var: INPUT_FILE
+            kind: relative_path
+            path: data/input.txt
+
+environment:
+  inline:
+    name: environment
+    description: Simple environment
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Hello, World!"

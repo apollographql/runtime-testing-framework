@@ -2,9 +2,12 @@ use anyhow::Context;
 use clap::Parser;
 use rtf_cli::{
     LOG_LEVEL_ENV_VAR,
-    cli::{Args, Command},
+    cli::{Args, Command, CustomProviderSubcommand},
     commands::{
-        plumbing::{expand_test_plan_matrix, template_test_plan},
+        plumbing::{
+            expand_test_plan_matrix, run_custom_provider, template_custom_provider,
+            template_test_plan_github, template_test_plan_local, test_custom_provider,
+        },
         porcelain::{check_and_run_github_test_plan, check_and_run_local_test_plan},
     },
 };
@@ -63,7 +66,51 @@ async fn main() {
         Command::Template {
             test_plan_path,
             check,
-        } => template_test_plan(&test_plan_path, variables, check).await,
+            github,
+            git_ref,
+        } => match (test_plan_path, github, git_ref) {
+            (Some(path), None, None) => template_test_plan_local(&path, variables, check).await,
+            (Some(_), None, Some(_)) => {
+                error!("--ref is not supported for local file paths");
+                exit(1)
+            }
+            (None, Some(org_repo_path), git_ref) => {
+                template_test_plan_github(org_repo_path, git_ref, variables, check).await
+            }
+            (None, None, _) => {
+                error!("no test plan provided");
+                exit(1)
+            }
+            (Some(_), Some(_), _) => unreachable!(),
+        },
+
+        Command::CustomProvider {
+            subcommand:
+                CustomProviderSubcommand::Template {
+                    definition_path,
+                    check,
+                },
+        } => template_custom_provider(&definition_path, variables, check).await,
+
+        Command::CustomProvider {
+            subcommand:
+                CustomProviderSubcommand::Run {
+                    definition_path,
+                    outdir,
+                },
+        } => run_custom_provider(&definition_path, variables, &outdir).await,
+
+        Command::CustomProvider {
+            subcommand:
+                CustomProviderSubcommand::Test {
+                    definition_path,
+                    test_cases_dir,
+                    error_on_empty,
+                    no_capture,
+                },
+        } => {
+            test_custom_provider(&definition_path, test_cases_dir, error_on_empty, no_capture).await
+        }
     };
 
     if let Err(e) = res {

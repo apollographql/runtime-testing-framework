@@ -3,13 +3,13 @@ use crate::{
     VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
-    formats::Result,
-    providers::{command::CommandSection, file::Source},
-    templating::{self, Template, TemplateVariables},
+    formats::{CustomProviderDeclaration, Result},
+    providers::{command::CommandSection, file::SourceDir},
+    templating::{self, FileType, Template, TemplateContext},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{fs, path::Path};
+use std::{collections::HashSet, fs, path::Path};
 
 /// # Environment Config
 ///
@@ -24,6 +24,9 @@ pub struct EnvironmentConfig {
     #[serde(default, alias = "values")]
     // This alias is for backwards compatibility with the original name
     pub variable_definitions: Vec<VariableDefinition>,
+    /// Custom provider declarations to load for this environment
+    #[serde(default)]
+    pub custom_providers: Vec<CustomProviderDeclaration>,
     /// The command to execute to prepare the environment for executing the test scenario
     pub setup: SetupSection,
     /// The command to execute to clean up the environment after executing the test scenario
@@ -37,6 +40,24 @@ impl EnvironmentConfig {
         Ok(serde_yaml::from_str(&content)?)
     }
 
+    fn ctx_for_setup(&self, source: &SourceDir, ctx: &TemplateContext) -> TemplateContext {
+        ctx.for_config_file(
+            source,
+            Some(FileType::Environment),
+            self.variable_definitions.iter(),
+        )
+    }
+
+    fn ctx_for_teardown(&self, source: &SourceDir, ctx: &TemplateContext) -> TemplateContext {
+        ctx.for_config_file(
+            source,
+            Some(FileType::Environment),
+            self.variable_definitions
+                .iter()
+                .chain(self.setup.provides.iter()),
+        )
+    }
+
     /// Try to template the setup [CommandSection].
     ///
     /// Setup is only allowed to reference variables that are declared in the variables section of this
@@ -44,14 +65,15 @@ impl EnvironmentConfig {
     pub fn try_template_setup(
         &mut self,
         path: &mut Vec<String>,
-        source: &Source,
-        variables: &TemplateVariables,
+        source: &SourceDir,
+        ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let allowed_variables = variables.for_config_file(source, self.variable_definitions.iter());
-
-        self.setup
-            .command
-            .try_template_nested(path, "setup", source, &allowed_variables)
+        self.setup.command.try_template_nested(
+            path,
+            "setup",
+            source,
+            &self.ctx_for_setup(source, ctx),
+        )
     }
 
     /// Try to template the teardown [CommandSection].
@@ -61,18 +83,15 @@ impl EnvironmentConfig {
     pub fn try_template_teardown(
         &mut self,
         path: &mut Vec<String>,
-        source: &Source,
-        variables: &TemplateVariables,
+        source: &SourceDir,
+        ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let allowed_variables = variables.for_config_file(
+        self.teardown.try_template_nested(
+            path,
+            "teardown",
             source,
-            self.variable_definitions
-                .iter()
-                .chain(self.setup.provides.iter()),
-        );
-
-        self.teardown
-            .try_template_nested(path, "teardown", source, &allowed_variables)
+            &self.ctx_for_teardown(source, ctx),
+        )
     }
 
     /// Create an empty [EnvironmentConfig] for tests
@@ -82,6 +101,7 @@ impl EnvironmentConfig {
             name: Default::default(),
             description: Default::default(),
             variable_definitions: Vec::new(),
+            custom_providers: Default::default(),
             setup: SetupSection {
                 command: CommandSection::empty(),
                 provides: Vec::new(),
@@ -103,15 +123,43 @@ impl Template for EnvironmentConfig {
         vals
     }
 
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        source: &SourceDir,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        let mut allowed_variables = allowed_variables.clone();
+        allowed_variables.extend(self.variable_definitions.iter().map(|vd| &vd.name));
+
+        let mut errs = templating::ErrorBuilder::from(self.setup.command.validate_context_nested(
+            path,
+            "setup",
+            &allowed_variables,
+            source,
+            &self.ctx_for_setup(source, ctx),
+        ));
+
+        errs.append(self.teardown.validate_context_nested(
+            path,
+            "teardown",
+            &allowed_variables,
+            source,
+            &self.ctx_for_teardown(source, ctx),
+        ));
+
+        errs.into_result(())
+    }
+
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        source: &Source,
-        variables: &TemplateVariables,
+        source: &SourceDir,
+        ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let mut errs =
-            templating::ErrorBuilder::from(self.try_template_setup(path, source, variables));
-        errs.append(self.try_template_teardown(path, source, variables));
+        let mut errs = templating::ErrorBuilder::from(self.try_template_setup(path, source, ctx));
+        errs.append(self.try_template_teardown(path, source, ctx));
 
         errs.into_result(())
     }
@@ -196,8 +244,10 @@ pub(crate) mod test_helpers {
     pub(crate) fn environment_with_fields(
         setup_fields: &[Field<String>],
         teardown_fields: &[Field<String>],
+        custom_providers: &[CustomProviderDeclaration],
     ) -> EnvironmentConfig {
         EnvironmentConfig {
+            custom_providers: custom_providers.to_vec(),
             setup: SetupSection {
                 command: CommandSection {
                     file_providers: named_file_providers_with_fields(setup_fields),
@@ -218,8 +268,10 @@ pub(crate) mod test_helpers {
         variable_names: &[&str],
         setup_fields: &[&str],
         teardown_fields: &[&str],
+        custom_providers: &[CustomProviderDeclaration],
     ) -> EnvironmentConfig {
         EnvironmentConfig {
+            custom_providers: custom_providers.to_vec(),
             variable_definitions: variable_definitions(variable_names),
             setup: SetupSection {
                 command: CommandSection {
@@ -247,23 +299,37 @@ pub(crate) mod tests {
             environment::test_helpers::{environment_with_fields, templatable_environment},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
-                templatable_file_providers, template_variables, variable_definitions,
+                templatable_file_providers, template_context, variable_definitions,
             },
         },
-        providers::command::{
-            CommandSection,
-            test_helpers::{cmd_with_inline_file, cmd_with_required_file},
+        providers::{
+            self,
+            command::{
+                CommandSection,
+                test_helpers::{cmd_with_inline_file, cmd_with_required_file},
+            },
+            file::{RawSource, SourceDir},
+            test_helpers::create_temp_dir_with_file,
         },
         templating::{Field, Scalar},
     };
+    use assert_fs::{
+        fixture::PathChild,
+        prelude::{FileWriteStr, PathCreateDir},
+    };
     use indoc::indoc;
     use simple_test_case::test_case;
-    use std::collections::HashMap;
+    use std::{collections::HashMap, path::PathBuf};
 
     /// Create an EnvironmentConfig for testing variable scoping behavior
     /// Sets up predefined template fields that reference specific variable names
-    fn environment_with_provides(available_vals: &[&str], provides: &[&str]) -> EnvironmentConfig {
+    fn environment_with_provides(
+        available_vals: &[&str],
+        provides: &[&str],
+        custom_providers: &[CustomProviderDeclaration],
+    ) -> EnvironmentConfig {
         EnvironmentConfig {
+            custom_providers: custom_providers.to_vec(),
             variable_definitions: variable_definitions(available_vals),
             setup: SetupSection {
                 command: CommandSection {
@@ -297,6 +363,18 @@ pub(crate) mod tests {
           - name: bar
             description: a value bar
             default: "bar"
+        custom_providers:
+          - kind: local
+            relative_path: ../providers
+            using:
+              my_custom_provider: my_custom_provider.yaml
+          - kind: github
+            org: apollographql
+            repo: test-providers
+            path: /providers
+            git_ref: main
+            using:
+              another_provider: another_provider.yaml
         setup:
           command:
             name: setup.sh
@@ -330,7 +408,38 @@ pub(crate) mod tests {
 
         let mut res = config.required_variables();
         res.sort(); // Sorting so variables are in a determistic order for the assert_eq
-        assert_eq!(res, &["bar", "foo"], "expected variables to match")
+
+        assert_eq!(res, &["bar", "foo"], "expected variables to match");
+        assert_eq!(config.custom_providers.len(), 2);
+
+        let cp = &config.custom_providers[0];
+        assert_eq!(
+            cp.source,
+            RawSource::Local {
+                relative_path: PathBuf::from("../providers")
+            }
+        );
+        assert_eq!(cp.using.len(), 1);
+        assert_eq!(
+            cp.using.get("my_custom_provider").unwrap(),
+            "my_custom_provider.yaml",
+        );
+
+        let cp = &config.custom_providers[1];
+        assert_eq!(
+            cp.source,
+            RawSource::Github {
+                org: "apollographql".to_string(),
+                repo: "test-providers".to_string(),
+                path: PathBuf::from("/providers"),
+                git_ref: Some("main".to_string())
+            }
+        );
+        assert_eq!(cp.using.len(), 1);
+        assert_eq!(
+            cp.using.get("another_provider").unwrap(),
+            "another_provider.yaml",
+        );
     }
 
     #[test_case(p("setup"), p("teardown"), true; "setup and teardown pending is pending")]
@@ -343,7 +452,7 @@ pub(crate) mod tests {
         teardown_field: Field<String>,
         expected: bool,
     ) {
-        let environment = environment_with_fields(&[setup_field], &[teardown_field]);
+        let environment = environment_with_fields(&[setup_field], &[teardown_field], &[]);
 
         let res = environment.has_pending_fields();
         assert_eq!(
@@ -367,7 +476,7 @@ pub(crate) mod tests {
         teardown_fields: &[Field<String>],
         expected: &[&str],
     ) {
-        let environment = environment_with_fields(setup_fields, teardown_fields);
+        let environment = environment_with_fields(setup_fields, teardown_fields, &[]);
 
         let res = environment.required_variables();
         assert_eq!(
@@ -390,11 +499,11 @@ pub(crate) mod tests {
         let mut field_names: Vec<&str> = setup_fields.to_vec();
         field_names.extend_from_slice(teardown_fields);
 
-        let variables = template_variables(field_names.as_slice());
+        let ctx = template_context(field_names.as_slice());
         let mut environment =
-            templatable_environment(field_names.as_slice(), setup_fields, teardown_fields);
+            templatable_environment(field_names.as_slice(), setup_fields, teardown_fields, &[]);
 
-        let res = environment.try_template(&mut Vec::new(), &Source::local("/"), &variables);
+        let res = environment.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -404,7 +513,7 @@ pub(crate) mod tests {
     /// Helper function for asserting template errors are as expected
     fn assert_env_template_errors(
         environment: &mut EnvironmentConfig,
-        variables: TemplateVariables,
+        ctx: TemplateContext,
         expected_setup_err_fields: &[&str],
         expected_teardown_err_fields: &[&str],
     ) {
@@ -415,12 +524,7 @@ pub(crate) mod tests {
         expected_err_messages.extend(expected_messages);
         expected_err_paths.extend(expected_paths);
 
-        assert_template_errors(
-            environment,
-            variables,
-            expected_err_messages,
-            expected_err_paths,
-        );
+        assert_template_errors(environment, ctx, expected_err_messages, expected_err_paths);
     }
 
     #[test_case(&["missing"], &["setup"], &["setup"]; "single field defined and missing definition")]
@@ -434,10 +538,10 @@ pub(crate) mod tests {
         setup_fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let variables = template_variables(&["setup", "setup1", "setup2"]);
-        let mut environment = templatable_environment(variable_defs, setup_fields, &[]);
+        let ctx = template_context(&["setup", "setup1", "setup2"]);
+        let mut environment = templatable_environment(variable_defs, setup_fields, &[], &[]);
 
-        assert_env_template_errors(&mut environment, variables, expected_err_fields, &[]);
+        assert_env_template_errors(&mut environment, ctx, expected_err_fields, &[]);
     }
 
     #[test_case(&["missing"], &["teardown"], &["teardown"]; "single field defined and missing definition")]
@@ -451,27 +555,27 @@ pub(crate) mod tests {
         teardown_fields: &[&str],
         expected_err_fields: &[&str],
     ) {
-        let variables = template_variables(&["teardown", "teardown1", "teardown2"]);
-        let mut environment = templatable_environment(variable_defs, &[], teardown_fields);
+        let ctx = template_context(&["teardown", "teardown1", "teardown2"]);
+        let mut environment = templatable_environment(variable_defs, &[], teardown_fields, &[]);
 
-        assert_env_template_errors(&mut environment, variables, &[], expected_err_fields);
+        assert_env_template_errors(&mut environment, ctx, &[], expected_err_fields);
     }
 
     #[test]
     fn try_template_missing_setup_and_teardown_variable_definitions() {
-        let variables = template_variables(&["setup", "teardown"]);
-        let mut environment = templatable_environment(&[], &["setup"], &["teardown"]);
+        let ctx = template_context(&["setup", "teardown"]);
+        let mut environment = templatable_environment(&[], &["setup"], &["teardown"], &[]);
 
-        assert_env_template_errors(&mut environment, variables, &["setup"], &["teardown"]);
+        assert_env_template_errors(&mut environment, ctx, &["setup"], &["teardown"]);
     }
 
     #[test]
     fn try_template_missing_setup_and_teardown_variables_not_provided() {
-        let variables = template_variables(&[]);
+        let ctx = template_context(&[]);
         let mut environment =
-            templatable_environment(&["setup", "teardown"], &["setup"], &["teardown"]);
+            templatable_environment(&["setup", "teardown"], &["setup"], &["teardown"], &[]);
 
-        assert_env_template_errors(&mut environment, variables, &["setup"], &["teardown"]);
+        assert_env_template_errors(&mut environment, ctx, &["setup"], &["teardown"]);
     }
 
     /// Tests that setup cannot access variables from setup.provides.
@@ -479,12 +583,12 @@ pub(crate) mod tests {
     #[test]
     fn try_template_setup_cannot_access_provides_variables() {
         // Setup a config where variables are only defined in setup.provides, not in top-level variables
-        let mut config = environment_with_provides(&[], &["foo", "setup-path"]);
+        let mut config = environment_with_provides(&[], &["foo", "setup-path"], &[]);
 
         // Variables exist in the map but are only defined in provides
-        let variables = template_variables(&["foo", "setup-path"]);
+        let ctx = template_context(&["foo", "setup-path"]);
 
-        let res = config.try_template_setup(&mut Vec::new(), &Source::local("/"), &variables);
+        let res = config.try_template_setup(&mut Vec::new(), &SourceDir::local("/"), &ctx);
 
         // Setup should fail because it cannot access provides variables
         assert!(
@@ -513,12 +617,12 @@ pub(crate) mod tests {
     #[test]
     fn try_template_teardown_can_access_provides_variables() {
         // Setup a config where variables are only defined in setup.provides, not in top-level variables
-        let mut config = environment_with_provides(&[], &["bar", "teardown-path"]);
+        let mut config = environment_with_provides(&[], &["bar", "teardown-path"], &[]);
 
         // Variables exist in the map and are defined in provides
-        let variables = template_variables(&["bar", "teardown-path"]);
+        let ctx = template_context(&["bar", "teardown-path"]);
 
-        let res = config.try_template_teardown(&mut Vec::new(), &Source::local("/"), &variables);
+        let res = config.try_template_teardown(&mut Vec::new(), &SourceDir::local("/"), &ctx);
 
         // Teardown should succeed because it can access provides variables
         assert!(
@@ -532,7 +636,7 @@ pub(crate) mod tests {
     #[test]
     fn try_template_setup_can_access_top_level_variables() {
         // Setup a config where variables are defined in top-level variables
-        let mut config = environment_with_provides(&["foo", "setup-path"], &[]);
+        let mut config = environment_with_provides(&["foo", "setup-path"], &[], &[]);
 
         // Variables exist in the map and are defined in top-level variables
         let variables: HashMap<String, Scalar> = [("foo", "a"), ("setup-path", "b")]
@@ -542,8 +646,8 @@ pub(crate) mod tests {
 
         let res = config.try_template_setup(
             &mut Vec::new(),
-            &Source::local("/"),
-            &TemplateVariables::new_stubbed(variables),
+            &SourceDir::local("/"),
+            &TemplateContext::new_stubbed(variables),
         );
 
         // Setup should succeed because it can access top-level variables
@@ -558,12 +662,12 @@ pub(crate) mod tests {
     #[test]
     fn try_template_teardown_can_access_top_level_variables() {
         // Setup a config where variables are defined in top-level variables
-        let mut config = environment_with_provides(&["bar", "teardown-path"], &[]);
+        let mut config = environment_with_provides(&["bar", "teardown-path"], &[], &[]);
 
         // Variables exist in the map and are defined in top-level variables
-        let variables = template_variables(&["bar", "teardown-path"]);
+        let ctx = template_context(&["bar", "teardown-path"]);
 
-        let res = config.try_template_teardown(&mut Vec::new(), &Source::local("/"), &variables);
+        let res = config.try_template_teardown(&mut Vec::new(), &SourceDir::local("/"), &ctx);
 
         // Teardown should succeed because it can access top-level variables
         assert!(
@@ -641,5 +745,238 @@ pub(crate) mod tests {
         let ctx = Context::new();
 
         assert_check_errors(environment, &ctx, expected_err_kinds);
+    }
+
+    #[tokio::test]
+    async fn custom_provider_try_load_all_unknown_file_errors() {
+        let (temp, _) = create_temp_dir_with_file("config.yaml", "");
+
+        let providers_dir = temp.child("providers");
+        providers_dir.create_dir_all().unwrap();
+
+        let declaration = CustomProviderDeclaration {
+            source: RawSource::Local {
+                relative_path: "providers".into(),
+            },
+            using: HashMap::from([("missing_provider".into(), "missing.yaml".into())]),
+        };
+
+        let res = declaration
+            .try_load_all(&SourceDir::local(temp.path()), &Context::new())
+            .await;
+
+        assert!(res.is_err());
+        let errors = res.unwrap_err();
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].0, "missing_provider");
+        assert!(matches!(errors[0].1, providers::Error::Io(_)));
+    }
+
+    const CUSTOM_PROVIDER_WITH_NESTED: &str = indoc!(
+        r#"
+        name: invalid provider
+        description: A custom provider with nested custom_providers
+        variable_definitions: []
+        command:
+          name: script.sh
+          kind: relative_path
+          path: ./script.sh
+        custom_providers:
+          - kind: local
+            relative_path: ./nested
+            using:
+              nested_provider: nested.yaml
+        "#
+    );
+
+    #[tokio::test]
+    async fn custom_provider_try_load_all_nested_custom_provider_errors() {
+        let (temp, _) = create_temp_dir_with_file("config.yaml", "");
+
+        let providers_dir = temp.child("providers");
+        providers_dir.create_dir_all().unwrap();
+
+        providers_dir
+            .child("invalid.yaml")
+            .write_str(CUSTOM_PROVIDER_WITH_NESTED)
+            .unwrap();
+
+        let declaration = CustomProviderDeclaration {
+            source: RawSource::Local {
+                relative_path: "providers".into(),
+            },
+            using: HashMap::from([("invalid_provider".into(), "invalid.yaml".into())]),
+        };
+
+        let result = declaration
+            .try_load_all(&SourceDir::local(temp.path()), &Context::new())
+            .await;
+
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].0, "invalid_provider");
+        assert!(matches!(
+            errors[0].1,
+            providers::Error::NestedCustomProvider
+        ));
+    }
+
+    #[tokio::test]
+    async fn custom_provider_try_load_all_multiple_errors() {
+        let (temp, _) = create_temp_dir_with_file("config.yaml", "");
+
+        let providers_dir = temp.child("providers");
+        providers_dir.create_dir_all().unwrap();
+
+        let valid_provider = indoc!(
+            r#"
+            name: valid provider
+            description: A valid custom provider
+            variable_definitions: []
+            command:
+              name: script.sh
+              kind: relative_path
+              path: ./script.sh
+            "#
+        );
+
+        providers_dir
+            .child("valid.yaml")
+            .write_str(valid_provider)
+            .unwrap();
+
+        providers_dir
+            .child("invalid.yaml")
+            .write_str(CUSTOM_PROVIDER_WITH_NESTED)
+            .unwrap();
+
+        let declaration = CustomProviderDeclaration {
+            source: RawSource::Local {
+                relative_path: "providers".into(),
+            },
+            using: HashMap::from([
+                ("valid_provider".into(), "valid.yaml".into()),
+                ("invalid_provider".into(), "invalid.yaml".into()),
+                ("missing_provider".into(), "missing.yaml".into()),
+            ]),
+        };
+
+        let result = declaration
+            .try_load_all(&SourceDir::local(temp.path()), &Context::new())
+            .await;
+
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+
+        assert_eq!(errors.len(), 2);
+
+        // Errors should be sorted alphabetically by key in the "using" map
+        assert_eq!(errors[0].0, "invalid_provider");
+        assert_eq!(errors[1].0, "missing_provider");
+
+        assert!(matches!(
+            errors[0].1,
+            providers::Error::NestedCustomProvider
+        ));
+        assert!(matches!(errors[1].1, providers::Error::Io(_)));
+    }
+
+    #[tokio::test]
+    async fn custom_providers_integration() {
+        let (temp, _) = create_temp_dir_with_file("config.yaml", "");
+
+        let providers_dir = temp.child("providers");
+        providers_dir.create_dir_all().unwrap();
+
+        let simple_provider = indoc!(
+            r#"
+        name: simple provider
+        description: A simple custom provider for integration testing
+        variable_definitions:
+          - name: test_var
+            description: a test variable
+        command:
+          name: provider.sh
+          kind: relative_path
+          path: ./provider.sh
+        "#
+        );
+
+        providers_dir
+            .child("provider1.yaml")
+            .write_str(simple_provider)
+            .unwrap();
+        providers_dir
+            .child("provider2.yaml")
+            .write_str(simple_provider)
+            .unwrap();
+
+        let env_config_yaml = indoc!(
+            r#"
+            name: test environment
+            description: Environment with custom providers
+            variable_definitions: []
+            custom_providers:
+              - kind: local
+                relative_path: providers
+                using:
+                  provider1: provider1.yaml
+                  provider2: provider2.yaml
+            setup:
+              command:
+                name: setup.sh
+                kind: relative_path
+                path: ./setup.sh
+            teardown:
+              command:
+                name: teardown.sh
+                kind: relative_path
+                path: ./teardown.sh
+            "#
+        );
+
+        let env_config: EnvironmentConfig =
+            serde_yaml::from_str(env_config_yaml).expect("environment config to parse");
+
+        assert_eq!(env_config.custom_providers.len(), 1);
+
+        let declaration = &env_config.custom_providers[0];
+        let loaded_providers = declaration
+            .try_load_all(&SourceDir::local(temp.path()), &Context::new())
+            .await
+            .expect("custom providers should load successfully");
+
+        assert_eq!(loaded_providers.len(), 2);
+
+        let (provider1_source, provider1_def) = loaded_providers
+            .get("provider1")
+            .expect("provider1 should exist");
+        assert_eq!(
+            provider1_source,
+            &SourceDir::local(providers_dir.canonicalize().unwrap())
+        );
+        assert_eq!(provider1_def.name, "simple provider");
+        assert_eq!(
+            provider1_def.description,
+            "A simple custom provider for integration testing"
+        );
+        assert_eq!(provider1_def.variable_definitions.len(), 1);
+
+        let (provider2_source, provider2_def) = loaded_providers
+            .get("provider2")
+            .expect("provider2 should exist");
+        assert_eq!(
+            provider2_source,
+            &SourceDir::local(providers_dir.canonicalize().unwrap())
+        );
+        assert_eq!(provider2_def.name, "simple provider");
+        assert_eq!(
+            provider2_def.description,
+            "A simple custom provider for integration testing"
+        );
+        assert_eq!(provider2_def.variable_definitions.len(), 1);
     }
 }

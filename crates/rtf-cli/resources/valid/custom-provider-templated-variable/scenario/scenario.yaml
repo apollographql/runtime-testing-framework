@@ -1,0 +1,17 @@
+name: scenario-custom-provider
+description: "Check that a custom provider works"
+variable_definitions:
+  - name: scenario_file_path
+    description: the path to the custom provider file
+command:
+  name: command.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    cat "$CUSTOM"
+file_providers:
+  - name: custom-provider.txt
+    env_var: CUSTOM
+    kind: custom_provider
+    type: my_custom_provider
+    file_path: "{{ scenario_file_path }}"

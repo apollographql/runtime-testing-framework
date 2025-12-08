@@ -33,3 +33,33 @@ fn check_completes_with_github_config_files() {
     // Check that a test plan gets printed to stdout
     res.success().stdout(contains("name:"));
 }
+
+#[test]
+#[ignore = "requires a valid GitHub API Token"]
+fn github_flag_produces_expected_output() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    cmd.args([
+        "template",
+        "--github",
+        "apollographql/runtime-testing-framework/example-test-plans/hello-world/test-plan.yaml",
+        "--check",
+    ])
+    .assert()
+    .success()
+    .stdout(contains("name:"));
+}
+
+#[test]
+#[ignore = "requires a valid GitHub API Token"]
+fn github_flag_invalid_path_fails() {
+    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    cmd.args([
+        "template",
+        "--github",
+        "apollographql/runtime-testing-framework/not/a/valid/path/to/file.txt",
+        "--check",
+    ])
+    .assert()
+    .failure()
+    .stderr(contains("HTTP status client error (404 Not Found) for url (https://api.github.com/repos/apollographql/runtime-testing-framework/contents/not/a/valid/path/to/file.txt)"));
+}
