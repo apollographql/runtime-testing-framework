@@ -21,10 +21,14 @@ async fn load_definition(
     let abs_path = ctx
         .canonicalize_path(path)
         .with_context(|| format!("Unable to resolve path: {path}"))?;
-    let source = Source::local(&abs_path);
     let content = ctx
         .read_path_to_string(&abs_path)
         .with_context(|| format!("Unable to read custom provider definition from {path}"))?;
+    let source = Source::local(
+        abs_path
+            .parent()
+            .expect("we just read the file so it has a parent"),
+    );
 
     let definition: CustomProviderDefinition = serde_yaml::from_str(&content)
         .with_context(|| "Unable to parse custom provider definition yaml")?;

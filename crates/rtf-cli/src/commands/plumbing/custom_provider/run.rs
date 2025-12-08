@@ -26,7 +26,7 @@ pub async fn run_custom_provider(
 ) -> anyhow::Result<()> {
     let (mut ctx, out_dir) = get_context_and_check_outdir(out_dir)?;
     let cwd = current_dir()?;
-    let cwd_source = Source::local(cwd.join("cli"));
+    let cwd_source = Source::local(cwd);
 
     info!("loading custom provider definition");
     let (source, mut definition) = load_definition(definition_path, &ctx).await?;

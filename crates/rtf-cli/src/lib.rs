@@ -35,7 +35,13 @@ impl cli::Variables {
                 let variables_json: HashMap<String, ScalarOrArray> =
                     serde_json::from_str(&s).context("invalid variables file")?;
 
-                Some((Source::local(ctx.canonicalize_path(path)?), variables_json))
+                let source_dir = ctx
+                    .canonicalize_path(path)?
+                    .parent()
+                    .expect("we just read the file so we know it has a parent")
+                    .to_owned();
+
+                Some((Source::local(source_dir), variables_json))
             }
 
             None => None,

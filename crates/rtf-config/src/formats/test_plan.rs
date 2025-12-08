@@ -17,7 +17,7 @@ use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
-    path::Path,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 use tracing::error;
@@ -53,7 +53,7 @@ impl TestPlanConfig {
         let content = ctx.read_path_to_string(p.as_ref())?;
         let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
         let abs_path = ctx.canonicalize_path(p.as_ref())?;
-        let tp_source = Source::local(abs_path);
+        let tp_source = Source::local(abs_path.parent().unwrap());
 
         raw.try_into_test_plan(tp_source, ctx).await
     }
@@ -75,7 +75,7 @@ impl TestPlanConfig {
             .await?;
 
         let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
-        let tp_source = Source::github(org, repo, path, git_ref);
+        let tp_source = Source::github(org, repo, PathBuf::from(path).parent().unwrap(), git_ref);
 
         raw.try_into_test_plan(tp_source, ctx).await
     }
@@ -575,8 +575,8 @@ impl ConfigSpec {
             } => {
                 // When applying overrides we need to make sure that the base config file is valid
                 // before we start and then re-validate following the merge.
-                let src = from.try_into_source(tp_source, ctx)?;
-                let file_content = src.try_get_file_content(ctx).await?;
+                let (src, file_name) = from.try_into_source_and_filename(tp_source, ctx)?;
+                let file_content = src.try_get_file_content(file_name, ctx).await?;
                 let mut t: T = serde_yaml::from_str(&file_content)?;
                 t.ensure_no_duplicate_keys()?;
 
@@ -1601,15 +1601,23 @@ mod tests {
 
         let ctx = Context::new();
 
+        let config_file_dir = |p: &Path| {
+            ctx.canonicalize_path(p)
+                .unwrap()
+                .parent()
+                .unwrap()
+                .to_owned()
+        };
+
         let expected_sources = Sources {
             test_plan: Source::Local {
-                abs_path: ctx.canonicalize_path(&tp_file).unwrap(),
+                abs_path: config_file_dir(&tp_file),
             },
             scenario: Some(Source::Local {
-                abs_path: ctx.canonicalize_path(&scenario_file).unwrap(),
+                abs_path: config_file_dir(&scenario_file),
             }),
             environment: Some(Source::Local {
-                abs_path: ctx.canonicalize_path(&environment_file).unwrap(),
+                abs_path: config_file_dir(&environment_file),
             }),
             custom_providers: Default::default(),
         };

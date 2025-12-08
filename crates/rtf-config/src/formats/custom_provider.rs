@@ -154,8 +154,10 @@ async fn load_one(
     file_source: &Source,
     ctx: &impl ResolutionContext,
 ) -> providers::Result<(Source, CustomProviderDefinition)> {
-    let definition_source = source.try_into_source(file_source, ctx)?;
-    let content = definition_source.try_get_file_content(ctx).await?;
+    let (definition_source, file_name) = source.try_into_source_and_filename(file_source, ctx)?;
+    let content = definition_source
+        .try_get_file_content(file_name, ctx)
+        .await?;
     let raw: serde_yaml::Value = serde_yaml::from_str(&content)?;
 
     if let Some(mapping) = raw.as_mapping()
@@ -377,7 +379,7 @@ mod tests {
 
     #[tokio::test]
     async fn declaration_try_load_all_local_success() {
-        let (temp, source_file) = create_temp_dir_with_file("config.yaml", "");
+        let (temp, _) = create_temp_dir_with_file("config.yaml", "");
 
         let providers = temp.child("providers");
         providers.create_dir_all().unwrap();
@@ -401,23 +403,18 @@ mod tests {
         };
 
         let definitions = declaration
-            .try_load_all(&Source::local(source_file.path()), &Context::new())
+            .try_load_all(&Source::local(temp.path()), &Context::new())
             .await
             .unwrap();
 
         assert_eq!(
             &definitions.get("my_provider").unwrap().0,
-            &Source::local(providers.join("my_provider.yaml").canonicalize().unwrap())
+            &Source::local(providers.canonicalize().unwrap())
         );
 
         assert_eq!(
             &definitions.get("my_other_provider").unwrap().0,
-            &Source::local(
-                providers
-                    .join("my_other_provider.yaml")
-                    .canonicalize()
-                    .unwrap()
-            )
+            &Source::local(providers.canonicalize().unwrap())
         );
     }
 
@@ -450,7 +447,7 @@ mod tests {
         };
 
         let definitions = declaration
-            .try_load_all(&Source::local("config.yaml"), &ctx)
+            .try_load_all(&Source::local("/config"), &ctx)
             .await
             .unwrap();
 
@@ -458,17 +455,12 @@ mod tests {
 
         assert_eq!(
             &definitions.get("my_provider").unwrap().0,
-            &Source::github("my-org", "my-repo", "providers/my_provider.yaml", no_ref),
+            &Source::github("my-org", "my-repo", "providers", no_ref),
         );
 
         assert_eq!(
             &definitions.get("my_other_provider").unwrap().0,
-            &Source::github(
-                "my-org",
-                "my-repo",
-                "providers/my_other_provider.yaml",
-                no_ref
-            ),
+            &Source::github("my-org", "my-repo", "providers", no_ref),
         );
     }
 }

@@ -749,7 +749,7 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn custom_provider_try_load_all_unknown_file_errors() {
-        let (temp, source_file) = create_temp_dir_with_file("config.yaml", "");
+        let (temp, _) = create_temp_dir_with_file("config.yaml", "");
 
         let providers_dir = temp.child("providers");
         providers_dir.create_dir_all().unwrap();
@@ -762,7 +762,7 @@ pub(crate) mod tests {
         };
 
         let res = declaration
-            .try_load_all(&Source::local(source_file.path()), &Context::new())
+            .try_load_all(&Source::local(temp.path()), &Context::new())
             .await;
 
         assert!(res.is_err());
@@ -792,7 +792,7 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn custom_provider_try_load_all_nested_custom_provider_errors() {
-        let (temp, source_file) = create_temp_dir_with_file("config.yaml", "");
+        let (temp, _) = create_temp_dir_with_file("config.yaml", "");
 
         let providers_dir = temp.child("providers");
         providers_dir.create_dir_all().unwrap();
@@ -810,7 +810,7 @@ pub(crate) mod tests {
         };
 
         let result = declaration
-            .try_load_all(&Source::local(source_file.path()), &Context::new())
+            .try_load_all(&Source::local(temp.path()), &Context::new())
             .await;
 
         assert!(result.is_err());
@@ -826,7 +826,7 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn custom_provider_try_load_all_multiple_errors() {
-        let (temp, source_file) = create_temp_dir_with_file("config.yaml", "");
+        let (temp, _) = create_temp_dir_with_file("config.yaml", "");
 
         let providers_dir = temp.child("providers");
         providers_dir.create_dir_all().unwrap();
@@ -865,7 +865,7 @@ pub(crate) mod tests {
         };
 
         let result = declaration
-            .try_load_all(&Source::local(source_file.path()), &Context::new())
+            .try_load_all(&Source::local(temp.path()), &Context::new())
             .await;
 
         assert!(result.is_err());
@@ -886,7 +886,7 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn custom_providers_integration() {
-        let (temp, source_file) = create_temp_dir_with_file("config.yaml", "");
+        let (temp, _) = create_temp_dir_with_file("config.yaml", "");
 
         let providers_dir = temp.child("providers");
         providers_dir.create_dir_all().unwrap();
@@ -945,7 +945,7 @@ pub(crate) mod tests {
 
         let declaration = &env_config.custom_providers[0];
         let loaded_providers = declaration
-            .try_load_all(&Source::local(source_file.path()), &Context::new())
+            .try_load_all(&Source::local(temp.path()), &Context::new())
             .await
             .expect("custom providers should load successfully");
 
@@ -956,7 +956,7 @@ pub(crate) mod tests {
             .expect("provider1 should exist");
         assert_eq!(
             provider1_source,
-            &Source::local(providers_dir.join("provider1.yaml").canonicalize().unwrap())
+            &Source::local(providers_dir.canonicalize().unwrap())
         );
         assert_eq!(provider1_def.name, "simple provider");
         assert_eq!(
@@ -970,7 +970,7 @@ pub(crate) mod tests {
             .expect("provider2 should exist");
         assert_eq!(
             provider2_source,
-            &Source::local(providers_dir.join("provider2.yaml").canonicalize().unwrap())
+            &Source::local(providers_dir.canonicalize().unwrap())
         );
         assert_eq!(provider2_def.name, "simple provider");
         assert_eq!(

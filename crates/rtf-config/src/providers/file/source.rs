@@ -65,7 +65,7 @@ impl Source {
 
     fn to_uri(&self, child_path: Option<impl AsRef<Path>>) -> String {
         let full_path = |base: &Path| match child_path {
-            Some(tail) => base.parent().unwrap().join(tail),
+            Some(tail) => base.join(tail),
             None => base.to_path_buf(),
         };
 
@@ -96,9 +96,13 @@ impl Source {
         }
     }
 
-    pub async fn try_get_file_content(&self, ctx: &impl ResolutionContext) -> Result<String> {
+    pub async fn try_get_file_content(
+        &self,
+        fname: impl AsRef<Path>,
+        ctx: &impl ResolutionContext,
+    ) -> Result<String> {
         match self {
-            Self::Local { abs_path } => Ok(ctx.read_path_to_string(abs_path)?),
+            Self::Local { abs_path } => Ok(ctx.read_path_to_string(abs_path.join(fname))?),
             Self::Github {
                 org,
                 repo,
@@ -110,7 +114,12 @@ impl Source {
                     .ok_or(providers::Error::Github(rtf_core::github::Error::NoClient))?;
 
                 Ok(client
-                    .string_file_content(org, repo, &path.display().to_string(), git_ref.as_ref())
+                    .string_file_content(
+                        org,
+                        repo,
+                        &path.join(fname).display().to_string(),
+                        git_ref.as_ref(),
+                    )
                     .await?)
             }
         }
@@ -153,18 +162,17 @@ pub enum RawSource {
 }
 
 impl RawSource {
-    pub fn try_into_source(
+    pub fn try_into_source_and_filename(
         self,
         file_source: &Source,
         ctx: &impl ResolutionContext,
-    ) -> io::Result<Source> {
-        match self.try_into_source_without_canonical_path(file_source) {
-            Source::Local { abs_path } => Ok(Source::Local {
-                abs_path: ctx.canonicalize_path(abs_path)?,
-            }),
-
-            gh => Ok(gh),
+    ) -> io::Result<(Source, String)> {
+        let (mut src, file_name) = self.try_into_source_without_canonical_path(file_source)?;
+        if let Source::Local { abs_path } = &mut src {
+            *abs_path = ctx.canonicalize_path(&*abs_path)?;
         }
+
+        Ok((src, file_name))
     }
 
     pub(crate) fn with_child_path(&self, child_path: impl AsRef<Path>) -> Self {
@@ -177,51 +185,65 @@ impl RawSource {
         new
     }
 
-    fn try_into_source_without_canonical_path(self, file_source: &Source) -> Source {
+    fn try_into_source_without_canonical_path(
+        self,
+        file_source: &Source,
+    ) -> io::Result<(Source, String)> {
+        let split = |p: PathBuf| {
+            let file_name = p
+                .file_name()
+                .and_then(|os_str| os_str.to_str())
+                .ok_or_else(|| io::Error::other("expected a filename"))?
+                .to_string();
+            let p = p.parent().unwrap().to_owned();
+
+            io::Result::Ok((p, file_name))
+        };
+
         match self {
-            Self::Local { relative_path } => match file_source {
-                Source::Local {
-                    abs_path: containing_file_path,
-                } => {
-                    let abs_path = match containing_file_path.parent() {
-                        Some(parent) => parent.join(relative_path),
-                        None => relative_path,
-                    };
+            Self::Local { relative_path } => {
+                let (relative_dir, file_name) = split(relative_path)?;
 
-                    Source::Local { abs_path }
-                }
-
-                Source::Github {
-                    org,
-                    repo,
-                    path: containing_file_path,
-                    git_ref,
-                } => {
-                    let path = match containing_file_path.parent() {
-                        Some(parent) => parent.join(relative_path),
-                        None => relative_path,
-                    };
+                let src = match file_source {
+                    Source::Local {
+                        abs_path: containing_dir,
+                    } => Source::Local {
+                        abs_path: containing_dir.join(relative_dir),
+                    },
 
                     Source::Github {
+                        org,
+                        repo,
+                        path: containing_dir,
+                        git_ref,
+                    } => Source::Github {
                         org: org.clone(),
                         repo: repo.clone(),
-                        path,
+                        path: containing_dir.join(relative_dir),
                         git_ref: git_ref.clone(),
-                    }
-                }
-            },
+                    },
+                };
+
+                Ok((src, file_name))
+            }
 
             Self::Github {
                 org,
                 repo,
                 path,
                 git_ref,
-            } => Source::Github {
-                org,
-                repo,
-                path,
-                git_ref,
-            },
+            } => {
+                let (path, file_name) = split(path)?;
+
+                let src = Source::Github {
+                    org,
+                    repo,
+                    path,
+                    git_ref,
+                };
+
+                Ok((src, file_name))
+            }
         }
     }
 }
@@ -253,59 +275,59 @@ mod tests {
     // directly from their raw to "cooked" counterpart
     #[test_case(
         raw_gh("org", "repo", "bar/environment.yaml", STR_NONE),
-        Source::local("foo/test-plan.yaml"),
-        Source::github("org", "repo", "bar/environment.yaml", STR_NONE);
+        Source::local("foo"),
+        Source::github("org", "repo", "bar", STR_NONE);
         "local test plan github raw"
     )]
     #[test_case(
         raw_gh("org", "repo", "bar/environment.yaml", Some("branch")),
-        Source::local("foo/test-plan.yaml"),
-        Source::github("org", "repo", "bar/environment.yaml", Some("branch"));
+        Source::local("foo"),
+        Source::github("org", "repo", "bar", Some("branch"));
         "local test plan github raw with branch"
     )]
     #[test_case(
         raw_gh("org", "repo", "bar/environment.yaml", STR_NONE),
-        Source::github("org", "repo", "foo/test-plan.yaml", STR_NONE),
-        Source::github("org", "repo", "bar/environment.yaml", STR_NONE);
+        Source::github("org", "repo", "foo", STR_NONE),
+        Source::github("org", "repo", "bar", STR_NONE);
         "github test plan github raw"
     )]
     #[test_case(
         raw_gh("org", "repo", "bar/environment.yaml", Some("branch")),
-        Source::github("org", "repo", "foo/test-plan.yaml", Some("branch")),
-        Source::github("org", "repo", "bar/environment.yaml", Some("branch"));
+        Source::github("org", "repo", "foo", Some("branch")),
+        Source::github("org", "repo", "bar", Some("branch"));
         "github test plan github raw with branch"
     )]
     #[test_case(
         raw_gh("org", "repo", "bar/environment.yaml", Some("branch")),
-        Source::github("org", "repo", "foo/test-plan.yaml", STR_NONE),
-        Source::github("org", "repo", "bar/environment.yaml", Some("branch"));
+        Source::github("org", "repo", "foo", STR_NONE),
+        Source::github("org", "repo", "bar", Some("branch"));
         "github test plan without branch github raw with branch"
     )]
     #[test_case(
         raw_gh("org", "repo", "bar/environment.yaml", Some("branch")),
-        Source::github("org", "repo", "foo/test-plan.yaml", Some("other-branch")),
-        Source::github("org", "repo", "bar/environment.yaml", Some("branch"));
+        Source::github("org", "repo", "foo", Some("other-branch")),
+        Source::github("org", "repo", "bar", Some("branch"));
         "github test plan with different branch github raw with branch"
     )]
     // Local TP + local raw should update the relative path based on the directory containing the
     // test plan
     #[test_case(
         raw_local("bar/environment.yaml"),
-        Source::local("foo/test-plan.yaml"),
-        Source::local("foo/bar/environment.yaml");
+        Source::local("foo"),
+        Source::local("foo/bar");
         "local test plan local raw"
     )]
     // Github test plan source should rewrite local raw sources to be github sources as well
     #[test_case(
         raw_local("bar/environment.yaml"),
-        Source::github("org", "repo", "foo/test-plan.yaml", STR_NONE),
-        Source::github("org", "repo", "foo/bar/environment.yaml", STR_NONE);
+        Source::github("org", "repo", "foo", STR_NONE),
+        Source::github("org", "repo", "foo/bar", STR_NONE);
         "github test plan local raw"
     )]
     #[test_case(
         raw_local("bar/environment.yaml"),
-        Source::github("org", "repo", "foo/test-plan.yaml", Some("branch")),
-        Source::github("org", "repo", "foo/bar/environment.yaml", Some("branch"));
+        Source::github("org", "repo", "foo", Some("branch")),
+        Source::github("org", "repo", "foo/bar", Some("branch"));
         "github test plan with branch local raw"
     )]
     #[test]
@@ -314,7 +336,10 @@ mod tests {
         tp_source: Source,
         expected: Source,
     ) {
-        let src = raw.try_into_source_without_canonical_path(&tp_source);
+        let (src, _file_name) = raw
+            .try_into_source_without_canonical_path(&tp_source)
+            .unwrap();
+
         assert_eq!(src, expected);
     }
 }
