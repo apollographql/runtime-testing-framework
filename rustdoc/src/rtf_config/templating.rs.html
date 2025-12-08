@@ -1,5 +1,5 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-config/src/templating.rs`."><title>templating.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-e56847b5.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rtf_config" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.1 (ed61e7d7e 2025-11-07)" data-channel="1.91.1" data-search-js="search-e256b49e.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-6dc2a7f3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rtf_config/</div>templating.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Helpers for supporting minimal templating of user config files.
-<a href=#2 id=2 data-nosnippet>2</a></span><span class="kw">use crate</span>::{Source, VariableDefinition, formats::CustomProviderDefinition};
+<a href=#2 id=2 data-nosnippet>2</a></span><span class="kw">use crate</span>::{SourceDir, VariableDefinition, formats::CustomProviderDefinition};
 <a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>serde::{
 <a href=#5 id=5 data-nosnippet>5</a>    Deserialize, Deserializer, Serialize, Serializer,
@@ -70,8 +70,8 @@
 <a href=#70 id=70 data-nosnippet>70</a></span><span class="attr">#[derive(Debug, Clone)]
 <a href=#71 id=71 data-nosnippet>71</a></span><span class="kw">pub struct </span>TemplateContext {
 <a href=#72 id=72 data-nosnippet>72</a>    variables: HashMap&lt;String, Scalar&gt;,
-<a href=#73 id=73 data-nosnippet>73</a>    test_plan_source: Source,
-<a href=#74 id=74 data-nosnippet>74</a>    override_sources: HashMap&lt;String, Source&gt;,
+<a href=#73 id=73 data-nosnippet>73</a>    test_plan_source: SourceDir,
+<a href=#74 id=74 data-nosnippet>74</a>    override_sources: HashMap&lt;String, SourceDir&gt;,
 <a href=#75 id=75 data-nosnippet>75</a>    resolve_for: FileType,
 <a href=#76 id=76 data-nosnippet>76</a>    custom_provider_definitions: Arc&lt;CustomProviderDefinitions&gt;,
 <a href=#77 id=77 data-nosnippet>77</a>    variable_definitions: Vec&lt;VariableDefinition&gt;,
@@ -80,8 +80,8 @@
 <a href=#80 id=80 data-nosnippet>80</a><span class="kw">impl </span>TemplateContext {
 <a href=#81 id=81 data-nosnippet>81</a>    <span class="kw">pub fn </span>new(
 <a href=#82 id=82 data-nosnippet>82</a>        variables: HashMap&lt;String, Scalar&gt;,
-<a href=#83 id=83 data-nosnippet>83</a>        test_plan_source: Source,
-<a href=#84 id=84 data-nosnippet>84</a>        override_sources: HashMap&lt;String, Source&gt;,
+<a href=#83 id=83 data-nosnippet>83</a>        test_plan_source: SourceDir,
+<a href=#84 id=84 data-nosnippet>84</a>        override_sources: HashMap&lt;String, SourceDir&gt;,
 <a href=#85 id=85 data-nosnippet>85</a>        custom_provider_definitions: Arc&lt;CustomProviderDefinitions&gt;,
 <a href=#86 id=86 data-nosnippet>86</a>    ) -&gt; <span class="self">Self </span>{
 <a href=#87 id=87 data-nosnippet>87</a>        <span class="self">Self </span>{
@@ -98,7 +98,7 @@
 <a href=#98 id=98 data-nosnippet>98</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_stubbed(variables: HashMap&lt;String, Scalar&gt;) -&gt; <span class="self">Self </span>{
 <a href=#99 id=99 data-nosnippet>99</a>        <span class="self">Self</span>::new(
 <a href=#100 id=100 data-nosnippet>100</a>            variables,
-<a href=#101 id=101 data-nosnippet>101</a>            Source::local(<span class="string">"/"</span>),
+<a href=#101 id=101 data-nosnippet>101</a>            SourceDir::local(<span class="string">"/"</span>),
 <a href=#102 id=102 data-nosnippet>102</a>            Default::default(),
 <a href=#103 id=103 data-nosnippet>103</a>            Default::default(),
 <a href=#104 id=104 data-nosnippet>104</a>        )
@@ -113,7 +113,7 @@
 <a href=#113 id=113 data-nosnippet>113</a>    /// overwritten by any explicitly provided variables coming from `all_variables`.
 <a href=#114 id=114 data-nosnippet>114</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>for_config_file&lt;<span class="lifetime">'a</span>&gt;(
 <a href=#115 id=115 data-nosnippet>115</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#116 id=116 data-nosnippet>116</a>        file_source: <span class="kw-2">&amp;</span>Source,
+<a href=#116 id=116 data-nosnippet>116</a>        file_source: <span class="kw-2">&amp;</span>SourceDir,
 <a href=#117 id=117 data-nosnippet>117</a>        resolve_for: <span class="prelude-ty">Option</span>&lt;FileType&gt;,
 <a href=#118 id=118 data-nosnippet>118</a>        variable_definitions: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span>VariableDefinition&gt;,
 <a href=#119 id=119 data-nosnippet>119</a>    ) -&gt; <span class="self">Self </span>{
@@ -140,7 +140,7 @@
 <a href=#140 id=140 data-nosnippet>140</a>        new
 <a href=#141 id=141 data-nosnippet>141</a>    }
 <a href=#142 id=142 data-nosnippet>142</a>
-<a href=#143 id=143 data-nosnippet>143</a>    <span class="kw">pub fn </span>extend(<span class="kw-2">&amp;mut </span><span class="self">self</span>, source: Source, variables: HashMap&lt;String, Scalar&gt;) {
+<a href=#143 id=143 data-nosnippet>143</a>    <span class="kw">pub fn </span>extend(<span class="kw-2">&amp;mut </span><span class="self">self</span>, source: SourceDir, variables: HashMap&lt;String, Scalar&gt;) {
 <a href=#144 id=144 data-nosnippet>144</a>        <span class="kw">for </span>k <span class="kw">in </span>variables.keys() {
 <a href=#145 id=145 data-nosnippet>145</a>            <span class="self">self</span>.override_sources.insert(k.to_owned(), source.clone());
 <a href=#146 id=146 data-nosnippet>146</a>        }
@@ -150,7 +150,7 @@
 <a href=#150 id=150 data-nosnippet>150</a>
 <a href=#151 id=151 data-nosnippet>151</a>    <span class="kw">pub fn </span>extend_with_sources(
 <a href=#152 id=152 data-nosnippet>152</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#153 id=153 data-nosnippet>153</a>        sources: HashMap&lt;String, Source&gt;,
+<a href=#153 id=153 data-nosnippet>153</a>        sources: HashMap&lt;String, SourceDir&gt;,
 <a href=#154 id=154 data-nosnippet>154</a>        variables: HashMap&lt;String, Scalar&gt;,
 <a href=#155 id=155 data-nosnippet>155</a>    ) {
 <a href=#156 id=156 data-nosnippet>156</a>        <span class="self">self</span>.override_sources.extend(sources);
@@ -165,7 +165,7 @@
 <a href=#165 id=165 data-nosnippet>165</a>        <span class="self">self</span>.variables.get(key)
 <a href=#166 id=166 data-nosnippet>166</a>    }
 <a href=#167 id=167 data-nosnippet>167</a>
-<a href=#168 id=168 data-nosnippet>168</a>    <span class="kw">pub fn </span>get_with_source&lt;Q&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>Q) -&gt; <span class="prelude-ty">Option</span>&lt;(<span class="kw-2">&amp;</span>Source, <span class="kw-2">&amp;</span>Scalar)&gt;
+<a href=#168 id=168 data-nosnippet>168</a>    <span class="kw">pub fn </span>get_with_source&lt;Q&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>Q) -&gt; <span class="prelude-ty">Option</span>&lt;(<span class="kw-2">&amp;</span>SourceDir, <span class="kw-2">&amp;</span>Scalar)&gt;
 <a href=#169 id=169 data-nosnippet>169</a>    <span class="kw">where
 <a href=#170 id=170 data-nosnippet>170</a>        </span>String: Borrow&lt;Q&gt;,
 <a href=#171 id=171 data-nosnippet>171</a>        Q: Hash + Eq + <span class="question-mark">?</span>Sized,
@@ -188,7 +188,7 @@
 <a href=#188 id=188 data-nosnippet>188</a>    <span class="kw">pub fn </span>custom_provider_definition&lt;Q&gt;(
 <a href=#189 id=189 data-nosnippet>189</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#190 id=190 data-nosnippet>190</a>        key: <span class="kw-2">&amp;</span>Q,
-<a href=#191 id=191 data-nosnippet>191</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>(Source, CustomProviderDefinition)&gt;
+<a href=#191 id=191 data-nosnippet>191</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>(SourceDir, CustomProviderDefinition)&gt;
 <a href=#192 id=192 data-nosnippet>192</a>    <span class="kw">where
 <a href=#193 id=193 data-nosnippet>193</a>        </span>String: Borrow&lt;Q&gt;,
 <a href=#194 id=194 data-nosnippet>194</a>        Q: Hash + Eq + <span class="question-mark">?</span>Sized,
@@ -206,13 +206,13 @@
 <a href=#206 id=206 data-nosnippet>206</a>
 <a href=#207 id=207 data-nosnippet>207</a><span class="attr">#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
 <a href=#208 id=208 data-nosnippet>208</a></span><span class="kw">pub struct </span>CustomProviderDefinitions {
-<a href=#209 id=209 data-nosnippet>209</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) test_plan: HashMap&lt;String, (Source, CustomProviderDefinition)&gt;,
-<a href=#210 id=210 data-nosnippet>210</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) scenario: HashMap&lt;String, (Source, CustomProviderDefinition)&gt;,
-<a href=#211 id=211 data-nosnippet>211</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) environment: HashMap&lt;String, (Source, CustomProviderDefinition)&gt;,
+<a href=#209 id=209 data-nosnippet>209</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) test_plan: HashMap&lt;String, (SourceDir, CustomProviderDefinition)&gt;,
+<a href=#210 id=210 data-nosnippet>210</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) scenario: HashMap&lt;String, (SourceDir, CustomProviderDefinition)&gt;,
+<a href=#211 id=211 data-nosnippet>211</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) environment: HashMap&lt;String, (SourceDir, CustomProviderDefinition)&gt;,
 <a href=#212 id=212 data-nosnippet>212</a>}
 <a href=#213 id=213 data-nosnippet>213</a>
 <a href=#214 id=214 data-nosnippet>214</a><span class="kw">impl </span>CustomProviderDefinitions {
-<a href=#215 id=215 data-nosnippet>215</a>    <span class="kw">fn </span>get&lt;Q&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, k: <span class="kw-2">&amp;</span>Q, resolve_for: FileType) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>(Source, CustomProviderDefinition)&gt;
+<a href=#215 id=215 data-nosnippet>215</a>    <span class="kw">fn </span>get&lt;Q&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, k: <span class="kw-2">&amp;</span>Q, resolve_for: FileType) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>(SourceDir, CustomProviderDefinition)&gt;
 <a href=#216 id=216 data-nosnippet>216</a>    <span class="kw">where
 <a href=#217 id=217 data-nosnippet>217</a>        </span>String: Borrow&lt;Q&gt;,
 <a href=#218 id=218 data-nosnippet>218</a>        Q: Hash + Eq + <span class="question-mark">?</span>Sized,
@@ -241,7 +241,7 @@
 <a href=#241 id=241 data-nosnippet>241</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#242 id=242 data-nosnippet>242</a>        path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
 <a href=#243 id=243 data-nosnippet>243</a>        allowed_variables: <span class="kw-2">&amp;</span>HashSet&lt;<span class="kw-2">&amp;</span>String&gt;,
-<a href=#244 id=244 data-nosnippet>244</a>        file_source: <span class="kw-2">&amp;</span>Source,
+<a href=#244 id=244 data-nosnippet>244</a>        file_source: <span class="kw-2">&amp;</span>SourceDir,
 <a href=#245 id=245 data-nosnippet>245</a>        ctx: <span class="kw-2">&amp;</span>TemplateContext,
 <a href=#246 id=246 data-nosnippet>246</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
 <a href=#247 id=247 data-nosnippet>247</a>
@@ -250,7 +250,7 @@
 <a href=#250 id=250 data-nosnippet>250</a>        path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
 <a href=#251 id=251 data-nosnippet>251</a>        tail: <span class="kw-2">&amp;</span>str,
 <a href=#252 id=252 data-nosnippet>252</a>        allowed_variables: <span class="kw-2">&amp;</span>HashSet&lt;<span class="kw-2">&amp;</span>String&gt;,
-<a href=#253 id=253 data-nosnippet>253</a>        file_source: <span class="kw-2">&amp;</span>Source,
+<a href=#253 id=253 data-nosnippet>253</a>        file_source: <span class="kw-2">&amp;</span>SourceDir,
 <a href=#254 id=254 data-nosnippet>254</a>        ctx: <span class="kw-2">&amp;</span>TemplateContext,
 <a href=#255 id=255 data-nosnippet>255</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#256 id=256 data-nosnippet>256</a>        <span class="kw">let </span><span class="kw-2">mut </span>path = path.clone();
@@ -263,7 +263,7 @@
 <a href=#263 id=263 data-nosnippet>263</a>    </span><span class="kw">fn </span>try_template(
 <a href=#264 id=264 data-nosnippet>264</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#265 id=265 data-nosnippet>265</a>        path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
-<a href=#266 id=266 data-nosnippet>266</a>        file_source: <span class="kw-2">&amp;</span>Source,
+<a href=#266 id=266 data-nosnippet>266</a>        file_source: <span class="kw-2">&amp;</span>SourceDir,
 <a href=#267 id=267 data-nosnippet>267</a>        ctx: <span class="kw-2">&amp;</span>TemplateContext,
 <a href=#268 id=268 data-nosnippet>268</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
 <a href=#269 id=269 data-nosnippet>269</a>
@@ -274,7 +274,7 @@
 <a href=#274 id=274 data-nosnippet>274</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#275 id=275 data-nosnippet>275</a>        path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
 <a href=#276 id=276 data-nosnippet>276</a>        tail: <span class="kw-2">&amp;</span>str,
-<a href=#277 id=277 data-nosnippet>277</a>        file_source: <span class="kw-2">&amp;</span>Source,
+<a href=#277 id=277 data-nosnippet>277</a>        file_source: <span class="kw-2">&amp;</span>SourceDir,
 <a href=#278 id=278 data-nosnippet>278</a>        ctx: <span class="kw-2">&amp;</span>TemplateContext,
 <a href=#279 id=279 data-nosnippet>279</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#280 id=280 data-nosnippet>280</a>        <span class="kw">let </span><span class="kw-2">mut </span>path = path.clone();
@@ -288,7 +288,7 @@
 <a href=#288 id=288 data-nosnippet>288</a>    </span><span class="kw">fn </span>try_template_known(
 <a href=#289 id=289 data-nosnippet>289</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#290 id=290 data-nosnippet>290</a>        path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
-<a href=#291 id=291 data-nosnippet>291</a>        file_source: <span class="kw-2">&amp;</span>Source,
+<a href=#291 id=291 data-nosnippet>291</a>        file_source: <span class="kw-2">&amp;</span>SourceDir,
 <a href=#292 id=292 data-nosnippet>292</a>        ctx: <span class="kw-2">&amp;</span>TemplateContext,
 <a href=#293 id=293 data-nosnippet>293</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;String&gt;&gt; {
 <a href=#294 id=294 data-nosnippet>294</a>        <span class="kw">let </span>all_errs = <span class="kw">match </span><span class="self">self</span>.try_template(path, file_source, ctx) {
@@ -330,7 +330,7 @@
 <a href=#330 id=330 data-nosnippet>330</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#331 id=331 data-nosnippet>331</a>        path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
 <a href=#332 id=332 data-nosnippet>332</a>        allowed_variables: <span class="kw-2">&amp;</span>HashSet&lt;<span class="kw-2">&amp;</span>String&gt;,
-<a href=#333 id=333 data-nosnippet>333</a>        file_source: <span class="kw-2">&amp;</span>Source,
+<a href=#333 id=333 data-nosnippet>333</a>        file_source: <span class="kw-2">&amp;</span>SourceDir,
 <a href=#334 id=334 data-nosnippet>334</a>        ctx: <span class="kw-2">&amp;</span>TemplateContext,
 <a href=#335 id=335 data-nosnippet>335</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#336 id=336 data-nosnippet>336</a>        <span class="self">self</span>.as_ref()
@@ -341,7 +341,7 @@
 <a href=#341 id=341 data-nosnippet>341</a>    <span class="kw">fn </span>try_template(
 <a href=#342 id=342 data-nosnippet>342</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#343 id=343 data-nosnippet>343</a>        path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
-<a href=#344 id=344 data-nosnippet>344</a>        file_source: <span class="kw-2">&amp;</span>Source,
+<a href=#344 id=344 data-nosnippet>344</a>        file_source: <span class="kw-2">&amp;</span>SourceDir,
 <a href=#345 id=345 data-nosnippet>345</a>        ctx: <span class="kw-2">&amp;</span>TemplateContext,
 <a href=#346 id=346 data-nosnippet>346</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#347 id=347 data-nosnippet>347</a>        <span class="self">self</span>.as_mut()
@@ -368,7 +368,7 @@
 <a href=#368 id=368 data-nosnippet>368</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#369 id=369 data-nosnippet>369</a>        path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
 <a href=#370 id=370 data-nosnippet>370</a>        allowed_variables: <span class="kw-2">&amp;</span>HashSet&lt;<span class="kw-2">&amp;</span>String&gt;,
-<a href=#371 id=371 data-nosnippet>371</a>        file_source: <span class="kw-2">&amp;</span>Source,
+<a href=#371 id=371 data-nosnippet>371</a>        file_source: <span class="kw-2">&amp;</span>SourceDir,
 <a href=#372 id=372 data-nosnippet>372</a>        ctx: <span class="kw-2">&amp;</span>TemplateContext,
 <a href=#373 id=373 data-nosnippet>373</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#374 id=374 data-nosnippet>374</a>        <span class="kw">let </span><span class="kw-2">mut </span>errs = ErrorBuilder::new();
@@ -383,7 +383,7 @@
 <a href=#383 id=383 data-nosnippet>383</a>    <span class="kw">fn </span>try_template(
 <a href=#384 id=384 data-nosnippet>384</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#385 id=385 data-nosnippet>385</a>        path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
-<a href=#386 id=386 data-nosnippet>386</a>        file_source: <span class="kw-2">&amp;</span>Source,
+<a href=#386 id=386 data-nosnippet>386</a>        file_source: <span class="kw-2">&amp;</span>SourceDir,
 <a href=#387 id=387 data-nosnippet>387</a>        ctx: <span class="kw-2">&amp;</span>TemplateContext,
 <a href=#388 id=388 data-nosnippet>388</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#389 id=389 data-nosnippet>389</a>        <span class="kw">let </span><span class="kw-2">mut </span>errs = ErrorBuilder::new();
@@ -415,7 +415,7 @@
 <a href=#415 id=415 data-nosnippet>415</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#416 id=416 data-nosnippet>416</a>        path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
 <a href=#417 id=417 data-nosnippet>417</a>        allowed_variables: <span class="kw-2">&amp;</span>HashSet&lt;<span class="kw-2">&amp;</span>String&gt;,
-<a href=#418 id=418 data-nosnippet>418</a>        file_source: <span class="kw-2">&amp;</span>Source,
+<a href=#418 id=418 data-nosnippet>418</a>        file_source: <span class="kw-2">&amp;</span>SourceDir,
 <a href=#419 id=419 data-nosnippet>419</a>        ctx: <span class="kw-2">&amp;</span>TemplateContext,
 <a href=#420 id=420 data-nosnippet>420</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#421 id=421 data-nosnippet>421</a>        <span class="kw">let </span><span class="kw-2">mut </span>errs = ErrorBuilder::new();
@@ -436,7 +436,7 @@
 <a href=#436 id=436 data-nosnippet>436</a>    <span class="kw">fn </span>try_template(
 <a href=#437 id=437 data-nosnippet>437</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#438 id=438 data-nosnippet>438</a>        path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
-<a href=#439 id=439 data-nosnippet>439</a>        file_source: <span class="kw-2">&amp;</span>Source,
+<a href=#439 id=439 data-nosnippet>439</a>        file_source: <span class="kw-2">&amp;</span>SourceDir,
 <a href=#440 id=440 data-nosnippet>440</a>        ctx: <span class="kw-2">&amp;</span>TemplateContext,
 <a href=#441 id=441 data-nosnippet>441</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#442 id=442 data-nosnippet>442</a>        <span class="kw">let </span><span class="kw-2">mut </span>errs = ErrorBuilder::new();
@@ -561,7 +561,7 @@
 <a href=#561 id=561 data-nosnippet>561</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#562 id=562 data-nosnippet>562</a>        path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
 <a href=#563 id=563 data-nosnippet>563</a>        allowed_variables: <span class="kw-2">&amp;</span>HashSet&lt;<span class="kw-2">&amp;</span>String&gt;,
-<a href=#564 id=564 data-nosnippet>564</a>        _file_source: <span class="kw-2">&amp;</span>Source,
+<a href=#564 id=564 data-nosnippet>564</a>        _file_source: <span class="kw-2">&amp;</span>SourceDir,
 <a href=#565 id=565 data-nosnippet>565</a>        ctx: <span class="kw-2">&amp;</span>TemplateContext,
 <a href=#566 id=566 data-nosnippet>566</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#567 id=567 data-nosnippet>567</a>        <span class="kw">match </span><span class="self">self </span>{
@@ -587,7 +587,7 @@
 <a href=#587 id=587 data-nosnippet>587</a>    <span class="kw">fn </span>try_template(
 <a href=#588 id=588 data-nosnippet>588</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#589 id=589 data-nosnippet>589</a>        path: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
-<a href=#590 id=590 data-nosnippet>590</a>        _file_source: <span class="kw-2">&amp;</span>Source,
+<a href=#590 id=590 data-nosnippet>590</a>        _file_source: <span class="kw-2">&amp;</span>SourceDir,
 <a href=#591 id=591 data-nosnippet>591</a>        ctx: <span class="kw-2">&amp;</span>TemplateContext,
 <a href=#592 id=592 data-nosnippet>592</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#593 id=593 data-nosnippet>593</a>        <span class="kw">if let </span><span class="self">Self</span>::Pending(variable) = <span class="self">self </span>{
@@ -916,7 +916,7 @@
 <a href=#916 id=916 data-nosnippet>916</a>
 <a href=#917 id=917 data-nosnippet>917</a>        <span class="kw">let </span>original = TemplateContext::new_stubbed(all_variables);
 <a href=#918 id=918 data-nosnippet>918</a>        <span class="kw">let </span>for_config_file =
-<a href=#919 id=919 data-nosnippet>919</a>            original.for_config_file(<span class="kw-2">&amp;</span>Source::local(<span class="string">"/"</span>), <span class="prelude-val">None</span>, definitions.iter());
+<a href=#919 id=919 data-nosnippet>919</a>            original.for_config_file(<span class="kw-2">&amp;</span>SourceDir::local(<span class="string">"/"</span>), <span class="prelude-val">None</span>, definitions.iter());
 <a href=#920 id=920 data-nosnippet>920</a>
 <a href=#921 id=921 data-nosnippet>921</a>        <span class="comment">// a has an explicit variable so it overrides the default
 <a href=#922 id=922 data-nosnippet>922</a>        // b has an explicit variable and no default
@@ -1144,7 +1144,7 @@
 <a href=#1144 id=1144 data-nosnippet>1144</a>    <span class="attr">#[test]
 <a href=#1145 id=1145 data-nosnippet>1145</a>    </span><span class="kw">fn </span>template_try_template_success(<span class="kw-2">mut </span>t: Box&lt;<span class="kw">dyn </span>Template&gt;, variable: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
 <a href=#1146 id=1146 data-nosnippet>1146</a>        <span class="kw">let </span>template_ctx = <span class="macro">template_context!</span>(variable);
-<a href=#1147 id=1147 data-nosnippet>1147</a>        <span class="kw">let </span>res = t.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>Source::local(<span class="string">"/"</span>), <span class="kw-2">&amp;</span>template_ctx);
+<a href=#1147 id=1147 data-nosnippet>1147</a>        <span class="kw">let </span>res = t.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>SourceDir::local(<span class="string">"/"</span>), <span class="kw-2">&amp;</span>template_ctx);
 <a href=#1148 id=1148 data-nosnippet>1148</a>        <span class="macro">assert!</span>(
 <a href=#1149 id=1149 data-nosnippet>1149</a>            res.is_ok(),
 <a href=#1150 id=1150 data-nosnippet>1150</a>            <span class="string">"expected to template successfully, got {res:?}"
@@ -1163,7 +1163,7 @@
 <a href=#1163 id=1163 data-nosnippet>1163</a>    ) {
 <a href=#1164 id=1164 data-nosnippet>1164</a>        <span class="kw">let </span>template_ctx = <span class="macro">template_context!</span>([<span class="string">"unused"</span>]);
 <a href=#1165 id=1165 data-nosnippet>1165</a>
-<a href=#1166 id=1166 data-nosnippet>1166</a>        <span class="kw">let </span>res = t.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>Source::local(<span class="string">"/"</span>), <span class="kw-2">&amp;</span>template_ctx);
+<a href=#1166 id=1166 data-nosnippet>1166</a>        <span class="kw">let </span>res = t.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>SourceDir::local(<span class="string">"/"</span>), <span class="kw-2">&amp;</span>template_ctx);
 <a href=#1167 id=1167 data-nosnippet>1167</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected templating to fail, got {res:?}"</span>);
 <a href=#1168 id=1168 data-nosnippet>1168</a>        <span class="kw">let </span>errors = res.unwrap_err();
 <a href=#1169 id=1169 data-nosnippet>1169</a>        <span class="macro">assert!</span>(

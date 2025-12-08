@@ -10,7 +10,7 @@
 <a href=#10 id=10 data-nosnippet>10</a>    },
 <a href=#11 id=11 data-nosnippet>11</a>};
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span>rtf_config::{
-<a href=#13 id=13 data-nosnippet>13</a>    Source,
+<a href=#13 id=13 data-nosnippet>13</a>    SourceDir,
 <a href=#14 id=14 data-nosnippet>14</a>    checks::Check,
 <a href=#15 id=15 data-nosnippet>15</a>    context::ResolutionContext,
 <a href=#16 id=16 data-nosnippet>16</a>    providers::command::{OUTPUT_PATH, PROVIDER_DIR},
@@ -26,7 +26,7 @@
 <a href=#26 id=26 data-nosnippet>26</a>) -&gt; anyhow::Result&lt;()&gt; {
 <a href=#27 id=27 data-nosnippet>27</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>ctx, out_dir) = get_context_and_check_outdir(out_dir)<span class="question-mark">?</span>;
 <a href=#28 id=28 data-nosnippet>28</a>    <span class="kw">let </span>cwd = current_dir()<span class="question-mark">?</span>;
-<a href=#29 id=29 data-nosnippet>29</a>    <span class="kw">let </span>cwd_source = Source::local(cwd.join(<span class="string">"cli"</span>));
+<a href=#29 id=29 data-nosnippet>29</a>    <span class="kw">let </span>cwd_source = SourceDir::local(cwd);
 <a href=#30 id=30 data-nosnippet>30</a>
 <a href=#31 id=31 data-nosnippet>31</a>    <span class="macro">info!</span>(<span class="string">"loading custom provider definition"</span>);
 <a href=#32 id=32 data-nosnippet>32</a>    <span class="kw">let </span>(source, <span class="kw-2">mut </span>definition) = load_definition(definition_path, <span class="kw-2">&amp;</span>ctx).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -53,7 +53,7 @@
 <a href=#53 id=53 data-nosnippet>53</a>    ctx.create_dir_all(<span class="kw-2">&amp;</span>out_dir)<span class="question-mark">?</span>;
 <a href=#54 id=54 data-nosnippet>54</a>    <span class="kw">let </span>out_dir = ctx.canonicalize_path(<span class="kw-2">&amp;</span>out_dir)<span class="question-mark">?</span>;
 <a href=#55 id=55 data-nosnippet>55</a>
-<a href=#56 id=56 data-nosnippet>56</a>    <span class="kw">if let </span>Source::Local { abs_path } = <span class="kw-2">&amp;</span>source {
+<a href=#56 id=56 data-nosnippet>56</a>    <span class="kw">if let </span>SourceDir::Local { abs_path } = <span class="kw-2">&amp;</span>source {
 <a href=#57 id=57 data-nosnippet>57</a>        <span class="kw">let </span>definition_dir = ctx.dir_containing(abs_path);
 <a href=#58 id=58 data-nosnippet>58</a>        ctx.set_current_dir(definition_dir)<span class="question-mark">?</span>;
 <a href=#59 id=59 data-nosnippet>59</a>    }

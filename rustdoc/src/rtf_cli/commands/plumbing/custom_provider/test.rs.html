@@ -3,7 +3,7 @@
 <a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>anyhow::{Context <span class="kw">as _</span>, anyhow};
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>assert_fs::TempDir;
 <a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>rtf_config::{
-<a href=#6 id=6 data-nosnippet>6</a>    Source,
+<a href=#6 id=6 data-nosnippet>6</a>    SourceDir,
 <a href=#7 id=7 data-nosnippet>7</a>    checks::Check,
 <a href=#8 id=8 data-nosnippet>8</a>    context::{Context, ResolutionContext},
 <a href=#9 id=9 data-nosnippet>9</a>    formats::CustomProviderDefinition,
@@ -117,7 +117,7 @@
 <a href=#117 id=117 data-nosnippet>117</a>
 <a href=#118 id=118 data-nosnippet>118</a><span class="kw">fn </span>spawn_cases(
 <a href=#119 id=119 data-nosnippet>119</a>    definition: CustomProviderDefinition,
-<a href=#120 id=120 data-nosnippet>120</a>    source: Source,
+<a href=#120 id=120 data-nosnippet>120</a>    source: SourceDir,
 <a href=#121 id=121 data-nosnippet>121</a>    test_cases: Vec&lt;TestCase&gt;,
 <a href=#122 id=122 data-nosnippet>122</a>) -&gt; Receiver&lt;TestResult&gt; {
 <a href=#123 id=123 data-nosnippet>123</a>    <span class="kw">let </span>(tx, rx) = mpsc::channel();
@@ -308,7 +308,7 @@
 <a href=#308 id=308 data-nosnippet>308</a>
 <a href=#309 id=309 data-nosnippet>309</a>    <span class="kw">async fn </span>run(
 <a href=#310 id=310 data-nosnippet>310</a>        <span class="self">self</span>,
-<a href=#311 id=311 data-nosnippet>311</a>        source: <span class="kw-2">&amp;</span>Source,
+<a href=#311 id=311 data-nosnippet>311</a>        source: <span class="kw-2">&amp;</span>SourceDir,
 <a href=#312 id=312 data-nosnippet>312</a>        <span class="kw-2">mut </span>definition: CustomProviderDefinition,
 <a href=#313 id=313 data-nosnippet>313</a>        ctx: <span class="kw-2">&amp;mut </span>Context,
 <a href=#314 id=314 data-nosnippet>314</a>    ) -&gt; anyhow::Result&lt;Outcome&gt; {

@@ -8,7 +8,7 @@
 <a href=#8 id=8 data-nosnippet>8</a>    },
 <a href=#9 id=9 data-nosnippet>9</a>};
 <a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span>rtf_config::{
-<a href=#11 id=11 data-nosnippet>11</a>    Source,
+<a href=#11 id=11 data-nosnippet>11</a>    SourceDir,
 <a href=#12 id=12 data-nosnippet>12</a>    checks::Check,
 <a href=#13 id=13 data-nosnippet>13</a>    templating::{Template, TemplateContext},
 <a href=#14 id=14 data-nosnippet>14</a>};
@@ -22,7 +22,7 @@
 <a href=#22 id=22 data-nosnippet>22</a>) -&gt; anyhow::Result&lt;()&gt; {
 <a href=#23 id=23 data-nosnippet>23</a>    <span class="kw">let </span>ctx = get_context();
 <a href=#24 id=24 data-nosnippet>24</a>    <span class="kw">let </span>cwd = current_dir()<span class="question-mark">?</span>;
-<a href=#25 id=25 data-nosnippet>25</a>    <span class="kw">let </span>cwd_source = Source::local(cwd.join(<span class="string">"cli"</span>));
+<a href=#25 id=25 data-nosnippet>25</a>    <span class="kw">let </span>cwd_source = SourceDir::local(cwd);
 <a href=#26 id=26 data-nosnippet>26</a>
 <a href=#27 id=27 data-nosnippet>27</a>    <span class="macro">info!</span>(<span class="string">"loading custom provider definition"</span>);
 <a href=#28 id=28 data-nosnippet>28</a>    <span class="kw">let </span>(source, <span class="kw-2">mut </span>definition) = load_definition(definition_path, <span class="kw-2">&amp;</span>ctx).<span class="kw">await</span><span class="question-mark">?</span>;

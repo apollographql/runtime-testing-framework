@@ -70,7 +70,7 @@
 <a href=#70 id=70 data-nosnippet>70</a>        VariableDefinition,
 <a href=#71 id=71 data-nosnippet>71</a>        checks::Check,
 <a href=#72 id=72 data-nosnippet>72</a>        context::Context,
-<a href=#73 id=73 data-nosnippet>73</a>        providers::file::{FileProvider, NamedFileProvider, RelativeFile, Source},
+<a href=#73 id=73 data-nosnippet>73</a>        providers::file::{FileProvider, NamedFileProvider, RelativeFile, SourceDir},
 <a href=#74 id=74 data-nosnippet>74</a>        templating::{ErrorKind, Field, Scalar, Template, TemplateContext},
 <a href=#75 id=75 data-nosnippet>75</a>    };
 <a href=#76 id=76 data-nosnippet>76</a>
@@ -171,7 +171,7 @@
 <a href=#171 id=171 data-nosnippet>171</a>        expected_err_messages: Vec&lt;String&gt;,
 <a href=#172 id=172 data-nosnippet>172</a>        expected_err_paths: Vec&lt;String&gt;,
 <a href=#173 id=173 data-nosnippet>173</a>    ) {
-<a href=#174 id=174 data-nosnippet>174</a>        <span class="kw">let </span>res = t.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>Source::local(<span class="string">"/"</span>), <span class="kw-2">&amp;</span>ctx);
+<a href=#174 id=174 data-nosnippet>174</a>        <span class="kw">let </span>res = t.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>SourceDir::local(<span class="string">"/"</span>), <span class="kw-2">&amp;</span>ctx);
 <a href=#175 id=175 data-nosnippet>175</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected templating to fail, got {res:?}"</span>);
 <a href=#176 id=176 data-nosnippet>176</a>
 <a href=#177 id=177 data-nosnippet>177</a>        <span class="kw">let </span>errors = res.unwrap_err();

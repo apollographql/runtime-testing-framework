@@ -4,7 +4,7 @@
 <a href=#4 id=4 data-nosnippet>4</a>};
 <a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>anyhow::anyhow;
 <a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>rtf_config::{
-<a href=#7 id=7 data-nosnippet>7</a>    Source,
+<a href=#7 id=7 data-nosnippet>7</a>    SourceDir,
 <a href=#8 id=8 data-nosnippet>8</a>    checks::{<span class="self">self</span>, Check},
 <a href=#9 id=9 data-nosnippet>9</a>    context::ResolutionContext,
 <a href=#10 id=10 data-nosnippet>10</a>    formats::TestPlanConfig,
@@ -57,48 +57,47 @@
 <a href=#57 id=57 data-nosnippet>57</a>    cwd: PathBuf,
 <a href=#58 id=58 data-nosnippet>58</a>    <span class="kw-2">mut </span>ctx: <span class="kw">impl </span>ResolutionContext,
 <a href=#59 id=59 data-nosnippet>59</a>) -&gt; anyhow::Result&lt;()&gt; {
-<a href=#60 id=60 data-nosnippet>60</a>    <span class="kw">let </span>override_sources =
-<a href=#61 id=61 data-nosnippet>61</a>        variables.merge(<span class="kw-2">&amp;mut </span>test_plan, <span class="kw-2">&amp;</span>Source::local(cwd.join(<span class="string">"cli"</span>)), <span class="kw-2">&amp;mut </span>ctx)<span class="question-mark">?</span>;
-<a href=#62 id=62 data-nosnippet>62</a>
-<a href=#63 id=63 data-nosnippet>63</a>    <span class="macro">info!</span>(<span class="string">"checking if templating will work"</span>);
-<a href=#64 id=64 data-nosnippet>64</a>    test_plan.check_templating_will_work()<span class="question-mark">?</span>;
-<a href=#65 id=65 data-nosnippet>65</a>
-<a href=#66 id=66 data-nosnippet>66</a>    <span class="kw">let </span>(<span class="kw">_</span>, variables) = test_plan.matrix.try_expand(<span class="kw-2">&amp;</span>test_plan.variables)<span class="question-mark">?</span>.remove(<span class="number">0</span>);
-<a href=#67 id=67 data-nosnippet>67</a>    <span class="kw">let </span>source = test_plan.sources.test_plan().clone();
-<a href=#68 id=68 data-nosnippet>68</a>    <span class="kw">let </span>template_ctx = TemplateContext::new(
-<a href=#69 id=69 data-nosnippet>69</a>        variables,
-<a href=#70 id=70 data-nosnippet>70</a>        source.clone(),
-<a href=#71 id=71 data-nosnippet>71</a>        override_sources,
-<a href=#72 id=72 data-nosnippet>72</a>        test_plan.sources.custom_providers(),
-<a href=#73 id=73 data-nosnippet>73</a>    );
-<a href=#74 id=74 data-nosnippet>74</a>
-<a href=#75 id=75 data-nosnippet>75</a>    test_plan.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>source, <span class="kw-2">&amp;</span>template_ctx)<span class="question-mark">?</span>;
-<a href=#76 id=76 data-nosnippet>76</a>
-<a href=#77 id=77 data-nosnippet>77</a>    <span class="kw">if </span>check {
-<a href=#78 id=78 data-nosnippet>78</a>        <span class="macro">info!</span>(<span class="string">"checking test plan"</span>);
-<a href=#79 id=79 data-nosnippet>79</a>        <span class="kw">let </span><span class="kw-2">mut </span>builder = checks::ErrorBuilder::from(
-<a href=#80 id=80 data-nosnippet>80</a>            test_plan
-<a href=#81 id=81 data-nosnippet>81</a>                .environment
-<a href=#82 id=82 data-nosnippet>82</a>                .setup
-<a href=#83 id=83 data-nosnippet>83</a>                .command
-<a href=#84 id=84 data-nosnippet>84</a>                .try_check(<span class="kw-2">&amp;mut </span><span class="macro">vec!</span>[<span class="string">"setup"</span>.to_string()], <span class="kw-2">&amp;</span>ctx),
-<a href=#85 id=85 data-nosnippet>85</a>        );
-<a href=#86 id=86 data-nosnippet>86</a>        builder.append(
-<a href=#87 id=87 data-nosnippet>87</a>            test_plan
-<a href=#88 id=88 data-nosnippet>88</a>                .scenario
-<a href=#89 id=89 data-nosnippet>89</a>                .command
-<a href=#90 id=90 data-nosnippet>90</a>                .try_check(<span class="kw-2">&amp;mut </span><span class="macro">vec!</span>[<span class="string">"scenario"</span>.to_string()], <span class="kw-2">&amp;</span>ctx),
-<a href=#91 id=91 data-nosnippet>91</a>        );
-<a href=#92 id=92 data-nosnippet>92</a>        builder.append(
-<a href=#93 id=93 data-nosnippet>93</a>            test_plan
-<a href=#94 id=94 data-nosnippet>94</a>                .environment
-<a href=#95 id=95 data-nosnippet>95</a>                .teardown
-<a href=#96 id=96 data-nosnippet>96</a>                .try_check(<span class="kw-2">&amp;mut </span><span class="macro">vec!</span>[<span class="string">"teardown"</span>.to_string()], <span class="kw-2">&amp;</span>ctx),
-<a href=#97 id=97 data-nosnippet>97</a>        );
-<a href=#98 id=98 data-nosnippet>98</a>        builder.into_result(())<span class="question-mark">?</span>;
-<a href=#99 id=99 data-nosnippet>99</a>    }
-<a href=#100 id=100 data-nosnippet>100</a>
-<a href=#101 id=101 data-nosnippet>101</a>    <span class="macro">println!</span>(<span class="string">"{}"</span>, serde_yaml::to_string(<span class="kw-2">&amp;</span>test_plan)<span class="question-mark">?</span>);
-<a href=#102 id=102 data-nosnippet>102</a>
-<a href=#103 id=103 data-nosnippet>103</a>    <span class="prelude-val">Ok</span>(())
-<a href=#104 id=104 data-nosnippet>104</a>}</code></pre></div></section></main></body></html>
+<a href=#60 id=60 data-nosnippet>60</a>    <span class="kw">let </span>override_sources = variables.merge(<span class="kw-2">&amp;mut </span>test_plan, <span class="kw-2">&amp;</span>SourceDir::local(cwd), <span class="kw-2">&amp;mut </span>ctx)<span class="question-mark">?</span>;
+<a href=#61 id=61 data-nosnippet>61</a>
+<a href=#62 id=62 data-nosnippet>62</a>    <span class="macro">info!</span>(<span class="string">"checking if templating will work"</span>);
+<a href=#63 id=63 data-nosnippet>63</a>    test_plan.check_templating_will_work()<span class="question-mark">?</span>;
+<a href=#64 id=64 data-nosnippet>64</a>
+<a href=#65 id=65 data-nosnippet>65</a>    <span class="kw">let </span>(<span class="kw">_</span>, variables) = test_plan.matrix.try_expand(<span class="kw-2">&amp;</span>test_plan.variables)<span class="question-mark">?</span>.remove(<span class="number">0</span>);
+<a href=#66 id=66 data-nosnippet>66</a>    <span class="kw">let </span>source = test_plan.sources.test_plan().clone();
+<a href=#67 id=67 data-nosnippet>67</a>    <span class="kw">let </span>template_ctx = TemplateContext::new(
+<a href=#68 id=68 data-nosnippet>68</a>        variables,
+<a href=#69 id=69 data-nosnippet>69</a>        source.clone(),
+<a href=#70 id=70 data-nosnippet>70</a>        override_sources,
+<a href=#71 id=71 data-nosnippet>71</a>        test_plan.sources.custom_providers(),
+<a href=#72 id=72 data-nosnippet>72</a>    );
+<a href=#73 id=73 data-nosnippet>73</a>
+<a href=#74 id=74 data-nosnippet>74</a>    test_plan.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>source, <span class="kw-2">&amp;</span>template_ctx)<span class="question-mark">?</span>;
+<a href=#75 id=75 data-nosnippet>75</a>
+<a href=#76 id=76 data-nosnippet>76</a>    <span class="kw">if </span>check {
+<a href=#77 id=77 data-nosnippet>77</a>        <span class="macro">info!</span>(<span class="string">"checking test plan"</span>);
+<a href=#78 id=78 data-nosnippet>78</a>        <span class="kw">let </span><span class="kw-2">mut </span>builder = checks::ErrorBuilder::from(
+<a href=#79 id=79 data-nosnippet>79</a>            test_plan
+<a href=#80 id=80 data-nosnippet>80</a>                .environment
+<a href=#81 id=81 data-nosnippet>81</a>                .setup
+<a href=#82 id=82 data-nosnippet>82</a>                .command
+<a href=#83 id=83 data-nosnippet>83</a>                .try_check(<span class="kw-2">&amp;mut </span><span class="macro">vec!</span>[<span class="string">"setup"</span>.to_string()], <span class="kw-2">&amp;</span>ctx),
+<a href=#84 id=84 data-nosnippet>84</a>        );
+<a href=#85 id=85 data-nosnippet>85</a>        builder.append(
+<a href=#86 id=86 data-nosnippet>86</a>            test_plan
+<a href=#87 id=87 data-nosnippet>87</a>                .scenario
+<a href=#88 id=88 data-nosnippet>88</a>                .command
+<a href=#89 id=89 data-nosnippet>89</a>                .try_check(<span class="kw-2">&amp;mut </span><span class="macro">vec!</span>[<span class="string">"scenario"</span>.to_string()], <span class="kw-2">&amp;</span>ctx),
+<a href=#90 id=90 data-nosnippet>90</a>        );
+<a href=#91 id=91 data-nosnippet>91</a>        builder.append(
+<a href=#92 id=92 data-nosnippet>92</a>            test_plan
+<a href=#93 id=93 data-nosnippet>93</a>                .environment
+<a href=#94 id=94 data-nosnippet>94</a>                .teardown
+<a href=#95 id=95 data-nosnippet>95</a>                .try_check(<span class="kw-2">&amp;mut </span><span class="macro">vec!</span>[<span class="string">"teardown"</span>.to_string()], <span class="kw-2">&amp;</span>ctx),
+<a href=#96 id=96 data-nosnippet>96</a>        );
+<a href=#97 id=97 data-nosnippet>97</a>        builder.into_result(())<span class="question-mark">?</span>;
+<a href=#98 id=98 data-nosnippet>98</a>    }
+<a href=#99 id=99 data-nosnippet>99</a>
+<a href=#100 id=100 data-nosnippet>100</a>    <span class="macro">println!</span>(<span class="string">"{}"</span>, serde_yaml::to_string(<span class="kw-2">&amp;</span>test_plan)<span class="question-mark">?</span>);
+<a href=#101 id=101 data-nosnippet>101</a>
+<a href=#102 id=102 data-nosnippet>102</a>    <span class="prelude-val">Ok</span>(())
+<a href=#103 id=103 data-nosnippet>103</a>}</code></pre></div></section></main></body></html>
