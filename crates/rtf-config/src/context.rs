@@ -386,3 +386,78 @@ impl ResolutionContext for Context {
         fs::create_dir_all(path)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        Source,
+        providers::file::{FileProvider, RelativeFile},
+        templating::Field,
+    };
+    use simple_test_case::test_case;
+
+    #[test_case(None, None, true; "no sources")]
+    #[test_case(Some("foo/bar"), Some("foo/bar"), true; "same source")]
+    #[test_case(Some("foo/bar"), None, false; "cache with source new without")]
+    #[test_case(None, Some("foo/bar"), false; "cache without source new with")]
+    #[test_case(Some("foo/bar"), Some("foo/baz"), false; "different sources")]
+    #[test]
+    fn context_provider_caching_respects_relative_path_local_sources(
+        source_1: Option<&str>,
+        source_2: Option<&str>,
+        path_is_known: bool,
+    ) {
+        let provider_1 = FileProvider::RelativePath(RelativeFile {
+            path: Field::Resolved("scripts/run.sh".to_string()),
+            src: source_1.map(Source::local),
+        });
+
+        let provider_2 = FileProvider::RelativePath(RelativeFile {
+            path: Field::Resolved("scripts/run.sh".to_string()),
+            src: source_2.map(Source::local),
+        });
+
+        let mut ctx = Context::new();
+
+        ctx.store_provider_output_path(
+            Provider::File { fp: &provider_1 },
+            PathBuf::from("/some/path"),
+        );
+        let maybe_path = ctx.known_provider_output_path(Provider::File { fp: &provider_2 });
+
+        assert_eq!(maybe_path.is_some(), path_is_known);
+    }
+
+    #[test_case(None, None, true; "no sources")]
+    #[test_case(Some("foo/bar"), Some("foo/bar"), true; "same source")]
+    #[test_case(Some("foo/bar"), None, false; "cache with source new without")]
+    #[test_case(None, Some("foo/bar"), false; "cache without source new with")]
+    #[test_case(Some("foo/bar"), Some("foo/baz"), false; "different sources")]
+    #[test]
+    fn context_provider_caching_respects_relative_path_github_sources(
+        source_1: Option<&str>,
+        source_2: Option<&str>,
+        path_is_known: bool,
+    ) {
+        let provider_1 = FileProvider::RelativePath(RelativeFile {
+            path: Field::Resolved("scripts/run.sh".to_string()),
+            src: source_1.map(|path| Source::github("org", "repo", path, Some("git_ref"))),
+        });
+
+        let provider_2 = FileProvider::RelativePath(RelativeFile {
+            path: Field::Resolved("scripts/run.sh".to_string()),
+            src: source_2.map(|path| Source::github("org", "repo", path, Some("git_ref"))),
+        });
+
+        let mut ctx = Context::new();
+
+        ctx.store_provider_output_path(
+            Provider::File { fp: &provider_1 },
+            PathBuf::from("/some/path"),
+        );
+        let maybe_path = ctx.known_provider_output_path(Provider::File { fp: &provider_2 });
+
+        assert_eq!(maybe_path.is_some(), path_is_known);
+    }
+}
