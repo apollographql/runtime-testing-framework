@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-bbb86e31.js";
+            window.path_to_searchindex_js = "searchindex-ae9c8136.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-0ee976b5.js"></script>
@@ -5097,51 +5097,270 @@ likely to be sub-modules in the path. For example, supergraph details could be n
 path <code>graphos::supergraph::details</code>. The primary concern is the logical organization of the Rust
 code for scopes and privacy.</li>
 <li><strong>Function</strong> - The function or logic under test. This most likely maps to a function or trait.
-For example, <code>generate_canned_ops</code> in <code>graphos</code>. It is unlikely that each of these will have a
-specific file in the Rust code. If this is not fully specified in the module path, then it should
-be specified as the first prefix in the test case name.</li>
-<li><strong>Test class</strong> - A logical grouping of test cases, for example, all valid test cases for fetching
-an offline license from GraphOS. This is only defined when using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> to
-create multiple parameterized tests.</li>
-<li><strong>Test case</strong> - The specific test case. This should be uniquely and meaningfully named. Examples
+For example, <code>try_parse</code> for parsing GraphQL response data. It is unlikely that each of these
+will have a specific file in the Rust code. If this is not fully specified in the module path,
+then it should be specified as the first prefix in the test case name.</li>
+<li><strong>Test class</strong> - A logical grouping of test cases, for example, all valid test cases for parsing
+an offline license response. This is defined when using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> to create
+multiple parameterized tests. When using the <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a> macro, test classes are named based
+on the test function (e.g., <code>try_parse_ok</code> or <code>try_parse_err</code>).</li>
+<li><strong>Test case</strong> - The specific test case. The test case should be uniquely and meaningfully named.
+When using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a>, test case names are derived from the test data file names. Examples
 of test case naming can be seen <a href="#test-case-naming">here</a>.</li>
 </ol>
 <p>Following the hierarchy above leads to the following generic test case paths:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// When simple_test_case is not used
-module::path::tests::function_test_case
+</span>// When dir_cases is used
+module::path::tests::function_test_class::file_name
 
-// When simple_test_case is used
-module::path::tests::function_test_class::test_case
+// When simple_test_case is not used
+module::path::tests::function_test_case
 <span class="boring">}</span></code></pre>
-<h3 id="example---fetching-an-offline-license-from-graphos"><a class="header" href="#example---fetching-an-offline-license-from-graphos">Example - Fetching an Offline License from GraphOS</a></h3>
-<p>This example demonstrates how to test that an offline license can be fetched from GraphOS. Working
-through the hierarchy:</p>
+<h3 id="example---parsing-an-offline-license-response"><a class="header" href="#example---parsing-an-offline-license-response">Example - Parsing an Offline License Response</a></h3>
+<p>This example demonstrates how to test that an offline license response can be parsed from GraphOS.
+Working through the hierarchy:</p>
 <ol>
-<li><strong>Module</strong> is <code>graphos::supergraph::operations::license</code>. This is where the <code>offline_license</code>
-function is defined.</li>
-<li><strong>Function</strong> is <code>offline_license</code>. This becomes the first prefix in the test case name since the
-module does not uniquely identify the data structure.</li>
-<li><strong>Test class</strong> is omitted since <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is not used.</li>
-<li><strong>Test case</strong> is <code>retrieved</code>.</li>
+<li><strong>Module</strong> is <code>graphos::supergraph::operations::license</code>. This is where the <code>OfflineLicense</code>
+query and its <code>PlatformQuery</code> implementation are defined.</li>
+<li><strong>Function</strong> is <code>try_parse</code>. This is the method that parses the GraphQL response data. The test
+functions are named <code>try_parse_ok</code> for success cases and <code>try_parse_err</code> for failure cases.</li>
+<li><strong>Test class</strong> is <code>try_parse_ok</code> or <code>try_parse_err</code>. The <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a> macro is used, so the
+test function name becomes the test class.</li>
+<li><strong>Test case</strong> is derived from the file name. For example, <code>normal</code> for the <code>valid/normal.json</code>
+test data file.</li>
 </ol>
-<p>This leads to the following full test path:</p>
+<p>This leads to the following full test paths:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>test graphos::supergraph::operations::license::tests::offline_license_retrieved
+</span>test graphos::supergraph::operations::license::tests::try_parse_ok::normal
+test graphos::supergraph::operations::license::tests::try_parse_err::no_graph
+test graphos::supergraph::operations::license::tests::try_parse_err::no_account
+test graphos::supergraph::operations::license::tests::try_parse_err::no_offline_license
 <span class="boring">}</span></code></pre>
 <p>To achieve the structure above, the tests are defined in
 <code>src/graphos/supergraph/operations/license.rs</code> and organized as follows:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>mod tests {
-  #[test]
-  fn offline_license_retrieved() {
-    ...
-  }
+</span>#[cfg(test)]
+mod tests {
+    use simple_test_case::dir_cases;
+
+    #[dir_cases("crates/rtf-core/resources/test_data/offline_license/valid")]
+    #[test]
+    fn try_parse_ok(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&gt; {
+        // Parse and validate successful response
+    }
+
+    #[dir_cases("crates/rtf-core/resources/test_data/offline_license/invalid")]
+    #[test]
+    fn try_parse_err(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&gt; {
+        // Parse and validate error response
+    }
 }
 <span class="boring">}</span></code></pre>
+<h3 id="example---url-rewriting-in-supergraph-details"><a class="header" href="#example---url-rewriting-in-supergraph-details">Example - URL Rewriting in Supergraph Details</a></h3>
+<p>This example demonstrates testing a utility function without <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a>. Working through the
+hierarchy:</p>
+<ol>
+<li><strong>Module</strong> is <code>graphos::supergraph::details</code>. This is where the <code>rewrite_subgraph_urls</code> function
+is defined.</li>
+<li><strong>Function</strong> is <code>rewrite_subgraph_urls</code>. This becomes the first prefix in the test case name.</li>
+<li><strong>Test class</strong> is omitted since <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a> is not used.</li>
+<li><strong>Test case</strong> describes the specific scenario, for example <code>all_urls_updated</code> or
+<code>invalid_sdl_returns_none</code>.</li>
+</ol>
+<p>This leads to the following full test paths:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>test graphos::supergraph::details::tests::rewrite_subgraph_urls_all_urls_updated
+test graphos::supergraph::details::tests::rewrite_subgraph_urls_invalid_sdl_returns_none
+test graphos::supergraph::details::tests::rewrite_subgraph_urls_missing_join_graph_returns_none
+<span class="boring">}</span></code></pre>
+<p>To achieve the structure above, the tests are defined in <code>src/graphos/supergraph/details.rs</code> and
+organized as follows:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(test)]
+mod tests {
+    #[test]
+    fn rewrite_subgraph_urls_all_urls_updated() {
+        // Test happy path
+    }
+
+    #[test]
+    fn rewrite_subgraph_urls_invalid_sdl_returns_none() {
+        // Test error handling
+    }
+}
+<span class="boring">}</span></code></pre>
+<h2 id="implementation-2"><a class="header" href="#implementation-2">Implementation</a></h2>
+<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-core"><code>rtf-core</code></a> crate uses a trait-based testing approach that focuses on testing business logic
+directly, without requiring HTTP mocking or complex test infrastructure.</p>
+<h3 id="testing-infrastructure-2"><a class="header" href="#testing-infrastructure-2">Testing Infrastructure</a></h3>
+<p>The crate leverages the following key testing tools:</p>
+<ul>
+<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Provides the <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a> macro for directory-driven
+parameterized testing, automatically generating test cases from files in a directory</li>
+<li><strong><a href="https://docs.rs/anyhow/latest/anyhow/"><code>anyhow</code></a></strong> - Enables ergonomic error handling in tests with the <code>-&gt; anyhow::Result&lt;()&gt;</code>
+return type and contextual error messages via <code>.context()</code></li>
+<li><strong><a href="https://docs.rs/serde_json/latest/serde_json/"><code>serde_json</code></a></strong> - Used to deserialize test data from JSON files into GraphQL response types</li>
+</ul>
+<h3 id="trait-based-testing-pattern"><a class="header" href="#trait-based-testing-pattern">Trait-Based Testing Pattern</a></h3>
+<p>The crate’s primary testing pattern leverages the <code>PlatformQuery</code> trait to test GraphQL response
+parsing logic without requiring HTTP mocking:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub trait PlatformQuery: GraphQLQuery {
+    type Output;
+    type Error;
+
+    fn try_parse(
+        data: Self::ResponseData,
+        variables: Self::Variables,
+    ) -&gt; Result&lt;Self::Output, Self::Error&gt;;
+}
+<span class="boring">}</span></code></pre>
+<p>Tests call <code>try_parse</code> directly with deserialized JSON data, validating the parsing logic in
+isolation:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[test]
+fn try_parse_ok(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&gt; {
+    // Deserialize JSON directly into the GraphQL response type
+    let raw: &lt;OfflineLicense as GraphQLQuery&gt;::ResponseData =
+        serde_json::from_str(contents)?;
+
+    // Test the parsing logic directly
+    let jwt = OfflineLicense::try_parse(raw, variables)?;
+
+    assert_eq!(jwt, "expected-value");
+    Ok(())
+}
+<span class="boring">}</span></code></pre>
+<p>This approach avoids the complexity of HTTP mocking while ensuring comprehensive coverage of the
+response parsing logic.</p>
+<h3 id="directory-driven-parameterized-tests"><a class="header" href="#directory-driven-parameterized-tests">Directory-Driven Parameterized Tests</a></h3>
+<p>The <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a> macro automatically generates test cases from files in a directory:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[dir_cases("crates/rtf-core/resources/test_data/offline_license/valid")]
+#[test]
+fn try_parse_ok(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&gt; {
+    // Test logic runs once per file in the directory
+}
+<span class="boring">}</span></code></pre>
+<p>Each file in the specified directory becomes a separate test case, with:</p>
+<ul>
+<li><code>path</code> - The file path (useful for error context)</li>
+<li><code>contents</code> - The file contents as a string</li>
+</ul>
+<p>This pattern makes it easy to add new test cases by simply adding files to the test data directory.</p>
+<h3 id="test-data-organization"><a class="header" href="#test-data-organization">Test Data Organization</a></h3>
+<p>Test data is organized in structured directories under <code>resources/test_data/</code>:</p>
+<pre><code>resources/test_data/
+├── offline_license/
+│   ├── valid/
+│   │   └── normal.json
+│   └── invalid/
+│       ├── no_graph.json
+│       ├── no_account.json
+│       └── no_offline_license.json
+├── supergraph_details/
+│   ├── valid/
+│   └── invalid/
+└── queries/
+    └── *.graphql
+</code></pre>
+<p><strong>Valid test cases</strong> contain complete GraphQL response data as JSON:</p>
+<pre><code class="language-json">{
+  "graph": {
+    "account": {
+      "offlineLicense": {
+        "jwt": "test-jwt-token"
+      }
+    }
+  }
+}
+</code></pre>
+<p><strong>Invalid test cases</strong> wrap the response data with an <code>expected_error</code> field:</p>
+<pre><code class="language-json">{
+  "expected_error": "UnknownSupergraph",
+  "data": {
+    "graph": null
+  }
+}
+</code></pre>
+<p>This structure ensures that error tests validate both that an error occurs and that it’s the
+<em>correct</em> error.</p>
+<h3 id="schema-based-validation-tests"><a class="header" href="#schema-based-validation-tests">Schema-Based Validation Tests</a></h3>
+<p>Tests involving GraphQL schema manipulation use <a href="https://docs.rs/apollo-compiler/latest/apollo_compiler/"><code>apollo-compiler</code></a> for parsing and validation:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[test]
+fn fix_aliases_adds_aliases_for_duplicate_fields() {
+    let schema = Schema::parse_and_validate(SCHEMA, "supergraph.graphql").unwrap();
+    let mut doc = ExecutableDocument::parse(&amp;schema, query, "test").unwrap();
+
+    fix_aliases(&amp;mut doc);
+
+    let res = doc.validate(&amp;schema);
+    assert!(res.is_ok());
+}
+<span class="boring">}</span></code></pre>
+<p>Schema test data is typically embedded using <code>include_str!</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>const SCHEMA: &amp;str = include_str!("../../../../resources/engine-prod-schema.graphql");
+<span class="boring">}</span></code></pre>
+<h3 id="error-testing-strategy-1"><a class="header" href="#error-testing-strategy-1">Error Testing Strategy</a></h3>
+<p>Error testing ensures all error variants are covered and properly handled:</p>
+<ol>
+<li><strong>Exhaustive variant coverage</strong> - Each error variant has at least one corresponding test file in
+the <code>invalid/</code> directory</li>
+<li><strong>Error matching</strong> - Tests validate that the specific expected error variant is returned:</li>
+</ol>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[dir_cases("crates/rtf-core/resources/test_data/offline_license/invalid")]
+#[test]
+fn try_parse_err(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&gt; {
+    let ErrCase { expected_error, data } = serde_json::from_str(contents)?;
+    let raw = serde_json::from_value(data)?;
+
+    let result = OfflineLicense::try_parse(raw, variables);
+
+    match (expected_error.as_str(), result) {
+        ("UnknownSupergraph", Err(FetchErrorCause::UnknownSupergraph)) =&gt; (),
+        ("UnknownOrganisation", Err(FetchErrorCause::UnknownOrganisation)) =&gt; (),
+        (expected, actual) =&gt; panic!("expected {expected}, got {actual:?}"),
+    }
+
+    Ok(())
+}
+<span class="boring">}</span></code></pre>
+<h3 id="unit-tests-for-utility-functions"><a class="header" href="#unit-tests-for-utility-functions">Unit Tests for Utility Functions</a></h3>
+<p>Not all tests use <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a>. Utility functions with deterministic behavior use standard unit
+tests:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[test]
+fn rewrite_subgraph_urls_all_urls_updated() {
+    let sdl = include_str!("../../../resources/test_data/simple-supergraph.graphql");
+    let url_map = HashMap::from([
+        ("products".to_string(), "http://localhost:4001".to_string()),
+        ("reviews".to_string(), "http://localhost:4002".to_string()),
+    ]);
+
+    let result = rewrite_subgraph_urls(sdl, &amp;url_map);
+
+    assert!(result.is_some());
+    let new_sdl = result.unwrap();
+    assert!(new_sdl.contains("http://localhost:4001"));
+}
+<span class="boring">}</span></code></pre>
+<p>These tests are named with the <code>function_scenario</code> pattern and are grouped together in the <code>tests</code>
+module.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="rtf-derive"><a class="header" href="#rtf-derive">rtf-derive</a></h1>
 <p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate are organized and implemented.</p>
@@ -5201,10 +5420,10 @@ part of the <a href="https://docs.rs/simple_test_case/latest/simple_test_case/">
 </span>// When simple_test_case is used
 template::tests::trait_method::data_structure_test_case
 <span class="boring">}</span></code></pre>
-<h2 id="implementation-2"><a class="header" href="#implementation-2">Implementation</a></h2>
+<h2 id="implementation-3"><a class="header" href="#implementation-3">Implementation</a></h2>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate employs specialized testing strategies tailored to procedural macro
 testing requirements.</p>
-<h3 id="testing-infrastructure-2"><a class="header" href="#testing-infrastructure-2">Testing Infrastructure</a></h3>
+<h3 id="testing-infrastructure-3"><a class="header" href="#testing-infrastructure-3">Testing Infrastructure</a></h3>
 <p>The crate leverages the following key testing tools:</p>
 <ul>
 <li><strong><a href="https://docs.rs/trybuild/latest/trybuild/"><code>trybuild</code></a></strong> - Enables testing of procedural macro compilation failures with precise error
