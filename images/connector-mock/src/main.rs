@@ -20,30 +20,7 @@ fn handle_connection(mut stream: TcpStream) {
 
     let status_line = "HTTP/1.1 200 OK";
     let contents = r#"
-    {"products": [{
-      "id": 1,
-      "name": "Lunar Rover Wheels",
-      "createdAt": 1636742972000,
-      "updatedAt": 1636742972000,
-      "description": "Designed for traversing the rugged terrain of the moon, these wheels provide unrivaled traction and durability. Made from a lightweight composite, they ensure your rover is agile in challenging conditions.",
-      "slug": "lunar-rover-wheels",
-      "tags": [
-        {
-          "tagId": "space",
-          "name": "Space"
-        },
-        {
-          "tagId": "engineering",
-          "name": "Engineering"
-        },
-        {
-          "tagId": "rover",
-          "name": "Rover"
-        }
-      ],
-      "category": "Engineering Components",
-      "availability": "AVAILABLE"
-    }]}
+    {}
     "#;
     let length = contents.len();
 
