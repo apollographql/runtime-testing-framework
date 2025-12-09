@@ -14,27 +14,27 @@ fn is_executable() {
 
 #[test]
 fn basic_completes() {
-    is_valid_test_plan("resources/valid/sanity-check");
+    is_valid_test_plan("resources/test-plans/valid/sanity-check");
 }
 
 #[test]
 fn backwards_compatible_variable_config() {
-    is_valid_test_plan("resources/valid/backwards-compatible-variable-config");
+    is_valid_test_plan("resources/test-plans/valid/backwards-compatible-variable-config");
 }
 
 #[test]
 fn matrix_completes() {
-    is_valid_test_plan("resources/valid/matrix-variables");
+    is_valid_test_plan("resources/test-plans/valid/matrix-variables");
 }
 
 #[test]
 fn command_from_spec_completes() {
-    is_valid_test_plan("resources/valid/command-from-spec");
+    is_valid_test_plan("resources/test-plans/valid/command-from-spec");
 }
 
 #[test]
 fn custom_provider_default_value_completes() {
-    prepare_rtf_run("resources/valid/custom-provider-default-value")
+    prepare_rtf_run("resources/test-plans/valid/custom-provider-default-value")
         .assert()
         .success()
         .stdout(contains("default custom provider text file"));
@@ -42,7 +42,7 @@ fn custom_provider_default_value_completes() {
 
 #[test]
 fn custom_provider_templated_variable_completes() {
-    prepare_rtf_run("resources/valid/custom-provider-templated-variable")
+    prepare_rtf_run("resources/test-plans/valid/custom-provider-templated-variable")
         .assert()
         .success()
         .stdout(contains("scenario specified custom provider text file"));
@@ -51,13 +51,13 @@ fn custom_provider_templated_variable_completes() {
 #[test]
 fn variables_override_works() {
     // default echo arg should be foo
-    prepare_rtf_run("resources/valid/variable-overrides")
+    prepare_rtf_run("resources/test-plans/valid/variable-overrides")
         .assert()
         .success()
         .stdout(contains("foo"));
 
     // specifying as a command line variable should override
-    prepare_rtf_run("resources/valid/variable-overrides")
+    prepare_rtf_run("resources/test-plans/valid/variable-overrides")
         .arg("--var")
         .arg("echo_me=bar")
         .assert()
@@ -65,9 +65,9 @@ fn variables_override_works() {
         .stdout(contains("bar"));
 
     // variables.json should override to baz
-    prepare_rtf_run("resources/valid/variable-overrides")
+    prepare_rtf_run("resources/test-plans/valid/variable-overrides")
         .arg("--vars")
-        .arg("resources/valid/variable-overrides/variables.json")
+        .arg("resources/test-plans/valid/variable-overrides/variables.json")
         .assert()
         .success()
         .stdout(contains("baz"));
@@ -76,13 +76,13 @@ fn variables_override_works() {
 #[test]
 fn variables_override_with_backwards_compatible_flag_works() {
     // default echo arg should be foo
-    prepare_rtf_run("resources/valid/variable-overrides")
+    prepare_rtf_run("resources/test-plans/valid/variable-overrides")
         .assert()
         .success()
         .stdout(contains("foo"));
 
     // specifying as a command line variable should override
-    prepare_rtf_run("resources/valid/variable-overrides")
+    prepare_rtf_run("resources/test-plans/valid/variable-overrides")
         .arg("--value")
         .arg("echo_me=bar")
         .assert()
@@ -90,9 +90,9 @@ fn variables_override_with_backwards_compatible_flag_works() {
         .stdout(contains("bar"));
 
     // variables.json should override to baz
-    prepare_rtf_run("resources/valid/variable-overrides")
+    prepare_rtf_run("resources/test-plans/valid/variable-overrides")
         .arg("--values")
-        .arg("resources/valid/variable-overrides/variables.json")
+        .arg("resources/test-plans/valid/variable-overrides/variables.json")
         .assert()
         .success()
         .stdout(contains("baz"));
@@ -102,23 +102,23 @@ fn variables_override_with_backwards_compatible_flag_works() {
 fn regression_relative_path_from_variable() {
     // When using a variable from the test plan we should resolve relative to the directory
     // containing the test plan
-    prepare_rtf_run("resources/valid/regression-relative-path-from-template-variable")
+    prepare_rtf_run("resources/test-plans/valid/regression-relative-path-from-template-variable")
         .assert()
         .success()
         .stdout(contains("from test plan dir"));
 
     // When using a variable from variables.json we should resolve relative to the directory
     // containing the variables file
-    prepare_rtf_run("resources/valid/regression-relative-path-from-template-variable")
+    prepare_rtf_run("resources/test-plans/valid/regression-relative-path-from-template-variable")
         .arg("--vars")
-        .arg("resources/valid/regression-relative-path-from-template-variable/variables-dir/variables.json")
+        .arg("resources/test-plans/valid/regression-relative-path-from-template-variable/variables-dir/variables.json")
         .assert()
         .success()
         .stdout(contains("from variables.json dir"));
 
     // When using a command line variable we should resolve relative to the current working directory
     let mut cmd =
-        prepare_rtf_run("resources/valid/regression-relative-path-from-template-variable");
+        prepare_rtf_run("resources/test-plans/valid/regression-relative-path-from-template-variable");
     let dir = cmd.child_path("cli-working-dir");
 
     cmd.current_dir(dir)
@@ -131,7 +131,7 @@ fn regression_relative_path_from_variable() {
 
 #[test]
 fn matrix_custom_variant_names_work() {
-    let mut cmd = prepare_rtf_run("resources/valid/custom-matrix-variant-names");
+    let mut cmd = prepare_rtf_run("resources/test-plans/valid/custom-matrix-variant-names");
     cmd.assert().success();
     cmd.assert_path_exists("output/world!-mother");
     cmd.assert_path_exists("output/world!-father");
@@ -141,7 +141,7 @@ fn matrix_custom_variant_names_work() {
 
 #[test]
 fn matrix_include_completes() {
-    prepare_rtf_run("resources/valid/matrix-include")
+    prepare_rtf_run("resources/test-plans/valid/matrix-include")
         .assert()
         .success()
         .stdout(contains("hello, world!"))
@@ -162,7 +162,7 @@ fn matrix_include_completes() {
 #[test_case("teardown-execution-fails", "Unable to execute the teardown.sh command:"; "teardown script execution fails")]
 #[test]
 fn execution_fails(test_plan_dir: &str, expected_err: &str) {
-    prepare_rtf_run(&format!("resources/invalid/run/{test_plan_dir}"))
+    prepare_rtf_run(&format!("resources/test-plans/invalid/run/{test_plan_dir}"))
         .assert()
         .failure()
         .stderr(contains(expected_err));
@@ -196,7 +196,7 @@ fn load_and_resolve_from_github_missing_token_fails() {
 
 #[test]
 fn from_command_writes_to_correct_providers_directory() {
-    let mut cmd = prepare_rtf_run("resources/valid/from-command-provider-dir");
+    let mut cmd = prepare_rtf_run("resources/test-plans/valid/from-command-provider-dir");
     cmd.assert().success();
 
     cmd.list_files(); // Debug output to check the paths we ended up with

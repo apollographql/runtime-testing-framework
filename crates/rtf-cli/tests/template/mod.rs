@@ -27,7 +27,7 @@ fn check_completes_basic(test_plan_dir: &str) {
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
-        .arg(format!("resources/valid/{test_plan_dir}/test-plan.yaml"))
+        .arg(format!("resources/test-plans/valid/{test_plan_dir}/test-plan.yaml"))
         .arg("--check")
         .assert();
 
@@ -43,7 +43,7 @@ fn check_completes_with_cli_variables() {
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
-        .arg("resources/valid/sanity-check/test-plan.yaml")
+        .arg("resources/test-plans/valid/sanity-check/test-plan.yaml")
         .arg("--check")
         .arg("--var")
         .arg("setup_output=\"setup output\"")
@@ -61,7 +61,7 @@ fn check_completes_with_backwards_compatible_cli_variables_flag() {
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
-        .arg("resources/valid/sanity-check/test-plan.yaml")
+        .arg("resources/test-plans/valid/sanity-check/test-plan.yaml")
         .arg("--check")
         .arg("--value")
         .arg("setup_output=\"setup output\"")
@@ -112,7 +112,7 @@ fn load_and_resolve_fails(file: &str, err_contains: &str) {
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
-        .arg(format!("resources/invalid/load-and-resolve/{file}"))
+        .arg(format!("resources/test-plans/invalid/load-and-resolve/{file}"))
         .assert();
 
     res.stderr(contains(err_contains));
@@ -163,7 +163,7 @@ fn templating_fails(file: &str, err_contains: &str) {
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
-        .arg(format!("resources/invalid/templating/{file}"))
+        .arg(format!("resources/test-plans/invalid/templating/{file}"))
         .assert();
 
     res.stderr(contains(format!("Templating failed\n{err_contains}")));
@@ -174,7 +174,7 @@ fn duplicate_variant_names_fails() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .arg("template")
-        .arg("resources/invalid/templating/duplicate-variant-names.yaml")
+        .arg("resources/test-plans/invalid/templating/duplicate-variant-names.yaml")
         .assert();
 
     res.stderr(contains(
@@ -213,7 +213,7 @@ fn check_fails(file: &str, err_contains: &str) {
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
-        .arg(format!("resources/invalid/checks/{file}"))
+        .arg(format!("resources/test-plans/invalid/checks/{file}"))
         .arg("--check")
         .assert();
 
@@ -230,7 +230,7 @@ fn check_fails_missing_relative_file() {
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
-        .arg("resources/invalid/checks/missing-relative-file.yaml")
+        .arg("resources/test-plans/invalid/checks/missing-relative-file.yaml")
         .arg("--check")
         .assert();
 
@@ -238,7 +238,7 @@ fn check_fails_missing_relative_file() {
         is_match(
             r#"Static analysis checks failed
 \(scenario\.command\.command_provider\) The requested file did not exist
-provided path was file://.*/resources/invalid/checks/does-not-exist\.sh"#,
+provided path was file://.*/resources/test-plans/invalid/checks/does-not-exist\.sh"#,
         )
         .unwrap(),
     );

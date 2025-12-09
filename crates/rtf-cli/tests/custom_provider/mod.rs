@@ -38,7 +38,7 @@ fn check_completes_simple() {
         .env_clear()
         .arg("custom-provider")
         .arg("template")
-        .arg("resources/valid/custom-provider-standalone/simple-provider.yaml")
+        .arg("resources/test-plans/valid/custom-provider-standalone/simple-provider.yaml")
         .arg("--check")
         .assert();
 
@@ -52,7 +52,7 @@ fn check_completes_with_variables() {
         .env_clear()
         .arg("custom-provider")
         .arg("template")
-        .arg("resources/valid/custom-provider-standalone/with-variables.yaml")
+        .arg("resources/test-plans/valid/custom-provider-standalone/with-variables.yaml")
         .arg("--var")
         .arg("message=test")
         .arg("--check")
@@ -68,7 +68,7 @@ fn check_completes_with_default_variable() {
         .env_clear()
         .arg("custom-provider")
         .arg("template")
-        .arg("resources/valid/custom-provider-standalone/with-default.yaml")
+        .arg("resources/test-plans/valid/custom-provider-standalone/with-default.yaml")
         .arg("--check")
         .assert();
 
@@ -83,7 +83,7 @@ fn check_with_missing_required_variable_fails() {
         .env_clear()
         .arg("custom-provider")
         .arg("template")
-        .arg("resources/valid/custom-provider-standalone/with-variables.yaml")
+        .arg("resources/test-plans/valid/custom-provider-standalone/with-variables.yaml")
         .arg("--check")
         .assert();
 
@@ -100,7 +100,7 @@ fn check_with_invalid_yaml_fails() {
         .env_clear()
         .arg("custom-provider")
         .arg("template")
-        .arg("resources/invalid/custom-provider/missing-command.yaml")
+        .arg("resources/test-plans/invalid/custom-provider/missing-command.yaml")
         .arg("--check")
         .assert();
 
@@ -115,7 +115,7 @@ fn check_with_undefined_variable_fails() {
         .env_clear()
         .arg("custom-provider")
         .arg("template")
-        .arg("resources/invalid/custom-provider/missing-variable.yaml")
+        .arg("resources/test-plans/invalid/custom-provider/missing-variable.yaml")
         .arg("--check")
         .assert();
 
@@ -132,7 +132,7 @@ fn check_with_missing_file_fails() {
         .env_clear()
         .arg("custom-provider")
         .arg("template")
-        .arg("resources/invalid/custom-provider/missing-file.yaml")
+        .arg("resources/test-plans/invalid/custom-provider/missing-file.yaml")
         .arg("--check")
         .assert();
 
@@ -149,9 +149,9 @@ fn check_with_array_variables_fails() {
         .env_clear()
         .arg("custom-provider")
         .arg("template")
-        .arg("resources/valid/custom-provider-standalone/with-variables.yaml")
+        .arg("resources/test-plans/valid/custom-provider-standalone/with-variables.yaml")
         .arg("--vars")
-        .arg("resources/valid/custom-provider-standalone/test-vars-array.json")
+        .arg("resources/test-plans/valid/custom-provider-standalone/test-vars-array.json")
         .arg("--check")
         .assert();
 
@@ -163,7 +163,7 @@ fn check_with_array_variables_fails() {
 fn run_creates_expected_output() {
     let tmp = TempDir::new().unwrap();
     tmp.copy_from(
-        "resources/valid/custom-provider-standalone",
+        "resources/test-plans/valid/custom-provider-standalone",
         &["simple-provider.yaml"],
     )
     .unwrap();
@@ -196,7 +196,7 @@ fn run_creates_expected_output() {
 fn run_with_variables_creates_expected_output() {
     let tmp = TempDir::new().unwrap();
     tmp.copy_from(
-        "resources/valid/custom-provider-standalone",
+        "resources/test-plans/valid/custom-provider-standalone",
         &["with-variables.yaml"],
     )
     .unwrap();
@@ -226,7 +226,7 @@ fn run_with_variables_creates_expected_output() {
 fn run_with_existing_outdir_fails() {
     let tmp = TempDir::new().unwrap();
     tmp.copy_from(
-        "resources/valid/custom-provider-standalone",
+        "resources/test-plans/valid/custom-provider-standalone",
         &["simple-provider.yaml"],
     )
     .unwrap();
@@ -256,7 +256,7 @@ fn run_with_existing_outdir_fails() {
 fn run_with_file_provider_creates_expected_output() {
     let tmp = TempDir::new().unwrap();
     tmp.copy_from(
-        "resources/valid/custom-provider-standalone",
+        "resources/test-plans/valid/custom-provider-standalone",
         &["with-file-provider.yaml", "scripts/**"],
     )
     .unwrap();
@@ -293,7 +293,7 @@ fn test_is_executable() {
 fn test_passing_case() {
     let tmp = TempDir::new().unwrap();
     tmp.copy_from(
-        "resources/valid/custom-provider-standalone",
+        "resources/test-plans/valid/custom-provider-standalone",
         &["test-provider.yaml", "test-provider-test-cases/**"],
     )
     .unwrap();
@@ -315,7 +315,7 @@ fn test_passing_case() {
 fn test_expected_failure_matches() {
     let tmp = TempDir::new().unwrap();
     tmp.copy_from(
-        "resources/valid/custom-provider-standalone",
+        "resources/test-plans/valid/custom-provider-standalone",
         &["failing-provider.yaml", "failing-provider-test-match/**"],
     )
     .unwrap();
@@ -337,7 +337,7 @@ fn test_expected_failure_matches() {
 fn test_expected_failure_mismatch() {
     let tmp = TempDir::new().unwrap();
     tmp.copy_from(
-        "resources/valid/custom-provider-standalone",
+        "resources/test-plans/valid/custom-provider-standalone",
         &["failing-provider.yaml", "failing-provider-test-mismatch/**"],
     )
     .unwrap();
@@ -361,7 +361,7 @@ fn test_expected_failure_mismatch() {
 fn test_error_on_empty() {
     let tmp = TempDir::new().unwrap();
     tmp.copy_from(
-        "resources/valid/custom-provider-standalone",
+        "resources/test-plans/valid/custom-provider-standalone",
         &["simple-provider.yaml"],
     )
     .unwrap();
@@ -385,7 +385,7 @@ fn test_error_on_empty() {
 fn test_with_copied_files_index() {
     let tmp = TempDir::new().unwrap();
     tmp.copy_from(
-        "resources/valid/custom-provider-standalone",
+        "resources/test-plans/valid/custom-provider-standalone",
         &[
             "copy-provider.yaml",
             "copy-provider-source.txt",
@@ -411,7 +411,7 @@ fn test_with_copied_files_index() {
 fn test_expected_failure_but_provider_passes() {
     let tmp = TempDir::new().unwrap();
     tmp.copy_from(
-        "resources/valid/custom-provider-standalone",
+        "resources/test-plans/valid/custom-provider-standalone",
         &["test-provider.yaml"],
     )
     .unwrap();

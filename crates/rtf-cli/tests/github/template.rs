@@ -7,7 +7,7 @@ fn check_completes_with_github_file() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .arg("template")
-        .arg("resources/valid/github-file/test-plan.yaml")
+        .arg("resources/test-plans/valid/github-file/test-plan.yaml")
         .arg("--check")
         .assert();
 
@@ -24,7 +24,7 @@ fn check_completes_with_github_config_files() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .arg("template")
-        .arg("resources/valid/github-config-files/test-plan.yaml")
+        .arg("resources/test-plans/valid/github-config-files/test-plan.yaml")
         .arg("--check")
         .arg("--var")
         .arg("setup_output=\"setup output\"")
