@@ -29,6 +29,8 @@ const ANSI_RESET: &str = "\x1b[0m";
 const EXPECTED_COPIED_FILES: &str = "expected-copied-files.json";
 const EXPECTED_RUN_ERROR_FILE: &str = "expected-run-error.txt";
 const EXPECTED_RUN_OUTPUT_DIR: &str = "expected-run-output";
+const EXPECTED_RUN_OUTPUT_FILE: &str = "expected-run-output.txt";
+const RTF_OUTPUT: &str = "RTF_OUTPUT";
 const TEST_CASES_DIR: &str = "test-cases";
 const VARIABLES_FILE: &str = "variables.json";
 
@@ -203,7 +205,8 @@ fn expect_dir(p: &Path) -> io::Result<()> {
 #[derive(Debug)]
 enum TestCaseData {
     Failure(String),
-    Success(HashMap<String, String>),
+    SuccessFile(String),
+    SuccessDir(HashMap<String, String>),
 }
 
 #[derive(Debug)]
@@ -219,7 +222,10 @@ impl TestCase {
 
     #[cfg(test)]
     fn is_expected_success(&self) -> bool {
-        matches!(self.data, TestCaseData::Success(_))
+        matches!(
+            self.data,
+            TestCaseData::SuccessDir(_) | TestCaseData::SuccessFile(_)
+        )
     }
 
     fn try_load_all(dir: &Path) -> anyhow::Result<Vec<Self>> {
@@ -235,40 +241,99 @@ impl TestCase {
             let vars_file = path.join(VARIABLES_FILE);
             expect_file(&vars_file)?;
 
+            // Ensure that we have exactly one test type present for the case
+            let expected_output_dir = path.join(EXPECTED_RUN_OUTPUT_DIR);
+            let expected_output_file = path.join(EXPECTED_RUN_OUTPUT_FILE);
             let expected_failure_file = path.join(EXPECTED_RUN_ERROR_FILE);
-            let expect_failure = expected_failure_file.exists();
 
-            let data = if expect_failure {
+            let types_present = [
+                &expected_output_dir,
+                &expected_output_file,
+                &expected_failure_file,
+            ]
+            .into_iter()
+            .filter(|p| p.exists())
+            .count();
+
+            let invalid_assertion_data_msg = || {
+                format!(
+                    "Expected one of:\n- {EXPECTED_RUN_OUTPUT_FILE}\n- {EXPECTED_RUN_OUTPUT_DIR}\n- {EXPECTED_RUN_ERROR_FILE}"
+                )
+            };
+
+            let mut expected_files = load_expected_copied_files(&path)?;
+
+            if types_present == 0 && expected_files.is_empty() {
+                return Err(anyhow!(
+                    "No test assertion data found for {}\n{}",
+                    path.display(),
+                    invalid_assertion_data_msg()
+                ));
+            } else if types_present > 1 {
+                return Err(anyhow!(
+                    "Conflicting test assertion data found for {}\n{}",
+                    path.display(),
+                    invalid_assertion_data_msg()
+                ));
+            }
+
+            let data = if expected_failure_file.exists() {
+                expect_file(&expected_failure_file)?;
+                if !expected_files.is_empty() {
+                    return Err(anyhow!(
+                        "Invalid test case '{}': {EXPECTED_COPIED_FILES} can not be used with {EXPECTED_RUN_ERROR_FILE}",
+                        path.display()
+                    ));
+                }
+
                 TestCaseData::Failure(fs::read_to_string(&expected_failure_file).with_context(
                     || format!("unable to read {}", expected_failure_file.display()),
                 )?)
-            } else {
-                let expected_output_path = path.join(EXPECTED_RUN_OUTPUT_DIR);
-                let mut expected_files = load_expected_copied_files(&path)?;
+            } else if expected_output_dir.exists() {
+                expect_dir(&expected_output_dir)?;
+                let explicit_files = output_files(&expected_output_dir)?;
+                let conflicts: Vec<_> = expected_files
+                    .keys()
+                    .filter(|k| explicit_files.contains_key(*k))
+                    .cloned()
+                    .collect();
 
-                if expected_output_path.exists() {
-                    expect_dir(&expected_output_path)?;
-                    let explicit_files = output_files(&expected_output_path)?;
-                    let conflicts: Vec<_> = expected_files
-                        .keys()
-                        .filter(|k| explicit_files.contains_key(*k))
-                        .cloned()
-                        .collect();
-
-                    if !conflicts.is_empty() {
-                        return Err(anyhow!(
-                            "Invalid test case '{}': {EXPECTED_COPIED_FILES} and {EXPECTED_RUN_OUTPUT_DIR} have conflicting paths - {}",
-                            path.display(),
-                            conflicts.join(", ")
-                        ));
-                    }
-
-                    expected_files.extend(explicit_files);
-                } else if expected_files.is_empty() {
-                    return Err(io_err(io::ErrorKind::NotFound, &expected_output_path).into());
+                if !conflicts.is_empty() {
+                    return Err(anyhow!(
+                        "Invalid test case '{}': {EXPECTED_COPIED_FILES} and {EXPECTED_RUN_OUTPUT_DIR} have conflicting paths - {}",
+                        path.display(),
+                        conflicts.join(", ")
+                    ));
                 }
 
-                TestCaseData::Success(expected_files)
+                expected_files.extend(explicit_files);
+
+                TestCaseData::SuccessDir(expected_files)
+            } else if expected_output_file.exists() {
+                expect_file(&expected_output_file)?;
+                if !expected_files.is_empty() {
+                    return Err(anyhow!(
+                        "Invalid test case '{}': {EXPECTED_COPIED_FILES} can not be used with {EXPECTED_RUN_OUTPUT_FILE}",
+                        path.display()
+                    ));
+                }
+
+                TestCaseData::SuccessFile(fs::read_to_string(&expected_output_file).with_context(
+                    || format!("unable to read {}", expected_output_file.display()),
+                )?)
+            } else {
+                match expected_files.remove(RTF_OUTPUT) {
+                    Some(s) if expected_files.is_empty() => TestCaseData::SuccessFile(s),
+                    Some(_) => {
+                        return Err(anyhow!(
+                            "{RTF_OUTPUT} must be the only copied file key when present"
+                        ));
+                    }
+                    None if expected_files.is_empty() => {
+                        return Err(anyhow!("{}", invalid_assertion_data_msg()));
+                    }
+                    None => TestCaseData::SuccessDir(expected_files),
+                }
             };
 
             test_cases.push(TestCase { path, data });
@@ -282,7 +347,7 @@ impl TestCase {
     fn check_expected_failure(&self, stdout: String, stderr: String) -> Outcome {
         let expected = match &self.data {
             TestCaseData::Failure(s) => s,
-            TestCaseData::Success(_) => {
+            _ => {
                 panic!("attempt to check expected failure for a test that expected to pass")
             }
         };
@@ -346,13 +411,13 @@ impl TestCase {
         debug!("creating temp directory for test output");
         let tmp_dir = TempDir::new()?;
         let out_dir = tmp_dir.path();
-        let output_dir = out_dir.join(OUTPUT_PATH);
+        let output_path = out_dir.join(OUTPUT_PATH);
         let provider_dir = out_dir.join(PROVIDER_DIR);
 
         debug!("running provider");
         let res = definition
             .command
-            .run_providers_and_execute("test", out_dir, output_dir.clone(), provider_dir, ctx)
+            .run_providers_and_execute("test", out_dir, output_path.clone(), provider_dir, ctx)
             .await;
 
         if let Err(e) = res {
@@ -366,13 +431,24 @@ impl TestCase {
         }
 
         debug!("processing output");
-        let actual: HashMap<String, String> = output_files(&output_dir)?
-            .into_iter()
-            .map(|(k, v)| (k, normalize_paths(&v, out_dir)))
-            .collect();
+        let actual: HashMap<String, String> = if output_path.is_file() {
+            let content = fs::read_to_string(&output_path)?;
+            HashMap::from([(RTF_OUTPUT.to_string(), normalize_paths(&content, out_dir))])
+        } else {
+            output_files(&output_path)?
+                .into_iter()
+                .map(|(k, v)| (k, normalize_paths(&v, out_dir)))
+                .collect()
+        };
 
         let expected = match &self.data {
-            TestCaseData::Success(m) => m,
+            TestCaseData::SuccessDir(m) => m,
+
+            TestCaseData::SuccessFile(s) => &HashMap::from([(
+                RTF_OUTPUT.to_string(),
+                normalize_paths(&s.to_owned(), out_dir),
+            )]),
+
             TestCaseData::Failure(s) => {
                 error!("Expected-failure case passed. Expected: {s}");
                 &HashMap::new()
@@ -992,8 +1068,8 @@ mod tests {
         assert_eq!(cases.len(), 1);
 
         let expected = match &cases[0].data {
-            TestCaseData::Success(m) => m,
-            TestCaseData::Failure(_) => panic!("should have been a success case"),
+            TestCaseData::SuccessDir(m) => m,
+            _ => panic!("should have been a success dir case"),
         };
 
         assert_eq!(expected.len(), 1);
@@ -1008,11 +1084,6 @@ mod tests {
         let res = TestCase::try_load_all(tmp.path());
 
         assert!(res.is_err(), "expected error, got {res:?}");
-        let err = res.unwrap_err();
-        assert_eq!(
-            err.downcast_ref::<io::Error>().unwrap().kind(),
-            io::ErrorKind::NotFound
-        );
     }
 
     #[test]
@@ -1037,8 +1108,8 @@ mod tests {
         assert_eq!(cases.len(), 1);
 
         let expected = match &cases[0].data {
-            TestCaseData::Success(m) => m,
-            TestCaseData::Failure(_) => panic!("should have been a success case"),
+            TestCaseData::SuccessDir(m) => m,
+            _ => panic!("should have been a success dir case"),
         };
 
         assert_eq!(expected.len(), 2);
@@ -1093,8 +1164,8 @@ mod tests {
         assert_eq!(cases.len(), 1);
 
         let expected = match &cases[0].data {
-            TestCaseData::Success(m) => m,
-            TestCaseData::Failure(_) => panic!("should have been a success case"),
+            TestCaseData::SuccessDir(m) => m,
+            _ => panic!("should have been a success dir case"),
         };
 
         assert_eq!(expected.len(), 2);
@@ -1296,12 +1367,6 @@ mod tests {
         "variables is dir"
     )]
     #[test_case(
-        &[TestAsset::File("case-a/variables.json", "{}")],
-        None,
-        io::ErrorKind::NotFound;
-        "missing expected output"
-    )]
-    #[test_case(
         &[TestAsset::File("case-a/variables.json", "{}"), TestAsset::File("case-a/expected-run-output", "")],
         None,
         io::ErrorKind::NotADirectory;
@@ -1314,7 +1379,7 @@ mod tests {
         "expected error file is dir"
     )]
     #[test]
-    fn try_load_all_error(assets: &[TestAsset], subpath: Option<&str>, expected: io::ErrorKind) {
+    fn try_load_all_io_error(assets: &[TestAsset], subpath: Option<&str>, expected: io::ErrorKind) {
         let tmp = TempDir::new().unwrap();
         for asset in assets {
             match asset {
@@ -1326,11 +1391,11 @@ mod tests {
             Some(s) => tmp.path().join(s),
             None => tmp.path().to_path_buf(),
         };
-        let res = TestCase::try_load_all(&path);
-        assert!(res.is_err());
+        let err = TestCase::try_load_all(&path).unwrap_err();
         assert_eq!(
-            res.unwrap_err().downcast_ref::<io::Error>().unwrap().kind(),
-            expected
+            err.downcast_ref::<io::Error>().map(|e| e.kind()),
+            Some(expected),
+            "expected IO error, got {err:?}"
         );
     }
 
