@@ -1,6 +1,8 @@
 name: failing provider
 description: A custom provider that always fails for testing expected errors
+
 variable_definitions: []
+
 command:
   name: fail.sh
   kind: inline

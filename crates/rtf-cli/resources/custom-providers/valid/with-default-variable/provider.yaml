@@ -1,14 +1,17 @@
 name: provider with default
 description: A custom provider that has a default variable value
+
 variable_definitions:
   - name: greeting
     description: The greeting to output
     default: Hello World
+
 command:
   name: greet.sh
   kind: inline
   content: |
     #!/usr/bin/env sh
     echo "$GREETING" >> "$RTF_OUTPUT"
+
 env_vars:
   GREETING: "{{ greeting }}"

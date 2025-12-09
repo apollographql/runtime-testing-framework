@@ -1,0 +1,10 @@
+name: single file
+description: output a single file
+variable_definitions: []
+
+command:
+  name: generate.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "pass" > "$RTF_OUTPUT"

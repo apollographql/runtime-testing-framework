@@ -1,9 +1,0 @@
-name: simple provider
-description: A minimal custom provider for testing
-variable_definitions: []
-command:
-  name: simple.sh
-  kind: inline
-  content: |
-    #!/usr/bin/env sh
-    echo "Hello from simple provider" >> "$RTF_OUTPUT"

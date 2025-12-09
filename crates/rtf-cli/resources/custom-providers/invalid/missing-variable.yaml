@@ -1,11 +1,14 @@
 name: invalid provider
 description: This provider uses an undefined variable
+
 variable_definitions: []
+
 command:
   name: test.sh
   kind: inline
   content: |
     #!/usr/bin/env sh
     echo "test"
+
 env_vars:
   FOO: "{{ undefined_variable }}"
