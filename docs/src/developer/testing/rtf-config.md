@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # rtf-config
 
 This page documents how tests in the [`rtf-config`][0] crate are organized and implemented.

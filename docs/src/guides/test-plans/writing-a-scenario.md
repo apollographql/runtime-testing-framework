@@ -1,3 +1,5 @@
+<!-- diataxis-type: tutorial -->
+
 # Writing a new scenario
 
 This guide assumes you have completed the ["Writing a test plan"](writing-a-test-plan.md) and

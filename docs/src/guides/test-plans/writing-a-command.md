@@ -1,3 +1,5 @@
+<!-- diataxis-type: tutorial -->
+
 # Writing a command
 
 This guide assumes you've completed the ["Writing a test plan"](writing-a-test-plan.md) guide. You

@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # rtf-core
 
 This page documents how tests in the [`rtf-core`][0] crate are organized and implemented.

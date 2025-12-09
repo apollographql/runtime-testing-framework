@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # Command providers
 
 Command Providers are the core executable element of RTF Test Plans. They specify how a command runs

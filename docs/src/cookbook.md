@@ -1,3 +1,5 @@
+<!-- diataxis-type: howto -->
+
 # Cookbook
 
 _Common patterns and idioms for working with RTF_

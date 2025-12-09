@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # Glossary
 
 ## Custom Provider Declaration

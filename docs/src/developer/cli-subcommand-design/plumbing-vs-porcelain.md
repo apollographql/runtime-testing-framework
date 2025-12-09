@@ -1,3 +1,5 @@
+<!-- diataxis-type: explanation -->
+
 # Plumbing vs porcelain
 
 The CLI subcommands are split into two different concepts; porcelain and plumbing.

@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # RTF Documentation Style Guide
 
 This style guide defines writing standards for RTF documentation. It applies to all contributors
@@ -22,16 +24,14 @@ Key Microsoft principles we follow:
 ## Diataxis Framework
 
 RTF documentation follows the [Diataxis framework][1], which defines four documentation types. Each
-page declares its type in YAML frontmatter.
+page declares its type in an HTML comment on the first line.
 
-### Frontmatter Format
+### Type Declaration Format
 
-Every documentation page must include a `type` field:
+Every documentation page must include a type declaration comment:
 
-```yaml
----
-type: tutorial
----
+```markdown
+<!-- diataxis-type: tutorial -->
 
 # Page title
 
@@ -39,6 +39,9 @@ Content starts here...
 ```
 
 Valid values: `tutorial`, `howto`, `reference`, `explanation`
+
+The HTML comment format ensures the type declaration doesn't render in the built documentation while
+remaining easy for contributors and tooling to identify.
 
 ### The Four Types
 
@@ -364,7 +367,7 @@ List prerequisites in a blockquote or admonition:
 
 Before submitting documentation:
 
-- [ ] Frontmatter includes `type` field with valid value
+- [ ] First line includes `<!-- diataxis-type: <type> -->` comment
 - [ ] Voice matches doc type (no "we" in tutorials/how-to/reference)
 - [ ] No shell prompts in command examples
 - [ ] Placeholders use angle brackets

@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # Templating fields
 
 The leaves of the config data structures are either concrete scalar values (such as numbers, strings

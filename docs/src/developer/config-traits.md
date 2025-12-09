@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # Traits for working with config structs
 
 We have a set of four traits that are used to provide the shared behaviour needed to parse, validate

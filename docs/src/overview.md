@@ -1,3 +1,5 @@
+<!-- diataxis-type: explanation -->
+
 # Overview
 
 Throughout the rest of the _User Documentation_ you'll see us talking about RTF both as the

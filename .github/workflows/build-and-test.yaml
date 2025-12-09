@@ -146,6 +146,13 @@ jobs:
           "dprint" = "0.48.0"
     - run: dprint check
 
+  check-doc-types:
+    name: Check documentation diataxis types
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - run: ./scripts/check-doc-types.sh
+
   check-generated-docs:
     name: Check that generated docs are up to date
     runs-on: ubuntu-latest

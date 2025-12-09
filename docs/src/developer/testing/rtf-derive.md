@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # rtf-derive
 
 This page documents how tests in the [`rtf-derive`][0] crate are organized and implemented.

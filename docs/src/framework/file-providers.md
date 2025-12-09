@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # File Providers
 
 Available file providers:

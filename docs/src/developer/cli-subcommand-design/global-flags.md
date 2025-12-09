@@ -1,3 +1,5 @@
+<!-- diataxis-type: explanation -->
+
 # Global flags
 
 The CLI exposes the following global flags for all subcommands to use:

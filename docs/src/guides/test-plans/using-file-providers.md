@@ -1,3 +1,5 @@
+<!-- diataxis-type: tutorial -->
+
 # Using file providers
 
 This guide assumes you've completed the ["Writing an environment"](writing-an-environment.md) guide.

@@ -1,3 +1,5 @@
+<!-- diataxis-type: tutorial -->
+
 # Hello, world!
 
 ## Overview

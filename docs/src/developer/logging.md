@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # Logging
 
 This guide covers when and how to use different log levels in the Runtime Testing Framework. The

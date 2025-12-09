@@ -1,3 +1,5 @@
+<!-- diataxis-type: tutorial -->
+
 # Getting started
 
 To build `rtf` from source, start by cloning the repo locally:

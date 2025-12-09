@@ -17,11 +17,16 @@ run = [
     "mise run pr-rustdoc",
     "mise run pr-spell-check",
     "mise run pr-markdown",
+    "mise run pr-doc-types",
     "mise run pr-test"
 ]
 
 [tasks.pr-clippy]
 run = "cargo pr-clippy"
+
+[tasks.pr-doc-types]
+run = "$(git rev-parse --show-toplevel)/scripts/check-doc-types.sh"
+description = "Check documentation diataxis types"
 
 [tasks.pr-rustdoc]
 run = "RUSTDOCFLAGS=\"-D warnings -D rustdoc::broken-intra-doc-links\" cargo doc --all-features --workspace --no-deps"

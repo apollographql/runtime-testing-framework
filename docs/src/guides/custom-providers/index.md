@@ -1,3 +1,5 @@
+<!-- diataxis-type: tutorial -->
+
 # Writing custom providers
 
 This section will guide you through writing a custom provider for rtf from a blank file. The custom

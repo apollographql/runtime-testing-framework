@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # Custom providers
 
 Custom Providers are reusable file providers that execute commands to produce files. They
