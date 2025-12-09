@@ -38,6 +38,7 @@
 
 # Developer Documentation
 
+- [Style guide](developer/style-guide.md)
 - [Concepts and Architecture](developer/concepts-and-architecture.md)
 - [Error handling](developer/error-handling.md)
 - [Logging](developer/logging.md)
