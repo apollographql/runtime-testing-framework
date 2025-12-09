@@ -117,8 +117,9 @@ fn regression_relative_path_from_variable() {
         .stdout(contains("from variables.json dir"));
 
     // When using a command line variable we should resolve relative to the current working directory
-    let mut cmd =
-        prepare_rtf_run("resources/test-plans/valid/regression-relative-path-from-template-variable");
+    let mut cmd = prepare_rtf_run(
+        "resources/test-plans/valid/regression-relative-path-from-template-variable",
+    );
     let dir = cmd.child_path("cli-working-dir");
 
     cmd.current_dir(dir)

@@ -12,7 +12,9 @@ fn check_completes(test_plan_dir: &str) {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .arg("template")
-        .arg(format!("resources/test-plans/valid/{test_plan_dir}/test-plan.yaml"))
+        .arg(format!(
+            "resources/test-plans/valid/{test_plan_dir}/test-plan.yaml"
+        ))
         .arg("--check")
         .assert();
 

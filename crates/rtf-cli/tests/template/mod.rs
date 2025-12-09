@@ -27,7 +27,9 @@ fn check_completes_basic(test_plan_dir: &str) {
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
-        .arg(format!("resources/test-plans/valid/{test_plan_dir}/test-plan.yaml"))
+        .arg(format!(
+            "resources/test-plans/valid/{test_plan_dir}/test-plan.yaml"
+        ))
         .arg("--check")
         .assert();
 
@@ -112,7 +114,9 @@ fn load_and_resolve_fails(file: &str, err_contains: &str) {
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
-        .arg(format!("resources/test-plans/invalid/load-and-resolve/{file}"))
+        .arg(format!(
+            "resources/test-plans/invalid/load-and-resolve/{file}"
+        ))
         .assert();
 
     res.stderr(contains(err_contains));
