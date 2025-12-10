@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-db9e8a68.js";
+            window.path_to_searchindex_js = "searchindex-201b39eb.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-248ccb4e.js"></script>
+        <script src="toc-cf036e76.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -4390,6 +4390,148 @@ Plan itself or dynamically through command line arguments to the RTF CLI.</p>
 <h2 id="variables"><a class="header" href="#variables">Variables</a></h2>
 <p>Templating Variables are declared within the Scenario and Environment configuration files and have
 their values defined within the Test Plan referencing those configuration files.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
+<h1 id="understanding-rtf-internals"><a class="header" href="#understanding-rtf-internals">Understanding RTF Internals</a></h1>
+<p>This section explains the design decisions and architectural thinking behind RTF.</p>
+<ul>
+<li><a href="#concepts-and-architecture">Concepts and Architecture</a> - high-level architecture overview</li>
+<li><a href="#logging-philosophy">Logging Philosophy</a> - why RTF logs the way it does</li>
+<li><a href="#use-of-io-in-providers">Use of IO in Providers</a> - the ResolutionContext pattern</li>
+<li><a href="#cli-subcommand-design">CLI Design</a> - principles behind CLI subcommand design</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
+<h1 id="concepts-and-architecture"><a class="header" href="#concepts-and-architecture">Concepts and Architecture</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
+<h1 id="logging-philosophy"><a class="header" href="#logging-philosophy">Logging Philosophy</a></h1>
+<p>RTF takes the “no news is good news” approach - quiet by default. Logging exists to help debug
+issues and provide feedback when things go wrong.</p>
+<h2 id="design-goals"><a class="header" href="#design-goals">Design Goals</a></h2>
+<p>When adding log statements to RTF, consider whether the information is helpful and avoid
+overwhelming users with unnecessary data.</p>
+<h2 id="performance-considerations"><a class="header" href="#performance-considerations">Performance Considerations</a></h2>
+<p>Logging performance is not a primary concern in RTF. The framework is expected to become I/O bound
+(waiting for network requests, file operations, etc.) before logging becomes a bottleneck.</p>
+<p>However, keep these guidelines in mind:</p>
+<ul>
+<li>Avoid expensive computations solely for log messages</li>
+<li>Use structured fields instead of string formatting when possible</li>
+<li>Don’t worry about the overhead of log statements that won’t be displayed</li>
+</ul>
+<h2 id="testing-approach"><a class="header" href="#testing-approach">Testing Approach</a></h2>
+<p>Do not test logging at the low level using a crate like <code>tracing_test</code>. Instead, make sure to test
+the output the user sees in the CLI tests. Tests should ensure the user sees the logging statement
+in situations where it is expected and required to give helpful feedback. Tests should not cover
+<code>debug</code> and <code>trace</code> level logs.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
+<h1 id="use-of-io-in-providers"><a class="header" href="#use-of-io-in-providers">Use of IO in providers</a></h1>
+<p>All IO that is run as part of provider logic <em>must</em> be run using the <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs">context</a> argument that is
+passed to methods. This allows the CLI logic to control how providers are run as well as allowing us
+to swap out real IO for mock implementations within tests.</p>
+<p>If you are writing a new provider and need to perform IO that is not currently possible via the
+existing <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L35">ResolutionContext</a> methods, you will need to first expose the functionality through
+that trait and provide a default “live” implementation for the concrete <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L157">Context</a> struct that is
+used by the CLI.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
+<h1 id="cli-subcommand-design"><a class="header" href="#cli-subcommand-design">CLI subcommand design</a></h1>
+<p>The following pages provide an overview of how the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli">CLI</a> subcommands and flags are designed.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
+<h1 id="plumbing-vs-porcelain"><a class="header" href="#plumbing-vs-porcelain">Plumbing vs porcelain</a></h1>
+<p>The CLI subcommands are split into two different concepts; porcelain and plumbing.</p>
+<p>The porcelain commands expose full end-to-end functionality to the users. They can be thought of as
+pipelines running the functionality in the plumbing commands sequentially to achieve the user’s
+desired outcome.</p>
+<p>The plumbing commands expose ways for a user to run a subset of the porcelain commands. These
+commands are primarily used for debugging when the porcelain command has errored or so the user can
+test a portion of their configuration ahead of running a porcelain command.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
+<h1 id="no-built-in-magic"><a class="header" href="#no-built-in-magic">No built-in magic</a></h1>
+<p>CLI subcommands should reference functions that handle the logic of the command. There should be no
+inline logic at the CLI struct level.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
+<h1 id="developer-how-to-guides"><a class="header" href="#developer-how-to-guides">Developer How-to Guides</a></h1>
+<p>Task-oriented guides for common development workflows.</p>
+<ul>
+<li><a href="#pr-checks">PR Checks</a> - running CI checks locally</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
+<h1 id="pr-checks"><a class="header" href="#pr-checks">PR checks</a></h1>
+<p>This page documents all the checks that run when raising a PR, how to run the corresponding checks
+locally and how to resolve them.</p>
+<p>All the tasks required to run these checks locally are defined using <a href="https://mise.jdx.dev/tasks/">mise tasks</a>. To run all the
+PR checks locally:</p>
+<pre><code class="language-bash">mise run pr-all
+</code></pre>
+<h2 id="test"><a class="header" href="#test">test</a></h2>
+<p>The GitHub action runs <code>cargo test</code>. It will run this for <code>stable</code>, <code>beta</code> and <code>nightly</code> rust
+builds.</p>
+<p>To run locally</p>
+<pre><code class="language-bash">mise run pr-test
+</code></pre>
+<p>This will show details for all failing test cases.</p>
+<h2 id="rust-fmt"><a class="header" href="#rust-fmt">rust-fmt</a></h2>
+<p>The GitHub action runs the <code>cargo pr-format</code> alias defined in the <code>.cargo/config.toml</code> file. It
+checks the code complies with rust <code>fmt</code>.</p>
+<p>To run locally</p>
+<pre><code class="language-bash">mise run pr-format
+</code></pre>
+<p>This will show details for all formatting issues.</p>
+<h2 id="clippy"><a class="header" href="#clippy">clippy</a></h2>
+<p>The GitHub action runs the <code>cargo pr-clippy</code> alias defined in the <code>.cargo/config.toml</code> file. It
+checks the code complies with rust <code>clippy</code>.</p>
+<p>To run locally</p>
+<pre><code class="language-bash">mise run pr-clippy
+</code></pre>
+<p>This will show details for all clippy issues.</p>
+<h2 id="rustdoc-links"><a class="header" href="#rustdoc-links">rustdoc-links</a></h2>
+<p>The GitHub action runs <code>cargo doc</code> with additional flags to check that doc links work correctly.</p>
+<p>To run locally</p>
+<pre><code class="language-bash">mise run pr-doclinks
+</code></pre>
+<p>This will show details for all doclink issues.</p>
+<blockquote>
+<p><strong>Note</strong>: Most of the <code>cargo docs</code> output will be warnings. This might be quite noisey but won’t
+necessarily fail your PR checks.</p>
+</blockquote>
+<h2 id="spell-check"><a class="header" href="#spell-check">spell-check</a></h2>
+<p>This uses the <a href="https://github.com/crate-ci/typos">typos-cli crate</a> to check all the docstrings, YAML files and READMEs for typos.
+This tool in particular has been chosen as the spell checker for RTF as it has been designed to
+reduce false positives.</p>
+<p>To run locally</p>
+<pre><code class="language-bash">mise run pr-spell-check
+</code></pre>
+<p>This will print all the typos in the repo to screen.</p>
+<p>To fix all these typos automatically</p>
+<pre><code class="language-bash">mise run fix-spelling
+</code></pre>
+<p>This will automatically fix all the detected spelling errors locally.</p>
+<p>Before committing to <code>main</code>, manually review the diff to check all spelling errors are actually
+errors and have been fixed correctly.</p>
+<p>If there are any detected spelling errors that should be valid, or files that should be ignored,
+then <a href="https://github.com/crate-ci/typos?tab=readme-ov-file#false-positives">update the <code>.typos.toml</code> file</a> at the root of the repo.</p>
+<h2 id="lint-markdown"><a class="header" href="#lint-markdown">lint-markdown</a></h2>
+<p>This uses the <a href="https://github.com/dprint/dprint">dprint crate</a> lint the markdown files and ensure consistent style and formatting.</p>
+<p>To run locally</p>
+<pre><code class="language-bash">mise run lint-markdown
+</code></pre>
+<p>This will highlight any issues with the markdown files.</p>
+<p>To fix all these issues automatically</p>
+<pre><code class="language-bash">mise run format-markdown
+</code></pre>
+<p>Before committing to <code>main</code>, manually review the diff to check all formatting fixes are desired.</p>
+<p>Files can be excluded using the <code>dprint.json</code> file at the root of the repo.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
+<h1 id="developer-reference"><a class="header" href="#developer-reference">Developer Reference</a></h1>
+<p>Technical reference documentation for RTF contributors.</p>
+<ul>
+<li><a href="#rtf-documentation-style-guide">Style Guide</a> - documentation and code style standards</li>
+<li><a href="#error-handling">Error Handling</a> - the ErrorBuilder pattern</li>
+<li><a href="#logging-reference">Logging Reference</a> - log levels and structured logging</li>
+<li><a href="#parsing-config-files">Parsing Config Files</a> - config resolution flow</li>
+<li><a href="#traits-for-working-with-config-structs">Config Traits</a> - Template, Check, and provider traits</li>
+<li><a href="#global-flags">Global Flags</a> - CLI global flag reference</li>
+<li><a href="#testing">Testing</a> - test organization and conventions</li>
+<li><a href="#data-structures">Data Structures</a> - internal data structure documentation</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="rtf-documentation-style-guide"><a class="header" href="#rtf-documentation-style-guide">RTF Documentation Style Guide</a></h1>
 <p>This style guide defines writing standards for RTF documentation. It applies to all contributors
@@ -4602,7 +4744,7 @@ The output is similar to this:
 <tbody>
 <tr><td>See the <a href="https://learn.microsoft.com/en-us/style-guide/welcome/">Test Plans</a> reference.</td><td>See <a href="https://learn.microsoft.com/en-us/style-guide/welcome/">here</a>.</td></tr>
 <tr><td>Configure <a href="https://diataxis.fr/">environments</a>.</td><td>https://example.com/environments.md</td></tr>
-<tr><td>The <a href="#glossary">glossary</a> defines this term.</td><td>Click <a href="developer/glossary.html">this link</a>.</td></tr>
+<tr><td>The <a href="#glossary">glossary</a> defines this term.</td><td>Click <a href="developer/reference/glossary.html">this link</a>.</td></tr>
 </tbody>
 </table>
 </div>
@@ -4738,8 +4880,6 @@ or you find yourself scrolling extensively, consider splitting into subpages.</p
 <li><input disabled="" type="checkbox"> Links use reference-style with definitions at bottom</li>
 <li><input disabled="" type="checkbox"> Inclusive language guidelines followed</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
-<h1 id="concepts-and-architecture"><a class="header" href="#concepts-and-architecture">Concepts and Architecture</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="error-handling"><a class="header" href="#error-handling">Error handling</a></h1>
 <p>Wherever possible we aim to provide users with as much debugging information as possible when rtf
@@ -4752,14 +4892,12 @@ being run, you should try to make use of an error builder to collect related err
 <p>See the implementation of <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/command.rs#L181">try_template</a> for the <code>CommandSection</code> struct for an example of what
 this looks like in practice.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
-<h1 id="logging"><a class="header" href="#logging">Logging</a></h1>
-<p>This guide covers when and how to use different log levels in the Runtime Testing Framework. The
+<h1 id="logging-reference"><a class="header" href="#logging-reference">Logging Reference</a></h1>
+<p>This page covers when and how to use different log levels in the Runtime Testing Framework. The
 project uses the <a href="https://tracing.rs/"><code>tracing</code></a> crate for structured logging.</p>
-<p>We want RTF to take the “no news is good news” approach and be quiet by default. Logging is
-primarily there to help debug issues and provide feedback when things go wrong. When adding log
-statements to RTF, consider whether the information is helpful and avoid overwhelming users with
-unnecessary data.</p>
-<h2 id="log-levels-overview"><a class="header" href="#log-levels-overview">Log levels overview</a></h2>
+<p>For the design rationale behind logging choices, see
+<a href="#logging-philosophy">Logging Philosophy</a>.</p>
+<h2 id="log-levels-overview"><a class="header" href="#log-levels-overview">Log Levels Overview</a></h2>
 <p>The Runtime Testing Framework uses five log levels, from most to least verbose:</p>
 <div class="table-wrapper">
 <table>
@@ -4775,7 +4913,7 @@ unnecessary data.</p>
 </tbody>
 </table>
 </div>
-<h2 id="when-to-use-each-level"><a class="header" href="#when-to-use-each-level">When to use each level</a></h2>
+<h2 id="when-to-use-each-level"><a class="header" href="#when-to-use-each-level">When to Use Each Level</a></h2>
 <h3 id="error-level"><a class="header" href="#error-level">ERROR level</a></h3>
 <p>Use <code>error!</code> for conditions that prevent the application from continuing normal operation or cause
 significant functionality to fail.</p>
@@ -4838,7 +4976,7 @@ these could be sensitive.</li>
 <li>Fine-grained execution flow</li>
 <li>Performance-sensitive debugging information</li>
 </ul>
-<h2 id="logging-best-practices"><a class="header" href="#logging-best-practices">Logging best practices</a></h2>
+<h2 id="logging-best-practices"><a class="header" href="#logging-best-practices">Logging Best Practices</a></h2>
 <h3 id="use-structured-fields"><a class="header" href="#use-structured-fields">Use Structured Fields</a></h3>
 <p>Take advantage of
 <a href="https://docs.rs/tracing/latest/tracing/#recording-fields">tracing’s structured logging capabilities</a>
@@ -4852,7 +4990,7 @@ warn!(error = %e, "failed to parse configuration");
 // Avoid: embedding everything in the message
 info!("pulling supergraph details for graph_id={} variant={}", graph_id, variant);
 <span class="boring">}</span></code></pre>
-<h3 id="common-field-naming-conventions"><a class="header" href="#common-field-naming-conventions">Common field naming conventions</a></h3>
+<h3 id="common-field-naming-conventions"><a class="header" href="#common-field-naming-conventions">Common Field Naming Conventions</a></h3>
 <p>Use these prefixes to control how values are formatted in log output:</p>
 <ul>
 <li>Use <code>%</code> prefix for Display formatting (human-readable): <code>%graph_id</code>, <code>%error</code></li>
@@ -4870,7 +5008,7 @@ warn!(retry_count = attempts, max_retries = MAX_ATTEMPTS, "operation failed, ret
 // Avoid generic or unclear names
 debug!(thing = %path, num = file_size, "reading file");
 <span class="boring">}</span></code></pre>
-<h3 id="error-context"><a class="header" href="#error-context">Error context</a></h3>
+<h3 id="error-context"><a class="header" href="#error-context">Error Context</a></h3>
 <p>Always include relevant context when logging errors:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -4880,18 +5018,9 @@ error!(path = %config_path, "failed to read configuration file: {e}");
 // Avoid: generic error without context
 error!("file operation failed: {e}");
 <span class="boring">}</span></code></pre>
-<h2 id="performance-considerations"><a class="header" href="#performance-considerations">Performance considerations</a></h2>
-<p>Logging performance is not a primary concern in RTF. The framework is expected to become I/O bound
-(waiting for network requests, file operations, etc.) before logging becomes a bottleneck.</p>
-<p>However, keep these guidelines in mind:</p>
-<ul>
-<li>Avoid expensive computations solely for log messages</li>
-<li>Use structured fields instead of string formatting when possible</li>
-<li>Don’t worry about the overhead of log statements that won’t be displayed</li>
-</ul>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <p>The logging level can be controlled in several ways:</p>
-<h3 id="command-line-verbosity-flags"><a class="header" href="#command-line-verbosity-flags">Command line verbosity flags</a></h3>
+<h3 id="command-line-verbosity-flags"><a class="header" href="#command-line-verbosity-flags">Command Line Verbosity Flags</a></h3>
 <p>Use these flags to control the overall log level:</p>
 <ul>
 <li>No flags: WARN level (default - only warnings and errors)</li>
@@ -4899,11 +5028,11 @@ error!("file operation failed: {e}");
 <li><code>-vv</code>: DEBUG level (includes detailed diagnostic information)</li>
 <li><code>-vvv</code>: TRACE level (includes extremely detailed execution flow)</li>
 </ul>
-<h3 id="environment-variable"><a class="header" href="#environment-variable">Environment variable</a></h3>
+<h3 id="environment-variable"><a class="header" href="#environment-variable">Environment Variable</a></h3>
 <p>Set <code>APOLLO_RTF_LOG</code> for fine-grained control over specific modules:</p>
 <pre><code class="language-bash">APOLLO_RTF_LOG=rtf_core=debug,rtf_cli=info cargo run
 </code></pre>
-<h3 id="per-module-filtering"><a class="header" href="#per-module-filtering">Per-module filtering</a></h3>
+<h3 id="per-module-filtering"><a class="header" href="#per-module-filtering">Per-module Filtering</a></h3>
 <p>You can set different log levels for different parts of the codebase:</p>
 <pre><code class="language-bash">APOLLO_RTF_LOG=warn,rtf_core::graphos=debug cargo run
 </code></pre>
@@ -4912,13 +5041,8 @@ error!("file operation failed: {e}");
 variable takes precedence for the modules it specifies, while the command-line flag sets the
 default level for other modules.</p>
 </blockquote>
-<h2 id="testing-logging"><a class="header" href="#testing-logging">Testing logging</a></h2>
-<p>Do not test logging at the low level using a crate like <code>tracing_test</code>. Instead, make sure to test
-the output the user sees in the CLI tests. Tests should ensure the user sees the logging statement
-in situations where it is expected and required to give helpful feedback. Tests should not cover
-<code>debug</code> and <code>trace</code> level logs.</p>
 <h2 id="quick-reference"><a class="header" href="#quick-reference">Quick Reference</a></h2>
-<h3 id="when-to-use-each-level-1"><a class="header" href="#when-to-use-each-level-1">When to use each level</a></h3>
+<h3 id="when-to-use-each-level-1"><a class="header" href="#when-to-use-each-level-1">When to Use Each Level</a></h3>
 <ul>
 <li><strong>ERROR</strong>: Operation cannot continue, user needs to take action</li>
 <li><strong>WARN</strong>: Something unusual happened, but operation continues (default visibility)</li>
@@ -4926,7 +5050,7 @@ in situations where it is expected and required to give helpful feedback. Tests 
 <li><strong>DEBUG</strong>: Detailed diagnostic information for troubleshooting</li>
 <li><strong>TRACE</strong>: Extremely detailed execution flow for debugging</li>
 </ul>
-<h3 id="common-patterns"><a class="header" href="#common-patterns">Common patterns</a></h3>
+<h3 id="common-patterns"><a class="header" href="#common-patterns">Common Patterns</a></h3>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// Error with context
@@ -4941,13 +5065,78 @@ debug!(endpoint = %url, method = "POST", "making API request");
 // Warning about potential issues
 warn!(feature = "deprecated_option", "using deprecated configuration option");
 <span class="boring">}</span></code></pre>
-<h3 id="verbosity-flags"><a class="header" href="#verbosity-flags">Verbosity flags</a></h3>
+<h3 id="verbosity-flags"><a class="header" href="#verbosity-flags">Verbosity Flags</a></h3>
 <ul>
 <li>Default: <code>WARN</code> and <code>ERROR</code> only</li>
 <li><code>-v</code>: Add <code>INFO</code> messages</li>
 <li><code>-vv</code>: Add <code>DEBUG</code> messages</li>
 <li><code>-vvv</code>: Add <code>TRACE</code> messages</li>
 </ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
+<h1 id="parsing-config-files"><a class="header" href="#parsing-config-files">Parsing config files</a></h1>
+<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config">rtf-config</a> crate provides parsers for the <a href="#config-file-formats">three config files</a> used by RTF, along with
+parsers for the <a href="#file-providers-1">various</a> <a href="#command-providers-1">provider</a> fragments that are used to expose the rest of the
+framework to users through those config files.</p>
+<p>The parsers for <code>TestPlanConfig</code>, <code>EnvironmentConfig</code> and <code>ScenarioConfig</code> live in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config/src/formats">formats</a>
+module. Each exposes a similar API for how they are parsed from YAML data files, templated,
+validated and executed. The shared behaviour used to do this is defined in a <a href="#traits-for-working-with-config-structs">set of traits</a> that
+provide tree-walk based methods for traversing the nested data structures obtained from parsing user
+written config files.</p>
+<h2 id="config-resolution--execution"><a class="header" href="#config-resolution--execution">Config resolution &amp; execution</a></h2>
+<p>The full resolution and execution of a test plan has the following flow:</p>
+<ol>
+<li>Load and parse the user specified <code>TestPlan</code> file.</li>
+<li>Locate and load any required <code>Secenario</code> and <code>Environment</code> files defined in <code>from</code> directives as
+raw YAML. If the test plan defines overrides for either section then deep merge before parsing
+into concrete structs.</li>
+<li>Check that the test plan contains all of the required variables for templating to be possible. If
+it doesn’t then early exit reporting the missing variables.</li>
+<li>Template the environment <em>setup</em> section before running static analysis checks.</li>
+<li>If all checks pass, run the setup command and use the provided output to finish templating the
+<em>scenario</em> and environment <em>teardown</em> sections.</li>
+<li>Run static analysis checks for both sections. If any checks fail for either section then early
+exit.</li>
+<li>Run the test scenario.</li>
+<li>Run the environment teardown.</li>
+</ol>
+<blockquote>
+<p>For each of these stages we check for any errors or inconsistencies and report all known errors to
+the user as a batch operation. Each of the config file structs provides an API for running partial
+checks and templating so that end users are able to efficiently debug and iterate on their config
+files.</p>
+</blockquote>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
+<h1 id="traits-for-working-with-config-structs"><a class="header" href="#traits-for-working-with-config-structs">Traits for working with config structs</a></h1>
+<p>We have a set of four traits that are used to provide the shared behaviour needed to parse, validate
+and execute rtf config files:</p>
+<ul>
+<li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/templating.rs#L45">Template</a>: used to locate and resolve templatable <a href="#templating-fields">fields</a> within larger config data
+structures.</li>
+<li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/checks.rs#L47">Check</a>: used to run side-effect free static analysis checks on config files before they are
+executed.</li>
+<li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L90">AsUtf8FileContent</a>: used by providers that return a single string data file to define how
+their content is generated.</li>
+<li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L118">ResolveAndWrite</a>: used by providers to define how they generate their content and write it out
+to the user specified output directory.</li>
+</ul>
+<p>All <a href="#file-providers-1">file providers</a> are required to implement the <code>Template</code> and <code>Check</code> traits and <em>either</em> the
+<code>AsUtf8FileContent</code> trait or the <code>ResolveAndWrite</code> trait. You should prefer implementing
+<code>AsUtf8FileContent</code> where possible as it will handle some of the boiler plate logic for you.</p>
+<blockquote>
+<p>This is possible whenever your provider is writing out a single utf8 encoded file as its output.</p>
+</blockquote>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
+<h1 id="global-flags"><a class="header" href="#global-flags">Global flags</a></h1>
+<p>The CLI exposes the following global flags for all subcommands to use:</p>
+<ul>
+<li><code>--var</code></li>
+<li><code>--vars</code></li>
+</ul>
+<h2 id="the---var-flag"><a class="header" href="#the---var-flag">The <code>--var</code> flag</a></h2>
+<p>This is used to override a single variable in a test plan.</p>
+<h2 id="the---vars-flag"><a class="header" href="#the---vars-flag">The <code>--vars</code> flag</a></h2>
+<p>This is used to override multiple variables in a test plan. This must be specified as a path to a
+JSON file containing the variables.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
 <p>As developers of a testing framework, we believe in the importance of comprehensive,
@@ -5833,105 +6022,6 @@ fn template_method_works(container_type: &amp;str) {
 <p>This pattern allows comprehensive testing of the macro’s behavior across the full range of supported
 Rust syntax.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
-<h1 id="pr-checks"><a class="header" href="#pr-checks">PR checks</a></h1>
-<p>This page documents all the checks that run when raising a PR, how to run the corresponding checks
-locally and how to resolve them.</p>
-<p>All the tasks required to run these checks locally are defined using <a href="https://mise.jdx.dev/tasks/">mise tasks</a>. To run all the
-PR checks locally:</p>
-<pre><code class="language-bash">mise run pr-all
-</code></pre>
-<h2 id="test"><a class="header" href="#test">test</a></h2>
-<p>The GitHub action runs <code>cargo test</code>. It will run this for <code>stable</code>, <code>beta</code> and <code>nightly</code> rust
-builds.</p>
-<p>To run locally</p>
-<pre><code class="language-bash">mise run pr-test
-</code></pre>
-<p>This will show details for all failing test cases.</p>
-<h2 id="rust-fmt"><a class="header" href="#rust-fmt">rust-fmt</a></h2>
-<p>The GitHub action runs the <code>cargo pr-format</code> alias defined in the <code>.cargo/config.toml</code> file. It
-checks the code complies with rust <code>fmt</code>.</p>
-<p>To run locally</p>
-<pre><code class="language-bash">mise run pr-format
-</code></pre>
-<p>This will show details for all formatting issues.</p>
-<h2 id="clippy"><a class="header" href="#clippy">clippy</a></h2>
-<p>The GitHub action runs the <code>cargo pr-clippy</code> alias defined in the <code>.cargo/config.toml</code> file. It
-checks the code complies with rust <code>clippy</code>.</p>
-<p>To run locally</p>
-<pre><code class="language-bash">mise run pr-clippy
-</code></pre>
-<p>This will show details for all clippy issues.</p>
-<h2 id="rustdoc-links"><a class="header" href="#rustdoc-links">rustdoc-links</a></h2>
-<p>The GitHub action runs <code>cargo doc</code> with additional flags to check that doc links work correctly.</p>
-<p>To run locally</p>
-<pre><code class="language-bash">mise run pr-doclinks
-</code></pre>
-<p>This will show details for all doclink issues.</p>
-<blockquote>
-<p><strong>Note</strong>: Most of the <code>cargo docs</code> output will be warnings. This might be quite noisey but won’t
-necessarily fail your PR checks.</p>
-</blockquote>
-<h2 id="spell-check"><a class="header" href="#spell-check">spell-check</a></h2>
-<p>This uses the <a href="https://github.com/crate-ci/typos">typos-cli crate</a> to check all the docstrings, YAML files and READMEs for typos.
-This tool in particular has been chosen as the spell checker for RTF as it has been designed to
-reduce false positives.</p>
-<p>To run locally</p>
-<pre><code class="language-bash">mise run pr-spell-check
-</code></pre>
-<p>This will print all the typos in the repo to screen.</p>
-<p>To fix all these typos automatically</p>
-<pre><code class="language-bash">mise run fix-spelling
-</code></pre>
-<p>This will automatically fix all the detected spelling errors locally.</p>
-<p>Before committing to <code>main</code>, manually review the diff to check all spelling errors are actually
-errors and have been fixed correctly.</p>
-<p>If there are any detected spelling errors that should be valid, or files that should be ignored,
-then <a href="https://github.com/crate-ci/typos?tab=readme-ov-file#false-positives">update the <code>.typos.toml</code> file</a> at the root of the repo.</p>
-<h2 id="lint-markdown"><a class="header" href="#lint-markdown">lint-markdown</a></h2>
-<p>This uses the <a href="https://github.com/dprint/dprint">dprint crate</a> lint the markdown files and ensure consistent style and formatting.</p>
-<p>To run locally</p>
-<pre><code class="language-bash">mise run lint-markdown
-</code></pre>
-<p>This will highlight any issues with the markdown files.</p>
-<p>To fix all these issues automatically</p>
-<pre><code class="language-bash">mise run format-markdown
-</code></pre>
-<p>Before committing to <code>main</code>, manually review the diff to check all formatting fixes are desired.</p>
-<p>Files can be excluded using the <code>dprint.json</code> file at the root of the repo.</p>
-<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
-<h1 id="parsing-config-files"><a class="header" href="#parsing-config-files">Parsing config files</a></h1>
-<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config">rtf-config</a> crate provides parsers for the <a href="#config-file-formats">three config files</a> used by RTF, along with
-parsers for the <a href="#file-providers-1">various</a> <a href="#command-providers-1">provider</a> fragments that are used to expose the rest of the
-framework to users through those config files.</p>
-<p>The parsers for <code>TestPlanConfig</code>, <code>EnvironmentConfig</code> and <code>ScenarioConfig</code> live in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config/src/formats">formats</a>
-module. Each exposes a similar API for how they are parsed from YAML data files, templated,
-validated and executed. The shared behaviour used to do this is defined in a <a href="#traits-for-working-with-config-structs">set of traits</a> that
-provide tree-walk based methods for traversing the nested data structures obtained from parsing user
-written config files.</p>
-<h2 id="config-resolution--execution"><a class="header" href="#config-resolution--execution">Config resolution &amp; execution</a></h2>
-<p>The full resolution and execution of a test plan has the following flow:</p>
-<ol>
-<li>Load and parse the user specified <code>TestPlan</code> file.</li>
-<li>Locate and load any required <code>Secenario</code> and <code>Environment</code> files defined in <code>from</code> directives as
-raw YAML. If the test plan defines overrides for either section then deep merge before parsing
-into concrete structs.</li>
-<li>Check that the test plan contains all of the required variables for templating to be possible. If
-it doesn’t then early exit reporting the missing variables.</li>
-<li>Template the environment <em>setup</em> section before running static analysis checks.</li>
-<li>If all checks pass, run the setup command and use the provided output to finish templating the
-<em>scenario</em> and environment <em>teardown</em> sections.</li>
-<li>Run static analysis checks for both sections. If any checks fail for either section then early
-exit.</li>
-<li>Run the test scenario.</li>
-<li>Run the environment teardown.</li>
-</ol>
-<blockquote>
-<p>For each of these stages we check for any errors or inconsistencies and report all known errors to
-the user as a batch operation. Each of the config file structs provides an API for running partial
-checks and templating so that end users are able to efficiently debug and iterate on their config
-files.</p>
-</blockquote>
-<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="data-structures"><a class="header" href="#data-structures">Data structures</a></h1>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config">rtf-config</a> crate provides a number of data structures for working with user written YAML
 config files, forming an overall tree structure that is used to execute commands in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli">CLI</a>.</p>
@@ -5993,63 +6083,6 @@ by the setup command for it to pass data along to the scenario and teardown sect
 <p>The test plan config file is where the user defines the variables they wish to use for templating
 along with the scenario and environment configurations, either provided inline or as references to
 external files.</p>
-<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
-<h1 id="traits-for-working-with-config-structs"><a class="header" href="#traits-for-working-with-config-structs">Traits for working with config structs</a></h1>
-<p>We have a set of four traits that are used to provide the shared behaviour needed to parse, validate
-and execute rtf config files:</p>
-<ul>
-<li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/templating.rs#L45">Template</a>: used to locate and resolve templatable <a href="#templating-fields">fields</a> within larger config data
-structures.</li>
-<li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/checks.rs#L47">Check</a>: used to run side-effect free static analysis checks on config files before they are
-executed.</li>
-<li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L90">AsUtf8FileContent</a>: used by providers that return a single string data file to define how
-their content is generated.</li>
-<li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L118">ResolveAndWrite</a>: used by providers to define how they generate their content and write it out
-to the user specified output directory.</li>
-</ul>
-<p>All <a href="#file-providers-1">file providers</a> are required to implement the <code>Template</code> and <code>Check</code> traits and <em>either</em> the
-<code>AsUtf8FileContent</code> trait or the <code>ResolveAndWrite</code> trait. You should prefer implementing
-<code>AsUtf8FileContent</code> where possible as it will handle some of the boiler plate logic for you.</p>
-<blockquote>
-<p>This is possible whenever your provider is writing out a single utf8 encoded file as its output.</p>
-</blockquote>
-<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
-<h1 id="use-of-io-in-providers"><a class="header" href="#use-of-io-in-providers">Use of IO in providers</a></h1>
-<p>All IO that is run as part of provider logic <em>must</em> be run using the <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs">context</a> argument that is
-passed to methods. This allows the CLI logic to control how providers are run as well as allowing us
-to swap out real IO for mock implementations within tests.</p>
-<p>If you are writing a new provider and need to perform IO that is not currently possible via the
-existing <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L35">ResolutionContext</a> methods, you will need to first expose the functionality through
-that trait and provide a default “live” implementation for the concrete <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L157">Context</a> struct that is
-used by the CLI.</p>
-<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
-<h1 id="cli-subcommand-design"><a class="header" href="#cli-subcommand-design">CLI subcommand design</a></h1>
-<p>The following pages provide an overview of how the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli">CLI</a> subcommands and flags are designed.</p>
-<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
-<h1 id="plumbing-vs-porcelain"><a class="header" href="#plumbing-vs-porcelain">Plumbing vs porcelain</a></h1>
-<p>The CLI subcommands are split into two different concepts; porcelain and plumbing.</p>
-<p>The porcelain commands expose full end-to-end functionality to the users. They can be thought of as
-pipelines running the functionality in the plumbing commands sequentially to achieve the user’s
-desired outcome.</p>
-<p>The plumbing commands expose ways for a user to run a subset of the porcelain commands. These
-commands are primarily used for debugging when the porcelain command has errored or so the user can
-test a portion of their configuration ahead of running a porcelain command.</p>
-<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
-<h1 id="no-built-in-magic"><a class="header" href="#no-built-in-magic">No built-in magic</a></h1>
-<p>CLI subcommands should reference functions that handle the logic of the command. There should be no
-inline logic at the CLI struct level.</p>
-<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
-<h1 id="global-flags"><a class="header" href="#global-flags">Global flags</a></h1>
-<p>The CLI exposes the following global flags for all subcommands to use:</p>
-<ul>
-<li><code>--var</code></li>
-<li><code>--vars</code></li>
-</ul>
-<h2 id="the---var-flag"><a class="header" href="#the---var-flag">The <code>--var</code> flag</a></h2>
-<p>This is used to override a single variable in a test plan.</p>
-<h2 id="the---vars-flag"><a class="header" href="#the---vars-flag">The <code>--vars</code> flag</a></h2>
-<p>This is used to override multiple variables in a test plan. This must be specified as a path to a
-JSON file containing the variables.</p>
 
                     </main>
 

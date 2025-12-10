@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Global flags - Runtime Testing Framework</title>
+        <title>Testing - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../../favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="../../favicon-8114d1fc.png">
-        <link rel="stylesheet" href="../../css/variables-8adf115d.css">
-        <link rel="stylesheet" href="../../css/general-2459343d.css">
-        <link rel="stylesheet" href="../../css/chrome-ae938929.css">
-        <link rel="stylesheet" href="../../css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../../../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../../../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../../../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../../../css/general-2459343d.css">
+        <link rel="stylesheet" href="../../../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../../../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../../fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../../../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="../../highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../../../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "../../";
+            const path_to_root = "../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-db9e8a68.js";
+            window.path_to_searchindex_js = "../../../searchindex-201b39eb.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-248ccb4e.js"></script>
+        <script src="../../../toc-cf036e76.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../../../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">Runtime Testing Framework</h1>
 
                     <div class="right-buttons">
-                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../../../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/apollographql/runtime-testing-framework" title="Git repository" aria-label="Git repository">
@@ -177,27 +177,86 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <!-- diataxis-type: explanation -->
-<h1 id="global-flags"><a class="header" href="#global-flags">Global flags</a></h1>
-<p>The CLI exposes the following global flags for all subcommands to use:</p>
+                        <!-- diataxis-type: reference -->
+<h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
+<p>As developers of a testing framework, we believe in the importance of comprehensive,
+well-structured, automated tests. High-quality testing enables safe, rapid iteration and continuous
+delivery. This document serves as our implementation guide for delivering well-tested software.</p>
+<p>Each crate has its own page within the docs explaining test structure and how tests are implemented.
+Testing guidance applicable across all crates is documented on this page.</p>
+<h2 id="organizing-tests"><a class="header" href="#organizing-tests">Organizing Tests</a></h2>
+<p>Each crate’s page describes a hierarchy that should be followed for all tests in that crate.
+Examples are included for additional guidance.</p>
+<p>The key aim of the hierarchies is to ensure that all tests related to the same level in the
+hierarchy are named consistently, making it easy to find related tests. The hierarchies will be
+followed using a combination of module structure and test case naming. For module structure, the
+primary concern is ensuring that code has the right scope and privacy level. Test structure is a
+secondary concern to module structure.</p>
+<h2 id="test-case-naming"><a class="header" href="#test-case-naming">Test Case Naming</a></h2>
+<p>Test cases should be uniquely named within their hierarchy. The test cases should be given
+meaningful names that describe what is being tested.</p>
+<p>Examples of good test case names:</p>
 <ul>
-<li><code>--var</code></li>
-<li><code>--vars</code></li>
+<li><code>all_fields_specified_and_valid</code></li>
+<li><code>optional_fields_not_defined</code></li>
+<li><code>required_field_missing</code></li>
 </ul>
-<h2 id="the---var-flag"><a class="header" href="#the---var-flag">The <code>--var</code> flag</a></h2>
-<p>This is used to override a single variable in a test plan.</p>
-<h2 id="the---vars-flag"><a class="header" href="#the---vars-flag">The <code>--vars</code> flag</a></h2>
-<p>This is used to override multiple variables in a test plan. This must be specified as a path to a
-JSON file containing the variables.</p>
+<p>Examples of bad test case names:</p>
+<ul>
+<li><code>works</code> - does not specify what works</li>
+<li><code>fails</code> - does not specify what causes the failure</li>
+<li><code>test_case</code> - does not identify what is happening in this test</li>
+<li><code>optional_field_specified1</code> &amp; <code>optional_field_specified2</code> - incrementing test cases by integer
+does not differentiate the test cases</li>
+</ul>
+<h2 id="test-coverage-reports"><a class="header" href="#test-coverage-reports">Test Coverage Reports</a></h2>
+<p>This section documents how to run a full test coverage report for RTF.</p>
+<blockquote>
+<p><strong>Note</strong>: There are no test coverage targets for RTF. A test coverage report showing a high
+percentage of coverage does not mean that RTF is fully tested. The reports are used to identify
+clear gaps in testing coverage where we would have expected to have at least one test case.</p>
+</blockquote>
+<p>The <a href="https://github.com/taiki-e/cargo-llvm-cov"><code>cargo-llvm-cov</code></a> crate is used to generate test coverage reports for RTF. If you are using
+<a href="https://mise.jdx.dev/getting-started.html"><code>mise</code></a>, then this will already be installed locally.</p>
+<p>To run a new report, first clear the previous test coverage data:</p>
+<pre><code class="language-bash">cargo llvm-cov clean --workspace
+</code></pre>
+<p>Next, test all the unignored tests:</p>
+<pre><code class="language-bash">cargo llvm-cov --no-report
+</code></pre>
+<p>Next, test all the ignored tests. This will add to the previous coverage, not replace it.</p>
+<blockquote>
+<p><strong>Note</strong>: Valid credentials will need to be supplied for these tests to complete successfully.</p>
+</blockquote>
+<pre><code class="language-bash">GITHUB_KEY="$GITHUB_KEY" cargo llvm-cov --test github --no-report -- --ignored
+APOLLO_KEY="$APOLLO_KEY" APOLLO_SUDO="true" cargo llvm-cov --test starstuff --no-report -- --ignored
+APOLLO_KEY="$APOLLO_KEY" APOLLO_SUDO="true" cargo llvm-cov --test imgood_observability_test --no-report -- --ignored
+</code></pre>
+<p>Finally, generate the report. It should open in your browser:</p>
+<pre><code class="language-bash">cargo llvm-cov report --open
+</code></pre>
+<p>The report should be manually inspected to ensure that all branches that should have at least one
+test case are covered. Two points to consider:</p>
+<ol>
+<li>100% coverage for any given area should not be treated as “this is fully tested.” It just means
+the code was executed at least once during testing. It is likely that calling code once during
+tests is not sufficient to test all scenarios.</li>
+<li>Conversely, there may be good reasons why certain areas of the code are not executed during
+tests. Where there is a justifiable reason, it is valid to not cover every single line of code
+during tests.</li>
+</ol>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../developer/cli-subcommand-design/no-built-in-magic.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../../developer/reference/global-flags.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
+                            <a rel="next prefetch" href="../../../developer/reference/testing/rtf-cli.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -205,10 +264,13 @@ JSON file containing the variables.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../developer/cli-subcommand-design/no-built-in-magic.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../../developer/reference/global-flags.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
+                    <a rel="next prefetch" href="../../../developer/reference/testing/rtf-cli.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
@@ -225,19 +287,19 @@ JSON file containing the variables.</p>
             window.playground_copyable = true;
         </script>
 
-        <script src="../../ace-2a3cd908.js"></script>
-        <script src="../../mode-rust-2c9d5c9a.js"></script>
-        <script src="../../editor-16ca416c.js"></script>
-        <script src="../../theme-dawn-4493f9c8.js"></script>
-        <script src="../../theme-tomorrow_night-9dbe62a9.js"></script>
+        <script src="../../../ace-2a3cd908.js"></script>
+        <script src="../../../mode-rust-2c9d5c9a.js"></script>
+        <script src="../../../editor-16ca416c.js"></script>
+        <script src="../../../theme-dawn-4493f9c8.js"></script>
+        <script src="../../../theme-tomorrow_night-9dbe62a9.js"></script>
 
-        <script src="../../elasticlunr-ef4e11c1.min.js"></script>
-        <script src="../../mark-09e88c2c.min.js"></script>
-        <script src="../../searcher-c2a407aa.js"></script>
+        <script src="../../../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../../../mark-09e88c2c.min.js"></script>
+        <script src="../../../searcher-c2a407aa.js"></script>
 
-        <script src="../../clipboard-1626706a.min.js"></script>
-        <script src="../../highlight-abc7f01d.js"></script>
-        <script src="../../book-a0b12cfe.js"></script>
+        <script src="../../../clipboard-1626706a.min.js"></script>
+        <script src="../../../highlight-abc7f01d.js"></script>
+        <script src="../../../book-a0b12cfe.js"></script>
 
         <!-- Custom JS scripts -->
 

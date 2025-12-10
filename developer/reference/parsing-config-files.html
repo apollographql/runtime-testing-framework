@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Environments - Runtime Testing Framework</title>
+        <title>Parsing Config Files - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -178,105 +178,48 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: reference -->
-<h1 id="environments"><a class="header" href="#environments">Environments</a></h1>
-<p>An Environment defines setup and teardown commands that bracket a Scenario’s execution. Each phase
-is a <a href="./command-providers.html">Command Provider</a>.</p>
+<h1 id="parsing-config-files"><a class="header" href="#parsing-config-files">Parsing config files</a></h1>
+<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config">rtf-config</a> crate provides parsers for the <a href="./data-structures/config-files.html">three config files</a> used by RTF, along with
+parsers for the <a href="./data-structures/file-providers.html">various</a> <a href="./data-structures/command-providers.html">provider</a> fragments that are used to expose the rest of the
+framework to users through those config files.</p>
+<p>The parsers for <code>TestPlanConfig</code>, <code>EnvironmentConfig</code> and <code>ScenarioConfig</code> live in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config/src/formats">formats</a>
+module. Each exposes a similar API for how they are parsed from YAML data files, templated,
+validated and executed. The shared behaviour used to do this is defined in a <a href="./config-traits.html">set of traits</a> that
+provide tree-walk based methods for traversing the nested data structures obtained from parsing user
+written config files.</p>
+<h2 id="config-resolution--execution"><a class="header" href="#config-resolution--execution">Config resolution &amp; execution</a></h2>
+<p>The full resolution and execution of a test plan has the following flow:</p>
+<ol>
+<li>Load and parse the user specified <code>TestPlan</code> file.</li>
+<li>Locate and load any required <code>Secenario</code> and <code>Environment</code> files defined in <code>from</code> directives as
+raw YAML. If the test plan defines overrides for either section then deep merge before parsing
+into concrete structs.</li>
+<li>Check that the test plan contains all of the required variables for templating to be possible. If
+it doesn’t then early exit reporting the missing variables.</li>
+<li>Template the environment <em>setup</em> section before running static analysis checks.</li>
+<li>If all checks pass, run the setup command and use the provided output to finish templating the
+<em>scenario</em> and environment <em>teardown</em> sections.</li>
+<li>Run static analysis checks for both sections. If any checks fail for either section then early
+exit.</li>
+<li>Run the test scenario.</li>
+<li>Run the environment teardown.</li>
+</ol>
 <blockquote>
-<p>An example of a valid <code>environment.yaml</code> is provided in the <a href="#full-example">Full example</a> section
-below.</p>
+<p>For each of these stages we check for any errors or inconsistencies and report all known errors to
+the user as a batch operation. Each of the config file structs provides an API for running partial
+checks and templating so that end users are able to efficiently debug and iterate on their config
+files.</p>
 </blockquote>
-<h2 id="top-level-keys"><a class="header" href="#top-level-keys">Top level keys</a></h2>
-<ul>
-<li><code>name</code>: The name for this Environment configuration.
-<ul>
-<li>Uniqueness is not enforced by the <code>rtf</code> CLI but it is worthwhile ensuring that the environments
-you write each have unique names that can be used to distinguish them.</li>
-</ul>
-</li>
-<li><code>description</code>: A brief, human readable description of the behaviour of the Environment.
-<ul>
-<li>If there are any pre-requesites to running this Environment it is best to call them out here
-rather than in comments or other files (such as a README).</li>
-</ul>
-</li>
-<li><code>variable_definitions</code>: Declarations of the templating variables supported by this Environment.
-<ul>
-<li>Variable declarations require specifying both the variable name and a short description of how
-the variable is used.</li>
-<li>Variable declarations also support an optional <code>default</code> field where you can specify a default
-scalar value to use if none is provided within the <a href="./test-plans.html">Test Plan</a>.</li>
-<li>If the same variable name is defined in both the Environment and Scenario used by a given Test
-Plan but with different defaults, each config file will fall back to its own default.</li>
-</ul>
-</li>
-<li><code>custom_providers</code>: Declarations for loading Custom Provider Definitions.
-<ul>
-<li>For full details on the structure of Custom Provider Declarations and Definitions see the
-<a href="./custom-providers.html">Custom Providers</a> page of the Framework documentation.</li>
-</ul>
-</li>
-<li><code>setup</code>: A <a href="./command-providers.html">Command Provider</a> that defines how the environment should be set up before the
-scenario is run.
-<ul>
-<li><code>provides</code>: An optional list of variable definitions that will be populated from the JSON output
-of the setup command. These variables become available for templating the <code>teardown</code> section but
-are not available to the Scenario.</li>
-</ul>
-</li>
-<li><code>teardown</code>: A <a href="./command-providers.html">Command Provider</a> that defines how the environment should be torn down after the
-scenario is run.</li>
-</ul>
-<h2 id="full-example"><a class="header" href="#full-example">Full example</a></h2>
-<p>The following is a minimal “kitchen sink” example of the structure of a valid <code>environment.yaml</code>.</p>
-<pre><code class="language-yaml">name: example
-description: An example description
-
-variable_definitions:
-  - name: my_variable
-    description: "A description for my variable"
-    default: "foo"
-
-custom_providers:
-  - kind: local
-    relative_path: ./providers
-    using:
-      my_provider: my_provider.yaml
-
-setup:
-  command:
-    name: my-setup-command.sh
-    kind: relative_path
-    path: scripts/setup.sh
-
-  env_vars:
-    MY_VARIABLE: "{{ my_variable }}"
-  
-  provides:
-      - name: cluster_id
-        description: "The ID of the provisioned cluster"
-
-teardown:
-  command:
-    name: my-teardown-command.sh
-    kind: relative_path
-    path: scripts/teardown.sh
-
-  file_providers:
-    - name: my-file.txt
-      env_var: MY_FILE
-      kind: inline
-      content: My inline content
-</code></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../reference/framework/test-plans.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../developer/reference/logging.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../reference/framework/scenarios.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../developer/reference/config-traits.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -286,11 +229,11 @@ teardown:
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../reference/framework/test-plans.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../developer/reference/logging.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../reference/framework/scenarios.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../developer/reference/config-traits.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

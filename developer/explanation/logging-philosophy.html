@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>rtf-derive - Runtime Testing Framework</title>
+        <title>Logging Philosophy - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-db9e8a68.js";
+            window.path_to_searchindex_js = "../../searchindex-201b39eb.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-248ccb4e.js"></script>
+        <script src="../../toc-cf036e76.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -177,129 +177,37 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <!-- diataxis-type: reference -->
-<h1 id="rtf-derive"><a class="header" href="#rtf-derive">rtf-derive</a></h1>
-<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate are organized and implemented.</p>
-<p>This crate defines a <a href="https://doc.rust-lang.org/reference/procedural-macros.html">proc macro</a> for deriving the <code>Template</code> trait defined in the
-<a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate. The considerations for testing a proc macro are different from testing a
-standard Rust crate.</p>
-<h2 id="organization"><a class="header" href="#organization">Organization</a></h2>
-<p>For the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate, tests are defined in a <code>tests</code> directory at the root of the crate.
-This is because we need to test how the derive macro is applied to a variety of Rust containers. We
-also need to test the conditions under which the macro will fail to compile. Tests will not be named
-based on the module structure for the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a>, so tests must be named by creating modules
-within the test directory itself.</p>
-<p>Tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate are organized into the following modules:</p>
-<ol>
-<li><strong><code>compile</code></strong> - The <code>compile</code> tests check the conditions under which the derive macro will fail
-to compile into valid Rust.</li>
-<li><strong><code>template</code></strong> - The <code>template</code> tests check the implementation of the <code>Template</code> trait works as
-expected when the derive macro is applied to a Rust container.</li>
-</ol>
-<p>The structure of the tests within each of these modules is discussed below.</p>
-<h3 id="compile-tests"><a class="header" href="#compile-tests">Compile Tests</a></h3>
-<p>There are two types of compile test: <code>pass</code> and <code>fail</code>. These are organized into separate
-directories within the <code>compile</code> subdirectory of <code>tests</code>.</p>
-<p>The <code>pass</code> tests work by importing the <code>*.rs</code> files into the <code>compile</code> module. These are not
-executed by <code>cargo test</code> but will fail if <code>cargo check</code> is run and they do not result in valid Rust.
-If any of the code in these modules fails to compile then the test should be considered to have
-failed.</p>
-<p>The <code>fail</code> tests use the <a href="https://docs.rs/trybuild/latest/trybuild/"><code>trybuild</code></a> crate. This is specifically to test the conditions under
-which we expect the derive macro to fail to compile valid Rust. The <code>*.rs</code> files in the <code>fail</code>
-directory should be used as examples of Rust containers that should not have the <code>Template</code> derive
-macro applied to them.</p>
-<blockquote>
-<p><strong>Note</strong>: The <code>trybuild</code> crate automatically generates the expected error messages when you run
-the tests with no error messages defined. There is a chance that updates to the Rust version used
-to run tests changes the format of the error messages produced and causes tests to fail. When this
-happens, delete the <code>.stderr</code> files associated with the failing test files and rerun <code>cargo test</code>.
-This should generate a <code>wip</code> directory at the root of the repository with the new <code>.stderr</code> files.
-Copy these into the <code>fail</code> directory and re-run <code>cargo test</code>. Your tests should now pass.</p>
-</blockquote>
-<h3 id="template-tests"><a class="header" href="#template-tests">Template Tests</a></h3>
-<p>The <code>template</code> tests follow a typical Rust unit testing approach. The module defines various valid
-Rust containers the derive macro can be applied to. It then checks, for each of those containers,
-that the <code>Template</code> trait methods work as expected. The <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> crate is used to
-parameterize these containers into a single test function.</p>
-<p>The tests are organized using the following hierarchy:</p>
-<ol>
-<li><strong>Trait method</strong> - The method of the <code>Template</code> trait under test. In cases where the method can
-error, this will also identify the error conditions.</li>
-<li><strong>Data structure</strong> - The Rust container under test. This is defined as part of the
-<a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> test case name.</li>
-<li><strong>Test case</strong> - Additional information required to uniquely identify the test. This is defined as
-part of the <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> test case name.</li>
-</ol>
-<p>Following the hierarchy above leads to the following generic test case paths:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// When simple_test_case is used
-template::tests::trait_method::data_structure_test_case
-<span class="boring">}</span></code></pre>
-<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
-<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate employs specialized testing strategies tailored to procedural macro
-testing requirements.</p>
-<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing Infrastructure</a></h3>
-<p>The crate leverages the following key testing tools:</p>
+                        <!-- diataxis-type: explanation -->
+<h1 id="logging-philosophy"><a class="header" href="#logging-philosophy">Logging Philosophy</a></h1>
+<p>RTF takes the “no news is good news” approach - quiet by default. Logging exists to help debug
+issues and provide feedback when things go wrong.</p>
+<h2 id="design-goals"><a class="header" href="#design-goals">Design Goals</a></h2>
+<p>When adding log statements to RTF, consider whether the information is helpful and avoid
+overwhelming users with unnecessary data.</p>
+<h2 id="performance-considerations"><a class="header" href="#performance-considerations">Performance Considerations</a></h2>
+<p>Logging performance is not a primary concern in RTF. The framework is expected to become I/O bound
+(waiting for network requests, file operations, etc.) before logging becomes a bottleneck.</p>
+<p>However, keep these guidelines in mind:</p>
 <ul>
-<li><strong><a href="https://docs.rs/trybuild/latest/trybuild/"><code>trybuild</code></a></strong> - Enables testing of procedural macro compilation failures with precise error
-message validation</li>
-<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Provides parameterized testing capabilities for testing the derive
-macro across multiple Rust container types</li>
-<li><strong>Compile-time testing</strong> - Uses the Rust compiler itself as a testing tool to validate successful
-macro expansion</li>
+<li>Avoid expensive computations solely for log messages</li>
+<li>Use structured fields instead of string formatting when possible</li>
+<li>Don’t worry about the overhead of log statements that won’t be displayed</li>
 </ul>
-<h3 id="procedural-macro-testing-strategy"><a class="header" href="#procedural-macro-testing-strategy">Procedural Macro Testing Strategy</a></h3>
-<p>Testing procedural macros requires a different approach from standard unit testing:</p>
-<ol>
-<li><strong>Compilation Success Testing</strong> - Verify that the macro successfully generates valid Rust code
-for supported container types</li>
-<li><strong>Compilation Failure Testing</strong> - Ensure the macro fails appropriately with helpful error
-messages for unsupported scenarios</li>
-<li><strong>Generated Code Testing</strong> - Validate that the generated <code>Template</code> trait implementations behave
-correctly at runtime</li>
-</ol>
-<h3 id="error-testing-with-trybuild"><a class="header" href="#error-testing-with-trybuild">Error Testing with trybuild</a></h3>
-<p>The <code>fail</code> tests use <code>trybuild</code> to capture and validate compilation error messages:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[test]
-fn ui() {
-    let t = trybuild::TestCases::new();
-    t.compile_fail("tests/compile/fail/*.rs");
-}
-<span class="boring">}</span></code></pre>
-<p>This approach ensures that:</p>
-<ul>
-<li>Error messages remain consistent across Rust versions</li>
-<li>Users receive helpful diagnostic information when the macro cannot be applied</li>
-<li>The macro fails early with clear explanations rather than generating invalid code</li>
-</ul>
-<h3 id="parameterized-container-testing"><a class="header" href="#parameterized-container-testing">Parameterized Container Testing</a></h3>
-<p>The <code>template</code> tests extensively use <code>#[test_case]</code> to verify the derive macro works across
-different Rust container types:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[test_case("Struct"; "basic_struct")]
-#[test_case("TupleStruct"; "tuple_struct")]
-#[test_case("UnitStruct"; "unit_struct")]
-#[test]
-fn template_method_works(container_type: &amp;str) {
-    // Test the generated Template implementation
-}
-<span class="boring">}</span></code></pre>
-<p>This pattern allows comprehensive testing of the macro’s behavior across the full range of supported
-Rust syntax.</p>
+<h2 id="testing-approach"><a class="header" href="#testing-approach">Testing Approach</a></h2>
+<p>Do not test logging at the low level using a crate like <code>tracing_test</code>. Instead, make sure to test
+the output the user sees in the CLI tests. Tests should ensure the user sees the logging statement
+in situations where it is expected and required to give helpful feedback. Tests should not cover
+<code>debug</code> and <code>trace</code> level logs.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../developer/testing/rtf-core.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../developer/explanation/concepts-and-architecture.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../developer/pr-checks.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../developer/explanation/context.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -309,11 +217,11 @@ Rust syntax.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../developer/testing/rtf-core.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../developer/explanation/concepts-and-architecture.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../developer/pr-checks.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../developer/explanation/context.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

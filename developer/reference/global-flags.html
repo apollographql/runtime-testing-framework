@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Environments - Runtime Testing Framework</title>
+        <title>Global Flags - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -177,106 +177,28 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <!-- diataxis-type: reference -->
-<h1 id="environments"><a class="header" href="#environments">Environments</a></h1>
-<p>An Environment defines setup and teardown commands that bracket a Scenario’s execution. Each phase
-is a <a href="./command-providers.html">Command Provider</a>.</p>
-<blockquote>
-<p>An example of a valid <code>environment.yaml</code> is provided in the <a href="#full-example">Full example</a> section
-below.</p>
-</blockquote>
-<h2 id="top-level-keys"><a class="header" href="#top-level-keys">Top level keys</a></h2>
+                        <!-- diataxis-type: explanation -->
+<h1 id="global-flags"><a class="header" href="#global-flags">Global flags</a></h1>
+<p>The CLI exposes the following global flags for all subcommands to use:</p>
 <ul>
-<li><code>name</code>: The name for this Environment configuration.
-<ul>
-<li>Uniqueness is not enforced by the <code>rtf</code> CLI but it is worthwhile ensuring that the environments
-you write each have unique names that can be used to distinguish them.</li>
+<li><code>--var</code></li>
+<li><code>--vars</code></li>
 </ul>
-</li>
-<li><code>description</code>: A brief, human readable description of the behaviour of the Environment.
-<ul>
-<li>If there are any pre-requesites to running this Environment it is best to call them out here
-rather than in comments or other files (such as a README).</li>
-</ul>
-</li>
-<li><code>variable_definitions</code>: Declarations of the templating variables supported by this Environment.
-<ul>
-<li>Variable declarations require specifying both the variable name and a short description of how
-the variable is used.</li>
-<li>Variable declarations also support an optional <code>default</code> field where you can specify a default
-scalar value to use if none is provided within the <a href="./test-plans.html">Test Plan</a>.</li>
-<li>If the same variable name is defined in both the Environment and Scenario used by a given Test
-Plan but with different defaults, each config file will fall back to its own default.</li>
-</ul>
-</li>
-<li><code>custom_providers</code>: Declarations for loading Custom Provider Definitions.
-<ul>
-<li>For full details on the structure of Custom Provider Declarations and Definitions see the
-<a href="./custom-providers.html">Custom Providers</a> page of the Framework documentation.</li>
-</ul>
-</li>
-<li><code>setup</code>: A <a href="./command-providers.html">Command Provider</a> that defines how the environment should be set up before the
-scenario is run.
-<ul>
-<li><code>provides</code>: An optional list of variable definitions that will be populated from the JSON output
-of the setup command. These variables become available for templating the <code>teardown</code> section but
-are not available to the Scenario.</li>
-</ul>
-</li>
-<li><code>teardown</code>: A <a href="./command-providers.html">Command Provider</a> that defines how the environment should be torn down after the
-scenario is run.</li>
-</ul>
-<h2 id="full-example"><a class="header" href="#full-example">Full example</a></h2>
-<p>The following is a minimal “kitchen sink” example of the structure of a valid <code>environment.yaml</code>.</p>
-<pre><code class="language-yaml">name: example
-description: An example description
-
-variable_definitions:
-  - name: my_variable
-    description: "A description for my variable"
-    default: "foo"
-
-custom_providers:
-  - kind: local
-    relative_path: ./providers
-    using:
-      my_provider: my_provider.yaml
-
-setup:
-  command:
-    name: my-setup-command.sh
-    kind: relative_path
-    path: scripts/setup.sh
-
-  env_vars:
-    MY_VARIABLE: "{{ my_variable }}"
-  
-  provides:
-      - name: cluster_id
-        description: "The ID of the provisioned cluster"
-
-teardown:
-  command:
-    name: my-teardown-command.sh
-    kind: relative_path
-    path: scripts/teardown.sh
-
-  file_providers:
-    - name: my-file.txt
-      env_var: MY_FILE
-      kind: inline
-      content: My inline content
-</code></pre>
+<h2 id="the---var-flag"><a class="header" href="#the---var-flag">The <code>--var</code> flag</a></h2>
+<p>This is used to override a single variable in a test plan.</p>
+<h2 id="the---vars-flag"><a class="header" href="#the---vars-flag">The <code>--vars</code> flag</a></h2>
+<p>This is used to override multiple variables in a test plan. This must be specified as a path to a
+JSON file containing the variables.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../reference/framework/test-plans.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../developer/reference/config-traits.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../reference/framework/scenarios.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../developer/reference/testing/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -286,11 +208,11 @@ teardown:
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../reference/framework/test-plans.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../developer/reference/config-traits.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../reference/framework/scenarios.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../developer/reference/testing/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

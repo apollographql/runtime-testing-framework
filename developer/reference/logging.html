@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Config file formats - Runtime Testing Framework</title>
+        <title>Logging Reference - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-db9e8a68.js";
+            window.path_to_searchindex_js = "../../searchindex-201b39eb.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-248ccb4e.js"></script>
+        <script src="../../toc-cf036e76.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,31 +178,196 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: reference -->
-<h1 id="config-file-formats"><a class="header" href="#config-file-formats">Config file formats</a></h1>
-<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config">rtf-config</a> crate provides parsers for the three config files used by RTF: <code>TestPlanConfig</code>,
-<code>EnvironmentConfig</code> and <code>ScenarioConfig</code>.</p>
-<h3 id="scenario-config"><a class="header" href="#scenario-config">Scenario Config</a></h3>
-<p>The simplest of the three config file formats is the scenario config which simply provides a way for
-the user to pair <a href="./fields.html">templating</a> variables with a <a href="./command-providers.html">command</a>.</p>
-<h2 id="environment-config"><a class="header" href="#environment-config">Environment Config</a></h2>
-<p>The environment config file defines a pair of command sections: one for setting up the environment
-before the test is run and another for tearing it down after the test is complete. The setup section
-also requires the user to declare the structure of additional JSON variables that will be provided
-by the setup command for it to pass data along to the scenario and teardown sections.</p>
-<h2 id="test-plan-config"><a class="header" href="#test-plan-config">Test plan config</a></h2>
-<p>The test plan config file is where the user defines the variables they wish to use for templating
-along with the scenario and environment configurations, either provided inline or as references to
-external files.</p>
+<h1 id="logging-reference"><a class="header" href="#logging-reference">Logging Reference</a></h1>
+<p>This page covers when and how to use different log levels in the Runtime Testing Framework. The
+project uses the <a href="https://tracing.rs/"><code>tracing</code></a> crate for structured logging.</p>
+<p>For the design rationale behind logging choices, see
+<a href="../explanation/logging-philosophy.html">Logging Philosophy</a>.</p>
+<h2 id="log-levels-overview"><a class="header" href="#log-levels-overview">Log Levels Overview</a></h2>
+<p>The Runtime Testing Framework uses five log levels, from most to least verbose:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Level</th><th>Verbosity Flag</th><th>Purpose</th><th>Audience</th></tr>
+</thead>
+<tbody>
+<tr><td><code>TRACE</code></td><td><code>-vvv</code></td><td>Extremely detailed execution flow</td><td>Framework developers debugging</td></tr>
+<tr><td><code>DEBUG</code></td><td><code>-vv</code></td><td>Detailed diagnostic information</td><td>Developers and end users troubleshooting</td></tr>
+<tr><td><code>INFO</code></td><td><code>-v</code></td><td>High-level progress indicators</td><td>End users</td></tr>
+<tr><td><code>WARN</code></td><td>(default)</td><td>Potentially problematic situations</td><td>End users</td></tr>
+<tr><td><code>ERROR</code></td><td>(always shown)</td><td>Error conditions that prevent normal operation</td><td>End users</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="when-to-use-each-level"><a class="header" href="#when-to-use-each-level">When to Use Each Level</a></h2>
+<h3 id="error-level"><a class="header" href="#error-level">ERROR level</a></h3>
+<p>Use <code>error!</code> for conditions that prevent the application from continuing normal operation or cause
+significant functionality to fail.</p>
+<p><strong>Examples:</strong></p>
+<ul>
+<li>Failed to initialize logging system</li>
+<li>Missing required configuration</li>
+<li>Network requests that fail completely</li>
+<li>File I/O errors that prevent core functionality</li>
+</ul>
+<p><strong>Avoid using ERROR for:</strong></p>
+<ul>
+<li>Temporary failures that will be retried</li>
+<li>Optional operations that fail</li>
+<li>Expected validation failures</li>
+</ul>
+<h3 id="warn-level"><a class="header" href="#warn-level">WARN level</a></h3>
+<p>Use <code>warn!</code> for situations that are unusual or potentially problematic but don’t prevent the
+operation from continuing. WARN is the default log level shown to end users, so these messages
+should provide useful context about what users should look for if errors occur later in the process.</p>
+<p><strong>Examples:</strong></p>
+<ul>
+<li>Deprecated features being used</li>
+<li>Non-critical parsing failures</li>
+<li>Missing optional data</li>
+<li>Retrying failed operations</li>
+</ul>
+<h3 id="info-level"><a class="header" href="#info-level">INFO level</a></h3>
+<p>Use <code>info!</code> for high-level progress indicators that help users understand what the application is
+doing.</p>
+<p><strong>Examples:</strong></p>
+<ul>
+<li>Major phase transitions (loading, executing, completing)</li>
+<li>Processing of user-provided inputs</li>
+<li>Successful completion of significant operations</li>
+<li>Progress indicators for long-running operations</li>
+</ul>
+<h3 id="debug-level"><a class="header" href="#debug-level">DEBUG level</a></h3>
+<p>Use <code>debug!</code> for detailed diagnostic information that helps developers understand the internal
+workings and troubleshoot issues.</p>
+<p><strong>Examples:</strong></p>
+<ul>
+<li>File system operations (creating directories, writing files)</li>
+<li>Detailed processing steps</li>
+<li>Configuration values being used</li>
+<li>Internal state changes</li>
+</ul>
+<h3 id="trace-level"><a class="header" href="#trace-level">TRACE level</a></h3>
+<p>Use <code>trace!</code> for extremely detailed execution flow information, typically for debugging complex
+logic or data flow issues.</p>
+<blockquote>
+<p><strong>Warning</strong>: Do not log potentially sensitive data in the <code>trace</code> logs. Assume all data supplied
+by the user or from sources specified by the user could contain sensitive data. For this reason,
+we do not log raw API responses or the contents of a file.</p>
+</blockquote>
+<p><strong>Examples:</strong></p>
+<ul>
+<li>The URL of an API being called. Do not log the response or parameters used to call the API since
+these could be sensitive.</li>
+<li>Fine-grained execution flow</li>
+<li>Performance-sensitive debugging information</li>
+</ul>
+<h2 id="logging-best-practices"><a class="header" href="#logging-best-practices">Logging Best Practices</a></h2>
+<h3 id="use-structured-fields"><a class="header" href="#use-structured-fields">Use Structured Fields</a></h3>
+<p>Take advantage of
+<a href="https://docs.rs/tracing/latest/tracing/#recording-fields">tracing’s structured logging capabilities</a>
+by including relevant context as fields:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Good: structured fields for easy filtering and analysis
+info!(%graph_id, %variant, "pulling supergraph details");
+warn!(error = %e, "failed to parse configuration");
+
+// Avoid: embedding everything in the message
+info!("pulling supergraph details for graph_id={} variant={}", graph_id, variant);
+<span class="boring">}</span></code></pre>
+<h3 id="common-field-naming-conventions"><a class="header" href="#common-field-naming-conventions">Common Field Naming Conventions</a></h3>
+<p>Use these prefixes to control how values are formatted in log output:</p>
+<ul>
+<li>Use <code>%</code> prefix for Display formatting (human-readable): <code>%graph_id</code>, <code>%error</code></li>
+<li>Use <code>?</code> prefix for Debug formatting (developer-oriented): <code>?config_object</code>, <code>?response_data</code></li>
+<li>Use <code>error = %e</code> for error context</li>
+<li>Use descriptive field names: <code>operation_count</code>, <code>file_path</code>, <code>duration_ms</code></li>
+</ul>
+<p><strong>Examples:</strong></p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Good field names
+debug!(file_path = %path, size_bytes = file_size, "reading configuration file");
+warn!(retry_count = attempts, max_retries = MAX_ATTEMPTS, "operation failed, retrying");
+
+// Avoid generic or unclear names
+debug!(thing = %path, num = file_size, "reading file");
+<span class="boring">}</span></code></pre>
+<h3 id="error-context"><a class="header" href="#error-context">Error Context</a></h3>
+<p>Always include relevant context when logging errors:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Good: includes context about what failed
+error!(path = %config_path, "failed to read configuration file: {e}");
+
+// Avoid: generic error without context
+error!("file operation failed: {e}");
+<span class="boring">}</span></code></pre>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>The logging level can be controlled in several ways:</p>
+<h3 id="command-line-verbosity-flags"><a class="header" href="#command-line-verbosity-flags">Command Line Verbosity Flags</a></h3>
+<p>Use these flags to control the overall log level:</p>
+<ul>
+<li>No flags: WARN level (default - only warnings and errors)</li>
+<li><code>-v</code>: INFO level (includes progress indicators)</li>
+<li><code>-vv</code>: DEBUG level (includes detailed diagnostic information)</li>
+<li><code>-vvv</code>: TRACE level (includes extremely detailed execution flow)</li>
+</ul>
+<h3 id="environment-variable"><a class="header" href="#environment-variable">Environment Variable</a></h3>
+<p>Set <code>APOLLO_RTF_LOG</code> for fine-grained control over specific modules:</p>
+<pre><code class="language-bash">APOLLO_RTF_LOG=rtf_core=debug,rtf_cli=info cargo run
+</code></pre>
+<h3 id="per-module-filtering"><a class="header" href="#per-module-filtering">Per-module Filtering</a></h3>
+<p>You can set different log levels for different parts of the codebase:</p>
+<pre><code class="language-bash">APOLLO_RTF_LOG=warn,rtf_core::graphos=debug cargo run
+</code></pre>
+<blockquote>
+<p><strong>Note</strong>: When both command-line flags and environment variables are used, the environment
+variable takes precedence for the modules it specifies, while the command-line flag sets the
+default level for other modules.</p>
+</blockquote>
+<h2 id="quick-reference"><a class="header" href="#quick-reference">Quick Reference</a></h2>
+<h3 id="when-to-use-each-level-1"><a class="header" href="#when-to-use-each-level-1">When to Use Each Level</a></h3>
+<ul>
+<li><strong>ERROR</strong>: Operation cannot continue, user needs to take action</li>
+<li><strong>WARN</strong>: Something unusual happened, but operation continues (default visibility)</li>
+<li><strong>INFO</strong>: High-level progress updates, what RTF is currently doing</li>
+<li><strong>DEBUG</strong>: Detailed diagnostic information for troubleshooting</li>
+<li><strong>TRACE</strong>: Extremely detailed execution flow for debugging</li>
+</ul>
+<h3 id="common-patterns"><a class="header" href="#common-patterns">Common Patterns</a></h3>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Error with context
+error!(path = %config_path, "failed to read configuration file: {e}");
+
+// Progress indication
+info!(test_count = tests.len(), "executing test suite");
+
+// Debug with structured data
+debug!(endpoint = %url, method = "POST", "making API request");
+
+// Warning about potential issues
+warn!(feature = "deprecated_option", "using deprecated configuration option");
+<span class="boring">}</span></code></pre>
+<h3 id="verbosity-flags"><a class="header" href="#verbosity-flags">Verbosity Flags</a></h3>
+<ul>
+<li>Default: <code>WARN</code> and <code>ERROR</code> only</li>
+<li><code>-v</code>: Add <code>INFO</code> messages</li>
+<li><code>-vv</code>: Add <code>DEBUG</code> messages</li>
+<li><code>-vvv</code>: Add <code>TRACE</code> messages</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../developer/data-structures/command-providers.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../developer/reference/error-handling.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../developer/config-traits.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../developer/reference/parsing-config-files.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -212,11 +377,11 @@ external files.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../developer/data-structures/command-providers.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../developer/reference/error-handling.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../developer/config-traits.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../developer/reference/parsing-config-files.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
