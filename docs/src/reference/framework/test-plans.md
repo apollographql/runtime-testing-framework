@@ -14,7 +14,7 @@ references to Scenario and Environment configurations.
   - Uniqueness is not enforced by the `rtf` CLI but it is worthwhile ensuring that the test plans
     you write each have unique names that can be used to distinguish them.
 - `description`: A brief, human readable description of the behaviour of the Test Plan.
-  - If there are any pre-requesites to running this Test Plan it is best to call them out here
+  - If there are any pre-requisites to running this Test Plan it is best to call them out here
     rather than in comments or other files (such as a README).
 - `variables`: Key value pairs for templating the Test Plan where the variables are all scalar.
   - Scalar here is defined to be a number, string or boolean.
