@@ -12,7 +12,7 @@ look at a couple of simple ways we can make changes to the config files in order
 behaviour.
 
 > For more information on the structure of RTF test plan config files see the
-> [Framework / Test Plans](../framework/test-plans.md) page.
+> [Framework / Test Plans](../reference/framework/test-plans.md) page.
 >
 > For details on how to get started with writing your own test plans from scratch see the
 > [Writing test plans](./test-plans/index.md) section.

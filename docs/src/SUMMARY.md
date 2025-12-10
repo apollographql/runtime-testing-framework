@@ -4,37 +4,33 @@
 
 # User Documentation
 
-- [Overview](overview.md)
+- [Understanding RTF](explanation/overview.md)
 
-- [Getting started](guides/index.md)
-  - [Hello, world!](guides/hello-world.md)
+- [Tutorials](tutorials/index.md)
+  - [Hello, world!](tutorials/hello-world.md)
+  - [Writing test plans](tutorials/test-plans/index.md)
+    - [Writing a test plan](tutorials/test-plans/writing-a-test-plan.md)
+    - [Writing a command](tutorials/test-plans/writing-a-command.md)
+    - [Writing a scenario](tutorials/test-plans/writing-a-scenario.md)
+    - [Writing an environment](tutorials/test-plans/writing-an-environment.md)
+    - [Using file providers](tutorials/test-plans/using-file-providers.md)
+  - [Writing custom providers](tutorials/custom-providers/index.md)
+    - [Writing a custom provider definition](tutorials/custom-providers/writing-a-custom-provider-definition.md)
+    - [Using a custom provider](tutorials/custom-providers/using-a-custom-provider.md)
 
-- [The framework](framework/index.md)
-  - [Test Plans](framework/test-plans.md)
-  - [Environments](framework/environments.md)
-  - [Scenarios](framework/scenarios.md)
-  - [Command providers](framework/command-providers.md)
-  - [File providers](framework/file-providers.md)
-  - [Custom providers](framework/custom-providers.md)
+- [How-to guides](howto/cookbook.md)
+  - [Troubleshooting]()
 
-- [Writing test plans](guides/test-plans/index.md)
-  - [Writing a new test plan](guides/test-plans/writing-a-test-plan.md)
-  - [Writing a command](guides/test-plans/writing-a-command.md)
-  - [Writing a new scenario](guides/test-plans/writing-a-scenario.md)
-  - [Writing a new environment](guides/test-plans/writing-an-environment.md)
-  - [Using file providers](guides/test-plans/using-file-providers.md)
-
-- [Writing custom providers](guides/custom-providers/index.md)
-  - [Writing a custom provider definition](guides/custom-providers/writing-a-custom-provider-definition.md)
-  - [Using a custom provider](guides/custom-providers/using-a-custom-provider.md)
-
-- [Troubleshooting]()
-
-- [Cookbook](cookbook.md)
-
-- [Command Line Help](cli-help.md)
-
-- [Glossary](glossary.md)
+- [Reference](reference/index.md)
+  - [Framework](reference/framework/index.md)
+    - [Test Plans](reference/framework/test-plans.md)
+    - [Environments](reference/framework/environments.md)
+    - [Scenarios](reference/framework/scenarios.md)
+    - [Command providers](reference/framework/command-providers.md)
+    - [File providers](reference/framework/file-providers.md)
+    - [Custom providers](reference/framework/custom-providers.md)
+  - [CLI reference](reference/cli-help.md)
+  - [Glossary](reference/glossary.md)
 
 # Developer Documentation
 
