@@ -352,20 +352,14 @@ fn rewrite_connector_urls(sdl: &str, base_url: &str) -> Option<String> {
     Some(schema.to_string())
 }
 
-fn rewrite_url(
-    args_map: &mut [(Name, Node<Value>)],
-    url_keys: &[&str],
-    url: &str,
-) -> Option<()> {
-    if let Some((_, http_node)) = args_map.iter_mut().find(|(key, _)| key.as_str() == "http") {
-        if let Value::Object(http_map) = http_node.get_mut()? {
-            if let Some((_, url_node)) = http_map
-                .iter_mut()
-                .find(|(key, _)| url_keys.contains(&key.as_str()))
-            {
-                *url_node = Node::new(Value::String(url.to_string()));
-            }
-        }
+fn rewrite_url(args_map: &mut [(Name, Node<Value>)], url_keys: &[&str], url: &str) -> Option<()> {
+    if let Some((_, http_node)) = args_map.iter_mut().find(|(key, _)| key.as_str() == "http")
+        && let Value::Object(http_map) = http_node.get_mut()?
+        && let Some((_, url_node)) = http_map
+            .iter_mut()
+            .find(|(key, _)| url_keys.contains(&key.as_str()))
+    {
+        *url_node = Node::new(Value::String(url.to_string()));
     }
     Some(())
 }
@@ -559,7 +553,6 @@ mod tests {
         let result = rewrite_subgraph_urls(sdl, &subgraph_urls);
         assert!(result.is_some());
     }
-
 
     #[test]
     fn rewriting_connector_urls_works() {
