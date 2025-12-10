@@ -19,7 +19,8 @@ other dependencies.
 $ mise trust
 ```
 
-If you are using Rust Rover you can change your rust toolchain in Settings > Rust to point to `/Users/<USER>/.local/share/mise/shims`
+If you are using Rust Rover you can change your rust toolchain in Settings > Rust to point to
+`/Users/<USER>/.local/share/mise/shims`
 
 Once you have Rust set up you can install `rtf` by using cargo:
 
