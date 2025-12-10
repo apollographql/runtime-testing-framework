@@ -218,8 +218,8 @@ will import the scenario config from the file on the relative path defined in th
 key.
 
 The `github` key allows the scenario config to be imported from a GitHub repo. It is not discussed
-in detail in this guide, please refer to the [framework reference docs](../../framework/index.md)
-reference for more detail.
+in detail in this guide, please refer to the
+[framework reference docs](../../reference/framework/index.md) reference for more detail.
 
 ## Scenario config structure
 

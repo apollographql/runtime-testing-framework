@@ -28,7 +28,7 @@ plan configuration itself.
 
 There are additional file providers that, amongst other things, can pull data from APIs (such as
 GraphOS specific providers). These will not be discussed in this guide but can be seen in the
-[framework reference](../../framework/file-providers.md).
+[framework reference](../../reference/framework/file-providers.md).
 
 All file providers follow the same basic principle - they create one or more files and place it on a
 path for rtf to make use of. If you need to know that path (for your command script, for example),
@@ -126,8 +126,8 @@ are three required fields:
 2. `env_var` is the environment variable the file's path will be stored in. This is used by
    subsequent commands to refer to the file.
 3. `kind` is used to set which kind of file provider is being used. See the
-   [file provider reference](../../framework/providers.md) for details on all the providers
-   available.
+   [file provider reference](../../reference/framework/file-providers.md) for details on all the
+   providers available.
 
 Each file provider will have other fields that need to be defined, like `content` for `inline`.
 These are specific to each provider type, and the `template` command will highlight any missing or

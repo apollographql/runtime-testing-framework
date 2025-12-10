@@ -142,7 +142,7 @@ is written. Specifying additional matrix dimensions via the `--vars` flag on `rt
 the number of variants which in turn may result in a previously valid `variant_names` template
 becoming invalid if it now produces non-unique names.
 
-[0]: ./src/guides/index.md
-[1]: ./framework/index.md
-[2]: ./framework/test-plans.md#working-with-matrices
+[0]: ../tutorials/index.md
+[1]: ../reference/framework/index.md
+[2]: ../reference/framework/test-plans.md#working-with-matrices
 [3]: https://jqlang.org/

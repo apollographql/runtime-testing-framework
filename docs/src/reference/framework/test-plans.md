@@ -371,7 +371,7 @@ environment:
           An additional file that wasn't present in the original environment.yaml
 ```
 
-[0]: ../guides/hello-world.md
+[0]: ../../tutorials/hello-world.md
 [1]: ./index.md
 [2]: ./scenarios.md
 [3]: ./environments.md
