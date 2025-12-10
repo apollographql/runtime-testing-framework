@@ -7,7 +7,7 @@
 use crate::common::is_valid_test_plan;
 use simple_test_case::test_case;
 
-#[test_case("resources/valid/graphos-offline-license"; "offline license")]
+#[test_case("resources/test-plans/valid/graphos-offline-license"; "offline license")]
 #[test]
 #[ignore = "requires a valid GraphOS API Key for the starstuff graph"]
 fn completes(dir: &str) {

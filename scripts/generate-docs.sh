@@ -16,7 +16,11 @@ RUSTC_BOOTSTRAP=1 RUSTDOCFLAGS="-Z unstable-options --output-format json" \
 echo ">> Current doc format version is 0.$(jq '.format_version' < $RAW). This must match rustdoc-types in the CLI crate."
 
 echo ">> Processing rustdoc JSON output..."
-cargo run --bin rtf-docgen "$RAW" > "$DOCS_PAGE"
+{
+  echo "<!-- diataxis-type: reference -->"
+  echo
+  cargo run --bin rtf-docgen "$RAW"
+} > "$DOCS_PAGE"
 
 echo ">> Formatting markdown..."
 mise format-markdown

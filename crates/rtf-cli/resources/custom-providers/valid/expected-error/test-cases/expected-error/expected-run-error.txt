@@ -1,0 +1,3 @@
+stdout: STDOUT
+
+stderr: STDERR

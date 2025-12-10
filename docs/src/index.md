@@ -1,3 +1,5 @@
+<!-- diataxis-type: explanation -->
+
 # The Apollo Runtime Testing Framework
 
 Welcome to [RTF][0]!

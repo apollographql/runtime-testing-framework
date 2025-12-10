@@ -9,10 +9,10 @@
 use crate::common::is_valid_test_plan;
 use simple_test_case::test_case;
 
-#[test_case("resources/valid/graphos-supergraph"; "supergraph sdl")]
-#[test_case("resources/valid/graphos-subgraph-router-url-overrides"; "subgraph router url overrides")]
-#[test_case("resources/valid/graphos-subgraphs"; "subgraph sdls")]
-#[test_case("resources/valid/graphos-canned-ops"; "canned operations")]
+#[test_case("resources/test-plans/valid/graphos-supergraph"; "supergraph sdl")]
+#[test_case("resources/test-plans/valid/graphos-subgraph-router-url-overrides"; "subgraph router url overrides")]
+#[test_case("resources/test-plans/valid/graphos-subgraphs"; "subgraph sdls")]
+#[test_case("resources/test-plans/valid/graphos-canned-ops"; "canned operations")]
 #[test]
 #[ignore = "requires a valid GraphOS API Key for the imgood-observability-test graph"]
 fn completes(dir: &str) {

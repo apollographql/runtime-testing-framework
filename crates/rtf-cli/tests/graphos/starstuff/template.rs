@@ -7,7 +7,7 @@ fn check_completes_offline_license() {
     let mut cmd = Command::cargo_bin("rtf").unwrap();
     let res = cmd
         .arg("template")
-        .arg("resources/valid/graphos-offline-license/test-plan.yaml")
+        .arg("resources/test-plans/valid/graphos-offline-license/test-plan.yaml")
         .arg("--check")
         .assert();
 
