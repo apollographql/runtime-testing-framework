@@ -17,7 +17,7 @@ written config files.
 The full resolution and execution of a test plan has the following flow:
 
 1. Load and parse the user specified `TestPlan` file.
-2. Locate and load any required `Secenario` and `Environment` files defined in `from` directives as
+2. Locate and load any required `Scenario` and `Environment` files defined in `from` directives as
    raw YAML. If the test plan defines overrides for either section then deep merge before parsing
    into concrete structs.
 3. Check that the test plan contains all of the required variables for templating to be possible. If

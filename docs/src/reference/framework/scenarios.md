@@ -14,7 +14,7 @@ that runs between the Environment's setup and teardown phases.
   - Uniqueness is not enforced by the `rtf` CLI but it is worthwhile ensuring that the scenarios you
     write each have unique names that can be used to distinguish them.
 - `description`: A brief, human readable description of the behaviour of the Scenario.
-  - If there are any pre-requesites to running this Scenario it is best to call them out here rather
+  - If there are any pre-requisites to running this Scenario it is best to call them out here rather
     than in comments or other files (such as a README).
 - `variable_definitions`: Declarations of the templating variables supported by this Scenario.
   - Variable declarations require specifying both the variable name and a short description of how

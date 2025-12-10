@@ -55,9 +55,26 @@ _compose_ with other tools rather than embed them directly. By setting things up
 possible for end users to leverage the tooling they are already familiar with alongside RTF rather
 than being forced to pick from a limited set of options that we happed to have added support for.
 
-## Pay for what you use
+## When is it worthwhile using RTF?
 
-So if that's what RTF is / is not in terms of design, what does it look like to actually use?
+So if that's what RTF is / is not in terms of design, when is it an appropriate tool to make use of?
+And, arguably more importantly, when is it _not_ an appropriate tool?
+
+As mentioned above, RTF is designed to compose together your existing tooling, scripts and
+infrastructure in a way that allows you to share common functionality. It shouldn't be a surprise
+then that RTF is best suited to running integration style tests that target the behaviour of entire
+services and their interactions with specific data sets or configuration. If what you are trying to
+test can be handled as unit tests or smaller functional tests then you should almost certainly _not_
+be using RTF for that particular use case.
+
+There are, of course, exceptions rules like this. For example, [this test plan][7] runs a Rust test
+scenario for the Query Planner to check how memory usage varies for different customer graphs and
+queries. The test itself is modelled on an existing unit test in the Router repo, but we write it as
+an RTF test plan so we can leverage the file providers that pull schemas and operations from studio
+as test data. This is something we can't do in the public test suite within the Router repo due to
+the use of customer data.
+
+## Pay for what you use
 
 We here at Runtime Readiness are _big_ fans of the Unix Philosophy (as stated by Doug McIlroy):
 
@@ -104,8 +121,6 @@ same building blocks we use ourselves for writing our own _Layer 3_ applications
 general purpose Scenario and Environment configurations such as those available in the [lib][1]
 directory of the `rtf-morgue` repo.
 
-> Soon you will also be able to define and re-use custom providers once [RR-351][2] is complete.
-
 The focus of _Layer 2_ is to build and re-use higher level abstractions that address common use
 cases which require coordinating elements that make use of shared semantics or configuration.
 
@@ -144,3 +159,4 @@ Happy testing!
 [4]: ../tutorials/index.md
 [5]: ../tutorials/test-plans/index.md
 [6]: ../reference/framework/index.md
+[7]: https://github.com/apollographql/rtf-morgue/tree/0843b875ea896b80309d73ac034b1a42b171c6cf/test-plans/query-planner-memory
