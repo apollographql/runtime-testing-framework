@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # File providers
 
 [File providers][0] are the primary way that rtf exposes useful functionality to users. Each

@@ -1,3 +1,5 @@
+<!-- diataxis-type: tutorial -->
+
 # Writing a new environment
 
 This guide assumes you've completed the ["Writing a scenario"](writing-a-scenario.md) guide. You

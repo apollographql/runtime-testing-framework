@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # PR checks
 
 This page documents all the checks that run when raising a PR, how to run the corresponding checks

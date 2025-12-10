@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # Parsing config files
 
 The [rtf-config][0] crate provides parsers for the [three config files][1] used by RTF, along with

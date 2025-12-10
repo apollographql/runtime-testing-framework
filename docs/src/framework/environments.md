@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # Environments
 
 An Environment defines setup and teardown commands that bracket a Scenario's execution. Each phase

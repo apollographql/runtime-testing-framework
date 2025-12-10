@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # Config file formats
 
 The [rtf-config][0] crate provides parsers for the three config files used by RTF: `TestPlanConfig`,

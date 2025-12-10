@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # Error handling
 
 Wherever possible we aim to provide users with as much debugging information as possible when rtf

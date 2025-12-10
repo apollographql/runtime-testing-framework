@@ -1,3 +1,5 @@
+<!-- diataxis-type: explanation -->
+
 # Use of IO in providers
 
 All IO that is run as part of provider logic _must_ be run using the [context][0] argument that is

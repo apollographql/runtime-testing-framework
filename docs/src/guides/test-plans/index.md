@@ -1,3 +1,5 @@
+<!-- diataxis-type: tutorial -->
+
 # Writing test Plans
 
 This section will guide you through writing a test plan for rtf from a blank file. The test plan

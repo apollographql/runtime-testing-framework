@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # Test Plans
 
 The Test Plan is the top-level entry point for RTF. It defines variables, matrix dimensions, and

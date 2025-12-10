@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # Command providers
 
 [Command providers][0] support running a subset of [file providers][1] in order to obtain an

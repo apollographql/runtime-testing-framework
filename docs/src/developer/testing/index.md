@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # Testing
 
 As developers of a testing framework, we believe in the importance of comprehensive,

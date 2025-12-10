@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # Data structures
 
 The [rtf-config][0] crate provides a number of data structures for working with user written YAML

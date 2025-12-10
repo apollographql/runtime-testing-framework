@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # Scenarios
 
 A Scenario defines the test command to execute within a Test Plan. It is a [Command Provider][1]

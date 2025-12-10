@@ -1,3 +1,5 @@
+<!-- diataxis-type: tutorial -->
+
 # Using a custom provider
 
 This guide assumes you've completed the

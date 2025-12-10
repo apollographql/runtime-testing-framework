@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # The framework
 
 The following pages provide reference information for various aspects of the runtime testing

@@ -1,3 +1,5 @@
+<!-- diataxis-type: reference -->
+
 # rtf-cli
 
 This page documents how tests in the [`rtf-cli`][0] crate are organized and implemented.

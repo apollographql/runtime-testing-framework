@@ -1,3 +1,5 @@
+<!-- diataxis-type: tutorial -->
+
 # Writing a test plan
 
 Create an empty directory and make it your working directory:
