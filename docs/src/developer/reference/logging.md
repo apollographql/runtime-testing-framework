@@ -1,16 +1,14 @@
 <!-- diataxis-type: reference -->
 
-# Logging
+# Logging Reference
 
-This guide covers when and how to use different log levels in the Runtime Testing Framework. The
+This page covers when and how to use different log levels in the Runtime Testing Framework. The
 project uses the [`tracing`](https://tracing.rs/) crate for structured logging.
 
-We want RTF to take the "no news is good news" approach and be quiet by default. Logging is
-primarily there to help debug issues and provide feedback when things go wrong. When adding log
-statements to RTF, consider whether the information is helpful and avoid overwhelming users with
-unnecessary data.
+For the design rationale behind logging choices, see
+[Logging Philosophy](../explanation/logging-philosophy.md).
 
-## Log levels overview
+## Log Levels Overview
 
 The Runtime Testing Framework uses five log levels, from most to least verbose:
 
@@ -22,7 +20,7 @@ The Runtime Testing Framework uses five log levels, from most to least verbose:
 | `WARN`  | (default)      | Potentially problematic situations             | End users                                |
 | `ERROR` | (always shown) | Error conditions that prevent normal operation | End users                                |
 
-## When to use each level
+## When to Use Each Level
 
 ### ERROR level
 
@@ -95,7 +93,7 @@ logic or data flow issues.
 - Fine-grained execution flow
 - Performance-sensitive debugging information
 
-## Logging best practices
+## Logging Best Practices
 
 ### Use Structured Fields
 
@@ -112,7 +110,7 @@ warn!(error = %e, "failed to parse configuration");
 info!("pulling supergraph details for graph_id={} variant={}", graph_id, variant);
 ```
 
-### Common field naming conventions
+### Common Field Naming Conventions
 
 Use these prefixes to control how values are formatted in log output:
 
@@ -132,7 +130,7 @@ warn!(retry_count = attempts, max_retries = MAX_ATTEMPTS, "operation failed, ret
 debug!(thing = %path, num = file_size, "reading file");
 ```
 
-### Error context
+### Error Context
 
 Always include relevant context when logging errors:
 
@@ -144,22 +142,11 @@ error!(path = %config_path, "failed to read configuration file: {e}");
 error!("file operation failed: {e}");
 ```
 
-## Performance considerations
-
-Logging performance is not a primary concern in RTF. The framework is expected to become I/O bound
-(waiting for network requests, file operations, etc.) before logging becomes a bottleneck.
-
-However, keep these guidelines in mind:
-
-- Avoid expensive computations solely for log messages
-- Use structured fields instead of string formatting when possible
-- Don't worry about the overhead of log statements that won't be displayed
-
 ## Configuration
 
 The logging level can be controlled in several ways:
 
-### Command line verbosity flags
+### Command Line Verbosity Flags
 
 Use these flags to control the overall log level:
 
@@ -168,7 +155,7 @@ Use these flags to control the overall log level:
 - `-vv`: DEBUG level (includes detailed diagnostic information)
 - `-vvv`: TRACE level (includes extremely detailed execution flow)
 
-### Environment variable
+### Environment Variable
 
 Set `APOLLO_RTF_LOG` for fine-grained control over specific modules:
 
@@ -176,7 +163,7 @@ Set `APOLLO_RTF_LOG` for fine-grained control over specific modules:
 APOLLO_RTF_LOG=rtf_core=debug,rtf_cli=info cargo run
 ```
 
-### Per-module filtering
+### Per-module Filtering
 
 You can set different log levels for different parts of the codebase:
 
@@ -188,16 +175,9 @@ APOLLO_RTF_LOG=warn,rtf_core::graphos=debug cargo run
 > variable takes precedence for the modules it specifies, while the command-line flag sets the
 > default level for other modules.
 
-## Testing logging
-
-Do not test logging at the low level using a crate like `tracing_test`. Instead, make sure to test
-the output the user sees in the CLI tests. Tests should ensure the user sees the logging statement
-in situations where it is expected and required to give helpful feedback. Tests should not cover
-`debug` and `trace` level logs.
-
 ## Quick Reference
 
-### When to use each level
+### When to Use Each Level
 
 - **ERROR**: Operation cannot continue, user needs to take action
 - **WARN**: Something unusual happened, but operation continues (default visibility)
@@ -205,7 +185,7 @@ in situations where it is expected and required to give helpful feedback. Tests 
 - **DEBUG**: Detailed diagnostic information for troubleshooting
 - **TRACE**: Extremely detailed execution flow for debugging
 
-### Common patterns
+### Common Patterns
 
 ```rust
 // Error with context
@@ -221,7 +201,7 @@ debug!(endpoint = %url, method = "POST", "making API request");
 warn!(feature = "deprecated_option", "using deprecated configuration option");
 ```
 
-### Verbosity flags
+### Verbosity Flags
 
 - Default: `WARN` and `ERROR` only
 - `-v`: Add `INFO` messages
