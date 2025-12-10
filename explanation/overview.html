@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-201b39eb.js";
+            window.path_to_searchindex_js = "../searchindex-032c7814.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-cf036e76.js"></script>
@@ -218,8 +218,22 @@ Terraform or managing Kubernetes clusters. The answer is relatively simple: RTF 
 <em>compose</em> with other tools rather than embed them directly. By setting things up this way we make it
 possible for end users to leverage the tooling they are already familiar with alongside RTF rather
 than being forced to pick from a limited set of options that we happed to have added support for.</p>
+<h2 id="when-is-it-worthwhile-using-rtf"><a class="header" href="#when-is-it-worthwhile-using-rtf">When is it worthwhile using RTF?</a></h2>
+<p>So if that’s what RTF is / is not in terms of design, when is it an appropriate tool to make use of?
+And, arguably more importantly, when is it <em>not</em> an appropriate tool?</p>
+<p>As mentioned above, RTF is designed to compose together your existing tooling, scripts and
+infrastructure in a way that allows you to share common functionality. It shouldn’t be a surprise
+then that RTF is best suited to running integration style tests that target the behaviour of entire
+services and their interactions with specific data sets or configuration. If what you are trying to
+test can be handled as unit tests or smaller functional tests then you should almost certainly <em>not</em>
+be using RTF for that particular use case.</p>
+<p>There are, of course, exceptions rules like this. For example, <a href="https://github.com/apollographql/rtf-morgue/tree/0843b875ea896b80309d73ac034b1a42b171c6cf/test-plans/query-planner-memory">this test plan</a> runs a Rust test
+scenario for the Query Planner to check how memory usage varies for different customer graphs and
+queries. The test itself is modelled on an existing unit test in the Router repo, but we write it as
+an RTF test plan so we can leverage the file providers that pull schemas and operations from studio
+as test data. This is something we can’t do in the public test suite within the Router repo due to
+the use of customer data.</p>
 <h2 id="pay-for-what-you-use"><a class="header" href="#pay-for-what-you-use">Pay for what you use</a></h2>
-<p>So if that’s what RTF is / is not in terms of design, what does it look like to actually use?</p>
 <p>We here at Runtime Readiness are <em>big</em> fans of the Unix Philosophy (as stated by Doug McIlroy):</p>
 <blockquote>
 <p>Write programs that do one thing and do it well.<br /> Write programs to work together.<br /> Write
@@ -256,9 +270,6 @@ what is possible.</p>
 same building blocks we use ourselves for writing our own <em>Layer 3</em> applications. Here you can find
 general purpose Scenario and Environment configurations such as those available in the <a href="https://github.com/apollographql/rtf-morgue/tree/main/lib">lib</a>
 directory of the <code>rtf-morgue</code> repo.</p>
-<blockquote>
-<p>Soon you will also be able to define and re-use custom providers once <a href="https://apollographql.atlassian.net/browse/RR-351">RR-351</a> is complete.</p>
-</blockquote>
 <p>The focus of <em>Layer 2</em> is to build and re-use higher level abstractions that address common use
 cases which require coordinating elements that make use of shared semantics or configuration.</p>
 <p>As far as possible, anything that is done by one of our <em>Layer 3</em> applications is also made
