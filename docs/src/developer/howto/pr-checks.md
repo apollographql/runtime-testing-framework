@@ -1,4 +1,4 @@
-<!-- diataxis-type: reference -->
+<!-- diataxis-type: howto -->
 
 # PR checks
 

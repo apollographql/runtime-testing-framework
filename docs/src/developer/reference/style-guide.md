@@ -378,5 +378,5 @@ Before submitting documentation:
 
 [0]: https://learn.microsoft.com/en-us/style-guide/welcome/
 [1]: https://diataxis.fr/
-[2]: ../reference/glossary.md
+[2]: ../../reference/glossary.md
 [3]: https://learn.microsoft.com/en-us/style-guide/bias-free-communication
