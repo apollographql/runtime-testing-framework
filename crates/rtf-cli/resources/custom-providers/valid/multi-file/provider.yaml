@@ -1,0 +1,19 @@
+name: multi file
+description: output multiple files
+variable_definitions: []
+
+command:
+  name: generate.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    mkdir -p "$RTF_OUTPUT"
+    echo "foo" > "$RTF_OUTPUT/file1.txt"
+    echo "bar" > "$RTF_OUTPUT/file2.txt"
+    cp "$FILE_3" "$RTF_OUTPUT/file3.txt"
+
+file_providers:
+  - name: file3.txt
+    env_var: FILE_3
+    kind: relative_path
+    path: data/file3.txt

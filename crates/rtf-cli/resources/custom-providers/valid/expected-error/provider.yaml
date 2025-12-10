@@ -1,0 +1,13 @@
+name: single file
+description: output a single file
+variable_definitions: []
+
+command:
+  name: generate.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    # Echo to stderr first to check ordering as the output file needs to be out then err
+    >&2 echo "STDERR"
+    echo "STDOUT"
+    exit 1

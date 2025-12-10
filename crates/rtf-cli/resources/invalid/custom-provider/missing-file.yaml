@@ -1,7 +1,0 @@
-name: invalid provider
-description: This provider references a file that does not exist
-variable_definitions: []
-command:
-  name: test.sh
-  kind: relative_path
-  path: does-not-exist.sh
