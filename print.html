@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-ae9c8136.js";
+            window.path_to_searchindex_js = "searchindex-e010b32d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-0ee976b5.js"></script>
+        <script src="toc-43c40e78.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,7 +178,8 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="the-apollo-runtime-testing-framework"><a class="header" href="#the-apollo-runtime-testing-framework">The Apollo Runtime Testing Framework</a></h1>
+                        <!-- diataxis-type: explanation -->
+<h1 id="the-apollo-runtime-testing-framework"><a class="header" href="#the-apollo-runtime-testing-framework">The Apollo Runtime Testing Framework</a></h1>
 <p>Welcome to <a href="https://github.com/apollographql/runtime-testing-framework">RTF</a>!</p>
 <p>RTF is a tool for writing, running and debugging tests of the Apollo Runtime under a variety of
 deployment setups. This documentation site covers how to get set up with the tooling and work with
@@ -204,7 +205,7 @@ can find links to our intake process and other useful information in the channel
 workflows for running tests of the Apollo Router. This repo is maintained by the Runtime Readiness
 team in order to support Router Core with release validation, regression testing and running
 investigations into customer issues.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="overview"><a class="header" href="#overview">Overview</a></h1>
 <p>Throughout the rest of the <em>User Documentation</em> you’ll see us talking about RTF both as the
 framework itself and as part of the richer tooling and testing capabilities provided by the Runtime
@@ -309,7 +310,7 @@ how RTF works and how you can work with pre-existing test plans. If you want to 
 framework itself, then the <a href="#writing-test-plans">Test plans</a> and <a href="#the-framework">framework</a> sections are more likely what you are
 after.</p>
 <p>Happy testing!</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="getting-started"><a class="header" href="#getting-started">Getting started</a></h1>
 <p>To build <code>rtf</code> from source, start by cloning the repo locally:</p>
 <pre><code class="language-bash">git clone git@github.com:apollographql/runtime-testing-framework.git
@@ -332,7 +333,7 @@ test plans!</p>
 the <a href="#hello-world">“Hello, world!”</a> guide.</p>
 <p>The <a href="https://github.com/apollographql/rtf-morgue">rtf-morgue</a> contains the most up-to-date examples of how to write test plans for a variety
 of different test cases. It also contains guides for running those test plans.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="hello-world"><a class="header" href="#hello-world">Hello, world!</a></h1>
 <h2 id="overview-1"><a class="header" href="#overview-1">Overview</a></h2>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans">example_test_plans</a> directory in the rtf repository contains a “hello, world!” test plan
@@ -623,12 +624,12 @@ matrix:
 <p>The syntax used for template strings involves placing <em>matrix dimension names</em> inside of <code>${}</code> along
 with static string content in order to generate a unique name for each variant. The resulting string
 is then slugified to remove whitespace and slashes.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="the-framework"><a class="header" href="#the-framework">The framework</a></h1>
 <p>The following pages provide reference information for various aspects of the runtime testing
 framework for end users who are interested in writing their own test plans.</p>
 <p>New users should start with the <a href="#getting-started">guides</a> section.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="test-plans"><a class="header" href="#test-plans">Test Plans</a></h1>
 <p>The Test Plan is the top-level entry point for RTF. It defines variables, matrix dimensions, and
 references to Scenario and Environment configurations.</p>
@@ -969,7 +970,7 @@ environment:
         content: |
           An additional file that wasn't present in the original environment.yaml
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="environments"><a class="header" href="#environments">Environments</a></h1>
 <p>An Environment defines setup and teardown commands that bracket a Scenario’s execution. Each phase
 is a <a href="#command-providers">Command Provider</a>.</p>
@@ -1059,7 +1060,7 @@ teardown:
       kind: inline
       content: My inline content
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="scenarios"><a class="header" href="#scenarios">Scenarios</a></h1>
 <p>A Scenario defines the test command to execute within a Test Plan. It is a <a href="#command-providers">Command Provider</a>
 that runs between the Environment’s setup and teardown phases.</p>
@@ -1132,7 +1133,7 @@ file_providers:
     kind: inline
     content: My inline content
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="command-providers"><a class="header" href="#command-providers">Command providers</a></h1>
 <p>Command Providers are the core executable element of RTF Test Plans. They specify how a command runs
 and what resources it needs. <a href="#environments">Environment</a> and <a href="#scenarios">Scenario</a> configurations are Command Providers
@@ -1259,7 +1260,7 @@ between resources or from command scripts.</p>
 <p>RTF internally caches and reuses file providers that share identical keys, so you are free to
 duplicate providers between different Command Providers. This allows sharing resources without
 providers running multiple times.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="file-providers"><a class="header" href="#file-providers">File Providers</a></h1>
 <p>Available file providers:</p>
 <ul>
@@ -1667,7 +1668,7 @@ Router.</p>
 <h3 id="version"><a class="header" href="#version"><code>version</code></a></h3>
 <p>The version of the Apollo Router to download.</p>
 </details>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="custom-providers"><a class="header" href="#custom-providers">Custom providers</a></h1>
 <p>Custom Providers are reusable file providers that execute commands to produce files. They
 encapsulate file generation logic for sharing across test plans, environments, and scenarios.</p>
@@ -1818,7 +1819,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
     config_value: "{{ service_value }}"
 </code></pre>
 <p>In this example, <code>config_name</code> and <code>config_value</code> are the arguments to <code>my_provider</code>.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="writing-test-plans"><a class="header" href="#writing-test-plans">Writing test Plans</a></h1>
 <p>This section will guide you through writing a test plan for rtf from a blank file. The test plan
 will be a simple “Hello, World!” example that introduces you to the concepts of writing RTF test
@@ -1829,7 +1830,7 @@ the <a href="https://github.com/apollographql/rtf-morgue">morgue</a>.</p>
 familiar with the rtf CLI and have it properly installed.</p>
 <hr>
 <p><strong>Next:</strong> <a href="#writing-a-test-plan">Writing a test plan</a></p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="writing-a-test-plan"><a class="header" href="#writing-a-test-plan">Writing a test plan</a></h1>
 <p>Create an empty directory and make it your working directory:</p>
 <pre><code class="language-bash">mkdir rtf-hello-world
@@ -2197,7 +2198,7 @@ $ cat output/variable2/test-plan-variables.json
 <p>In this guide we have covered writing the simplest possible test plan. Next, we will guide you
 through how to write more powerful commands.</p>
 <p><strong>Next:</strong> <a href="#writing-a-command">Writing a command</a></p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="writing-a-command"><a class="header" href="#writing-a-command">Writing a command</a></h1>
 <p>This guide assumes you’ve completed the <a href="#writing-a-test-plan">“Writing a test plan”</a> guide. You
 should already have a <code>test-plan.yaml</code> file in a directory named <code>rtf-hello-world</code>. We’re going to
@@ -2389,7 +2390,7 @@ echo "$SCENARIO_ENV"
 <p>In this guide, we’ve covered writing more powerful commands both inline and in other files. Next,
 we’ll guide you through how to write a scenario config.</p>
 <p><strong>Next:</strong> <a href="#writing-a-new-scenario">Writing a scenario</a></p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="writing-a-new-scenario"><a class="header" href="#writing-a-new-scenario">Writing a new scenario</a></h1>
 <p>This guide assumes you have completed the <a href="#writing-a-test-plan">“Writing a test plan”</a> and
 <a href="#writing-a-command">“Writing a command”</a> guides. You should already have a <code>test-plan.yaml</code> file
@@ -2718,7 +2719,7 @@ scenario executed with cli variable
 <p>In this guide, we’ve covered moving scenario config into its own file and using variables. Next,
 we’ll guide you through how to write an environment config.</p>
 <p><strong>Next:</strong> <a href="#writing-a-new-environment">Writing an environment</a></p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="writing-a-new-environment"><a class="header" href="#writing-a-new-environment">Writing a new environment</a></h1>
 <p>This guide assumes you’ve completed the <a href="#writing-a-new-scenario">“Writing a scenario”</a> guide. You
 should already have the files in a directory named <code>rtf-hello-world</code>. Your directory should be in
@@ -3123,7 +3124,7 @@ any other config for the environment.</p>
 setup, and using overrides in the test plan. Next, we’ll guide you through how to use file
 providers.</p>
 <p><strong>Next:</strong> <a href="#using-file-providers">Using file providers</a></p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="using-file-providers"><a class="header" href="#using-file-providers">Using file providers</a></h1>
 <p>This guide assumes you’ve completed the <a href="#writing-a-new-environment">“Writing an environment”</a> guide.
 You should already have the files in a directory named <code>rtf-hello-world</code>. Your directory should be
@@ -3448,7 +3449,7 @@ overrides. Our test plan no longer contains a <code>required</code> file, so we 
 <code>rtf run</code> command can also complete successfully now.</p>
 <hr>
 <p>Congratulations! You’ve now completed the guide on how to write test plans.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="writing-custom-providers"><a class="header" href="#writing-custom-providers">Writing custom providers</a></h1>
 <p>This section will guide you through writing a custom provider for rtf from a blank file. The custom
 provider will be a simple example that introduces you to the concepts of writing RTF custom
@@ -3459,7 +3460,7 @@ use cases, please refer to the <a href="https://github.com/apollographql/rtf-mor
 you’re familiar with rtf test plans. Many of the concepts in that guide will be reused here.</p>
 <hr>
 <p><strong>Next:</strong> <a href="#writing-a-custom-provider-definition">Writing a custom provider definition</a></p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="writing-a-custom-provider-definition"><a class="header" href="#writing-a-custom-provider-definition">Writing a custom provider definition</a></h1>
 <p>Create an empty directory and make it your working directory:</p>
 <pre><code class="language-bash">mkdir rtf-custom-provider
@@ -3817,7 +3818,7 @@ continuing:</p>
 <p>In this guide we have covered writing a simple custom provider definition. Next, we will guide you
 through how to use it in a test plan.</p>
 <p><strong>Next:</strong> <a href="#using-a-custom-provider">Using a custom provider</a></p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="using-a-custom-provider"><a class="header" href="#using-a-custom-provider">Using a custom provider</a></h1>
 <p>This guide assumes you’ve completed the
 <a href="#writing-a-custom-provider-definition">“Writing a custom provider definition”</a> guide. You should
@@ -4111,7 +4112,7 @@ LOG_LEVEL=debug
 <hr>
 <p>In this guide, we have covered how to use a custom provider in a test plan, pass arguments to it,
 and use test plan variables for dynamic configuration.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
 <h1 id="cookbook"><a class="header" href="#cookbook">Cookbook</a></h1>
 <p><em>Common patterns and idioms for working with RTF</em></p>
 <p>This page is a collection of short configuration snippets and strategies for working with RTF Test
@@ -4221,7 +4222,7 @@ green_pear_bar_3
 is written. Specifying additional matrix dimensions via the <code>--vars</code> flag on <code>rtf run</code> will alter
 the number of variants which in turn may result in a previously valid <code>variant_names</code> template
 becoming invalid if it now produces non-unique names.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="command-line-help-for-rtf"><a class="header" href="#command-line-help-for-rtf">Command-Line Help for <code>rtf</code></a></h1>
 <p>This document contains the help content for the <code>rtf</code> command-line program.</p>
 <p><strong>Command Overview:</strong></p>
@@ -4327,7 +4328,7 @@ becoming invalid if it now produces non-unique names.</p>
 <p>Default value: <code>output</code></p>
 </li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="glossary"><a class="header" href="#glossary">Glossary</a></h1>
 <h2 id="custom-provider-declaration"><a class="header" href="#custom-provider-declaration">Custom Provider Declaration</a></h2>
 <p>A YAML snippet within an RTF configuration file (Test Plan, Environment or Scenario) that specifies
@@ -4380,9 +4381,357 @@ Plan itself or dynamically through command line arguments to the RTF CLI.</p>
 <h2 id="variables"><a class="header" href="#variables">Variables</a></h2>
 <p>Templating Variables are declared within the Scenario and Environment configuration files and have
 their values defined within the Test Plan referencing those configuration files.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
+<h1 id="rtf-documentation-style-guide"><a class="header" href="#rtf-documentation-style-guide">RTF Documentation Style Guide</a></h1>
+<p>This style guide defines writing standards for RTF documentation. It applies to all contributors
+(internal and external) writing or editing docs in <code>docs/src/</code>.</p>
+<h2 id="base-style-guide"><a class="header" href="#base-style-guide">Base Style Guide</a></h2>
+<p>RTF adopts the <a href="https://learn.microsoft.com/en-us/style-guide/welcome/">Microsoft Writing Style Guide</a> as its foundation. This document covers
+RTF-specific decisions and deviations only. For topics not covered here, defer to Microsoft.</p>
+<p>Key Microsoft principles we follow:</p>
+<ul>
+<li>Write like you speak</li>
+<li>Use second person (“you”)</li>
+<li>Use active voice and present tense</li>
+<li>Use contractions (it’s, you’ll, we’re)</li>
+<li>Get to the point fast</li>
+<li>Use sentence-case capitalization</li>
+</ul>
+<hr>
+<h2 id="diataxis-framework"><a class="header" href="#diataxis-framework">Diataxis Framework</a></h2>
+<p>RTF documentation follows the <a href="https://diataxis.fr/">Diataxis framework</a>, which defines four documentation types. Each
+page declares its type in an HTML comment on the first line.</p>
+<h3 id="type-declaration-format"><a class="header" href="#type-declaration-format">Type Declaration Format</a></h3>
+<p>Every documentation page must include a type declaration comment:</p>
+<pre><code class="language-markdown">&lt;!-- diataxis-type: tutorial --&gt;
+
+# Page title
+
+Content starts here...
+</code></pre>
+<p>Valid values: <code>tutorial</code>, <code>howto</code>, <code>reference</code>, <code>explanation</code></p>
+<p>The HTML comment format ensures the type declaration doesn’t render in the built documentation while
+remaining easy for contributors and tooling to identify.</p>
+<h3 id="the-four-types"><a class="header" href="#the-four-types">The Four Types</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Type</th><th>Purpose</th><th>Reader State</th><th>Style</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Tutorial</strong></td><td>Teach through hands-on experience</td><td>Learning</td><td>Guiding, step-by-step</td></tr>
+<tr><td><strong>How-to</strong></td><td>Solve a specific problem</td><td>Working</td><td>Direct, action-focused</td></tr>
+<tr><td><strong>Reference</strong></td><td>Describe the machinery</td><td>Looking up</td><td>Neutral, comprehensive</td></tr>
+<tr><td><strong>Explanation</strong></td><td>Provide context and background</td><td>Studying</td><td>Conversational, reflective</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="type-specific-guidelines"><a class="header" href="#type-specific-guidelines">Type-Specific Guidelines</a></h3>
+<h4 id="tutorials"><a class="header" href="#tutorials">Tutorials</a></h4>
+<ul>
+<li>Guide the reader step-by-step to a working result</li>
+<li>Every step should produce visible output</li>
+<li>Minimize explanation (link to Explanation docs instead)</li>
+<li>Use “you” throughout</li>
+<li>Celebrate milestones (“You now have a working test plan!”)</li>
+</ul>
+<h4 id="how-to-guides"><a class="header" href="#how-to-guides">How-to Guides</a></h4>
+<ul>
+<li>Assume competence; don’t teach fundamentals</li>
+<li>Focus on the task, not the concepts</li>
+<li>Use imperative mood (“Add the provider”, “Run the command”)</li>
+<li>No digressions or background information</li>
+<li>Title format: “How to [verb] [noun]” or “[Verb]-ing [noun]”</li>
+</ul>
+<h4 id="reference"><a class="header" href="#reference">Reference</a></h4>
+<ul>
+<li>Be neutral and factual</li>
+<li>Use consistent structure across similar pages</li>
+<li>Include all parameters, options, and fields</li>
+<li>Provide examples without explanation</li>
+<li>Use third person or passive voice where appropriate</li>
+</ul>
+<h4 id="explanation"><a class="header" href="#explanation">Explanation</a></h4>
+<ul>
+<li>Provide context, rationale, and background</li>
+<li>“We” voice is permitted (“We designed RTF to…”)</li>
+<li>Connect concepts to each other</li>
+<li>Include trade-offs and design decisions</li>
+<li>May express opinions and preferences</li>
+</ul>
+<hr>
+<h2 id="voice-and-tone"><a class="header" href="#voice-and-tone">Voice and Tone</a></h2>
+<h3 id="person"><a class="header" href="#person">Person</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Doc Type</th><th>Person</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td>Tutorial</td><td>Second (“you”)</td><td>“You configure the environment…”</td></tr>
+<tr><td>How-to</td><td>Second (“you”) / Imperative</td><td>“Configure the environment…”</td></tr>
+<tr><td>Reference</td><td>Third / Neutral</td><td>“The environment defines…”</td></tr>
+<tr><td>Explanation</td><td>First plural (“we”) + Second (“you”)</td><td>“We designed this because…”</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="we-voice"><a class="header" href="#we-voice">“We” Voice</a></h3>
+<p>The team voice (“we at RTF”, “we recommend”) is permitted <strong>only in Explanation docs</strong>. All other
+doc types should use “you” or imperative mood.</p>
+<p><strong>Allowed (Explanation):</strong></p>
+<blockquote>
+<p>We here at Runtime Readiness are big fans of the Unix Philosophy.</p>
+</blockquote>
+<p><strong>Not allowed (Tutorial/How-to/Reference):</strong></p>
+<blockquote>
+<p><del>We recommend using the <code>--dry-run</code> flag.</del> → Use the <code>--dry-run</code> flag.</p>
+</blockquote>
+<h3 id="formality"><a class="header" href="#formality">Formality</a></h3>
+<ul>
+<li>Tutorials and How-to guides: Friendly, contractions encouraged</li>
+<li>Reference: More formal, fewer contractions</li>
+<li>Explanation: Conversational, personality allowed</li>
+</ul>
+<hr>
+<h2 id="formatting"><a class="header" href="#formatting">Formatting</a></h2>
+<h3 id="code-and-commands"><a class="header" href="#code-and-commands">Code and Commands</a></h3>
+<p><strong>Inline code</strong> - Use backticks for:</p>
+<ul>
+<li>Commands: <code>rtf run</code></li>
+<li>Config keys: <code>environment.setup</code></li>
+<li>File paths: <code>test-plans/example.yaml</code></li>
+<li>Values: <code>true</code>, <code>false</code></li>
+<li>Flags: <code>--dry-run</code></li>
+</ul>
+<p><strong>Code blocks</strong> - Use triple backticks with language identifier:</p>
+<pre><code class="language-markdown">```yaml
+environment:
+  name: production
+```
+</code></pre>
+<p><strong>Command examples</strong> - Do NOT include shell prompts:</p>
+<pre><code class="language-markdown">&lt;!-- Good --&gt;
+
+rtf run my-plan.yaml --environment staging.yaml
+
+&lt;!-- Bad --&gt;
+
+$ rtf run my-plan.yaml --environment staging.yaml
+</code></pre>
+<p><strong>Commands with output</strong> - Use separate code blocks:</p>
+<p>Only show output when it adds value (reader needs to copy or verify something). Use an introductory
+phrase to separate the command from its output:</p>
+<pre><code class="language-markdown">Verify the test plan templates correctly:
+
+    rtf template test-plan.yaml --check
+
+The output is similar to this:
+
+    name: Hello World
+    description: A test plan created as a guide
+    ...
+</code></pre>
+<p>Guidelines for output:</p>
+<ul>
+<li>Use “The output is similar to this:” or “Output:” as the intro phrase</li>
+<li>Use <code>...</code> on its own line to indicate omitted output</li>
+<li>Keep output concise; trim to the relevant lines</li>
+</ul>
+<h3 id="placeholders"><a class="header" href="#placeholders">Placeholders</a></h3>
+<p>Use angle brackets for user-supplied values:</p>
+<pre><code>rtf run &lt;test-plan&gt; --environment &lt;env-file&gt;
+</code></pre>
+<p>Explain placeholders if not self-evident:</p>
+<blockquote>
+<p>Where <code>&lt;test-plan&gt;</code> is the path to your test plan YAML file.</p>
+</blockquote>
+<h3 id="headings"><a class="header" href="#headings">Headings</a></h3>
+<ul>
+<li>Use sentence case (capitalize first word only)</li>
+<li>No trailing punctuation</li>
+<li>Use H2 (<code>##</code>) for main sections, H3 (<code>###</code>) for subsections</li>
+<li>Avoid H1 (<code>#</code>) except for page title</li>
+</ul>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Good</th><th>Bad</th></tr>
+</thead>
+<tbody>
+<tr><td>Configure the environment</td><td>Configure The Environment</td></tr>
+<tr><td>Running test plans</td><td>Running Test Plans.</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="lists"><a class="header" href="#lists">Lists</a></h3>
+<ul>
+<li>Use numbered lists for sequential steps</li>
+<li>Use bullet lists for non-sequential items</li>
+<li>Use the Oxford comma in inline lists (“setup, run, and teardown”)</li>
+</ul>
+<h3 id="links"><a class="header" href="#links">Links</a></h3>
+<p>Use <strong>reference-style links</strong> with definitions at the bottom of the file:</p>
+<pre><code class="language-markdown">See the [Test Plan][0] reference and [Command Provider][1] docs.
+
+&lt;!-- at bottom of file --&gt;
+
+[0]: ./test-plans.md
+[1]: ./command-providers.md
+</code></pre>
+<p>Guidelines:</p>
+<ul>
+<li>Use numbered references (<code>[0]</code>, <code>[1]</code>, etc.) for simplicity</li>
+<li>Place all link definitions at the bottom of the file</li>
+<li>Use relative paths for internal links</li>
+<li>Use descriptive link text, not “click here” or bare URLs</li>
+</ul>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Good</th><th>Bad</th></tr>
+</thead>
+<tbody>
+<tr><td>See the <a href="https://learn.microsoft.com/en-us/style-guide/welcome/">Test Plans</a> reference.</td><td>See <a href="https://learn.microsoft.com/en-us/style-guide/welcome/">here</a>.</td></tr>
+<tr><td>Configure <a href="https://diataxis.fr/">environments</a>.</td><td>https://example.com/environments.md</td></tr>
+<tr><td>The <a href="developer/glossary.html">glossary</a> defines this term.</td><td>Click <a href="developer/glossary.html">this link</a>.</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="terminology"><a class="header" href="#terminology">Terminology</a></h2>
+<h3 id="glossary-usage"><a class="header" href="#glossary-usage">Glossary Usage</a></h3>
+<p>RTF maintains a central <a href="developer/glossary.html">glossary</a>. When using RTF-specific terms:</p>
+<ol>
+<li><strong>Always</strong> ensure the term is defined in the glossary</li>
+<li><strong>Link to the glossary</strong> on first use in a page</li>
+<li><strong>Inline definitions are encouraged</strong> in Tutorials where clicking away disrupts flow</li>
+</ol>
+<p>Example (Tutorial):</p>
+<blockquote>
+<p>A <strong>Test Plan</strong> is the top-level entry point for RTF that defines variables and references to
+Scenarios and Environments. See the <a href="developer/glossary.html">glossary</a> for the full definition.</p>
+</blockquote>
+<p>Example (How-to/Reference):</p>
+<blockquote>
+<p>Configure the <a href="developer/glossary.html">Test Plan</a> with your variables.</p>
+</blockquote>
+<h3 id="rtf-concepts"><a class="header" href="#rtf-concepts">RTF Concepts</a></h3>
+<p>Use these exact capitalizations:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Term</th><th>Usage</th></tr>
+</thead>
+<tbody>
+<tr><td>Test Plan</td><td>UpperCamelCase as concept; <code>test-plan.yaml</code> for files</td></tr>
+<tr><td>Environment</td><td>UpperCamelCase as concept</td></tr>
+<tr><td>Scenario</td><td>UpperCamelCase as concept</td></tr>
+<tr><td>Provider</td><td>Generic term; specific types are File Provider, Command Provider</td></tr>
+<tr><td>RTF</td><td>Always uppercase, no periods</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="config-keys"><a class="header" href="#config-keys">Config Keys</a></h3>
+<p>Use backticks and exact casing from the YAML schema:</p>
+<ul>
+<li><code>variables</code>, <code>matrix</code>, <code>environment.setup</code></li>
+<li>NOT: “Variables”, “the matrix key”, “<code>VARIABLES</code>”</li>
+</ul>
+<hr>
+<h2 id="inclusive-language"><a class="header" href="#inclusive-language">Inclusive Language</a></h2>
+<p>Follow <a href="https://learn.microsoft.com/en-us/style-guide/bias-free-communication">Microsoft’s inclusive language guidelines</a>. Key points:</p>
+<h3 id="pronouns"><a class="header" href="#pronouns">Pronouns</a></h3>
+<ul>
+<li>Use singular “they” for gender-neutral reference</li>
+<li>Prefer “you” to avoid pronouns entirely</li>
+<li>Never use “he” as generic</li>
+</ul>
+<h3 id="terms-to-avoid"><a class="header" href="#terms-to-avoid">Terms to Avoid</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Avoid</th><th>Use Instead</th></tr>
+</thead>
+<tbody>
+<tr><td>blacklist/whitelist</td><td>denylist/allowlist</td></tr>
+<tr><td>master/slave</td><td>primary/replica, leader/follower</td></tr>
+<tr><td>sanity check</td><td>confidence check, quick check</td></tr>
+<tr><td>dummy</td><td>placeholder, sample</td></tr>
+<tr><td>simple/easy</td><td>(use sparingly; subjective)</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="accessibility"><a class="header" href="#accessibility">Accessibility</a></h3>
+<ul>
+<li>Don’t use color alone to convey meaning</li>
+<li>Use descriptive link text</li>
+</ul>
+<h3 id="images"><a class="header" href="#images">Images</a></h3>
+<ul>
+<li>Include images <strong>only when necessary</strong> (diagrams of complex flows, UI screenshots)</li>
+<li>Prefer text and code examples over images where possible</li>
+<li><strong>Always</strong> provide meaningful alt text that conveys the image’s purpose</li>
+</ul>
+<pre><code class="language-markdown">![Test plan execution flow showing setup, scenario, and teardown phases](./images/execution-flow.png)
+</code></pre>
+<hr>
+<h2 id="document-structure"><a class="header" href="#document-structure">Document Structure</a></h2>
+<h3 id="page-length"><a class="header" href="#page-length">Page Length</a></h3>
+<p>No fixed limit. Pages should cover one focused topic. If a page requires more than 2 heading levels
+or you find yourself scrolling extensively, consider splitting into subpages.</p>
+<p>Guidelines:</p>
+<ul>
+<li>Define scope clearly at the start (what the page covers and what it doesn’t)</li>
+<li>Front-load key information; readers scan rather than read linearly</li>
+<li>Cut everything unnecessary; prefer a short, accurate page over a comprehensive stale one</li>
+<li>Structure for skimmability: short paragraphs, bullet points, tables</li>
+</ul>
+<h3 id="standard-sections"><a class="header" href="#standard-sections">Standard Sections</a></h3>
+<p><strong>Tutorials</strong> should include:</p>
+<ol>
+<li>Overview (what you’ll learn/build)</li>
+<li>Prerequisites</li>
+<li>Step-by-step instructions</li>
+<li>Next steps</li>
+</ol>
+<p><strong>How-to guides</strong> should include:</p>
+<ol>
+<li>Brief intro (1-2 sentences)</li>
+<li>Prerequisites (if any)</li>
+<li>Steps</li>
+<li>(Optional) Troubleshooting</li>
+</ol>
+<p><strong>Reference</strong> pages should include:</p>
+<ol>
+<li>Brief description</li>
+<li>All fields/options (consistent format)</li>
+<li>Examples</li>
+<li>Related pages</li>
+</ol>
+<p><strong>Explanation</strong> pages have flexible structure based on content.</p>
+<h3 id="prerequisites-2"><a class="header" href="#prerequisites-2">Prerequisites</a></h3>
+<p>List prerequisites in a blockquote or admonition:</p>
+<pre><code class="language-markdown">&gt; **Prerequisites**
+&gt;
+&gt; - RTF installed (`cargo install rtf-cli`)
+&gt; - A GitHub access token exported as `GITHUB_TOKEN`
+</code></pre>
+<hr>
+<h2 id="checklist-for-contributors"><a class="header" href="#checklist-for-contributors">Checklist for Contributors</a></h2>
+<p>Before submitting documentation:</p>
+<ul>
+<li><input disabled="" type="checkbox"> First line includes <code>&lt;!-- diataxis-type: &lt;type&gt; --&gt;</code> comment</li>
+<li><input disabled="" type="checkbox"> Voice matches doc type (no “we” in tutorials/how-to/reference)</li>
+<li><input disabled="" type="checkbox"> No shell prompts in command examples</li>
+<li><input disabled="" type="checkbox"> Placeholders use angle brackets</li>
+<li><input disabled="" type="checkbox"> RTF terminology capitalized correctly</li>
+<li><input disabled="" type="checkbox"> New terms added to glossary and linked on first use</li>
+<li><input disabled="" type="checkbox"> Links use reference-style with definitions at bottom</li>
+<li><input disabled="" type="checkbox"> Inclusive language guidelines followed</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="concepts-and-architecture"><a class="header" href="#concepts-and-architecture">Concepts and Architecture</a></h1>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="error-handling"><a class="header" href="#error-handling">Error handling</a></h1>
 <p>Wherever possible we aim to provide users with as much debugging information as possible when rtf
 encounters an problem that prevents continuing execution (as opposed to early exiting with the first
@@ -4393,7 +4742,7 @@ templating, validation and static analysis checks. So long as there are no side 
 being run, you should try to make use of an error builder to collect related errors where possible.</p>
 <p>See the implementation of <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/command.rs#L181">try_template</a> for the <code>CommandSection</code> struct for an example of what
 this looks like in practice.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="logging"><a class="header" href="#logging">Logging</a></h1>
 <p>This guide covers when and how to use different log levels in the Runtime Testing Framework. The
 project uses the <a href="https://tracing.rs/"><code>tracing</code></a> crate for structured logging.</p>
@@ -4590,7 +4939,7 @@ warn!(feature = "deprecated_option", "using deprecated configuration option");
 <li><code>-vv</code>: Add <code>DEBUG</code> messages</li>
 <li><code>-vvv</code>: Add <code>TRACE</code> messages</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
 <p>As developers of a testing framework, we believe in the importance of comprehensive,
 well-structured, automated tests. High-quality testing enables safe, rapid iteration and continuous
@@ -4658,7 +5007,7 @@ tests is not sufficient to test all scenarios.</li>
 tests. Where there is a justifiable reason, it is valid to not cover every single line of code
 during tests.</li>
 </ol>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="rtf-cli"><a class="header" href="#rtf-cli">rtf-cli</a></h1>
 <p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate are organized and implemented.</p>
 <h2 id="organization"><a class="header" href="#organization">Organization</a></h2>
@@ -4886,7 +5235,7 @@ rather than unit testing individual functions. This includes:</p>
 </ul>
 <p>Each test plan directory is self-contained with all necessary files, enabling realistic integration
 testing scenarios.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="rtf-config"><a class="header" href="#rtf-config">rtf-config</a></h1>
 <p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate are organized and implemented.</p>
 <h2 id="organization-1"><a class="header" href="#organization-1">Organization</a></h2>
@@ -5085,7 +5434,7 @@ then tests are defined.</li>
 </ul>
 <p>Error tests follow the same organizational patterns as success tests, often using parameterized
 testing to cover multiple error scenarios efficiently.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="rtf-core"><a class="header" href="#rtf-core">rtf-core</a></h1>
 <p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-core"><code>rtf-core</code></a> crate are organized and implemented.</p>
 <h2 id="organization-2"><a class="header" href="#organization-2">Organization</a></h2>
@@ -5361,7 +5710,7 @@ fn rewrite_subgraph_urls_all_urls_updated() {
 <span class="boring">}</span></code></pre>
 <p>These tests are named with the <code>function_scenario</code> pattern and are grouped together in the <code>tests</code>
 module.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="rtf-derive"><a class="header" href="#rtf-derive">rtf-derive</a></h1>
 <p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate are organized and implemented.</p>
 <p>This crate defines a <a href="https://doc.rust-lang.org/reference/procedural-macros.html">proc macro</a> for deriving the <code>Template</code> trait defined in the
@@ -5474,7 +5823,7 @@ fn template_method_works(container_type: &amp;str) {
 <span class="boring">}</span></code></pre>
 <p>This pattern allows comprehensive testing of the macro’s behavior across the full range of supported
 Rust syntax.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="pr-checks"><a class="header" href="#pr-checks">PR checks</a></h1>
 <p>This page documents all the checks that run when raising a PR, how to run the corresponding checks
 locally and how to resolve them.</p>
@@ -5540,7 +5889,7 @@ then <a href="https://github.com/crate-ci/typos?tab=readme-ov-file#false-positiv
 </code></pre>
 <p>Before committing to <code>main</code>, manually review the diff to check all formatting fixes are desired.</p>
 <p>Files can be excluded using the <code>dprint.json</code> file at the root of the repo.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="parsing-config-files"><a class="header" href="#parsing-config-files">Parsing config files</a></h1>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config">rtf-config</a> crate provides parsers for the <a href="#config-file-formats">three config files</a> used by RTF, along with
 parsers for the <a href="#file-providers-1">various</a> <a href="#command-providers-1">provider</a> fragments that are used to expose the rest of the
@@ -5573,14 +5922,14 @@ the user as a batch operation. Each of the config file structs provides an API f
 checks and templating so that end users are able to efficiently debug and iterate on their config
 files.</p>
 </blockquote>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="data-structures"><a class="header" href="#data-structures">Data structures</a></h1>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config">rtf-config</a> crate provides a number of data structures for working with user written YAML
 config files, forming an overall tree structure that is used to execute commands in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli">CLI</a>.</p>
 <p>The following pages provide a brief overview of the various data data structures we use and how they
 relate to one another, starting from the leaves of the tree and working up to the
 <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/formats/test_plan.rs#L23">TestPlanConfig</a> struct that acts as the root.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="templating-fields"><a class="header" href="#templating-fields">Templating fields</a></h1>
 <p>The leaves of the config data structures are either concrete scalar values (such as numbers, strings
 and booleans) or <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/templating.rs#L205">Fields</a> which is how we support a limited form of type-checked templating
@@ -5601,7 +5950,7 @@ when executing a test plan and avoid using them where such flexibility is not re
 <p>For example, we do not allow the <code>inline</code> file provider’s content argument to be templated as the
 intention is for this to always be provided within the test plan itself.</p>
 </blockquote>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="file-providers-1"><a class="header" href="#file-providers-1">File providers</a></h1>
 <p><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L224">File providers</a> are the primary way that rtf exposes useful functionality to users. Each
 provider is defined as a struct that can be parsed from a YAML snippet within a larger config file,
@@ -5611,7 +5960,7 @@ then be referenced by the commands being run as part of a test plan.</p>
 <p>Within config files, file providers are always wrapped in a <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L201">NamedFileProvider</a> that adds
 filename and environment variable fields along with logic for running the provider and outputting
 the new resources in the correct location on the filesystem.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="command-providers-1"><a class="header" href="#command-providers-1">Command providers</a></h1>
 <p><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/command.rs#L363">Command providers</a> support running a subset of <a href="#file-providers-1">file providers</a> in order to obtain an
 executable file that can be used as one of the environment setup, environment teardown or scenario
@@ -5619,7 +5968,7 @@ commands. Within config files they are wrapped in a <a href="https://github.com/
 provide command line arguments.</p>
 <p>Each command section supports specifying environment variables and file providers that will be made
 available when the command executes.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="config-file-formats"><a class="header" href="#config-file-formats">Config file formats</a></h1>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config">rtf-config</a> crate provides parsers for the three config files used by RTF: <code>TestPlanConfig</code>,
 <code>EnvironmentConfig</code> and <code>ScenarioConfig</code>.</p>
@@ -5635,7 +5984,7 @@ by the setup command for it to pass data along to the scenario and teardown sect
 <p>The test plan config file is where the user defines the variables they wish to use for templating
 along with the scenario and environment configurations, either provided inline or as references to
 external files.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="traits-for-working-with-config-structs"><a class="header" href="#traits-for-working-with-config-structs">Traits for working with config structs</a></h1>
 <p>We have a set of four traits that are used to provide the shared behaviour needed to parse, validate
 and execute rtf config files:</p>
@@ -5655,7 +6004,7 @@ to the user specified output directory.</li>
 <blockquote>
 <p>This is possible whenever your provider is writing out a single utf8 encoded file as its output.</p>
 </blockquote>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="use-of-io-in-providers"><a class="header" href="#use-of-io-in-providers">Use of IO in providers</a></h1>
 <p>All IO that is run as part of provider logic <em>must</em> be run using the <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs">context</a> argument that is
 passed to methods. This allows the CLI logic to control how providers are run as well as allowing us
@@ -5664,10 +6013,10 @@ to swap out real IO for mock implementations within tests.</p>
 existing <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L35">ResolutionContext</a> methods, you will need to first expose the functionality through
 that trait and provide a default “live” implementation for the concrete <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L157">Context</a> struct that is
 used by the CLI.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="cli-subcommand-design"><a class="header" href="#cli-subcommand-design">CLI subcommand design</a></h1>
 <p>The following pages provide an overview of how the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli">CLI</a> subcommands and flags are designed.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="plumbing-vs-porcelain"><a class="header" href="#plumbing-vs-porcelain">Plumbing vs porcelain</a></h1>
 <p>The CLI subcommands are split into two different concepts; porcelain and plumbing.</p>
 <p>The porcelain commands expose full end-to-end functionality to the users. They can be thought of as
@@ -5676,11 +6025,11 @@ desired outcome.</p>
 <p>The plumbing commands expose ways for a user to run a subset of the porcelain commands. These
 commands are primarily used for debugging when the porcelain command has errored or so the user can
 test a portion of their configuration ahead of running a porcelain command.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="no-built-in-magic"><a class="header" href="#no-built-in-magic">No built-in magic</a></h1>
 <p>CLI subcommands should reference functions that handle the logic of the command. There should be no
 inline logic at the CLI struct level.</p>
-<div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="global-flags"><a class="header" href="#global-flags">Global flags</a></h1>
 <p>The CLI exposes the following global flags for all subcommands to use:</p>
 <ul>

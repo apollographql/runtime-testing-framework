@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Testing - Runtime Testing Framework</title>
+        <title>Style guide - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../../favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="../../favicon-8114d1fc.png">
-        <link rel="stylesheet" href="../../css/variables-8adf115d.css">
-        <link rel="stylesheet" href="../../css/general-2459343d.css">
-        <link rel="stylesheet" href="../../css/chrome-ae938929.css">
-        <link rel="stylesheet" href="../../css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../../fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="../../highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "../../";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-e010b32d.js";
+            window.path_to_searchindex_js = "../searchindex-e010b32d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-43c40e78.js"></script>
+        <script src="../toc-43c40e78.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">Runtime Testing Framework</h1>
 
                     <div class="right-buttons">
-                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/apollographql/runtime-testing-framework" title="Git repository" aria-label="Git repository">
@@ -178,83 +178,363 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: reference -->
-<h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
-<p>As developers of a testing framework, we believe in the importance of comprehensive,
-well-structured, automated tests. High-quality testing enables safe, rapid iteration and continuous
-delivery. This document serves as our implementation guide for delivering well-tested software.</p>
-<p>Each crate has its own page within the docs explaining test structure and how tests are implemented.
-Testing guidance applicable across all crates is documented on this page.</p>
-<h2 id="organizing-tests"><a class="header" href="#organizing-tests">Organizing Tests</a></h2>
-<p>Each crate’s page describes a hierarchy that should be followed for all tests in that crate.
-Examples are included for additional guidance.</p>
-<p>The key aim of the hierarchies is to ensure that all tests related to the same level in the
-hierarchy are named consistently, making it easy to find related tests. The hierarchies will be
-followed using a combination of module structure and test case naming. For module structure, the
-primary concern is ensuring that code has the right scope and privacy level. Test structure is a
-secondary concern to module structure.</p>
-<h2 id="test-case-naming"><a class="header" href="#test-case-naming">Test Case Naming</a></h2>
-<p>Test cases should be uniquely named within their hierarchy. The test cases should be given
-meaningful names that describe what is being tested.</p>
-<p>Examples of good test case names:</p>
+<h1 id="rtf-documentation-style-guide"><a class="header" href="#rtf-documentation-style-guide">RTF Documentation Style Guide</a></h1>
+<p>This style guide defines writing standards for RTF documentation. It applies to all contributors
+(internal and external) writing or editing docs in <code>docs/src/</code>.</p>
+<h2 id="base-style-guide"><a class="header" href="#base-style-guide">Base Style Guide</a></h2>
+<p>RTF adopts the <a href="https://learn.microsoft.com/en-us/style-guide/welcome/">Microsoft Writing Style Guide</a> as its foundation. This document covers
+RTF-specific decisions and deviations only. For topics not covered here, defer to Microsoft.</p>
+<p>Key Microsoft principles we follow:</p>
 <ul>
-<li><code>all_fields_specified_and_valid</code></li>
-<li><code>optional_fields_not_defined</code></li>
-<li><code>required_field_missing</code></li>
+<li>Write like you speak</li>
+<li>Use second person (“you”)</li>
+<li>Use active voice and present tense</li>
+<li>Use contractions (it’s, you’ll, we’re)</li>
+<li>Get to the point fast</li>
+<li>Use sentence-case capitalization</li>
 </ul>
-<p>Examples of bad test case names:</p>
+<hr>
+<h2 id="diataxis-framework"><a class="header" href="#diataxis-framework">Diataxis Framework</a></h2>
+<p>RTF documentation follows the <a href="https://diataxis.fr/">Diataxis framework</a>, which defines four documentation types. Each
+page declares its type in an HTML comment on the first line.</p>
+<h3 id="type-declaration-format"><a class="header" href="#type-declaration-format">Type Declaration Format</a></h3>
+<p>Every documentation page must include a type declaration comment:</p>
+<pre><code class="language-markdown">&lt;!-- diataxis-type: tutorial --&gt;
+
+# Page title
+
+Content starts here...
+</code></pre>
+<p>Valid values: <code>tutorial</code>, <code>howto</code>, <code>reference</code>, <code>explanation</code></p>
+<p>The HTML comment format ensures the type declaration doesn’t render in the built documentation while
+remaining easy for contributors and tooling to identify.</p>
+<h3 id="the-four-types"><a class="header" href="#the-four-types">The Four Types</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Type</th><th>Purpose</th><th>Reader State</th><th>Style</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Tutorial</strong></td><td>Teach through hands-on experience</td><td>Learning</td><td>Guiding, step-by-step</td></tr>
+<tr><td><strong>How-to</strong></td><td>Solve a specific problem</td><td>Working</td><td>Direct, action-focused</td></tr>
+<tr><td><strong>Reference</strong></td><td>Describe the machinery</td><td>Looking up</td><td>Neutral, comprehensive</td></tr>
+<tr><td><strong>Explanation</strong></td><td>Provide context and background</td><td>Studying</td><td>Conversational, reflective</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="type-specific-guidelines"><a class="header" href="#type-specific-guidelines">Type-Specific Guidelines</a></h3>
+<h4 id="tutorials"><a class="header" href="#tutorials">Tutorials</a></h4>
 <ul>
-<li><code>works</code> - does not specify what works</li>
-<li><code>fails</code> - does not specify what causes the failure</li>
-<li><code>test_case</code> - does not identify what is happening in this test</li>
-<li><code>optional_field_specified1</code> &amp; <code>optional_field_specified2</code> - incrementing test cases by integer
-does not differentiate the test cases</li>
+<li>Guide the reader step-by-step to a working result</li>
+<li>Every step should produce visible output</li>
+<li>Minimize explanation (link to Explanation docs instead)</li>
+<li>Use “you” throughout</li>
+<li>Celebrate milestones (“You now have a working test plan!”)</li>
 </ul>
-<h2 id="test-coverage-reports"><a class="header" href="#test-coverage-reports">Test Coverage Reports</a></h2>
-<p>This section documents how to run a full test coverage report for RTF.</p>
+<h4 id="how-to-guides"><a class="header" href="#how-to-guides">How-to Guides</a></h4>
+<ul>
+<li>Assume competence; don’t teach fundamentals</li>
+<li>Focus on the task, not the concepts</li>
+<li>Use imperative mood (“Add the provider”, “Run the command”)</li>
+<li>No digressions or background information</li>
+<li>Title format: “How to [verb] [noun]” or “[Verb]-ing [noun]”</li>
+</ul>
+<h4 id="reference"><a class="header" href="#reference">Reference</a></h4>
+<ul>
+<li>Be neutral and factual</li>
+<li>Use consistent structure across similar pages</li>
+<li>Include all parameters, options, and fields</li>
+<li>Provide examples without explanation</li>
+<li>Use third person or passive voice where appropriate</li>
+</ul>
+<h4 id="explanation"><a class="header" href="#explanation">Explanation</a></h4>
+<ul>
+<li>Provide context, rationale, and background</li>
+<li>“We” voice is permitted (“We designed RTF to…”)</li>
+<li>Connect concepts to each other</li>
+<li>Include trade-offs and design decisions</li>
+<li>May express opinions and preferences</li>
+</ul>
+<hr>
+<h2 id="voice-and-tone"><a class="header" href="#voice-and-tone">Voice and Tone</a></h2>
+<h3 id="person"><a class="header" href="#person">Person</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Doc Type</th><th>Person</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td>Tutorial</td><td>Second (“you”)</td><td>“You configure the environment…”</td></tr>
+<tr><td>How-to</td><td>Second (“you”) / Imperative</td><td>“Configure the environment…”</td></tr>
+<tr><td>Reference</td><td>Third / Neutral</td><td>“The environment defines…”</td></tr>
+<tr><td>Explanation</td><td>First plural (“we”) + Second (“you”)</td><td>“We designed this because…”</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="we-voice"><a class="header" href="#we-voice">“We” Voice</a></h3>
+<p>The team voice (“we at RTF”, “we recommend”) is permitted <strong>only in Explanation docs</strong>. All other
+doc types should use “you” or imperative mood.</p>
+<p><strong>Allowed (Explanation):</strong></p>
 <blockquote>
-<p><strong>Note</strong>: There are no test coverage targets for RTF. A test coverage report showing a high
-percentage of coverage does not mean that RTF is fully tested. The reports are used to identify
-clear gaps in testing coverage where we would have expected to have at least one test case.</p>
+<p>We here at Runtime Readiness are big fans of the Unix Philosophy.</p>
 </blockquote>
-<p>The <a href="https://github.com/taiki-e/cargo-llvm-cov"><code>cargo-llvm-cov</code></a> crate is used to generate test coverage reports for RTF. If you are using
-<a href="https://mise.jdx.dev/getting-started.html"><code>mise</code></a>, then this will already be installed locally.</p>
-<p>To run a new report, first clear the previous test coverage data:</p>
-<pre><code class="language-bash">cargo llvm-cov clean --workspace
-</code></pre>
-<p>Next, test all the unignored tests:</p>
-<pre><code class="language-bash">cargo llvm-cov --no-report
-</code></pre>
-<p>Next, test all the ignored tests. This will add to the previous coverage, not replace it.</p>
+<p><strong>Not allowed (Tutorial/How-to/Reference):</strong></p>
 <blockquote>
-<p><strong>Note</strong>: Valid credentials will need to be supplied for these tests to complete successfully.</p>
+<p><del>We recommend using the <code>--dry-run</code> flag.</del> → Use the <code>--dry-run</code> flag.</p>
 </blockquote>
-<pre><code class="language-bash">GITHUB_KEY="$GITHUB_KEY" cargo llvm-cov --test github --no-report -- --ignored
-APOLLO_KEY="$APOLLO_KEY" APOLLO_SUDO="true" cargo llvm-cov --test starstuff --no-report -- --ignored
-APOLLO_KEY="$APOLLO_KEY" APOLLO_SUDO="true" cargo llvm-cov --test imgood_observability_test --no-report -- --ignored
+<h3 id="formality"><a class="header" href="#formality">Formality</a></h3>
+<ul>
+<li>Tutorials and How-to guides: Friendly, contractions encouraged</li>
+<li>Reference: More formal, fewer contractions</li>
+<li>Explanation: Conversational, personality allowed</li>
+</ul>
+<hr>
+<h2 id="formatting"><a class="header" href="#formatting">Formatting</a></h2>
+<h3 id="code-and-commands"><a class="header" href="#code-and-commands">Code and Commands</a></h3>
+<p><strong>Inline code</strong> - Use backticks for:</p>
+<ul>
+<li>Commands: <code>rtf run</code></li>
+<li>Config keys: <code>environment.setup</code></li>
+<li>File paths: <code>test-plans/example.yaml</code></li>
+<li>Values: <code>true</code>, <code>false</code></li>
+<li>Flags: <code>--dry-run</code></li>
+</ul>
+<p><strong>Code blocks</strong> - Use triple backticks with language identifier:</p>
+<pre><code class="language-markdown">```yaml
+environment:
+  name: production
+```
 </code></pre>
-<p>Finally, generate the report. It should open in your browser:</p>
-<pre><code class="language-bash">cargo llvm-cov report --open
+<p><strong>Command examples</strong> - Do NOT include shell prompts:</p>
+<pre><code class="language-markdown">&lt;!-- Good --&gt;
+
+rtf run my-plan.yaml --environment staging.yaml
+
+&lt;!-- Bad --&gt;
+
+$ rtf run my-plan.yaml --environment staging.yaml
 </code></pre>
-<p>The report should be manually inspected to ensure that all branches that should have at least one
-test case are covered. Two points to consider:</p>
+<p><strong>Commands with output</strong> - Use separate code blocks:</p>
+<p>Only show output when it adds value (reader needs to copy or verify something). Use an introductory
+phrase to separate the command from its output:</p>
+<pre><code class="language-markdown">Verify the test plan templates correctly:
+
+    rtf template test-plan.yaml --check
+
+The output is similar to this:
+
+    name: Hello World
+    description: A test plan created as a guide
+    ...
+</code></pre>
+<p>Guidelines for output:</p>
+<ul>
+<li>Use “The output is similar to this:” or “Output:” as the intro phrase</li>
+<li>Use <code>...</code> on its own line to indicate omitted output</li>
+<li>Keep output concise; trim to the relevant lines</li>
+</ul>
+<h3 id="placeholders"><a class="header" href="#placeholders">Placeholders</a></h3>
+<p>Use angle brackets for user-supplied values:</p>
+<pre><code>rtf run &lt;test-plan&gt; --environment &lt;env-file&gt;
+</code></pre>
+<p>Explain placeholders if not self-evident:</p>
+<blockquote>
+<p>Where <code>&lt;test-plan&gt;</code> is the path to your test plan YAML file.</p>
+</blockquote>
+<h3 id="headings"><a class="header" href="#headings">Headings</a></h3>
+<ul>
+<li>Use sentence case (capitalize first word only)</li>
+<li>No trailing punctuation</li>
+<li>Use H2 (<code>##</code>) for main sections, H3 (<code>###</code>) for subsections</li>
+<li>Avoid H1 (<code>#</code>) except for page title</li>
+</ul>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Good</th><th>Bad</th></tr>
+</thead>
+<tbody>
+<tr><td>Configure the environment</td><td>Configure The Environment</td></tr>
+<tr><td>Running test plans</td><td>Running Test Plans.</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="lists"><a class="header" href="#lists">Lists</a></h3>
+<ul>
+<li>Use numbered lists for sequential steps</li>
+<li>Use bullet lists for non-sequential items</li>
+<li>Use the Oxford comma in inline lists (“setup, run, and teardown”)</li>
+</ul>
+<h3 id="links"><a class="header" href="#links">Links</a></h3>
+<p>Use <strong>reference-style links</strong> with definitions at the bottom of the file:</p>
+<pre><code class="language-markdown">See the [Test Plan][0] reference and [Command Provider][1] docs.
+
+&lt;!-- at bottom of file --&gt;
+
+[0]: ./test-plans.md
+[1]: ./command-providers.md
+</code></pre>
+<p>Guidelines:</p>
+<ul>
+<li>Use numbered references (<code>[0]</code>, <code>[1]</code>, etc.) for simplicity</li>
+<li>Place all link definitions at the bottom of the file</li>
+<li>Use relative paths for internal links</li>
+<li>Use descriptive link text, not “click here” or bare URLs</li>
+</ul>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Good</th><th>Bad</th></tr>
+</thead>
+<tbody>
+<tr><td>See the <a href="https://learn.microsoft.com/en-us/style-guide/welcome/">Test Plans</a> reference.</td><td>See <a href="https://learn.microsoft.com/en-us/style-guide/welcome/">here</a>.</td></tr>
+<tr><td>Configure <a href="https://diataxis.fr/">environments</a>.</td><td>https://example.com/environments.md</td></tr>
+<tr><td>The <a href="./glossary.html">glossary</a> defines this term.</td><td>Click <a href="./glossary.html">this link</a>.</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="terminology"><a class="header" href="#terminology">Terminology</a></h2>
+<h3 id="glossary-usage"><a class="header" href="#glossary-usage">Glossary Usage</a></h3>
+<p>RTF maintains a central <a href="./glossary.html">glossary</a>. When using RTF-specific terms:</p>
 <ol>
-<li>100% coverage for any given area should not be treated as “this is fully tested.” It just means
-the code was executed at least once during testing. It is likely that calling code once during
-tests is not sufficient to test all scenarios.</li>
-<li>Conversely, there may be good reasons why certain areas of the code are not executed during
-tests. Where there is a justifiable reason, it is valid to not cover every single line of code
-during tests.</li>
+<li><strong>Always</strong> ensure the term is defined in the glossary</li>
+<li><strong>Link to the glossary</strong> on first use in a page</li>
+<li><strong>Inline definitions are encouraged</strong> in Tutorials where clicking away disrupts flow</li>
 </ol>
+<p>Example (Tutorial):</p>
+<blockquote>
+<p>A <strong>Test Plan</strong> is the top-level entry point for RTF that defines variables and references to
+Scenarios and Environments. See the <a href="./glossary.html">glossary</a> for the full definition.</p>
+</blockquote>
+<p>Example (How-to/Reference):</p>
+<blockquote>
+<p>Configure the <a href="./glossary.html">Test Plan</a> with your variables.</p>
+</blockquote>
+<h3 id="rtf-concepts"><a class="header" href="#rtf-concepts">RTF Concepts</a></h3>
+<p>Use these exact capitalizations:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Term</th><th>Usage</th></tr>
+</thead>
+<tbody>
+<tr><td>Test Plan</td><td>UpperCamelCase as concept; <code>test-plan.yaml</code> for files</td></tr>
+<tr><td>Environment</td><td>UpperCamelCase as concept</td></tr>
+<tr><td>Scenario</td><td>UpperCamelCase as concept</td></tr>
+<tr><td>Provider</td><td>Generic term; specific types are File Provider, Command Provider</td></tr>
+<tr><td>RTF</td><td>Always uppercase, no periods</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="config-keys"><a class="header" href="#config-keys">Config Keys</a></h3>
+<p>Use backticks and exact casing from the YAML schema:</p>
+<ul>
+<li><code>variables</code>, <code>matrix</code>, <code>environment.setup</code></li>
+<li>NOT: “Variables”, “the matrix key”, “<code>VARIABLES</code>”</li>
+</ul>
+<hr>
+<h2 id="inclusive-language"><a class="header" href="#inclusive-language">Inclusive Language</a></h2>
+<p>Follow <a href="https://learn.microsoft.com/en-us/style-guide/bias-free-communication">Microsoft’s inclusive language guidelines</a>. Key points:</p>
+<h3 id="pronouns"><a class="header" href="#pronouns">Pronouns</a></h3>
+<ul>
+<li>Use singular “they” for gender-neutral reference</li>
+<li>Prefer “you” to avoid pronouns entirely</li>
+<li>Never use “he” as generic</li>
+</ul>
+<h3 id="terms-to-avoid"><a class="header" href="#terms-to-avoid">Terms to Avoid</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Avoid</th><th>Use Instead</th></tr>
+</thead>
+<tbody>
+<tr><td>blacklist/whitelist</td><td>denylist/allowlist</td></tr>
+<tr><td>master/slave</td><td>primary/replica, leader/follower</td></tr>
+<tr><td>sanity check</td><td>confidence check, quick check</td></tr>
+<tr><td>dummy</td><td>placeholder, sample</td></tr>
+<tr><td>simple/easy</td><td>(use sparingly; subjective)</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="accessibility"><a class="header" href="#accessibility">Accessibility</a></h3>
+<ul>
+<li>Don’t use color alone to convey meaning</li>
+<li>Use descriptive link text</li>
+</ul>
+<h3 id="images"><a class="header" href="#images">Images</a></h3>
+<ul>
+<li>Include images <strong>only when necessary</strong> (diagrams of complex flows, UI screenshots)</li>
+<li>Prefer text and code examples over images where possible</li>
+<li><strong>Always</strong> provide meaningful alt text that conveys the image’s purpose</li>
+</ul>
+<pre><code class="language-markdown">![Test plan execution flow showing setup, scenario, and teardown phases](./images/execution-flow.png)
+</code></pre>
+<hr>
+<h2 id="document-structure"><a class="header" href="#document-structure">Document Structure</a></h2>
+<h3 id="page-length"><a class="header" href="#page-length">Page Length</a></h3>
+<p>No fixed limit. Pages should cover one focused topic. If a page requires more than 2 heading levels
+or you find yourself scrolling extensively, consider splitting into subpages.</p>
+<p>Guidelines:</p>
+<ul>
+<li>Define scope clearly at the start (what the page covers and what it doesn’t)</li>
+<li>Front-load key information; readers scan rather than read linearly</li>
+<li>Cut everything unnecessary; prefer a short, accurate page over a comprehensive stale one</li>
+<li>Structure for skimmability: short paragraphs, bullet points, tables</li>
+</ul>
+<h3 id="standard-sections"><a class="header" href="#standard-sections">Standard Sections</a></h3>
+<p><strong>Tutorials</strong> should include:</p>
+<ol>
+<li>Overview (what you’ll learn/build)</li>
+<li>Prerequisites</li>
+<li>Step-by-step instructions</li>
+<li>Next steps</li>
+</ol>
+<p><strong>How-to guides</strong> should include:</p>
+<ol>
+<li>Brief intro (1-2 sentences)</li>
+<li>Prerequisites (if any)</li>
+<li>Steps</li>
+<li>(Optional) Troubleshooting</li>
+</ol>
+<p><strong>Reference</strong> pages should include:</p>
+<ol>
+<li>Brief description</li>
+<li>All fields/options (consistent format)</li>
+<li>Examples</li>
+<li>Related pages</li>
+</ol>
+<p><strong>Explanation</strong> pages have flexible structure based on content.</p>
+<h3 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h3>
+<p>List prerequisites in a blockquote or admonition:</p>
+<pre><code class="language-markdown">&gt; **Prerequisites**
+&gt;
+&gt; - RTF installed (`cargo install rtf-cli`)
+&gt; - A GitHub access token exported as `GITHUB_TOKEN`
+</code></pre>
+<hr>
+<h2 id="checklist-for-contributors"><a class="header" href="#checklist-for-contributors">Checklist for Contributors</a></h2>
+<p>Before submitting documentation:</p>
+<ul>
+<li><input disabled="" type="checkbox"> First line includes <code>&lt;!-- diataxis-type: &lt;type&gt; --&gt;</code> comment</li>
+<li><input disabled="" type="checkbox"> Voice matches doc type (no “we” in tutorials/how-to/reference)</li>
+<li><input disabled="" type="checkbox"> No shell prompts in command examples</li>
+<li><input disabled="" type="checkbox"> Placeholders use angle brackets</li>
+<li><input disabled="" type="checkbox"> RTF terminology capitalized correctly</li>
+<li><input disabled="" type="checkbox"> New terms added to glossary and linked on first use</li>
+<li><input disabled="" type="checkbox"> Links use reference-style with definitions at bottom</li>
+<li><input disabled="" type="checkbox"> Inclusive language guidelines followed</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../developer/logging.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../glossary.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../developer/testing/rtf-cli.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../developer/concepts-and-architecture.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -264,11 +544,11 @@ during tests.</li>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../developer/logging.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../glossary.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../developer/testing/rtf-cli.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../developer/concepts-and-architecture.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -287,19 +567,19 @@ during tests.</li>
             window.playground_copyable = true;
         </script>
 
-        <script src="../../ace-2a3cd908.js"></script>
-        <script src="../../mode-rust-2c9d5c9a.js"></script>
-        <script src="../../editor-16ca416c.js"></script>
-        <script src="../../theme-dawn-4493f9c8.js"></script>
-        <script src="../../theme-tomorrow_night-9dbe62a9.js"></script>
+        <script src="../ace-2a3cd908.js"></script>
+        <script src="../mode-rust-2c9d5c9a.js"></script>
+        <script src="../editor-16ca416c.js"></script>
+        <script src="../theme-dawn-4493f9c8.js"></script>
+        <script src="../theme-tomorrow_night-9dbe62a9.js"></script>
 
-        <script src="../../elasticlunr-ef4e11c1.min.js"></script>
-        <script src="../../mark-09e88c2c.min.js"></script>
-        <script src="../../searcher-c2a407aa.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
 
-        <script src="../../clipboard-1626706a.min.js"></script>
-        <script src="../../highlight-abc7f01d.js"></script>
-        <script src="../../book-a0b12cfe.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
 
         <!-- Custom JS scripts -->
 

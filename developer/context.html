@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-ae9c8136.js";
+            window.path_to_searchindex_js = "../searchindex-e010b32d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-0ee976b5.js"></script>
+        <script src="../toc-43c40e78.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -177,7 +177,8 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="use-of-io-in-providers"><a class="header" href="#use-of-io-in-providers">Use of IO in providers</a></h1>
+                        <!-- diataxis-type: explanation -->
+<h1 id="use-of-io-in-providers"><a class="header" href="#use-of-io-in-providers">Use of IO in providers</a></h1>
 <p>All IO that is run as part of provider logic <em>must</em> be run using the <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs">context</a> argument that is
 passed to methods. This allows the CLI logic to control how providers are run as well as allowing us
 to swap out real IO for mock implementations within tests.</p>
