@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Writing custom providers - Runtime Testing Framework</title>
+        <title>Using a custom provider - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-e010b32d.js";
+            window.path_to_searchindex_js = "../../searchindex-db9e8a68.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-43c40e78.js"></script>
+        <script src="../../toc-248ccb4e.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,26 +178,309 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: tutorial -->
-<h1 id="writing-custom-providers"><a class="header" href="#writing-custom-providers">Writing custom providers</a></h1>
-<p>This section will guide you through writing a custom provider for rtf from a blank file. The custom
-provider will be a simple example that introduces you to the concepts of writing RTF custom
-providers and why they are helpful. For examples of custom providers that can be used for specific
-use cases, please refer to the <a href="https://github.com/apollographql/rtf-morgue">morgue</a>.</p>
-<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
-<p>We recommend completing the <a href="../test-plans/index.html">“Writing test plans”</a> guide first to ensure
-you’re familiar with rtf test plans. Many of the concepts in that guide will be reused here.</p>
+<h1 id="using-a-custom-provider"><a class="header" href="#using-a-custom-provider">Using a custom provider</a></h1>
+<p>This guide assumes you’ve completed the
+<a href="writing-a-custom-provider-definition.html">“Writing a custom provider definition”</a> guide. You should
+already have the files in a directory named <code>rtf-custom-provider</code>. Your directory should be in the
+state it was at the end of that guide.</p>
+<pre><code class="language-bash">$ ls -R
+my-provider.yaml scripts
+
+./scripts:
+generate.sh
+</code></pre>
+<p>You should also have no <code>output</code> directory. If you do, remove it before continuing:</p>
+<pre><code class="language-bash">rm -rf output/
+</code></pre>
+<h2 id="creating-a-test-plan"><a class="header" href="#creating-a-test-plan">Creating a test plan</a></h2>
+<p>Now that we have a custom provider, let’s use it in a test plan. Create an empty test plan file:</p>
+<pre><code class="language-bash">touch test-plan.yaml
+</code></pre>
+<p>Add the following content to <code>test-plan.yaml</code>:</p>
+<pre><code class="language-yaml">name: Custom Provider Test
+description: A test plan that uses the env-generator custom provider
+custom_providers:
+  - kind: local
+    relative_path: .
+    using:
+      env_generator: my-provider.yaml
+scenario:
+  inline:
+    name: Empty scenario
+    description: A scenario that does nothing
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+environment:
+  inline:
+    name: Custom provider environment
+    description: An environment that uses the env-generator custom provider
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+
+          echo "=== ENV_VARS.txt contents ==="
+          source "$ENV_GENERATOR/ENV_VARS.txt"
+          echo "PROJECT_NAME=$PROJECT_NAME"
+          echo "LOG_LEVEL=$LOG_LEVEL"
+          echo ""
+          echo "=== base-config.txt contents ==="
+          cat "$ENV_GENERATOR/base-config.txt"
+      file_providers:
+        - name: env-generator
+          env_var: ENV_GENERATOR
+          kind: custom_provider
+          type: env_generator
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+</code></pre>
+<p>This test plan does the following:</p>
+<ul>
+<li>The <code>custom_providers</code> section registers the custom provider definition. Each entry specifies:
+<ul>
+<li><code>kind: local</code>: indicates the provider definition is in the local filesystem.</li>
+<li><code>relative_path</code>: the directory containing the provider definition file.</li>
+<li><code>using</code>: a map of names to provider definition files. The name (<code>env_generator</code>) is used to
+reference the provider in file providers.</li>
+</ul>
+</li>
+<li>The <code>scenario</code> is an empty command that does nothing. This is acceptable for testing the custom
+provider.</li>
+<li>The <code>environment.setup</code> uses the custom provider as a file provider. The <code>file_providers</code> entry
+specifies:
+<ul>
+<li><code>name</code>: a name for this file provider instance.</li>
+<li><code>env_var</code>: the environment variable that will contain the path to the provider’s output
+directory.</li>
+<li><code>kind: custom_provider</code>: indicates this is a custom provider.</li>
+<li><code>type</code>: the name registered in <code>custom_providers</code> (in this case, <code>env_generator</code>).</li>
+</ul>
+</li>
+<li>The setup command sources the <code>ENV_VARS.txt</code> file using <code>$ENV_GENERATOR/ENV_VARS.txt</code> and prints
+the values it sets, then prints the contents of <code>base-config.txt</code>.</li>
+<li>The <code>teardown</code> is an empty command that does nothing.</li>
+</ul>
+<h2 id="first-template-attempt"><a class="header" href="#first-template-attempt">First template attempt</a></h2>
+<p>Let’s check if the test plan templates correctly:</p>
+<pre><code class="language-bash">rtf template test-plan.yaml
+</code></pre>
+<p>This fails with an error:</p>
+<pre><code>ERROR (environment.setup.file_providers.ENV_GENERATOR.definition) missing required custom provider arguments: ["project_name"]
+</code></pre>
+<p>This error occurs because the <code>env-generator</code> custom provider has a <code>project_name</code> variable with no
+default value. Notice that <code>log_level</code> is not in the error because it has a default value of
+<code>"info"</code>.</p>
+<h2 id="adding-arguments-to-the-custom-provider"><a class="header" href="#adding-arguments-to-the-custom-provider">Adding arguments to the custom provider</a></h2>
+<p>To fix this, we need to provide the required <code>project_name</code> argument. Arguments are added as
+additional fields on the file provider. Update the <code>file_providers</code> section in <code>test-plan.yaml</code>:</p>
+<pre><code class="language-yaml">name: Custom Provider Test
+description: A test plan that uses the env-generator custom provider
+custom_providers:
+  - kind: local
+    relative_path: .
+    using:
+      env_generator: my-provider.yaml
+scenario:
+  inline:
+    name: Empty scenario
+    description: A scenario that does nothing
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+environment:
+  inline:
+    name: Custom provider environment
+    description: An environment that uses the env-generator custom provider
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+
+          echo "=== ENV_VARS.txt contents ==="
+          source "$ENV_GENERATOR/ENV_VARS.txt"
+          echo "PROJECT_NAME=$PROJECT_NAME"
+          echo "LOG_LEVEL=$LOG_LEVEL"
+          echo ""
+          echo "=== base-config.txt contents ==="
+          cat "$ENV_GENERATOR/base-config.txt"
+      file_providers:
+        - name: env-generator
+          env_var: ENV_GENERATOR
+          kind: custom_provider
+          type: env_generator
+# --- Add the required argument ---
+          project_name: my-test-project
+# ---------------------------------
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+</code></pre>
+<p>Now run the template command again:</p>
+<pre><code class="language-bash">rtf template test-plan.yaml
+</code></pre>
+<p>This time the command succeeds and outputs the fully templated test plan. The custom provider’s
+arguments are resolved and used to template the provider definition.</p>
+<h2 id="running-the-test-plan"><a class="header" href="#running-the-test-plan">Running the test plan</a></h2>
+<p>Let’s run the test plan to see the custom provider in action:</p>
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>The output shows:</p>
+<pre><code>Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+=== ENV_VARS.txt contents ===
+PROJECT_NAME=my-test-project
+LOG_LEVEL=info
+
+=== base-config.txt contents ===
+# Base configuration
+# Project-specific values set via ENV_VARS.txt
+</code></pre>
+<p>This confirms:</p>
+<ol>
+<li>The custom provider ran and generated its output files.</li>
+<li>The <code>PROJECT_NAME</code> is set to the value we provided as an argument.</li>
+<li>The <code>LOG_LEVEL</code> uses the default value of <code>"info"</code>.</li>
+<li>The <code>base-config.txt</code> file is available to the setup command.</li>
+</ol>
+<p>Remove the output directory before continuing:</p>
+<pre><code class="language-bash">rm -rf output/
+</code></pre>
+<h2 id="overriding-the-default-value"><a class="header" href="#overriding-the-default-value">Overriding the default value</a></h2>
+<p>You can override the default <code>log_level</code> value by adding it as an argument. Update the
+<code>file_providers</code> section:</p>
+<pre><code class="language-yaml">      file_providers:
+        - name: env-generator
+          env_var: ENV_GENERATOR
+          kind: custom_provider
+          type: env_generator
+          project_name: my-test-project
+# --- Override the default ---
+          log_level: debug
+# ----------------------------
+</code></pre>
+<p>Run the test plan again:</p>
+<pre><code class="language-bash">$ rtf run test-plan.yaml
+Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+=== ENV_VARS.txt contents ===
+PROJECT_NAME=my-test-project
+LOG_LEVEL=debug
+
+=== base-config.txt contents ===
+# Base configuration
+# Project-specific values set via ENV_VARS.txt
+</code></pre>
+<p>The <code>LOG_LEVEL</code> is now <code>"debug"</code> instead of the default <code>"info"</code>.</p>
+<p>Remove the output directory before continuing:</p>
+<pre><code class="language-bash">rm -rf output/
+</code></pre>
+<h2 id="using-test-plan-variables-for-arguments"><a class="header" href="#using-test-plan-variables-for-arguments">Using test plan variables for arguments</a></h2>
+<p>Instead of hardcoding values in the arguments, you can use test plan variables. This allows the same
+test plan to be run with different configurations. Update <code>test-plan.yaml</code>:</p>
+<pre><code class="language-yaml">name: Custom Provider Test
+description: A test plan that uses the env-generator custom provider
+# --- Add variables ---
+variables:
+  project_name: my-variable-project
+# ---------------------
+custom_providers:
+  - kind: local
+    relative_path: .
+    using:
+      env_generator: my-provider.yaml
+scenario:
+  inline:
+    name: Empty scenario
+    description: A scenario that does nothing
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+environment:
+  inline:
+    name: Custom provider environment
+    description: An environment that uses the env-generator custom provider
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+
+          echo "=== ENV_VARS.txt contents ==="
+          source "$ENV_GENERATOR/ENV_VARS.txt"
+          echo "PROJECT_NAME=$PROJECT_NAME"
+          echo "LOG_LEVEL=$LOG_LEVEL"
+          echo ""
+          echo "=== base-config.txt contents ==="
+          cat "$ENV_GENERATOR/base-config.txt"
+      file_providers:
+        - name: env-generator
+          env_var: ENV_GENERATOR
+          kind: custom_provider
+          type: env_generator
+# --- Use templating for the argument value ---
+          project_name: "{{ project_name }}"
+          log_level: debug
+# ---------------------------------------------
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+</code></pre>
+<p>Run the test plan:</p>
+<pre><code class="language-bash">$ rtf run test-plan.yaml
+Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+=== ENV_VARS.txt contents ===
+PROJECT_NAME=my-variable-project
+LOG_LEVEL=debug
+
+=== base-config.txt contents ===
+# Base configuration
+# Project-specific values set via ENV_VARS.txt
+</code></pre>
+<p>The <code>PROJECT_NAME</code> is now set from the test plan variable. You can also override this at runtime
+using the <code>--var</code> flag:</p>
+<pre><code class="language-bash">$ rtf run test-plan.yaml --var project_name=runtime-override
+Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+=== ENV_VARS.txt contents ===
+PROJECT_NAME=runtime-override
+LOG_LEVEL=debug
+
+=== base-config.txt contents ===
+# Base configuration
+# Project-specific values set via ENV_VARS.txt
+</code></pre>
 <hr>
-<p><strong>Next:</strong> <a href="writing-a-custom-provider-definition.html">Writing a custom provider definition</a></p>
+<p>In this guide, we have covered how to use a custom provider in a test plan, pass arguments to it,
+and use test plan variables for dynamic configuration.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../guides/test-plans/using-file-providers.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../tutorials/custom-providers/writing-a-custom-provider-definition.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../guides/custom-providers/writing-a-custom-provider-definition.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../howto/cookbook.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -207,11 +490,11 @@ you’re familiar with rtf test plans. Many of the concepts in that guide will b
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../guides/test-plans/using-file-providers.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../tutorials/custom-providers/writing-a-custom-provider-definition.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../guides/custom-providers/writing-a-custom-provider-definition.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../howto/cookbook.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

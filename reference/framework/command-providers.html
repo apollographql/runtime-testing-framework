@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Test Plans - Runtime Testing Framework</title>
+        <title>Command providers - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
-        <link rel="stylesheet" href="../css/variables-8adf115d.css">
-        <link rel="stylesheet" href="../css/general-2459343d.css">
-        <link rel="stylesheet" href="../css/chrome-ae938929.css">
-        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../../css/general-2459343d.css">
+        <link rel="stylesheet" href="../../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "../";
+            const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-e010b32d.js";
+            window.path_to_searchindex_js = "../../searchindex-db9e8a68.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-43c40e78.js"></script>
+        <script src="../../toc-248ccb4e.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">Runtime Testing Framework</h1>
 
                     <div class="right-buttons">
-                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/apollographql/runtime-testing-framework" title="Git repository" aria-label="Git repository">
@@ -178,356 +178,142 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: reference -->
-<h1 id="test-plans"><a class="header" href="#test-plans">Test Plans</a></h1>
-<p>The Test Plan is the top-level entry point for RTF. It defines variables, matrix dimensions, and
-references to Scenario and Environment configurations.</p>
-<blockquote>
-<p>An example of a valid <code>test-plan.yaml</code> is provided in the <a href="#full-example">Full example</a> section
-below.</p>
-</blockquote>
-<h2 id="top-level-keys"><a class="header" href="#top-level-keys">Top level keys</a></h2>
-<ul>
-<li><code>name</code>: The name for this Test Plan.
-<ul>
-<li>Uniqueness is not enforced by the <code>rtf</code> CLI but it is worthwhile ensuring that the test plans
-you write each have unique names that can be used to distinguish them.</li>
-</ul>
-</li>
-<li><code>description</code>: A brief, human readable description of the behaviour of the Test Plan.
-<ul>
-<li>If there are any pre-requesites to running this Test Plan it is best to call them out here
-rather than in comments or other files (such as a README).</li>
-</ul>
-</li>
-<li><code>variables</code>: Key value pairs for templating the Test Plan where the variables are all scalar.
-<ul>
-<li>Scalar here is defined to be a number, string or boolean.</li>
-</ul>
-</li>
-<li><code>matrix</code>: Dimensions specified as key value pairs for templating the Test Plan where the variables
-are arrays of scalars.
-<ul>
-<li>Each matrix entry must have a consistent type for the variables array. Mixing different scalar
-variables will result in an error when you attempt to run the Test Plan.</li>
-<li>An optional <code>variant_names</code> key can be provided to customise the names of the output directories
-used by each variant.</li>
-</ul>
-</li>
-<li><code>custom_providers</code>: Declarations for loading Custom Provider Definitions.
-<ul>
-<li>For full details on the structure of Custom Provider Declarations and Definitions see the
-<a href="./custom-providers.html">Custom Providers</a> page of the Framework documentation.</li>
-</ul>
-</li>
-<li><code>scenario</code>: A <a href="#config-specs">Config Spec</a> for the scenario to be run.
-<ul>
-<li>For full details on the structure of a Scenario see the <a href="./scenarios.html">Scenario</a> page of the Framework
-documentation.</li>
-</ul>
-</li>
-<li><code>environment</code>: A <a href="#config-specs">Config Spec</a> for the test environment to provision.
-<ul>
-<li>For full details on the structure of an Environment see the <a href="./environments.html">Environment</a> page of the
-Framework documentation.</li>
-</ul>
-</li>
-</ul>
-<h2 id="config-specs"><a class="header" href="#config-specs">Config Specs</a></h2>
-<p>Both the <code>scenario</code> and <code>environment</code> keys map to a structure known as a <em>Config Spec</em>, which tells
-RTF how to find the appropriate configuration for that aspect of the Test Plan. Config Specs support
-three source types:</p>
+<h1 id="command-providers"><a class="header" href="#command-providers">Command providers</a></h1>
+<p>Command Providers are the core executable element of RTF Test Plans. They specify how a command runs
+and what resources it needs. <a href="./environments.html">Environment</a> and <a href="./scenarios.html">Scenario</a> configurations are Command Providers
+with defined execution semantics.</p>
+<p>The configuration for a Command Provider consists of three top level sections:</p>
 <ol>
-<li><code>inline</code>: Embed configuration directly in the Test Plan</li>
-<li><code>local</code>: Reference a local file by relative path</li>
-<li><code>github</code>: Fetch from a GitHub repository</li>
+<li>The command itself.</li>
+<li>Environment variables that should be set before the command is run.</li>
+<li>A set of <a href="./file-providers.html">File Providers</a> that should be run and made available before the command is run.</li>
 </ol>
-<p>The <code>local</code> and <code>github</code> types support optional <code>overrides</code> that merge on top of the base
-configuration before the Test Plan is templated and checked.</p>
-<h3 id="inline-configuration"><a class="header" href="#inline-configuration">Inline configuration</a></h3>
-<p>To provide your configuration inline, add an <code>inline</code> key under the relevant top level <code>scenario</code> or
-<code>environment</code> key and then write your config file as normal.</p>
-<pre><code class="language-yaml">scenario:
-  inline:
-    # your scenario.yaml configuration goes here
-</code></pre>
-<pre><code class="language-yaml">environment:
-  inline:
-    # your environment.yaml configuration goes here
-</code></pre>
-<h3 id="from-a-local-file"><a class="header" href="#from-a-local-file">From a local file</a></h3>
-<p>To use a local file as a base, add a <code>from</code> key under the relevant top level <code>scenario</code> or
-<code>environment</code> key, specifying the <code>kind</code> as <code>local</code> and giving the relative path <em>from the
-test-plan.yaml file</em> under the <code>relative_path</code> key.</p>
-<p>To define <em>overrides</em>, add the <code>overrides</code> key at the same indentation level as <code>from</code> and then add
-your override configuration under that key. The structure here is <em>not</em> required to parse as a full
-config file so you are free to only specify the keys that you need.</p>
+<p>The details of each section are outlined below.</p>
 <blockquote>
-<p>For details on how overrides are applied, see <a href="#applying-overrides">Applying Overrides</a> below.</p>
+<p>Full examples appear in the <a href="./environments.html#full-example">Environment</a> and <a href="./scenarios.html#full-example">Scenario</a> pages.</p>
 </blockquote>
-<pre><code class="language-yaml">scenario:
-  from:
-    kind: local
-    relative_path: ../my-scenario.yaml
-  overrides:
-    # overrides go here
-</code></pre>
-<pre><code class="language-yaml">environment:
-  from:
-    kind: local
-    relative_path: ../my-environment.yaml
-  overrides:
-    # overrides go here
-</code></pre>
-<h3 id="from-a-remote-file-in-github"><a class="header" href="#from-a-remote-file-in-github">From a remote file in GitHub</a></h3>
-<p>To fetch from a GitHub repository, add a <code>from</code> key under the relevant top level <code>scenario</code> or
-<code>environment</code> key, specifying the <code>kind</code> as <code>github</code> along with details for the <code>org</code>, <code>repo</code> and
-<code>path</code> to the file relative to the root of the repository. It is also possible to optionally provide
-a <code>git_ref</code> to pull the file from. If this is not specified then RTF will default to pulling from
-the mainline branch.</p>
+<h2 id="the-command-section"><a class="header" href="#the-command-section">The command section</a></h2>
+<p>You can define your command in two ways:</p>
+<ol>
+<li>As an inline script that will be written to disk and made executable.</li>
+<li>As a relative path to an existing executable script.</li>
+</ol>
+<p>Both strategies will result in the appropriate utf-8 encoded text file being written to disk and
+made executable before being executed as a subprocess by RTF. As such, you <em>must</em> include an
+appropriate <a href="https://en.wikipedia.org/wiki/Shebang_%28Unix%29">shebang</a> line at the top of your script in order for it to run correctly.</p>
 <blockquote>
-<p>You <em>must</em> have a valid GitHub access token with permissions to interact with your chosen
-repository exported as <code>GITHUB_TOKEN</code> in your shell environment for this method to work. See
-<a href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens">here</a> for GitHub’s documentation on how to create and manage access tokens.</p>
+<p>⚠️ <strong>At this time, RTF does not support directly executing binaries via command providers</strong></p>
+<p>If the command you wish to execute is simply a pre-existing binary, you should provide an <strong>inline
+wrapper script</strong> that ensures that the binary in question is available on the PATH before calling
+the binary with the appropriate arguments:</p>
+<pre><code class="language-bash">#!/usr/bin/env sh
+if ! which "$YOUR_BINARY" &gt; /dev/null 2&gt;&amp;1; then
+  echo "ERROR: $YOUR_BINARY is not available on the path"
+  exit 1
+fi
+
+"$YOUR_BINARY" # arguments to the binary
+</code></pre>
 </blockquote>
-<p>As with using a <a href="#from-a-local-file">local file</a>, <em>overrides</em> can be defined by adding the
-<code>overrides</code> key at the same indentation level as <code>from</code> and then adding your override configuration
-under that key. The structure here is <em>not</em> required to parse as a full config file so you are free
-to only specify the keys that you need.</p>
+<p>It is also possible to instead mark that the command is <em>required</em> as an override specified in the
+user’s Test Plan. This is primarily used as part of a Scenario or Environment configuration where
+you want to set up supporting resources and data around an arbitrary user specified command.</p>
+<p>In each of the three options you will need to provide the <code>name</code> of the command as well as a <code>kind</code>
+the specifies which strategy you want to use to define your command.</p>
+<h3 id="inline-scripts"><a class="header" href="#inline-scripts">Inline scripts</a></h3>
+<p>To provide your command as an inline script, specify the kind as <code>inline</code> and provide your script
+contents under the <code>content</code> key.</p>
+<p>For multiline script content, see <a href="https://yaml-multiline.info/">YAML multiline string syntax</a>.</p>
+<pre><code class="language-yaml">command:
+  name: my-shell-script.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "Hello from RTF"
+</code></pre>
+<h3 id="relative-paths"><a class="header" href="#relative-paths">Relative paths</a></h3>
+<p>To use a pre-existing script, specify the kind as <code>relative_path</code> and provide the relative path to
+your script under the <code>path</code> key. (See <a href="./test-plans.html#a-note-on-relative-paths">here</a> for details on how relative paths are handled by
+RTF).</p>
+<pre><code class="language-yaml">command:
+  name: my-shell-script.sh
+  kind: relative_path
+  path: ../scripts/my-shell-script.sh
+</code></pre>
+<h3 id="required-commands"><a class="header" href="#required-commands">Required commands</a></h3>
+<p>To mark a command as required, but not specified by default, you can use the <code>required</code> kind which
+supports providing an accompanying <code>message</code> to inform the user of how they should define their own
+command. If the user fails to provide an override for the command in their <a href="./test-plans.html">Test Plan</a>, RTF will
+error at the templating stage of execution and print your error message as the reason for the
+failure.</p>
+<pre><code class="language-yaml">command:
+  name: my-command
+  kind: required
+  message: "This command must be provided in the test plan explicitly"
+</code></pre>
+<h2 id="the-env-vars-section"><a class="header" href="#the-env-vars-section">The env vars section</a></h2>
+<p>Environment variables are defined simply as key value pairs under the <code>env_vars</code> key. Variables may
+be templated using the <code>"{{ my_variable }}"</code> syntax using any scalar value (not just strings). The
+environment variables explicitly defined under this key will be merged with the environment
+available to RTF itself before your command is executed.</p>
+<pre><code class="language-yaml"># variables:
+#   my_string_env_var: "bar"
+#   my_integer_env_var: 42
+
+env_vars:
+  FOO: "foo"
+  BAR: "{{ my_string_env_var }}"
+  BAZ: "{{ my_integer_env_var }}"
+</code></pre>
+<h2 id="the-file-providers-section"><a class="header" href="#the-file-providers-section">The file providers section</a></h2>
+<p>The <code>file_providers</code> key accepts any number of File Providers as resources made available before
+command execution. See <a href="./file-providers.html">File Providers</a> for provider-specific details. This section covers shared
+structure and semantics.</p>
+<p>When defined under a <em>Command Provider</em> the following shared keys are added to the variant specific
+keys defined by each file provider:</p>
+<ul>
+<li><code>name</code>: the name for this specific provider that will be used to report any errors encountered
+during execution.</li>
+<li><code>env_var</code>: the environment variable to set containing the absolute path to the resources created
+by the provider.
+<ul>
+<li>Depending on the provider this may either be a single file or a directory of files.</li>
+<li>See the relevant documentation for each provider to learn more about the structure of their
+outputs.</li>
+</ul>
+</li>
+<li><code>kind</code>: the variant “kind” which then sets the expected keys required for the rest of the provider
+block.</li>
+</ul>
+<pre><code class="language-yaml">file_providers:
+  - name: my-inline-file.txt
+    env_var: MY_INLINE_FILE
+    content: "some file content"
+
+  - name: supergraph.graphql
+    env_var: SUPERGRAPH_SCHEMA
+    kind: graphos_supergraph
+    graph_ref: "foo@bar"
+    with_subgraph_overrides: docker
+</code></pre>
 <blockquote>
-<p>For details on how overrides are applied, see <a href="#applying-overrides">Applying Overrides</a> below.</p>
+<p><strong>Note</strong>: Every resource needed by a Command Provider must be specified via a File Provider. RTF
+only guarantees paths set in provider environment variables. Do not construct relative paths
+between resources or from command scripts.</p>
 </blockquote>
-<pre><code class="language-yaml">scenario:
-  from:
-    kind: github
-    org: my-org
-    repo: my-repo
-    # git_ref: testing-branch
-    path: test-plans/example/my-scenario.yaml
-  overrides:
-    # overrides go here
-</code></pre>
-<pre><code class="language-yaml">environment:
-  from:
-    kind: github
-    org: my-org
-    repo: my-repo
-    # git_ref: testing-branch
-    path: test-plans/example/my-environment.yaml
-  overrides:
-    # overrides go here
-</code></pre>
-<h2 id="applying-overrides"><a class="header" href="#applying-overrides">Applying overrides</a></h2>
-<p>The <code>overrides</code> section of a <em>Config Spec</em> is merged with the configuration file provided under the
-<code>from</code> key as raw YAML before the configuration is parsed by RTF.</p>
-<p>The merging strategy used is as follows:</p>
-<ul>
-<li>For maps, keys from overrides merge on top of matching keys in the base. If a key exists in both,
-RTF recursively merges the values; otherwise, RTF inserts the override key directly.</li>
-<li>For arrays, override values are appended to base values.</li>
-<li>For differing types or scalars, RTF replaces the base value with the override.</li>
-</ul>
-<p>Once the overrides have been applied and the resulting config file is successfully parsed, all
-arrays are then sorted and deduplicated based on an appropriate key in order to support replacing
-array elements:</p>
-<ul>
-<li>For <a href="./file-providers.html">File providers</a> the key used is <code>env_var</code>.</li>
-<li>For variable declarations and environment setup “provides” the key used is <code>name</code>.</li>
-</ul>
-<h2 id="a-note-on-relative-paths"><a class="header" href="#a-note-on-relative-paths">A note on relative paths</a></h2>
-<p>There are several places within RTF config files that you be required to specify relative paths to
-other files on disk. In order to help with reasoning about how to provide these paths, RTF has
-strict semantics about how such relative paths are resolved.</p>
-<p>Namely, they are <em>always</em> resolved relative to the file the path is written in. At first glance this
-may sound obvious but the important aspect to remember is around writing <code>overrides</code> in your
-<code>test-plan.yaml</code>.</p>
-<p>When a base config file is loaded by RTF, all pre-existing relative paths will be resolved relative
-to the path that the config file was loaded from (this is also true when pulling remote files from
-GitHub). When <code>overrides</code> are then applied from the Test Plan, any new relative paths found there
-are resolved relative to the location of the <code>test-plan.yaml</code> file, <em>not</em> the location of the base
-config file.</p>
-<h2 id="working-with-matrices"><a class="header" href="#working-with-matrices">Working with matrices</a></h2>
-<p>The <code>matrix</code> key expands to multiple test plan variants via the <a href="https://en.wikipedia.org/wiki/Cartesian_product">cartesian product</a> of its
-dimensions.</p>
-<p>For example, the following matrix:</p>
-<pre><code class="language-yaml">matrix:
-  dimensions:
-    a: ["foo", "bar"]
-    b: [1, 2, 3]
-</code></pre>
-<p>Expands to six test plans (known as “variants”) covering each of the possible combinations of values
-for <code>a</code> and <code>b</code>.</p>
-<p>Each variant is run individually and writes its output to its own subdirectory, named
-<code>matrix_variant_$n</code> by default. The order in which variants are run is deterministic: dimensions are
-ordered alphanumerically and the cartesian product is formed from the user provided ordering of
-values for each dimension (as shown below).</p>
-<ul>
-<li>a=foo b=1 (matrix_variant_1)</li>
-<li>a=foo b=2 (matrix_variant_2)</li>
-<li>a=foo b=3 (matrix_variant_3)</li>
-<li>a=bar b=1 (matrix_variant_4)</li>
-<li>a=bar b=2 (matrix_variant_5)</li>
-<li>a=bar b=3 (matrix_variant_6)</li>
-</ul>
-<h3 id="naming-variants"><a class="header" href="#naming-variants">Naming variants</a></h3>
-<p>To customize output subdirectory names, specify the <code>matrix.variant_names</code> key in your test plan
-with a template string for generating the variant names:</p>
-<pre><code class="language-yaml">matrix:
-  variant_names: "${a}_${b}"
-  dimensions:
-    a: ["foo", "bar"]
-    b: [1, 2, 3]
-</code></pre>
-<p>When doing so, the ordering for variants remains the same but the output directory names are
-generated using the template provided:</p>
-<ul>
-<li>a=foo b=1 (foo_1)</li>
-<li>a=foo b=2 (foo_2)</li>
-<li>a=foo b=3 (foo_3)</li>
-<li>a=bar b=1 (bar_1)</li>
-<li>a=bar b=2 (bar_2)</li>
-<li>a=bar b=3 (bar_3)</li>
-</ul>
-<p>The syntax used for template strings involves placing <em>matrix dimension names</em> inside of <code>${}</code> along
-with static string content in order to generate a unique name for each variant. The resulting string
-is then slugified to remove whitespace and slashes.</p>
-<h3 id="including-explicit-variants"><a class="header" href="#including-explicit-variants">Including explicit variants</a></h3>
-<p>Use <code>matrix.include</code> to define explicit variable combinations instead of full cartesian expansion.
-For example, the following initial matrix expands out to four variants covering different crate
-revisions for inclusion in a Rust build as shown below:</p>
-<pre><code class="language-yaml">matrix:
-  dimensions:
-    federation_rev: [ "v2.6.2", "v2.7.0" ]
-    compiler_rev: [ "apollo-compiler@1.28.0", "apollo-compiler@1.30.0" ]
-
-# - federation_rev: v2.6.2
-#   compiler_rev: apollo-compiler@1.28.0
-# 
-# - federation_rev: v2.6.2
-#   compiler_rev: apollo-compiler@1.30.0
-#
-# - federation_rev: v2.7.0
-#   compiler_rev: apollo-compiler@1.28.0
-#
-# - federation_rev: v2.7.0
-#   compiler_rev: apollo-compiler@1.30.0
-</code></pre>
-<p>If only certain combinations are valid, two of four variants are invalid. Adding another dimension
-(e.g., <code>graph_ref</code>) compounds the problem with more undesirable variants.</p>
-<p>Use <code>matrix.include</code> to define explicit variable sets. All sets must contain the same variable
-names:</p>
-<pre><code class="language-yaml">matrix:
-  # The dimensions key must always be present, even if it is an empty map
-  dimensions: {}
-
-  include:
-    - federation_rev: v2.6.2
-      compiler_rev: apollo-compiler@1.28.0
-
-    - federation_rev: v2.7.0
-      compiler_rev: apollo-compiler@1.30.0
-
-# - federation_rev: v2.6.2
-#   compiler_rev: apollo-compiler@1.28.0
-# 
-# - federation_rev: v2.7.0
-#   compiler_rev: apollo-compiler@1.30.0
-</code></pre>
-<p>This produces only the valid revision pairs. You can add further dimensions to the matrix while
-preserving the correct combinations:</p>
-<pre><code class="language-yaml">matrix:
-  # The dimensions key must always be present, even if it is an empty map
-  dimensions:
-    graph_ref: [ "graph_1@prod", "graph_2@prod" ]
-
-  include:
-    - federation_rev: v2.6.2
-      compiler_rev: apollo-compiler@1.28.0
-
-    - federation_rev: v2.7.0
-      compiler_rev: apollo-compiler@1.30.0
-
-# - graph_ref: "graph_1@prod"
-#   federation_rev: v2.6.2
-#   compiler_rev: apollo-compiler@1.28.0
-# 
-# - graph_ref: "graph_1@prod"
-#   federation_rev: v2.7.0
-#   compiler_rev: apollo-compiler@1.30.0
-#
-# - graph_ref: "graph_2@prod"
-#   federation_rev: v2.6.2
-#   compiler_rev: apollo-compiler@1.28.0
-# 
-# - graph_ref: "graph_2@prod"
-#   federation_rev: v2.7.0
-#   compiler_rev: apollo-compiler@1.30.0
-</code></pre>
-<h2 id="full-example"><a class="header" href="#full-example">Full example</a></h2>
-<p>The following is a minimal “kitchen sink” example of the structure of a valid <code>test-plan.yaml</code>.</p>
-<pre><code class="language-yaml">name: example
-description: An example description
-
-variables:
-  foo: "A value for foo"
-
-matrix:
-  variant_names: "${bar}_${baz}_${a}_${b}"
-  dimensions:
-    bar: [1, 2, 3]
-    baz: [true, false]
-
-  include:
-    - a: 4
-      b: 5
-    - a: 6
-      b: 7
-
-custom_providers:
-  - kind: local
-    relative_path: ./providers
-    using:
-      my_provider: my_provider.yaml
-
-scenario:
-  inline:
-    name: An inline scenario
-    description: A description for the inline scenario
-
-    variable_definitions:
-      - name: foo
-        description: "A description for foo"
-
-    command:
-      name: my-test.sh
-      kind: relative_path
-      path: scripts/my-test.sh
-
-    env_vars:
-      FOO: "{{ foo }}"
-
-environment:
-  from:
-    kind: local
-    relative_path: environment.yaml
-
-  overrides:
-    file_providers:
-      - name: my-additional-file.txt
-        env_var: ADDITIONAL_FILE
-        kind: inline
-        content: |
-          An additional file that wasn't present in the original environment.yaml
-</code></pre>
+<p>RTF internally caches and reuses file providers that share identical keys, so you are free to
+duplicate providers between different Command Providers. This allows sharing resources without
+providers running multiple times.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../framework/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../reference/framework/scenarios.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../framework/environments.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../reference/framework/file-providers.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -537,11 +323,11 @@ environment:
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../framework/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../reference/framework/scenarios.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../framework/environments.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../reference/framework/file-providers.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -560,19 +346,19 @@ environment:
             window.playground_copyable = true;
         </script>
 
-        <script src="../ace-2a3cd908.js"></script>
-        <script src="../mode-rust-2c9d5c9a.js"></script>
-        <script src="../editor-16ca416c.js"></script>
-        <script src="../theme-dawn-4493f9c8.js"></script>
-        <script src="../theme-tomorrow_night-9dbe62a9.js"></script>
+        <script src="../../ace-2a3cd908.js"></script>
+        <script src="../../mode-rust-2c9d5c9a.js"></script>
+        <script src="../../editor-16ca416c.js"></script>
+        <script src="../../theme-dawn-4493f9c8.js"></script>
+        <script src="../../theme-tomorrow_night-9dbe62a9.js"></script>
 
-        <script src="../elasticlunr-ef4e11c1.min.js"></script>
-        <script src="../mark-09e88c2c.min.js"></script>
-        <script src="../searcher-c2a407aa.js"></script>
+        <script src="../../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../../mark-09e88c2c.min.js"></script>
+        <script src="../../searcher-c2a407aa.js"></script>
 
-        <script src="../clipboard-1626706a.min.js"></script>
-        <script src="../highlight-abc7f01d.js"></script>
-        <script src="../book-a0b12cfe.js"></script>
+        <script src="../../clipboard-1626706a.min.js"></script>
+        <script src="../../highlight-abc7f01d.js"></script>
+        <script src="../../book-a0b12cfe.js"></script>
 
         <!-- Custom JS scripts -->
 

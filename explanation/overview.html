@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Custom providers - Runtime Testing Framework</title>
+        <title>Understanding RTF - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-e010b32d.js";
+            window.path_to_searchindex_js = "../searchindex-db9e8a68.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-43c40e78.js"></script>
+        <script src="../toc-248ccb4e.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -177,167 +177,121 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <!-- diataxis-type: reference -->
-<h1 id="custom-providers"><a class="header" href="#custom-providers">Custom providers</a></h1>
-<p>Custom Providers are reusable file providers that execute commands to produce files. They
-encapsulate file generation logic for sharing across test plans, environments, and scenarios.</p>
+                        <!-- diataxis-type: explanation -->
+<h1 id="overview"><a class="header" href="#overview">Overview</a></h1>
+<p>Throughout the rest of the <em>User Documentation</em> you’ll see us talking about RTF both as the
+framework itself and as part of the richer tooling and testing capabilities provided by the Runtime
+Readiness team. We feel that it is important to draw a distinction between these two areas in order
+to be able to make the best use of each.</p>
+<p>So, while the rest of our documentation tends to focus on the “how” of using RTF and its related
+tooling, this page instead covers some of the “why” around how things are set up and the different
+options available for making use of it. To kick things off, its probably best to cover what RTF <em>is</em>
+(and importantly, what it <em>isn’t</em>).</p>
+<h2 id="what-rtf-is"><a class="header" href="#what-rtf-is">What RTF <em>is</em></a></h2>
+<h3 id="compositional-glue"><a class="header" href="#compositional-glue">Compositional Glue</a></h3>
+<p>The most important thing to understand about RTF is that it truly is <em>all</em> glue code and meta-data.
+RTF Test plans follow a simple “setup, run, teardown” execution model and providers are all self
+contained functions of their inputs. Need access to a resource inside of your test scenario? Add the
+appropriate provider. Need access to the same resource when you’re spinning up your test
+environment? Add the provider there as well: RTF will handle de-duplicating the resources for you.</p>
+<h3 id="once-size-fits-most-not-all"><a class="header" href="#once-size-fits-most-not-all">Once size fits most (not all)</a></h3>
+<p>Aiming to provide a working out of the box solution for every use case we come across inevitably
+results in chasing a long tail infrequently used aspects of the system that bitrot or are
+insufficiently tested.</p>
+<p>No one wants that.</p>
+<p>Instead we focus on paving a path for the majority of use cases that we know are actively required
+by our users (initially the Router core team) while ensuring that the system remains open to
+extension. As and when new shared use cases arise we work with the users who have an interest in
+their semantics to pull them in to the managed set of providers and base configurations.</p>
+<h2 id="what-rtf-is-not"><a class="header" href="#what-rtf-is-not">What RTF is <em>not</em></a></h2>
+<h3 id="a-magic-bullet"><a class="header" href="#a-magic-bullet">A magic bullet</a></h3>
+<p>While it is certainly possible to rewrite all of your existing test suites to run under RTF we
+wouldn’t recommend it. For anyone. The value add for using a framework like RTF is that it can
+handle pulling together resources and test data for you in a standardised, reliable way. If all you
+need to do is run something that looks like a unit test with no external dependencies, then RTF is
+almost guaranteed to be overkill.</p>
+<h3 id="purpose-built-for-your-exact-use-case"><a class="header" href="#purpose-built-for-your-exact-use-case">Purpose built for your exact use case</a></h3>
+<p>By design, RTF is a general purpose framework that focuses on giving users the tools to write their
+own test plans and tooling. Given the nature of the types of tests we typically see run under RTF,
+you may be inclined to ask why the framework doesn’t offer built in support for things like running
+Terraform or managing Kubernetes clusters. The answer is relatively simple: RTF is designed to
+<em>compose</em> with other tools rather than embed them directly. By setting things up this way we make it
+possible for end users to leverage the tooling they are already familiar with alongside RTF rather
+than being forced to pick from a limited set of options that we happed to have added support for.</p>
+<h2 id="pay-for-what-you-use"><a class="header" href="#pay-for-what-you-use">Pay for what you use</a></h2>
+<p>So if that’s what RTF is / is not in terms of design, what does it look like to actually use?</p>
+<p>We here at Runtime Readiness are <em>big</em> fans of the Unix Philosophy (as stated by Doug McIlroy):</p>
 <blockquote>
-<p>An example of a valid Custom Provider Definition is provided in the <a href="#full-example">Full example</a>
-section below.</p>
+<p>Write programs that do one thing and do it well.<br /> Write programs to work together.<br /> Write
+programs to handle text streams, because that is a universal interface.</p>
 </blockquote>
-<h2 id="custom-provider-definitions"><a class="header" href="#custom-provider-definitions">Custom provider definitions</a></h2>
-<p>A <em>Custom Provider Definition</em> is a YAML file that defines a reusable custom provider. They execute
-commands to produce one or more files for other RTF config files to use, whereas Scenarios execute
-test actions. Custom provider definitions cannot reference other custom providers. They are
-templated using the arguments provided to the custom provider in a configuration file.</p>
-<h3 id="top-level-keys"><a class="header" href="#top-level-keys">Top level keys</a></h3>
-<ul>
-<li><code>name</code>: The name for this Custom Provider Definition.
-<ul>
-<li>Uniqueness is not enforced by the <code>rtf</code> CLI but it is worthwhile ensuring that the custom
-providers you write each have unique names that can be used to distinguish them.</li>
-</ul>
-</li>
-<li><code>description</code>: A brief, human readable description of the behaviour of the Custom Provider.
-<ul>
-<li>If there are any pre-requisites to using this Custom Provider it is best to call them out here
-rather than in comments or other files (such as a README).</li>
-</ul>
-</li>
-<li><code>variable_definitions</code>: Declarations of the templating variables supported by this Custom
-Provider.
-<ul>
-<li>Variable declarations require specifying both the variable name and a short description of how
-the variable is used.</li>
-<li>Variable declarations also support an optional <code>default</code> field where you can specify a default
-scalar value to use if none is provided when the Custom Provider is invoked.</li>
-</ul>
-</li>
-<li><code>command</code>: See <a href="./command-providers.html">Command Provider</a>.</li>
-<li><code>env_vars</code>: See <a href="./command-providers.html">Command Provider</a>.</li>
-<li><code>file_providers</code>: See <a href="./command-providers.html">Command Provider</a>.</li>
-</ul>
-<h3 id="full-example"><a class="header" href="#full-example">Full example</a></h3>
-<p>The following is a minimal “kitchen sink” example of the structure of a valid Custom Provider
-Definition file.</p>
-<pre><code class="language-yaml">name: example
-description: An example Custom Provider that generates a configuration file
-
-variable_definitions:
-  - name: config_name
-    description: "The name to use in the generated configuration"
-  - name: config_value
-    description: "The value to include in the configuration"
-    default: "default_value"
-
-command:
-  name: generate-config.sh
-  kind: relative_path
-  path: scripts/generate-config.sh
-
-env_vars:
-  CONFIG_NAME: "{{ config_name }}"
-  CONFIG_VALUE: "{{ config_value }}"
-
-file_providers:
-  - name: template.txt
-    env_var: TEMPLATE_FILE
-    kind: inline
-    content: |
-      some inline file content
-</code></pre>
-<h2 id="custom-provider-declarations"><a class="header" href="#custom-provider-declarations">Custom provider declarations</a></h2>
-<p>Custom provider definitions are loaded into config files through <em>Custom Provider Declarations</em>.
-These declarations specify a source directory (either a local relative path or a GitHub repository)
-and a mapping of provider names to definition files within that directory. The provider names are
-the names referenced when using the custom providers.</p>
-<p>Custom provider declarations can be specified at three levels:</p>
-<ul>
-<li><strong>Test Plan level</strong>: Custom providers declared in the test plan are only available to any
-overrides defined within the test plan itself. Unlike variables, custom providers DO NOT become
-available globally. If referencing a custom provider directly in an environment or scenario
-config, the declaration for that provider MUST be in that config file.</li>
-<li><strong>Environment level</strong>: Custom providers declared in an environment config are only available
-within that environment’s setup and teardown command sections.</li>
-<li><strong>Scenario level</strong>: Custom providers declared in a scenario config are only available within that
-scenario’s command section.</li>
-</ul>
-<h3 id="structure"><a class="header" href="#structure">Structure</a></h3>
-<ul>
-<li><code>kind</code>: The source directory containing the custom provider definition files. This can be
-specified as either:
-<ul>
-<li>A local relative path using <code>kind: local</code> and <code>relative_path</code></li>
-<li>A GitHub repository using <code>kind: github</code> along with <code>org</code>, <code>repo</code>, <code>path</code>, and optionally
-<code>git_ref</code></li>
-</ul>
-</li>
-<li><code>using</code>: A map of provider names to definition file paths. The provider name is what you will use
-in the <code>type</code> field when referencing the custom provider in file provider sections.</li>
-</ul>
-<h3 id="local-path-example"><a class="header" href="#local-path-example">Local path example</a></h3>
-<pre><code class="language-yaml">custom_providers:
-  - kind: local
-    relative_path: ./providers
-    using:
-      my_provider: my_provider.yaml
-      another_provider: another_provider.yaml
-</code></pre>
-<h3 id="github-repository-example"><a class="header" href="#github-repository-example">GitHub repository example</a></h3>
-<p>The <code>git_ref</code> field is optional and should be used if you want to target a branch that is not the
-repository default.</p>
+<p>In our case, as with most developer tooling, “text streams” is better replaced with structured data
+in the form of YAML and JSON but the spirit of the philosophy remains.</p>
+<p>We certainly require a variety of machinery to automate spinning up the services under test and
+pulling together all of the data and configuration required to run representative test scenarios.
+But we always make sure that each piece of what we write is usable independently (as far as
+possible) and that if you don’t want or need something, you shouldn’t have to even know that it
+exists.</p>
+<p>To achieve that, our tooling is written as a collection of layers that you are free to pick and
+chose from as you see fit. Each individual piece will have its own requirements and expectations for
+you to be able to make use of it, but you should quickly see that many of those are shared so you
+get quite a lot of bang for your buck!</p>
+<h2 id="so-whats-actually-on-offer"><a class="header" href="#so-whats-actually-on-offer">So, what’s actually on offer?</a></h2>
+<p>RTF and the additional tooling surrounding it is organised as a set of three distinct layers that
+work together to allow you, the user, to determine how and where to focus your time and resources.
+With each option there are a different set of trade offs involved which mainly concern whether you
+would prefer for everything to be as hands off as possible or if you would like to be able to
+configure things just the way you like them. As you might imagine, the further down the layers you
+go, the more control you have but also fewer guarantees.</p>
+<h3 id="layer-3-custom-user-facing-functionality-built-using-rtf"><a class="header" href="#layer-3-custom-user-facing-functionality-built-using-rtf">Layer 3: Custom user facing functionality built using RTF</a></h3>
+<p>At one end of the scale we have custom applications built using RTF as a foundation such as the
+<a href="https://apollographql.atlassian.net/wiki/spaces/RUNTIMEREADINESS/pages/1814036490/Router+Release+Validation">Router release validation tests</a>. Here RTF is very much an implementation detail from the user’s
+perspective and the focus is entirely on addressing a particular testing need. If the application in
+question is one you want or need to make use of, it will have accompanying documentation to guide
+you through the process. If you are interested in developing your own testing capabilities on top of
+RTF then these existing applications are a useful place to start in order to get some ideas about
+what is possible.</p>
+<h3 id="layer-2-configurable-test-plans-environments-scenarios--providers"><a class="header" href="#layer-2-configurable-test-plans-environments-scenarios--providers">Layer 2: Configurable test plans, environments, scenarios &amp; providers</a></h3>
+<p>If you would prefer something a little more custom then the next layer down lets you make use of the
+same building blocks we use ourselves for writing our own <em>Layer 3</em> applications. Here you can find
+general purpose Scenario and Environment configurations such as those available in the <a href="https://github.com/apollographql/rtf-morgue/tree/main/lib">lib</a>
+directory of the <code>rtf-morgue</code> repo.</p>
 <blockquote>
-<p>You <em>must</em> have a valid GitHub access token with permissions to interact with your chosen
-repository exported as <code>GITHUB_TOKEN</code> in your shell environment for this method to work. See
-<a href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens">here</a> for GitHub’s documentation on how to create and manage access tokens.</p>
+<p>Soon you will also be able to define and re-use custom providers once <a href="https://apollographql.atlassian.net/browse/RR-351">RR-351</a> is complete.</p>
 </blockquote>
-<pre><code class="language-yaml">custom_providers:
-  - kind: github
-    org: my-org
-    repo: my-repo
-    path: path/to/providers
-    # git_ref: main
-    using:
-      my_provider: my_provider.yaml
-      another_provider: another_provider.yaml
-</code></pre>
-<h2 id="using-custom-providers"><a class="header" href="#using-custom-providers">Using custom providers</a></h2>
-<p>Custom providers appear in the <code>file_providers</code> list with <code>kind: custom_provider</code>.</p>
-<h3 id="structure-1"><a class="header" href="#structure-1">Structure</a></h3>
-<ul>
-<li><code>name</code>: The name for the output file produced by this custom provider. This is common to all file
-providers.</li>
-<li><code>env_var</code>: The environment variable that will be set to the path of the output file. This is
-common to all file providers.</li>
-<li><code>kind</code>: Must be <code>custom_provider</code>.</li>
-<li><code>type</code>: The name of the custom provider to use. This must match a name from the <code>using</code> map in a
-Custom Provider Declaration.</li>
-<li>Additional keys are passed as arguments to the custom provider and should match the
-<code>variable_definitions</code> in the Custom Provider Definition. Arguments can be literal values or
-template strings referencing variables from the config file.</li>
-</ul>
-<h3 id="example"><a class="header" href="#example">Example</a></h3>
-<p>The following example uses a custom provider named <code>my_provider</code> (which must be declared in the
-config file’s <code>custom_providers</code> section) to generate a configuration file:</p>
-<pre><code class="language-yaml">file_providers:
-  - name: generated-config.yaml
-    env_var: GENERATED_CONFIG
-    kind: custom_provider
-    type: my_provider
-    config_name: "my-service"
-    config_value: "{{ service_value }}"
-</code></pre>
-<p>In this example, <code>config_name</code> and <code>config_value</code> are the arguments to <code>my_provider</code>.</p>
+<p>The focus of <em>Layer 2</em> is to build and re-use higher level abstractions that address common use
+cases which require coordinating elements that make use of shared semantics or configuration.</p>
+<p>As far as possible, anything that is done by one of our <em>Layer 3</em> applications is also made
+available as part of <em>Layer 2</em> for direct use as well. If you find yourself needing to do something
+that isn’t yet supported by our APIs or libraries, please do reach out to us in the
+<code>#proj-runtime-testing-framework</code> channel in Slack to let us know! Chances are that other users
+would like the same functionality and it might make sense to support it natively from our side.</p>
+<h3 id="layer-1-rtf-core"><a class="header" href="#layer-1-rtf-core">Layer 1: RTF core</a></h3>
+<p>The final layer is RTF itself. Here we provide the <code>rtf</code> CLI which supports a number of
+<a href="../reference/framework/file-providers.html">built-in providers</a> that serve as a minimal foundation for writing test plans. At this layer you
+have maximum flexibility to implement what you need but at the cost of minimal guarantees around how
+you have composed together the different elements that make up your test plan.</p>
+<p>We should emphasise that “minimal” here is in comparison to what is available from Layers 2 and 3:
+RTF provides a variety of debugging commands and rich error output to help you write and debug your
+test plans. What it <em>doesn’t</em> provide out of the box is a way for ensuring that you’ve set up your
+providers and test scripts in a self consistent way.</p>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
+<p>Now that you’ve read a little of the “why” its time to dig into the “how”. Unsurprisingly, the
+<a href="../tutorials/index.html">Getting started</a> section is where we recommend you start first if your goal is to learn about
+how RTF works and how you can work with pre-existing test plans. If you want to dig more into the
+framework itself, then the <a href="../tutorials/test-plans/index.html">Test plans</a> and <a href="../reference/framework/index.html">framework</a> sections are more likely what you are
+after.</p>
+<p>Happy testing!</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../framework/file-providers.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../guides/test-plans/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../tutorials/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -347,11 +301,11 @@ config file’s <code>custom_providers</code> section) to generate a configurati
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../framework/file-providers.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../guides/test-plans/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../tutorials/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

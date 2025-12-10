@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Writing a new test plan - Runtime Testing Framework</title>
+        <title>Writing an environment - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-e010b32d.js";
+            window.path_to_searchindex_js = "../../searchindex-db9e8a68.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-43c40e78.js"></script>
+        <script src="../../toc-248ccb4e.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,173 +178,82 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: tutorial -->
-<h1 id="writing-a-test-plan"><a class="header" href="#writing-a-test-plan">Writing a test plan</a></h1>
-<p>Create an empty directory and make it your working directory:</p>
-<pre><code class="language-bash">mkdir rtf-hello-world
-cd rtf-hello-world
-</code></pre>
-<p>Create an empty YAML file for the test plan:</p>
-<pre><code class="language-bash">touch test-plan.yaml
-</code></pre>
-<p>Add the following content to <code>test-plan.yaml</code>:</p>
-<pre><code class="language-yaml">name: Hello World
-description: A test plan created as a guide for writing test plans
-scenario:
-  inline:
-    name: Inline scenario config
-    description: An inline scenario config
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
+<h1 id="writing-a-new-environment"><a class="header" href="#writing-a-new-environment">Writing a new environment</a></h1>
+<p>This guide assumes you’ve completed the <a href="writing-a-scenario.html">“Writing a scenario”</a> guide. You
+should already have the files in a directory named <code>rtf-hello-world</code>. Your directory should be in
+the state it was at the end of that guide.</p>
+<pre><code class="language-bash">$ ls -R
+configs         scripts         test-plan.yaml
 
-        echo "scenario command executed"
-environment:
-  inline:
-    name: Inline environment config
-    description: An inline environment config
-    setup:
-      command:
-        name: setup.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
+configs:
+scenario.yaml
 
-          echo "environment setup command executed"
-    teardown:
-      command:
-        name: teardown.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment teardown command executed"
+scripts:
+scenario.sh
 </code></pre>
-<p>This will all be explained as we progress through the guide, for now all you need to know is this is
-the simplest test plan it is possible to write in rtf.</p>
-<h2 id="adding-required-fields"><a class="header" href="#adding-required-fields">Adding required fields</a></h2>
-<p>An rtf test plan has four required fields: <code>name</code>, <code>description</code>, <code>scenario</code>, and <code>environment</code>. The
-sections below add each of these required fields and explain them in more detail.</p>
-<h3 id="name"><a class="header" href="#name"><code>name</code></a></h3>
-<p>Add the <code>name</code> field to the <code>test-plan.yaml</code> file</p>
-<pre><code class="language-yaml">name: Hello World
+<h2 id="creating-an-environment-file"><a class="header" href="#creating-an-environment-file">Creating an environment file</a></h2>
+<p>Creating a separate environment file works exactly the same way and has the same benefits as
+creating a separate scenario file outlined in the
+<a href="writing-a-scenario.html#creating-a-scenario-file">“Writing a scenario” guide</a>.</p>
+<p>Let’s update our test plan to specify the environment in a separate file:</p>
+<pre><code class="language-bash">touch configs/environment.yaml
 </code></pre>
-<p><code>name</code> is used to give each test plan an identifiable title. It can be any valid string. The value
-used for the <code>name</code> field has no impact on the execution of the test plan. This makes it easier to
-work with the test plan programmatically.</p>
-<h3 id="description"><a class="header" href="#description"><code>description</code></a></h3>
-<p>Add the <code>description</code> field to the <code>test-plan.yaml</code> file</p>
-<pre><code class="language-yaml">name: Hello World
-description: Created as a guide for writing test plans
-</code></pre>
-<p><code>description</code> is used to give more information about the test plan for future users. It can be any
-valid string. The value used for the <code>description</code> field has no impact on the execution of the test
-plan itself. This is a useful place to add links or reference materials and should be preferred over
-adding that context to inline comments.</p>
-<h3 id="scenario"><a class="header" href="#scenario"><code>scenario</code></a></h3>
-<p>The <code>scenario</code> is used to define the configuration and command that runs the actual testing logic in
-the test plan. The <code>scenario</code> can be defined inline within the test plan or in its own file. In this
-guide, we’ll define the scenario inline. The guide on
-<a href="writing-a-scenario.html">writing a new scenario</a> covers how to define a scenario in a separate file.</p>
-<p>Add the <code>scenario</code> field to the <code>test-plan.yaml</code> file.</p>
-<pre><code class="language-yaml">name: Hello World
-description: A test plan created as a guide for writing test plans
-scenario:
-  inline:
-    name: Inline scenario config
-    description: An inline scenario config
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "scenario command executed"
-</code></pre>
-<p>This is the simplest <code>scenario</code> it is possible to define.</p>
-<ul>
-<li>The <code>inline</code> field is used to indicate the scenario will be defined in the test plan file.</li>
-<li>The <code>name</code> and <code>description</code> fields are required and used to identify the scenario and work the
-same as <code>name</code> and <code>description</code> in the test plan.</li>
-<li><code>command</code> defines what will be executed when rtf executes the scenario. This is the simplest case
-which executes a single command. The guide on <a href="writing-a-scenario.html">writing a new scenario</a>
-covers how to execute files or more complex scripts.</li>
-</ul>
-<h3 id="environment"><a class="header" href="#environment"><code>environment</code></a></h3>
-<p>The <code>environment</code> is used to define the configuration and commands that setup the environment for
-testing and tear it down after the test has completed. The <code>environment</code> can be defined inline
-within the test plan or in its own file. In this guide, we’ll define the environment inline. The
-guide on <a href="writing-an-environment.html">writing a new environment</a> covers how to define an environment
-in a separate file.</p>
-<p>Add the <code>environment</code> field to the <code>test-plan.yaml</code> file:</p>
-<pre><code class="language-yaml">name: Hello World
-description: A test plan created as a guide for writing test plans
-scenario:
-  inline:
-    name: Inline scenario config
-    description: An inline scenario config
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "scenario command executed"
-environment:
-  inline:
-    name: Inline environment config
-    description: An inline environment config
-    setup:
-      command:
-        name: setup.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment setup command executed"
-    teardown:
-      command:
-        name: teardown.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment teardown command executed"
-</code></pre>
-<p>This is the simplest <code>environment</code> it is possible to define.</p>
-<ul>
-<li>The <code>inline</code> field is used to indicate the environment will be defined in the test plan file.</li>
-<li>The <code>name</code> and <code>description</code> fields are required and used to identify the scenario and work the
-same as <code>name</code> and <code>description</code> in the test plan.</li>
-<li>The <code>setup</code> field defines what will happen during the environment setup phase of <code>rtf run</code>.</li>
-<li>The <code>teardown</code> field defines what will happen during the environment teardown phase of <code>rtf run</code>.</li>
-<li><code>command</code> defines what will be executed when rtf executes the <code>setup</code> and <code>teardown</code>. This is the
-simplest case which executes a single command. The guide on
-<a href="writing-an-environment.html">writing a new environment</a> covers how to execute files or more complex
-scripts.</li>
-</ul>
-<h2 id="checking-the-test-plan"><a class="header" href="#checking-the-test-plan">Checking the test plan</a></h2>
-<p>Now, let’s check that the test plan has been defined correctly:</p>
-<pre><code class="language-bash">rtf template test-plan.yaml
-</code></pre>
-<p>This should result in the fully templated test plan being printed to the terminal:</p>
-<pre><code class="language-yaml">name: Hello World
-description: A test plan created as a guide for writing test plans
-matrix: {}
-scenario:
-  name: Inline scenario config
-  description: An inline scenario config
-  variable_definitions: []
+<p>Make sure the <code>environment.yaml</code> contains a copy of the environment config currently in your
+<code>test-plan.yaml</code> file:</p>
+<pre><code class="language-yaml">name: Inline environment config
+description: An inline environment config
+setup:
   command:
-    name: scenario.sh
+    name: setup.sh
     kind: inline
     content: |
       #!/usr/bin/env sh
 
-      echo "scenario command executed"
+      echo "environment setup command executed"
+teardown:
+  command:
+    name: setup.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      echo "environment teardown command executed"
+</code></pre>
+<p>Finally, update the <code>test-plan.yaml</code> file to use the new <code>environment.yaml</code> file:</p>
+<pre><code class="language-yaml">name: Hello World
+description: A test plan created as a guide for writing test plans
+variables:
+  scenario_variable: "scenario executed with test plan variable"
+scenario:
+  from:
+    kind: local
+    relative_path: configs/scenario.yaml
+environment:
+  from:
+    kind: local
+    relative_path: configs/environment.yaml
+</code></pre>
+<p>Let’s verify this has made no material difference to the templated test plan:</p>
+<pre><code class="language-bash">$ rtf template test-plan.yaml --check
+name: Hello World
+description: A test plan created as a guide for writing test plans
+variables:
+  scenario_variable: scenario executed with test plan variable
+matrix: {}
+scenario:
+  name: Inline scenario config
+  description: An inline scenario config
+  variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
+    default: scenario executed with default value
+  command:
+    name: scenario.sh
+    kind: relative_path
+    path: ../scripts/scenario.sh
     args: []
-  env_vars: {}
+  env_vars:
+    SCENARIO_ENV: scenario executed with test plan variable
   file_providers: []
 environment:
   name: Inline environment config
@@ -374,187 +283,315 @@ environment:
     env_vars: {}
     file_providers: []
 </code></pre>
-<p>This highlights two optional fields for test plans that have not yet been used; <code>variables</code> and
-<code>matrix</code>. These are discussed more below.</p>
-<h2 id="running-the-test-plan"><a class="header" href="#running-the-test-plan">Running the test plan</a></h2>
-<p>Before looking at <code>variables</code> and <code>matrix</code>, let’s run the test plan:</p>
-<pre><code class="language-bash">rtf run test-plan.yaml
-</code></pre>
-<p>This results in the following terminal output and an <code>output</code> directory:</p>
-<pre><code class="language-bash">"environment setup command executed"
-"scenario command executed"
-"environment teardown command executed"
-</code></pre>
-<p>The <code>output</code> directory contains two files, <code>resolved-test-plan.yaml</code> and <code>test-plan-variables.json</code>.</p>
+<h2 id="environment-config-structure"><a class="header" href="#environment-config-structure">Environment config structure</a></h2>
+<p>Now is a good time to review how the environment config is structured. The main difference compared
+to the <a href="writing-a-scenario.html#scenario-config-structure">scenario config</a> is that an environment can
+run two commands using the <code>setup</code> and <code>teardown</code> keys. The <code>setup</code> key has an additional field
+called <code>provides</code> which we’ll explain in more detail in the
+<a href="#using-provides">“Using provides” section</a>. The fields in an environment config are:</p>
 <ul>
-<li><code>resolved-test-plan.yaml</code> contains the fully resolved test plan config. This should be the same as
-what was shown in the <code>rtf template</code> command. This is a way to sanity check the test plan that ran
-to give you the output.</li>
-<li><code>test-plan-variables.json</code> contains the variables used during the execution of the test plan. This
-is empty since no variables were set.</li>
+<li><code>name</code> (required) is used to give the environment an identifiable title. It can be any valid
+string. It has no impact on the execution of an environment.</li>
+<li><code>description</code> (required) is used to give more information about the environment. It can be any
+valid string. It has no impact on the execution of an environment.</li>
+<li><code>variable_definitions</code> (optional) are used to define which variables an environment requires to
+successfully execute. This works the same as it does for a scenario and is explained more in the
+<a href="writing-a-scenario.html#using-variables">“using variables”</a> section of that guide.</li>
+<li><code>setup</code> (required) is used to define the command that executes at the start of the <code>rtf run</code>
+command. It is intended to be used to create and configure the environment for the scenario to
+test. It requires the following keys:
+<ul>
+<li><code>command</code> (required) is used to define what is executed when the environment setup is run. The
+<a href="writing-a-command.html">“Writing a command” guide</a> explains commands in more detail.</li>
+<li><code>env_vars</code> (optional) is used to define the environment variables that are set when the
+<code>command</code> is executed.</li>
+<li><code>file_providers</code> (optional) is used to define the files and data that the environment setup
+depends on to execute. The <a href="using-file-providers.html">“Using file providers” guide</a> explains how
+these are used in more detail.</li>
+<li><code>provides</code> (optional) is unique to the environment setup and is used to set variables that can
+only be known at runtime. This is explained more in the
+<a href="#using-provides">“Using provides” section</a>.</li>
 </ul>
-<p>Remove the output directory before continuing (forgetting to do this will result in an error next
-time <code>rtf run</code> is used):</p>
-<pre><code class="language-bash">rm -rf output/
+</li>
+<li><code>teardown</code> (required) is used to define the command that executes at the end of the <code>rtf run</code>
+command. It is intended to be used to collect results and shutdown the environment the scenario
+tested. It requires the following keys:
+<ul>
+<li><code>command</code> (required) is used to define what is executed when the environment teardown is run.
+The <a href="writing-a-command.html">“Writing a command” guide</a> explains commands in more detail.</li>
+<li><code>env_vars</code> (optional) is used to define the environment variables that are set when the
+<code>command</code> is executed.</li>
+<li><code>file_providers</code> (optional) is used to define the files and data that the environment teardown
+depends on to execute. The <a href="using-file-providers.html">“Using file providers” guide</a> explains how
+these are used in more detail.</li>
+</ul>
+</li>
+</ul>
+<h2 id="using-provides"><a class="header" href="#using-provides">Using provides</a></h2>
+<p>The <code>provides</code> key is used to take variables from the environment setup and make them available to
+the scenario and environment teardown steps. The most common use case for this is when the
+environment setup starts a process with some ID that can only be known at runtime. That ID is
+required by the environment teardown so it can stop the process once the test is done. In practice,
+this can be used to set any variable for the scenario and environment teardown to use.</p>
+<p>Before we look at how <code>provides</code> works, let’s update our environment setup command in
+<code>environment.yaml</code>:</p>
+<pre><code class="language-yaml">name: Inline environment config
+description: An inline environment config
+setup:
+# --- Update the setup command ---
+  command:
+    name: setup.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      PROCESS_ID="1"
+      echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
+# --------------------------------
+teardown:
+  command:
+    name: setup.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      echo "environment teardown command executed"
+</code></pre>
+<p>The environment setup now creates a <code>PROCESS_ID</code> with a value of <code>1</code>. We’ll want to be able to use
+this in our teardown script. In preparation, let’s update the teardown command so it can use a
+<code>PROCESS_ID</code> environment variable that will eventually come from the setup:</p>
+<pre><code class="language-yaml">name: Inline environment config
+description: An inline environment config
+setup:
+  command:
+    name: setup.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      PROCESS_ID="1"
+      echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
+teardown:
+# --- Update the teardown command ---
+  command:
+    name: teardown.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
+  env_vars:
+    PROCESS_ID: "not yet from setup"
+# -----------------------------------
+</code></pre>
+<p>Let’s verify this works:</p>
+<pre><code class="language-bash">$ rtf run test-plan.yaml
+Environment setup complete. PROCESS_ID=1
+Running scenario from an external file
+scenario executed with test plan variable
+Environment teardown complete. PROCESS_ID=not yet from setup
+</code></pre>
+<p>The <code>provides</code> key defines variables that are specified in the config in the exact same way that
+<code>variables</code> are. Let’s update the <code>environment.yaml</code>:</p>
+<pre><code class="language-yaml">name: Inline environment config
+description: An inline environment config
+setup:
+  command:
+    name: setup.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      PROCESS_ID="1"
+      echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
+# --- Add a provides ---
+  provides:
+    - name: process_id
+      description: The id of the process started in the environment setup
+# ----------------------
+teardown:
+  command:
+    name: teardown.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
+  env_vars:
+# --- Use the process_id here ---
+    PROCESS_ID: "{{ process_id }}"
+# -------------------------------
 </code></pre>
 <blockquote>
-<p><strong>Note</strong> rtf is deliberately configured to not overwrite an existing output directory. This is so
-you cannot accidentally overwrite output you intend to keep. The <code>--output</code> flag can be used with
-<code>rtf run</code> to set a different output directory if you want to keep the existing output and run a
-new test.</p>
+<p><strong>Note</strong> If you want to check this templates, you’ll need to specify a variable for <code>process_id</code>
+using <code>--var process_id="dummy_id"</code>. If you don’t do this, you’ll get
+<code>ERROR (environment.teardown.env_vars.PROCESS_ID) unknown templating variable: process_id</code>.</p>
 </blockquote>
-<h2 id="setting-variables"><a class="header" href="#setting-variables">Setting variables</a></h2>
-<p>The <code>variables</code> field is used to set global variables that can be referenced in your scenario and/or
-environment. Any variables set in the test plan config can be overridden using the <code>--var</code> and
-<code>--vars</code> flags in the rtf CLI (see the
-<a href="../hello-world.html#modifying-variables">modifying variables section of the hello world guide</a> for
-more information).</p>
-<p>Let’s add some example variables to <code>test-plan.yaml</code>. We are also going to update the scenario
-command to use this variable. The <a href="writing-a-command.html">“Writing a command” section</a> will explain
-how this works, for now just add the configuration:</p>
-<pre><code class="language-yaml">name: Hello World
-description: A test plan created as a guide for writing test plans
-# --- Add variables ---
-variables:
-  example_variable: example variable
-# ------------------
-scenario:
-  inline:
-    name: Inline scenario config
-    description: An inline scenario config
-# --- Update scenario ---
-    variable_definitions:
-      - name: example_variable
-        description: An example variable
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-        echo "$EXAMPLE_VARIABLE"
-    env_vars:
-      EXAMPLE_VARIABLE: "{{ example_variable }}"
-# -----------------------
-environment:
-  inline:
-    name: Inline environment config
-    description: An inline environment config
-    setup:
-      command:
-        name: setup.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment setup command executed"
-    teardown:
-      command:
-        name: teardown.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment teardown command executed"
-</code></pre>
-<p>You can see the value being used by running the test plan again:</p>
+<p>If we try to run this, it won’t work:</p>
 <pre><code class="language-bash">$ rtf run test-plan.yaml
-environment setup command executed
-example variable
-environment teardown command executed
+Environment setup complete. PROCESS_ID=1
+ERROR missing required output fields from environment setup: ["process_id"]
 </code></pre>
-<p>Now, the <code>test-plan-variables.json</code> file contains the variable that we set in the test plan:</p>
-<pre><code class="language-bash">$ cat output/test-plan-variables.json 
-{
-  "example_variable": "example variable"
-}
+<p>This is because we need to update our setup script to output the <code>process_id</code>. To do this, rtf has a
+reserved file that output needs to be <code>echo</code>’d to called <code>RTF_OUTPUT</code>. Let’s look at this in an
+updated <code>environment.yaml</code>:</p>
+<pre><code class="language-yaml">name: Inline environment config
+description: An inline environment config
+setup:
+  command:
+    name: setup.sh
+    kind: inline
+# --- Add the missing echo to output command ---
+    content: |
+      #!/usr/bin/env sh
+
+      PROCESS_ID="1"
+      echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
+      echo "{ \"process_id\": \"$PROCESS_ID\" }" &gt; "$RTF_OUTPUT"
+# ----------------------------------------------
+  provides:
+    - name: process_id
+      description: The id of the process started in the environment setup
+teardown:
+  command:
+    name: teardown.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
+  env_vars:
+    PROCESS_ID: "{{ process_id }}"
 </code></pre>
-<h2 id="using-a-matrix"><a class="header" href="#using-a-matrix">Using a matrix</a></h2>
-<p>The <code>matrix</code> field is used to create a matrix of variable dimensions to iterate over (see the
-<a href="../hello-world.html#matrix-variables">matrix variables section of the hello world guide</a> for more
-information). A matrix can only be defined in the test plan config.</p>
-<p>Let’s add a matrix to and remove the <code>variables</code> from our <code>test-plan.yaml</code>:</p>
+<p>Now, if we run again, we’ll see the <code>process_id</code> being successfully used in the teardown:</p>
+<pre><code class="language-bash">$ rtf run test-plan.yaml
+Environment setup complete. PROCESS_ID=1
+Running scenario from an external file
+scenario executed with test plan variable
+Environment teardown complete. PROCESS_ID=1
+</code></pre>
+<h2 id="using-overrides"><a class="header" href="#using-overrides">Using overrides</a></h2>
+<p>One of the main benefits of defining environment (and scenario) config in a separate file is that it
+can be reused across multiple test plans. There will be occasions where you want to reuse the
+majority of what’s defined in an environment config but make small edits. Instead of making a new
+file with the edits, you can use <code>overrides</code>.</p>
+<p>Before we look at overrides, let’s create a new <code>setup.sh</code> script. We’ll use this instead of the
+current inline script in <code>environment.yaml</code>:</p>
+<pre><code class="language-bash">touch scripts/setup.sh
+</code></pre>
+<p>Add the following to the <code>setup.sh</code> file (this will make it obvious we’ve run the intended setup):</p>
+<pre><code class="language-sh">#!/usr/bin/env sh
+
+PROCESS_ID="2"
+echo "Using the override setup script"
+echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
+echo "{ \"process_id\": \"$PROCESS_ID\" }" &gt; "$RTF_OUTPUT"
+</code></pre>
+<p>Overrides can be added to either the <code>environment</code> or <code>scenario</code> in the test plan config. Add this
+to <code>test-plan.yaml</code>:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-# --- Replace variables with a matrix ---
-matrix:
-  variant_names: "${example_variable}"
-  dimensions:
-    example_variable:
-      - variable1
-      - variable2
-# ------------------------------------
+variables:
+  scenario_variable: "scenario executed with test plan variable"
+  process_id: dummy
 scenario:
-  inline:
-    name: Inline scenario config
-    description: An inline scenario config
-    variable_definitions:
-      - name: example_variable
-        description: An example variable
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-        echo "$EXAMPLE_VARIABLE"
-    env_vars:
-      EXAMPLE_VARIABLE: "{{ example_variable }}"
+  from:
+    kind: local
+    relative_path: configs/scenario.yaml
 environment:
-  inline:
-    name: Inline environment config
-    description: An inline environment config
+  from:
+    kind: local
+    relative_path: configs/environment.yaml
+# --- Add an override for the setup command ---
+  overrides:
     setup:
       command:
         name: setup.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
+        kind: relative_path
+        path: scripts/setup.sh
+# ---------------------------------------------
+</code></pre>
+<p>Before checking if this works, let’s look at how it works. We only want to change the
+<code>setup.command</code>, so only that segment of the config is required. rtf will merge the YAML on matching
+keys before checking if it templates. If you run the <code>template</code> command now (pay attention to the
+<code>--var</code> flag here, we need this because of the <code>provides</code> variable):</p>
+<pre><code class="language-bash">$ template rtf-hello-world/test-plan.yaml --check --var process_id=dummy`
+name: Hello World
+description: A test plan created as a guide for writing test plans
+variables:
+  scenario_variable: scenario executed with test plan variable
+  process_id: dummy
+matrix: {}
+scenario:
+  name: Inline scenario config
+  description: An inline scenario config
+  variable_definitions:
+  - name: scenario_variable
+    description: An example variable that the scenario expects to be defined
+    default: scenario executed with default value
+  command:
+    name: scenario.sh
+    kind: relative_path
+    path: ../scripts/scenario.sh
+    args: []
+  env_vars:
+    SCENARIO_ENV: scenario executed with test plan variable
+  file_providers: []
+environment:
+  name: Inline environment config
+  description: An inline environment config
+  variable_definitions: []
+  setup:
+    command:
+      name: setup.sh
+      kind: relative_path
+      path: scripts/setup.sh
+      args: []
+    env_vars: {}
+    file_providers: []
+    provides:
+    - name: process_id
+      description: The id of the process started in the environment setup
+      default: null
+  teardown:
+    command:
+      name: teardown.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
 
-          echo "environment setup command executed"
-    teardown:
-      command:
-        name: teardown.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment teardown command executed"
+        echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
+      args: []
+    env_vars:
+      PROCESS_ID: dummy
+    file_providers: []
 </code></pre>
-<p>Run the test plan again (make sure the <code>output</code> directory has been deleted after previous test
-runs):</p>
-<pre><code class="language-bash">rtf run test-plan.yaml
+<p>If you look closely at the templated test plan, the setup command now matches what we defined in the
+<code>overrides</code>, while the rest of the environment config is unchanged. If we run the test plan:</p>
+<pre><code class="language-bash">$ rtf run test-plan.yaml
+Using the override setup script
+Environment setup complete. PROCESS_ID=2
+Running scenario from an external file
+scenario executed with test plan variable
+Environment teardown complete. PROCESS_ID=2
 </code></pre>
-<p>The terminal output will look different this time - the environment and scenario commands are
-executed twice. The <code>output</code> directory will also have a different structure:</p>
-<pre><code class="language-bash">$ ls output/
-variable1        variable2
-</code></pre>
-<p>Let’s look at each of those matrix directories to see the different variable values used per
-execution:</p>
-<pre><code class="language-bash">$ cat output/variable1/test-plan-variables.json 
-{
-  "example_variable": "variable1"
-}
-
-$ cat output/variable2/test-plan-variables.json
-{
-  "example_variable": "variable2"
-}
-</code></pre>
-<p>The <code>example-variable</code>’s variable changes per execution.</p>
+<p>This confirms we’re successfully using a new <code>setup.sh</code> script for the environment without changing
+any other config for the environment.</p>
 <hr>
-<p>In this guide we have covered writing the simplest possible test plan. Next, we will guide you
-through how to write more powerful commands.</p>
-<p><strong>Next:</strong> <a href="writing-a-command.html">Writing a command</a></p>
+<p>In this guide, we’ve covered moving environment config into its own file, using provides in the
+setup, and using overrides in the test plan. Next, we’ll guide you through how to use file
+providers.</p>
+<p><strong>Next:</strong> <a href="using-file-providers.html">Using file providers</a></p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../guides/test-plans/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../tutorials/test-plans/writing-a-scenario.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../guides/test-plans/writing-a-command.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../tutorials/test-plans/using-file-providers.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -564,11 +601,11 @@ through how to write more powerful commands.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../guides/test-plans/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../tutorials/test-plans/writing-a-scenario.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../guides/test-plans/writing-a-command.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../tutorials/test-plans/using-file-providers.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

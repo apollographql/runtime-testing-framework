@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Scenarios - Runtime Testing Framework</title>
+        <title>Tutorials - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-e010b32d.js";
+            window.path_to_searchindex_js = "../searchindex-db9e8a68.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-43c40e78.js"></script>
+        <script src="../toc-248ccb4e.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -177,89 +177,39 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <!-- diataxis-type: reference -->
-<h1 id="scenarios"><a class="header" href="#scenarios">Scenarios</a></h1>
-<p>A Scenario defines the test command to execute within a Test Plan. It is a <a href="./command-providers.html">Command Provider</a>
-that runs between the Environment’s setup and teardown phases.</p>
-<blockquote>
-<p>An example of a valid <code>scenario.yaml</code> is provided in the <a href="#full-example">Full example</a> section
-below.</p>
-</blockquote>
-<h2 id="top-level-keys"><a class="header" href="#top-level-keys">Top level keys</a></h2>
-<ul>
-<li><code>name</code>: The name for this Scenario configuration.
-<ul>
-<li>Uniqueness is not enforced by the <code>rtf</code> CLI but it is worthwhile ensuring that the scenarios you
-write each have unique names that can be used to distinguish them.</li>
-</ul>
-</li>
-<li><code>description</code>: A brief, human readable description of the behaviour of the Scenario.
-<ul>
-<li>If there are any pre-requesites to running this Scenario it is best to call them out here rather
-than in comments or other files (such as a README).</li>
-</ul>
-</li>
-<li><code>variable_definitions</code>: Declarations of the templating variables supported by this Scenario.
-<ul>
-<li>Variable declarations require specifying both the variable name and a short description of how
-the variable is used.</li>
-<li>Variable declarations also support an optional <code>default</code> field where you can specify a default
-scalar value to use if none is provided within the <a href="./test-plans.html">Test Plan</a>.</li>
-<li>If the same variable name is defined in both the Environment and Scenario used by a given Test
-Plan but with different defaults, each config file will fall back to its own default.</li>
-</ul>
-</li>
-<li><code>custom_providers</code>: Declarations for loading Custom Provider Definitions.
-<ul>
-<li>For full details on the structure of Custom Provider Declarations and Definitions see the
-<a href="./custom-providers.html">Custom Providers</a> page of the Framework documentation.</li>
-</ul>
-</li>
-<li><code>command</code>: See <a href="./command-providers.html">Command Provider</a>.</li>
-<li><code>env_vars</code>: See <a href="./command-providers.html">Command Provider</a>.</li>
-<li><code>file_providers</code>: See <a href="./command-providers.html">Command Provider</a>.</li>
-</ul>
-<h2 id="full-example"><a class="header" href="#full-example">Full example</a></h2>
-<p>The following is a minimal “kitchen sink” example of the structure of a valid <code>scenario.yaml</code>.</p>
-<pre><code class="language-yaml">name: example
-description: An example description
-
-variable_definitions:
-  - name: my_variable
-    description: "A description for my variable"
-    default: "foo"
-
-custom_providers:
-  - kind: local
-    relative_path: ./providers
-    using:
-      my_provider: my_provider.yaml
-
-command:
-  name: my-scenario-command.sh
-  kind: relative_path
-  path: scripts/scenario.sh
-  args: ["a", "b"]
-
-env_vars:
-  MY_VARIABLE: "{{ my_variable }}"
-
-file_providers:
-  - name: my-file.txt
-    env_var: MY_FILE
-    kind: inline
-    content: My inline content
+                        <!-- diataxis-type: tutorial -->
+<h1 id="getting-started"><a class="header" href="#getting-started">Getting started</a></h1>
+<p>To build <code>rtf</code> from source, start by cloning the repo locally:</p>
+<pre><code class="language-bash">git clone git@github.com:apollographql/runtime-testing-framework.git
+cd runtime-testing-framework
 </code></pre>
+<p>You will need a local Rust toolchain. We recommend using <a href="https://mise.jdx.dev/getting-started.html">mise</a> to install the Rust toolchain and
+other dependencies. After installing <code>mise</code>, trust the mise config file:</p>
+<pre><code class="language-bash">mise trust
+</code></pre>
+<p>Install <code>rtf</code> with cargo:</p>
+<pre><code class="language-bash">cargo install --path crates/rtf-cli
+</code></pre>
+<p>Verify installation:</p>
+<pre><code class="language-bash">rtf
+</code></pre>
+<p>This should print the rtf help output to your terminal. With that done, you’re ready to run some
+test plans!</p>
+<h2 id="example-test-plans"><a class="header" href="#example-test-plans">Example test plans</a></h2>
+<p>This repo contains a “Hello, world!” test plan to introduce you to rtf concepts. Start by following
+the <a href="./hello-world.html">“Hello, world!”</a> guide.</p>
+<p>The <a href="https://github.com/apollographql/rtf-morgue">rtf-morgue</a> contains the most up-to-date examples of how to write test plans for a variety
+of different test cases. It also contains guides for running those test plans.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../framework/environments.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../explanation/overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../framework/command-providers.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../tutorials/hello-world.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -269,11 +219,11 @@ file_providers:
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../framework/environments.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../explanation/overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../framework/command-providers.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../tutorials/hello-world.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

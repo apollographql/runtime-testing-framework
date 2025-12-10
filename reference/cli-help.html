@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Environments - Runtime Testing Framework</title>
+        <title>CLI reference - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-e010b32d.js";
+            window.path_to_searchindex_js = "../searchindex-db9e8a68.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-43c40e78.js"></script>
+        <script src="../toc-248ccb4e.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,105 +178,121 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: reference -->
-<h1 id="environments"><a class="header" href="#environments">Environments</a></h1>
-<p>An Environment defines setup and teardown commands that bracket a Scenario’s execution. Each phase
-is a <a href="./command-providers.html">Command Provider</a>.</p>
-<blockquote>
-<p>An example of a valid <code>environment.yaml</code> is provided in the <a href="#full-example">Full example</a> section
-below.</p>
-</blockquote>
-<h2 id="top-level-keys"><a class="header" href="#top-level-keys">Top level keys</a></h2>
+<h1 id="command-line-help-for-rtf"><a class="header" href="#command-line-help-for-rtf">Command-Line Help for <code>rtf</code></a></h1>
+<p>This document contains the help content for the <code>rtf</code> command-line program.</p>
+<p><strong>Command Overview:</strong></p>
 <ul>
-<li><code>name</code>: The name for this Environment configuration.
-<ul>
-<li>Uniqueness is not enforced by the <code>rtf</code> CLI but it is worthwhile ensuring that the environments
-you write each have unique names that can be used to distinguish them.</li>
+<li><a href="#rtf"><code>rtf</code>↴</a></li>
+<li><a href="#rtf-run"><code>rtf run</code>↴</a></li>
+<li><a href="#rtf-expand-matrix"><code>rtf expand-matrix</code>↴</a></li>
+<li><a href="#rtf-template"><code>rtf template</code>↴</a></li>
+<li><a href="#rtf-custom-provider"><code>rtf custom-provider</code>↴</a></li>
+<li><a href="#rtf-custom-provider-template"><code>rtf custom-provider template</code>↴</a></li>
+<li><a href="#rtf-custom-provider-run"><code>rtf custom-provider run</code>↴</a></li>
 </ul>
+<h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
+<p>A swiss army knife for testing the Apollo Runtime</p>
+<p><strong>Usage:</strong> <code>rtf [OPTIONS] &lt;COMMAND&gt;</code></p>
+<h6 id="subcommands"><a class="header" href="#subcommands"><strong>Subcommands:</strong></a></h6>
+<ul>
+<li><code>run</code> — Check and run a test plan</li>
+<li><code>expand-matrix</code> — Expand a test plan matrix into JSON</li>
+<li><code>template</code> — Template a test plan using provided variables, outputting the resulting config to stdout</li>
+<li><code>custom-provider</code> — Work directly with custom file provider definitions</li>
+</ul>
+<h6 id="options"><a class="header" href="#options"><strong>Options:</strong></a></h6>
+<ul>
+<li><code>--var &lt;VAR&gt;</code> — A single additional templating variable in the form “key=value”</li>
+<li><code>--vars &lt;VARS&gt;</code> — Path to a JSON file containing additional template variables</li>
+<li><code>-v</code>, <code>--verbose</code> — Flag to control logging verbosity. Default level is <code>warn</code>. <code>-v</code> sets logging level to <code>info</code>,<code>-vv</code> to <code>debug</code> and <code>-vvv</code> to <code>trace</code></li>
+</ul>
+<h2 id="rtf-run"><a class="header" href="#rtf-run"><code>rtf run</code></a></h2>
+<p>Check and run a test plan</p>
+<p><strong>Usage:</strong> <code>rtf run [OPTIONS] [TEST_PLAN_PATH]</code></p>
+<h6 id="arguments"><a class="header" href="#arguments"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test plan file that should be executed</li>
+</ul>
+<h6 id="options-1"><a class="header" href="#options-1"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--github &lt;ORG/REPO/PATH&gt;</code> — Execute a test plan file in GitHub instead of from a local path</p>
 </li>
-<li><code>description</code>: A brief, human readable description of the behaviour of the Environment.
-<ul>
-<li>If there are any pre-requesites to running this Environment it is best to call them out here
-rather than in comments or other files (such as a README).</li>
-</ul>
+<li>
+<p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
 </li>
-<li><code>variable_definitions</code>: Declarations of the templating variables supported by this Environment.
-<ul>
-<li>Variable declarations require specifying both the variable name and a short description of how
-the variable is used.</li>
-<li>Variable declarations also support an optional <code>default</code> field where you can specify a default
-scalar value to use if none is provided within the <a href="./test-plans.html">Test Plan</a>.</li>
-<li>If the same variable name is defined in both the Environment and Scenario used by a given Test
-Plan but with different defaults, each config file will fall back to its own default.</li>
-</ul>
+<li>
+<p><code>--outdir &lt;OUTDIR&gt;</code> — Output directory for providers when they run</p>
+<p>Default value: <code>output</code></p>
 </li>
-<li><code>custom_providers</code>: Declarations for loading Custom Provider Definitions.
+</ul>
+<h2 id="rtf-expand-matrix"><a class="header" href="#rtf-expand-matrix"><code>rtf expand-matrix</code></a></h2>
+<p>Expand a test plan matrix into JSON</p>
+<p><strong>Usage:</strong> <code>rtf expand-matrix [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
+<h6 id="arguments-1"><a class="header" href="#arguments-1"><strong>Arguments:</strong></a></h6>
 <ul>
-<li>For full details on the structure of Custom Provider Declarations and Definitions see the
-<a href="./custom-providers.html">Custom Providers</a> page of the Framework documentation.</li>
+<li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test-plan.yaml file that should have its matrix expanded</li>
 </ul>
-</li>
-<li><code>setup</code>: A <a href="./command-providers.html">Command Provider</a> that defines how the environment should be set up before the
-scenario is run.
+<h6 id="options-2"><a class="header" href="#options-2"><strong>Options:</strong></a></h6>
 <ul>
-<li><code>provides</code>: An optional list of variable definitions that will be populated from the JSON output
-of the setup command. These variables become available for templating the <code>teardown</code> section but
-are not available to the Scenario.</li>
+<li><code>-c</code>, <code>--compact</code> — Return the expanded matrix JSON in compact form</li>
 </ul>
+<h2 id="rtf-template"><a class="header" href="#rtf-template"><code>rtf template</code></a></h2>
+<p>Template a test plan using provided variables, outputting the resulting config to stdout</p>
+<p><strong>Usage:</strong> <code>rtf template [OPTIONS] [TEST_PLAN_PATH]</code></p>
+<h6 id="arguments-2"><a class="header" href="#arguments-2"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test-plan.yaml file that should be templated</li>
+</ul>
+<h6 id="options-3"><a class="header" href="#options-3"><strong>Options:</strong></a></h6>
+<ul>
+<li><code>--check</code> — Run a static check of the resulting test plan after templating</li>
+<li><code>--github &lt;ORG/REPO/PATH&gt;</code> — Template a test plan file in GitHub instead of from a local path</li>
+<li><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</li>
+</ul>
+<h2 id="rtf-custom-provider"><a class="header" href="#rtf-custom-provider"><code>rtf custom-provider</code></a></h2>
+<p>Work directly with custom file provider definitions</p>
+<p><strong>Usage:</strong> <code>rtf custom-provider &lt;COMMAND&gt;</code></p>
+<h6 id="subcommands-1"><a class="header" href="#subcommands-1"><strong>Subcommands:</strong></a></h6>
+<ul>
+<li><code>template</code> — Template a custom provider definition, outputting the resulting config to stdout</li>
+<li><code>run</code> — Execute a custom provider definition</li>
+</ul>
+<h2 id="rtf-custom-provider-template"><a class="header" href="#rtf-custom-provider-template"><code>rtf custom-provider template</code></a></h2>
+<p>Template a custom provider definition, outputting the resulting config to stdout</p>
+<p><strong>Usage:</strong> <code>rtf custom-provider template [OPTIONS] &lt;DEFINITION_PATH&gt;</code></p>
+<h6 id="arguments-3"><a class="header" href="#arguments-3"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;DEFINITION_PATH&gt;</code> — Relative path to the custom provider definition file</li>
+</ul>
+<h6 id="options-4"><a class="header" href="#options-4"><strong>Options:</strong></a></h6>
+<ul>
+<li><code>--check</code> — Run a static check of the resulting test plan after templating</li>
+</ul>
+<h2 id="rtf-custom-provider-run"><a class="header" href="#rtf-custom-provider-run"><code>rtf custom-provider run</code></a></h2>
+<p>Execute a custom provider definition</p>
+<p><strong>Usage:</strong> <code>rtf custom-provider run [OPTIONS] &lt;DEFINITION_PATH&gt;</code></p>
+<h6 id="arguments-4"><a class="header" href="#arguments-4"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;DEFINITION_PATH&gt;</code> — Relative path to the custom provider definition file</li>
+</ul>
+<h6 id="options-5"><a class="header" href="#options-5"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--outdir &lt;OUTDIR&gt;</code> — Output directory for provider execution</p>
+<p>Default value: <code>output</code></p>
 </li>
-<li><code>teardown</code>: A <a href="./command-providers.html">Command Provider</a> that defines how the environment should be torn down after the
-scenario is run.</li>
 </ul>
-<h2 id="full-example"><a class="header" href="#full-example">Full example</a></h2>
-<p>The following is a minimal “kitchen sink” example of the structure of a valid <code>environment.yaml</code>.</p>
-<pre><code class="language-yaml">name: example
-description: An example description
-
-variable_definitions:
-  - name: my_variable
-    description: "A description for my variable"
-    default: "foo"
-
-custom_providers:
-  - kind: local
-    relative_path: ./providers
-    using:
-      my_provider: my_provider.yaml
-
-setup:
-  command:
-    name: my-setup-command.sh
-    kind: relative_path
-    path: scripts/setup.sh
-
-  env_vars:
-    MY_VARIABLE: "{{ my_variable }}"
-  
-  provides:
-      - name: cluster_id
-        description: "The ID of the provisioned cluster"
-
-teardown:
-  command:
-    name: my-teardown-command.sh
-    kind: relative_path
-    path: scripts/teardown.sh
-
-  file_providers:
-    - name: my-file.txt
-      env_var: MY_FILE
-      kind: inline
-      content: My inline content
-</code></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../framework/test-plans.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../reference/framework/custom-providers.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../framework/scenarios.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../reference/glossary.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -286,11 +302,11 @@ teardown:
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../framework/test-plans.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../reference/framework/custom-providers.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../framework/scenarios.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../reference/glossary.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
