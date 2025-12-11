@@ -1,5 +1,7 @@
 # The Apollo Runtime Testing Framework
 
+TEST
+
 This repository contains the `rtf` command line tool along with associated example Test Plans and
 documentation.
 
