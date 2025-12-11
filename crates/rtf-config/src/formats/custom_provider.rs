@@ -23,6 +23,7 @@ pub struct CustomProviderDefinition {
     /// A brief description of the purpose / behaviour of this custom provider
     pub description: String,
     /// The variables that are required for this custom provider
+    #[serde(default)]
     pub variable_definitions: Vec<VariableDefinition>,
     /// The command to execute as this custom provider
     #[serde(flatten)]
