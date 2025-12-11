@@ -30,19 +30,23 @@ Use the `rtf template` subcommand to pull in the scenario and environment config
 the test plan in order to see the fully templated file:
 
 ```bash
-$ rtf template example-test-plans/hello-world/test-plan.yaml
+rtf template example-test-plans/hello-world/test-plan.yaml
 ```
 
 You should see a larger YAML file containing all the information `rtf` needs to be able to run the
-test plan. So, lets try running it!
+test plan. So, let's try running it!
 
 ## Running a Test Plan
 
 To run the test plan, use the `run` subcommand. The `-v` option sets the log level to `INFO`:
 
+```bash
+rtf run example-test-plans/hello-world/test-plan.yaml -v
 ```
-$ rtf run example-test-plans/hello-world/test-plan.yaml -v
 
+You should see output similar to this:
+
+```
  INFO loading and resolving test plan
  INFO checking if templating will work
  INFO creating output directory
@@ -63,11 +67,23 @@ $ rtf run example-test-plans/hello-world/test-plan.yaml -v
 You should also see that you now have an `output` directory in the directory where you ran `rtf`.
 Take a look inside:
 
+```bash
+ls output
 ```
-$ ls output
-combined-output.txt  echo-message.sh  teardown.sh
 
-$ cat output/combined-output.txt
+Output:
+
+```
+combined-output.txt  echo-message.sh  teardown.sh
+```
+
+```bash
+cat output/combined-output.txt
+```
+
+Output:
+
+```
 env-setup :: hello, world!
 scenario :: hello, darkness my old friend
 ---
@@ -96,27 +112,19 @@ exists. This is a safety mechanism to prevent you from accidentally overwriting 
 merging the output from multiple runs together. Either remove the existing directory
 (`rm -rf output`) or specify a new one using the `--outdir` flag:
 
+```bash
+rtf run example-test-plans/hello-world/test-plan.yaml -v --outdir=more_output
 ```
-$ rtf run example-test-plans/hello-world/test-plan.yaml -v --outdir=more_output
 
- INFO loading and resolving test plan
- INFO checking if templating will work
- INFO creating output directory
- INFO executing test plan
- INFO templating environment setup
- INFO checking environment setup
- INFO executing environment setup
->>> Hello from env-setup!
- INFO templating scenario and environment teardown commands
- INFO checking scenario and environment teardown commands
- INFO executing scenario
->>> Hello from scenario!
- INFO executing environment teardown
->>> Hello from env-teardown!
- INFO done
+You should see output similar to before. You can verify both output directories exist:
 
-$ ls | grep output
+```bash
+ls | grep output
+```
 
+Output:
+
+```
 more_output
 output
 ```
@@ -132,9 +140,13 @@ scenario and environment config files.
 
 Run the test plan again using the default log level:
 
+```bash
+rtf run example-test-plans/hello-world/test-plan.yaml
 ```
-$ rtf run example-test-plans/hello-world/test-plan.yaml
 
+Output:
+
+```
 env-setup :: hello, world!
 scenario :: hello, darkness my old friend
 ---
@@ -152,10 +164,14 @@ Edit the `test-plan.yaml` to change the variable being used for the setup comman
 
 Run the test plan again to see the modified output:
 
+```bash
+rm output -rf
+rtf run example-test-plans/hello-world/test-plan.yaml
 ```
-$ rm output -rf
-$ rtf run example-test-plans/hello-world/test-plan.yaml
 
+Output:
+
+```
 env-setup :: hello, sailor!
 scenario :: hello, darkness my old friend
 ---
@@ -172,10 +188,14 @@ and scenario, as they both reference the same shared variable:
    scenario_subject: "darkness my old friend"
 ```
 
+```bash
+rm output -rf
+rtf run example-test-plans/hello-world/test-plan.yaml
 ```
-$ rm output -rf
-$ rtf run example-test-plans/hello-world/test-plan.yaml
 
+Output:
+
+```
 env-setup :: say hi to the world!
 scenario :: say hi to the darkness my old friend
 ---
@@ -187,9 +207,13 @@ If you want to override the value of a variable use the `--var` or `--vars` flag
 overrides on the command line:
 
 ```bash
-$ rtf run example-test-plans/hello-world/test-plan.yaml \
+rtf run example-test-plans/hello-world/test-plan.yaml \
   --var 'message="say hi to the "'
+```
 
+Output:
+
+```
 env-setup :: say hi to the world!
 scenario :: say hi to the darkness my old friend
 ---
@@ -198,10 +222,14 @@ scenario :: say hi to the darkness my old friend
 We can also provide the flag multiple times to override multiple variables:
 
 ```bash
-$ rtf run example-test-plans/hello-world/test-plan.yaml \
+rtf run example-test-plans/hello-world/test-plan.yaml \
   --var 'message="say hi to the "' \
   --var 'setup_subject=sailor!'
+```
 
+Output:
+
+```
 env-setup :: say hi to the sailor!
 scenario :: say hi to the darkness my old friend
 ---
@@ -211,15 +239,26 @@ It is also possible to use the `--vars` flag to provide the location of a JSON f
 variables you want to override on top of the ones given in the test plan:
 
 ```bash
-$ cat example-test-plans/hello-world/variables.json
+cat example-test-plans/hello-world/variables.json
+```
+
+Output:
+
+```json
 {
   "message": "say hi to the ",
   "setup_subject": "sailor!"
 }
+```
 
-$ rtf run example-test-plans/hello-world/test-plan.yaml \
+```bash
+rtf run example-test-plans/hello-world/test-plan.yaml \
   --vars example-test-plans/hello-world/variables.json
+```
 
+Output:
+
+```
 env-setup :: say hi to the sailor!
 scenario :: say hi to the darkness my old friend
 ---
@@ -257,10 +296,14 @@ it under the `matrix.dimensions` section of the test plan:
 
 Running the test plan with two `setup_subject` variables produces two results:
 
+```bash
+rm output -rf
+rtf run example-test-plans/hello-world/test-plan.yaml
 ```
-$ rm output -rf
-$ rtf run example-test-plans/hello-world/test-plan.yaml
 
+Output:
+
+```
 env-setup :: hello, world!
 scenario :: hello, darkness my old friend
 ---
@@ -285,10 +328,14 @@ If we also move the `scenario_subject` into the matrix:
 
 We'll get a run for every _combination_ of variables:
 
+```bash
+rm output -rf
+rtf run example-test-plans/hello-world/test-plan.yaml
 ```
-$ rm output -rf
-$ rtf run example-test-plans/hello-world/test-plan.yaml
 
+Output:
+
+```
 env-setup :: hello, world!
 scenario :: hello, darkness my old friend
 ---

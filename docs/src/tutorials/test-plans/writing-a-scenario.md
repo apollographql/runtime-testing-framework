@@ -182,7 +182,12 @@ flag when running the `template` command. This will check that files on relative
 Let's see what happens when we run with that flag:
 
 ```bash
-$ rtf template test-plan.yaml --check
+rtf template test-plan.yaml --check
+```
+
+Output:
+
+```
 ERROR (command.command_provider) the requested file did not exist.: provided path was Resolved("scripts/scenario.sh")
 ```
 
@@ -207,7 +212,12 @@ If we run the `template` command again with the `--check` flag you should see th
 printed to your terminal:
 
 ```bash
-$ rtf template test-plan.yaml --check
+rtf template test-plan.yaml --check
+```
+
+You should see output similar to this:
+
+```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
 ...
@@ -288,7 +298,12 @@ information about how and why the variable is used. Variables are templated into
 Let's attempt to template the test plan:
 
 ```bash
-$ rtf template test-plan.yaml
+rtf template test-plan.yaml
+```
+
+Output:
+
+```
 ERROR (scenario) missing template variables: scenario_variable
 ```
 
@@ -316,7 +331,12 @@ env_vars:
 Lets run this and see what happens:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 "environment setup command executed"
 Running scenario from an external file
 scenario executed with default value
@@ -324,7 +344,7 @@ scenario executed with default value
 ```
 
 The second scenario `echo` statement uses the default variable. We can override this variable by
-setting a different value in the test plan (this will take presence over a default). Update
+setting a different value in the test plan (this will take precedence over a default). Update
 `test-plan.yaml`:
 
 ```yaml
@@ -364,7 +384,12 @@ environment:
 Now if we run:
 
 ```bash
-$ run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 "environment setup command executed"
 Running scenario from an external file
 scenario executed with test plan variable
@@ -375,7 +400,12 @@ We can see that the variable from the test plan has overridden the default. Simi
 variable is specified from the CLI it will override both the test plan variable and default:
 
 ```bash
-$ run test-plan.yaml --var scenario_variable="scenario executed with cli variable"
+rtf run test-plan.yaml --var scenario_variable="scenario executed with cli variable"
+```
+
+Output:
+
+```
 "environment setup command executed"
 Running scenario from an external file
 scenario executed with cli variable

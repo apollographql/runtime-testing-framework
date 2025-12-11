@@ -93,7 +93,12 @@ We're now hoping to echo the exact same message, but this time using an environm
 run the test plan:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+You should see output similar to this:
+
+```
 "environment setup command executed"
 "scenario command executed"
 "environment teardown command executed"
@@ -126,8 +131,8 @@ refer to that file in your command config.
 Let's start by creating a `scenario.sh` file in a `scripts` subdirectory:
 
 ```bash
-$ mkdir scripts
-$ touch scripts/scenario.sh
+mkdir scripts
+touch scripts/scenario.sh
 ```
 
 Make sure the following content is in the `scenario.sh` script:
@@ -192,7 +197,12 @@ file as in the `providers` directory.
 Let's run the test plan again:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 "environment setup command executed"
 Running scenario from an external file
 scenario command executed
@@ -207,7 +217,12 @@ references files created before rtf runs. It guarantees the path where the file 
 rtf can execute successfully:
 
 ```bash
-$ cat output/providers/scenario.sh 
+cat output/providers/scenario.sh
+```
+
+Output:
+
+```sh
 #!/usr/bin/env sh
 
 echo "Running scenario from an external file"

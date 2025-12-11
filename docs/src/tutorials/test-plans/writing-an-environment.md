@@ -7,7 +7,7 @@ should already have the files in a directory named `rtf-hello-world`. Your direc
 the state it was at the end of that guide.
 
 ```bash
-$ ls -R
+ls -R
 configs         scripts         test-plan.yaml
 
 configs:
@@ -73,7 +73,12 @@ environment:
 Let's verify this has made no material difference to the templated test plan:
 
 ```bash
-$ rtf template test-plan.yaml --check
+rtf template test-plan.yaml --check
+```
+
+You should see output similar to this:
+
+```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
 variables:
@@ -81,46 +86,10 @@ variables:
 matrix: {}
 scenario:
   name: Inline scenario config
-  description: An inline scenario config
-  variable_definitions:
-  - name: scenario_variable
-    description: An example variable that the scenario expects to be defined
-    default: scenario executed with default value
-  command:
-    name: scenario.sh
-    kind: relative_path
-    path: ../scripts/scenario.sh
-    args: []
-  env_vars:
-    SCENARIO_ENV: scenario executed with test plan variable
-  file_providers: []
+  ...
 environment:
   name: Inline environment config
-  description: An inline environment config
-  variable_definitions: []
-  setup:
-    command:
-      name: setup.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "environment setup command executed"
-      args: []
-    env_vars: {}
-    file_providers: []
-    provides: []
-  teardown:
-    command:
-      name: setup.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "environment teardown command executed"
-      args: []
-    env_vars: {}
-    file_providers: []
+  ...
 ```
 
 ## Environment config structure
@@ -230,7 +199,12 @@ teardown:
 Let's verify this works:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 Environment setup complete. PROCESS_ID=1
 Running scenario from an external file
 scenario executed with test plan variable
@@ -278,7 +252,12 @@ teardown:
 If we try to run this, it won't work:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 Environment setup complete. PROCESS_ID=1
 ERROR missing required output fields from environment setup: ["process_id"]
 ```
@@ -320,7 +299,12 @@ teardown:
 Now, if we run again, we'll see the `process_id` being successfully used in the teardown:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 Environment setup complete. PROCESS_ID=1
 Running scenario from an external file
 scenario executed with test plan variable
@@ -385,63 +369,19 @@ keys before checking if it templates. If you run the `template` command now (pay
 `--var` flag here, we need this because of the `provides` variable):
 
 ```bash
-$ template rtf-hello-world/test-plan.yaml --check --var process_id=dummy`
-name: Hello World
-description: A test plan created as a guide for writing test plans
-variables:
-  scenario_variable: scenario executed with test plan variable
-  process_id: dummy
-matrix: {}
-scenario:
-  name: Inline scenario config
-  description: An inline scenario config
-  variable_definitions:
-  - name: scenario_variable
-    description: An example variable that the scenario expects to be defined
-    default: scenario executed with default value
-  command:
-    name: scenario.sh
-    kind: relative_path
-    path: ../scripts/scenario.sh
-    args: []
-  env_vars:
-    SCENARIO_ENV: scenario executed with test plan variable
-  file_providers: []
-environment:
-  name: Inline environment config
-  description: An inline environment config
-  variable_definitions: []
-  setup:
-    command:
-      name: setup.sh
-      kind: relative_path
-      path: scripts/setup.sh
-      args: []
-    env_vars: {}
-    file_providers: []
-    provides:
-    - name: process_id
-      description: The id of the process started in the environment setup
-      default: null
-  teardown:
-    command:
-      name: teardown.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
-      args: []
-    env_vars:
-      PROCESS_ID: dummy
-    file_providers: []
+rtf template test-plan.yaml --check --var process_id=dummy
 ```
 
-If you look closely at the templated test plan, the setup command now matches what we defined in the
-`overrides`, while the rest of the environment config is unchanged. If we run the test plan:
+You should see that the setup command now matches what we defined in the `overrides`, while the rest
+of the environment config is unchanged. If we run the test plan:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file

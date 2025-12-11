@@ -8,7 +8,7 @@ already have the files in a directory named `rtf-custom-provider`. Your director
 state it was at the end of that guide.
 
 ```bash
-$ ls -R
+ls -R
 my-provider.yaml scripts
 
 ./scripts:
@@ -190,7 +190,7 @@ Let's run the test plan to see the custom provider in action:
 rtf run test-plan.yaml
 ```
 
-The output shows:
+You should see output similar to this:
 
 ```
 Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
@@ -236,7 +236,12 @@ You can override the default `log_level` value by adding it as an argument. Upda
 Run the test plan again:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
 === ENV_VARS.txt contents ===
 PROJECT_NAME=my-test-project
@@ -319,7 +324,12 @@ environment:
 Run the test plan:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
 === ENV_VARS.txt contents ===
 PROJECT_NAME=my-variable-project
@@ -334,7 +344,12 @@ The `PROJECT_NAME` is now set from the test plan variable. You can also override
 using the `--var` flag:
 
 ```bash
-$ rtf run test-plan.yaml --var project_name=runtime-override
+rtf run test-plan.yaml --var project_name=runtime-override
+```
+
+Output:
+
+```
 Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
 === ENV_VARS.txt contents ===
 PROJECT_NAME=runtime-override
