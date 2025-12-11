@@ -49,6 +49,14 @@ fn custom_provider_templated_variable_completes() {
 }
 
 #[test]
+fn custom_provider_static_argument_completes() {
+    prepare_rtf_run("resources/test-plans/valid/custom-provider-static-argument")
+        .assert()
+        .success()
+        .stdout(contains("Project: my-test-project"));
+}
+
+#[test]
 fn variables_override_works() {
     // default echo arg should be foo
     prepare_rtf_run("resources/test-plans/valid/variable-overrides")

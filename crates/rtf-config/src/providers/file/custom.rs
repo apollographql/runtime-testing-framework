@@ -163,7 +163,27 @@ impl Template for CustomProvider {
                 // fields in our `arguments` map and cares about the value associated with each
                 // variable. Here, all we care about is the fact that the correct variables are
                 // defined.
-                let ctx = ctx.for_config_file(def_src, None, def.variable_definitions.iter());
+                let mut ctx = ctx.for_config_file(def_src, None, def.variable_definitions.iter());
+
+                // Add resolved argument values to the context for validation.
+                // Without this, validation fails for static (non-templated) argument values
+                // because the context doesn't have the values to satisfy the variable check.
+                let resolved_arguments: HashMap<String, Scalar> = self
+                    .arguments
+                    .iter()
+                    .filter_map(|(k, v)| match v {
+                        Field::Resolved(val) => Some((k.clone(), val.clone())),
+                        Field::Pending(_) => None,
+                    })
+                    .collect();
+
+                let sources: HashMap<String, SourceDir> = resolved_arguments
+                    .keys()
+                    .map(|k| (k.clone(), self.src.as_ref().unwrap_or(file_source).clone()))
+                    .collect();
+
+                ctx.extend_with_sources(sources, resolved_arguments);
+
                 let allowed_variables: HashSet<&String> = self
                     .arguments
                     .keys()
@@ -591,5 +611,60 @@ mod tests {
         );
 
         assert!(res.is_ok(), "expected validation to succeed, got {res:?}");
+    }
+
+    #[test]
+    fn custom_provider_validate_context_uses_resolved_argument_values() {
+        let definition = CustomProviderDefinition {
+            variable_definitions: vec![VariableDefinition {
+                name: "required_var".to_string(),
+                description: "A required variable with no default".to_string(),
+                default: None, // No default - must be provided by the caller
+            }],
+            command: CommandSection {
+                file_providers: vec![NamedFileProvider {
+                    name: "relative.txt".to_string(),
+                    env_var: "RELATIVE".to_string(),
+                    provider: FileProvider::RelativePath(RelativeFile {
+                        path: Field::Pending("required_var".into()),
+                        src: None,
+                    }),
+                }],
+                ..CommandSection::empty()
+            },
+            ..CustomProviderDefinition::empty()
+        };
+
+        let custom_provider = CustomProvider {
+            ty: "my-custom-provider".to_string(),
+            arguments: HashMap::from([(
+                "required_var".to_string(),
+                Field::Resolved("static-value".into()),
+            )]),
+            src: None,
+        };
+
+        let res = custom_provider.validate_context(
+            &mut Vec::new(),
+            &HashSet::new(),
+            &SourceDir::local("/"),
+            &TemplateContext::new(
+                HashMap::new(),
+                SourceDir::local("/"),
+                HashMap::new(),
+                Arc::new(CustomProviderDefinitions {
+                    test_plan: HashMap::from([(
+                        "my-custom-provider".to_string(),
+                        (SourceDir::local("/providers"), definition),
+                    )]),
+                    ..Default::default()
+                }),
+            ),
+        );
+
+        assert!(
+            res.is_ok(),
+            "expected validation to succeed with resolved argument, got {res:?}"
+        );
     }
 }
