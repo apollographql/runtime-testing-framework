@@ -54,13 +54,14 @@ You should see output similar to this:
  INFO templating environment setup
  INFO checking environment setup
  INFO executing environment setup
->>> Hello from env-setup!
+env-setup :: hello, world!
  INFO templating scenario and environment teardown commands
  INFO checking scenario and environment teardown commands
  INFO executing scenario
->>> Hello from scenario!
+scenario :: hello, darkness my old friend
  INFO executing environment teardown
->>> Hello from env-teardown!
+---
+ INFO writing out resolved test plan and variables
  INFO done
 ```
 
@@ -74,8 +75,14 @@ ls output
 Output:
 
 ```
-combined-output.txt  echo-message.sh  teardown.sh
+combined-output.txt
+providers
+resolved-test-plan.yaml
+test-plan-variables.json
 ```
+
+The `providers` directory contains the scripts that were copied from the **file_providers**
+specified in our scenario and environment config files. Let's look at the combined output:
 
 ```bash
 cat output/combined-output.txt
@@ -89,8 +96,7 @@ scenario :: hello, darkness my old friend
 ---
 ```
 
-The `echo-message.sh` and `teardown.sh` scripts came from the **FileProviders** specified in our
-scenario and environment config files:
+The scripts used to generate this output are:
 
 #### echo-message.sh
 

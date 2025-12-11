@@ -88,17 +88,17 @@ Environment teardown complete. PROCESS_ID=2
 ```
 
 ```bash
-ls output/providers
+ls output/providers/scenario_providers
 ```
 
 Output:
 
 ```
-scenario.sh     scenario.txt    setup.sh        teardown.sh
+scenario.sh     scenario.txt
 ```
 
 ```bash
-cat output/providers/scenario.txt
+cat output/providers/scenario_providers/scenario.txt
 ```
 
 Output:
@@ -237,13 +237,13 @@ Environment teardown complete. PROCESS_ID=2
 ```
 
 ```bash
-ls output/providers
+ls output/providers/scenario_providers
 ```
 
 Output:
 
 ```
-file.txt        scenario.sh     scenario.txt    setup.sh        teardown.sh
+file.txt        scenario.sh     scenario.txt
 ```
 
 As expected, we also see the content of `file.txt` in our test plan execution. We can also see the
@@ -307,7 +307,9 @@ rtf template test-plan.yaml --check --var process_id="id"
 Output:
 
 ```
-ERROR (config.txt) a required file has not been defined.: Please specify a config file
+ERROR Static analysis checks failed
+(setup.CONFIG) A required file has not been defined
+Please specify a config file
 ```
 
 We get an error saying we haven't defined a required file, along with the message we put in the

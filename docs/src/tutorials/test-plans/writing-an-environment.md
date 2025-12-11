@@ -45,7 +45,7 @@ setup:
       echo "environment setup command executed"
 teardown:
   command:
-    name: setup.sh
+    name: teardown.sh
     kind: inline
     content: |
       #!/usr/bin/env sh
@@ -158,7 +158,7 @@ setup:
 # --------------------------------
 teardown:
   command:
-    name: setup.sh
+    name: teardown.sh
     kind: inline
     content: |
       #!/usr/bin/env sh
@@ -259,7 +259,7 @@ Output:
 
 ```
 Environment setup complete. PROCESS_ID=1
-ERROR missing required output fields from environment setup: ["process_id"]
+ERROR Missing required output fields from environment setup: ["process_id"]
 ```
 
 This is because we need to update our setup script to output the `process_id`. To do this, rtf has a

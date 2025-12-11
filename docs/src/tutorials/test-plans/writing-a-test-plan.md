@@ -192,11 +192,17 @@ This should result in the fully templated test plan being printed to the termina
 ```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
-matrix: {}
+variables: {}
+matrix:
+  variant_names: null
+  dimensions: {}
+  include: []
+custom_providers: []
 scenario:
   name: Inline scenario config
   description: An inline scenario config
   variable_definitions: []
+  custom_providers: []
   command:
     name: scenario.sh
     kind: inline
@@ -211,6 +217,7 @@ environment:
   name: Inline environment config
   description: An inline environment config
   variable_definitions: []
+  custom_providers: []
   setup:
     command:
       name: setup.sh
@@ -225,7 +232,7 @@ environment:
     provides: []
   teardown:
     command:
-      name: setup.sh
+      name: teardown.sh
       kind: inline
       content: |
         #!/usr/bin/env sh
@@ -250,14 +257,15 @@ rtf run test-plan.yaml
 You should see output similar to this:
 
 ```
-"environment setup command executed"
-"scenario command executed"
-"environment teardown command executed"
+environment setup command executed
+scenario command executed
+environment teardown command executed
 ```
 
 This also creates an `output` directory.
 
-The `output` directory contains two files, `resolved-test-plan.yaml` and `test-plan-variables.json`.
+The `output` directory contains a `providers` directory and two files: `resolved-test-plan.yaml` and
+`test-plan-variables.json`.
 
 - `resolved-test-plan.yaml` contains the fully resolved test plan config. This should be the same as
   what was shown in the `rtf template` command. This is a way to verify the test plan that ran to

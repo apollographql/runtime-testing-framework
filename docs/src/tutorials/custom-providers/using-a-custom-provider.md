@@ -110,7 +110,9 @@ rtf template test-plan.yaml
 This fails with an error:
 
 ```
-ERROR (environment.setup.file_providers.ENV_GENERATOR.definition) missing required custom provider arguments: ["project_name"]
+ERROR Templating failed
+(environment.setup.file_providers.ENV_GENERATOR.env_vars.PROJECT_NAME) Unknown templating variable
+project_name
 ```
 
 This error occurs because the `env-generator` custom provider has a `project_name` variable with no
@@ -193,7 +195,7 @@ rtf run test-plan.yaml
 You should see output similar to this:
 
 ```
-Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+Generated environment config in /path/to/output/providers/setup_providers/env-generator
 === ENV_VARS.txt contents ===
 PROJECT_NAME=my-test-project
 LOG_LEVEL=info
@@ -242,7 +244,7 @@ rtf run test-plan.yaml
 Output:
 
 ```
-Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+Generated environment config in /path/to/output/providers/setup_providers/env-generator
 === ENV_VARS.txt contents ===
 PROJECT_NAME=my-test-project
 LOG_LEVEL=debug
@@ -290,6 +292,11 @@ environment:
   inline:
     name: Custom provider environment
     description: An environment that uses the env-generator custom provider
+# --- Add variable_definitions to allow templating ---
+    variable_definitions:
+      - name: project_name
+        description: The project name passed to the custom provider
+# ----------------------------------------------------
     setup:
       command:
         name: setup.sh
@@ -330,7 +337,7 @@ rtf run test-plan.yaml
 Output:
 
 ```
-Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+Generated environment config in /path/to/output/providers/setup_providers/env-generator
 === ENV_VARS.txt contents ===
 PROJECT_NAME=my-variable-project
 LOG_LEVEL=debug
@@ -350,7 +357,7 @@ rtf run test-plan.yaml --var project_name=runtime-override
 Output:
 
 ```
-Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+Generated environment config in /path/to/output/providers/setup_providers/env-generator
 === ENV_VARS.txt contents ===
 PROJECT_NAME=runtime-override
 LOG_LEVEL=debug
