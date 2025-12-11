@@ -1,0 +1,14 @@
+name: scenario-custom-provider-static
+description: Check that a custom provider works with a static argument value
+command:
+  name: command.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    cat "$CUSTOM"
+file_providers:
+  - name: custom-provider.txt
+    env_var: CUSTOM
+    kind: custom_provider
+    type: my_custom_provider
+    project_name: "my-test-project"
