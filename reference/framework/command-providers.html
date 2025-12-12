@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-ee00936e.js";
+            window.path_to_searchindex_js = "../../searchindex-63b85d0a.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-d9552613.js"></script>
+        <script src="../../toc-1451011a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -193,14 +193,14 @@ with defined execution semantics.</p>
 <p>Full examples appear in the <a href="./environments.html#full-example">Environment</a> and <a href="./scenarios.html#full-example">Scenario</a> pages.</p>
 </blockquote>
 <h2 id="the-command-section"><a class="header" href="#the-command-section">The command section</a></h2>
-<p>You can define your command in two ways:</p>
+<p>Commands can be defined in two ways:</p>
 <ol>
 <li>As an inline script that will be written to disk and made executable.</li>
 <li>As a relative path to an existing executable script.</li>
 </ol>
-<p>Both strategies will result in the appropriate utf-8 encoded text file being written to disk and
-made executable before being executed as a subprocess by RTF. As such, you <em>must</em> include an
-appropriate <a href="https://en.wikipedia.org/wiki/Shebang_%28Unix%29">shebang</a> line at the top of your script in order for it to run correctly.</p>
+<p>Both strategies result in the appropriate UTF-8 encoded text file being written to disk and made
+executable before being executed as a subprocess by RTF. Scripts <em>must</em> include an appropriate
+<a href="https://en.wikipedia.org/wiki/Shebang_%28Unix%29">shebang</a> line at the top in order to run correctly.</p>
 <blockquote>
 <p>⚠️ <strong>At this time, RTF does not support directly executing binaries via command providers</strong></p>
 <p>If the command you wish to execute is simply a pre-existing binary, you should provide an <strong>inline
@@ -215,13 +215,13 @@ fi
 "$YOUR_BINARY" # arguments to the binary
 </code></pre>
 </blockquote>
-<p>It is also possible to instead mark that the command is <em>required</em> as an override specified in the
-user’s Test Plan. This is primarily used as part of a Scenario or Environment configuration where
-you want to set up supporting resources and data around an arbitrary user specified command.</p>
-<p>In each of the three options you will need to provide the <code>name</code> of the command as well as a <code>kind</code>
-the specifies which strategy you want to use to define your command.</p>
+<p>It is also possible to mark that the command is <em>required</em> as an override specified in the Test
+Plan. This is primarily used as part of a Scenario or Environment configuration to set up supporting
+resources and data around an arbitrary user-specified command.</p>
+<p>In each of the three options, the <code>name</code> of the command must be provided along with a <code>kind</code> that
+specifies which strategy is used to define the command.</p>
 <h3 id="inline-scripts"><a class="header" href="#inline-scripts">Inline scripts</a></h3>
-<p>To provide your command as an inline script, specify the kind as <code>inline</code> and provide your script
+<p>To provide a command as an inline script, specify the kind as <code>inline</code> and provide the script
 contents under the <code>content</code> key.</p>
 <p>For multiline script content, see <a href="https://yaml-multiline.info/">YAML multiline string syntax</a>.</p>
 <pre><code class="language-yaml">command:
@@ -233,7 +233,7 @@ contents under the <code>content</code> key.</p>
 </code></pre>
 <h3 id="relative-paths"><a class="header" href="#relative-paths">Relative paths</a></h3>
 <p>To use a pre-existing script, specify the kind as <code>relative_path</code> and provide the relative path to
-your script under the <code>path</code> key. (See <a href="./test-plans.html#a-note-on-relative-paths">here</a> for details on how relative paths are handled by
+the script under the <code>path</code> key. (See <a href="./test-plans.html#a-note-on-relative-paths">here</a> for details on how relative paths are handled by
 RTF).</p>
 <pre><code class="language-yaml">command:
   name: my-shell-script.sh
@@ -241,11 +241,10 @@ RTF).</p>
   path: ../scripts/my-shell-script.sh
 </code></pre>
 <h3 id="required-commands"><a class="header" href="#required-commands">Required commands</a></h3>
-<p>To mark a command as required, but not specified by default, you can use the <code>required</code> kind which
-supports providing an accompanying <code>message</code> to inform the user of how they should define their own
-command. If the user fails to provide an override for the command in their <a href="./test-plans.html">Test Plan</a>, RTF will
-error at the templating stage of execution and print your error message as the reason for the
-failure.</p>
+<p>To mark a command as required but not specified by default, use the <code>required</code> kind with an
+accompanying <code>message</code> to inform users how to define their own command. If an override for the
+command is not provided in the <a href="./test-plans.html">Test Plan</a>, RTF will error at the templating stage of execution
+and print the error message as the reason for the failure.</p>
 <pre><code class="language-yaml">command:
   name: my-command
   kind: required

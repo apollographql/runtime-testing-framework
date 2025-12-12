@@ -35,10 +35,10 @@
             const path_to_root = "../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../searchindex-ee00936e.js";
+            window.path_to_searchindex_js = "../../../searchindex-63b85d0a.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../../toc-d9552613.js"></script>
+        <script src="../../../toc-1451011a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -211,7 +211,7 @@ module::path::tests::data_structure_functionality_test_case
 // When simple_test_case is used
 module::path::tests::data_structure_functionality_test_class::test_case
 <span class="boring">}</span></code></pre>
-<h3 id="example---resolving-a-file-provider"><a class="header" href="#example---resolving-a-file-provider">Example - Resolving a File Provider</a></h3>
+<h3 id="example---resolving-a-file-provider"><a class="header" href="#example---resolving-a-file-provider">Example - resolving a file provider</a></h3>
 <p>This example demonstrates how to test that the file provider, <code>RelativePath</code>, can be resolved into
 file content. Working through the hierarchy:</p>
 <ol>
@@ -246,7 +246,7 @@ as follows:</p>
   }
 }
 <span class="boring">}</span></code></pre>
-<h3 id="example---malformed-template-strings"><a class="header" href="#example---malformed-template-strings">Example - Malformed Template Strings</a></h3>
+<h3 id="example---malformed-template-strings"><a class="header" href="#example---malformed-template-strings">Example - malformed template strings</a></h3>
 <p>This example demonstrates how to test that the template string <code>"{{ template_variable }}"</code> does not
 work when similar, but not acceptable, patterns are specified. Working through the hierarchy:</p>
 <ol>
@@ -283,7 +283,7 @@ follows:</p>
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate uses several testing strategies and tools to ensure comprehensive
 coverage of configuration parsing, validation, and resolution.</p>
-<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing Infrastructure</a></h3>
+<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing infrastructure</a></h3>
 <p>The crate leverages the following key testing tools:</p>
 <ul>
 <li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Enables parameterized testing with <code>#[test_case]</code> attributes for
@@ -293,7 +293,7 @@ testing multiple input variations with the same test logic</li>
 <li><strong><code>indoc</code></strong> - Allows clean multi-line string literals in tests, particularly useful for YAML
 configurations</li>
 </ul>
-<h3 id="mock-system"><a class="header" href="#mock-system">Mock System</a></h3>
+<h3 id="mock-system"><a class="header" href="#mock-system">Mock system</a></h3>
 <p>The crate implements a flexible mock system through <code>MockContext&lt;T&gt;</code> that allows dependency
 injection during testing:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -335,7 +335,7 @@ fn supergraph_resolve_success() {
 <p>This pattern allows testing the core business logic while avoiding the complexity of mocking
 external APIs. The <code>with_supergraph_details</code> method in the production context handles the API
 interaction separately.</p>
-<h3 id="parameterized-testing-patterns"><a class="header" href="#parameterized-testing-patterns">Parameterized Testing Patterns</a></h3>
+<h3 id="parameterized-testing-patterns"><a class="header" href="#parameterized-testing-patterns">Parameterized testing patterns</a></h3>
 <p>Tests extensively use <code>#[test_case]</code> to cover multiple scenarios efficiently:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -349,7 +349,7 @@ fn field_parse_valid_identifiers(raw: &amp;str) {
 <span class="boring">}</span></code></pre>
 <p>Related test cases are grouped into test classes when using parameterized testing, following the
 naming hierarchy described in the <a href="#organization">Organization</a> section.</p>
-<h3 id="configuration-testing-strategy"><a class="header" href="#configuration-testing-strategy">Configuration Testing Strategy</a></h3>
+<h3 id="configuration-testing-strategy"><a class="header" href="#configuration-testing-strategy">Configuration testing strategy</a></h3>
 <p>The crate employs a systematic approach to testing configuration handling:</p>
 <ol>
 <li><strong>Parsing Tests</strong> - Verify YAML deserialization works correctly for valid inputs and fails
@@ -361,13 +361,13 @@ then tests are defined.</li>
 <li><strong>Validation Tests</strong> - Check that configuration validation catches common errors and edge cases</li>
 <li><strong>Resolve Tests</strong> - Test that providers and configuration resolve and execute correctly.</li>
 </ol>
-<h3 id="test-data-management"><a class="header" href="#test-data-management">Test Data Management</a></h3>
+<h3 id="test-data-management"><a class="header" href="#test-data-management">Test data management</a></h3>
 <p>Test data is organized in two main ways:</p>
 <ul>
 <li><strong>Inline test data</strong> using <code>indoc!</code> for small, focused examples</li>
 <li><strong>Resource files</strong> in <code>resources/</code> for larger, realistic configurations and any non UTF-8 files.</li>
 </ul>
-<h3 id="error-testing"><a class="header" href="#error-testing">Error Testing</a></h3>
+<h3 id="error-testing"><a class="header" href="#error-testing">Error testing</a></h3>
 <p>The crate places strong emphasis on testing error conditions:</p>
 <ul>
 <li><strong>Malformed input testing</strong> - Invalid YAML, incorrect template syntax, missing required fields</li>

@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-ee00936e.js";
+            window.path_to_searchindex_js = "../../searchindex-63b85d0a.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-d9552613.js"></script>
+        <script src="../../toc-1451011a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -179,9 +179,9 @@
                     <main>
                         <!-- diataxis-type: tutorial -->
 <h1 id="writing-a-new-environment"><a class="header" href="#writing-a-new-environment">Writing a new environment</a></h1>
-<p>This guide assumes you’ve completed the <a href="writing-a-scenario.html">“Writing a scenario”</a> guide. You
-should already have the files in a directory named <code>rtf-hello-world</code>. Your directory should be in
-the state it was at the end of that guide.</p>
+<p>This guide assumes you’ve completed the <a href="writing-a-scenario.html">“Writing a scenario”</a> guide. You should already have the
+files in a directory named <code>rtf-hello-world</code>. Your directory should be in the state it was at the
+end of that guide.</p>
 <pre><code class="language-bash">ls -R
 configs         scripts         test-plan.yaml
 
@@ -193,8 +193,7 @@ scenario.sh
 </code></pre>
 <h2 id="creating-an-environment-file"><a class="header" href="#creating-an-environment-file">Creating an environment file</a></h2>
 <p>Creating a separate environment file works exactly the same way and has the same benefits as
-creating a separate scenario file outlined in the
-<a href="writing-a-scenario.html#creating-a-scenario-file">“Writing a scenario” guide</a>.</p>
+creating a separate scenario file outlined in the <a href="writing-a-scenario.html#creating-a-scenario-file">“Writing a scenario” guide</a>.</p>
 <p>Let’s update our test plan to specify the environment in a separate file:</p>
 <pre><code class="language-bash">touch configs/environment.yaml
 </code></pre>
@@ -251,10 +250,10 @@ environment:
 </code></pre>
 <h2 id="environment-config-structure"><a class="header" href="#environment-config-structure">Environment config structure</a></h2>
 <p>Now is a good time to review how the environment config is structured. The main difference compared
-to the <a href="writing-a-scenario.html#scenario-config-structure">scenario config</a> is that an environment can
-run two commands using the <code>setup</code> and <code>teardown</code> keys. The <code>setup</code> key has an additional field
-called <code>provides</code> which we’ll explain in more detail in the
-<a href="#using-provides">“Using provides” section</a>. The fields in an environment config are:</p>
+to the <a href="writing-a-scenario.html#scenario-config-structure">scenario config</a> is that an environment can run two commands using the <code>setup</code> and
+<code>teardown</code> keys. The <code>setup</code> key has an additional field called <code>provides</code> which we’ll explain in
+more detail in the <a href="#using-provides">“Using provides” section</a>. The fields in an environment config
+are:</p>
 <ul>
 <li><code>name</code> (required) is used to give the environment an identifiable title. It can be any valid
 string. It has no impact on the execution of an environment.</li>
@@ -272,8 +271,8 @@ test. It requires the following keys:
 <li><code>env_vars</code> (optional) is used to define the environment variables that are set when the
 <code>command</code> is executed.</li>
 <li><code>file_providers</code> (optional) is used to define the files and data that the environment setup
-depends on to execute. The <a href="using-file-providers.html">“Using file providers” guide</a> explains how
-these are used in more detail.</li>
+depends on to execute. The <a href="using-file-providers.html">“Using file providers” guide</a> explains how these are used in more
+detail.</li>
 <li><code>provides</code> (optional) is unique to the environment setup and is used to set variables that can
 only be known at runtime. This is explained more in the
 <a href="#using-provides">“Using provides” section</a>.</li>
@@ -288,8 +287,8 @@ The <a href="writing-a-command.html">“Writing a command” guide</a> explains 
 <li><code>env_vars</code> (optional) is used to define the environment variables that are set when the
 <code>command</code> is executed.</li>
 <li><code>file_providers</code> (optional) is used to define the files and data that the environment teardown
-depends on to execute. The <a href="using-file-providers.html">“Using file providers” guide</a> explains how
-these are used in more detail.</li>
+depends on to execute. The <a href="using-file-providers.html">“Using file providers” guide</a> explains how these are used in more
+detail.</li>
 </ul>
 </li>
 </ul>

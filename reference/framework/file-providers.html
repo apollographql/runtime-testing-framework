@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-ee00936e.js";
+            window.path_to_searchindex_js = "../../searchindex-63b85d0a.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-d9552613.js"></script>
+        <script src="../../toc-1451011a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -181,24 +181,24 @@
 <h1 id="file-providers"><a class="header" href="#file-providers">File Providers</a></h1>
 <p>Available file providers:</p>
 <ul>
-<li><a href="#build-router-from-source">Build Router From Source</a></li>
-<li><a href="#custom-provider">Custom Provider</a></li>
+<li><a href="#build-router-from-source">Build Router from source</a></li>
+<li><a href="#custom-provider">Custom provider</a></li>
 <li><a href="#from-command">From command</a></li>
-<li><a href="#github-file">GitHub File</a></li>
-<li><a href="#graphos-canned-operations">GraphOS Canned Operations</a></li>
-<li><a href="#graphos-canned-operations-by-id">GraphOS Canned Operations by ID</a></li>
-<li><a href="#graphos-supergraph-router-url-overrides">GraphOS Supergraph Router URL Overrides</a></li>
-<li><a href="#graphos-subgraph-sdl">GraphOS Subgraph SDL</a></li>
-<li><a href="#graphos-subgraph-names">GraphOS Subgraph Names</a></li>
-<li><a href="#graphos-supergraph-sdl">GraphOS Supergraph SDL</a></li>
-<li><a href="#inline-file">Inline File</a></li>
+<li><a href="#github-file">GitHub file</a></li>
+<li><a href="#graphos-canned-operations">GraphOS canned operations</a></li>
+<li><a href="#graphos-canned-operations-by-id">GraphOS canned operations by ID</a></li>
+<li><a href="#graphos-supergraph-router-url-overrides">GraphOS supergraph Router URL overrides</a></li>
+<li><a href="#graphos-subgraph-sdl">GraphOS subgraph SDL</a></li>
+<li><a href="#graphos-subgraph-names">GraphOS subgraph names</a></li>
+<li><a href="#graphos-supergraph-sdl">GraphOS supergraph SDL</a></li>
+<li><a href="#inline-file">Inline file</a></li>
 <li><a href="#merge-yaml">Merge YAML</a></li>
-<li><a href="#graphos-offline-license">GraphOS Offline License</a></li>
-<li><a href="#relative-path">Relative Path</a></li>
-<li><a href="#required-file">Required File</a></li>
-<li><a href="#router-download-script">Router Download Script</a></li>
+<li><a href="#graphos-offline-license">GraphOS offline license</a></li>
+<li><a href="#relative-path">Relative path</a></li>
+<li><a href="#required-file">Required file</a></li>
+<li><a href="#router-download-script">Router download script</a></li>
 </ul>
-<h2 id="build-router-from-source"><a class="header" href="#build-router-from-source">Build Router From Source</a></h2>
+<h2 id="build-router-from-source"><a class="header" href="#build-router-from-source">Build Router from source</a></h2>
 <p>A file provider used for building the Router from source at a specific git commit or reference. A
 profile and list of features can optionally be provided.</p>
 <pre><code class="language-yaml">- name: "router-build.sh"
@@ -225,7 +225,7 @@ branch name, or tag.</p>
 <p>Comma separated list of features to build the Router with.</p>
 <p>Defaults to <code>"default"</code> if unset.</p>
 </details>
-<h2 id="custom-provider"><a class="header" href="#custom-provider">Custom Provider</a></h2>
+<h2 id="custom-provider"><a class="header" href="#custom-provider">Custom provider</a></h2>
 <p>Use a custom provider to execute a command and produce a set of files.</p>
 <pre><code class="language-yaml">- name: "router-docker-compose"
   env_var: ROUTER_DOCKER_COMPOSE
@@ -294,9 +294,9 @@ done &lt;"$CANNED_OPS_FILE"
 <details>
 <summary>Variants</summary>
 <ul>
-<li><a href="#inline-file">Inline File</a></li>
-<li><a href="#relative-path">Relative Path</a></li>
-<li><a href="#required-file">Required File</a></li>
+<li><a href="#inline-file">Inline file</a></li>
+<li><a href="#relative-path">Relative path</a></li>
+<li><a href="#required-file">Required file</a></li>
 </ul>
 </details>
 <h4 id="args"><a class="header" href="#args"><code>args</code></a></h4>
@@ -307,7 +307,7 @@ done &lt;"$CANNED_OPS_FILE"
 <h3 id="file_providers"><a class="header" href="#file_providers"><code>file_providers</code></a></h3>
 <p>File providers to run and make available prior to execution</p>
 </details>
-<h2 id="github-file"><a class="header" href="#github-file">GitHub File</a></h2>
+<h2 id="github-file"><a class="header" href="#github-file">GitHub file</a></h2>
 <p>The user specifies a path to a file within a GitHub repository, optionally providing a specific ref
 of the repository to pull the file from. If no ref is providing then the provider will pull the
 version of the file found on the default branch.</p>
@@ -332,7 +332,7 @@ version of the file found on the default branch.</p>
 name, or tag.</p>
 <p>Defaults to the mainline branch as specified in GitHub if unset.</p>
 </details>
-<h2 id="graphos-canned-operations"><a class="header" href="#graphos-canned-operations">GraphOS Canned Operations</a></h2>
+<h2 id="graphos-canned-operations"><a class="header" href="#graphos-canned-operations">GraphOS canned operations</a></h2>
 <p>The user specifies the graph ref and parameters that should be used to generate canned GraphQL
 requests based on operations data obtained from the GraphOS API.</p>
 <pre><code class="language-yaml">- name: canned_ops.json
@@ -357,7 +357,7 @@ requests based on operations data obtained from the GraphOS API.</p>
 <p>How far back to query for operations.</p>
 <p>Accepts duration strings like “30d”, “7d”, “12h”. Defaults to “30d” if unset.</p>
 </details>
-<h2 id="graphos-canned-operations-by-id"><a class="header" href="#graphos-canned-operations-by-id">GraphOS Canned Operations by ID</a></h2>
+<h2 id="graphos-canned-operations-by-id"><a class="header" href="#graphos-canned-operations-by-id">GraphOS canned operations by ID</a></h2>
 <p>The user specifies the graph ref and parameters that should be used to generate canned GraphQL
 requests based on operations data obtained from the GraphOS API.</p>
 <pre><code class="language-yaml">- name: canned_ops.json
@@ -377,7 +377,7 @@ requests based on operations data obtained from the GraphOS API.</p>
 <p>Operation IDs from the Apollo studio API for the operations you want to work with as queried from an
 <code>OperationInsightsListItem</code> in the Studio graphQL API.</p>
 </details>
-<h2 id="graphos-supergraph-router-url-overrides"><a class="header" href="#graphos-supergraph-router-url-overrides">GraphOS Supergraph Router URL Overrides</a></h2>
+<h2 id="graphos-supergraph-router-url-overrides"><a class="header" href="#graphos-supergraph-router-url-overrides">GraphOS supergraph Router URL overrides</a></h2>
 <p>The user specifies the graph ref that should be used to fetch subgraph SDL files from the GraphOS
 API and generates a the override_subgraph_urls YAML snippet that can be merged into a router config
 file.</p>
@@ -425,7 +425,7 @@ parameters.</p>
 </details>
 </details>
 </details>
-<h2 id="graphos-subgraph-sdl"><a class="header" href="#graphos-subgraph-sdl">GraphOS Subgraph SDL</a></h2>
+<h2 id="graphos-subgraph-sdl"><a class="header" href="#graphos-subgraph-sdl">GraphOS subgraph SDL</a></h2>
 <p>The user specifies the graph ref that should be used to fetch a subgraph SDL files from the GraphOS
 API.</p>
 <p>Note that this file provider will output a directory of SDL schema files, one for each subgraph.</p>
@@ -439,7 +439,7 @@ API.</p>
 <h3 id="graph_ref-3"><a class="header" href="#graph_ref-3"><code>graph_ref</code></a></h3>
 <p>The Apollo graph ref to pull subgraph SDL files for.</p>
 </details>
-<h2 id="graphos-subgraph-names"><a class="header" href="#graphos-subgraph-names">GraphOS Subgraph Names</a></h2>
+<h2 id="graphos-subgraph-names"><a class="header" href="#graphos-subgraph-names">GraphOS subgraph names</a></h2>
 <p>The user specifies the graph ref that should be used to fetch the names of subgraphs in the
 supergraph from the GraphOS API.</p>
 <p>This file provider will output a newline-delimited file of the subgraph names.</p>
@@ -453,7 +453,7 @@ supergraph from the GraphOS API.</p>
 <h3 id="graph_ref-4"><a class="header" href="#graph_ref-4"><code>graph_ref</code></a></h3>
 <p>The Apollo graph ref to pull subgraph names for.</p>
 </details>
-<h2 id="graphos-supergraph-sdl"><a class="header" href="#graphos-supergraph-sdl">GraphOS Supergraph SDL</a></h2>
+<h2 id="graphos-supergraph-sdl"><a class="header" href="#graphos-supergraph-sdl">GraphOS supergraph SDL</a></h2>
 <p>The user specifies the ref that should be used to fetch a supergraph SDL file from the GraphOS API.</p>
 <pre><code class="language-yaml">- name: "supergraph.graphql"
   env_var: SUPERGRAPH
@@ -469,7 +469,7 @@ supergraph from the GraphOS API.</p>
 <p>Replace the supergraph’s subgraph urls with overridden values for testing.</p>
 <p>Defaults to null if unset.</p>
 </details>
-<h2 id="inline-file"><a class="header" href="#inline-file">Inline File</a></h2>
+<h2 id="inline-file"><a class="header" href="#inline-file">Inline file</a></h2>
 <p>The simplest form of file provider: the user specifies the contents of the file inline within their
 config file.</p>
 <pre><code class="language-yaml">- name: "my-file.txt"
@@ -521,17 +521,17 @@ an array:</p>
 <details>
 <summary>Variants</summary>
 <ul>
-<li><a href="#github-file">GitHub File</a></li>
-<li><a href="#graphos-supergraph-router-url-overrides">GraphOS Supergraph Router URL Overrides</a></li>
-<li><a href="#inline-file">Inline File</a></li>
-<li><a href="#relative-path">Relative Path</a></li>
-<li><a href="#required-file">Required File</a></li>
+<li><a href="#github-file">GitHub file</a></li>
+<li><a href="#graphos-supergraph-router-url-overrides">GraphOS supergraph Router URL overrides</a></li>
+<li><a href="#inline-file">Inline file</a></li>
+<li><a href="#relative-path">Relative path</a></li>
+<li><a href="#required-file">Required file</a></li>
 </ul>
 </details>
 <h3 id="overrides"><a class="header" href="#overrides"><code>overrides</code></a></h3>
 <p>One or more YAML files to merge on top of the base file in sequence.</p>
 </details>
-<h2 id="graphos-offline-license"><a class="header" href="#graphos-offline-license">GraphOS Offline License</a></h2>
+<h2 id="graphos-offline-license"><a class="header" href="#graphos-offline-license">GraphOS offline license</a></h2>
 <p>The user specifies the graph id that should be used to fetch an offline license from the GraphOS
 API.</p>
 <pre><code class="language-yaml">- name: license.jwt
@@ -544,7 +544,7 @@ API.</p>
 <h3 id="graph_id"><a class="header" href="#graph_id"><code>graph_id</code></a></h3>
 <p>The Apollo graph id to pull an offline license for.</p>
 </details>
-<h2 id="relative-path"><a class="header" href="#relative-path">Relative Path</a></h2>
+<h2 id="relative-path"><a class="header" href="#relative-path">Relative path</a></h2>
 <p>A relative path from the containing config file to a target file that should be made available as
 part of the test run. This provider works both with local files and files within GitHub if the
 containing config file was pulled from a repository.</p>
@@ -558,7 +558,7 @@ containing config file was pulled from a repository.</p>
 <h3 id="path-1"><a class="header" href="#path-1"><code>path</code></a></h3>
 <p>The relative path from the containing config file to the target file.</p>
 </details>
-<h2 id="required-file"><a class="header" href="#required-file">Required File</a></h2>
+<h2 id="required-file"><a class="header" href="#required-file">Required file</a></h2>
 <p>The only purpose of this file provider is to throw an error if it still exists when the file
 providers are being checked. All definitions of a required file are expected to be replaced by user
 defined file providers.</p>
@@ -572,7 +572,7 @@ defined file providers.</p>
 <h3 id="message"><a class="header" href="#message"><code>message</code></a></h3>
 <p>The error message to display to the user if this provider is not overwritten.</p>
 </details>
-<h2 id="router-download-script"><a class="header" href="#router-download-script">Router Download Script</a></h2>
+<h2 id="router-download-script"><a class="header" href="#router-download-script">Router download script</a></h2>
 <p>Produces a POSIX shell script that can be run in order to download a target version of the Apollo
 Router.</p>
 <pre><code class="language-yaml">- name: "router-download.sh"

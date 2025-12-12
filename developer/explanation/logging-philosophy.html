@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-ee00936e.js";
+            window.path_to_searchindex_js = "../../searchindex-63b85d0a.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-d9552613.js"></script>
+        <script src="../../toc-1451011a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -181,10 +181,10 @@
 <h1 id="logging-philosophy"><a class="header" href="#logging-philosophy">Logging Philosophy</a></h1>
 <p>RTF takes the “no news is good news” approach - quiet by default. Logging exists to help debug
 issues and provide feedback when things go wrong.</p>
-<h2 id="design-goals"><a class="header" href="#design-goals">Design Goals</a></h2>
+<h2 id="design-goals"><a class="header" href="#design-goals">Design goals</a></h2>
 <p>When adding log statements to RTF, consider whether the information is helpful and avoid
 overwhelming users with unnecessary data.</p>
-<h2 id="performance-considerations"><a class="header" href="#performance-considerations">Performance Considerations</a></h2>
+<h2 id="performance-considerations"><a class="header" href="#performance-considerations">Performance considerations</a></h2>
 <p>Logging performance is not a primary concern in RTF. The framework is expected to become I/O bound
 (waiting for network requests, file operations, etc.) before logging becomes a bottleneck.</p>
 <p>However, keep these guidelines in mind:</p>
@@ -193,7 +193,7 @@ overwhelming users with unnecessary data.</p>
 <li>Use structured fields instead of string formatting when possible</li>
 <li>Don’t worry about the overhead of log statements that won’t be displayed</li>
 </ul>
-<h2 id="testing-approach"><a class="header" href="#testing-approach">Testing Approach</a></h2>
+<h2 id="testing-approach"><a class="header" href="#testing-approach">Testing approach</a></h2>
 <p>Do not test logging at the low level using a crate like <code>tracing_test</code>. Instead, make sure to test
 the output the user sees in the CLI tests. Tests should ensure the user sees the logging statement
 in situations where it is expected and required to give helpful feedback. Tests should not cover

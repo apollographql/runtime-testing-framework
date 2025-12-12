@@ -35,10 +35,10 @@
             const path_to_root = "../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../searchindex-ee00936e.js";
+            window.path_to_searchindex_js = "../../../searchindex-63b85d0a.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../../toc-d9552613.js"></script>
+        <script src="../../../toc-1451011a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -197,7 +197,7 @@ to compile into valid Rust.</li>
 expected when the derive macro is applied to a Rust container.</li>
 </ol>
 <p>The structure of the tests within each of these modules is discussed below.</p>
-<h3 id="compile-tests"><a class="header" href="#compile-tests">Compile Tests</a></h3>
+<h3 id="compile-tests"><a class="header" href="#compile-tests">Compile tests</a></h3>
 <p>There are two types of compile test: <code>pass</code> and <code>fail</code>. These are organized into separate
 directories within the <code>compile</code> subdirectory of <code>tests</code>.</p>
 <p>The <code>pass</code> tests work by importing the <code>*.rs</code> files into the <code>compile</code> module. These are not
@@ -216,7 +216,7 @@ happens, delete the <code>.stderr</code> files associated with the failing test 
 This should generate a <code>wip</code> directory at the root of the repository with the new <code>.stderr</code> files.
 Copy these into the <code>fail</code> directory and re-run <code>cargo test</code>. Your tests should now pass.</p>
 </blockquote>
-<h3 id="template-tests"><a class="header" href="#template-tests">Template Tests</a></h3>
+<h3 id="template-tests"><a class="header" href="#template-tests">Template tests</a></h3>
 <p>The <code>template</code> tests follow a typical Rust unit testing approach. The module defines various valid
 Rust containers the derive macro can be applied to. It then checks, for each of those containers,
 that the <code>Template</code> trait methods work as expected. The <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> crate is used to
@@ -239,7 +239,7 @@ template::tests::trait_method::data_structure_test_case
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate employs specialized testing strategies tailored to procedural macro
 testing requirements.</p>
-<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing Infrastructure</a></h3>
+<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing infrastructure</a></h3>
 <p>The crate leverages the following key testing tools:</p>
 <ul>
 <li><strong><a href="https://docs.rs/trybuild/latest/trybuild/"><code>trybuild</code></a></strong> - Enables testing of procedural macro compilation failures with precise error
@@ -249,7 +249,7 @@ macro across multiple Rust container types</li>
 <li><strong>Compile-time testing</strong> - Uses the Rust compiler itself as a testing tool to validate successful
 macro expansion</li>
 </ul>
-<h3 id="procedural-macro-testing-strategy"><a class="header" href="#procedural-macro-testing-strategy">Procedural Macro Testing Strategy</a></h3>
+<h3 id="procedural-macro-testing-strategy"><a class="header" href="#procedural-macro-testing-strategy">Procedural macro testing strategy</a></h3>
 <p>Testing procedural macros requires a different approach from standard unit testing:</p>
 <ol>
 <li><strong>Compilation Success Testing</strong> - Verify that the macro successfully generates valid Rust code
@@ -259,7 +259,7 @@ messages for unsupported scenarios</li>
 <li><strong>Generated Code Testing</strong> - Validate that the generated <code>Template</code> trait implementations behave
 correctly at runtime</li>
 </ol>
-<h3 id="error-testing-with-trybuild"><a class="header" href="#error-testing-with-trybuild">Error Testing with trybuild</a></h3>
+<h3 id="error-testing-with-trybuild"><a class="header" href="#error-testing-with-trybuild">Error testing with trybuild</a></h3>
 <p>The <code>fail</code> tests use <code>trybuild</code> to capture and validate compilation error messages:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -275,7 +275,7 @@ fn ui() {
 <li>Users receive helpful diagnostic information when the macro cannot be applied</li>
 <li>The macro fails early with clear explanations rather than generating invalid code</li>
 </ul>
-<h3 id="parameterized-container-testing"><a class="header" href="#parameterized-container-testing">Parameterized Container Testing</a></h3>
+<h3 id="parameterized-container-testing"><a class="header" href="#parameterized-container-testing">Parameterized container testing</a></h3>
 <p>The <code>template</code> tests extensively use <code>#[test_case]</code> to verify the derive macro works across
 different Rust container types:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]

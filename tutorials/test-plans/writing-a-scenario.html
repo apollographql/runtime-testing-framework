@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-ee00936e.js";
+            window.path_to_searchindex_js = "../../searchindex-63b85d0a.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-d9552613.js"></script>
+        <script src="../../toc-1451011a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -179,9 +179,9 @@
                     <main>
                         <!-- diataxis-type: tutorial -->
 <h1 id="writing-a-new-scenario"><a class="header" href="#writing-a-new-scenario">Writing a new scenario</a></h1>
-<p>This guide assumes you have completed the <a href="writing-a-test-plan.html">“Writing a test plan”</a> and
-<a href="writing-a-command.html">“Writing a command”</a> guides. You should already have a <code>test-plan.yaml</code> file
-in a directory named <code>rtf-hello-world</code>. Your <code>test-plan.yaml</code> file should contain:</p>
+<p>This guide assumes you have completed the <a href="writing-a-test-plan.html">“Writing a test plan”</a> and <a href="writing-a-command.html">“Writing a command”</a>
+guides. You should already have a <code>test-plan.yaml</code> file in a directory named <code>rtf-hello-world</code>. Your
+<code>test-plan.yaml</code> file should contain:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 scenario:
@@ -221,8 +221,7 @@ scenarios quickly become harder to read and maintain. It is possible to create a
 store your scenario config and update your test plan to refer to that file. As well as
 maintainability benefits this also means the same scenario can be reused in multiple test plans. It
 is also possible to update the base scenario (and environment) config using overrides in the test
-plan. We cover how to use overrides in the
-<a href="writing-an-environment.html#using-overrides">“Writing an environment” guide</a>.</p>
+plan. We cover how to use overrides in the <a href="writing-an-environment.html#using-overrides">“Writing an environment” guide</a>.</p>
 <p>Let’s walkthrough how to create a scenario config. First, create a <code>configs</code> directory and an empty
 YAML file inside it:</p>
 <pre><code class="language-bash">mkdir configs
@@ -314,8 +313,8 @@ description: A test plan created as a guide for writing test plans
 will import the scenario config from the file on the relative path defined in the <code>relative_path</code>
 key.</p>
 <p>The <code>github</code> key allows the scenario config to be imported from a GitHub repo. It is not discussed
-in detail in this guide, please refer to the
-<a href="../../reference/framework/index.html">framework reference docs</a> reference for more detail.</p>
+in detail in this guide, please refer to the <a href="../../reference/framework/index.html">framework reference docs</a> reference for more
+detail.</p>
 <h2 id="scenario-config-structure"><a class="header" href="#scenario-config-structure">Scenario config structure</a></h2>
 <p>Let’s take a moment to review how scenario config is structured. There are six fields that can be
 defined in the scenario</p>
@@ -332,14 +331,12 @@ detail.</li>
 <li><code>env_vars</code> (optional) is used to define the environment variables that are set when the <code>command</code>
 is executed.</li>
 <li><code>file_providers</code> (optional) is used to define the files and data that the scenario depends on to
-execute. The <a href="using-file-providers.html">“Using file providers” guide</a> explains how these are used
-in more detail.</li>
+execute. The <a href="using-file-providers.html">“Using file providers” guide</a> explains how these are used in more detail.</li>
 </ul>
 <h2 id="using-variables"><a class="header" href="#using-variables">Using variables</a></h2>
-<p>We saw how to set variables in the test plan in the
-<a href="writing-a-test-plan.html#setting-variables">“Writing a test plan” guide</a>. However, the variable we
-set was not used anywhere in the scenario or environment. To use variables in a scenario, we need to
-define them in the <code>variables</code> field.</p>
+<p>We saw how to set variables in the test plan in the <a href="writing-a-test-plan.html#setting-variables">“Writing a test plan” guide</a>. However, the
+variable we set was not used anywhere in the scenario or environment. To use variables in a
+scenario, we need to define them in the <code>variables</code> field.</p>
 <p>Declaring the variables here declares a contract between the scenario and test plan and lists the
 variables that must be specified for the scenario to complete. The value of the variable can be set
 using a default in the scenario, in the test plan or provided via the CLI. If the variable is used

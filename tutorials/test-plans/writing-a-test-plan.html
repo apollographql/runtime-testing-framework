@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-ee00936e.js";
+            window.path_to_searchindex_js = "../../searchindex-63b85d0a.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-d9552613.js"></script>
+        <script src="../../toc-1451011a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -245,8 +245,8 @@ adding that context to inline comments.</p>
 <h3 id="scenario"><a class="header" href="#scenario"><code>scenario</code></a></h3>
 <p>The <code>scenario</code> is used to define the configuration and command that runs the actual testing logic in
 the test plan. The <code>scenario</code> can be defined inline within the test plan or in its own file. In this
-guide, we’ll define the scenario inline. The guide on
-<a href="writing-a-scenario.html">writing a new scenario</a> covers how to define a scenario in a separate file.</p>
+guide, we’ll define the scenario inline. The guide on <a href="writing-a-scenario.html">writing a new scenario</a> covers how to
+define a scenario in a separate file.</p>
 <p>Add the <code>scenario</code> field to the <code>test-plan.yaml</code> file.</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
@@ -268,15 +268,14 @@ scenario:
 <li>The <code>name</code> and <code>description</code> fields are required and used to identify the scenario and work the
 same as <code>name</code> and <code>description</code> in the test plan.</li>
 <li><code>command</code> defines what will be executed when rtf executes the scenario. This is the simplest case
-which executes a single command. The guide on <a href="writing-a-scenario.html">writing a new scenario</a>
-covers how to execute files or more complex scripts.</li>
+which executes a single command. The guide on <a href="writing-a-scenario.html">writing a new scenario</a> covers how to execute
+files or more complex scripts.</li>
 </ul>
 <h3 id="environment"><a class="header" href="#environment"><code>environment</code></a></h3>
 <p>The <code>environment</code> is used to define the configuration and commands that setup the environment for
 testing and tear it down after the test has completed. The <code>environment</code> can be defined inline
 within the test plan or in its own file. In this guide, we’ll define the environment inline. The
-guide on <a href="writing-an-environment.html">writing a new environment</a> covers how to define an environment
-in a separate file.</p>
+guide on <a href="writing-an-environment.html">writing a new environment</a> covers how to define an environment in a separate file.</p>
 <p>Add the <code>environment</code> field to the <code>test-plan.yaml</code> file:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
@@ -320,9 +319,8 @@ same as <code>name</code> and <code>description</code> in the test plan.</li>
 <li>The <code>setup</code> field defines what will happen during the environment setup phase of <code>rtf run</code>.</li>
 <li>The <code>teardown</code> field defines what will happen during the environment teardown phase of <code>rtf run</code>.</li>
 <li><code>command</code> defines what will be executed when rtf executes the <code>setup</code> and <code>teardown</code>. This is the
-simplest case which executes a single command. The guide on
-<a href="writing-an-environment.html">writing a new environment</a> covers how to execute files or more complex
-scripts.</li>
+simplest case which executes a single command. The guide on <a href="writing-an-environment.html">writing a new environment</a> covers
+how to execute files or more complex scripts.</li>
 </ul>
 <h2 id="checking-the-test-plan"><a class="header" href="#checking-the-test-plan">Checking the test plan</a></h2>
 <p>Now, let’s check that the test plan has been defined correctly:</p>
@@ -415,12 +413,11 @@ new test.</p>
 <h2 id="setting-variables"><a class="header" href="#setting-variables">Setting variables</a></h2>
 <p>The <code>variables</code> field is used to set global variables that can be referenced in your scenario and/or
 environment. Any variables set in the test plan config can be overridden using the <code>--var</code> and
-<code>--vars</code> flags in the rtf CLI (see the
-<a href="../hello-world.html#modifying-variables">modifying variables section of the hello world guide</a> for
+<code>--vars</code> flags in the rtf CLI (see the <a href="../hello-world.html#modifying-variables">modifying variables section of the hello world guide</a> for
 more information).</p>
 <p>Let’s add some example variables to <code>test-plan.yaml</code>. We are also going to update the scenario
-command to use this variable. The <a href="writing-a-command.html">“Writing a command” section</a> will explain
-how this works, for now just add the configuration:</p>
+command to use this variable. The <a href="writing-a-command.html">“Writing a command” section</a> will explain how this works, for
+now just add the configuration:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 # --- Add variables ---
@@ -483,8 +480,8 @@ environment teardown command executed
 </code></pre>
 <h2 id="using-a-matrix"><a class="header" href="#using-a-matrix">Using a matrix</a></h2>
 <p>The <code>matrix</code> field is used to create a matrix of variable dimensions to iterate over (see the
-<a href="../hello-world.html#matrix-variables">matrix variables section of the hello world guide</a> for more
-information). A matrix can only be defined in the test plan config.</p>
+<a href="../hello-world.html#matrix-variables">matrix variables section of the hello world guide</a> for more information). A matrix can only be
+defined in the test plan config.</p>
 <p>Let’s add a matrix to and remove the <code>variables</code> from our <code>test-plan.yaml</code>:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans

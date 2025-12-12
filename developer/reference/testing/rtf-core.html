@@ -35,10 +35,10 @@
             const path_to_root = "../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../searchindex-ee00936e.js";
+            window.path_to_searchindex_js = "../../../searchindex-63b85d0a.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../../toc-d9552613.js"></script>
+        <script src="../../../toc-1451011a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -209,7 +209,7 @@ module::path::tests::function_test_class::file_name
 // When simple_test_case is not used
 module::path::tests::function_test_case
 <span class="boring">}</span></code></pre>
-<h3 id="example---parsing-an-offline-license-response"><a class="header" href="#example---parsing-an-offline-license-response">Example - Parsing an Offline License Response</a></h3>
+<h3 id="example---parsing-an-offline-license-response"><a class="header" href="#example---parsing-an-offline-license-response">Example - parsing an offline license response</a></h3>
 <p>This example demonstrates how to test that an offline license response can be parsed from GraphOS.
 Working through the hierarchy:</p>
 <ol>
@@ -251,7 +251,7 @@ mod tests {
     }
 }
 <span class="boring">}</span></code></pre>
-<h3 id="example---url-rewriting-in-supergraph-details"><a class="header" href="#example---url-rewriting-in-supergraph-details">Example - URL Rewriting in Supergraph Details</a></h3>
+<h3 id="example---url-rewriting-in-supergraph-details"><a class="header" href="#example---url-rewriting-in-supergraph-details">Example - URL rewriting in supergraph details</a></h3>
 <p>This example demonstrates testing a utility function without <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a>. Working through the
 hierarchy:</p>
 <ol>
@@ -289,7 +289,7 @@ mod tests {
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-core"><code>rtf-core</code></a> crate uses a trait-based testing approach that focuses on testing business logic
 directly, without requiring HTTP mocking or complex test infrastructure.</p>
-<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing Infrastructure</a></h3>
+<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing infrastructure</a></h3>
 <p>The crate leverages the following key testing tools:</p>
 <ul>
 <li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Provides the <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a> macro for directory-driven
@@ -298,7 +298,7 @@ parameterized testing, automatically generating test cases from files in a direc
 return type and contextual error messages via <code>.context()</code></li>
 <li><strong><a href="https://docs.rs/serde_json/latest/serde_json/"><code>serde_json</code></a></strong> - Used to deserialize test data from JSON files into GraphQL response types</li>
 </ul>
-<h3 id="trait-based-testing-pattern"><a class="header" href="#trait-based-testing-pattern">Trait-Based Testing Pattern</a></h3>
+<h3 id="trait-based-testing-pattern"><a class="header" href="#trait-based-testing-pattern">Trait-based testing pattern</a></h3>
 <p>The crate’s primary testing pattern leverages the <code>PlatformQuery</code> trait to test GraphQL response
 parsing logic without requiring HTTP mocking:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -332,7 +332,7 @@ fn try_parse_ok(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&g
 <span class="boring">}</span></code></pre>
 <p>This approach avoids the complexity of HTTP mocking while ensuring comprehensive coverage of the
 response parsing logic.</p>
-<h3 id="directory-driven-parameterized-tests"><a class="header" href="#directory-driven-parameterized-tests">Directory-Driven Parameterized Tests</a></h3>
+<h3 id="directory-driven-parameterized-tests"><a class="header" href="#directory-driven-parameterized-tests">Directory-driven parameterized tests</a></h3>
 <p>The <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a> macro automatically generates test cases from files in a directory:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -348,7 +348,7 @@ fn try_parse_ok(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&g
 <li><code>contents</code> - The file contents as a string</li>
 </ul>
 <p>This pattern makes it easy to add new test cases by simply adding files to the test data directory.</p>
-<h3 id="test-data-organization"><a class="header" href="#test-data-organization">Test Data Organization</a></h3>
+<h3 id="test-data-organization"><a class="header" href="#test-data-organization">Test data organization</a></h3>
 <p>Test data is organized in structured directories under <code>resources/test_data/</code>:</p>
 <pre><code>resources/test_data/
 ├── offline_license/
@@ -385,7 +385,7 @@ fn try_parse_ok(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&g
 </code></pre>
 <p>This structure ensures that error tests validate both that an error occurs and that it’s the
 <em>correct</em> error.</p>
-<h3 id="schema-based-validation-tests"><a class="header" href="#schema-based-validation-tests">Schema-Based Validation Tests</a></h3>
+<h3 id="schema-based-validation-tests"><a class="header" href="#schema-based-validation-tests">Schema-based validation tests</a></h3>
 <p>Tests involving GraphQL schema manipulation use <a href="https://docs.rs/apollo-compiler/latest/apollo_compiler/"><code>apollo-compiler</code></a> for parsing and validation:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -405,7 +405,7 @@ fn fix_aliases_adds_aliases_for_duplicate_fields() {
 </span><span class="boring">fn main() {
 </span>const SCHEMA: &amp;str = include_str!("../../../../resources/engine-prod-schema.graphql");
 <span class="boring">}</span></code></pre>
-<h3 id="error-testing-strategy"><a class="header" href="#error-testing-strategy">Error Testing Strategy</a></h3>
+<h3 id="error-testing-strategy"><a class="header" href="#error-testing-strategy">Error testing strategy</a></h3>
 <p>Error testing ensures all error variants are covered and properly handled:</p>
 <ol>
 <li><strong>Exhaustive variant coverage</strong> - Each error variant has at least one corresponding test file in
@@ -431,7 +431,7 @@ fn try_parse_err(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&
     Ok(())
 }
 <span class="boring">}</span></code></pre>
-<h3 id="unit-tests-for-utility-functions"><a class="header" href="#unit-tests-for-utility-functions">Unit Tests for Utility Functions</a></h3>
+<h3 id="unit-tests-for-utility-functions"><a class="header" href="#unit-tests-for-utility-functions">Unit tests for utility functions</a></h3>
 <p>Not all tests use <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a>. Utility functions with deterministic behavior use standard unit
 tests:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]

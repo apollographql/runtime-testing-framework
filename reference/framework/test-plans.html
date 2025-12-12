@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-ee00936e.js";
+            window.path_to_searchindex_js = "../../searchindex-63b85d0a.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-d9552613.js"></script>
+        <script src="../../toc-1451011a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -189,8 +189,8 @@ below.</p>
 <ul>
 <li><code>name</code>: The name for this Test Plan.
 <ul>
-<li>Uniqueness is not enforced by the <code>rtf</code> CLI but it is worthwhile ensuring that the test plans
-you write each have unique names that can be used to distinguish them.</li>
+<li>Uniqueness is not enforced by the <code>rtf</code> CLI but test plans should have unique names that can be
+used to distinguish them.</li>
 </ul>
 </li>
 <li><code>description</code>: A brief, human readable description of the behaviour of the Test Plan.
@@ -208,7 +208,7 @@ rather than in comments or other files (such as a README).</li>
 are arrays of scalars.
 <ul>
 <li>Each matrix entry must have a consistent type for the variables array. Mixing different scalar
-variables will result in an error when you attempt to run the Test Plan.</li>
+variables will result in an error when the Test Plan is run.</li>
 <li>An optional <code>variant_names</code> key can be provided to customise the names of the output directories
 used by each variant.</li>
 </ul>
@@ -244,8 +244,8 @@ three source types:</p>
 <p>The <code>local</code> and <code>github</code> types support optional <code>overrides</code> that merge on top of the base
 configuration before the Test Plan is templated and checked.</p>
 <h3 id="inline-configuration"><a class="header" href="#inline-configuration">Inline configuration</a></h3>
-<p>To provide your configuration inline, add an <code>inline</code> key under the relevant top level <code>scenario</code> or
-<code>environment</code> key and then write your config file as normal.</p>
+<p>To provide configuration inline, add an <code>inline</code> key under the relevant top level <code>scenario</code> or
+<code>environment</code> key and provide the config file contents underneath.</p>
 <pre><code class="language-yaml">scenario:
   inline:
     # your scenario.yaml configuration goes here
@@ -256,8 +256,8 @@ configuration before the Test Plan is templated and checked.</p>
 </code></pre>
 <h3 id="from-a-local-file"><a class="header" href="#from-a-local-file">From a local file</a></h3>
 <p>To use a local file as a base, add a <code>from</code> key under the relevant top level <code>scenario</code> or
-<code>environment</code> key, specifying the <code>kind</code> as <code>local</code> and giving the relative path <em>from the
-test-plan.yaml file</em> under the <code>relative_path</code> key.</p>
+<code>environment</code> key, specifying the <code>kind</code> as <code>local</code> and the relative path <em>from the test-plan.yaml
+file</em> under the <code>relative_path</code> key.</p>
 <p>To define <em>overrides</em>, add the <code>overrides</code> key at the same indentation level as <code>from</code> and then add
 your override configuration under that key. The structure here is <em>not</em> required to parse as a full
 config file so you are free to only specify the keys that you need.</p>

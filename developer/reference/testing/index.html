@@ -35,10 +35,10 @@
             const path_to_root = "../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../searchindex-ee00936e.js";
+            window.path_to_searchindex_js = "../../../searchindex-63b85d0a.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../../toc-d9552613.js"></script>
+        <script src="../../../toc-1451011a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -184,7 +184,7 @@ well-structured, automated tests. High-quality testing enables safe, rapid itera
 delivery. This document serves as our implementation guide for delivering well-tested software.</p>
 <p>Each crate has its own page within the docs explaining test structure and how tests are implemented.
 Testing guidance applicable across all crates is documented on this page.</p>
-<h2 id="organizing-tests"><a class="header" href="#organizing-tests">Organizing Tests</a></h2>
+<h2 id="organizing-tests"><a class="header" href="#organizing-tests">Organizing tests</a></h2>
 <p>Each crate’s page describes a hierarchy that should be followed for all tests in that crate.
 Examples are included for additional guidance.</p>
 <p>The key aim of the hierarchies is to ensure that all tests related to the same level in the
@@ -192,7 +192,7 @@ hierarchy are named consistently, making it easy to find related tests. The hier
 followed using a combination of module structure and test case naming. For module structure, the
 primary concern is ensuring that code has the right scope and privacy level. Test structure is a
 secondary concern to module structure.</p>
-<h2 id="test-case-naming"><a class="header" href="#test-case-naming">Test Case Naming</a></h2>
+<h2 id="test-case-naming"><a class="header" href="#test-case-naming">Test case naming</a></h2>
 <p>Test cases should be uniquely named within their hierarchy. The test cases should be given
 meaningful names that describe what is being tested.</p>
 <p>Examples of good test case names:</p>
@@ -209,7 +209,7 @@ meaningful names that describe what is being tested.</p>
 <li><code>optional_field_specified1</code> &amp; <code>optional_field_specified2</code> - incrementing test cases by integer
 does not differentiate the test cases</li>
 </ul>
-<h2 id="test-coverage-reports"><a class="header" href="#test-coverage-reports">Test Coverage Reports</a></h2>
+<h2 id="test-coverage-reports"><a class="header" href="#test-coverage-reports">Test coverage reports</a></h2>
 <p>This section documents how to run a full test coverage report for RTF.</p>
 <blockquote>
 <p><strong>Note</strong>: There are no test coverage targets for RTF. A test coverage report showing a high

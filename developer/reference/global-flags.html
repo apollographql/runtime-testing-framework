@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-ee00936e.js";
+            window.path_to_searchindex_js = "../../searchindex-63b85d0a.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-d9552613.js"></script>
+        <script src="../../toc-1451011a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -177,18 +177,49 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <!-- diataxis-type: explanation -->
+                        <!-- diataxis-type: reference -->
 <h1 id="global-flags"><a class="header" href="#global-flags">Global flags</a></h1>
-<p>The CLI exposes the following global flags for all subcommands to use:</p>
+<p>The CLI exposes the following global flags available to all subcommands:</p>
+<h2 id="--var"><a class="header" href="#--var"><code>--var</code></a></h2>
+<p>Provides a single additional templating variable.</p>
+<p><strong>Syntax:</strong></p>
+<pre><code>--var &lt;KEY&gt;=&lt;VALUE&gt;
+</code></pre>
+<p><strong>Example:</strong></p>
+<pre><code class="language-bash">rtf run test-plan.yaml --var 'message="hello, world"'
+</code></pre>
+<p>Multiple <code>--var</code> flags can be specified to override multiple variables:</p>
+<pre><code class="language-bash">rtf run test-plan.yaml \
+  --var 'message="hello"' \
+  --var 'subject="world"'
+</code></pre>
+<h2 id="--vars"><a class="header" href="#--vars"><code>--vars</code></a></h2>
+<p>Provides multiple templating variables from a JSON file.</p>
+<p><strong>Syntax:</strong></p>
+<pre><code>--vars &lt;PATH&gt;
+</code></pre>
+<p>Where <code>&lt;PATH&gt;</code> is a path to a JSON file containing key-value pairs.</p>
+<p><strong>Example:</strong></p>
+<p>Given a file <code>variables.json</code>:</p>
+<pre><code class="language-json">{
+  "message": "hello",
+  "subject": "world"
+}
+</code></pre>
+<pre><code class="language-bash">rtf run test-plan.yaml --vars variables.json
+</code></pre>
+<h2 id="precedence"><a class="header" href="#precedence">Precedence</a></h2>
+<p>Variables are resolved in the following order (later values override earlier):</p>
+<ol>
+<li>Variables defined in the test plan’s <code>variables</code> section</li>
+<li>Variables provided via <code>--vars</code> JSON file</li>
+<li>Variables provided via <code>--var</code> flags</li>
+</ol>
+<h2 id="related"><a class="header" href="#related">Related</a></h2>
 <ul>
-<li><code>--var</code></li>
-<li><code>--vars</code></li>
+<li><a href="../../tutorials/hello-world.html">Hello, world! tutorial</a> - demonstrates variable overrides</li>
+<li><a href="../../reference/framework/test-plans.html">Test Plans reference</a> - documents the <code>variables</code> section</li>
 </ul>
-<h2 id="the---var-flag"><a class="header" href="#the---var-flag">The <code>--var</code> flag</a></h2>
-<p>This is used to override a single variable in a test plan.</p>
-<h2 id="the---vars-flag"><a class="header" href="#the---vars-flag">The <code>--vars</code> flag</a></h2>
-<p>This is used to override multiple variables in a test plan. This must be specified as a path to a
-JSON file containing the variables.</p>
 
                     </main>
 

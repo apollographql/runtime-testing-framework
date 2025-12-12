@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-ee00936e.js";
+            window.path_to_searchindex_js = "../../searchindex-63b85d0a.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-d9552613.js"></script>
+        <script src="../../toc-1451011a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -179,6 +179,152 @@
                     <main>
                         <!-- diataxis-type: explanation -->
 <h1 id="concepts-and-architecture"><a class="header" href="#concepts-and-architecture">Concepts and Architecture</a></h1>
+<p>This page provides a high-level overview of RTF’s architecture and the key concepts that inform its
+design.</p>
+<h2 id="crates"><a class="header" href="#crates">Crates</a></h2>
+<p>RTF is organized as a <a href="https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html">Cargo workspace</a> with crates stored in the <code>crates</code> directory. Each crate
+has its own README file explaining its purpose at the crate’s root.</p>
+<p>The <code>rtf-config</code> crate is the heart of RTF. It handles:</p>
+<ul>
+<li><strong>Parsing</strong> - YAML config files (Test Plans, Environments, Scenarios) are parsed into strongly
+typed Rust structs</li>
+<li><strong>Templating</strong> - Variable substitution using the <code>{{ variable }}</code> syntax</li>
+<li><strong>Validation</strong> - Static analysis checks before execution</li>
+<li><strong>Providers</strong> - Both file providers and command providers live here</li>
+</ul>
+<p>The crate exposes a <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs">ResolutionContext</a> trait that abstracts all IO operations, enabling
+testability and CLI control over execution.</p>
+<p>The <code>rtf-core</code> crate provides the <code>rtf-config</code> crate with clients to make various HTTP requests.</p>
+<p>The other crates sit above these crates, providing business logic and presentation layers for RTF.</p>
+<h2 id="data-flow"><a class="header" href="#data-flow">Data flow</a></h2>
+<p>When a user runs <code>rtf run test-plan.yaml</code>, the following flow occurs:</p>
+<pre><code>┌─────────────────────────────────────────────────────────────────────────┐
+│                              rtf run                                     │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  1. Load Test Plan                                                       │
+│     - Parse test-plan.yaml                                               │
+│     - Load custom provider definitions                                   │
+│     - Resolve scenario/environment references (local or GitHub)          │
+│     - Apply any overrides                                                │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  2. Template Environment Setup                                           │
+│     - Substitute variables into setup section                            │
+│     - Run static analysis checks                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  3. Execute Environment Setup                                            │
+│     - Resolve file providers                                             │
+│     - Run setup command                                                  │
+│     - Capture "provides" output for later templating                     │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  4. Template Scenario + Environment Teardown                             │
+│     - Use setup output to finish templating                              │
+│     - Run static analysis checks                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  5. Execute Scenario                                                     │
+│     - Resolve file providers                                             │
+│     - Run scenario command                                               │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  6. Execute Environment Teardown                                         │
+│     - Resolve file providers                                             │
+│     - Run teardown command                                               │
+└─────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+<h2 id="key-abstractions"><a class="header" href="#key-abstractions">Key abstractions</a></h2>
+<h3 id="providers"><a class="header" href="#providers">Providers</a></h3>
+<p>Providers are the primary extension point in RTF. They come in two forms:</p>
+<ul>
+<li>
+<p><strong>File Providers</strong> - Generate files that are made available to commands via environment variables.
+Examples include <code>relative_path</code> (reading a file from a specific relative path),
+<code>graphos_supergraph</code> (fetch from GraphOS), and <code>merge_yaml</code> (a utility to merge yaml from multiple
+sources). Custom Providers allow users to define their own file providers using YAML definitions
+that execute commands to produce files.</p>
+</li>
+<li>
+<p><strong>Command Providers</strong> - Define executable commands with their environment variables and file
+provider dependencies. Environments and Scenarios are both command providers with defined
+execution semantics.</p>
+</li>
+</ul>
+<h3 id="the-template-trait"><a class="header" href="#the-template-trait">The Template trait</a></h3>
+<p>The <code>Template</code> trait enables recursive traversal of config structs to find and resolve templatable
+fields. It is typically derived using <code>#[derive(Template)]</code> from <code>rtf-derive</code>.</p>
+<h3 id="the-field-type"><a class="header" href="#the-field-type">The Field type</a></h3>
+<p>The <code>Field&lt;T&gt;</code> enum is the mechanism that enables templating within config structs. It wraps scalar
+types (strings, numbers, booleans) and can exist in one of two states:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub enum Field&lt;T&gt; {
+    Pending(String),   // Contains a variable name to be resolved
+    Resolved(T),       // Contains the final value
+}
+<span class="boring">}</span></code></pre>
+<p>When RTF parses a YAML config file, any value matching the <code>"{{ variable_name }}"</code> pattern is
+deserialized as <code>Field::Pending("variable_name")</code>. Values without this pattern become
+<code>Field::Resolved(value)</code> immediately.</p>
+<p>For example, given this YAML:</p>
+<pre><code class="language-yaml">graph_ref: "{{ graph }}"
+top_n: 20
+</code></pre>
+<p>The <code>graph_ref</code> field parses as <code>Field::Pending("graph")</code> while <code>top_n</code> parses as
+<code>Field::Resolved(20)</code>.</p>
+<p>During templating, the <code>Template</code> trait’s <code>try_template</code> method walks the config struct and resolves
+each pending field by looking up its variable name in the <code>TemplateContext</code>. Once resolved, the
+field transitions from <code>Pending</code> to <code>Resolved</code> and can be used during execution.</p>
+<p>This design provides several benefits:</p>
+<ul>
+<li><strong>Type safety</strong> - The generic parameter <code>T</code> ensures variables resolve to the correct type</li>
+<li><strong>Validation</strong> - Pending fields are detected before execution, enabling early error reporting</li>
+<li><strong>Traceability</strong> - The path to each field is tracked, producing clear error messages like
+<code>ERROR (environment.setup.file_providers[0].graph_ref) unknown templating variable: graph</code></li>
+</ul>
+<h3 id="resolutioncontext"><a class="header" href="#resolutioncontext">ResolutionContext</a></h3>
+<p>All IO in providers must go through the <code>ResolutionContext</code> trait. This abstraction:</p>
+<ul>
+<li>Enables mocking in tests</li>
+<li>Gives the CLI control over execution</li>
+<li>Provides a consistent interface for file operations, HTTP requests, and command execution</li>
+</ul>
+<p>See <a href="context.html">Use of IO in Providers</a> for more details.</p>
+<h2 id="design-principles"><a class="header" href="#design-principles">Design principles</a></h2>
+<p>RTF follows several key design principles:</p>
+<ol>
+<li>
+<p><strong>Composition over embedding</strong> - RTF composes with external tools rather than embedding them. See
+the <a href="../../explanation/overview.html">Overview</a> for more on this philosophy.</p>
+</li>
+<li>
+<p><strong>Plumbing and porcelain</strong> - Commands are split into low-level “plumbing” (like <code>template</code>) and
+high-level “porcelain” (like <code>run</code>). See
+<a href="cli-design/plumbing-vs-porcelain.html">Plumbing vs Porcelain</a>.</p>
+</li>
+<li>
+<p><strong>No built-in magic</strong> - Commands don’t have special inline logic. See
+<a href="cli-design/no-built-in-magic.html">No Built-in Magic</a>.</p>
+</li>
+<li>
+<p><strong>Fail fast with good errors</strong> - RTF validates early and reports all known errors in batch rather
+than failing on the first error. See <a href="../reference/error-handling.html">Error Handling</a>.</p>
+</li>
+</ol>
 
                     </main>
 
