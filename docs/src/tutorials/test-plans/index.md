@@ -9,11 +9,13 @@ the [morgue][0].
 
 ## Prerequisites
 
-We recommend completing the ["Hello, World!"](../hello-world.md) guide first to ensure you're
-familiar with the rtf CLI and have it properly installed.
+We recommend completing the ["Hello, World!"][1] guide first to ensure you're familiar with the rtf
+CLI and have it properly installed.
 
 ---
 
-**Next:** [Writing a test plan](writing-a-test-plan.md)
+**Next:** [Writing a test plan][2]
 
 [0]: https://github.com/apollographql/rtf-morgue
+[1]: ../hello-world.md
+[2]: writing-a-test-plan.md

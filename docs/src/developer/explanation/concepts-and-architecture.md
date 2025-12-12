@@ -25,7 +25,7 @@ The `rtf-core` crate provides the `rtf-config` crate with clients to make variou
 
 The other crates sit above these crates, providing business logic and presentation layers for RTF.
 
-## Data Flow
+## Data flow
 
 When a user runs `rtf run test-plan.yaml`, the following flow occurs:
 
@@ -80,7 +80,7 @@ When a user runs `rtf run test-plan.yaml`, the following flow occurs:
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Key Abstractions
+## Key abstractions
 
 ### Providers
 
@@ -96,7 +96,7 @@ Providers are the primary extension point in RTF. They come in two forms:
   provider dependencies. Environments and Scenarios are both command providers with defined
   execution semantics.
 
-### The Template Trait
+### The Template trait
 
 The `Template` trait enables recursive traversal of config structs to find and resolve templatable
 fields. It is typically derived using `#[derive(Template)]` from `rtf-derive`.
@@ -148,7 +148,7 @@ All IO in providers must go through the `ResolutionContext` trait. This abstract
 
 See [Use of IO in Providers](context.md) for more details.
 
-## Design Principles
+## Design principles
 
 RTF follows several key design principles:
 

@@ -34,10 +34,11 @@ test plans!
 ## Example test plans
 
 This repo contains a "Hello, world!" test plan to introduce you to rtf concepts. Start by following
-the ["Hello, world!"](./hello-world.md) guide.
+the ["Hello, world!"][2] guide.
 
 The [rtf-morgue][1] contains the most up-to-date examples of how to write test plans for a variety
 of different test cases. It also contains guides for running those test plans.
 
 [0]: https://mise.jdx.dev/getting-started.html
 [1]: https://github.com/apollographql/rtf-morgue
+[2]: ./hello-world.md

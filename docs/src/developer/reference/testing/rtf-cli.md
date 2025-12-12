@@ -45,7 +45,7 @@ env_dependency::command::flags_test_case
 env_dependency::command::flags_test_class::test_case
 ```
 
-### Example - Template and Check
+### Example - template and check
 
 This example demonstrates how to test that a local test plan can be templated and passes a static
 check. Working through the hierarchy:
@@ -79,7 +79,7 @@ fn check_completes_with_cli_variables() {
 }
 ```
 
-### Example - Run from GitHub
+### Example - run from GitHub
 
 This example demonstrates how to test that the run command can execute a test plan stored in GitHub.
 Working through the hierarchy:
@@ -125,7 +125,7 @@ fn github_flag_produces_expected_output() {
 The [`rtf-cli`][0] crate uses specialized testing tools and patterns focused on testing CLI
 behavior, command execution, and user-facing functionality.
 
-### Testing Infrastructure
+### Testing infrastructure
 
 The crate leverages the following key testing tools:
 
@@ -140,7 +140,7 @@ The crate leverages the following key testing tools:
 - **[`simple_test_case`][1]** - Enables parameterized testing with `#[test_case]` attributes for
   testing multiple input variations
 
-### Command Testing Patterns
+### Command testing patterns
 
 The CLI tests focus on three main areas of functionality:
 
@@ -149,7 +149,7 @@ The CLI tests focus on three main areas of functionality:
 2. **Output validation** - Ensuring the CLI produces correct stdout/stderr content
 3. **Exit status verification** - Checking that commands succeed or fail with appropriate exit codes
 
-#### Basic Command Testing
+#### Basic command testing
 
 Tests verify that commands are executable and respond appropriately to basic invocations:
 
@@ -163,7 +163,7 @@ fn is_executable() {
 }
 ```
 
-#### Parameterized Testing for Multiple Scenarios
+#### Parameterized testing for multiple scenarios
 
 Complex scenarios use parameterized testing to cover multiple input variations efficiently:
 
@@ -185,7 +185,7 @@ fn check_completes_basic(test_plan_dir: &str) {
 }
 ```
 
-### Temporary Directory Management
+### Temporary directory management
 
 The crate implements a custom `CmdWithTmpDir` utility that combines command execution with temporary
 directory management:
@@ -200,7 +200,7 @@ pub struct CmdWithTmpDir {
 This ensures that test files and directories are properly cleaned up after test execution while
 providing convenient access to both the command and the temporary filesystem state.
 
-### Error Testing Strategy
+### Error testing strategy
 
 CLI error testing focuses on user-facing error messages and exit codes:
 
@@ -234,7 +234,7 @@ fn templating_fails(file: &str, err_contains: &str) {
 }
 ```
 
-### Integration Testing Approach
+### Integration testing approach
 
 Since the [`rtf-cli`][0] crate tests are integration tests, they focus on end-to-end functionality
 rather than unit testing individual functions. This includes:
@@ -244,7 +244,7 @@ rather than unit testing individual functions. This includes:
 - **Environment isolation** - Using `env_clear()` to ensure consistent test conditions
 - **Output capture and validation** - Asserting on complete stdout/stderr content
 
-### Test Resource Management
+### Test resource management
 
 Test data is organized in a structured resource hierarchy:
 

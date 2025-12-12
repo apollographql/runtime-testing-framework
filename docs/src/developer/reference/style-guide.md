@@ -203,14 +203,15 @@ Explain placeholders if not self-evident:
 ### Headings
 
 - Use sentence case (capitalize first word only)
-- No trailing punctuation
+- No trailing punctuation (question marks are allowed for rhetorical headers)
 - Use H2 (`##`) for main sections, H3 (`###`) for subsections
 - Avoid H1 (`#`) except for page title
 
-| Good                      | Bad                       |
-| ------------------------- | ------------------------- |
-| Configure the environment | Configure The Environment |
-| Running test plans        | Running Test Plans.       |
+| Good                            | Bad                       |
+| ------------------------------- | ------------------------- |
+| Configure the environment       | Configure The Environment |
+| Running test plans              | Running Test Plans.       |
+| When is it worthwhile using RTF | When Is It Worthwhile?    |
 
 ### Lists
 

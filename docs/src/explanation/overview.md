@@ -22,7 +22,7 @@ contained functions of their inputs. Need access to a resource inside of your te
 appropriate provider. Need access to the same resource when you're spinning up your test
 environment? Add the provider there as well: RTF will handle de-duplicating the resources for you.
 
-### Once size fits most (not all)
+### One size fits most (not all)
 
 Aiming to provide a working out of the box solution for every use case we come across inevitably
 results in chasing a long tail infrequently used aspects of the system that bitrot or are
@@ -67,7 +67,7 @@ services and their interactions with specific data sets or configuration. If wha
 test can be handled as unit tests or smaller functional tests then you should almost certainly _not_
 be using RTF for that particular use case.
 
-There are, of course, exceptions rules like this. For example, [this test plan][7] runs a Rust test
+There are, of course, exceptions rules like this. For example, [this test plan][6] runs a Rust test
 scenario for the Query Planner to check how memory usage varies for different customer graphs and
 queries. The test itself is modelled on an existing unit test in the Router repo, but we write it as
 an RTF test plan so we can leverage the file providers that pull schemas and operations from studio
@@ -133,7 +133,7 @@ would like the same functionality and it might make sense to support it natively
 ### Layer 1: RTF core
 
 The final layer is RTF itself. Here we provide the `rtf` CLI which supports a number of
-[built-in providers][3] that serve as a minimal foundation for writing test plans. At this layer you
+[built-in providers][2] that serve as a minimal foundation for writing test plans. At this layer you
 have maximum flexibility to implement what you need but at the cost of minimal guarantees around how
 you have composed together the different elements that make up your test plan.
 
@@ -145,18 +145,17 @@ providers and test scripts in a self consistent way.
 ## Next steps
 
 Now that you've read a little of the "why" its time to dig into the "how". Unsurprisingly, the
-[Getting started][4] section is where we recommend you start first if your goal is to learn about
+[Getting started][3] section is where we recommend you start first if your goal is to learn about
 how RTF works and how you can work with pre-existing test plans. If you want to dig more into the
-framework itself, then the [Test plans][5] and [framework][6] sections are more likely what you are
+framework itself, then the [Test plans][4] and [framework][5] sections are more likely what you are
 after.
 
 Happy testing!
 
 [0]: https://apollographql.atlassian.net/wiki/spaces/RUNTIMEREADINESS/pages/1814036490/Router+Release+Validation
 [1]: https://github.com/apollographql/rtf-morgue/tree/main/lib
-[2]: https://apollographql.atlassian.net/browse/RR-351
-[3]: ../reference/framework/file-providers.md
-[4]: ../tutorials/index.md
-[5]: ../tutorials/test-plans/index.md
-[6]: ../reference/framework/index.md
-[7]: https://github.com/apollographql/rtf-morgue/tree/0843b875ea896b80309d73ac034b1a42b171c6cf/test-plans/query-planner-memory
+[2]: ../reference/framework/file-providers.md
+[3]: ../tutorials/index.md
+[4]: ../tutorials/test-plans/index.md
+[5]: ../reference/framework/index.md
+[6]: https://github.com/apollographql/rtf-morgue/tree/0843b875ea896b80309d73ac034b1a42b171c6cf/test-plans/query-planner-memory

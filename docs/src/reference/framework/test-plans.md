@@ -26,12 +26,12 @@ references to Scenario and Environment configurations.
     used by each variant.
 - `custom_providers`: Declarations for loading Custom Provider Definitions.
   - For full details on the structure of Custom Provider Declarations and Definitions see the
-    [Custom Providers][7] page of the Framework documentation.
+    [Custom Providers][5] page of the Framework documentation.
 - `scenario`: A [Config Spec](#config-specs) for the scenario to be run.
-  - For full details on the structure of a Scenario see the [Scenario][2] page of the Framework
+  - For full details on the structure of a Scenario see the [Scenario][0] page of the Framework
     documentation.
 - `environment`: A [Config Spec](#config-specs) for the test environment to provision.
-  - For full details on the structure of an Environment see the [Environment][3] page of the
+  - For full details on the structure of an Environment see the [Environment][1] page of the
     Framework documentation.
 
 ## Config Specs
@@ -104,7 +104,7 @@ the mainline branch.
 
 > You _must_ have a valid GitHub access token with permissions to interact with your chosen
 > repository exported as `GITHUB_TOKEN` in your shell environment for this method to work. See
-> [here][4] for GitHub's documentation on how to create and manage access tokens.
+> [here][2] for GitHub's documentation on how to create and manage access tokens.
 
 As with using a [local file](#from-a-local-file), _overrides_ can be defined by adding the
 `overrides` key at the same indentation level as `from` and then adding your override configuration
@@ -153,7 +153,7 @@ Once the overrides have been applied and the resulting config file is successful
 arrays are then sorted and deduplicated based on an appropriate key in order to support replacing
 array elements:
 
-- For [File providers][5] the key used is `env_var`.
+- For [File providers][3] the key used is `env_var`.
 - For variable declarations and environment setup "provides" the key used is `name`.
 
 ## A note on relative paths
@@ -174,7 +174,7 @@ config file.
 
 ## Working with matrices
 
-The `matrix` key expands to multiple test plan variants via the [cartesian product][6] of its
+The `matrix` key expands to multiple test plan variants via the [cartesian product][4] of its
 dimensions.
 
 For example, the following matrix:
@@ -371,11 +371,9 @@ environment:
           An additional file that wasn't present in the original environment.yaml
 ```
 
-[0]: ../../tutorials/hello-world.md
-[1]: ./index.md
-[2]: ./scenarios.md
-[3]: ./environments.md
-[4]: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
-[5]: ./file-providers.md
-[6]: https://en.wikipedia.org/wiki/Cartesian_product
-[7]: ./custom-providers.md
+[0]: ./scenarios.md
+[1]: ./environments.md
+[2]: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
+[3]: ./file-providers.md
+[4]: https://en.wikipedia.org/wiki/Cartesian_product
+[5]: ./custom-providers.md

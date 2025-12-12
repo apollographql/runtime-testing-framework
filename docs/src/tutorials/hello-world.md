@@ -12,10 +12,10 @@ look at a couple of simple ways we can make changes to the config files in order
 behaviour.
 
 > For more information on the structure of RTF test plan config files see the
-> [Framework / Test Plans](../reference/framework/test-plans.md) page.
+> [Framework / Test Plans][1] page.
 >
 > For details on how to get started with writing your own test plans from scratch see the
-> [Writing test plans](./test-plans/index.md) section.
+> [Writing test plans][3] section.
 
 The "hello, world!" test plan contains a brief description, a few variables, and references to
 scenario and environment config files:
@@ -375,5 +375,6 @@ with static string content in order to generate a unique name for each variant. 
 is then slugified to remove whitespace and slashes.
 
 [0]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans
-[1]: https://github.com/apollographql/runtime-testing-framework/tree/main/example-test-plans/hello-world/test-plan.yaml
+[1]: ../reference/framework/test-plans.md
 [2]: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/running-variations-of-jobs-in-a-workflow
+[3]: ./test-plans/index.md
