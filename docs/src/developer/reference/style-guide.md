@@ -101,13 +101,16 @@ remaining easy for contributors and tooling to identify.
 
 ### "We" Voice
 
-The "we" voice is permitted in **Tutorials** and **Explanation docs**:
+The "we" voice is permitted in **Tutorials**, **Explanation docs**, and **Developer Reference
+docs**:
 
 - **Tutorials:** Use "we" to create a collaborative journey between writer and reader ("We'll start
   by...", "Now we can..."). This affirms the tutor-learner relationship recommended by Diataxis.
 - **Explanation:** Use "we" for team perspective and design rationale ("We designed RTF to...").
+- **Developer Reference:** Use "we" for internal team perspective when documenting implementation
+  details ("We use a set of four traits...", "We check for any errors...").
 
-How-to guides and Reference docs should use "you", imperative, or neutral third-person voice.
+How-to guides and User Reference docs should use "you", imperative, or neutral third-person voice.
 
 **Allowed (Tutorial):**
 

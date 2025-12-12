@@ -11,8 +11,8 @@ references to Scenario and Environment configurations.
 ## Top level keys
 
 - `name`: The name for this Test Plan.
-  - Uniqueness is not enforced by the `rtf` CLI but it is worthwhile ensuring that the test plans
-    you write each have unique names that can be used to distinguish them.
+  - Uniqueness is not enforced by the `rtf` CLI but test plans should have unique names that can be
+    used to distinguish them.
 - `description`: A brief, human readable description of the behaviour of the Test Plan.
   - If there are any pre-requisites to running this Test Plan it is best to call them out here
     rather than in comments or other files (such as a README).
@@ -21,7 +21,7 @@ references to Scenario and Environment configurations.
 - `matrix`: Dimensions specified as key value pairs for templating the Test Plan where the variables
   are arrays of scalars.
   - Each matrix entry must have a consistent type for the variables array. Mixing different scalar
-    variables will result in an error when you attempt to run the Test Plan.
+    variables will result in an error when the Test Plan is run.
   - An optional `variant_names` key can be provided to customise the names of the output directories
     used by each variant.
 - `custom_providers`: Declarations for loading Custom Provider Definitions.
@@ -49,8 +49,8 @@ configuration before the Test Plan is templated and checked.
 
 ### Inline configuration
 
-To provide your configuration inline, add an `inline` key under the relevant top level `scenario` or
-`environment` key and then write your config file as normal.
+To provide configuration inline, add an `inline` key under the relevant top level `scenario` or
+`environment` key and provide the config file contents underneath.
 
 ```yaml
 scenario:
@@ -67,8 +67,8 @@ environment:
 ### From a local file
 
 To use a local file as a base, add a `from` key under the relevant top level `scenario` or
-`environment` key, specifying the `kind` as `local` and giving the relative path _from the
-test-plan.yaml file_ under the `relative_path` key.
+`environment` key, specifying the `kind` as `local` and the relative path _from the test-plan.yaml
+file_ under the `relative_path` key.
 
 To define _overrides_, add the `overrides` key at the same indentation level as `from` and then add
 your override configuration under that key. The structure here is _not_ required to parse as a full

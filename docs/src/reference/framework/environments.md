@@ -11,8 +11,8 @@ is a [Command Provider][1].
 ## Top level keys
 
 - `name`: The name for this Environment configuration.
-  - Uniqueness is not enforced by the `rtf` CLI but it is worthwhile ensuring that the environments
-    you write each have unique names that can be used to distinguish them.
+  - Uniqueness is not enforced by the `rtf` CLI but environments should have unique names that can
+    be used to distinguish them.
 - `description`: A brief, human readable description of the behaviour of the Environment.
   - If there are any pre-requisites to running this Environment it is best to call them out here
     rather than in comments or other files (such as a README).
