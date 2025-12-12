@@ -8,7 +8,7 @@ already have the files in a directory named `rtf-custom-provider`. Your director
 state it was at the end of that guide.
 
 ```bash
-$ ls -R
+ls -R
 my-provider.yaml scripts
 
 ./scripts:
@@ -110,7 +110,9 @@ rtf template test-plan.yaml
 This fails with an error:
 
 ```
-ERROR (environment.setup.file_providers.ENV_GENERATOR.definition) missing required custom provider arguments: ["project_name"]
+ERROR Templating failed
+(environment.setup.file_providers.ENV_GENERATOR.env_vars.PROJECT_NAME) Unknown templating variable
+project_name
 ```
 
 This error occurs because the `env-generator` custom provider has a `project_name` variable with no
@@ -190,10 +192,10 @@ Let's run the test plan to see the custom provider in action:
 rtf run test-plan.yaml
 ```
 
-The output shows:
+You should see output similar to this:
 
 ```
-Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+Generated environment config in /path/to/output/providers/setup_providers/env-generator
 === ENV_VARS.txt contents ===
 PROJECT_NAME=my-test-project
 LOG_LEVEL=info
@@ -236,8 +238,13 @@ You can override the default `log_level` value by adding it as an argument. Upda
 Run the test plan again:
 
 ```bash
-$ rtf run test-plan.yaml
-Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
+Generated environment config in /path/to/output/providers/setup_providers/env-generator
 === ENV_VARS.txt contents ===
 PROJECT_NAME=my-test-project
 LOG_LEVEL=debug
@@ -285,6 +292,11 @@ environment:
   inline:
     name: Custom provider environment
     description: An environment that uses the env-generator custom provider
+# --- Add variable_definitions to allow templating ---
+    variable_definitions:
+      - name: project_name
+        description: The project name passed to the custom provider
+# ----------------------------------------------------
     setup:
       command:
         name: setup.sh
@@ -319,8 +331,13 @@ environment:
 Run the test plan:
 
 ```bash
-$ rtf run test-plan.yaml
-Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
+Generated environment config in /path/to/output/providers/setup_providers/env-generator
 === ENV_VARS.txt contents ===
 PROJECT_NAME=my-variable-project
 LOG_LEVEL=debug
@@ -334,8 +351,13 @@ The `PROJECT_NAME` is now set from the test plan variable. You can also override
 using the `--var` flag:
 
 ```bash
-$ rtf run test-plan.yaml --var project_name=runtime-override
-Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+rtf run test-plan.yaml --var project_name=runtime-override
+```
+
+Output:
+
+```
+Generated environment config in /path/to/output/providers/setup_providers/env-generator
 === ENV_VARS.txt contents ===
 PROJECT_NAME=runtime-override
 LOG_LEVEL=debug

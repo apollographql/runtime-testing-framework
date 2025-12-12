@@ -192,11 +192,17 @@ This should result in the fully templated test plan being printed to the termina
 ```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
-matrix: {}
+variables: {}
+matrix:
+  variant_names: null
+  dimensions: {}
+  include: []
+custom_providers: []
 scenario:
   name: Inline scenario config
   description: An inline scenario config
   variable_definitions: []
+  custom_providers: []
   command:
     name: scenario.sh
     kind: inline
@@ -211,6 +217,7 @@ environment:
   name: Inline environment config
   description: An inline environment config
   variable_definitions: []
+  custom_providers: []
   setup:
     command:
       name: setup.sh
@@ -225,7 +232,7 @@ environment:
     provides: []
   teardown:
     command:
-      name: setup.sh
+      name: teardown.sh
       kind: inline
       content: |
         #!/usr/bin/env sh
@@ -247,19 +254,22 @@ Before looking at `variables` and `matrix`, let's run the test plan:
 rtf run test-plan.yaml
 ```
 
-This results in the following terminal output and an `output` directory:
+You should see output similar to this:
 
-```bash
-"environment setup command executed"
-"scenario command executed"
-"environment teardown command executed"
+```
+environment setup command executed
+scenario command executed
+environment teardown command executed
 ```
 
-The `output` directory contains two files, `resolved-test-plan.yaml` and `test-plan-variables.json`.
+This also creates an `output` directory.
+
+The `output` directory contains a `providers` directory and two files: `resolved-test-plan.yaml` and
+`test-plan-variables.json`.
 
 - `resolved-test-plan.yaml` contains the fully resolved test plan config. This should be the same as
-  what was shown in the `rtf template` command. This is a way to sanity check the test plan that ran
-  to give you the output.
+  what was shown in the `rtf template` command. This is a way to verify the test plan that ran to
+  give you the output.
 - `test-plan-variables.json` contains the variables used during the execution of the test plan. This
   is empty since no variables were set.
 
@@ -336,7 +346,12 @@ environment:
 You can see the value being used by running the test plan again:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 environment setup command executed
 example variable
 environment teardown command executed
@@ -345,7 +360,12 @@ environment teardown command executed
 Now, the `test-plan-variables.json` file contains the variable that we set in the test plan:
 
 ```bash
-$ cat output/test-plan-variables.json 
+cat output/test-plan-variables.json
+```
+
+Output:
+
+```json
 {
   "example_variable": "example variable"
 }
@@ -418,7 +438,12 @@ The terminal output will look different this time - the environment and scenario
 executed twice. The `output` directory will also have a different structure:
 
 ```bash
-$ ls output/
+ls output/
+```
+
+Output:
+
+```
 variable1        variable2
 ```
 
@@ -426,12 +451,24 @@ Let's look at each of those matrix directories to see the different variable val
 execution:
 
 ```bash
-$ cat output/variable1/test-plan-variables.json 
+cat output/variable1/test-plan-variables.json
+```
+
+Output:
+
+```json
 {
   "example_variable": "variable1"
 }
+```
 
-$ cat output/variable2/test-plan-variables.json
+```bash
+cat output/variable2/test-plan-variables.json
+```
+
+Output:
+
+```json
 {
   "example_variable": "variable2"
 }

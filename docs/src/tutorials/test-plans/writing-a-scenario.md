@@ -114,76 +114,24 @@ Now check the test plan templates:
 rtf template test-plan.yaml
 ```
 
-This will result in the following YAML being printed to the terminal:
-
-```yaml
-name: Hello World
-description: A test plan created as a guide for writing test plans
-variables: {}
-matrix: {}
-scenario:
-  name: Inline scenario config
-  description: An inline scenario config
-  variable_definitions:
-  - name: scenario_variable
-    description: An example variable that the scenario expects to be defined
-    default: scenario executed with default value
-  command:
-    name: scenario.sh
-    kind: relative_path
-    path: ../scripts/scenario.sh
-    args: []
-  env_vars:
-    SCENARIO_ENV: scenario executed with default value
-  file_providers:
-  - name: file.txt
-    env_var: FILE_TXT
-    kind: relative_path
-    path: ../data/file.txt
-  - name: scenario.txt
-    env_var: SCENARIO_TXT
-    kind: inline
-    content: |
-      Some inline text content for our scenario
-environment:
-  name: Inline environment config
-  description: An inline environment config
-  variable_definitions: []
-  setup:
-    command:
-      name: setup.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "environment setup command executed"
-      args: []
-    env_vars: {}
-    file_providers: []
-    provides: []
-  teardown:
-    command:
-      name: setup.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "environment teardown command executed"
-      args: []
-    env_vars: {}
-    file_providers: []
-```
-
-This is the exact same test plan as we had when the scenario was defined inline. In fact, the
-template command is inlining the config ahead of execution.
+This will result in YAML being printed to the terminal, showing the scenario config has been inlined
+from the external file. This is exactly what we had when the scenario was defined inline - the
+template command inlines external configs ahead of execution.
 
 When writing configs with a lot of files on relative paths, it is good practice to use the `--check`
 flag when running the `template` command. This will check that files on relative paths can be found.
 Let's see what happens when we run with that flag:
 
 ```bash
-$ rtf template test-plan.yaml --check
-ERROR (command.command_provider) the requested file did not exist.: provided path was Resolved("scripts/scenario.sh")
+rtf template test-plan.yaml --check
+```
+
+Output:
+
+```
+ERROR Static analysis checks failed
+(scenario.command.command_provider) The requested file did not exist
+provided path was file:///path/to/configs/scripts/scenario.sh
 ```
 
 When copying over our inline scenario config we forgot to account for the fact that our
@@ -207,7 +155,12 @@ If we run the `template` command again with the `--check` flag you should see th
 printed to your terminal:
 
 ```bash
-$ rtf template test-plan.yaml --check
+rtf template test-plan.yaml --check
+```
+
+You should see output similar to this:
+
+```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
 ...
@@ -288,8 +241,14 @@ information about how and why the variable is used. Variables are templated into
 Let's attempt to template the test plan:
 
 ```bash
-$ rtf template test-plan.yaml
-ERROR (scenario) missing template variables: scenario_variable
+rtf template test-plan.yaml
+```
+
+Output:
+
+```
+ERROR Templating failed
+(scenario.env_vars.SCENARIO_ENV) Missing template variables definition
 ```
 
 We have successfully defined a variable and where it should be used. However, we have not specified
@@ -316,22 +275,27 @@ env_vars:
 Lets run this and see what happens:
 
 ```bash
-$ rtf run test-plan.yaml
-"environment setup command executed"
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
+environment setup command executed
 Running scenario from an external file
 scenario executed with default value
-"environment teardown command executed"
+environment teardown command executed
 ```
 
 The second scenario `echo` statement uses the default variable. We can override this variable by
-setting a different value in the test plan (this will take presence over a default). Update
+setting a different value in the test plan (this will take precedence over a default). Update
 `test-plan.yaml`:
 
 ```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
 # --- Add a new value for scenario_variable ---
-variable_definitions:
+variables:
   scenario_variable: "scenario executed with test plan variable"
 # ------------------------------------------
 scenario:
@@ -364,22 +328,32 @@ environment:
 Now if we run:
 
 ```bash
-$ run test-plan.yaml
-"environment setup command executed"
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
+environment setup command executed
 Running scenario from an external file
 scenario executed with test plan variable
-"environment teardown command executed"
+environment teardown command executed
 ```
 
 We can see that the variable from the test plan has overridden the default. Similarly, if the
 variable is specified from the CLI it will override both the test plan variable and default:
 
 ```bash
-$ run test-plan.yaml --var scenario_variable="scenario executed with cli variable"
-"environment setup command executed"
+rtf run test-plan.yaml --var scenario_variable="scenario executed with cli variable"
+```
+
+Output:
+
+```
+environment setup command executed
 Running scenario from an external file
 scenario executed with cli variable
-"environment teardown command executed"
+environment teardown command executed
 ```
 
 ---

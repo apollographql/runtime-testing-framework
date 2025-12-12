@@ -7,7 +7,7 @@ You should already have the files in a directory named `rtf-hello-world`. Your d
 in the state it was at the end of that guide:
 
 ```bash
-$ ls -R
+ls -R
 configs         scripts         test-plan.yaml
 
 rtf-hello-world/configs:
@@ -74,17 +74,36 @@ We haven't yet updated the scenario's command to make use of this, but let's loo
 when we run the test plan and examine the providers output:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
 scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=2
+```
 
-$ ls output/providers
-scenario.sh     scenario.txt    setup.sh        teardown.sh
+```bash
+ls output/providers/scenario_providers
+```
 
-$ cat output/providers/scenario.txt 
+Output:
+
+```
+scenario.sh     scenario.txt
+```
+
+```bash
+cat output/providers/scenario_providers/scenario.txt
+```
+
+Output:
+
+```
 Some inline text content for our scenario
 ```
 
@@ -106,7 +125,12 @@ echo "$SCENARIO_ENV"
 Now, if we run the test plan:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
@@ -140,8 +164,8 @@ as many files as you need via a list. Before adding the new file to the config, 
 file itself:
 
 ```bash
-$ mkdir data
-$ touch data/file.txt
+mkdir data
+touch data/file.txt
 ```
 
 Add the following content to `file.txt`:
@@ -197,7 +221,12 @@ echo "$SCENARIO_ENV"
 Now, let's run the test plan:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
@@ -205,9 +234,16 @@ Some inline text content for our scenario
 More content from a file for our scenario
 scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=2
+```
 
-$ ls output/providers 
-file.txt        scenario.sh     scenario.txt    setup.sh        teardown.sh
+```bash
+ls output/providers/scenario_providers
+```
+
+Output:
+
+```
+file.txt        scenario.sh     scenario.txt
 ```
 
 As expected, we also see the content of `file.txt` in our test plan execution. We can also see the
@@ -265,8 +301,15 @@ teardown:
 Now, let's see what happens when we try to template this test plan:
 
 ```bash
-$ rtf template test-plan.yaml --check --var process_id="id"
-ERROR (config.txt) a required file has not been defined.: Please specify a config file
+rtf template test-plan.yaml --check --var process_id="id"
+```
+
+Output:
+
+```
+ERROR Static analysis checks failed
+(setup.CONFIG) A required file has not been defined
+Please specify a config file
 ```
 
 We get an error saying we haven't defined a required file, along with the message we put in the
@@ -303,79 +346,15 @@ environment:
 # --------------------------------------
 ```
 
-The override will match based on the `name` key. If we template now, we get:
+The override will match based on the `name` key. If we template now:
 
 ```bash
-$ rtf template test-plan.yaml --check --var process_id="id"
-name: Hello World
-description: A test plan created as a guide for writing test plans
-variables:
-  example_variable: variable
-  scenario_variable: scenario executed with test plan variable
-  process_id: id
-matrix: {}
-scenario:
-  name: Inline scenario config
-  description: An inline scenario config
-  variable_definitions:
-  - name: scenario_variable
-    description: An example variable that the scenario expects to be defined
-    default: scenario executed with default value
-  command:
-    name: scenario.sh
-    kind: relative_path
-    path: ../scripts/scenario.sh
-    args: []
-  env_vars:
-    SCENARIO_ENV: scenario executed with test plan variable
-  file_providers:
-  - name: file.txt
-    env_var: FILE_TXT
-    kind: relative_path
-    path: ../data/file.txt
-  - name: scenario.txt
-    env_var: SCENARIO_TXT
-    kind: inline
-    content: |
-      Some inline text content for our scenario
-environment:
-  name: Inline environment config
-  description: An inline environment config
-  variable_definitions: []
-  setup:
-    command:
-      name: setup.sh
-      kind: relative_path
-      path: scripts/setup.sh
-      args: []
-    env_vars: {}
-    file_providers:
-    - name: config.txt
-      env_var: CONFIG
-      kind: inline
-      content: |
-        Config
-    provides:
-    - name: process_id
-      description: The id of the process started in the environment setup
-      default: null
-  teardown:
-    command:
-      name: teardown.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
-      args: []
-    env_vars:
-      PROCESS_ID: id
-    file_providers: []
+rtf template test-plan.yaml --check --var process_id="id"
 ```
 
-If you look at `setup.file_providers`, you can see that `config.txt` now uses the config from the
-overrides. Our test plan no longer contains a `required` file, so we no longer get that error. The
-`rtf run` command can also complete successfully now.
+You should see the full templated output. If you look at `setup.file_providers`, you can see that
+`config.txt` now uses the config from the overrides. Our test plan no longer contains a `required`
+file, so we no longer get that error. The `rtf run` command can also complete successfully now.
 
 ---
 

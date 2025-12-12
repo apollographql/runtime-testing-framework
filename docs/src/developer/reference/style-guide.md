@@ -92,23 +92,32 @@ remaining easy for contributors and tooling to identify.
 
 ### Person
 
-| Doc Type    | Person                               | Example                            |
-| ----------- | ------------------------------------ | ---------------------------------- |
-| Tutorial    | Second ("you")                       | "You configure the environment..." |
-| How-to      | Second ("you") / Imperative          | "Configure the environment..."     |
-| Reference   | Third / Neutral                      | "The environment defines..."       |
-| Explanation | First plural ("we") + Second ("you") | "We designed this because..."      |
+| Doc Type    | Person                               | Example                           |
+| ----------- | ------------------------------------ | --------------------------------- |
+| Tutorial    | First plural ("we") + Second ("you") | "We'll start by...", "You run..." |
+| How-to      | Second ("you") / Imperative          | "Configure the environment..."    |
+| Reference   | Third / Neutral                      | "The environment defines..."      |
+| Explanation | First plural ("we") + Second ("you") | "We designed this because..."     |
 
 ### "We" Voice
 
-The team voice ("we at RTF", "we recommend") is permitted **only in Explanation docs**. All other
-doc types should use "you" or imperative mood.
+The "we" voice is permitted in **Tutorials** and **Explanation docs**:
+
+- **Tutorials:** Use "we" to create a collaborative journey between writer and reader ("We'll start
+  by...", "Now we can..."). This affirms the tutor-learner relationship recommended by Diataxis.
+- **Explanation:** Use "we" for team perspective and design rationale ("We designed RTF to...").
+
+How-to guides and Reference docs should use "you", imperative, or neutral third-person voice.
+
+**Allowed (Tutorial):**
+
+> We'll start with templating and running the test plan. Then, we'll make some changes.
 
 **Allowed (Explanation):**
 
 > We here at Runtime Readiness are big fans of the Unix Philosophy.
 
-**Not allowed (Tutorial/How-to/Reference):**
+**Not allowed (How-to/Reference):**
 
 > ~~We recommend using the `--dry-run` flag.~~ → Use the `--dry-run` flag.
 
@@ -163,7 +172,7 @@ Verify the test plan templates correctly:
 
     rtf template test-plan.yaml --check
 
-The output is similar to this:
+You should see output similar to this::
 
     name: Hello World
     description: A test plan created as a guide
@@ -368,7 +377,7 @@ List prerequisites in a blockquote or admonition:
 Before submitting documentation:
 
 - [ ] First line includes `<!-- diataxis-type: <type> -->` comment
-- [ ] Voice matches doc type (no "we" in tutorials/how-to/reference)
+- [ ] Voice matches doc type (no "we" in how-to/reference)
 - [ ] No shell prompts in command examples
 - [ ] Placeholders use angle brackets
 - [ ] RTF terminology capitalized correctly
