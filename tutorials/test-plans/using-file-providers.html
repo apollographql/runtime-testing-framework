@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-032c7814.js";
+            window.path_to_searchindex_js = "../../searchindex-ee00936e.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-cf036e76.js"></script>
+        <script src="../../toc-d9552613.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -182,7 +182,7 @@
 <p>This guide assumes you’ve completed the <a href="writing-an-environment.html">“Writing an environment”</a> guide.
 You should already have the files in a directory named <code>rtf-hello-world</code>. Your directory should be
 in the state it was at the end of that guide:</p>
-<pre><code class="language-bash">$ ls -R
+<pre><code class="language-bash">ls -R
 configs         scripts         test-plan.yaml
 
 rtf-hello-world/configs:
@@ -239,18 +239,24 @@ defined in the scenario will also be available to the teardown.</p>
 </blockquote>
 <p>We haven’t yet updated the scenario’s command to make use of this, but let’s look at what happens
 when we run the test plan and examine the providers output:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Using the override setup script
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
 scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=2
-
-$ ls output/providers
-scenario.sh     scenario.txt    setup.sh        teardown.sh
-
-$ cat output/providers/scenario.txt 
-Some inline text content for our scenario
+</code></pre>
+<pre><code class="language-bash">ls output/providers/scenario_providers
+</code></pre>
+<p>Output:</p>
+<pre><code>scenario.sh     scenario.txt
+</code></pre>
+<pre><code class="language-bash">cat output/providers/scenario_providers/scenario.txt
+</code></pre>
+<p>Output:</p>
+<pre><code>Some inline text content for our scenario
 </code></pre>
 <p>We’ve successfully updated our test plan to write a new <code>scenario.txt</code> file to the output with the
 content we specified inline. Let’s make use of this in our command script. Note that when specifying
@@ -265,8 +271,10 @@ cat $SCENARIO_TXT
 echo "$SCENARIO_ENV"
 </code></pre>
 <p>Now, if we run the test plan:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Using the override setup script
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
 Some inline text content for our scenario
@@ -292,8 +300,8 @@ incorrectly defined keys.</p>
 <p>Let’s add a file from a relative path to the scenario config. The <code>file_provider</code> field can accept
 as many files as you need via a list. Before adding the new file to the config, let’s create the
 file itself:</p>
-<pre><code class="language-bash">$ mkdir data
-$ touch data/file.txt
+<pre><code class="language-bash">mkdir data
+touch data/file.txt
 </code></pre>
 <p>Add the following content to <code>file.txt</code>:</p>
 <pre><code>More content from a file for our scenario
@@ -338,17 +346,21 @@ cat $FILE_TXT
 echo "$SCENARIO_ENV"
 </code></pre>
 <p>Now, let’s run the test plan:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Using the override setup script
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
 Some inline text content for our scenario
 More content from a file for our scenario
 scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=2
-
-$ ls output/providers 
-file.txt        scenario.sh     scenario.txt    setup.sh        teardown.sh
+</code></pre>
+<pre><code class="language-bash">ls output/providers/scenario_providers
+</code></pre>
+<p>Output:</p>
+<pre><code>file.txt        scenario.sh     scenario.txt
 </code></pre>
 <p>As expected, we also see the content of <code>file.txt</code> in our test plan execution. We can also see the
 file itself in the output.</p>
@@ -397,8 +409,12 @@ teardown:
     PROCESS_ID: "{{ process_id }}"
 </code></pre>
 <p>Now, let’s see what happens when we try to template this test plan:</p>
-<pre><code class="language-bash">$ rtf template test-plan.yaml --check --var process_id="id"
-ERROR (config.txt) a required file has not been defined.: Please specify a config file
+<pre><code class="language-bash">rtf template test-plan.yaml --check --var process_id="id"
+</code></pre>
+<p>Output:</p>
+<pre><code>ERROR Static analysis checks failed
+(setup.CONFIG) A required file has not been defined
+Please specify a config file
 </code></pre>
 <p>We get an error saying we haven’t defined a required file, along with the message we put in the
 <code>message</code> field. We’d get the same error if we tried <code>rtf run</code>.</p>
@@ -430,76 +446,12 @@ environment:
             Config
 # --------------------------------------
 </code></pre>
-<p>The override will match based on the <code>name</code> key. If we template now, we get:</p>
-<pre><code class="language-bash">$ rtf template test-plan.yaml --check --var process_id="id"
-name: Hello World
-description: A test plan created as a guide for writing test plans
-variables:
-  example_variable: variable
-  scenario_variable: scenario executed with test plan variable
-  process_id: id
-matrix: {}
-scenario:
-  name: Inline scenario config
-  description: An inline scenario config
-  variable_definitions:
-  - name: scenario_variable
-    description: An example variable that the scenario expects to be defined
-    default: scenario executed with default value
-  command:
-    name: scenario.sh
-    kind: relative_path
-    path: ../scripts/scenario.sh
-    args: []
-  env_vars:
-    SCENARIO_ENV: scenario executed with test plan variable
-  file_providers:
-  - name: file.txt
-    env_var: FILE_TXT
-    kind: relative_path
-    path: ../data/file.txt
-  - name: scenario.txt
-    env_var: SCENARIO_TXT
-    kind: inline
-    content: |
-      Some inline text content for our scenario
-environment:
-  name: Inline environment config
-  description: An inline environment config
-  variable_definitions: []
-  setup:
-    command:
-      name: setup.sh
-      kind: relative_path
-      path: scripts/setup.sh
-      args: []
-    env_vars: {}
-    file_providers:
-    - name: config.txt
-      env_var: CONFIG
-      kind: inline
-      content: |
-        Config
-    provides:
-    - name: process_id
-      description: The id of the process started in the environment setup
-      default: null
-  teardown:
-    command:
-      name: teardown.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
-      args: []
-    env_vars:
-      PROCESS_ID: id
-    file_providers: []
+<p>The override will match based on the <code>name</code> key. If we template now:</p>
+<pre><code class="language-bash">rtf template test-plan.yaml --check --var process_id="id"
 </code></pre>
-<p>If you look at <code>setup.file_providers</code>, you can see that <code>config.txt</code> now uses the config from the
-overrides. Our test plan no longer contains a <code>required</code> file, so we no longer get that error. The
-<code>rtf run</code> command can also complete successfully now.</p>
+<p>You should see the full templated output. If you look at <code>setup.file_providers</code>, you can see that
+<code>config.txt</code> now uses the config from the overrides. Our test plan no longer contains a <code>required</code>
+file, so we no longer get that error. The <code>rtf run</code> command can also complete successfully now.</p>
 <hr>
 <p>Congratulations! You’ve now completed the guide on how to write test plans.</p>
 

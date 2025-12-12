@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-032c7814.js";
+            window.path_to_searchindex_js = "../../searchindex-ee00936e.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-cf036e76.js"></script>
+        <script src="../../toc-d9552613.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -183,7 +183,7 @@
 <a href="writing-a-custom-provider-definition.html">“Writing a custom provider definition”</a> guide. You should
 already have the files in a directory named <code>rtf-custom-provider</code>. Your directory should be in the
 state it was at the end of that guide.</p>
-<pre><code class="language-bash">$ ls -R
+<pre><code class="language-bash">ls -R
 my-provider.yaml scripts
 
 ./scripts:
@@ -274,7 +274,9 @@ the values it sets, then prints the contents of <code>base-config.txt</code>.</l
 <pre><code class="language-bash">rtf template test-plan.yaml
 </code></pre>
 <p>This fails with an error:</p>
-<pre><code>ERROR (environment.setup.file_providers.ENV_GENERATOR.definition) missing required custom provider arguments: ["project_name"]
+<pre><code>ERROR Templating failed
+(environment.setup.file_providers.ENV_GENERATOR.env_vars.PROJECT_NAME) Unknown templating variable
+project_name
 </code></pre>
 <p>This error occurs because the <code>env-generator</code> custom provider has a <code>project_name</code> variable with no
 default value. Notice that <code>log_level</code> is not in the error because it has a default value of
@@ -340,8 +342,8 @@ arguments are resolved and used to template the provider definition.</p>
 <p>Let’s run the test plan to see the custom provider in action:</p>
 <pre><code class="language-bash">rtf run test-plan.yaml
 </code></pre>
-<p>The output shows:</p>
-<pre><code>Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+<p>You should see output similar to this:</p>
+<pre><code>Generated environment config in /path/to/output/providers/setup_providers/env-generator
 === ENV_VARS.txt contents ===
 PROJECT_NAME=my-test-project
 LOG_LEVEL=info
@@ -374,8 +376,10 @@ LOG_LEVEL=info
 # ----------------------------
 </code></pre>
 <p>Run the test plan again:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Generated environment config in /path/to/output/providers/setup_providers/env-generator
 === ENV_VARS.txt contents ===
 PROJECT_NAME=my-test-project
 LOG_LEVEL=debug
@@ -415,6 +419,11 @@ environment:
   inline:
     name: Custom provider environment
     description: An environment that uses the env-generator custom provider
+# --- Add variable_definitions to allow templating ---
+    variable_definitions:
+      - name: project_name
+        description: The project name passed to the custom provider
+# ----------------------------------------------------
     setup:
       command:
         name: setup.sh
@@ -446,8 +455,10 @@ environment:
           #!/usr/bin/env sh
 </code></pre>
 <p>Run the test plan:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Generated environment config in /path/to/output/providers/setup_providers/env-generator
 === ENV_VARS.txt contents ===
 PROJECT_NAME=my-variable-project
 LOG_LEVEL=debug
@@ -458,8 +469,10 @@ LOG_LEVEL=debug
 </code></pre>
 <p>The <code>PROJECT_NAME</code> is now set from the test plan variable. You can also override this at runtime
 using the <code>--var</code> flag:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml --var project_name=runtime-override
-Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+<pre><code class="language-bash">rtf run test-plan.yaml --var project_name=runtime-override
+</code></pre>
+<p>Output:</p>
+<pre><code>Generated environment config in /path/to/output/providers/setup_providers/env-generator
 === ENV_VARS.txt contents ===
 PROJECT_NAME=runtime-override
 LOG_LEVEL=debug

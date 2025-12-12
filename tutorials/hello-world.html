@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-032c7814.js";
+            window.path_to_searchindex_js = "../searchindex-ee00936e.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-cf036e76.js"></script>
+        <script src="../toc-d9552613.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -216,42 +216,52 @@ environment:
 <h2 id="pre-flight-checks"><a class="header" href="#pre-flight-checks">Pre-Flight Checks</a></h2>
 <p>Use the <code>rtf template</code> subcommand to pull in the scenario and environment config files referenced by
 the test plan in order to see the fully templated file:</p>
-<pre><code class="language-bash">$ rtf template example-test-plans/hello-world/test-plan.yaml
+<pre><code class="language-bash">rtf template example-test-plans/hello-world/test-plan.yaml
 </code></pre>
 <p>You should see a larger YAML file containing all the information <code>rtf</code> needs to be able to run the
-test plan. So, lets try running it!</p>
+test plan. So, let’s try running it!</p>
 <h2 id="running-a-test-plan"><a class="header" href="#running-a-test-plan">Running a Test Plan</a></h2>
 <p>To run the test plan, use the <code>run</code> subcommand. The <code>-v</code> option sets the log level to <code>INFO</code>:</p>
-<pre><code>$ rtf run example-test-plans/hello-world/test-plan.yaml -v
-
- INFO loading and resolving test plan
+<pre><code class="language-bash">rtf run example-test-plans/hello-world/test-plan.yaml -v
+</code></pre>
+<p>You should see output similar to this:</p>
+<pre><code> INFO loading and resolving test plan
  INFO checking if templating will work
  INFO creating output directory
  INFO executing test plan
  INFO templating environment setup
  INFO checking environment setup
  INFO executing environment setup
-&gt;&gt;&gt; Hello from env-setup!
+env-setup :: hello, world!
  INFO templating scenario and environment teardown commands
  INFO checking scenario and environment teardown commands
  INFO executing scenario
-&gt;&gt;&gt; Hello from scenario!
+scenario :: hello, darkness my old friend
  INFO executing environment teardown
-&gt;&gt;&gt; Hello from env-teardown!
+---
+ INFO writing out resolved test plan and variables
  INFO done
 </code></pre>
 <p>You should also see that you now have an <code>output</code> directory in the directory where you ran <code>rtf</code>.
 Take a look inside:</p>
-<pre><code>$ ls output
-combined-output.txt  echo-message.sh  teardown.sh
-
-$ cat output/combined-output.txt
-env-setup :: hello, world!
+<pre><code class="language-bash">ls output
+</code></pre>
+<p>Output:</p>
+<pre><code>combined-output.txt
+providers
+resolved-test-plan.yaml
+test-plan-variables.json
+</code></pre>
+<p>The <code>providers</code> directory contains the scripts that were copied from the <strong>file_providers</strong>
+specified in our scenario and environment config files. Let’s look at the combined output:</p>
+<pre><code class="language-bash">cat output/combined-output.txt
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: hello, world!
 scenario :: hello, darkness my old friend
 ---
 </code></pre>
-<p>The <code>echo-message.sh</code> and <code>teardown.sh</code> scripts came from the <strong>FileProviders</strong> specified in our
-scenario and environment config files:</p>
+<p>The scripts used to generate this output are:</p>
 <h4 id="echo-messagesh"><a class="header" href="#echo-messagesh">echo-message.sh</a></h4>
 <pre><code class="language-bash">#!/usr/bin/env sh
 
@@ -272,27 +282,13 @@ echo "---" | tee -a "$OUTDIR/combined-output.txt"
 exists. This is a safety mechanism to prevent you from accidentally overwriting existing data or
 merging the output from multiple runs together. Either remove the existing directory
 (<code>rm -rf output</code>) or specify a new one using the <code>--outdir</code> flag:</p>
-<pre><code>$ rtf run example-test-plans/hello-world/test-plan.yaml -v --outdir=more_output
-
- INFO loading and resolving test plan
- INFO checking if templating will work
- INFO creating output directory
- INFO executing test plan
- INFO templating environment setup
- INFO checking environment setup
- INFO executing environment setup
-&gt;&gt;&gt; Hello from env-setup!
- INFO templating scenario and environment teardown commands
- INFO checking scenario and environment teardown commands
- INFO executing scenario
-&gt;&gt;&gt; Hello from scenario!
- INFO executing environment teardown
-&gt;&gt;&gt; Hello from env-teardown!
- INFO done
-
-$ ls | grep output
-
-more_output
+<pre><code class="language-bash">rtf run example-test-plans/hello-world/test-plan.yaml -v --outdir=more_output
+</code></pre>
+<p>You should see output similar to before. You can verify both output directories exist:</p>
+<pre><code class="language-bash">ls | grep output
+</code></pre>
+<p>Output:</p>
+<pre><code>more_output
 output
 </code></pre>
 <h2 id="modifying-variables"><a class="header" href="#modifying-variables">Modifying Variables</a></h2>
@@ -319,9 +315,10 @@ environment:
     relative_path: environment.yaml
 </code></pre>
 <p>Run the test plan again using the default log level:</p>
-<pre><code>$ rtf run example-test-plans/hello-world/test-plan.yaml
-
-env-setup :: hello, world!
+<pre><code class="language-bash">rtf run example-test-plans/hello-world/test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: hello, world!
 scenario :: hello, darkness my old friend
 ---
 </code></pre>
@@ -333,10 +330,11 @@ scenario :: hello, darkness my old friend
    scenario_subject: "darkness my old friend"
 </code></pre>
 <p>Run the test plan again to see the modified output:</p>
-<pre><code>$ rm output -rf
-$ rtf run example-test-plans/hello-world/test-plan.yaml
-
-env-setup :: hello, sailor!
+<pre><code class="language-bash">rm output -rf
+rtf run example-test-plans/hello-world/test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: hello, sailor!
 scenario :: hello, darkness my old friend
 ---
 </code></pre>
@@ -348,44 +346,50 @@ and scenario, as they both reference the same shared variable:</p>
    setup_subject: "world!"
    scenario_subject: "darkness my old friend"
 </code></pre>
-<pre><code>$ rm output -rf
-$ rtf run example-test-plans/hello-world/test-plan.yaml
-
-env-setup :: say hi to the world!
+<pre><code class="language-bash">rm output -rf
+rtf run example-test-plans/hello-world/test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: say hi to the world!
 scenario :: say hi to the darkness my old friend
 ---
 </code></pre>
 <h2 id="overriding-individual-variables"><a class="header" href="#overriding-individual-variables">Overriding Individual Variables</a></h2>
 <p>If you want to override the value of a variable use the <code>--var</code> or <code>--vars</code> flags to specify
 overrides on the command line:</p>
-<pre><code class="language-bash">$ rtf run example-test-plans/hello-world/test-plan.yaml \
+<pre><code class="language-bash">rtf run example-test-plans/hello-world/test-plan.yaml \
   --var 'message="say hi to the "'
-
-env-setup :: say hi to the world!
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: say hi to the world!
 scenario :: say hi to the darkness my old friend
 ---
 </code></pre>
 <p>We can also provide the flag multiple times to override multiple variables:</p>
-<pre><code class="language-bash">$ rtf run example-test-plans/hello-world/test-plan.yaml \
+<pre><code class="language-bash">rtf run example-test-plans/hello-world/test-plan.yaml \
   --var 'message="say hi to the "' \
   --var 'setup_subject=sailor!'
-
-env-setup :: say hi to the sailor!
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: say hi to the sailor!
 scenario :: say hi to the darkness my old friend
 ---
 </code></pre>
 <p>It is also possible to use the <code>--vars</code> flag to provide the location of a JSON file containing the
 variables you want to override on top of the ones given in the test plan:</p>
-<pre><code class="language-bash">$ cat example-test-plans/hello-world/variables.json
-{
+<pre><code class="language-bash">cat example-test-plans/hello-world/variables.json
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-json">{
   "message": "say hi to the ",
   "setup_subject": "sailor!"
 }
-
-$ rtf run example-test-plans/hello-world/test-plan.yaml \
+</code></pre>
+<pre><code class="language-bash">rtf run example-test-plans/hello-world/test-plan.yaml \
   --vars example-test-plans/hello-world/variables.json
-
-env-setup :: say hi to the sailor!
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: say hi to the sailor!
 scenario :: say hi to the darkness my old friend
 ---
 </code></pre>
@@ -416,10 +420,11 @@ it under the <code>matrix.dimensions</code> section of the test plan:</p>
 +    setup_subject: [ "world!", "sailor!" ]
 </code></pre>
 <p>Running the test plan with two <code>setup_subject</code> variables produces two results:</p>
-<pre><code>$ rm output -rf
-$ rtf run example-test-plans/hello-world/test-plan.yaml
-
-env-setup :: hello, world!
+<pre><code class="language-bash">rm output -rf
+rtf run example-test-plans/hello-world/test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: hello, world!
 scenario :: hello, darkness my old friend
 ---
 env-setup :: hello, sailor!
@@ -438,10 +443,11 @@ scenario :: hello, darkness my old friend
 +    scenario_subject: [ "darkness my old friend", "is it me you're looking for?" ]
 </code></pre>
 <p>We’ll get a run for every <em>combination</em> of variables:</p>
-<pre><code>$ rm output -rf
-$ rtf run example-test-plans/hello-world/test-plan.yaml
-
-env-setup :: hello, world!
+<pre><code class="language-bash">rm output -rf
+rtf run example-test-plans/hello-world/test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: hello, world!
 scenario :: hello, darkness my old friend
 ---
 env-setup :: hello, sailor!

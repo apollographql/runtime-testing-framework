@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-032c7814.js";
+            window.path_to_searchindex_js = "searchindex-ee00936e.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-cf036e76.js"></script>
+        <script src="toc-d9552613.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -383,42 +383,52 @@ environment:
 <h2 id="pre-flight-checks"><a class="header" href="#pre-flight-checks">Pre-Flight Checks</a></h2>
 <p>Use the <code>rtf template</code> subcommand to pull in the scenario and environment config files referenced by
 the test plan in order to see the fully templated file:</p>
-<pre><code class="language-bash">$ rtf template example-test-plans/hello-world/test-plan.yaml
+<pre><code class="language-bash">rtf template example-test-plans/hello-world/test-plan.yaml
 </code></pre>
 <p>You should see a larger YAML file containing all the information <code>rtf</code> needs to be able to run the
-test plan. So, lets try running it!</p>
+test plan. So, let’s try running it!</p>
 <h2 id="running-a-test-plan"><a class="header" href="#running-a-test-plan">Running a Test Plan</a></h2>
 <p>To run the test plan, use the <code>run</code> subcommand. The <code>-v</code> option sets the log level to <code>INFO</code>:</p>
-<pre><code>$ rtf run example-test-plans/hello-world/test-plan.yaml -v
-
- INFO loading and resolving test plan
+<pre><code class="language-bash">rtf run example-test-plans/hello-world/test-plan.yaml -v
+</code></pre>
+<p>You should see output similar to this:</p>
+<pre><code> INFO loading and resolving test plan
  INFO checking if templating will work
  INFO creating output directory
  INFO executing test plan
  INFO templating environment setup
  INFO checking environment setup
  INFO executing environment setup
-&gt;&gt;&gt; Hello from env-setup!
+env-setup :: hello, world!
  INFO templating scenario and environment teardown commands
  INFO checking scenario and environment teardown commands
  INFO executing scenario
-&gt;&gt;&gt; Hello from scenario!
+scenario :: hello, darkness my old friend
  INFO executing environment teardown
-&gt;&gt;&gt; Hello from env-teardown!
+---
+ INFO writing out resolved test plan and variables
  INFO done
 </code></pre>
 <p>You should also see that you now have an <code>output</code> directory in the directory where you ran <code>rtf</code>.
 Take a look inside:</p>
-<pre><code>$ ls output
-combined-output.txt  echo-message.sh  teardown.sh
-
-$ cat output/combined-output.txt
-env-setup :: hello, world!
+<pre><code class="language-bash">ls output
+</code></pre>
+<p>Output:</p>
+<pre><code>combined-output.txt
+providers
+resolved-test-plan.yaml
+test-plan-variables.json
+</code></pre>
+<p>The <code>providers</code> directory contains the scripts that were copied from the <strong>file_providers</strong>
+specified in our scenario and environment config files. Let’s look at the combined output:</p>
+<pre><code class="language-bash">cat output/combined-output.txt
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: hello, world!
 scenario :: hello, darkness my old friend
 ---
 </code></pre>
-<p>The <code>echo-message.sh</code> and <code>teardown.sh</code> scripts came from the <strong>FileProviders</strong> specified in our
-scenario and environment config files:</p>
+<p>The scripts used to generate this output are:</p>
 <h4 id="echo-messagesh"><a class="header" href="#echo-messagesh">echo-message.sh</a></h4>
 <pre><code class="language-bash">#!/usr/bin/env sh
 
@@ -439,27 +449,13 @@ echo "---" | tee -a "$OUTDIR/combined-output.txt"
 exists. This is a safety mechanism to prevent you from accidentally overwriting existing data or
 merging the output from multiple runs together. Either remove the existing directory
 (<code>rm -rf output</code>) or specify a new one using the <code>--outdir</code> flag:</p>
-<pre><code>$ rtf run example-test-plans/hello-world/test-plan.yaml -v --outdir=more_output
-
- INFO loading and resolving test plan
- INFO checking if templating will work
- INFO creating output directory
- INFO executing test plan
- INFO templating environment setup
- INFO checking environment setup
- INFO executing environment setup
-&gt;&gt;&gt; Hello from env-setup!
- INFO templating scenario and environment teardown commands
- INFO checking scenario and environment teardown commands
- INFO executing scenario
-&gt;&gt;&gt; Hello from scenario!
- INFO executing environment teardown
-&gt;&gt;&gt; Hello from env-teardown!
- INFO done
-
-$ ls | grep output
-
-more_output
+<pre><code class="language-bash">rtf run example-test-plans/hello-world/test-plan.yaml -v --outdir=more_output
+</code></pre>
+<p>You should see output similar to before. You can verify both output directories exist:</p>
+<pre><code class="language-bash">ls | grep output
+</code></pre>
+<p>Output:</p>
+<pre><code>more_output
 output
 </code></pre>
 <h2 id="modifying-variables"><a class="header" href="#modifying-variables">Modifying Variables</a></h2>
@@ -486,9 +482,10 @@ environment:
     relative_path: environment.yaml
 </code></pre>
 <p>Run the test plan again using the default log level:</p>
-<pre><code>$ rtf run example-test-plans/hello-world/test-plan.yaml
-
-env-setup :: hello, world!
+<pre><code class="language-bash">rtf run example-test-plans/hello-world/test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: hello, world!
 scenario :: hello, darkness my old friend
 ---
 </code></pre>
@@ -500,10 +497,11 @@ scenario :: hello, darkness my old friend
    scenario_subject: "darkness my old friend"
 </code></pre>
 <p>Run the test plan again to see the modified output:</p>
-<pre><code>$ rm output -rf
-$ rtf run example-test-plans/hello-world/test-plan.yaml
-
-env-setup :: hello, sailor!
+<pre><code class="language-bash">rm output -rf
+rtf run example-test-plans/hello-world/test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: hello, sailor!
 scenario :: hello, darkness my old friend
 ---
 </code></pre>
@@ -515,44 +513,50 @@ and scenario, as they both reference the same shared variable:</p>
    setup_subject: "world!"
    scenario_subject: "darkness my old friend"
 </code></pre>
-<pre><code>$ rm output -rf
-$ rtf run example-test-plans/hello-world/test-plan.yaml
-
-env-setup :: say hi to the world!
+<pre><code class="language-bash">rm output -rf
+rtf run example-test-plans/hello-world/test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: say hi to the world!
 scenario :: say hi to the darkness my old friend
 ---
 </code></pre>
 <h2 id="overriding-individual-variables"><a class="header" href="#overriding-individual-variables">Overriding Individual Variables</a></h2>
 <p>If you want to override the value of a variable use the <code>--var</code> or <code>--vars</code> flags to specify
 overrides on the command line:</p>
-<pre><code class="language-bash">$ rtf run example-test-plans/hello-world/test-plan.yaml \
+<pre><code class="language-bash">rtf run example-test-plans/hello-world/test-plan.yaml \
   --var 'message="say hi to the "'
-
-env-setup :: say hi to the world!
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: say hi to the world!
 scenario :: say hi to the darkness my old friend
 ---
 </code></pre>
 <p>We can also provide the flag multiple times to override multiple variables:</p>
-<pre><code class="language-bash">$ rtf run example-test-plans/hello-world/test-plan.yaml \
+<pre><code class="language-bash">rtf run example-test-plans/hello-world/test-plan.yaml \
   --var 'message="say hi to the "' \
   --var 'setup_subject=sailor!'
-
-env-setup :: say hi to the sailor!
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: say hi to the sailor!
 scenario :: say hi to the darkness my old friend
 ---
 </code></pre>
 <p>It is also possible to use the <code>--vars</code> flag to provide the location of a JSON file containing the
 variables you want to override on top of the ones given in the test plan:</p>
-<pre><code class="language-bash">$ cat example-test-plans/hello-world/variables.json
-{
+<pre><code class="language-bash">cat example-test-plans/hello-world/variables.json
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-json">{
   "message": "say hi to the ",
   "setup_subject": "sailor!"
 }
-
-$ rtf run example-test-plans/hello-world/test-plan.yaml \
+</code></pre>
+<pre><code class="language-bash">rtf run example-test-plans/hello-world/test-plan.yaml \
   --vars example-test-plans/hello-world/variables.json
-
-env-setup :: say hi to the sailor!
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: say hi to the sailor!
 scenario :: say hi to the darkness my old friend
 ---
 </code></pre>
@@ -583,10 +587,11 @@ it under the <code>matrix.dimensions</code> section of the test plan:</p>
 +    setup_subject: [ "world!", "sailor!" ]
 </code></pre>
 <p>Running the test plan with two <code>setup_subject</code> variables produces two results:</p>
-<pre><code>$ rm output -rf
-$ rtf run example-test-plans/hello-world/test-plan.yaml
-
-env-setup :: hello, world!
+<pre><code class="language-bash">rm output -rf
+rtf run example-test-plans/hello-world/test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: hello, world!
 scenario :: hello, darkness my old friend
 ---
 env-setup :: hello, sailor!
@@ -605,10 +610,11 @@ scenario :: hello, darkness my old friend
 +    scenario_subject: [ "darkness my old friend", "is it me you're looking for?" ]
 </code></pre>
 <p>We’ll get a run for every <em>combination</em> of variables:</p>
-<pre><code>$ rm output -rf
-$ rtf run example-test-plans/hello-world/test-plan.yaml
-
-env-setup :: hello, world!
+<pre><code class="language-bash">rm output -rf
+rtf run example-test-plans/hello-world/test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>env-setup :: hello, world!
 scenario :: hello, darkness my old friend
 ---
 env-setup :: hello, sailor!
@@ -800,11 +806,17 @@ scripts.</li>
 <p>This should result in the fully templated test plan being printed to the terminal:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-matrix: {}
+variables: {}
+matrix:
+  variant_names: null
+  dimensions: {}
+  include: []
+custom_providers: []
 scenario:
   name: Inline scenario config
   description: An inline scenario config
   variable_definitions: []
+  custom_providers: []
   command:
     name: scenario.sh
     kind: inline
@@ -819,6 +831,7 @@ environment:
   name: Inline environment config
   description: An inline environment config
   variable_definitions: []
+  custom_providers: []
   setup:
     command:
       name: setup.sh
@@ -833,7 +846,7 @@ environment:
     provides: []
   teardown:
     command:
-      name: setup.sh
+      name: teardown.sh
       kind: inline
       content: |
         #!/usr/bin/env sh
@@ -849,16 +862,18 @@ environment:
 <p>Before looking at <code>variables</code> and <code>matrix</code>, let’s run the test plan:</p>
 <pre><code class="language-bash">rtf run test-plan.yaml
 </code></pre>
-<p>This results in the following terminal output and an <code>output</code> directory:</p>
-<pre><code class="language-bash">"environment setup command executed"
-"scenario command executed"
-"environment teardown command executed"
+<p>You should see output similar to this:</p>
+<pre><code>environment setup command executed
+scenario command executed
+environment teardown command executed
 </code></pre>
-<p>The <code>output</code> directory contains two files, <code>resolved-test-plan.yaml</code> and <code>test-plan-variables.json</code>.</p>
+<p>This also creates an <code>output</code> directory.</p>
+<p>The <code>output</code> directory contains a <code>providers</code> directory and two files: <code>resolved-test-plan.yaml</code> and
+<code>test-plan-variables.json</code>.</p>
 <ul>
 <li><code>resolved-test-plan.yaml</code> contains the fully resolved test plan config. This should be the same as
-what was shown in the <code>rtf template</code> command. This is a way to sanity check the test plan that ran
-to give you the output.</li>
+what was shown in the <code>rtf template</code> command. This is a way to verify the test plan that ran to
+give you the output.</li>
 <li><code>test-plan-variables.json</code> contains the variables used during the execution of the test plan. This
 is empty since no variables were set.</li>
 </ul>
@@ -926,14 +941,18 @@ environment:
           echo "environment teardown command executed"
 </code></pre>
 <p>You can see the value being used by running the test plan again:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-environment setup command executed
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>environment setup command executed
 example variable
 environment teardown command executed
 </code></pre>
 <p>Now, the <code>test-plan-variables.json</code> file contains the variable that we set in the test plan:</p>
-<pre><code class="language-bash">$ cat output/test-plan-variables.json 
-{
+<pre><code class="language-bash">cat output/test-plan-variables.json
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-json">{
   "example_variable": "example variable"
 }
 </code></pre>
@@ -994,18 +1013,24 @@ runs):</p>
 </code></pre>
 <p>The terminal output will look different this time - the environment and scenario commands are
 executed twice. The <code>output</code> directory will also have a different structure:</p>
-<pre><code class="language-bash">$ ls output/
-variable1        variable2
+<pre><code class="language-bash">ls output/
+</code></pre>
+<p>Output:</p>
+<pre><code>variable1        variable2
 </code></pre>
 <p>Let’s look at each of those matrix directories to see the different variable values used per
 execution:</p>
-<pre><code class="language-bash">$ cat output/variable1/test-plan-variables.json 
-{
+<pre><code class="language-bash">cat output/variable1/test-plan-variables.json
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-json">{
   "example_variable": "variable1"
 }
-
-$ cat output/variable2/test-plan-variables.json
-{
+</code></pre>
+<pre><code class="language-bash">cat output/variable2/test-plan-variables.json
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-json">{
   "example_variable": "variable2"
 }
 </code></pre>
@@ -1098,10 +1123,12 @@ environment:
 </code></pre>
 <p>We’re now hoping to echo the exact same message, but this time using an environment variable. If we
 run the test plan:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-"environment setup command executed"
-"scenario command executed"
-"environment teardown command executed"
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>You should see output similar to this:</p>
+<pre><code>environment setup command executed
+scenario command executed
+environment teardown command executed
 </code></pre>
 <p>This works exactly as we hoped!</p>
 <h2 id="inline-command-file"><a class="header" href="#inline-command-file">Inline command file</a></h2>
@@ -1125,8 +1152,8 @@ more in the <a href="#using-file-providers">“Using file providers” guide</a>
 unmanageable for more complex files. You can also save your command scripts in a separate file and
 refer to that file in your command config.</p>
 <p>Let’s start by creating a <code>scenario.sh</code> file in a <code>scripts</code> subdirectory:</p>
-<pre><code class="language-bash">$ mkdir scripts
-$ touch scripts/scenario.sh
+<pre><code class="language-bash">mkdir scripts
+touch scripts/scenario.sh
 </code></pre>
 <p>Make sure the following content is in the <code>scenario.sh</code> script:</p>
 <pre><code class="language-sh">#!/usr/bin/env sh
@@ -1182,20 +1209,24 @@ CLI is run from. This is so that the test plan can refer to files in the directo
 predictable way.</p>
 </blockquote>
 <p>Let’s run the test plan again:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-"environment setup command executed"
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>environment setup command executed
 Running scenario from an external file
 scenario command executed
-"environment teardown command executed"
+environment teardown command executed
 </code></pre>
 <p>The extra echo confirms we’ve used the new <code>scenario.sh</code> file. You should also see that the
-<code>scenario.sh</code> file in the <code>output/providers</code> directory matches what was defined in the <code>scenario.sh</code>
-file we just created. Copying files in this way is intentional behavior for the <code>relative_path</code> file
-provider, other providers have files generated by rtf directly, this is one of the few that
-references files created before rtf runs. It guarantees the path where the file will be located so
-rtf can execute successfully:</p>
-<pre><code class="language-bash">$ cat output/providers/scenario.sh 
-#!/usr/bin/env sh
+<code>scenario.sh</code> file in the <code>output/providers/scenario_providers</code> directory matches what was defined
+in the <code>scenario.sh</code> file we just created. Copying files in this way is intentional behavior for the
+<code>relative_path</code> file provider, other providers have files generated by rtf directly, this is one of
+the few that references files created before rtf runs. It guarantees the path where the file will be
+located so rtf can execute successfully:</p>
+<pre><code class="language-bash">cat output/providers/scenario_providers/scenario.sh
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-sh">#!/usr/bin/env sh
 
 echo "Running scenario from an external file"
 echo "$SCENARIO_ENV"
@@ -1303,70 +1334,18 @@ environment:
 <p>Now check the test plan templates:</p>
 <pre><code class="language-bash">rtf template test-plan.yaml
 </code></pre>
-<p>This will result in the following YAML being printed to the terminal:</p>
-<pre><code class="language-yaml">name: Hello World
-description: A test plan created as a guide for writing test plans
-variables: {}
-matrix: {}
-scenario:
-  name: Inline scenario config
-  description: An inline scenario config
-  variable_definitions:
-  - name: scenario_variable
-    description: An example variable that the scenario expects to be defined
-    default: scenario executed with default value
-  command:
-    name: scenario.sh
-    kind: relative_path
-    path: ../scripts/scenario.sh
-    args: []
-  env_vars:
-    SCENARIO_ENV: scenario executed with default value
-  file_providers:
-  - name: file.txt
-    env_var: FILE_TXT
-    kind: relative_path
-    path: ../data/file.txt
-  - name: scenario.txt
-    env_var: SCENARIO_TXT
-    kind: inline
-    content: |
-      Some inline text content for our scenario
-environment:
-  name: Inline environment config
-  description: An inline environment config
-  variable_definitions: []
-  setup:
-    command:
-      name: setup.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "environment setup command executed"
-      args: []
-    env_vars: {}
-    file_providers: []
-    provides: []
-  teardown:
-    command:
-      name: setup.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "environment teardown command executed"
-      args: []
-    env_vars: {}
-    file_providers: []
-</code></pre>
-<p>This is the exact same test plan as we had when the scenario was defined inline. In fact, the
-template command is inlining the config ahead of execution.</p>
+<p>This will result in YAML being printed to the terminal, showing the scenario config has been inlined
+from the external file. This is exactly what we had when the scenario was defined inline - the
+template command inlines external configs ahead of execution.</p>
 <p>When writing configs with a lot of files on relative paths, it is good practice to use the <code>--check</code>
 flag when running the <code>template</code> command. This will check that files on relative paths can be found.
 Let’s see what happens when we run with that flag:</p>
-<pre><code class="language-bash">$ rtf template test-plan.yaml --check
-ERROR (command.command_provider) the requested file did not exist.: provided path was Resolved("scripts/scenario.sh")
+<pre><code class="language-bash">rtf template test-plan.yaml --check
+</code></pre>
+<p>Output:</p>
+<pre><code>ERROR Static analysis checks failed
+(scenario.command.command_provider) The requested file did not exist
+provided path was file:///path/to/configs/scripts/scenario.sh
 </code></pre>
 <p>When copying over our inline scenario config we forgot to account for the fact that our
 <code>scenario.yaml</code> file is on a different path to our <code>test-plan.yaml</code> file. Relative paths are always
@@ -1384,8 +1363,10 @@ env_vars:
 </code></pre>
 <p>If we run the <code>template</code> command again with the <code>--check</code> flag you should see the config YAML
 printed to your terminal:</p>
-<pre><code class="language-bash">$ rtf template test-plan.yaml --check
-name: Hello World
+<pre><code class="language-bash">rtf template test-plan.yaml --check
+</code></pre>
+<p>You should see output similar to this:</p>
+<pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 ...
 </code></pre>
@@ -1453,8 +1434,11 @@ the template string does not match this exactly, then rtf will error and call ou
 malformed template string.</p>
 </blockquote>
 <p>Let’s attempt to template the test plan:</p>
-<pre><code class="language-bash">$ rtf template test-plan.yaml
-ERROR (scenario) missing template variables: scenario_variable
+<pre><code class="language-bash">rtf template test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>ERROR Templating failed
+(scenario.env_vars.SCENARIO_ENV) Missing template variables definition
 </code></pre>
 <p>We have successfully defined a variable and where it should be used. However, we have not specified
 what value it should actually have. If we attempted to run this test plan we would see the same
@@ -1475,19 +1459,21 @@ env_vars:
   SCENARIO_ENV: "{{ scenario_variable }}"
 </code></pre>
 <p>Lets run this and see what happens:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-"environment setup command executed"
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>environment setup command executed
 Running scenario from an external file
 scenario executed with default value
-"environment teardown command executed"
+environment teardown command executed
 </code></pre>
 <p>The second scenario <code>echo</code> statement uses the default variable. We can override this variable by
-setting a different value in the test plan (this will take presence over a default). Update
+setting a different value in the test plan (this will take precedence over a default). Update
 <code>test-plan.yaml</code>:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 # --- Add a new value for scenario_variable ---
-variable_definitions:
+variables:
   scenario_variable: "scenario executed with test plan variable"
 # ------------------------------------------
 scenario:
@@ -1517,19 +1503,23 @@ environment:
           echo "environment teardown command executed"
 </code></pre>
 <p>Now if we run:</p>
-<pre><code class="language-bash">$ run test-plan.yaml
-"environment setup command executed"
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>environment setup command executed
 Running scenario from an external file
 scenario executed with test plan variable
-"environment teardown command executed"
+environment teardown command executed
 </code></pre>
 <p>We can see that the variable from the test plan has overridden the default. Similarly, if the
 variable is specified from the CLI it will override both the test plan variable and default:</p>
-<pre><code class="language-bash">$ run test-plan.yaml --var scenario_variable="scenario executed with cli variable"
-"environment setup command executed"
+<pre><code class="language-bash">rtf run test-plan.yaml --var scenario_variable="scenario executed with cli variable"
+</code></pre>
+<p>Output:</p>
+<pre><code>environment setup command executed
 Running scenario from an external file
 scenario executed with cli variable
-"environment teardown command executed"
+environment teardown command executed
 </code></pre>
 <hr>
 <p>In this guide, we’ve covered moving scenario config into its own file and using variables. Next,
@@ -1540,7 +1530,7 @@ we’ll guide you through how to write an environment config.</p>
 <p>This guide assumes you’ve completed the <a href="#writing-a-new-scenario">“Writing a scenario”</a> guide. You
 should already have the files in a directory named <code>rtf-hello-world</code>. Your directory should be in
 the state it was at the end of that guide.</p>
-<pre><code class="language-bash">$ ls -R
+<pre><code class="language-bash">ls -R
 configs         scripts         test-plan.yaml
 
 configs:
@@ -1570,7 +1560,7 @@ setup:
       echo "environment setup command executed"
 teardown:
   command:
-    name: setup.sh
+    name: teardown.sh
     kind: inline
     content: |
       #!/usr/bin/env sh
@@ -1592,54 +1582,20 @@ environment:
     relative_path: configs/environment.yaml
 </code></pre>
 <p>Let’s verify this has made no material difference to the templated test plan:</p>
-<pre><code class="language-bash">$ rtf template test-plan.yaml --check
-name: Hello World
+<pre><code class="language-bash">rtf template test-plan.yaml --check
+</code></pre>
+<p>You should see output similar to this:</p>
+<pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 variables:
   scenario_variable: scenario executed with test plan variable
 matrix: {}
 scenario:
   name: Inline scenario config
-  description: An inline scenario config
-  variable_definitions:
-  - name: scenario_variable
-    description: An example variable that the scenario expects to be defined
-    default: scenario executed with default value
-  command:
-    name: scenario.sh
-    kind: relative_path
-    path: ../scripts/scenario.sh
-    args: []
-  env_vars:
-    SCENARIO_ENV: scenario executed with test plan variable
-  file_providers: []
+  ...
 environment:
   name: Inline environment config
-  description: An inline environment config
-  variable_definitions: []
-  setup:
-    command:
-      name: setup.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "environment setup command executed"
-      args: []
-    env_vars: {}
-    file_providers: []
-    provides: []
-  teardown:
-    command:
-      name: setup.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "environment teardown command executed"
-      args: []
-    env_vars: {}
-    file_providers: []
+  ...
 </code></pre>
 <h2 id="environment-config-structure"><a class="header" href="#environment-config-structure">Environment config structure</a></h2>
 <p>Now is a good time to review how the environment config is structured. The main difference compared
@@ -1708,7 +1664,7 @@ setup:
 # --------------------------------
 teardown:
   command:
-    name: setup.sh
+    name: teardown.sh
     kind: inline
     content: |
       #!/usr/bin/env sh
@@ -1743,8 +1699,10 @@ teardown:
 # -----------------------------------
 </code></pre>
 <p>Let’s verify this works:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Environment setup complete. PROCESS_ID=1
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Environment setup complete. PROCESS_ID=1
 Running scenario from an external file
 scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=not yet from setup
@@ -1786,9 +1744,11 @@ using <code>--var process_id="dummy_id"</code>. If you don’t do this, you’ll
 <code>ERROR (environment.teardown.env_vars.PROCESS_ID) unknown templating variable: process_id</code>.</p>
 </blockquote>
 <p>If we try to run this, it won’t work:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Environment setup complete. PROCESS_ID=1
-ERROR missing required output fields from environment setup: ["process_id"]
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Environment setup complete. PROCESS_ID=1
+ERROR Missing required output fields from environment setup: ["process_id"]
 </code></pre>
 <p>This is because we need to update our setup script to output the <code>process_id</code>. To do this, rtf has a
 reserved file that output needs to be <code>echo</code>’d to called <code>RTF_OUTPUT</code>. Let’s look at this in an
@@ -1822,8 +1782,10 @@ teardown:
     PROCESS_ID: "{{ process_id }}"
 </code></pre>
 <p>Now, if we run again, we’ll see the <code>process_id</code> being successfully used in the teardown:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Environment setup complete. PROCESS_ID=1
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Environment setup complete. PROCESS_ID=1
 Running scenario from an external file
 scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=1
@@ -1873,61 +1835,14 @@ environment:
 <code>setup.command</code>, so only that segment of the config is required. rtf will merge the YAML on matching
 keys before checking if it templates. If you run the <code>template</code> command now (pay attention to the
 <code>--var</code> flag here, we need this because of the <code>provides</code> variable):</p>
-<pre><code class="language-bash">$ template rtf-hello-world/test-plan.yaml --check --var process_id=dummy`
-name: Hello World
-description: A test plan created as a guide for writing test plans
-variables:
-  scenario_variable: scenario executed with test plan variable
-  process_id: dummy
-matrix: {}
-scenario:
-  name: Inline scenario config
-  description: An inline scenario config
-  variable_definitions:
-  - name: scenario_variable
-    description: An example variable that the scenario expects to be defined
-    default: scenario executed with default value
-  command:
-    name: scenario.sh
-    kind: relative_path
-    path: ../scripts/scenario.sh
-    args: []
-  env_vars:
-    SCENARIO_ENV: scenario executed with test plan variable
-  file_providers: []
-environment:
-  name: Inline environment config
-  description: An inline environment config
-  variable_definitions: []
-  setup:
-    command:
-      name: setup.sh
-      kind: relative_path
-      path: scripts/setup.sh
-      args: []
-    env_vars: {}
-    file_providers: []
-    provides:
-    - name: process_id
-      description: The id of the process started in the environment setup
-      default: null
-  teardown:
-    command:
-      name: teardown.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
-      args: []
-    env_vars:
-      PROCESS_ID: dummy
-    file_providers: []
+<pre><code class="language-bash">rtf template test-plan.yaml --check --var process_id=dummy
 </code></pre>
-<p>If you look closely at the templated test plan, the setup command now matches what we defined in the
-<code>overrides</code>, while the rest of the environment config is unchanged. If we run the test plan:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Using the override setup script
+<p>You should see that the setup command now matches what we defined in the <code>overrides</code>, while the rest
+of the environment config is unchanged. If we run the test plan:</p>
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
 scenario executed with test plan variable
@@ -1945,7 +1860,7 @@ providers.</p>
 <p>This guide assumes you’ve completed the <a href="#writing-a-new-environment">“Writing an environment”</a> guide.
 You should already have the files in a directory named <code>rtf-hello-world</code>. Your directory should be
 in the state it was at the end of that guide:</p>
-<pre><code class="language-bash">$ ls -R
+<pre><code class="language-bash">ls -R
 configs         scripts         test-plan.yaml
 
 rtf-hello-world/configs:
@@ -2002,18 +1917,24 @@ defined in the scenario will also be available to the teardown.</p>
 </blockquote>
 <p>We haven’t yet updated the scenario’s command to make use of this, but let’s look at what happens
 when we run the test plan and examine the providers output:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Using the override setup script
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
 scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=2
-
-$ ls output/providers
-scenario.sh     scenario.txt    setup.sh        teardown.sh
-
-$ cat output/providers/scenario.txt 
-Some inline text content for our scenario
+</code></pre>
+<pre><code class="language-bash">ls output/providers/scenario_providers
+</code></pre>
+<p>Output:</p>
+<pre><code>scenario.sh     scenario.txt
+</code></pre>
+<pre><code class="language-bash">cat output/providers/scenario_providers/scenario.txt
+</code></pre>
+<p>Output:</p>
+<pre><code>Some inline text content for our scenario
 </code></pre>
 <p>We’ve successfully updated our test plan to write a new <code>scenario.txt</code> file to the output with the
 content we specified inline. Let’s make use of this in our command script. Note that when specifying
@@ -2028,8 +1949,10 @@ cat $SCENARIO_TXT
 echo "$SCENARIO_ENV"
 </code></pre>
 <p>Now, if we run the test plan:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Using the override setup script
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
 Some inline text content for our scenario
@@ -2055,8 +1978,8 @@ incorrectly defined keys.</p>
 <p>Let’s add a file from a relative path to the scenario config. The <code>file_provider</code> field can accept
 as many files as you need via a list. Before adding the new file to the config, let’s create the
 file itself:</p>
-<pre><code class="language-bash">$ mkdir data
-$ touch data/file.txt
+<pre><code class="language-bash">mkdir data
+touch data/file.txt
 </code></pre>
 <p>Add the following content to <code>file.txt</code>:</p>
 <pre><code>More content from a file for our scenario
@@ -2101,17 +2024,21 @@ cat $FILE_TXT
 echo "$SCENARIO_ENV"
 </code></pre>
 <p>Now, let’s run the test plan:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Using the override setup script
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
 Some inline text content for our scenario
 More content from a file for our scenario
 scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=2
-
-$ ls output/providers 
-file.txt        scenario.sh     scenario.txt    setup.sh        teardown.sh
+</code></pre>
+<pre><code class="language-bash">ls output/providers/scenario_providers
+</code></pre>
+<p>Output:</p>
+<pre><code>file.txt        scenario.sh     scenario.txt
 </code></pre>
 <p>As expected, we also see the content of <code>file.txt</code> in our test plan execution. We can also see the
 file itself in the output.</p>
@@ -2160,8 +2087,12 @@ teardown:
     PROCESS_ID: "{{ process_id }}"
 </code></pre>
 <p>Now, let’s see what happens when we try to template this test plan:</p>
-<pre><code class="language-bash">$ rtf template test-plan.yaml --check --var process_id="id"
-ERROR (config.txt) a required file has not been defined.: Please specify a config file
+<pre><code class="language-bash">rtf template test-plan.yaml --check --var process_id="id"
+</code></pre>
+<p>Output:</p>
+<pre><code>ERROR Static analysis checks failed
+(setup.CONFIG) A required file has not been defined
+Please specify a config file
 </code></pre>
 <p>We get an error saying we haven’t defined a required file, along with the message we put in the
 <code>message</code> field. We’d get the same error if we tried <code>rtf run</code>.</p>
@@ -2193,76 +2124,12 @@ environment:
             Config
 # --------------------------------------
 </code></pre>
-<p>The override will match based on the <code>name</code> key. If we template now, we get:</p>
-<pre><code class="language-bash">$ rtf template test-plan.yaml --check --var process_id="id"
-name: Hello World
-description: A test plan created as a guide for writing test plans
-variables:
-  example_variable: variable
-  scenario_variable: scenario executed with test plan variable
-  process_id: id
-matrix: {}
-scenario:
-  name: Inline scenario config
-  description: An inline scenario config
-  variable_definitions:
-  - name: scenario_variable
-    description: An example variable that the scenario expects to be defined
-    default: scenario executed with default value
-  command:
-    name: scenario.sh
-    kind: relative_path
-    path: ../scripts/scenario.sh
-    args: []
-  env_vars:
-    SCENARIO_ENV: scenario executed with test plan variable
-  file_providers:
-  - name: file.txt
-    env_var: FILE_TXT
-    kind: relative_path
-    path: ../data/file.txt
-  - name: scenario.txt
-    env_var: SCENARIO_TXT
-    kind: inline
-    content: |
-      Some inline text content for our scenario
-environment:
-  name: Inline environment config
-  description: An inline environment config
-  variable_definitions: []
-  setup:
-    command:
-      name: setup.sh
-      kind: relative_path
-      path: scripts/setup.sh
-      args: []
-    env_vars: {}
-    file_providers:
-    - name: config.txt
-      env_var: CONFIG
-      kind: inline
-      content: |
-        Config
-    provides:
-    - name: process_id
-      description: The id of the process started in the environment setup
-      default: null
-  teardown:
-    command:
-      name: teardown.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
-      args: []
-    env_vars:
-      PROCESS_ID: id
-    file_providers: []
+<p>The override will match based on the <code>name</code> key. If we template now:</p>
+<pre><code class="language-bash">rtf template test-plan.yaml --check --var process_id="id"
 </code></pre>
-<p>If you look at <code>setup.file_providers</code>, you can see that <code>config.txt</code> now uses the config from the
-overrides. Our test plan no longer contains a <code>required</code> file, so we no longer get that error. The
-<code>rtf run</code> command can also complete successfully now.</p>
+<p>You should see the full templated output. If you look at <code>setup.file_providers</code>, you can see that
+<code>config.txt</code> now uses the config from the overrides. Our test plan no longer contains a <code>required</code>
+file, so we no longer get that error. The <code>rtf run</code> command can also complete successfully now.</p>
 <hr>
 <p>Congratulations! You’ve now completed the guide on how to write test plans.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
@@ -2370,7 +2237,7 @@ write files for config files to make use of.</p>
 <pre><code class="language-bash">chmod +x scripts/generate.sh
 </code></pre>
 <p>Your directory structure should now look like this:</p>
-<pre><code class="language-bash">$ ls -R
+<pre><code class="language-bash">ls -R
 my-provider.yaml scripts
 
 ./scripts:
@@ -2404,12 +2271,14 @@ sections.</p>
 <p>Before looking at the optional fields, let’s run the custom provider:</p>
 <pre><code class="language-bash">rtf custom-provider run my-provider.yaml
 </code></pre>
-<p>This results in the following terminal output and an <code>output</code> directory:</p>
-<pre><code class="language-bash">Generated environment config in /path/to/rtf-custom-provider/output/RTF_OUTPUT
+<p>You should see output similar to this:</p>
+<pre><code>Generated environment config in /path/to/rtf-custom-provider/output/RTF_OUTPUT
 </code></pre>
 <p>The <code>output</code> directory contains the generated files. Let’s examine what was created:</p>
-<pre><code class="language-bash">$ cat output/RTF_OUTPUT/ENV_VARS.txt
-# Environment variables for project setup
+<pre><code class="language-bash">cat output/RTF_OUTPUT/ENV_VARS.txt
+</code></pre>
+<p>Output:</p>
+<pre><code># Environment variables for project setup
 # Generated by env-generator provider
 
 export PROJECT_NAME="default-project"
@@ -2473,11 +2342,15 @@ EOF
 echo "Generated environment config in $RTF_OUTPUT"
 </code></pre>
 <p>Now run the custom provider with the <code>--var</code> flag to set the variable:</p>
-<pre><code class="language-bash">$ rtf custom-provider run my-provider.yaml --var project_name=my-app
-Generated environment config in /path/to/rtf-custom-provider/output/RTF_OUTPUT
-
-$ cat output/RTF_OUTPUT/ENV_VARS.txt
-# Environment variables for project setup
+<pre><code class="language-bash">rtf custom-provider run my-provider.yaml --var project_name=my-app
+</code></pre>
+<p>Output:</p>
+<pre><code>Generated environment config in /path/to/rtf-custom-provider/output/RTF_OUTPUT
+</code></pre>
+<pre><code class="language-bash">cat output/RTF_OUTPUT/ENV_VARS.txt
+</code></pre>
+<p>Output:</p>
+<pre><code># Environment variables for project setup
 # Generated by env-generator provider
 
 export PROJECT_NAME="my-app"
@@ -2535,11 +2408,15 @@ EOF
 echo "Generated environment config in $RTF_OUTPUT"
 </code></pre>
 <p>Now run the custom provider without specifying <code>log_level</code>:</p>
-<pre><code class="language-bash">$ rtf custom-provider run my-provider.yaml --var project_name=my-app
-Generated environment config in /path/to/rtf-custom-provider/output/RTF_OUTPUT
-
-$ cat output/RTF_OUTPUT/ENV_VARS.txt
-# Environment variables for project setup
+<pre><code class="language-bash">rtf custom-provider run my-provider.yaml --var project_name=my-app
+</code></pre>
+<p>Output:</p>
+<pre><code>Generated environment config in /path/to/rtf-custom-provider/output/RTF_OUTPUT
+</code></pre>
+<pre><code class="language-bash">cat output/RTF_OUTPUT/ENV_VARS.txt
+</code></pre>
+<p>Output:</p>
+<pre><code># Environment variables for project setup
 # Generated by env-generator provider
 
 export PROJECT_NAME="my-app"
@@ -2618,11 +2495,15 @@ cp "$BASE_CONFIG" "$RTF_OUTPUT/base-config.txt"
 echo "Generated environment config in $RTF_OUTPUT"
 </code></pre>
 <p>Now run the custom provider:</p>
-<pre><code class="language-bash">$ rtf custom-provider run my-provider.yaml --var project_name=my-app
-Generated environment config in /path/to/rtf-custom-provider/output/RTF_OUTPUT
-
-$ cat output/RTF_OUTPUT/base-config.txt
-# Base configuration
+<pre><code class="language-bash">rtf custom-provider run my-provider.yaml --var project_name=my-app
+</code></pre>
+<p>Output:</p>
+<pre><code>Generated environment config in /path/to/rtf-custom-provider/output/RTF_OUTPUT
+</code></pre>
+<pre><code class="language-bash">cat output/RTF_OUTPUT/base-config.txt
+</code></pre>
+<p>Output:</p>
+<pre><code># Base configuration
 # Project-specific values set via ENV_VARS.txt
 </code></pre>
 <p>The base configuration file is now included in the output. Remove the output directory before
@@ -2640,7 +2521,7 @@ through how to use it in a test plan.</p>
 <a href="#writing-a-custom-provider-definition">“Writing a custom provider definition”</a> guide. You should
 already have the files in a directory named <code>rtf-custom-provider</code>. Your directory should be in the
 state it was at the end of that guide.</p>
-<pre><code class="language-bash">$ ls -R
+<pre><code class="language-bash">ls -R
 my-provider.yaml scripts
 
 ./scripts:
@@ -2731,7 +2612,9 @@ the values it sets, then prints the contents of <code>base-config.txt</code>.</l
 <pre><code class="language-bash">rtf template test-plan.yaml
 </code></pre>
 <p>This fails with an error:</p>
-<pre><code>ERROR (environment.setup.file_providers.ENV_GENERATOR.definition) missing required custom provider arguments: ["project_name"]
+<pre><code>ERROR Templating failed
+(environment.setup.file_providers.ENV_GENERATOR.env_vars.PROJECT_NAME) Unknown templating variable
+project_name
 </code></pre>
 <p>This error occurs because the <code>env-generator</code> custom provider has a <code>project_name</code> variable with no
 default value. Notice that <code>log_level</code> is not in the error because it has a default value of
@@ -2797,8 +2680,8 @@ arguments are resolved and used to template the provider definition.</p>
 <p>Let’s run the test plan to see the custom provider in action:</p>
 <pre><code class="language-bash">rtf run test-plan.yaml
 </code></pre>
-<p>The output shows:</p>
-<pre><code>Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+<p>You should see output similar to this:</p>
+<pre><code>Generated environment config in /path/to/output/providers/setup_providers/env-generator
 === ENV_VARS.txt contents ===
 PROJECT_NAME=my-test-project
 LOG_LEVEL=info
@@ -2831,8 +2714,10 @@ LOG_LEVEL=info
 # ----------------------------
 </code></pre>
 <p>Run the test plan again:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Generated environment config in /path/to/output/providers/setup_providers/env-generator
 === ENV_VARS.txt contents ===
 PROJECT_NAME=my-test-project
 LOG_LEVEL=debug
@@ -2872,6 +2757,11 @@ environment:
   inline:
     name: Custom provider environment
     description: An environment that uses the env-generator custom provider
+# --- Add variable_definitions to allow templating ---
+    variable_definitions:
+      - name: project_name
+        description: The project name passed to the custom provider
+# ----------------------------------------------------
     setup:
       command:
         name: setup.sh
@@ -2903,8 +2793,10 @@ environment:
           #!/usr/bin/env sh
 </code></pre>
 <p>Run the test plan:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Generated environment config in /path/to/output/providers/setup_providers/env-generator
 === ENV_VARS.txt contents ===
 PROJECT_NAME=my-variable-project
 LOG_LEVEL=debug
@@ -2915,8 +2807,10 @@ LOG_LEVEL=debug
 </code></pre>
 <p>The <code>PROJECT_NAME</code> is now set from the test plan variable. You can also override this at runtime
 using the <code>--var</code> flag:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml --var project_name=runtime-override
-Generated environment config in /path/to/rtf-custom-provider/output/providers/env-generator/RTF_OUTPUT
+<pre><code class="language-bash">rtf run test-plan.yaml --var project_name=runtime-override
+</code></pre>
+<p>Output:</p>
+<pre><code>Generated environment config in /path/to/output/providers/setup_providers/env-generator
 === ENV_VARS.txt contents ===
 PROJECT_NAME=runtime-override
 LOG_LEVEL=debug
@@ -2977,8 +2871,10 @@ matrix:
     - fruit: pear
       color: green
 </code></pre>
-<pre><code class="language-bash">$ rtf expand-matrix test-plan.yaml
-{
+<pre><code class="language-bash">rtf expand-matrix test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-json">{
   "variants": [
     {
       "name": "red_apple_foo_1",
@@ -2994,8 +2890,10 @@ matrix:
 }
 </code></pre>
 <p><a href="https://jqlang.org/">jq</a> can be used to count the variants like so:</p>
-<pre><code class="language-bash">$ rtf test-plan.yaml | jq '.variants | length'
-12
+<pre><code class="language-bash">rtf expand-matrix test-plan.yaml | jq '.variants | length'
+</code></pre>
+<p>Output:</p>
+<pre><code>12
 </code></pre>
 <p><strong>Discussion</strong>: This will work even for Test Plans without a matrix by returning the single
 “variant” representing the top level variables for the Test Plan.</p>
@@ -3019,9 +2917,11 @@ matrix:
     - fruit: pear
       color: green
 </code></pre>
-<pre><code class="language-bash">$ rtf expand-matrix test-plan.yaml |
+<pre><code class="language-bash">rtf expand-matrix test-plan.yaml |
     jq -r '.variants | map(.name) | join("\n")'
-red_apple_foo_1
+</code></pre>
+<p>Output:</p>
+<pre><code>red_apple_foo_1
 green_pear_foo_1
 red_apple_bar_1
 green_pear_bar_1
@@ -4630,7 +4530,7 @@ remaining easy for contributors and tooling to identify.</p>
 <tr><th>Doc Type</th><th>Person</th><th>Example</th></tr>
 </thead>
 <tbody>
-<tr><td>Tutorial</td><td>Second (“you”)</td><td>“You configure the environment…”</td></tr>
+<tr><td>Tutorial</td><td>First plural (“we”) + Second (“you”)</td><td>“We’ll start by…”, “You run…”</td></tr>
 <tr><td>How-to</td><td>Second (“you”) / Imperative</td><td>“Configure the environment…”</td></tr>
 <tr><td>Reference</td><td>Third / Neutral</td><td>“The environment defines…”</td></tr>
 <tr><td>Explanation</td><td>First plural (“we”) + Second (“you”)</td><td>“We designed this because…”</td></tr>
@@ -4638,13 +4538,22 @@ remaining easy for contributors and tooling to identify.</p>
 </table>
 </div>
 <h3 id="we-voice"><a class="header" href="#we-voice">“We” Voice</a></h3>
-<p>The team voice (“we at RTF”, “we recommend”) is permitted <strong>only in Explanation docs</strong>. All other
-doc types should use “you” or imperative mood.</p>
+<p>The “we” voice is permitted in <strong>Tutorials</strong> and <strong>Explanation docs</strong>:</p>
+<ul>
+<li><strong>Tutorials:</strong> Use “we” to create a collaborative journey between writer and reader (“We’ll start
+by…”, “Now we can…”). This affirms the tutor-learner relationship recommended by Diataxis.</li>
+<li><strong>Explanation:</strong> Use “we” for team perspective and design rationale (“We designed RTF to…”).</li>
+</ul>
+<p>How-to guides and Reference docs should use “you”, imperative, or neutral third-person voice.</p>
+<p><strong>Allowed (Tutorial):</strong></p>
+<blockquote>
+<p>We’ll start with templating and running the test plan. Then, we’ll make some changes.</p>
+</blockquote>
 <p><strong>Allowed (Explanation):</strong></p>
 <blockquote>
 <p>We here at Runtime Readiness are big fans of the Unix Philosophy.</p>
 </blockquote>
-<p><strong>Not allowed (Tutorial/How-to/Reference):</strong></p>
+<p><strong>Not allowed (How-to/Reference):</strong></p>
 <blockquote>
 <p><del>We recommend using the <code>--dry-run</code> flag.</del> → Use the <code>--dry-run</code> flag.</p>
 </blockquote>
@@ -4687,7 +4596,7 @@ phrase to separate the command from its output:</p>
 
     rtf template test-plan.yaml --check
 
-The output is similar to this:
+You should see output similar to this::
 
     name: Hello World
     description: A test plan created as a guide
@@ -4883,7 +4792,7 @@ or you find yourself scrolling extensively, consider splitting into subpages.</p
 <p>Before submitting documentation:</p>
 <ul>
 <li><input disabled="" type="checkbox"> First line includes <code>&lt;!-- diataxis-type: &lt;type&gt; --&gt;</code> comment</li>
-<li><input disabled="" type="checkbox"> Voice matches doc type (no “we” in tutorials/how-to/reference)</li>
+<li><input disabled="" type="checkbox"> Voice matches doc type (no “we” in how-to/reference)</li>
 <li><input disabled="" type="checkbox"> No shell prompts in command examples</li>
 <li><input disabled="" type="checkbox"> Placeholders use angle brackets</li>
 <li><input disabled="" type="checkbox"> RTF terminology capitalized correctly</li>

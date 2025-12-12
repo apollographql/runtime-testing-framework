@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-032c7814.js";
+            window.path_to_searchindex_js = "../../searchindex-ee00936e.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-cf036e76.js"></script>
+        <script src="../../toc-d9552613.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -182,7 +182,7 @@
 <p>This guide assumes you’ve completed the <a href="writing-a-scenario.html">“Writing a scenario”</a> guide. You
 should already have the files in a directory named <code>rtf-hello-world</code>. Your directory should be in
 the state it was at the end of that guide.</p>
-<pre><code class="language-bash">$ ls -R
+<pre><code class="language-bash">ls -R
 configs         scripts         test-plan.yaml
 
 configs:
@@ -212,7 +212,7 @@ setup:
       echo "environment setup command executed"
 teardown:
   command:
-    name: setup.sh
+    name: teardown.sh
     kind: inline
     content: |
       #!/usr/bin/env sh
@@ -234,54 +234,20 @@ environment:
     relative_path: configs/environment.yaml
 </code></pre>
 <p>Let’s verify this has made no material difference to the templated test plan:</p>
-<pre><code class="language-bash">$ rtf template test-plan.yaml --check
-name: Hello World
+<pre><code class="language-bash">rtf template test-plan.yaml --check
+</code></pre>
+<p>You should see output similar to this:</p>
+<pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 variables:
   scenario_variable: scenario executed with test plan variable
 matrix: {}
 scenario:
   name: Inline scenario config
-  description: An inline scenario config
-  variable_definitions:
-  - name: scenario_variable
-    description: An example variable that the scenario expects to be defined
-    default: scenario executed with default value
-  command:
-    name: scenario.sh
-    kind: relative_path
-    path: ../scripts/scenario.sh
-    args: []
-  env_vars:
-    SCENARIO_ENV: scenario executed with test plan variable
-  file_providers: []
+  ...
 environment:
   name: Inline environment config
-  description: An inline environment config
-  variable_definitions: []
-  setup:
-    command:
-      name: setup.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "environment setup command executed"
-      args: []
-    env_vars: {}
-    file_providers: []
-    provides: []
-  teardown:
-    command:
-      name: setup.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "environment teardown command executed"
-      args: []
-    env_vars: {}
-    file_providers: []
+  ...
 </code></pre>
 <h2 id="environment-config-structure"><a class="header" href="#environment-config-structure">Environment config structure</a></h2>
 <p>Now is a good time to review how the environment config is structured. The main difference compared
@@ -350,7 +316,7 @@ setup:
 # --------------------------------
 teardown:
   command:
-    name: setup.sh
+    name: teardown.sh
     kind: inline
     content: |
       #!/usr/bin/env sh
@@ -385,8 +351,10 @@ teardown:
 # -----------------------------------
 </code></pre>
 <p>Let’s verify this works:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Environment setup complete. PROCESS_ID=1
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Environment setup complete. PROCESS_ID=1
 Running scenario from an external file
 scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=not yet from setup
@@ -428,9 +396,11 @@ using <code>--var process_id="dummy_id"</code>. If you don’t do this, you’ll
 <code>ERROR (environment.teardown.env_vars.PROCESS_ID) unknown templating variable: process_id</code>.</p>
 </blockquote>
 <p>If we try to run this, it won’t work:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Environment setup complete. PROCESS_ID=1
-ERROR missing required output fields from environment setup: ["process_id"]
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Environment setup complete. PROCESS_ID=1
+ERROR Missing required output fields from environment setup: ["process_id"]
 </code></pre>
 <p>This is because we need to update our setup script to output the <code>process_id</code>. To do this, rtf has a
 reserved file that output needs to be <code>echo</code>’d to called <code>RTF_OUTPUT</code>. Let’s look at this in an
@@ -464,8 +434,10 @@ teardown:
     PROCESS_ID: "{{ process_id }}"
 </code></pre>
 <p>Now, if we run again, we’ll see the <code>process_id</code> being successfully used in the teardown:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Environment setup complete. PROCESS_ID=1
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Environment setup complete. PROCESS_ID=1
 Running scenario from an external file
 scenario executed with test plan variable
 Environment teardown complete. PROCESS_ID=1
@@ -515,61 +487,14 @@ environment:
 <code>setup.command</code>, so only that segment of the config is required. rtf will merge the YAML on matching
 keys before checking if it templates. If you run the <code>template</code> command now (pay attention to the
 <code>--var</code> flag here, we need this because of the <code>provides</code> variable):</p>
-<pre><code class="language-bash">$ template rtf-hello-world/test-plan.yaml --check --var process_id=dummy`
-name: Hello World
-description: A test plan created as a guide for writing test plans
-variables:
-  scenario_variable: scenario executed with test plan variable
-  process_id: dummy
-matrix: {}
-scenario:
-  name: Inline scenario config
-  description: An inline scenario config
-  variable_definitions:
-  - name: scenario_variable
-    description: An example variable that the scenario expects to be defined
-    default: scenario executed with default value
-  command:
-    name: scenario.sh
-    kind: relative_path
-    path: ../scripts/scenario.sh
-    args: []
-  env_vars:
-    SCENARIO_ENV: scenario executed with test plan variable
-  file_providers: []
-environment:
-  name: Inline environment config
-  description: An inline environment config
-  variable_definitions: []
-  setup:
-    command:
-      name: setup.sh
-      kind: relative_path
-      path: scripts/setup.sh
-      args: []
-    env_vars: {}
-    file_providers: []
-    provides:
-    - name: process_id
-      description: The id of the process started in the environment setup
-      default: null
-  teardown:
-    command:
-      name: teardown.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
-      args: []
-    env_vars:
-      PROCESS_ID: dummy
-    file_providers: []
+<pre><code class="language-bash">rtf template test-plan.yaml --check --var process_id=dummy
 </code></pre>
-<p>If you look closely at the templated test plan, the setup command now matches what we defined in the
-<code>overrides</code>, while the rest of the environment config is unchanged. If we run the test plan:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-Using the override setup script
+<p>You should see that the setup command now matches what we defined in the <code>overrides</code>, while the rest
+of the environment config is unchanged. If we run the test plan:</p>
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
 scenario executed with test plan variable

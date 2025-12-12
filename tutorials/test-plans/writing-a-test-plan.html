@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-032c7814.js";
+            window.path_to_searchindex_js = "../../searchindex-ee00936e.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-cf036e76.js"></script>
+        <script src="../../toc-d9552613.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -331,11 +331,17 @@ scripts.</li>
 <p>This should result in the fully templated test plan being printed to the terminal:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
-matrix: {}
+variables: {}
+matrix:
+  variant_names: null
+  dimensions: {}
+  include: []
+custom_providers: []
 scenario:
   name: Inline scenario config
   description: An inline scenario config
   variable_definitions: []
+  custom_providers: []
   command:
     name: scenario.sh
     kind: inline
@@ -350,6 +356,7 @@ environment:
   name: Inline environment config
   description: An inline environment config
   variable_definitions: []
+  custom_providers: []
   setup:
     command:
       name: setup.sh
@@ -364,7 +371,7 @@ environment:
     provides: []
   teardown:
     command:
-      name: setup.sh
+      name: teardown.sh
       kind: inline
       content: |
         #!/usr/bin/env sh
@@ -380,16 +387,18 @@ environment:
 <p>Before looking at <code>variables</code> and <code>matrix</code>, let’s run the test plan:</p>
 <pre><code class="language-bash">rtf run test-plan.yaml
 </code></pre>
-<p>This results in the following terminal output and an <code>output</code> directory:</p>
-<pre><code class="language-bash">"environment setup command executed"
-"scenario command executed"
-"environment teardown command executed"
+<p>You should see output similar to this:</p>
+<pre><code>environment setup command executed
+scenario command executed
+environment teardown command executed
 </code></pre>
-<p>The <code>output</code> directory contains two files, <code>resolved-test-plan.yaml</code> and <code>test-plan-variables.json</code>.</p>
+<p>This also creates an <code>output</code> directory.</p>
+<p>The <code>output</code> directory contains a <code>providers</code> directory and two files: <code>resolved-test-plan.yaml</code> and
+<code>test-plan-variables.json</code>.</p>
 <ul>
 <li><code>resolved-test-plan.yaml</code> contains the fully resolved test plan config. This should be the same as
-what was shown in the <code>rtf template</code> command. This is a way to sanity check the test plan that ran
-to give you the output.</li>
+what was shown in the <code>rtf template</code> command. This is a way to verify the test plan that ran to
+give you the output.</li>
 <li><code>test-plan-variables.json</code> contains the variables used during the execution of the test plan. This
 is empty since no variables were set.</li>
 </ul>
@@ -457,14 +466,18 @@ environment:
           echo "environment teardown command executed"
 </code></pre>
 <p>You can see the value being used by running the test plan again:</p>
-<pre><code class="language-bash">$ rtf run test-plan.yaml
-environment setup command executed
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>environment setup command executed
 example variable
 environment teardown command executed
 </code></pre>
 <p>Now, the <code>test-plan-variables.json</code> file contains the variable that we set in the test plan:</p>
-<pre><code class="language-bash">$ cat output/test-plan-variables.json 
-{
+<pre><code class="language-bash">cat output/test-plan-variables.json
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-json">{
   "example_variable": "example variable"
 }
 </code></pre>
@@ -525,18 +538,24 @@ runs):</p>
 </code></pre>
 <p>The terminal output will look different this time - the environment and scenario commands are
 executed twice. The <code>output</code> directory will also have a different structure:</p>
-<pre><code class="language-bash">$ ls output/
-variable1        variable2
+<pre><code class="language-bash">ls output/
+</code></pre>
+<p>Output:</p>
+<pre><code>variable1        variable2
 </code></pre>
 <p>Let’s look at each of those matrix directories to see the different variable values used per
 execution:</p>
-<pre><code class="language-bash">$ cat output/variable1/test-plan-variables.json 
-{
+<pre><code class="language-bash">cat output/variable1/test-plan-variables.json
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-json">{
   "example_variable": "variable1"
 }
-
-$ cat output/variable2/test-plan-variables.json
-{
+</code></pre>
+<pre><code class="language-bash">cat output/variable2/test-plan-variables.json
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-json">{
   "example_variable": "variable2"
 }
 </code></pre>

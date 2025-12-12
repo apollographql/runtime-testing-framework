@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-032c7814.js";
+            window.path_to_searchindex_js = "../../searchindex-ee00936e.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-cf036e76.js"></script>
+        <script src="../../toc-d9552613.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -264,7 +264,7 @@ remaining easy for contributors and tooling to identify.</p>
 <tr><th>Doc Type</th><th>Person</th><th>Example</th></tr>
 </thead>
 <tbody>
-<tr><td>Tutorial</td><td>Second (“you”)</td><td>“You configure the environment…”</td></tr>
+<tr><td>Tutorial</td><td>First plural (“we”) + Second (“you”)</td><td>“We’ll start by…”, “You run…”</td></tr>
 <tr><td>How-to</td><td>Second (“you”) / Imperative</td><td>“Configure the environment…”</td></tr>
 <tr><td>Reference</td><td>Third / Neutral</td><td>“The environment defines…”</td></tr>
 <tr><td>Explanation</td><td>First plural (“we”) + Second (“you”)</td><td>“We designed this because…”</td></tr>
@@ -272,13 +272,22 @@ remaining easy for contributors and tooling to identify.</p>
 </table>
 </div>
 <h3 id="we-voice"><a class="header" href="#we-voice">“We” Voice</a></h3>
-<p>The team voice (“we at RTF”, “we recommend”) is permitted <strong>only in Explanation docs</strong>. All other
-doc types should use “you” or imperative mood.</p>
+<p>The “we” voice is permitted in <strong>Tutorials</strong> and <strong>Explanation docs</strong>:</p>
+<ul>
+<li><strong>Tutorials:</strong> Use “we” to create a collaborative journey between writer and reader (“We’ll start
+by…”, “Now we can…”). This affirms the tutor-learner relationship recommended by Diataxis.</li>
+<li><strong>Explanation:</strong> Use “we” for team perspective and design rationale (“We designed RTF to…”).</li>
+</ul>
+<p>How-to guides and Reference docs should use “you”, imperative, or neutral third-person voice.</p>
+<p><strong>Allowed (Tutorial):</strong></p>
+<blockquote>
+<p>We’ll start with templating and running the test plan. Then, we’ll make some changes.</p>
+</blockquote>
 <p><strong>Allowed (Explanation):</strong></p>
 <blockquote>
 <p>We here at Runtime Readiness are big fans of the Unix Philosophy.</p>
 </blockquote>
-<p><strong>Not allowed (Tutorial/How-to/Reference):</strong></p>
+<p><strong>Not allowed (How-to/Reference):</strong></p>
 <blockquote>
 <p><del>We recommend using the <code>--dry-run</code> flag.</del> → Use the <code>--dry-run</code> flag.</p>
 </blockquote>
@@ -321,7 +330,7 @@ phrase to separate the command from its output:</p>
 
     rtf template test-plan.yaml --check
 
-The output is similar to this:
+You should see output similar to this::
 
     name: Hello World
     description: A test plan created as a guide
@@ -517,7 +526,7 @@ or you find yourself scrolling extensively, consider splitting into subpages.</p
 <p>Before submitting documentation:</p>
 <ul>
 <li><input disabled="" type="checkbox"> First line includes <code>&lt;!-- diataxis-type: &lt;type&gt; --&gt;</code> comment</li>
-<li><input disabled="" type="checkbox"> Voice matches doc type (no “we” in tutorials/how-to/reference)</li>
+<li><input disabled="" type="checkbox"> Voice matches doc type (no “we” in how-to/reference)</li>
 <li><input disabled="" type="checkbox"> No shell prompts in command examples</li>
 <li><input disabled="" type="checkbox"> Placeholders use angle brackets</li>
 <li><input disabled="" type="checkbox"> RTF terminology capitalized correctly</li>
