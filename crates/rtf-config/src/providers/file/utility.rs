@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use tracing::error;
 
-/// # Text File Provider
+/// # Text file provider
 ///
 /// A subset of file providers that can produce arbitrary utf-8 text as their output.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]

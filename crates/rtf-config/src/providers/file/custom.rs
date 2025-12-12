@@ -13,7 +13,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
-/// # Custom Provider
+/// # Custom provider
 ///
 /// Use a custom provider to execute a command and produce a set of files.
 ///

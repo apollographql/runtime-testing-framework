@@ -43,7 +43,7 @@
       "required": [
         "git_ref"
       ],
-      "title": "Build Router From Source",
+      "title": "Build Router from source",
       "type": "object"
     },
     "CommandSection": {
@@ -168,7 +168,7 @@
       "required": [
         "type"
       ],
-      "title": "Custom Provider",
+      "title": "Custom provider",
       "type": "object"
     },
     "CustomProviderDeclaration": {
@@ -370,7 +370,7 @@
         "repo",
         "path"
       ],
-      "title": "GitHub File",
+      "title": "GitHub file",
       "type": "object"
     },
     "GraphosCannedOps": {
@@ -415,7 +415,7 @@
       "required": [
         "graph_ref"
       ],
-      "title": "GraphOS Canned Operations",
+      "title": "GraphOS canned operations",
       "type": "object"
     },
     "GraphosCannedOpsById": {
@@ -441,7 +441,7 @@
         "graph_ref",
         "operation_ids"
       ],
-      "title": "GraphOS Canned Operations by ID",
+      "title": "GraphOS canned operations by ID",
       "type": "object"
     },
     "GraphosSubgraphNames": {
@@ -459,7 +459,7 @@
       "required": [
         "graph_ref"
       ],
-      "title": "GraphOS Subgraph Names",
+      "title": "GraphOS subgraph names",
       "type": "object"
     },
     "GraphosSubgraphRouterUrlOverrides": {
@@ -486,7 +486,7 @@
       "required": [
         "graph_ref"
       ],
-      "title": "GraphOS Supergraph Router URL Overrides",
+      "title": "GraphOS supergraph Router URL overrides",
       "type": "object"
     },
     "GraphosSubgraphs": {
@@ -504,7 +504,7 @@
       "required": [
         "graph_ref"
       ],
-      "title": "GraphOS Subgraph SDL",
+      "title": "GraphOS subgraph SDL",
       "type": "object"
     },
     "GraphosSupergraph": {
@@ -534,7 +534,7 @@
       "required": [
         "graph_ref"
       ],
-      "title": "GraphOS Supergraph SDL",
+      "title": "GraphOS supergraph SDL",
       "type": "object"
     },
     "InlineFile": {
@@ -548,7 +548,7 @@
       "required": [
         "content"
       ],
-      "title": "Inline File",
+      "title": "Inline file",
       "type": "object"
     },
     "MergeYaml": {
@@ -891,7 +891,7 @@
       "required": [
         "graph_id"
       ],
-      "title": "GraphOS Offline License",
+      "title": "GraphOS offline license",
       "type": "object"
     },
     "Overrides": {
@@ -922,7 +922,7 @@
       "required": [
         "path"
       ],
-      "title": "Relative Path",
+      "title": "Relative path",
       "type": "object"
     },
     "RequiredFile": {
@@ -936,7 +936,7 @@
       "required": [
         "message"
       ],
-      "title": "Required File",
+      "title": "Required file",
       "type": "object"
     },
     "RouterDownloadScript": {
@@ -954,7 +954,7 @@
       "required": [
         "version"
       ],
-      "title": "Router Download Script",
+      "title": "Router download script",
       "type": "object"
     },
     "Scalar": {
@@ -1166,7 +1166,7 @@
           "type": "object"
         }
       ],
-      "title": "Text File Provider"
+      "title": "Text file provider"
     },
     "UrlFormat": {
       "description": "The allowed url formats for the [GraphosSubgraphRouterUrlOverrides]",

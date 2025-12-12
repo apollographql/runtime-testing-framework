@@ -4,24 +4,24 @@
 
 Available file providers:
 
-- [Build Router From Source](#build-router-from-source)
-- [Custom Provider](#custom-provider)
+- [Build Router from source](#build-router-from-source)
+- [Custom provider](#custom-provider)
 - [From command](#from-command)
-- [GitHub File](#github-file)
-- [GraphOS Canned Operations](#graphos-canned-operations)
-- [GraphOS Canned Operations by ID](#graphos-canned-operations-by-id)
-- [GraphOS Supergraph Router URL Overrides](#graphos-supergraph-router-url-overrides)
-- [GraphOS Subgraph SDL](#graphos-subgraph-sdl)
-- [GraphOS Subgraph Names](#graphos-subgraph-names)
-- [GraphOS Supergraph SDL](#graphos-supergraph-sdl)
-- [Inline File](#inline-file)
+- [GitHub file](#github-file)
+- [GraphOS canned operations](#graphos-canned-operations)
+- [GraphOS canned operations by ID](#graphos-canned-operations-by-id)
+- [GraphOS supergraph Router URL overrides](#graphos-supergraph-router-url-overrides)
+- [GraphOS subgraph SDL](#graphos-subgraph-sdl)
+- [GraphOS subgraph names](#graphos-subgraph-names)
+- [GraphOS supergraph SDL](#graphos-supergraph-sdl)
+- [Inline file](#inline-file)
 - [Merge YAML](#merge-yaml)
-- [GraphOS Offline License](#graphos-offline-license)
-- [Relative Path](#relative-path)
-- [Required File](#required-file)
-- [Router Download Script](#router-download-script)
+- [GraphOS offline license](#graphos-offline-license)
+- [Relative path](#relative-path)
+- [Required file](#required-file)
+- [Router download script](#router-download-script)
 
-## Build Router From Source
+## Build Router from source
 
 A file provider used for building the Router from source at a specific git commit or reference. A
 profile and list of features can optionally be provided.
@@ -65,7 +65,7 @@ Defaults to `"default"` if unset.
 
 </details>
 
-## Custom Provider
+## Custom provider
 
 Use a custom provider to execute a command and produce a set of files.
 
@@ -156,9 +156,9 @@ The name of the command to run
 <details>
 <summary>Variants</summary>
 
-- [Inline File](#inline-file)
-- [Relative Path](#relative-path)
-- [Required File](#required-file)
+- [Inline file](#inline-file)
+- [Relative path](#relative-path)
+- [Required file](#required-file)
 
 </details>
 
@@ -178,7 +178,7 @@ File providers to run and make available prior to execution
 
 </details>
 
-## GitHub File
+## GitHub file
 
 The user specifies a path to a file within a GitHub repository, optionally providing a specific ref
 of the repository to pull the file from. If no ref is providing then the provider will pull the
@@ -218,7 +218,7 @@ Defaults to the mainline branch as specified in GitHub if unset.
 
 </details>
 
-## GraphOS Canned Operations
+## GraphOS canned operations
 
 The user specifies the graph ref and parameters that should be used to generate canned GraphQL
 requests based on operations data obtained from the GraphOS API.
@@ -260,7 +260,7 @@ Accepts duration strings like "30d", "7d", "12h". Defaults to "30d" if unset.
 
 </details>
 
-## GraphOS Canned Operations by ID
+## GraphOS canned operations by ID
 
 The user specifies the graph ref and parameters that should be used to generate canned GraphQL
 requests based on operations data obtained from the GraphOS API.
@@ -290,7 +290,7 @@ Operation IDs from the Apollo studio API for the operations you want to work wit
 
 </details>
 
-## GraphOS Supergraph Router URL Overrides
+## GraphOS supergraph Router URL overrides
 
 The user specifies the graph ref that should be used to fetch subgraph SDL files from the GraphOS
 API and generates a the override_subgraph_urls YAML snippet that can be merged into a router config
@@ -368,7 +368,7 @@ parameters.
 
 </details>
 
-## GraphOS Subgraph SDL
+## GraphOS subgraph SDL
 
 The user specifies the graph ref that should be used to fetch a subgraph SDL files from the GraphOS
 API.
@@ -391,7 +391,7 @@ The Apollo graph ref to pull subgraph SDL files for.
 
 </details>
 
-## GraphOS Subgraph Names
+## GraphOS subgraph names
 
 The user specifies the graph ref that should be used to fetch the names of subgraphs in the
 supergraph from the GraphOS API.
@@ -414,7 +414,7 @@ The Apollo graph ref to pull subgraph names for.
 
 </details>
 
-## GraphOS Supergraph SDL
+## GraphOS supergraph SDL
 
 The user specifies the ref that should be used to fetch a supergraph SDL file from the GraphOS API.
 
@@ -441,7 +441,7 @@ Defaults to null if unset.
 
 </details>
 
-## Inline File
+## Inline file
 
 The simplest form of file provider: the user specifies the contents of the file inline within their
 config file.
@@ -513,11 +513,11 @@ A base YAML file to start with.
 <details>
 <summary>Variants</summary>
 
-- [GitHub File](#github-file)
-- [GraphOS Supergraph Router URL Overrides](#graphos-supergraph-router-url-overrides)
-- [Inline File](#inline-file)
-- [Relative Path](#relative-path)
-- [Required File](#required-file)
+- [GitHub file](#github-file)
+- [GraphOS supergraph Router URL overrides](#graphos-supergraph-router-url-overrides)
+- [Inline file](#inline-file)
+- [Relative path](#relative-path)
+- [Required file](#required-file)
 
 </details>
 
@@ -527,7 +527,7 @@ One or more YAML files to merge on top of the base file in sequence.
 
 </details>
 
-## GraphOS Offline License
+## GraphOS offline license
 
 The user specifies the graph id that should be used to fetch an offline license from the GraphOS
 API.
@@ -548,7 +548,7 @@ The Apollo graph id to pull an offline license for.
 
 </details>
 
-## Relative Path
+## Relative path
 
 A relative path from the containing config file to a target file that should be made available as
 part of the test run. This provider works both with local files and files within GitHub if the
@@ -570,7 +570,7 @@ The relative path from the containing config file to the target file.
 
 </details>
 
-## Required File
+## Required file
 
 The only purpose of this file provider is to throw an error if it still exists when the file
 providers are being checked. All definitions of a required file are expected to be replaced by user
@@ -592,7 +592,7 @@ The error message to display to the user if this provider is not overwritten.
 
 </details>
 
-## Router Download Script
+## Router download script
 
 Produces a POSIX shell script that can be run in order to download a target version of the Apollo
 Router.
