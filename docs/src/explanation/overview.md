@@ -53,7 +53,7 @@ you may be inclined to ask why the framework doesn't offer built in support for 
 Terraform or managing Kubernetes clusters. The answer is relatively simple: RTF is designed to
 _compose_ with other tools rather than embed them directly. By setting things up this way we make it
 possible for end users to leverage the tooling they are already familiar with alongside RTF rather
-than being forced to pick from a limited set of options that we happed to have added support for.
+than being forced to pick from a limited set of options that we happened to have added support for.
 
 ## When is it worthwhile using RTF?
 
