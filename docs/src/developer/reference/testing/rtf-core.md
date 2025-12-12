@@ -35,7 +35,7 @@ module::path::tests::function_test_class::file_name
 module::path::tests::function_test_case
 ```
 
-### Example - Parsing an Offline License Response
+### Example - parsing an offline license response
 
 This example demonstrates how to test that an offline license response can be parsed from GraphOS.
 Working through the hierarchy:
@@ -80,7 +80,7 @@ mod tests {
 }
 ```
 
-### Example - URL Rewriting in Supergraph Details
+### Example - URL rewriting in supergraph details
 
 This example demonstrates testing a utility function without [`dir_cases`][3]. Working through the
 hierarchy:
@@ -123,7 +123,7 @@ mod tests {
 The [`rtf-core`][0] crate uses a trait-based testing approach that focuses on testing business logic
 directly, without requiring HTTP mocking or complex test infrastructure.
 
-### Testing Infrastructure
+### Testing infrastructure
 
 The crate leverages the following key testing tools:
 
@@ -133,7 +133,7 @@ The crate leverages the following key testing tools:
   return type and contextual error messages via `.context()`
 - **[`serde_json`][5]** - Used to deserialize test data from JSON files into GraphQL response types
 
-### Trait-Based Testing Pattern
+### Trait-based testing pattern
 
 The crate's primary testing pattern leverages the `PlatformQuery` trait to test GraphQL response
 parsing logic without requiring HTTP mocking:
@@ -171,7 +171,7 @@ fn try_parse_ok(path: &str, contents: &str) -> anyhow::Result<()> {
 This approach avoids the complexity of HTTP mocking while ensuring comprehensive coverage of the
 response parsing logic.
 
-### Directory-Driven Parameterized Tests
+### Directory-driven parameterized tests
 
 The [`dir_cases`][3] macro automatically generates test cases from files in a directory:
 
@@ -190,7 +190,7 @@ Each file in the specified directory becomes a separate test case, with:
 
 This pattern makes it easy to add new test cases by simply adding files to the test data directory.
 
-### Test Data Organization
+### Test data organization
 
 Test data is organized in structured directories under `resources/test_data/`:
 
@@ -238,7 +238,7 @@ resources/test_data/
 This structure ensures that error tests validate both that an error occurs and that it's the
 _correct_ error.
 
-### Schema-Based Validation Tests
+### Schema-based validation tests
 
 Tests involving GraphQL schema manipulation use [`apollo-compiler`][6] for parsing and validation:
 
@@ -261,7 +261,7 @@ Schema test data is typically embedded using `include_str!`:
 const SCHEMA: &str = include_str!("../../../../resources/engine-prod-schema.graphql");
 ```
 
-### Error Testing Strategy
+### Error testing strategy
 
 Error testing ensures all error variants are covered and properly handled:
 
@@ -288,7 +288,7 @@ fn try_parse_err(path: &str, contents: &str) -> anyhow::Result<()> {
 }
 ```
 
-### Unit Tests for Utility Functions
+### Unit tests for utility functions
 
 Not all tests use [`dir_cases`][3]. Utility functions with deterministic behavior use standard unit
 tests:

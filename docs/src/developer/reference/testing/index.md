@@ -9,7 +9,7 @@ delivery. This document serves as our implementation guide for delivering well-t
 Each crate has its own page within the docs explaining test structure and how tests are implemented.
 Testing guidance applicable across all crates is documented on this page.
 
-## Organizing Tests
+## Organizing tests
 
 Each crate's page describes a hierarchy that should be followed for all tests in that crate.
 Examples are included for additional guidance.
@@ -20,7 +20,7 @@ followed using a combination of module structure and test case naming. For modul
 primary concern is ensuring that code has the right scope and privacy level. Test structure is a
 secondary concern to module structure.
 
-## Test Case Naming
+## Test case naming
 
 Test cases should be uniquely named within their hierarchy. The test cases should be given
 meaningful names that describe what is being tested.
@@ -39,7 +39,7 @@ Examples of bad test case names:
 - `optional_field_specified1` & `optional_field_specified2` - incrementing test cases by integer
   does not differentiate the test cases
 
-## Test Coverage Reports
+## Test coverage reports
 
 This section documents how to run a full test coverage report for RTF.
 

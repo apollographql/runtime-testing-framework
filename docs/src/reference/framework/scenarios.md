@@ -11,8 +11,8 @@ that runs between the Environment's setup and teardown phases.
 ## Top level keys
 
 - `name`: The name for this Scenario configuration.
-  - Uniqueness is not enforced by the `rtf` CLI but it is worthwhile ensuring that the scenarios you
-    write each have unique names that can be used to distinguish them.
+  - Uniqueness is not enforced by the `rtf` CLI but scenarios should have unique names that can be
+    used to distinguish them.
 - `description`: A brief, human readable description of the behaviour of the Scenario.
   - If there are any pre-requisites to running this Scenario it is best to call them out here rather
     than in comments or other files (such as a README).

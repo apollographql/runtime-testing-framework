@@ -25,7 +25,7 @@ Tests in the [`rtf-derive`][0] crate are organized into the following modules:
 
 The structure of the tests within each of these modules is discussed below.
 
-### Compile Tests
+### Compile tests
 
 There are two types of compile test: `pass` and `fail`. These are organized into separate
 directories within the `compile` subdirectory of `tests`.
@@ -47,7 +47,7 @@ macro applied to them.
 > This should generate a `wip` directory at the root of the repository with the new `.stderr` files.
 > Copy these into the `fail` directory and re-run `cargo test`. Your tests should now pass.
 
-### Template Tests
+### Template tests
 
 The `template` tests follow a typical Rust unit testing approach. The module defines various valid
 Rust containers the derive macro can be applied to. It then checks, for each of those containers,
@@ -75,7 +75,7 @@ template::tests::trait_method::data_structure_test_case
 The [`rtf-derive`][0] crate employs specialized testing strategies tailored to procedural macro
 testing requirements.
 
-### Testing Infrastructure
+### Testing infrastructure
 
 The crate leverages the following key testing tools:
 
@@ -86,7 +86,7 @@ The crate leverages the following key testing tools:
 - **Compile-time testing** - Uses the Rust compiler itself as a testing tool to validate successful
   macro expansion
 
-### Procedural Macro Testing Strategy
+### Procedural macro testing strategy
 
 Testing procedural macros requires a different approach from standard unit testing:
 
@@ -97,7 +97,7 @@ Testing procedural macros requires a different approach from standard unit testi
 3. **Generated Code Testing** - Validate that the generated `Template` trait implementations behave
    correctly at runtime
 
-### Error Testing with trybuild
+### Error testing with trybuild
 
 The `fail` tests use `trybuild` to capture and validate compilation error messages:
 
@@ -115,7 +115,7 @@ This approach ensures that:
 - Users receive helpful diagnostic information when the macro cannot be applied
 - The macro fails early with clear explanations rather than generating invalid code
 
-### Parameterized Container Testing
+### Parameterized container testing
 
 The `template` tests extensively use `#[test_case]` to verify the derive macro works across
 different Rust container types:

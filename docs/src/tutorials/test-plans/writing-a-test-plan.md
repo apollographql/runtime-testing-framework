@@ -91,8 +91,8 @@ adding that context to inline comments.
 
 The `scenario` is used to define the configuration and command that runs the actual testing logic in
 the test plan. The `scenario` can be defined inline within the test plan or in its own file. In this
-guide, we'll define the scenario inline. The guide on
-[writing a new scenario](writing-a-scenario.md) covers how to define a scenario in a separate file.
+guide, we'll define the scenario inline. The guide on [writing a new scenario][0] covers how to
+define a scenario in a separate file.
 
 Add the `scenario` field to the `test-plan.yaml` file.
 
@@ -118,16 +118,15 @@ This is the simplest `scenario` it is possible to define.
 - The `name` and `description` fields are required and used to identify the scenario and work the
   same as `name` and `description` in the test plan.
 - `command` defines what will be executed when rtf executes the scenario. This is the simplest case
-  which executes a single command. The guide on [writing a new scenario](writing-a-scenario.md)
-  covers how to execute files or more complex scripts.
+  which executes a single command. The guide on [writing a new scenario][0] covers how to execute
+  files or more complex scripts.
 
 ### `environment`
 
 The `environment` is used to define the configuration and commands that setup the environment for
 testing and tear it down after the test has completed. The `environment` can be defined inline
 within the test plan or in its own file. In this guide, we'll define the environment inline. The
-guide on [writing a new environment](writing-an-environment.md) covers how to define an environment
-in a separate file.
+guide on [writing a new environment][1] covers how to define an environment in a separate file.
 
 Add the `environment` field to the `test-plan.yaml` file:
 
@@ -175,9 +174,8 @@ This is the simplest `environment` it is possible to define.
 - The `setup` field defines what will happen during the environment setup phase of `rtf run`.
 - The `teardown` field defines what will happen during the environment teardown phase of `rtf run`.
 - `command` defines what will be executed when rtf executes the `setup` and `teardown`. This is the
-  simplest case which executes a single command. The guide on
-  [writing a new environment](writing-an-environment.md) covers how to execute files or more complex
-  scripts.
+  simplest case which executes a single command. The guide on [writing a new environment][1] covers
+  how to execute files or more complex scripts.
 
 ## Checking the test plan
 
@@ -289,13 +287,12 @@ rm -rf output/
 
 The `variables` field is used to set global variables that can be referenced in your scenario and/or
 environment. Any variables set in the test plan config can be overridden using the `--var` and
-`--vars` flags in the rtf CLI (see the
-[modifying variables section of the hello world guide](../hello-world.md#modifying-variables) for
+`--vars` flags in the rtf CLI (see the [modifying variables section of the hello world guide][2] for
 more information).
 
 Let's add some example variables to `test-plan.yaml`. We are also going to update the scenario
-command to use this variable. The ["Writing a command" section](writing-a-command.md) will explain
-how this works, for now just add the configuration:
+command to use this variable. The ["Writing a command" section][3] will explain how this works, for
+now just add the configuration:
 
 ```yaml
 name: Hello World
@@ -374,8 +371,8 @@ Output:
 ## Using a matrix
 
 The `matrix` field is used to create a matrix of variable dimensions to iterate over (see the
-[matrix variables section of the hello world guide](../hello-world.md#matrix-variables) for more
-information). A matrix can only be defined in the test plan config.
+[matrix variables section of the hello world guide][4] for more information). A matrix can only be
+defined in the test plan config.
 
 Let's add a matrix to and remove the `variables` from our `test-plan.yaml`:
 
@@ -481,4 +478,10 @@ The `example-variable`'s variable changes per execution.
 In this guide we have covered writing the simplest possible test plan. Next, we will guide you
 through how to write more powerful commands.
 
-**Next:** [Writing a command](writing-a-command.md)
+**Next:** [Writing a command][3]
+
+[0]: writing-a-scenario.md
+[1]: writing-an-environment.md
+[2]: ../hello-world.md#modifying-variables
+[3]: writing-a-command.md
+[4]: ../hello-world.md#matrix-variables

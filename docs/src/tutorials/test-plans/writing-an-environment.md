@@ -2,9 +2,9 @@
 
 # Writing a new environment
 
-This guide assumes you've completed the ["Writing a scenario"](writing-a-scenario.md) guide. You
-should already have the files in a directory named `rtf-hello-world`. Your directory should be in
-the state it was at the end of that guide.
+This guide assumes you've completed the ["Writing a scenario"][0] guide. You should already have the
+files in a directory named `rtf-hello-world`. Your directory should be in the state it was at the
+end of that guide.
 
 ```bash
 ls -R
@@ -20,8 +20,7 @@ scenario.sh
 ## Creating an environment file
 
 Creating a separate environment file works exactly the same way and has the same benefits as
-creating a separate scenario file outlined in the
-["Writing a scenario" guide](writing-a-scenario.md#creating-a-scenario-file).
+creating a separate scenario file outlined in the ["Writing a scenario" guide][1].
 
 Let's update our test plan to specify the environment in a separate file:
 
@@ -95,10 +94,10 @@ environment:
 ## Environment config structure
 
 Now is a good time to review how the environment config is structured. The main difference compared
-to the [scenario config](writing-a-scenario.md#scenario-config-structure) is that an environment can
-run two commands using the `setup` and `teardown` keys. The `setup` key has an additional field
-called `provides` which we'll explain in more detail in the
-["Using provides" section](#using-provides). The fields in an environment config are:
+to the [scenario config][2] is that an environment can run two commands using the `setup` and
+`teardown` keys. The `setup` key has an additional field called `provides` which we'll explain in
+more detail in the ["Using provides" section](#using-provides). The fields in an environment config
+are:
 
 - `name` (required) is used to give the environment an identifiable title. It can be any valid
   string. It has no impact on the execution of an environment.
@@ -106,17 +105,17 @@ called `provides` which we'll explain in more detail in the
   valid string. It has no impact on the execution of an environment.
 - `variable_definitions` (optional) are used to define which variables an environment requires to
   successfully execute. This works the same as it does for a scenario and is explained more in the
-  ["using variables"](writing-a-scenario.md#using-variables) section of that guide.
+  ["using variables"][3] section of that guide.
 - `setup` (required) is used to define the command that executes at the start of the `rtf run`
   command. It is intended to be used to create and configure the environment for the scenario to
   test. It requires the following keys:
   - `command` (required) is used to define what is executed when the environment setup is run. The
-    ["Writing a command" guide](writing-a-command.md) explains commands in more detail.
+    ["Writing a command" guide][4] explains commands in more detail.
   - `env_vars` (optional) is used to define the environment variables that are set when the
     `command` is executed.
   - `file_providers` (optional) is used to define the files and data that the environment setup
-    depends on to execute. The ["Using file providers" guide](using-file-providers.md) explains how
-    these are used in more detail.
+    depends on to execute. The ["Using file providers" guide][5] explains how these are used in more
+    detail.
   - `provides` (optional) is unique to the environment setup and is used to set variables that can
     only be known at runtime. This is explained more in the
     ["Using provides" section](#using-provides).
@@ -124,12 +123,12 @@ called `provides` which we'll explain in more detail in the
   command. It is intended to be used to collect results and shutdown the environment the scenario
   tested. It requires the following keys:
   - `command` (required) is used to define what is executed when the environment teardown is run.
-    The ["Writing a command" guide](writing-a-command.md) explains commands in more detail.
+    The ["Writing a command" guide][4] explains commands in more detail.
   - `env_vars` (optional) is used to define the environment variables that are set when the
     `command` is executed.
   - `file_providers` (optional) is used to define the files and data that the environment teardown
-    depends on to execute. The ["Using file providers" guide](using-file-providers.md) explains how
-    these are used in more detail.
+    depends on to execute. The ["Using file providers" guide][5] explains how these are used in more
+    detail.
 
 ## Using provides
 
@@ -398,4 +397,11 @@ In this guide, we've covered moving environment config into its own file, using 
 setup, and using overrides in the test plan. Next, we'll guide you through how to use file
 providers.
 
-**Next:** [Using file providers](using-file-providers.md)
+**Next:** [Using file providers][5]
+
+[0]: writing-a-scenario.md
+[1]: writing-a-scenario.md#creating-a-scenario-file
+[2]: writing-a-scenario.md#scenario-config-structure
+[3]: writing-a-scenario.md#using-variables
+[4]: writing-a-command.md
+[5]: using-file-providers.md

@@ -297,7 +297,7 @@ enum_impl_file_provider!(
     RouterDownloadScript,
 );
 
-/// # Inline File
+/// # Inline file
 ///
 /// The simplest form of file provider: the user specifies the contents of the file inline within
 /// their config file.
@@ -336,7 +336,7 @@ impl Check for InlineFile {
     }
 }
 
-/// # Relative Path
+/// # Relative path
 ///
 /// A relative path from the containing config file to a target file that should be made available
 /// as part of the test run. This provider works both with local files and files within GitHub
@@ -524,7 +524,7 @@ impl Check for RelativeFile {
     }
 }
 
-/// # Required File
+/// # Required file
 ///
 /// The only purpose of this file provider is to throw an error if it still exists
 /// when the file providers are being checked. All definitions of a required file

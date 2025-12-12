@@ -18,8 +18,8 @@ templated using the arguments provided to the custom provider in a configuration
 ### Top level keys
 
 - `name`: The name for this Custom Provider Definition.
-  - Uniqueness is not enforced by the `rtf` CLI but it is worthwhile ensuring that the custom
-    providers you write each have unique names that can be used to distinguish them.
+  - Uniqueness is not enforced by the `rtf` CLI but custom providers should have unique names that
+    can be used to distinguish them.
 - `description`: A brief, human readable description of the behaviour of the Custom Provider.
   - If there are any pre-requisites to using this Custom Provider it is best to call them out here
     rather than in comments or other files (such as a README).

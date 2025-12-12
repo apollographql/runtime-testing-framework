@@ -2,9 +2,9 @@
 
 # Writing a new scenario
 
-This guide assumes you have completed the ["Writing a test plan"](writing-a-test-plan.md) and
-["Writing a command"](writing-a-command.md) guides. You should already have a `test-plan.yaml` file
-in a directory named `rtf-hello-world`. Your `test-plan.yaml` file should contain:
+This guide assumes you have completed the ["Writing a test plan"][0] and ["Writing a command"][1]
+guides. You should already have a `test-plan.yaml` file in a directory named `rtf-hello-world`. Your
+`test-plan.yaml` file should contain:
 
 ```yaml
 name: Hello World
@@ -48,8 +48,7 @@ scenarios quickly become harder to read and maintain. It is possible to create a
 store your scenario config and update your test plan to refer to that file. As well as
 maintainability benefits this also means the same scenario can be reused in multiple test plans. It
 is also possible to update the base scenario (and environment) config using overrides in the test
-plan. We cover how to use overrides in the
-["Writing an environment" guide](writing-an-environment.md#using-overrides).
+plan. We cover how to use overrides in the ["Writing an environment" guide][2].
 
 Let's walkthrough how to create a scenario config. First, create a `configs` directory and an empty
 YAML file inside it:
@@ -171,8 +170,8 @@ will import the scenario config from the file on the relative path defined in th
 key.
 
 The `github` key allows the scenario config to be imported from a GitHub repo. It is not discussed
-in detail in this guide, please refer to the
-[framework reference docs](../../reference/framework/index.md) reference for more detail.
+in detail in this guide, please refer to the [framework reference docs][3] reference for more
+detail.
 
 ## Scenario config structure
 
@@ -187,19 +186,17 @@ defined in the scenario
   successfully execute. The ["using variables"](#using-variables) section explains this in more
   detail.
 - `command` (required) is used to define what is executed when the scenario is run. The
-  ["Writing a command" guide](writing-a-command.md) explains commands in more detail.
+  ["Writing a command" guide][1] explains commands in more detail.
 - `env_vars` (optional) is used to define the environment variables that are set when the `command`
   is executed.
 - `file_providers` (optional) is used to define the files and data that the scenario depends on to
-  execute. The ["Using file providers" guide](using-file-providers.md) explains how these are used
-  in more detail.
+  execute. The ["Using file providers" guide][4] explains how these are used in more detail.
 
 ## Using variables
 
-We saw how to set variables in the test plan in the
-["Writing a test plan" guide](writing-a-test-plan.md#setting-variables). However, the variable we
-set was not used anywhere in the scenario or environment. To use variables in a scenario, we need to
-define them in the `variables` field.
+We saw how to set variables in the test plan in the ["Writing a test plan" guide][5]. However, the
+variable we set was not used anywhere in the scenario or environment. To use variables in a
+scenario, we need to define them in the `variables` field.
 
 Declaring the variables here declares a contract between the scenario and test plan and lists the
 variables that must be specified for the scenario to complete. The value of the variable can be set
@@ -361,4 +358,12 @@ environment teardown command executed
 In this guide, we've covered moving scenario config into its own file and using variables. Next,
 we'll guide you through how to write an environment config.
 
-**Next:** [Writing an environment](writing-an-environment.md)
+**Next:** [Writing an environment][6]
+
+[0]: writing-a-test-plan.md
+[1]: writing-a-command.md
+[2]: writing-an-environment.md#using-overrides
+[3]: ../../reference/framework/index.md
+[4]: using-file-providers.md
+[5]: writing-a-test-plan.md#setting-variables
+[6]: writing-an-environment.md

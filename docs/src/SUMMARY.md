@@ -19,7 +19,7 @@
     - [Using a custom provider](tutorials/custom-providers/using-a-custom-provider.md)
 
 - [How-to guides](howto/cookbook.md)
-  - [Troubleshooting]()
+  - [Troubleshooting](howto/troubleshooting.md)
 
 - [Reference](reference/index.md)
   - [Framework](reference/framework/index.md)

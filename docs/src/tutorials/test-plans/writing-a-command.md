@@ -2,10 +2,10 @@
 
 # Writing a command
 
-This guide assumes you've completed the ["Writing a test plan"](writing-a-test-plan.md) guide. You
-should already have a `test-plan.yaml` file in a directory named `rtf-hello-world`. We're going to
-remove the variables and matrix added in the final step of the "Writing a test plan" guide. Your
-`test-plan.yaml` file should contain:
+This guide assumes you've completed the ["Writing a test plan"][0] guide. You should already have a
+`test-plan.yaml` file in a directory named `rtf-hello-world`. We're going to remove the variables
+and matrix added in the final step of the "Writing a test plan" guide. Your `test-plan.yaml` file
+should contain:
 
 ```yaml
 name: Hello World
@@ -120,7 +120,7 @@ and `content`.
   file's content.
 
 > **Note** Under the hood, the `command` is using a subset of file providers. These are discussed
-> more in the ["Using file providers" guide](using-file-providers.md)
+> more in the ["Using file providers" guide][1]
 
 ## Local command file
 
@@ -237,4 +237,8 @@ We have only updated the `command` for the `scenario` in this guide. The `comman
 In this guide, we've covered writing more powerful commands both inline and in other files. Next,
 we'll guide you through how to write a scenario config.
 
-**Next:** [Writing a scenario](writing-a-scenario.md)
+**Next:** [Writing a scenario][2]
+
+[0]: writing-a-test-plan.md
+[1]: using-file-providers.md
+[2]: writing-a-scenario.md

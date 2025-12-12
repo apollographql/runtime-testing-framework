@@ -19,7 +19,7 @@ Documentation".
 **User Documentation** covers both how to make use of the `rtf` CLI for running existing Test Plans
 (such as those found in the [rtf-morgue][1] repo) and how to write your own Test Plans.
 
-**Develop Documentation** covers details on the internal design of RTF and how to work within the
+**Developer Documentation** covers details on the internal design of RTF and how to work within the
 [runtime-testing-framework][0] repo.
 
 ### Where do I ask for help if I am stuck?
