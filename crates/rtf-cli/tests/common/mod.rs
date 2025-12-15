@@ -1,4 +1,4 @@
-use assert_cmd::Command;
+use assert_cmd::{Command, cargo::cargo_bin_cmd};
 use assert_fs::{
     TempDir,
     prelude::{PathChild, PathCopy},
@@ -70,7 +70,7 @@ pub fn prepare_rtf_run(dir: &str) -> CmdWithTmpDir {
     let test_plan_file_path = tmp.child("test-plan.yaml");
     let test_plan_file_path = test_plan_file_path.path().to_str().unwrap();
 
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
 
     cmd.arg("run")
         .arg(test_plan_file_path)

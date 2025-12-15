@@ -1,10 +1,10 @@
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::str::contains;
 
 #[test]
 #[ignore = "requires a valid GitHub API Token"]
 fn check_completes_with_github_file() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .arg("template")
         .arg("resources/test-plans/valid/github-file/test-plan.yaml")
@@ -21,7 +21,7 @@ fn check_completes_with_github_config_files() {
     // The sanity-check test plan defines variables in the setup.provides
     // This test plan uses config from the sanity check
     // The only way to template successfully is to set this variable from the cli
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .arg("template")
         .arg("resources/test-plans/valid/github-config-files/test-plan.yaml")
@@ -37,7 +37,7 @@ fn check_completes_with_github_config_files() {
 #[test]
 #[ignore = "requires a valid GitHub API Token"]
 fn github_flag_produces_expected_output() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     cmd.args([
         "template",
         "--github",
@@ -52,7 +52,7 @@ fn github_flag_produces_expected_output() {
 #[test]
 #[ignore = "requires a valid GitHub API Token"]
 fn github_flag_invalid_path_fails() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     cmd.args([
         "template",
         "--github",

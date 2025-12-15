@@ -6,12 +6,12 @@ pub mod graphos;
 pub mod run;
 pub mod template;
 
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::str::contains;
 
 #[test]
 fn rtf_is_executable() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     // Running with no args should return a help message to std_err
     let res = cmd.assert();
 

@@ -1,11 +1,11 @@
 use crate::common::{is_valid_test_plan, prepare_rtf_run};
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::str::contains;
 use simple_test_case::test_case;
 
 #[test]
 fn is_executable() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
 
     let res = cmd.arg("run").assert();
 
@@ -179,7 +179,7 @@ fn execution_fails(test_plan_dir: &str, expected_err: &str) {
 
 #[test]
 fn load_and_resolve_from_invalid_github_uri_fails() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("run")
@@ -192,7 +192,7 @@ fn load_and_resolve_from_invalid_github_uri_fails() {
 
 #[test]
 fn load_and_resolve_from_github_missing_token_fails() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("run")

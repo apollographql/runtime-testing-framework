@@ -10,4 +10,4 @@ warning: unused import: `rtf_config::templating::Field`
 1 | use rtf_config::templating::Field;
   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
-  = note: `#[warn(unused_imports)]` on by default
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default

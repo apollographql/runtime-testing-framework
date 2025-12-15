@@ -1,4 +1,4 @@
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::str::contains;
 use serde_json::Value;
 
@@ -7,7 +7,7 @@ use serde_json::Value;
 fn pretty_formats_config_files() {
     let test_plan_dir = "github-config-files";
 
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .arg("expand-matrix")
         .arg(format!(
@@ -30,7 +30,7 @@ fn pretty_formats_config_files() {
 fn pretty_formats_file() {
     let test_plan_dir = "github-file";
 
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .arg("expand-matrix")
         .arg(format!(
