@@ -1,5 +1,5 @@
 use crate::common::is_valid_test_plan;
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::{TempDir, prelude::PathChild};
 use predicates::str::contains;
 use simple_test_case::test_case;
@@ -19,7 +19,7 @@ fn github_flag_produces_expected_output() {
     let outdir = temp.child("output");
     let outdir = outdir.path().to_str().unwrap();
 
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     cmd.args([
         "run",
         "--github",
@@ -39,7 +39,7 @@ fn github_flag_invalid_path_fails() {
     let outdir = temp.child("output");
     let outdir = outdir.path().to_str().unwrap();
 
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     cmd.args([
         "run",
         "--github",

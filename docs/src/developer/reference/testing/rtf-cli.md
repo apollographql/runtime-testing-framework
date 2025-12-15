@@ -156,7 +156,7 @@ Tests verify that commands are executable and respond appropriately to basic inv
 ```rust
 #[test]
 fn is_executable() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd.arg("template").assert();
     
     res.stderr(contains("Usage: rtf template"));
@@ -173,7 +173,7 @@ Complex scenarios use parameterized testing to cover multiple input variations e
 #[test_case("resolved-variables"; "resolved variables")]
 #[test]
 fn check_completes_basic(test_plan_dir: &str) {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear()
         .arg("template")
@@ -224,7 +224,7 @@ Error tests are heavily parameterized to cover multiple failure scenarios:
 )]
 #[test]
 fn templating_fails(file: &str, err_contains: &str) {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .arg("template")
         .arg(format!("resources/invalid/templating/{file}"))

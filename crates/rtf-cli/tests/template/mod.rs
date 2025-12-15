@@ -1,11 +1,11 @@
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use indoc::indoc;
 use predicates::str::{contains, is_match};
 use simple_test_case::test_case;
 
 #[test]
 fn is_executable() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd.arg("template").assert();
 
     res.stderr(contains("no test plan provided"));
@@ -24,7 +24,7 @@ fn is_executable() {
 // and the github and graphos test plans which are tested in their respective modules
 #[test]
 fn check_completes_basic(test_plan_dir: &str) {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
@@ -42,7 +42,7 @@ fn check_completes_basic(test_plan_dir: &str) {
 fn check_completes_with_cli_variables() {
     // The sanity-check test plan defines variables in the setup.provides
     // The only way to template successfully is to set this variable from the cli
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
@@ -60,7 +60,7 @@ fn check_completes_with_cli_variables() {
 fn check_completes_with_backwards_compatible_cli_variables_flag() {
     // The sanity-check test plan defines variables in the setup.provides
     // The only way to template successfully is to set this variable from the cli
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
@@ -111,7 +111,7 @@ fn check_completes_with_backwards_compatible_cli_variables_flag() {
 )]
 #[test]
 fn load_and_resolve_fails(file: &str, err_contains: &str) {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
@@ -164,7 +164,7 @@ fn load_and_resolve_fails(file: &str, err_contains: &str) {
 )]
 #[test]
 fn templating_fails(file: &str, err_contains: &str) {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
@@ -176,7 +176,7 @@ fn templating_fails(file: &str, err_contains: &str) {
 
 #[test]
 fn duplicate_variant_names_fails() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .arg("template")
         .arg("resources/test-plans/invalid/templating/duplicate-variant-names.yaml")
@@ -214,7 +214,7 @@ fn duplicate_variant_names_fails() {
 )]
 #[test]
 fn check_fails(file: &str, err_contains: &str) {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
@@ -231,7 +231,7 @@ fn check_fails(file: &str, err_contains: &str) {
 // the absolute path to the missing file which will be different on each system that runs the test
 #[test]
 fn check_fails_missing_relative_file() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
@@ -251,7 +251,7 @@ provided path was file://.*/resources/test-plans/invalid/checks/does-not-exist\.
 
 #[test]
 fn load_and_resolve_from_invalid_github_uri_fails() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
@@ -264,7 +264,7 @@ fn load_and_resolve_from_invalid_github_uri_fails() {
 
 #[test]
 fn load_and_resolve_from_github_missing_token_fails() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
