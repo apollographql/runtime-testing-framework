@@ -155,7 +155,7 @@
       "type": "object"
     },
     "Conditional": {
-      "description": "Conditionally run one of several providers.\n\nConditionally run a file provider from an ordered list based on simple \"where\" clauses that\nmake use of the provided templating variables. The first case with a \"where\" clause that holds\nwill be run as the output of this provider.\n\n```yaml\n- name: conditional_config.json\n  env_var: CONDITIONAL_CONFIG\n  kind: conditional\n  cases:\n    - where: { var: test_type, eq: load }\n      kind: relative_path\n      path: data/config-load.json\n\n    - where: { var: test_type, eq: ramp }\n      kind: relative_path\n      path: data/config-ramp.json\n```",
+      "description": "Conditionally run a file provider from an ordered list based on simple \"where\" clauses that\nmake use of the provided templating variables. The first case with a \"where\" clause that holds\nwill be run as the output of this provider.\n\n### Writing where clauses\n\nThe \"where\" clause on each case is a simple comparison against a single templating variable.\nYou must include the `var` key which accepts a string variable name that is required to be\ndefined within the test plan containing this provider. You may then assert that the variable\nis equal (`eq`) or not equal (`ne`) to a given scalar value.\n\nIf none of the provider where clauses match, this provider will error during static analysis\nchecks.\n\n```yaml\n- name: conditional_config.json\n  env_var: CONDITIONAL_CONFIG\n  kind: conditional\n  cases:\n    - where: { var: test_type, eq: load }\n      kind: relative_path\n      path: data/config-load.json\n\n    - where: { var: test_type, eq: ramp }\n      kind: relative_path\n      path: data/config-ramp.json\n```",
       "properties": {
         "cases": {
           "description": "The ordered list of cases to be checked against the variables used for templating the test\nplan.",
@@ -168,6 +168,7 @@
       "required": [
         "cases"
       ],
+      "title": "Conditional",
       "type": "object"
     },
     "ConditionalCase": {

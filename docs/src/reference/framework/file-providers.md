@@ -5,7 +5,7 @@
 Available file providers:
 
 - [Build Router from source](#build-router-from-source)
-- [Conditionally run one of several providers.](#conditionally-run-one-of-several-providers.)
+- [Conditional](#conditional)
 - [Custom provider](#custom-provider)
 - [From command](#from-command)
 - [GitHub file](#github-file)
@@ -66,11 +66,20 @@ Defaults to `"default"` if unset.
 
 </details>
 
-#Conditionally run one of several providers.
+## Conditional
 
 Conditionally run a file provider from an ordered list based on simple "where" clauses that make use
 of the provided templating variables. The first case with a "where" clause that holds will be run as
 the output of this provider.
+
+### Writing where clauses
+
+The "where" clause on each case is a simple comparison against a single templating variable. You
+must include the `var` key which accepts a string variable name that is required to be defined
+within the test plan containing this provider. You may then assert that the variable is equal (`eq`)
+or not equal (`ne`) to a given scalar value.
+
+If none of the provider where clauses match, this provider will error during static analysis checks.
 
 ```yaml
 - name: conditional_config.json

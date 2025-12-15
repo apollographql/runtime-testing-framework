@@ -283,11 +283,21 @@ impl Check for FromCommand {
     }
 }
 
-/// Conditionally run one of several providers.
+/// # Conditional
 ///
 /// Conditionally run a file provider from an ordered list based on simple "where" clauses that
 /// make use of the provided templating variables. The first case with a "where" clause that holds
 /// will be run as the output of this provider.
+///
+/// ### Writing where clauses
+///
+/// The "where" clause on each case is a simple comparison against a single templating variable.
+/// You must include the `var` key which accepts a string variable name that is required to be
+/// defined within the test plan containing this provider. You may then assert that the variable
+/// is equal (`eq`) or not equal (`ne`) to a given scalar value.
+///
+/// If none of the provider where clauses match, this provider will error during static analysis
+/// checks.
 ///
 /// ```yaml
 /// - name: conditional_config.json
@@ -351,7 +361,21 @@ impl Template for Conditional {
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         self.variables = ctx.variables().clone();
-        self.cases.try_template(path, file_source, ctx)
+
+        let mut errs = templating::ErrorBuilder::new();
+        for case in self.cases.iter() {
+            if !self.variables.contains_key(&case.where_clause.var) {
+                errs.push(
+                    templating::ErrorKind::UnknownVariable,
+                    case.where_clause.var.clone(),
+                    path,
+                );
+            }
+        }
+
+        errs.append(self.cases.try_template(path, file_source, ctx));
+
+        errs.into_result(())
     }
 }
 
@@ -840,7 +864,7 @@ mod tests {
             variables: HashMap::default(),
         };
 
-        let ctx = template_context!(&["path"]);
+        let ctx = template_context!(&["bar", "path"]);
 
         let res = fp.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
         assert!(
@@ -864,7 +888,7 @@ mod tests {
             }],
             variables: HashMap::default(),
         };
-        let ctx = template_context!(&["unused"]);
+        let ctx = template_context!(&["bar"]);
 
         let res = fp.try_template(&mut vec!["test".to_string()], &SourceDir::local("/"), &ctx);
         assert!(res.is_err(), "expected templating to error, got {res:?}");
@@ -879,6 +903,32 @@ mod tests {
             "expected ErrorKind to match"
         );
         assert_eq!(error_path, "test.inner.path", "expected path to match")
+    }
+
+    #[test]
+    fn conditional_try_template_error_unknown_where_variable() {
+        let mut fp = Conditional {
+            cases: vec![ConditionalCase {
+                where_clause: WhereClause {
+                    var: "bar".to_string(),
+                    comp: VarComp::Eq(42.into()),
+                },
+                inner: FileProvider::Inline(InlineFile {
+                    content: String::new(),
+                }),
+            }],
+            variables: HashMap::default(),
+        };
+
+        let ctx = template_context!(&["unused"]);
+        let res = fp.try_template(&mut vec!["test".to_string()], &SourceDir::local("/"), &ctx);
+        assert!(
+            res.is_err(),
+            "expected to try_template to error, got {res:?}"
+        );
+
+        let err = res.unwrap_err().unwrap_single();
+        assert_eq!(err.kind, templating::ErrorKind::UnknownVariable)
     }
 
     #[test]
