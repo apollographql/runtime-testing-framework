@@ -35,7 +35,7 @@
             const path_to_root = "../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../searchindex-63b85d0a.js";
+            window.path_to_searchindex_js = "../../../searchindex-83ef08ad.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../../toc-1451011a.js"></script>
@@ -318,7 +318,7 @@ flag combinations</li>
 </span><span class="boring">fn main() {
 </span>#[test]
 fn is_executable() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd.arg("template").assert();
     
     res.stderr(contains("Usage: rtf template"));
@@ -333,7 +333,7 @@ fn is_executable() {
 #[test_case("resolved-variables"; "resolved variables")]
 #[test]
 fn check_completes_basic(test_plan_dir: &amp;str) {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear()
         .arg("template")
@@ -379,7 +379,7 @@ providing convenient access to both the command and the temporary filesystem sta
 )]
 #[test]
 fn templating_fails(file: &amp;str, err_contains: &amp;str) {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .arg("template")
         .arg(format!("resources/invalid/templating/{file}"))
