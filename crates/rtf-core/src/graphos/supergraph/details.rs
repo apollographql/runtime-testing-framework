@@ -340,10 +340,10 @@ fn rewrite_connector_urls(sdl: &str, base_url: &str) -> Option<String> {
             continue;
         }
 
-        let Value::Object(args_map) = directive
-            .get_mut()?
-            .specified_argument_by_name_mut("args")?
-            .get_mut()?
+        let Some(Value::Object(args_map)) = directive
+            .get_mut()
+            .and_then(|d| d.specified_argument_by_name_mut("args"))
+            .and_then(|a| a.get_mut())
         else {
             continue;
         };
@@ -383,10 +383,10 @@ fn replace_sourceless_connector_urls(field: &mut Node<ObjectType>, base_url: &st
                 continue;
             }
 
-            let Value::Object(args_map) = directive
-                .get_mut()?
-                .specified_argument_by_name_mut("args")?
-                .get_mut()?
+            let Some(Value::Object(args_map)) = directive
+                .get_mut()
+                .and_then(|d| d.specified_argument_by_name_mut("args"))
+                .and_then(|a| a.get_mut())
             else {
                 continue;
             };
