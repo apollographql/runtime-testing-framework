@@ -136,6 +136,7 @@ mod tests {
                 name: name.to_string(),
                 description: "description".to_string(),
                 default: None,
+                allowed_values: None,
             })
             .collect()
     }

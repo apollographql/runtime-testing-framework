@@ -901,16 +901,19 @@ mod tests {
                 name: "a".into(),
                 description: String::new(),
                 default: Some(2.into()),
+                allowed_values: None,
             },
             VariableDefinition {
                 name: "b".into(),
                 description: String::new(),
                 default: None,
+                allowed_values: None,
             },
             VariableDefinition {
                 name: "d".into(),
                 description: String::new(),
                 default: Some("bar".into()),
+                allowed_values: None,
             },
         ];
 

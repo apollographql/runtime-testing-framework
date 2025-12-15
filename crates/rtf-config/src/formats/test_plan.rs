@@ -729,6 +729,7 @@ mod tests {
             name: name.into(),
             description: String::default(),
             default: Some(val.into()),
+            allowed_values: None,
         }
     }
 
@@ -2319,6 +2320,7 @@ mod tests {
             name: "provides".to_string(),
             description: "A variable provided by setup".to_string(),
             default: None,
+            allowed_values: None,
         }];
 
         let mut test_plan = TestPlanConfig {

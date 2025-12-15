@@ -40,6 +40,9 @@ pub struct VariableDefinition {
     /// An optional default to use if this variable is not provided in the parent test plan
     #[serde(default)]
     pub default: Option<templating::Scalar>,
+    /// An optional array of allowed values for this variable. Templating will fail if any values are set for this variable that are not defined here.
+    #[serde(default)]
+    pub allowed_values: Option<Vec<templating::Scalar>>,
 }
 
 /// A function for merging yaml overrides with the base config. It is expected

@@ -360,6 +360,7 @@ pub(crate) mod tests {
         variable_definitions:
           - name: foo
             description: a value foo
+            allowed_values: ["foo1", "foo2"]
           - name: bar
             description: a value bar
             default: "bar"
