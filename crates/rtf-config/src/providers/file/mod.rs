@@ -240,6 +240,7 @@ impl Check for NamedFileProvider {
 // the all_fields_templated test in this file
 pub enum FileProvider {
     BuildRouterFromSource(apollo::BuildRouterFromSource),
+    Conditional(utility::Conditional),
     CustomProvider(custom::CustomProvider),
     FromCommand(utility::FromCommand),
     GithubFile(github::GithubFile),
@@ -280,6 +281,7 @@ macro_rules! enum_impl_file_provider {
 
 enum_impl_file_provider!(
     BuildRouterFromSource,
+    Conditional,
     CustomProvider,
     FromCommand,
     GithubFile,
@@ -668,6 +670,18 @@ mod tests {
         features: "{{ features }}"
     "#
     );
+    const CONDITIONAL: &str = indoc!(
+        r#"
+        kind: conditional
+        cases:
+          - where: { var: test_type, eq: load }
+            kind: relative_path
+            path: "{{ case_1 }}"
+          - where: { var: test_type, ne: ramp }
+            kind: relative_path
+            path: "{{ case_2 }}"
+    "#
+    );
     const CUSTOM_PROVIDER_YAML: &str = indoc!(
         r#"
         kind: custom_provider
@@ -808,6 +822,7 @@ mod tests {
     );
 
     #[test_case(BUILD_ROUTER_FROM_SOURCE, &["git_ref", "rust_version", "profile", "features"]; "build_router_from_source")]
+    #[test_case(CONDITIONAL, &["case_1", "case_2", "test_type"]; "conditional")]
     #[test_case(CUSTOM_PROVIDER_YAML, &["value1"]; "custom_provider")]
     #[test_case(GITHUB_FILE, &["org", "repo", "path", "git_ref"]; "github_file")]
     #[test_case(GRAPHOS_CANNED_OPS, &["graph_ref", "top_n", "skip_mutations", "time_range"]; "graphos_canned_ops")]
