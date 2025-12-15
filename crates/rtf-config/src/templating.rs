@@ -22,8 +22,17 @@ pub enum ErrorKind {
     #[strum(to_string = "Conflicting variable and matrix definitions")]
     ConflictingVariables,
 
+    #[strum(to_string = "Default value for variable not in its allowed values")]
+    DefaultNotInAllowedValues,
+
+    #[strum(to_string = "Empty array for variable allowed values")]
+    EmptyAllowedValues,
+
     #[strum(to_string = "Empty array for matrix variable")]
     EmptyMatrixVariable,
+
+    #[strum(to_string = "Incompatible allowed values across variable definitions")]
+    IncompatibleAllowedValues,
 
     #[strum(to_string = "Inconsistent types for matrix include maps")]
     InconsistentMatrixInclude,

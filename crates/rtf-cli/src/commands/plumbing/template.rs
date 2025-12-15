@@ -60,7 +60,7 @@ async fn template_test_plan_with_context(
     let override_sources = variables.merge(&mut test_plan, &SourceDir::local(cwd), &mut ctx)?;
 
     info!("checking if templating will work");
-    test_plan.check_templating_will_work()?;
+    test_plan.check_templating_will_work(&override_sources)?;
 
     let (_, variables) = test_plan.matrix.try_expand(&test_plan.variables)?.remove(0);
     let source = test_plan.sources.test_plan().clone();

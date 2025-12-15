@@ -45,6 +45,57 @@ pub struct VariableDefinition {
     pub allowed_values: Option<Vec<templating::Scalar>>,
 }
 
+impl VariableDefinition {
+    /// Validate the variable definition itself (e.g. empty allowed_values, default not in allowed)
+    pub fn validate(&self, path: &[String], errs: &mut templating::ErrorBuilder) {
+        if let Some(allowed) = &self.allowed_values {
+            if allowed.is_empty() {
+                errs.push(
+                    templating::ErrorKind::EmptyAllowedValues,
+                    format!("variable '{}' has empty allowed values", self.name),
+                    path,
+                );
+            }
+
+            if let Some(default) = &self.default
+                && !allowed.contains(default)
+            {
+                errs.push(
+                    templating::ErrorKind::DefaultNotInAllowedValues,
+                    format!(
+                        "variable '{}' has default '{}' not in allowed values",
+                        self.name, default
+                    ),
+                    path,
+                );
+            }
+        }
+    }
+
+    /// Validate that a provided value is in the allowed values for this variable.
+    /// If allowed_values is None (unconstrained), validation always passes.
+    pub fn validate_value(
+        &self,
+        value: &templating::Scalar,
+        source_description: &str,
+        path: &[String],
+        errs: &mut templating::ErrorBuilder,
+    ) {
+        if let Some(allowed) = &self.allowed_values
+            && !allowed.contains(value)
+        {
+            errs.push(
+                templating::ErrorKind::ValueNotAllowed,
+                format!(
+                    "{} '{}' has value '{}' not in allowed: {:?}",
+                    source_description, self.name, value, allowed
+                ),
+                path,
+            );
+        }
+    }
+}
+
 /// A function for merging yaml overrides with the base config. It is expected
 /// behaviour that lists will be a combination of the base and override lists
 /// for the same key. This function performs no deduplication.
