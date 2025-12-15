@@ -1503,4 +1503,28 @@ mod tests {
         assert_resolve_and_write_success(router_from_source, &target, &mut ctx, expected_content)
             .await;
     }
+
+    #[test]
+    fn connector_base_url_localhost() {
+        let url_format = UrlFormat::Localhost;
+        assert_eq!(url_format.connector_base_url(), "http://localhost:3000");
+    }
+
+    #[test]
+    fn connector_base_url_docker() {
+        let url_format = UrlFormat::Docker;
+        assert_eq!(url_format.connector_base_url(), "http://connector:3000");
+    }
+
+    #[test]
+    fn connector_base_url_custom() {
+        let url_format = UrlFormat::Custom(CustomUrlFormat {
+            base_url: Field::Resolved("http://my-connector".to_string()),
+            base_port: Field::Resolved(4000),
+            increment_port: Field::Resolved(false),
+            add_subgraph_route: Field::Resolved(false),
+            custom_subgraph_urls: HashMap::new(),
+        });
+        assert_eq!(url_format.connector_base_url(), "http://my-connector:4000");
+    }
 }
