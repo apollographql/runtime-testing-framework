@@ -332,11 +332,11 @@ fn rewrite_connector_urls(sdl: &str, base_url: &str) -> Option<String> {
         if directive.name != "join__directive" {
             continue;
         }
-        let is_source = directive
+
+        if directive
             .specified_argument_by_name("name")
             .and_then(|v| v.as_str())
-            .is_some_and(|name| name == "source");
-        if !is_source {
+            .is_none_or(|name| name != "source") {
             continue;
         }
 
@@ -375,13 +375,14 @@ fn replace_sourceless_connector_urls(field: &mut Node<ObjectType>, base_url: &st
             if directive.name != "join__directive" {
                 continue;
             }
-            let is_connect = directive
+
+            if directive
                 .specified_argument_by_name("name")
                 .and_then(|v| v.as_str())
-                .is_some_and(|name| name == "connect");
-            if !is_connect {
+                .is_none_or(|name| name != "connect") {
                 continue;
             }
+
             let Value::Object(args_map) = directive
                 .get_mut()?
                 .specified_argument_by_name_mut("args")?
