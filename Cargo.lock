@@ -1638,12 +1638,12 @@ dependencies = [
  "indoc",
  "predicates",
  "rtf-config",
+ "rtf-core",
  "rtf-integrations",
  "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
- "similar",
  "simple_test_case",
  "tokio",
  "tracing",
@@ -1675,6 +1675,24 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "rtf-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "assert_fs",
+ "rtf-config",
+ "rtf-integrations",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "similar",
+ "simple_test_case",
+ "tokio",
+ "tracing",
+ "walkdir",
 ]
 
 [[package]]
