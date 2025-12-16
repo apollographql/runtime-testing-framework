@@ -1,0 +1,21 @@
+[package]
+name = "rtf-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rtf-config = { path = "../rtf-config" }
+rtf-integrations = { path = "../rtf-integrations" }
+
+anyhow.workspace = true 
+assert_fs.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+similar = "2.7.0"
+walkdir = "2.5.0"
+
+[dev-dependencies]
+simple_test_case.workspace = true
