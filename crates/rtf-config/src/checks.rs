@@ -16,6 +16,9 @@ pub enum ErrorKind {
     #[strum(to_string = "Non-unique variable names found")]
     DuplicateVariableNames,
 
+    #[strum(to_string = "An array was empty when at least one element was expected")]
+    EmptyArray,
+
     #[strum(to_string = "The requested file did not exist")]
     FileNotFound,
 
@@ -36,6 +39,9 @@ pub enum ErrorKind {
 
     #[strum(to_string = "No API key provided for calling the Apollo GraphOS API")]
     MissingGraphOsApiKey,
+
+    #[strum(to_string = "No matching conditional cases for provided variables")]
+    NoMatchingCases,
 
     #[strum(to_string = "A required file has not been defined")]
     RequiredFileMissing,

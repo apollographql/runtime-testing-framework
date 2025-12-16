@@ -5,6 +5,7 @@
 Available file providers:
 
 - [Build Router from source](#build-router-from-source)
+- [Conditional](#conditional)
 - [Custom provider](#custom-provider)
 - [From command](#from-command)
 - [GitHub file](#github-file)
@@ -62,6 +63,44 @@ Defaults to `"release"` if unset.
 Comma separated list of features to build the Router with.
 
 Defaults to `"default"` if unset.
+
+</details>
+
+## Conditional
+
+Conditionally run a file provider from an ordered list based on simple "where" clauses that make use
+of the provided templating variables. The first case with a "where" clause that holds will be run as
+the output of this provider.
+
+### Writing where clauses
+
+The "where" clause on each case is a simple comparison against a single templating variable. You
+must include the `var` key which accepts a string variable name that is required to be defined
+within the test plan containing this provider. You may then assert that the variable is equal (`eq`)
+or not equal (`ne`) to a given scalar value.
+
+If none of the provider where clauses match, this provider will error during static analysis checks.
+
+```yaml
+- name: conditional_config.json
+  env_var: CONDITIONAL_CONFIG
+  kind: conditional
+  cases:
+    - where: { var: test_type, eq: load }
+      kind: relative_path
+      path: data/config-load.json
+
+    - where: { var: test_type, eq: ramp }
+      kind: relative_path
+      path: data/config-ramp.json
+```
+
+<details>
+<summary>Fields</summary>
+
+### `cases`
+
+The ordered list of cases to be checked against the variables used for templating the test plan.
 
 </details>
 

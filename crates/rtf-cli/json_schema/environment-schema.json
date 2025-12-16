@@ -154,6 +154,332 @@
       "title": "Command Spec",
       "type": "object"
     },
+    "Conditional": {
+      "description": "Conditionally run a file provider from an ordered list based on simple \"where\" clauses that\nmake use of the provided templating variables. The first case with a \"where\" clause that holds\nwill be run as the output of this provider.\n\n### Writing where clauses\n\nThe \"where\" clause on each case is a simple comparison against a single templating variable.\nYou must include the `var` key which accepts a string variable name that is required to be\ndefined within the test plan containing this provider. You may then assert that the variable\nis equal (`eq`) or not equal (`ne`) to a given scalar value.\n\nIf none of the provider where clauses match, this provider will error during static analysis\nchecks.\n\n```yaml\n- name: conditional_config.json\n  env_var: CONDITIONAL_CONFIG\n  kind: conditional\n  cases:\n    - where: { var: test_type, eq: load }\n      kind: relative_path\n      path: data/config-load.json\n\n    - where: { var: test_type, eq: ramp }\n      kind: relative_path\n      path: data/config-ramp.json\n```",
+      "properties": {
+        "cases": {
+          "description": "The ordered list of cases to be checked against the variables used for templating the test\nplan.",
+          "items": {
+            "$ref": "#/definitions/ConditionalCase"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "cases"
+      ],
+      "title": "Conditional",
+      "type": "object"
+    },
+    "ConditionalCase": {
+      "description": "A conditional \"where\" clause guarding the execution of an associated file provider",
+      "oneOf": [
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/BuildRouterFromSource"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "build_router_from_source",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Conditional"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "conditional",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CustomProvider"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "custom_provider",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/FromCommand"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "from_command",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GithubFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "github_file",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GraphosCannedOps"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphos_canned_ops",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GraphosCannedOpsById"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphos_canned_ops_by_id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GraphosSubgraphRouterUrlOverrides"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphos_subgraph_router_url_overrides",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GraphosSubgraphs"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphos_subgraphs",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GraphosSubgraphNames"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphos_subgraph_names",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GraphosSupergraph"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphos_supergraph",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/InlineFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "inline",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/MergeYaml"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "merge_yaml",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/OfflineGraphosLicense"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "offline_graphos_license",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RelativeFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "relative_path",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RequiredFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "required",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RouterDownloadScript"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "router_download_script",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ],
+      "properties": {
+        "where": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/WhereClause"
+            }
+          ],
+          "description": "A conditional clause that must hold for this case to be run"
+        }
+      },
+      "required": [
+        "where"
+      ],
+      "title": "File Provider",
+      "type": "object"
+    },
     "CustomProvider": {
       "additionalProperties": {
         "$ref": "#/definitions/Templatable%20Scalar"
@@ -590,6 +916,23 @@
           "properties": {
             "kind": {
               "const": "build_router_from_source",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Conditional"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "conditional",
               "type": "string"
             }
           },
@@ -1222,6 +1565,45 @@
       "required": [
         "name",
         "description"
+      ],
+      "type": "object"
+    },
+    "WhereClause": {
+      "description": "A conditional clause based on the value of a templating variable",
+      "oneOf": [
+        {
+          "description": "Require the variable to be equal to the given scalar value",
+          "properties": {
+            "eq": {
+              "$ref": "#/definitions/Scalar"
+            }
+          },
+          "required": [
+            "eq"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Require the variable to be not equal to the given scalar value",
+          "properties": {
+            "ne": {
+              "$ref": "#/definitions/Scalar"
+            }
+          },
+          "required": [
+            "ne"
+          ],
+          "type": "object"
+        }
+      ],
+      "properties": {
+        "var": {
+          "description": "The variable being checked",
+          "type": "string"
+        }
+      },
+      "required": [
+        "var"
       ],
       "type": "object"
     }

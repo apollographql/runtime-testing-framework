@@ -1,5 +1,6 @@
 //! File providers that act as combinators or otherwise modify the output of other providers
 use crate::{
+    SourceDir,
     checks::{self, Check},
     context::ResolutionContext,
     enum_impl_as_utf8_file_content, enum_impl_check, merge_yaml,
@@ -7,15 +8,19 @@ use crate::{
         self, Result,
         command::CommandSection,
         file::{
-            AsUtf8FileContent, InlineFile, RelativeFile, RequiredFile, ResolveAndWrite,
-            apollo::GraphosSubgraphRouterUrlOverrides, github::GithubFile,
+            AsUtf8FileContent, FileProvider, InlineFile, RelativeFile, RequiredFile,
+            ResolveAndWrite, apollo::GraphosSubgraphRouterUrlOverrides, github::GithubFile,
         },
     },
+    templating::{self, Scalar, Template, TemplateContext},
 };
 use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 use tracing::error;
 
 /// # Text file provider
@@ -278,6 +283,203 @@ impl Check for FromCommand {
     }
 }
 
+/// # Conditional
+///
+/// Conditionally run a file provider from an ordered list based on simple "where" clauses that
+/// make use of the provided templating variables. The first case with a "where" clause that holds
+/// will be run as the output of this provider.
+///
+/// ### Writing where clauses
+///
+/// The "where" clause on each case is a simple comparison against a single templating variable.
+/// You must include the `var` key which accepts a string variable name that is required to be
+/// defined within the test plan containing this provider. You may then assert that the variable
+/// is equal (`eq`) or not equal (`ne`) to a given scalar value.
+///
+/// If none of the provider where clauses match, this provider will error during static analysis
+/// checks.
+///
+/// ```yaml
+/// - name: conditional_config.json
+///   env_var: CONDITIONAL_CONFIG
+///   kind: conditional
+///   cases:
+///     - where: { var: test_type, eq: load }
+///       kind: relative_path
+///       path: data/config-load.json
+///
+///     - where: { var: test_type, eq: ramp }
+///       kind: relative_path
+///       path: data/config-ramp.json
+/// ```
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+pub struct Conditional {
+    /// The ordered list of cases to be checked against the variables used for templating the test
+    /// plan.
+    cases: Vec<ConditionalCase>,
+
+    #[serde(skip, default)]
+    variables: HashMap<String, Scalar>,
+}
+
+impl Template for Conditional {
+    fn has_pending_fields(&self) -> bool {
+        self.cases.has_pending_fields()
+    }
+
+    fn required_variables(&self) -> Vec<String> {
+        let mut vars = HashSet::new();
+
+        // The variables used in where clauses count as required variables so we need to include
+        // those as well here.
+        for case in self.cases.iter() {
+            vars.extend(case.inner.required_variables());
+            vars.insert(case.where_clause.var.clone());
+        }
+
+        let mut vars: Vec<String> = vars.into_iter().collect();
+        vars.sort_unstable();
+
+        vars
+    }
+
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &SourceDir,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        self.cases
+            .validate_context(path, allowed_variables, file_source, ctx)
+    }
+
+    fn try_template(
+        &mut self,
+        path: &mut Vec<String>,
+        file_source: &SourceDir,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        self.variables = ctx.variables().clone();
+
+        let mut errs = templating::ErrorBuilder::new();
+        for case in self.cases.iter() {
+            if !self.variables.contains_key(&case.where_clause.var) {
+                errs.push(
+                    templating::ErrorKind::UnknownVariable,
+                    case.where_clause.var.clone(),
+                    path,
+                );
+            }
+        }
+
+        errs.append(self.cases.try_template(path, file_source, ctx));
+
+        errs.into_result(())
+    }
+}
+
+impl ResolveAndWrite for Conditional {
+    async fn resolve_and_write(
+        &self,
+        target: impl AsRef<Path>,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<()> {
+        let target = target.as_ref();
+
+        for case in self.cases.iter() {
+            if case.where_clause.holds_for(&self.variables) {
+                // we need to pin this future on the heap to be able to poll it in order to avoid a
+                // recursively defined future (which is infinitely sized)
+                return Box::pin(case.inner.resolve_and_write(target, ctx)).await;
+            }
+        }
+
+        panic!("should have errored in try_check due to having no matching cases");
+    }
+}
+
+impl Check for Conditional {
+    fn try_check(
+        &self,
+        path: &mut Vec<String>,
+        ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        if self.cases.is_empty() {
+            return Err(checks::Errors::new(
+                checks::ErrorKind::EmptyArray,
+                "conditional file providers require at least one case",
+                path,
+            ));
+        }
+
+        let mut errs = checks::ErrorBuilder::new();
+
+        for case in self.cases.iter() {
+            errs.append(case.inner.try_check_nested(path, "inner", ctx));
+        }
+
+        if self
+            .cases
+            .iter()
+            .all(|case| !case.where_clause.holds_for(&self.variables))
+        {
+            errs.push(
+                checks::ErrorKind::NoMatchingCases,
+                "at least one case must hold for the given templating variables",
+                path,
+            );
+        }
+
+        errs.into_result(())
+    }
+}
+
+/// A conditional "where" clause guarding the execution of an associated file provider
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+pub struct ConditionalCase {
+    /// A conditional clause that must hold for this case to be run
+    #[serde(rename = "where")]
+    #[template(skip)]
+    where_clause: WhereClause,
+
+    #[serde(flatten)]
+    inner: FileProvider,
+}
+
+/// A conditional clause based on the value of a templating variable
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+pub struct WhereClause {
+    /// The variable being checked
+    var: String,
+    #[serde(flatten)]
+    comp: VarComp,
+}
+
+impl WhereClause {
+    fn holds_for(&self, vars: &HashMap<String, Scalar>) -> bool {
+        let val = match vars.get(&self.var) {
+            Some(val) => val,
+            None => return false,
+        };
+
+        match &self.comp {
+            VarComp::Eq(s) => val == s,
+            VarComp::Ne(s) => val != s,
+        }
+    }
+}
+
+/// The comparison being run against the value of the given templating variable
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum VarComp {
+    /// Require the variable to be equal to the given scalar value
+    Eq(Scalar),
+    /// Require the variable to be not equal to the given scalar value
+    Ne(Scalar),
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -291,10 +493,22 @@ mod tests {
                 assert_resolve_and_write_success,
             },
         },
+        templating::Field,
     };
     use assert_fs::{TempDir, fixture::PathChild};
     use indoc::indoc;
     use simple_test_case::test_case;
+
+    macro_rules! template_context {
+        ($slice:expr) => {{
+            let mut m = ::std::collections::HashMap::new();
+            for k in $slice {
+                m.insert(k.to_string(), Scalar::from(k.to_string()));
+            }
+
+            TemplateContext::new_stubbed(m)
+        }};
+    }
 
     fn one(content: &str) -> Overrides {
         Overrides::One(TextFileProvider::Inline(InlineFile {
@@ -594,5 +808,219 @@ mod tests {
         let merge_yaml = merge_yaml(base_yaml, arr(&[override_one_yaml, override_two_yaml]));
 
         assert_resolve_and_write_error(merge_yaml, &target, &mut ctx, expected_err).await
+    }
+
+    #[test_case(Field::Pending("foo".to_string()), true; "field is pending")]
+    #[test_case(Field::Resolved("foo".to_string()), false; "field is resolved")]
+    #[test]
+    fn conditional_has_pending_fields(f: Field<String>, expected: bool) {
+        let fp = Conditional {
+            cases: vec![ConditionalCase {
+                where_clause: WhereClause {
+                    var: "bar".to_string(),
+                    comp: VarComp::Eq(42.into()),
+                },
+                inner: FileProvider::RelativePath(RelativeFile { path: f, src: None }),
+            }],
+            variables: HashMap::default(),
+        };
+
+        let res = fp.has_pending_fields();
+        assert_eq!(res, expected)
+    }
+
+    #[test_case(Field::Pending("foo".to_string()), &["bar", "foo"]; "required field and where clause")]
+    #[test_case(Field::Resolved("foo".to_string()), &["bar"]; "where clause only")]
+    #[test]
+    fn conditional_required_variables(f: Field<String>, expected: &[&str]) {
+        let fp = Conditional {
+            cases: vec![ConditionalCase {
+                where_clause: WhereClause {
+                    var: "bar".to_string(),
+                    comp: VarComp::Eq(42.into()),
+                },
+                inner: FileProvider::RelativePath(RelativeFile { path: f, src: None }),
+            }],
+            variables: HashMap::default(),
+        };
+
+        let res = fp.required_variables();
+        assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn conditional_try_template_succeeds() {
+        let mut fp = Conditional {
+            cases: vec![ConditionalCase {
+                where_clause: WhereClause {
+                    var: "bar".to_string(),
+                    comp: VarComp::Eq(42.into()),
+                },
+                inner: FileProvider::RelativePath(RelativeFile {
+                    path: Field::Pending("path".to_string()),
+                    src: None,
+                }),
+            }],
+            variables: HashMap::default(),
+        };
+
+        let ctx = template_context!(&["bar", "path"]);
+
+        let res = fp.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
+        assert!(
+            res.is_ok(),
+            "expected to template successfully, got {res:?}"
+        )
+    }
+
+    #[test]
+    fn conditional_try_template_unknown_variable_error() {
+        let mut fp = Conditional {
+            cases: vec![ConditionalCase {
+                where_clause: WhereClause {
+                    var: "bar".to_string(),
+                    comp: VarComp::Eq(42.into()),
+                },
+                inner: FileProvider::RelativePath(RelativeFile {
+                    path: Field::Pending("path".to_string()),
+                    src: None,
+                }),
+            }],
+            variables: HashMap::default(),
+        };
+        let ctx = template_context!(&["bar"]);
+
+        let res = fp.try_template(&mut vec!["test".to_string()], &SourceDir::local("/"), &ctx);
+        assert!(res.is_err(), "expected templating to error, got {res:?}");
+
+        let errors = res.unwrap_err();
+        let error = errors.unwrap_single();
+        let error_kind = error.kind;
+        let error_path = error.path;
+        assert_eq!(
+            error_kind,
+            templating::ErrorKind::UnknownVariable,
+            "expected ErrorKind to match"
+        );
+        assert_eq!(error_path, "test.inner.path", "expected path to match")
+    }
+
+    #[test]
+    fn conditional_try_template_error_unknown_where_variable() {
+        let mut fp = Conditional {
+            cases: vec![ConditionalCase {
+                where_clause: WhereClause {
+                    var: "bar".to_string(),
+                    comp: VarComp::Eq(42.into()),
+                },
+                inner: FileProvider::Inline(InlineFile {
+                    content: String::new(),
+                }),
+            }],
+            variables: HashMap::default(),
+        };
+
+        let ctx = template_context!(&["unused"]);
+        let res = fp.try_template(&mut vec!["test".to_string()], &SourceDir::local("/"), &ctx);
+        assert!(
+            res.is_err(),
+            "expected to try_template to error, got {res:?}"
+        );
+
+        let err = res.unwrap_err().unwrap_single();
+        assert_eq!(err.kind, templating::ErrorKind::UnknownVariable)
+    }
+
+    #[test]
+    fn conditional_check_error_path_correct() {
+        let fp = Conditional {
+            cases: vec![ConditionalCase {
+                where_clause: WhereClause {
+                    var: "bar".to_string(),
+                    comp: VarComp::Eq(42.into()),
+                },
+                inner: FileProvider::RelativePath(RelativeFile {
+                    path: Field::Resolved("does/not/exist/relative.txt".to_string()),
+                    src: Some(SourceDir::local("/foo")),
+                }),
+            }],
+            variables: HashMap::from([("bar".to_string(), 42.into())]),
+        };
+
+        let res = fp.try_check(&mut vec!["path".to_string()], &Context::new());
+        assert!(res.is_err(), "expected to check to error, got {res:?}");
+
+        let err = res.unwrap_err().unwrap_single();
+        assert_eq!(err.path, "path.inner", "{err:?}")
+    }
+
+    #[test]
+    fn conditional_check_error_no_matching_cases() {
+        let fp = Conditional {
+            cases: vec![ConditionalCase {
+                where_clause: WhereClause {
+                    var: "bar".to_string(),
+                    comp: VarComp::Eq(42.into()),
+                },
+                inner: FileProvider::Inline(InlineFile {
+                    content: String::new(),
+                }),
+            }],
+            variables: HashMap::from([("bar".to_string(), 7.into())]),
+        };
+
+        let res = fp.try_check(&mut vec!["path".to_string()], &Context::new());
+        assert!(res.is_err(), "expected to check to error, got {res:?}");
+
+        let err = res.unwrap_err().unwrap_single();
+        assert_eq!(err.kind, checks::ErrorKind::NoMatchingCases)
+    }
+
+    #[test]
+    fn conditional_check_error_empty_cases() {
+        let fp = Conditional {
+            cases: Vec::default(),
+            variables: HashMap::default(),
+        };
+
+        let res = fp.try_check(&mut vec!["path".to_string()], &Context::new());
+        assert!(res.is_err(), "expected to check to error, got {res:?}");
+
+        let err = res.unwrap_err().unwrap_single();
+        assert_eq!(err.kind, checks::ErrorKind::EmptyArray)
+    }
+
+    #[test_case(42, "case 1"; "first case")]
+    #[test_case(7, "case 2"; "second case")]
+    #[tokio::test]
+    async fn conditional_resolve_and_write_success(bar_val: usize, expected_content: &str) {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("conditional.txt");
+
+        let fp = FileProvider::Conditional(Conditional {
+            cases: vec![
+                ConditionalCase {
+                    where_clause: WhereClause {
+                        var: "bar".to_string(),
+                        comp: VarComp::Eq(42.into()),
+                    },
+                    inner: FileProvider::Inline(InlineFile {
+                        content: "case 1".to_string(),
+                    }),
+                },
+                ConditionalCase {
+                    where_clause: WhereClause {
+                        var: "bar".to_string(),
+                        comp: VarComp::Eq(7.into()),
+                    },
+                    inner: FileProvider::Inline(InlineFile {
+                        content: "case 2".to_string(),
+                    }),
+                },
+            ],
+            variables: HashMap::from([("bar".to_string(), bar_val.into())]),
+        });
+
+        assert_resolve_and_write_success(fp, &target, &mut Context::new(), expected_content).await;
     }
 }
