@@ -11,7 +11,7 @@ mod test_plan;
 pub use custom_provider::{CustomProviderDeclaration, CustomProviderDefinition};
 pub use environment::EnvironmentConfig;
 pub use matrix::Matrix;
-use rtf_core::github;
+use rtf_integrations::github;
 pub use scenario::ScenarioConfig;
 pub use test_plan::{RawTestPlanConfig, TestPlanConfig};
 

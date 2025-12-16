@@ -306,7 +306,7 @@ mod tests {
     use serde::Deserialize;
     use simple_test_case::dir_cases;
 
-    #[dir_cases("crates/rtf-core/resources/test_data/supergraph_details/valid")]
+    #[dir_cases("crates/rtf-integrations/resources/test_data/supergraph_details/valid")]
     #[test]
     fn parse_ok(path: &str, contents: &str) -> anyhow::Result<()> {
         let raw: <RawSupergraphDetails as GraphQLQuery>::ResponseData =
@@ -348,7 +348,7 @@ mod tests {
         data: serde_json::Value,
     }
 
-    #[dir_cases("crates/rtf-core/resources/test_data/supergraph_details/invalid")]
+    #[dir_cases("crates/rtf-integrations/resources/test_data/supergraph_details/invalid")]
     #[test]
     fn parse_err(path: &str, contents: &str) -> anyhow::Result<()> {
         let ErrDetailsCase {

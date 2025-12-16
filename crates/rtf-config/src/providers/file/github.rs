@@ -4,8 +4,8 @@ use crate::{
     providers::{Result, file::AsUtf8FileContent},
     templating::Field,
 };
-use rtf_core::github::Client;
 use rtf_derive::Template;
+use rtf_integrations::github::Client;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

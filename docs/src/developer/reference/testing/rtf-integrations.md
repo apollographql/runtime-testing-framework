@@ -1,12 +1,12 @@
 <!-- diataxis-type: reference -->
 
-# rtf-core
+# rtf-integrations
 
-This page documents how tests in the [`rtf-core`][0] crate are organized and implemented.
+This page documents how tests in the [`rtf-integrations`][0] crate are organized and implemented.
 
 ## Organization
 
-Tests in the [`rtf-core`][0] crate are organized using the following hierarchy:
+Tests in the [`rtf-integrations`][0] crate are organized using the following hierarchy:
 
 1. **Module** - A logical grouping of core RTF functionality. Examples include GraphOS (`graphos`)
    and GitHub (`github`) API calls. Since this maps directly to the Rust module structure, there are
@@ -66,13 +66,13 @@ To achieve the structure above, the tests are defined in
 mod tests {
     use simple_test_case::dir_cases;
 
-    #[dir_cases("crates/rtf-core/resources/test_data/offline_license/valid")]
+    #[dir_cases("crates/rtf-integrations/resources/test_data/offline_license/valid")]
     #[test]
     fn try_parse_ok(path: &str, contents: &str) -> anyhow::Result<()> {
         // Parse and validate successful response
     }
 
-    #[dir_cases("crates/rtf-core/resources/test_data/offline_license/invalid")]
+    #[dir_cases("crates/rtf-integrations/resources/test_data/offline_license/invalid")]
     #[test]
     fn try_parse_err(path: &str, contents: &str) -> anyhow::Result<()> {
         // Parse and validate error response
@@ -120,8 +120,8 @@ mod tests {
 
 ## Implementation
 
-The [`rtf-core`][0] crate uses a trait-based testing approach that focuses on testing business logic
-directly, without requiring HTTP mocking or complex test infrastructure.
+The [`rtf-integrations`][0] crate uses a trait-based testing approach that focuses on testing
+business logic directly, without requiring HTTP mocking or complex test infrastructure.
 
 ### Testing infrastructure
 
@@ -176,7 +176,7 @@ response parsing logic.
 The [`dir_cases`][3] macro automatically generates test cases from files in a directory:
 
 ```rust
-#[dir_cases("crates/rtf-core/resources/test_data/offline_license/valid")]
+#[dir_cases("crates/rtf-integrations/resources/test_data/offline_license/valid")]
 #[test]
 fn try_parse_ok(path: &str, contents: &str) -> anyhow::Result<()> {
     // Test logic runs once per file in the directory
@@ -270,7 +270,7 @@ Error testing ensures all error variants are covered and properly handled:
 2. **Error matching** - Tests validate that the specific expected error variant is returned:
 
 ```rust
-#[dir_cases("crates/rtf-core/resources/test_data/offline_license/invalid")]
+#[dir_cases("crates/rtf-integrations/resources/test_data/offline_license/invalid")]
 #[test]
 fn try_parse_err(path: &str, contents: &str) -> anyhow::Result<()> {
     let ErrCase { expected_error, data } = serde_json::from_str(contents)?;
@@ -313,7 +313,7 @@ fn rewrite_subgraph_urls_all_urls_updated() {
 These tests are named with the `function_scenario` pattern and are grouped together in the `tests`
 module.
 
-[0]: https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-core
+[0]: https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-integrations
 [1]: https://docs.rs/simple_test_case/latest/simple_test_case/
 [2]: ./index.md#test-case-naming
 [3]: https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html

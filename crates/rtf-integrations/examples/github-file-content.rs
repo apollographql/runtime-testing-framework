@@ -1,7 +1,7 @@
 //! To run this example you will need to create a "classic" personal access token.
 //! See https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#personal-access-tokens-classic
 //! for details on how this works.
-use rtf_core::github::{Client, GithubClient};
+use rtf_integrations::github::{Client, GithubClient};
 use std::env;
 
 #[tokio::main]

@@ -4,8 +4,8 @@ use crate::{
 };
 use bytes::Bytes;
 use reqwest::StatusCode;
-use rtf_core::{HttpClient, HttpResponse, graphos::supergraph::SupergraphDetails};
-use rtf_core::{github, graphos::platform_query};
+use rtf_integrations::{HttpClient, HttpResponse, graphos::supergraph::SupergraphDetails};
+use rtf_integrations::{github, graphos::platform_query};
 use std::{
     collections::HashMap,
     env::set_current_dir,
@@ -199,7 +199,7 @@ impl github::Client for MockGithubClient {
 pub(crate) struct NullClient;
 
 impl HttpClient for NullClient {
-    async fn get(&self, _url: &str) -> Result<rtf_core::HttpResponse, reqwest::Error> {
+    async fn get(&self, _url: &str) -> Result<rtf_integrations::HttpResponse, reqwest::Error> {
         panic!("a NullClient can not be used to make requests")
     }
 }

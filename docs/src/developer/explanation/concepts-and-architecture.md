@@ -21,7 +21,8 @@ The `rtf-config` crate is the heart of RTF. It handles:
 The crate exposes a [ResolutionContext][1] trait that abstracts all IO operations, enabling
 testability and CLI control over execution.
 
-The `rtf-core` crate provides the `rtf-config` crate with clients to make various HTTP requests.
+The `rtf-integrations` crate provides the `rtf-config` crate with clients to make various HTTP
+requests.
 
 The other crates sit above these crates, providing business logic and presentation layers for RTF.
 

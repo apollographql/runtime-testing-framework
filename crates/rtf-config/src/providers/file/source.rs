@@ -4,7 +4,7 @@ use crate::{
     context::ResolutionContext,
     providers::{self, Result},
 };
-use rtf_core::github::Client;
+use rtf_integrations::github::Client;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -109,9 +109,9 @@ impl SourceDir {
                 path,
                 git_ref,
             } => {
-                let client = ctx
-                    .github_client()
-                    .ok_or(providers::Error::Github(rtf_core::github::Error::NoClient))?;
+                let client = ctx.github_client().ok_or(providers::Error::Github(
+                    rtf_integrations::github::Error::NoClient,
+                ))?;
 
                 Ok(client
                     .string_file_content(
