@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-83ef08ad.js";
+            window.path_to_searchindex_js = "../../searchindex-30f6d317.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-1451011a.js"></script>
@@ -182,6 +182,7 @@
 <p>Available file providers:</p>
 <ul>
 <li><a href="#build-router-from-source">Build Router from source</a></li>
+<li><a href="#conditional">Conditional</a></li>
 <li><a href="#custom-provider">Custom provider</a></li>
 <li><a href="#from-command">From command</a></li>
 <li><a href="#github-file">GitHub file</a></li>
@@ -224,6 +225,33 @@ branch name, or tag.</p>
 <h3 id="features"><a class="header" href="#features"><code>features</code></a></h3>
 <p>Comma separated list of features to build the Router with.</p>
 <p>Defaults to <code>"default"</code> if unset.</p>
+</details>
+<h2 id="conditional"><a class="header" href="#conditional">Conditional</a></h2>
+<p>Conditionally run a file provider from an ordered list based on simple “where” clauses that make use
+of the provided templating variables. The first case with a “where” clause that holds will be run as
+the output of this provider.</p>
+<h3 id="writing-where-clauses"><a class="header" href="#writing-where-clauses">Writing where clauses</a></h3>
+<p>The “where” clause on each case is a simple comparison against a single templating variable. You
+must include the <code>var</code> key which accepts a string variable name that is required to be defined
+within the test plan containing this provider. You may then assert that the variable is equal (<code>eq</code>)
+or not equal (<code>ne</code>) to a given scalar value.</p>
+<p>If none of the provider where clauses match, this provider will error during static analysis checks.</p>
+<pre><code class="language-yaml">- name: conditional_config.json
+  env_var: CONDITIONAL_CONFIG
+  kind: conditional
+  cases:
+    - where: { var: test_type, eq: load }
+      kind: relative_path
+      path: data/config-load.json
+
+    - where: { var: test_type, eq: ramp }
+      kind: relative_path
+      path: data/config-ramp.json
+</code></pre>
+<details>
+<summary>Fields</summary>
+<h3 id="cases"><a class="header" href="#cases"><code>cases</code></a></h3>
+<p>The ordered list of cases to be checked against the variables used for templating the test plan.</p>
 </details>
 <h2 id="custom-provider"><a class="header" href="#custom-provider">Custom provider</a></h2>
 <p>Use a custom provider to execute a command and produce a set of files.</p>

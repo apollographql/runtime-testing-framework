@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Overrides","TextFileProvider"],"struct":["FromCommand","MergeYaml"]};
+window.SIDEBAR_ITEMS = {"enum":["Overrides","TextFileProvider","VarComp"],"struct":["Conditional","ConditionalCase","FromCommand","MergeYaml","WhereClause"]};
