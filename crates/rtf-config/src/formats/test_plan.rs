@@ -12,7 +12,7 @@ use crate::{
     templating::{self, CustomProviderDefinitions, Scalar, Template, TemplateContext},
 };
 use itertools::Itertools;
-use rtf_core::github::{self, Client};
+use rtf_integrations::github::{self, Client};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{

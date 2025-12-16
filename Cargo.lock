@@ -1638,7 +1638,7 @@ dependencies = [
  "indoc",
  "predicates",
  "rtf-config",
- "rtf-core",
+ "rtf-integrations",
  "schemars",
  "serde",
  "serde_json",
@@ -1664,34 +1664,14 @@ dependencies = [
  "pretty_assertions",
  "regex",
  "reqwest",
- "rtf-core",
  "rtf-derive",
+ "rtf-integrations",
  "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
  "simple_test_case",
  "strum",
- "thiserror 2.0.17",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "rtf-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "apollo-compiler",
- "bytes",
- "futures",
- "graphql_client",
- "itertools",
- "rand",
- "reqwest",
- "serde",
- "serde_json",
- "simple_test_case",
  "thiserror 2.0.17",
  "tokio",
  "tracing",
@@ -1720,6 +1700,26 @@ dependencies = [
  "convert_case",
  "rustdoc-types",
  "serde_json",
+]
+
+[[package]]
+name = "rtf-integrations"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "apollo-compiler",
+ "bytes",
+ "futures",
+ "graphql_client",
+ "itertools",
+ "rand",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "simple_test_case",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

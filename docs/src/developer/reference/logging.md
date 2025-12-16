@@ -160,7 +160,7 @@ Use these flags to control the overall log level:
 Set `APOLLO_RTF_LOG` for fine-grained control over specific modules:
 
 ```bash
-APOLLO_RTF_LOG=rtf_core=debug,rtf_cli=info cargo run
+APOLLO_RTF_LOG=rtf_integrations=debug,rtf_cli=info cargo run
 ```
 
 ### Per-module Filtering
@@ -168,7 +168,7 @@ APOLLO_RTF_LOG=rtf_core=debug,rtf_cli=info cargo run
 You can set different log levels for different parts of the codebase:
 
 ```bash
-APOLLO_RTF_LOG=warn,rtf_core::graphos=debug cargo run
+APOLLO_RTF_LOG=warn,rtf_integrations::graphos=debug cargo run
 ```
 
 > **Note**: When both command-line flags and environment variables are used, the environment

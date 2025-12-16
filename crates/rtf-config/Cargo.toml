@@ -8,8 +8,8 @@ bytes.workspace = true
 humantime = "2"
 indoc.workspace = true
 itertools.workspace = true
-rtf-core = { path = "../rtf-core" }
 rtf-derive = { path = "../rtf-derive" }
+rtf-integrations = { path = "../rtf-integrations" }
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true

@@ -39,9 +39,10 @@ mise run fix-spelling     # auto-fix typos
 - **rtf-cli**: Command-line interface, integration tests in `tests/` directory
 - **rtf-config**: Config file parsing (TestPlan, Environment, Scenario YAML files), providers,
   templating, validation
-- **rtf-core**: Core functionality - GraphOS and GitHub API calls, wrapped for CLI/server use
 - **rtf-derive**: Proc macros for config traits
 - **rtf-docgen**: Documentation generation utilities
+- **rtf-integrations**: Core functionality - GraphOS and GitHub API calls, wrapped for CLI/server
+  use
 
 ### Config Resolution Flow
 
@@ -72,8 +73,8 @@ operations (templating, validation, static analysis).
 
 Test naming follows hierarchies documented in `docs/src/developer/testing/`. Key patterns:
 
-- **rtf-core**: `module::path::tests::function_test_case`
 - **rtf-cli**: `env_dependency::command::flags_test_case`
+- **rtf-integrations**: `module::path::tests::function_test_case`
 
 CLI tests are integration tests using `assert_cmd`, `assert_fs`, and `predicates`. Tests requiring
 API tokens (GitHub, Apollo) are `#[ignore]` by default.

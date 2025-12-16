@@ -1,4 +1,4 @@
-//! The core functionality of the Apollo Runtime Testing Framework.
+//! The integrations with external APIs for the Apollo Runtime Testing Framework.
 #![warn(
     clippy::complexity,
     clippy::correctness,

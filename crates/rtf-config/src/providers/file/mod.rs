@@ -5,8 +5,8 @@ use crate::{
     enum_impl_check, providers,
     templating::{self, Field, Template, TemplateContext},
 };
-use rtf_core::github::Client;
 use rtf_derive::Template;
+use rtf_integrations::github::Client;
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
@@ -446,9 +446,9 @@ impl AsUtf8FileContent for RelativeFile {
                 path,
                 git_ref,
             }) => {
-                let client = ctx
-                    .github_client()
-                    .ok_or(providers::Error::Github(rtf_core::github::Error::NoClient))?;
+                let client = ctx.github_client().ok_or(providers::Error::Github(
+                    rtf_integrations::github::Error::NoClient,
+                ))?;
                 let full_path = path.join(self.path.as_resolved()).display().to_string();
 
                 Ok(client

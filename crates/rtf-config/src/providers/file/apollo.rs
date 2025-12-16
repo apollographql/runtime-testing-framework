@@ -12,7 +12,8 @@ use crate::{
 use indoc::indoc;
 use itertools::Itertools;
 use reqwest::StatusCode;
-use rtf_core::{
+use rtf_derive::Template;
+use rtf_integrations::{
     HttpClient,
     graphos::supergraph::{
         Subgraph, SupergraphDetails,
@@ -22,7 +23,6 @@ use rtf_core::{
         },
     },
 };
-use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{

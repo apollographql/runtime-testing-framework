@@ -1,5 +1,5 @@
 [package]
-name = "rtf-core"
+name = "rtf-integrations"
 version.workspace = true
 edition.workspace = true
 

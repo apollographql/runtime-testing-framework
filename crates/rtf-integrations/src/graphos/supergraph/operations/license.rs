@@ -61,7 +61,7 @@ mod tests {
     use serde::Deserialize;
     use simple_test_case::dir_cases;
 
-    #[dir_cases("crates/rtf-core/resources/test_data/offline_license/valid")]
+    #[dir_cases("crates/rtf-integrations/resources/test_data/offline_license/valid")]
     #[test]
     fn try_parse_ok(path: &str, contents: &str) -> anyhow::Result<()> {
         let raw: <OfflineLicense as GraphQLQuery>::ResponseData = serde_json::from_str(contents)
@@ -85,7 +85,7 @@ mod tests {
         data: serde_json::Value,
     }
 
-    #[dir_cases("crates/rtf-core/resources/test_data/offline_license/invalid")]
+    #[dir_cases("crates/rtf-integrations/resources/test_data/offline_license/invalid")]
     #[test]
     fn try_parse_err(path: &str, contents: &str) -> anyhow::Result<()> {
         let ErrLicenseCase {

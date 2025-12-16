@@ -10,7 +10,7 @@ path = "src/main.rs"
 
 [dependencies]
 rtf-config = { path = "../rtf-config" }
-rtf-core = { path = "../rtf-core" }
+rtf-integrations = { path = "../rtf-integrations" }
 
 anyhow.workspace = true 
 assert_fs.workspace = true
