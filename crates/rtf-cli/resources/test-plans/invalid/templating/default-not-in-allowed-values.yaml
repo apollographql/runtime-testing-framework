@@ -1,0 +1,40 @@
+name: default-not-in-allowed-values
+description: |
+  Check the error shown when a variable definition has a default value not in allowed_values
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: an inline scenario
+    variable_definitions:
+      - name: foo
+        description: A variable with invalid default
+        default: "c"
+        allowed_values:
+          - "a"
+          - "b"
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "test"
+
+environment:
+  inline:
+    name: inline-environment
+    description: an inline environment
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "setup"
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "teardown"

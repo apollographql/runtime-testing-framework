@@ -1,0 +1,45 @@
+name: custom-provider-invalid-allowed-values
+description: |
+  Test that a custom provider with invalid variable definitions (default not in allowed_values)
+  is caught during templating
+
+custom_providers:
+  - kind: local
+    relative_path: providers
+    using:
+      invalid_provider: invalid-provider.yaml
+
+scenario:
+  inline:
+    name: scenario
+    description: Uses the invalid custom provider
+    command:
+      name: command.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        cat "$CUSTOM"
+    file_providers:
+      - name: custom-provider-output.txt
+        env_var: CUSTOM
+        kind: custom_provider
+        type: invalid_provider
+
+environment:
+  inline:
+    name: environment
+    description: Minimal environment
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "{}" > "$RTF_OUTPUT"
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "teardown"

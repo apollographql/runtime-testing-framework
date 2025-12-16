@@ -1,0 +1,8 @@
+[
+  {
+    "name": "allowed values variable",
+    "variables": {
+      "env_type": "dev"
+    }
+  }
+]

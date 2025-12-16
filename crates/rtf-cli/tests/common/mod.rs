@@ -80,3 +80,35 @@ pub fn prepare_rtf_run(dir: &str) -> CmdWithTmpDir {
 
     CmdWithTmpDir { cmd, tmp }
 }
+
+/// Prepare an rtf run command with a variables file containing the given content.
+pub fn prepare_rtf_run_with_vars_file(dir: &str, vars_content: &str) -> CmdWithTmpDir {
+    use std::fs;
+
+    let tmp = TempDir::new().unwrap();
+    tmp.copy_from(dir, &["**"]).unwrap();
+
+    // Write the variables file
+    let vars_file_path = tmp.child("test-variables.json");
+    fs::write(vars_file_path.path(), vars_content).unwrap();
+
+    let output_file_path = tmp.child("output");
+    let output_file_path = output_file_path.path().to_str().unwrap();
+
+    let test_plan_file_path = tmp.child("test-plan.yaml");
+    let test_plan_file_path = test_plan_file_path.path().to_str().unwrap();
+
+    let vars_file_path_str = vars_file_path.path().to_str().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+
+    cmd.arg("run")
+        .arg(test_plan_file_path)
+        .arg("--outdir")
+        .arg(output_file_path)
+        .arg("--vars")
+        .arg(vars_file_path_str)
+        .arg("-vv");
+
+    CmdWithTmpDir { cmd, tmp }
+}

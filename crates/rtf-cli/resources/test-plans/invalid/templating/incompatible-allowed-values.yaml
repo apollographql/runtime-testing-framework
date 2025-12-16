@@ -1,0 +1,51 @@
+name: incompatible-allowed-values
+description: |
+  Check the error shown when variable definitions have incompatible allowed_values
+  (i.e., no overlapping values between scenario and environment definitions)
+
+variables:
+  foo: "a"
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: an inline scenario
+    variable_definitions:
+      - name: foo
+        description: A variable with values a and b
+        allowed_values:
+          - "a"
+          - "b"
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "test"
+    env_vars:
+      FOO: "{{ foo }}"
+
+environment:
+  inline:
+    name: inline-environment
+    description: an inline environment
+    variable_definitions:
+      - name: foo
+        description: Same variable but with incompatible values c and d
+        allowed_values:
+          - "c"
+          - "d"
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "setup"
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "teardown"
