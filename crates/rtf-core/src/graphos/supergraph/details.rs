@@ -324,7 +324,7 @@ fn rewrite_connector_urls(sdl: &str, base_url: &str) -> Option<String> {
     for schema_type in ["Query", "Mutation"] {
         if let Some(ExtendedType::Object(extended_type)) = schema.types.get_mut(schema_type) {
             debug!(schema_type, "replacing connector URLs in type");
-            replace_sourceless_connector_urls(extended_type, base_url)?;
+            replace_sourceless_connector_urls(extended_type, base_url);
         };
     }
 
@@ -348,30 +348,34 @@ fn rewrite_connector_urls(sdl: &str, base_url: &str) -> Option<String> {
             continue;
         };
 
-        rewrite_url(args_map, &["baseURL"], base_url)?;
+        rewrite_url(args_map, &["baseURL"], base_url);
     }
-
-    debug!("rewrote connector URLs in supergraph SDL");
 
     Some(schema.to_string())
 }
 
-fn rewrite_url(args_map: &mut [(Name, Node<Value>)], url_keys: &[&str], url: &str) -> Option<()> {
+fn rewrite_url(args_map: &mut [(Name, Node<Value>)], url_keys: &[&str], url: &str) {
     if let Some((_, http_node)) = args_map.iter_mut().find(|(key, _)| key.as_str() == "http")
-        && let Value::Object(http_map) = http_node.get_mut()?
+        && let Some(Value::Object(http_map)) = http_node.get_mut()
         && let Some((_, url_node)) = http_map
             .iter_mut()
             .find(|(key, _)| url_keys.contains(&key.as_str()))
     {
         *url_node = Node::new(Value::String(url.to_string()));
+        debug!("rewrote {url_node} connector URL in supergraph SDL");
     }
-    Some(())
 }
 
-fn replace_sourceless_connector_urls(field: &mut Node<ObjectType>, base_url: &str) -> Option<()> {
+fn replace_sourceless_connector_urls(field: &mut Node<ObjectType>, base_url: &str){
     let http_verbs = ["GET", "POST", "PUT", "PATCH", "DELETE"];
-    for (field, field_definition) in &mut field.get_mut()?.fields {
-        for directive in field_definition.get_mut()?.directives.iter_mut() {
+    let Some(object_type) = field.get_mut() else {
+        return;
+    };
+    for (field_name, field_definition) in &mut object_type.fields {
+        let Some(field_definition) = field_definition.get_mut() else {
+            continue;
+        };
+        for directive in field_definition.directives.iter_mut() {
             if directive.name != "join__directive" {
                 continue;
             }
@@ -396,12 +400,11 @@ fn replace_sourceless_connector_urls(field: &mut Node<ObjectType>, base_url: &st
                 continue;
             }
 
-            rewrite_url(args_map, &http_verbs, &format!("{}/{}", base_url, field))?;
+            rewrite_url(args_map, &http_verbs, &format!("{}/{}", base_url, field_name));
         }
 
         continue;
     }
-    Some(())
 }
 
 #[cfg(test)]
