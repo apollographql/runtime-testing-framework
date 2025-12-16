@@ -12,17 +12,17 @@
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span>indoc::indoc;
 <a href=#13 id=13 data-nosnippet>13</a><span class="kw">use </span>itertools::Itertools;
 <a href=#14 id=14 data-nosnippet>14</a><span class="kw">use </span>reqwest::StatusCode;
-<a href=#15 id=15 data-nosnippet>15</a><span class="kw">use </span>rtf_core::{
-<a href=#16 id=16 data-nosnippet>16</a>    HttpClient,
-<a href=#17 id=17 data-nosnippet>17</a>    graphos::supergraph::{
-<a href=#18 id=18 data-nosnippet>18</a>        Subgraph, SupergraphDetails,
-<a href=#19 id=19 data-nosnippet>19</a>        operations::{
-<a href=#20 id=20 data-nosnippet>20</a>            canned_operations::{CannedOperation, canned_ops_for_ids, top_studio_canned_ops},
-<a href=#21 id=21 data-nosnippet>21</a>            fetch_offline_license,
-<a href=#22 id=22 data-nosnippet>22</a>        },
-<a href=#23 id=23 data-nosnippet>23</a>    },
-<a href=#24 id=24 data-nosnippet>24</a>};
-<a href=#25 id=25 data-nosnippet>25</a><span class="kw">use </span>rtf_derive::Template;
+<a href=#15 id=15 data-nosnippet>15</a><span class="kw">use </span>rtf_derive::Template;
+<a href=#16 id=16 data-nosnippet>16</a><span class="kw">use </span>rtf_integrations::{
+<a href=#17 id=17 data-nosnippet>17</a>    HttpClient,
+<a href=#18 id=18 data-nosnippet>18</a>    graphos::supergraph::{
+<a href=#19 id=19 data-nosnippet>19</a>        Subgraph, SupergraphDetails,
+<a href=#20 id=20 data-nosnippet>20</a>        operations::{
+<a href=#21 id=21 data-nosnippet>21</a>            canned_operations::{CannedOperation, canned_ops_for_ids, top_studio_canned_ops},
+<a href=#22 id=22 data-nosnippet>22</a>            fetch_offline_license,
+<a href=#23 id=23 data-nosnippet>23</a>        },
+<a href=#24 id=24 data-nosnippet>24</a>    },
+<a href=#25 id=25 data-nosnippet>25</a>};
 <a href=#26 id=26 data-nosnippet>26</a><span class="kw">use </span>schemars::JsonSchema;
 <a href=#27 id=27 data-nosnippet>27</a><span class="kw">use </span>serde::{Deserialize, Serialize};
 <a href=#28 id=28 data-nosnippet>28</a><span class="kw">use </span>std::{

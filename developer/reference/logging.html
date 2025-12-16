@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-30f6d317.js";
+            window.path_to_searchindex_js = "../../searchindex-de7c4783.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-1451011a.js"></script>
+        <script src="../../toc-6484d70d.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -316,11 +316,11 @@ error!("file operation failed: {e}");
 </ul>
 <h3 id="environment-variable"><a class="header" href="#environment-variable">Environment Variable</a></h3>
 <p>Set <code>APOLLO_RTF_LOG</code> for fine-grained control over specific modules:</p>
-<pre><code class="language-bash">APOLLO_RTF_LOG=rtf_core=debug,rtf_cli=info cargo run
+<pre><code class="language-bash">APOLLO_RTF_LOG=rtf_integrations=debug,rtf_cli=info cargo run
 </code></pre>
 <h3 id="per-module-filtering"><a class="header" href="#per-module-filtering">Per-module Filtering</a></h3>
 <p>You can set different log levels for different parts of the codebase:</p>
-<pre><code class="language-bash">APOLLO_RTF_LOG=warn,rtf_core::graphos=debug cargo run
+<pre><code class="language-bash">APOLLO_RTF_LOG=warn,rtf_integrations::graphos=debug cargo run
 </code></pre>
 <blockquote>
 <p><strong>Note</strong>: When both command-line flags and environment variables are used, the environment
