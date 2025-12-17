@@ -621,3 +621,129 @@ fn test_expected_failure_but_provider_passes() {
         .stdout(contains("unexpected"))
         .stderr(contains("Expected-failure case passed"));
 }
+
+#[test]
+fn test_passing_with_allowed_values() {
+    let tmp = TempDir::new().unwrap();
+    tmp.copy_from(
+        "resources/custom-providers/valid/with-allowed-values",
+        &["provider.yaml", "test-cases/**"],
+    )
+    .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("test")
+        .arg(tmp.child("provider.yaml").path())
+        .arg("--test-cases-dir")
+        .arg(tmp.child("test-cases").path())
+        .assert();
+
+    res.success()
+        .stdout(contains("PASS"))
+        .stdout(contains("default-value-allowed"))
+        .stdout(contains("override-value-allowed"));
+}
+
+#[test]
+fn test_value_not_in_allowed_fails() {
+    let tmp = TempDir::new().unwrap();
+    tmp.copy_from(
+        "resources/custom-providers/valid/with-allowed-values",
+        &["provider.yaml"],
+    )
+    .unwrap();
+
+    // Create test case with invalid allowed value
+    tmp.child("test-cases/invalid-value/variables.json")
+        .write_str(r#"{"env_type": "invalid"}"#)
+        .unwrap();
+    tmp.child("test-cases/invalid-value/expected-run-output.txt")
+        .write_str("should not reach here")
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("test")
+        .arg(tmp.child("provider.yaml").path())
+        .arg("--test-cases-dir")
+        .arg(tmp.child("test-cases").path())
+        .assert();
+
+    res.failure()
+        .stdout(contains("FAIL"))
+        .stdout(contains("template error"))
+        .stdout(contains("Variable value not in allowed values"));
+}
+
+#[test]
+fn test_empty_allowed_values_fails() {
+    let tmp = TempDir::new().unwrap();
+    tmp.copy_from(
+        "resources/custom-providers/invalid",
+        &["empty-allowed-values.yaml"],
+    )
+    .unwrap();
+
+    // Create a valid test case - error should come from provider definition validation
+    tmp.child("test-cases/case/variables.json")
+        .write_str("{}")
+        .unwrap();
+    tmp.child("test-cases/case/expected-run-output.txt")
+        .write_str("should not reach here")
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("test")
+        .arg(tmp.child("empty-allowed-values.yaml").path())
+        .arg("--test-cases-dir")
+        .arg(tmp.child("test-cases").path())
+        .assert();
+
+    res.failure()
+        .stdout(contains("FAIL"))
+        .stdout(contains("template error"))
+        .stdout(contains("Empty array for variable allowed values"));
+}
+
+#[test]
+fn test_default_not_in_allowed_values_fails() {
+    let tmp = TempDir::new().unwrap();
+    tmp.copy_from(
+        "resources/custom-providers/invalid",
+        &["default-not-in-allowed-values.yaml"],
+    )
+    .unwrap();
+
+    // Create a valid test case - error should come from provider definition validation
+    tmp.child("test-cases/case/variables.json")
+        .write_str("{}")
+        .unwrap();
+    tmp.child("test-cases/case/expected-run-output.txt")
+        .write_str("should not reach here")
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("test")
+        .arg(tmp.child("default-not-in-allowed-values.yaml").path())
+        .arg("--test-cases-dir")
+        .arg(tmp.child("test-cases").path())
+        .assert();
+
+    res.failure()
+        .stdout(contains("FAIL"))
+        .stdout(contains("template error"))
+        .stdout(contains(
+            "Default value for variable not in its allowed values",
+        ));
+}
