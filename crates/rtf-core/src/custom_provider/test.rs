@@ -283,34 +283,16 @@ impl TestCase {
 
         debug!("validating variable definitions");
         if let Err(e) = validate_variable_definitions(&definition, template_ctx.variables()) {
-            return if self.is_expected_failure() {
-                let stdout = ctx.captured_stdout();
-                let stderr = ctx.captured_stderr();
-                Ok(self.check_expected_failure(stdout, stderr))
-            } else {
-                Ok(Outcome::Template { err: e.to_string() })
-            };
+            return Ok(Outcome::Template { err: e.to_string() });
         }
 
         debug!("templating provider");
         if let Err(e) = definition.try_template(&mut Vec::new(), source, &template_ctx) {
-            return if self.is_expected_failure() {
-                let stdout = ctx.captured_stdout();
-                let stderr = ctx.captured_stderr();
-                Ok(self.check_expected_failure(stdout, stderr))
-            } else {
-                Ok(Outcome::Template { err: e.to_string() })
-            };
+            return Ok(Outcome::Template { err: e.to_string() });
         }
         debug!("running checks");
         if let Err(e) = definition.command.try_check(&mut Vec::new(), ctx) {
-            return if self.is_expected_failure() {
-                let stdout = ctx.captured_stdout();
-                let stderr = ctx.captured_stderr();
-                Ok(self.check_expected_failure(stdout, stderr))
-            } else {
-                Ok(Outcome::Check { err: e.to_string() })
-            };
+            return Ok(Outcome::Check { err: e.to_string() });
         }
 
         // We run the provider in an self-removing temp directory so we don't need to worry about
