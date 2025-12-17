@@ -272,6 +272,7 @@ mod tests {
                 name: "definition_variable".to_string(),
                 description: "".to_string(),
                 default: def_var_default,
+                allowed_values: None,
             }],
             command: CommandSection {
                 file_providers: vec![NamedFileProvider {
@@ -571,6 +572,7 @@ mod tests {
                 // Attempting to validate a context without any variables using this definition
                 // should succeed due to this default value
                 default: Some(1.into()),
+                allowed_values: None,
             }],
             command: CommandSection {
                 file_providers: vec![NamedFileProvider {
@@ -620,6 +622,7 @@ mod tests {
                 name: "required_var".to_string(),
                 description: "A required variable with no default".to_string(),
                 default: None, // No default - must be provided by the caller
+                allowed_values: None,
             }],
             command: CommandSection {
                 file_providers: vec![NamedFileProvider {

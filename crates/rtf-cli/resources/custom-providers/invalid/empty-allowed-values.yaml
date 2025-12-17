@@ -1,0 +1,18 @@
+name: provider with empty allowed values
+description: A custom provider that has an empty allowed_values array (invalid)
+
+variable_definitions:
+  - name: env_type
+    description: The environment type
+    default: staging
+    allowed_values: []
+
+command:
+  name: echo-env.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "Environment: $ENV_TYPE" >> "$RTF_OUTPUT"
+
+env_vars:
+  ENV_TYPE: "{{ env_type }}"

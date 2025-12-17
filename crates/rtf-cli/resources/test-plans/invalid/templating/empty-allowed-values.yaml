@@ -1,0 +1,37 @@
+name: empty-allowed-values
+description: |
+  Check the error shown when a variable definition has an empty allowed_values array
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: an inline scenario
+    variable_definitions:
+      - name: foo
+        description: A variable with empty allowed_values
+        allowed_values: []
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "test"
+
+environment:
+  inline:
+    name: inline-environment
+    description: an inline environment
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "setup"
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "teardown"

@@ -1541,6 +1541,17 @@
     },
     "VariableDefinition": {
       "properties": {
+        "allowed_values": {
+          "default": null,
+          "description": "An optional array of allowed values for this variable. Templating will fail if any values are set for this variable that are not defined here.",
+          "items": {
+            "$ref": "#/definitions/Scalar"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
         "default": {
           "anyOf": [
             {

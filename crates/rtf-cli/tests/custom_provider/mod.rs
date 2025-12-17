@@ -169,6 +169,95 @@ fn check_with_array_variables_fails() {
 }
 
 #[test]
+fn check_completes_with_allowed_values() {
+    // Provider has default "staging" which is in allowed_values
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("template")
+        .arg("resources/custom-providers/valid/with-allowed-values/provider.yaml")
+        .arg("--check")
+        .assert();
+
+    res.success().stdout(contains("name: "));
+}
+
+#[test]
+fn check_completes_with_allowed_values_override() {
+    // Override with a valid allowed value via --var
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("template")
+        .arg("resources/custom-providers/valid/with-allowed-values/provider.yaml")
+        .arg("--var")
+        .arg("env_type=prod")
+        .arg("--check")
+        .assert();
+
+    res.success().stdout(contains("name: "));
+}
+
+#[test]
+fn check_with_empty_allowed_values_fails() {
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("template")
+        .arg("resources/custom-providers/invalid/empty-allowed-values.yaml")
+        .arg("--check")
+        .assert();
+
+    res.failure()
+        .stderr(contains("Templating failed"))
+        .stderr(contains("Empty array for variable allowed values"));
+}
+
+#[test]
+fn check_with_default_not_in_allowed_values_fails() {
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("template")
+        .arg("resources/custom-providers/invalid/default-not-in-allowed-values.yaml")
+        .arg("--check")
+        .assert();
+
+    res.failure()
+        .stderr(contains("Templating failed"))
+        .stderr(contains(
+            "Default value for variable not in its allowed values",
+        ))
+        .stderr(contains(
+            "variable 'env_type' has default 'test' not in allowed values",
+        ));
+}
+
+#[test]
+fn check_with_value_not_in_allowed_values_fails() {
+    // Use valid provider but override with an invalid value
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("template")
+        .arg("resources/custom-providers/valid/with-allowed-values/provider.yaml")
+        .arg("--var")
+        .arg("env_type=invalid")
+        .arg("--check")
+        .assert();
+
+    res.failure()
+        .stderr(contains("Templating failed"))
+        .stderr(contains("Variable value not in allowed values"))
+        .stderr(contains("variable 'env_type' has value 'invalid'"));
+}
+
+#[test]
 fn run_single_file_creates_expected_output() {
     let tmp = TempDir::new().unwrap();
     tmp.copy_from(
@@ -229,6 +318,102 @@ fn run_with_variables_creates_expected_output() {
     let output_file = output_dir.child("RTF_OUTPUT");
     let content = fs::read_to_string(output_file.path()).unwrap();
     assert!(content.contains("HelloWorld"));
+}
+
+#[test]
+fn run_with_allowed_values_uses_default() {
+    let tmp = TempDir::new().unwrap();
+    tmp.copy_from(
+        "resources/custom-providers/valid/with-allowed-values",
+        &["provider.yaml"],
+    )
+    .unwrap();
+
+    let output_dir = tmp.child("output");
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("run")
+        .arg(tmp.child("provider.yaml").path())
+        .arg("--outdir")
+        .arg(output_dir.path())
+        .assert();
+
+    res.success();
+
+    let output_file = output_dir.child("RTF_OUTPUT");
+    let content = fs::read_to_string(output_file.path()).unwrap();
+    // Default value is "staging"
+    assert!(
+        content.contains("Environment: staging"),
+        "expected output to contain 'Environment: staging', got '{}'",
+        content
+    );
+}
+
+#[test]
+fn run_with_allowed_values_override_valid() {
+    let tmp = TempDir::new().unwrap();
+    tmp.copy_from(
+        "resources/custom-providers/valid/with-allowed-values",
+        &["provider.yaml"],
+    )
+    .unwrap();
+
+    let output_dir = tmp.child("output");
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("run")
+        .arg(tmp.child("provider.yaml").path())
+        .arg("--outdir")
+        .arg(output_dir.path())
+        .arg("--var")
+        .arg("env_type=prod")
+        .assert();
+
+    res.success();
+
+    let output_file = output_dir.child("RTF_OUTPUT");
+    let content = fs::read_to_string(output_file.path()).unwrap();
+    assert!(
+        content.contains("Environment: prod"),
+        "expected output to contain 'Environment: prod', got '{}'",
+        content
+    );
+}
+
+#[test]
+fn run_with_allowed_values_override_invalid_fails() {
+    let tmp = TempDir::new().unwrap();
+    tmp.copy_from(
+        "resources/custom-providers/valid/with-allowed-values",
+        &["provider.yaml"],
+    )
+    .unwrap();
+
+    let output_dir = tmp.child("output");
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("run")
+        .arg(tmp.child("provider.yaml").path())
+        .arg("--outdir")
+        .arg(output_dir.path())
+        .arg("--var")
+        .arg("env_type=invalid")
+        .assert();
+
+    res.failure()
+        .stderr(contains("Templating failed"))
+        .stderr(contains("Variable value not in allowed values"))
+        .stderr(contains("variable 'env_type' has value 'invalid'"));
 }
 
 #[test]

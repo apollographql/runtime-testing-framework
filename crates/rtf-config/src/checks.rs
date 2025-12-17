@@ -321,6 +321,7 @@ mod tests {
             name: name.into(),
             description: format!("description for {name}"),
             default,
+            allowed_values: None,
         }
     }
 

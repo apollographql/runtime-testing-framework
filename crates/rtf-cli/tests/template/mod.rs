@@ -11,6 +11,7 @@ fn is_executable() {
     res.stderr(contains("no test plan provided"));
 }
 
+#[test_case("allowed-values-variable"; "allowed values variable")]
 #[test_case("backwards-compatible-variable-config"; "backwards compatible variable config")]
 #[test_case("command-from-spec"; "command from spec")]
 #[test_case("custom-matrix-variant-names"; "custom matrix variant names")]
@@ -129,6 +130,21 @@ fn load_and_resolve_fails(file: &str, err_contains: &str) {
     "conflicting keys"
 )]
 #[test_case(
+    "custom-provider-invalid-allowed-values/test-plan.yaml",
+    "(custom_providers.invalid_provider.variable_definitions.env_type) Default value for variable not in its allowed values\nvariable 'env_type' has default 'test' not in allowed values";
+    "custom provider default not in allowed values"
+)]
+#[test_case(
+    "default-not-in-allowed-values.yaml",
+    "(scenario.variable_definitions.foo) Default value for variable not in its allowed values\nvariable 'foo' has default 'c' not in allowed values";
+    "default not in allowed values"
+)]
+#[test_case(
+    "empty-allowed-values.yaml",
+    "(scenario.variable_definitions.foo) Empty array for variable allowed values";
+    "empty allowed values"
+)]
+#[test_case(
     "empty-matrix.yaml",
     "(test_plan) Empty array for matrix variable\nfoo";
     "empty matrix"
@@ -161,6 +177,21 @@ fn load_and_resolve_fails(file: &str, err_contains: &str) {
     "unknown-variables.yaml",
     "(environment.teardown.env_vars.FOO) Unknown templating variable. Make sure a value is defined for this variable to resolve to.\nfoo";
     "unknown variables"
+)]
+#[test_case(
+    "value-not-in-allowed-values.yaml",
+    "(variables.foo) Variable value not in allowed values\ntest plan variable 'foo' has value 'c' not in allowed";
+    "value not in allowed values"
+)]
+#[test_case(
+    "incompatible-allowed-values.yaml",
+    "(foo) Incompatible allowed values across variable definitions\nvariable 'foo' has incompatible allowed_values (no common values)";
+    "incompatible allowed values"
+)]
+#[test_case(
+    "matrix-value-not-in-allowed.yaml",
+    "(matrix.dimensions.foo) Variable value not in allowed values\nmatrix dimension 'foo' has value 'x' not in allowed";
+    "matrix value not in allowed"
 )]
 #[test]
 fn templating_fails(file: &str, err_contains: &str) {

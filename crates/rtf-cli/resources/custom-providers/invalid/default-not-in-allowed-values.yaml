@@ -1,0 +1,21 @@
+name: provider with default not in allowed values
+description: A custom provider where the default value is not in the allowed_values list (invalid)
+
+variable_definitions:
+  - name: env_type
+    description: The environment type
+    default: test
+    allowed_values:
+      - dev
+      - staging
+      - prod
+
+command:
+  name: echo-env.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "Environment: $ENV_TYPE" >> "$RTF_OUTPUT"
+
+env_vars:
+  ENV_TYPE: "{{ env_type }}"
