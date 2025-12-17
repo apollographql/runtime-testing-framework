@@ -591,7 +591,7 @@ mod tests {
             subgraphs: vec![],
         };
 
-        sd.rewrite_connector_urls("http://host.docker.internal:3000");
+        let _ = sd.rewrite_connector_urls("http://host.docker.internal:3000");
 
         assert!(sd.supergraph_sdl.contains(r#"[Product] @join__directive(graphs: [PRODUCTS], name: "connect", args: {http: {GET: "http://host.docker.internal:3000/products"}, selection: "$.products {\nid\nname\ndescription\n}"})"#));
     }
