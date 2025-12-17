@@ -357,7 +357,7 @@ fn rewrite_url(args_map: &mut [(Name, Node<Value>)], url_keys: &[&str], url: &st
     }
 }
 
-fn replace_sourceless_connector_urls(field: &mut Node<ObjectType>, base_url: &str){
+fn replace_sourceless_connector_urls(field: &mut Node<ObjectType>, base_url: &str) {
     let http_verbs = ["GET", "POST", "PUT", "PATCH", "DELETE"];
     let Some(object_type) = field.get_mut() else {
         return;
@@ -374,7 +374,8 @@ fn replace_sourceless_connector_urls(field: &mut Node<ObjectType>, base_url: &st
             if directive
                 .specified_argument_by_name("name")
                 .and_then(|v| v.as_str())
-                .is_none_or(|name| name != "connect") {
+                .is_none_or(|name| name != "connect")
+            {
                 continue;
             }
 
@@ -391,7 +392,11 @@ fn replace_sourceless_connector_urls(field: &mut Node<ObjectType>, base_url: &st
                 continue;
             }
 
-            rewrite_url(args_map, &http_verbs, &format!("{}/{}", base_url, field_name));
+            rewrite_url(
+                args_map,
+                &http_verbs,
+                &format!("{}/{}", base_url, field_name),
+            );
         }
 
         continue;
@@ -567,7 +572,8 @@ mod tests {
             subgraphs: vec![],
         };
 
-        sd.rewrite_connector_urls("http://host.docker.internal:3000").unwrap();
+        sd.rewrite_connector_urls("http://host.docker.internal:3000")
+            .unwrap();
 
         assert!(sd.supergraph_sdl.contains(
             r#"{name: "ecomm", http: {baseURL: "http://host.docker.internal:3000", headers: []}})"#
@@ -578,21 +584,21 @@ mod tests {
     fn rewriting_sourceless_connector_urls_works() {
         let sdl =
             include_str!("../../../resources/test_data/connectors/sourceless-connectors.graphql");
-        let mut sd = SupergraphDetails{
+        let mut sd = SupergraphDetails {
             graph_id: "".to_string(),
             variant: "".to_string(),
             supergraph_sdl: sdl.to_string(),
             subgraphs: vec![],
         };
 
-       sd.rewrite_connector_urls("http://host.docker.internal:3000");
+        sd.rewrite_connector_urls("http://host.docker.internal:3000");
 
         assert!(sd.supergraph_sdl.contains(r#"[Product] @join__directive(graphs: [PRODUCTS], name: "connect", args: {http: {GET: "http://host.docker.internal:3000/products"}, selection: "$.products {\nid\nname\ndescription\n}"})"#));
     }
 
     #[test]
     fn rewrite_connector_urls_invalid_sdl_returns_failure() {
-        let mut sd = SupergraphDetails{
+        let mut sd = SupergraphDetails {
             graph_id: "".to_string(),
             variant: "".to_string(),
             supergraph_sdl: "not valid graphql {{{".to_string(),
@@ -605,7 +611,7 @@ mod tests {
     #[test]
     fn rewrite_connector_urls_no_connectors_succeeds() {
         let sdl = "type Query { hello: String }";
-        let mut sd = SupergraphDetails{
+        let mut sd = SupergraphDetails {
             graph_id: "".to_string(),
             variant: "".to_string(),
             supergraph_sdl: sdl.to_string(),
