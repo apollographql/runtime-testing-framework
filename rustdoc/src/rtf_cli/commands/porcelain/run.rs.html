@@ -68,7 +68,7 @@
 <a href=#68 id=68 data-nosnippet>68</a>    <span class="kw">let </span>override_sources = variables.merge(<span class="kw-2">&amp;mut </span>test_plan, <span class="kw-2">&amp;</span>SourceDir::local(cwd), <span class="kw-2">&amp;mut </span>ctx)<span class="question-mark">?</span>;
 <a href=#69 id=69 data-nosnippet>69</a>
 <a href=#70 id=70 data-nosnippet>70</a>    <span class="macro">info!</span>(<span class="string">"checking if templating will work"</span>);
-<a href=#71 id=71 data-nosnippet>71</a>    test_plan.check_templating_will_work()<span class="question-mark">?</span>;
+<a href=#71 id=71 data-nosnippet>71</a>    test_plan.check_templating_will_work(<span class="kw-2">&amp;</span>override_sources)<span class="question-mark">?</span>;
 <a href=#72 id=72 data-nosnippet>72</a>
 <a href=#73 id=73 data-nosnippet>73</a>    <span class="macro">info!</span>(<span class="string">"creating output directory"</span>);
 <a href=#74 id=74 data-nosnippet>74</a>    ctx.create_dir_all(out_dir)<span class="question-mark">?</span>;

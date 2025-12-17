@@ -60,7 +60,7 @@
 <a href=#60 id=60 data-nosnippet>60</a>    <span class="kw">let </span>override_sources = variables.merge(<span class="kw-2">&amp;mut </span>test_plan, <span class="kw-2">&amp;</span>SourceDir::local(cwd), <span class="kw-2">&amp;mut </span>ctx)<span class="question-mark">?</span>;
 <a href=#61 id=61 data-nosnippet>61</a>
 <a href=#62 id=62 data-nosnippet>62</a>    <span class="macro">info!</span>(<span class="string">"checking if templating will work"</span>);
-<a href=#63 id=63 data-nosnippet>63</a>    test_plan.check_templating_will_work()<span class="question-mark">?</span>;
+<a href=#63 id=63 data-nosnippet>63</a>    test_plan.check_templating_will_work(<span class="kw-2">&amp;</span>override_sources)<span class="question-mark">?</span>;
 <a href=#64 id=64 data-nosnippet>64</a>
 <a href=#65 id=65 data-nosnippet>65</a>    <span class="kw">let </span>(<span class="kw">_</span>, variables) = test_plan.matrix.try_expand(<span class="kw-2">&amp;</span>test_plan.variables)<span class="question-mark">?</span>.remove(<span class="number">0</span>);
 <a href=#66 id=66 data-nosnippet>66</a>    <span class="kw">let </span>source = test_plan.sources.test_plan().clone();
