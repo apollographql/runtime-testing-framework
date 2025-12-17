@@ -4,12 +4,12 @@ use crate::{
     providers::{Result, file::AsUtf8FileContent},
     templating::Field,
 };
-use rtf_core::github::Client;
 use rtf_derive::Template;
+use rtf_integrations::github::Client;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// # GitHub File
+/// # GitHub file
 ///
 /// The user specifies a path to a file within a GitHub repository, optionally providing a specific
 /// ref of the repository to pull the file from. If no ref is providing then the provider will pull

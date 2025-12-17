@@ -68,7 +68,7 @@ async fn check_and_run_test_plan_with_context(
     let override_sources = variables.merge(&mut test_plan, &SourceDir::local(cwd), &mut ctx)?;
 
     info!("checking if templating will work");
-    test_plan.check_templating_will_work()?;
+    test_plan.check_templating_will_work(&override_sources)?;
 
     info!("creating output directory");
     ctx.create_dir_all(out_dir)?;

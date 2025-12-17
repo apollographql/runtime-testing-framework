@@ -6,7 +6,7 @@
 #      rtf-docgen CLI to match the version being printed by this script.
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-DOCS_PAGE="$REPO_ROOT/docs/src/framework/file-providers.md"
+DOCS_PAGE="$REPO_ROOT/docs/src/reference/framework/file-providers.md"
 RAW="$REPO_ROOT/target/doc/rtf_config.json"
 
 echo ">> Generating rustdoc JSON for file provider types..."

@@ -1,0 +1,13 @@
+name: custom provider
+description: A custom provider that requires a project_name argument (no default)
+variable_definitions:
+  - name: project_name
+    description: the name of the project
+command:
+  name: custom_provider.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "Project: $PROJECT_NAME" >> "$RTF_OUTPUT"
+env_vars:
+  PROJECT_NAME: "{{ project_name }}"

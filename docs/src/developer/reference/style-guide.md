@@ -5,7 +5,7 @@
 This style guide defines writing standards for RTF documentation. It applies to all contributors
 (internal and external) writing or editing docs in `docs/src/`.
 
-## Base Style Guide
+## Base style guide
 
 RTF adopts the [Microsoft Writing Style Guide][0] as its foundation. This document covers
 RTF-specific decisions and deviations only. For topics not covered here, defer to Microsoft.
@@ -21,12 +21,12 @@ Key Microsoft principles we follow:
 
 ---
 
-## Diataxis Framework
+## Diataxis framework
 
 RTF documentation follows the [Diataxis framework][1], which defines four documentation types. Each
 page declares its type in an HTML comment on the first line.
 
-### Type Declaration Format
+### Type declaration format
 
 Every documentation page must include a type declaration comment:
 
@@ -43,7 +43,7 @@ Valid values: `tutorial`, `howto`, `reference`, `explanation`
 The HTML comment format ensures the type declaration doesn't render in the built documentation while
 remaining easy for contributors and tooling to identify.
 
-### The Four Types
+### The four types
 
 | Type            | Purpose                           | Reader State | Style                      |
 | --------------- | --------------------------------- | ------------ | -------------------------- |
@@ -52,7 +52,7 @@ remaining easy for contributors and tooling to identify.
 | **Reference**   | Describe the machinery            | Looking up   | Neutral, comprehensive     |
 | **Explanation** | Provide context and background    | Studying     | Conversational, reflective |
 
-### Type-Specific Guidelines
+### Type-specific guidelines
 
 #### Tutorials
 
@@ -88,27 +88,39 @@ remaining easy for contributors and tooling to identify.
 
 ---
 
-## Voice and Tone
+## Voice and tone
 
 ### Person
 
-| Doc Type    | Person                               | Example                            |
-| ----------- | ------------------------------------ | ---------------------------------- |
-| Tutorial    | Second ("you")                       | "You configure the environment..." |
-| How-to      | Second ("you") / Imperative          | "Configure the environment..."     |
-| Reference   | Third / Neutral                      | "The environment defines..."       |
-| Explanation | First plural ("we") + Second ("you") | "We designed this because..."      |
+| Doc Type    | Person                               | Example                           |
+| ----------- | ------------------------------------ | --------------------------------- |
+| Tutorial    | First plural ("we") + Second ("you") | "We'll start by...", "You run..." |
+| How-to      | Second ("you") / Imperative          | "Configure the environment..."    |
+| Reference   | Third / Neutral                      | "The environment defines..."      |
+| Explanation | First plural ("we") + Second ("you") | "We designed this because..."     |
 
 ### "We" Voice
 
-The team voice ("we at RTF", "we recommend") is permitted **only in Explanation docs**. All other
-doc types should use "you" or imperative mood.
+The "we" voice is permitted in **Tutorials**, **Explanation docs**, and **Developer Reference
+docs**:
+
+- **Tutorials:** Use "we" to create a collaborative journey between writer and reader ("We'll start
+  by...", "Now we can..."). This affirms the tutor-learner relationship recommended by Diataxis.
+- **Explanation:** Use "we" for team perspective and design rationale ("We designed RTF to...").
+- **Developer Reference:** Use "we" for internal team perspective when documenting implementation
+  details ("We use a set of four traits...", "We check for any errors...").
+
+How-to guides and User Reference docs should use "you", imperative, or neutral third-person voice.
+
+**Allowed (Tutorial):**
+
+> We'll start with templating and running the test plan. Then, we'll make some changes.
 
 **Allowed (Explanation):**
 
 > We here at Runtime Readiness are big fans of the Unix Philosophy.
 
-**Not allowed (Tutorial/How-to/Reference):**
+**Not allowed (How-to/Reference):**
 
 > ~~We recommend using the `--dry-run` flag.~~ → Use the `--dry-run` flag.
 
@@ -163,7 +175,7 @@ Verify the test plan templates correctly:
 
     rtf template test-plan.yaml --check
 
-The output is similar to this:
+You should see output similar to this::
 
     name: Hello World
     description: A test plan created as a guide
@@ -191,14 +203,15 @@ Explain placeholders if not self-evident:
 ### Headings
 
 - Use sentence case (capitalize first word only)
-- No trailing punctuation
+- No trailing punctuation (question marks are allowed for rhetorical headers)
 - Use H2 (`##`) for main sections, H3 (`###`) for subsections
 - Avoid H1 (`#`) except for page title
 
-| Good                      | Bad                       |
-| ------------------------- | ------------------------- |
-| Configure the environment | Configure The Environment |
-| Running test plans        | Running Test Plans.       |
+| Good                            | Bad                       |
+| ------------------------------- | ------------------------- |
+| Configure the environment       | Configure The Environment |
+| Running test plans              | Running Test Plans.       |
+| When is it worthwhile using RTF | When Is It Worthwhile?    |
 
 ### Lists
 
@@ -222,6 +235,7 @@ See the [Test Plan][0] reference and [Command Provider][1] docs.
 Guidelines:
 
 - Use numbered references (`[0]`, `[1]`, etc.) for simplicity
+- Order references by first appearance in the document (`[0]` appears before `[1]`, etc.)
 - Place all link definitions at the bottom of the file
 - Use relative paths for internal links
 - Use descriptive link text, not "click here" or bare URLs
@@ -236,7 +250,7 @@ Guidelines:
 
 ## Terminology
 
-### Glossary Usage
+### Glossary usage
 
 RTF maintains a central [glossary][2]. When using RTF-specific terms:
 
@@ -253,7 +267,7 @@ Example (How-to/Reference):
 
 > Configure the [Test Plan][2] with your variables.
 
-### RTF Concepts
+### RTF concepts
 
 Use these exact capitalizations:
 
@@ -265,7 +279,7 @@ Use these exact capitalizations:
 | Provider    | Generic term; specific types are File Provider, Command Provider |
 | RTF         | Always uppercase, no periods                                     |
 
-### Config Keys
+### Config keys
 
 Use backticks and exact casing from the YAML schema:
 
@@ -274,7 +288,7 @@ Use backticks and exact casing from the YAML schema:
 
 ---
 
-## Inclusive Language
+## Inclusive language
 
 Follow [Microsoft's inclusive language guidelines][3]. Key points:
 
@@ -284,7 +298,7 @@ Follow [Microsoft's inclusive language guidelines][3]. Key points:
 - Prefer "you" to avoid pronouns entirely
 - Never use "he" as generic
 
-### Terms to Avoid
+### Terms to avoid
 
 | Avoid               | Use Instead                      |
 | ------------------- | -------------------------------- |
@@ -311,9 +325,9 @@ Follow [Microsoft's inclusive language guidelines][3]. Key points:
 
 ---
 
-## Document Structure
+## Document structure
 
-### Page Length
+### Page length
 
 No fixed limit. Pages should cover one focused topic. If a page requires more than 2 heading levels
 or you find yourself scrolling extensively, consider splitting into subpages.
@@ -325,7 +339,7 @@ Guidelines:
 - Cut everything unnecessary; prefer a short, accurate page over a comprehensive stale one
 - Structure for skimmability: short paragraphs, bullet points, tables
 
-### Standard Sections
+### Standard sections
 
 **Tutorials** should include:
 
@@ -363,12 +377,12 @@ List prerequisites in a blockquote or admonition:
 
 ---
 
-## Checklist for Contributors
+## Checklist for contributors
 
 Before submitting documentation:
 
 - [ ] First line includes `<!-- diataxis-type: <type> -->` comment
-- [ ] Voice matches doc type (no "we" in tutorials/how-to/reference)
+- [ ] Voice matches doc type (no "we" in how-to/reference)
 - [ ] No shell prompts in command examples
 - [ ] Placeholders use angle brackets
 - [ ] RTF terminology capitalized correctly

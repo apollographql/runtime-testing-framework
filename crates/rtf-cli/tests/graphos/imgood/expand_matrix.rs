@@ -1,4 +1,4 @@
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::str::contains;
 use serde_json::Value;
 use simple_test_case::test_case;
@@ -9,7 +9,7 @@ use simple_test_case::test_case;
 #[test_case("graphos-supergraph"; "supergraph")]
 #[test]
 fn pretty(test_plan_dir: &str) {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .arg("expand-matrix")
         .arg(format!(

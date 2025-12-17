@@ -1216,7 +1216,7 @@ mod tests {
         assert!(res.is_ok(), "{res:?}");
     }
 
-    #[dir_cases("crates/rtf-core/resources/test_data/queries")]
+    #[dir_cases("crates/rtf-integrations/resources/test_data/queries")]
     #[test]
     fn parse_and_fix(path: &str, contents: &str) {
         let schema = Schema::parse_and_validate(SCHEMA, "supergraph.graphql").unwrap();

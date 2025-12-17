@@ -22,8 +22,17 @@ pub enum ErrorKind {
     #[strum(to_string = "Conflicting variable and matrix definitions")]
     ConflictingVariables,
 
+    #[strum(to_string = "Default value for variable not in its allowed values")]
+    DefaultNotInAllowedValues,
+
+    #[strum(to_string = "Empty array for variable allowed values")]
+    EmptyAllowedValues,
+
     #[strum(to_string = "Empty array for matrix variable")]
     EmptyMatrixVariable,
+
+    #[strum(to_string = "Incompatible allowed values across variable definitions")]
+    IncompatibleAllowedValues,
 
     #[strum(to_string = "Inconsistent types for matrix include maps")]
     InconsistentMatrixInclude,
@@ -48,6 +57,9 @@ pub enum ErrorKind {
         to_string = "Unknown templating variable. Make sure a value is defined for this variable to resolve to."
     )]
     UnknownVariable,
+
+    #[strum(to_string = "Variable value not in allowed values")]
+    ValueNotAllowed,
 }
 
 impl crate::error::ErrorKind for ErrorKind {
@@ -592,12 +604,28 @@ where
     ) -> Result<()> {
         if let Self::Pending(variable) = self {
             match ctx.get(variable) {
-                Some(raw) => match T::try_from_scalar(raw.clone()) {
-                    Ok(t) => *self = Self::Resolved(t),
-                    Err(reason) => {
-                        return Err(Errors::new(ErrorKind::InvalidData, reason, path));
+                Some(raw) => {
+                    // Check allowed_values constraint before resolving.
+                    // This is a panic because check_templating_will_work should have caught this.
+                    if let Some(vd) = ctx.variable_definition(variable.as_str())
+                        && let Some(allowed) = &vd.allowed_values
+                    {
+                        assert!(
+                            allowed.contains(raw),
+                            "variable '{variable}' has value '{raw}' not in allowed values {allowed:?}. \
+                             This should have been caught by check_templating_will_work(). \
+                             Path: {}",
+                            path.join(".")
+                        );
                     }
-                },
+
+                    match T::try_from_scalar(raw.clone()) {
+                        Ok(t) => *self = Self::Resolved(t),
+                        Err(reason) => {
+                            return Err(Errors::new(ErrorKind::InvalidData, reason, path));
+                        }
+                    }
+                }
                 None => {
                     return Err(Errors::new(
                         ErrorKind::UnknownVariable,
@@ -901,16 +929,19 @@ mod tests {
                 name: "a".into(),
                 description: String::new(),
                 default: Some(2.into()),
+                allowed_values: None,
             },
             VariableDefinition {
                 name: "b".into(),
                 description: String::new(),
                 default: None,
+                allowed_values: None,
             },
             VariableDefinition {
                 name: "d".into(),
                 description: String::new(),
                 default: Some("bar".into()),
+                allowed_values: None,
             },
         ];
 
@@ -1176,5 +1207,93 @@ mod tests {
         let mut messages: Vec<&str> = errors.iter().map(|e| e.message.as_str()).collect();
         messages.sort();
         assert_eq!(messages.as_slice(), expected_err_messages);
+    }
+
+    // Helper to create a TemplateContext with variable_definitions
+    fn ctx_with_variable_definitions(
+        variables: HashMap<String, Scalar>,
+        variable_definitions: Vec<crate::VariableDefinition>,
+    ) -> TemplateContext {
+        let base = TemplateContext::new_stubbed(variables);
+        base.for_config_file(&SourceDir::local("/"), None, variable_definitions.iter())
+    }
+
+    fn allowed(vals: &[&str]) -> Option<Vec<Scalar>> {
+        Some(vals.iter().map(|s| (*s).into()).collect())
+    }
+
+    #[test_case(
+        Field::Pending("foo".into()),
+        "any_value",
+        None;
+        "no allowed values"
+    )]
+    #[test_case(
+        Field::Pending("foo".into()),
+        "a",
+        allowed(&["a", "b"]);
+        "value in allowed values"
+    )]
+    #[test]
+    fn field_try_template_allowed_values_passes(
+        mut field: Field<String>,
+        value: &str,
+        allowed_values: Option<Vec<Scalar>>,
+    ) {
+        let vd = crate::VariableDefinition {
+            name: "foo".into(),
+            description: String::new(),
+            default: None,
+            allowed_values,
+        };
+        let ctx = ctx_with_variable_definitions(
+            [("foo".into(), value.into())].into_iter().collect(),
+            vec![vd],
+        );
+
+        let res = field.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert_eq!(field, Field::Resolved(value.to_string()));
+    }
+
+    #[test]
+    #[should_panic(expected = "variable 'foo' has value 'c' not in allowed values")]
+    fn field_try_template_value_not_in_allowed_values_panics() {
+        // This scenario should be caught by check_templating_will_work() before reaching
+        // try_template. If it gets here, it's a bug - hence the panic.
+        let mut field: Field<String> = Field::Pending("foo".to_string());
+        let vd = crate::VariableDefinition {
+            name: "foo".into(),
+            description: String::new(),
+            default: None,
+            allowed_values: allowed(&["a", "b"]),
+        };
+        let ctx = ctx_with_variable_definitions(
+            [("foo".into(), "c".into())].into_iter().collect(),
+            vec![vd],
+        );
+
+        let _ = field.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
+    }
+
+    #[test]
+    fn field_try_template_resolved_field_bypasses_allowed_values_check() {
+        // A resolved field should not check allowed_values since it's already resolved
+        let mut field: Field<String> = Field::Resolved("any_value".to_string());
+        let vd = crate::VariableDefinition {
+            name: "foo".into(),
+            description: String::new(),
+            default: None,
+            allowed_values: allowed(&["a", "b"]),
+        };
+        let ctx = ctx_with_variable_definitions(
+            [("foo".into(), "unused".into())].into_iter().collect(),
+            vec![vd],
+        );
+
+        let res = field.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        // Field should remain unchanged
+        assert_eq!(field, Field::Resolved("any_value".to_string()));
     }
 }

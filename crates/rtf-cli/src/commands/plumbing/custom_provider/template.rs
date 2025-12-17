@@ -4,7 +4,9 @@ use crate::{
     cli::Variables,
     commands::{
         get_context,
-        plumbing::custom_provider::{load_definition, parse_cli_variables},
+        plumbing::custom_provider::{
+            load_definition, parse_cli_variables, validate_variable_definitions,
+        },
     },
 };
 use rtf_config::{
@@ -36,9 +38,11 @@ pub async fn template_custom_provider(
     let template_ctx = TemplateContext::new(
         variables,
         source.clone(),
-        override_sources,
+        override_sources.clone(),
         Default::default(),
     );
+
+    validate_variable_definitions(&definition, &override_sources, &template_ctx)?;
 
     definition.try_template(&mut Vec::new(), &source, &template_ctx)?;
 

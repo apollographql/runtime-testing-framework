@@ -12,7 +12,8 @@ use crate::{
 use indoc::indoc;
 use itertools::Itertools;
 use reqwest::StatusCode;
-use rtf_core::{
+use rtf_derive::Template;
+use rtf_integrations::{
     HttpClient,
     graphos::supergraph::{
         Subgraph, SupergraphDetails,
@@ -22,7 +23,6 @@ use rtf_core::{
         },
     },
 };
-use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -32,7 +32,7 @@ use std::{
 };
 use tracing::warn;
 
-/// # GraphOS Supergraph SDL
+/// # GraphOS supergraph SDL
 ///
 /// The user specifies the ref that should be used to fetch a supergraph SDL
 /// file from the GraphOS API.
@@ -110,7 +110,7 @@ impl Check for GraphosSupergraph {
     }
 }
 
-/// # GraphOS Subgraph SDL
+/// # GraphOS subgraph SDL
 ///
 /// The user specifies the graph ref that should be used to fetch a subgraph
 /// SDL files from the GraphOS API.
@@ -177,7 +177,7 @@ impl Check for GraphosSubgraphs {
     }
 }
 
-/// # GraphOS Subgraph Names
+/// # GraphOS subgraph names
 ///
 /// The user specifies the graph ref that should be used to fetch the names of
 /// subgraphs in the supergraph from the GraphOS API.
@@ -227,7 +227,7 @@ impl Check for GraphosSubgraphNames {
     }
 }
 
-/// # GraphOS Supergraph Router URL Overrides
+/// # GraphOS supergraph Router URL overrides
 ///
 /// The user specifies the graph ref that should be used to fetch subgraph
 /// SDL files from the GraphOS API and generates a the override_subgraph_urls
@@ -492,7 +492,7 @@ impl Check for GraphosSubgraphRouterUrlOverrides {
     }
 }
 
-/// # GraphOS Canned Operations
+/// # GraphOS canned operations
 ///
 /// The user specifies the graph ref and parameters that should be used to
 /// generate canned GraphQL requests based on operations data obtained from
@@ -590,7 +590,7 @@ impl Check for GraphosCannedOps {
     }
 }
 
-/// # GraphOS Canned Operations by ID
+/// # GraphOS canned operations by ID
 ///
 /// The user specifies the graph ref and parameters that should be used to
 /// generate canned GraphQL requests based on operations data obtained from
@@ -668,7 +668,7 @@ fn canned_ops_json_lines(canned_ops: Vec<CannedOperation>) -> providers::Result<
     Ok(json_file)
 }
 
-/// # GraphOS Offline License
+/// # GraphOS offline license
 ///
 /// The user specifies the graph id that should be used to fetch an offline license from the
 /// GraphOS API.
@@ -737,7 +737,7 @@ fn validate_client(path: &[String], ctx: &impl ResolutionContext) -> checks::Res
     Ok(())
 }
 
-/// # Router Download Script
+/// # Router download script
 ///
 /// Produces a POSIX shell script that can be run in order to download a target version of the
 /// Apollo Router.
@@ -783,7 +783,7 @@ impl Check for RouterDownloadScript {
     }
 }
 
-/// # Build Router From Source
+/// # Build Router from source
 ///
 /// A file provider used for building the Router from source at a specific git commit
 /// or reference. A profile and list of features can optionally be provided.

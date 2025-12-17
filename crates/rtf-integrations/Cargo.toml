@@ -1,0 +1,22 @@
+[package]
+name = "rtf-integrations"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+apollo-compiler.workspace = true
+bytes.workspace = true
+futures.workspace = true
+graphql_client = "0.15.0"
+itertools.workspace = true
+rand.workspace = true
+reqwest.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+simple_test_case.workspace = true

@@ -1,11 +1,11 @@
-use crate::common::{is_valid_test_plan, prepare_rtf_run};
-use assert_cmd::Command;
+use crate::common::{is_valid_test_plan, prepare_rtf_run, prepare_rtf_run_with_vars_file};
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::str::contains;
 use simple_test_case::test_case;
 
 #[test]
 fn is_executable() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
 
     let res = cmd.arg("run").assert();
 
@@ -46,6 +46,14 @@ fn custom_provider_templated_variable_completes() {
         .assert()
         .success()
         .stdout(contains("scenario specified custom provider text file"));
+}
+
+#[test]
+fn custom_provider_static_argument_completes() {
+    prepare_rtf_run("resources/test-plans/valid/custom-provider-static-argument")
+        .assert()
+        .success()
+        .stdout(contains("Project: my-test-project"));
 }
 
 #[test]
@@ -171,7 +179,7 @@ fn execution_fails(test_plan_dir: &str, expected_err: &str) {
 
 #[test]
 fn load_and_resolve_from_invalid_github_uri_fails() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("run")
@@ -184,7 +192,7 @@ fn load_and_resolve_from_invalid_github_uri_fails() {
 
 #[test]
 fn load_and_resolve_from_github_missing_token_fails() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("run")
@@ -214,4 +222,49 @@ fn from_command_writes_to_correct_providers_directory() {
     // from_command_output.txt is the output file so it should be in the namedspaced directory for
     // the command section containing the from_command provider. In this case, the scenario.
     cmd.assert_path_exists("output/providers/scenario_providers/from_command_output.txt");
+}
+
+#[test]
+fn allowed_values_variable_completes() {
+    // Test plan specifies env_type: "dev" which is in allowed_values ["dev", "staging", "prod"]
+    prepare_rtf_run("resources/test-plans/valid/allowed-values-variable")
+        .assert()
+        .success()
+        .stdout(contains("Environment: dev"));
+}
+
+#[test]
+fn allowed_values_var_override_valid() {
+    // Override with a valid allowed value via --var
+    prepare_rtf_run("resources/test-plans/valid/allowed-values-variable")
+        .arg("--var")
+        .arg("env_type=prod")
+        .assert()
+        .success()
+        .stdout(contains("Environment: prod"));
+}
+
+#[test]
+fn allowed_values_var_override_invalid_fails() {
+    // Override with an invalid value via --var should fail
+    prepare_rtf_run("resources/test-plans/valid/allowed-values-variable")
+        .arg("--var")
+        .arg("env_type=invalid")
+        .assert()
+        .failure()
+        .stderr(contains("Variable value not in allowed values"))
+        .stderr(contains("variable 'env_type' has value 'invalid'"));
+}
+
+#[test]
+fn allowed_values_vars_file_override_invalid_fails() {
+    // Override with an invalid value via --vars file should fail
+    prepare_rtf_run_with_vars_file(
+        "resources/test-plans/valid/allowed-values-variable",
+        r#"{"env_type": "invalid"}"#,
+    )
+    .assert()
+    .failure()
+    .stderr(contains("Variable value not in allowed values"))
+    .stderr(contains("variable 'env_type' has value 'invalid'"));
 }

@@ -67,7 +67,12 @@ matrix:
 ```
 
 ```bash
-$ rtf expand-matrix test-plan.yaml
+rtf expand-matrix test-plan.yaml
+```
+
+Output:
+
+```json
 {
   "variants": [
     {
@@ -87,7 +92,12 @@ $ rtf expand-matrix test-plan.yaml
 [jq][3] can be used to count the variants like so:
 
 ```bash
-$ rtf test-plan.yaml | jq '.variants | length'
+rtf expand-matrix test-plan.yaml | jq '.variants | length'
+```
+
+Output:
+
+```
 12
 ```
 
@@ -121,8 +131,13 @@ matrix:
 ```
 
 ```bash
-$ rtf expand-matrix test-plan.yaml |
+rtf expand-matrix test-plan.yaml |
     jq -r '.variants | map(.name) | join("\n")'
+```
+
+Output:
+
+```
 red_apple_foo_1
 green_pear_foo_1
 red_apple_bar_1

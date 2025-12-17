@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 rtf-config = { path = "../rtf-config" }
 rtf-core = { path = "../rtf-core" }
+rtf-integrations = { path = "../rtf-integrations" }
 
 anyhow.workspace = true 
 assert_fs.workspace = true
@@ -21,14 +22,13 @@ serde_yaml.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-similar = "2.7.0"
-walkdir = "2.5.0"
 
 [dev-dependencies]
 assert_cmd.workspace = true
 indoc.workspace = true
 predicates.workspace = true
 simple_test_case.workspace = true
+walkdir = "2.5.0"
 
 [build-dependencies]
 rtf-config = { path = "../rtf-config" }

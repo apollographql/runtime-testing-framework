@@ -1,4 +1,5 @@
 use crate::{
+    VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates},
     context::ResolutionContext,
     formats::{
@@ -12,7 +13,7 @@ use crate::{
     templating::{self, CustomProviderDefinitions, Scalar, Template, TemplateContext},
 };
 use itertools::Itertools;
-use rtf_core::github::{self, Client};
+use rtf_integrations::github::{self, Client};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
@@ -109,7 +110,10 @@ impl TestPlanConfig {
             .collect()
     }
 
-    pub fn check_templating_will_work(&mut self) -> templating::Result<()> {
+    pub fn check_templating_will_work(
+        &mut self,
+        override_sources: &HashMap<String, SourceDir>,
+    ) -> templating::Result<()> {
         let stub_variables = self
             .allowed_variables()
             .into_iter()
@@ -124,6 +128,11 @@ impl TestPlanConfig {
         );
 
         let mut errs = templating::ErrorBuilder::new();
+        self.validate_all_variable_definitions(&mut errs);
+
+        let effective_allowed = self.compute_effective_allowed_values(&mut errs);
+        self.validate_values_against_allowed(override_sources, &effective_allowed, &mut errs);
+
         self.matrix
             .check_conflicting_keys(&self.variables, &mut errs);
         self.matrix.check_dimensions(&mut errs);
@@ -135,6 +144,252 @@ impl TestPlanConfig {
         ));
 
         errs.into_result(())
+    }
+
+    /// Validate all the the variable definitions
+    fn validate_all_variable_definitions(&self, errs: &mut templating::ErrorBuilder) {
+        fn validate_variable_definitions<'a>(
+            variable_definitions: impl Iterator<Item = &'a VariableDefinition>,
+            path: &[String],
+            errs: &mut templating::ErrorBuilder,
+        ) {
+            for vd in variable_definitions {
+                let mut full_path = path.to_vec();
+                full_path.push("variable_definitions".to_string());
+                full_path.push(vd.name.to_string());
+                vd.validate(&full_path, errs);
+            }
+        }
+
+        validate_variable_definitions(
+            self.environment.variable_definitions.iter(),
+            &["environment".to_string()],
+            errs,
+        );
+        validate_variable_definitions(
+            self.scenario.variable_definitions.iter(),
+            &["scenario".to_string()],
+            errs,
+        );
+
+        let custom_providers = self.sources.custom_providers();
+        for (name, (_, def)) in custom_providers.test_plan.iter() {
+            validate_variable_definitions(
+                def.variable_definitions.iter(),
+                &["custom_providers".to_string(), name.to_string()],
+                errs,
+            );
+        }
+        for (name, (_, def)) in custom_providers.scenario.iter() {
+            validate_variable_definitions(
+                def.variable_definitions.iter(),
+                &["custom_providers".to_string(), name.to_string()],
+                errs,
+            );
+        }
+        for (name, (_, def)) in custom_providers.environment.iter() {
+            validate_variable_definitions(
+                def.variable_definitions.iter(),
+                &["custom_providers".to_string(), name.to_string()],
+                errs,
+            );
+        }
+    }
+
+    /// Collect all variable definitions grouped by name, with their source paths for error messages
+    fn collect_variable_definitions_by_name(
+        &self,
+    ) -> HashMap<String, Vec<(Vec<String>, VariableDefinition)>> {
+        let custom_providers = self.sources.custom_providers();
+        let mut result: HashMap<String, Vec<(Vec<String>, VariableDefinition)>> = HashMap::new();
+
+        for vd in &self.environment.variable_definitions {
+            result.entry(vd.name.clone()).or_default().push((
+                vec!["environment".into(), "variable_definitions".into()],
+                vd.clone(),
+            ));
+        }
+
+        for vd in &self.scenario.variable_definitions {
+            result.entry(vd.name.clone()).or_default().push((
+                vec!["scenario".into(), "variable_definitions".into()],
+                vd.clone(),
+            ));
+        }
+
+        for (name, (_, def)) in custom_providers.test_plan.iter() {
+            for vd in &def.variable_definitions {
+                result.entry(vd.name.clone()).or_default().push((
+                    vec![
+                        "custom_providers".into(),
+                        name.clone(),
+                        "variable_definitions".into(),
+                    ],
+                    vd.clone(),
+                ));
+            }
+        }
+        for (name, (_, def)) in custom_providers.scenario.iter() {
+            for vd in &def.variable_definitions {
+                result.entry(vd.name.clone()).or_default().push((
+                    vec![
+                        "custom_providers".into(),
+                        name.clone(),
+                        "variable_definitions".into(),
+                    ],
+                    vd.clone(),
+                ));
+            }
+        }
+        for (name, (_, def)) in custom_providers.environment.iter() {
+            for vd in &def.variable_definitions {
+                result.entry(vd.name.clone()).or_default().push((
+                    vec![
+                        "custom_providers".into(),
+                        name.clone(),
+                        "variable_definitions".into(),
+                    ],
+                    vd.clone(),
+                ));
+            }
+        }
+
+        result
+    }
+
+    /// Compute the effective allowed values for each variable by intersecting all definitions.
+    /// Returns an empty vec for a variable if it's unconstrained (no allowed_values defined).
+    /// Adds errors to `errs` if definitions have incompatible (empty intersection) allowed values.
+    fn compute_effective_allowed_values(
+        &self,
+        errs: &mut templating::ErrorBuilder,
+    ) -> HashMap<String, Vec<Scalar>> {
+        let definitions_by_name = self.collect_variable_definitions_by_name();
+
+        let mut effective: HashMap<String, Vec<Scalar>> = HashMap::new();
+
+        for (var_name, definitions) in definitions_by_name {
+            // Collect all Some(allowed_values) from definitions, skipping empty arrays
+            // (empty arrays are already reported as EmptyAllowedValues errors)
+            let constrained: Vec<_> = definitions
+                .iter()
+                .filter_map(|(path, vd)| {
+                    vd.allowed_values
+                        .as_ref()
+                        .filter(|av| !av.is_empty())
+                        .map(|av| (path, av))
+                })
+                .collect();
+
+            if constrained.is_empty() {
+                // All definitions have allowed_values: None -> unconstrained
+                continue;
+            }
+
+            // Start with first constrained set, intersect with rest
+            let mut intersection: Vec<Scalar> = constrained[0].1.clone();
+
+            for (_, allowed) in constrained.iter().skip(1) {
+                intersection.retain(|v| allowed.contains(v));
+            }
+
+            if intersection.is_empty() {
+                // Build error message showing conflicting definitions
+                let locations: Vec<_> = constrained
+                    .iter()
+                    .map(|(path, av)| format!("  - {}: {:?}", path.join("."), av))
+                    .collect();
+
+                errs.push(
+                    templating::ErrorKind::IncompatibleAllowedValues,
+                    format!(
+                        "variable '{}' has incompatible allowed_values (no common values):\n{}",
+                        var_name,
+                        locations.join("\n")
+                    ),
+                    std::slice::from_ref(&var_name),
+                );
+            } else {
+                effective.insert(var_name.clone(), intersection);
+            }
+        }
+
+        effective
+    }
+
+    /// Validate that all variable values are in their effective allowed values.
+    fn validate_values_against_allowed(
+        &self,
+        override_sources: &HashMap<String, SourceDir>,
+        effective_allowed: &HashMap<String, Vec<Scalar>>,
+        errs: &mut templating::ErrorBuilder,
+    ) {
+        // Check self.variables (includes CLI variables merged in)
+        for (var_name, value) in &self.variables {
+            if let Some(allowed) = effective_allowed.get(var_name)
+                && !allowed.contains(value)
+            {
+                let source = if override_sources.contains_key(var_name) {
+                    "CLI variable"
+                } else {
+                    "test plan variable"
+                };
+                errs.push(
+                    templating::ErrorKind::ValueNotAllowed,
+                    format!(
+                        "{} '{}' has value '{}' not in allowed: {:?}",
+                        source, var_name, value, allowed
+                    ),
+                    &["variables".into(), var_name.clone()],
+                );
+            }
+        }
+
+        // Check matrix dimensions
+        for (var_name, values) in &self.matrix.dimensions {
+            if let Some(allowed) = effective_allowed.get(var_name) {
+                for value in values {
+                    if !allowed.contains(value) {
+                        let source = if override_sources.contains_key(var_name) {
+                            "CLI matrix dimension"
+                        } else {
+                            "matrix dimension"
+                        };
+                        errs.push(
+                            templating::ErrorKind::ValueNotAllowed,
+                            format!(
+                                "{} '{}' has value '{}' not in allowed: {:?}",
+                                source, var_name, value, allowed
+                            ),
+                            &["matrix".into(), "dimensions".into(), var_name.clone()],
+                        );
+                    }
+                }
+            }
+        }
+
+        // Check matrix include
+        for (idx, include_map) in self.matrix.include.iter().enumerate() {
+            for (var_name, value) in include_map {
+                if let Some(allowed) = effective_allowed.get(var_name)
+                    && !allowed.contains(value)
+                {
+                    errs.push(
+                        templating::ErrorKind::ValueNotAllowed,
+                        format!(
+                            "matrix include[{}] variable '{}' has value '{}' not in allowed: {:?}",
+                            idx, var_name, value, allowed
+                        ),
+                        &[
+                            "matrix".into(),
+                            "include".into(),
+                            idx.to_string(),
+                            var_name.clone(),
+                        ],
+                    );
+                }
+            }
+        }
     }
 
     pub fn try_template_environment_setup(
@@ -693,6 +948,7 @@ mod tests {
         VariableDefinition,
         context::Context,
         formats::{
+            custom_provider::CustomProviderDefinition,
             environment::{
                 SetupSection,
                 test_helpers::{environment_with_fields, templatable_environment},
@@ -711,7 +967,7 @@ mod tests {
             },
             file::{FileProvider, InlineFile, NamedFileProvider},
         },
-        templating::{ErrorBuilder, ErrorKind, Field},
+        templating::{CustomProviderDefinitions, ErrorBuilder, ErrorKind, Field},
     };
     use assert_fs::{
         TempDir,
@@ -729,6 +985,21 @@ mod tests {
             name: name.into(),
             description: String::default(),
             default: Some(val.into()),
+            allowed_values: None,
+        }
+    }
+
+    /// Create a VariableDefinition with allowed_values
+    fn variable_with_allowed_values(
+        name: &str,
+        default: Option<&str>,
+        allowed_values: Option<Vec<&str>>,
+    ) -> VariableDefinition {
+        VariableDefinition {
+            name: name.into(),
+            description: String::default(),
+            default: default.map(|v| v.into()),
+            allowed_values: allowed_values.map(|vals| vals.into_iter().map(|v| v.into()).collect()),
         }
     }
 
@@ -803,6 +1074,36 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    // Helper to create a TestPlanConfig with custom provider definitions for testing
+    fn test_plan_with_custom_provider_definitions(
+        custom_provider_variable_definitions: Vec<VariableDefinition>,
+    ) -> TestPlanConfig {
+        let custom_provider_def = CustomProviderDefinition {
+            name: "test_provider".into(),
+            description: "A test provider".into(),
+            variable_definitions: custom_provider_variable_definitions,
+            command: CommandSection::empty(),
+        };
+
+        let mut custom_providers = CustomProviderDefinitions::default();
+        custom_providers.test_plan.insert(
+            "test_provider".into(),
+            (SourceDir::default(), custom_provider_def),
+        );
+
+        let sources = Sources {
+            test_plan: SourceDir::default(),
+            scenario: None,
+            environment: None,
+            custom_providers: Arc::new(custom_providers),
+        };
+
+        TestPlanConfig {
+            sources,
+            ..TestPlanConfig::empty()
+        }
     }
 
     // Tests for configuration parsing from inline YAML and external files
@@ -2162,7 +2463,7 @@ mod tests {
             &[],
         );
 
-        let res = test_plan.check_templating_will_work();
+        let res = test_plan.check_templating_will_work(&HashMap::new());
         assert!(
             res.is_ok(),
             "expected templating will work to succeed, got {:?}",
@@ -2190,7 +2491,7 @@ mod tests {
 
         let expected_err_kind = ErrorKind::ConflictingVariables;
 
-        let res = test_plan.check_templating_will_work();
+        let res = test_plan.check_templating_will_work(&HashMap::new());
         assert!(
             res.is_err(),
             "expected templating will work to fail, got {:?}",
@@ -2223,7 +2524,7 @@ mod tests {
 
         let expected_err_kind = ErrorKind::EmptyMatrixVariable;
 
-        let res = test_plan.check_templating_will_work();
+        let res = test_plan.check_templating_will_work(&HashMap::new());
         assert!(
             res.is_err(),
             "expected templating will work to fail, got {:?}",
@@ -2263,7 +2564,7 @@ mod tests {
         let expected_err_kind = ErrorKind::InconsistentMatrixVariable;
         let expected_err_message = "foo";
 
-        let res = test_plan.check_templating_will_work();
+        let res = test_plan.check_templating_will_work(&HashMap::new());
         assert!(
             res.is_err(),
             "expected templating will work to fail, got {:?}",
@@ -2295,7 +2596,7 @@ mod tests {
         let expected_err_kind = ErrorKind::InconsistentMatrixInclude;
         let expected_err_message = "matrix include maps must share consistent keys and types";
 
-        let res = test_plan.check_templating_will_work();
+        let res = test_plan.check_templating_will_work(&HashMap::new());
         assert!(
             res.is_err(),
             "expected templating will work to fail, got {:?}",
@@ -2319,6 +2620,7 @@ mod tests {
             name: "provides".to_string(),
             description: "A variable provided by setup".to_string(),
             default: None,
+            allowed_values: None,
         }];
 
         let mut test_plan = TestPlanConfig {
@@ -2347,7 +2649,7 @@ mod tests {
             ..TestPlanConfig::empty()
         };
 
-        let res = test_plan.check_templating_will_work();
+        let res = test_plan.check_templating_will_work(&HashMap::new());
         assert!(
             res.is_ok(),
             "expected templating will work to succeed, got {:?}",
@@ -2382,7 +2684,7 @@ mod tests {
             &[],
         );
 
-        let res = test_plan.check_templating_will_work();
+        let res = test_plan.check_templating_will_work(&HashMap::new());
         assert!(
             res.is_err(),
             "expected templating will work to fail, got {:?}",
@@ -2441,7 +2743,7 @@ mod tests {
         );
         let expected_errs = expected_errs.into_result("").unwrap_err();
 
-        let res = test_plan.check_templating_will_work();
+        let res = test_plan.check_templating_will_work(&HashMap::new());
         assert!(
             res.is_err(),
             "expected templating will work to fail, got {:?}",
@@ -2486,11 +2788,531 @@ mod tests {
             ..TestPlanConfig::empty()
         };
 
-        let res = test_plan.check_templating_will_work();
+        let res = test_plan.check_templating_will_work(&HashMap::new());
         assert!(
             res.is_ok(),
             "expected templating will work to succeed, got {:?}",
             res
+        );
+    }
+
+    #[test]
+    fn check_templating_will_work_valid_allowed_values() {
+        // Test that valid allowed_values configuration passes validation
+        let mut test_plan = TestPlanConfig {
+            environment: EnvironmentConfig {
+                variable_definitions: vec![variable_with_allowed_values(
+                    "env_var",
+                    Some("a"),
+                    Some(vec!["a", "b", "c"]),
+                )],
+                ..EnvironmentConfig::empty()
+            },
+            scenario: ScenarioConfig {
+                variable_definitions: vec![variable_with_allowed_values(
+                    "scenario_var",
+                    None,
+                    Some(vec!["x", "y"]),
+                )],
+                ..ScenarioConfig::empty()
+            },
+            ..TestPlanConfig::empty()
+        };
+
+        let res = test_plan.check_templating_will_work(&HashMap::new());
+        assert!(
+            res.is_ok(),
+            "expected templating will work to succeed with valid allowed_values, got {:?}",
+            res
+        );
+    }
+
+    #[test_case(
+        vec![variable_with_allowed_values("foo", None, Some(vec![]))],
+        vec![],
+        vec!["environment.variable_definitions.foo"];
+        "single empty allowed_values in environment"
+    )]
+    #[test_case(
+        vec![],
+        vec![variable_with_allowed_values("bar", None, Some(vec![]))],
+        vec!["scenario.variable_definitions.bar"];
+        "single empty allowed_values in scenario"
+    )]
+    #[test_case(
+        vec![variable_with_allowed_values("foo", None, Some(vec![]))],
+        vec![variable_with_allowed_values("bar", None, Some(vec![]))],
+        vec!["environment.variable_definitions.foo", "scenario.variable_definitions.bar"];
+        "empty allowed_values in both environment and scenario"
+    )]
+    #[test_case(
+        vec![
+            variable_with_allowed_values("foo", None, Some(vec![])),
+            variable_with_allowed_values("bar", None, Some(vec![]))
+        ],
+        vec![],
+        vec!["environment.variable_definitions.foo", "environment.variable_definitions.bar"];
+        "multiple empty allowed_values in environment"
+    )]
+    #[test]
+    fn check_templating_will_work_empty_allowed_values_errors(
+        env_variable_defs: Vec<VariableDefinition>,
+        scenario_variable_defs: Vec<VariableDefinition>,
+        expected_err_paths: Vec<&str>,
+    ) {
+        let mut test_plan = TestPlanConfig {
+            environment: EnvironmentConfig {
+                variable_definitions: env_variable_defs,
+                ..EnvironmentConfig::empty()
+            },
+            scenario: ScenarioConfig {
+                variable_definitions: scenario_variable_defs,
+                ..ScenarioConfig::empty()
+            },
+            ..TestPlanConfig::empty()
+        };
+
+        let res = test_plan.check_templating_will_work(&HashMap::new());
+        assert!(
+            res.is_err(),
+            "expected templating will work to fail for empty allowed_values, got {:?}",
+            res
+        );
+
+        let errors = res.unwrap_err();
+        assert_eq!(
+            errors.iter().count(),
+            expected_err_paths.len(),
+            "expected {} errors, got {:?}",
+            expected_err_paths.len(),
+            errors
+        );
+
+        assert!(
+            errors
+                .iter()
+                .all(|e| matches!(e.kind, ErrorKind::EmptyAllowedValues)),
+            "expected all errors to be EmptyAllowedValues, got {:?}",
+            errors
+        );
+
+        let err_paths: Vec<&str> = errors.iter().map(|e| e.path.as_str()).collect();
+        assert_eq!(
+            err_paths, expected_err_paths,
+            "test that error paths are as expected"
+        );
+    }
+
+    #[test_case(
+        vec![variable_with_allowed_values("foo", Some("c"), Some(vec!["a", "b"]))],
+        vec![],
+        vec![("environment.variable_definitions.foo", "variable 'foo' has default 'c' not in allowed values")];
+        "single default not in allowed values in environment"
+    )]
+    #[test_case(
+        vec![],
+        vec![variable_with_allowed_values("bar", Some("z"), Some(vec!["x", "y"]))],
+        vec![("scenario.variable_definitions.bar", "variable 'bar' has default 'z' not in allowed values")];
+        "single default not in allowed values in scenario"
+    )]
+    #[test_case(
+        vec![variable_with_allowed_values("foo", Some("c"), Some(vec!["a", "b"]))],
+        vec![variable_with_allowed_values("bar", Some("z"), Some(vec!["x", "y"]))],
+        vec![
+            ("environment.variable_definitions.foo", "variable 'foo' has default 'c' not in allowed values"),
+            ("scenario.variable_definitions.bar", "variable 'bar' has default 'z' not in allowed values")
+        ];
+        "default not in allowed values in both environment and scenario"
+    )]
+    #[test]
+    fn check_templating_will_work_default_not_in_allowed_values_errors(
+        env_variable_defs: Vec<VariableDefinition>,
+        scenario_variable_defs: Vec<VariableDefinition>,
+        expected_errs: Vec<(&str, &str)>,
+    ) {
+        let mut test_plan = TestPlanConfig {
+            environment: EnvironmentConfig {
+                variable_definitions: env_variable_defs,
+                ..EnvironmentConfig::empty()
+            },
+            scenario: ScenarioConfig {
+                variable_definitions: scenario_variable_defs,
+                ..ScenarioConfig::empty()
+            },
+            ..TestPlanConfig::empty()
+        };
+
+        let res = test_plan.check_templating_will_work(&HashMap::new());
+        assert!(
+            res.is_err(),
+            "expected templating will work to fail for default not in allowed_values, got {:?}",
+            res
+        );
+
+        let errors = res.unwrap_err();
+        assert_eq!(
+            errors.iter().count(),
+            expected_errs.len(),
+            "expected {} errors, got {:?}",
+            expected_errs.len(),
+            errors
+        );
+
+        assert!(
+            errors
+                .iter()
+                .all(|e| matches!(e.kind, ErrorKind::DefaultNotInAllowedValues)),
+            "expected all errors to be DefaultNotInAllowedValues, got {:?}",
+            errors
+        );
+
+        for (error, (expected_path, expected_msg_prefix)) in errors.iter().zip(expected_errs.iter())
+        {
+            assert_eq!(
+                error.path, *expected_path,
+                "test that error path is as expected"
+            );
+            assert!(
+                error.message.starts_with(expected_msg_prefix),
+                "expected message to start with '{}', got '{}'",
+                expected_msg_prefix,
+                error.message
+            );
+        }
+    }
+
+    #[test]
+    fn check_templating_will_work_combined_allowed_values_errors() {
+        // Test that empty allowed_values and default not in allowed_values are both caught
+        let mut test_plan = TestPlanConfig {
+            environment: EnvironmentConfig {
+                variable_definitions: vec![
+                    variable_with_allowed_values("empty", None, Some(vec![])),
+                    variable_with_allowed_values(
+                        "invalid_default",
+                        Some("c"),
+                        Some(vec!["a", "b"]),
+                    ),
+                ],
+                ..EnvironmentConfig::empty()
+            },
+            scenario: ScenarioConfig {
+                variable_definitions: vec![variable_with_allowed_values(
+                    "valid",
+                    Some("x"),
+                    Some(vec!["x", "y"]),
+                )],
+                ..ScenarioConfig::empty()
+            },
+            ..TestPlanConfig::empty()
+        };
+
+        let res = test_plan.check_templating_will_work(&HashMap::new());
+        assert!(
+            res.is_err(),
+            "expected templating will work to fail, got {:?}",
+            res
+        );
+
+        let errors = res.unwrap_err();
+        assert_eq!(
+            errors.iter().count(),
+            2,
+            "expected 2 errors (empty and invalid_default), got {:?}",
+            errors
+        );
+
+        let err_kinds: Vec<_> = errors.iter().map(|e| &e.kind).collect();
+        assert!(
+            err_kinds.contains(&&ErrorKind::EmptyAllowedValues),
+            "expected EmptyAllowedValues error, got {:?}",
+            err_kinds
+        );
+        assert!(
+            err_kinds.contains(&&ErrorKind::DefaultNotInAllowedValues),
+            "expected DefaultNotInAllowedValues error, got {:?}",
+            err_kinds
+        );
+    }
+
+    #[test]
+    fn check_templating_will_work_custom_provider_valid_allowed_values() {
+        let mut test_plan =
+            test_plan_with_custom_provider_definitions(vec![variable_with_allowed_values(
+                "env_type",
+                Some("dev"),
+                Some(vec!["dev", "staging", "prod"]),
+            )]);
+
+        let res = test_plan.check_templating_will_work(&HashMap::new());
+        assert!(
+            res.is_ok(),
+            "expected templating will work to succeed with valid custom provider allowed_values, got {:?}",
+            res
+        );
+    }
+
+    #[test]
+    fn check_templating_will_work_custom_provider_empty_allowed_values_errors() {
+        // Use None for default to avoid also triggering DefaultNotInAllowedValues
+        let mut test_plan =
+            test_plan_with_custom_provider_definitions(vec![variable_with_allowed_values(
+                "env_type",
+                None,
+                Some(vec![]),
+            )]);
+
+        let res = test_plan.check_templating_will_work(&HashMap::new());
+        assert!(
+            res.is_err(),
+            "expected templating will work to fail for custom provider with empty allowed_values, got {:?}",
+            res
+        );
+
+        let errors = res.unwrap_err();
+        assert_eq!(
+            errors.iter().count(),
+            1,
+            "expected 1 error, got {:?}",
+            errors
+        );
+
+        let error = errors.iter().next().unwrap();
+        assert!(
+            matches!(error.kind, ErrorKind::EmptyAllowedValues),
+            "expected EmptyAllowedValues error, got {:?}",
+            error.kind
+        );
+        assert_eq!(
+            error.path, "custom_providers.test_provider.variable_definitions.env_type",
+            "expected error path to reference custom provider"
+        );
+    }
+
+    #[test]
+    fn check_templating_will_work_custom_provider_default_not_in_allowed_values_errors() {
+        let mut test_plan =
+            test_plan_with_custom_provider_definitions(vec![variable_with_allowed_values(
+                "env_type",
+                Some("test"),
+                Some(vec!["dev", "staging", "prod"]),
+            )]);
+
+        let res = test_plan.check_templating_will_work(&HashMap::new());
+        assert!(
+            res.is_err(),
+            "expected templating will work to fail for custom provider with default not in allowed_values, got {:?}",
+            res
+        );
+
+        let errors = res.unwrap_err();
+        assert_eq!(
+            errors.iter().count(),
+            1,
+            "expected 1 error, got {:?}",
+            errors
+        );
+
+        let error = errors.iter().next().unwrap();
+        assert!(
+            matches!(error.kind, ErrorKind::DefaultNotInAllowedValues),
+            "expected DefaultNotInAllowedValues error, got {:?}",
+            error.kind
+        );
+        assert_eq!(
+            error.path, "custom_providers.test_provider.variable_definitions.env_type",
+            "expected error path to reference custom provider"
+        );
+        assert!(
+            error.message.contains("env_type"),
+            "expected error message to contain variable name, got '{}'",
+            error.message
+        );
+    }
+
+    #[test]
+    fn check_templating_will_work_compatible_allowed_values_across_configs() {
+        // Scenario and environment both define 'foo' with overlapping allowed_values
+        let mut test_plan = TestPlanConfig {
+            variables: [("foo".into(), "a".into())].into(),
+            environment: EnvironmentConfig {
+                variable_definitions: vec![variable_with_allowed_values(
+                    "foo",
+                    None,
+                    Some(vec!["a", "b", "c"]),
+                )],
+                ..EnvironmentConfig::empty()
+            },
+            scenario: ScenarioConfig {
+                variable_definitions: vec![variable_with_allowed_values(
+                    "foo",
+                    None,
+                    Some(vec!["a", "b", "d"]),
+                )],
+                ..ScenarioConfig::empty()
+            },
+            ..TestPlanConfig::empty()
+        };
+
+        let res = test_plan.check_templating_will_work(&HashMap::new());
+        assert!(
+            res.is_ok(),
+            "expected compatible allowed_values to succeed, got {:?}",
+            res
+        );
+    }
+
+    #[test]
+    fn check_templating_will_work_incompatible_allowed_values_errors() {
+        // Scenario and environment both define 'foo' with NO overlapping allowed_values
+        let mut test_plan = TestPlanConfig {
+            environment: EnvironmentConfig {
+                variable_definitions: vec![variable_with_allowed_values(
+                    "foo",
+                    None,
+                    Some(vec!["a", "b"]),
+                )],
+                ..EnvironmentConfig::empty()
+            },
+            scenario: ScenarioConfig {
+                variable_definitions: vec![variable_with_allowed_values(
+                    "foo",
+                    None,
+                    Some(vec!["c", "d"]),
+                )],
+                ..ScenarioConfig::empty()
+            },
+            ..TestPlanConfig::empty()
+        };
+
+        let res = test_plan.check_templating_will_work(&HashMap::new());
+        assert!(res.is_err(), "expected incompatible allowed_values to fail");
+
+        let errors = res.unwrap_err();
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e.kind, ErrorKind::IncompatibleAllowedValues)),
+            "expected IncompatibleAllowedValues error, got {:?}",
+            errors
+        );
+        assert!(
+            errors.iter().any(|e| e.message.contains("foo")),
+            "expected error message to contain variable name 'foo'"
+        );
+    }
+
+    #[test_case(
+        Matrix {
+            dimensions: [("foo".into(), vec!["x".into(), "y".into()])].into(),
+            ..Default::default()
+        },
+        "dimensions";
+        "matrix dimension value not allowed"
+    )]
+    #[test_case(
+        Matrix {
+            include: vec![[("foo".into(), "x".into())].into()],
+            ..Default::default()
+        },
+        "include";
+        "matrix include value not allowed"
+    )]
+    #[test]
+    fn check_templating_will_work_matrix_value_not_allowed(
+        matrix: Matrix,
+        expected_path_part: &str,
+    ) {
+        let mut test_plan = TestPlanConfig {
+            matrix,
+            scenario: ScenarioConfig {
+                variable_definitions: vec![variable_with_allowed_values(
+                    "foo",
+                    None,
+                    Some(vec!["a", "b"]),
+                )],
+                ..ScenarioConfig::empty()
+            },
+            ..TestPlanConfig::empty()
+        };
+
+        let res = test_plan.check_templating_will_work(&HashMap::new());
+        assert!(
+            res.is_err(),
+            "expected matrix {} with invalid value to fail",
+            expected_path_part
+        );
+
+        let errors = res.unwrap_err();
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e.kind, ErrorKind::ValueNotAllowed)),
+            "expected ValueNotAllowed error, got {:?}",
+            errors
+        );
+        assert!(
+            errors.iter().any(|e| e.path.contains(expected_path_part)),
+            "expected error path to contain '{}', got {:?}",
+            expected_path_part,
+            errors
+        );
+    }
+
+    #[test_case(
+        false,
+        "test plan variable";
+        "test plan variable not allowed"
+    )]
+    #[test_case(
+        true,
+        "CLI variable";
+        "CLI variable not allowed"
+    )]
+    #[test]
+    fn check_templating_will_work_variable_not_allowed(
+        is_cli_override: bool,
+        expected_source: &str,
+    ) {
+        let mut test_plan = TestPlanConfig {
+            variables: [("foo".into(), "x".into())].into(),
+            scenario: ScenarioConfig {
+                variable_definitions: vec![variable_with_allowed_values(
+                    "foo",
+                    None,
+                    Some(vec!["a", "b"]),
+                )],
+                ..ScenarioConfig::empty()
+            },
+            ..TestPlanConfig::empty()
+        };
+
+        let override_sources: HashMap<String, SourceDir> = if is_cli_override {
+            [("foo".into(), SourceDir::local("/cli"))].into()
+        } else {
+            HashMap::new()
+        };
+
+        let res = test_plan.check_templating_will_work(&override_sources);
+        assert!(
+            res.is_err(),
+            "expected {} with invalid value to fail",
+            expected_source
+        );
+
+        let errors = res.unwrap_err();
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e.kind, ErrorKind::ValueNotAllowed)),
+            "expected ValueNotAllowed error, got {:?}",
+            errors
+        );
+        assert!(
+            errors.iter().any(|e| e.message.contains(expected_source)),
+            "expected error message to identify source as {}, got {:?}",
+            expected_source,
+            errors
         );
     }
 

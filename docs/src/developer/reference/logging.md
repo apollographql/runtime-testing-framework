@@ -8,7 +8,7 @@ project uses the [`tracing`](https://tracing.rs/) crate for structured logging.
 For the design rationale behind logging choices, see
 [Logging Philosophy](../explanation/logging-philosophy.md).
 
-## Log Levels Overview
+## Log levels overview
 
 The Runtime Testing Framework uses five log levels, from most to least verbose:
 
@@ -20,7 +20,7 @@ The Runtime Testing Framework uses five log levels, from most to least verbose:
 | `WARN`  | (default)      | Potentially problematic situations             | End users                                |
 | `ERROR` | (always shown) | Error conditions that prevent normal operation | End users                                |
 
-## When to Use Each Level
+## When to use each level
 
 ### ERROR level
 
@@ -93,9 +93,9 @@ logic or data flow issues.
 - Fine-grained execution flow
 - Performance-sensitive debugging information
 
-## Logging Best Practices
+## Logging best practices
 
-### Use Structured Fields
+### Use structured fields
 
 Take advantage of
 [tracing's structured logging capabilities](https://docs.rs/tracing/latest/tracing/#recording-fields)
@@ -110,7 +110,7 @@ warn!(error = %e, "failed to parse configuration");
 info!("pulling supergraph details for graph_id={} variant={}", graph_id, variant);
 ```
 
-### Common Field Naming Conventions
+### Common field naming conventions
 
 Use these prefixes to control how values are formatted in log output:
 
@@ -146,7 +146,7 @@ error!("file operation failed: {e}");
 
 The logging level can be controlled in several ways:
 
-### Command Line Verbosity Flags
+### Command-line verbosity flags
 
 Use these flags to control the overall log level:
 
@@ -160,7 +160,7 @@ Use these flags to control the overall log level:
 Set `APOLLO_RTF_LOG` for fine-grained control over specific modules:
 
 ```bash
-APOLLO_RTF_LOG=rtf_core=debug,rtf_cli=info cargo run
+APOLLO_RTF_LOG=rtf_integrations=debug,rtf_cli=info cargo run
 ```
 
 ### Per-module Filtering
@@ -168,16 +168,16 @@ APOLLO_RTF_LOG=rtf_core=debug,rtf_cli=info cargo run
 You can set different log levels for different parts of the codebase:
 
 ```bash
-APOLLO_RTF_LOG=warn,rtf_core::graphos=debug cargo run
+APOLLO_RTF_LOG=warn,rtf_integrations::graphos=debug cargo run
 ```
 
 > **Note**: When both command-line flags and environment variables are used, the environment
 > variable takes precedence for the modules it specifies, while the command-line flag sets the
 > default level for other modules.
 
-## Quick Reference
+## Quick reference
 
-### When to Use Each Level
+### When to use each level
 
 - **ERROR**: Operation cannot continue, user needs to take action
 - **WARN**: Something unusual happened, but operation continues (default visibility)
@@ -185,7 +185,7 @@ APOLLO_RTF_LOG=warn,rtf_core::graphos=debug cargo run
 - **DEBUG**: Detailed diagnostic information for troubleshooting
 - **TRACE**: Extremely detailed execution flow for debugging
 
-### Common Patterns
+### Common patterns
 
 ```rust
 // Error with context
@@ -201,7 +201,7 @@ debug!(endpoint = %url, method = "POST", "making API request");
 warn!(feature = "deprecated_option", "using deprecated configuration option");
 ```
 
-### Verbosity Flags
+### Verbosity flags
 
 - Default: `WARN` and `ERROR` only
 - `-v`: Add `INFO` messages

@@ -5,8 +5,8 @@ use crate::{
     enum_impl_check, providers,
     templating::{self, Field, Template, TemplateContext},
 };
-use rtf_core::github::Client;
 use rtf_derive::Template;
+use rtf_integrations::github::Client;
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
@@ -240,6 +240,7 @@ impl Check for NamedFileProvider {
 // the all_fields_templated test in this file
 pub enum FileProvider {
     BuildRouterFromSource(apollo::BuildRouterFromSource),
+    Conditional(utility::Conditional),
     CustomProvider(custom::CustomProvider),
     FromCommand(utility::FromCommand),
     GithubFile(github::GithubFile),
@@ -280,6 +281,7 @@ macro_rules! enum_impl_file_provider {
 
 enum_impl_file_provider!(
     BuildRouterFromSource,
+    Conditional,
     CustomProvider,
     FromCommand,
     GithubFile,
@@ -297,7 +299,7 @@ enum_impl_file_provider!(
     RouterDownloadScript,
 );
 
-/// # Inline File
+/// # Inline file
 ///
 /// The simplest form of file provider: the user specifies the contents of the file inline within
 /// their config file.
@@ -336,7 +338,7 @@ impl Check for InlineFile {
     }
 }
 
-/// # Relative Path
+/// # Relative path
 ///
 /// A relative path from the containing config file to a target file that should be made available
 /// as part of the test run. This provider works both with local files and files within GitHub
@@ -444,9 +446,9 @@ impl AsUtf8FileContent for RelativeFile {
                 path,
                 git_ref,
             }) => {
-                let client = ctx
-                    .github_client()
-                    .ok_or(providers::Error::Github(rtf_core::github::Error::NoClient))?;
+                let client = ctx.github_client().ok_or(providers::Error::Github(
+                    rtf_integrations::github::Error::NoClient,
+                ))?;
                 let full_path = path.join(self.path.as_resolved()).display().to_string();
 
                 Ok(client
@@ -524,7 +526,7 @@ impl Check for RelativeFile {
     }
 }
 
-/// # Required File
+/// # Required file
 ///
 /// The only purpose of this file provider is to throw an error if it still exists
 /// when the file providers are being checked. All definitions of a required file
@@ -668,6 +670,18 @@ mod tests {
         features: "{{ features }}"
     "#
     );
+    const CONDITIONAL: &str = indoc!(
+        r#"
+        kind: conditional
+        cases:
+          - where: { var: test_type, eq: load }
+            kind: relative_path
+            path: "{{ case_1 }}"
+          - where: { var: test_type, ne: ramp }
+            kind: relative_path
+            path: "{{ case_2 }}"
+    "#
+    );
     const CUSTOM_PROVIDER_YAML: &str = indoc!(
         r#"
         kind: custom_provider
@@ -808,6 +822,7 @@ mod tests {
     );
 
     #[test_case(BUILD_ROUTER_FROM_SOURCE, &["git_ref", "rust_version", "profile", "features"]; "build_router_from_source")]
+    #[test_case(CONDITIONAL, &["case_1", "case_2", "test_type"]; "conditional")]
     #[test_case(CUSTOM_PROVIDER_YAML, &["value1"]; "custom_provider")]
     #[test_case(GITHUB_FILE, &["org", "repo", "path", "git_ref"]; "github_file")]
     #[test_case(GRAPHOS_CANNED_OPS, &["graph_ref", "top_n", "skip_mutations", "time_range"]; "graphos_canned_ops")]

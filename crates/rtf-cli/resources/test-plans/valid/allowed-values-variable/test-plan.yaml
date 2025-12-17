@@ -1,0 +1,49 @@
+name: allowed values variable
+description: |
+  Tests that variables with allowed_values work correctly when valid values are provided.
+
+variables:
+  env_type: "dev"
+
+scenario:
+  inline:
+    name: scenario
+    description: "Echo environment type"
+    variable_definitions:
+      - name: env_type
+        description: "The type of environment to deploy to"
+        default: "staging"
+        allowed_values:
+          - "dev"
+          - "staging"
+          - "prod"
+
+    command:
+      name: echo-env.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+
+        echo "Environment: $1"
+      args:
+        - "{{ env_type }}"
+
+environment:
+  inline:
+    name: environment
+    description: "Minimal env config"
+    setup:
+      command:
+        name: setup.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "{}" > "$RTF_OUTPUT"
+
+    teardown:
+      command:
+        name: teardown.sh
+        kind: inline
+        content: |
+          #!/usr/bin/env sh
+          echo "Teardown complete"

@@ -91,8 +91,8 @@ adding that context to inline comments.
 
 The `scenario` is used to define the configuration and command that runs the actual testing logic in
 the test plan. The `scenario` can be defined inline within the test plan or in its own file. In this
-guide, we'll define the scenario inline. The guide on
-[writing a new scenario](writing-a-scenario.md) covers how to define a scenario in a separate file.
+guide, we'll define the scenario inline. The guide on [writing a new scenario][0] covers how to
+define a scenario in a separate file.
 
 Add the `scenario` field to the `test-plan.yaml` file.
 
@@ -118,16 +118,15 @@ This is the simplest `scenario` it is possible to define.
 - The `name` and `description` fields are required and used to identify the scenario and work the
   same as `name` and `description` in the test plan.
 - `command` defines what will be executed when rtf executes the scenario. This is the simplest case
-  which executes a single command. The guide on [writing a new scenario](writing-a-scenario.md)
-  covers how to execute files or more complex scripts.
+  which executes a single command. The guide on [writing a new scenario][0] covers how to execute
+  files or more complex scripts.
 
 ### `environment`
 
 The `environment` is used to define the configuration and commands that setup the environment for
 testing and tear it down after the test has completed. The `environment` can be defined inline
 within the test plan or in its own file. In this guide, we'll define the environment inline. The
-guide on [writing a new environment](writing-an-environment.md) covers how to define an environment
-in a separate file.
+guide on [writing a new environment][1] covers how to define an environment in a separate file.
 
 Add the `environment` field to the `test-plan.yaml` file:
 
@@ -175,9 +174,8 @@ This is the simplest `environment` it is possible to define.
 - The `setup` field defines what will happen during the environment setup phase of `rtf run`.
 - The `teardown` field defines what will happen during the environment teardown phase of `rtf run`.
 - `command` defines what will be executed when rtf executes the `setup` and `teardown`. This is the
-  simplest case which executes a single command. The guide on
-  [writing a new environment](writing-an-environment.md) covers how to execute files or more complex
-  scripts.
+  simplest case which executes a single command. The guide on [writing a new environment][1] covers
+  how to execute files or more complex scripts.
 
 ## Checking the test plan
 
@@ -192,11 +190,17 @@ This should result in the fully templated test plan being printed to the termina
 ```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
-matrix: {}
+variables: {}
+matrix:
+  variant_names: null
+  dimensions: {}
+  include: []
+custom_providers: []
 scenario:
   name: Inline scenario config
   description: An inline scenario config
   variable_definitions: []
+  custom_providers: []
   command:
     name: scenario.sh
     kind: inline
@@ -211,6 +215,7 @@ environment:
   name: Inline environment config
   description: An inline environment config
   variable_definitions: []
+  custom_providers: []
   setup:
     command:
       name: setup.sh
@@ -225,7 +230,7 @@ environment:
     provides: []
   teardown:
     command:
-      name: setup.sh
+      name: teardown.sh
       kind: inline
       content: |
         #!/usr/bin/env sh
@@ -247,19 +252,22 @@ Before looking at `variables` and `matrix`, let's run the test plan:
 rtf run test-plan.yaml
 ```
 
-This results in the following terminal output and an `output` directory:
+You should see output similar to this:
 
-```bash
-"environment setup command executed"
-"scenario command executed"
-"environment teardown command executed"
+```
+environment setup command executed
+scenario command executed
+environment teardown command executed
 ```
 
-The `output` directory contains two files, `resolved-test-plan.yaml` and `test-plan-variables.json`.
+This also creates an `output` directory.
+
+The `output` directory contains a `providers` directory and two files: `resolved-test-plan.yaml` and
+`test-plan-variables.json`.
 
 - `resolved-test-plan.yaml` contains the fully resolved test plan config. This should be the same as
-  what was shown in the `rtf template` command. This is a way to sanity check the test plan that ran
-  to give you the output.
+  what was shown in the `rtf template` command. This is a way to verify the test plan that ran to
+  give you the output.
 - `test-plan-variables.json` contains the variables used during the execution of the test plan. This
   is empty since no variables were set.
 
@@ -279,13 +287,12 @@ rm -rf output/
 
 The `variables` field is used to set global variables that can be referenced in your scenario and/or
 environment. Any variables set in the test plan config can be overridden using the `--var` and
-`--vars` flags in the rtf CLI (see the
-[modifying variables section of the hello world guide](../hello-world.md#modifying-variables) for
+`--vars` flags in the rtf CLI (see the [modifying variables section of the hello world guide][2] for
 more information).
 
 Let's add some example variables to `test-plan.yaml`. We are also going to update the scenario
-command to use this variable. The ["Writing a command" section](writing-a-command.md) will explain
-how this works, for now just add the configuration:
+command to use this variable. The ["Writing a command" section][3] will explain how this works, for
+now just add the configuration:
 
 ```yaml
 name: Hello World
@@ -336,7 +343,12 @@ environment:
 You can see the value being used by running the test plan again:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 environment setup command executed
 example variable
 environment teardown command executed
@@ -345,7 +357,12 @@ environment teardown command executed
 Now, the `test-plan-variables.json` file contains the variable that we set in the test plan:
 
 ```bash
-$ cat output/test-plan-variables.json 
+cat output/test-plan-variables.json
+```
+
+Output:
+
+```json
 {
   "example_variable": "example variable"
 }
@@ -354,8 +371,8 @@ $ cat output/test-plan-variables.json
 ## Using a matrix
 
 The `matrix` field is used to create a matrix of variable dimensions to iterate over (see the
-[matrix variables section of the hello world guide](../hello-world.md#matrix-variables) for more
-information). A matrix can only be defined in the test plan config.
+[matrix variables section of the hello world guide][4] for more information). A matrix can only be
+defined in the test plan config.
 
 Let's add a matrix to and remove the `variables` from our `test-plan.yaml`:
 
@@ -418,7 +435,12 @@ The terminal output will look different this time - the environment and scenario
 executed twice. The `output` directory will also have a different structure:
 
 ```bash
-$ ls output/
+ls output/
+```
+
+Output:
+
+```
 variable1        variable2
 ```
 
@@ -426,12 +448,24 @@ Let's look at each of those matrix directories to see the different variable val
 execution:
 
 ```bash
-$ cat output/variable1/test-plan-variables.json 
+cat output/variable1/test-plan-variables.json
+```
+
+Output:
+
+```json
 {
   "example_variable": "variable1"
 }
+```
 
-$ cat output/variable2/test-plan-variables.json
+```bash
+cat output/variable2/test-plan-variables.json
+```
+
+Output:
+
+```json
 {
   "example_variable": "variable2"
 }
@@ -444,4 +478,10 @@ The `example-variable`'s variable changes per execution.
 In this guide we have covered writing the simplest possible test plan. Next, we will guide you
 through how to write more powerful commands.
 
-**Next:** [Writing a command](writing-a-command.md)
+**Next:** [Writing a command][3]
+
+[0]: writing-a-scenario.md
+[1]: writing-an-environment.md
+[2]: ../hello-world.md#modifying-variables
+[3]: writing-a-command.md
+[4]: ../hello-world.md#matrix-variables

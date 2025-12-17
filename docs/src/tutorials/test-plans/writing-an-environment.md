@@ -2,12 +2,12 @@
 
 # Writing a new environment
 
-This guide assumes you've completed the ["Writing a scenario"](writing-a-scenario.md) guide. You
-should already have the files in a directory named `rtf-hello-world`. Your directory should be in
-the state it was at the end of that guide.
+This guide assumes you've completed the ["Writing a scenario"][0] guide. You should already have the
+files in a directory named `rtf-hello-world`. Your directory should be in the state it was at the
+end of that guide.
 
 ```bash
-$ ls -R
+ls -R
 configs         scripts         test-plan.yaml
 
 configs:
@@ -20,8 +20,7 @@ scenario.sh
 ## Creating an environment file
 
 Creating a separate environment file works exactly the same way and has the same benefits as
-creating a separate scenario file outlined in the
-["Writing a scenario" guide](writing-a-scenario.md#creating-a-scenario-file).
+creating a separate scenario file outlined in the ["Writing a scenario" guide][1].
 
 Let's update our test plan to specify the environment in a separate file:
 
@@ -45,7 +44,7 @@ setup:
       echo "environment setup command executed"
 teardown:
   command:
-    name: setup.sh
+    name: teardown.sh
     kind: inline
     content: |
       #!/usr/bin/env sh
@@ -73,7 +72,12 @@ environment:
 Let's verify this has made no material difference to the templated test plan:
 
 ```bash
-$ rtf template test-plan.yaml --check
+rtf template test-plan.yaml --check
+```
+
+You should see output similar to this:
+
+```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
 variables:
@@ -81,55 +85,19 @@ variables:
 matrix: {}
 scenario:
   name: Inline scenario config
-  description: An inline scenario config
-  variable_definitions:
-  - name: scenario_variable
-    description: An example variable that the scenario expects to be defined
-    default: scenario executed with default value
-  command:
-    name: scenario.sh
-    kind: relative_path
-    path: ../scripts/scenario.sh
-    args: []
-  env_vars:
-    SCENARIO_ENV: scenario executed with test plan variable
-  file_providers: []
+  ...
 environment:
   name: Inline environment config
-  description: An inline environment config
-  variable_definitions: []
-  setup:
-    command:
-      name: setup.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "environment setup command executed"
-      args: []
-    env_vars: {}
-    file_providers: []
-    provides: []
-  teardown:
-    command:
-      name: setup.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "environment teardown command executed"
-      args: []
-    env_vars: {}
-    file_providers: []
+  ...
 ```
 
 ## Environment config structure
 
 Now is a good time to review how the environment config is structured. The main difference compared
-to the [scenario config](writing-a-scenario.md#scenario-config-structure) is that an environment can
-run two commands using the `setup` and `teardown` keys. The `setup` key has an additional field
-called `provides` which we'll explain in more detail in the
-["Using provides" section](#using-provides). The fields in an environment config are:
+to the [scenario config][2] is that an environment can run two commands using the `setup` and
+`teardown` keys. The `setup` key has an additional field called `provides` which we'll explain in
+more detail in the ["Using provides" section](#using-provides). The fields in an environment config
+are:
 
 - `name` (required) is used to give the environment an identifiable title. It can be any valid
   string. It has no impact on the execution of an environment.
@@ -137,17 +105,17 @@ called `provides` which we'll explain in more detail in the
   valid string. It has no impact on the execution of an environment.
 - `variable_definitions` (optional) are used to define which variables an environment requires to
   successfully execute. This works the same as it does for a scenario and is explained more in the
-  ["using variables"](writing-a-scenario.md#using-variables) section of that guide.
+  ["using variables"][3] section of that guide.
 - `setup` (required) is used to define the command that executes at the start of the `rtf run`
   command. It is intended to be used to create and configure the environment for the scenario to
   test. It requires the following keys:
   - `command` (required) is used to define what is executed when the environment setup is run. The
-    ["Writing a command" guide](writing-a-command.md) explains commands in more detail.
+    ["Writing a command" guide][4] explains commands in more detail.
   - `env_vars` (optional) is used to define the environment variables that are set when the
     `command` is executed.
   - `file_providers` (optional) is used to define the files and data that the environment setup
-    depends on to execute. The ["Using file providers" guide](using-file-providers.md) explains how
-    these are used in more detail.
+    depends on to execute. The ["Using file providers" guide][5] explains how these are used in more
+    detail.
   - `provides` (optional) is unique to the environment setup and is used to set variables that can
     only be known at runtime. This is explained more in the
     ["Using provides" section](#using-provides).
@@ -155,12 +123,12 @@ called `provides` which we'll explain in more detail in the
   command. It is intended to be used to collect results and shutdown the environment the scenario
   tested. It requires the following keys:
   - `command` (required) is used to define what is executed when the environment teardown is run.
-    The ["Writing a command" guide](writing-a-command.md) explains commands in more detail.
+    The ["Writing a command" guide][4] explains commands in more detail.
   - `env_vars` (optional) is used to define the environment variables that are set when the
     `command` is executed.
   - `file_providers` (optional) is used to define the files and data that the environment teardown
-    depends on to execute. The ["Using file providers" guide](using-file-providers.md) explains how
-    these are used in more detail.
+    depends on to execute. The ["Using file providers" guide][5] explains how these are used in more
+    detail.
 
 ## Using provides
 
@@ -189,7 +157,7 @@ setup:
 # --------------------------------
 teardown:
   command:
-    name: setup.sh
+    name: teardown.sh
     kind: inline
     content: |
       #!/usr/bin/env sh
@@ -230,7 +198,12 @@ teardown:
 Let's verify this works:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 Environment setup complete. PROCESS_ID=1
 Running scenario from an external file
 scenario executed with test plan variable
@@ -278,9 +251,14 @@ teardown:
 If we try to run this, it won't work:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 Environment setup complete. PROCESS_ID=1
-ERROR missing required output fields from environment setup: ["process_id"]
+ERROR Missing required output fields from environment setup: ["process_id"]
 ```
 
 This is because we need to update our setup script to output the `process_id`. To do this, rtf has a
@@ -320,7 +298,12 @@ teardown:
 Now, if we run again, we'll see the `process_id` being successfully used in the teardown:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 Environment setup complete. PROCESS_ID=1
 Running scenario from an external file
 scenario executed with test plan variable
@@ -385,63 +368,19 @@ keys before checking if it templates. If you run the `template` command now (pay
 `--var` flag here, we need this because of the `provides` variable):
 
 ```bash
-$ template rtf-hello-world/test-plan.yaml --check --var process_id=dummy`
-name: Hello World
-description: A test plan created as a guide for writing test plans
-variables:
-  scenario_variable: scenario executed with test plan variable
-  process_id: dummy
-matrix: {}
-scenario:
-  name: Inline scenario config
-  description: An inline scenario config
-  variable_definitions:
-  - name: scenario_variable
-    description: An example variable that the scenario expects to be defined
-    default: scenario executed with default value
-  command:
-    name: scenario.sh
-    kind: relative_path
-    path: ../scripts/scenario.sh
-    args: []
-  env_vars:
-    SCENARIO_ENV: scenario executed with test plan variable
-  file_providers: []
-environment:
-  name: Inline environment config
-  description: An inline environment config
-  variable_definitions: []
-  setup:
-    command:
-      name: setup.sh
-      kind: relative_path
-      path: scripts/setup.sh
-      args: []
-    env_vars: {}
-    file_providers: []
-    provides:
-    - name: process_id
-      description: The id of the process started in the environment setup
-      default: null
-  teardown:
-    command:
-      name: teardown.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
-      args: []
-    env_vars:
-      PROCESS_ID: dummy
-    file_providers: []
+rtf template test-plan.yaml --check --var process_id=dummy
 ```
 
-If you look closely at the templated test plan, the setup command now matches what we defined in the
-`overrides`, while the rest of the environment config is unchanged. If we run the test plan:
+You should see that the setup command now matches what we defined in the `overrides`, while the rest
+of the environment config is unchanged. If we run the test plan:
 
 ```bash
-$ rtf run test-plan.yaml
+rtf run test-plan.yaml
+```
+
+Output:
+
+```
 Using the override setup script
 Environment setup complete. PROCESS_ID=2
 Running scenario from an external file
@@ -458,4 +397,11 @@ In this guide, we've covered moving environment config into its own file, using 
 setup, and using overrides in the test plan. Next, we'll guide you through how to use file
 providers.
 
-**Next:** [Using file providers](using-file-providers.md)
+**Next:** [Using file providers][5]
+
+[0]: writing-a-scenario.md
+[1]: writing-a-scenario.md#creating-a-scenario-file
+[2]: writing-a-scenario.md#scenario-config-structure
+[3]: writing-a-scenario.md#using-variables
+[4]: writing-a-command.md
+[5]: using-file-providers.md

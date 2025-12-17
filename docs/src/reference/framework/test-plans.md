@@ -11,8 +11,8 @@ references to Scenario and Environment configurations.
 ## Top level keys
 
 - `name`: The name for this Test Plan.
-  - Uniqueness is not enforced by the `rtf` CLI but it is worthwhile ensuring that the test plans
-    you write each have unique names that can be used to distinguish them.
+  - Uniqueness is not enforced by the `rtf` CLI but test plans should have unique names that can be
+    used to distinguish them.
 - `description`: A brief, human readable description of the behaviour of the Test Plan.
   - If there are any pre-requisites to running this Test Plan it is best to call them out here
     rather than in comments or other files (such as a README).
@@ -21,17 +21,17 @@ references to Scenario and Environment configurations.
 - `matrix`: Dimensions specified as key value pairs for templating the Test Plan where the variables
   are arrays of scalars.
   - Each matrix entry must have a consistent type for the variables array. Mixing different scalar
-    variables will result in an error when you attempt to run the Test Plan.
+    variables will result in an error when the Test Plan is run.
   - An optional `variant_names` key can be provided to customise the names of the output directories
     used by each variant.
 - `custom_providers`: Declarations for loading Custom Provider Definitions.
   - For full details on the structure of Custom Provider Declarations and Definitions see the
-    [Custom Providers][7] page of the Framework documentation.
+    [Custom Providers][5] page of the Framework documentation.
 - `scenario`: A [Config Spec](#config-specs) for the scenario to be run.
-  - For full details on the structure of a Scenario see the [Scenario][2] page of the Framework
+  - For full details on the structure of a Scenario see the [Scenario][0] page of the Framework
     documentation.
 - `environment`: A [Config Spec](#config-specs) for the test environment to provision.
-  - For full details on the structure of an Environment see the [Environment][3] page of the
+  - For full details on the structure of an Environment see the [Environment][1] page of the
     Framework documentation.
 
 ## Config Specs
@@ -49,8 +49,8 @@ configuration before the Test Plan is templated and checked.
 
 ### Inline configuration
 
-To provide your configuration inline, add an `inline` key under the relevant top level `scenario` or
-`environment` key and then write your config file as normal.
+To provide configuration inline, add an `inline` key under the relevant top level `scenario` or
+`environment` key and provide the config file contents underneath.
 
 ```yaml
 scenario:
@@ -67,8 +67,8 @@ environment:
 ### From a local file
 
 To use a local file as a base, add a `from` key under the relevant top level `scenario` or
-`environment` key, specifying the `kind` as `local` and giving the relative path _from the
-test-plan.yaml file_ under the `relative_path` key.
+`environment` key, specifying the `kind` as `local` and the relative path _from the test-plan.yaml
+file_ under the `relative_path` key.
 
 To define _overrides_, add the `overrides` key at the same indentation level as `from` and then add
 your override configuration under that key. The structure here is _not_ required to parse as a full
@@ -104,7 +104,7 @@ the mainline branch.
 
 > You _must_ have a valid GitHub access token with permissions to interact with your chosen
 > repository exported as `GITHUB_TOKEN` in your shell environment for this method to work. See
-> [here][4] for GitHub's documentation on how to create and manage access tokens.
+> [here][2] for GitHub's documentation on how to create and manage access tokens.
 
 As with using a [local file](#from-a-local-file), _overrides_ can be defined by adding the
 `overrides` key at the same indentation level as `from` and then adding your override configuration
@@ -153,7 +153,7 @@ Once the overrides have been applied and the resulting config file is successful
 arrays are then sorted and deduplicated based on an appropriate key in order to support replacing
 array elements:
 
-- For [File providers][5] the key used is `env_var`.
+- For [File providers][3] the key used is `env_var`.
 - For variable declarations and environment setup "provides" the key used is `name`.
 
 ## A note on relative paths
@@ -174,7 +174,7 @@ config file.
 
 ## Working with matrices
 
-The `matrix` key expands to multiple test plan variants via the [cartesian product][6] of its
+The `matrix` key expands to multiple test plan variants via the [cartesian product][4] of its
 dimensions.
 
 For example, the following matrix:
@@ -371,11 +371,9 @@ environment:
           An additional file that wasn't present in the original environment.yaml
 ```
 
-[0]: ../../tutorials/hello-world.md
-[1]: ./index.md
-[2]: ./scenarios.md
-[3]: ./environments.md
-[4]: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
-[5]: ./file-providers.md
-[6]: https://en.wikipedia.org/wiki/Cartesian_product
-[7]: ./custom-providers.md
+[0]: ./scenarios.md
+[1]: ./environments.md
+[2]: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
+[3]: ./file-providers.md
+[4]: https://en.wikipedia.org/wiki/Cartesian_product
+[5]: ./custom-providers.md

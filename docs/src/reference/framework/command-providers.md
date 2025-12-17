@@ -18,14 +18,14 @@ The details of each section are outlined below.
 
 ## The command section
 
-You can define your command in two ways:
+Commands can be defined in two ways:
 
 1. As an inline script that will be written to disk and made executable.
 2. As a relative path to an existing executable script.
 
-Both strategies will result in the appropriate utf-8 encoded text file being written to disk and
-made executable before being executed as a subprocess by RTF. As such, you _must_ include an
-appropriate [shebang][5] line at the top of your script in order for it to run correctly.
+Both strategies result in the appropriate UTF-8 encoded text file being written to disk and made
+executable before being executed as a subprocess by RTF. Scripts _must_ include an appropriate
+[shebang][5] line at the top in order to run correctly.
 
 > ⚠️ **At this time, RTF does not support directly executing binaries via command providers**
 >
@@ -43,16 +43,16 @@ appropriate [shebang][5] line at the top of your script in order for it to run c
 > "$YOUR_BINARY" # arguments to the binary
 > ```
 
-It is also possible to instead mark that the command is _required_ as an override specified in the
-user's Test Plan. This is primarily used as part of a Scenario or Environment configuration where
-you want to set up supporting resources and data around an arbitrary user specified command.
+It is also possible to mark that the command is _required_ as an override specified in the Test
+Plan. This is primarily used as part of a Scenario or Environment configuration to set up supporting
+resources and data around an arbitrary user-specified command.
 
-In each of the three options you will need to provide the `name` of the command as well as a `kind`
-the specifies which strategy you want to use to define your command.
+In each of the three options, the `name` of the command must be provided along with a `kind` that
+specifies which strategy is used to define the command.
 
 ### Inline scripts
 
-To provide your command as an inline script, specify the kind as `inline` and provide your script
+To provide a command as an inline script, specify the kind as `inline` and provide the script
 contents under the `content` key.
 
 For multiline script content, see [YAML multiline string syntax][6].
@@ -69,7 +69,7 @@ command:
 ### Relative paths
 
 To use a pre-existing script, specify the kind as `relative_path` and provide the relative path to
-your script under the `path` key. (See [here][7] for details on how relative paths are handled by
+the script under the `path` key. (See [here][7] for details on how relative paths are handled by
 RTF).
 
 ```yaml
@@ -81,11 +81,10 @@ command:
 
 ### Required commands
 
-To mark a command as required, but not specified by default, you can use the `required` kind which
-supports providing an accompanying `message` to inform the user of how they should define their own
-command. If the user fails to provide an override for the command in their [Test Plan][8], RTF will
-error at the templating stage of execution and print your error message as the reason for the
-failure.
+To mark a command as required but not specified by default, use the `required` kind with an
+accompanying `message` to inform users how to define their own command. If an override for the
+command is not provided in the [Test Plan][8], RTF will error at the templating stage of execution
+and print the error message as the reason for the failure.
 
 ```yaml
 command:

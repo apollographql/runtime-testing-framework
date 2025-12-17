@@ -1,6 +1,6 @@
 //! Providers are how we expose the rest of the framework to user facing config.
 use crate::providers::{command::CommandProvider, file::FileProvider};
-use rtf_core::graphos::supergraph::FetchError;
+use rtf_integrations::graphos::supergraph::FetchError;
 use serde::Serialize;
 use std::io;
 
@@ -14,10 +14,10 @@ pub enum Error {
     Fetch(#[from] FetchError),
 
     #[error(transparent)]
-    Github(#[from] rtf_core::github::Error),
+    Github(#[from] rtf_integrations::github::Error),
 
     #[error(transparent)]
-    GraphOS(#[from] rtf_core::graphos::Error),
+    GraphOS(#[from] rtf_integrations::graphos::Error),
 
     #[error(transparent)]
     Io(#[from] io::Error),

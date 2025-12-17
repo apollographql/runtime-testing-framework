@@ -5,7 +5,7 @@
 The [rtf-config][0] crate provides parsers for the three config files used by RTF: `TestPlanConfig`,
 `EnvironmentConfig` and `ScenarioConfig`.
 
-### Scenario Config
+## Scenario Config
 
 The simplest of the three config file formats is the scenario config which simply provides a way for
 the user to pair [templating][1] variables with a [command][2].

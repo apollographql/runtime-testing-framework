@@ -1,20 +1,22 @@
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use indoc::indoc;
 use predicates::str::{contains, is_match};
 use simple_test_case::test_case;
 
 #[test]
 fn is_executable() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd.arg("template").assert();
 
     res.stderr(contains("no test plan provided"));
 }
 
+#[test_case("allowed-values-variable"; "allowed values variable")]
 #[test_case("backwards-compatible-variable-config"; "backwards compatible variable config")]
 #[test_case("command-from-spec"; "command from spec")]
 #[test_case("custom-matrix-variant-names"; "custom matrix variant names")]
 #[test_case("custom-provider-default-value"; "custom provider default value")]
+#[test_case("custom-provider-static-argument"; "custom provider static argument")]
 #[test_case("custom-provider-templated-variable"; "custom provider templated variable")]
 #[test_case("matrix-include"; "matrix include")]
 #[test_case("matrix-variables"; "matrix variables")]
@@ -23,7 +25,7 @@ fn is_executable() {
 // and the github and graphos test plans which are tested in their respective modules
 #[test]
 fn check_completes_basic(test_plan_dir: &str) {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
@@ -41,7 +43,7 @@ fn check_completes_basic(test_plan_dir: &str) {
 fn check_completes_with_cli_variables() {
     // The sanity-check test plan defines variables in the setup.provides
     // The only way to template successfully is to set this variable from the cli
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
@@ -59,7 +61,7 @@ fn check_completes_with_cli_variables() {
 fn check_completes_with_backwards_compatible_cli_variables_flag() {
     // The sanity-check test plan defines variables in the setup.provides
     // The only way to template successfully is to set this variable from the cli
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
@@ -110,7 +112,7 @@ fn check_completes_with_backwards_compatible_cli_variables_flag() {
 )]
 #[test]
 fn load_and_resolve_fails(file: &str, err_contains: &str) {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
@@ -126,6 +128,21 @@ fn load_and_resolve_fails(file: &str, err_contains: &str) {
     "conflicting-keys.yaml",
     "(test_plan) Conflicting variable and matrix definitions\nfoo";
     "conflicting keys"
+)]
+#[test_case(
+    "custom-provider-invalid-allowed-values/test-plan.yaml",
+    "(custom_providers.invalid_provider.variable_definitions.env_type) Default value for variable not in its allowed values\nvariable 'env_type' has default 'test' not in allowed values";
+    "custom provider default not in allowed values"
+)]
+#[test_case(
+    "default-not-in-allowed-values.yaml",
+    "(scenario.variable_definitions.foo) Default value for variable not in its allowed values\nvariable 'foo' has default 'c' not in allowed values";
+    "default not in allowed values"
+)]
+#[test_case(
+    "empty-allowed-values.yaml",
+    "(scenario.variable_definitions.foo) Empty array for variable allowed values";
+    "empty allowed values"
 )]
 #[test_case(
     "empty-matrix.yaml",
@@ -161,9 +178,24 @@ fn load_and_resolve_fails(file: &str, err_contains: &str) {
     "(environment.teardown.env_vars.FOO) Unknown templating variable. Make sure a value is defined for this variable to resolve to.\nfoo";
     "unknown variables"
 )]
+#[test_case(
+    "value-not-in-allowed-values.yaml",
+    "(variables.foo) Variable value not in allowed values\ntest plan variable 'foo' has value 'c' not in allowed";
+    "value not in allowed values"
+)]
+#[test_case(
+    "incompatible-allowed-values.yaml",
+    "(foo) Incompatible allowed values across variable definitions\nvariable 'foo' has incompatible allowed_values (no common values)";
+    "incompatible allowed values"
+)]
+#[test_case(
+    "matrix-value-not-in-allowed.yaml",
+    "(matrix.dimensions.foo) Variable value not in allowed values\nmatrix dimension 'foo' has value 'x' not in allowed";
+    "matrix value not in allowed"
+)]
 #[test]
 fn templating_fails(file: &str, err_contains: &str) {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
@@ -175,7 +207,7 @@ fn templating_fails(file: &str, err_contains: &str) {
 
 #[test]
 fn duplicate_variant_names_fails() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .arg("template")
         .arg("resources/test-plans/invalid/templating/duplicate-variant-names.yaml")
@@ -213,7 +245,7 @@ fn duplicate_variant_names_fails() {
 )]
 #[test]
 fn check_fails(file: &str, err_contains: &str) {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
@@ -230,7 +262,7 @@ fn check_fails(file: &str, err_contains: &str) {
 // the absolute path to the missing file which will be different on each system that runs the test
 #[test]
 fn check_fails_missing_relative_file() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
@@ -250,7 +282,7 @@ provided path was file://.*/resources/test-plans/invalid/checks/does-not-exist\.
 
 #[test]
 fn load_and_resolve_from_invalid_github_uri_fails() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")
@@ -263,7 +295,7 @@ fn load_and_resolve_from_invalid_github_uri_fails() {
 
 #[test]
 fn load_and_resolve_from_github_missing_token_fails() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("template")

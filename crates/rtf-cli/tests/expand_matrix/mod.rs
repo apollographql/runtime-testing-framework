@@ -1,11 +1,11 @@
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::str::contains;
 use serde_json::Value;
 use simple_test_case::test_case;
 
 #[test]
 fn is_executable() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd.arg("expand-matrix").assert();
 
     res.stderr(contains("Usage: rtf expand-matrix"));
@@ -20,7 +20,7 @@ fn is_executable() {
 #[test_case("variable-overrides"; "variable overrides")]
 #[test]
 fn pretty_formats_correctly(test_plan_dir: &str) {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("expand-matrix")
@@ -48,7 +48,7 @@ fn pretty_formats_correctly(test_plan_dir: &str) {
 #[test_case("variable-overrides"; "variable overrides")]
 #[test]
 fn compact_formats_correctly(test_plan_dir: &str) {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("expand-matrix")
@@ -69,7 +69,7 @@ fn compact_formats_correctly(test_plan_dir: &str) {
 
 #[test]
 fn duplicate_variant_names_fails() {
-    let mut cmd = Command::cargo_bin("rtf").unwrap();
+    let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
         .arg("expand-matrix")

@@ -1,5 +1,5 @@
 use crate::providers::{self, Provider};
-use rtf_core::{
+use rtf_integrations::{
     APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, GITHUB_TOKEN_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR,
     HttpClient, ReqwestClient, github,
     graphos::{platform_query, supergraph::SupergraphDetails},
@@ -245,7 +245,7 @@ impl Context {
 }
 
 impl ResolutionContext for Context {
-    type PlatformClient = rtf_core::graphos::PlatformClient;
+    type PlatformClient = rtf_integrations::graphos::PlatformClient;
     type GithubClient = github::GithubClient;
     type HttpClient = ReqwestClient;
 

@@ -37,7 +37,7 @@ module::path::tests::data_structure_functionality_test_case
 module::path::tests::data_structure_functionality_test_class::test_case
 ```
 
-### Example - Resolving a File Provider
+### Example - resolving a file provider
 
 This example demonstrates how to test that the file provider, `RelativePath`, can be resolved into
 file content. Working through the hierarchy:
@@ -75,7 +75,7 @@ mod tests {
 }
 ```
 
-### Example - Malformed Template Strings
+### Example - malformed template strings
 
 This example demonstrates how to test that the template string `"{{ template_variable }}"` does not
 work when similar, but not acceptable, patterns are specified. Working through the hierarchy:
@@ -117,7 +117,7 @@ mod tests {
 The [`rtf-config`][0] crate uses several testing strategies and tools to ensure comprehensive
 coverage of configuration parsing, validation, and resolution.
 
-### Testing Infrastructure
+### Testing infrastructure
 
 The crate leverages the following key testing tools:
 
@@ -128,7 +128,7 @@ The crate leverages the following key testing tools:
 - **`indoc`** - Allows clean multi-line string literals in tests, particularly useful for YAML
   configurations
 
-### Mock System
+### Mock system
 
 The crate implements a flexible mock system through `MockContext<T>` that allows dependency
 injection during testing:
@@ -175,7 +175,7 @@ This pattern allows testing the core business logic while avoiding the complexit
 external APIs. The `with_supergraph_details` method in the production context handles the API
 interaction separately.
 
-### Parameterized Testing Patterns
+### Parameterized testing patterns
 
 Tests extensively use `#[test_case]` to cover multiple scenarios efficiently:
 
@@ -192,7 +192,7 @@ fn field_parse_valid_identifiers(raw: &str) {
 Related test cases are grouped into test classes when using parameterized testing, following the
 naming hierarchy described in the [Organization](#organization) section.
 
-### Configuration Testing Strategy
+### Configuration testing strategy
 
 The crate employs a systematic approach to testing configuration handling:
 
@@ -205,14 +205,14 @@ The crate employs a systematic approach to testing configuration handling:
 3. **Validation Tests** - Check that configuration validation catches common errors and edge cases
 4. **Resolve Tests** - Test that providers and configuration resolve and execute correctly.
 
-### Test Data Management
+### Test data management
 
 Test data is organized in two main ways:
 
 - **Inline test data** using `indoc!` for small, focused examples
 - **Resource files** in `resources/` for larger, realistic configurations and any non UTF-8 files.
 
-### Error Testing
+### Error testing
 
 The crate places strong emphasis on testing error conditions:
 

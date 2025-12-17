@@ -6,6 +6,7 @@ use crate::{
         get_context_and_check_outdir,
         plumbing::custom_provider::{
             RESOLVED_PROVIDER_PATH, VARIABLES_PATH, load_definition, parse_cli_variables,
+            validate_variable_definitions,
         },
     },
 };
@@ -40,9 +41,11 @@ pub async fn run_custom_provider(
     let template_ctx = TemplateContext::new(
         variables,
         source.clone(),
-        override_sources,
+        override_sources.clone(),
         Default::default(),
     );
+
+    validate_variable_definitions(&definition, &override_sources, &template_ctx)?;
 
     definition.try_template(&mut Vec::new(), &source, &template_ctx)?;
     definition

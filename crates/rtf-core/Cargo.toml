@@ -4,19 +4,18 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-apollo-compiler.workspace = true
-bytes.workspace = true
-futures.workspace = true
-graphql_client = "0.14.0"
-itertools.workspace = true
-rand.workspace = true
-reqwest.workspace = true
-serde_json.workspace = true
+rtf-config = { path = "../rtf-config" }
+rtf-integrations = { path = "../rtf-integrations" }
+
+anyhow.workspace = true 
+assert_fs.workspace = true
 serde.workspace = true
-thiserror.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+similar = "2.7.0"
+walkdir = "2.5.0"
 
 [dev-dependencies]
-anyhow.workspace = true
 simple_test_case.workspace = true
