@@ -1,13 +1,7 @@
 //! Commands for checking and running custom provider definitions independently.
 use crate::{ParsedVariables, cli::Variables};
 use anyhow::{Context, anyhow};
-use rtf_config::{
-    SourceDir,
-    context::ResolutionContext,
-    formats::CustomProviderDefinition,
-    templating::{self, TemplateContext},
-};
-use std::collections::HashMap;
+use rtf_config::{SourceDir, context::ResolutionContext, formats::CustomProviderDefinition};
 
 mod run;
 mod template;
@@ -63,37 +57,4 @@ fn parse_cli_variables(
     }
 
     Ok(parsed)
-}
-
-/// Validate variable definitions and values before templating
-fn validate_variable_definitions(
-    definition: &CustomProviderDefinition,
-    override_sources: &HashMap<String, SourceDir>,
-    template_ctx: &TemplateContext,
-) -> templating::Result<()> {
-    let mut errs = templating::ErrorBuilder::new();
-
-    for vd in definition.variable_definitions.iter() {
-        vd.validate(
-            &["variable_definitions".to_string(), vd.name.to_string()],
-            &mut errs,
-        );
-
-        // Validate CLI variable values against allowed_values
-        if let Some(value) = template_ctx.variables().get(&vd.name) {
-            let source_desc = if override_sources.contains_key(&vd.name) {
-                "CLI variable"
-            } else {
-                "variable"
-            };
-            vd.validate_value(
-                value,
-                source_desc,
-                &["variables".to_string(), vd.name.to_string()],
-                &mut errs,
-            );
-        }
-    }
-
-    errs.into_result(())
 }
