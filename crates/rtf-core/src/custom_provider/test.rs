@@ -7,7 +7,7 @@ use rtf_config::{
     context::Context,
     formats::CustomProviderDefinition,
     providers::command::{OUTPUT_PATH, PROVIDER_DIR},
-    templating::{self, ErrorBuilder, Scalar, Template, TemplateContext},
+    templating::{Scalar, Template, TemplateContext},
 };
 use similar::{ChangeTag, TextDiff};
 use std::{
@@ -282,7 +282,7 @@ impl TestCase {
         );
 
         debug!("validating variable definitions");
-        if let Err(e) = validate_variable_definitions(&definition, template_ctx.variables()) {
+        if let Err(e) = definition.validate_variables(template_ctx.variables(), None) {
             return Ok(Outcome::Template { err: e.to_string() });
         }
 
@@ -518,31 +518,6 @@ fn load_variables(path: &Path) -> anyhow::Result<HashMap<String, Scalar>> {
         .with_context(|| format!("Failed to parse variables JSON: {}", path.display()))?;
 
     Ok(vars)
-}
-
-fn validate_variable_definitions(
-    definition: &CustomProviderDefinition,
-    variables: &HashMap<String, Scalar>,
-) -> templating::Result<()> {
-    let mut errs = ErrorBuilder::new();
-
-    for vd in definition.variable_definitions.iter() {
-        vd.validate(
-            &["variable_definitions".to_string(), vd.name.to_string()],
-            &mut errs,
-        );
-
-        if let Some(value) = variables.get(&vd.name) {
-            vd.validate_value(
-                value,
-                "test variable",
-                &["variables".to_string(), vd.name.to_string()],
-                &mut errs,
-            );
-        }
-    }
-
-    errs.into_result(())
 }
 
 fn load_expected_copied_files(test_case_path: &Path) -> anyhow::Result<HashMap<String, String>> {
