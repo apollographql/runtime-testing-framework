@@ -177,7 +177,7 @@ impl SupergraphDetails {
                     continue;
                 };
 
-                rewrite_url(args_map, &["baseURL"], base_url);
+                rewrite_connector_url(args_map, &["baseURL"], base_url);
             }
         }
 
@@ -344,7 +344,7 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
     Some(schema.to_string())
 }
 
-fn rewrite_url(args_map: &mut [(Name, Node<Value>)], url_keys: &[&str], url: &str) {
+fn rewrite_connector_url(args_map: &mut [(Name, Node<Value>)], url_keys: &[&str], url: &str) {
     if let Some((_, http_node)) = args_map.iter_mut().find(|(key, _)| key.as_str() == "http")
         && let Some(Value::Object(http_map)) = http_node.get_mut()
         && let Some((_, url_node)) = http_map
@@ -392,7 +392,7 @@ fn replace_sourceless_connector_urls(field: &mut Node<ObjectType>, base_url: &st
                 continue;
             }
 
-            rewrite_url(
+            rewrite_connector_url(
                 args_map,
                 &http_verbs,
                 &format!("{}/{}", base_url, field_name),
