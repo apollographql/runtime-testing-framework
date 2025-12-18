@@ -6,22 +6,20 @@ use crate::{
         CustomProviderDeclaration, EnvironmentConfig, Error, Matrix, Result, ScenarioConfig,
     },
     merge_yaml,
-    providers::{
-        self,
-        file::{RawSource, SourceDir},
-    },
-    templating::{self, CustomProviderDefinitions, Scalar, Template, TemplateContext},
+    providers::file::{RawSource, SourceDir},
+    templating::{self, Scalar, Template, TemplateContext},
 };
-use itertools::Itertools;
 use rtf_integrations::github::{self, Client};
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
-    sync::Arc,
 };
 use tracing::error;
+
+pub(crate) mod sources;
+pub use sources::Sources;
 
 // Namespace directories for containing the file provider output from each command section
 const SETUP_PROVIDER_DIR: &str = "setup";
@@ -122,7 +120,7 @@ impl TestPlanConfig {
 
         let ctx = TemplateContext::new(
             stub_variables,
-            self.sources.test_plan.clone(),
+            self.sources.test_plan().clone(),
             HashMap::new(),
             self.sources.custom_providers(),
         );
@@ -571,114 +569,6 @@ impl Check for TestPlanConfig {
     }
 }
 
-/// In order to be able to resolve relative paths we need to track where we obtained each of the
-/// config files associated with a [TestPlan][TestPlanConfig].
-///
-/// If the [ScenarioConfig] or [EnvironmentConfig] are specified inline then their source will
-/// match that of the overall [TestPlanConfig], otherwise we store the source as defined in the
-/// [RawTestPlanConfig].
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
-pub struct Sources {
-    test_plan: SourceDir,
-    scenario: Option<SourceDir>,
-    environment: Option<SourceDir>,
-    #[serde(default, skip)]
-    custom_providers: Arc<CustomProviderDefinitions>,
-}
-
-impl Sources {
-    fn new(
-        test_plan: SourceDir,
-        scenario: Option<SourceDir>,
-        environment: Option<SourceDir>,
-    ) -> Self {
-        Self {
-            test_plan,
-            scenario,
-            environment,
-            custom_providers: Default::default(),
-        }
-    }
-
-    async fn try_load_custom_providers(
-        &mut self,
-        tp: &[CustomProviderDeclaration],
-        scenario: &[CustomProviderDeclaration],
-        environment: &[CustomProviderDeclaration],
-        ctx: &impl ResolutionContext,
-    ) -> Result<()> {
-        let mut errs = Vec::new();
-        let mut custom_providers = CustomProviderDefinitions::default();
-
-        let format_errors = |section: &str, errors: Vec<(String, providers::Error)>| {
-            format!(
-                "{section}:\n{}",
-                errors
-                    .into_iter()
-                    .map(|(provider_name, e)| format!(" - {provider_name}: {e}"))
-                    .join("\n")
-            )
-        };
-
-        for declaration in tp.iter() {
-            match declaration.try_load_all(self.test_plan(), ctx).await {
-                Ok(providers) => custom_providers.test_plan.extend(providers),
-                Err(errors) => errs.push(format_errors("test plan", errors)),
-            }
-        }
-
-        for declaration in scenario.iter() {
-            match declaration.try_load_all(self.scenario(), ctx).await {
-                Ok(providers) => custom_providers.scenario.extend(providers),
-                Err(errors) => errs.push(format_errors("scenario", errors)),
-            }
-        }
-
-        for declaration in environment.iter() {
-            match declaration.try_load_all(self.environment(), ctx).await {
-                Ok(providers) => custom_providers.environment.extend(providers),
-                Err(errors) => errs.push(format_errors("environment", errors)),
-            }
-        }
-
-        if !errs.is_empty() {
-            return Err(Error::FailedCustomProviderDefinitions { errs });
-        }
-
-        self.custom_providers = Arc::new(custom_providers);
-
-        Ok(())
-    }
-
-    pub fn test_plan(&self) -> &SourceDir {
-        &self.test_plan
-    }
-
-    /// The [Source] of the [EnvironmentConfig] in this test plan.
-    ///
-    /// Defaults to the source of the test plan itself if the environment was specified inline.
-    pub fn environment(&self) -> &SourceDir {
-        match self.environment.as_ref() {
-            Some(source) => source,
-            None => &self.test_plan,
-        }
-    }
-
-    /// The [Source] of the [ScenarioConfig] in this test plan.
-    ///
-    /// Defaults to the source of the test plan itself if the scenario was specified inline.
-    pub fn scenario(&self) -> &SourceDir {
-        match self.scenario.as_ref() {
-            Some(source) => source,
-            None => &self.test_plan,
-        }
-    }
-
-    pub fn custom_providers(&self) -> Arc<CustomProviderDefinitions> {
-        self.custom_providers.clone()
-    }
-}
-
 /// The raw format for parsing scenario config. This allows the [ScenarioConfig]
 /// and [EnvironmentConfig] to be retrieved from files or inline content before
 /// being fully templated and checked.
@@ -975,7 +865,7 @@ mod tests {
     };
     use indoc::indoc;
     use simple_test_case::test_case;
-    use std::path::PathBuf;
+    use std::{path::PathBuf, sync::Arc};
 
     // Helper functions
 
@@ -1093,12 +983,12 @@ mod tests {
             (SourceDir::default(), custom_provider_def),
         );
 
-        let sources = Sources {
-            test_plan: SourceDir::default(),
-            scenario: None,
-            environment: None,
-            custom_providers: Arc::new(custom_providers),
-        };
+        let sources = Sources::with_custom_providers(
+            SourceDir::default(),
+            None,
+            None,
+            Arc::new(custom_providers),
+        );
 
         TestPlanConfig {
             sources,
@@ -1214,14 +1104,14 @@ mod tests {
             serde_yaml::from_str(INLINE_TEST_PLAN).expect("test plan config to parse");
         let ctx = Context::new();
 
-        let expected_sources = Sources {
-            test_plan: SourceDir::Local {
+        let expected_sources = Sources::with_custom_providers(
+            SourceDir::Local {
                 abs_path: "/".into(),
             },
-            scenario: None,
-            environment: None,
-            custom_providers: Default::default(),
-        };
+            None,
+            None,
+            Default::default(),
+        );
 
         let res = raw_test_plan
             .try_into_test_plan(
@@ -1415,26 +1305,26 @@ mod tests {
         let test_plan = res.unwrap();
         let sources = &test_plan.sources;
 
-        assert_eq!(sources.custom_providers.test_plan.len(), 1);
+        assert_eq!(sources.custom_providers().test_plan.len(), 1);
         assert!(
             sources
-                .custom_providers
+                .custom_providers()
                 .test_plan
                 .contains_key("tp_provider")
         );
 
-        assert_eq!(sources.custom_providers.scenario.len(), 1);
+        assert_eq!(sources.custom_providers().scenario.len(), 1);
         assert!(
             sources
-                .custom_providers
+                .custom_providers()
                 .scenario
                 .contains_key("sc_provider")
         );
 
-        assert_eq!(sources.custom_providers.environment.len(), 1);
+        assert_eq!(sources.custom_providers().environment.len(), 1);
         assert!(
             sources
-                .custom_providers
+                .custom_providers()
                 .environment
                 .contains_key("env_provider")
         );
@@ -1952,18 +1842,18 @@ mod tests {
                 .to_owned()
         };
 
-        let expected_sources = Sources {
-            test_plan: SourceDir::Local {
+        let expected_sources = Sources::with_custom_providers(
+            SourceDir::Local {
                 abs_path: config_file_dir(&tp_file),
             },
-            scenario: Some(SourceDir::Local {
+            Some(SourceDir::Local {
                 abs_path: config_file_dir(&scenario_file),
             }),
-            environment: Some(SourceDir::Local {
+            Some(SourceDir::Local {
                 abs_path: config_file_dir(&environment_file),
             }),
-            custom_providers: Default::default(),
-        };
+            Default::default(),
+        );
 
         let res = TestPlanConfig::try_load_and_resolve_from_path(tp_file.to_path_buf(), &ctx).await;
         assert!(res.is_ok(), "expected TestPlanConfig, got {res:?}");
