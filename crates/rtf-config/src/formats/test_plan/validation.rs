@@ -60,53 +60,48 @@ impl TestPlanConfig {
         errs.into_result(())
     }
 
-    /// Validate all the the variable definitions
-    fn validate_all_variable_definitions(&self, errs: &mut templating::ErrorBuilder) {
-        fn validate_variable_definitions<'a>(
-            variable_definitions: impl Iterator<Item = &'a VariableDefinition>,
-            path: &[String],
-            errs: &mut templating::ErrorBuilder,
-        ) {
-            for vd in variable_definitions {
-                let mut full_path = path.to_vec();
-                full_path.push("variable_definitions".to_string());
-                full_path.push(vd.name.to_string());
-                vd.validate(&full_path, errs);
+    /// Returns all variable definition sources as (path, variable_definitions) pairs.
+    fn variable_definition_sources(&self) -> Vec<(Vec<String>, Vec<VariableDefinition>)> {
+        let mut sources: Vec<(Vec<String>, Vec<VariableDefinition>)> = vec![
+            (
+                vec!["environment".into()],
+                self.environment.variable_definitions.clone(),
+            ),
+            (
+                vec!["scenario".into()],
+                self.scenario.variable_definitions.clone(),
+            ),
+        ];
+
+        let custom_providers = self.sources.custom_providers();
+        let sections = [
+            &custom_providers.test_plan,
+            &custom_providers.scenario,
+            &custom_providers.environment,
+        ];
+        for definitions in sections.into_iter() {
+            for (name, (_, def)) in definitions.iter() {
+                sources.push((
+                    vec!["custom_providers".into(), name.clone()],
+                    def.variable_definitions.clone(),
+                ));
             }
         }
 
-        validate_variable_definitions(
-            self.environment.variable_definitions.iter(),
-            &["environment".to_string()],
-            errs,
-        );
-        validate_variable_definitions(
-            self.scenario.variable_definitions.iter(),
-            &["scenario".to_string()],
-            errs,
-        );
+        sources
+    }
 
-        let custom_providers = self.sources.custom_providers();
-        for (name, (_, def)) in custom_providers.test_plan.iter() {
-            validate_variable_definitions(
-                def.variable_definitions.iter(),
-                &["custom_providers".to_string(), name.to_string()],
-                errs,
-            );
-        }
-        for (name, (_, def)) in custom_providers.scenario.iter() {
-            validate_variable_definitions(
-                def.variable_definitions.iter(),
-                &["custom_providers".to_string(), name.to_string()],
-                errs,
-            );
-        }
-        for (name, (_, def)) in custom_providers.environment.iter() {
-            validate_variable_definitions(
-                def.variable_definitions.iter(),
-                &["custom_providers".to_string(), name.to_string()],
-                errs,
-            );
+    /// Validate all the variable definitions
+    fn validate_all_variable_definitions(&self, errs: &mut templating::ErrorBuilder) {
+        for (path, variable_definitions) in self.variable_definition_sources().into_iter() {
+            for vd in variable_definitions.iter() {
+                let full_path: Vec<String> = path
+                    .iter()
+                    .cloned()
+                    .chain(["variable_definitions".into(), vd.name.clone()])
+                    .collect();
+                vd.validate(&full_path, errs);
+            }
         }
     }
 
@@ -114,61 +109,24 @@ impl TestPlanConfig {
     fn collect_variable_definitions_by_name(
         &self,
     ) -> HashMap<String, Vec<(Vec<String>, VariableDefinition)>> {
-        let custom_providers = self.sources.custom_providers();
-        let mut result: HashMap<String, Vec<(Vec<String>, VariableDefinition)>> = HashMap::new();
+        let mut defs_by_name: HashMap<String, Vec<(Vec<String>, VariableDefinition)>> =
+            HashMap::new();
 
-        for vd in &self.environment.variable_definitions {
-            result.entry(vd.name.clone()).or_default().push((
-                vec!["environment".into(), "variable_definitions".into()],
-                vd.clone(),
-            ));
-        }
-
-        for vd in &self.scenario.variable_definitions {
-            result.entry(vd.name.clone()).or_default().push((
-                vec!["scenario".into(), "variable_definitions".into()],
-                vd.clone(),
-            ));
-        }
-
-        for (name, (_, def)) in custom_providers.test_plan.iter() {
-            for vd in &def.variable_definitions {
-                result.entry(vd.name.clone()).or_default().push((
-                    vec![
-                        "custom_providers".into(),
-                        name.clone(),
-                        "variable_definitions".into(),
-                    ],
-                    vd.clone(),
-                ));
-            }
-        }
-        for (name, (_, def)) in custom_providers.scenario.iter() {
-            for vd in &def.variable_definitions {
-                result.entry(vd.name.clone()).or_default().push((
-                    vec![
-                        "custom_providers".into(),
-                        name.clone(),
-                        "variable_definitions".into(),
-                    ],
-                    vd.clone(),
-                ));
-            }
-        }
-        for (name, (_, def)) in custom_providers.environment.iter() {
-            for vd in &def.variable_definitions {
-                result.entry(vd.name.clone()).or_default().push((
-                    vec![
-                        "custom_providers".into(),
-                        name.clone(),
-                        "variable_definitions".into(),
-                    ],
-                    vd.clone(),
-                ));
+        for (path, variable_definitions) in self.variable_definition_sources().iter() {
+            for vd in variable_definitions.iter() {
+                let full_path: Vec<String> = path
+                    .iter()
+                    .cloned()
+                    .chain(["variable_definitions".into()])
+                    .collect();
+                defs_by_name
+                    .entry(vd.name.clone())
+                    .or_default()
+                    .push((full_path, vd.clone()));
             }
         }
 
-        result
+        defs_by_name
     }
 
     /// Compute the effective allowed values for each variable by intersecting all definitions.
@@ -182,7 +140,7 @@ impl TestPlanConfig {
 
         let mut effective: HashMap<String, Vec<Scalar>> = HashMap::new();
 
-        for (var_name, definitions) in definitions_by_name {
+        for (var_name, definitions) in definitions_by_name.into_iter() {
             // Collect all Some(allowed_values) from definitions, skipping empty arrays
             // (empty arrays are already reported as EmptyAllowedValues errors)
             let constrained: Vec<_> = definitions
@@ -238,70 +196,62 @@ impl TestPlanConfig {
         effective_allowed: &HashMap<String, Vec<Scalar>>,
         errs: &mut templating::ErrorBuilder,
     ) {
-        // Check self.variables (includes CLI variables merged in)
-        for (var_name, value) in &self.variables {
+        let mut check = |var_name: &str, value: &Scalar, source: &str, path: Vec<String>| {
             if let Some(allowed) = effective_allowed.get(var_name)
                 && !allowed.contains(value)
             {
-                let source = if override_sources.contains_key(var_name) {
-                    "CLI variable"
-                } else {
-                    "test plan variable"
-                };
                 errs.push(
                     templating::ErrorKind::ValueNotAllowed,
                     format!(
                         "{} '{}' has value '{}' not in allowed: {:?}",
                         source, var_name, value, allowed
                     ),
-                    &["variables".into(), var_name.clone()],
+                    &path,
                 );
             }
+        };
+
+        // Check self.variables (includes CLI variables merged in)
+        for (name, value) in self.variables.iter() {
+            let source = if override_sources.contains_key(name) {
+                "CLI variable"
+            } else {
+                "test plan variable"
+            };
+            check(name, value, source, vec!["variables".into(), name.clone()]);
         }
 
         // Check matrix dimensions
-        for (var_name, values) in &self.matrix.dimensions {
-            if let Some(allowed) = effective_allowed.get(var_name) {
-                for value in values {
-                    if !allowed.contains(value) {
-                        let source = if override_sources.contains_key(var_name) {
-                            "CLI matrix dimension"
-                        } else {
-                            "matrix dimension"
-                        };
-                        errs.push(
-                            templating::ErrorKind::ValueNotAllowed,
-                            format!(
-                                "{} '{}' has value '{}' not in allowed: {:?}",
-                                source, var_name, value, allowed
-                            ),
-                            &["matrix".into(), "dimensions".into(), var_name.clone()],
-                        );
-                    }
-                }
+        for (name, values) in self.matrix.dimensions.iter() {
+            let source = if override_sources.contains_key(name) {
+                "CLI matrix dimension"
+            } else {
+                "matrix dimension"
+            };
+            for value in values {
+                check(
+                    name,
+                    value,
+                    source,
+                    vec!["matrix".into(), "dimensions".into(), name.clone()],
+                );
             }
         }
 
         // Check matrix include
         for (idx, include_map) in self.matrix.include.iter().enumerate() {
-            for (var_name, value) in include_map {
-                if let Some(allowed) = effective_allowed.get(var_name)
-                    && !allowed.contains(value)
-                {
-                    errs.push(
-                        templating::ErrorKind::ValueNotAllowed,
-                        format!(
-                            "matrix include[{}] variable '{}' has value '{}' not in allowed: {:?}",
-                            idx, var_name, value, allowed
-                        ),
-                        &[
-                            "matrix".into(),
-                            "include".into(),
-                            idx.to_string(),
-                            var_name.clone(),
-                        ],
-                    );
-                }
+            for (name, value) in include_map.iter() {
+                check(
+                    name,
+                    value,
+                    &format!("matrix include[{}]", idx),
+                    vec![
+                        "matrix".into(),
+                        "include".into(),
+                        idx.to_string(),
+                        name.clone(),
+                    ],
+                );
             }
         }
     }
