@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-core/src/custom_provider/test.rs`."><title>test.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e56847b5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rtf_core" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.1 (ed61e7d7e 2025-11-07)" data-channel="1.91.1" data-search-js="search-e256b49e.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-6dc2a7f3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rtf_core/custom_provider/</div>test.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Run validation tests for a custom provider
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-core/src/custom_provider/test.rs`."><title>test.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rtf_core" data-themes="" data-resource-suffix="" data-rustdoc-version="1.92.0 (ded5c06cf 2025-12-08)" data-channel="1.92.0" data-search-js="search-d69d8955.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-ce535bd0.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rtf_core/custom_provider/</div>test.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Run validation tests for a custom provider
 <a href=#2 id=2 data-nosnippet>2</a></span><span class="kw">use </span>anyhow::{Context <span class="kw">as _</span>, anyhow};
 <a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>assert_fs::TempDir;
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>rtf_config::{
@@ -7,7 +7,7 @@
 <a href=#7 id=7 data-nosnippet>7</a>    context::Context,
 <a href=#8 id=8 data-nosnippet>8</a>    formats::CustomProviderDefinition,
 <a href=#9 id=9 data-nosnippet>9</a>    providers::command::{OUTPUT_PATH, PROVIDER_DIR},
-<a href=#10 id=10 data-nosnippet>10</a>    templating::{<span class="self">self</span>, ErrorBuilder, Scalar, Template, TemplateContext},
+<a href=#10 id=10 data-nosnippet>10</a>    templating::{Scalar, Template, TemplateContext},
 <a href=#11 id=11 data-nosnippet>11</a>};
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span>similar::{ChangeTag, TextDiff};
 <a href=#13 id=13 data-nosnippet>13</a><span class="kw">use </span>std::{
@@ -282,7 +282,7 @@
 <a href=#282 id=282 data-nosnippet>282</a>        );
 <a href=#283 id=283 data-nosnippet>283</a>
 <a href=#284 id=284 data-nosnippet>284</a>        <span class="macro">debug!</span>(<span class="string">"validating variable definitions"</span>);
-<a href=#285 id=285 data-nosnippet>285</a>        <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = validate_variable_definitions(<span class="kw-2">&amp;</span>definition, template_ctx.variables()) {
+<a href=#285 id=285 data-nosnippet>285</a>        <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = definition.validate_variables(template_ctx.variables(), <span class="prelude-val">None</span>) {
 <a href=#286 id=286 data-nosnippet>286</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(Outcome::Template { err: e.to_string() });
 <a href=#287 id=287 data-nosnippet>287</a>        }
 <a href=#288 id=288 data-nosnippet>288</a>
@@ -520,611 +520,611 @@
 <a href=#520 id=520 data-nosnippet>520</a>    <span class="prelude-val">Ok</span>(vars)
 <a href=#521 id=521 data-nosnippet>521</a>}
 <a href=#522 id=522 data-nosnippet>522</a>
-<a href=#523 id=523 data-nosnippet>523</a><span class="kw">fn </span>validate_variable_definitions(
-<a href=#524 id=524 data-nosnippet>524</a>    definition: <span class="kw-2">&amp;</span>CustomProviderDefinition,
-<a href=#525 id=525 data-nosnippet>525</a>    variables: <span class="kw-2">&amp;</span>HashMap&lt;String, Scalar&gt;,
-<a href=#526 id=526 data-nosnippet>526</a>) -&gt; templating::Result&lt;()&gt; {
-<a href=#527 id=527 data-nosnippet>527</a>    <span class="kw">let </span><span class="kw-2">mut </span>errs = ErrorBuilder::new();
+<a href=#523 id=523 data-nosnippet>523</a><span class="kw">fn </span>load_expected_copied_files(test_case_path: <span class="kw-2">&amp;</span>Path) -&gt; anyhow::Result&lt;HashMap&lt;String, String&gt;&gt; {
+<a href=#524 id=524 data-nosnippet>524</a>    <span class="kw">let </span>index_path = test_case_path.join(EXPECTED_COPIED_FILES);
+<a href=#525 id=525 data-nosnippet>525</a>    <span class="kw">if </span>!index_path.exists() {
+<a href=#526 id=526 data-nosnippet>526</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(HashMap::new());
+<a href=#527 id=527 data-nosnippet>527</a>    }
 <a href=#528 id=528 data-nosnippet>528</a>
-<a href=#529 id=529 data-nosnippet>529</a>    <span class="kw">for </span>vd <span class="kw">in </span>definition.variable_definitions.iter() {
-<a href=#530 id=530 data-nosnippet>530</a>        vd.validate(
-<a href=#531 id=531 data-nosnippet>531</a>            <span class="kw-2">&amp;</span>[<span class="string">"variable_definitions"</span>.to_string(), vd.name.to_string()],
-<a href=#532 id=532 data-nosnippet>532</a>            <span class="kw-2">&amp;mut </span>errs,
-<a href=#533 id=533 data-nosnippet>533</a>        );
-<a href=#534 id=534 data-nosnippet>534</a>
-<a href=#535 id=535 data-nosnippet>535</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = variables.get(<span class="kw-2">&amp;</span>vd.name) {
-<a href=#536 id=536 data-nosnippet>536</a>            vd.validate_value(
-<a href=#537 id=537 data-nosnippet>537</a>                value,
-<a href=#538 id=538 data-nosnippet>538</a>                <span class="string">"test variable"</span>,
-<a href=#539 id=539 data-nosnippet>539</a>                <span class="kw-2">&amp;</span>[<span class="string">"variables"</span>.to_string(), vd.name.to_string()],
-<a href=#540 id=540 data-nosnippet>540</a>                <span class="kw-2">&amp;mut </span>errs,
-<a href=#541 id=541 data-nosnippet>541</a>            );
-<a href=#542 id=542 data-nosnippet>542</a>        }
-<a href=#543 id=543 data-nosnippet>543</a>    }
-<a href=#544 id=544 data-nosnippet>544</a>
-<a href=#545 id=545 data-nosnippet>545</a>    errs.into_result(())
-<a href=#546 id=546 data-nosnippet>546</a>}
-<a href=#547 id=547 data-nosnippet>547</a>
-<a href=#548 id=548 data-nosnippet>548</a><span class="kw">fn </span>load_expected_copied_files(test_case_path: <span class="kw-2">&amp;</span>Path) -&gt; anyhow::Result&lt;HashMap&lt;String, String&gt;&gt; {
-<a href=#549 id=549 data-nosnippet>549</a>    <span class="kw">let </span>index_path = test_case_path.join(EXPECTED_COPIED_FILES);
-<a href=#550 id=550 data-nosnippet>550</a>    <span class="kw">if </span>!index_path.exists() {
-<a href=#551 id=551 data-nosnippet>551</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(HashMap::new());
-<a href=#552 id=552 data-nosnippet>552</a>    }
-<a href=#553 id=553 data-nosnippet>553</a>
-<a href=#554 id=554 data-nosnippet>554</a>    <span class="kw">let </span>content = fs::read_to_string(<span class="kw-2">&amp;</span>index_path).with_context(|| {
-<a href=#555 id=555 data-nosnippet>555</a>        <span class="macro">format!</span>(
-<a href=#556 id=556 data-nosnippet>556</a>            <span class="string">"Failed to read copied files index: {}"</span>,
-<a href=#557 id=557 data-nosnippet>557</a>            index_path.display()
-<a href=#558 id=558 data-nosnippet>558</a>        )
-<a href=#559 id=559 data-nosnippet>559</a>    })<span class="question-mark">?</span>;
-<a href=#560 id=560 data-nosnippet>560</a>
-<a href=#561 id=561 data-nosnippet>561</a>    <span class="kw">let </span>raw_index: HashMap&lt;String, String&gt; = serde_json::from_str(<span class="kw-2">&amp;</span>content).with_context(|| {
-<a href=#562 id=562 data-nosnippet>562</a>        <span class="macro">format!</span>(
-<a href=#563 id=563 data-nosnippet>563</a>            <span class="string">"Failed to parse copied files index: {}"</span>,
-<a href=#564 id=564 data-nosnippet>564</a>            index_path.display()
-<a href=#565 id=565 data-nosnippet>565</a>        )
-<a href=#566 id=566 data-nosnippet>566</a>    })<span class="question-mark">?</span>;
-<a href=#567 id=567 data-nosnippet>567</a>
-<a href=#568 id=568 data-nosnippet>568</a>    <span class="kw">let </span><span class="kw-2">mut </span>expected = HashMap::new();
-<a href=#569 id=569 data-nosnippet>569</a>    <span class="kw">for </span>(output_path, relative_source) <span class="kw">in </span>raw_index {
-<a href=#570 id=570 data-nosnippet>570</a>        <span class="kw">let </span>source_path = test_case_path.join(<span class="kw-2">&amp;</span>relative_source);
-<a href=#571 id=571 data-nosnippet>571</a>        <span class="kw">let </span>source_path = source_path.canonicalize().with_context(|| {
-<a href=#572 id=572 data-nosnippet>572</a>            <span class="macro">format!</span>(
-<a href=#573 id=573 data-nosnippet>573</a>                <span class="string">"Source file not found for '{}': {}"</span>,
-<a href=#574 id=574 data-nosnippet>574</a>                output_path,
-<a href=#575 id=575 data-nosnippet>575</a>                source_path.display()
-<a href=#576 id=576 data-nosnippet>576</a>            )
-<a href=#577 id=577 data-nosnippet>577</a>        })<span class="question-mark">?</span>;
-<a href=#578 id=578 data-nosnippet>578</a>        <span class="kw">let </span>content = fs::read_to_string(source_path)<span class="question-mark">?</span>;
-<a href=#579 id=579 data-nosnippet>579</a>        expected.insert(output_path, content);
-<a href=#580 id=580 data-nosnippet>580</a>    }
-<a href=#581 id=581 data-nosnippet>581</a>
-<a href=#582 id=582 data-nosnippet>582</a>    <span class="prelude-val">Ok</span>(expected)
-<a href=#583 id=583 data-nosnippet>583</a>}
-<a href=#584 id=584 data-nosnippet>584</a>
-<a href=#585 id=585 data-nosnippet>585</a><span class="doccomment">/// Replace occurrences of the temp directory path with `$OUTDIR` placeholder.
-<a href=#586 id=586 data-nosnippet>586</a>///
-<a href=#587 id=587 data-nosnippet>587</a>/// This allows expected output files to use `$OUTDIR` as a placeholder that matches
-<a href=#588 id=588 data-nosnippet>588</a>/// against the actual absolute temp directory path used during test execution.
-<a href=#589 id=589 data-nosnippet>589</a></span><span class="attr">#[inline]
-<a href=#590 id=590 data-nosnippet>590</a></span><span class="kw">fn </span>normalize_paths(content: <span class="kw-2">&amp;</span>str, temp_dir: <span class="kw-2">&amp;</span>Path) -&gt; String {
-<a href=#591 id=591 data-nosnippet>591</a>    content.replace(<span class="kw-2">&amp;</span>temp_dir.display().to_string(), <span class="string">"$OUTDIR"</span>)
-<a href=#592 id=592 data-nosnippet>592</a>}
-<a href=#593 id=593 data-nosnippet>593</a>
-<a href=#594 id=594 data-nosnippet>594</a><span class="kw">fn </span>output_files(p: <span class="kw-2">&amp;</span>Path) -&gt; io::Result&lt;HashMap&lt;String, String&gt;&gt; {
-<a href=#595 id=595 data-nosnippet>595</a>    <span class="kw">let </span><span class="kw-2">mut </span>files = HashMap::new();
-<a href=#596 id=596 data-nosnippet>596</a>
-<a href=#597 id=597 data-nosnippet>597</a>    <span class="kw">for </span>entry <span class="kw">in </span>WalkDir::new(p) {
-<a href=#598 id=598 data-nosnippet>598</a>        <span class="kw">let </span>entry = entry.map_err(|e| io::Error::other(e.to_string()))<span class="question-mark">?</span>;
-<a href=#599 id=599 data-nosnippet>599</a>        <span class="kw">if </span>entry.path().is_file() {
-<a href=#600 id=600 data-nosnippet>600</a>            <span class="kw">let </span>content = fs::read_to_string(entry.path())<span class="question-mark">?</span>;
-<a href=#601 id=601 data-nosnippet>601</a>            <span class="kw">let </span>key = entry.path().strip_prefix(p).unwrap().display().to_string();
-<a href=#602 id=602 data-nosnippet>602</a>            files.insert(key, content);
-<a href=#603 id=603 data-nosnippet>603</a>        }
-<a href=#604 id=604 data-nosnippet>604</a>    }
-<a href=#605 id=605 data-nosnippet>605</a>
-<a href=#606 id=606 data-nosnippet>606</a>    <span class="prelude-val">Ok</span>(files)
-<a href=#607 id=607 data-nosnippet>607</a>}
-<a href=#608 id=608 data-nosnippet>608</a>
-<a href=#609 id=609 data-nosnippet>609</a><span class="attr">#[cfg(test)]
-<a href=#610 id=610 data-nosnippet>610</a></span><span class="kw">mod </span>tests {
-<a href=#611 id=611 data-nosnippet>611</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#612 id=612 data-nosnippet>612</a>    <span class="kw">use </span>assert_fs::{TempDir, prelude::<span class="kw-2">*</span>};
-<a href=#613 id=613 data-nosnippet>613</a>    <span class="kw">use </span>simple_test_case::test_case;
-<a href=#614 id=614 data-nosnippet>614</a>
-<a href=#615 id=615 data-nosnippet>615</a>    <span class="attr">#[test]
-<a href=#616 id=616 data-nosnippet>616</a>    </span><span class="kw">fn </span>output_file_results_collects_all_files() {
-<a href=#617 id=617 data-nosnippet>617</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#618 id=618 data-nosnippet>618</a>        tmp.child(<span class="string">"root.txt"</span>).write_str(<span class="string">"root content\n"</span>).unwrap();
-<a href=#619 id=619 data-nosnippet>619</a>        tmp.child(<span class="string">"nested/child.txt"</span>)
-<a href=#620 id=620 data-nosnippet>620</a>            .write_str(<span class="string">"nested content\n"</span>)
-<a href=#621 id=621 data-nosnippet>621</a>            .unwrap();
-<a href=#622 id=622 data-nosnippet>622</a>
-<a href=#623 id=623 data-nosnippet>623</a>        <span class="kw">let </span>res = output_files(tmp.path()).expect(<span class="string">"should read directory"</span>);
-<a href=#624 id=624 data-nosnippet>624</a>
-<a href=#625 id=625 data-nosnippet>625</a>        <span class="macro">assert_eq!</span>(res.len(), <span class="number">2</span>, <span class="string">"should find 2 files"</span>);
-<a href=#626 id=626 data-nosnippet>626</a>        <span class="macro">assert_eq!</span>(
-<a href=#627 id=627 data-nosnippet>627</a>            res.get(<span class="string">"root.txt"</span>).map(|s| s.as_str()),
-<a href=#628 id=628 data-nosnippet>628</a>            <span class="prelude-val">Some</span>(<span class="string">"root content\n"</span>),
-<a href=#629 id=629 data-nosnippet>629</a>            <span class="string">"should find root.txt with correct content"
-<a href=#630 id=630 data-nosnippet>630</a>        </span>);
-<a href=#631 id=631 data-nosnippet>631</a>        <span class="macro">assert_eq!</span>(
-<a href=#632 id=632 data-nosnippet>632</a>            res.get(<span class="string">"nested/child.txt"</span>).map(|s| s.as_str()),
-<a href=#633 id=633 data-nosnippet>633</a>            <span class="prelude-val">Some</span>(<span class="string">"nested content\n"</span>),
-<a href=#634 id=634 data-nosnippet>634</a>            <span class="string">"should find nested/child.txt with correct content"
-<a href=#635 id=635 data-nosnippet>635</a>        </span>);
-<a href=#636 id=636 data-nosnippet>636</a>    }
-<a href=#637 id=637 data-nosnippet>637</a>
-<a href=#638 id=638 data-nosnippet>638</a>    <span class="attr">#[test]
-<a href=#639 id=639 data-nosnippet>639</a>    </span><span class="kw">fn </span>output_file_results_empty_directory() {
-<a href=#640 id=640 data-nosnippet>640</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#641 id=641 data-nosnippet>641</a>        <span class="kw">let </span>res = output_files(tmp.path()).expect(<span class="string">"should read directory"</span>);
-<a href=#642 id=642 data-nosnippet>642</a>        <span class="macro">assert_eq!</span>(res.len(), <span class="number">0</span>, <span class="string">"empty directory should return empty HashMap"</span>);
-<a href=#643 id=643 data-nosnippet>643</a>    }
-<a href=#644 id=644 data-nosnippet>644</a>
-<a href=#645 id=645 data-nosnippet>645</a>    <span class="attr">#[test]
-<a href=#646 id=646 data-nosnippet>646</a>    </span><span class="kw">fn </span>output_file_results_nested_files_only() {
-<a href=#647 id=647 data-nosnippet>647</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#648 id=648 data-nosnippet>648</a>        tmp.child(<span class="string">"subdir/file.txt"</span>)
-<a href=#649 id=649 data-nosnippet>649</a>            .write_str(<span class="string">"nested content\n"</span>)
-<a href=#650 id=650 data-nosnippet>650</a>            .unwrap();
-<a href=#651 id=651 data-nosnippet>651</a>
-<a href=#652 id=652 data-nosnippet>652</a>        <span class="kw">let </span>res = output_files(tmp.path()).expect(<span class="string">"should read directory"</span>);
-<a href=#653 id=653 data-nosnippet>653</a>
-<a href=#654 id=654 data-nosnippet>654</a>        <span class="macro">assert_eq!</span>(res.len(), <span class="number">1</span>, <span class="string">"should find 1 nested file"</span>);
-<a href=#655 id=655 data-nosnippet>655</a>        <span class="macro">assert_eq!</span>(
-<a href=#656 id=656 data-nosnippet>656</a>            res.get(<span class="string">"subdir/file.txt"</span>).map(|s| s.as_str()),
-<a href=#657 id=657 data-nosnippet>657</a>            <span class="prelude-val">Some</span>(<span class="string">"nested content\n"</span>),
-<a href=#658 id=658 data-nosnippet>658</a>            <span class="string">"should find nested file with correct content"
-<a href=#659 id=659 data-nosnippet>659</a>        </span>);
-<a href=#660 id=660 data-nosnippet>660</a>    }
-<a href=#661 id=661 data-nosnippet>661</a>
-<a href=#662 id=662 data-nosnippet>662</a>    <span class="attr">#[test]
-<a href=#663 id=663 data-nosnippet>663</a>    </span><span class="kw">fn </span>output_file_results_nonexistent_directory() {
-<a href=#664 id=664 data-nosnippet>664</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#665 id=665 data-nosnippet>665</a>        <span class="kw">let </span>nonexistent = tmp.path().join(<span class="string">"does-not-exist"</span>);
-<a href=#666 id=666 data-nosnippet>666</a>
-<a href=#667 id=667 data-nosnippet>667</a>        <span class="kw">let </span>res = output_files(<span class="kw-2">&amp;</span>nonexistent);
+<a href=#529 id=529 data-nosnippet>529</a>    <span class="kw">let </span>content = fs::read_to_string(<span class="kw-2">&amp;</span>index_path).with_context(|| {
+<a href=#530 id=530 data-nosnippet>530</a>        <span class="macro">format!</span>(
+<a href=#531 id=531 data-nosnippet>531</a>            <span class="string">"Failed to read copied files index: {}"</span>,
+<a href=#532 id=532 data-nosnippet>532</a>            index_path.display()
+<a href=#533 id=533 data-nosnippet>533</a>        )
+<a href=#534 id=534 data-nosnippet>534</a>    })<span class="question-mark">?</span>;
+<a href=#535 id=535 data-nosnippet>535</a>
+<a href=#536 id=536 data-nosnippet>536</a>    <span class="kw">let </span>raw_index: HashMap&lt;String, String&gt; = serde_json::from_str(<span class="kw-2">&amp;</span>content).with_context(|| {
+<a href=#537 id=537 data-nosnippet>537</a>        <span class="macro">format!</span>(
+<a href=#538 id=538 data-nosnippet>538</a>            <span class="string">"Failed to parse copied files index: {}"</span>,
+<a href=#539 id=539 data-nosnippet>539</a>            index_path.display()
+<a href=#540 id=540 data-nosnippet>540</a>        )
+<a href=#541 id=541 data-nosnippet>541</a>    })<span class="question-mark">?</span>;
+<a href=#542 id=542 data-nosnippet>542</a>
+<a href=#543 id=543 data-nosnippet>543</a>    <span class="kw">let </span><span class="kw-2">mut </span>expected = HashMap::new();
+<a href=#544 id=544 data-nosnippet>544</a>    <span class="kw">for </span>(output_path, relative_source) <span class="kw">in </span>raw_index {
+<a href=#545 id=545 data-nosnippet>545</a>        <span class="kw">let </span>source_path = test_case_path.join(<span class="kw-2">&amp;</span>relative_source);
+<a href=#546 id=546 data-nosnippet>546</a>        <span class="kw">let </span>source_path = source_path.canonicalize().with_context(|| {
+<a href=#547 id=547 data-nosnippet>547</a>            <span class="macro">format!</span>(
+<a href=#548 id=548 data-nosnippet>548</a>                <span class="string">"Source file not found for '{}': {}"</span>,
+<a href=#549 id=549 data-nosnippet>549</a>                output_path,
+<a href=#550 id=550 data-nosnippet>550</a>                source_path.display()
+<a href=#551 id=551 data-nosnippet>551</a>            )
+<a href=#552 id=552 data-nosnippet>552</a>        })<span class="question-mark">?</span>;
+<a href=#553 id=553 data-nosnippet>553</a>        <span class="kw">let </span>content = fs::read_to_string(source_path)<span class="question-mark">?</span>;
+<a href=#554 id=554 data-nosnippet>554</a>        expected.insert(output_path, content);
+<a href=#555 id=555 data-nosnippet>555</a>    }
+<a href=#556 id=556 data-nosnippet>556</a>
+<a href=#557 id=557 data-nosnippet>557</a>    <span class="prelude-val">Ok</span>(expected)
+<a href=#558 id=558 data-nosnippet>558</a>}
+<a href=#559 id=559 data-nosnippet>559</a>
+<a href=#560 id=560 data-nosnippet>560</a><span class="doccomment">/// Replace occurrences of the temp directory path with `$OUTDIR` placeholder.
+<a href=#561 id=561 data-nosnippet>561</a>///
+<a href=#562 id=562 data-nosnippet>562</a>/// This allows expected output files to use `$OUTDIR` as a placeholder that matches
+<a href=#563 id=563 data-nosnippet>563</a>/// against the actual absolute temp directory path used during test execution.
+<a href=#564 id=564 data-nosnippet>564</a></span><span class="attr">#[inline]
+<a href=#565 id=565 data-nosnippet>565</a></span><span class="kw">fn </span>normalize_paths(content: <span class="kw-2">&amp;</span>str, temp_dir: <span class="kw-2">&amp;</span>Path) -&gt; String {
+<a href=#566 id=566 data-nosnippet>566</a>    content.replace(<span class="kw-2">&amp;</span>temp_dir.display().to_string(), <span class="string">"$OUTDIR"</span>)
+<a href=#567 id=567 data-nosnippet>567</a>}
+<a href=#568 id=568 data-nosnippet>568</a>
+<a href=#569 id=569 data-nosnippet>569</a><span class="kw">fn </span>output_files(p: <span class="kw-2">&amp;</span>Path) -&gt; io::Result&lt;HashMap&lt;String, String&gt;&gt; {
+<a href=#570 id=570 data-nosnippet>570</a>    <span class="kw">let </span><span class="kw-2">mut </span>files = HashMap::new();
+<a href=#571 id=571 data-nosnippet>571</a>
+<a href=#572 id=572 data-nosnippet>572</a>    <span class="kw">for </span>entry <span class="kw">in </span>WalkDir::new(p) {
+<a href=#573 id=573 data-nosnippet>573</a>        <span class="kw">let </span>entry = entry.map_err(|e| io::Error::other(e.to_string()))<span class="question-mark">?</span>;
+<a href=#574 id=574 data-nosnippet>574</a>        <span class="kw">if </span>entry.path().is_file() {
+<a href=#575 id=575 data-nosnippet>575</a>            <span class="kw">let </span>content = fs::read_to_string(entry.path())<span class="question-mark">?</span>;
+<a href=#576 id=576 data-nosnippet>576</a>            <span class="kw">let </span>key = entry.path().strip_prefix(p).unwrap().display().to_string();
+<a href=#577 id=577 data-nosnippet>577</a>            files.insert(key, content);
+<a href=#578 id=578 data-nosnippet>578</a>        }
+<a href=#579 id=579 data-nosnippet>579</a>    }
+<a href=#580 id=580 data-nosnippet>580</a>
+<a href=#581 id=581 data-nosnippet>581</a>    <span class="prelude-val">Ok</span>(files)
+<a href=#582 id=582 data-nosnippet>582</a>}
+<a href=#583 id=583 data-nosnippet>583</a>
+<a href=#584 id=584 data-nosnippet>584</a><span class="attr">#[cfg(test)]
+<a href=#585 id=585 data-nosnippet>585</a></span><span class="kw">mod </span>tests {
+<a href=#586 id=586 data-nosnippet>586</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#587 id=587 data-nosnippet>587</a>    <span class="kw">use </span>assert_fs::{TempDir, prelude::<span class="kw-2">*</span>};
+<a href=#588 id=588 data-nosnippet>588</a>    <span class="kw">use </span>simple_test_case::test_case;
+<a href=#589 id=589 data-nosnippet>589</a>
+<a href=#590 id=590 data-nosnippet>590</a>    <span class="attr">#[test]
+<a href=#591 id=591 data-nosnippet>591</a>    </span><span class="kw">fn </span>output_file_results_collects_all_files() {
+<a href=#592 id=592 data-nosnippet>592</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#593 id=593 data-nosnippet>593</a>        tmp.child(<span class="string">"root.txt"</span>).write_str(<span class="string">"root content\n"</span>).unwrap();
+<a href=#594 id=594 data-nosnippet>594</a>        tmp.child(<span class="string">"nested/child.txt"</span>)
+<a href=#595 id=595 data-nosnippet>595</a>            .write_str(<span class="string">"nested content\n"</span>)
+<a href=#596 id=596 data-nosnippet>596</a>            .unwrap();
+<a href=#597 id=597 data-nosnippet>597</a>
+<a href=#598 id=598 data-nosnippet>598</a>        <span class="kw">let </span>res = output_files(tmp.path()).expect(<span class="string">"should read directory"</span>);
+<a href=#599 id=599 data-nosnippet>599</a>
+<a href=#600 id=600 data-nosnippet>600</a>        <span class="macro">assert_eq!</span>(res.len(), <span class="number">2</span>, <span class="string">"should find 2 files"</span>);
+<a href=#601 id=601 data-nosnippet>601</a>        <span class="macro">assert_eq!</span>(
+<a href=#602 id=602 data-nosnippet>602</a>            res.get(<span class="string">"root.txt"</span>).map(|s| s.as_str()),
+<a href=#603 id=603 data-nosnippet>603</a>            <span class="prelude-val">Some</span>(<span class="string">"root content\n"</span>),
+<a href=#604 id=604 data-nosnippet>604</a>            <span class="string">"should find root.txt with correct content"
+<a href=#605 id=605 data-nosnippet>605</a>        </span>);
+<a href=#606 id=606 data-nosnippet>606</a>        <span class="macro">assert_eq!</span>(
+<a href=#607 id=607 data-nosnippet>607</a>            res.get(<span class="string">"nested/child.txt"</span>).map(|s| s.as_str()),
+<a href=#608 id=608 data-nosnippet>608</a>            <span class="prelude-val">Some</span>(<span class="string">"nested content\n"</span>),
+<a href=#609 id=609 data-nosnippet>609</a>            <span class="string">"should find nested/child.txt with correct content"
+<a href=#610 id=610 data-nosnippet>610</a>        </span>);
+<a href=#611 id=611 data-nosnippet>611</a>    }
+<a href=#612 id=612 data-nosnippet>612</a>
+<a href=#613 id=613 data-nosnippet>613</a>    <span class="attr">#[test]
+<a href=#614 id=614 data-nosnippet>614</a>    </span><span class="kw">fn </span>output_file_results_empty_directory() {
+<a href=#615 id=615 data-nosnippet>615</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#616 id=616 data-nosnippet>616</a>        <span class="kw">let </span>res = output_files(tmp.path()).expect(<span class="string">"should read directory"</span>);
+<a href=#617 id=617 data-nosnippet>617</a>        <span class="macro">assert_eq!</span>(res.len(), <span class="number">0</span>, <span class="string">"empty directory should return empty HashMap"</span>);
+<a href=#618 id=618 data-nosnippet>618</a>    }
+<a href=#619 id=619 data-nosnippet>619</a>
+<a href=#620 id=620 data-nosnippet>620</a>    <span class="attr">#[test]
+<a href=#621 id=621 data-nosnippet>621</a>    </span><span class="kw">fn </span>output_file_results_nested_files_only() {
+<a href=#622 id=622 data-nosnippet>622</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#623 id=623 data-nosnippet>623</a>        tmp.child(<span class="string">"subdir/file.txt"</span>)
+<a href=#624 id=624 data-nosnippet>624</a>            .write_str(<span class="string">"nested content\n"</span>)
+<a href=#625 id=625 data-nosnippet>625</a>            .unwrap();
+<a href=#626 id=626 data-nosnippet>626</a>
+<a href=#627 id=627 data-nosnippet>627</a>        <span class="kw">let </span>res = output_files(tmp.path()).expect(<span class="string">"should read directory"</span>);
+<a href=#628 id=628 data-nosnippet>628</a>
+<a href=#629 id=629 data-nosnippet>629</a>        <span class="macro">assert_eq!</span>(res.len(), <span class="number">1</span>, <span class="string">"should find 1 nested file"</span>);
+<a href=#630 id=630 data-nosnippet>630</a>        <span class="macro">assert_eq!</span>(
+<a href=#631 id=631 data-nosnippet>631</a>            res.get(<span class="string">"subdir/file.txt"</span>).map(|s| s.as_str()),
+<a href=#632 id=632 data-nosnippet>632</a>            <span class="prelude-val">Some</span>(<span class="string">"nested content\n"</span>),
+<a href=#633 id=633 data-nosnippet>633</a>            <span class="string">"should find nested file with correct content"
+<a href=#634 id=634 data-nosnippet>634</a>        </span>);
+<a href=#635 id=635 data-nosnippet>635</a>    }
+<a href=#636 id=636 data-nosnippet>636</a>
+<a href=#637 id=637 data-nosnippet>637</a>    <span class="attr">#[test]
+<a href=#638 id=638 data-nosnippet>638</a>    </span><span class="kw">fn </span>output_file_results_nonexistent_directory() {
+<a href=#639 id=639 data-nosnippet>639</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#640 id=640 data-nosnippet>640</a>        <span class="kw">let </span>nonexistent = tmp.path().join(<span class="string">"does-not-exist"</span>);
+<a href=#641 id=641 data-nosnippet>641</a>
+<a href=#642 id=642 data-nosnippet>642</a>        <span class="kw">let </span>res = output_files(<span class="kw-2">&amp;</span>nonexistent);
+<a href=#643 id=643 data-nosnippet>643</a>
+<a href=#644 id=644 data-nosnippet>644</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"non-existent directory should return error"</span>);
+<a href=#645 id=645 data-nosnippet>645</a>    }
+<a href=#646 id=646 data-nosnippet>646</a>
+<a href=#647 id=647 data-nosnippet>647</a>    <span class="attr">#[test_case(Outcome::Success, <span class="bool-val">true</span>; <span class="string">"success"</span>)]
+<a href=#648 id=648 data-nosnippet>648</a>    #[test_case(Outcome::Template { err: <span class="string">"e"</span>.into() }, <span class="bool-val">false</span>; <span class="string">"template"</span>)]
+<a href=#649 id=649 data-nosnippet>649</a>    #[test_case(Outcome::Check { err: <span class="string">"e"</span>.into() }, <span class="bool-val">false</span>; <span class="string">"check"</span>)]
+<a href=#650 id=650 data-nosnippet>650</a>    #[test_case(Outcome::Run { err: <span class="string">"e"</span>.into() }, <span class="bool-val">false</span>; <span class="string">"run"</span>)]
+<a href=#651 id=651 data-nosnippet>651</a>    #[test_case(Outcome::OutputDiff { missing: <span class="macro">vec!</span>[]</span>, unexpected: <span class="macro">vec!</span>[], with_diff: <span class="macro">vec!</span>[] }, <span class="bool-val">false</span>; <span class="string">"output diff"</span>)]
+<a href=#652 id=652 data-nosnippet>652</a>    <span class="attr">#[test_case(Outcome::ExpectedError { expected: <span class="string">"e"</span>.into(), actual: <span class="string">"a"</span>.into() }, <span class="bool-val">false</span>; <span class="string">"expected error"</span>)]
+<a href=#653 id=653 data-nosnippet>653</a>    #[test]
+<a href=#654 id=654 data-nosnippet>654</a>    </span><span class="kw">fn </span>outcome_is_success(outcome: Outcome, expected: bool) {
+<a href=#655 id=655 data-nosnippet>655</a>        <span class="macro">assert_eq!</span>(outcome.is_success(), expected);
+<a href=#656 id=656 data-nosnippet>656</a>    }
+<a href=#657 id=657 data-nosnippet>657</a>
+<a href=#658 id=658 data-nosnippet>658</a>    <span class="attr">#[test_case(Outcome::Success, <span class="string">"passed"</span>; <span class="string">"success"</span>)]
+<a href=#659 id=659 data-nosnippet>659</a>    #[test_case(Outcome::Template { err: <span class="string">"e"</span>.into() }, <span class="string">"template error"</span>; <span class="string">"template"</span>)]
+<a href=#660 id=660 data-nosnippet>660</a>    #[test_case(Outcome::Check { err: <span class="string">"e"</span>.into() }, <span class="string">"check failed"</span>; <span class="string">"check"</span>)]
+<a href=#661 id=661 data-nosnippet>661</a>    #[test_case(Outcome::Run { err: <span class="string">"e"</span>.into() }, <span class="string">"run error"</span>; <span class="string">"run"</span>)]
+<a href=#662 id=662 data-nosnippet>662</a>    #[test_case(Outcome::OutputDiff { missing: <span class="macro">vec!</span>[]</span>, unexpected: <span class="macro">vec!</span>[], with_diff: <span class="macro">vec!</span>[] }, <span class="string">"output mismatch"</span>; <span class="string">"output diff"</span>)]
+<a href=#663 id=663 data-nosnippet>663</a>    <span class="attr">#[test_case(Outcome::ExpectedError { expected: <span class="string">"e"</span>.into(), actual: <span class="string">"a"</span>.into() }, <span class="string">"wrong error output"</span>; <span class="string">"expected error"</span>)]
+<a href=#664 id=664 data-nosnippet>664</a>    #[test]
+<a href=#665 id=665 data-nosnippet>665</a>    </span><span class="kw">fn </span>outcome_summary(outcome: Outcome, expected: <span class="kw-2">&amp;</span>str) {
+<a href=#666 id=666 data-nosnippet>666</a>        <span class="macro">assert_eq!</span>(outcome.summary(), expected);
+<a href=#667 id=667 data-nosnippet>667</a>    }
 <a href=#668 id=668 data-nosnippet>668</a>
-<a href=#669 id=669 data-nosnippet>669</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"non-existent directory should return error"</span>);
-<a href=#670 id=670 data-nosnippet>670</a>    }
-<a href=#671 id=671 data-nosnippet>671</a>
-<a href=#672 id=672 data-nosnippet>672</a>    <span class="attr">#[test_case(Outcome::Success, <span class="bool-val">true</span>; <span class="string">"success"</span>)]
-<a href=#673 id=673 data-nosnippet>673</a>    #[test_case(Outcome::Template { err: <span class="string">"e"</span>.into() }, <span class="bool-val">false</span>; <span class="string">"template"</span>)]
-<a href=#674 id=674 data-nosnippet>674</a>    #[test_case(Outcome::Check { err: <span class="string">"e"</span>.into() }, <span class="bool-val">false</span>; <span class="string">"check"</span>)]
-<a href=#675 id=675 data-nosnippet>675</a>    #[test_case(Outcome::Run { err: <span class="string">"e"</span>.into() }, <span class="bool-val">false</span>; <span class="string">"run"</span>)]
-<a href=#676 id=676 data-nosnippet>676</a>    #[test_case(Outcome::OutputDiff { missing: <span class="macro">vec!</span>[]</span>, unexpected: <span class="macro">vec!</span>[], with_diff: <span class="macro">vec!</span>[] }, <span class="bool-val">false</span>; <span class="string">"output diff"</span>)]
-<a href=#677 id=677 data-nosnippet>677</a>    <span class="attr">#[test_case(Outcome::ExpectedError { expected: <span class="string">"e"</span>.into(), actual: <span class="string">"a"</span>.into() }, <span class="bool-val">false</span>; <span class="string">"expected error"</span>)]
-<a href=#678 id=678 data-nosnippet>678</a>    #[test]
-<a href=#679 id=679 data-nosnippet>679</a>    </span><span class="kw">fn </span>outcome_is_success(outcome: Outcome, expected: bool) {
-<a href=#680 id=680 data-nosnippet>680</a>        <span class="macro">assert_eq!</span>(outcome.is_success(), expected);
-<a href=#681 id=681 data-nosnippet>681</a>    }
-<a href=#682 id=682 data-nosnippet>682</a>
-<a href=#683 id=683 data-nosnippet>683</a>    <span class="attr">#[test_case(Outcome::Success, <span class="string">"passed"</span>; <span class="string">"success"</span>)]
-<a href=#684 id=684 data-nosnippet>684</a>    #[test_case(Outcome::Template { err: <span class="string">"e"</span>.into() }, <span class="string">"template error"</span>; <span class="string">"template"</span>)]
-<a href=#685 id=685 data-nosnippet>685</a>    #[test_case(Outcome::Check { err: <span class="string">"e"</span>.into() }, <span class="string">"check failed"</span>; <span class="string">"check"</span>)]
-<a href=#686 id=686 data-nosnippet>686</a>    #[test_case(Outcome::Run { err: <span class="string">"e"</span>.into() }, <span class="string">"run error"</span>; <span class="string">"run"</span>)]
-<a href=#687 id=687 data-nosnippet>687</a>    #[test_case(Outcome::OutputDiff { missing: <span class="macro">vec!</span>[]</span>, unexpected: <span class="macro">vec!</span>[], with_diff: <span class="macro">vec!</span>[] }, <span class="string">"output mismatch"</span>; <span class="string">"output diff"</span>)]
-<a href=#688 id=688 data-nosnippet>688</a>    <span class="attr">#[test_case(Outcome::ExpectedError { expected: <span class="string">"e"</span>.into(), actual: <span class="string">"a"</span>.into() }, <span class="string">"wrong error output"</span>; <span class="string">"expected error"</span>)]
-<a href=#689 id=689 data-nosnippet>689</a>    #[test]
-<a href=#690 id=690 data-nosnippet>690</a>    </span><span class="kw">fn </span>outcome_summary(outcome: Outcome, expected: <span class="kw-2">&amp;</span>str) {
-<a href=#691 id=691 data-nosnippet>691</a>        <span class="macro">assert_eq!</span>(outcome.summary(), expected);
-<a href=#692 id=692 data-nosnippet>692</a>    }
-<a href=#693 id=693 data-nosnippet>693</a>
-<a href=#694 id=694 data-nosnippet>694</a>    <span class="attr">#[test_case(Outcome::Success, <span class="string">""</span>; <span class="string">"success returns empty"</span>)]
-<a href=#695 id=695 data-nosnippet>695</a>    #[test_case(
-<a href=#696 id=696 data-nosnippet>696</a>        Outcome::Template { err: <span class="string">"variable not found"</span>.into() },
-<a href=#697 id=697 data-nosnippet>697</a>        <span class="string">"Template error:\n  variable not found"</span>;
-<a href=#698 id=698 data-nosnippet>698</a>        <span class="string">"template formats error"
-<a href=#699 id=699 data-nosnippet>699</a>    </span>)]
-<a href=#700 id=700 data-nosnippet>700</a>    #[test_case(
-<a href=#701 id=701 data-nosnippet>701</a>        Outcome::Check { err: <span class="string">"file not found"</span>.into() },
-<a href=#702 id=702 data-nosnippet>702</a>        <span class="string">"Check failed:\n  file not found"</span>;
-<a href=#703 id=703 data-nosnippet>703</a>        <span class="string">"check formats error"
-<a href=#704 id=704 data-nosnippet>704</a>    </span>)]
-<a href=#705 id=705 data-nosnippet>705</a>    #[test_case(
-<a href=#706 id=706 data-nosnippet>706</a>        Outcome::Run { err: <span class="string">"command failed"</span>.into() },
-<a href=#707 id=707 data-nosnippet>707</a>        <span class="string">"Run error:\n  command failed"</span>;
-<a href=#708 id=708 data-nosnippet>708</a>        <span class="string">"run formats error"
-<a href=#709 id=709 data-nosnippet>709</a>    </span>)]
-<a href=#710 id=710 data-nosnippet>710</a>    #[test_case(
-<a href=#711 id=711 data-nosnippet>711</a>        Outcome::OutputDiff {
-<a href=#712 id=712 data-nosnippet>712</a>            missing: <span class="macro">vec!</span>[]</span>,
-<a href=#713 id=713 data-nosnippet>713</a>            unexpected: <span class="macro">vec!</span>[],
-<a href=#714 id=714 data-nosnippet>714</a>            with_diff: <span class="macro">vec!</span>[]
-<a href=#715 id=715 data-nosnippet>715</a>        },
-<a href=#716 id=716 data-nosnippet>716</a>        <span class="string">""</span>;
-<a href=#717 id=717 data-nosnippet>717</a>        <span class="string">"output diff empty"
-<a href=#718 id=718 data-nosnippet>718</a>    </span>)]
-<a href=#719 id=719 data-nosnippet>719</a>    <span class="attr">#[test_case(
-<a href=#720 id=720 data-nosnippet>720</a>        Outcome::OutputDiff {
-<a href=#721 id=721 data-nosnippet>721</a>            missing: <span class="macro">vec!</span>[<span class="string">"a.txt"</span>.into(), <span class="string">"b.txt"</span>.into()]</span>,
-<a href=#722 id=722 data-nosnippet>722</a>            unexpected: <span class="macro">vec!</span>[],
-<a href=#723 id=723 data-nosnippet>723</a>            with_diff: <span class="macro">vec!</span>[]
-<a href=#724 id=724 data-nosnippet>724</a>        },
-<a href=#725 id=725 data-nosnippet>725</a>        <span class="string">"  missing: a.txt\n  missing: b.txt\n"</span>;
-<a href=#726 id=726 data-nosnippet>726</a>        <span class="string">"output diff missing files"
-<a href=#727 id=727 data-nosnippet>727</a>    </span>)]
-<a href=#728 id=728 data-nosnippet>728</a>    <span class="attr">#[test_case(
-<a href=#729 id=729 data-nosnippet>729</a>        Outcome::OutputDiff {
-<a href=#730 id=730 data-nosnippet>730</a>            missing: <span class="macro">vec!</span>[]</span>,
-<a href=#731 id=731 data-nosnippet>731</a>            unexpected: <span class="macro">vec!</span>[<span class="string">"extra.log"</span>.into()],
-<a href=#732 id=732 data-nosnippet>732</a>            with_diff: <span class="macro">vec!</span>[]
-<a href=#733 id=733 data-nosnippet>733</a>        },
-<a href=#734 id=734 data-nosnippet>734</a>        <span class="string">"  unexpected: extra.log\n"</span>;
-<a href=#735 id=735 data-nosnippet>735</a>        <span class="string">"output diff unexpected files"
-<a href=#736 id=736 data-nosnippet>736</a>    </span>)]
-<a href=#737 id=737 data-nosnippet>737</a>    <span class="attr">#[test_case(
-<a href=#738 id=738 data-nosnippet>738</a>        Outcome::OutputDiff {
-<a href=#739 id=739 data-nosnippet>739</a>            missing: <span class="macro">vec!</span>[]</span>,
-<a href=#740 id=740 data-nosnippet>740</a>            unexpected: <span class="macro">vec!</span>[],
-<a href=#741 id=741 data-nosnippet>741</a>            with_diff: <span class="macro">vec!</span>[(<span class="string">"config.json"</span>.into(), <span class="string">"-old\n+new\n"</span>.into())]
-<a href=#742 id=742 data-nosnippet>742</a>        },
-<a href=#743 id=743 data-nosnippet>743</a>        <span class="string">"  config.json:\n-old\n+new\n\n"</span>;
-<a href=#744 id=744 data-nosnippet>744</a>        <span class="string">"output diff with diffs"
-<a href=#745 id=745 data-nosnippet>745</a>    </span>)]
-<a href=#746 id=746 data-nosnippet>746</a>    <span class="attr">#[test_case(
-<a href=#747 id=747 data-nosnippet>747</a>        Outcome::OutputDiff {
-<a href=#748 id=748 data-nosnippet>748</a>            missing: <span class="macro">vec!</span>[<span class="string">"m.txt"</span>.into()]</span>,
-<a href=#749 id=749 data-nosnippet>749</a>            unexpected: <span class="macro">vec!</span>[<span class="string">"u.txt"</span>.into()],
-<a href=#750 id=750 data-nosnippet>750</a>            with_diff: <span class="macro">vec!</span>[(<span class="string">"d.txt"</span>.into(), <span class="string">"-a\n+b\n"</span>.into())]
-<a href=#751 id=751 data-nosnippet>751</a>        },
-<a href=#752 id=752 data-nosnippet>752</a>        <span class="string">"  missing: m.txt\n  unexpected: u.txt\n  d.txt:\n-a\n+b\n\n"</span>;
-<a href=#753 id=753 data-nosnippet>753</a>        <span class="string">"output diff combined"
-<a href=#754 id=754 data-nosnippet>754</a>    </span>)]
-<a href=#755 id=755 data-nosnippet>755</a>    <span class="attr">#[test_case(
-<a href=#756 id=756 data-nosnippet>756</a>        Outcome::ExpectedError { expected: <span class="string">"expected msg"</span>.into(), actual: <span class="string">"actual msg"</span>.into() },
-<a href=#757 id=757 data-nosnippet>757</a>        <span class="string">"expected:\nexpected msg\n\n  actual:\nactual msg"</span>;
-<a href=#758 id=758 data-nosnippet>758</a>        <span class="string">"expected error formats both"
-<a href=#759 id=759 data-nosnippet>759</a>    </span>)]
-<a href=#760 id=760 data-nosnippet>760</a>    #[test]
-<a href=#761 id=761 data-nosnippet>761</a>    </span><span class="kw">fn </span>outcome_detail(outcome: Outcome, expected: <span class="kw-2">&amp;</span>str) {
-<a href=#762 id=762 data-nosnippet>762</a>        <span class="macro">assert_eq!</span>(outcome.detail(), expected);
-<a href=#763 id=763 data-nosnippet>763</a>    }
-<a href=#764 id=764 data-nosnippet>764</a>
-<a href=#765 id=765 data-nosnippet>765</a>    <span class="attr">#[test_case(<span class="string">r#"{"key": "value", "num": 42, "flag": true}"#</span>, <span class="number">3</span>; <span class="string">"valid with entries"</span>)]
-<a href=#766 id=766 data-nosnippet>766</a>    #[test_case(<span class="string">r#"{}"#</span>, <span class="number">0</span>; <span class="string">"empty object"</span>)]
-<a href=#767 id=767 data-nosnippet>767</a>    #[test]
-<a href=#768 id=768 data-nosnippet>768</a>    </span><span class="kw">fn </span>load_variables_valid(json_content: <span class="kw-2">&amp;</span>str, expected_count: usize) {
-<a href=#769 id=769 data-nosnippet>769</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#770 id=770 data-nosnippet>770</a>        tmp.child(<span class="string">"variables.json"</span>).write_str(json_content).unwrap();
-<a href=#771 id=771 data-nosnippet>771</a>
-<a href=#772 id=772 data-nosnippet>772</a>        <span class="kw">let </span>res = load_variables(<span class="kw-2">&amp;</span>tmp.path().join(<span class="string">"variables.json"</span>));
+<a href=#669 id=669 data-nosnippet>669</a>    <span class="attr">#[test_case(Outcome::Success, <span class="string">""</span>; <span class="string">"success returns empty"</span>)]
+<a href=#670 id=670 data-nosnippet>670</a>    #[test_case(
+<a href=#671 id=671 data-nosnippet>671</a>        Outcome::Template { err: <span class="string">"variable not found"</span>.into() },
+<a href=#672 id=672 data-nosnippet>672</a>        <span class="string">"Template error:\n  variable not found"</span>;
+<a href=#673 id=673 data-nosnippet>673</a>        <span class="string">"template formats error"
+<a href=#674 id=674 data-nosnippet>674</a>    </span>)]
+<a href=#675 id=675 data-nosnippet>675</a>    #[test_case(
+<a href=#676 id=676 data-nosnippet>676</a>        Outcome::Check { err: <span class="string">"file not found"</span>.into() },
+<a href=#677 id=677 data-nosnippet>677</a>        <span class="string">"Check failed:\n  file not found"</span>;
+<a href=#678 id=678 data-nosnippet>678</a>        <span class="string">"check formats error"
+<a href=#679 id=679 data-nosnippet>679</a>    </span>)]
+<a href=#680 id=680 data-nosnippet>680</a>    #[test_case(
+<a href=#681 id=681 data-nosnippet>681</a>        Outcome::Run { err: <span class="string">"command failed"</span>.into() },
+<a href=#682 id=682 data-nosnippet>682</a>        <span class="string">"Run error:\n  command failed"</span>;
+<a href=#683 id=683 data-nosnippet>683</a>        <span class="string">"run formats error"
+<a href=#684 id=684 data-nosnippet>684</a>    </span>)]
+<a href=#685 id=685 data-nosnippet>685</a>    #[test_case(
+<a href=#686 id=686 data-nosnippet>686</a>        Outcome::OutputDiff {
+<a href=#687 id=687 data-nosnippet>687</a>            missing: <span class="macro">vec!</span>[]</span>,
+<a href=#688 id=688 data-nosnippet>688</a>            unexpected: <span class="macro">vec!</span>[],
+<a href=#689 id=689 data-nosnippet>689</a>            with_diff: <span class="macro">vec!</span>[]
+<a href=#690 id=690 data-nosnippet>690</a>        },
+<a href=#691 id=691 data-nosnippet>691</a>        <span class="string">""</span>;
+<a href=#692 id=692 data-nosnippet>692</a>        <span class="string">"output diff empty"
+<a href=#693 id=693 data-nosnippet>693</a>    </span>)]
+<a href=#694 id=694 data-nosnippet>694</a>    <span class="attr">#[test_case(
+<a href=#695 id=695 data-nosnippet>695</a>        Outcome::OutputDiff {
+<a href=#696 id=696 data-nosnippet>696</a>            missing: <span class="macro">vec!</span>[<span class="string">"a.txt"</span>.into(), <span class="string">"b.txt"</span>.into()]</span>,
+<a href=#697 id=697 data-nosnippet>697</a>            unexpected: <span class="macro">vec!</span>[],
+<a href=#698 id=698 data-nosnippet>698</a>            with_diff: <span class="macro">vec!</span>[]
+<a href=#699 id=699 data-nosnippet>699</a>        },
+<a href=#700 id=700 data-nosnippet>700</a>        <span class="string">"  missing: a.txt\n  missing: b.txt\n"</span>;
+<a href=#701 id=701 data-nosnippet>701</a>        <span class="string">"output diff missing files"
+<a href=#702 id=702 data-nosnippet>702</a>    </span>)]
+<a href=#703 id=703 data-nosnippet>703</a>    <span class="attr">#[test_case(
+<a href=#704 id=704 data-nosnippet>704</a>        Outcome::OutputDiff {
+<a href=#705 id=705 data-nosnippet>705</a>            missing: <span class="macro">vec!</span>[]</span>,
+<a href=#706 id=706 data-nosnippet>706</a>            unexpected: <span class="macro">vec!</span>[<span class="string">"extra.log"</span>.into()],
+<a href=#707 id=707 data-nosnippet>707</a>            with_diff: <span class="macro">vec!</span>[]
+<a href=#708 id=708 data-nosnippet>708</a>        },
+<a href=#709 id=709 data-nosnippet>709</a>        <span class="string">"  unexpected: extra.log\n"</span>;
+<a href=#710 id=710 data-nosnippet>710</a>        <span class="string">"output diff unexpected files"
+<a href=#711 id=711 data-nosnippet>711</a>    </span>)]
+<a href=#712 id=712 data-nosnippet>712</a>    <span class="attr">#[test_case(
+<a href=#713 id=713 data-nosnippet>713</a>        Outcome::OutputDiff {
+<a href=#714 id=714 data-nosnippet>714</a>            missing: <span class="macro">vec!</span>[]</span>,
+<a href=#715 id=715 data-nosnippet>715</a>            unexpected: <span class="macro">vec!</span>[],
+<a href=#716 id=716 data-nosnippet>716</a>            with_diff: <span class="macro">vec!</span>[(<span class="string">"config.json"</span>.into(), <span class="string">"-old\n+new\n"</span>.into())]
+<a href=#717 id=717 data-nosnippet>717</a>        },
+<a href=#718 id=718 data-nosnippet>718</a>        <span class="string">"  config.json:\n-old\n+new\n\n"</span>;
+<a href=#719 id=719 data-nosnippet>719</a>        <span class="string">"output diff with diffs"
+<a href=#720 id=720 data-nosnippet>720</a>    </span>)]
+<a href=#721 id=721 data-nosnippet>721</a>    <span class="attr">#[test_case(
+<a href=#722 id=722 data-nosnippet>722</a>        Outcome::OutputDiff {
+<a href=#723 id=723 data-nosnippet>723</a>            missing: <span class="macro">vec!</span>[<span class="string">"m.txt"</span>.into()]</span>,
+<a href=#724 id=724 data-nosnippet>724</a>            unexpected: <span class="macro">vec!</span>[<span class="string">"u.txt"</span>.into()],
+<a href=#725 id=725 data-nosnippet>725</a>            with_diff: <span class="macro">vec!</span>[(<span class="string">"d.txt"</span>.into(), <span class="string">"-a\n+b\n"</span>.into())]
+<a href=#726 id=726 data-nosnippet>726</a>        },
+<a href=#727 id=727 data-nosnippet>727</a>        <span class="string">"  missing: m.txt\n  unexpected: u.txt\n  d.txt:\n-a\n+b\n\n"</span>;
+<a href=#728 id=728 data-nosnippet>728</a>        <span class="string">"output diff combined"
+<a href=#729 id=729 data-nosnippet>729</a>    </span>)]
+<a href=#730 id=730 data-nosnippet>730</a>    <span class="attr">#[test_case(
+<a href=#731 id=731 data-nosnippet>731</a>        Outcome::ExpectedError { expected: <span class="string">"expected msg"</span>.into(), actual: <span class="string">"actual msg"</span>.into() },
+<a href=#732 id=732 data-nosnippet>732</a>        <span class="string">"expected:\nexpected msg\n\n  actual:\nactual msg"</span>;
+<a href=#733 id=733 data-nosnippet>733</a>        <span class="string">"expected error formats both"
+<a href=#734 id=734 data-nosnippet>734</a>    </span>)]
+<a href=#735 id=735 data-nosnippet>735</a>    #[test]
+<a href=#736 id=736 data-nosnippet>736</a>    </span><span class="kw">fn </span>outcome_detail(outcome: Outcome, expected: <span class="kw-2">&amp;</span>str) {
+<a href=#737 id=737 data-nosnippet>737</a>        <span class="macro">assert_eq!</span>(outcome.detail(), expected);
+<a href=#738 id=738 data-nosnippet>738</a>    }
+<a href=#739 id=739 data-nosnippet>739</a>
+<a href=#740 id=740 data-nosnippet>740</a>    <span class="attr">#[test_case(<span class="string">r#"{"key": "value", "num": 42, "flag": true}"#</span>, <span class="number">3</span>; <span class="string">"valid with entries"</span>)]
+<a href=#741 id=741 data-nosnippet>741</a>    #[test_case(<span class="string">r#"{}"#</span>, <span class="number">0</span>; <span class="string">"empty object"</span>)]
+<a href=#742 id=742 data-nosnippet>742</a>    #[test]
+<a href=#743 id=743 data-nosnippet>743</a>    </span><span class="kw">fn </span>load_variables_valid(json_content: <span class="kw-2">&amp;</span>str, expected_count: usize) {
+<a href=#744 id=744 data-nosnippet>744</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#745 id=745 data-nosnippet>745</a>        tmp.child(<span class="string">"variables.json"</span>).write_str(json_content).unwrap();
+<a href=#746 id=746 data-nosnippet>746</a>
+<a href=#747 id=747 data-nosnippet>747</a>        <span class="kw">let </span>res = load_variables(<span class="kw-2">&amp;</span>tmp.path().join(<span class="string">"variables.json"</span>));
+<a href=#748 id=748 data-nosnippet>748</a>
+<a href=#749 id=749 data-nosnippet>749</a>        <span class="macro">assert!</span>(res.is_ok());
+<a href=#750 id=750 data-nosnippet>750</a>        <span class="macro">assert_eq!</span>(res.unwrap().len(), expected_count);
+<a href=#751 id=751 data-nosnippet>751</a>    }
+<a href=#752 id=752 data-nosnippet>752</a>
+<a href=#753 id=753 data-nosnippet>753</a>    <span class="attr">#[test_case(<span class="string">"nonexistent.json"</span>, <span class="prelude-val">None</span>; <span class="string">"missing file"</span>)]
+<a href=#754 id=754 data-nosnippet>754</a>    #[test_case(<span class="string">"malformed.json"</span>, <span class="prelude-val">Some</span>(<span class="string">"{not valid json"</span>); <span class="string">"malformed json"</span>)]
+<a href=#755 id=755 data-nosnippet>755</a>    #[test_case(<span class="string">"variables.json"</span>, <span class="prelude-val">Some</span>(<span class="string">r#"{"key": [1, 2, 3]}"#</span>); <span class="string">"array value"</span>)]
+<a href=#756 id=756 data-nosnippet>756</a>    #[test_case(<span class="string">"variables.json"</span>, <span class="prelude-val">Some</span>(<span class="string">r#"{"key": {"nested": "value"}}"#</span>); <span class="string">"nested object"</span>)]
+<a href=#757 id=757 data-nosnippet>757</a>    #[test]
+<a href=#758 id=758 data-nosnippet>758</a>    </span><span class="kw">fn </span>load_variables_returns_error(filename: <span class="kw-2">&amp;</span>str, content: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) {
+<a href=#759 id=759 data-nosnippet>759</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#760 id=760 data-nosnippet>760</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(content) = content {
+<a href=#761 id=761 data-nosnippet>761</a>            tmp.child(filename).write_str(content).unwrap();
+<a href=#762 id=762 data-nosnippet>762</a>        }
+<a href=#763 id=763 data-nosnippet>763</a>
+<a href=#764 id=764 data-nosnippet>764</a>        <span class="kw">let </span>res = load_variables(<span class="kw-2">&amp;</span>tmp.path().join(filename));
+<a href=#765 id=765 data-nosnippet>765</a>
+<a href=#766 id=766 data-nosnippet>766</a>        <span class="macro">assert!</span>(res.is_err());
+<a href=#767 id=767 data-nosnippet>767</a>    }
+<a href=#768 id=768 data-nosnippet>768</a>
+<a href=#769 id=769 data-nosnippet>769</a>    <span class="attr">#[test]
+<a href=#770 id=770 data-nosnippet>770</a>    </span><span class="kw">fn </span>load_expected_copied_files_nonexistent_returns_empty() {
+<a href=#771 id=771 data-nosnippet>771</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#772 id=772 data-nosnippet>772</a>        <span class="kw">let </span>expected = load_expected_copied_files(tmp.path()).expect(<span class="string">"should succeed"</span>);
 <a href=#773 id=773 data-nosnippet>773</a>
-<a href=#774 id=774 data-nosnippet>774</a>        <span class="macro">assert!</span>(res.is_ok());
-<a href=#775 id=775 data-nosnippet>775</a>        <span class="macro">assert_eq!</span>(res.unwrap().len(), expected_count);
-<a href=#776 id=776 data-nosnippet>776</a>    }
-<a href=#777 id=777 data-nosnippet>777</a>
-<a href=#778 id=778 data-nosnippet>778</a>    <span class="attr">#[test_case(<span class="string">"nonexistent.json"</span>, <span class="prelude-val">None</span>; <span class="string">"missing file"</span>)]
-<a href=#779 id=779 data-nosnippet>779</a>    #[test_case(<span class="string">"malformed.json"</span>, <span class="prelude-val">Some</span>(<span class="string">"{not valid json"</span>); <span class="string">"malformed json"</span>)]
-<a href=#780 id=780 data-nosnippet>780</a>    #[test_case(<span class="string">"variables.json"</span>, <span class="prelude-val">Some</span>(<span class="string">r#"{"key": [1, 2, 3]}"#</span>); <span class="string">"array value"</span>)]
-<a href=#781 id=781 data-nosnippet>781</a>    #[test_case(<span class="string">"variables.json"</span>, <span class="prelude-val">Some</span>(<span class="string">r#"{"key": {"nested": "value"}}"#</span>); <span class="string">"nested object"</span>)]
-<a href=#782 id=782 data-nosnippet>782</a>    #[test]
-<a href=#783 id=783 data-nosnippet>783</a>    </span><span class="kw">fn </span>load_variables_returns_error(filename: <span class="kw-2">&amp;</span>str, content: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) {
-<a href=#784 id=784 data-nosnippet>784</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#785 id=785 data-nosnippet>785</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(content) = content {
-<a href=#786 id=786 data-nosnippet>786</a>            tmp.child(filename).write_str(content).unwrap();
-<a href=#787 id=787 data-nosnippet>787</a>        }
-<a href=#788 id=788 data-nosnippet>788</a>
-<a href=#789 id=789 data-nosnippet>789</a>        <span class="kw">let </span>res = load_variables(<span class="kw-2">&amp;</span>tmp.path().join(filename));
-<a href=#790 id=790 data-nosnippet>790</a>
-<a href=#791 id=791 data-nosnippet>791</a>        <span class="macro">assert!</span>(res.is_err());
-<a href=#792 id=792 data-nosnippet>792</a>    }
-<a href=#793 id=793 data-nosnippet>793</a>
-<a href=#794 id=794 data-nosnippet>794</a>    <span class="attr">#[test]
-<a href=#795 id=795 data-nosnippet>795</a>    </span><span class="kw">fn </span>load_expected_copied_files_nonexistent_returns_empty() {
-<a href=#796 id=796 data-nosnippet>796</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#797 id=797 data-nosnippet>797</a>        <span class="kw">let </span>expected = load_expected_copied_files(tmp.path()).expect(<span class="string">"should succeed"</span>);
+<a href=#774 id=774 data-nosnippet>774</a>        <span class="macro">assert_eq!</span>(expected, HashMap::new());
+<a href=#775 id=775 data-nosnippet>775</a>    }
+<a href=#776 id=776 data-nosnippet>776</a>
+<a href=#777 id=777 data-nosnippet>777</a>    <span class="attr">#[test]
+<a href=#778 id=778 data-nosnippet>778</a>    </span><span class="kw">fn </span>load_expected_copied_files_empty_object_valid() {
+<a href=#779 id=779 data-nosnippet>779</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#780 id=780 data-nosnippet>780</a>        tmp.child(EXPECTED_COPIED_FILES).write_str(<span class="string">"{}"</span>).unwrap();
+<a href=#781 id=781 data-nosnippet>781</a>        <span class="kw">let </span>expected = load_expected_copied_files(tmp.path()).expect(<span class="string">"should succeed"</span>);
+<a href=#782 id=782 data-nosnippet>782</a>
+<a href=#783 id=783 data-nosnippet>783</a>        <span class="macro">assert_eq!</span>(expected, HashMap::new());
+<a href=#784 id=784 data-nosnippet>784</a>    }
+<a href=#785 id=785 data-nosnippet>785</a>
+<a href=#786 id=786 data-nosnippet>786</a>    <span class="attr">#[test]
+<a href=#787 id=787 data-nosnippet>787</a>    </span><span class="kw">fn </span>load_expected_copied_files_resolves_paths() {
+<a href=#788 id=788 data-nosnippet>788</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#789 id=789 data-nosnippet>789</a>        tmp.child(<span class="string">"source/file.txt"</span>)
+<a href=#790 id=790 data-nosnippet>790</a>            .write_str(<span class="string">"source content"</span>)
+<a href=#791 id=791 data-nosnippet>791</a>            .unwrap();
+<a href=#792 id=792 data-nosnippet>792</a>        tmp.child(<span class="string">"case"</span>).create_dir_all().unwrap();
+<a href=#793 id=793 data-nosnippet>793</a>        tmp.child(<span class="macro">format!</span>(<span class="string">"case/{EXPECTED_COPIED_FILES}"</span>))
+<a href=#794 id=794 data-nosnippet>794</a>            .write_str(<span class="string">r#"{"output.txt": "../source/file.txt"}"#</span>)
+<a href=#795 id=795 data-nosnippet>795</a>            .unwrap();
+<a href=#796 id=796 data-nosnippet>796</a>
+<a href=#797 id=797 data-nosnippet>797</a>        <span class="kw">let </span>res = load_expected_copied_files(<span class="kw-2">&amp;</span>tmp.path().join(<span class="string">"case"</span>)).expect(<span class="string">"should succeed"</span>);
 <a href=#798 id=798 data-nosnippet>798</a>
-<a href=#799 id=799 data-nosnippet>799</a>        <span class="macro">assert_eq!</span>(expected, HashMap::new());
-<a href=#800 id=800 data-nosnippet>800</a>    }
-<a href=#801 id=801 data-nosnippet>801</a>
-<a href=#802 id=802 data-nosnippet>802</a>    <span class="attr">#[test]
-<a href=#803 id=803 data-nosnippet>803</a>    </span><span class="kw">fn </span>load_expected_copied_files_empty_object_valid() {
-<a href=#804 id=804 data-nosnippet>804</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#805 id=805 data-nosnippet>805</a>        tmp.child(EXPECTED_COPIED_FILES).write_str(<span class="string">"{}"</span>).unwrap();
-<a href=#806 id=806 data-nosnippet>806</a>        <span class="kw">let </span>expected = load_expected_copied_files(tmp.path()).expect(<span class="string">"should succeed"</span>);
-<a href=#807 id=807 data-nosnippet>807</a>
-<a href=#808 id=808 data-nosnippet>808</a>        <span class="macro">assert_eq!</span>(expected, HashMap::new());
-<a href=#809 id=809 data-nosnippet>809</a>    }
+<a href=#799 id=799 data-nosnippet>799</a>        <span class="macro">assert_eq!</span>(res.len(), <span class="number">1</span>, <span class="string">"should have one entry"</span>);
+<a href=#800 id=800 data-nosnippet>800</a>        <span class="kw">let </span>content = res.get(<span class="string">"output.txt"</span>).expect(<span class="string">"should have output.txt key"</span>);
+<a href=#801 id=801 data-nosnippet>801</a>        <span class="macro">assert_eq!</span>(content, <span class="string">"source content"</span>);
+<a href=#802 id=802 data-nosnippet>802</a>    }
+<a href=#803 id=803 data-nosnippet>803</a>
+<a href=#804 id=804 data-nosnippet>804</a>    <span class="attr">#[test]
+<a href=#805 id=805 data-nosnippet>805</a>    </span><span class="kw">fn </span>load_expected_copied_files_missing_source_errors() {
+<a href=#806 id=806 data-nosnippet>806</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#807 id=807 data-nosnippet>807</a>        tmp.child(EXPECTED_COPIED_FILES)
+<a href=#808 id=808 data-nosnippet>808</a>            .write_str(<span class="string">r#"{"output.txt": "nonexistent.txt"}"#</span>)
+<a href=#809 id=809 data-nosnippet>809</a>            .unwrap();
 <a href=#810 id=810 data-nosnippet>810</a>
-<a href=#811 id=811 data-nosnippet>811</a>    <span class="attr">#[test]
-<a href=#812 id=812 data-nosnippet>812</a>    </span><span class="kw">fn </span>load_expected_copied_files_resolves_paths() {
-<a href=#813 id=813 data-nosnippet>813</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#814 id=814 data-nosnippet>814</a>        tmp.child(<span class="string">"source/file.txt"</span>)
-<a href=#815 id=815 data-nosnippet>815</a>            .write_str(<span class="string">"source content"</span>)
-<a href=#816 id=816 data-nosnippet>816</a>            .unwrap();
-<a href=#817 id=817 data-nosnippet>817</a>        tmp.child(<span class="string">"case"</span>).create_dir_all().unwrap();
-<a href=#818 id=818 data-nosnippet>818</a>        tmp.child(<span class="macro">format!</span>(<span class="string">"case/{EXPECTED_COPIED_FILES}"</span>))
-<a href=#819 id=819 data-nosnippet>819</a>            .write_str(<span class="string">r#"{"output.txt": "../source/file.txt"}"#</span>)
-<a href=#820 id=820 data-nosnippet>820</a>            .unwrap();
-<a href=#821 id=821 data-nosnippet>821</a>
-<a href=#822 id=822 data-nosnippet>822</a>        <span class="kw">let </span>res = load_expected_copied_files(<span class="kw-2">&amp;</span>tmp.path().join(<span class="string">"case"</span>)).expect(<span class="string">"should succeed"</span>);
-<a href=#823 id=823 data-nosnippet>823</a>
-<a href=#824 id=824 data-nosnippet>824</a>        <span class="macro">assert_eq!</span>(res.len(), <span class="number">1</span>, <span class="string">"should have one entry"</span>);
-<a href=#825 id=825 data-nosnippet>825</a>        <span class="kw">let </span>content = res.get(<span class="string">"output.txt"</span>).expect(<span class="string">"should have output.txt key"</span>);
-<a href=#826 id=826 data-nosnippet>826</a>        <span class="macro">assert_eq!</span>(content, <span class="string">"source content"</span>);
-<a href=#827 id=827 data-nosnippet>827</a>    }
-<a href=#828 id=828 data-nosnippet>828</a>
-<a href=#829 id=829 data-nosnippet>829</a>    <span class="attr">#[test]
-<a href=#830 id=830 data-nosnippet>830</a>    </span><span class="kw">fn </span>load_expected_copied_files_missing_source_errors() {
-<a href=#831 id=831 data-nosnippet>831</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#832 id=832 data-nosnippet>832</a>        tmp.child(EXPECTED_COPIED_FILES)
-<a href=#833 id=833 data-nosnippet>833</a>            .write_str(<span class="string">r#"{"output.txt": "nonexistent.txt"}"#</span>)
-<a href=#834 id=834 data-nosnippet>834</a>            .unwrap();
-<a href=#835 id=835 data-nosnippet>835</a>
-<a href=#836 id=836 data-nosnippet>836</a>        <span class="kw">let </span>res = load_expected_copied_files(tmp.path());
-<a href=#837 id=837 data-nosnippet>837</a>
-<a href=#838 id=838 data-nosnippet>838</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"should error when source file doesn't exist"</span>);
-<a href=#839 id=839 data-nosnippet>839</a>        <span class="kw">let </span>err = res.unwrap_err().to_string();
-<a href=#840 id=840 data-nosnippet>840</a>        <span class="macro">assert!</span>(err.contains(<span class="string">"Source file not found"</span>), <span class="string">"{err}"</span>);
-<a href=#841 id=841 data-nosnippet>841</a>        <span class="macro">assert!</span>(err.contains(<span class="string">"output.txt"</span>), <span class="string">"{err}"</span>);
-<a href=#842 id=842 data-nosnippet>842</a>    }
-<a href=#843 id=843 data-nosnippet>843</a>
-<a href=#844 id=844 data-nosnippet>844</a>    <span class="attr">#[test]
-<a href=#845 id=845 data-nosnippet>845</a>    </span><span class="kw">fn </span>load_expected_copied_files_malformed_json_errors() {
-<a href=#846 id=846 data-nosnippet>846</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#847 id=847 data-nosnippet>847</a>        tmp.child(EXPECTED_COPIED_FILES)
-<a href=#848 id=848 data-nosnippet>848</a>            .write_str(<span class="string">"{not valid json"</span>)
-<a href=#849 id=849 data-nosnippet>849</a>            .unwrap();
+<a href=#811 id=811 data-nosnippet>811</a>        <span class="kw">let </span>res = load_expected_copied_files(tmp.path());
+<a href=#812 id=812 data-nosnippet>812</a>
+<a href=#813 id=813 data-nosnippet>813</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"should error when source file doesn't exist"</span>);
+<a href=#814 id=814 data-nosnippet>814</a>        <span class="kw">let </span>err = res.unwrap_err().to_string();
+<a href=#815 id=815 data-nosnippet>815</a>        <span class="macro">assert!</span>(err.contains(<span class="string">"Source file not found"</span>), <span class="string">"{err}"</span>);
+<a href=#816 id=816 data-nosnippet>816</a>        <span class="macro">assert!</span>(err.contains(<span class="string">"output.txt"</span>), <span class="string">"{err}"</span>);
+<a href=#817 id=817 data-nosnippet>817</a>    }
+<a href=#818 id=818 data-nosnippet>818</a>
+<a href=#819 id=819 data-nosnippet>819</a>    <span class="attr">#[test]
+<a href=#820 id=820 data-nosnippet>820</a>    </span><span class="kw">fn </span>load_expected_copied_files_malformed_json_errors() {
+<a href=#821 id=821 data-nosnippet>821</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#822 id=822 data-nosnippet>822</a>        tmp.child(EXPECTED_COPIED_FILES)
+<a href=#823 id=823 data-nosnippet>823</a>            .write_str(<span class="string">"{not valid json"</span>)
+<a href=#824 id=824 data-nosnippet>824</a>            .unwrap();
+<a href=#825 id=825 data-nosnippet>825</a>
+<a href=#826 id=826 data-nosnippet>826</a>        <span class="kw">let </span>res = load_expected_copied_files(tmp.path());
+<a href=#827 id=827 data-nosnippet>827</a>
+<a href=#828 id=828 data-nosnippet>828</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"should error on malformed JSON"</span>);
+<a href=#829 id=829 data-nosnippet>829</a>        <span class="kw">let </span>err = res.unwrap_err().to_string();
+<a href=#830 id=830 data-nosnippet>830</a>        <span class="macro">assert!</span>(err.contains(<span class="string">"Failed to parse copied files index"</span>), <span class="string">"{err}"</span>);
+<a href=#831 id=831 data-nosnippet>831</a>    }
+<a href=#832 id=832 data-nosnippet>832</a>
+<a href=#833 id=833 data-nosnippet>833</a>    <span class="kw">fn </span>create_valid_test_case(tmp: <span class="kw-2">&amp;</span>TempDir, name: <span class="kw-2">&amp;</span>str) {
+<a href=#834 id=834 data-nosnippet>834</a>        tmp.child(<span class="macro">format!</span>(<span class="string">"{name}/variables.json"</span>))
+<a href=#835 id=835 data-nosnippet>835</a>            .write_str(<span class="string">"{}"</span>)
+<a href=#836 id=836 data-nosnippet>836</a>            .unwrap();
+<a href=#837 id=837 data-nosnippet>837</a>        tmp.child(<span class="macro">format!</span>(<span class="string">"{name}/expected-run-output"</span>))
+<a href=#838 id=838 data-nosnippet>838</a>            .create_dir_all()
+<a href=#839 id=839 data-nosnippet>839</a>            .unwrap();
+<a href=#840 id=840 data-nosnippet>840</a>    }
+<a href=#841 id=841 data-nosnippet>841</a>
+<a href=#842 id=842 data-nosnippet>842</a>    <span class="kw">fn </span>create_failure_test_case(tmp: <span class="kw-2">&amp;</span>TempDir, name: <span class="kw-2">&amp;</span>str, expected_error: <span class="kw-2">&amp;</span>str) {
+<a href=#843 id=843 data-nosnippet>843</a>        tmp.child(<span class="macro">format!</span>(<span class="string">"{name}/variables.json"</span>))
+<a href=#844 id=844 data-nosnippet>844</a>            .write_str(<span class="string">"{}"</span>)
+<a href=#845 id=845 data-nosnippet>845</a>            .unwrap();
+<a href=#846 id=846 data-nosnippet>846</a>        tmp.child(<span class="macro">format!</span>(<span class="string">"{name}/expected-run-error.txt"</span>))
+<a href=#847 id=847 data-nosnippet>847</a>            .write_str(expected_error)
+<a href=#848 id=848 data-nosnippet>848</a>            .unwrap();
+<a href=#849 id=849 data-nosnippet>849</a>    }
 <a href=#850 id=850 data-nosnippet>850</a>
-<a href=#851 id=851 data-nosnippet>851</a>        <span class="kw">let </span>res = load_expected_copied_files(tmp.path());
-<a href=#852 id=852 data-nosnippet>852</a>
-<a href=#853 id=853 data-nosnippet>853</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"should error on malformed JSON"</span>);
-<a href=#854 id=854 data-nosnippet>854</a>        <span class="kw">let </span>err = res.unwrap_err().to_string();
-<a href=#855 id=855 data-nosnippet>855</a>        <span class="macro">assert!</span>(err.contains(<span class="string">"Failed to parse copied files index"</span>), <span class="string">"{err}"</span>);
-<a href=#856 id=856 data-nosnippet>856</a>    }
-<a href=#857 id=857 data-nosnippet>857</a>
-<a href=#858 id=858 data-nosnippet>858</a>    <span class="kw">fn </span>create_valid_test_case(tmp: <span class="kw-2">&amp;</span>TempDir, name: <span class="kw-2">&amp;</span>str) {
-<a href=#859 id=859 data-nosnippet>859</a>        tmp.child(<span class="macro">format!</span>(<span class="string">"{name}/variables.json"</span>))
-<a href=#860 id=860 data-nosnippet>860</a>            .write_str(<span class="string">"{}"</span>)
-<a href=#861 id=861 data-nosnippet>861</a>            .unwrap();
-<a href=#862 id=862 data-nosnippet>862</a>        tmp.child(<span class="macro">format!</span>(<span class="string">"{name}/expected-run-output"</span>))
-<a href=#863 id=863 data-nosnippet>863</a>            .create_dir_all()
-<a href=#864 id=864 data-nosnippet>864</a>            .unwrap();
+<a href=#851 id=851 data-nosnippet>851</a>    <span class="attr">#[test_case(<span class="number">0</span>; <span class="string">"empty directory"</span>)]
+<a href=#852 id=852 data-nosnippet>852</a>    #[test_case(<span class="number">1</span>; <span class="string">"single test case"</span>)]
+<a href=#853 id=853 data-nosnippet>853</a>    #[test_case(<span class="number">3</span>; <span class="string">"multiple test cases"</span>)]
+<a href=#854 id=854 data-nosnippet>854</a>    #[test]
+<a href=#855 id=855 data-nosnippet>855</a>    </span><span class="kw">fn </span>try_load_all_valid(case_count: usize) {
+<a href=#856 id=856 data-nosnippet>856</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#857 id=857 data-nosnippet>857</a>        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..case_count {
+<a href=#858 id=858 data-nosnippet>858</a>            create_valid_test_case(<span class="kw-2">&amp;</span>tmp, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"case-{i}"</span>));
+<a href=#859 id=859 data-nosnippet>859</a>        }
+<a href=#860 id=860 data-nosnippet>860</a>
+<a href=#861 id=861 data-nosnippet>861</a>        <span class="kw">let </span>res = TestCase::try_load_all(tmp.path());
+<a href=#862 id=862 data-nosnippet>862</a>
+<a href=#863 id=863 data-nosnippet>863</a>        <span class="macro">assert!</span>(res.is_ok(), <span class="string">"try_load_all should succeed: {res:?}"</span>);
+<a href=#864 id=864 data-nosnippet>864</a>        <span class="macro">assert_eq!</span>(res.unwrap().len(), case_count);
 <a href=#865 id=865 data-nosnippet>865</a>    }
 <a href=#866 id=866 data-nosnippet>866</a>
-<a href=#867 id=867 data-nosnippet>867</a>    <span class="kw">fn </span>create_failure_test_case(tmp: <span class="kw-2">&amp;</span>TempDir, name: <span class="kw-2">&amp;</span>str, expected_error: <span class="kw-2">&amp;</span>str) {
-<a href=#868 id=868 data-nosnippet>868</a>        tmp.child(<span class="macro">format!</span>(<span class="string">"{name}/variables.json"</span>))
-<a href=#869 id=869 data-nosnippet>869</a>            .write_str(<span class="string">"{}"</span>)
-<a href=#870 id=870 data-nosnippet>870</a>            .unwrap();
-<a href=#871 id=871 data-nosnippet>871</a>        tmp.child(<span class="macro">format!</span>(<span class="string">"{name}/expected-run-error.txt"</span>))
-<a href=#872 id=872 data-nosnippet>872</a>            .write_str(expected_error)
-<a href=#873 id=873 data-nosnippet>873</a>            .unwrap();
-<a href=#874 id=874 data-nosnippet>874</a>    }
+<a href=#867 id=867 data-nosnippet>867</a>    <span class="attr">#[test]
+<a href=#868 id=868 data-nosnippet>868</a>    </span><span class="kw">fn </span>try_load_all_returns_sorted_test_cases() {
+<a href=#869 id=869 data-nosnippet>869</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#870 id=870 data-nosnippet>870</a>        create_valid_test_case(<span class="kw-2">&amp;</span>tmp, <span class="string">"zebra"</span>);
+<a href=#871 id=871 data-nosnippet>871</a>        create_valid_test_case(<span class="kw-2">&amp;</span>tmp, <span class="string">"alpha"</span>);
+<a href=#872 id=872 data-nosnippet>872</a>        create_valid_test_case(<span class="kw-2">&amp;</span>tmp, <span class="string">"middle"</span>);
+<a href=#873 id=873 data-nosnippet>873</a>
+<a href=#874 id=874 data-nosnippet>874</a>        <span class="kw">let </span>res = TestCase::try_load_all(tmp.path()).unwrap();
 <a href=#875 id=875 data-nosnippet>875</a>
-<a href=#876 id=876 data-nosnippet>876</a>    <span class="attr">#[test_case(<span class="number">0</span>; <span class="string">"empty directory"</span>)]
-<a href=#877 id=877 data-nosnippet>877</a>    #[test_case(<span class="number">1</span>; <span class="string">"single test case"</span>)]
-<a href=#878 id=878 data-nosnippet>878</a>    #[test_case(<span class="number">3</span>; <span class="string">"multiple test cases"</span>)]
-<a href=#879 id=879 data-nosnippet>879</a>    #[test]
-<a href=#880 id=880 data-nosnippet>880</a>    </span><span class="kw">fn </span>try_load_all_valid(case_count: usize) {
-<a href=#881 id=881 data-nosnippet>881</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#882 id=882 data-nosnippet>882</a>        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..case_count {
-<a href=#883 id=883 data-nosnippet>883</a>            create_valid_test_case(<span class="kw-2">&amp;</span>tmp, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"case-{i}"</span>));
-<a href=#884 id=884 data-nosnippet>884</a>        }
-<a href=#885 id=885 data-nosnippet>885</a>
-<a href=#886 id=886 data-nosnippet>886</a>        <span class="kw">let </span>res = TestCase::try_load_all(tmp.path());
+<a href=#876 id=876 data-nosnippet>876</a>        <span class="kw">let </span>names: Vec&lt;<span class="kw">_</span>&gt; = res
+<a href=#877 id=877 data-nosnippet>877</a>            .iter()
+<a href=#878 id=878 data-nosnippet>878</a>            .map(|tc| tc.path.file_name().unwrap().to_string_lossy().to_string())
+<a href=#879 id=879 data-nosnippet>879</a>            .collect();
+<a href=#880 id=880 data-nosnippet>880</a>        <span class="macro">assert_eq!</span>(names, <span class="macro">vec!</span>[<span class="string">"alpha"</span>, <span class="string">"middle"</span>, <span class="string">"zebra"</span>]);
+<a href=#881 id=881 data-nosnippet>881</a>    }
+<a href=#882 id=882 data-nosnippet>882</a>
+<a href=#883 id=883 data-nosnippet>883</a>    <span class="attr">#[test]
+<a href=#884 id=884 data-nosnippet>884</a>    </span><span class="kw">fn </span>try_load_all_failure_case_sets_expect_failure() {
+<a href=#885 id=885 data-nosnippet>885</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#886 id=886 data-nosnippet>886</a>        create_failure_test_case(<span class="kw-2">&amp;</span>tmp, <span class="string">"fail-case"</span>, <span class="string">"expected error"</span>);
 <a href=#887 id=887 data-nosnippet>887</a>
-<a href=#888 id=888 data-nosnippet>888</a>        <span class="macro">assert!</span>(res.is_ok(), <span class="string">"try_load_all should succeed: {res:?}"</span>);
-<a href=#889 id=889 data-nosnippet>889</a>        <span class="macro">assert_eq!</span>(res.unwrap().len(), case_count);
-<a href=#890 id=890 data-nosnippet>890</a>    }
-<a href=#891 id=891 data-nosnippet>891</a>
-<a href=#892 id=892 data-nosnippet>892</a>    <span class="attr">#[test]
-<a href=#893 id=893 data-nosnippet>893</a>    </span><span class="kw">fn </span>try_load_all_returns_sorted_test_cases() {
-<a href=#894 id=894 data-nosnippet>894</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#895 id=895 data-nosnippet>895</a>        create_valid_test_case(<span class="kw-2">&amp;</span>tmp, <span class="string">"zebra"</span>);
-<a href=#896 id=896 data-nosnippet>896</a>        create_valid_test_case(<span class="kw-2">&amp;</span>tmp, <span class="string">"alpha"</span>);
-<a href=#897 id=897 data-nosnippet>897</a>        create_valid_test_case(<span class="kw-2">&amp;</span>tmp, <span class="string">"middle"</span>);
-<a href=#898 id=898 data-nosnippet>898</a>
-<a href=#899 id=899 data-nosnippet>899</a>        <span class="kw">let </span>res = TestCase::try_load_all(tmp.path()).unwrap();
-<a href=#900 id=900 data-nosnippet>900</a>
-<a href=#901 id=901 data-nosnippet>901</a>        <span class="kw">let </span>names: Vec&lt;<span class="kw">_</span>&gt; = res
-<a href=#902 id=902 data-nosnippet>902</a>            .iter()
-<a href=#903 id=903 data-nosnippet>903</a>            .map(|tc| tc.path.file_name().unwrap().to_string_lossy().to_string())
-<a href=#904 id=904 data-nosnippet>904</a>            .collect();
-<a href=#905 id=905 data-nosnippet>905</a>        <span class="macro">assert_eq!</span>(names, <span class="macro">vec!</span>[<span class="string">"alpha"</span>, <span class="string">"middle"</span>, <span class="string">"zebra"</span>]);
+<a href=#888 id=888 data-nosnippet>888</a>        <span class="kw">let </span>cases = TestCase::try_load_all(tmp.path()).unwrap();
+<a href=#889 id=889 data-nosnippet>889</a>
+<a href=#890 id=890 data-nosnippet>890</a>        <span class="macro">assert_eq!</span>(cases.len(), <span class="number">1</span>);
+<a href=#891 id=891 data-nosnippet>891</a>        <span class="macro">assert!</span>(cases[<span class="number">0</span>].is_expected_failure());
+<a href=#892 id=892 data-nosnippet>892</a>    }
+<a href=#893 id=893 data-nosnippet>893</a>
+<a href=#894 id=894 data-nosnippet>894</a>    <span class="attr">#[test]
+<a href=#895 id=895 data-nosnippet>895</a>    </span><span class="kw">fn </span>try_load_all_mixed_success_and_failure() {
+<a href=#896 id=896 data-nosnippet>896</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#897 id=897 data-nosnippet>897</a>        create_valid_test_case(<span class="kw-2">&amp;</span>tmp, <span class="string">"success-case"</span>);
+<a href=#898 id=898 data-nosnippet>898</a>        create_failure_test_case(<span class="kw-2">&amp;</span>tmp, <span class="string">"fail-case"</span>, <span class="string">"error"</span>);
+<a href=#899 id=899 data-nosnippet>899</a>
+<a href=#900 id=900 data-nosnippet>900</a>        <span class="kw">let </span>cases = TestCase::try_load_all(tmp.path()).unwrap();
+<a href=#901 id=901 data-nosnippet>901</a>
+<a href=#902 id=902 data-nosnippet>902</a>        <span class="macro">assert_eq!</span>(cases.len(), <span class="number">2</span>);
+<a href=#903 id=903 data-nosnippet>903</a>        <span class="comment">// Sorted alphabetically: fail-case, success-case
+<a href=#904 id=904 data-nosnippet>904</a>        </span><span class="macro">assert!</span>(cases[<span class="number">0</span>].is_expected_failure());
+<a href=#905 id=905 data-nosnippet>905</a>        <span class="macro">assert!</span>(cases[<span class="number">1</span>].is_expected_success());
 <a href=#906 id=906 data-nosnippet>906</a>    }
 <a href=#907 id=907 data-nosnippet>907</a>
 <a href=#908 id=908 data-nosnippet>908</a>    <span class="attr">#[test]
-<a href=#909 id=909 data-nosnippet>909</a>    </span><span class="kw">fn </span>try_load_all_failure_case_sets_expect_failure() {
+<a href=#909 id=909 data-nosnippet>909</a>    </span><span class="kw">fn </span>try_load_all_with_copied_files_only() {
 <a href=#910 id=910 data-nosnippet>910</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#911 id=911 data-nosnippet>911</a>        create_failure_test_case(<span class="kw-2">&amp;</span>tmp, <span class="string">"fail-case"</span>, <span class="string">"expected error"</span>);
-<a href=#912 id=912 data-nosnippet>912</a>
-<a href=#913 id=913 data-nosnippet>913</a>        <span class="kw">let </span>cases = TestCase::try_load_all(tmp.path()).unwrap();
-<a href=#914 id=914 data-nosnippet>914</a>
-<a href=#915 id=915 data-nosnippet>915</a>        <span class="macro">assert_eq!</span>(cases.len(), <span class="number">1</span>);
-<a href=#916 id=916 data-nosnippet>916</a>        <span class="macro">assert!</span>(cases[<span class="number">0</span>].is_expected_failure());
-<a href=#917 id=917 data-nosnippet>917</a>    }
+<a href=#911 id=911 data-nosnippet>911</a>        tmp.child(<span class="string">"case/variables.json"</span>).write_str(<span class="string">"{}"</span>).unwrap();
+<a href=#912 id=912 data-nosnippet>912</a>        tmp.child(<span class="string">"case/source.txt"</span>)
+<a href=#913 id=913 data-nosnippet>913</a>            .write_str(<span class="string">"source content"</span>)
+<a href=#914 id=914 data-nosnippet>914</a>            .unwrap();
+<a href=#915 id=915 data-nosnippet>915</a>        tmp.child(<span class="macro">format!</span>(<span class="string">"case/{EXPECTED_COPIED_FILES}"</span>))
+<a href=#916 id=916 data-nosnippet>916</a>            .write_str(<span class="string">r#"{"output.txt": "source.txt"}"#</span>)
+<a href=#917 id=917 data-nosnippet>917</a>            .unwrap();
 <a href=#918 id=918 data-nosnippet>918</a>
-<a href=#919 id=919 data-nosnippet>919</a>    <span class="attr">#[test]
-<a href=#920 id=920 data-nosnippet>920</a>    </span><span class="kw">fn </span>try_load_all_mixed_success_and_failure() {
-<a href=#921 id=921 data-nosnippet>921</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#922 id=922 data-nosnippet>922</a>        create_valid_test_case(<span class="kw-2">&amp;</span>tmp, <span class="string">"success-case"</span>);
-<a href=#923 id=923 data-nosnippet>923</a>        create_failure_test_case(<span class="kw-2">&amp;</span>tmp, <span class="string">"fail-case"</span>, <span class="string">"error"</span>);
-<a href=#924 id=924 data-nosnippet>924</a>
-<a href=#925 id=925 data-nosnippet>925</a>        <span class="kw">let </span>cases = TestCase::try_load_all(tmp.path()).unwrap();
-<a href=#926 id=926 data-nosnippet>926</a>
-<a href=#927 id=927 data-nosnippet>927</a>        <span class="macro">assert_eq!</span>(cases.len(), <span class="number">2</span>);
-<a href=#928 id=928 data-nosnippet>928</a>        <span class="comment">// Sorted alphabetically: fail-case, success-case
-<a href=#929 id=929 data-nosnippet>929</a>        </span><span class="macro">assert!</span>(cases[<span class="number">0</span>].is_expected_failure());
-<a href=#930 id=930 data-nosnippet>930</a>        <span class="macro">assert!</span>(cases[<span class="number">1</span>].is_expected_success());
-<a href=#931 id=931 data-nosnippet>931</a>    }
-<a href=#932 id=932 data-nosnippet>932</a>
-<a href=#933 id=933 data-nosnippet>933</a>    <span class="attr">#[test]
-<a href=#934 id=934 data-nosnippet>934</a>    </span><span class="kw">fn </span>try_load_all_with_copied_files_only() {
-<a href=#935 id=935 data-nosnippet>935</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#936 id=936 data-nosnippet>936</a>        tmp.child(<span class="string">"case/variables.json"</span>).write_str(<span class="string">"{}"</span>).unwrap();
-<a href=#937 id=937 data-nosnippet>937</a>        tmp.child(<span class="string">"case/source.txt"</span>)
-<a href=#938 id=938 data-nosnippet>938</a>            .write_str(<span class="string">"source content"</span>)
-<a href=#939 id=939 data-nosnippet>939</a>            .unwrap();
-<a href=#940 id=940 data-nosnippet>940</a>        tmp.child(<span class="macro">format!</span>(<span class="string">"case/{EXPECTED_COPIED_FILES}"</span>))
-<a href=#941 id=941 data-nosnippet>941</a>            .write_str(<span class="string">r#"{"output.txt": "source.txt"}"#</span>)
-<a href=#942 id=942 data-nosnippet>942</a>            .unwrap();
-<a href=#943 id=943 data-nosnippet>943</a>
-<a href=#944 id=944 data-nosnippet>944</a>        <span class="kw">let </span>cases = TestCase::try_load_all(tmp.path()).expect(<span class="string">"should succeed"</span>);
-<a href=#945 id=945 data-nosnippet>945</a>
-<a href=#946 id=946 data-nosnippet>946</a>        <span class="macro">assert_eq!</span>(cases.len(), <span class="number">1</span>);
-<a href=#947 id=947 data-nosnippet>947</a>
-<a href=#948 id=948 data-nosnippet>948</a>        <span class="kw">let </span>expected = <span class="kw">match </span><span class="kw-2">&amp;</span>cases[<span class="number">0</span>].data {
-<a href=#949 id=949 data-nosnippet>949</a>            TestCaseData::SuccessDir(m) =&gt; m,
-<a href=#950 id=950 data-nosnippet>950</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"should have been a success dir case"</span>),
-<a href=#951 id=951 data-nosnippet>951</a>        };
-<a href=#952 id=952 data-nosnippet>952</a>
-<a href=#953 id=953 data-nosnippet>953</a>        <span class="macro">assert_eq!</span>(expected.len(), <span class="number">1</span>);
-<a href=#954 id=954 data-nosnippet>954</a>        <span class="macro">assert!</span>(expected.contains_key(<span class="string">"output.txt"</span>));
-<a href=#955 id=955 data-nosnippet>955</a>    }
-<a href=#956 id=956 data-nosnippet>956</a>
-<a href=#957 id=957 data-nosnippet>957</a>    <span class="attr">#[test]
-<a href=#958 id=958 data-nosnippet>958</a>    </span><span class="kw">fn </span>try_load_all_without_data_errors() {
-<a href=#959 id=959 data-nosnippet>959</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#960 id=960 data-nosnippet>960</a>        tmp.child(<span class="string">"case/variables.json"</span>).write_str(<span class="string">"{}"</span>).unwrap();
-<a href=#961 id=961 data-nosnippet>961</a>
-<a href=#962 id=962 data-nosnippet>962</a>        <span class="kw">let </span>res = TestCase::try_load_all(tmp.path());
-<a href=#963 id=963 data-nosnippet>963</a>
-<a href=#964 id=964 data-nosnippet>964</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected error, got {res:?}"</span>);
-<a href=#965 id=965 data-nosnippet>965</a>    }
-<a href=#966 id=966 data-nosnippet>966</a>
-<a href=#967 id=967 data-nosnippet>967</a>    <span class="attr">#[test]
-<a href=#968 id=968 data-nosnippet>968</a>    </span><span class="kw">fn </span>try_load_all_loads_copied_files_index() {
-<a href=#969 id=969 data-nosnippet>969</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#970 id=970 data-nosnippet>970</a>        tmp.child(<span class="string">"case/variables.json"</span>).write_str(<span class="string">"{}"</span>).unwrap();
-<a href=#971 id=971 data-nosnippet>971</a>        tmp.child(<span class="string">"case/expected-run-output"</span>)
-<a href=#972 id=972 data-nosnippet>972</a>            .create_dir_all()
-<a href=#973 id=973 data-nosnippet>973</a>            .unwrap();
-<a href=#974 id=974 data-nosnippet>974</a>        tmp.child(<span class="string">"case/sources/a.txt"</span>)
-<a href=#975 id=975 data-nosnippet>975</a>            .write_str(<span class="string">"content a"</span>)
-<a href=#976 id=976 data-nosnippet>976</a>            .unwrap();
-<a href=#977 id=977 data-nosnippet>977</a>        tmp.child(<span class="string">"case/sources/b.txt"</span>)
-<a href=#978 id=978 data-nosnippet>978</a>            .write_str(<span class="string">"content b"</span>)
-<a href=#979 id=979 data-nosnippet>979</a>            .unwrap();
-<a href=#980 id=980 data-nosnippet>980</a>        tmp.child(<span class="macro">format!</span>(<span class="string">"case/{EXPECTED_COPIED_FILES}"</span>))
-<a href=#981 id=981 data-nosnippet>981</a>            .write_str(<span class="string">r#"{"out/a.txt": "sources/a.txt", "out/b.txt": "sources/b.txt"}"#</span>)
-<a href=#982 id=982 data-nosnippet>982</a>            .unwrap();
-<a href=#983 id=983 data-nosnippet>983</a>
-<a href=#984 id=984 data-nosnippet>984</a>        <span class="kw">let </span>cases = TestCase::try_load_all(tmp.path()).expect(<span class="string">"should succeed"</span>);
-<a href=#985 id=985 data-nosnippet>985</a>
-<a href=#986 id=986 data-nosnippet>986</a>        <span class="macro">assert_eq!</span>(cases.len(), <span class="number">1</span>);
-<a href=#987 id=987 data-nosnippet>987</a>
-<a href=#988 id=988 data-nosnippet>988</a>        <span class="kw">let </span>expected = <span class="kw">match </span><span class="kw-2">&amp;</span>cases[<span class="number">0</span>].data {
-<a href=#989 id=989 data-nosnippet>989</a>            TestCaseData::SuccessDir(m) =&gt; m,
-<a href=#990 id=990 data-nosnippet>990</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"should have been a success dir case"</span>),
-<a href=#991 id=991 data-nosnippet>991</a>        };
-<a href=#992 id=992 data-nosnippet>992</a>
-<a href=#993 id=993 data-nosnippet>993</a>        <span class="macro">assert_eq!</span>(expected.len(), <span class="number">2</span>);
-<a href=#994 id=994 data-nosnippet>994</a>        <span class="macro">assert!</span>(expected.contains_key(<span class="string">"out/a.txt"</span>));
-<a href=#995 id=995 data-nosnippet>995</a>        <span class="macro">assert!</span>(expected.contains_key(<span class="string">"out/b.txt"</span>));
+<a href=#919 id=919 data-nosnippet>919</a>        <span class="kw">let </span>cases = TestCase::try_load_all(tmp.path()).expect(<span class="string">"should succeed"</span>);
+<a href=#920 id=920 data-nosnippet>920</a>
+<a href=#921 id=921 data-nosnippet>921</a>        <span class="macro">assert_eq!</span>(cases.len(), <span class="number">1</span>);
+<a href=#922 id=922 data-nosnippet>922</a>
+<a href=#923 id=923 data-nosnippet>923</a>        <span class="kw">let </span>expected = <span class="kw">match </span><span class="kw-2">&amp;</span>cases[<span class="number">0</span>].data {
+<a href=#924 id=924 data-nosnippet>924</a>            TestCaseData::SuccessDir(m) =&gt; m,
+<a href=#925 id=925 data-nosnippet>925</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"should have been a success dir case"</span>),
+<a href=#926 id=926 data-nosnippet>926</a>        };
+<a href=#927 id=927 data-nosnippet>927</a>
+<a href=#928 id=928 data-nosnippet>928</a>        <span class="macro">assert_eq!</span>(expected.len(), <span class="number">1</span>);
+<a href=#929 id=929 data-nosnippet>929</a>        <span class="macro">assert!</span>(expected.contains_key(<span class="string">"output.txt"</span>));
+<a href=#930 id=930 data-nosnippet>930</a>    }
+<a href=#931 id=931 data-nosnippet>931</a>
+<a href=#932 id=932 data-nosnippet>932</a>    <span class="attr">#[test]
+<a href=#933 id=933 data-nosnippet>933</a>    </span><span class="kw">fn </span>try_load_all_without_data_errors() {
+<a href=#934 id=934 data-nosnippet>934</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#935 id=935 data-nosnippet>935</a>        tmp.child(<span class="string">"case/variables.json"</span>).write_str(<span class="string">"{}"</span>).unwrap();
+<a href=#936 id=936 data-nosnippet>936</a>
+<a href=#937 id=937 data-nosnippet>937</a>        <span class="kw">let </span>res = TestCase::try_load_all(tmp.path());
+<a href=#938 id=938 data-nosnippet>938</a>
+<a href=#939 id=939 data-nosnippet>939</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected error, got {res:?}"</span>);
+<a href=#940 id=940 data-nosnippet>940</a>    }
+<a href=#941 id=941 data-nosnippet>941</a>
+<a href=#942 id=942 data-nosnippet>942</a>    <span class="attr">#[test]
+<a href=#943 id=943 data-nosnippet>943</a>    </span><span class="kw">fn </span>try_load_all_loads_copied_files_index() {
+<a href=#944 id=944 data-nosnippet>944</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#945 id=945 data-nosnippet>945</a>        tmp.child(<span class="string">"case/variables.json"</span>).write_str(<span class="string">"{}"</span>).unwrap();
+<a href=#946 id=946 data-nosnippet>946</a>        tmp.child(<span class="string">"case/expected-run-output"</span>)
+<a href=#947 id=947 data-nosnippet>947</a>            .create_dir_all()
+<a href=#948 id=948 data-nosnippet>948</a>            .unwrap();
+<a href=#949 id=949 data-nosnippet>949</a>        tmp.child(<span class="string">"case/sources/a.txt"</span>)
+<a href=#950 id=950 data-nosnippet>950</a>            .write_str(<span class="string">"content a"</span>)
+<a href=#951 id=951 data-nosnippet>951</a>            .unwrap();
+<a href=#952 id=952 data-nosnippet>952</a>        tmp.child(<span class="string">"case/sources/b.txt"</span>)
+<a href=#953 id=953 data-nosnippet>953</a>            .write_str(<span class="string">"content b"</span>)
+<a href=#954 id=954 data-nosnippet>954</a>            .unwrap();
+<a href=#955 id=955 data-nosnippet>955</a>        tmp.child(<span class="macro">format!</span>(<span class="string">"case/{EXPECTED_COPIED_FILES}"</span>))
+<a href=#956 id=956 data-nosnippet>956</a>            .write_str(<span class="string">r#"{"out/a.txt": "sources/a.txt", "out/b.txt": "sources/b.txt"}"#</span>)
+<a href=#957 id=957 data-nosnippet>957</a>            .unwrap();
+<a href=#958 id=958 data-nosnippet>958</a>
+<a href=#959 id=959 data-nosnippet>959</a>        <span class="kw">let </span>cases = TestCase::try_load_all(tmp.path()).expect(<span class="string">"should succeed"</span>);
+<a href=#960 id=960 data-nosnippet>960</a>
+<a href=#961 id=961 data-nosnippet>961</a>        <span class="macro">assert_eq!</span>(cases.len(), <span class="number">1</span>);
+<a href=#962 id=962 data-nosnippet>962</a>
+<a href=#963 id=963 data-nosnippet>963</a>        <span class="kw">let </span>expected = <span class="kw">match </span><span class="kw-2">&amp;</span>cases[<span class="number">0</span>].data {
+<a href=#964 id=964 data-nosnippet>964</a>            TestCaseData::SuccessDir(m) =&gt; m,
+<a href=#965 id=965 data-nosnippet>965</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"should have been a success dir case"</span>),
+<a href=#966 id=966 data-nosnippet>966</a>        };
+<a href=#967 id=967 data-nosnippet>967</a>
+<a href=#968 id=968 data-nosnippet>968</a>        <span class="macro">assert_eq!</span>(expected.len(), <span class="number">2</span>);
+<a href=#969 id=969 data-nosnippet>969</a>        <span class="macro">assert!</span>(expected.contains_key(<span class="string">"out/a.txt"</span>));
+<a href=#970 id=970 data-nosnippet>970</a>        <span class="macro">assert!</span>(expected.contains_key(<span class="string">"out/b.txt"</span>));
+<a href=#971 id=971 data-nosnippet>971</a>    }
+<a href=#972 id=972 data-nosnippet>972</a>
+<a href=#973 id=973 data-nosnippet>973</a>    <span class="attr">#[test]
+<a href=#974 id=974 data-nosnippet>974</a>    </span><span class="kw">fn </span>try_load_all_conflict_errors() {
+<a href=#975 id=975 data-nosnippet>975</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#976 id=976 data-nosnippet>976</a>        <span class="comment">// Create test case where same path appears in both index and expected-run-output
+<a href=#977 id=977 data-nosnippet>977</a>        </span>tmp.child(<span class="string">"case/variables.json"</span>).write_str(<span class="string">"{}"</span>).unwrap();
+<a href=#978 id=978 data-nosnippet>978</a>        tmp.child(<span class="string">"case/source.txt"</span>)
+<a href=#979 id=979 data-nosnippet>979</a>            .write_str(<span class="string">"source content"</span>)
+<a href=#980 id=980 data-nosnippet>980</a>            .unwrap();
+<a href=#981 id=981 data-nosnippet>981</a>        <span class="comment">// Index references "conflict.txt"
+<a href=#982 id=982 data-nosnippet>982</a>        </span>tmp.child(<span class="macro">format!</span>(<span class="string">"case/{EXPECTED_COPIED_FILES}"</span>))
+<a href=#983 id=983 data-nosnippet>983</a>            .write_str(<span class="string">r#"{"conflict.txt": "source.txt"}"#</span>)
+<a href=#984 id=984 data-nosnippet>984</a>            .unwrap();
+<a href=#985 id=985 data-nosnippet>985</a>        <span class="comment">// expected-run-output also has "conflict.txt"
+<a href=#986 id=986 data-nosnippet>986</a>        </span>tmp.child(<span class="string">"case/expected-run-output/conflict.txt"</span>)
+<a href=#987 id=987 data-nosnippet>987</a>            .write_str(<span class="string">"explicit content"</span>)
+<a href=#988 id=988 data-nosnippet>988</a>            .unwrap();
+<a href=#989 id=989 data-nosnippet>989</a>
+<a href=#990 id=990 data-nosnippet>990</a>        <span class="kw">let </span>res = TestCase::try_load_all(tmp.path());
+<a href=#991 id=991 data-nosnippet>991</a>
+<a href=#992 id=992 data-nosnippet>992</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected error, got {res:?}"</span>);
+<a href=#993 id=993 data-nosnippet>993</a>        <span class="kw">let </span>err = res.unwrap_err().to_string();
+<a href=#994 id=994 data-nosnippet>994</a>        <span class="macro">assert!</span>(err.contains(<span class="string">"Invalid test case"</span>), <span class="string">"{err}"</span>);
+<a href=#995 id=995 data-nosnippet>995</a>        <span class="macro">assert!</span>(err.contains(<span class="string">"conflict.txt"</span>), <span class="string">"{err}"</span>);
 <a href=#996 id=996 data-nosnippet>996</a>    }
 <a href=#997 id=997 data-nosnippet>997</a>
 <a href=#998 id=998 data-nosnippet>998</a>    <span class="attr">#[test]
-<a href=#999 id=999 data-nosnippet>999</a>    </span><span class="kw">fn </span>try_load_all_conflict_errors() {
+<a href=#999 id=999 data-nosnippet>999</a>    </span><span class="kw">fn </span>try_load_all_no_conflict_with_different_paths() {
 <a href=#1000 id=1000 data-nosnippet>1000</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#1001 id=1001 data-nosnippet>1001</a>        <span class="comment">// Create test case where same path appears in both index and expected-run-output
+<a href=#1001 id=1001 data-nosnippet>1001</a>        <span class="comment">// Create test case where index and expected-run-output have different paths
 <a href=#1002 id=1002 data-nosnippet>1002</a>        </span>tmp.child(<span class="string">"case/variables.json"</span>).write_str(<span class="string">"{}"</span>).unwrap();
 <a href=#1003 id=1003 data-nosnippet>1003</a>        tmp.child(<span class="string">"case/source.txt"</span>)
 <a href=#1004 id=1004 data-nosnippet>1004</a>            .write_str(<span class="string">"source content"</span>)
 <a href=#1005 id=1005 data-nosnippet>1005</a>            .unwrap();
-<a href=#1006 id=1006 data-nosnippet>1006</a>        <span class="comment">// Index references "conflict.txt"
-<a href=#1007 id=1007 data-nosnippet>1007</a>        </span>tmp.child(<span class="macro">format!</span>(<span class="string">"case/{EXPECTED_COPIED_FILES}"</span>))
-<a href=#1008 id=1008 data-nosnippet>1008</a>            .write_str(<span class="string">r#"{"conflict.txt": "source.txt"}"#</span>)
+<a href=#1006 id=1006 data-nosnippet>1006</a>
+<a href=#1007 id=1007 data-nosnippet>1007</a>        tmp.child(<span class="macro">format!</span>(<span class="string">"case/{EXPECTED_COPIED_FILES}"</span>))
+<a href=#1008 id=1008 data-nosnippet>1008</a>            .write_str(<span class="string">r#"{"from-index.txt": "source.txt"}"#</span>)
 <a href=#1009 id=1009 data-nosnippet>1009</a>            .unwrap();
-<a href=#1010 id=1010 data-nosnippet>1010</a>        <span class="comment">// expected-run-output also has "conflict.txt"
-<a href=#1011 id=1011 data-nosnippet>1011</a>        </span>tmp.child(<span class="string">"case/expected-run-output/conflict.txt"</span>)
+<a href=#1010 id=1010 data-nosnippet>1010</a>
+<a href=#1011 id=1011 data-nosnippet>1011</a>        tmp.child(<span class="string">"case/expected-run-output/from-dir.txt"</span>)
 <a href=#1012 id=1012 data-nosnippet>1012</a>            .write_str(<span class="string">"explicit content"</span>)
 <a href=#1013 id=1013 data-nosnippet>1013</a>            .unwrap();
 <a href=#1014 id=1014 data-nosnippet>1014</a>
-<a href=#1015 id=1015 data-nosnippet>1015</a>        <span class="kw">let </span>res = TestCase::try_load_all(tmp.path());
+<a href=#1015 id=1015 data-nosnippet>1015</a>        <span class="kw">let </span>cases = TestCase::try_load_all(tmp.path()).expect(<span class="string">"should succeed with no conflicts"</span>);
 <a href=#1016 id=1016 data-nosnippet>1016</a>
-<a href=#1017 id=1017 data-nosnippet>1017</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected error, got {res:?}"</span>);
-<a href=#1018 id=1018 data-nosnippet>1018</a>        <span class="kw">let </span>err = res.unwrap_err().to_string();
-<a href=#1019 id=1019 data-nosnippet>1019</a>        <span class="macro">assert!</span>(err.contains(<span class="string">"Invalid test case"</span>), <span class="string">"{err}"</span>);
-<a href=#1020 id=1020 data-nosnippet>1020</a>        <span class="macro">assert!</span>(err.contains(<span class="string">"conflict.txt"</span>), <span class="string">"{err}"</span>);
-<a href=#1021 id=1021 data-nosnippet>1021</a>    }
-<a href=#1022 id=1022 data-nosnippet>1022</a>
-<a href=#1023 id=1023 data-nosnippet>1023</a>    <span class="attr">#[test]
-<a href=#1024 id=1024 data-nosnippet>1024</a>    </span><span class="kw">fn </span>try_load_all_no_conflict_with_different_paths() {
-<a href=#1025 id=1025 data-nosnippet>1025</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#1026 id=1026 data-nosnippet>1026</a>        <span class="comment">// Create test case where index and expected-run-output have different paths
-<a href=#1027 id=1027 data-nosnippet>1027</a>        </span>tmp.child(<span class="string">"case/variables.json"</span>).write_str(<span class="string">"{}"</span>).unwrap();
-<a href=#1028 id=1028 data-nosnippet>1028</a>        tmp.child(<span class="string">"case/source.txt"</span>)
-<a href=#1029 id=1029 data-nosnippet>1029</a>            .write_str(<span class="string">"source content"</span>)
-<a href=#1030 id=1030 data-nosnippet>1030</a>            .unwrap();
-<a href=#1031 id=1031 data-nosnippet>1031</a>
-<a href=#1032 id=1032 data-nosnippet>1032</a>        tmp.child(<span class="macro">format!</span>(<span class="string">"case/{EXPECTED_COPIED_FILES}"</span>))
-<a href=#1033 id=1033 data-nosnippet>1033</a>            .write_str(<span class="string">r#"{"from-index.txt": "source.txt"}"#</span>)
-<a href=#1034 id=1034 data-nosnippet>1034</a>            .unwrap();
-<a href=#1035 id=1035 data-nosnippet>1035</a>
-<a href=#1036 id=1036 data-nosnippet>1036</a>        tmp.child(<span class="string">"case/expected-run-output/from-dir.txt"</span>)
-<a href=#1037 id=1037 data-nosnippet>1037</a>            .write_str(<span class="string">"explicit content"</span>)
-<a href=#1038 id=1038 data-nosnippet>1038</a>            .unwrap();
-<a href=#1039 id=1039 data-nosnippet>1039</a>
-<a href=#1040 id=1040 data-nosnippet>1040</a>        <span class="kw">let </span>cases = TestCase::try_load_all(tmp.path()).expect(<span class="string">"should succeed with no conflicts"</span>);
-<a href=#1041 id=1041 data-nosnippet>1041</a>
-<a href=#1042 id=1042 data-nosnippet>1042</a>        <span class="macro">assert_eq!</span>(cases.len(), <span class="number">1</span>);
-<a href=#1043 id=1043 data-nosnippet>1043</a>
-<a href=#1044 id=1044 data-nosnippet>1044</a>        <span class="kw">let </span>expected = <span class="kw">match </span><span class="kw-2">&amp;</span>cases[<span class="number">0</span>].data {
-<a href=#1045 id=1045 data-nosnippet>1045</a>            TestCaseData::SuccessDir(m) =&gt; m,
-<a href=#1046 id=1046 data-nosnippet>1046</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"should have been a success dir case"</span>),
-<a href=#1047 id=1047 data-nosnippet>1047</a>        };
-<a href=#1048 id=1048 data-nosnippet>1048</a>
-<a href=#1049 id=1049 data-nosnippet>1049</a>        <span class="macro">assert_eq!</span>(expected.len(), <span class="number">2</span>);
-<a href=#1050 id=1050 data-nosnippet>1050</a>        <span class="macro">assert!</span>(expected.contains_key(<span class="string">"from-index.txt"</span>));
-<a href=#1051 id=1051 data-nosnippet>1051</a>        <span class="macro">assert!</span>(expected.contains_key(<span class="string">"from-dir.txt"</span>));
-<a href=#1052 id=1052 data-nosnippet>1052</a>    }
-<a href=#1053 id=1053 data-nosnippet>1053</a>
-<a href=#1054 id=1054 data-nosnippet>1054</a>    <span class="attr">#[test_case(
-<a href=#1055 id=1055 data-nosnippet>1055</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"content"</span>)]</span>),
-<a href=#1056 id=1056 data-nosnippet>1056</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"content"</span>)]),
-<a href=#1057 id=1057 data-nosnippet>1057</a>        <span class="bool-val">true</span>;
-<a href=#1058 id=1058 data-nosnippet>1058</a>        <span class="string">"identical single file"
-<a href=#1059 id=1059 data-nosnippet>1059</a>    </span>)]
-<a href=#1060 id=1060 data-nosnippet>1060</a>    <span class="attr">#[test_case(
-<a href=#1061 id=1061 data-nosnippet>1061</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"hello"</span>), (<span class="string">"b.txt"</span>, <span class="string">"world"</span>)]</span>),
-<a href=#1062 id=1062 data-nosnippet>1062</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"hello"</span>), (<span class="string">"b.txt"</span>, <span class="string">"world"</span>)]),
-<a href=#1063 id=1063 data-nosnippet>1063</a>        <span class="bool-val">true</span>;
-<a href=#1064 id=1064 data-nosnippet>1064</a>        <span class="string">"identical multiple files"
-<a href=#1065 id=1065 data-nosnippet>1065</a>    </span>)]
-<a href=#1066 id=1066 data-nosnippet>1066</a>    <span class="attr">#[test_case(
-<a href=#1067 id=1067 data-nosnippet>1067</a>        HashMap::from([]</span>),
-<a href=#1068 id=1068 data-nosnippet>1068</a>        HashMap::from([]),
-<a href=#1069 id=1069 data-nosnippet>1069</a>        <span class="bool-val">true</span>;
-<a href=#1070 id=1070 data-nosnippet>1070</a>        <span class="string">"both empty"
-<a href=#1071 id=1071 data-nosnippet>1071</a>    </span>)]
-<a href=#1072 id=1072 data-nosnippet>1072</a>    <span class="attr">#[test_case(
-<a href=#1073 id=1073 data-nosnippet>1073</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"content"</span>)]</span>),
-<a href=#1074 id=1074 data-nosnippet>1074</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"different"</span>)]),
-<a href=#1075 id=1075 data-nosnippet>1075</a>        <span class="bool-val">false</span>;
-<a href=#1076 id=1076 data-nosnippet>1076</a>        <span class="string">"content differs"
-<a href=#1077 id=1077 data-nosnippet>1077</a>    </span>)]
-<a href=#1078 id=1078 data-nosnippet>1078</a>    <span class="attr">#[test_case(
-<a href=#1079 id=1079 data-nosnippet>1079</a>        HashMap::from([]</span>),
-<a href=#1080 id=1080 data-nosnippet>1080</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"content"</span>)]),
-<a href=#1081 id=1081 data-nosnippet>1081</a>        <span class="bool-val">false</span>;
-<a href=#1082 id=1082 data-nosnippet>1082</a>        <span class="string">"missing file"
-<a href=#1083 id=1083 data-nosnippet>1083</a>    </span>)]
-<a href=#1084 id=1084 data-nosnippet>1084</a>    <span class="attr">#[test_case(
-<a href=#1085 id=1085 data-nosnippet>1085</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"content"</span>), (<span class="string">"b.txt"</span>, <span class="string">"extra"</span>)]</span>),
-<a href=#1086 id=1086 data-nosnippet>1086</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"content"</span>)]),
-<a href=#1087 id=1087 data-nosnippet>1087</a>        <span class="bool-val">false</span>;
-<a href=#1088 id=1088 data-nosnippet>1088</a>        <span class="string">"unexpected file"
-<a href=#1089 id=1089 data-nosnippet>1089</a>    </span>)]
-<a href=#1090 id=1090 data-nosnippet>1090</a>    <span class="attr">#[test]
-<a href=#1091 id=1091 data-nosnippet>1091</a>    </span><span class="kw">fn </span>compare_outputs_is_success(
-<a href=#1092 id=1092 data-nosnippet>1092</a>        actual: HashMap&lt;<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str&gt;,
-<a href=#1093 id=1093 data-nosnippet>1093</a>        expected: HashMap&lt;<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str&gt;,
-<a href=#1094 id=1094 data-nosnippet>1094</a>        should_succeed: bool,
-<a href=#1095 id=1095 data-nosnippet>1095</a>    ) {
-<a href=#1096 id=1096 data-nosnippet>1096</a>        <span class="kw">let </span>actual: HashMap&lt;String, String&gt; = actual
-<a href=#1097 id=1097 data-nosnippet>1097</a>            .into_iter()
-<a href=#1098 id=1098 data-nosnippet>1098</a>            .map(|(k, v)| (k.to_string(), v.to_string()))
-<a href=#1099 id=1099 data-nosnippet>1099</a>            .collect();
-<a href=#1100 id=1100 data-nosnippet>1100</a>        <span class="kw">let </span>expected: HashMap&lt;String, String&gt; = expected
-<a href=#1101 id=1101 data-nosnippet>1101</a>            .into_iter()
-<a href=#1102 id=1102 data-nosnippet>1102</a>            .map(|(k, v)| (k.to_string(), v.to_string()))
-<a href=#1103 id=1103 data-nosnippet>1103</a>            .collect();
-<a href=#1104 id=1104 data-nosnippet>1104</a>
-<a href=#1105 id=1105 data-nosnippet>1105</a>        <span class="kw">let </span>outcome = compare_outputs(<span class="kw-2">&amp;</span>actual, <span class="kw-2">&amp;</span>expected);
-<a href=#1106 id=1106 data-nosnippet>1106</a>        <span class="macro">assert_eq!</span>(outcome.is_success(), should_succeed);
+<a href=#1017 id=1017 data-nosnippet>1017</a>        <span class="macro">assert_eq!</span>(cases.len(), <span class="number">1</span>);
+<a href=#1018 id=1018 data-nosnippet>1018</a>
+<a href=#1019 id=1019 data-nosnippet>1019</a>        <span class="kw">let </span>expected = <span class="kw">match </span><span class="kw-2">&amp;</span>cases[<span class="number">0</span>].data {
+<a href=#1020 id=1020 data-nosnippet>1020</a>            TestCaseData::SuccessDir(m) =&gt; m,
+<a href=#1021 id=1021 data-nosnippet>1021</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"should have been a success dir case"</span>),
+<a href=#1022 id=1022 data-nosnippet>1022</a>        };
+<a href=#1023 id=1023 data-nosnippet>1023</a>
+<a href=#1024 id=1024 data-nosnippet>1024</a>        <span class="macro">assert_eq!</span>(expected.len(), <span class="number">2</span>);
+<a href=#1025 id=1025 data-nosnippet>1025</a>        <span class="macro">assert!</span>(expected.contains_key(<span class="string">"from-index.txt"</span>));
+<a href=#1026 id=1026 data-nosnippet>1026</a>        <span class="macro">assert!</span>(expected.contains_key(<span class="string">"from-dir.txt"</span>));
+<a href=#1027 id=1027 data-nosnippet>1027</a>    }
+<a href=#1028 id=1028 data-nosnippet>1028</a>
+<a href=#1029 id=1029 data-nosnippet>1029</a>    <span class="attr">#[test_case(
+<a href=#1030 id=1030 data-nosnippet>1030</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"content"</span>)]</span>),
+<a href=#1031 id=1031 data-nosnippet>1031</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"content"</span>)]),
+<a href=#1032 id=1032 data-nosnippet>1032</a>        <span class="bool-val">true</span>;
+<a href=#1033 id=1033 data-nosnippet>1033</a>        <span class="string">"identical single file"
+<a href=#1034 id=1034 data-nosnippet>1034</a>    </span>)]
+<a href=#1035 id=1035 data-nosnippet>1035</a>    <span class="attr">#[test_case(
+<a href=#1036 id=1036 data-nosnippet>1036</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"hello"</span>), (<span class="string">"b.txt"</span>, <span class="string">"world"</span>)]</span>),
+<a href=#1037 id=1037 data-nosnippet>1037</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"hello"</span>), (<span class="string">"b.txt"</span>, <span class="string">"world"</span>)]),
+<a href=#1038 id=1038 data-nosnippet>1038</a>        <span class="bool-val">true</span>;
+<a href=#1039 id=1039 data-nosnippet>1039</a>        <span class="string">"identical multiple files"
+<a href=#1040 id=1040 data-nosnippet>1040</a>    </span>)]
+<a href=#1041 id=1041 data-nosnippet>1041</a>    <span class="attr">#[test_case(
+<a href=#1042 id=1042 data-nosnippet>1042</a>        HashMap::from([]</span>),
+<a href=#1043 id=1043 data-nosnippet>1043</a>        HashMap::from([]),
+<a href=#1044 id=1044 data-nosnippet>1044</a>        <span class="bool-val">true</span>;
+<a href=#1045 id=1045 data-nosnippet>1045</a>        <span class="string">"both empty"
+<a href=#1046 id=1046 data-nosnippet>1046</a>    </span>)]
+<a href=#1047 id=1047 data-nosnippet>1047</a>    <span class="attr">#[test_case(
+<a href=#1048 id=1048 data-nosnippet>1048</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"content"</span>)]</span>),
+<a href=#1049 id=1049 data-nosnippet>1049</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"different"</span>)]),
+<a href=#1050 id=1050 data-nosnippet>1050</a>        <span class="bool-val">false</span>;
+<a href=#1051 id=1051 data-nosnippet>1051</a>        <span class="string">"content differs"
+<a href=#1052 id=1052 data-nosnippet>1052</a>    </span>)]
+<a href=#1053 id=1053 data-nosnippet>1053</a>    <span class="attr">#[test_case(
+<a href=#1054 id=1054 data-nosnippet>1054</a>        HashMap::from([]</span>),
+<a href=#1055 id=1055 data-nosnippet>1055</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"content"</span>)]),
+<a href=#1056 id=1056 data-nosnippet>1056</a>        <span class="bool-val">false</span>;
+<a href=#1057 id=1057 data-nosnippet>1057</a>        <span class="string">"missing file"
+<a href=#1058 id=1058 data-nosnippet>1058</a>    </span>)]
+<a href=#1059 id=1059 data-nosnippet>1059</a>    <span class="attr">#[test_case(
+<a href=#1060 id=1060 data-nosnippet>1060</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"content"</span>), (<span class="string">"b.txt"</span>, <span class="string">"extra"</span>)]</span>),
+<a href=#1061 id=1061 data-nosnippet>1061</a>        HashMap::from([(<span class="string">"a.txt"</span>, <span class="string">"content"</span>)]),
+<a href=#1062 id=1062 data-nosnippet>1062</a>        <span class="bool-val">false</span>;
+<a href=#1063 id=1063 data-nosnippet>1063</a>        <span class="string">"unexpected file"
+<a href=#1064 id=1064 data-nosnippet>1064</a>    </span>)]
+<a href=#1065 id=1065 data-nosnippet>1065</a>    <span class="attr">#[test]
+<a href=#1066 id=1066 data-nosnippet>1066</a>    </span><span class="kw">fn </span>compare_outputs_is_success(
+<a href=#1067 id=1067 data-nosnippet>1067</a>        actual: HashMap&lt;<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str&gt;,
+<a href=#1068 id=1068 data-nosnippet>1068</a>        expected: HashMap&lt;<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str&gt;,
+<a href=#1069 id=1069 data-nosnippet>1069</a>        should_succeed: bool,
+<a href=#1070 id=1070 data-nosnippet>1070</a>    ) {
+<a href=#1071 id=1071 data-nosnippet>1071</a>        <span class="kw">let </span>actual: HashMap&lt;String, String&gt; = actual
+<a href=#1072 id=1072 data-nosnippet>1072</a>            .into_iter()
+<a href=#1073 id=1073 data-nosnippet>1073</a>            .map(|(k, v)| (k.to_string(), v.to_string()))
+<a href=#1074 id=1074 data-nosnippet>1074</a>            .collect();
+<a href=#1075 id=1075 data-nosnippet>1075</a>        <span class="kw">let </span>expected: HashMap&lt;String, String&gt; = expected
+<a href=#1076 id=1076 data-nosnippet>1076</a>            .into_iter()
+<a href=#1077 id=1077 data-nosnippet>1077</a>            .map(|(k, v)| (k.to_string(), v.to_string()))
+<a href=#1078 id=1078 data-nosnippet>1078</a>            .collect();
+<a href=#1079 id=1079 data-nosnippet>1079</a>
+<a href=#1080 id=1080 data-nosnippet>1080</a>        <span class="kw">let </span>outcome = compare_outputs(<span class="kw-2">&amp;</span>actual, <span class="kw-2">&amp;</span>expected);
+<a href=#1081 id=1081 data-nosnippet>1081</a>        <span class="macro">assert_eq!</span>(outcome.is_success(), should_succeed);
+<a href=#1082 id=1082 data-nosnippet>1082</a>    }
+<a href=#1083 id=1083 data-nosnippet>1083</a>
+<a href=#1084 id=1084 data-nosnippet>1084</a>    <span class="attr">#[test]
+<a href=#1085 id=1085 data-nosnippet>1085</a>    </span><span class="kw">fn </span>compare_outputs_missing_files() {
+<a href=#1086 id=1086 data-nosnippet>1086</a>        <span class="kw">let </span>actual = HashMap::new();
+<a href=#1087 id=1087 data-nosnippet>1087</a>        <span class="kw">let </span>expected = HashMap::from([
+<a href=#1088 id=1088 data-nosnippet>1088</a>            (<span class="string">"a.txt"</span>.to_string(), <span class="string">"content"</span>.to_string()),
+<a href=#1089 id=1089 data-nosnippet>1089</a>            (<span class="string">"b.txt"</span>.to_string(), <span class="string">"more"</span>.to_string()),
+<a href=#1090 id=1090 data-nosnippet>1090</a>        ]);
+<a href=#1091 id=1091 data-nosnippet>1091</a>
+<a href=#1092 id=1092 data-nosnippet>1092</a>        <span class="kw">let </span>outcome = compare_outputs(<span class="kw-2">&amp;</span>actual, <span class="kw-2">&amp;</span>expected);
+<a href=#1093 id=1093 data-nosnippet>1093</a>
+<a href=#1094 id=1094 data-nosnippet>1094</a>        <span class="kw">match </span>outcome {
+<a href=#1095 id=1095 data-nosnippet>1095</a>            Outcome::OutputDiff {
+<a href=#1096 id=1096 data-nosnippet>1096</a>                <span class="kw-2">mut </span>missing,
+<a href=#1097 id=1097 data-nosnippet>1097</a>                unexpected,
+<a href=#1098 id=1098 data-nosnippet>1098</a>                with_diff,
+<a href=#1099 id=1099 data-nosnippet>1099</a>            } =&gt; {
+<a href=#1100 id=1100 data-nosnippet>1100</a>                missing.sort();
+<a href=#1101 id=1101 data-nosnippet>1101</a>                <span class="macro">assert_eq!</span>(missing, <span class="macro">vec!</span>[<span class="string">"a.txt"</span>, <span class="string">"b.txt"</span>]);
+<a href=#1102 id=1102 data-nosnippet>1102</a>                <span class="macro">assert!</span>(unexpected.is_empty());
+<a href=#1103 id=1103 data-nosnippet>1103</a>                <span class="macro">assert!</span>(with_diff.is_empty());
+<a href=#1104 id=1104 data-nosnippet>1104</a>            }
+<a href=#1105 id=1105 data-nosnippet>1105</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected OutputDiff, got {outcome:?}"</span>),
+<a href=#1106 id=1106 data-nosnippet>1106</a>        }
 <a href=#1107 id=1107 data-nosnippet>1107</a>    }
 <a href=#1108 id=1108 data-nosnippet>1108</a>
 <a href=#1109 id=1109 data-nosnippet>1109</a>    <span class="attr">#[test]
-<a href=#1110 id=1110 data-nosnippet>1110</a>    </span><span class="kw">fn </span>compare_outputs_missing_files() {
-<a href=#1111 id=1111 data-nosnippet>1111</a>        <span class="kw">let </span>actual = HashMap::new();
-<a href=#1112 id=1112 data-nosnippet>1112</a>        <span class="kw">let </span>expected = HashMap::from([
-<a href=#1113 id=1113 data-nosnippet>1113</a>            (<span class="string">"a.txt"</span>.to_string(), <span class="string">"content"</span>.to_string()),
-<a href=#1114 id=1114 data-nosnippet>1114</a>            (<span class="string">"b.txt"</span>.to_string(), <span class="string">"more"</span>.to_string()),
-<a href=#1115 id=1115 data-nosnippet>1115</a>        ]);
+<a href=#1110 id=1110 data-nosnippet>1110</a>    </span><span class="kw">fn </span>compare_outputs_unexpected_files() {
+<a href=#1111 id=1111 data-nosnippet>1111</a>        <span class="kw">let </span>actual = HashMap::from([
+<a href=#1112 id=1112 data-nosnippet>1112</a>            (<span class="string">"extra1.txt"</span>.to_string(), <span class="string">"content"</span>.to_string()),
+<a href=#1113 id=1113 data-nosnippet>1113</a>            (<span class="string">"extra2.txt"</span>.to_string(), <span class="string">"more"</span>.to_string()),
+<a href=#1114 id=1114 data-nosnippet>1114</a>        ]);
+<a href=#1115 id=1115 data-nosnippet>1115</a>        <span class="kw">let </span>expected = HashMap::new();
 <a href=#1116 id=1116 data-nosnippet>1116</a>
 <a href=#1117 id=1117 data-nosnippet>1117</a>        <span class="kw">let </span>outcome = compare_outputs(<span class="kw-2">&amp;</span>actual, <span class="kw-2">&amp;</span>expected);
 <a href=#1118 id=1118 data-nosnippet>1118</a>
 <a href=#1119 id=1119 data-nosnippet>1119</a>        <span class="kw">match </span>outcome {
 <a href=#1120 id=1120 data-nosnippet>1120</a>            Outcome::OutputDiff {
-<a href=#1121 id=1121 data-nosnippet>1121</a>                <span class="kw-2">mut </span>missing,
-<a href=#1122 id=1122 data-nosnippet>1122</a>                unexpected,
+<a href=#1121 id=1121 data-nosnippet>1121</a>                missing,
+<a href=#1122 id=1122 data-nosnippet>1122</a>                <span class="kw-2">mut </span>unexpected,
 <a href=#1123 id=1123 data-nosnippet>1123</a>                with_diff,
 <a href=#1124 id=1124 data-nosnippet>1124</a>            } =&gt; {
-<a href=#1125 id=1125 data-nosnippet>1125</a>                missing.sort();
-<a href=#1126 id=1126 data-nosnippet>1126</a>                <span class="macro">assert_eq!</span>(missing, <span class="macro">vec!</span>[<span class="string">"a.txt"</span>, <span class="string">"b.txt"</span>]);
-<a href=#1127 id=1127 data-nosnippet>1127</a>                <span class="macro">assert!</span>(unexpected.is_empty());
+<a href=#1125 id=1125 data-nosnippet>1125</a>                <span class="macro">assert!</span>(missing.is_empty());
+<a href=#1126 id=1126 data-nosnippet>1126</a>                unexpected.sort();
+<a href=#1127 id=1127 data-nosnippet>1127</a>                <span class="macro">assert_eq!</span>(unexpected, <span class="macro">vec!</span>[<span class="string">"extra1.txt"</span>, <span class="string">"extra2.txt"</span>]);
 <a href=#1128 id=1128 data-nosnippet>1128</a>                <span class="macro">assert!</span>(with_diff.is_empty());
 <a href=#1129 id=1129 data-nosnippet>1129</a>            }
 <a href=#1130 id=1130 data-nosnippet>1130</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected OutputDiff, got {outcome:?}"</span>),
@@ -1132,235 +1132,210 @@
 <a href=#1132 id=1132 data-nosnippet>1132</a>    }
 <a href=#1133 id=1133 data-nosnippet>1133</a>
 <a href=#1134 id=1134 data-nosnippet>1134</a>    <span class="attr">#[test]
-<a href=#1135 id=1135 data-nosnippet>1135</a>    </span><span class="kw">fn </span>compare_outputs_unexpected_files() {
-<a href=#1136 id=1136 data-nosnippet>1136</a>        <span class="kw">let </span>actual = HashMap::from([
-<a href=#1137 id=1137 data-nosnippet>1137</a>            (<span class="string">"extra1.txt"</span>.to_string(), <span class="string">"content"</span>.to_string()),
-<a href=#1138 id=1138 data-nosnippet>1138</a>            (<span class="string">"extra2.txt"</span>.to_string(), <span class="string">"more"</span>.to_string()),
-<a href=#1139 id=1139 data-nosnippet>1139</a>        ]);
-<a href=#1140 id=1140 data-nosnippet>1140</a>        <span class="kw">let </span>expected = HashMap::new();
-<a href=#1141 id=1141 data-nosnippet>1141</a>
-<a href=#1142 id=1142 data-nosnippet>1142</a>        <span class="kw">let </span>outcome = compare_outputs(<span class="kw-2">&amp;</span>actual, <span class="kw-2">&amp;</span>expected);
-<a href=#1143 id=1143 data-nosnippet>1143</a>
-<a href=#1144 id=1144 data-nosnippet>1144</a>        <span class="kw">match </span>outcome {
-<a href=#1145 id=1145 data-nosnippet>1145</a>            Outcome::OutputDiff {
-<a href=#1146 id=1146 data-nosnippet>1146</a>                missing,
-<a href=#1147 id=1147 data-nosnippet>1147</a>                <span class="kw-2">mut </span>unexpected,
-<a href=#1148 id=1148 data-nosnippet>1148</a>                with_diff,
-<a href=#1149 id=1149 data-nosnippet>1149</a>            } =&gt; {
-<a href=#1150 id=1150 data-nosnippet>1150</a>                <span class="macro">assert!</span>(missing.is_empty());
-<a href=#1151 id=1151 data-nosnippet>1151</a>                unexpected.sort();
-<a href=#1152 id=1152 data-nosnippet>1152</a>                <span class="macro">assert_eq!</span>(unexpected, <span class="macro">vec!</span>[<span class="string">"extra1.txt"</span>, <span class="string">"extra2.txt"</span>]);
-<a href=#1153 id=1153 data-nosnippet>1153</a>                <span class="macro">assert!</span>(with_diff.is_empty());
+<a href=#1135 id=1135 data-nosnippet>1135</a>    </span><span class="kw">fn </span>compare_outputs_with_diffs() {
+<a href=#1136 id=1136 data-nosnippet>1136</a>        <span class="kw">let </span>actual = HashMap::from([(<span class="string">"file.txt"</span>.to_string(), <span class="string">"new line\n"</span>.to_string())]);
+<a href=#1137 id=1137 data-nosnippet>1137</a>        <span class="kw">let </span>expected = HashMap::from([(<span class="string">"file.txt"</span>.to_string(), <span class="string">"old line\n"</span>.to_string())]);
+<a href=#1138 id=1138 data-nosnippet>1138</a>
+<a href=#1139 id=1139 data-nosnippet>1139</a>        <span class="kw">let </span>outcome = compare_outputs(<span class="kw-2">&amp;</span>actual, <span class="kw-2">&amp;</span>expected);
+<a href=#1140 id=1140 data-nosnippet>1140</a>
+<a href=#1141 id=1141 data-nosnippet>1141</a>        <span class="kw">match </span>outcome {
+<a href=#1142 id=1142 data-nosnippet>1142</a>            Outcome::OutputDiff {
+<a href=#1143 id=1143 data-nosnippet>1143</a>                missing,
+<a href=#1144 id=1144 data-nosnippet>1144</a>                unexpected,
+<a href=#1145 id=1145 data-nosnippet>1145</a>                with_diff,
+<a href=#1146 id=1146 data-nosnippet>1146</a>            } =&gt; {
+<a href=#1147 id=1147 data-nosnippet>1147</a>                <span class="macro">assert!</span>(missing.is_empty());
+<a href=#1148 id=1148 data-nosnippet>1148</a>                <span class="macro">assert!</span>(unexpected.is_empty());
+<a href=#1149 id=1149 data-nosnippet>1149</a>                <span class="macro">assert_eq!</span>(with_diff.len(), <span class="number">1</span>);
+<a href=#1150 id=1150 data-nosnippet>1150</a>                <span class="kw">let </span>(path, diff) = <span class="kw-2">&amp;</span>with_diff[<span class="number">0</span>];
+<a href=#1151 id=1151 data-nosnippet>1151</a>                <span class="macro">assert_eq!</span>(path, <span class="string">"file.txt"</span>);
+<a href=#1152 id=1152 data-nosnippet>1152</a>                <span class="macro">assert!</span>(diff.contains(<span class="string">"-old line"</span>));
+<a href=#1153 id=1153 data-nosnippet>1153</a>                <span class="macro">assert!</span>(diff.contains(<span class="string">"+new line"</span>));
 <a href=#1154 id=1154 data-nosnippet>1154</a>            }
 <a href=#1155 id=1155 data-nosnippet>1155</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected OutputDiff, got {outcome:?}"</span>),
 <a href=#1156 id=1156 data-nosnippet>1156</a>        }
 <a href=#1157 id=1157 data-nosnippet>1157</a>    }
 <a href=#1158 id=1158 data-nosnippet>1158</a>
 <a href=#1159 id=1159 data-nosnippet>1159</a>    <span class="attr">#[test]
-<a href=#1160 id=1160 data-nosnippet>1160</a>    </span><span class="kw">fn </span>compare_outputs_with_diffs() {
-<a href=#1161 id=1161 data-nosnippet>1161</a>        <span class="kw">let </span>actual = HashMap::from([(<span class="string">"file.txt"</span>.to_string(), <span class="string">"new line\n"</span>.to_string())]);
-<a href=#1162 id=1162 data-nosnippet>1162</a>        <span class="kw">let </span>expected = HashMap::from([(<span class="string">"file.txt"</span>.to_string(), <span class="string">"old line\n"</span>.to_string())]);
-<a href=#1163 id=1163 data-nosnippet>1163</a>
-<a href=#1164 id=1164 data-nosnippet>1164</a>        <span class="kw">let </span>outcome = compare_outputs(<span class="kw-2">&amp;</span>actual, <span class="kw-2">&amp;</span>expected);
-<a href=#1165 id=1165 data-nosnippet>1165</a>
-<a href=#1166 id=1166 data-nosnippet>1166</a>        <span class="kw">match </span>outcome {
-<a href=#1167 id=1167 data-nosnippet>1167</a>            Outcome::OutputDiff {
-<a href=#1168 id=1168 data-nosnippet>1168</a>                missing,
-<a href=#1169 id=1169 data-nosnippet>1169</a>                unexpected,
-<a href=#1170 id=1170 data-nosnippet>1170</a>                with_diff,
-<a href=#1171 id=1171 data-nosnippet>1171</a>            } =&gt; {
-<a href=#1172 id=1172 data-nosnippet>1172</a>                <span class="macro">assert!</span>(missing.is_empty());
-<a href=#1173 id=1173 data-nosnippet>1173</a>                <span class="macro">assert!</span>(unexpected.is_empty());
-<a href=#1174 id=1174 data-nosnippet>1174</a>                <span class="macro">assert_eq!</span>(with_diff.len(), <span class="number">1</span>);
-<a href=#1175 id=1175 data-nosnippet>1175</a>                <span class="kw">let </span>(path, diff) = <span class="kw-2">&amp;</span>with_diff[<span class="number">0</span>];
-<a href=#1176 id=1176 data-nosnippet>1176</a>                <span class="macro">assert_eq!</span>(path, <span class="string">"file.txt"</span>);
-<a href=#1177 id=1177 data-nosnippet>1177</a>                <span class="macro">assert!</span>(diff.contains(<span class="string">"-old line"</span>));
-<a href=#1178 id=1178 data-nosnippet>1178</a>                <span class="macro">assert!</span>(diff.contains(<span class="string">"+new line"</span>));
-<a href=#1179 id=1179 data-nosnippet>1179</a>            }
-<a href=#1180 id=1180 data-nosnippet>1180</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected OutputDiff, got {outcome:?}"</span>),
-<a href=#1181 id=1181 data-nosnippet>1181</a>        }
-<a href=#1182 id=1182 data-nosnippet>1182</a>    }
-<a href=#1183 id=1183 data-nosnippet>1183</a>
-<a href=#1184 id=1184 data-nosnippet>1184</a>    <span class="attr">#[test]
-<a href=#1185 id=1185 data-nosnippet>1185</a>    </span><span class="kw">fn </span>compare_outputs_combined() {
-<a href=#1186 id=1186 data-nosnippet>1186</a>        <span class="kw">let </span>actual = HashMap::from([
-<a href=#1187 id=1187 data-nosnippet>1187</a>            (<span class="string">"changed.txt"</span>.to_string(), <span class="string">"new\n"</span>.to_string()),
-<a href=#1188 id=1188 data-nosnippet>1188</a>            (<span class="string">"extra.txt"</span>.to_string(), <span class="string">"unexpected\n"</span>.to_string()),
-<a href=#1189 id=1189 data-nosnippet>1189</a>        ]);
-<a href=#1190 id=1190 data-nosnippet>1190</a>        <span class="kw">let </span>expected = HashMap::from([
-<a href=#1191 id=1191 data-nosnippet>1191</a>            (<span class="string">"changed.txt"</span>.to_string(), <span class="string">"old\n"</span>.to_string()),
-<a href=#1192 id=1192 data-nosnippet>1192</a>            (<span class="string">"missing.txt"</span>.to_string(), <span class="string">"gone\n"</span>.to_string()),
-<a href=#1193 id=1193 data-nosnippet>1193</a>        ]);
-<a href=#1194 id=1194 data-nosnippet>1194</a>
-<a href=#1195 id=1195 data-nosnippet>1195</a>        <span class="kw">let </span>outcome = compare_outputs(<span class="kw-2">&amp;</span>actual, <span class="kw-2">&amp;</span>expected);
-<a href=#1196 id=1196 data-nosnippet>1196</a>
-<a href=#1197 id=1197 data-nosnippet>1197</a>        <span class="kw">match </span>outcome {
-<a href=#1198 id=1198 data-nosnippet>1198</a>            Outcome::OutputDiff {
-<a href=#1199 id=1199 data-nosnippet>1199</a>                missing,
-<a href=#1200 id=1200 data-nosnippet>1200</a>                unexpected,
-<a href=#1201 id=1201 data-nosnippet>1201</a>                with_diff,
-<a href=#1202 id=1202 data-nosnippet>1202</a>            } =&gt; {
-<a href=#1203 id=1203 data-nosnippet>1203</a>                <span class="macro">assert_eq!</span>(missing, <span class="macro">vec!</span>[<span class="string">"missing.txt"</span>]);
-<a href=#1204 id=1204 data-nosnippet>1204</a>                <span class="macro">assert_eq!</span>(unexpected, <span class="macro">vec!</span>[<span class="string">"extra.txt"</span>]);
-<a href=#1205 id=1205 data-nosnippet>1205</a>                <span class="macro">assert_eq!</span>(with_diff.len(), <span class="number">1</span>);
-<a href=#1206 id=1206 data-nosnippet>1206</a>                <span class="macro">assert_eq!</span>(with_diff[<span class="number">0</span>].<span class="number">0</span>, <span class="string">"changed.txt"</span>);
-<a href=#1207 id=1207 data-nosnippet>1207</a>            }
-<a href=#1208 id=1208 data-nosnippet>1208</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected OutputDiff, got {outcome:?}"</span>),
-<a href=#1209 id=1209 data-nosnippet>1209</a>        }
-<a href=#1210 id=1210 data-nosnippet>1210</a>    }
-<a href=#1211 id=1211 data-nosnippet>1211</a>
-<a href=#1212 id=1212 data-nosnippet>1212</a>    <span class="kw">enum </span>TestAsset {
-<a href=#1213 id=1213 data-nosnippet>1213</a>        Dir(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str),
-<a href=#1214 id=1214 data-nosnippet>1214</a>        File(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str),
-<a href=#1215 id=1215 data-nosnippet>1215</a>    }
-<a href=#1216 id=1216 data-nosnippet>1216</a>
-<a href=#1217 id=1217 data-nosnippet>1217</a>    <span class="attr">#[test_case(
-<a href=#1218 id=1218 data-nosnippet>1218</a>        <span class="kw-2">&amp;</span>[]</span>,
-<a href=#1219 id=1219 data-nosnippet>1219</a>        <span class="prelude-val">Some</span>(<span class="string">"does-not-exist"</span>),
-<a href=#1220 id=1220 data-nosnippet>1220</a>        io::ErrorKind::NotFound;
-<a href=#1221 id=1221 data-nosnippet>1221</a>        <span class="string">"nonexistent"
-<a href=#1222 id=1222 data-nosnippet>1222</a>    </span>)]
-<a href=#1223 id=1223 data-nosnippet>1223</a>    <span class="attr">#[test_case(
-<a href=#1224 id=1224 data-nosnippet>1224</a>        <span class="kw-2">&amp;</span>[TestAsset::File(<span class="string">"a-file.txt"</span>, <span class="string">""</span>)]</span>,
-<a href=#1225 id=1225 data-nosnippet>1225</a>        <span class="prelude-val">Some</span>(<span class="string">"a-file.txt"</span>),
-<a href=#1226 id=1226 data-nosnippet>1226</a>        io::ErrorKind::NotADirectory;
-<a href=#1227 id=1227 data-nosnippet>1227</a>        <span class="string">"path is file"
-<a href=#1228 id=1228 data-nosnippet>1228</a>    </span>)]
-<a href=#1229 id=1229 data-nosnippet>1229</a>    <span class="attr">#[test_case(
-<a href=#1230 id=1230 data-nosnippet>1230</a>        <span class="kw-2">&amp;</span>[TestAsset::File(<span class="string">"not-a-dir.txt"</span>, <span class="string">""</span>)]</span>,
-<a href=#1231 id=1231 data-nosnippet>1231</a>        <span class="prelude-val">None</span>,
-<a href=#1232 id=1232 data-nosnippet>1232</a>        io::ErrorKind::NotADirectory;
-<a href=#1233 id=1233 data-nosnippet>1233</a>        <span class="string">"entry is file"
-<a href=#1234 id=1234 data-nosnippet>1234</a>    </span>)]
-<a href=#1235 id=1235 data-nosnippet>1235</a>    <span class="attr">#[test_case(
-<a href=#1236 id=1236 data-nosnippet>1236</a>        <span class="kw-2">&amp;</span>[TestAsset::Dir(<span class="string">"case-a/expected-run-output"</span>)]</span>,
-<a href=#1237 id=1237 data-nosnippet>1237</a>        <span class="prelude-val">None</span>,
-<a href=#1238 id=1238 data-nosnippet>1238</a>        io::ErrorKind::NotFound;
-<a href=#1239 id=1239 data-nosnippet>1239</a>        <span class="string">"missing variables"
-<a href=#1240 id=1240 data-nosnippet>1240</a>    </span>)]
-<a href=#1241 id=1241 data-nosnippet>1241</a>    <span class="attr">#[test_case(
-<a href=#1242 id=1242 data-nosnippet>1242</a>        <span class="kw-2">&amp;</span>[TestAsset::Dir(<span class="string">"case-a/variables.json"</span>), TestAsset::Dir(<span class="string">"case-a/expected-run-output"</span>)]</span>,
-<a href=#1243 id=1243 data-nosnippet>1243</a>        <span class="prelude-val">None</span>,
-<a href=#1244 id=1244 data-nosnippet>1244</a>        io::ErrorKind::IsADirectory;
-<a href=#1245 id=1245 data-nosnippet>1245</a>        <span class="string">"variables is dir"
-<a href=#1246 id=1246 data-nosnippet>1246</a>    </span>)]
-<a href=#1247 id=1247 data-nosnippet>1247</a>    <span class="attr">#[test_case(
-<a href=#1248 id=1248 data-nosnippet>1248</a>        <span class="kw-2">&amp;</span>[TestAsset::File(<span class="string">"case-a/variables.json"</span>, <span class="string">"{}"</span>), TestAsset::File(<span class="string">"case-a/expected-run-output"</span>, <span class="string">""</span>)]</span>,
-<a href=#1249 id=1249 data-nosnippet>1249</a>        <span class="prelude-val">None</span>,
-<a href=#1250 id=1250 data-nosnippet>1250</a>        io::ErrorKind::NotADirectory;
-<a href=#1251 id=1251 data-nosnippet>1251</a>        <span class="string">"expected output is file"
-<a href=#1252 id=1252 data-nosnippet>1252</a>    </span>)]
-<a href=#1253 id=1253 data-nosnippet>1253</a>    <span class="attr">#[test_case(
-<a href=#1254 id=1254 data-nosnippet>1254</a>        <span class="kw-2">&amp;</span>[TestAsset::File(<span class="string">"case/variables.json"</span>, <span class="string">"{}"</span>), TestAsset::Dir(<span class="string">"case/expected-run-error.txt"</span>)]</span>,
-<a href=#1255 id=1255 data-nosnippet>1255</a>        <span class="prelude-val">None</span>,
-<a href=#1256 id=1256 data-nosnippet>1256</a>        io::ErrorKind::IsADirectory;
-<a href=#1257 id=1257 data-nosnippet>1257</a>        <span class="string">"expected error file is dir"
-<a href=#1258 id=1258 data-nosnippet>1258</a>    </span>)]
-<a href=#1259 id=1259 data-nosnippet>1259</a>    <span class="attr">#[test]
-<a href=#1260 id=1260 data-nosnippet>1260</a>    </span><span class="kw">fn </span>try_load_all_io_error(assets: <span class="kw-2">&amp;</span>[TestAsset], subpath: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;, expected: io::ErrorKind) {
-<a href=#1261 id=1261 data-nosnippet>1261</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#1262 id=1262 data-nosnippet>1262</a>        <span class="kw">for </span>asset <span class="kw">in </span>assets {
-<a href=#1263 id=1263 data-nosnippet>1263</a>            <span class="kw">match </span>asset {
-<a href=#1264 id=1264 data-nosnippet>1264</a>                TestAsset::Dir(p) =&gt; tmp.child(<span class="kw-2">*</span>p).create_dir_all().unwrap(),
-<a href=#1265 id=1265 data-nosnippet>1265</a>                TestAsset::File(p, content) =&gt; tmp.child(<span class="kw-2">*</span>p).write_str(content).unwrap(),
-<a href=#1266 id=1266 data-nosnippet>1266</a>            }
-<a href=#1267 id=1267 data-nosnippet>1267</a>        }
-<a href=#1268 id=1268 data-nosnippet>1268</a>        <span class="kw">let </span>path = <span class="kw">match </span>subpath {
-<a href=#1269 id=1269 data-nosnippet>1269</a>            <span class="prelude-val">Some</span>(s) =&gt; tmp.path().join(s),
-<a href=#1270 id=1270 data-nosnippet>1270</a>            <span class="prelude-val">None </span>=&gt; tmp.path().to_path_buf(),
-<a href=#1271 id=1271 data-nosnippet>1271</a>        };
-<a href=#1272 id=1272 data-nosnippet>1272</a>        <span class="kw">let </span>err = TestCase::try_load_all(<span class="kw-2">&amp;</span>path).unwrap_err();
-<a href=#1273 id=1273 data-nosnippet>1273</a>        <span class="macro">assert_eq!</span>(
-<a href=#1274 id=1274 data-nosnippet>1274</a>            err.downcast_ref::&lt;io::Error&gt;().map(|e| e.kind()),
-<a href=#1275 id=1275 data-nosnippet>1275</a>            <span class="prelude-val">Some</span>(expected),
-<a href=#1276 id=1276 data-nosnippet>1276</a>            <span class="string">"expected IO error, got {err:?}"
-<a href=#1277 id=1277 data-nosnippet>1277</a>        </span>);
-<a href=#1278 id=1278 data-nosnippet>1278</a>    }
+<a href=#1160 id=1160 data-nosnippet>1160</a>    </span><span class="kw">fn </span>compare_outputs_combined() {
+<a href=#1161 id=1161 data-nosnippet>1161</a>        <span class="kw">let </span>actual = HashMap::from([
+<a href=#1162 id=1162 data-nosnippet>1162</a>            (<span class="string">"changed.txt"</span>.to_string(), <span class="string">"new\n"</span>.to_string()),
+<a href=#1163 id=1163 data-nosnippet>1163</a>            (<span class="string">"extra.txt"</span>.to_string(), <span class="string">"unexpected\n"</span>.to_string()),
+<a href=#1164 id=1164 data-nosnippet>1164</a>        ]);
+<a href=#1165 id=1165 data-nosnippet>1165</a>        <span class="kw">let </span>expected = HashMap::from([
+<a href=#1166 id=1166 data-nosnippet>1166</a>            (<span class="string">"changed.txt"</span>.to_string(), <span class="string">"old\n"</span>.to_string()),
+<a href=#1167 id=1167 data-nosnippet>1167</a>            (<span class="string">"missing.txt"</span>.to_string(), <span class="string">"gone\n"</span>.to_string()),
+<a href=#1168 id=1168 data-nosnippet>1168</a>        ]);
+<a href=#1169 id=1169 data-nosnippet>1169</a>
+<a href=#1170 id=1170 data-nosnippet>1170</a>        <span class="kw">let </span>outcome = compare_outputs(<span class="kw-2">&amp;</span>actual, <span class="kw-2">&amp;</span>expected);
+<a href=#1171 id=1171 data-nosnippet>1171</a>
+<a href=#1172 id=1172 data-nosnippet>1172</a>        <span class="kw">match </span>outcome {
+<a href=#1173 id=1173 data-nosnippet>1173</a>            Outcome::OutputDiff {
+<a href=#1174 id=1174 data-nosnippet>1174</a>                missing,
+<a href=#1175 id=1175 data-nosnippet>1175</a>                unexpected,
+<a href=#1176 id=1176 data-nosnippet>1176</a>                with_diff,
+<a href=#1177 id=1177 data-nosnippet>1177</a>            } =&gt; {
+<a href=#1178 id=1178 data-nosnippet>1178</a>                <span class="macro">assert_eq!</span>(missing, <span class="macro">vec!</span>[<span class="string">"missing.txt"</span>]);
+<a href=#1179 id=1179 data-nosnippet>1179</a>                <span class="macro">assert_eq!</span>(unexpected, <span class="macro">vec!</span>[<span class="string">"extra.txt"</span>]);
+<a href=#1180 id=1180 data-nosnippet>1180</a>                <span class="macro">assert_eq!</span>(with_diff.len(), <span class="number">1</span>);
+<a href=#1181 id=1181 data-nosnippet>1181</a>                <span class="macro">assert_eq!</span>(with_diff[<span class="number">0</span>].<span class="number">0</span>, <span class="string">"changed.txt"</span>);
+<a href=#1182 id=1182 data-nosnippet>1182</a>            }
+<a href=#1183 id=1183 data-nosnippet>1183</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected OutputDiff, got {outcome:?}"</span>),
+<a href=#1184 id=1184 data-nosnippet>1184</a>        }
+<a href=#1185 id=1185 data-nosnippet>1185</a>    }
+<a href=#1186 id=1186 data-nosnippet>1186</a>
+<a href=#1187 id=1187 data-nosnippet>1187</a>    <span class="kw">enum </span>TestAsset {
+<a href=#1188 id=1188 data-nosnippet>1188</a>        Dir(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str),
+<a href=#1189 id=1189 data-nosnippet>1189</a>        File(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str),
+<a href=#1190 id=1190 data-nosnippet>1190</a>    }
+<a href=#1191 id=1191 data-nosnippet>1191</a>
+<a href=#1192 id=1192 data-nosnippet>1192</a>    <span class="attr">#[test_case(
+<a href=#1193 id=1193 data-nosnippet>1193</a>        <span class="kw-2">&amp;</span>[]</span>,
+<a href=#1194 id=1194 data-nosnippet>1194</a>        <span class="prelude-val">Some</span>(<span class="string">"does-not-exist"</span>),
+<a href=#1195 id=1195 data-nosnippet>1195</a>        io::ErrorKind::NotFound;
+<a href=#1196 id=1196 data-nosnippet>1196</a>        <span class="string">"nonexistent"
+<a href=#1197 id=1197 data-nosnippet>1197</a>    </span>)]
+<a href=#1198 id=1198 data-nosnippet>1198</a>    <span class="attr">#[test_case(
+<a href=#1199 id=1199 data-nosnippet>1199</a>        <span class="kw-2">&amp;</span>[TestAsset::File(<span class="string">"a-file.txt"</span>, <span class="string">""</span>)]</span>,
+<a href=#1200 id=1200 data-nosnippet>1200</a>        <span class="prelude-val">Some</span>(<span class="string">"a-file.txt"</span>),
+<a href=#1201 id=1201 data-nosnippet>1201</a>        io::ErrorKind::NotADirectory;
+<a href=#1202 id=1202 data-nosnippet>1202</a>        <span class="string">"path is file"
+<a href=#1203 id=1203 data-nosnippet>1203</a>    </span>)]
+<a href=#1204 id=1204 data-nosnippet>1204</a>    <span class="attr">#[test_case(
+<a href=#1205 id=1205 data-nosnippet>1205</a>        <span class="kw-2">&amp;</span>[TestAsset::File(<span class="string">"not-a-dir.txt"</span>, <span class="string">""</span>)]</span>,
+<a href=#1206 id=1206 data-nosnippet>1206</a>        <span class="prelude-val">None</span>,
+<a href=#1207 id=1207 data-nosnippet>1207</a>        io::ErrorKind::NotADirectory;
+<a href=#1208 id=1208 data-nosnippet>1208</a>        <span class="string">"entry is file"
+<a href=#1209 id=1209 data-nosnippet>1209</a>    </span>)]
+<a href=#1210 id=1210 data-nosnippet>1210</a>    <span class="attr">#[test_case(
+<a href=#1211 id=1211 data-nosnippet>1211</a>        <span class="kw-2">&amp;</span>[TestAsset::Dir(<span class="string">"case-a/expected-run-output"</span>)]</span>,
+<a href=#1212 id=1212 data-nosnippet>1212</a>        <span class="prelude-val">None</span>,
+<a href=#1213 id=1213 data-nosnippet>1213</a>        io::ErrorKind::NotFound;
+<a href=#1214 id=1214 data-nosnippet>1214</a>        <span class="string">"missing variables"
+<a href=#1215 id=1215 data-nosnippet>1215</a>    </span>)]
+<a href=#1216 id=1216 data-nosnippet>1216</a>    <span class="attr">#[test_case(
+<a href=#1217 id=1217 data-nosnippet>1217</a>        <span class="kw-2">&amp;</span>[TestAsset::Dir(<span class="string">"case-a/variables.json"</span>), TestAsset::Dir(<span class="string">"case-a/expected-run-output"</span>)]</span>,
+<a href=#1218 id=1218 data-nosnippet>1218</a>        <span class="prelude-val">None</span>,
+<a href=#1219 id=1219 data-nosnippet>1219</a>        io::ErrorKind::IsADirectory;
+<a href=#1220 id=1220 data-nosnippet>1220</a>        <span class="string">"variables is dir"
+<a href=#1221 id=1221 data-nosnippet>1221</a>    </span>)]
+<a href=#1222 id=1222 data-nosnippet>1222</a>    <span class="attr">#[test_case(
+<a href=#1223 id=1223 data-nosnippet>1223</a>        <span class="kw-2">&amp;</span>[TestAsset::File(<span class="string">"case-a/variables.json"</span>, <span class="string">"{}"</span>), TestAsset::File(<span class="string">"case-a/expected-run-output"</span>, <span class="string">""</span>)]</span>,
+<a href=#1224 id=1224 data-nosnippet>1224</a>        <span class="prelude-val">None</span>,
+<a href=#1225 id=1225 data-nosnippet>1225</a>        io::ErrorKind::NotADirectory;
+<a href=#1226 id=1226 data-nosnippet>1226</a>        <span class="string">"expected output is file"
+<a href=#1227 id=1227 data-nosnippet>1227</a>    </span>)]
+<a href=#1228 id=1228 data-nosnippet>1228</a>    <span class="attr">#[test_case(
+<a href=#1229 id=1229 data-nosnippet>1229</a>        <span class="kw-2">&amp;</span>[TestAsset::File(<span class="string">"case/variables.json"</span>, <span class="string">"{}"</span>), TestAsset::Dir(<span class="string">"case/expected-run-error.txt"</span>)]</span>,
+<a href=#1230 id=1230 data-nosnippet>1230</a>        <span class="prelude-val">None</span>,
+<a href=#1231 id=1231 data-nosnippet>1231</a>        io::ErrorKind::IsADirectory;
+<a href=#1232 id=1232 data-nosnippet>1232</a>        <span class="string">"expected error file is dir"
+<a href=#1233 id=1233 data-nosnippet>1233</a>    </span>)]
+<a href=#1234 id=1234 data-nosnippet>1234</a>    <span class="attr">#[test]
+<a href=#1235 id=1235 data-nosnippet>1235</a>    </span><span class="kw">fn </span>try_load_all_io_error(assets: <span class="kw-2">&amp;</span>[TestAsset], subpath: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;, expected: io::ErrorKind) {
+<a href=#1236 id=1236 data-nosnippet>1236</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#1237 id=1237 data-nosnippet>1237</a>        <span class="kw">for </span>asset <span class="kw">in </span>assets {
+<a href=#1238 id=1238 data-nosnippet>1238</a>            <span class="kw">match </span>asset {
+<a href=#1239 id=1239 data-nosnippet>1239</a>                TestAsset::Dir(p) =&gt; tmp.child(<span class="kw-2">*</span>p).create_dir_all().unwrap(),
+<a href=#1240 id=1240 data-nosnippet>1240</a>                TestAsset::File(p, content) =&gt; tmp.child(<span class="kw-2">*</span>p).write_str(content).unwrap(),
+<a href=#1241 id=1241 data-nosnippet>1241</a>            }
+<a href=#1242 id=1242 data-nosnippet>1242</a>        }
+<a href=#1243 id=1243 data-nosnippet>1243</a>        <span class="kw">let </span>path = <span class="kw">match </span>subpath {
+<a href=#1244 id=1244 data-nosnippet>1244</a>            <span class="prelude-val">Some</span>(s) =&gt; tmp.path().join(s),
+<a href=#1245 id=1245 data-nosnippet>1245</a>            <span class="prelude-val">None </span>=&gt; tmp.path().to_path_buf(),
+<a href=#1246 id=1246 data-nosnippet>1246</a>        };
+<a href=#1247 id=1247 data-nosnippet>1247</a>        <span class="kw">let </span>err = TestCase::try_load_all(<span class="kw-2">&amp;</span>path).unwrap_err();
+<a href=#1248 id=1248 data-nosnippet>1248</a>        <span class="macro">assert_eq!</span>(
+<a href=#1249 id=1249 data-nosnippet>1249</a>            err.downcast_ref::&lt;io::Error&gt;().map(|e| e.kind()),
+<a href=#1250 id=1250 data-nosnippet>1250</a>            <span class="prelude-val">Some</span>(expected),
+<a href=#1251 id=1251 data-nosnippet>1251</a>            <span class="string">"expected IO error, got {err:?}"
+<a href=#1252 id=1252 data-nosnippet>1252</a>        </span>);
+<a href=#1253 id=1253 data-nosnippet>1253</a>    }
+<a href=#1254 id=1254 data-nosnippet>1254</a>
+<a href=#1255 id=1255 data-nosnippet>1255</a>    <span class="attr">#[test]
+<a href=#1256 id=1256 data-nosnippet>1256</a>    </span><span class="kw">fn </span>normalize_paths_replaces_temp_dir() {
+<a href=#1257 id=1257 data-nosnippet>1257</a>        <span class="kw">let </span>temp_dir = Path::new(<span class="string">"/tmp/test123"</span>);
+<a href=#1258 id=1258 data-nosnippet>1258</a>        <span class="kw">let </span>content = <span class="string">"export FILE=\"/tmp/test123/RTF_OUTPUT/file.txt\""</span>;
+<a href=#1259 id=1259 data-nosnippet>1259</a>
+<a href=#1260 id=1260 data-nosnippet>1260</a>        <span class="kw">let </span>result = normalize_paths(content, temp_dir);
+<a href=#1261 id=1261 data-nosnippet>1261</a>
+<a href=#1262 id=1262 data-nosnippet>1262</a>        <span class="macro">assert_eq!</span>(result, <span class="string">"export FILE=\"$OUTDIR/RTF_OUTPUT/file.txt\""</span>);
+<a href=#1263 id=1263 data-nosnippet>1263</a>    }
+<a href=#1264 id=1264 data-nosnippet>1264</a>
+<a href=#1265 id=1265 data-nosnippet>1265</a>    <span class="attr">#[test]
+<a href=#1266 id=1266 data-nosnippet>1266</a>    </span><span class="kw">fn </span>normalize_paths_replaces_multiple_occurrences() {
+<a href=#1267 id=1267 data-nosnippet>1267</a>        <span class="kw">let </span>temp_dir = Path::new(<span class="string">"/var/folders/abc"</span>);
+<a href=#1268 id=1268 data-nosnippet>1268</a>        <span class="kw">let </span>content = <span class="string">"A=/var/folders/abc/one\nB=/var/folders/abc/two"</span>;
+<a href=#1269 id=1269 data-nosnippet>1269</a>
+<a href=#1270 id=1270 data-nosnippet>1270</a>        <span class="kw">let </span>result = normalize_paths(content, temp_dir);
+<a href=#1271 id=1271 data-nosnippet>1271</a>
+<a href=#1272 id=1272 data-nosnippet>1272</a>        <span class="macro">assert_eq!</span>(result, <span class="string">"A=$OUTDIR/one\nB=$OUTDIR/two"</span>);
+<a href=#1273 id=1273 data-nosnippet>1273</a>    }
+<a href=#1274 id=1274 data-nosnippet>1274</a>
+<a href=#1275 id=1275 data-nosnippet>1275</a>    <span class="attr">#[test]
+<a href=#1276 id=1276 data-nosnippet>1276</a>    </span><span class="kw">fn </span>normalize_paths_no_match_unchanged() {
+<a href=#1277 id=1277 data-nosnippet>1277</a>        <span class="kw">let </span>temp_dir = Path::new(<span class="string">"/tmp/test123"</span>);
+<a href=#1278 id=1278 data-nosnippet>1278</a>        <span class="kw">let </span>content = <span class="string">"no paths here"</span>;
 <a href=#1279 id=1279 data-nosnippet>1279</a>
-<a href=#1280 id=1280 data-nosnippet>1280</a>    <span class="attr">#[test]
-<a href=#1281 id=1281 data-nosnippet>1281</a>    </span><span class="kw">fn </span>normalize_paths_replaces_temp_dir() {
-<a href=#1282 id=1282 data-nosnippet>1282</a>        <span class="kw">let </span>temp_dir = Path::new(<span class="string">"/tmp/test123"</span>);
-<a href=#1283 id=1283 data-nosnippet>1283</a>        <span class="kw">let </span>content = <span class="string">"export FILE=\"/tmp/test123/RTF_OUTPUT/file.txt\""</span>;
+<a href=#1280 id=1280 data-nosnippet>1280</a>        <span class="kw">let </span>result = normalize_paths(content, temp_dir);
+<a href=#1281 id=1281 data-nosnippet>1281</a>
+<a href=#1282 id=1282 data-nosnippet>1282</a>        <span class="macro">assert_eq!</span>(result, <span class="string">"no paths here"</span>);
+<a href=#1283 id=1283 data-nosnippet>1283</a>    }
 <a href=#1284 id=1284 data-nosnippet>1284</a>
-<a href=#1285 id=1285 data-nosnippet>1285</a>        <span class="kw">let </span>result = normalize_paths(content, temp_dir);
-<a href=#1286 id=1286 data-nosnippet>1286</a>
-<a href=#1287 id=1287 data-nosnippet>1287</a>        <span class="macro">assert_eq!</span>(result, <span class="string">"export FILE=\"$OUTDIR/RTF_OUTPUT/file.txt\""</span>);
-<a href=#1288 id=1288 data-nosnippet>1288</a>    }
-<a href=#1289 id=1289 data-nosnippet>1289</a>
-<a href=#1290 id=1290 data-nosnippet>1290</a>    <span class="attr">#[test]
-<a href=#1291 id=1291 data-nosnippet>1291</a>    </span><span class="kw">fn </span>normalize_paths_replaces_multiple_occurrences() {
-<a href=#1292 id=1292 data-nosnippet>1292</a>        <span class="kw">let </span>temp_dir = Path::new(<span class="string">"/var/folders/abc"</span>);
-<a href=#1293 id=1293 data-nosnippet>1293</a>        <span class="kw">let </span>content = <span class="string">"A=/var/folders/abc/one\nB=/var/folders/abc/two"</span>;
-<a href=#1294 id=1294 data-nosnippet>1294</a>
-<a href=#1295 id=1295 data-nosnippet>1295</a>        <span class="kw">let </span>result = normalize_paths(content, temp_dir);
-<a href=#1296 id=1296 data-nosnippet>1296</a>
-<a href=#1297 id=1297 data-nosnippet>1297</a>        <span class="macro">assert_eq!</span>(result, <span class="string">"A=$OUTDIR/one\nB=$OUTDIR/two"</span>);
-<a href=#1298 id=1298 data-nosnippet>1298</a>    }
-<a href=#1299 id=1299 data-nosnippet>1299</a>
-<a href=#1300 id=1300 data-nosnippet>1300</a>    <span class="attr">#[test]
-<a href=#1301 id=1301 data-nosnippet>1301</a>    </span><span class="kw">fn </span>normalize_paths_no_match_unchanged() {
-<a href=#1302 id=1302 data-nosnippet>1302</a>        <span class="kw">let </span>temp_dir = Path::new(<span class="string">"/tmp/test123"</span>);
-<a href=#1303 id=1303 data-nosnippet>1303</a>        <span class="kw">let </span>content = <span class="string">"no paths here"</span>;
-<a href=#1304 id=1304 data-nosnippet>1304</a>
-<a href=#1305 id=1305 data-nosnippet>1305</a>        <span class="kw">let </span>result = normalize_paths(content, temp_dir);
+<a href=#1285 id=1285 data-nosnippet>1285</a>    <span class="attr">#[test]
+<a href=#1286 id=1286 data-nosnippet>1286</a>    </span><span class="kw">fn </span>normalize_paths_empty_content() {
+<a href=#1287 id=1287 data-nosnippet>1287</a>        <span class="kw">let </span>temp_dir = Path::new(<span class="string">"/tmp/test"</span>);
+<a href=#1288 id=1288 data-nosnippet>1288</a>
+<a href=#1289 id=1289 data-nosnippet>1289</a>        <span class="kw">let </span>result = normalize_paths(<span class="string">""</span>, temp_dir);
+<a href=#1290 id=1290 data-nosnippet>1290</a>
+<a href=#1291 id=1291 data-nosnippet>1291</a>        <span class="macro">assert_eq!</span>(result, <span class="string">""</span>);
+<a href=#1292 id=1292 data-nosnippet>1292</a>    }
+<a href=#1293 id=1293 data-nosnippet>1293</a>
+<a href=#1294 id=1294 data-nosnippet>1294</a>    <span class="attr">#[test_case(<span class="string">"stdout: msg"</span>, <span class="string">"msg"</span>, <span class="string">""</span>; <span class="string">"stdout only"</span>)]
+<a href=#1295 id=1295 data-nosnippet>1295</a>    #[test_case(<span class="string">"stderr: msg"</span>, <span class="string">""</span>, <span class="string">"msg"</span>; <span class="string">"stderr only"</span>)]
+<a href=#1296 id=1296 data-nosnippet>1296</a>    #[test_case(<span class="string">"stdout: out\nstderr: err"</span>, <span class="string">"out"</span>, <span class="string">"err"</span>; <span class="string">"both"</span>)]
+<a href=#1297 id=1297 data-nosnippet>1297</a>    #[test]
+<a href=#1298 id=1298 data-nosnippet>1298</a>    </span><span class="kw">fn </span>check_expected_failure_matching(expected_content: <span class="kw-2">&amp;</span>str, stdout: <span class="kw-2">&amp;</span>str, stderr: <span class="kw-2">&amp;</span>str) {
+<a href=#1299 id=1299 data-nosnippet>1299</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#1300 id=1300 data-nosnippet>1300</a>        create_failure_test_case(<span class="kw-2">&amp;</span>tmp, <span class="string">"case"</span>, expected_content);
+<a href=#1301 id=1301 data-nosnippet>1301</a>
+<a href=#1302 id=1302 data-nosnippet>1302</a>        <span class="kw">let </span>case = TestCase {
+<a href=#1303 id=1303 data-nosnippet>1303</a>            path: tmp.path().join(<span class="string">"case"</span>),
+<a href=#1304 id=1304 data-nosnippet>1304</a>            data: TestCaseData::Failure(expected_content.to_string()),
+<a href=#1305 id=1305 data-nosnippet>1305</a>        };
 <a href=#1306 id=1306 data-nosnippet>1306</a>
-<a href=#1307 id=1307 data-nosnippet>1307</a>        <span class="macro">assert_eq!</span>(result, <span class="string">"no paths here"</span>);
-<a href=#1308 id=1308 data-nosnippet>1308</a>    }
-<a href=#1309 id=1309 data-nosnippet>1309</a>
-<a href=#1310 id=1310 data-nosnippet>1310</a>    <span class="attr">#[test]
-<a href=#1311 id=1311 data-nosnippet>1311</a>    </span><span class="kw">fn </span>normalize_paths_empty_content() {
-<a href=#1312 id=1312 data-nosnippet>1312</a>        <span class="kw">let </span>temp_dir = Path::new(<span class="string">"/tmp/test"</span>);
-<a href=#1313 id=1313 data-nosnippet>1313</a>
-<a href=#1314 id=1314 data-nosnippet>1314</a>        <span class="kw">let </span>result = normalize_paths(<span class="string">""</span>, temp_dir);
+<a href=#1307 id=1307 data-nosnippet>1307</a>        <span class="kw">let </span>outcome = case.check_expected_failure(stdout.into(), stderr.into());
+<a href=#1308 id=1308 data-nosnippet>1308</a>        <span class="macro">assert!</span>(outcome.is_success());
+<a href=#1309 id=1309 data-nosnippet>1309</a>    }
+<a href=#1310 id=1310 data-nosnippet>1310</a>
+<a href=#1311 id=1311 data-nosnippet>1311</a>    <span class="attr">#[test]
+<a href=#1312 id=1312 data-nosnippet>1312</a>    </span><span class="kw">fn </span>check_expected_failure_mismatch_returns_expected_error() {
+<a href=#1313 id=1313 data-nosnippet>1313</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#1314 id=1314 data-nosnippet>1314</a>        create_failure_test_case(<span class="kw-2">&amp;</span>tmp, <span class="string">"case"</span>, <span class="string">"stdout: expected"</span>);
 <a href=#1315 id=1315 data-nosnippet>1315</a>
-<a href=#1316 id=1316 data-nosnippet>1316</a>        <span class="macro">assert_eq!</span>(result, <span class="string">""</span>);
-<a href=#1317 id=1317 data-nosnippet>1317</a>    }
-<a href=#1318 id=1318 data-nosnippet>1318</a>
-<a href=#1319 id=1319 data-nosnippet>1319</a>    <span class="attr">#[test_case(<span class="string">"stdout: msg"</span>, <span class="string">"msg"</span>, <span class="string">""</span>; <span class="string">"stdout only"</span>)]
-<a href=#1320 id=1320 data-nosnippet>1320</a>    #[test_case(<span class="string">"stderr: msg"</span>, <span class="string">""</span>, <span class="string">"msg"</span>; <span class="string">"stderr only"</span>)]
-<a href=#1321 id=1321 data-nosnippet>1321</a>    #[test_case(<span class="string">"stdout: out\nstderr: err"</span>, <span class="string">"out"</span>, <span class="string">"err"</span>; <span class="string">"both"</span>)]
-<a href=#1322 id=1322 data-nosnippet>1322</a>    #[test]
-<a href=#1323 id=1323 data-nosnippet>1323</a>    </span><span class="kw">fn </span>check_expected_failure_matching(expected_content: <span class="kw-2">&amp;</span>str, stdout: <span class="kw-2">&amp;</span>str, stderr: <span class="kw-2">&amp;</span>str) {
-<a href=#1324 id=1324 data-nosnippet>1324</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#1325 id=1325 data-nosnippet>1325</a>        create_failure_test_case(<span class="kw-2">&amp;</span>tmp, <span class="string">"case"</span>, expected_content);
-<a href=#1326 id=1326 data-nosnippet>1326</a>
-<a href=#1327 id=1327 data-nosnippet>1327</a>        <span class="kw">let </span>case = TestCase {
-<a href=#1328 id=1328 data-nosnippet>1328</a>            path: tmp.path().join(<span class="string">"case"</span>),
-<a href=#1329 id=1329 data-nosnippet>1329</a>            data: TestCaseData::Failure(expected_content.to_string()),
-<a href=#1330 id=1330 data-nosnippet>1330</a>        };
+<a href=#1316 id=1316 data-nosnippet>1316</a>        <span class="kw">let </span>case = TestCase {
+<a href=#1317 id=1317 data-nosnippet>1317</a>            path: tmp.path().join(<span class="string">"case"</span>),
+<a href=#1318 id=1318 data-nosnippet>1318</a>            data: TestCaseData::Failure(<span class="string">"stdout: expected"</span>.to_string()),
+<a href=#1319 id=1319 data-nosnippet>1319</a>        };
+<a href=#1320 id=1320 data-nosnippet>1320</a>
+<a href=#1321 id=1321 data-nosnippet>1321</a>        <span class="kw">let </span>outcome = case.check_expected_failure(<span class="string">"actual"</span>.into(), String::new());
+<a href=#1322 id=1322 data-nosnippet>1322</a>
+<a href=#1323 id=1323 data-nosnippet>1323</a>        <span class="kw">match </span>outcome {
+<a href=#1324 id=1324 data-nosnippet>1324</a>            Outcome::ExpectedError { expected, actual } =&gt; {
+<a href=#1325 id=1325 data-nosnippet>1325</a>                <span class="macro">assert_eq!</span>(expected, <span class="string">"stdout: expected"</span>);
+<a href=#1326 id=1326 data-nosnippet>1326</a>                <span class="macro">assert_eq!</span>(actual, <span class="string">"stdout: actual"</span>);
+<a href=#1327 id=1327 data-nosnippet>1327</a>            }
+<a href=#1328 id=1328 data-nosnippet>1328</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected ExpectedError, got {outcome:?}"</span>),
+<a href=#1329 id=1329 data-nosnippet>1329</a>        }
+<a href=#1330 id=1330 data-nosnippet>1330</a>    }
 <a href=#1331 id=1331 data-nosnippet>1331</a>
-<a href=#1332 id=1332 data-nosnippet>1332</a>        <span class="kw">let </span>outcome = case.check_expected_failure(stdout.into(), stderr.into());
-<a href=#1333 id=1333 data-nosnippet>1333</a>        <span class="macro">assert!</span>(outcome.is_success());
-<a href=#1334 id=1334 data-nosnippet>1334</a>    }
-<a href=#1335 id=1335 data-nosnippet>1335</a>
-<a href=#1336 id=1336 data-nosnippet>1336</a>    <span class="attr">#[test]
-<a href=#1337 id=1337 data-nosnippet>1337</a>    </span><span class="kw">fn </span>check_expected_failure_mismatch_returns_expected_error() {
-<a href=#1338 id=1338 data-nosnippet>1338</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#1339 id=1339 data-nosnippet>1339</a>        create_failure_test_case(<span class="kw-2">&amp;</span>tmp, <span class="string">"case"</span>, <span class="string">"stdout: expected"</span>);
-<a href=#1340 id=1340 data-nosnippet>1340</a>
-<a href=#1341 id=1341 data-nosnippet>1341</a>        <span class="kw">let </span>case = TestCase {
-<a href=#1342 id=1342 data-nosnippet>1342</a>            path: tmp.path().join(<span class="string">"case"</span>),
-<a href=#1343 id=1343 data-nosnippet>1343</a>            data: TestCaseData::Failure(<span class="string">"stdout: expected"</span>.to_string()),
-<a href=#1344 id=1344 data-nosnippet>1344</a>        };
-<a href=#1345 id=1345 data-nosnippet>1345</a>
-<a href=#1346 id=1346 data-nosnippet>1346</a>        <span class="kw">let </span>outcome = case.check_expected_failure(<span class="string">"actual"</span>.into(), String::new());
-<a href=#1347 id=1347 data-nosnippet>1347</a>
-<a href=#1348 id=1348 data-nosnippet>1348</a>        <span class="kw">match </span>outcome {
-<a href=#1349 id=1349 data-nosnippet>1349</a>            Outcome::ExpectedError { expected, actual } =&gt; {
-<a href=#1350 id=1350 data-nosnippet>1350</a>                <span class="macro">assert_eq!</span>(expected, <span class="string">"stdout: expected"</span>);
-<a href=#1351 id=1351 data-nosnippet>1351</a>                <span class="macro">assert_eq!</span>(actual, <span class="string">"stdout: actual"</span>);
-<a href=#1352 id=1352 data-nosnippet>1352</a>            }
-<a href=#1353 id=1353 data-nosnippet>1353</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"expected ExpectedError, got {outcome:?}"</span>),
-<a href=#1354 id=1354 data-nosnippet>1354</a>        }
-<a href=#1355 id=1355 data-nosnippet>1355</a>    }
-<a href=#1356 id=1356 data-nosnippet>1356</a>
-<a href=#1357 id=1357 data-nosnippet>1357</a>    <span class="attr">#[test]
-<a href=#1358 id=1358 data-nosnippet>1358</a>    </span><span class="kw">fn </span>check_expected_failure_file_read_error() {
-<a href=#1359 id=1359 data-nosnippet>1359</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
-<a href=#1360 id=1360 data-nosnippet>1360</a>        <span class="comment">// Only create variables.json, not expected-run-error.txt
-<a href=#1361 id=1361 data-nosnippet>1361</a>        </span>tmp.child(<span class="string">"case/variables.json"</span>).write_str(<span class="string">"{}"</span>).unwrap();
-<a href=#1362 id=1362 data-nosnippet>1362</a>
-<a href=#1363 id=1363 data-nosnippet>1363</a>        <span class="kw">let </span>res = TestCase::try_load_all(tmp.path());
-<a href=#1364 id=1364 data-nosnippet>1364</a>        <span class="macro">assert!</span>(res.is_err());
-<a href=#1365 id=1365 data-nosnippet>1365</a>    }
-<a href=#1366 id=1366 data-nosnippet>1366</a>}</code></pre></div></section></main></body></html>
+<a href=#1332 id=1332 data-nosnippet>1332</a>    <span class="attr">#[test]
+<a href=#1333 id=1333 data-nosnippet>1333</a>    </span><span class="kw">fn </span>check_expected_failure_file_read_error() {
+<a href=#1334 id=1334 data-nosnippet>1334</a>        <span class="kw">let </span>tmp = TempDir::new().unwrap();
+<a href=#1335 id=1335 data-nosnippet>1335</a>        <span class="comment">// Only create variables.json, not expected-run-error.txt
+<a href=#1336 id=1336 data-nosnippet>1336</a>        </span>tmp.child(<span class="string">"case/variables.json"</span>).write_str(<span class="string">"{}"</span>).unwrap();
+<a href=#1337 id=1337 data-nosnippet>1337</a>
+<a href=#1338 id=1338 data-nosnippet>1338</a>        <span class="kw">let </span>res = TestCase::try_load_all(tmp.path());
+<a href=#1339 id=1339 data-nosnippet>1339</a>        <span class="macro">assert!</span>(res.is_err());
+<a href=#1340 id=1340 data-nosnippet>1340</a>    }
+<a href=#1341 id=1341 data-nosnippet>1341</a>}</code></pre></div></section></main></body></html>
