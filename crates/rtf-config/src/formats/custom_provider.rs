@@ -7,7 +7,7 @@ use crate::{
         self,
         file::{RawSource, SourceDir},
     },
-    templating::{self, Template, TemplateContext},
+    templating::{self, Scalar, Template, TemplateContext},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -36,6 +36,38 @@ impl CustomProviderDefinition {
         strip_sources_for_relative_paths(&mut val);
 
         Ok(serde_yaml::to_string(&val)?)
+    }
+
+    /// Validate variable definitions and provided values against allowed_values constraints.
+    pub fn validate_variables(
+        &self,
+        variables: &HashMap<String, Scalar>,
+        cli_overrides: Option<&HashMap<String, SourceDir>>,
+    ) -> templating::Result<()> {
+        let mut errs = templating::ErrorBuilder::new();
+
+        for vd in &self.variable_definitions {
+            vd.validate(
+                &["variable_definitions".to_string(), vd.name.to_string()],
+                &mut errs,
+            );
+
+            if let Some(value) = variables.get(&vd.name) {
+                let source_desc = match cli_overrides {
+                    None => "test variable",
+                    Some(overrides) if overrides.contains_key(&vd.name) => "CLI variable",
+                    Some(_) => "variable",
+                };
+                vd.validate_value(
+                    value,
+                    source_desc,
+                    &["variables".to_string(), vd.name.to_string()],
+                    &mut errs,
+                );
+            }
+        }
+
+        errs.into_result(())
     }
 
     /// Create an empty [CustomProviderDefinition] for tests
@@ -223,6 +255,7 @@ pub(crate) mod test_helpers {
 mod tests {
     use super::*;
     use crate::{
+        VariableDefinition,
         context::Context,
         formats::{
             custom_provider::test_helpers::{
@@ -232,7 +265,7 @@ mod tests {
             tests::{assert_template_errors, expected_error_details, p, r, template_context},
         },
         mock_context::MockContext,
-        templating::Field,
+        templating::{ErrorKind, Field},
     };
     use assert_fs::{
         fixture::PathChild,
@@ -473,5 +506,152 @@ mod tests {
             &definitions.get("my_other_provider").unwrap().0,
             &SourceDir::github("my-org", "my-repo", "providers", no_ref),
         );
+    }
+
+    // Helper functions for validate_variables tests
+    fn vd_with_allowed(
+        name: &str,
+        allowed: Option<&[&str]>,
+        default: Option<&str>,
+    ) -> VariableDefinition {
+        VariableDefinition {
+            name: name.into(),
+            description: format!("description for {name}"),
+            default: default.map(|s| s.into()),
+            allowed_values: allowed.map(|a| a.iter().map(|&s| s.into()).collect()),
+        }
+    }
+
+    fn def_with_variable_definitions(vds: Vec<VariableDefinition>) -> CustomProviderDefinition {
+        CustomProviderDefinition {
+            variable_definitions: vds,
+            ..CustomProviderDefinition::empty()
+        }
+    }
+
+    fn scalar_vars(pairs: &[(&str, &str)]) -> HashMap<String, crate::templating::Scalar> {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), (*v).into()))
+            .collect()
+    }
+
+    fn source_overrides(names: &[&str]) -> HashMap<String, SourceDir> {
+        names
+            .iter()
+            .map(|&n| (n.to_string(), SourceDir::local("/")))
+            .collect()
+    }
+
+    #[test]
+    fn validate_variables_empty_allowed_values_is_detected() {
+        let def = def_with_variable_definitions(vec![vd_with_allowed("foo", Some(&[]), None)]);
+        let result = def.validate_variables(&HashMap::new(), None);
+
+        let err = result.unwrap_err().unwrap_single();
+        assert!(matches!(err.kind, ErrorKind::EmptyAllowedValues));
+        assert!(err.message.contains("foo"));
+    }
+
+    #[test]
+    fn validate_variables_default_not_in_allowed_values_is_detected() {
+        let def = def_with_variable_definitions(vec![vd_with_allowed(
+            "foo",
+            Some(&["a", "b"]),
+            Some("c"),
+        )]);
+        let result = def.validate_variables(&HashMap::new(), None);
+
+        let err = result.unwrap_err().unwrap_single();
+        assert!(matches!(err.kind, ErrorKind::DefaultNotInAllowedValues));
+        assert!(err.message.contains("foo"));
+        assert!(err.message.contains("c"));
+    }
+
+    #[test]
+    fn validate_variables_value_not_in_allowed_with_cli_overrides_none_says_test_variable() {
+        let def =
+            def_with_variable_definitions(vec![vd_with_allowed("foo", Some(&["a", "b"]), None)]);
+        let variables = scalar_vars(&[("foo", "invalid")]);
+
+        let result = def.validate_variables(&variables, None);
+
+        let err = result.unwrap_err().unwrap_single();
+        assert!(matches!(err.kind, ErrorKind::ValueNotAllowed));
+        assert!(err.message.contains("test variable"));
+    }
+
+    #[test]
+    fn validate_variables_value_not_in_allowed_with_key_in_cli_overrides_says_cli_variable() {
+        let def =
+            def_with_variable_definitions(vec![vd_with_allowed("foo", Some(&["a", "b"]), None)]);
+        let variables = scalar_vars(&[("foo", "invalid")]);
+        let cli = source_overrides(&["foo"]);
+
+        let result = def.validate_variables(&variables, Some(&cli));
+
+        let err = result.unwrap_err().unwrap_single();
+        assert!(matches!(err.kind, ErrorKind::ValueNotAllowed));
+        assert!(err.message.contains("CLI variable"));
+    }
+
+    #[test]
+    fn validate_variables_value_not_in_allowed_with_key_not_in_cli_overrides_says_variable() {
+        let def =
+            def_with_variable_definitions(vec![vd_with_allowed("foo", Some(&["a", "b"]), None)]);
+        let variables = scalar_vars(&[("foo", "invalid")]);
+        let cli = source_overrides(&["other"]); // foo not in cli overrides
+
+        let result = def.validate_variables(&variables, Some(&cli));
+
+        let err = result.unwrap_err().unwrap_single();
+        assert!(matches!(err.kind, ErrorKind::ValueNotAllowed));
+        // Should say "variable" not "CLI variable" or "test variable"
+        assert!(err.message.contains("variable 'foo'"));
+        assert!(!err.message.contains("CLI"));
+        assert!(!err.message.contains("test"));
+    }
+
+    #[test]
+    fn validate_variables_valid_values_pass_through() {
+        let def =
+            def_with_variable_definitions(vec![vd_with_allowed("foo", Some(&["a", "b"]), None)]);
+        let variables = scalar_vars(&[("foo", "a")]);
+
+        let result = def.validate_variables(&variables, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn validate_variables_unconstrained_variables_always_pass() {
+        let def = def_with_variable_definitions(vec![vd_with_allowed("foo", None, None)]);
+        let variables = scalar_vars(&[("foo", "anything")]);
+
+        let result = def.validate_variables(&variables, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn validate_variables_multiple_errors_are_collected() {
+        let def = def_with_variable_definitions(vec![
+            vd_with_allowed("foo", Some(&[]), None), // empty allowed_values
+            vd_with_allowed("bar", Some(&["a"]), Some("b")), // default not in allowed
+        ]);
+
+        let result = def.validate_variables(&HashMap::new(), None);
+
+        let errors = result.unwrap_err().into_vec();
+        assert_eq!(errors.len(), 2);
+    }
+
+    #[test]
+    fn validate_variables_without_definition_are_ignored() {
+        // Variables present in the map but not in variable_definitions should not cause errors
+        let def =
+            def_with_variable_definitions(vec![vd_with_allowed("foo", Some(&["a", "b"]), None)]);
+        let variables = scalar_vars(&[("foo", "a"), ("extra", "value")]);
+
+        let result = def.validate_variables(&variables, None);
+        assert!(result.is_ok());
     }
 }
