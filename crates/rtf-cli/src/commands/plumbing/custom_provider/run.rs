@@ -6,7 +6,6 @@ use crate::{
         get_context_and_check_outdir,
         plumbing::custom_provider::{
             RESOLVED_PROVIDER_PATH, VARIABLES_PATH, load_definition, parse_cli_variables,
-            validate_variable_definitions,
         },
     },
 };
@@ -45,7 +44,7 @@ pub async fn run_custom_provider(
         Default::default(),
     );
 
-    validate_variable_definitions(&definition, &override_sources, &template_ctx)?;
+    definition.validate_variables(template_ctx.variables(), Some(&override_sources))?;
 
     definition.try_template(&mut Vec::new(), &source, &template_ctx)?;
     definition
