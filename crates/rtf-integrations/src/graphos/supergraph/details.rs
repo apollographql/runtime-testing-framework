@@ -169,12 +169,14 @@ impl SupergraphDetails {
                     continue;
                 }
 
-                let Some(Value::Object(args_map)) = directive
+                let args_map = match directive
                     .get_mut()
                     .and_then(|d| d.specified_argument_by_name_mut("args"))
                     .and_then(|a| a.get_mut())
-                else {
-                    continue;
+                {
+                    Some(Value::Object(args_map)) => args_map,
+                    Some(_) => continue,
+                    None => continue,
                 };
 
                 rewrite_connector_url(args_map, &["baseURL"], base_url);
@@ -345,26 +347,40 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
 }
 
 fn rewrite_connector_url(args_map: &mut [(Name, Node<Value>)], url_keys: &[&str], url: &str) {
-    if let Some((_, http_node)) = args_map.iter_mut().find(|(key, _)| key.as_str() == "http")
-        && let Some(Value::Object(http_map)) = http_node.get_mut()
-        && let Some((_, url_node)) = http_map
-            .iter_mut()
-            .find(|(key, _)| url_keys.contains(&key.as_str()))
+    let http_entry = match args_map.iter_mut().find(|(key, _)| key.as_str() == "http") {
+        Some(entry) => entry,
+        None => return,
+    };
+
+    let http_map = match http_entry.1.get_mut() {
+        Some(Value::Object(http_map)) => http_map,
+        Some(_) => return,
+        None => return,
+    };
+
+    let url_node = match http_map
+        .iter_mut()
+        .find(|(key, _)| url_keys.contains(&key.as_str()))
     {
-        let url_node_copy = url_node.clone();
-        *url_node = Node::new(Value::String(url.to_string()));
-        debug!("rewrote {url_node_copy} connector URL in supergraph SDL to {url_node}");
-    }
+        Some((_, url_node)) => url_node,
+        None => return,
+    };
+
+    let url_node_copy = url_node.clone();
+    *url_node = Node::new(Value::String(url.to_string()));
+    debug!("rewrote {url_node_copy} connector URL in supergraph SDL to {url_node}");
 }
 
 fn replace_sourceless_connector_urls(field: &mut Node<ObjectType>, base_url: &str) {
     let http_verbs = ["GET", "POST", "PUT", "PATCH", "DELETE"];
-    let Some(object_type) = field.get_mut() else {
-        return;
+    let object_type = match field.get_mut() {
+        Some(object_type) => object_type,
+        None => return,
     };
     for (field_name, field_definition) in &mut object_type.fields {
-        let Some(field_definition) = field_definition.get_mut() else {
-            continue;
+        let field_definition = match field_definition.get_mut() {
+            Some(field_definition) => field_definition,
+            None => continue,
         };
         for directive in field_definition.directives.iter_mut() {
             if directive.name != "join__directive" {
@@ -379,12 +395,14 @@ fn replace_sourceless_connector_urls(field: &mut Node<ObjectType>, base_url: &st
                 continue;
             }
 
-            let Some(Value::Object(args_map)) = directive
+            let args_map = match directive
                 .get_mut()
                 .and_then(|d| d.specified_argument_by_name_mut("args"))
                 .and_then(|a| a.get_mut())
-            else {
-                continue;
+            {
+                Some(Value::Object(args_map)) => args_map,
+                Some(_) => continue,
+                None => continue,
             };
 
             // Skip connect directives that contain a source, as they are not "sourceless connectors"
