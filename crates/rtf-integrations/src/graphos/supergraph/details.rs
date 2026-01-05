@@ -5,7 +5,7 @@ use crate::graphos::{
 };
 
 use apollo_compiler::{
-    ast::{Directive, Value}, schema::{ExtendedType, ObjectType}, Name,
+    ast::{Directive, Value}, schema::ExtendedType, Name,
     Node,
     Schema,
 };
@@ -148,31 +148,11 @@ impl SupergraphDetails {
     /// Attempt to rewrite the connector url directives in this schema to use the provided urls
     /// instead.
     pub fn rewrite_connector_urls(&mut self, base_url: &str) -> Result<(), &'static str> {
-        let sdl = &self.supergraph_sdl;
-        let mut schema = Schema::parse(sdl, "supergraph.graphql")
+        let mut schema = Schema::parse(&self.supergraph_sdl, "supergraph.graphql")
             .map_err(|_| "Unable to parse supergraph schema")?;
 
-        for schema_type in ["Query", "Mutation"] {
-            if let Some(ExtendedType::Object(extended_type)) = schema.types.get_mut(schema_type) {
-                debug!(schema_type, "replacing connector URLs in type");
-                replace_sourceless_connector_urls(extended_type, base_url);
-            };
-        }
-
-        if let Some(schema_def) = schema.schema_definition.get_mut() {
-            for directive in schema_def.directives.iter_mut() {
-                if !is_join_directive_named(directive, "source") {
-                    continue;
-                }
-
-                let args_map = match get_directive_args_map(directive) {
-                    Some(args_map) => args_map,
-                    None => continue,
-                };
-
-                rewrite_connector_url(args_map, &["baseURL"], base_url);
-            }
-        }
+        replace_sourceless_connector_urls(&mut schema, base_url);
+        replace_sourced_connector_urls(&mut schema, base_url);
 
         self.supergraph_sdl = schema.to_string();
         Ok(())
@@ -381,37 +361,69 @@ fn rewrite_connector_url(args_map: &mut [(Name, Node<Value>)], url_keys: &[&str]
     debug!("rewrote {url_node_copy} connector URL in supergraph SDL to {url_node}");
 }
 
-fn replace_sourceless_connector_urls(field: &mut Node<ObjectType>, base_url: &str) {
-    let http_verbs = ["GET", "POST", "PUT", "PATCH", "DELETE"];
-    let object_type = match field.get_mut() {
-        Some(object_type) => object_type,
+fn replace_sourced_connector_urls(schema: &mut Schema, base_url: &str) {
+    let schema_def = match schema.schema_definition.get_mut() {
+        Some(def) => def,
         None => return,
     };
-    for (field_name, field_definition) in &mut object_type.fields {
-        let field_definition = match field_definition.get_mut() {
-            Some(field_definition) => field_definition,
+
+    for directive in schema_def.directives.iter_mut() {
+        if !is_join_directive_named(directive, "source") {
+            continue;
+        }
+
+        let args_map = match get_directive_args_map(directive) {
+            Some(args_map) => args_map,
             None => continue,
         };
-        for directive in field_definition.directives.iter_mut() {
-            if !is_join_directive_named(directive, "connect") {
-                continue;
-            }
 
-            let args_map = match get_directive_args_map(directive) {
-                Some(args_map) => args_map,
+        rewrite_connector_url(args_map, &["baseURL"], base_url);
+    }
+}
+
+fn replace_sourceless_connector_urls(schema: &mut Schema, base_url: &str) {
+    let http_verbs = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+
+    for schema_type in ["Query", "Mutation"] {
+        let extended_type = match schema.types.get_mut(schema_type) {
+            Some(ExtendedType::Object(t)) => t,
+            _ => continue,
+        };
+
+        debug!(schema_type, "replacing connector URLs in type");
+
+        let object_type = match extended_type.get_mut() {
+            Some(object_type) => object_type,
+            None => continue,
+        };
+
+        for (field_name, field_definition) in &mut object_type.fields {
+            let field_definition = match field_definition.get_mut() {
+                Some(field_definition) => field_definition,
                 None => continue,
             };
 
-            // Skip connect directives that contain a source, as they are not "sourceless connectors"
-            if args_map.iter().any(|(key, _)| key.as_str() == "source") {
-                continue;
-            }
+            for directive in field_definition.directives.iter_mut() {
+                if !is_join_directive_named(directive, "connect") {
+                    continue;
+                }
 
-            rewrite_connector_url(
-                args_map,
-                &http_verbs,
-                &format!("{}/{}", base_url, field_name),
-            );
+                let args_map = match get_directive_args_map(directive) {
+                    Some(args_map) => args_map,
+                    None => continue,
+                };
+
+                // Skip connect directives that contain a source, as they are not "sourceless connectors"
+                if args_map.iter().any(|(key, _)| key.as_str() == "source") {
+                    continue;
+                }
+
+                rewrite_connector_url(
+                    args_map,
+                    &http_verbs,
+                    &format!("{}/{}", base_url, field_name),
+                );
+            }
         }
     }
 }
