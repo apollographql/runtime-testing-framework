@@ -621,5 +621,9 @@ mod tests {
         let result = sd.rewrite_connector_urls("http://localhost:3000");
         // Should succeed even without connectors - just a no-op
         assert!(result.is_ok());
+
+        // No semantic changes should have been made. Only formatting changes from parsing
+        let expected = Schema::parse(sdl, "").unwrap().to_string();
+        assert_eq!(sd.supergraph_sdl, expected);
     }
 }
