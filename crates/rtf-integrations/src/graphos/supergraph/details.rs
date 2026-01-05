@@ -3,8 +3,8 @@ use crate::graphos::{
     self,
     platform_query::{self, PlatformQuery},
 };
-use apollo_compiler::schema::ObjectType;
-use apollo_compiler::{Name, Node, Schema, ast::Value, schema::ExtendedType};
+
+use apollo_compiler::{Name, Node, Schema, ast::Value, schema::ExtendedType, schema::ObjectType};
 use graphql_client::GraphQLQuery;
 use std::{collections::HashMap, fs, io, path::Path};
 use tracing::{debug, error, info, warn};
