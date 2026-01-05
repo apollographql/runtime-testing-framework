@@ -345,9 +345,7 @@ fn is_join_directive_named(directive: &Node<Directive>, name: &str) -> bool {
         .is_some_and(|n| n == name)
 }
 
-fn get_directive_args_map(
-    directive: &mut Node<Directive>,
-) -> Option<&mut [(Name, Node<Value>)]> {
+fn get_directive_args_map(directive: &mut Node<Directive>) -> Option<&mut [(Name, Node<Value>)]> {
     match directive
         .get_mut()
         .and_then(|d| d.specified_argument_by_name_mut("args"))
