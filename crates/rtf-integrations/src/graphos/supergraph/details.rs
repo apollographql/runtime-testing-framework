@@ -4,7 +4,11 @@ use crate::graphos::{
     platform_query::{self, PlatformQuery},
 };
 
-use apollo_compiler::{Name, Node, Schema, ast::Value, schema::ExtendedType, schema::ObjectType};
+use apollo_compiler::{
+    ast::{Directive, Value}, schema::{ExtendedType, ObjectType}, Name,
+    Node,
+    Schema,
+};
 use graphql_client::GraphQLQuery;
 use std::{collections::HashMap, fs, io, path::Path};
 use tracing::{debug, error, info, warn};
@@ -157,25 +161,12 @@ impl SupergraphDetails {
 
         if let Some(schema_def) = schema.schema_definition.get_mut() {
             for directive in schema_def.directives.iter_mut() {
-                if directive.name != "join__directive" {
+                if !is_join_directive_named(directive, "source") {
                     continue;
                 }
 
-                if directive
-                    .specified_argument_by_name("name")
-                    .and_then(|v| v.as_str())
-                    .is_none_or(|name| name != "source")
-                {
-                    continue;
-                }
-
-                let args_map = match directive
-                    .get_mut()
-                    .and_then(|d| d.specified_argument_by_name_mut("args"))
-                    .and_then(|a| a.get_mut())
-                {
-                    Some(Value::Object(args_map)) => args_map,
-                    Some(_) => continue,
+                let args_map = match get_directive_args_map(directive) {
+                    Some(args_map) => args_map,
                     None => continue,
                 };
 
@@ -346,6 +337,27 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
     Some(schema.to_string())
 }
 
+fn is_join_directive_named(directive: &Node<Directive>, name: &str) -> bool {
+    directive.name == "join__directive"
+        && directive
+        .specified_argument_by_name("name")
+        .and_then(|v| v.as_str())
+        .is_some_and(|n| n == name)
+}
+
+fn get_directive_args_map(
+    directive: &mut Node<Directive>,
+) -> Option<&mut [(Name, Node<Value>)]> {
+    match directive
+        .get_mut()
+        .and_then(|d| d.specified_argument_by_name_mut("args"))
+        .and_then(|a| a.get_mut())
+    {
+        Some(Value::Object(args_map)) => Some(args_map),
+        _ => None,
+    }
+}
+
 fn rewrite_connector_url(args_map: &mut [(Name, Node<Value>)], url_keys: &[&str], url: &str) {
     let http_entry = match args_map.iter_mut().find(|(key, _)| key.as_str() == "http") {
         Some(entry) => entry,
@@ -383,25 +395,12 @@ fn replace_sourceless_connector_urls(field: &mut Node<ObjectType>, base_url: &st
             None => continue,
         };
         for directive in field_definition.directives.iter_mut() {
-            if directive.name != "join__directive" {
+            if !is_join_directive_named(directive, "connect") {
                 continue;
             }
 
-            if directive
-                .specified_argument_by_name("name")
-                .and_then(|v| v.as_str())
-                .is_none_or(|name| name != "connect")
-            {
-                continue;
-            }
-
-            let args_map = match directive
-                .get_mut()
-                .and_then(|d| d.specified_argument_by_name_mut("args"))
-                .and_then(|a| a.get_mut())
-            {
-                Some(Value::Object(args_map)) => args_map,
-                Some(_) => continue,
+            let args_map = match get_directive_args_map(directive) {
+                Some(args_map) => args_map,
                 None => continue,
             };
 
@@ -416,8 +415,6 @@ fn replace_sourceless_connector_urls(field: &mut Node<ObjectType>, base_url: &st
                 &format!("{}/{}", base_url, field_name),
             );
         }
-
-        continue;
     }
 }
 
