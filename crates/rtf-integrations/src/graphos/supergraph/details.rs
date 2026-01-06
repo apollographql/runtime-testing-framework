@@ -416,11 +416,7 @@ fn replace_sourceless_connector_urls(schema: &mut Schema, base_url: &str) {
                     continue;
                 }
 
-                rewrite_connector_url(
-                    args_map,
-                    &http_verbs,
-                    &format!("{base_url}/{field_name}"),
-                );
+                rewrite_connector_url(args_map, &http_verbs, &format!("{base_url}/{field_name}"));
             }
         }
     }
