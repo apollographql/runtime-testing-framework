@@ -3,7 +3,7 @@ use crate::{
     SourceDir,
     checks::{self, Check},
     context::ResolutionContext,
-    enum_impl_as_utf8_file_content, enum_impl_check, merge_yaml,
+    enum_impl_as_utf8_file_content, enum_impl_check, inlining, merge_yaml,
     providers::{
         self, Result,
         command::CommandSection,
@@ -19,7 +19,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
+    future::Future,
     path::Path,
+    pin::Pin,
 };
 use tracing::error;
 
@@ -34,6 +36,19 @@ pub enum TextFileProvider {
     Inline(InlineFile),
     RelativePath(RelativeFile),
     Required(RequiredFile),
+}
+
+impl TextFileProvider {
+    pub(crate) async fn inline_all_relative_paths<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> inlining::Result<()> {
+        if let Self::RelativePath(relative_path) = self {
+            *self = Self::Inline(relative_path.to_inline_file(ctx).await?);
+        }
+
+        Ok(())
+    }
 }
 
 // Each time we add a new variant to the TextFileProvider enum above we need to remember to add it
@@ -162,6 +177,20 @@ impl Check for MergeYaml {
     }
 }
 
+impl MergeYaml {
+    pub(crate) async fn inline_all_relative_paths<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> inlining::Result<()> {
+        let mut errs = inlining::ErrorBuilder::new();
+
+        errs.append(self.base.inline_all_relative_paths(ctx).await);
+        errs.append(self.overrides.inline_all_relative_paths(ctx).await);
+
+        errs.into_result(())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(untagged)]
 pub enum Overrides {
@@ -175,6 +204,26 @@ impl Overrides {
             Self::One(_) => 1,
             Self::Array(ts) => ts.len(),
         }
+    }
+
+    async fn inline_all_relative_paths<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> inlining::Result<()> {
+        let mut errs = inlining::ErrorBuilder::new();
+
+        match self {
+            Self::One(text_file_provider) => {
+                errs.append(text_file_provider.inline_all_relative_paths(ctx).await);
+            }
+            Self::Array(text_file_providers) => {
+                for tfp in text_file_providers.iter_mut() {
+                    errs.append(tfp.inline_all_relative_paths(ctx).await);
+                }
+            }
+        }
+
+        errs.into_result(())
     }
 }
 
@@ -237,6 +286,13 @@ pub struct FromCommand {
 impl FromCommand {
     pub(crate) fn new(inner: CommandSection) -> Self {
         Self { inner }
+    }
+
+    pub(crate) async fn inline_all_relative_paths<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> inlining::Result<()> {
+        self.inner.inline_all_relative_paths(ctx).await
     }
 }
 
@@ -435,6 +491,27 @@ impl Check for Conditional {
     }
 }
 
+impl Conditional {
+    pub(crate) fn inline_all_relative_paths<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        let mut errs = inlining::ErrorBuilder::new();
+
+        // We need to pin this future on the heap to be able to poll it in order to avoid a
+        // recursively defined future (which is infinitely sized). We end up being recursively
+        // defined because of the Conditional file provider which is just a wrapper around
+        // this Conditional struct. Therefore, the call to inline_all_relative_paths
+        // below ends up calling back into inline_all_relative_paths which calls this method.
+        Box::pin(async move {
+            for case in self.cases.iter_mut() {
+                errs.append(case.inner.inline_all_relative_paths(ctx).await);
+            }
+
+            errs.into_result(())
+        })
+    }
+}
 /// A conditional "where" clause guarding the execution of an associated file provider
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct ConditionalCase {
@@ -486,12 +563,15 @@ mod tests {
     use crate::{
         checks::ErrorKind,
         context::Context,
-        providers::file::{
-            FileProvider, NamedFileProvider,
-            tests::{
-                assert_check_errors, assert_resolve_and_write_error,
-                assert_resolve_and_write_success,
+        providers::{
+            file::{
+                FileProvider, NamedFileProvider,
+                tests::{
+                    assert_check_errors, assert_resolve_and_write_error,
+                    assert_resolve_and_write_success,
+                },
             },
+            test_helpers::create_temp_dir_with_file,
         },
         templating::Field,
     };
@@ -1022,5 +1102,189 @@ mod tests {
         });
 
         assert_resolve_and_write_success(fp, &target, &mut Context::new(), expected_content).await;
+    }
+
+    #[tokio::test]
+    async fn text_file_provider_inline_all_relative_paths_succeeds() {
+        let ctx = Context::new();
+        let file_content = "example file content";
+        let relative_file_path = "file.txt";
+        let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+
+        let mut text_file_provider = TextFileProvider::RelativePath(RelativeFile {
+            path: Field::Resolved(relative_file_path.to_string()),
+            src: Some(src.clone()),
+        });
+
+        let result = text_file_provider.inline_all_relative_paths(&ctx).await;
+        let expected_text_file_provider = TextFileProvider::Inline(InlineFile {
+            content: file_content.to_string(),
+        });
+        assert!(
+            result.is_ok(),
+            "Expected inline_all_relative_paths to succeed, got {result:?}"
+        );
+        assert_eq!(text_file_provider, expected_text_file_provider);
+    }
+
+    #[tokio::test]
+    async fn text_file_provider_inline_all_relative_paths_succeeds_and_leaves_inline_text_file_provider_unchanged()
+     {
+        let ctx = Context::new();
+        let file_content = "example file content";
+
+        let mut text_file_provider = TextFileProvider::Inline(InlineFile {
+            content: file_content.to_string(),
+        });
+        let expected_text_file_provider = text_file_provider.clone();
+
+        let result = text_file_provider.inline_all_relative_paths(&ctx).await;
+        assert!(
+            result.is_ok(),
+            "Expected inline_all_relative_paths to succeed, got {result:?}"
+        );
+        assert_eq!(text_file_provider, expected_text_file_provider);
+    }
+
+    #[test_case(1; "one override")]
+    #[test_case(2; "multiple overrides")]
+    #[tokio::test]
+    async fn merge_yaml_inline_all_relative_paths_succeeds(num_overrides: u8) {
+        let ctx = Context::new();
+        let file_content = "example file content";
+        let relative_file_path = "file.txt";
+        let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+
+        let overrides = match num_overrides {
+            1 => Overrides::One(TextFileProvider::RelativePath(RelativeFile {
+                path: Field::Resolved(relative_file_path.to_string()),
+                src: Some(src.clone()),
+            })),
+            _ => Overrides::Array(vec![
+                TextFileProvider::RelativePath(RelativeFile {
+                    path: Field::Resolved(relative_file_path.to_string()),
+                    src: Some(src.clone()),
+                }),
+                TextFileProvider::RelativePath(RelativeFile {
+                    path: Field::Resolved(relative_file_path.to_string()),
+                    src: Some(src.clone()),
+                }),
+            ]),
+        };
+
+        let mut merge_yaml = MergeYaml {
+            base: TextFileProvider::RelativePath(RelativeFile {
+                path: Field::Resolved(relative_file_path.to_string()),
+                src: Some(src),
+            }),
+            overrides,
+        };
+
+        let result = merge_yaml.inline_all_relative_paths(&ctx).await;
+
+        let expected_overrides = match num_overrides {
+            1 => Overrides::One(TextFileProvider::Inline(InlineFile {
+                content: file_content.to_string(),
+            })),
+            _ => Overrides::Array(vec![
+                TextFileProvider::Inline(InlineFile {
+                    content: file_content.to_string(),
+                }),
+                TextFileProvider::Inline(InlineFile {
+                    content: file_content.to_string(),
+                }),
+            ]),
+        };
+        let expected_merge_yaml = MergeYaml {
+            base: TextFileProvider::Inline(InlineFile {
+                content: file_content.to_string(),
+            }),
+            overrides: expected_overrides,
+        };
+
+        assert!(
+            result.is_ok(),
+            "Expected inline_all_relative_paths to succeed, got {result:?}"
+        );
+        assert_eq!(merge_yaml, expected_merge_yaml);
+    }
+
+    #[tokio::test]
+    async fn conditional_inline_all_relative_paths_succeeds() {
+        let ctx = Context::new();
+        let file_content = "example file content";
+        let relative_file_path = "file.txt";
+        let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+
+        let where_clause_bar = WhereClause {
+            var: "bar".to_string(),
+            comp: VarComp::Eq(42.into()),
+        };
+        let where_clause_hello = WhereClause {
+            var: "hello".to_string(),
+            comp: VarComp::Eq(7.into()),
+        };
+        let where_clause_goodbye = WhereClause {
+            var: "goodbye".to_string(),
+            comp: VarComp::Eq(77.into()),
+        };
+        let variables = HashMap::from([
+            ("bar".to_string(), 11.into()),
+            ("hello".to_string(), 2.into()),
+            ("goodbye".to_string(), 22.into()),
+        ]);
+        let inline_file_provider = FileProvider::Inline(InlineFile {
+            content: file_content.to_string(),
+        });
+        let conditional_case_with_inline_file = ConditionalCase {
+            where_clause: where_clause_hello.clone(),
+            inner: inline_file_provider.clone(),
+        };
+
+        let mut conditional = Conditional {
+            cases: vec![
+                ConditionalCase {
+                    where_clause: where_clause_bar.clone(),
+                    inner: FileProvider::RelativePath(RelativeFile {
+                        path: Field::Resolved(relative_file_path.to_string()),
+                        src: Some(src.clone()),
+                    }),
+                },
+                conditional_case_with_inline_file.clone(),
+                ConditionalCase {
+                    where_clause: where_clause_goodbye.clone(),
+                    inner: FileProvider::RelativePath(RelativeFile {
+                        path: Field::Resolved(relative_file_path.to_string()),
+                        src: Some(src.clone()),
+                    }),
+                },
+            ],
+            variables: variables.clone(),
+        };
+
+        let result = conditional.inline_all_relative_paths(&ctx).await;
+        assert!(
+            result.is_ok(),
+            "Expected inline_all_relative_paths to succeed, got {result:?}"
+        );
+        let expected_conditional = Conditional {
+            cases: vec![
+                ConditionalCase {
+                    where_clause: where_clause_bar.clone(),
+                    inner: inline_file_provider.clone(),
+                },
+                conditional_case_with_inline_file,
+                ConditionalCase {
+                    where_clause: where_clause_goodbye.clone(),
+                    inner: inline_file_provider,
+                },
+            ],
+            variables,
+        };
+
+        assert_eq!(conditional, expected_conditional);
     }
 }
