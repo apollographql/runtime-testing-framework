@@ -54,25 +54,33 @@ pub struct GraphosSupergraph {
     #[serde(default)]
     #[template(skip)]
     pub with_subgraph_overrides: Option<UrlFormat>,
+    /// Replace the supergraph's connector urls with overridden values for testing.
+    ///
+    /// Defaults to null if unset.
+    #[serde(default)]
+    #[template(skip)]
+    pub with_connector_overrides: Option<UrlFormat>,
 }
 
 impl GraphosSupergraph {
     fn content_from_details(&self, mut sg: Arc<SupergraphDetails>) -> String {
-        match self.with_subgraph_overrides.as_ref() {
-            Some(url_format) => {
-                let sg = Arc::make_mut(&mut sg);
-                let subgraph_urls = url_format.urls_for_subgraphs(&sg.subgraphs);
-                sg.rewrite_subgraph_urls(&subgraph_urls)
-                    .expect("unable to rewrite subgraph URLs");
-
-                sg.supergraph_sdl.clone()
-            }
-
-            None => sg.supergraph_sdl.clone(),
+        if let Some(url_format) = &self.with_subgraph_overrides {
+            let sg = Arc::make_mut(&mut sg);
+            let subgraph_urls = url_format.urls_for_subgraphs(&sg.subgraphs);
+            sg.rewrite_subgraph_urls(&subgraph_urls)
+                .expect("unable to rewrite subgraph URLs");
         }
+
+        if let Some(connector_format) = &self.with_connector_overrides {
+            let sg = Arc::make_mut(&mut sg);
+            let connector_url = connector_format.connector_base_url();
+            sg.rewrite_connector_urls(&connector_url)
+                .expect("unable to rewrite connector URLs");
+        }
+
+        sg.supergraph_sdl.clone()
     }
 }
-
 impl AsUtf8FileContent for GraphosSupergraph {
     async fn try_get_file_content(
         &self,
@@ -364,6 +372,22 @@ impl UrlFormat {
             format!("{base_url}:{port}/{name}")
         } else {
             format!("{base_url}:{port}")
+        }
+    }
+
+    /// Generate the base URL for connector mock services.
+    ///
+    /// Unlike subgraphs which may have different URLs per subgraph, connectors
+    /// all point to the same connector-mock service.
+    fn connector_base_url(&self) -> String {
+        match self {
+            UrlFormat::Localhost => "http://localhost:3000".to_string(),
+            UrlFormat::Docker => "http://connector:3000".to_string(),
+            UrlFormat::Custom(config) => {
+                let base_url = config.base_url.as_resolved();
+                let base_port = *config.base_port.as_resolved();
+                format!("{base_url}:{base_port}")
+            }
         }
     }
 }
@@ -876,6 +900,7 @@ mod tests {
         GraphosSupergraph {
             graph_ref: Field::Resolved(graph_ref.to_string()),
             with_subgraph_overrides: None,
+            with_connector_overrides: None,
         }
     }
 
@@ -1236,6 +1261,7 @@ mod tests {
         let supergraph = GraphosSupergraph {
             graph_ref: Field::Resolved("graph@variant".to_string()),
             with_subgraph_overrides: Some(UrlFormat::Docker),
+            with_connector_overrides: None,
         };
 
         // The supergraph file indentation is transformed so that assert_eq is not possible
@@ -1271,6 +1297,7 @@ mod tests {
                 .into_iter()
                 .collect(),
             })),
+            with_connector_overrides: None,
         };
 
         // The supergraph file indentation is transformed so that assert_eq is not possible
@@ -1307,6 +1334,7 @@ mod tests {
                 .into_iter()
                 .collect(),
             })),
+            with_connector_overrides: None,
         };
 
         // The supergraph file indentation is transformed so that assert_eq is not possible
@@ -1331,6 +1359,7 @@ mod tests {
         let supergraph = GraphosSupergraph {
             graph_ref: Field::Resolved("graph@variant".to_string()),
             with_subgraph_overrides: Some(UrlFormat::Localhost),
+            with_connector_overrides: None,
         };
 
         // The supergraph file indentation is transformed so that assert_eq is not possible
@@ -1473,5 +1502,29 @@ mod tests {
 
         assert_resolve_and_write_success(router_from_source, &target, &mut ctx, expected_content)
             .await;
+    }
+
+    #[test]
+    fn connector_base_url_localhost() {
+        let url_format = UrlFormat::Localhost;
+        assert_eq!(url_format.connector_base_url(), "http://localhost:3000");
+    }
+
+    #[test]
+    fn connector_base_url_docker() {
+        let url_format = UrlFormat::Docker;
+        assert_eq!(url_format.connector_base_url(), "http://connector:3000");
+    }
+
+    #[test]
+    fn connector_base_url_custom() {
+        let url_format = UrlFormat::Custom(CustomUrlFormat {
+            base_url: Field::Resolved("http://my-connector".to_string()),
+            base_port: Field::Resolved(4000),
+            increment_port: Field::Resolved(false),
+            add_subgraph_route: Field::Resolved(false),
+            custom_subgraph_urls: HashMap::new(),
+        });
+        assert_eq!(url_format.connector_base_url(), "http://my-connector:4000");
     }
 }

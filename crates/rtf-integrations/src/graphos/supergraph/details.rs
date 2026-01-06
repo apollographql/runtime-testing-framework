@@ -3,7 +3,12 @@ use crate::graphos::{
     self,
     platform_query::{self, PlatformQuery},
 };
-use apollo_compiler::{Node, Schema, ast::Value, schema::ExtendedType};
+
+use apollo_compiler::{
+    Name, Node, Schema,
+    ast::{Directive, Value},
+    schema::ExtendedType,
+};
 use graphql_client::GraphQLQuery;
 use std::{collections::HashMap, fs, io, path::Path};
 use tracing::{debug, error, info, warn};
@@ -138,6 +143,19 @@ impl SupergraphDetails {
                 Err("Unable to rewrite subgraph URLs")
             }
         }
+    }
+
+    /// Attempt to rewrite the connector url directives in this schema to use the provided urls
+    /// instead.
+    pub fn rewrite_connector_urls(&mut self, base_url: &str) -> Result<(), &'static str> {
+        let mut schema = Schema::parse(&self.supergraph_sdl, "supergraph.graphql")
+            .map_err(|_| "Unable to parse supergraph schema")?;
+
+        replace_sourceless_connector_urls(&mut schema, base_url);
+        replace_sourced_connector_urls(&mut schema, base_url);
+
+        self.supergraph_sdl = schema.to_string();
+        Ok(())
     }
 
     /// Write out only the schemas held in this [SupergraphDetails].
@@ -299,6 +317,111 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
     Some(schema.to_string())
 }
 
+fn is_join_directive_named(directive: &Node<Directive>, name: &str) -> bool {
+    directive.name == "join__directive"
+        && directive
+            .specified_argument_by_name("name")
+            .and_then(|v| v.as_str())
+            .is_some_and(|n| n == name)
+}
+
+fn get_directive_args_map(directive: &mut Node<Directive>) -> Option<&mut [(Name, Node<Value>)]> {
+    match directive
+        .get_mut()
+        .and_then(|d| d.specified_argument_by_name_mut("args"))
+        .and_then(|a| a.get_mut())
+    {
+        Some(Value::Object(args_map)) => Some(args_map),
+        _ => None,
+    }
+}
+
+fn rewrite_connector_url(args_map: &mut [(Name, Node<Value>)], url_keys: &[&str], url: &str) {
+    let http_entry = match args_map.iter_mut().find(|(key, _)| key.as_str() == "http") {
+        Some(entry) => entry,
+        None => return,
+    };
+
+    let http_map = match http_entry.1.get_mut() {
+        Some(Value::Object(http_map)) => http_map,
+        _ => return,
+    };
+
+    let url_node = match http_map
+        .iter_mut()
+        .find(|(key, _)| url_keys.contains(&key.as_str()))
+    {
+        Some((_, url_node)) => url_node,
+        None => return,
+    };
+
+    debug!("rewriting {url_node} connector URL in supergraph SDL to {url}");
+    *url_node = Node::new(Value::String(url.to_string()));
+}
+
+fn replace_sourced_connector_urls(schema: &mut Schema, base_url: &str) {
+    let schema_def = match schema.schema_definition.get_mut() {
+        Some(def) => def,
+        None => return,
+    };
+
+    for directive in schema_def.directives.iter_mut() {
+        if !is_join_directive_named(directive, "source") {
+            continue;
+        }
+
+        let args_map = match get_directive_args_map(directive) {
+            Some(args_map) => args_map,
+            None => continue,
+        };
+
+        rewrite_connector_url(args_map, &["baseURL"], base_url);
+    }
+}
+
+fn replace_sourceless_connector_urls(schema: &mut Schema, base_url: &str) {
+    let http_verbs = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+
+    for schema_type in ["Query", "Mutation"] {
+        let extended_type = match schema.types.get_mut(schema_type) {
+            Some(ExtendedType::Object(t)) => t,
+            _ => continue,
+        };
+
+        debug!(schema_type, "replacing connector URLs in type");
+
+        let object_type = match extended_type.get_mut() {
+            Some(object_type) => object_type,
+            None => continue,
+        };
+
+        for (field_name, field_definition) in &mut object_type.fields {
+            let field_definition = match field_definition.get_mut() {
+                Some(field_definition) => field_definition,
+                None => continue,
+            };
+
+            for directive in field_definition.directives.iter_mut() {
+                if !is_join_directive_named(directive, "connect") {
+                    continue;
+                }
+
+                let args_map = match get_directive_args_map(directive) {
+                    Some(args_map) => args_map,
+                    None => continue,
+                };
+
+                // Skip connect directives that contain a source, as they are not "sourceless connectors"
+                if args_map.iter().any(|(key, _)| key.as_str() == "source") {
+                    continue;
+                }
+
+                rewrite_connector_url(args_map, &http_verbs, &format!("{base_url}/{field_name}"));
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -456,5 +579,70 @@ mod tests {
 
         let result = rewrite_subgraph_urls(sdl, &subgraph_urls);
         assert!(result.is_some());
+    }
+
+    #[test]
+    fn rewriting_connector_urls_works() {
+        let sdl = include_str!("../../../resources/test_data/connectors/connectors.graphql");
+        let mut sd = SupergraphDetails {
+            graph_id: "".to_string(),
+            variant: "".to_string(),
+            supergraph_sdl: sdl.to_string(),
+            subgraphs: vec![],
+        };
+
+        sd.rewrite_connector_urls("http://host.docker.internal:3000")
+            .unwrap();
+
+        assert!(sd.supergraph_sdl.contains(
+            r#"{name: "ecomm", http: {baseURL: "http://host.docker.internal:3000", headers: []}})"#
+        ));
+    }
+
+    #[test]
+    fn rewriting_sourceless_connector_urls_works() {
+        let sdl =
+            include_str!("../../../resources/test_data/connectors/sourceless-connectors.graphql");
+        let mut sd = SupergraphDetails {
+            graph_id: "".to_string(),
+            variant: "".to_string(),
+            supergraph_sdl: sdl.to_string(),
+            subgraphs: vec![],
+        };
+
+        let _ = sd.rewrite_connector_urls("http://host.docker.internal:3000");
+
+        assert!(sd.supergraph_sdl.contains(r#"[Product] @join__directive(graphs: [PRODUCTS], name: "connect", args: {http: {GET: "http://host.docker.internal:3000/products"}, selection: "$.products {\nid\nname\ndescription\n}"})"#));
+    }
+
+    #[test]
+    fn rewrite_connector_urls_invalid_sdl_returns_failure() {
+        let mut sd = SupergraphDetails {
+            graph_id: "".to_string(),
+            variant: "".to_string(),
+            supergraph_sdl: "not valid graphql {{{".to_string(),
+            subgraphs: vec![],
+        };
+        let result = sd.rewrite_connector_urls("http://localhost:3000");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn rewrite_connector_urls_no_connectors_succeeds() {
+        let sdl = "type Query { hello: String }";
+        let mut sd = SupergraphDetails {
+            graph_id: "".to_string(),
+            variant: "".to_string(),
+            supergraph_sdl: sdl.to_string(),
+            subgraphs: vec![],
+        };
+
+        let result = sd.rewrite_connector_urls("http://localhost:3000");
+        // Should succeed even without connectors - just a no-op
+        assert!(result.is_ok());
+
+        // No semantic changes should have been made. Only formatting changes from parsing
+        let expected = Schema::parse(sdl, "").unwrap().to_string();
+        assert_eq!(sd.supergraph_sdl, expected);
     }
 }

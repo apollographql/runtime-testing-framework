@@ -478,6 +478,12 @@ Replace the supergraph's subgraph urls with overridden values for testing.
 
 Defaults to null if unset.
 
+### `with_connector_overrides`
+
+Replace the supergraph's connector urls with overridden values for testing.
+
+Defaults to null if unset.
+
 </details>
 
 ## Inline file

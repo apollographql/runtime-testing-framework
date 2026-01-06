@@ -844,6 +844,18 @@
           ],
           "description": "The Apollo graph ref to pull supergraph SDL for."
         },
+        "with_connector_overrides": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UrlFormat"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Replace the supergraph's connector urls with overridden values for testing.\n\nDefaults to null if unset."
+        },
         "with_subgraph_overrides": {
           "anyOf": [
             {
