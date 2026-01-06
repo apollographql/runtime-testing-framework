@@ -5,9 +5,9 @@ use crate::graphos::{
 };
 
 use apollo_compiler::{
-    ast::{Directive, Value}, schema::ExtendedType, Name,
-    Node,
-    Schema,
+    Name, Node, Schema,
+    ast::{Directive, Value},
+    schema::ExtendedType,
 };
 use graphql_client::GraphQLQuery;
 use std::{collections::HashMap, fs, io, path::Path};
