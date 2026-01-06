@@ -344,8 +344,7 @@ fn rewrite_connector_url(args_map: &mut [(Name, Node<Value>)], url_keys: &[&str]
 
     let http_map = match http_entry.1.get_mut() {
         Some(Value::Object(http_map)) => http_map,
-        Some(_) => return,
-        None => return,
+        _ => return,
     };
 
     let url_node = match http_map
