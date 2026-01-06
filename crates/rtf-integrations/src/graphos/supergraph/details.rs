@@ -355,9 +355,8 @@ fn rewrite_connector_url(args_map: &mut [(Name, Node<Value>)], url_keys: &[&str]
         None => return,
     };
 
-    let url_node_copy = url_node.clone();
+    debug!("rewriting {url_node} connector URL in supergraph SDL to {url}");
     *url_node = Node::new(Value::String(url.to_string()));
-    debug!("rewrote {url_node_copy} connector URL in supergraph SDL to {url_node}");
 }
 
 fn replace_sourced_connector_urls(schema: &mut Schema, base_url: &str) {
