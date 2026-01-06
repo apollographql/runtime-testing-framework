@@ -320,9 +320,9 @@ fn rewrite_subgraph_urls(sdl: &str, subgraph_urls: &HashMap<String, String>) -> 
 fn is_join_directive_named(directive: &Node<Directive>, name: &str) -> bool {
     directive.name == "join__directive"
         && directive
-        .specified_argument_by_name("name")
-        .and_then(|v| v.as_str())
-        .is_some_and(|n| n == name)
+            .specified_argument_by_name("name")
+            .and_then(|v| v.as_str())
+            .is_some_and(|n| n == name)
 }
 
 fn get_directive_args_map(directive: &mut Node<Directive>) -> Option<&mut [(Name, Node<Value>)]> {
