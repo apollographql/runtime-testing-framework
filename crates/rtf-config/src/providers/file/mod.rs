@@ -338,6 +338,65 @@ impl Check for InlineFile {
     }
 }
 
+/// # Inline directory
+///
+/// An inline representation of a directory of files. The environment variable will be set to the path
+/// of the directory itself. All files within that directory will need to be referenced using a combination
+/// of this environment variable and its `path`.
+///
+/// This file provider primarily exists so that other file providers that produce a directory of files
+/// can be converted into their inline representations.
+///
+/// If, as a user of RTF, you need to specify multiple inline files, we *strongly* advise you use an
+/// `inline` file provider for each file and that you DO NOT use this file provider.
+///
+/// ```yaml
+/// - name: "my-directory"
+///   env_var: MY_DIRECTORY
+///   kind: inline_dir
+///   files:
+///     - path: file1.txt
+///       content: |
+///         content for file1
+///     - path: nested/file2.txt
+///       content: |
+///         content for file2
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, Template)]
+pub struct InlineDir {
+    /// A list of inline files stored
+    pub(crate) files: Vec<DirFile>,
+}
+
+impl Check for InlineDir {
+    fn try_check(
+        &self,
+        _path: &mut Vec<String>,
+        _ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, Template)]
+pub(crate) struct DirFile {
+    #[template(skip)]
+    pub(crate) path: String,
+
+    #[template(skip)]
+    pub(crate) content: String,
+}
+
+impl Check for DirFile {
+    fn try_check(
+        &self,
+        _path: &mut Vec<String>,
+        _ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        Ok(())
+    }
+}
+
 /// # Relative path
 ///
 /// A relative path from the containing config file to a target file that should be made available
@@ -948,6 +1007,21 @@ mod tests {
     fn inline_file_check_success() {
         let inline = InlineFile {
             content: "some content".to_string(),
+        };
+
+        let ctx = Context::new();
+
+        let res = inline.try_check(&mut Vec::new(), &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}")
+    }
+
+    #[test]
+    fn inline_dir_check_success() {
+        let inline = InlineDir {
+            files: vec![DirFile {
+                path: "path/to/file.txt".to_string(),
+                content: "file content".to_string(),
+            }],
         };
 
         let ctx = Context::new();
