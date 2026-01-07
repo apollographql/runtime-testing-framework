@@ -13,7 +13,8 @@ use std::{
     collections::HashSet,
     fmt, io,
     ops::{Deref, DerefMut},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
+    str::FromStr,
 };
 
 pub mod apollo;
@@ -225,12 +226,46 @@ impl Check for NamedFileProvider {
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         let mut errs = checks::ErrorBuilder::new();
+        let mut err_path = path.clone();
+        err_path.push(self.env_var.clone());
+
+        let name_relative_path = match PathBuf::from_str(&self.name) {
+            Ok(p) => p,
+            Err(_) => {
+                errs.push(
+                    checks::ErrorKind::InvalidRelativePath,
+                    "file provider name is not a valid path",
+                    &err_path,
+                );
+                PathBuf::new()
+            }
+        };
+        errs.append(check_relative_path_specifiers(
+            &name_relative_path,
+            &mut err_path,
+        ));
 
         let tail = self.env_var.clone();
         errs.append(self.provider.try_check_nested(path, tail, ctx));
 
         errs.into_result(())
     }
+}
+
+/// Helper function for checking for invalid relative path specifiers
+fn check_relative_path_specifiers(relative_path: &Path, path: &mut [String]) -> checks::Result<()> {
+    if !relative_path
+        .components()
+        .all(|c| matches!(c, Component::Normal(_)))
+    {
+        return Err(checks::Errors::new(
+            checks::ErrorKind::InvalidPathSpecifiers,
+            "relative paths are not allowed to use \".\" or \"..\" notation or start with a leading \"/\"",
+            path,
+        ));
+    }
+
+    Ok(())
 }
 
 /// # File Provider
@@ -395,10 +430,16 @@ impl ResolveAndWrite for InlineDir {
 impl Check for InlineDir {
     fn try_check(
         &self,
-        _path: &mut Vec<String>,
+        path: &mut Vec<String>,
         _ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        Ok(())
+        let mut errs = checks::ErrorBuilder::new();
+
+        for file in self.files.iter() {
+            errs.append(check_relative_path_specifiers(&file.path, path));
+        }
+
+        errs.into_result(())
     }
 }
 
@@ -1031,6 +1072,23 @@ mod tests {
     }
 
     #[test]
+    fn named_file_provider_check_error_name_path_invalid() {
+        let nfp = NamedFileProvider {
+            name: "../inline.txt".to_string(),
+            env_var: "INLINE".to_string(),
+            provider: FileProvider::Inline(InlineFile {
+                content: "content".to_string(),
+            }),
+        };
+
+        let res = nfp.try_check(&mut vec!["path".to_string()], &Context::new());
+        assert!(res.is_err(), "expected to check to error, got {res:?}");
+        let err = res.unwrap_err().unwrap_single();
+        assert_eq!(err.path, "path.INLINE");
+        assert_eq!(err.kind, checks::ErrorKind::InvalidPathSpecifiers)
+    }
+
+    #[test]
     fn inline_file_check_success() {
         let inline = InlineFile {
             content: "some content".to_string(),
@@ -1055,6 +1113,37 @@ mod tests {
 
         let res = inline.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}")
+    }
+
+    #[test]
+    fn inline_dir_check_invalid_relative_path_errors() {
+        let inline = InlineDir {
+            files: vec![
+                DirFile {
+                    path: PathBuf::from_str("./file.txt").unwrap(),
+                    content: "file content".to_string(),
+                },
+                DirFile {
+                    path: PathBuf::from_str("../file.txt").unwrap(),
+                    content: "file content".to_string(),
+                },
+                DirFile {
+                    path: PathBuf::from_str("/file.txt").unwrap(),
+                    content: "file content".to_string(),
+                },
+            ],
+        };
+        let ctx = Context::new();
+
+        assert_check_errors(
+            inline,
+            &ctx,
+            &[
+                checks::ErrorKind::InvalidPathSpecifiers,
+                checks::ErrorKind::InvalidPathSpecifiers,
+                checks::ErrorKind::InvalidPathSpecifiers,
+            ],
+        );
     }
 
     #[test]

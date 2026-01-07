@@ -28,6 +28,9 @@ pub enum ErrorKind {
     #[strum(to_string = "The provided string was not a valid graph ref")]
     InvalidGraphRef,
 
+    #[strum(to_string = "Invalid path specifiers")]
+    InvalidPathSpecifiers,
+
     #[strum(to_string = "The given relative path was not a valid path")]
     InvalidRelativePath,
 
