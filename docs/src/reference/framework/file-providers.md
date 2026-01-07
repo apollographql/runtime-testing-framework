@@ -513,14 +513,14 @@ The text to write out as the contents of the generated file.
 ## Inline directory
 
 An inline representation of a directory of files. The environment variable will be set to the path
-of the top level directory, all files within that directory will need to be referenced using their
-`path` which is relative to the directory's `env_var`
+of the directory itself. All files within that directory will need to be referenced using a
+combination of this environment variable and its `path`.
 
 This file provider primarily exists so that other file providers that produce a directory of files
 can be converted into their inline representations.
 
-If, as a user of RTF, you need to specify multiple inline files, we _strongly_ advise you use
-several `inline` file providers and DO NOT use this file provider.
+If, as a user of RTF, you need to specify multiple inline files, we _strongly_ advise you use an
+`inline` file provider for each file and that you DO NOT use this file provider.
 
 ```yaml
 - name: "my-directory"
@@ -534,6 +534,15 @@ several `inline` file providers and DO NOT use this file provider.
       content: |
         content for file2
 ```
+
+<details>
+<summary>Fields</summary>
+
+### `files`
+
+A list of inline files stored in the directory
+
+</details>
 
 ## Merge YAML
 

@@ -366,7 +366,8 @@ impl Check for InlineFile {
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct InlineDir {
-    /// A list of inline files stored
+    /// A list of inline files stored in the directory
+    #[template(skip)]
     pub(crate) files: Vec<DirFile>,
 }
 
@@ -376,7 +377,7 @@ impl ResolveAndWrite for InlineDir {
         target: impl AsRef<Path>,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
-        for file in self.files.clone().into_iter() {
+        for file in self.files.iter() {
             let abs_path = target.as_ref().join(&file.path);
             if let Some(parent) = abs_path.parent() {
                 // Using create_dir_all here ensures that no matter how deeply
@@ -401,23 +402,13 @@ impl Check for InlineDir {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, Template)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 pub(crate) struct DirFile {
-    #[template(skip)]
-    pub(crate) path: String,
+    /// The relative path to the generated file within the directory
+    pub(crate) path: PathBuf,
 
-    #[template(skip)]
+    /// The text to write out as the contents of the generated file.
     pub(crate) content: String,
-}
-
-impl Check for DirFile {
-    fn try_check(
-        &self,
-        _path: &mut Vec<String>,
-        _ctx: &impl ResolutionContext,
-    ) -> checks::Result<()> {
-        Ok(())
-    }
 }
 
 /// # Relative path
@@ -670,7 +661,7 @@ mod tests {
     use indoc::indoc;
     use predicates::path;
     use simple_test_case::test_case;
-    use std::path::PathBuf;
+    use std::{path::PathBuf, str::FromStr};
 
     macro_rules! template_context {
         ($slice:expr) => {{
@@ -1055,7 +1046,7 @@ mod tests {
     fn inline_dir_check_success() {
         let inline = InlineDir {
             files: vec![DirFile {
-                path: "path/to/file.txt".to_string(),
+                path: PathBuf::from_str("path/to/file.txt").unwrap(),
                 content: "file content".to_string(),
             }],
         };
@@ -1186,15 +1177,15 @@ mod tests {
         let inline_dir = FileProvider::InlineDir(InlineDir {
             files: vec![
                 DirFile {
-                    path: file1_path.to_string(),
+                    path: PathBuf::from_str(file1_path).unwrap(),
                     content: file1_content.to_string(),
                 },
                 DirFile {
-                    path: file2_path.to_string(),
+                    path: PathBuf::from_str(file2_path).unwrap(),
                     content: file2_content.to_string(),
                 },
                 DirFile {
-                    path: file3_path.to_string(),
+                    path: PathBuf::from_str(file3_path).unwrap(),
                     content: file3_content.to_string(),
                 },
             ],
