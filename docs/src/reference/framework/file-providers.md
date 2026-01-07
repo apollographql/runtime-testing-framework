@@ -16,6 +16,7 @@ Available file providers:
 - [GraphOS subgraph names](#graphos-subgraph-names)
 - [GraphOS supergraph SDL](#graphos-supergraph-sdl)
 - [Inline file](#inline-file)
+- [Inline directory](#inline-directory)
 - [Merge YAML](#merge-yaml)
 - [GraphOS offline license](#graphos-offline-license)
 - [Relative path](#relative-path)
@@ -508,6 +509,31 @@ config file.
 The text to write out as the contents of the generated file.
 
 </details>
+
+## Inline directory
+
+An inline representation of a directory of files. The environment variable will be set to the path
+of the top level directory, all files within that directory will need to be referenced using their
+`path` which is relative to the directory's `env_var`
+
+This file provider primarily exists so that other file providers that produce a directory of files
+can be converted into their inline representations.
+
+If, as a user of RTF, you need to specify multiple inline files, we _strongly_ advise you use
+several `inline` file providers and DO NOT use this file provider.
+
+```yaml
+- name: "my-directory"
+  env_var: MY_DIRECTORY
+  kind: inline_dir
+  files:
+    - path: file1.txt
+      content: |
+        content for file1
+    - path: nested/file2.txt
+      content: |
+        content for file2
+```
 
 ## Merge YAML
 

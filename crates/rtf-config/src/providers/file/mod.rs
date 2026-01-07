@@ -251,6 +251,7 @@ pub enum FileProvider {
     GraphosSubgraphNames(apollo::GraphosSubgraphNames),
     GraphosSupergraph(apollo::GraphosSupergraph),
     Inline(InlineFile),
+    InlineDir(InlineDir),
     MergeYaml(utility::MergeYaml),
     OfflineGraphosLicense(apollo::OfflineGraphosLicense),
     RelativePath(RelativeFile),
@@ -292,6 +293,7 @@ enum_impl_file_provider!(
     GraphosSubgraphNames,
     GraphosSupergraph,
     Inline,
+    InlineDir,
     MergeYaml,
     OfflineGraphosLicense,
     RelativePath,
@@ -366,6 +368,27 @@ impl Check for InlineFile {
 pub struct InlineDir {
     /// A list of inline files stored
     pub(crate) files: Vec<DirFile>,
+}
+
+impl ResolveAndWrite for InlineDir {
+    async fn resolve_and_write(
+        &self,
+        target: impl AsRef<Path>,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<()> {
+        for file in self.files.clone().into_iter() {
+            let abs_path = target.as_ref().join(&file.path);
+            if let Some(parent) = abs_path.parent() {
+                // Using create_dir_all here ensures that no matter how deeply
+                // nested the path is within the directory, it gets created.
+                // If it already exists then this is a no op
+                ctx.create_dir_all(parent)?;
+                ctx.write(&abs_path, &file.content)?;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl Check for InlineDir {
@@ -826,6 +849,18 @@ mod tests {
             some content
     "#
     );
+    const INLINE_DIR: &str = indoc!(
+        r#"
+        kind: inline_dir
+        files:
+          - path: file1
+            content: |
+              some content for file1
+          - path: nested/file2
+            content: |
+              some content for file2
+    "#
+    );
     const OFFLINE_GRAPHOS_LICENSE: &str = indoc!(
         r#"
         kind: offline_graphos_license
@@ -892,6 +927,7 @@ mod tests {
     #[test_case(GRAPHOS_SUPERGRAPH, &["graph_ref"]; "graphos_supergraph")]
     #[test_case(FROM_COMMAND, &["test_script", "test_arg", "test_var", "test_path"]; "from_command")]
     #[test_case(INLINE, &[]; "inline")]
+    #[test_case(INLINE_DIR, &[]; "inline_dir")]
     #[test_case(OFFLINE_GRAPHOS_LICENSE, &["graph_id"]; "offline_graphos_license")]
     #[test_case(RELATIVE_PATH, &["path"]; "relative_path")]
     #[test_case(REQUIRED_FILE, &[]; "required")]
@@ -1132,6 +1168,48 @@ mod tests {
         });
 
         assert_resolve_and_write_success(inline, &target, &mut ctx, expected_content).await;
+    }
+
+    #[tokio::test]
+    async fn inline_dir_resolve_and_write_success() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("directory");
+
+        let file1_path = "file1.txt";
+        let file1_content = "file1 content";
+        let file2_path = "nested/file2.txt";
+        let file2_content = "file2 content";
+        let file3_path = "some/very/deeply/nested/file3.txt";
+        let file3_content = "file3 content";
+
+        let mut ctx = Context::new();
+        let inline_dir = FileProvider::InlineDir(InlineDir {
+            files: vec![
+                DirFile {
+                    path: file1_path.to_string(),
+                    content: file1_content.to_string(),
+                },
+                DirFile {
+                    path: file2_path.to_string(),
+                    content: file2_content.to_string(),
+                },
+                DirFile {
+                    path: file3_path.to_string(),
+                    content: file3_content.to_string(),
+                },
+            ],
+        });
+
+        let res = inline_dir.resolve_and_write(&target, &mut ctx).await;
+        assert!(
+            res.is_ok(),
+            "expected file to resolve and write, got {res:?}"
+        );
+
+        target.assert(path::exists());
+        assert_file_content(&target.child(file1_path), file1_content);
+        assert_file_content(&target.child(file2_path), file2_content);
+        assert_file_content(&target.child(file3_path), file3_content);
     }
 
     #[tokio::test]
