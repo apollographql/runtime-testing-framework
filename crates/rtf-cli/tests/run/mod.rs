@@ -9,7 +9,9 @@ fn is_executable() {
 
     let res = cmd.arg("run").assert();
 
-    res.stderr(contains("no test plan provided"));
+    res.stderr(contains(
+        "the following required arguments were not provided:",
+    ));
 }
 
 #[test]

@@ -422,16 +422,12 @@ _rtf() {
             return 0
             ;;
         rtf__run)
-            opts="-v -h --github --ref --outdir --var --vars --verbose --help [TEST_PLAN_PATH]"
+            opts="-v -h --github --ref --outdir --var --vars --verbose --help <TEST_PLAN_PATH>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --github)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
                 --ref)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0

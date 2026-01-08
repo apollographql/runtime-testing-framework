@@ -33,11 +33,11 @@ complete -c rtf -n "__fish_rtf_needs_command" -f -a "expand-matrix" -d 'Expand a
 complete -c rtf -n "__fish_rtf_needs_command" -f -a "template" -d 'Template a test plan using provided variables, outputting the resulting config to stdout'
 complete -c rtf -n "__fish_rtf_needs_command" -f -a "custom-provider" -d 'Work directly with custom file provider definitions'
 complete -c rtf -n "__fish_rtf_needs_command" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
-complete -c rtf -n "__fish_rtf_using_subcommand run" -l github -d 'Execute a test plan file in GitHub instead of from a local path' -r
 complete -c rtf -n "__fish_rtf_using_subcommand run" -l ref -d 'Optional git ref to pull files from when using --github' -r
 complete -c rtf -n "__fish_rtf_using_subcommand run" -l outdir -d 'Output directory for providers when they run' -r
 complete -c rtf -n "__fish_rtf_using_subcommand run" -l var -d 'A single additional templating variable in the form "key=value"' -r
 complete -c rtf -n "__fish_rtf_using_subcommand run" -l vars -d 'Path to a JSON file containing additional template variables' -r -F
+complete -c rtf -n "__fish_rtf_using_subcommand run" -l github -d 'Execute a test plan file in GitHub instead of from a local path'
 complete -c rtf -n "__fish_rtf_using_subcommand run" -s v -l verbose -d 'Flag to control logging verbosity. Default level is `warn`. `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`'
 complete -c rtf -n "__fish_rtf_using_subcommand run" -s h -l help -d 'Print help'
 complete -c rtf -n "__fish_rtf_using_subcommand expand-matrix" -l var -d 'A single additional templating variable in the form "key=value"' -r

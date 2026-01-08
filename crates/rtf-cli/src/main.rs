@@ -8,7 +8,7 @@ use rtf_cli::{
             expand_test_plan_matrix, run_custom_provider, template_custom_provider,
             template_test_plan_github, template_test_plan_local, test_custom_provider,
         },
-        porcelain::{check_and_run_github_test_plan, check_and_run_local_test_plan},
+        porcelain::check_and_run_test_plan,
     },
 };
 use std::{io::stderr, process::exit};
@@ -35,27 +35,7 @@ async fn main() {
             github,
             git_ref,
             outdir,
-        } => match (test_plan_path, github, git_ref) {
-            (Some(path), None, None) => {
-                check_and_run_local_test_plan(&path, variables, &outdir).await
-            }
-
-            (Some(_), None, Some(_)) => {
-                error!("--ref is not supported for local file paths");
-                exit(1);
-            }
-
-            (None, Some(org_repo_path), git_ref) => {
-                check_and_run_github_test_plan(org_repo_path, git_ref, variables, &outdir).await
-            }
-
-            (None, None, _) => {
-                error!("no test plan provided");
-                exit(1);
-            }
-
-            (Some(_), Some(_), _) => unreachable!(),
-        },
+        } => check_and_run_test_plan(&test_plan_path, github, git_ref, variables, &outdir).await,
 
         // plumbing commands
         Command::ExpandMatrix {

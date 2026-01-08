@@ -48,12 +48,12 @@ pub enum Command {
     // Porcelain commands
     /// Check and run a test plan
     Run {
-        /// Relative path to the test plan file that should be executed
-        test_plan_path: Option<String>,
+        /// Relative path to the test plan file that should be executed. When using --github this must be in the format ORG/REPO/PATH
+        test_plan_path: String,
 
         /// Execute a test plan file in GitHub instead of from a local path
-        #[arg(long, value_name = "ORG/REPO/PATH", conflicts_with = "test_plan_path")]
-        github: Option<String>,
+        #[arg(long, default_value = "false")]
+        github: bool,
 
         /// Optional git ref to pull files from when using --github
         #[arg(long = "ref", requires = "github")]

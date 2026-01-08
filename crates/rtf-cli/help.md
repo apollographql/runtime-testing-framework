@@ -37,15 +37,17 @@ A swiss army knife for testing the Apollo Runtime
 
 Check and run a test plan
 
-**Usage:** `rtf run [OPTIONS] [TEST_PLAN_PATH]`
+**Usage:** `rtf run [OPTIONS] <TEST_PLAN_PATH>`
 
 ###### **Arguments:**
 
-* `<TEST_PLAN_PATH>` — Relative path to the test plan file that should be executed
+* `<TEST_PLAN_PATH>` — Relative path to the test plan file that should be executed. When using --github this must be in the format ORG/REPO/PATH
 
 ###### **Options:**
 
-* `--github <ORG/REPO/PATH>` — Execute a test plan file in GitHub instead of from a local path
+* `--github` — Execute a test plan file in GitHub instead of from a local path
+
+  Default value: `false`
 * `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
 * `--outdir <OUTDIR>` — Output directory for providers when they run
 

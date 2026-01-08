@@ -21,22 +21,9 @@ use tracing::info;
 const VARIABLES_PATH: &str = "test-plan-variables.json";
 const RESOLVED_TP_PATH: &str = "resolved-test-plan.yaml";
 
-pub async fn check_and_run_local_test_plan(
-    config_file_path: &str,
-    variables: Variables,
-    out_dir: &str,
-) -> anyhow::Result<()> {
-    let (ctx, out_dir) = get_context_and_check_outdir(out_dir)?;
-    let cwd = current_dir()?;
-
-    info!("loading and resolving test plan");
-    let test_plan = load_and_resolve_test_plan(config_file_path, &ctx).await?;
-
-    check_and_run_test_plan_with_context(test_plan, variables, &out_dir, cwd, ctx).await
-}
-
-pub async fn check_and_run_github_test_plan(
-    org_repo_path: String,
+pub async fn check_and_run_test_plan(
+    test_plan_path: &str,
+    github: bool,
     git_ref: Option<String>,
     variables: Variables,
     out_dir: &str,
@@ -44,16 +31,19 @@ pub async fn check_and_run_github_test_plan(
     let (ctx, out_dir) = get_context_and_check_outdir(out_dir)?;
     let cwd = current_dir()?;
 
-    let (org, repo_and_path) = org_repo_path.split_once('/').ok_or(anyhow!(
-        "invalid GitHub uri: \"{org_repo_path}\" - GitHub uri must be in format ORG/REPO/PATH"
-    ))?;
-    let (repo, path) = repo_and_path.split_once('/').ok_or(anyhow!(
-        "invalid GitHub uri: \"{org_repo_path}\" - GitHub uri must be in format ORG/REPO/PATH"
-    ))?;
+    info!("loading and resolving test plan");
+    let test_plan = if github {
+        let (org, repo_and_path) = test_plan_path.split_once('/').ok_or(anyhow!(
+            "invalid GitHub uri: \"{test_plan_path}\" - GitHub uri must be in format ORG/REPO/PATH"
+        ))?;
+        let (repo, path) = repo_and_path.split_once('/').ok_or(anyhow!(
+            "invalid GitHub uri: \"{test_plan_path}\" - GitHub uri must be in format ORG/REPO/PATH"
+        ))?;
 
-    info!("fetching and resolving test plan from GitHub");
-    let test_plan =
-        TestPlanConfig::try_load_and_resolve_from_github(org, repo, path, git_ref, &ctx).await?;
+        TestPlanConfig::try_load_and_resolve_from_github(org, repo, path, git_ref, &ctx).await?
+    } else {
+        load_and_resolve_test_plan(test_plan_path, &ctx).await?
+    };
 
     check_and_run_test_plan_with_context(test_plan, variables, &out_dir, cwd, ctx).await
 }

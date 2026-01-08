@@ -3,4 +3,4 @@
 
 mod run;
 
-pub use run::{check_and_run_github_test_plan, check_and_run_local_test_plan};
+pub use run::check_and_run_test_plan;
