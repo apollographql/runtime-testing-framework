@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-c30a2912.js";
+            window.path_to_searchindex_js = "../../searchindex-838b65ea.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-6484d70d.js"></script>
@@ -193,6 +193,7 @@
 <li><a href="#graphos-subgraph-names">GraphOS subgraph names</a></li>
 <li><a href="#graphos-supergraph-sdl">GraphOS supergraph SDL</a></li>
 <li><a href="#inline-file">Inline file</a></li>
+<li><a href="#inline-directory">Inline directory</a></li>
 <li><a href="#merge-yaml">Merge YAML</a></li>
 <li><a href="#graphos-offline-license">GraphOS offline license</a></li>
 <li><a href="#relative-path">Relative path</a></li>
@@ -514,6 +515,30 @@ config file.</p>
 <summary>Fields</summary>
 <h3 id="content"><a class="header" href="#content"><code>content</code></a></h3>
 <p>The text to write out as the contents of the generated file.</p>
+</details>
+<h2 id="inline-directory"><a class="header" href="#inline-directory">Inline directory</a></h2>
+<p>An inline representation of a directory of files. The environment variable will be set to the path
+of the directory itself. All files within that directory will need to be referenced using a
+combination of this environment variable and its <code>path</code>.</p>
+<p>This file provider primarily exists so that other file providers that produce a directory of files
+can be converted into their inline representations.</p>
+<p>If, as a user of RTF, you need to specify multiple inline files, we <em>strongly</em> advise you use an
+<code>inline</code> file provider for each file and that you DO NOT use this file provider.</p>
+<pre><code class="language-yaml">- name: "my-directory"
+  env_var: MY_DIRECTORY
+  kind: inline_dir
+  files:
+    - path: file1.txt
+      content: |
+        content for file1
+    - path: nested/file2.txt
+      content: |
+        content for file2
+</code></pre>
+<details>
+<summary>Fields</summary>
+<h3 id="files"><a class="header" href="#files"><code>files</code></a></h3>
+<p>A list of inline files stored in the directory</p>
 </details>
 <h2 id="merge-yaml"><a class="header" href="#merge-yaml">Merge YAML</a></h2>
 <p>Merge the YAML output of text based file providers into a single YAML file.</p>

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["FileProvider","RawSource","SourceDir"],"mod":["apollo","custom","github","utility"],"struct":["InlineFile","NamedFileProvider","RelativeFile","RequiredFile"]};
+window.SIDEBAR_ITEMS = {"enum":["FileProvider","RawSource","SourceDir"],"mod":["apollo","custom","github","utility"],"struct":["InlineDir","InlineFile","NamedFileProvider","RelativeFile","RequiredFile"]};
