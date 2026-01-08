@@ -248,8 +248,9 @@ rather than unit testing individual functions. This includes:
 
 Test data is organized in a structured resource hierarchy:
 
-- `resources/valid/` - Contains complete, valid test plans for success scenarios
-- `resources/invalid/` - Organized by failure category (load-and-resolve, templating, checks, run)
+- `resources/<resource_type>/valid/` - Contains complete, valid test plans for success scenarios
+- `resources/<resource_type>/invalid/` - Organized by failure category (load-and-resolve,
+  templating, checks, run)
 
 Each test plan directory is self-contained with all necessary files, enabling realistic integration
 testing scenarios.
