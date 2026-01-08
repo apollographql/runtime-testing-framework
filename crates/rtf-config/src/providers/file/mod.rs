@@ -13,7 +13,8 @@ use std::{
     collections::HashSet,
     fmt, io,
     ops::{Deref, DerefMut},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
+    str::FromStr,
 };
 
 pub mod apollo;
@@ -225,12 +226,46 @@ impl Check for NamedFileProvider {
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         let mut errs = checks::ErrorBuilder::new();
+        let mut err_path = path.clone();
+        err_path.push(self.env_var.clone());
+
+        let name_relative_path = match PathBuf::from_str(&self.name) {
+            Ok(p) => p,
+            Err(_) => {
+                errs.push(
+                    checks::ErrorKind::InvalidRelativePath,
+                    "file provider name is not a valid path",
+                    &err_path,
+                );
+                PathBuf::new()
+            }
+        };
+        errs.append(check_relative_path_specifiers(
+            &name_relative_path,
+            &mut err_path,
+        ));
 
         let tail = self.env_var.clone();
         errs.append(self.provider.try_check_nested(path, tail, ctx));
 
         errs.into_result(())
     }
+}
+
+/// Helper function for checking for invalid relative path specifiers
+fn check_relative_path_specifiers(relative_path: &Path, path: &mut [String]) -> checks::Result<()> {
+    if !relative_path
+        .components()
+        .all(|c| matches!(c, Component::Normal(_)))
+    {
+        return Err(checks::Errors::new(
+            checks::ErrorKind::InvalidPathSpecifiers,
+            "relative paths are not allowed to use \".\" or \"..\" notation or start with a leading \"/\"",
+            path,
+        ));
+    }
+
+    Ok(())
 }
 
 /// # File Provider
@@ -251,6 +286,7 @@ pub enum FileProvider {
     GraphosSubgraphNames(apollo::GraphosSubgraphNames),
     GraphosSupergraph(apollo::GraphosSupergraph),
     Inline(InlineFile),
+    InlineDir(InlineDir),
     MergeYaml(utility::MergeYaml),
     OfflineGraphosLicense(apollo::OfflineGraphosLicense),
     RelativePath(RelativeFile),
@@ -292,6 +328,7 @@ enum_impl_file_provider!(
     GraphosSubgraphNames,
     GraphosSupergraph,
     Inline,
+    InlineDir,
     MergeYaml,
     OfflineGraphosLicense,
     RelativePath,
@@ -336,6 +373,83 @@ impl Check for InlineFile {
     ) -> checks::Result<()> {
         Ok(())
     }
+}
+
+/// # Inline directory
+///
+/// An inline representation of a directory of files. The environment variable will be set to the path
+/// of the directory itself. All files within that directory will need to be referenced using a combination
+/// of this environment variable and its `path`.
+///
+/// This file provider primarily exists so that other file providers that produce a directory of files
+/// can be converted into their inline representations.
+///
+/// If, as a user of RTF, you need to specify multiple inline files, we *strongly* advise you use an
+/// `inline` file provider for each file and that you DO NOT use this file provider.
+///
+/// ```yaml
+/// - name: "my-directory"
+///   env_var: MY_DIRECTORY
+///   kind: inline_dir
+///   files:
+///     - path: file1.txt
+///       content: |
+///         content for file1
+///     - path: nested/file2.txt
+///       content: |
+///         content for file2
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema, Template)]
+pub struct InlineDir {
+    /// A list of inline files stored in the directory
+    #[template(skip)]
+    pub(crate) files: Vec<DirFile>,
+}
+
+impl ResolveAndWrite for InlineDir {
+    async fn resolve_and_write(
+        &self,
+        target: impl AsRef<Path>,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<()> {
+        for file in self.files.iter() {
+            let abs_path = target.as_ref().join(&file.path);
+            if let Some(parent) = abs_path.parent() {
+                // Using create_dir_all here ensures that no matter how deeply
+                // nested the path is within the directory, it gets created.
+                // If it already exists then this is a no op
+                ctx.create_dir_all(parent)?;
+                ctx.write(&abs_path, &file.content)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl Check for InlineDir {
+    fn try_check(
+        &self,
+        path: &mut Vec<String>,
+        _ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        let mut errs = checks::ErrorBuilder::new();
+
+        for file in self.files.iter() {
+            errs.append(check_relative_path_specifiers(&file.path, path));
+        }
+
+        errs.into_result(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+pub(crate) struct DirFile {
+    /// The relative path to the generated file within the directory
+    pub(crate) path: PathBuf,
+
+    /// The text to write out as the contents of the generated file.
+    pub(crate) content: String,
 }
 
 /// # Relative path
@@ -588,7 +702,7 @@ mod tests {
     use indoc::indoc;
     use predicates::path;
     use simple_test_case::test_case;
-    use std::path::PathBuf;
+    use std::{path::PathBuf, str::FromStr};
 
     macro_rules! template_context {
         ($slice:expr) => {{
@@ -767,6 +881,18 @@ mod tests {
             some content
     "#
     );
+    const INLINE_DIR: &str = indoc!(
+        r#"
+        kind: inline_dir
+        files:
+          - path: file1
+            content: |
+              some content for file1
+          - path: nested/file2
+            content: |
+              some content for file2
+    "#
+    );
     const OFFLINE_GRAPHOS_LICENSE: &str = indoc!(
         r#"
         kind: offline_graphos_license
@@ -833,6 +959,7 @@ mod tests {
     #[test_case(GRAPHOS_SUPERGRAPH, &["graph_ref"]; "graphos_supergraph")]
     #[test_case(FROM_COMMAND, &["test_script", "test_arg", "test_var", "test_path"]; "from_command")]
     #[test_case(INLINE, &[]; "inline")]
+    #[test_case(INLINE_DIR, &[]; "inline_dir")]
     #[test_case(OFFLINE_GRAPHOS_LICENSE, &["graph_id"]; "offline_graphos_license")]
     #[test_case(RELATIVE_PATH, &["path"]; "relative_path")]
     #[test_case(REQUIRED_FILE, &[]; "required")]
@@ -945,6 +1072,23 @@ mod tests {
     }
 
     #[test]
+    fn named_file_provider_check_error_name_path_invalid() {
+        let nfp = NamedFileProvider {
+            name: "../inline.txt".to_string(),
+            env_var: "INLINE".to_string(),
+            provider: FileProvider::Inline(InlineFile {
+                content: "content".to_string(),
+            }),
+        };
+
+        let res = nfp.try_check(&mut vec!["path".to_string()], &Context::new());
+        assert!(res.is_err(), "expected to check to error, got {res:?}");
+        let err = res.unwrap_err().unwrap_single();
+        assert_eq!(err.path, "path.INLINE");
+        assert_eq!(err.kind, checks::ErrorKind::InvalidPathSpecifiers)
+    }
+
+    #[test]
     fn inline_file_check_success() {
         let inline = InlineFile {
             content: "some content".to_string(),
@@ -954,6 +1098,52 @@ mod tests {
 
         let res = inline.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}")
+    }
+
+    #[test]
+    fn inline_dir_check_success() {
+        let inline = InlineDir {
+            files: vec![DirFile {
+                path: PathBuf::from_str("path/to/file.txt").unwrap(),
+                content: "file content".to_string(),
+            }],
+        };
+
+        let ctx = Context::new();
+
+        let res = inline.try_check(&mut Vec::new(), &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}")
+    }
+
+    #[test]
+    fn inline_dir_check_invalid_relative_path_errors() {
+        let inline = InlineDir {
+            files: vec![
+                DirFile {
+                    path: PathBuf::from_str("./file.txt").unwrap(),
+                    content: "file content".to_string(),
+                },
+                DirFile {
+                    path: PathBuf::from_str("../file.txt").unwrap(),
+                    content: "file content".to_string(),
+                },
+                DirFile {
+                    path: PathBuf::from_str("/file.txt").unwrap(),
+                    content: "file content".to_string(),
+                },
+            ],
+        };
+        let ctx = Context::new();
+
+        assert_check_errors(
+            inline,
+            &ctx,
+            &[
+                checks::ErrorKind::InvalidPathSpecifiers,
+                checks::ErrorKind::InvalidPathSpecifiers,
+                checks::ErrorKind::InvalidPathSpecifiers,
+            ],
+        );
     }
 
     #[test]
@@ -1058,6 +1248,48 @@ mod tests {
         });
 
         assert_resolve_and_write_success(inline, &target, &mut ctx, expected_content).await;
+    }
+
+    #[tokio::test]
+    async fn inline_dir_resolve_and_write_success() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.child("directory");
+
+        let file1_path = "file1.txt";
+        let file1_content = "file1 content";
+        let file2_path = "nested/file2.txt";
+        let file2_content = "file2 content";
+        let file3_path = "some/very/deeply/nested/file3.txt";
+        let file3_content = "file3 content";
+
+        let mut ctx = Context::new();
+        let inline_dir = FileProvider::InlineDir(InlineDir {
+            files: vec![
+                DirFile {
+                    path: PathBuf::from_str(file1_path).unwrap(),
+                    content: file1_content.to_string(),
+                },
+                DirFile {
+                    path: PathBuf::from_str(file2_path).unwrap(),
+                    content: file2_content.to_string(),
+                },
+                DirFile {
+                    path: PathBuf::from_str(file3_path).unwrap(),
+                    content: file3_content.to_string(),
+                },
+            ],
+        });
+
+        let res = inline_dir.resolve_and_write(&target, &mut ctx).await;
+        assert!(
+            res.is_ok(),
+            "expected file to resolve and write, got {res:?}"
+        );
+
+        target.assert(path::exists());
+        assert_file_content(&target.child(file1_path), file1_content);
+        assert_file_content(&target.child(file2_path), file2_content);
+        assert_file_content(&target.child(file3_path), file3_content);
     }
 
     #[tokio::test]

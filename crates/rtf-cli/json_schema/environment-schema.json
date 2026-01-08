@@ -381,6 +381,23 @@
         {
           "allOf": [
             {
+              "$ref": "#/definitions/InlineDir"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "inline_dir",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
               "$ref": "#/definitions/MergeYaml"
             }
           ],
@@ -616,6 +633,23 @@
           "description": "Whether or not to increment the port number from the base for each subgraph.\n\nDefaults to false if unset."
         }
       },
+      "type": "object"
+    },
+    "DirFile": {
+      "properties": {
+        "content": {
+          "description": "The text to write out as the contents of the generated file.",
+          "type": "string"
+        },
+        "path": {
+          "description": "The relative path to the generated file within the directory",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "content"
+      ],
       "type": "object"
     },
     "FromCommand": {
@@ -875,6 +909,23 @@
       "title": "GraphOS supergraph SDL",
       "type": "object"
     },
+    "InlineDir": {
+      "description": "An inline representation of a directory of files. The environment variable will be set to the path\nof the directory itself. All files within that directory will need to be referenced using a combination\nof this environment variable and its `path`.\n\nThis file provider primarily exists so that other file providers that produce a directory of files\ncan be converted into their inline representations.\n\nIf, as a user of RTF, you need to specify multiple inline files, we *strongly* advise you use an\n`inline` file provider for each file and that you DO NOT use this file provider.\n\n```yaml\n- name: \"my-directory\"\n  env_var: MY_DIRECTORY\n  kind: inline_dir\n  files:\n    - path: file1.txt\n      content: |\n        content for file1\n    - path: nested/file2.txt\n      content: |\n        content for file2\n```",
+      "properties": {
+        "files": {
+          "description": "A list of inline files stored in the directory",
+          "items": {
+            "$ref": "#/definitions/DirFile"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "files"
+      ],
+      "title": "Inline directory",
+      "type": "object"
+    },
     "InlineFile": {
       "description": "The simplest form of file provider: the user specifies the contents of the file inline within\ntheir config file.\n\n```yaml\n- name: \"my-file.txt\"\n  env_var: MY_FILE\n  kind: inline\n  content: |\n    my raw file content.\n    specified inline within an RTF config file.\n```",
       "properties": {
@@ -1115,6 +1166,23 @@
           "properties": {
             "kind": {
               "const": "inline",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/InlineDir"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "inline_dir",
               "type": "string"
             }
           },
