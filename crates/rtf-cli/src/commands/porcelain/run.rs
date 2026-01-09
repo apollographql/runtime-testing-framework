@@ -50,10 +50,10 @@ async fn check_and_run_test_plan_with_context(
     cwd: PathBuf,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    let override_sources = variables.merge(&mut test_plan, &SourceDir::local(cwd), &mut ctx)?;
+    let variable_sources = variables.merge(&mut test_plan, &SourceDir::local(cwd), &mut ctx)?;
 
     info!("checking if templating will work");
-    test_plan.check_templating_will_work(&override_sources)?;
+    test_plan.check_templating_will_work(&variable_sources)?;
 
     info!("creating output directory");
     ctx.create_dir_all(out_dir)?;
@@ -66,7 +66,7 @@ async fn check_and_run_test_plan_with_context(
 
     if test_plan.matrix.is_empty() {
         info!("executing test plan");
-        return run_one(test_plan, &out_dir, &override_sources, &mut ctx).await;
+        return run_one(test_plan, &out_dir, &variable_sources, &mut ctx).await;
     }
 
     let n = test_plan.matrix.n_variants();
@@ -78,7 +78,7 @@ async fn check_and_run_test_plan_with_context(
         ctx.create_dir_all(&sub_dir)?;
 
         info!("executing test plan {i}/{n}");
-        run_one(tp, &sub_dir, &override_sources, &mut ctx).await?;
+        run_one(tp, &sub_dir, &variable_sources, &mut ctx).await?;
     }
 
     Ok(())
@@ -87,7 +87,7 @@ async fn check_and_run_test_plan_with_context(
 async fn run_one(
     mut test_plan: TestPlanConfig,
     out_dir: &Path,
-    override_sources: &HashMap<String, SourceDir>,
+    variable_sources: &HashMap<String, SourceDir>,
     ctx: &mut impl ResolutionContext,
 ) -> anyhow::Result<()> {
     info!("templating environment setup");
@@ -95,7 +95,7 @@ async fn run_one(
     let mut template_ctx = TemplateContext::new(
         variables,
         test_plan.sources.test_plan().clone(),
-        override_sources.clone(),
+        variable_sources.clone(),
         test_plan.sources.custom_providers(),
     );
     test_plan.try_template_environment_setup(&template_ctx)?;

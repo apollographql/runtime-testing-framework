@@ -83,7 +83,7 @@ pub type Result<T> = std::result::Result<T, Errors>;
 pub struct TemplateContext {
     variables: HashMap<String, Scalar>,
     test_plan_source: SourceDir,
-    override_sources: HashMap<String, SourceDir>,
+    variable_sources: HashMap<String, SourceDir>,
     resolve_for: FileType,
     custom_provider_definitions: Arc<CustomProviderDefinitions>,
     variable_definitions: Vec<VariableDefinition>,
@@ -93,13 +93,13 @@ impl TemplateContext {
     pub fn new(
         variables: HashMap<String, Scalar>,
         test_plan_source: SourceDir,
-        override_sources: HashMap<String, SourceDir>,
+        variable_sources: HashMap<String, SourceDir>,
         custom_provider_definitions: Arc<CustomProviderDefinitions>,
     ) -> Self {
         Self {
             variables,
             test_plan_source,
-            override_sources,
+            variable_sources,
             resolve_for: FileType::Environment,
             custom_provider_definitions,
             variable_definitions: Vec::new(),
@@ -141,7 +141,7 @@ impl TemplateContext {
         for vd in new.variable_definitions.iter() {
             if let Some(default) = vd.default.as_ref() {
                 new.variables.entry(vd.name.clone()).or_insert_with(|| {
-                    new.override_sources
+                    new.variable_sources
                         .insert(vd.name.clone(), file_source.clone());
 
                     default.clone()
@@ -154,7 +154,7 @@ impl TemplateContext {
 
     pub fn extend(&mut self, source: SourceDir, variables: HashMap<String, Scalar>) {
         for k in variables.keys() {
-            self.override_sources.insert(k.to_owned(), source.clone());
+            self.variable_sources.insert(k.to_owned(), source.clone());
         }
 
         self.variables.extend(variables);
@@ -165,7 +165,7 @@ impl TemplateContext {
         sources: HashMap<String, SourceDir>,
         variables: HashMap<String, Scalar>,
     ) {
-        self.override_sources.extend(sources);
+        self.variable_sources.extend(sources);
         self.variables.extend(variables);
     }
 
@@ -184,7 +184,7 @@ impl TemplateContext {
     {
         let s = self.variables.get(key)?;
         let source = self
-            .override_sources
+            .variable_sources
             .get(key)
             .unwrap_or(&self.test_plan_source);
 

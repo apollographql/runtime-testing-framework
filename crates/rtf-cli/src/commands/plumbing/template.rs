@@ -41,17 +41,17 @@ async fn template_test_plan_with_context(
     cwd: PathBuf,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    let override_sources = variables.merge(&mut test_plan, &SourceDir::local(cwd), &mut ctx)?;
+    let variable_sources = variables.merge(&mut test_plan, &SourceDir::local(cwd), &mut ctx)?;
 
     info!("checking if templating will work");
-    test_plan.check_templating_will_work(&override_sources)?;
+    test_plan.check_templating_will_work(&variable_sources)?;
 
     let (_, variables) = test_plan.matrix.try_expand(&test_plan.variables)?.remove(0);
     let source = test_plan.sources.test_plan().clone();
     let template_ctx = TemplateContext::new(
         variables,
         source.clone(),
-        override_sources,
+        variable_sources,
         test_plan.sources.custom_providers(),
     );
 
