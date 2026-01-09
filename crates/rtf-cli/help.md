@@ -75,16 +75,18 @@ Expand a test plan matrix into JSON
 
 Template a test plan using provided variables, outputting the resulting config to stdout
 
-**Usage:** `rtf template [OPTIONS] [TEST_PLAN_PATH]`
+**Usage:** `rtf template [OPTIONS] <TEST_PLAN_PATH>`
 
 ###### **Arguments:**
 
-* `<TEST_PLAN_PATH>` — Relative path to the test-plan.yaml file that should be templated
+* `<TEST_PLAN_PATH>` — Relative path to the test plan file that should be templated. When using --github this must be in the format ORG/REPO/PATH
 
 ###### **Options:**
 
 * `--check` — Run a static check of the resulting test plan after templating
-* `--github <ORG/REPO/PATH>` — Template a test plan file in GitHub instead of from a local path
+* `--github` — Template a test plan file from GitHub instead of from a local path
+
+  Default value: `false`
 * `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
 
 

@@ -45,11 +45,11 @@ complete -c rtf -n "__fish_rtf_using_subcommand expand-matrix" -l vars -d 'Path 
 complete -c rtf -n "__fish_rtf_using_subcommand expand-matrix" -s c -l compact -d 'Return the expanded matrix JSON in compact form'
 complete -c rtf -n "__fish_rtf_using_subcommand expand-matrix" -s v -l verbose -d 'Flag to control logging verbosity. Default level is `warn`. `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`'
 complete -c rtf -n "__fish_rtf_using_subcommand expand-matrix" -s h -l help -d 'Print help'
-complete -c rtf -n "__fish_rtf_using_subcommand template" -l github -d 'Template a test plan file in GitHub instead of from a local path' -r
 complete -c rtf -n "__fish_rtf_using_subcommand template" -l ref -d 'Optional git ref to pull files from when using --github' -r
 complete -c rtf -n "__fish_rtf_using_subcommand template" -l var -d 'A single additional templating variable in the form "key=value"' -r
 complete -c rtf -n "__fish_rtf_using_subcommand template" -l vars -d 'Path to a JSON file containing additional template variables' -r -F
 complete -c rtf -n "__fish_rtf_using_subcommand template" -l check -d 'Run a static check of the resulting test plan after templating'
+complete -c rtf -n "__fish_rtf_using_subcommand template" -l github -d 'Template a test plan file from GitHub instead of from a local path'
 complete -c rtf -n "__fish_rtf_using_subcommand template" -s v -l verbose -d 'Flag to control logging verbosity. Default level is `warn`. `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`'
 complete -c rtf -n "__fish_rtf_using_subcommand template" -s h -l help -d 'Print help'
 complete -c rtf -n "__fish_rtf_using_subcommand custom-provider; and not __fish_seen_subcommand_from template run test help" -l var -d 'A single additional templating variable in the form "key=value"' -r

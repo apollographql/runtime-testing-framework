@@ -13,39 +13,29 @@ use rtf_config::{
 use std::{env::current_dir, path::PathBuf};
 use tracing::info;
 
-pub async fn template_test_plan_local(
-    config_file_path: &str,
-    variables: Variables,
+pub async fn template_test_plan(
+    test_plan_path: &str,
     check: bool,
+    github: bool,
+    git_ref: Option<String>,
+    variables: Variables,
 ) -> anyhow::Result<()> {
     let ctx = get_context();
     let cwd = current_dir()?;
 
     info!("loading and resolving test plan");
-    let test_plan = load_and_resolve_test_plan(config_file_path, &ctx).await?;
+    let test_plan = if github {
+        let (org, repo_and_path) = test_plan_path.split_once('/').ok_or(anyhow!(
+            "invalid GitHub uri: \"{test_plan_path}\" - GitHub uri must be in format ORG/REPO/PATH"
+        ))?;
+        let (repo, path) = repo_and_path.split_once('/').ok_or(anyhow!(
+            "invalid GitHub uri: \"{test_plan_path}\" - GitHub uri must be in format ORG/REPO/PATH"
+        ))?;
 
-    template_test_plan_with_context(test_plan, variables, check, cwd, ctx).await
-}
-
-pub async fn template_test_plan_github(
-    org_repo_path: String,
-    git_ref: Option<String>,
-    variables: Variables,
-    check: bool,
-) -> anyhow::Result<()> {
-    let ctx = get_context();
-    let cwd = current_dir()?;
-
-    let (org, repo_and_path) = org_repo_path.split_once('/').ok_or(anyhow!(
-        "invalid GitHub uri: \"{org_repo_path}\" - GitHub uri must be in format ORG/REPO/PATH"
-    ))?;
-    let (repo, path) = repo_and_path.split_once('/').ok_or(anyhow!(
-        "invalid GitHub uri: \"{org_repo_path}\" - GitHub uri must be in format ORG/REPO/PATH"
-    ))?;
-
-    info!("fetching and resolving test plan from GitHub");
-    let test_plan =
-        TestPlanConfig::try_load_and_resolve_from_github(org, repo, path, git_ref, &ctx).await?;
+        TestPlanConfig::try_load_and_resolve_from_github(org, repo, path, git_ref, &ctx).await?
+    } else {
+        load_and_resolve_test_plan(test_plan_path, &ctx).await?
+    };
 
     template_test_plan_with_context(test_plan, variables, check, cwd, ctx).await
 }

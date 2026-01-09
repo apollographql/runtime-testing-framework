@@ -6,7 +6,7 @@ use rtf_cli::{
     commands::{
         plumbing::{
             expand_test_plan_matrix, run_custom_provider, template_custom_provider,
-            template_test_plan_github, template_test_plan_local, test_custom_provider,
+            template_test_plan, test_custom_provider,
         },
         porcelain::check_and_run_test_plan,
     },
@@ -48,21 +48,7 @@ async fn main() {
             check,
             github,
             git_ref,
-        } => match (test_plan_path, github, git_ref) {
-            (Some(path), None, None) => template_test_plan_local(&path, variables, check).await,
-            (Some(_), None, Some(_)) => {
-                error!("--ref is not supported for local file paths");
-                exit(1)
-            }
-            (None, Some(org_repo_path), git_ref) => {
-                template_test_plan_github(org_repo_path, git_ref, variables, check).await
-            }
-            (None, None, _) => {
-                error!("no test plan provided");
-                exit(1)
-            }
-            (Some(_), Some(_), _) => unreachable!(),
-        },
+        } => template_test_plan(&test_plan_path, check, github, git_ref, variables).await,
 
         Command::CustomProvider {
             subcommand:
