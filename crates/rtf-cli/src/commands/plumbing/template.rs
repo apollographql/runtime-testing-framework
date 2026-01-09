@@ -1,8 +1,9 @@
 use crate::{
     cli::Variables,
-    commands::{get_context, load_and_resolve_test_plan},
+    commands::{
+        get_context, load_and_resolve_test_plan_from_github, load_and_resolve_test_plan_from_local,
+    },
 };
-use anyhow::anyhow;
 use rtf_config::{
     SourceDir,
     checks::{self, Check},
@@ -25,16 +26,9 @@ pub async fn template_test_plan(
 
     info!("loading and resolving test plan");
     let test_plan = if github {
-        let (org, repo_and_path) = test_plan_path.split_once('/').ok_or(anyhow!(
-            "invalid GitHub uri: \"{test_plan_path}\" - GitHub uri must be in format ORG/REPO/PATH"
-        ))?;
-        let (repo, path) = repo_and_path.split_once('/').ok_or(anyhow!(
-            "invalid GitHub uri: \"{test_plan_path}\" - GitHub uri must be in format ORG/REPO/PATH"
-        ))?;
-
-        TestPlanConfig::try_load_and_resolve_from_github(org, repo, path, git_ref, &ctx).await?
+        load_and_resolve_test_plan_from_github(test_plan_path, git_ref, &ctx).await?
     } else {
-        load_and_resolve_test_plan(test_plan_path, &ctx).await?
+        load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
 
     template_test_plan_with_context(test_plan, variables, check, cwd, ctx).await

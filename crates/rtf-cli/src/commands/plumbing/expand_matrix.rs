@@ -1,4 +1,4 @@
-use crate::commands::{get_context, load_and_resolve_test_plan};
+use crate::commands::{get_context, load_and_resolve_test_plan_from_local};
 use rtf_config::context::ResolutionContext;
 use serde_json::json;
 use tracing::info;
@@ -15,7 +15,7 @@ async fn expand_test_plan_matrix_with_context(
     ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
     info!("loading and resolving test plan");
-    let test_plan = load_and_resolve_test_plan(path, &ctx).await?;
+    let test_plan = load_and_resolve_test_plan_from_local(path, &ctx).await?;
 
     info!("expanding test plan matrix");
     let expanded: Vec<_> = test_plan
