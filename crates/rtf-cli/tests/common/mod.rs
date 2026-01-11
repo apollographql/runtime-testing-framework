@@ -16,6 +16,12 @@ pub struct CmdWithTmpDir {
     tmp: TempDir,
 }
 
+impl CmdWithTmpDir {
+    pub fn new(cmd: Command, tmp: TempDir) -> Self {
+        Self { cmd, tmp }
+    }
+}
+
 impl Deref for CmdWithTmpDir {
     type Target = Command;
 
@@ -40,6 +46,17 @@ impl CmdWithTmpDir {
         assert!(self.tmp.child(path).exists(), "{path} does not exist")
     }
 
+    /// Assert that a given file within the test [TempDir] does not contain `value`.
+    pub fn assert_file_does_not_contain(&self, path: &str, value: &str) {
+        let file = self.tmp.child(path);
+        let content = std::fs::read_to_string(file.path())
+            .unwrap_or_else(|e| panic!("failed to read {path}: {e}"));
+        assert!(
+            !content.contains(value),
+            "file {path} unexpectedly contains: {value}"
+        );
+    }
+
     /// Debugging helper for showing what the contents of this test's temp directory were.
     pub fn list_files(&self) {
         println!(">> Temp directory contents:");
@@ -60,25 +77,40 @@ pub fn is_valid_test_plan(dir: &str) {
     prepare_rtf_run(dir).assert().success();
 }
 
-pub fn prepare_rtf_run(dir: &str) -> CmdWithTmpDir {
+pub struct TestSetup {
+    pub tmp: TempDir,
+    pub output_file_path: PathBuf,
+    pub test_plan_file_path: PathBuf,
+}
+
+pub fn prepare_for_test(dir: &str) -> TestSetup {
     let tmp = TempDir::new().unwrap();
     tmp.copy_from(dir, &["**"]).unwrap();
 
-    let output_file_path = tmp.child("output");
-    let output_file_path = output_file_path.path().to_str().unwrap();
+    let output_file_path = tmp.child("output").path().to_path_buf();
+    let test_plan_file_path = tmp.child("test-plan.yaml").path().to_path_buf();
 
-    let test_plan_file_path = tmp.child("test-plan.yaml");
-    let test_plan_file_path = test_plan_file_path.path().to_str().unwrap();
+    TestSetup {
+        tmp,
+        output_file_path,
+        test_plan_file_path,
+    }
+}
 
+pub fn prepare_rtf_run(dir: &str) -> CmdWithTmpDir {
+    let test_setup = prepare_for_test(dir);
     let mut cmd = cargo_bin_cmd!("rtf");
 
     cmd.arg("run")
-        .arg(test_plan_file_path)
+        .arg(&test_setup.test_plan_file_path)
         .arg("--outdir")
-        .arg(output_file_path)
+        .arg(&test_setup.output_file_path)
         .arg("-vv");
 
-    CmdWithTmpDir { cmd, tmp }
+    CmdWithTmpDir {
+        cmd,
+        tmp: test_setup.tmp,
+    }
 }
 
 /// Prepare an rtf run command with a variables file containing the given content.

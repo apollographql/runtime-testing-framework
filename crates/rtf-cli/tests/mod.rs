@@ -3,6 +3,7 @@ pub mod custom_provider;
 pub mod expand_matrix;
 pub mod github;
 pub mod graphos;
+pub mod inline;
 pub mod run;
 pub mod template;
 

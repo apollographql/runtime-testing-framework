@@ -5,8 +5,8 @@ use rtf_cli::{
     cli::{Args, Command, CustomProviderSubcommand},
     commands::{
         plumbing::{
-            expand_test_plan_matrix, run_custom_provider, template_custom_provider,
-            template_test_plan, test_custom_provider,
+            expand_test_plan_matrix, inline_test_plan, run_custom_provider,
+            template_custom_provider, template_test_plan, test_custom_provider,
         },
         porcelain::check_and_run_test_plan,
     },
@@ -49,6 +49,13 @@ async fn main() {
             github,
             git_ref,
         } => template_test_plan(&test_plan_path, check, github, git_ref, variables).await,
+
+        Command::Inline {
+            test_plan_path,
+            outdir,
+            github,
+            git_ref,
+        } => inline_test_plan(&test_plan_path, &outdir, github, git_ref, variables).await,
 
         Command::CustomProvider {
             subcommand:

@@ -11,6 +11,7 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf custom-provider`↴](#rtf-custom-provider)
 * [`rtf custom-provider template`↴](#rtf-custom-provider-template)
 * [`rtf custom-provider run`↴](#rtf-custom-provider-run)
+* [`rtf inline`↴](#rtf-inline)
 
 ## `rtf`
 
@@ -24,6 +25,7 @@ A swiss army knife for testing the Apollo Runtime
 * `expand-matrix` — Expand a test plan matrix into JSON
 * `template` — Template a test plan using provided variables, outputting the resulting config to stdout
 * `custom-provider` — Work directly with custom file provider definitions
+* `inline` — Inline all relative file providers in a test plan. Outputs the resulting test plan to the given directory
 
 ###### **Options:**
 
@@ -135,6 +137,28 @@ Execute a custom provider definition
 * `--outdir <OUTDIR>` — Output directory for provider execution
 
   Default value: `output`
+
+
+
+## `rtf inline`
+
+Inline all relative file providers in a test plan. Outputs the resulting test plan to the given directory
+
+**Usage:** `rtf inline [OPTIONS] <TEST_PLAN_PATH>`
+
+###### **Arguments:**
+
+* `<TEST_PLAN_PATH>` — Relative path to the test-plan.yaml file that should be inlined. When using --github this must be in the format ORG/REPO/PATH
+
+###### **Options:**
+
+* `--outdir <OUTDIR>` — Output directory for inlined test plan
+
+  Default value: `output`
+* `--github` — Inline a test plan file from GitHub instead of from a local path
+
+  Default value: `false`
+* `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
 
 
 

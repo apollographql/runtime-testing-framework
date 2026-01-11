@@ -25,6 +25,9 @@ _rtf() {
             rtf,help)
                 cmd="rtf__help"
                 ;;
+            rtf,inline)
+                cmd="rtf__inline"
+                ;;
             rtf,run)
                 cmd="rtf__run"
                 ;;
@@ -64,6 +67,9 @@ _rtf() {
             rtf__help,help)
                 cmd="rtf__help__help"
                 ;;
+            rtf__help,inline)
+                cmd="rtf__help__inline"
+                ;;
             rtf__help,run)
                 cmd="rtf__help__run"
                 ;;
@@ -86,7 +92,7 @@ _rtf() {
 
     case "${cmd}" in
         rtf)
-            opts="-v -h --var --vars --verbose --help run expand-matrix template custom-provider help"
+            opts="-v -h --var --vars --verbose --help run expand-matrix template custom-provider inline help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -296,7 +302,7 @@ _rtf() {
             return 0
             ;;
         rtf__help)
-            opts="run expand-matrix template custom-provider help"
+            opts="run expand-matrix template custom-provider inline help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -393,6 +399,20 @@ _rtf() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        rtf__help__inline)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         rtf__help__run)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
@@ -414,6 +434,36 @@ _rtf() {
                 return 0
             fi
             case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        rtf__inline)
+            opts="-v -h --outdir --github --ref --var --vars --verbose --help <TEST_PLAN_PATH>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --outdir)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --ref)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --var)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --vars)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;

@@ -1,4 +1,5 @@
 use crate::providers;
+use crate::templating;
 
 /// User facing descriptions of the reason that inlining a [`crate::providers::file::RelativeFile`] failed.
 ///
@@ -7,6 +8,9 @@ use crate::providers;
 pub enum ErrorKind {
     #[strum(to_string = "Failed to retrieve file content")]
     FailedToRetrieveFileContent,
+
+    #[strum(to_string = "Failed to template test plan")]
+    FailedToTemplateTestPlan,
 }
 
 impl crate::error::ErrorKind for ErrorKind {
@@ -25,5 +29,24 @@ pub type Result<T> = std::result::Result<T, Errors>;
 impl From<providers::Error> for Errors {
     fn from(err: providers::Error) -> Self {
         Self::new(ErrorKind::FailedToRetrieveFileContent, err.to_string(), &[])
+    }
+}
+
+impl From<templating::Errors> for Errors {
+    fn from(errs: templating::Errors) -> Self {
+        let mut builder = ErrorBuilder::new();
+
+        for err in errs.iter() {
+            builder.push(ErrorKind::FailedToTemplateTestPlan, err.to_string(), &[]);
+        }
+
+        match builder.into_result(()) {
+            Ok(_) => Self::new(
+                ErrorKind::FailedToTemplateTestPlan,
+                "Templating failed",
+                &[],
+            ),
+            Err(e) => e,
+        }
     }
 }
