@@ -8,7 +8,9 @@ fn is_executable() {
     let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd.arg("template").assert();
 
-    res.stderr(contains("no test plan provided"));
+    res.stderr(contains(
+        "error: the following required arguments were not provided:",
+    ));
 }
 
 #[test_case("allowed-values-variable"; "allowed values variable")]

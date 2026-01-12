@@ -26,7 +26,7 @@ impl TestPlanConfig {
     /// configuration for conflicting keys and dimensions, and checks the overall template context for errors.
     pub fn check_templating_will_work(
         &mut self,
-        override_sources: &HashMap<String, SourceDir>,
+        variable_sources: &HashMap<String, SourceDir>,
     ) -> templating::Result<()> {
         let stub_variables = self
             .allowed_variables()
@@ -45,7 +45,7 @@ impl TestPlanConfig {
         self.validate_all_variable_definitions(&mut errs);
 
         let effective_allowed = self.compute_effective_allowed_values(&mut errs);
-        self.validate_values_against_allowed(override_sources, &effective_allowed, &mut errs);
+        self.validate_values_against_allowed(variable_sources, &effective_allowed, &mut errs);
 
         self.matrix
             .check_conflicting_keys(&self.variables, &mut errs);
@@ -192,7 +192,7 @@ impl TestPlanConfig {
     /// Validate that all variable values are in their effective allowed values.
     fn validate_values_against_allowed(
         &self,
-        override_sources: &HashMap<String, SourceDir>,
+        variable_sources: &HashMap<String, SourceDir>,
         effective_allowed: &HashMap<String, Vec<Scalar>>,
         errs: &mut templating::ErrorBuilder,
     ) {
@@ -213,7 +213,7 @@ impl TestPlanConfig {
 
         // Check self.variables (includes CLI variables merged in)
         for (name, value) in self.variables.iter() {
-            let source = if override_sources.contains_key(name) {
+            let source = if variable_sources.contains_key(name) {
                 "CLI variable"
             } else {
                 "test plan variable"
@@ -223,7 +223,7 @@ impl TestPlanConfig {
 
         // Check matrix dimensions
         for (name, values) in self.matrix.dimensions.iter() {
-            let source = if override_sources.contains_key(name) {
+            let source = if variable_sources.contains_key(name) {
                 "CLI matrix dimension"
             } else {
                 "matrix dimension"
@@ -1227,13 +1227,13 @@ mod tests {
             ..TestPlanConfig::empty()
         };
 
-        let override_sources: HashMap<String, SourceDir> = if is_cli_override {
+        let variable_sources: HashMap<String, SourceDir> = if is_cli_override {
             [("foo".into(), SourceDir::local("/cli"))].into()
         } else {
             HashMap::new()
         };
 
-        let res = test_plan.check_templating_will_work(&override_sources);
+        let res = test_plan.check_templating_will_work(&variable_sources);
         assert!(
             res.is_err(),
             "expected {} with invalid value to fail",

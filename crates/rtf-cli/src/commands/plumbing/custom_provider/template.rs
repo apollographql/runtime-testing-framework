@@ -29,18 +29,18 @@ pub async fn template_custom_provider(
 
     let ParsedVariables {
         variables,
-        override_sources,
+        variable_sources,
         ..
     } = parse_cli_variables(variables, &cwd_source, &ctx)?;
 
     let template_ctx = TemplateContext::new(
         variables,
         source.clone(),
-        override_sources.clone(),
+        variable_sources.clone(),
         Default::default(),
     );
 
-    definition.validate_variables(template_ctx.variables(), Some(&override_sources))?;
+    definition.validate_variables(template_ctx.variables(), Some(&variable_sources))?;
 
     definition.try_template(&mut Vec::new(), &source, &template_ctx)?;
 

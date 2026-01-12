@@ -59,7 +59,7 @@ impl cli::Variables {
     ) -> anyhow::Result<ParsedVariables> {
         let mut variables = HashMap::new();
         let mut matrix_dimensions = HashMap::new();
-        let mut override_sources = HashMap::new();
+        let mut variable_sources = HashMap::new();
 
         // --vars variables read from a file can be individual variables or matrix dimensions
         if let Some((source, from_variables)) = variable_json_data {
@@ -73,7 +73,7 @@ impl cli::Variables {
                     }
                 }
 
-                override_sources.insert(k, source.clone());
+                variable_sources.insert(k, source.clone());
             }
         }
 
@@ -88,14 +88,14 @@ impl cli::Variables {
             }
 
             let v: Scalar = serde_yaml::from_str(v).context(format!("invalid value for {k:?}"))?;
-            override_sources.insert(k.to_string(), cwd_source.clone());
+            variable_sources.insert(k.to_string(), cwd_source.clone());
             variables.insert(k.to_string(), v);
         }
 
         Ok(ParsedVariables {
             variables,
             matrix_dimensions,
-            override_sources,
+            variable_sources,
         })
     }
 
@@ -117,7 +117,7 @@ impl cli::Variables {
 pub(crate) struct ParsedVariables {
     variables: HashMap<String, Scalar>,
     matrix_dimensions: HashMap<String, Vec<Scalar>>,
-    override_sources: HashMap<String, SourceDir>,
+    variable_sources: HashMap<String, SourceDir>,
 }
 
 impl ParsedVariables {
@@ -137,7 +137,7 @@ impl ParsedVariables {
             variables_from_test_plan.insert(k.clone(), v);
         }
 
-        Ok(self.override_sources)
+        Ok(self.variable_sources)
     }
 }
 

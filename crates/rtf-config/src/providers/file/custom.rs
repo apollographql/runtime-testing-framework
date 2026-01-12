@@ -313,15 +313,15 @@ mod tests {
         // for the cases we want to test variables coming from sources external
         // to the provider or definition, can set variables and their sources
         let mut variables = HashMap::new();
-        let mut override_sources = HashMap::new();
+        let mut variable_sources = HashMap::new();
         if let Some((var_name, var_value, src)) = file_ctx {
             variables.insert(var_name.to_string(), var_value.into());
-            override_sources.insert(var_name.to_string(), src);
+            variable_sources.insert(var_name.to_string(), src);
         }
         let file_ctx = TemplateContext::new(
             variables,
             SourceDir::local("/test-plan"),
-            override_sources,
+            variable_sources,
             Default::default(),
         );
 
