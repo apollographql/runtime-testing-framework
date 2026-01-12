@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"macro":["enum_impl_as_utf8_file_content","enum_impl_check","enum_impl_resolve_and_write"],"mod":["checks","context","error","formats","providers","templating"],"struct":["VariableDefinition"]};
+window.SIDEBAR_ITEMS = {"macro":["enum_impl_as_utf8_file_content","enum_impl_check","enum_impl_resolve_and_write"],"mod":["checks","context","error","formats","inlining","providers","templating"],"struct":["VariableDefinition"]};
