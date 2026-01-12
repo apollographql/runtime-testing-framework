@@ -1283,7 +1283,7 @@
           "type": "string"
         },
         "name": {
-          "description": "The to use for the output produced by this provider\n\nThis can be either a file or a directory depending on the file provider.",
+          "description": "The name to use for the output produced by this provider\n\nThis can be either a file or a directory depending on the file provider.",
           "type": "string"
         }
       },

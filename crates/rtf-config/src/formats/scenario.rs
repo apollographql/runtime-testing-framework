@@ -3,6 +3,7 @@ use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
     formats::{CustomProviderDeclaration, Result},
+    inlining,
     providers::{command::CommandSection, file::SourceDir},
     templating::{self, FileType, Template, TemplateContext},
 };
@@ -36,6 +37,15 @@ impl ScenarioConfig {
         let content = fs::read_to_string(p)?;
 
         Ok(serde_yaml::from_str(&content)?)
+    }
+
+    pub async fn inline_all_relative_paths(
+        &mut self,
+        ctx: &impl ResolutionContext,
+    ) -> inlining::Result<()> {
+        self.command.inline_all_relative_paths(ctx).await?;
+
+        Ok(())
     }
 
     /// Create an empty [ScenarioConfig] for tests

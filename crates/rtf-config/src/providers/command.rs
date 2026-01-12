@@ -1,7 +1,7 @@
 use crate::{
     checks::{self, Check, duplicate_keys},
     context::ResolutionContext,
-    enum_impl_as_utf8_file_content, enum_impl_check,
+    enum_impl_as_utf8_file_content, enum_impl_check, inlining,
     providers::{
         self, Provider,
         file::{
@@ -16,8 +16,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
+    future::Future,
     io,
     path::{Path, PathBuf},
+    pin::Pin,
 };
 use tracing::trace;
 
@@ -251,6 +253,37 @@ impl CommandSection {
             file_providers: Default::default(),
         }
     }
+
+    pub(crate) fn inline_all_relative_paths<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        // We need to pin this future on the heap to be able to poll it in order to avoid a
+        // recursively defined future (which is infinitely sized). We end up being recursively
+        // defined because of the FromCommand file provider which is just a wrapper around
+        // this CommandSection struct. Therefore, the call to inline_all_relative_paths
+        // below ends up calling back into inline_all_relative_paths which calls this method.
+        Box::pin(async move {
+            let mut errs = inlining::ErrorBuilder::new();
+
+            errs.append(
+                self.command
+                    .command_provider
+                    .inline_all_relative_paths(ctx)
+                    .await,
+            );
+            for named_file_provider in self.file_providers.iter_mut() {
+                errs.append(
+                    named_file_provider
+                        .provider
+                        .inline_all_relative_paths(ctx)
+                        .await,
+                );
+            }
+
+            errs.into_result(())
+        })
+    }
 }
 
 impl Check for CommandSection {
@@ -362,6 +395,19 @@ pub enum CommandProvider {
     Required(RequiredFile),
 }
 
+impl CommandProvider {
+    pub(crate) async fn inline_all_relative_paths(
+        &mut self,
+        ctx: &impl ResolutionContext,
+    ) -> inlining::Result<()> {
+        if let Self::RelativePath(relative_path) = self {
+            *self = Self::Inline(relative_path.to_inline_file(ctx).await?);
+        }
+
+        Ok(())
+    }
+}
+
 // Each time we add a new variant to the CommandProvider enum above we need to remember to add it
 // to the macro invocation below in order to update the trait implementations for the enum. (You
 // can't really forget to do this as the compiler will complain about missing match arms if you
@@ -412,12 +458,14 @@ pub(crate) mod test_helpers {
 mod tests {
     use super::*;
     use crate::{
+        SourceDir,
         context::{Context, PathKind},
         mock_context::NullClient,
         providers::{
             Provider,
             command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
             file::{FileProvider, InlineFile},
+            test_helpers::create_temp_dir_with_file,
         },
         templating::Template,
     };
@@ -943,5 +991,120 @@ mod tests {
             !written_files.contains_key(&k),
             "should have removed the outfile"
         );
+    }
+
+    #[tokio::test]
+    async fn command_provider_inline_all_relative_paths_succeeds() {
+        let ctx = Context::new();
+        let file_content = "example file content";
+        let relative_file_path = "file.txt";
+        let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+
+        let mut command_provider = CommandProvider::RelativePath(RelativeFile {
+            path: Field::Resolved(relative_file_path.to_string()),
+            src: Some(src),
+        });
+
+        let result = command_provider.inline_all_relative_paths(&ctx).await;
+        assert!(
+            result.is_ok(),
+            "Expected inline_all_relative_paths to succeed, got {result:?}"
+        );
+        assert_eq!(
+            command_provider,
+            CommandProvider::Inline(InlineFile {
+                content: file_content.to_string(),
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn command_provider_inline_all_relative_paths_succeeds_and_leaves_inline_command_provider_unchanged()
+     {
+        let ctx = Context::new();
+        let file_content = "example file content";
+        let mut command_provider = CommandProvider::Inline(InlineFile {
+            content: file_content.to_string(),
+        });
+        let expected_command_provider = command_provider.clone();
+
+        let result = command_provider.inline_all_relative_paths(&ctx).await;
+        assert!(
+            result.is_ok(),
+            "Expected inline_all_relative_paths to succeed, got {result:?}"
+        );
+        assert_eq!(command_provider, expected_command_provider);
+    }
+
+    #[tokio::test]
+    async fn command_section_inline_all_relative_providers_succeeds() {
+        let ctx = Context::new();
+        let file_content = "example file content";
+        let relative_file_path = "file.txt";
+        let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+
+        let inline_file_provider = FileProvider::Inline(InlineFile {
+            content: file_content.to_string(),
+        });
+
+        let mut command_section = CommandSection {
+            command: CommandSpec {
+                name: "example.sh".to_string(),
+                command_provider: CommandProvider::RelativePath(RelativeFile {
+                    path: Field::Resolved(relative_file_path.to_string()),
+                    src: Some(src.clone()),
+                }),
+                args: Vec::new(),
+            },
+            env_vars: HashMap::new(),
+            file_providers: vec![
+                NamedFileProvider {
+                    name: "fp1.txt".to_string(),
+                    env_var: "FP1".to_string(),
+                    provider: FileProvider::RelativePath(RelativeFile {
+                        path: Field::Resolved(relative_file_path.to_string()),
+                        src: Some(src.clone()),
+                    }),
+                },
+                NamedFileProvider {
+                    name: "fp2.txt".to_string(),
+                    env_var: "FP2".to_string(),
+                    provider: inline_file_provider.clone(),
+                },
+            ],
+        };
+
+        let result = command_section.inline_all_relative_paths(&ctx).await;
+        assert!(
+            result.is_ok(),
+            "Expected inline_all_relative_paths to succeed, got {result:?}"
+        );
+
+        let expected = CommandSection {
+            command: CommandSpec {
+                name: "example.sh".to_string(),
+                command_provider: CommandProvider::Inline(InlineFile {
+                    content: file_content.to_string(),
+                }),
+                args: Vec::new(),
+            },
+            env_vars: HashMap::new(),
+            file_providers: vec![
+                NamedFileProvider {
+                    name: "fp1.txt".to_string(),
+                    env_var: "FP1".to_string(),
+                    provider: inline_file_provider.clone(),
+                },
+                NamedFileProvider {
+                    name: "fp2.txt".to_string(),
+                    env_var: "FP2".to_string(),
+                    provider: inline_file_provider,
+                },
+            ],
+        };
+
+        assert_eq!(command_section, expected);
     }
 }

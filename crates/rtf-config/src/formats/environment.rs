@@ -4,6 +4,7 @@ use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
     formats::{CustomProviderDeclaration, Result},
+    inlining,
     providers::{command::CommandSection, file::SourceDir},
     templating::{self, FileType, Template, TemplateContext},
 };
@@ -108,6 +109,24 @@ impl EnvironmentConfig {
             },
             teardown: CommandSection::empty(),
         }
+    }
+
+    pub async fn inline_all_relative_paths(
+        &mut self,
+        ctx: &impl ResolutionContext,
+    ) -> inlining::Result<()> {
+        let mut errs = inlining::ErrorBuilder::new();
+
+        errs.append(self.setup.command.inline_all_relative_paths(ctx).await);
+        errs.append(
+            self.teardown
+                .command
+                .command_provider
+                .inline_all_relative_paths(ctx)
+                .await,
+        );
+
+        errs.into_result(())
     }
 }
 

@@ -2,7 +2,7 @@
 use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
-    enum_impl_check, providers,
+    enum_impl_check, inlining, providers,
     templating::{self, Field, Template, TemplateContext},
 };
 use rtf_derive::Template;
@@ -148,7 +148,7 @@ macro_rules! enum_impl_resolve_and_write {
 /// Shared metadata that wraps every file provider.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct NamedFileProvider {
-    /// The to use for the output produced by this provider
+    /// The name to use for the output produced by this provider
     ///
     /// This can be either a file or a directory depending on the file provider.
     pub name: String,
@@ -302,6 +302,25 @@ impl FileProvider {
         let schema = generator.into_root_schema_for::<Self>();
 
         schema.to_value()
+    }
+
+    /// Recursively inline any RelativePath file providers into Inline providers.
+    pub async fn inline_all_relative_paths(
+        &mut self,
+        ctx: &impl ResolutionContext,
+    ) -> inlining::Result<()> {
+        match self {
+            Self::RelativePath(relative_path) => {
+                *self = Self::Inline(relative_path.to_inline_file(ctx).await?);
+
+                Ok(())
+            }
+            Self::FromCommand(from_command) => from_command.inline_all_relative_paths(ctx).await,
+            Self::Conditional(conditional) => conditional.inline_all_relative_paths(ctx).await,
+            Self::MergeYaml(merge_yaml) => merge_yaml.inline_all_relative_paths(ctx).await,
+            // This is a no-op for other types of file providers
+            _ => Ok(()),
+        }
     }
 }
 
@@ -474,6 +493,17 @@ pub struct RelativeFile {
     #[schemars(skip)]
     #[doc(hidden)]
     pub(crate) src: Option<SourceDir>,
+}
+
+impl RelativeFile {
+    pub(crate) async fn to_inline_file(
+        &self,
+        ctx: &impl ResolutionContext,
+    ) -> inlining::Result<InlineFile> {
+        let content = self.try_get_file_content(ctx).await?;
+
+        Ok(InlineFile { content })
+    }
 }
 
 impl Template for RelativeFile {
@@ -1408,5 +1438,49 @@ mod tests {
         let _res = required
             .resolve_and_write(Path::new("required.txt"), &mut ctx)
             .await;
+    }
+
+    #[tokio::test]
+    async fn file_provider_inline_all_relative_paths_succeeds_for_relative_path() {
+        let ctx = Context::new();
+        let file_content = "example file content";
+        let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", file_content);
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+
+        let mut file_provider = FileProvider::RelativePath(relative_file("file.txt", src.clone()));
+        let result = file_provider.inline_all_relative_paths(&ctx).await;
+
+        assert!(
+            result.is_ok(),
+            "Expected inline_relative_path_provider to succeed, got {result:?}"
+        );
+        // Assert that the result is an inline file provider with the same contents as the original relative path provider
+        let expected_inline_file_provider = FileProvider::Inline(InlineFile {
+            content: file_content.to_string(),
+        });
+        assert_eq!(
+            expected_inline_file_provider, file_provider,
+            "Expected inline_relative_path_provider to update the file provider to an inline file provider with the same contents as the original relative path provider"
+        );
+    }
+
+    #[tokio::test]
+    async fn file_provider_inline_all_relative_paths_succeeds_for_inline_file() {
+        let ctx = Context::new();
+        let file_content = "example file content";
+        let mut file_provider = FileProvider::Inline(InlineFile {
+            content: file_content.to_string(),
+        });
+        let expected_file_provider = file_provider.clone();
+
+        let result = file_provider.inline_all_relative_paths(&ctx).await;
+        assert!(
+            result.is_ok(),
+            "Expected inline_relative_path_provider to succeed, got {result:?}"
+        );
+        assert_eq!(
+            expected_file_provider, file_provider,
+            "Expected the inline file provider to remain unchanged"
+        );
     }
 }
