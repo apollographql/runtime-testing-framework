@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["expand_test_plan_matrix","run_custom_provider","template_custom_provider","template_test_plan_github","template_test_plan_local","test_custom_provider"]};
+window.SIDEBAR_ITEMS = {"fn":["expand_test_plan_matrix","run_custom_provider","template_custom_provider","template_test_plan","test_custom_provider"]};

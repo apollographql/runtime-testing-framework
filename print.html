@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-838b65ea.js";
+            window.path_to_searchindex_js = "searchindex-9adbc9dc.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6484d70d.js"></script>
@@ -4360,15 +4360,16 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 </ul>
 <h2 id="rtf-run"><a class="header" href="#rtf-run"><code>rtf run</code></a></h2>
 <p>Check and run a test plan</p>
-<p><strong>Usage:</strong> <code>rtf run [OPTIONS] [TEST_PLAN_PATH]</code></p>
+<p><strong>Usage:</strong> <code>rtf run [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
 <h6 id="arguments"><a class="header" href="#arguments"><strong>Arguments:</strong></a></h6>
 <ul>
-<li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test plan file that should be executed</li>
+<li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test plan file that should be executed. When using –github this must be in the format ORG/REPO/PATH</li>
 </ul>
 <h6 id="options-1"><a class="header" href="#options-1"><strong>Options:</strong></a></h6>
 <ul>
 <li>
-<p><code>--github &lt;ORG/REPO/PATH&gt;</code> — Execute a test plan file in GitHub instead of from a local path</p>
+<p><code>--github</code> — Execute a test plan file in GitHub instead of from a local path</p>
+<p>Default value: <code>false</code></p>
 </li>
 <li>
 <p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
@@ -4391,16 +4392,23 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 </ul>
 <h2 id="rtf-template"><a class="header" href="#rtf-template"><code>rtf template</code></a></h2>
 <p>Template a test plan using provided variables, outputting the resulting config to stdout</p>
-<p><strong>Usage:</strong> <code>rtf template [OPTIONS] [TEST_PLAN_PATH]</code></p>
+<p><strong>Usage:</strong> <code>rtf template [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
 <h6 id="arguments-2"><a class="header" href="#arguments-2"><strong>Arguments:</strong></a></h6>
 <ul>
-<li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test-plan.yaml file that should be templated</li>
+<li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test plan file that should be templated. When using –github this must be in the format ORG/REPO/PATH</li>
 </ul>
 <h6 id="options-3"><a class="header" href="#options-3"><strong>Options:</strong></a></h6>
 <ul>
-<li><code>--check</code> — Run a static check of the resulting test plan after templating</li>
-<li><code>--github &lt;ORG/REPO/PATH&gt;</code> — Template a test plan file in GitHub instead of from a local path</li>
-<li><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</li>
+<li>
+<p><code>--check</code> — Run a static check of the resulting test plan after templating</p>
+</li>
+<li>
+<p><code>--github</code> — Template a test plan file from GitHub instead of from a local path</p>
+<p>Default value: <code>false</code></p>
+</li>
+<li>
+<p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
+</li>
 </ul>
 <h2 id="rtf-custom-provider"><a class="header" href="#rtf-custom-provider"><code>rtf custom-provider</code></a></h2>
 <p>Work directly with custom file provider definitions</p>
@@ -5718,8 +5726,9 @@ rather than unit testing individual functions. This includes:</p>
 <h3 id="test-resource-management"><a class="header" href="#test-resource-management">Test resource management</a></h3>
 <p>Test data is organized in a structured resource hierarchy:</p>
 <ul>
-<li><code>resources/valid/</code> - Contains complete, valid test plans for success scenarios</li>
-<li><code>resources/invalid/</code> - Organized by failure category (load-and-resolve, templating, checks, run)</li>
+<li><code>resources/&lt;resource_type&gt;/valid/</code> - Contains complete, valid test plans for success scenarios</li>
+<li><code>resources/&lt;resource_type&gt;/invalid/</code> - Organized by failure category (load-and-resolve,
+templating, checks, run)</li>
 </ul>
 <p>Each test plan directory is self-contained with all necessary files, enabling realistic integration
 testing scenarios.</p>

@@ -35,7 +35,7 @@
             const path_to_root = "../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../searchindex-838b65ea.js";
+            window.path_to_searchindex_js = "../../../searchindex-9adbc9dc.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../../toc-6484d70d.js"></script>
@@ -400,8 +400,9 @@ rather than unit testing individual functions. This includes:</p>
 <h3 id="test-resource-management"><a class="header" href="#test-resource-management">Test resource management</a></h3>
 <p>Test data is organized in a structured resource hierarchy:</p>
 <ul>
-<li><code>resources/valid/</code> - Contains complete, valid test plans for success scenarios</li>
-<li><code>resources/invalid/</code> - Organized by failure category (load-and-resolve, templating, checks, run)</li>
+<li><code>resources/&lt;resource_type&gt;/valid/</code> - Contains complete, valid test plans for success scenarios</li>
+<li><code>resources/&lt;resource_type&gt;/invalid/</code> - Organized by failure category (load-and-resolve,
+templating, checks, run)</li>
 </ul>
 <p>Each test plan directory is self-contained with all necessary files, enabling realistic integration
 testing scenarios.</p>

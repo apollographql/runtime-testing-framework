@@ -59,7 +59,7 @@
 <a href=#59 id=59 data-nosnippet>59</a>    ) -&gt; anyhow::Result&lt;ParsedVariables&gt; {
 <a href=#60 id=60 data-nosnippet>60</a>        <span class="kw">let </span><span class="kw-2">mut </span>variables = HashMap::new();
 <a href=#61 id=61 data-nosnippet>61</a>        <span class="kw">let </span><span class="kw-2">mut </span>matrix_dimensions = HashMap::new();
-<a href=#62 id=62 data-nosnippet>62</a>        <span class="kw">let </span><span class="kw-2">mut </span>override_sources = HashMap::new();
+<a href=#62 id=62 data-nosnippet>62</a>        <span class="kw">let </span><span class="kw-2">mut </span>variable_sources = HashMap::new();
 <a href=#63 id=63 data-nosnippet>63</a>
 <a href=#64 id=64 data-nosnippet>64</a>        <span class="comment">// --vars variables read from a file can be individual variables or matrix dimensions
 <a href=#65 id=65 data-nosnippet>65</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>((source, from_variables)) = variable_json_data {
@@ -73,7 +73,7 @@
 <a href=#73 id=73 data-nosnippet>73</a>                    }
 <a href=#74 id=74 data-nosnippet>74</a>                }
 <a href=#75 id=75 data-nosnippet>75</a>
-<a href=#76 id=76 data-nosnippet>76</a>                override_sources.insert(k, source.clone());
+<a href=#76 id=76 data-nosnippet>76</a>                variable_sources.insert(k, source.clone());
 <a href=#77 id=77 data-nosnippet>77</a>            }
 <a href=#78 id=78 data-nosnippet>78</a>        }
 <a href=#79 id=79 data-nosnippet>79</a>
@@ -88,14 +88,14 @@
 <a href=#88 id=88 data-nosnippet>88</a>            }
 <a href=#89 id=89 data-nosnippet>89</a>
 <a href=#90 id=90 data-nosnippet>90</a>            <span class="kw">let </span>v: Scalar = serde_yaml::from_str(v).context(<span class="macro">format!</span>(<span class="string">"invalid value for {k:?}"</span>))<span class="question-mark">?</span>;
-<a href=#91 id=91 data-nosnippet>91</a>            override_sources.insert(k.to_string(), cwd_source.clone());
+<a href=#91 id=91 data-nosnippet>91</a>            variable_sources.insert(k.to_string(), cwd_source.clone());
 <a href=#92 id=92 data-nosnippet>92</a>            variables.insert(k.to_string(), v);
 <a href=#93 id=93 data-nosnippet>93</a>        }
 <a href=#94 id=94 data-nosnippet>94</a>
 <a href=#95 id=95 data-nosnippet>95</a>        <span class="prelude-val">Ok</span>(ParsedVariables {
 <a href=#96 id=96 data-nosnippet>96</a>            variables,
 <a href=#97 id=97 data-nosnippet>97</a>            matrix_dimensions,
-<a href=#98 id=98 data-nosnippet>98</a>            override_sources,
+<a href=#98 id=98 data-nosnippet>98</a>            variable_sources,
 <a href=#99 id=99 data-nosnippet>99</a>        })
 <a href=#100 id=100 data-nosnippet>100</a>    }
 <a href=#101 id=101 data-nosnippet>101</a>
@@ -117,7 +117,7 @@
 <a href=#117 id=117 data-nosnippet>117</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ParsedVariables {
 <a href=#118 id=118 data-nosnippet>118</a>    variables: HashMap&lt;String, Scalar&gt;,
 <a href=#119 id=119 data-nosnippet>119</a>    matrix_dimensions: HashMap&lt;String, Vec&lt;Scalar&gt;&gt;,
-<a href=#120 id=120 data-nosnippet>120</a>    override_sources: HashMap&lt;String, SourceDir&gt;,
+<a href=#120 id=120 data-nosnippet>120</a>    variable_sources: HashMap&lt;String, SourceDir&gt;,
 <a href=#121 id=121 data-nosnippet>121</a>}
 <a href=#122 id=122 data-nosnippet>122</a>
 <a href=#123 id=123 data-nosnippet>123</a><span class="kw">impl </span>ParsedVariables {
@@ -137,7 +137,7 @@
 <a href=#137 id=137 data-nosnippet>137</a>            variables_from_test_plan.insert(k.clone(), v);
 <a href=#138 id=138 data-nosnippet>138</a>        }
 <a href=#139 id=139 data-nosnippet>139</a>
-<a href=#140 id=140 data-nosnippet>140</a>        <span class="prelude-val">Ok</span>(<span class="self">self</span>.override_sources)
+<a href=#140 id=140 data-nosnippet>140</a>        <span class="prelude-val">Ok</span>(<span class="self">self</span>.variable_sources)
 <a href=#141 id=141 data-nosnippet>141</a>    }
 <a href=#142 id=142 data-nosnippet>142</a>}
 <a href=#143 id=143 data-nosnippet>143</a>

@@ -313,15 +313,15 @@
 <a href=#313 id=313 data-nosnippet>313</a>        // for the cases we want to test variables coming from sources external
 <a href=#314 id=314 data-nosnippet>314</a>        // to the provider or definition, can set variables and their sources
 <a href=#315 id=315 data-nosnippet>315</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>variables = HashMap::new();
-<a href=#316 id=316 data-nosnippet>316</a>        <span class="kw">let </span><span class="kw-2">mut </span>override_sources = HashMap::new();
+<a href=#316 id=316 data-nosnippet>316</a>        <span class="kw">let </span><span class="kw-2">mut </span>variable_sources = HashMap::new();
 <a href=#317 id=317 data-nosnippet>317</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((var_name, var_value, src)) = file_ctx {
 <a href=#318 id=318 data-nosnippet>318</a>            variables.insert(var_name.to_string(), var_value.into());
-<a href=#319 id=319 data-nosnippet>319</a>            override_sources.insert(var_name.to_string(), src);
+<a href=#319 id=319 data-nosnippet>319</a>            variable_sources.insert(var_name.to_string(), src);
 <a href=#320 id=320 data-nosnippet>320</a>        }
 <a href=#321 id=321 data-nosnippet>321</a>        <span class="kw">let </span>file_ctx = TemplateContext::new(
 <a href=#322 id=322 data-nosnippet>322</a>            variables,
 <a href=#323 id=323 data-nosnippet>323</a>            SourceDir::local(<span class="string">"/test-plan"</span>),
-<a href=#324 id=324 data-nosnippet>324</a>            override_sources,
+<a href=#324 id=324 data-nosnippet>324</a>            variable_sources,
 <a href=#325 id=325 data-nosnippet>325</a>            Default::default(),
 <a href=#326 id=326 data-nosnippet>326</a>        );
 <a href=#327 id=327 data-nosnippet>327</a>

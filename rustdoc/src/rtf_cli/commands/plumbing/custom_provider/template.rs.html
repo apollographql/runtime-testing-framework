@@ -29,18 +29,18 @@
 <a href=#29 id=29 data-nosnippet>29</a>
 <a href=#30 id=30 data-nosnippet>30</a>    <span class="kw">let </span>ParsedVariables {
 <a href=#31 id=31 data-nosnippet>31</a>        variables,
-<a href=#32 id=32 data-nosnippet>32</a>        override_sources,
+<a href=#32 id=32 data-nosnippet>32</a>        variable_sources,
 <a href=#33 id=33 data-nosnippet>33</a>        ..
 <a href=#34 id=34 data-nosnippet>34</a>    } = parse_cli_variables(variables, <span class="kw-2">&amp;</span>cwd_source, <span class="kw-2">&amp;</span>ctx)<span class="question-mark">?</span>;
 <a href=#35 id=35 data-nosnippet>35</a>
 <a href=#36 id=36 data-nosnippet>36</a>    <span class="kw">let </span>template_ctx = TemplateContext::new(
 <a href=#37 id=37 data-nosnippet>37</a>        variables,
 <a href=#38 id=38 data-nosnippet>38</a>        source.clone(),
-<a href=#39 id=39 data-nosnippet>39</a>        override_sources.clone(),
+<a href=#39 id=39 data-nosnippet>39</a>        variable_sources.clone(),
 <a href=#40 id=40 data-nosnippet>40</a>        Default::default(),
 <a href=#41 id=41 data-nosnippet>41</a>    );
 <a href=#42 id=42 data-nosnippet>42</a>
-<a href=#43 id=43 data-nosnippet>43</a>    definition.validate_variables(template_ctx.variables(), <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>override_sources))<span class="question-mark">?</span>;
+<a href=#43 id=43 data-nosnippet>43</a>    definition.validate_variables(template_ctx.variables(), <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>variable_sources))<span class="question-mark">?</span>;
 <a href=#44 id=44 data-nosnippet>44</a>
 <a href=#45 id=45 data-nosnippet>45</a>    definition.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>source, <span class="kw-2">&amp;</span>template_ctx)<span class="question-mark">?</span>;
 <a href=#46 id=46 data-nosnippet>46</a>

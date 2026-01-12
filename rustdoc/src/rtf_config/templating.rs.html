@@ -83,7 +83,7 @@
 <a href=#83 id=83 data-nosnippet>83</a></span><span class="kw">pub struct </span>TemplateContext {
 <a href=#84 id=84 data-nosnippet>84</a>    variables: HashMap&lt;String, Scalar&gt;,
 <a href=#85 id=85 data-nosnippet>85</a>    test_plan_source: SourceDir,
-<a href=#86 id=86 data-nosnippet>86</a>    override_sources: HashMap&lt;String, SourceDir&gt;,
+<a href=#86 id=86 data-nosnippet>86</a>    variable_sources: HashMap&lt;String, SourceDir&gt;,
 <a href=#87 id=87 data-nosnippet>87</a>    resolve_for: FileType,
 <a href=#88 id=88 data-nosnippet>88</a>    custom_provider_definitions: Arc&lt;CustomProviderDefinitions&gt;,
 <a href=#89 id=89 data-nosnippet>89</a>    variable_definitions: Vec&lt;VariableDefinition&gt;,
@@ -93,13 +93,13 @@
 <a href=#93 id=93 data-nosnippet>93</a>    <span class="kw">pub fn </span>new(
 <a href=#94 id=94 data-nosnippet>94</a>        variables: HashMap&lt;String, Scalar&gt;,
 <a href=#95 id=95 data-nosnippet>95</a>        test_plan_source: SourceDir,
-<a href=#96 id=96 data-nosnippet>96</a>        override_sources: HashMap&lt;String, SourceDir&gt;,
+<a href=#96 id=96 data-nosnippet>96</a>        variable_sources: HashMap&lt;String, SourceDir&gt;,
 <a href=#97 id=97 data-nosnippet>97</a>        custom_provider_definitions: Arc&lt;CustomProviderDefinitions&gt;,
 <a href=#98 id=98 data-nosnippet>98</a>    ) -&gt; <span class="self">Self </span>{
 <a href=#99 id=99 data-nosnippet>99</a>        <span class="self">Self </span>{
 <a href=#100 id=100 data-nosnippet>100</a>            variables,
 <a href=#101 id=101 data-nosnippet>101</a>            test_plan_source,
-<a href=#102 id=102 data-nosnippet>102</a>            override_sources,
+<a href=#102 id=102 data-nosnippet>102</a>            variable_sources,
 <a href=#103 id=103 data-nosnippet>103</a>            resolve_for: FileType::Environment,
 <a href=#104 id=104 data-nosnippet>104</a>            custom_provider_definitions,
 <a href=#105 id=105 data-nosnippet>105</a>            variable_definitions: Vec::new(),
@@ -141,7 +141,7 @@
 <a href=#141 id=141 data-nosnippet>141</a>        <span class="kw">for </span>vd <span class="kw">in </span>new.variable_definitions.iter() {
 <a href=#142 id=142 data-nosnippet>142</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(default) = vd.default.as_ref() {
 <a href=#143 id=143 data-nosnippet>143</a>                new.variables.entry(vd.name.clone()).or_insert_with(|| {
-<a href=#144 id=144 data-nosnippet>144</a>                    new.override_sources
+<a href=#144 id=144 data-nosnippet>144</a>                    new.variable_sources
 <a href=#145 id=145 data-nosnippet>145</a>                        .insert(vd.name.clone(), file_source.clone());
 <a href=#146 id=146 data-nosnippet>146</a>
 <a href=#147 id=147 data-nosnippet>147</a>                    default.clone()
@@ -154,7 +154,7 @@
 <a href=#154 id=154 data-nosnippet>154</a>
 <a href=#155 id=155 data-nosnippet>155</a>    <span class="kw">pub fn </span>extend(<span class="kw-2">&amp;mut </span><span class="self">self</span>, source: SourceDir, variables: HashMap&lt;String, Scalar&gt;) {
 <a href=#156 id=156 data-nosnippet>156</a>        <span class="kw">for </span>k <span class="kw">in </span>variables.keys() {
-<a href=#157 id=157 data-nosnippet>157</a>            <span class="self">self</span>.override_sources.insert(k.to_owned(), source.clone());
+<a href=#157 id=157 data-nosnippet>157</a>            <span class="self">self</span>.variable_sources.insert(k.to_owned(), source.clone());
 <a href=#158 id=158 data-nosnippet>158</a>        }
 <a href=#159 id=159 data-nosnippet>159</a>
 <a href=#160 id=160 data-nosnippet>160</a>        <span class="self">self</span>.variables.extend(variables);
@@ -165,7 +165,7 @@
 <a href=#165 id=165 data-nosnippet>165</a>        sources: HashMap&lt;String, SourceDir&gt;,
 <a href=#166 id=166 data-nosnippet>166</a>        variables: HashMap&lt;String, Scalar&gt;,
 <a href=#167 id=167 data-nosnippet>167</a>    ) {
-<a href=#168 id=168 data-nosnippet>168</a>        <span class="self">self</span>.override_sources.extend(sources);
+<a href=#168 id=168 data-nosnippet>168</a>        <span class="self">self</span>.variable_sources.extend(sources);
 <a href=#169 id=169 data-nosnippet>169</a>        <span class="self">self</span>.variables.extend(variables);
 <a href=#170 id=170 data-nosnippet>170</a>    }
 <a href=#171 id=171 data-nosnippet>171</a>
@@ -184,7 +184,7 @@
 <a href=#184 id=184 data-nosnippet>184</a>    {
 <a href=#185 id=185 data-nosnippet>185</a>        <span class="kw">let </span>s = <span class="self">self</span>.variables.get(key)<span class="question-mark">?</span>;
 <a href=#186 id=186 data-nosnippet>186</a>        <span class="kw">let </span>source = <span class="self">self
-<a href=#187 id=187 data-nosnippet>187</a>            </span>.override_sources
+<a href=#187 id=187 data-nosnippet>187</a>            </span>.variable_sources
 <a href=#188 id=188 data-nosnippet>188</a>            .get(key)
 <a href=#189 id=189 data-nosnippet>189</a>            .unwrap_or(<span class="kw-2">&amp;</span><span class="self">self</span>.test_plan_source);
 <a href=#190 id=190 data-nosnippet>190</a>
