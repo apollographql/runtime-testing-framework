@@ -1,13 +1,10 @@
 use crate::{
     checks::{self, Check, duplicate_keys},
     context::ResolutionContext,
-    enum_impl_as_utf8_file_content, enum_impl_check, inlining,
+    enum_impl_check, inlining,
     providers::{
         self, Provider,
-        file::{
-            AsUtf8FileContent, InlineFile, NamedFileProvider, RelativeFile, RequiredFile,
-            ResolveAndWrite,
-        },
+        file::{InlineFile, NamedFileProvider, RelativeFile, RequiredFile, ResolveAndWrite},
     },
     templating::{Field, Scalar},
 };
@@ -507,7 +504,6 @@ impl CommandProvider {
 macro_rules! enum_impl_command_provider {
     ($($variant:ident),+) => {
         enum_impl_check!(CommandProvider => $($variant),+);
-        enum_impl_as_utf8_file_content!(CommandProvider => $($variant),+);
     };
 }
 
