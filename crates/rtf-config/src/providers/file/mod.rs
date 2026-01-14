@@ -34,6 +34,16 @@ pub use source::{RawSource, SourceDir};
 pub(crate) trait AsUtf8FileContent:
     Check + Serialize + DeserializeOwned + fmt::Debug
 {
+    /// Attempt to convert this file provider into an InlineFile
+    async fn try_into_inline_file(
+        &self,
+        ctx: &impl ResolutionContext,
+    ) -> inlining::Result<InlineFile> {
+        let content = self.try_get_file_content(ctx).await?;
+
+        Ok(InlineFile { content })
+    }
+
     /// Attempt to run this file provider and convert it into the required file content.
     async fn try_get_file_content(&self, ctx: &impl ResolutionContext)
     -> providers::Result<String>;
@@ -317,7 +327,7 @@ impl FileProvider {
     ) -> inlining::Result<()> {
         match self {
             Self::RelativePath(relative_path) => {
-                *self = Self::Inline(relative_path.to_inline_file(ctx).await?);
+                *self = Self::Inline(relative_path.try_into_inline_file(ctx).await?);
 
                 Ok(())
             }
@@ -499,17 +509,6 @@ pub struct RelativeFile {
     #[schemars(skip)]
     #[doc(hidden)]
     pub(crate) src: Option<SourceDir>,
-}
-
-impl RelativeFile {
-    pub(crate) async fn to_inline_file(
-        &self,
-        ctx: &impl ResolutionContext,
-    ) -> inlining::Result<InlineFile> {
-        let content = self.try_get_file_content(ctx).await?;
-
-        Ok(InlineFile { content })
-    }
 }
 
 impl Template for RelativeFile {

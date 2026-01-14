@@ -401,7 +401,7 @@ impl CommandProvider {
         ctx: &impl ResolutionContext,
     ) -> inlining::Result<()> {
         if let Self::RelativePath(relative_path) = self {
-            *self = Self::Inline(relative_path.to_inline_file(ctx).await?);
+            *self = Self::Inline(relative_path.try_into_inline_file(ctx).await?);
         }
 
         Ok(())
