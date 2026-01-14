@@ -183,29 +183,6 @@ impl CommandSection {
         providers_dir: &Path,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
-        if ctx
-            .known_provider_output_path(Provider::Command {
-                name: &self.command.name,
-                cmd: &self.command.command_provider,
-            })
-            .is_none()
-        {
-            trace!(name=%self.command.name, "running command provider");
-            let file_path = providers_dir.join(&self.command.name);
-            self.command
-                .command_provider
-                .resolve_and_write(&file_path, ctx)
-                .await?;
-            ctx.make_executable(&file_path)?;
-            ctx.store_provider_output_path(
-                Provider::Command {
-                    name: &self.command.name,
-                    cmd: &self.command.command_provider,
-                },
-                file_path,
-            );
-        }
-
         for nfp in self.file_providers.iter() {
             if ctx
                 .known_provider_output_path(Provider::File { fp: &nfp.provider })
@@ -233,6 +210,29 @@ impl CommandSection {
             };
 
             ctx.store_provider_output_path(Provider::File { fp: &nfp.provider }, file_path);
+        }
+
+        if ctx
+            .known_provider_output_path(Provider::Command {
+                name: &self.command.name,
+                cmd: &self.command.command_provider,
+            })
+            .is_none()
+        {
+            trace!(name=%self.command.name, "running command provider");
+            let file_path = providers_dir.join(&self.command.name);
+            self.command
+                .command_provider
+                .resolve_and_write(&file_path, ctx)
+                .await?;
+            ctx.make_executable(&file_path)?;
+            ctx.store_provider_output_path(
+                Provider::Command {
+                    name: &self.command.name,
+                    cmd: &self.command.command_provider,
+                },
+                file_path,
+            );
         }
 
         Ok(())
