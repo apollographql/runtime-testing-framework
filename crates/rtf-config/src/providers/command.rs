@@ -114,50 +114,31 @@ impl CommandSection {
         ctx: &impl ResolutionContext,
     ) -> providers::Result<()> {
         let env_vars = self.all_env_vars(out_dir, output_path, ctx)?;
-
-        let file_path = ctx
-            .known_provider_output_path(Provider::Command {
-                name: &self.command.name,
-                cmd: &self.command.command_provider,
-            })
-            .ok_or(providers::Error::MissingProviderOutput {
-                name: self.command.name.clone(),
-            })?;
-
-        let prog = match file_path.to_str() {
-            Some(v) => v,
-            None => {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "unable to convert command path to valid string",
-                )
-                .into());
-            }
-        };
-        let it = self
+        let args = self
             .command
             .args
             .iter()
             .map(|arg| arg.as_resolved().as_str());
-        ctx.run_command_blocking(prog, it, &env_vars)?;
 
-        Ok(())
+        self.command
+            .command_provider
+            .execute_as_script(&self.command.name, args, env_vars, ctx)
     }
 
-    /// Combine the base environment variables we have with the ones coming from the file providers
-    /// we need to run. The `out_dir` argument here needs to match the one used when running
-    /// and outputting the content of the file providers.
-    pub fn all_env_vars(
+    fn explicit_env_vars(&self) -> HashMap<String, String> {
+        self.env_vars
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.as_resolved().to_string()))
+            .collect()
+    }
+
+    fn file_path_env_vars(
         &self,
         out_dir: &Path,
         output_path: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<HashMap<String, String>> {
-        let mut vars: HashMap<String, String> = self
-            .env_vars
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.as_resolved().to_string()))
-            .collect();
+        let mut vars = HashMap::with_capacity(self.file_providers.len() + 2);
 
         for nfp in self.file_providers.iter() {
             let path = ctx
@@ -174,6 +155,25 @@ impl CommandSection {
         Ok(vars)
     }
 
+    /// Combine the base environment variables we have with the ones coming from the file providers
+    /// we need to run. The `out_dir` argument here needs to match the one used when running
+    /// and outputting the content of the file providers.
+    pub fn all_env_vars(
+        &self,
+        out_dir: &Path,
+        output_path: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<HashMap<String, String>> {
+        let mut vars = self.explicit_env_vars();
+        vars.extend(
+            self.command
+                .command_provider
+                .map_file_path_env_vars(self.file_path_env_vars(out_dir, output_path, ctx)?),
+        );
+
+        Ok(vars)
+    }
+
     /// Run all of the [FileProviders][0] associated with this command and write out their file
     /// contents to the specified directory.
     ///
@@ -184,14 +184,12 @@ impl CommandSection {
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
         for nfp in self.file_providers.iter() {
-            if ctx
-                .known_provider_output_path(Provider::File { fp: &nfp.provider })
-                .is_some()
-            {
+            let cache_key = Provider::File { fp: &nfp.provider };
+            if ctx.known_provider_output_path(cache_key).is_some() {
                 continue;
             }
 
-            trace!(name=%nfp.name, "running command provider");
+            trace!(name=%nfp.name, "running file provider");
             let file_path = providers_dir.join(&nfp.name);
 
             // We need to box the future here in order to prevent us ending up with a recursive
@@ -212,27 +210,15 @@ impl CommandSection {
             ctx.store_provider_output_path(Provider::File { fp: &nfp.provider }, file_path);
         }
 
-        if ctx
-            .known_provider_output_path(Provider::Command {
-                name: &self.command.name,
-                cmd: &self.command.command_provider,
-            })
-            .is_none()
-        {
-            trace!(name=%self.command.name, "running command provider");
-            let file_path = providers_dir.join(&self.command.name);
+        let cache_key = Provider::Command {
+            name: &self.command.name,
+            cmd: &self.command.command_provider,
+        };
+
+        if ctx.known_provider_output_path(cache_key).is_none() {
             self.command
-                .command_provider
-                .resolve_and_write(&file_path, ctx)
+                .try_resolve_as_script(providers_dir, ctx)
                 .await?;
-            ctx.make_executable(&file_path)?;
-            ctx.store_provider_output_path(
-                Provider::Command {
-                    name: &self.command.name,
-                    cmd: &self.command.command_provider,
-                },
-                file_path,
-            );
         }
 
         Ok(())
@@ -390,6 +376,40 @@ pub struct CommandSpec {
     pub args: Vec<Field<String>>,
 }
 
+impl CommandSpec {
+    async fn try_resolve_as_script(
+        &self,
+        providers_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<()> {
+        trace!(name=%self.name, "running command provider");
+        let file_path = providers_dir.join(&self.name);
+
+        match &self.command_provider {
+            // This will panic but we want to ensure that we have a consistent error message
+            // for the user so we call through to resolve_and_write to trigger it rather than
+            // writing a custom panic message here.
+            CommandProvider::Required(inner) => inner.resolve_and_write(&file_path, ctx).await?,
+
+            CommandProvider::Inline(inner) => inner.resolve_and_write(&file_path, ctx).await?,
+            CommandProvider::RelativePath(inner) => {
+                inner.resolve_and_write(&file_path, ctx).await?
+            }
+        }
+
+        ctx.make_executable(&file_path)?;
+        ctx.store_provider_output_path(
+            Provider::Command {
+                name: &self.name,
+                cmd: &self.command_provider,
+            },
+            file_path,
+        );
+
+        Ok(())
+    }
+}
+
 impl Check for CommandSpec {
     fn try_check(
         &self,
@@ -442,6 +462,41 @@ impl CommandProvider {
         }
 
         Ok(())
+    }
+
+    fn map_file_path_env_vars(&self, env_vars: HashMap<String, String>) -> HashMap<String, String> {
+        env_vars
+    }
+
+    fn execute_as_script<'a>(
+        &self,
+        command_name: &str,
+        args: impl IntoIterator<Item = &'a str>,
+        env_vars: HashMap<String, String>,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        let file_path = ctx
+            .known_provider_output_path(Provider::Command {
+                name: command_name,
+                cmd: self,
+            })
+            .ok_or(providers::Error::MissingProviderOutput {
+                name: command_name.to_string(),
+            })?;
+
+        let prog = match file_path.to_str() {
+            Some(v) => v,
+            None => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "unable to convert command path to valid string",
+                )
+                .into());
+            }
+        };
+
+        ctx.run_command_blocking(prog, args, &env_vars)
+            .map_err(Into::into)
     }
 }
 
