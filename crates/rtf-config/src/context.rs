@@ -6,7 +6,6 @@ use rtf_integrations::{
 };
 use std::{
     collections::{HashMap, hash_map::Entry},
-    env::set_current_dir,
     fs::{self, File},
     io,
     os::unix::fs::PermissionsExt,
@@ -135,9 +134,6 @@ pub trait ResolutionContext {
         args: impl IntoIterator<Item = &'a str>,
         env_vars: &HashMap<String, String>,
     ) -> io::Result<()>;
-
-    /// Changes the current working directory to the specified path.
-    fn set_current_dir(&mut self, path: impl AsRef<Path>) -> io::Result<()>;
 
     /// Changes the permissions of the specified file
     fn make_executable(&self, path: impl AsRef<Path>) -> io::Result<()> {
@@ -374,12 +370,6 @@ impl ResolutionContext for Context {
 
     fn remove_file(&self, path: impl AsRef<Path>) -> io::Result<()> {
         fs::remove_file(path)
-    }
-
-    fn set_current_dir(&mut self, path: impl AsRef<Path>) -> io::Result<()> {
-        set_current_dir(path.as_ref())?;
-
-        Ok(())
     }
 
     fn create_dir_all(&self, path: impl AsRef<Path>) -> io::Result<()> {

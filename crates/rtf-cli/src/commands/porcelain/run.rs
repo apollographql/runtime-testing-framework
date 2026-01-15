@@ -59,11 +59,6 @@ async fn check_and_run_test_plan_with_context(
     ctx.create_dir_all(out_dir)?;
     let out_dir = ctx.canonicalize_path(out_dir)?;
 
-    if let SourceDir::Local { abs_path } = test_plan.sources.test_plan() {
-        let config_dir = ctx.dir_containing(abs_path);
-        ctx.set_current_dir(config_dir)?;
-    }
-
     if test_plan.matrix.is_empty() {
         info!("executing test plan");
         return run_one(test_plan, &out_dir, &variable_sources, &mut ctx).await;

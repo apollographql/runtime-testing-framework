@@ -816,10 +816,6 @@ mod tests {
             Ok(())
         }
 
-        fn set_current_dir(&mut self, _path: impl AsRef<Path>) -> io::Result<()> {
-            Ok(())
-        }
-
         fn create_dir_all(&self, _path: impl AsRef<Path>) -> io::Result<()> {
             Ok(())
         }
