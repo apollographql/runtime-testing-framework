@@ -55,11 +55,6 @@ pub async fn run_custom_provider(
     ctx.create_dir_all(&out_dir)?;
     let out_dir = ctx.canonicalize_path(&out_dir)?;
 
-    if let SourceDir::Local { abs_path } = &source {
-        let definition_dir = ctx.dir_containing(abs_path);
-        ctx.set_current_dir(definition_dir)?;
-    }
-
     info!("executing custom provider");
     definition
         .command

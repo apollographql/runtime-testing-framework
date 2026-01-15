@@ -8,7 +8,6 @@ use rtf_integrations::{HttpClient, HttpResponse, graphos::supergraph::Supergraph
 use rtf_integrations::{github, graphos::platform_query};
 use std::{
     collections::HashMap,
-    env::set_current_dir,
     fs, io,
     path::{Path, PathBuf},
     str::FromStr,
@@ -97,12 +96,6 @@ impl<C: HttpClient + Clone + 'static> ResolutionContext for MockContext<C> {
 
     fn remove_file(&self, path: impl AsRef<Path>) -> io::Result<()> {
         fs::remove_file(path)
-    }
-
-    fn set_current_dir(&mut self, path: impl AsRef<Path>) -> io::Result<()> {
-        set_current_dir(path.as_ref())?;
-
-        Ok(())
     }
 
     fn create_dir_all(&self, path: impl AsRef<Path>) -> io::Result<()> {
