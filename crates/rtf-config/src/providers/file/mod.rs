@@ -304,6 +304,17 @@ impl FileProvider {
         schema.to_value()
     }
 
+    /// If this is a [Conditional][utility::Conditional] provider, collapse it into its matching case.
+    ///
+    /// For this method to function correctly you need to first call `try_template`.
+    pub fn collapse_conditional(&mut self) {
+        if let FileProvider::Conditional(conditional) = self
+            && let Some(inner) = conditional.collapse()
+        {
+            *self = inner.clone();
+        }
+    }
+
     /// Recursively inline any RelativePath file providers into Inline providers.
     pub async fn inline_all_relative_paths(
         &mut self,

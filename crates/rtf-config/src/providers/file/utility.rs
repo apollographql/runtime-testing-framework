@@ -492,6 +492,24 @@ impl Check for Conditional {
 }
 
 impl Conditional {
+    /// Collapse this conditional provider into its matching case.
+    ///
+    /// If this method is called after a successful call to `try_check` it will always return
+    /// `Some`. Otherwise, this method may return `None` if none of the conditional cases match
+    /// provided variables.
+    ///
+    /// This method will always return `None` if this file provider has not been templated before
+    /// calling this method.
+    pub(crate) fn collapse(&self) -> Option<&FileProvider> {
+        for case in self.cases.iter() {
+            if case.where_clause.holds_for(&self.variables) {
+                return Some(&case.inner);
+            }
+        }
+
+        None
+    }
+
     pub(crate) fn inline_all_relative_paths<'a>(
         &'a mut self,
         ctx: &'a impl ResolutionContext,
@@ -1102,6 +1120,44 @@ mod tests {
         });
 
         assert_resolve_and_write_success(fp, &target, &mut Context::new(), expected_content).await;
+    }
+
+    #[test_case(42, "case 1"; "first case")]
+    #[test_case(7, "case 2"; "second case")]
+    #[tokio::test]
+    async fn conditional_collapse_success(bar_val: usize, expected_content: &str) {
+        let mut fp = FileProvider::Conditional(Conditional {
+            cases: vec![
+                ConditionalCase {
+                    where_clause: WhereClause {
+                        var: "bar".to_string(),
+                        comp: VarComp::Eq(42.into()),
+                    },
+                    inner: FileProvider::Inline(InlineFile {
+                        content: "case 1".to_string(),
+                    }),
+                },
+                ConditionalCase {
+                    where_clause: WhereClause {
+                        var: "bar".to_string(),
+                        comp: VarComp::Eq(7.into()),
+                    },
+                    inner: FileProvider::Inline(InlineFile {
+                        content: "case 2".to_string(),
+                    }),
+                },
+            ],
+            variables: HashMap::from([("bar".to_string(), bar_val.into())]),
+        });
+
+        fp.collapse_conditional();
+
+        assert_eq!(
+            fp,
+            FileProvider::Inline(InlineFile {
+                content: expected_content.to_string()
+            })
+        );
     }
 
     #[tokio::test]
