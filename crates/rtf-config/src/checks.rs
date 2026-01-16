@@ -43,9 +43,6 @@ pub enum ErrorKind {
     #[strum(to_string = "No API key provided for calling the Apollo GraphOS API")]
     MissingGraphOsApiKey,
 
-    #[strum(to_string = "No matching conditional cases for provided variables")]
-    NoMatchingCases,
-
     #[strum(to_string = "A required file has not been defined")]
     RequiredFileMissing,
 }

@@ -205,6 +205,12 @@ impl Template for NamedFileProvider {
         let tail = self.env_var.clone();
 
         match &mut self.provider {
+            FileProvider::Conditional(c) => {
+                self.provider = c.try_collapse(path, ctx)?;
+                self.provider
+                    .try_template_nested(path, &tail, file_source, ctx)?
+            }
+
             FileProvider::CustomProvider(cp) => {
                 let from_command = cp.expand_and_template(path, file_source, ctx)?;
                 self.provider = FileProvider::FromCommand(from_command);
@@ -316,8 +322,8 @@ impl FileProvider {
                 Ok(())
             }
             Self::FromCommand(from_command) => from_command.inline_all_relative_paths(ctx).await,
-            Self::Conditional(conditional) => conditional.inline_all_relative_paths(ctx).await,
             Self::MergeYaml(merge_yaml) => merge_yaml.inline_all_relative_paths(ctx).await,
+
             // This is a no-op for other types of file providers
             _ => Ok(()),
         }

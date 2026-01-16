@@ -19,9 +19,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
-    future::Future,
     path::Path,
-    pin::Pin,
 };
 use tracing::error;
 
@@ -373,9 +371,6 @@ pub struct Conditional {
     /// The ordered list of cases to be checked against the variables used for templating the test
     /// plan.
     cases: Vec<ConditionalCase>,
-
-    #[serde(skip, default)]
-    variables: HashMap<String, Scalar>,
 }
 
 impl Template for Conditional {
@@ -412,106 +407,68 @@ impl Template for Conditional {
 
     fn try_template(
         &mut self,
-        path: &mut Vec<String>,
-        file_source: &SourceDir,
-        ctx: &TemplateContext,
+        _path: &mut Vec<String>,
+        _file_source: &SourceDir,
+        _ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        self.variables = ctx.variables().clone();
-
-        let mut errs = templating::ErrorBuilder::new();
-        for case in self.cases.iter() {
-            if !self.variables.contains_key(&case.where_clause.var) {
-                errs.push(
-                    templating::ErrorKind::UnknownVariable,
-                    case.where_clause.var.clone(),
-                    path,
-                );
-            }
-        }
-
-        errs.append(self.cases.try_template(path, file_source, ctx));
-
-        errs.into_result(())
+        panic!(
+            "Should not be able to get here. Conditional providers should have been collapsed when templating the config."
+        )
     }
 }
 
-impl ResolveAndWrite for Conditional {
-    async fn resolve_and_write(
+// AsUtf8FileContent needs to be implemented for Conditional to be a valid FileProvider that can be added to the NamedFileProvider enum
+// However, the AsUtf8FileContent methods should never actually be called
+impl AsUtf8FileContent for Conditional {
+    async fn try_get_file_content(
         &self,
-        target: impl AsRef<Path>,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<()> {
-        let target = target.as_ref();
-
-        for case in self.cases.iter() {
-            if case.where_clause.holds_for(&self.variables) {
-                // we need to pin this future on the heap to be able to poll it in order to avoid a
-                // recursively defined future (which is infinitely sized)
-                return Box::pin(case.inner.resolve_and_write(target, ctx)).await;
-            }
-        }
-
-        panic!("should have errored in try_check due to having no matching cases");
+        _ctx: &impl ResolutionContext,
+    ) -> providers::Result<String> {
+        panic!(
+            "Should not be able to get here. Conditional providers should have been collapsed when templating the config."
+        )
     }
 }
 
+// Check needs to be implemented for Conditional to be a valid FileProvider that can be added to the NamedFileProvider enum
+// However, the Check methods should never actually be called
 impl Check for Conditional {
     fn try_check(
         &self,
-        path: &mut Vec<String>,
-        ctx: &impl ResolutionContext,
+        _path: &mut Vec<String>,
+        _ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        if self.cases.is_empty() {
-            return Err(checks::Errors::new(
-                checks::ErrorKind::EmptyArray,
-                "conditional file providers require at least one case",
-                path,
-            ));
-        }
-
-        let mut errs = checks::ErrorBuilder::new();
-
-        for case in self.cases.iter() {
-            errs.append(case.inner.try_check_nested(path, "inner", ctx));
-        }
-
-        if self
-            .cases
-            .iter()
-            .all(|case| !case.where_clause.holds_for(&self.variables))
-        {
-            errs.push(
-                checks::ErrorKind::NoMatchingCases,
-                "at least one case must hold for the given templating variables",
-                path,
-            );
-        }
-
-        errs.into_result(())
+        panic!(
+            "Should not be able to get here. Conditional providers should have been collapsed when templating the config."
+        )
     }
 }
 
 impl Conditional {
-    pub(crate) fn inline_all_relative_paths<'a>(
-        &'a mut self,
-        ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
-        let mut errs = inlining::ErrorBuilder::new();
-
-        // We need to pin this future on the heap to be able to poll it in order to avoid a
-        // recursively defined future (which is infinitely sized). We end up being recursively
-        // defined because of the Conditional file provider which is just a wrapper around
-        // this Conditional struct. Therefore, the call to inline_all_relative_paths
-        // below ends up calling back into inline_all_relative_paths which calls this method.
-        Box::pin(async move {
-            for case in self.cases.iter_mut() {
-                errs.append(case.inner.inline_all_relative_paths(ctx).await);
+    /// Try to collapse this conditional provider into its matching case.
+    ///
+    /// If successful, the return of this method is the first case with a "where" clause that
+    /// holds for the given `TemplateContext` and all cases before it will have been dropped. In
+    /// the case that this method returns an error, _all_ cases will have been dropped.
+    pub(crate) fn try_collapse(
+        &mut self,
+        path: &[String],
+        ctx: &TemplateContext,
+    ) -> templating::Result<FileProvider> {
+        for case in self.cases.drain(..) {
+            if case.where_clause.holds_for(ctx.variables()) {
+                return Ok(case.inner);
             }
+        }
 
-            errs.into_result(())
-        })
+        Err(templating::Errors::new(
+            templating::ErrorKind::NoMatchingCases,
+            "at least one case must hold for the given templating variables",
+            path,
+        ))
     }
 }
+
 /// A conditional "where" clause guarding the execution of an associated file provider
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct ConditionalCase {
@@ -578,17 +535,6 @@ mod tests {
     use assert_fs::{TempDir, fixture::PathChild};
     use indoc::indoc;
     use simple_test_case::test_case;
-
-    macro_rules! template_context {
-        ($slice:expr) => {{
-            let mut m = ::std::collections::HashMap::new();
-            for k in $slice {
-                m.insert(k.to_string(), Scalar::from(k.to_string()));
-            }
-
-            TemplateContext::new_stubbed(m)
-        }};
-    }
 
     fn one(content: &str) -> Overrides {
         Overrides::One(TextFileProvider::Inline(InlineFile {
@@ -902,7 +848,6 @@ mod tests {
                 },
                 inner: FileProvider::RelativePath(RelativeFile { path: f, src: None }),
             }],
-            variables: HashMap::default(),
         };
 
         let res = fp.has_pending_fields();
@@ -921,7 +866,6 @@ mod tests {
                 },
                 inner: FileProvider::RelativePath(RelativeFile { path: f, src: None }),
             }],
-            variables: HashMap::default(),
         };
 
         let res = fp.required_variables();
@@ -929,155 +873,43 @@ mod tests {
     }
 
     #[test]
-    fn conditional_try_template_succeeds() {
-        let mut fp = Conditional {
-            cases: vec![ConditionalCase {
-                where_clause: WhereClause {
-                    var: "bar".to_string(),
-                    comp: VarComp::Eq(42.into()),
-                },
-                inner: FileProvider::RelativePath(RelativeFile {
-                    path: Field::Pending("path".to_string()),
-                    src: None,
-                }),
-            }],
-            variables: HashMap::default(),
-        };
-
-        let ctx = template_context!(&["bar", "path"]);
-
-        let res = fp.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
-        assert!(
-            res.is_ok(),
-            "expected to template successfully, got {res:?}"
-        )
-    }
-
-    #[test]
-    fn conditional_try_template_unknown_variable_error() {
-        let mut fp = Conditional {
-            cases: vec![ConditionalCase {
-                where_clause: WhereClause {
-                    var: "bar".to_string(),
-                    comp: VarComp::Eq(42.into()),
-                },
-                inner: FileProvider::RelativePath(RelativeFile {
-                    path: Field::Pending("path".to_string()),
-                    src: None,
-                }),
-            }],
-            variables: HashMap::default(),
-        };
-        let ctx = template_context!(&["bar"]);
-
-        let res = fp.try_template(&mut vec!["test".to_string()], &SourceDir::local("/"), &ctx);
-        assert!(res.is_err(), "expected templating to error, got {res:?}");
-
-        let errors = res.unwrap_err();
-        let error = errors.unwrap_single();
-        let error_kind = error.kind;
-        let error_path = error.path;
-        assert_eq!(
-            error_kind,
-            templating::ErrorKind::UnknownVariable,
-            "expected ErrorKind to match"
+    #[should_panic(
+        expected = "Should not be able to get here. Conditional providers should have been collapsed when templating the config."
+    )]
+    fn conditional_try_template_panics() {
+        let mut fp = Conditional { cases: vec![] };
+        let _ = fp.try_template(
+            &mut Vec::new(),
+            &SourceDir::Local {
+                abs_path: Default::default(),
+            },
+            &TemplateContext::new_stubbed(HashMap::new()),
         );
-        assert_eq!(error_path, "test.inner.path", "expected path to match")
     }
 
     #[test]
-    fn conditional_try_template_error_unknown_where_variable() {
-        let mut fp = Conditional {
-            cases: vec![ConditionalCase {
-                where_clause: WhereClause {
-                    var: "bar".to_string(),
-                    comp: VarComp::Eq(42.into()),
-                },
-                inner: FileProvider::Inline(InlineFile {
-                    content: String::new(),
-                }),
-            }],
-            variables: HashMap::default(),
-        };
-
-        let ctx = template_context!(&["unused"]);
-        let res = fp.try_template(&mut vec!["test".to_string()], &SourceDir::local("/"), &ctx);
-        assert!(
-            res.is_err(),
-            "expected to try_template to error, got {res:?}"
-        );
-
-        let err = res.unwrap_err().unwrap_single();
-        assert_eq!(err.kind, templating::ErrorKind::UnknownVariable)
+    #[should_panic(
+        expected = "Should not be able to get here. Conditional providers should have been collapsed when templating the config."
+    )]
+    fn conditional_try_check_panics() {
+        let fp = Conditional { cases: vec![] };
+        let _ = fp.try_check(&mut Vec::new(), &Context::new());
     }
 
-    #[test]
-    fn conditional_check_error_path_correct() {
-        let fp = Conditional {
-            cases: vec![ConditionalCase {
-                where_clause: WhereClause {
-                    var: "bar".to_string(),
-                    comp: VarComp::Eq(42.into()),
-                },
-                inner: FileProvider::RelativePath(RelativeFile {
-                    path: Field::Resolved("does/not/exist/relative.txt".to_string()),
-                    src: Some(SourceDir::local("/foo")),
-                }),
-            }],
-            variables: HashMap::from([("bar".to_string(), 42.into())]),
-        };
-
-        let res = fp.try_check(&mut vec!["path".to_string()], &Context::new());
-        assert!(res.is_err(), "expected to check to error, got {res:?}");
-
-        let err = res.unwrap_err().unwrap_single();
-        assert_eq!(err.path, "path.inner", "{err:?}")
-    }
-
-    #[test]
-    fn conditional_check_error_no_matching_cases() {
-        let fp = Conditional {
-            cases: vec![ConditionalCase {
-                where_clause: WhereClause {
-                    var: "bar".to_string(),
-                    comp: VarComp::Eq(42.into()),
-                },
-                inner: FileProvider::Inline(InlineFile {
-                    content: String::new(),
-                }),
-            }],
-            variables: HashMap::from([("bar".to_string(), 7.into())]),
-        };
-
-        let res = fp.try_check(&mut vec!["path".to_string()], &Context::new());
-        assert!(res.is_err(), "expected to check to error, got {res:?}");
-
-        let err = res.unwrap_err().unwrap_single();
-        assert_eq!(err.kind, checks::ErrorKind::NoMatchingCases)
-    }
-
-    #[test]
-    fn conditional_check_error_empty_cases() {
-        let fp = Conditional {
-            cases: Vec::default(),
-            variables: HashMap::default(),
-        };
-
-        let res = fp.try_check(&mut vec!["path".to_string()], &Context::new());
-        assert!(res.is_err(), "expected to check to error, got {res:?}");
-
-        let err = res.unwrap_err().unwrap_single();
-        assert_eq!(err.kind, checks::ErrorKind::EmptyArray)
+    #[tokio::test]
+    #[should_panic(
+        expected = "Should not be able to get here. Conditional providers should have been collapsed when templating the config."
+    )]
+    async fn conditional_try_get_file_content_panics() {
+        let fp = Conditional { cases: vec![] };
+        let _ = fp.try_get_file_content(&Context::new()).await;
     }
 
     #[test_case(42, "case 1"; "first case")]
     #[test_case(7, "case 2"; "second case")]
-    #[tokio::test]
-    async fn conditional_resolve_and_write_success(bar_val: usize, expected_content: &str) {
-        let temp = TempDir::new().unwrap();
-        let target = temp.child("conditional.txt");
-
-        let fp = FileProvider::Conditional(Conditional {
+    #[test]
+    fn conditional_try_collapse_succeeds(bar_val: usize, expected_content: &str) {
+        let mut fp = Conditional {
             cases: vec![
                 ConditionalCase {
                     where_clause: WhereClause {
@@ -1098,10 +930,33 @@ mod tests {
                     }),
                 },
             ],
-            variables: HashMap::from([("bar".to_string(), bar_val.into())]),
-        });
+        };
 
-        assert_resolve_and_write_success(fp, &target, &mut Context::new(), expected_content).await;
+        let res = fp.try_collapse(
+            &[],
+            &TemplateContext::new_stubbed(HashMap::from([("bar".to_string(), bar_val.into())])),
+        );
+
+        assert!(res.is_ok(), "expected Ok, got {res:?}");
+        assert_eq!(
+            res.unwrap(),
+            FileProvider::Inline(InlineFile {
+                content: expected_content.to_string()
+            })
+        );
+    }
+
+    #[test]
+    fn conditional_try_collapse_errors_with_no_matching_cases() {
+        let mut fp = Conditional { cases: vec![] };
+
+        let res = fp.try_collapse(&[], &TemplateContext::new_stubbed(HashMap::new()));
+
+        assert!(res.is_err(), "expected Err, got {res:?}");
+        assert_eq!(
+            res.unwrap_err().unwrap_single().kind,
+            templating::ErrorKind::NoMatchingCases
+        );
     }
 
     #[tokio::test]
@@ -1209,82 +1064,5 @@ mod tests {
             "Expected inline_all_relative_paths to succeed, got {result:?}"
         );
         assert_eq!(merge_yaml, expected_merge_yaml);
-    }
-
-    #[tokio::test]
-    async fn conditional_inline_all_relative_paths_succeeds() {
-        let ctx = Context::new();
-        let file_content = "example file content";
-        let relative_file_path = "file.txt";
-        let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
-        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
-
-        let where_clause_bar = WhereClause {
-            var: "bar".to_string(),
-            comp: VarComp::Eq(42.into()),
-        };
-        let where_clause_hello = WhereClause {
-            var: "hello".to_string(),
-            comp: VarComp::Eq(7.into()),
-        };
-        let where_clause_goodbye = WhereClause {
-            var: "goodbye".to_string(),
-            comp: VarComp::Eq(77.into()),
-        };
-        let variables = HashMap::from([
-            ("bar".to_string(), 11.into()),
-            ("hello".to_string(), 2.into()),
-            ("goodbye".to_string(), 22.into()),
-        ]);
-        let inline_file_provider = FileProvider::Inline(InlineFile {
-            content: file_content.to_string(),
-        });
-        let conditional_case_with_inline_file = ConditionalCase {
-            where_clause: where_clause_hello.clone(),
-            inner: inline_file_provider.clone(),
-        };
-
-        let mut conditional = Conditional {
-            cases: vec![
-                ConditionalCase {
-                    where_clause: where_clause_bar.clone(),
-                    inner: FileProvider::RelativePath(RelativeFile {
-                        path: Field::Resolved(relative_file_path.to_string()),
-                        src: Some(src.clone()),
-                    }),
-                },
-                conditional_case_with_inline_file.clone(),
-                ConditionalCase {
-                    where_clause: where_clause_goodbye.clone(),
-                    inner: FileProvider::RelativePath(RelativeFile {
-                        path: Field::Resolved(relative_file_path.to_string()),
-                        src: Some(src.clone()),
-                    }),
-                },
-            ],
-            variables: variables.clone(),
-        };
-
-        let result = conditional.inline_all_relative_paths(&ctx).await;
-        assert!(
-            result.is_ok(),
-            "Expected inline_all_relative_paths to succeed, got {result:?}"
-        );
-        let expected_conditional = Conditional {
-            cases: vec![
-                ConditionalCase {
-                    where_clause: where_clause_bar.clone(),
-                    inner: inline_file_provider.clone(),
-                },
-                conditional_case_with_inline_file,
-                ConditionalCase {
-                    where_clause: where_clause_goodbye.clone(),
-                    inner: inline_file_provider,
-                },
-            ],
-            variables,
-        };
-
-        assert_eq!(conditional, expected_conditional);
     }
 }
