@@ -118,13 +118,7 @@ impl EnvironmentConfig {
         let mut errs = inlining::ErrorBuilder::new();
 
         errs.append(self.setup.command.inline_all_relative_paths(ctx).await);
-        errs.append(
-            self.teardown
-                .command
-                .command_provider
-                .inline_all_relative_paths(ctx)
-                .await,
-        );
+        errs.append(self.teardown.inline_all_relative_paths(ctx).await);
 
         errs.into_result(())
     }
