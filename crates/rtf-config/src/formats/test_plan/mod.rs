@@ -48,6 +48,15 @@ pub struct TestPlanConfig {
 }
 
 impl TestPlanConfig {
+    pub async fn inline(&mut self, ctx: &mut impl ResolutionContext) -> inlining::Result<()> {
+        let mut errs = inlining::ErrorBuilder::new();
+
+        errs.append(self.scenario.inline(ctx).await);
+        errs.append(self.environment.inline(ctx).await);
+
+        errs.into_result(())
+    }
+
     pub async fn inline_all_relative_paths(
         &mut self,
         ctx: &impl ResolutionContext,
@@ -1913,6 +1922,77 @@ mod tests {
                 },
                 ..CommandSection::empty()
             }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_plan_config_inline_succeeds() {
+        let file_content = "example file content";
+        let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", file_content);
+
+        let mut ctx = Context::new();
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+
+        let relative_command_provider = CommandProvider::RelativePath(RelativeFile {
+            path: Field::Resolved("file.txt".to_string()),
+            src: Some(src.clone()),
+        });
+
+        let mut test_plan = TestPlanConfig {
+            scenario: ScenarioConfig {
+                command: CommandSection {
+                    command: CommandSpec {
+                        name: "scenario.sh".to_string(),
+                        command_provider: relative_command_provider.clone(),
+                        args: Vec::new(),
+                    },
+                    ..CommandSection::empty()
+                },
+                ..ScenarioConfig::empty()
+            },
+            environment: EnvironmentConfig {
+                setup: SetupSection {
+                    command: CommandSection {
+                        command: CommandSpec {
+                            name: "setup.sh".to_string(),
+                            command_provider: relative_command_provider.clone(),
+                            args: Vec::new(),
+                        },
+                        ..CommandSection::empty()
+                    },
+                    provides: Vec::new(),
+                },
+                teardown: CommandSection {
+                    command: CommandSpec {
+                        name: "teardown.sh".to_string(),
+                        command_provider: relative_command_provider,
+                        args: Vec::new(),
+                    },
+                    ..CommandSection::empty()
+                },
+                ..EnvironmentConfig::empty()
+            },
+            ..TestPlanConfig::empty()
+        };
+
+        let result = test_plan.inline(&mut ctx).await;
+
+        assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
+
+        let expected_inline = CommandProvider::Inline(InlineFile {
+            content: file_content.to_string(),
+        });
+        assert_eq!(
+            test_plan.scenario.command.command.command_provider, expected_inline,
+            "Expected scenario command provider to be inlined"
+        );
+        assert_eq!(
+            test_plan.environment.setup.command.command.command_provider, expected_inline,
+            "Expected environment setup command provider to be inlined"
+        );
+        assert_eq!(
+            test_plan.environment.teardown.command.command_provider, expected_inline,
+            "Expected environment teardown command provider to be inlined"
         );
     }
 }

@@ -286,6 +286,13 @@ impl FromCommand {
         Self { inner }
     }
 
+    pub(crate) async fn inline(
+        &mut self,
+        ctx: &mut impl ResolutionContext,
+    ) -> inlining::Result<()> {
+        self.inner.inline(ctx).await
+    }
+
     pub(crate) async fn inline_all_relative_paths<'a>(
         &'a mut self,
         ctx: &'a impl ResolutionContext,
@@ -1064,5 +1071,53 @@ mod tests {
             "Expected inline_all_relative_paths to succeed, got {result:?}"
         );
         assert_eq!(merge_yaml, expected_merge_yaml);
+    }
+
+    #[tokio::test]
+    async fn merge_yaml_inline_succeeds() {
+        let mut ctx = Context::new();
+        let base_content = "key1: base_value";
+        let override_content = "key2: override_value";
+
+        let mut file_provider = FileProvider::MergeYaml(MergeYaml {
+            base: TextFileProvider::Inline(InlineFile {
+                content: base_content.to_string(),
+            }),
+            overrides: Overrides::One(TextFileProvider::Inline(InlineFile {
+                content: override_content.to_string(),
+            })),
+        });
+
+        let result = file_provider.inline(&mut ctx).await;
+
+        assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
+        assert_eq!(
+            file_provider,
+            FileProvider::Inline(InlineFile {
+                content: "key1: base_value\nkey2: override_value".to_string(),
+            }),
+            "Expected merge_yaml to be inlined with merged content"
+        );
+    }
+
+    #[tokio::test]
+    #[should_panic(
+        expected = "Should not be able to get here. Conditional providers should have been collapsed when templating the config."
+    )]
+    async fn conditional_inline_panics() {
+        let mut ctx = Context::new();
+        let mut file_provider = FileProvider::Conditional(Conditional {
+            cases: vec![ConditionalCase {
+                where_clause: WhereClause {
+                    var: "test_var".to_string(),
+                    comp: VarComp::Eq(42.into()),
+                },
+                inner: FileProvider::Inline(InlineFile {
+                    content: "content".to_string(),
+                }),
+            }],
+        });
+
+        let _res = file_provider.inline(&mut ctx).await;
     }
 }

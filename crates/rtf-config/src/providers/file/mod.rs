@@ -153,6 +153,32 @@ macro_rules! enum_impl_resolve_and_write {
     };
 }
 
+/// Helper macro for implementing FileProvider::inline
+/// The special cases for this macro are statically defined in the macro.
+/// All the FileProviders that implement IntoUtf8Content have to be specified in the macro arguments
+macro_rules! impl_inline {
+    (
+        $self:expr, $ctx:expr;
+        $($inline:ident),*
+    ) => {
+        match $self {
+            Self::Inline(_) | Self::InlineDir(_) => Ok(()),
+            Self::FromCommand(inner) => {
+                inner.inline($ctx).await?;
+                Ok(())
+            }
+            Self::GraphosSubgraphs(inner) => {
+                *$self = FileProvider::InlineDir(inner.inline($ctx).await?);
+                Ok(())
+            }
+            $(Self::$inline(inner) => {
+                *$self = FileProvider::Inline(inner.try_into_inline_file($ctx).await?);
+                Ok(())
+            })*
+        }
+    };
+}
+
 /// # Named File Provider
 ///
 /// Shared metadata that wraps every file provider.
@@ -318,6 +344,28 @@ impl FileProvider {
         let schema = generator.into_root_schema_for::<Self>();
 
         schema.to_value()
+    }
+
+    /// Recursively inline file providers into their inline form
+    pub async fn inline(&mut self, ctx: &mut impl ResolutionContext) -> inlining::Result<()> {
+        impl_inline!(
+            self, ctx;
+            BuildRouterFromSource,
+            Conditional,
+            CustomProvider,
+            GithubFile,
+            GraphosCannedOps,
+            GraphosCannedOpsById,
+            GraphosSubgraphRouterUrlOverrides,
+            GraphosSubgraphNames,
+            GraphosSupergraph,
+            MergeYaml,
+            OfflineGraphosLicense,
+            RelativePath,
+            Required,
+            RouterDownloadScript
+
+        )
     }
 
     /// Recursively inline any RelativePath file providers into Inline providers.
@@ -1434,6 +1482,19 @@ mod tests {
     #[should_panic(
         expected = "Should not be able to get here. Required file should result in an error when checked."
     )]
+    async fn required_file_inline_all_files_panics() {
+        let mut ctx = Context::new();
+        let mut required = FileProvider::Required(RequiredFile {
+            message: "required file must be defined".to_string(),
+        });
+
+        let _res = required.inline(&mut ctx).await;
+    }
+
+    #[tokio::test]
+    #[should_panic(
+        expected = "Should not be able to get here. Required file should result in an error when checked."
+    )]
     async fn required_file_resolve_and_write_panics() {
         let mut ctx = Context::new();
         let required = FileProvider::Required(RequiredFile {
@@ -1443,6 +1504,27 @@ mod tests {
         let _res = required
             .resolve_and_write(Path::new("required.txt"), &mut ctx)
             .await;
+    }
+
+    #[tokio::test]
+    async fn relative_path_inline_succeeds() {
+        let file_content = "example file content";
+        let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", file_content);
+
+        let mut ctx = Context::new();
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+
+        let mut file_provider = FileProvider::RelativePath(relative_file("file.txt", src));
+        let result = file_provider.inline(&mut ctx).await;
+
+        assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
+        assert_eq!(
+            file_provider,
+            FileProvider::Inline(InlineFile {
+                content: file_content.to_string(),
+            }),
+            "Expected file provider to be inlined"
+        );
     }
 
     #[tokio::test]
