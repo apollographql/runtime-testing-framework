@@ -53,6 +53,9 @@ pub enum ErrorKind {
     )]
     MissingCustomProvider,
 
+    #[strum(to_string = "No matching conditional cases for provided variables")]
+    NoMatchingCases,
+
     #[strum(
         to_string = "Unknown templating variable. Make sure a value is defined for this variable to resolve to."
     )]
