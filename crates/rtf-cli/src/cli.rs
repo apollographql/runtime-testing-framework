@@ -99,23 +99,11 @@ pub enum Command {
         subcommand: CustomProviderSubcommand,
     },
 
-    /// Inline all relative file providers in a test plan.
+    /// Inline file providers in a test plan.
     /// Outputs the resulting test plan to the given directory.
     Inline {
-        /// Relative path to the test-plan.yaml file that should be inlined. When using --github this must be in the format ORG/REPO/PATH
-        test_plan_path: String,
-
-        /// Output directory for inlined test plan
-        #[arg(long, default_value = "output")]
-        outdir: String,
-
-        /// Inline a test plan file from GitHub instead of from a local path
-        #[arg(long, default_value = "false")]
-        github: bool,
-
-        /// Optional git ref to pull files from when using --github
-        #[arg(long = "ref", requires = "github")]
-        git_ref: Option<String>,
+        #[clap(subcommand)]
+        subcommand: InlineSubcommand,
     },
 }
 
@@ -158,5 +146,37 @@ pub enum CustomProviderSubcommand {
         /// Show captured stdout/stderr for failed tests
         #[arg(long, action)]
         no_capture: bool,
+    },
+}
+
+#[derive(Debug, clap::Args)]
+pub struct InlineArgs {
+    /// Relative path to the test-plan.yaml file that should be inlined. When using --github this must be in the format ORG/REPO/PATH
+    pub test_plan_path: String,
+
+    /// Output directory for inlined test plan
+    #[arg(long, default_value = "output")]
+    pub outdir: String,
+
+    /// Inline a test plan file from GitHub instead of from a local path
+    #[arg(long, default_value = "false")]
+    pub github: bool,
+
+    /// Optional git ref to pull files from when using --github
+    #[arg(long = "ref", requires = "github")]
+    pub git_ref: Option<String>,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum InlineSubcommand {
+    /// Inline all file providers
+    All {
+        #[command(flatten)]
+        args: InlineArgs,
+    },
+    /// Inline only relative file providers
+    RelativeFiles {
+        #[command(flatten)]
+        args: InlineArgs,
     },
 }

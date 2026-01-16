@@ -57,6 +57,17 @@ impl CmdWithTmpDir {
         );
     }
 
+    /// Assert that a given file within the test [TempDir] contains `value`.
+    pub fn assert_file_contains(&self, path: &str, value: &str) {
+        let file = self.tmp.child(path);
+        let content = std::fs::read_to_string(file.path())
+            .unwrap_or_else(|e| panic!("failed to read {path}: {e}"));
+        assert!(
+            content.contains(value),
+            "file {path} does not contain expected value: {value}"
+        );
+    }
+
     /// Debugging helper for showing what the contents of this test's temp directory were.
     pub fn list_files(&self) {
         println!(">> Temp directory contents:");
