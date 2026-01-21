@@ -3,9 +3,10 @@
 use crate::{
     checks::{self, Check},
     context::ResolutionContext,
+    inlining,
     providers::{
         self,
-        file::{AsUtf8FileContent, ResolveFileContent},
+        file::{AsUtf8FileContent, DirFile, InlineDir, ResolveFileContent},
     },
     templating::Field,
 };
@@ -131,19 +132,27 @@ pub struct GraphosSubgraphs {
 }
 
 impl GraphosSubgraphs {
-    fn content_from_details(
-        &self,
-        sg: Arc<SupergraphDetails>,
-        dir: &Path,
-    ) -> Vec<(PathBuf, String)> {
+    fn content_from_details(&self, sg: Arc<SupergraphDetails>, dir: &Path) -> Vec<DirFile> {
         let contents: Vec<_> = sg
             .subgraphs
             .clone()
             .into_iter()
-            .map(|sg| (dir.join(sg.name).with_extension("graphql"), sg.sdl))
+            .map(|sg| DirFile {
+                path: dir.join(sg.name).with_extension("graphql"),
+                content: sg.sdl,
+            })
             .collect();
 
         contents
+    }
+
+    pub(crate) async fn inline(&self, ctx: &impl ResolutionContext) -> inlining::Result<InlineDir> {
+        // The target in try_get_all_file_contents is used to prefix the actual file paths
+        // We are not interested in that here so we set a new PathBuf so we just get the file name
+        // as <subgraph_name>.graphql
+        let files = self.try_get_all_file_contents(PathBuf::new(), ctx).await?;
+
+        Ok(InlineDir { files })
     }
 }
 
@@ -151,8 +160,8 @@ impl ResolveFileContent for GraphosSubgraphs {
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<Vec<(PathBuf, String)>> {
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<Vec<DirFile>> {
         let (graph_id, variant) = self
             .graph_ref
             .as_resolved()
@@ -881,7 +890,7 @@ mod tests {
         context::Context,
         mock_context::MockContext,
         providers::file::{
-            FileProvider,
+            FileProvider, InlineFile,
             tests::{
                 assert_check_errors, assert_resolve_and_write_error,
                 assert_resolve_and_write_success,
@@ -1385,9 +1394,15 @@ mod tests {
 
         let base_path = Path::new("subgraphs");
 
-        let expected_content: Vec<(PathBuf, String)> = vec![
-            (base_path.join("foo.graphql"), subgraph_foo().to_string()),
-            (base_path.join("bar.graphql"), subgraph_bar().to_string()),
+        let expected_content: Vec<DirFile> = vec![
+            DirFile {
+                path: base_path.join("foo.graphql"),
+                content: subgraph_foo().to_string(),
+            },
+            DirFile {
+                path: base_path.join("bar.graphql"),
+                content: subgraph_bar().to_string(),
+            },
         ];
 
         let res = subgraphs.content_from_details(details, base_path);
@@ -1526,5 +1541,65 @@ mod tests {
             custom_subgraph_urls: HashMap::new(),
         });
         assert_eq!(url_format.connector_base_url(), "http://my-connector:4000");
+    }
+
+    #[tokio::test]
+    async fn router_download_script_inline_all_files_success() {
+        let version = "v2.6.0";
+        let url = format!("https://router.apollo.dev/download/nix/{version}");
+        let expected_content = "router download script content";
+
+        let responses = &[(url.as_str(), "200", expected_content)];
+        let ctx = MockContext::with_http_client(responses);
+
+        let mut provider = FileProvider::RouterDownloadScript(RouterDownloadScript {
+            version: Field::Resolved(version.to_string()),
+        });
+
+        let res = provider.inline(&ctx).await;
+        assert!(res.is_ok(), "expected provider to inline, got {res:?}");
+
+        let expected_inline_provider = FileProvider::Inline(InlineFile {
+            content: expected_content.to_string(),
+        });
+        assert_eq!(
+            provider, expected_inline_provider,
+            "expected inline file provider with router download script content"
+        );
+    }
+
+    #[tokio::test]
+    async fn build_router_from_source_inline_all_files_success() {
+        let ctx = Context::new();
+
+        let expected_content = indoc!(
+            r#"
+            mkdir router-source && \
+            cd router-source && \
+            git clone https://github.com/apollographql/router.git && \
+            cd router && \
+            git checkout git_ref && \
+            rustup toolchain install 1.90.0 && \
+            rustup run 1.90.0 cargo build --profile release --features default && \
+            cp ${CARGO_TARGET_DIR}/release/router ~/.cargo/bin/"#
+        );
+
+        let mut provider = FileProvider::BuildRouterFromSource(BuildRouterFromSource {
+            git_ref: Field::Resolved("git_ref".to_string()),
+            rust_version: Field::Resolved("1.90.0".to_string()),
+            profile: Field::Resolved("release".to_string()),
+            features: Field::Resolved("default".to_string()),
+        });
+
+        let res = provider.inline(&ctx).await;
+        assert!(res.is_ok(), "expected provider to inline, got {res:?}");
+
+        let expected_inline_provider = FileProvider::Inline(InlineFile {
+            content: expected_content.to_string(),
+        });
+        assert_eq!(
+            provider, expected_inline_provider,
+            "expected inline file provider with build script content"
+        );
     }
 }

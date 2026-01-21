@@ -21,8 +21,17 @@ use tracing::info;
 
 const INLINED_TEST_PLAN_PATH: &str = "inlined-test-plan.yaml";
 
+/// The subcommand that the inline command runs
+/// This enum exists so the command args don't need to be propagated down through
+/// all of the inline methods
+pub enum InlineMode {
+    All,
+    RelativeFiles,
+}
+
 pub async fn inline_test_plan(
     test_plan_path: &str,
+    mode: InlineMode,
     outdir: &str,
     github: bool,
     git_ref: Option<String>,
@@ -38,11 +47,12 @@ pub async fn inline_test_plan(
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
 
-    inline_all_relative_file_providers_with_context(test_plan, variables, ctx, cwd, outdir).await
+    inline_file_providers_with_context(test_plan, mode, variables, ctx, cwd, outdir).await
 }
 
-async fn inline_all_relative_file_providers_with_context(
+async fn inline_file_providers_with_context(
     mut test_plan: TestPlanConfig,
+    mode: InlineMode,
     variables: Variables,
     mut ctx: impl ResolutionContext,
     cwd: PathBuf,
@@ -57,7 +67,15 @@ async fn inline_all_relative_file_providers_with_context(
     if test_plan.matrix.is_empty() {
         info!("inlining relative file providers for test plan");
 
-        return inline_one(&mut test_plan, &ctx, &variable_sources, &outdir, None).await;
+        return inline_one(
+            &mut test_plan,
+            &mode,
+            &variable_sources,
+            &outdir,
+            None,
+            &mut ctx,
+        )
+        .await;
     }
 
     let n = test_plan.matrix.n_variants();
@@ -67,10 +85,11 @@ async fn inline_all_relative_file_providers_with_context(
         info!("inlining relative file providers for matrix variant {i}/{n}");
         inline_one(
             &mut variant,
-            &ctx,
+            &mode,
             &variable_sources,
             &outdir,
             Some(variant_name),
+            &mut ctx,
         )
         .await?;
     }
@@ -78,9 +97,10 @@ async fn inline_all_relative_file_providers_with_context(
     Ok(())
 }
 
-async fn inline_all_relative_file_providers(
+async fn inline_file_providers(
     test_plan: &mut TestPlanConfig,
-    ctx: &impl ResolutionContext,
+    mode: &InlineMode,
+    ctx: &mut impl ResolutionContext,
     template_variables: &HashMap<String, SourceDir>,
 ) -> inlining::Result<()> {
     let mut errs = inlining::ErrorBuilder::new();
@@ -100,22 +120,33 @@ async fn inline_all_relative_file_providers(
             .map_err(Into::into),
     );
 
-    // Inline relative file providers after templating to ensure relative file paths that might be used in the template are resolved
-    info!("inlining relative file providers for test plan");
-    errs.append(test_plan.scenario.inline_all_relative_paths(ctx).await);
-    errs.append(test_plan.environment.inline_all_relative_paths(ctx).await);
+    match mode {
+        InlineMode::All => {
+            // Inline all file providers after templating
+            info!("inlining file providers for test plan");
+            errs.append(test_plan.scenario.inline(ctx).await);
+            errs.append(test_plan.environment.inline(ctx).await);
+        }
+        InlineMode::RelativeFiles => {
+            // Inline relative file providers after templating to ensure relative file paths that might be used in the template are resolved
+            info!("inlining relative file providers for test plan");
+            errs.append(test_plan.scenario.inline_all_relative_paths(ctx).await);
+            errs.append(test_plan.environment.inline_all_relative_paths(ctx).await);
+        }
+    };
 
     errs.into_result(())
 }
 
 async fn inline_one(
     test_plan: &mut TestPlanConfig,
-    ctx: &impl ResolutionContext,
+    mode: &InlineMode,
     template_variables: &HashMap<String, SourceDir>,
     outdir: &Path,
     test_plan_name: Option<String>,
+    ctx: &mut impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    inline_all_relative_file_providers(test_plan, ctx, template_variables).await?;
+    inline_file_providers(test_plan, mode, ctx, template_variables).await?;
 
     info!("writing out inlined test plan");
     let output_path = match test_plan_name {

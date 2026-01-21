@@ -4,7 +4,6 @@ use crate::{
     formats::{
         CustomProviderDeclaration, EnvironmentConfig, Error, Matrix, Result, ScenarioConfig,
     },
-    inlining,
     providers::file::SourceDir,
     templating::{self, Scalar, Template, TemplateContext},
 };
@@ -45,20 +44,6 @@ pub struct TestPlanConfig {
     pub environment: EnvironmentConfig,
     #[serde(skip)]
     pub sources: Sources,
-}
-
-impl TestPlanConfig {
-    pub async fn inline_all_relative_paths(
-        &mut self,
-        ctx: &impl ResolutionContext,
-    ) -> inlining::Result<()> {
-        let mut errs = inlining::ErrorBuilder::new();
-
-        errs.append(self.scenario.inline_all_relative_paths(ctx).await);
-        errs.append(self.environment.inline_all_relative_paths(ctx).await);
-
-        errs.into_result(())
-    }
 }
 
 impl TestPlanConfig {
@@ -324,8 +309,7 @@ mod tests {
                 CommandProvider, CommandSection, CommandSpec,
                 test_helpers::{cmd_with_inline_file, cmd_with_required_file},
             },
-            file::{FileProvider, InlineFile, NamedFileProvider, RawSource, RelativeFile},
-            test_helpers::create_temp_dir_with_file,
+            file::{FileProvider, InlineFile, NamedFileProvider, RawSource},
         },
         templating::Field,
         variables_map,
@@ -1839,80 +1823,5 @@ mod tests {
             "expected a missing variables error, got {res:?}"
         );
         assert_eq!(res.unwrap_err().to_string(), expected_err);
-    }
-
-    #[tokio::test]
-    async fn test_config_inline_all_relative_paths_succeeds() {
-        let ctx = Context::new();
-        let file_content = "example file content";
-        let relative_file_path = "file.txt";
-        let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
-        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
-
-        // Build a test plan with a scenario command using a RelativePath command provider
-        let mut test_plan = TestPlanConfig {
-            scenario: ScenarioConfig {
-                command: CommandSection {
-                    command: CommandSpec {
-                        name: "example.sh".to_string(),
-                        command_provider: CommandProvider::RelativePath(RelativeFile {
-                            path: Field::Resolved(relative_file_path.to_string()),
-                            src: Some(src.clone()),
-                        }),
-                        args: Vec::new(),
-                    },
-                    ..CommandSection::empty()
-                },
-                ..ScenarioConfig::empty()
-            },
-            environment: EnvironmentConfig {
-                teardown: CommandSection {
-                    command: CommandSpec {
-                        name: "example.sh".to_string(),
-                        command_provider: CommandProvider::RelativePath(RelativeFile {
-                            path: Field::Resolved(relative_file_path.to_string()),
-                            src: Some(src.clone()),
-                        }),
-                        args: Vec::new(),
-                    },
-                    ..CommandSection::empty()
-                },
-                ..EnvironmentConfig::empty()
-            },
-            ..TestPlanConfig::empty()
-        };
-
-        let result = test_plan.inline_all_relative_paths(&ctx).await;
-        assert!(
-            result.is_ok(),
-            "Expected inline_all_relative_paths to succeed, got {result:?}"
-        );
-
-        let inline_file = InlineFile {
-            content: file_content.to_string(),
-        };
-
-        assert_eq!(
-            test_plan.scenario.command,
-            CommandSection {
-                command: CommandSpec {
-                    name: "example.sh".to_string(),
-                    command_provider: CommandProvider::Inline(inline_file.clone()),
-                    args: Vec::new(),
-                },
-                ..CommandSection::empty()
-            }
-        );
-        assert_eq!(
-            test_plan.environment.teardown,
-            CommandSection {
-                command: CommandSpec {
-                    name: "example.sh".to_string(),
-                    command_provider: CommandProvider::Inline(inline_file),
-                    args: Vec::new(),
-                },
-                ..CommandSection::empty()
-            }
-        );
     }
 }

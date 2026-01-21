@@ -12,6 +12,8 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf custom-provider template`↴](#rtf-custom-provider-template)
 * [`rtf custom-provider run`↴](#rtf-custom-provider-run)
 * [`rtf inline`↴](#rtf-inline)
+* [`rtf inline all`↴](#rtf-inline-all)
+* [`rtf inline relative-files`↴](#rtf-inline-relative-files)
 
 ## `rtf`
 
@@ -25,7 +27,7 @@ A swiss army knife for testing the Apollo Runtime
 * `expand-matrix` — Expand a test plan matrix into JSON
 * `template` — Template a test plan using provided variables, outputting the resulting config to stdout
 * `custom-provider` — Work directly with custom file provider definitions
-* `inline` — Inline all relative file providers in a test plan. Outputs the resulting test plan to the given directory
+* `inline` — Inline file providers in a test plan. Outputs the resulting test plan to the given directory
 
 ###### **Options:**
 
@@ -142,9 +144,44 @@ Execute a custom provider definition
 
 ## `rtf inline`
 
-Inline all relative file providers in a test plan. Outputs the resulting test plan to the given directory
+Inline file providers in a test plan. Outputs the resulting test plan to the given directory
 
-**Usage:** `rtf inline [OPTIONS] <TEST_PLAN_PATH>`
+**Usage:** `rtf inline <COMMAND>`
+
+###### **Subcommands:**
+
+* `all` — Inline all file providers
+* `relative-files` — Inline only relative file providers
+
+
+
+## `rtf inline all`
+
+Inline all file providers
+
+**Usage:** `rtf inline all [OPTIONS] <TEST_PLAN_PATH>`
+
+###### **Arguments:**
+
+* `<TEST_PLAN_PATH>` — Relative path to the test-plan.yaml file that should be inlined. When using --github this must be in the format ORG/REPO/PATH
+
+###### **Options:**
+
+* `--outdir <OUTDIR>` — Output directory for inlined test plan
+
+  Default value: `output`
+* `--github` — Inline a test plan file from GitHub instead of from a local path
+
+  Default value: `false`
+* `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
+
+
+
+## `rtf inline relative-files`
+
+Inline only relative file providers
+
+**Usage:** `rtf inline relative-files [OPTIONS] <TEST_PLAN_PATH>`
 
 ###### **Arguments:**
 

@@ -1,0 +1,57 @@
+name: all-sections-relative-paths
+description: |
+  Regression test ensuring relative_path providers are inlined in ALL config sections.
+  Covers: scenario command, scenario file_providers, setup command, setup file_providers,
+  teardown command, and teardown file_providers.
+  Also tests merge_yaml behavior: inline relative-files inlines nested providers while
+  inline all converts the entire merge_yaml to inline.
+  See RR-479 for the original bug this covers.
+
+scenario:
+  inline:
+    name: scenario
+    description: Scenario with relative_path command and file_providers
+    command:
+      name: scenario.sh
+      kind: relative_path
+      path: scripts/scenario.sh
+    file_providers:
+      - name: scenario-data.txt
+        env_var: SCENARIO_DATA
+        kind: relative_path
+        path: data/scenario-data.txt
+      - name: merged-config.yaml
+        env_var: MERGED_CONFIG
+        kind: merge_yaml
+        base:
+          kind: relative_path
+          path: data/base-config.yaml
+        overrides:
+          kind: relative_path
+          path: data/override-config.yaml
+
+environment:
+  inline:
+    name: environment
+    description: Environment with relative_path in setup and teardown
+    setup:
+      command:
+        name: setup.sh
+        kind: relative_path
+        path: scripts/setup.sh
+      file_providers:
+        - name: setup-config.txt
+          env_var: SETUP_CONFIG
+          kind: relative_path
+          path: data/setup-config.txt
+
+    teardown:
+      command:
+        name: teardown.sh
+        kind: relative_path
+        path: scripts/teardown.sh
+      file_providers:
+        - name: cleanup-config.txt
+          env_var: CLEANUP_CONFIG
+          kind: relative_path
+          path: data/cleanup-config.txt

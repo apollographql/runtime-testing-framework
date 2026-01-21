@@ -80,7 +80,7 @@ mod tests {
         context::Context,
         mock_context::MockContext,
         providers::file::{
-            FileProvider, ResolveAndWrite,
+            FileProvider, InlineFile, ResolveAndWrite,
             tests::{assert_check_errors, assert_resolve_and_write_success},
         },
     };
@@ -117,6 +117,33 @@ mod tests {
         let ctx = Context::new();
 
         assert_check_errors(github_file, &ctx, &[checks::ErrorKind::MissingGithubApiKey]);
+    }
+
+    #[tokio::test]
+    async fn github_file_inline_all_files_success() {
+        let expected_content = "some content";
+        let expected_inline_provider = FileProvider::Inline(InlineFile {
+            content: expected_content.to_string(),
+        });
+
+        let ctx = MockContext::with_github_client(&[("org/repo/path", expected_content)]);
+        let mut github_file = FileProvider::GithubFile(github_file());
+
+        let res = github_file.inline(&ctx).await;
+        assert!(res.is_ok(), "expected provider to inline, got {res:?}");
+        assert_eq!(
+            github_file, expected_inline_provider,
+            "Expected inline_all_files to update the file provider to an inline file provider with the expected GitHub content"
+        );
+    }
+
+    #[tokio::test]
+    #[should_panic(expected = "to have a GitHub client")]
+    async fn github_file_inline_all_files_no_github_client_panics() {
+        let ctx = Context::new();
+        let mut github_file = FileProvider::GithubFile(github_file());
+
+        let _res = github_file.inline(&ctx).await;
     }
 
     #[tokio::test]

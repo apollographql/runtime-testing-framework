@@ -2,10 +2,10 @@ use anyhow::Context;
 use clap::Parser;
 use rtf_cli::{
     LOG_LEVEL_ENV_VAR,
-    cli::{Args, Command, CustomProviderSubcommand},
+    cli::{Args, Command, CustomProviderSubcommand, InlineSubcommand},
     commands::{
         plumbing::{
-            expand_test_plan_matrix, inline_test_plan, run_custom_provider,
+            InlineMode, expand_test_plan_matrix, inline_test_plan, run_custom_provider,
             template_custom_provider, template_test_plan, test_custom_provider,
         },
         porcelain::check_and_run_test_plan,
@@ -50,12 +50,21 @@ async fn main() {
             git_ref,
         } => template_test_plan(&test_plan_path, check, github, git_ref, variables).await,
 
-        Command::Inline {
-            test_plan_path,
-            outdir,
-            github,
-            git_ref,
-        } => inline_test_plan(&test_plan_path, &outdir, github, git_ref, variables).await,
+        Command::Inline { subcommand } => {
+            let (args, mode) = match subcommand {
+                InlineSubcommand::All { args } => (args, InlineMode::All),
+                InlineSubcommand::RelativeFiles { args } => (args, InlineMode::RelativeFiles),
+            };
+            inline_test_plan(
+                &args.test_plan_path,
+                mode,
+                &args.outdir,
+                args.github,
+                args.git_ref,
+                variables,
+            )
+            .await
+        }
 
         Command::CustomProvider {
             subcommand:

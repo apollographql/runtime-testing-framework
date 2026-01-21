@@ -1,5 +1,4 @@
-use crate::providers;
-use crate::templating;
+use crate::{providers, templating};
 
 /// User facing descriptions of the reason that inlining a [`crate::providers::file::RelativeFile`] failed.
 ///

@@ -34,6 +34,16 @@ pub use source::{RawSource, SourceDir};
 pub(crate) trait AsUtf8FileContent:
     Check + Serialize + DeserializeOwned + fmt::Debug
 {
+    /// Attempt to convert this file provider into an InlineFile
+    async fn try_into_inline_file(
+        &self,
+        ctx: &impl ResolutionContext,
+    ) -> inlining::Result<InlineFile> {
+        let content = self.try_get_file_content(ctx).await?;
+
+        Ok(InlineFile { content })
+    }
+
     /// Attempt to run this file provider and convert it into the required file content.
     async fn try_get_file_content(&self, ctx: &impl ResolutionContext)
     -> providers::Result<String>;
@@ -64,12 +74,12 @@ where
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<Vec<(PathBuf, String)>> {
-        Ok(vec![(
-            target.as_ref().to_path_buf(),
-            self.try_get_file_content(ctx).await?,
-        )])
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<Vec<DirFile>> {
+        Ok(vec![DirFile {
+            path: target.as_ref().to_path_buf(),
+            content: self.try_get_file_content(ctx).await?,
+        }])
     }
 }
 
@@ -82,8 +92,8 @@ pub(crate) trait ResolveFileContent:
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<Vec<(PathBuf, String)>>;
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<Vec<DirFile>>;
 }
 
 impl<T> ResolveAndWrite for T
@@ -96,11 +106,11 @@ where
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
         let files = self.try_get_all_file_contents(target, ctx).await?;
-        for (path, content) in files.into_iter() {
-            if let Some(parent) = path.parent() {
+        for file in files.into_iter() {
+            if let Some(parent) = file.path.parent() {
                 ctx.create_dir_all(parent)?;
             }
-            ctx.write(path, content)?;
+            ctx.write(file.path, file.content)?;
         }
 
         Ok(())
@@ -139,6 +149,32 @@ macro_rules! enum_impl_resolve_and_write {
                     $(Self::$variant(inner) => inner.resolve_and_write(target, ctx).await,)+
                 }
             }
+        }
+    };
+}
+
+/// Helper macro for implementing FileProvider::inline
+/// The special cases for this macro are statically defined in the macro.
+/// All the FileProviders that implement IntoUtf8Content have to be specified in the macro arguments
+macro_rules! impl_inline {
+    (
+        $self:expr, $ctx:expr;
+        $($inline:ident),*
+    ) => {
+        match $self {
+            Self::Inline(_) | Self::InlineDir(_) => Ok(()),
+            Self::FromCommand(inner) => {
+                inner.inline($ctx).await?;
+                Ok(())
+            }
+            Self::GraphosSubgraphs(inner) => {
+                *$self = FileProvider::InlineDir(inner.inline($ctx).await?);
+                Ok(())
+            }
+            $(Self::$inline(inner) => {
+                *$self = FileProvider::Inline(inner.try_into_inline_file($ctx).await?);
+                Ok(())
+            })*
         }
     };
 }
@@ -310,6 +346,28 @@ impl FileProvider {
         schema.to_value()
     }
 
+    /// Recursively inline file providers into their inline form
+    pub async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
+        impl_inline!(
+            self, ctx;
+            BuildRouterFromSource,
+            Conditional,
+            CustomProvider,
+            GithubFile,
+            GraphosCannedOps,
+            GraphosCannedOpsById,
+            GraphosSubgraphRouterUrlOverrides,
+            GraphosSubgraphNames,
+            GraphosSupergraph,
+            MergeYaml,
+            OfflineGraphosLicense,
+            RelativePath,
+            Required,
+            RouterDownloadScript
+
+        )
+    }
+
     /// Recursively inline any RelativePath file providers into Inline providers.
     pub async fn inline_all_relative_paths(
         &mut self,
@@ -317,7 +375,7 @@ impl FileProvider {
     ) -> inlining::Result<()> {
         match self {
             Self::RelativePath(relative_path) => {
-                *self = Self::Inline(relative_path.to_inline_file(ctx).await?);
+                *self = Self::Inline(relative_path.try_into_inline_file(ctx).await?);
 
                 Ok(())
             }
@@ -499,17 +557,6 @@ pub struct RelativeFile {
     #[schemars(skip)]
     #[doc(hidden)]
     pub(crate) src: Option<SourceDir>,
-}
-
-impl RelativeFile {
-    pub(crate) async fn to_inline_file(
-        &self,
-        ctx: &impl ResolutionContext,
-    ) -> inlining::Result<InlineFile> {
-        let content = self.try_get_file_content(ctx).await?;
-
-        Ok(InlineFile { content })
-    }
 }
 
 impl Template for RelativeFile {
@@ -1435,6 +1482,19 @@ mod tests {
     #[should_panic(
         expected = "Should not be able to get here. Required file should result in an error when checked."
     )]
+    async fn required_file_inline_all_files_panics() {
+        let ctx = Context::new();
+        let mut required = FileProvider::Required(RequiredFile {
+            message: "required file must be defined".to_string(),
+        });
+
+        let _res = required.inline(&ctx).await;
+    }
+
+    #[tokio::test]
+    #[should_panic(
+        expected = "Should not be able to get here. Required file should result in an error when checked."
+    )]
     async fn required_file_resolve_and_write_panics() {
         let mut ctx = Context::new();
         let required = FileProvider::Required(RequiredFile {
@@ -1444,6 +1504,27 @@ mod tests {
         let _res = required
             .resolve_and_write(Path::new("required.txt"), &mut ctx)
             .await;
+    }
+
+    #[tokio::test]
+    async fn relative_path_inline_succeeds() {
+        let file_content = "example file content";
+        let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", file_content);
+
+        let ctx = Context::new();
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+
+        let mut file_provider = FileProvider::RelativePath(relative_file("file.txt", src));
+        let result = file_provider.inline(&ctx).await;
+
+        assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
+        assert_eq!(
+            file_provider,
+            FileProvider::Inline(InlineFile {
+                content: file_content.to_string(),
+            }),
+            "Expected file provider to be inlined"
+        );
     }
 
     #[tokio::test]

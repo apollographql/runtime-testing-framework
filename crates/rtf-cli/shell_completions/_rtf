@@ -165,6 +165,24 @@ esac
 ;;
 (inline)
 _arguments "${_arguments_options[@]}" : \
+'*--var=[A single additional templating variable in the form "key=value"]:VAR:_default' \
+'--vars=[Path to a JSON file containing additional template variables]:VARS:_files' \
+'*-v[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'*--verbose[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_rtf__inline_commands" \
+"*::: :->inline" \
+&& ret=0
+
+    case $state in
+    (inline)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:rtf-inline-command-$line[1]:"
+        case $line[1] in
+            (all)
+_arguments "${_arguments_options[@]}" : \
 '--outdir=[Output directory for inlined test plan]:OUTDIR:_default' \
 '--ref=[Optional git ref to pull files from when using --github]:GIT_REF:_default' \
 '*--var=[A single additional templating variable in the form "key=value"]:VAR:_default' \
@@ -176,6 +194,52 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help]' \
 ':test_plan_path -- Relative path to the test-plan.yaml file that should be inlined. When using --github this must be in the format ORG/REPO/PATH:_default' \
 && ret=0
+;;
+(relative-files)
+_arguments "${_arguments_options[@]}" : \
+'--outdir=[Output directory for inlined test plan]:OUTDIR:_default' \
+'--ref=[Optional git ref to pull files from when using --github]:GIT_REF:_default' \
+'*--var=[A single additional templating variable in the form "key=value"]:VAR:_default' \
+'--vars=[Path to a JSON file containing additional template variables]:VARS:_files' \
+'--github[Inline a test plan file from GitHub instead of from a local path]' \
+'*-v[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'*--verbose[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':test_plan_path -- Relative path to the test-plan.yaml file that should be inlined. When using --github this must be in the format ORG/REPO/PATH:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_rtf__inline__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:rtf-inline-help-command-$line[1]:"
+        case $line[1] in
+            (all)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(relative-files)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
 ;;
 (help)
 _arguments "${_arguments_options[@]}" : \
@@ -231,7 +295,27 @@ esac
 ;;
 (inline)
 _arguments "${_arguments_options[@]}" : \
+":: :_rtf__help__inline_commands" \
+"*::: :->inline" \
 && ret=0
+
+    case $state in
+    (inline)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:rtf-help-inline-command-$line[1]:"
+        case $line[1] in
+            (all)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(relative-files)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
 ;;
 (help)
 _arguments "${_arguments_options[@]}" : \
@@ -253,7 +337,7 @@ _rtf_commands() {
 'expand-matrix:Expand a test plan matrix into JSON' \
 'template:Template a test plan using provided variables, outputting the resulting config to stdout' \
 'custom-provider:Work directly with custom file provider definitions' \
-'inline:Inline all relative file providers in a test plan. Outputs the resulting test plan to the given directory' \
+'inline:Inline file providers in a test plan. Outputs the resulting test plan to the given directory' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'rtf commands' commands "$@"
@@ -325,7 +409,7 @@ _rtf__help_commands() {
 'expand-matrix:Expand a test plan matrix into JSON' \
 'template:Template a test plan using provided variables, outputting the resulting config to stdout' \
 'custom-provider:Work directly with custom file provider definitions' \
-'inline:Inline all relative file providers in a test plan. Outputs the resulting test plan to the given directory' \
+'inline:Inline file providers in a test plan. Outputs the resulting test plan to the given directory' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'rtf help commands' commands "$@"
@@ -366,8 +450,21 @@ _rtf__help__help_commands() {
 }
 (( $+functions[_rtf__help__inline_commands] )) ||
 _rtf__help__inline_commands() {
-    local commands; commands=()
+    local commands; commands=(
+'all:Inline all file providers' \
+'relative-files:Inline only relative file providers' \
+    )
     _describe -t commands 'rtf help inline commands' commands "$@"
+}
+(( $+functions[_rtf__help__inline__all_commands] )) ||
+_rtf__help__inline__all_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf help inline all commands' commands "$@"
+}
+(( $+functions[_rtf__help__inline__relative-files_commands] )) ||
+_rtf__help__inline__relative-files_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf help inline relative-files commands' commands "$@"
 }
 (( $+functions[_rtf__help__run_commands] )) ||
 _rtf__help__run_commands() {
@@ -381,8 +478,46 @@ _rtf__help__template_commands() {
 }
 (( $+functions[_rtf__inline_commands] )) ||
 _rtf__inline_commands() {
-    local commands; commands=()
+    local commands; commands=(
+'all:Inline all file providers' \
+'relative-files:Inline only relative file providers' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
     _describe -t commands 'rtf inline commands' commands "$@"
+}
+(( $+functions[_rtf__inline__all_commands] )) ||
+_rtf__inline__all_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf inline all commands' commands "$@"
+}
+(( $+functions[_rtf__inline__help_commands] )) ||
+_rtf__inline__help_commands() {
+    local commands; commands=(
+'all:Inline all file providers' \
+'relative-files:Inline only relative file providers' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'rtf inline help commands' commands "$@"
+}
+(( $+functions[_rtf__inline__help__all_commands] )) ||
+_rtf__inline__help__all_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf inline help all commands' commands "$@"
+}
+(( $+functions[_rtf__inline__help__help_commands] )) ||
+_rtf__inline__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf inline help help commands' commands "$@"
+}
+(( $+functions[_rtf__inline__help__relative-files_commands] )) ||
+_rtf__inline__help__relative-files_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf inline help relative-files commands' commands "$@"
+}
+(( $+functions[_rtf__inline__relative-files_commands] )) ||
+_rtf__inline__relative-files_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf inline relative-files commands' commands "$@"
 }
 (( $+functions[_rtf__run_commands] )) ||
 _rtf__run_commands() {

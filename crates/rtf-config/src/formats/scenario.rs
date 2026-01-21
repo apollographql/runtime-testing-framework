@@ -39,13 +39,17 @@ impl ScenarioConfig {
         Ok(serde_yaml::from_str(&content)?)
     }
 
+    pub async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
+        self.command.inline(ctx).await?;
+
+        Ok(())
+    }
+
     pub async fn inline_all_relative_paths(
         &mut self,
         ctx: &impl ResolutionContext,
     ) -> inlining::Result<()> {
-        self.command.inline_all_relative_paths(ctx).await?;
-
-        Ok(())
+        self.command.inline_all_relative_paths(ctx).await
     }
 
     /// Create an empty [ScenarioConfig] for tests
@@ -191,8 +195,11 @@ mod tests {
         },
         providers::{
             self,
-            command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
-            file::{RawSource, SourceDir},
+            command::{
+                CommandProvider, CommandSection, CommandSpec,
+                test_helpers::{cmd_with_inline_file, cmd_with_required_file},
+            },
+            file::{InlineFile, RawSource, RelativeFile, SourceDir},
             test_helpers::create_temp_dir_with_file,
         },
         templating::Field,
@@ -641,5 +648,40 @@ mod tests {
             providers::Error::NestedCustomProvider
         ));
         assert!(matches!(errors[1].1, providers::Error::Io(_)));
+    }
+
+    #[tokio::test]
+    async fn scenario_config_inline_succeeds() {
+        let file_content = "example file content";
+        let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", file_content);
+
+        let ctx = Context::new();
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+
+        let mut scenario = ScenarioConfig {
+            command: CommandSection {
+                command: CommandSpec {
+                    name: "example.sh".to_string(),
+                    command_provider: CommandProvider::RelativePath(RelativeFile {
+                        path: Field::Resolved("file.txt".to_string()),
+                        src: Some(src.clone()),
+                    }),
+                    args: Vec::new(),
+                },
+                ..CommandSection::empty()
+            },
+            ..ScenarioConfig::empty()
+        };
+
+        let result = scenario.inline(&ctx).await;
+
+        assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
+        assert_eq!(
+            scenario.command.command.command_provider,
+            CommandProvider::Inline(InlineFile {
+                content: file_content.to_string(),
+            }),
+            "Expected command provider to be inlined"
+        );
     }
 }
