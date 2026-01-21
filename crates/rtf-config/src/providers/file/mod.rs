@@ -75,11 +75,11 @@ where
         &self,
         target: impl AsRef<Path>,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<Vec<(PathBuf, String)>> {
-        Ok(vec![(
-            target.as_ref().to_path_buf(),
-            self.try_get_file_content(ctx).await?,
-        )])
+    ) -> providers::Result<Vec<DirFile>> {
+        Ok(vec![DirFile {
+            path: target.as_ref().to_path_buf(),
+            content: self.try_get_file_content(ctx).await?,
+        }])
     }
 }
 
@@ -93,7 +93,7 @@ pub(crate) trait ResolveFileContent:
         &self,
         target: impl AsRef<Path>,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<Vec<(PathBuf, String)>>;
+    ) -> providers::Result<Vec<DirFile>>;
 }
 
 impl<T> ResolveAndWrite for T
@@ -106,11 +106,11 @@ where
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
         let files = self.try_get_all_file_contents(target, ctx).await?;
-        for (path, content) in files.into_iter() {
-            if let Some(parent) = path.parent() {
+        for file in files.into_iter() {
+            if let Some(parent) = file.path.parent() {
                 ctx.create_dir_all(parent)?;
             }
-            ctx.write(path, content)?;
+            ctx.write(file.path, file.content)?;
         }
 
         Ok(())

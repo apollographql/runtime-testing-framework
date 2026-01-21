@@ -132,16 +132,15 @@ pub struct GraphosSubgraphs {
 }
 
 impl GraphosSubgraphs {
-    fn content_from_details(
-        &self,
-        sg: Arc<SupergraphDetails>,
-        dir: &Path,
-    ) -> Vec<(PathBuf, String)> {
+    fn content_from_details(&self, sg: Arc<SupergraphDetails>, dir: &Path) -> Vec<DirFile> {
         let contents: Vec<_> = sg
             .subgraphs
             .clone()
             .into_iter()
-            .map(|sg| (dir.join(sg.name).with_extension("graphql"), sg.sdl))
+            .map(|sg| DirFile {
+                path: dir.join(sg.name).with_extension("graphql"),
+                content: sg.sdl,
+            })
             .collect();
 
         contents
@@ -151,12 +150,7 @@ impl GraphosSubgraphs {
         // The target in try_get_all_file_contents is used to prefix the actual file paths
         // We are not interested in that here so we set a new PathBuf so we just get the file name
         // as <subgraph_name>.graphql
-        let file_contents = self.try_get_all_file_contents(PathBuf::new(), ctx).await?;
-
-        let files = file_contents
-            .into_iter()
-            .map(|(path, content)| DirFile { path, content })
-            .collect();
+        let files = self.try_get_all_file_contents(PathBuf::new(), ctx).await?;
 
         Ok(InlineDir { files })
     }
@@ -167,7 +161,7 @@ impl ResolveFileContent for GraphosSubgraphs {
         &self,
         target: impl AsRef<Path>,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<Vec<(PathBuf, String)>> {
+    ) -> providers::Result<Vec<DirFile>> {
         let (graph_id, variant) = self
             .graph_ref
             .as_resolved()
@@ -1400,9 +1394,15 @@ mod tests {
 
         let base_path = Path::new("subgraphs");
 
-        let expected_content: Vec<(PathBuf, String)> = vec![
-            (base_path.join("foo.graphql"), subgraph_foo().to_string()),
-            (base_path.join("bar.graphql"), subgraph_bar().to_string()),
+        let expected_content: Vec<DirFile> = vec![
+            DirFile {
+                path: base_path.join("foo.graphql"),
+                content: subgraph_foo().to_string(),
+            },
+            DirFile {
+                path: base_path.join("bar.graphql"),
+                content: subgraph_bar().to_string(),
+            },
         ];
 
         let res = subgraphs.content_from_details(details, base_path);
