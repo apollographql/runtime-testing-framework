@@ -126,10 +126,10 @@ mod tests {
             content: expected_content.to_string(),
         });
 
-        let mut ctx = MockContext::with_github_client(&[("org/repo/path", expected_content)]);
+        let ctx = MockContext::with_github_client(&[("org/repo/path", expected_content)]);
         let mut github_file = FileProvider::GithubFile(github_file());
 
-        let res = github_file.inline(&mut ctx).await;
+        let res = github_file.inline(&ctx).await;
         assert!(res.is_ok(), "expected provider to inline, got {res:?}");
         assert_eq!(
             github_file, expected_inline_provider,
@@ -140,10 +140,10 @@ mod tests {
     #[tokio::test]
     #[should_panic(expected = "to have a GitHub client")]
     async fn github_file_inline_all_files_no_github_client_panics() {
-        let mut ctx = Context::new();
+        let ctx = Context::new();
         let mut github_file = FileProvider::GithubFile(github_file());
 
-        let _res = github_file.inline(&mut ctx).await;
+        let _res = github_file.inline(&ctx).await;
     }
 
     #[tokio::test]

@@ -147,10 +147,7 @@ impl GraphosSubgraphs {
         contents
     }
 
-    pub(crate) async fn inline(
-        &self,
-        ctx: &mut impl ResolutionContext,
-    ) -> inlining::Result<InlineDir> {
+    pub(crate) async fn inline(&self, ctx: &impl ResolutionContext) -> inlining::Result<InlineDir> {
         // The target in try_get_all_file_contents is used to prefix the actual file paths
         // We are not interested in that here so we set a new PathBuf so we just get the file name
         // as <subgraph_name>.graphql
@@ -169,7 +166,7 @@ impl ResolveFileContent for GraphosSubgraphs {
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,
-        ctx: &mut impl ResolutionContext,
+        ctx: &impl ResolutionContext,
     ) -> providers::Result<Vec<(PathBuf, String)>> {
         let (graph_id, variant) = self
             .graph_ref
@@ -1553,13 +1550,13 @@ mod tests {
         let expected_content = "router download script content";
 
         let responses = &[(url.as_str(), "200", expected_content)];
-        let mut ctx = MockContext::with_http_client(responses);
+        let ctx = MockContext::with_http_client(responses);
 
         let mut provider = FileProvider::RouterDownloadScript(RouterDownloadScript {
             version: Field::Resolved(version.to_string()),
         });
 
-        let res = provider.inline(&mut ctx).await;
+        let res = provider.inline(&ctx).await;
         assert!(res.is_ok(), "expected provider to inline, got {res:?}");
 
         let expected_inline_provider = FileProvider::Inline(InlineFile {
@@ -1573,7 +1570,7 @@ mod tests {
 
     #[tokio::test]
     async fn build_router_from_source_inline_all_files_success() {
-        let mut ctx = Context::new();
+        let ctx = Context::new();
 
         let expected_content = indoc!(
             r#"
@@ -1594,7 +1591,7 @@ mod tests {
             features: Field::Resolved("default".to_string()),
         });
 
-        let res = provider.inline(&mut ctx).await;
+        let res = provider.inline(&ctx).await;
         assert!(res.is_ok(), "expected provider to inline, got {res:?}");
 
         let expected_inline_provider = FileProvider::Inline(InlineFile {

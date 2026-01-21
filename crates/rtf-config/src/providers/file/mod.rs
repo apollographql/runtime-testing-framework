@@ -74,7 +74,7 @@ where
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,
-        ctx: &mut impl ResolutionContext,
+        ctx: &impl ResolutionContext,
     ) -> providers::Result<Vec<(PathBuf, String)>> {
         Ok(vec![(
             target.as_ref().to_path_buf(),
@@ -92,7 +92,7 @@ pub(crate) trait ResolveFileContent:
     async fn try_get_all_file_contents(
         &self,
         target: impl AsRef<Path>,
-        ctx: &mut impl ResolutionContext,
+        ctx: &impl ResolutionContext,
     ) -> providers::Result<Vec<(PathBuf, String)>>;
 }
 
@@ -347,7 +347,7 @@ impl FileProvider {
     }
 
     /// Recursively inline file providers into their inline form
-    pub async fn inline(&mut self, ctx: &mut impl ResolutionContext) -> inlining::Result<()> {
+    pub async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
         impl_inline!(
             self, ctx;
             BuildRouterFromSource,
@@ -1483,12 +1483,12 @@ mod tests {
         expected = "Should not be able to get here. Required file should result in an error when checked."
     )]
     async fn required_file_inline_all_files_panics() {
-        let mut ctx = Context::new();
+        let ctx = Context::new();
         let mut required = FileProvider::Required(RequiredFile {
             message: "required file must be defined".to_string(),
         });
 
-        let _res = required.inline(&mut ctx).await;
+        let _res = required.inline(&ctx).await;
     }
 
     #[tokio::test]
@@ -1511,11 +1511,11 @@ mod tests {
         let file_content = "example file content";
         let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", file_content);
 
-        let mut ctx = Context::new();
+        let ctx = Context::new();
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
 
         let mut file_provider = FileProvider::RelativePath(relative_file("file.txt", src));
-        let result = file_provider.inline(&mut ctx).await;
+        let result = file_provider.inline(&ctx).await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
         assert_eq!(

@@ -676,13 +676,13 @@ mod tests {
         expected = "Should not be able to get here. Custom provider should have been expanded when templating the config."
     )]
     async fn custom_provider_inline_all_files_panics() {
-        let mut ctx = Context::new();
+        let ctx = Context::new();
         let mut provider = FileProvider::CustomProvider(CustomProvider {
             ty: "my-custom-provider".to_string(),
             arguments: HashMap::new(),
             src: None,
         });
 
-        let _res = provider.inline(&mut ctx).await;
+        let _res = provider.inline(&ctx).await;
     }
 }

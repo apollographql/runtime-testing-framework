@@ -111,7 +111,7 @@ impl EnvironmentConfig {
         }
     }
 
-    pub async fn inline(&mut self, ctx: &mut impl ResolutionContext) -> inlining::Result<()> {
+    pub async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
         let mut errs = inlining::ErrorBuilder::new();
 
         errs.append(self.setup.command.inline(ctx).await);
@@ -1008,7 +1008,7 @@ pub(crate) mod tests {
         let file_content = "example file content";
         let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", file_content);
 
-        let mut ctx = Context::new();
+        let ctx = Context::new();
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
 
         let relative_command_provider = CommandProvider::RelativePath(RelativeFile {
@@ -1039,7 +1039,7 @@ pub(crate) mod tests {
             ..EnvironmentConfig::empty()
         };
 
-        let result = environment.inline(&mut ctx).await;
+        let result = environment.inline(&ctx).await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
 

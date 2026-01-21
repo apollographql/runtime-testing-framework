@@ -256,7 +256,7 @@ impl CommandSection {
 
     pub(crate) fn inline<'a>(
         &'a mut self,
-        ctx: &'a mut impl ResolutionContext,
+        ctx: &'a impl ResolutionContext,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
         // We need to pin this future on the heap to be able to poll it in order to avoid a
         // recursively defined future (which is infinitely sized). We end up being recursively
@@ -417,10 +417,7 @@ pub enum CommandProvider {
 }
 
 impl CommandProvider {
-    pub(crate) async fn inline(
-        &mut self,
-        ctx: &mut impl ResolutionContext,
-    ) -> inlining::Result<()> {
+    pub(crate) async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
         match self {
             CommandProvider::Inline(_) => Ok(()),
             CommandProvider::RelativePath(inner) => {
@@ -1075,7 +1072,7 @@ mod tests {
 
     #[tokio::test]
     async fn command_section_inline_succeeds() {
-        let mut ctx = Context::new();
+        let ctx = Context::new();
         let file_content = "example file content";
         let relative_file_path = "file.txt";
         let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
@@ -1112,7 +1109,7 @@ mod tests {
             ],
         };
 
-        let result = command_section.inline(&mut ctx).await;
+        let result = command_section.inline(&ctx).await;
         assert!(
             result.is_ok(),
             "Expected inline_all_relative_paths to succeed, got {result:?}"

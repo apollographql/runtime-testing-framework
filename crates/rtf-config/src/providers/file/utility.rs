@@ -286,10 +286,7 @@ impl FromCommand {
         Self { inner }
     }
 
-    pub(crate) async fn inline(
-        &mut self,
-        ctx: &mut impl ResolutionContext,
-    ) -> inlining::Result<()> {
+    pub(crate) async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
         self.inner.inline(ctx).await
     }
 
@@ -1075,7 +1072,7 @@ mod tests {
 
     #[tokio::test]
     async fn merge_yaml_inline_succeeds() {
-        let mut ctx = Context::new();
+        let ctx = Context::new();
         let base_content = "key1: base_value";
         let override_content = "key2: override_value";
 
@@ -1088,7 +1085,7 @@ mod tests {
             })),
         });
 
-        let result = file_provider.inline(&mut ctx).await;
+        let result = file_provider.inline(&ctx).await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
         assert_eq!(
@@ -1105,7 +1102,7 @@ mod tests {
         expected = "Should not be able to get here. Conditional providers should have been collapsed when templating the config."
     )]
     async fn conditional_inline_panics() {
-        let mut ctx = Context::new();
+        let ctx = Context::new();
         let mut file_provider = FileProvider::Conditional(Conditional {
             cases: vec![ConditionalCase {
                 where_clause: WhereClause {
@@ -1118,6 +1115,6 @@ mod tests {
             }],
         });
 
-        let _res = file_provider.inline(&mut ctx).await;
+        let _res = file_provider.inline(&ctx).await;
     }
 }

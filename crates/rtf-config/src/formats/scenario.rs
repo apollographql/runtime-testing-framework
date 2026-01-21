@@ -39,7 +39,7 @@ impl ScenarioConfig {
         Ok(serde_yaml::from_str(&content)?)
     }
 
-    pub async fn inline(&mut self, ctx: &mut impl ResolutionContext) -> inlining::Result<()> {
+    pub async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
         self.command.inline(ctx).await?;
 
         Ok(())
@@ -655,7 +655,7 @@ mod tests {
         let file_content = "example file content";
         let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", file_content);
 
-        let mut ctx = Context::new();
+        let ctx = Context::new();
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
 
         let mut scenario = ScenarioConfig {
@@ -673,7 +673,7 @@ mod tests {
             ..ScenarioConfig::empty()
         };
 
-        let result = scenario.inline(&mut ctx).await;
+        let result = scenario.inline(&ctx).await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
         assert_eq!(
