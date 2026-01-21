@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-01098935.js";
+            window.path_to_searchindex_js = "../searchindex-d4d41b56.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-6484d70d.js"></script>
@@ -190,6 +190,8 @@
 <li><a href="#rtf-custom-provider-template"><code>rtf custom-provider template</code>↴</a></li>
 <li><a href="#rtf-custom-provider-run"><code>rtf custom-provider run</code>↴</a></li>
 <li><a href="#rtf-inline"><code>rtf inline</code>↴</a></li>
+<li><a href="#rtf-inline-all"><code>rtf inline all</code>↴</a></li>
+<li><a href="#rtf-inline-relative-files"><code>rtf inline relative-files</code>↴</a></li>
 </ul>
 <h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
 <p>A swiss army knife for testing the Apollo Runtime</p>
@@ -200,7 +202,7 @@
 <li><code>expand-matrix</code> — Expand a test plan matrix into JSON</li>
 <li><code>template</code> — Template a test plan using provided variables, outputting the resulting config to stdout</li>
 <li><code>custom-provider</code> — Work directly with custom file provider definitions</li>
-<li><code>inline</code> — Inline all relative file providers in a test plan. Outputs the resulting test plan to the given directory</li>
+<li><code>inline</code> — Inline file providers in a test plan. Outputs the resulting test plan to the given directory</li>
 </ul>
 <h6 id="options"><a class="header" href="#options"><strong>Options:</strong></a></h6>
 <ul>
@@ -294,13 +296,42 @@
 </li>
 </ul>
 <h2 id="rtf-inline"><a class="header" href="#rtf-inline"><code>rtf inline</code></a></h2>
-<p>Inline all relative file providers in a test plan. Outputs the resulting test plan to the given directory</p>
-<p><strong>Usage:</strong> <code>rtf inline [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
+<p>Inline file providers in a test plan. Outputs the resulting test plan to the given directory</p>
+<p><strong>Usage:</strong> <code>rtf inline &lt;COMMAND&gt;</code></p>
+<h6 id="subcommands-2"><a class="header" href="#subcommands-2"><strong>Subcommands:</strong></a></h6>
+<ul>
+<li><code>all</code> — Inline all file providers</li>
+<li><code>relative-files</code> — Inline only relative file providers</li>
+</ul>
+<h2 id="rtf-inline-all"><a class="header" href="#rtf-inline-all"><code>rtf inline all</code></a></h2>
+<p>Inline all file providers</p>
+<p><strong>Usage:</strong> <code>rtf inline all [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
 <h6 id="arguments-5"><a class="header" href="#arguments-5"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test-plan.yaml file that should be inlined. When using –github this must be in the format ORG/REPO/PATH</li>
 </ul>
 <h6 id="options-6"><a class="header" href="#options-6"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--outdir &lt;OUTDIR&gt;</code> — Output directory for inlined test plan</p>
+<p>Default value: <code>output</code></p>
+</li>
+<li>
+<p><code>--github</code> — Inline a test plan file from GitHub instead of from a local path</p>
+<p>Default value: <code>false</code></p>
+</li>
+<li>
+<p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
+</li>
+</ul>
+<h2 id="rtf-inline-relative-files"><a class="header" href="#rtf-inline-relative-files"><code>rtf inline relative-files</code></a></h2>
+<p>Inline only relative file providers</p>
+<p><strong>Usage:</strong> <code>rtf inline relative-files [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
+<h6 id="arguments-6"><a class="header" href="#arguments-6"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test-plan.yaml file that should be inlined. When using –github this must be in the format ORG/REPO/PATH</li>
+</ul>
+<h6 id="options-7"><a class="header" href="#options-7"><strong>Options:</strong></a></h6>
 <ul>
 <li>
 <p><code>--outdir &lt;OUTDIR&gt;</code> — Output directory for inlined test plan</p>

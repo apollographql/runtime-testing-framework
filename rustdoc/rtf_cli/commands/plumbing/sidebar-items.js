@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["expand_test_plan_matrix","inline_test_plan","run_custom_provider","template_custom_provider","template_test_plan","test_custom_provider"]};
+window.SIDEBAR_ITEMS = {"enum":["InlineMode"],"fn":["expand_test_plan_matrix","inline_test_plan","run_custom_provider","template_custom_provider","template_test_plan","test_custom_provider"]};
