@@ -56,6 +56,11 @@ pub trait ResolutionContext {
 
     fn http_client(&self) -> &Self::HttpClient;
 
+    fn set_output_path(&mut self, path: impl Into<PathBuf>);
+
+    /// The top level output path being used.
+    fn output_path(&self) -> &Path;
+
     /// Record the path that the given provider's output was written to.
     fn store_provider_output_path(&mut self, provider: Provider<'_>, path: PathBuf);
 
@@ -163,6 +168,7 @@ pub struct Context {
     client: ReqwestClient,
     supergraph_details: Mutex<HashMap<String, Arc<SupergraphDetails>>>,
     fp_output_paths: HashMap<String, PathBuf>,
+    output_path: PathBuf,
     capture_output: bool,
     captured_stdout: RwLock<Vec<u8>>,
     captured_stderr: RwLock<Vec<u8>>,
@@ -255,6 +261,14 @@ impl ResolutionContext for Context {
 
     fn http_client(&self) -> &Self::HttpClient {
         &self.client
+    }
+
+    fn set_output_path(&mut self, path: impl Into<PathBuf>) {
+        self.output_path = path.into();
+    }
+
+    fn output_path(&self) -> &Path {
+        &self.output_path
     }
 
     fn store_provider_output_path(&mut self, provider: Provider<'_>, path: PathBuf) {

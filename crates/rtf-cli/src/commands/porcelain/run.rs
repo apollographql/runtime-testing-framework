@@ -58,6 +58,7 @@ async fn check_and_run_test_plan_with_context(
     info!("creating output directory");
     ctx.create_dir_all(out_dir)?;
     let out_dir = ctx.canonicalize_path(out_dir)?;
+    ctx.set_output_path(&out_dir);
 
     if test_plan.matrix.is_empty() {
         info!("executing test plan");

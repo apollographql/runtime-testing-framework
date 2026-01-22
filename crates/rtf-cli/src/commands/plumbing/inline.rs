@@ -63,6 +63,7 @@ async fn inline_file_providers_with_context(
     info!("creating output directory for inlined test plan templates");
     ctx.create_dir_all(outdir)?;
     let outdir = ctx.canonicalize_path(outdir)?;
+    ctx.set_output_path(&outdir);
 
     if test_plan.matrix.is_empty() {
         info!("inlining relative file providers for test plan");

@@ -33,8 +33,8 @@ pub(crate) fn get_context() -> Context {
 
 pub(crate) fn get_context_and_check_outdir(out_dir: &str) -> anyhow::Result<(Context, PathBuf)> {
     let ctx = get_context();
-
     let out_dir = current_dir()?.join(out_dir);
+
     match ctx.path_kind(&out_dir) {
         PathKind::File => bail!("{} is not a directory", out_dir.display()),
         PathKind::OccupiedDir => {

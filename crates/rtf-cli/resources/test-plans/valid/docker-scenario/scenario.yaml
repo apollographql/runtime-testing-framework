@@ -1,0 +1,23 @@
+name: scenario-sanity-check
+description: "Sanity check that we template and run commands correctly in the scenario"
+
+variable_definitions:
+  - name: message
+    description: "A message to echo out"
+
+command:
+  name: echo-message.sh
+  kind: docker
+  image: alpine
+  tag: latest
+  command: "sh $ECHO_MESSAGE"
+
+env_vars:
+  MESSAGE: "{{ message }}"
+  STAGE: setup
+
+file_providers:
+  - name: echo-message.sh
+    env_var: ECHO_MESSAGE
+    kind: relative_path
+    path: scripts/echo-message.sh

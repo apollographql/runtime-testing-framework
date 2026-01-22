@@ -54,6 +54,7 @@ pub async fn run_custom_provider(
     info!("creating output directory");
     ctx.create_dir_all(&out_dir)?;
     let out_dir = ctx.canonicalize_path(&out_dir)?;
+    ctx.set_output_path(&out_dir);
 
     info!("executing custom provider");
     definition
