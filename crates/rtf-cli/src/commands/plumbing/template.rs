@@ -6,7 +6,7 @@ use crate::{
 };
 use rtf_config::{
     SourceDir,
-    checks::{self, Check},
+    checks::Check,
     context::ResolutionContext,
     formats::TestPlanConfig,
     templating::{Template, TemplateContext},
@@ -59,26 +59,7 @@ async fn template_test_plan_with_context(
 
     if check {
         info!("checking test plan");
-        let mut builder = checks::ErrorBuilder::from(
-            test_plan
-                .environment
-                .setup
-                .command
-                .try_check(&mut vec!["setup".to_string()], &ctx),
-        );
-        builder.append(
-            test_plan
-                .scenario
-                .command
-                .try_check(&mut vec!["scenario".to_string()], &ctx),
-        );
-        builder.append(
-            test_plan
-                .environment
-                .teardown
-                .try_check(&mut vec!["teardown".to_string()], &ctx),
-        );
-        builder.into_result(())?;
+        test_plan.try_check(&mut Vec::new(), &ctx)?;
     }
 
     println!("{}", test_plan.as_yaml_string_without_sources()?);

@@ -204,7 +204,7 @@ fn execution_fails_when_templating_fails_with_multiple_missing_variables() {
         ))
         .stderr(contains("baz"))
         .stderr(contains(
-            "(scenario.command_section.env_vars.FOO) Unknown templating variable",
+            "(scenario.env_vars.FOO) Unknown templating variable",
         ))
         .stderr(contains("foo"));
 }

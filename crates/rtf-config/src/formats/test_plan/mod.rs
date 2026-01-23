@@ -1429,7 +1429,7 @@ mod tests {
         expected_env_err_fields: &[&str],
     ) {
         let (mut expected_err_messages, mut expected_err_paths) =
-            expected_error_details(expected_scenario_err_fields, "scenario.command_section");
+            expected_error_details(expected_scenario_err_fields, "scenario");
         let (expected_messages, expected_paths) =
             expected_error_details(expected_env_err_fields, "environment.teardown");
         expected_err_messages.extend(expected_messages);

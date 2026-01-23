@@ -6,11 +6,11 @@ use crate::{
     },
 };
 use rtf_config::{
-    checks::{self, Check},
+    checks::Check,
     context::ResolutionContext,
     formats::TestPlanConfig,
     providers::file::SourceDir,
-    templating::{self, TemplateContext},
+    templating::{Template, TemplateContext},
 };
 use std::{
     collections::HashMap,
@@ -85,42 +85,23 @@ async fn run_one(
     variable_sources: &HashMap<String, SourceDir>,
     ctx: &mut impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    info!("templating environment setup");
     let variables = take(&mut test_plan.variables);
+    let source = test_plan.sources.test_plan().clone();
     let template_ctx = TemplateContext::new(
         variables,
         test_plan.sources.test_plan().clone(),
         variable_sources.clone(),
         test_plan.sources.custom_providers(),
     );
-    test_plan.try_template_environment_setup(&template_ctx)?;
 
-    info!("checking environment setup");
-    test_plan
-        .environment
-        .setup
-        .command
-        .try_check(&mut Vec::new(), ctx)?;
+    info!("templating test plan");
+    test_plan.try_template(&mut Vec::new(), &source, &template_ctx)?;
+
+    info!("checking test plan");
+    test_plan.try_check(&mut Vec::new(), ctx)?;
 
     info!("executing environment setup");
     test_plan.run_environment_setup(out_dir, ctx).await?;
-
-    info!("templating scenario and environment teardown commands");
-    let mut builder =
-        templating::ErrorBuilder::from(test_plan.try_template_scenario(&template_ctx));
-    builder.append(test_plan.try_template_environment_teardown(&template_ctx));
-    builder.into_result(())?;
-
-    info!("checking scenario and environment teardown commands");
-    let mut builder =
-        checks::ErrorBuilder::from(test_plan.scenario.command.try_check(&mut Vec::new(), ctx));
-    builder.append(
-        test_plan
-            .environment
-            .teardown
-            .try_check(&mut Vec::new(), ctx),
-    );
-    builder.into_result(())?;
 
     info!("executing scenario");
     test_plan.run_scenario(out_dir, ctx).await?;
