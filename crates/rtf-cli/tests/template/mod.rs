@@ -22,9 +22,10 @@ fn is_executable() {
 #[test_case("custom-provider-templated-variable"; "custom provider templated variable")]
 #[test_case("matrix-include"; "matrix include")]
 #[test_case("matrix-variables"; "matrix variables")]
+#[test_case("sanity-check"; "sanity check")]
 #[test_case("variable-overrides"; "variable overrides")]
-// Template and check all valid test plans except for the sanity check (which requires a provides variable)
-// and the github and graphos test plans which are tested in their respective modules
+// Template and check all valid test plans except the github and graphos test plans which are tested
+// in their respective modules
 #[test]
 fn check_completes_basic(test_plan_dir: &str) {
     let mut cmd = cargo_bin_cmd!("rtf");
@@ -43,8 +44,6 @@ fn check_completes_basic(test_plan_dir: &str) {
 
 #[test]
 fn check_completes_with_cli_variables() {
-    // The sanity-check test plan defines variables in the setup.provides
-    // The only way to template successfully is to set this variable from the cli
     let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
@@ -52,7 +51,7 @@ fn check_completes_with_cli_variables() {
         .arg("resources/test-plans/valid/sanity-check/test-plan.yaml")
         .arg("--check")
         .arg("--var")
-        .arg("setup_output=\"setup output\"")
+        .arg("message=\"value from the cli\"")
         .assert();
 
     // Check that a test plan gets printed to stdout
@@ -61,8 +60,6 @@ fn check_completes_with_cli_variables() {
 
 #[test]
 fn check_completes_with_backwards_compatible_cli_variables_flag() {
-    // The sanity-check test plan defines variables in the setup.provides
-    // The only way to template successfully is to set this variable from the cli
     let mut cmd = cargo_bin_cmd!("rtf");
     let res = cmd
         .env_clear() // Clear the environment to ensure no keys have been provided
@@ -70,7 +67,7 @@ fn check_completes_with_backwards_compatible_cli_variables_flag() {
         .arg("resources/test-plans/valid/sanity-check/test-plan.yaml")
         .arg("--check")
         .arg("--value")
-        .arg("setup_output=\"setup output\"")
+        .arg("message=\"value from the cli\"")
         .assert();
 
     // Check that a test plan gets printed to stdout

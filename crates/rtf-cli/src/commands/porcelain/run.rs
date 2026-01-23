@@ -87,7 +87,7 @@ async fn run_one(
 ) -> anyhow::Result<()> {
     info!("templating environment setup");
     let variables = take(&mut test_plan.variables);
-    let mut template_ctx = TemplateContext::new(
+    let template_ctx = TemplateContext::new(
         variables,
         test_plan.sources.test_plan().clone(),
         variable_sources.clone(),
@@ -103,8 +103,7 @@ async fn run_one(
         .try_check(&mut Vec::new(), ctx)?;
 
     info!("executing environment setup");
-    let setup_provides = test_plan.run_environment_setup(out_dir, ctx).await?;
-    template_ctx.extend(SourceDir::local(out_dir), setup_provides);
+    test_plan.run_environment_setup(out_dir, ctx).await?;
 
     info!("templating scenario and environment teardown commands");
     let mut builder =

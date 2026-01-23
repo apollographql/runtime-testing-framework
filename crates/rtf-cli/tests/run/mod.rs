@@ -167,8 +167,6 @@ fn matrix_include_completes() {
 
 #[test_case("setup-execution-fails", "Unable to execute the setup.sh command:"; "setup script execution fails")]
 #[test_case("setup-file-provider-fails", "Unable to resolve and write FROG_GIF file: stream did not contain valid UTF-8"; "setup file provider fails")]
-#[test_case("setup-provides-not-json", "Environment setup output not valid json: \"not valid json output\\n\""; "setup output not json")]
-#[test_case("setup-provides-missing-key", "Missing required output fields from environment setup: [\"setup_output\"]"; "setup missing required output")]
 #[test_case("scenario-execution-fails", "Unable to execute the scenario.sh command:"; "scenario script execution fails")]
 #[test_case("teardown-execution-fails", "Unable to execute the teardown.sh command:"; "teardown script execution fails")]
 #[test]

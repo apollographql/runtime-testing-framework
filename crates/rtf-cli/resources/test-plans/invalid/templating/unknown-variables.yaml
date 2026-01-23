@@ -26,9 +26,6 @@ environment:
         content: |
           #!/usr/bin/env sh
           echo "Hello, World!"
-      provides:
-        - name: foo
-          description: a value foo
     teardown:
       command:
         name: teardown.sh
