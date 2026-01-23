@@ -154,7 +154,7 @@ arrays are then sorted and deduplicated based on an appropriate key in order to 
 array elements:
 
 - For [File providers][3] the key used is `env_var`.
-- For variable declarations and environment setup "provides" the key used is `name`.
+- For variable declarations the key used is `name`.
 
 ## A note on relative paths
 
