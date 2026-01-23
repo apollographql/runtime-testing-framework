@@ -41,22 +41,6 @@ impl EnvironmentConfig {
         Ok(serde_yaml::from_str(&content)?)
     }
 
-    fn ctx_for_setup(&self, source: &SourceDir, ctx: &TemplateContext) -> TemplateContext {
-        ctx.for_config_file(
-            source,
-            Some(FileType::Environment),
-            self.variable_definitions.iter(),
-        )
-    }
-
-    fn ctx_for_teardown(&self, source: &SourceDir, ctx: &TemplateContext) -> TemplateContext {
-        ctx.for_config_file(
-            source,
-            Some(FileType::Environment),
-            self.variable_definitions.iter(),
-        )
-    }
-
     /// Try to template the setup [CommandSection].
     ///
     /// Setup is only allowed to reference variables that are declared in the variables section of this
@@ -67,8 +51,13 @@ impl EnvironmentConfig {
         source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        self.setup
-            .try_template_nested(path, "setup", source, &self.ctx_for_setup(source, ctx))
+        let ctx = ctx.for_config_file(
+            source,
+            Some(FileType::Environment),
+            self.variable_definitions.iter(),
+        );
+
+        self.setup.try_template_nested(path, "setup", source, &ctx)
     }
 
     /// Try to template the teardown [CommandSection].
@@ -81,12 +70,14 @@ impl EnvironmentConfig {
         source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        self.teardown.try_template_nested(
-            path,
-            "teardown",
+        let ctx = ctx.for_config_file(
             source,
-            &self.ctx_for_teardown(source, ctx),
-        )
+            Some(FileType::Environment),
+            self.variable_definitions.iter(),
+        );
+
+        self.teardown
+            .try_template_nested(path, "teardown", source, &ctx)
     }
 
     /// Create an empty [EnvironmentConfig] for tests
@@ -140,26 +131,32 @@ impl Template for EnvironmentConfig {
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        source: &SourceDir,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut allowed_variables = allowed_variables.clone();
         allowed_variables.extend(self.variable_definitions.iter().map(|vd| &vd.name));
 
+        let ctx = ctx.for_config_file(
+            file_source,
+            Some(FileType::Environment),
+            self.variable_definitions.iter(),
+        );
+
         let mut errs = templating::ErrorBuilder::from(self.setup.validate_context_nested(
             path,
             "setup",
             &allowed_variables,
-            source,
-            &self.ctx_for_setup(source, ctx),
+            file_source,
+            &ctx,
         ));
 
         errs.append(self.teardown.validate_context_nested(
             path,
             "teardown",
             &allowed_variables,
-            source,
-            &self.ctx_for_teardown(source, ctx),
+            file_source,
+            &ctx,
         ));
 
         errs.into_result(())
