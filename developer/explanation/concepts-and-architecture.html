@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-d4d41b56.js";
+            window.path_to_searchindex_js = "../../searchindex-bf3027ee.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-6484d70d.js"></script>
@@ -214,8 +214,8 @@ requests.</p>
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  2. Template Environment Setup                                           │
-│     - Substitute variables into setup section                            │
+│  2. Template Test Plan                                                   │
+│     - Substitute variables into test plan.                               │
 │     - Run static analysis checks                                         │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -224,26 +224,18 @@ requests.</p>
 │  3. Execute Environment Setup                                            │
 │     - Resolve file providers                                             │
 │     - Run setup command                                                  │
-│     - Capture "provides" output for later templating                     │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  4. Template Scenario + Environment Teardown                             │
-│     - Use setup output to finish templating                              │
-│     - Run static analysis checks                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│  5. Execute Scenario                                                     │
+│  4. Execute Scenario                                                     │
 │     - Resolve file providers                                             │
 │     - Run scenario command                                               │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  6. Execute Environment Teardown                                         │
+│  5. Execute Environment Teardown                                         │
 │     - Resolve file providers                                             │
 │     - Run teardown command                                               │
 └─────────────────────────────────────────────────────────────────────────┘

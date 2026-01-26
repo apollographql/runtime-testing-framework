@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-d4d41b56.js";
+            window.path_to_searchindex_js = "searchindex-bf3027ee.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6484d70d.js"></script>
@@ -841,7 +841,6 @@ environment:
       args: []
     env_vars: {}
     file_providers: []
-    provides: []
   teardown:
     command:
       name: teardown.sh
@@ -1593,9 +1592,7 @@ environment:
 <h2 id="environment-config-structure"><a class="header" href="#environment-config-structure">Environment config structure</a></h2>
 <p>Now is a good time to review how the environment config is structured. The main difference compared
 to the <a href="#scenario-config-structure">scenario config</a> is that an environment can run two commands using the <code>setup</code> and
-<code>teardown</code> keys. The <code>setup</code> key has an additional field called <code>provides</code> which we’ll explain in
-more detail in the <a href="#using-provides">“Using provides” section</a>. The fields in an environment config
-are:</p>
+<code>teardown</code> keys. The fields in an environment config are:</p>
 <ul>
 <li><code>name</code> (required) is used to give the environment an identifiable title. It can be any valid
 string. It has no impact on the execution of an environment.</li>
@@ -1615,9 +1612,6 @@ test. It requires the following keys:
 <li><code>file_providers</code> (optional) is used to define the files and data that the environment setup
 depends on to execute. The <a href="#using-file-providers">“Using file providers” guide</a> explains how these are used in more
 detail.</li>
-<li><code>provides</code> (optional) is unique to the environment setup and is used to set variables that can
-only be known at runtime. This is explained more in the
-<a href="#using-provides">“Using provides” section</a>.</li>
 </ul>
 </li>
 <li><code>teardown</code> (required) is used to define the command that executes at the end of the <code>rtf run</code>
@@ -1634,155 +1628,6 @@ detail.</li>
 </ul>
 </li>
 </ul>
-<h2 id="using-provides"><a class="header" href="#using-provides">Using provides</a></h2>
-<p>The <code>provides</code> key is used to take variables from the environment setup and make them available to
-the scenario and environment teardown steps. The most common use case for this is when the
-environment setup starts a process with some ID that can only be known at runtime. That ID is
-required by the environment teardown so it can stop the process once the test is done. In practice,
-this can be used to set any variable for the scenario and environment teardown to use.</p>
-<p>Before we look at how <code>provides</code> works, let’s update our environment setup command in
-<code>environment.yaml</code>:</p>
-<pre><code class="language-yaml">name: Inline environment config
-description: An inline environment config
-setup:
-# --- Update the setup command ---
-  command:
-    name: setup.sh
-    kind: inline
-    content: |
-      #!/usr/bin/env sh
-
-      PROCESS_ID="1"
-      echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
-# --------------------------------
-teardown:
-  command:
-    name: teardown.sh
-    kind: inline
-    content: |
-      #!/usr/bin/env sh
-
-      echo "environment teardown command executed"
-</code></pre>
-<p>The environment setup now creates a <code>PROCESS_ID</code> with a value of <code>1</code>. We’ll want to be able to use
-this in our teardown script. In preparation, let’s update the teardown command so it can use a
-<code>PROCESS_ID</code> environment variable that will eventually come from the setup:</p>
-<pre><code class="language-yaml">name: Inline environment config
-description: An inline environment config
-setup:
-  command:
-    name: setup.sh
-    kind: inline
-    content: |
-      #!/usr/bin/env sh
-
-      PROCESS_ID="1"
-      echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
-teardown:
-# --- Update the teardown command ---
-  command:
-    name: teardown.sh
-    kind: inline
-    content: |
-      #!/usr/bin/env sh
-
-      echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
-  env_vars:
-    PROCESS_ID: "not yet from setup"
-# -----------------------------------
-</code></pre>
-<p>Let’s verify this works:</p>
-<pre><code class="language-bash">rtf run test-plan.yaml
-</code></pre>
-<p>Output:</p>
-<pre><code>Environment setup complete. PROCESS_ID=1
-Running scenario from an external file
-scenario executed with test plan variable
-Environment teardown complete. PROCESS_ID=not yet from setup
-</code></pre>
-<p>The <code>provides</code> key defines variables that are specified in the config in the exact same way that
-<code>variables</code> are. Let’s update the <code>environment.yaml</code>:</p>
-<pre><code class="language-yaml">name: Inline environment config
-description: An inline environment config
-setup:
-  command:
-    name: setup.sh
-    kind: inline
-    content: |
-      #!/usr/bin/env sh
-
-      PROCESS_ID="1"
-      echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
-# --- Add a provides ---
-  provides:
-    - name: process_id
-      description: The id of the process started in the environment setup
-# ----------------------
-teardown:
-  command:
-    name: teardown.sh
-    kind: inline
-    content: |
-      #!/usr/bin/env sh
-
-      echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
-  env_vars:
-# --- Use the process_id here ---
-    PROCESS_ID: "{{ process_id }}"
-# -------------------------------
-</code></pre>
-<blockquote>
-<p><strong>Note</strong> If you want to check this templates, you’ll need to specify a variable for <code>process_id</code>
-using <code>--var process_id="dummy_id"</code>. If you don’t do this, you’ll get
-<code>ERROR (environment.teardown.env_vars.PROCESS_ID) unknown templating variable: process_id</code>.</p>
-</blockquote>
-<p>If we try to run this, it won’t work:</p>
-<pre><code class="language-bash">rtf run test-plan.yaml
-</code></pre>
-<p>Output:</p>
-<pre><code>Environment setup complete. PROCESS_ID=1
-ERROR Missing required output fields from environment setup: ["process_id"]
-</code></pre>
-<p>This is because we need to update our setup script to output the <code>process_id</code>. To do this, rtf has a
-reserved file that output needs to be <code>echo</code>’d to called <code>RTF_OUTPUT</code>. Let’s look at this in an
-updated <code>environment.yaml</code>:</p>
-<pre><code class="language-yaml">name: Inline environment config
-description: An inline environment config
-setup:
-  command:
-    name: setup.sh
-    kind: inline
-# --- Add the missing echo to output command ---
-    content: |
-      #!/usr/bin/env sh
-
-      PROCESS_ID="1"
-      echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
-      echo "{ \"process_id\": \"$PROCESS_ID\" }" &gt; "$RTF_OUTPUT"
-# ----------------------------------------------
-  provides:
-    - name: process_id
-      description: The id of the process started in the environment setup
-teardown:
-  command:
-    name: teardown.sh
-    kind: inline
-    content: |
-      #!/usr/bin/env sh
-
-      echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
-  env_vars:
-    PROCESS_ID: "{{ process_id }}"
-</code></pre>
-<p>Now, if we run again, we’ll see the <code>process_id</code> being successfully used in the teardown:</p>
-<pre><code class="language-bash">rtf run test-plan.yaml
-</code></pre>
-<p>Output:</p>
-<pre><code>Environment setup complete. PROCESS_ID=1
-Running scenario from an external file
-scenario executed with test plan variable
-Environment teardown complete. PROCESS_ID=1
-</code></pre>
 <h2 id="using-overrides"><a class="header" href="#using-overrides">Using overrides</a></h2>
 <p>One of the main benefits of defining environment (and scenario) config in a separate file is that it
 can be reused across multiple test plans. There will be occasions where you want to reuse the
@@ -1795,10 +1640,8 @@ current inline script in <code>environment.yaml</code>:</p>
 <p>Add the following to the <code>setup.sh</code> file (this will make it obvious we’ve run the intended setup):</p>
 <pre><code class="language-sh">#!/usr/bin/env sh
 
-PROCESS_ID="2"
 echo "Using the override setup script"
-echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
-echo "{ \"process_id\": \"$PROCESS_ID\" }" &gt; "$RTF_OUTPUT"
+echo "Environment setup complete.
 </code></pre>
 <p>Overrides can be added to either the <code>environment</code> or <code>scenario</code> in the test plan config. Add this
 to <code>test-plan.yaml</code>:</p>
@@ -1826,9 +1669,8 @@ environment:
 </code></pre>
 <p>Before checking if this works, let’s look at how it works. We only want to change the
 <code>setup.command</code>, so only that segment of the config is required. rtf will merge the YAML on matching
-keys before checking if it templates. If you run the <code>template</code> command now (pay attention to the
-<code>--var</code> flag here, we need this because of the <code>provides</code> variable):</p>
-<pre><code class="language-bash">rtf template test-plan.yaml --check --var process_id=dummy
+keys before checking if it templates. If you run the <code>template</code> command now:</p>
+<pre><code class="language-bash">rtf template test-plan.yaml --check
 </code></pre>
 <p>You should see that the setup command now matches what we defined in the <code>overrides</code>, while the rest
 of the environment config is unchanged. If we run the test plan:</p>
@@ -1836,17 +1678,16 @@ of the environment config is unchanged. If we run the test plan:</p>
 </code></pre>
 <p>Output:</p>
 <pre><code>Using the override setup script
-Environment setup complete. PROCESS_ID=2
+Environment setup complete.
 Running scenario from an external file
 scenario executed with test plan variable
-Environment teardown complete. PROCESS_ID=2
+Environment teardown complete.
 </code></pre>
 <p>This confirms we’re successfully using a new <code>setup.sh</code> script for the environment without changing
 any other config for the environment.</p>
 <hr>
-<p>In this guide, we’ve covered moving environment config into its own file, using provides in the
-setup, and using overrides in the test plan. Next, we’ll guide you through how to use file
-providers.</p>
+<p>In this guide, we’ve covered moving environment config into its own file and using overrides in the
+test plan. Next, we’ll guide you through how to use file providers.</p>
 <p><strong>Next:</strong> <a href="#using-file-providers">Using file providers</a></p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="using-file-providers"><a class="header" href="#using-file-providers">Using file providers</a></h1>
@@ -1914,10 +1755,10 @@ when we run the test plan and examine the providers output:</p>
 </code></pre>
 <p>Output:</p>
 <pre><code>Using the override setup script
-Environment setup complete. PROCESS_ID=2
+Environment setup complete.
 Running scenario from an external file
 scenario executed with test plan variable
-Environment teardown complete. PROCESS_ID=2
+Environment teardown complete.
 </code></pre>
 <pre><code class="language-bash">ls output/providers/scenario_providers
 </code></pre>
@@ -1946,11 +1787,11 @@ echo "$SCENARIO_ENV"
 </code></pre>
 <p>Output:</p>
 <pre><code>Using the override setup script
-Environment setup complete. PROCESS_ID=2
+Environment setup complete.
 Running scenario from an external file
 Some inline text content for our scenario
 scenario executed with test plan variable
-Environment teardown complete. PROCESS_ID=2
+Environment teardown complete.
 </code></pre>
 <p>We can see the content from <code>scenario.txt</code> being printed to the terminal.</p>
 <h2 id="file-provider-config-structure"><a class="header" href="#file-provider-config-structure">File provider config structure</a></h2>
@@ -2021,12 +1862,12 @@ echo "$SCENARIO_ENV"
 </code></pre>
 <p>Output:</p>
 <pre><code>Using the override setup script
-Environment setup complete. PROCESS_ID=2
+Environment setup complete.
 Running scenario from an external file
 Some inline text content for our scenario
 More content from a file for our scenario
 scenario executed with test plan variable
-Environment teardown complete. PROCESS_ID=2
+Environment teardown complete.
 </code></pre>
 <pre><code class="language-bash">ls output/providers/scenario_providers
 </code></pre>
@@ -2065,9 +1906,6 @@ setup:
       kind: required
       message: Please specify a config file
 # ---------------------------
-  provides:
-    - name: process_id
-      description: The id of the process started in the environment setup
 teardown:
   command:
     name: teardown.sh
@@ -2080,7 +1918,7 @@ teardown:
     PROCESS_ID: "{{ process_id }}"
 </code></pre>
 <p>Now, let’s see what happens when we try to template this test plan:</p>
-<pre><code class="language-bash">rtf template test-plan.yaml --check --var process_id="id"
+<pre><code class="language-bash">rtf template test-plan.yaml --check
 </code></pre>
 <p>Output:</p>
 <pre><code>ERROR Static analysis checks failed
@@ -2118,7 +1956,7 @@ environment:
 # --------------------------------------
 </code></pre>
 <p>The override will match based on the <code>name</code> key. If we template now:</p>
-<pre><code class="language-bash">rtf template test-plan.yaml --check --var process_id="id"
+<pre><code class="language-bash">rtf template test-plan.yaml --check
 </code></pre>
 <p>You should see the full templated output. If you look at <code>setup.file_providers</code>, you can see that
 <code>config.txt</code> now uses the config from the overrides. Our test plan no longer contains a <code>required</code>
@@ -3238,7 +3076,7 @@ arrays are then sorted and deduplicated based on an appropriate key in order to 
 array elements:</p>
 <ul>
 <li>For <a href="#file-providers">File providers</a> the key used is <code>env_var</code>.</li>
-<li>For variable declarations and environment setup “provides” the key used is <code>name</code>.</li>
+<li>For variable declarations the key used is <code>name</code>.</li>
 </ul>
 <h2 id="a-note-on-relative-paths"><a class="header" href="#a-note-on-relative-paths">A note on relative paths</a></h2>
 <p>There are several places within RTF config files that you be required to specify relative paths to
@@ -3464,13 +3302,7 @@ Plan but with different defaults, each config file will fall back to its own def
 </ul>
 </li>
 <li><code>setup</code>: A <a href="#command-providers">Command Provider</a> that defines how the environment should be set up before the
-scenario is run.
-<ul>
-<li><code>provides</code>: An optional list of variable definitions that will be populated from the JSON output
-of the setup command. These variables become available for templating the <code>teardown</code> section but
-are not available to the Scenario.</li>
-</ul>
-</li>
+scenario is run.</li>
 <li><code>teardown</code>: A <a href="#command-providers">Command Provider</a> that defines how the environment should be torn down after the
 scenario is run.</li>
 </ul>
@@ -3498,10 +3330,6 @@ setup:
 
   env_vars:
     MY_VARIABLE: "{{ my_variable }}"
-  
-  provides:
-      - name: cluster_id
-        description: "The ID of the provisioned cluster"
 
 teardown:
   command:
@@ -4596,8 +4424,8 @@ requests.</p>
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  2. Template Environment Setup                                           │
-│     - Substitute variables into setup section                            │
+│  2. Template Test Plan                                                   │
+│     - Substitute variables into test plan.                               │
 │     - Run static analysis checks                                         │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -4606,26 +4434,18 @@ requests.</p>
 │  3. Execute Environment Setup                                            │
 │     - Resolve file providers                                             │
 │     - Run setup command                                                  │
-│     - Capture "provides" output for later templating                     │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  4. Template Scenario + Environment Teardown                             │
-│     - Use setup output to finish templating                              │
-│     - Run static analysis checks                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│  5. Execute Scenario                                                     │
+│  4. Execute Scenario                                                     │
 │     - Resolve file providers                                             │
 │     - Run scenario command                                               │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  6. Execute Environment Teardown                                         │
+│  5. Execute Environment Teardown                                         │
 │     - Resolve file providers                                             │
 │     - Run teardown command                                               │
 └─────────────────────────────────────────────────────────────────────────┘

@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-d4d41b56.js";
+            window.path_to_searchindex_js = "../../searchindex-bf3027ee.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-6484d70d.js"></script>
@@ -216,13 +216,7 @@ Plan but with different defaults, each config file will fall back to its own def
 </ul>
 </li>
 <li><code>setup</code>: A <a href="./command-providers.html">Command Provider</a> that defines how the environment should be set up before the
-scenario is run.
-<ul>
-<li><code>provides</code>: An optional list of variable definitions that will be populated from the JSON output
-of the setup command. These variables become available for templating the <code>teardown</code> section but
-are not available to the Scenario.</li>
-</ul>
-</li>
+scenario is run.</li>
 <li><code>teardown</code>: A <a href="./command-providers.html">Command Provider</a> that defines how the environment should be torn down after the
 scenario is run.</li>
 </ul>
@@ -250,10 +244,6 @@ setup:
 
   env_vars:
     MY_VARIABLE: "{{ my_variable }}"
-  
-  provides:
-      - name: cluster_id
-        description: "The ID of the provisioned cluster"
 
 teardown:
   command:

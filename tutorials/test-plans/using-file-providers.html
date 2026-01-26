@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-d4d41b56.js";
+            window.path_to_searchindex_js = "../../searchindex-bf3027ee.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-6484d70d.js"></script>
@@ -243,10 +243,10 @@ when we run the test plan and examine the providers output:</p>
 </code></pre>
 <p>Output:</p>
 <pre><code>Using the override setup script
-Environment setup complete. PROCESS_ID=2
+Environment setup complete.
 Running scenario from an external file
 scenario executed with test plan variable
-Environment teardown complete. PROCESS_ID=2
+Environment teardown complete.
 </code></pre>
 <pre><code class="language-bash">ls output/providers/scenario_providers
 </code></pre>
@@ -275,11 +275,11 @@ echo "$SCENARIO_ENV"
 </code></pre>
 <p>Output:</p>
 <pre><code>Using the override setup script
-Environment setup complete. PROCESS_ID=2
+Environment setup complete.
 Running scenario from an external file
 Some inline text content for our scenario
 scenario executed with test plan variable
-Environment teardown complete. PROCESS_ID=2
+Environment teardown complete.
 </code></pre>
 <p>We can see the content from <code>scenario.txt</code> being printed to the terminal.</p>
 <h2 id="file-provider-config-structure"><a class="header" href="#file-provider-config-structure">File provider config structure</a></h2>
@@ -350,12 +350,12 @@ echo "$SCENARIO_ENV"
 </code></pre>
 <p>Output:</p>
 <pre><code>Using the override setup script
-Environment setup complete. PROCESS_ID=2
+Environment setup complete.
 Running scenario from an external file
 Some inline text content for our scenario
 More content from a file for our scenario
 scenario executed with test plan variable
-Environment teardown complete. PROCESS_ID=2
+Environment teardown complete.
 </code></pre>
 <pre><code class="language-bash">ls output/providers/scenario_providers
 </code></pre>
@@ -394,9 +394,6 @@ setup:
       kind: required
       message: Please specify a config file
 # ---------------------------
-  provides:
-    - name: process_id
-      description: The id of the process started in the environment setup
 teardown:
   command:
     name: teardown.sh
@@ -409,7 +406,7 @@ teardown:
     PROCESS_ID: "{{ process_id }}"
 </code></pre>
 <p>Now, let’s see what happens when we try to template this test plan:</p>
-<pre><code class="language-bash">rtf template test-plan.yaml --check --var process_id="id"
+<pre><code class="language-bash">rtf template test-plan.yaml --check
 </code></pre>
 <p>Output:</p>
 <pre><code>ERROR Static analysis checks failed
@@ -447,7 +444,7 @@ environment:
 # --------------------------------------
 </code></pre>
 <p>The override will match based on the <code>name</code> key. If we template now:</p>
-<pre><code class="language-bash">rtf template test-plan.yaml --check --var process_id="id"
+<pre><code class="language-bash">rtf template test-plan.yaml --check
 </code></pre>
 <p>You should see the full templated output. If you look at <code>setup.file_providers</code>, you can see that
 <code>config.txt</code> now uses the config from the overrides. Our test plan no longer contains a <code>required</code>
