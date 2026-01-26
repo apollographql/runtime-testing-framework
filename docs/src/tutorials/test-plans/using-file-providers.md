@@ -81,10 +81,10 @@ Output:
 
 ```
 Using the override setup script
-Environment setup complete. PROCESS_ID=2
+Environment setup complete.
 Running scenario from an external file
 scenario executed with test plan variable
-Environment teardown complete. PROCESS_ID=2
+Environment teardown complete.
 ```
 
 ```bash
@@ -132,11 +132,11 @@ Output:
 
 ```
 Using the override setup script
-Environment setup complete. PROCESS_ID=2
+Environment setup complete.
 Running scenario from an external file
 Some inline text content for our scenario
 scenario executed with test plan variable
-Environment teardown complete. PROCESS_ID=2
+Environment teardown complete.
 ```
 
 We can see the content from `scenario.txt` being printed to the terminal.
@@ -228,12 +228,12 @@ Output:
 
 ```
 Using the override setup script
-Environment setup complete. PROCESS_ID=2
+Environment setup complete.
 Running scenario from an external file
 Some inline text content for our scenario
 More content from a file for our scenario
 scenario executed with test plan variable
-Environment teardown complete. PROCESS_ID=2
+Environment teardown complete.
 ```
 
 ```bash
@@ -283,9 +283,6 @@ setup:
       kind: required
       message: Please specify a config file
 # ---------------------------
-  provides:
-    - name: process_id
-      description: The id of the process started in the environment setup
 teardown:
   command:
     name: teardown.sh
@@ -301,7 +298,7 @@ teardown:
 Now, let's see what happens when we try to template this test plan:
 
 ```bash
-rtf template test-plan.yaml --check --var process_id="id"
+rtf template test-plan.yaml --check
 ```
 
 Output:
@@ -349,7 +346,7 @@ environment:
 The override will match based on the `name` key. If we template now:
 
 ```bash
-rtf template test-plan.yaml --check --var process_id="id"
+rtf template test-plan.yaml --check
 ```
 
 You should see the full templated output. If you look at `setup.file_providers`, you can see that

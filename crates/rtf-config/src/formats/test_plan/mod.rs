@@ -1,9 +1,7 @@
 use crate::{
     checks::{self, Check},
     context::ResolutionContext,
-    formats::{
-        CustomProviderDeclaration, EnvironmentConfig, Error, Matrix, Result, ScenarioConfig,
-    },
+    formats::{CustomProviderDeclaration, EnvironmentConfig, Matrix, Result, ScenarioConfig},
     providers::file::SourceDir,
     templating::{self, Scalar, Template, TemplateContext},
 };
@@ -127,31 +125,13 @@ impl TestPlanConfig {
         &self,
         out_dir: &Path,
         ctx: &mut impl ResolutionContext,
-    ) -> Result<HashMap<String, Scalar>> {
-        let raw_output = self
-            .environment
+    ) -> Result<()> {
+        self.environment
             .setup
-            .command
             .run_providers_and_execute_for_output(SETUP_PROVIDER_DIR, out_dir, ctx)
             .await?;
 
-        let provides: HashMap<String, Scalar> = match serde_json::from_str(&raw_output) {
-            Ok(p) => p,
-            Err(_e) => return Err(Error::MalformedSetupOutputFormat { output: raw_output }),
-        };
-
-        let mut missing = Vec::new();
-        for val in self.environment.setup.provides.iter() {
-            if !provides.contains_key(&val.name) {
-                missing.push(val.name.clone());
-            }
-        }
-
-        if missing.is_empty() {
-            Ok(provides)
-        } else {
-            Err(Error::MissingSetupOutputFields { missing })
-        }
+        Ok(())
     }
 
     pub async fn run_environment_teardown(
@@ -297,7 +277,8 @@ mod tests {
     use crate::{
         context::Context,
         formats::{
-            environment::{SetupSection, test_helpers::environment_with_fields},
+            Error,
+            environment::test_helpers::environment_with_fields,
             scenario::test_helpers::scenario_with_fields,
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
@@ -425,9 +406,6 @@ mod tests {
                       echo "Hello, world!"
                   env_vars:
                     BAR: "{{ bar }}"
-                  provides:
-                    - name: baz
-                      description: a value baz
                 teardown:
                   command:
                     name: teardown.sh
@@ -1304,7 +1282,7 @@ mod tests {
             "test the scenario command comes from overrides"
         );
 
-        let environment_files = &test_plan.environment.setup.command.file_providers;
+        let environment_files = &test_plan.environment.setup.file_providers;
         assert_eq!(
             environment_files, &expected_env_files,
             "test the environment setup files come from overrides"
@@ -1451,7 +1429,7 @@ mod tests {
         expected_env_err_fields: &[&str],
     ) {
         let (mut expected_err_messages, mut expected_err_paths) =
-            expected_error_details(expected_scenario_err_fields, "scenario.command_section");
+            expected_error_details(expected_scenario_err_fields, "scenario");
         let (expected_messages, expected_paths) =
             expected_error_details(expected_env_err_fields, "environment.teardown");
         expected_err_messages.extend(expected_messages);
@@ -1730,98 +1708,5 @@ mod tests {
         let ctx = Context::new();
 
         assert_check_errors(test_plan, &ctx, expected_err_kinds);
-    }
-
-    /// Helper function for environment setup provides
-    fn environment_setup_provides(script: &str) -> TestPlanConfig {
-        TestPlanConfig {
-            environment: EnvironmentConfig {
-                setup: SetupSection {
-                    command: CommandSection {
-                        command: CommandSpec {
-                            name: "setup.sh".to_string(),
-                            command_provider: CommandProvider::Inline(InlineFile {
-                                content: script.to_string(),
-                            }),
-                            args: Vec::new(),
-                        },
-                        ..CommandSection::empty()
-                    },
-                    provides: variable_definitions(&["foo", "bar"]),
-                },
-                ..EnvironmentConfig::empty()
-            },
-            ..TestPlanConfig::empty()
-        }
-    }
-
-    #[tokio::test]
-    async fn run_environment_setup_provides_expected_variables() {
-        let temp = TempDir::new().unwrap();
-        let mut ctx = Context::new();
-
-        let expected_provides = template_context(&["foo", "bar"]).variables().clone();
-
-        let script = indoc!(
-            r#"
-            #!/usr/bin/env sh
-            echo "{ \"foo\": \"foo\", \"bar\": \"bar\" }" >> "$RTF_OUTPUT"
-            "#
-        );
-        let test_plan = environment_setup_provides(script);
-
-        let res = test_plan.run_environment_setup(&temp, &mut ctx).await;
-        assert!(
-            res.is_ok(),
-            "expected a map of provides variables, got {res:?}"
-        );
-        assert_eq!(
-            res.unwrap(),
-            expected_provides,
-            "check the provides variables are as expected"
-        )
-    }
-
-    #[tokio::test]
-    async fn run_environment_setup_provides_invalid_json_output() {
-        let temp = TempDir::new().unwrap();
-        let mut ctx = Context::new();
-
-        let expected_err = "Environment setup output not valid json: \"some invalid json\\n\"";
-
-        let script = indoc!(
-            r#"
-            #!/usr/bin/env sh
-            echo "some invalid json" >> "$RTF_OUTPUT"
-            "#
-        );
-        let test_plan = environment_setup_provides(script);
-
-        let res = test_plan.run_environment_setup(&temp, &mut ctx).await;
-        assert!(res.is_err(), "expected a json error, got {res:?}");
-        assert_eq!(res.unwrap_err().to_string(), expected_err);
-    }
-
-    #[tokio::test]
-    async fn run_environment_setup_provides_missing_variables() {
-        let temp = TempDir::new().unwrap();
-        let mut ctx = Context::new();
-
-        let expected_err = r#"Missing required output fields from environment setup: ["bar"]"#;
-
-        let script = indoc!(
-            r#"
-            #!/usr/bin/env sh
-            echo "{ \"foo\": \"foo\" }" >> "$RTF_OUTPUT"
-            "#
-        );
-        let test_plan = environment_setup_provides(script);
-
-        let res = test_plan.run_environment_setup(&temp, &mut ctx).await;
-        assert!(
-            res.is_err(),
-            "expected a missing variables error, got {res:?}"
-        );
-        assert_eq!(res.unwrap_err().to_string(), expected_err);
     }
 }

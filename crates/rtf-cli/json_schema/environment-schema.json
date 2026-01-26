@@ -1402,48 +1402,6 @@
       "description": "A scalar that is valid to be used as a template variable for a [Field].",
       "title": "Scalar"
     },
-    "SetupSection": {
-      "description": "Defines an executable command along with environment variables that should be set prior to\nexecution and file providers that should be made available.",
-      "properties": {
-        "command": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/CommandSpec"
-            }
-          ],
-          "description": "The command to be run"
-        },
-        "env_vars": {
-          "additionalProperties": {
-            "$ref": "#/definitions/Templatable%20Scalar"
-          },
-          "default": {},
-          "description": "Environment variables to set",
-          "type": "object"
-        },
-        "file_providers": {
-          "default": [],
-          "description": "File providers to run and make available prior to execution",
-          "items": {
-            "$ref": "#/definitions/NamedFileProvider"
-          },
-          "type": "array"
-        },
-        "provides": {
-          "default": [],
-          "description": "Additional templating variables that will be provided through the output of this command",
-          "items": {
-            "$ref": "#/definitions/VariableDefinition"
-          },
-          "type": "array"
-        }
-      },
-      "required": [
-        "command"
-      ],
-      "title": "Setup Command Section",
-      "type": "object"
-    },
     "Templatable Scalar": {
       "description": "A templatable Scalar that can be replaced with a user specified variable at runtime",
       "oneOf": [
@@ -1720,7 +1678,7 @@
     "setup": {
       "allOf": [
         {
-          "$ref": "#/definitions/SetupSection"
+          "$ref": "#/definitions/CommandSection"
         }
       ],
       "description": "The command to execute to prepare the environment for executing the test scenario"

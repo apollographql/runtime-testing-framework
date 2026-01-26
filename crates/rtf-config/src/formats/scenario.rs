@@ -106,8 +106,11 @@ impl Template for ScenarioConfig {
             self.variable_definitions.iter(),
         );
 
-        self.command
-            .try_template_nested(path, "command_section", source, &ctx)
+        let mut path = path.clone();
+        if path.last().map(String::as_str) != Some("scenario") {
+            path.push("scenario".to_string());
+        }
+        self.command.try_template(&mut path, source, &ctx)
     }
 }
 
@@ -117,7 +120,11 @@ impl Check for ScenarioConfig {
         path: &mut Vec<String>,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        self.command.try_check_nested(path, "command", ctx)
+        let mut path = path.clone();
+        if path.last().map(String::as_str) != Some("scenario") {
+            path.push("scenario".to_string());
+        }
+        self.command.try_check(&mut path, ctx)
     }
 }
 
@@ -371,7 +378,7 @@ mod tests {
         let mut scenario = templatable_scenario(variable_defs, scenario_fields, &[]);
 
         let (expected_err_messages, expected_err_paths) =
-            expected_error_details(expected_err_fields, "command_section");
+            expected_error_details(expected_err_fields, "scenario");
 
         assert_template_errors(
             &mut scenario,

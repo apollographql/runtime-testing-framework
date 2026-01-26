@@ -11,11 +11,7 @@ impl TestPlanConfig {
     ///
     /// This is the union of variables defined as a scalars and those that are part of a matrix
     pub(super) fn allowed_variables(&self) -> HashSet<&String> {
-        self.variables
-            .keys()
-            .chain(self.matrix.keys())
-            .chain(self.environment.setup.provides.iter().map(|val| &val.name))
-            .collect()
+        self.variables.keys().chain(self.matrix.keys()).collect()
     }
 
     /// Checks whether templating will work for the current test plan configuration.
@@ -264,10 +260,10 @@ mod tests {
         formats::{
             CustomProviderDeclaration, CustomProviderDefinition, EnvironmentConfig, Matrix,
             ScenarioConfig, TestPlanConfig,
-            environment::{SetupSection, test_helpers::templatable_environment},
+            environment::test_helpers::templatable_environment,
             scenario::test_helpers::templatable_scenario,
             test_plan::Sources,
-            tests::{named_file_provider_with_field, p, template_context, variable_definitions},
+            tests::{named_file_provider_with_field, p, template_context},
         },
         providers::command::CommandSection,
         templating::{CustomProviderDefinitions, ErrorBuilder, ErrorKind, Scalar},
@@ -554,49 +550,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn check_required_variables_setup_provides_available_to_scenario_and_teardown() {
-        let provides = vec![VariableDefinition {
-            name: "provides".to_string(),
-            description: "A variable provided by setup".to_string(),
-            default: None,
-            allowed_values: None,
-        }];
-
-        let mut test_plan = TestPlanConfig {
-            environment: EnvironmentConfig {
-                variable_definitions: variable_definitions(&["provides"]),
-                setup: SetupSection {
-                    command: CommandSection {
-                        ..CommandSection::empty()
-                    },
-                    provides,
-                },
-                teardown: CommandSection {
-                    file_providers: vec![named_file_provider_with_field("foo", p("provides"))],
-                    ..CommandSection::empty()
-                },
-                ..EnvironmentConfig::empty()
-            },
-            scenario: ScenarioConfig {
-                variable_definitions: variable_definitions(&["provides"]),
-                command: CommandSection {
-                    file_providers: vec![named_file_provider_with_field("foo", p("provides"))],
-                    ..CommandSection::empty()
-                },
-                ..ScenarioConfig::empty()
-            },
-            ..TestPlanConfig::empty()
-        };
-
-        let res = test_plan.check_templating_will_work(&HashMap::new());
-        assert!(
-            res.is_ok(),
-            "expected templating will work to succeed, got {:?}",
-            res
-        );
-    }
-
     #[test_case(&["scenario"], &[], &[], &["scenario"]; "scenario missing variables")]
     #[test_case(&[], &["setup"], &[], &["setup"]; "setup missing variables")]
     #[test_case(&[], &[], &["teardown"], &["teardown"]; "teardown missing variables")]
@@ -704,12 +657,9 @@ mod tests {
                     variable_with_default("setup", "setup"),
                     variable_with_default("teardown", "teardown"),
                 ],
-                setup: SetupSection {
-                    command: CommandSection {
-                        file_providers: vec![named_file_provider_with_field("setup", p("setup"))],
-                        ..CommandSection::empty()
-                    },
-                    provides: Vec::new(),
+                setup: CommandSection {
+                    file_providers: vec![named_file_provider_with_field("setup", p("setup"))],
+                    ..CommandSection::empty()
                 },
                 teardown: CommandSection {
                     file_providers: vec![named_file_provider_with_field("teardown", p("teardown"))],

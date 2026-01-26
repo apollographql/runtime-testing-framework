@@ -29,7 +29,7 @@ pub struct EnvironmentConfig {
     #[serde(default)]
     pub custom_providers: Vec<CustomProviderDeclaration>,
     /// The command to execute to prepare the environment for executing the test scenario
-    pub setup: SetupSection,
+    pub setup: CommandSection,
     /// The command to execute to clean up the environment after executing the test scenario
     pub teardown: CommandSection,
 }
@@ -39,24 +39,6 @@ impl EnvironmentConfig {
         let content = fs::read_to_string(p)?;
 
         Ok(serde_yaml::from_str(&content)?)
-    }
-
-    fn ctx_for_setup(&self, source: &SourceDir, ctx: &TemplateContext) -> TemplateContext {
-        ctx.for_config_file(
-            source,
-            Some(FileType::Environment),
-            self.variable_definitions.iter(),
-        )
-    }
-
-    fn ctx_for_teardown(&self, source: &SourceDir, ctx: &TemplateContext) -> TemplateContext {
-        ctx.for_config_file(
-            source,
-            Some(FileType::Environment),
-            self.variable_definitions
-                .iter()
-                .chain(self.setup.provides.iter()),
-        )
     }
 
     /// Try to template the setup [CommandSection].
@@ -69,12 +51,13 @@ impl EnvironmentConfig {
         source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        self.setup.command.try_template_nested(
-            path,
-            "setup",
+        let ctx = ctx.for_config_file(
             source,
-            &self.ctx_for_setup(source, ctx),
-        )
+            Some(FileType::Environment),
+            self.variable_definitions.iter(),
+        );
+
+        self.setup.try_template_nested(path, "setup", source, &ctx)
     }
 
     /// Try to template the teardown [CommandSection].
@@ -87,12 +70,14 @@ impl EnvironmentConfig {
         source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        self.teardown.try_template_nested(
-            path,
-            "teardown",
+        let ctx = ctx.for_config_file(
             source,
-            &self.ctx_for_teardown(source, ctx),
-        )
+            Some(FileType::Environment),
+            self.variable_definitions.iter(),
+        );
+
+        self.teardown
+            .try_template_nested(path, "teardown", source, &ctx)
     }
 
     /// Create an empty [EnvironmentConfig] for tests
@@ -103,10 +88,7 @@ impl EnvironmentConfig {
             description: Default::default(),
             variable_definitions: Vec::new(),
             custom_providers: Default::default(),
-            setup: SetupSection {
-                command: CommandSection::empty(),
-                provides: Vec::new(),
-            },
+            setup: CommandSection::empty(),
             teardown: CommandSection::empty(),
         }
     }
@@ -114,7 +96,7 @@ impl EnvironmentConfig {
     pub async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
         let mut errs = inlining::ErrorBuilder::new();
 
-        errs.append(self.setup.command.inline(ctx).await);
+        errs.append(self.setup.inline(ctx).await);
         errs.append(self.teardown.inline(ctx).await);
 
         errs.into_result(())
@@ -126,7 +108,7 @@ impl EnvironmentConfig {
     ) -> inlining::Result<()> {
         let mut errs = inlining::ErrorBuilder::new();
 
-        errs.append(self.setup.command.inline_all_relative_paths(ctx).await);
+        errs.append(self.setup.inline_all_relative_paths(ctx).await);
         errs.append(self.teardown.inline_all_relative_paths(ctx).await);
 
         errs.into_result(())
@@ -135,11 +117,11 @@ impl EnvironmentConfig {
 
 impl Template for EnvironmentConfig {
     fn has_pending_fields(&self) -> bool {
-        self.setup.command.has_pending_fields() || self.teardown.has_pending_fields()
+        self.setup.has_pending_fields() || self.teardown.has_pending_fields()
     }
 
     fn required_variables(&self) -> Vec<String> {
-        let mut vals = self.setup.command.required_variables();
+        let mut vals = self.setup.required_variables();
         vals.extend(self.teardown.required_variables());
 
         vals
@@ -149,26 +131,32 @@ impl Template for EnvironmentConfig {
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        source: &SourceDir,
+        file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut allowed_variables = allowed_variables.clone();
         allowed_variables.extend(self.variable_definitions.iter().map(|vd| &vd.name));
 
-        let mut errs = templating::ErrorBuilder::from(self.setup.command.validate_context_nested(
+        let ctx = ctx.for_config_file(
+            file_source,
+            Some(FileType::Environment),
+            self.variable_definitions.iter(),
+        );
+
+        let mut errs = templating::ErrorBuilder::from(self.setup.validate_context_nested(
             path,
             "setup",
             &allowed_variables,
-            source,
-            &self.ctx_for_setup(source, ctx),
+            file_source,
+            &ctx,
         ));
 
         errs.append(self.teardown.validate_context_nested(
             path,
             "teardown",
             &allowed_variables,
-            source,
-            &self.ctx_for_teardown(source, ctx),
+            file_source,
+            &ctx,
         ));
 
         errs.into_result(())
@@ -195,11 +183,8 @@ impl Check for EnvironmentConfig {
     ) -> checks::Result<()> {
         let mut errs = checks::ErrorBuilder::new();
 
-        // Check that hard coded variables and the ones coming from setup.provides are unique
-        let all_variables = self
-            .variable_definitions
-            .iter()
-            .chain(self.setup.provides.iter());
+        // Check that hard coded variables are unique
+        let all_variables = self.variable_definitions.iter();
         let duplicates = duplicate_keys(all_variables, |v| &v.name);
         if !duplicates.is_empty() {
             errs.push(
@@ -210,7 +195,7 @@ impl Check for EnvironmentConfig {
         }
 
         // Check that each command is valid in isolation
-        errs.append(self.setup.command.try_check_nested(path, "setup", ctx));
+        errs.append(self.setup.try_check_nested(path, "setup", ctx));
         errs.append(self.teardown.try_check_nested(path, "teardown", ctx));
 
         errs.into_result(())
@@ -227,12 +212,8 @@ impl CheckArrayDuplicates for EnvironmentConfig {
                 DedupArray::VariableDef(&mut self.variable_definitions),
             ),
             (
-                "setup.provides",
-                DedupArray::VariableDef(&mut self.setup.provides),
-            ),
-            (
                 "setup.file_providers",
-                DedupArray::Nfp(&mut self.setup.command.file_providers),
+                DedupArray::Nfp(&mut self.setup.file_providers),
             ),
             (
                 "teardown.file_providers",
@@ -240,16 +221,6 @@ impl CheckArrayDuplicates for EnvironmentConfig {
             ),
         ]
     }
-}
-
-/// # Setup Command Section
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
-pub struct SetupSection {
-    #[serde(flatten)]
-    pub command: CommandSection,
-    /// Additional templating variables that will be provided through the output of this command
-    #[serde(default)]
-    pub provides: Vec<VariableDefinition>,
 }
 
 #[cfg(test)]
@@ -270,12 +241,9 @@ pub(crate) mod test_helpers {
     ) -> EnvironmentConfig {
         EnvironmentConfig {
             custom_providers: custom_providers.to_vec(),
-            setup: SetupSection {
-                command: CommandSection {
-                    file_providers: named_file_providers_with_fields(setup_fields),
-                    ..CommandSection::empty()
-                },
-                provides: Vec::new(),
+            setup: CommandSection {
+                file_providers: named_file_providers_with_fields(setup_fields),
+                ..CommandSection::empty()
             },
             teardown: CommandSection {
                 file_providers: named_file_providers_with_fields(teardown_fields),
@@ -295,12 +263,9 @@ pub(crate) mod test_helpers {
         EnvironmentConfig {
             custom_providers: custom_providers.to_vec(),
             variable_definitions: variable_definitions(variable_names),
-            setup: SetupSection {
-                command: CommandSection {
-                    file_providers: templatable_file_providers(setup_fields),
-                    ..CommandSection::empty()
-                },
-                provides: Vec::new(),
+            setup: CommandSection {
+                file_providers: templatable_file_providers(setup_fields),
+                ..CommandSection::empty()
             },
             teardown: CommandSection {
                 file_providers: templatable_file_providers(teardown_fields),
@@ -343,37 +308,6 @@ pub(crate) mod tests {
     use simple_test_case::test_case;
     use std::{collections::HashMap, path::PathBuf};
 
-    /// Create an EnvironmentConfig for testing variable scoping behavior
-    /// Sets up predefined template fields that reference specific variable names
-    fn environment_with_provides(
-        available_vals: &[&str],
-        provides: &[&str],
-        custom_providers: &[CustomProviderDeclaration],
-    ) -> EnvironmentConfig {
-        EnvironmentConfig {
-            custom_providers: custom_providers.to_vec(),
-            variable_definitions: variable_definitions(available_vals),
-            setup: SetupSection {
-                command: CommandSection {
-                    env_vars: [("foo".to_uppercase(), Field::Pending("foo".to_string()))]
-                        .into_iter()
-                        .collect(),
-                    file_providers: templatable_file_providers(&["setup-path"]),
-                    ..CommandSection::empty()
-                },
-                provides: variable_definitions(provides),
-            },
-            teardown: CommandSection {
-                env_vars: [("bar".to_uppercase(), Field::Pending("bar".to_string()))]
-                    .into_iter()
-                    .collect(),
-                file_providers: templatable_file_providers(&["teardown-path"]),
-                ..CommandSection::empty()
-            },
-            ..EnvironmentConfig::empty()
-        }
-    }
-
     // An example environment config to check parsing and templating
     const TEMPLATED_ENVIRONMENT: &str = indoc!(
         r#"
@@ -408,9 +342,6 @@ pub(crate) mod tests {
               env_var: FOO
               kind: relative_path
               path: "{{ foo }}"
-          provides:
-            - name: baz
-              description: a value baz
         teardown:
           command:
             name: teardown.sh
@@ -601,65 +532,25 @@ pub(crate) mod tests {
         assert_env_template_errors(&mut environment, ctx, &["setup"], &["teardown"]);
     }
 
-    /// Tests that setup cannot access variables from setup.provides.
-    /// Setup can only access variables declared in the top-level `variables` section.
-    #[test]
-    fn try_template_setup_cannot_access_provides_variables() {
-        // Setup a config where variables are only defined in setup.provides, not in top-level variables
-        let mut config = environment_with_provides(&[], &["foo", "setup-path"], &[]);
-
-        // Variables exist in the map but are only defined in provides
-        let ctx = template_context(&["foo", "setup-path"]);
-
-        let res = config.try_template_setup(&mut Vec::new(), &SourceDir::local("/"), &ctx);
-
-        // Setup should fail because it cannot access provides variables
-        assert!(
-            res.is_err(),
-            "expected setup to fail when accessing provides variables"
-        );
-
-        let errors = res.unwrap_err();
-        let error_messages: Vec<String> = errors.iter().map(|e| e.message.clone()).collect();
-
-        // Should have errors for both variables that setup tried to access from provides
-        assert!(
-            error_messages.contains(&"foo".to_string()),
-            "expected error messages to contain foo, got, {:?}",
-            error_messages
-        );
-        assert!(
-            error_messages.contains(&"setup-path".to_string()),
-            "expected error messages to contain setup-path, got, {:?}",
-            error_messages
-        );
-    }
-
-    /// Tests that teardown can access variables from setup.provides.
-    /// Teardown can access variables from both top-level `variables` and `setup.provides`.
-    #[test]
-    fn try_template_teardown_can_access_provides_variables() {
-        // Setup a config where variables are only defined in setup.provides, not in top-level variables
-        let mut config = environment_with_provides(&[], &["bar", "teardown-path"], &[]);
-
-        // Variables exist in the map and are defined in provides
-        let ctx = template_context(&["bar", "teardown-path"]);
-
-        let res = config.try_template_teardown(&mut Vec::new(), &SourceDir::local("/"), &ctx);
-
-        // Teardown should succeed because it can access provides variables
-        assert!(
-            res.is_ok(),
-            "expected teardown to succeed when accessing provides variables, got {res:?}"
-        );
-    }
-
     /// Tests that setup can access variables from top-level variables.
     /// Setup can access variables declared in the top-level `variables` section.
     #[test]
     fn try_template_setup_can_access_top_level_variables() {
         // Setup a config where variables are defined in top-level variables
-        let mut config = environment_with_provides(&["foo", "setup-path"], &[], &[]);
+        let mut config = EnvironmentConfig {
+            variable_definitions: variable_definitions(&["foo", "setup-path"]),
+            setup: CommandSection {
+                env_vars: [("foo".to_uppercase(), Field::Pending("foo".to_string()))]
+                    .into_iter()
+                    .collect(),
+                file_providers: templatable_file_providers(&["setup-path"]),
+                ..CommandSection::empty()
+            },
+            teardown: CommandSection {
+                ..CommandSection::empty()
+            },
+            ..EnvironmentConfig::empty()
+        };
 
         // Variables exist in the map and are defined in top-level variables
         let variables: HashMap<String, Scalar> = [("foo", "a"), ("setup-path", "b")]
@@ -681,11 +572,24 @@ pub(crate) mod tests {
     }
 
     /// Tests that teardown can access variables from top-level variables.
-    /// Teardown can access variables from both top-level `variables` and `setup.provides`.
+    /// Teardown can access variables from the top-level `variables` section.
     #[test]
     fn try_template_teardown_can_access_top_level_variables() {
         // Setup a config where variables are defined in top-level variables
-        let mut config = environment_with_provides(&["bar", "teardown-path"], &[], &[]);
+        let mut config = EnvironmentConfig {
+            variable_definitions: variable_definitions(&["bar", "teardown-path"]),
+            setup: CommandSection {
+                ..CommandSection::empty()
+            },
+            teardown: CommandSection {
+                env_vars: [("bar".to_uppercase(), Field::Pending("bar".to_string()))]
+                    .into_iter()
+                    .collect(),
+                file_providers: templatable_file_providers(&["teardown-path"]),
+                ..CommandSection::empty()
+            },
+            ..EnvironmentConfig::empty()
+        };
 
         // Variables exist in the map and are defined in top-level variables
         let ctx = template_context(&["bar", "teardown-path"]);
@@ -706,10 +610,7 @@ pub(crate) mod tests {
     #[test]
     fn check_success() {
         let environment = EnvironmentConfig {
-            setup: SetupSection {
-                command: cmd_with_inline_file(),
-                provides: Vec::new(),
-            },
+            setup: cmd_with_inline_file(),
             teardown: cmd_with_inline_file(),
             ..EnvironmentConfig::empty()
         };
@@ -735,32 +636,22 @@ pub(crate) mod tests {
         "teardown only"
     )]
     #[test_case(
-        CommandSection::empty(),
-        CommandSection::empty(),
-        &["foo"],
-        &[ErrorKind::DuplicateVariableNames];
-        "duplicate provides variable"
-    )]
-    #[test_case(
         cmd_with_required_file(),
         cmd_with_required_file(),
-        &["foo", "bar"],
+        &["foo", "foo"],
         &[ErrorKind::DuplicateVariableNames, ErrorKind::RequiredFileMissing, ErrorKind::RequiredFileMissing];
-        "setup and teardown and duplicate variables"
+        "environment duplicate variables"
     )]
     #[test]
     fn try_check_errors(
         setup_command: CommandSection,
         teardown_command: CommandSection,
-        provides: &[&str],
+        variables: &[&str],
         expected_err_kinds: &[ErrorKind],
     ) {
         let environment = EnvironmentConfig {
-            variable_definitions: variable_definitions(provides),
-            setup: SetupSection {
-                command: setup_command,
-                provides: variable_definitions(provides),
-            },
+            variable_definitions: variable_definitions(variables),
+            setup: setup_command,
             teardown: teardown_command,
             ..EnvironmentConfig::empty()
         };
@@ -1017,16 +908,13 @@ pub(crate) mod tests {
         });
 
         let mut environment = EnvironmentConfig {
-            setup: SetupSection {
-                command: CommandSection {
-                    command: CommandSpec {
-                        name: "setup.sh".to_string(),
-                        command_provider: relative_command_provider.clone(),
-                        args: Vec::new(),
-                    },
-                    ..CommandSection::empty()
+            setup: CommandSection {
+                command: CommandSpec {
+                    name: "setup.sh".to_string(),
+                    command_provider: relative_command_provider.clone(),
+                    args: Vec::new(),
                 },
-                provides: Vec::new(),
+                ..CommandSection::empty()
             },
             teardown: CommandSection {
                 command: CommandSpec {
@@ -1047,7 +935,7 @@ pub(crate) mod tests {
             content: file_content.to_string(),
         });
         assert_eq!(
-            environment.setup.command.command.command_provider, expected_inline,
+            environment.setup.command.command_provider, expected_inline,
             "Expected setup command provider to be inlined"
         );
         assert_eq!(

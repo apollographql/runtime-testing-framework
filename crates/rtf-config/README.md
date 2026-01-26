@@ -30,8 +30,7 @@ step has implicit "check and report errors" behaviour as part of its execution:
 1. Load and template the `TestPlan` file.
 2. Load the `Scenario` and `Environment` files as raw YAML.
 3. Merge any overrides from the `TestPlan` into the `Scenario` and `Environment` files.
-4. Template the `Environment` setup section and check that the output it provides is sufficient to
-   finish templating both the `Scenario` and the rest of the `Environment` configuration.
-5. Run the environment setup and finish templating the `Scenario` and `Environment` teardown.
-6. Run the `Scenario` and extract test output.
+4. Template the `Environment` and `Scenario` sections.
+5. Run the `Environment` setup.
+6. Run the `Scenario`.
 7. Run the `Environment` teardown.

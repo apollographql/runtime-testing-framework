@@ -227,7 +227,6 @@ environment:
       args: []
     env_vars: {}
     file_providers: []
-    provides: []
   teardown:
     command:
       name: teardown.sh

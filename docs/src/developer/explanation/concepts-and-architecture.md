@@ -46,8 +46,8 @@ When a user runs `rtf run test-plan.yaml`, the following flow occurs:
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  2. Template Environment Setup                                           │
-│     - Substitute variables into setup section                            │
+│  2. Template Test Plan                                                   │
+│     - Substitute variables into test plan.                               │
 │     - Run static analysis checks                                         │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -56,26 +56,18 @@ When a user runs `rtf run test-plan.yaml`, the following flow occurs:
 │  3. Execute Environment Setup                                            │
 │     - Resolve file providers                                             │
 │     - Run setup command                                                  │
-│     - Capture "provides" output for later templating                     │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  4. Template Scenario + Environment Teardown                             │
-│     - Use setup output to finish templating                              │
-│     - Run static analysis checks                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│  5. Execute Scenario                                                     │
+│  4. Execute Scenario                                                     │
 │     - Resolve file providers                                             │
 │     - Run scenario command                                               │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  6. Execute Environment Teardown                                         │
+│  5. Execute Environment Teardown                                         │
 │     - Resolve file providers                                             │
 │     - Run teardown command                                               │
 └─────────────────────────────────────────────────────────────────────────┘
