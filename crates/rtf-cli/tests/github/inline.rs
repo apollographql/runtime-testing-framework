@@ -38,7 +38,7 @@ fn all_with_github_flag_succeeds() {
     use assert_cmd::cargo::cargo_bin_cmd;
     use assert_fs::TempDir;
 
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     let outdir = tmp.path().join("output");
 
     let mut cmd = cargo_bin_cmd!("rtf");
@@ -62,7 +62,7 @@ fn relative_files_with_github_flag_succeeds() {
     use assert_cmd::cargo::cargo_bin_cmd;
     use assert_fs::TempDir;
 
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     let outdir = tmp.path().join("output");
 
     let mut cmd = cargo_bin_cmd!("rtf");

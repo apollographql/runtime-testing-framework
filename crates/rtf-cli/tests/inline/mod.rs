@@ -60,7 +60,7 @@ pub fn prepare_rtf_inline_all_from_file(file_path: &str) -> CmdWithTmpDir {
 }
 
 fn prepare_rtf_inline_from_file(subcommand: &str, file_path: &str) -> CmdWithTmpDir {
-    let tmp_src = TempDir::new().unwrap();
+    let tmp_src = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     let dest = tmp_src.child("test-plan.yaml");
     copy(file_path, dest.path()).unwrap();
 

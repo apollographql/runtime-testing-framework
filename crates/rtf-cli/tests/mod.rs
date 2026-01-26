@@ -1,5 +1,6 @@
 pub mod common;
 pub mod custom_provider;
+pub mod docker;
 pub mod expand_matrix;
 pub mod github;
 pub mod graphos;
