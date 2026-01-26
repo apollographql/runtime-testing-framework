@@ -3,6 +3,7 @@ use crate::{
     context::ResolutionContext,
     formats::{CustomProviderDeclaration, EnvironmentConfig, Matrix, Result, ScenarioConfig},
     providers::file::SourceDir,
+    run::ResolveAndExecute,
     templating::{self, Scalar, Template, TemplateContext},
 };
 use rtf_integrations::github::{self, Client};
