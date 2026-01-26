@@ -14,7 +14,7 @@ command:
 
 env_vars:
   MESSAGE: "{{ message }}"
-  STAGE: setup
+  STAGE: scenario
 
 file_providers:
   - name: echo-message.sh

@@ -577,7 +577,6 @@ impl DockerCommand {
         let mut args = vec![
             "run".to_string(),
             "--rm".to_string(),
-            "-it".to_string(),
             "-v".to_string(),
             format!("{}:/output", ctx.output_path().display()),
         ];
