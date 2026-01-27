@@ -523,6 +523,44 @@ mod tests {
     "#
     );
 
+    // An example scenario config to check parsing and templating
+    const TEMPLATED_DOCKER_SCENARIO: &str = indoc!(
+        r#"
+        name: scenario
+        description: a templated docker scenario
+        variable_definitions:
+          - name: foo
+            description: a value foo
+            allowed_values: ["foo1", "foo2"]
+          - name: bar
+            description: a value bar
+            default: "bar"
+        custom_providers:
+          - kind: local
+            relative_path: ../providers
+            using:
+              my_custom_provider: my_custom_provider.yaml
+          - kind: github
+            org: apollographql
+            repo: test-providers
+            path: /providers
+            git_ref: main
+            using:
+              another_provider: another_provider.yaml
+        docker:
+          image: alpine
+          tag: latest
+          command: "cat $FILE"
+        env_vars:
+          FOO: "{{ foo }}"
+        file_providers:
+          - name: file.txt
+            env_var: FILE
+            kind: relative_path
+            path: "{{ bar }}"
+    "#
+    );
+
     const CUSTOM_PROVIDER_WITH_NESTED: &str = indoc!(
         r#"
         name: invalid provider
@@ -540,10 +578,11 @@ mod tests {
         "#
     );
 
+    #[test_case(TEMPLATED_SCENARIO; "script based")]
+    #[test_case(TEMPLATED_DOCKER_SCENARIO; "docker based")]
     #[test]
-    fn parse_and_template() {
-        let config: ScenarioConfig =
-            serde_yaml::from_str(TEMPLATED_SCENARIO).expect("scenario config to parse");
+    fn parse_and_template(raw: &str) {
+        let config: ScenarioConfig = serde_yaml::from_str(raw).expect("scenario config to parse");
 
         let mut res = config.required_variables();
         res.sort(); // Sorting so variables are in a determistic order for the assert_eq
