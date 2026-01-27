@@ -261,7 +261,7 @@
 <a href=#261 id=261 data-nosnippet>261</a>            CustomProviderDeclaration, CustomProviderDefinition, EnvironmentConfig, Matrix,
 <a href=#262 id=262 data-nosnippet>262</a>            ScenarioConfig, TestPlanConfig,
 <a href=#263 id=263 data-nosnippet>263</a>            environment::test_helpers::templatable_environment,
-<a href=#264 id=264 data-nosnippet>264</a>            scenario::test_helpers::templatable_scenario,
+<a href=#264 id=264 data-nosnippet>264</a>            scenario::{ScenarioCommand, test_helpers::templatable_scenario},
 <a href=#265 id=265 data-nosnippet>265</a>            test_plan::Sources,
 <a href=#266 id=266 data-nosnippet>266</a>            tests::{named_file_provider_with_field, p, template_context},
 <a href=#267 id=267 data-nosnippet>267</a>        },
@@ -669,10 +669,10 @@
 <a href=#669 id=669 data-nosnippet>669</a>            },
 <a href=#670 id=670 data-nosnippet>670</a>            scenario: ScenarioConfig {
 <a href=#671 id=671 data-nosnippet>671</a>                variable_definitions: <span class="macro">vec!</span>[variable_with_default(<span class="string">"scenario"</span>, <span class="string">"scenario"</span>)],
-<a href=#672 id=672 data-nosnippet>672</a>                command: CommandSection {
+<a href=#672 id=672 data-nosnippet>672</a>                command: ScenarioCommand::Script(CommandSection {
 <a href=#673 id=673 data-nosnippet>673</a>                    file_providers: <span class="macro">vec!</span>[named_file_provider_with_field(<span class="string">"scenario"</span>, p(<span class="string">"scenario"</span>))],
 <a href=#674 id=674 data-nosnippet>674</a>                    ..CommandSection::empty()
-<a href=#675 id=675 data-nosnippet>675</a>                },
+<a href=#675 id=675 data-nosnippet>675</a>                }),
 <a href=#676 id=676 data-nosnippet>676</a>                ..ScenarioConfig::empty()
 <a href=#677 id=677 data-nosnippet>677</a>            },
 <a href=#678 id=678 data-nosnippet>678</a>            ..TestPlanConfig::empty()

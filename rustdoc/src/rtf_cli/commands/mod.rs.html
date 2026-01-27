@@ -33,8 +33,8 @@
 <a href=#33 id=33 data-nosnippet>33</a>
 <a href=#34 id=34 data-nosnippet>34</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_context_and_check_outdir(out_dir: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;(Context, PathBuf)&gt; {
 <a href=#35 id=35 data-nosnippet>35</a>    <span class="kw">let </span>ctx = get_context();
-<a href=#36 id=36 data-nosnippet>36</a>
-<a href=#37 id=37 data-nosnippet>37</a>    <span class="kw">let </span>out_dir = current_dir()<span class="question-mark">?</span>.join(out_dir);
+<a href=#36 id=36 data-nosnippet>36</a>    <span class="kw">let </span>out_dir = current_dir()<span class="question-mark">?</span>.join(out_dir);
+<a href=#37 id=37 data-nosnippet>37</a>
 <a href=#38 id=38 data-nosnippet>38</a>    <span class="kw">match </span>ctx.path_kind(<span class="kw-2">&amp;</span>out_dir) {
 <a href=#39 id=39 data-nosnippet>39</a>        PathKind::File =&gt; <span class="macro">bail!</span>(<span class="string">"{} is not a directory"</span>, out_dir.display()),
 <a href=#40 id=40 data-nosnippet>40</a>        PathKind::OccupiedDir =&gt; {
