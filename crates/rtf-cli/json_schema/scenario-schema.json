@@ -93,23 +93,6 @@
         {
           "allOf": [
             {
-              "$ref": "#/definitions/DockerCommand"
-            }
-          ],
-          "properties": {
-            "kind": {
-              "const": "docker",
-              "type": "string"
-            }
-          },
-          "required": [
-            "kind"
-          ],
-          "type": "object"
-        },
-        {
-          "allOf": [
-            {
               "$ref": "#/definitions/InlineFile"
             }
           ],
@@ -680,10 +663,20 @@
     "DockerCommand": {
       "properties": {
         "command": {
-          "$ref": "#/definitions/Templatable%20string"
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The command to execute under \"sh -c\" inside of the image"
         },
         "image": {
-          "$ref": "#/definitions/Templatable%20string"
+          "allOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            }
+          ],
+          "description": "The docker image to run the scenario inside of"
         },
         "tag": {
           "anyOf": [
@@ -693,7 +686,8 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "The tag to pull for the requested image (defaults to latest if unset)"
         }
       },
       "required": [
@@ -704,8 +698,13 @@
     },
     "DockerScenario": {
       "properties": {
-        "command": {
-          "$ref": "#/definitions/Templatable%20string"
+        "docker": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/DockerCommand"
+            }
+          ],
+          "description": "Details for the docker image and command to execute"
         },
         "env_vars": {
           "additionalProperties": {
@@ -722,24 +721,10 @@
             "$ref": "#/definitions/NamedFileProvider"
           },
           "type": "array"
-        },
-        "image": {
-          "$ref": "#/definitions/Templatable%20string"
-        },
-        "tag": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Templatable%20string"
-            },
-            {
-              "type": "null"
-            }
-          ]
         }
       },
       "required": [
-        "image",
-        "command"
+        "docker"
       ],
       "type": "object"
     },

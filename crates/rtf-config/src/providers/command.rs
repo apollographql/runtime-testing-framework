@@ -35,77 +35,20 @@ pub struct CommandSection {
 }
 
 impl CommandSection {
-    fn execute_docker(
-        &self,
-        docker_command: &DockerCommand,
-        out_dir: &Path,
-        output_path: &Path,
-        ctx: &impl ResolutionContext,
-    ) -> providers::Result<()> {
-        let tp_args = self
-            .command
-            .args
-            .iter()
-            .map(|arg| arg.as_resolved().as_str());
-
-        let env_vars = self.all_env_vars(out_dir, output_path, ctx)?;
-        let (cmd, args) = docker_command.as_command_and_args(tp_args, &env_vars, ctx);
-
-        ctx.run_command_blocking(cmd, args.iter().map(|s| s.as_str()), &HashMap::default())
-            .map_err(Into::into)
-    }
-
-    fn execute_script(
-        &self,
-        out_dir: &Path,
-        output_path: &Path,
-        ctx: &impl ResolutionContext,
-    ) -> providers::Result<()> {
-        let env_vars = self.all_env_vars(out_dir, output_path, ctx)?;
-        let args = self
-            .command
-            .args
-            .iter()
-            .map(|arg| arg.as_resolved().as_str());
-
-        let file_path = ctx
-            .known_provider_output_path(Provider::Command {
-                name: &self.command.name,
-                cmd: &self.command.command_provider,
-            })
-            .ok_or(providers::Error::MissingProviderOutput {
-                name: self.command.name.clone(),
-            })?;
-
-        let prog = match file_path.to_str() {
-            Some(v) => v,
-            None => {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "unable to convert command path to valid string",
-                )
-                .into());
-            }
-        };
-
-        ctx.run_command_blocking(prog, args, &env_vars)
-            .map_err(Into::into)
-    }
-
-    fn explicit_env_vars(&self) -> HashMap<String, String> {
-        self.env_vars
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.as_resolved().to_string()))
-            .collect()
-    }
-
-    fn file_path_env_vars(
+    /// Combine the base environment variables we have with the ones coming from the file providers
+    /// we need to run. The `out_dir` argument here needs to match the one used when running
+    /// and outputting the content of the file providers.
+    pub fn all_env_vars(
         &self,
         out_dir: &Path,
         output_path: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<HashMap<String, String>> {
-        let mut vars = HashMap::with_capacity(self.file_providers.len() + 2);
+        let mut vars: HashMap<String, String> = self
+            .env_vars
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.as_resolved().to_string()))
+            .collect();
 
         for nfp in self.file_providers.iter() {
             let path = ctx
@@ -118,25 +61,6 @@ impl CommandSection {
 
         vars.insert(OUTDIR.to_string(), out_dir.display().to_string());
         vars.insert(OUTPUT_PATH.to_string(), output_path.display().to_string());
-
-        Ok(vars)
-    }
-
-    /// Combine the base environment variables we have with the ones coming from the file providers
-    /// we need to run. The `out_dir` argument here needs to match the one used when running
-    /// and outputting the content of the file providers.
-    pub fn all_env_vars(
-        &self,
-        out_dir: &Path,
-        output_path: &Path,
-        ctx: &impl ResolutionContext,
-    ) -> providers::Result<HashMap<String, String>> {
-        let mut vars = self.explicit_env_vars();
-        vars.extend(
-            self.command
-                .command_provider
-                .map_file_path_env_vars(self.file_path_env_vars(out_dir, output_path, ctx)?, ctx),
-        );
 
         Ok(vars)
     }
@@ -225,11 +149,35 @@ impl Execute for CommandSection {
         output_path: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<()> {
-        if let CommandProvider::Docker(inner) = &self.command.command_provider {
-            self.execute_docker(inner, out_dir, output_path, ctx)
-        } else {
-            self.execute_script(out_dir, output_path, ctx)
-        }
+        let env_vars = self.all_env_vars(out_dir, output_path, ctx)?;
+        let args = self
+            .command
+            .args
+            .iter()
+            .map(|arg| arg.as_resolved().as_str());
+
+        let file_path = ctx
+            .known_provider_output_path(Provider::Command {
+                name: &self.command.name,
+                cmd: &self.command.command_provider,
+            })
+            .ok_or(providers::Error::MissingProviderOutput {
+                name: self.command.name.clone(),
+            })?;
+
+        let prog = match file_path.to_str() {
+            Some(v) => v,
+            None => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "unable to convert command path to valid string",
+                )
+                .into());
+            }
+        };
+
+        ctx.run_command_blocking(prog, args, &env_vars)
+            .map_err(Into::into)
     }
 }
 
@@ -315,11 +263,6 @@ impl CommandSpec {
             // for the user so we call through to resolve_and_write to trigger it rather than
             // writing a custom panic message here.
             CommandProvider::Required(inner) => inner.resolve_and_write(&file_path, ctx).await?,
-
-            // In the case of a Docker provider we don't rely on writing out the command itself as
-            // a script at all. Instead we construct the required docker command directly as part
-            // of execution.
-            CommandProvider::Docker(_) => return Ok(()),
         }
 
         ctx.make_executable(&file_path)?;
@@ -356,7 +299,6 @@ impl Check for CommandSpec {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum CommandProvider {
-    Docker(DockerCommand),
     Inline(InlineFile),
     RelativePath(RelativeFile),
     Required(RequiredFile),
@@ -365,7 +307,7 @@ pub enum CommandProvider {
 impl CommandProvider {
     pub(crate) async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
         match self {
-            CommandProvider::Docker(_) | CommandProvider::Inline(_) => Ok(()),
+            CommandProvider::Inline(_) => Ok(()),
             CommandProvider::RelativePath(inner) => {
                 *self = CommandProvider::Inline(inner.try_into_inline_file(ctx).await?);
 
@@ -389,98 +331,13 @@ impl CommandProvider {
 
         Ok(())
     }
-
-    /// For variants other than Docker this is a no-op. Otherwise we update the prefix for all
-    /// paths to match the standard mount point we use when running under docker.
-    fn map_file_path_env_vars(
-        &self,
-        mut env_vars: HashMap<String, String>,
-        ctx: &impl ResolutionContext,
-    ) -> HashMap<String, String> {
-        if !matches!(self, Self::Docker(_)) {
-            return env_vars;
-        }
-
-        let out_dir = ctx.output_path().to_string_lossy();
-        for path in env_vars.values_mut() {
-            let in_container_path = match path.strip_prefix(out_dir.as_ref()) {
-                Some(tail) => format!("/output{tail}"),
-                None => {
-                    panic!("provider path found that is outside of the output directory: {path}")
-                }
-            };
-
-            *path = in_container_path;
-        }
-
-        env_vars
-    }
 }
 
 // Each time we add a new variant to the CommandProvider enum above we need to remember to add it
 // to the macro invocation below in order to update the trait implementations for the enum. (You
 // can't really forget to do this as the compiler will complain about missing match arms if you
 // do!)
-enum_impl_check!(CommandProvider => Docker, Inline, RelativePath, Required);
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
-pub struct DockerCommand {
-    image: Field<String>,
-    tag: Option<Field<String>>,
-    command: Field<String>,
-}
-
-impl DockerCommand {
-    fn as_command_and_args<'a>(
-        &self,
-        tp_args: impl IntoIterator<Item = &'a str>,
-        env_vars: &HashMap<String, String>,
-        ctx: &impl ResolutionContext,
-    ) -> (&'static str, Vec<String>) {
-        let image = match self.tag.as_ref() {
-            Some(tag) => format!("{}:{}", self.image.as_resolved(), tag.as_resolved()),
-            None => self.image.as_resolved().to_string(),
-        };
-
-        let mut args = vec![
-            "run".to_string(),
-            "--rm".to_string(),
-            "-v".to_string(),
-            format!("{}:/output", ctx.output_path().display()),
-        ];
-
-        for (k, v) in env_vars.iter() {
-            args.extend(["-e".to_string(), format!("{k}={v}")]);
-        }
-
-        args.extend([
-            image,
-            "sh".to_string(),
-            "-c".to_string(),
-            self.command.as_resolved().to_string(),
-        ]);
-        args.extend(tp_args.into_iter().map(String::from));
-
-        ("docker", args)
-    }
-}
-
-impl Check for DockerCommand {
-    fn try_check(
-        &self,
-        _path: &mut Vec<String>,
-        _ctx: &impl ResolutionContext,
-    ) -> checks::Result<()> {
-        // We deliberately _don't_ check for the presence of docker on the PATH as part of static
-        // checks as we can't guarantee that checks are being run on the same system that will
-        // ultimately execute the test plan.
-        // This means that docker _not_ being on the PATH will result in a runtime error during
-        // command execution, which matches the behaviour of missing dependencies in other
-        // CommandProivider variants where we don't even know what dependencies the script has.
-
-        Ok(())
-    }
-}
+enum_impl_check!(CommandProvider => Inline, RelativePath, Required);
 
 #[cfg(test)]
 pub(crate) mod test_helpers {
@@ -1241,59 +1098,5 @@ mod tests {
         };
 
         assert_eq!(command_section, expected);
-    }
-
-    #[test_case(CommandProvider::Inline(InlineFile { content: String::new() }); "inline")]
-    #[test_case(CommandProvider::RelativePath(RelativeFile { path: Field::Resolved(String::new()), src: None }); "relative path")]
-    #[test]
-    fn map_file_path_env_vars_is_noop_for_non_docker(cp: CommandProvider) {
-        let env_vars: HashMap<String, String> = [
-            ("FOO", "/output/providers/foo.txt"),
-            ("BAR", "/output/providers/a/bar.txt"),
-            ("BAZ", "/output/providers/b/c/baz.txt"),
-        ]
-        .into_iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
-
-        let mapped = cp.map_file_path_env_vars(env_vars.clone(), &Context::new());
-
-        assert_eq!(mapped, env_vars);
-    }
-
-    #[test]
-    fn map_file_path_env_vars_sets_correct_paths_for_docker() {
-        let output_path = "/home/bob/x/y/z/output";
-
-        let original_env_vars: HashMap<String, String> = [
-            ("FOO", "providers/foo.txt"),
-            ("BAR", "providers/a/bar.txt"),
-            ("BAZ", "providers/b/c/baz.txt"),
-        ]
-        .into_iter()
-        .map(|(k, v)| (k.to_string(), format!("{output_path}/{v}")))
-        .collect();
-
-        let mut ctx = Context::new();
-        ctx.set_output_path(output_path);
-
-        let cp = CommandProvider::Docker(DockerCommand {
-            image: Field::Resolved(String::new()),
-            tag: None,
-            command: Field::Resolved(String::new()),
-        });
-
-        let mapped = cp.map_file_path_env_vars(original_env_vars, &ctx);
-
-        let expected: HashMap<String, String> = [
-            ("FOO", "/output/providers/foo.txt"),
-            ("BAR", "/output/providers/a/bar.txt"),
-            ("BAZ", "/output/providers/b/c/baz.txt"),
-        ]
-        .into_iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
-
-        assert_eq!(mapped, expected);
     }
 }

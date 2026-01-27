@@ -85,23 +85,6 @@
         {
           "allOf": [
             {
-              "$ref": "#/definitions/DockerCommand"
-            }
-          ],
-          "properties": {
-            "kind": {
-              "const": "docker",
-              "type": "string"
-            }
-          },
-          "required": [
-            "kind"
-          ],
-          "type": "object"
-        },
-        {
-          "allOf": [
-            {
               "$ref": "#/definitions/InlineFile"
             }
           ],
@@ -666,31 +649,6 @@
       "required": [
         "path",
         "content"
-      ],
-      "type": "object"
-    },
-    "DockerCommand": {
-      "properties": {
-        "command": {
-          "$ref": "#/definitions/Templatable%20string"
-        },
-        "image": {
-          "$ref": "#/definitions/Templatable%20string"
-        },
-        "tag": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Templatable%20string"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "required": [
-        "image",
-        "command"
       ],
       "type": "object"
     },

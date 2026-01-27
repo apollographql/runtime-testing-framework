@@ -5,9 +5,7 @@ variable_definitions:
   - name: message
     description: "A message to echo out"
 
-command:
-  name: echo-message.sh
-  kind: docker
+docker:
   image: alpine
   tag: latest
   command: "sh $ECHO_MESSAGE"

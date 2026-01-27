@@ -234,11 +234,19 @@ impl Check for ScenarioCommand {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
-pub struct DockerScenario {
+pub struct DockerCommand {
+    /// The docker image to run the scenario inside of
     pub image: Field<String>,
+    /// The tag to pull for the requested image (defaults to latest if unset)
     pub tag: Option<Field<String>>,
+    /// The command to execute under "sh -c" inside of the image
     pub command: Field<String>,
+}
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+pub struct DockerScenario {
+    /// Details for the docker image and command to execute
+    pub docker: DockerCommand,
     /// Environment variables to set
     #[serde(default)]
     pub env_vars: HashMap<String, Field<Scalar>>,
@@ -253,9 +261,9 @@ impl DockerScenario {
         env_vars: &HashMap<String, String>,
         ctx: &impl ResolutionContext,
     ) -> (&'static str, Vec<String>) {
-        let image = match self.tag.as_ref() {
-            Some(tag) => format!("{}:{}", self.image.as_resolved(), tag.as_resolved()),
-            None => self.image.as_resolved().to_string(),
+        let image = match self.docker.tag.as_ref() {
+            Some(tag) => format!("{}:{}", self.docker.image.as_resolved(), tag.as_resolved()),
+            None => self.docker.image.as_resolved().to_string(),
         };
 
         let mut args = vec![
@@ -273,7 +281,7 @@ impl DockerScenario {
             image,
             "sh".to_string(),
             "-c".to_string(),
-            self.command.as_resolved().to_string(),
+            self.docker.command.as_resolved().to_string(),
         ]);
 
         ("docker", args)
@@ -288,20 +296,8 @@ impl DockerScenario {
         output_path: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<HashMap<String, String>> {
-        let mut vars = self.file_path_env_vars(out_dir, output_path, ctx)?;
-
-        let out_dir = ctx.output_path().to_string_lossy();
-        for path in vars.values_mut() {
-            let in_container_path = match path.strip_prefix(out_dir.as_ref()) {
-                Some(tail) => format!("/output{tail}"),
-                None => {
-                    panic!("provider path found that is outside of the output directory: {path}")
-                }
-            };
-
-            *path = in_container_path;
-        }
-
+        let raw_vars = self.file_path_env_vars(out_dir, output_path, ctx)?;
+        let mut vars = map_file_path_env_vars(raw_vars, ctx);
         vars.extend(self.explicit_env_vars());
 
         Ok(vars)
@@ -396,6 +392,25 @@ impl Check for DockerScenario {
 
         Ok(())
     }
+}
+
+fn map_file_path_env_vars(
+    mut env_vars: HashMap<String, String>,
+    ctx: &impl ResolutionContext,
+) -> HashMap<String, String> {
+    let out_dir = ctx.output_path().to_string_lossy();
+    for path in env_vars.values_mut() {
+        let in_container_path = match path.strip_prefix(out_dir.as_ref()) {
+            Some(tail) => format!("/output{tail}"),
+            None => {
+                panic!("provider path found that is outside of the output directory: {path}")
+            }
+        };
+
+        *path = in_container_path;
+    }
+
+    env_vars
 }
 
 #[cfg(test)]
@@ -948,5 +963,35 @@ mod tests {
             }),
             "Expected command provider to be inlined"
         );
+    }
+
+    #[test]
+    fn map_file_path_env_vars_sets_correct_paths_for_docker() {
+        let output_path = "/home/bob/x/y/z/output";
+
+        let original_env_vars: HashMap<String, String> = [
+            ("FOO", "providers/foo.txt"),
+            ("BAR", "providers/a/bar.txt"),
+            ("BAZ", "providers/b/c/baz.txt"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), format!("{output_path}/{v}")))
+        .collect();
+
+        let mut ctx = Context::new();
+        ctx.set_output_path(output_path);
+
+        let mapped = map_file_path_env_vars(original_env_vars, &ctx);
+
+        let expected: HashMap<String, String> = [
+            ("FOO", "/output/providers/foo.txt"),
+            ("BAR", "/output/providers/a/bar.txt"),
+            ("BAZ", "/output/providers/b/c/baz.txt"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+
+        assert_eq!(mapped, expected);
     }
 }
