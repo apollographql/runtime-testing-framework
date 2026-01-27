@@ -1,6 +1,5 @@
-name: sanity-check
-description: |
-  Sanity check that we correctly call the specified commands for each stage of a test plan.
+name: docker-scenario
+description: Execute a scenario from a docker image
 
 variables:
   message: "hello, world!"

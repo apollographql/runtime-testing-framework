@@ -1,5 +1,5 @@
-name: scenario-sanity-check
-description: "Sanity check that we template and run commands correctly in the scenario"
+name: scenario-docker-based-scenario
+description: Execute a scenario from a docker image
 
 variable_definitions:
   - name: message
