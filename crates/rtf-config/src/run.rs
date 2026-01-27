@@ -25,7 +25,7 @@ pub const PROVIDER_DIR: &str = "providers";
 
 #[allow(async_fn_in_trait)]
 pub trait RunProviders {
-    /// Run all of the [FileProviders][0] associated with this command and write out their file
+    /// Run all of the [FileProviders][0] contained within this type and write out their file
     /// contents to the specified directory.
     ///
     /// [0]: crate::providers::file::FileProvider
@@ -37,9 +37,8 @@ pub trait RunProviders {
 
     // We need to pin these futures on the heap to be able to poll it in order to avoid a
     // recursively defined future (which is infinitely sized). We end up being recursively
-    // defined because of the FromCommand file provider which is just a wrapper around
-    // this CommandSection struct. Therefore, the call to inline_all_relative_paths
-    // below ends up calling back into inline_all_relative_paths which calls this method.
+    // defined because of the FromCommand file provider which is just a wrapper around the
+    // CommandSection struct.
 
     fn inline<'a>(
         &'a mut self,
@@ -70,7 +69,7 @@ impl RunProviders for Vec<NamedFileProvider> {
             // We need to box the future here in order to prevent us ending up with a recursive
             // type definition for the Future we are building with this method. We end up being
             // recursively defined because of the FromCommand file provider which is just a wrapper
-            // around this struct, meaning that the call to resolve_and_write below ends up calling
+            // around CommandSection, meaning that the call to resolve_and_write below ends up calling
             // back into run_providers_and_execute which then calls this method (run_providers).
             match Box::pin(nfp.resolve_and_write(&file_path, ctx)).await {
                 Ok(b) => b,
@@ -125,7 +124,7 @@ pub trait Execute: RunProviders {
 
     /// Execute this command with the specified environment, returning the output path used.
     ///
-    /// [CommandSection::run_providers] must have been run successfully before calling this method
+    /// [RunProviders::run_providers] must have been run successfully before calling this method
     /// in order to ensure that all file providers have written out their file content to the
     /// expected location.
     fn execute(
@@ -171,7 +170,7 @@ pub trait Execute: RunProviders {
     /// resources available on disk after execution, use [run_providers_and_execute][1] instead.
     ///
     /// [0]: crate::providers::file::FileProvider
-    /// [1]: CommandSection::run_providers_and_execute
+    /// [1]: Execute::run_providers_and_execute
     async fn run_providers_and_execute_for_output(
         &self,
         name: &str,
