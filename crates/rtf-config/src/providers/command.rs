@@ -9,7 +9,7 @@ use crate::{
             ResolveAndWrite,
         },
     },
-    run::{Execute, OUTDIR, OUTPUT_PATH, Resolve},
+    run::{Execute, OUTDIR, OUTPUT_PATH, RunProviders},
     templating::{Field, Scalar},
 };
 use rtf_derive::Template;
@@ -156,92 +156,17 @@ impl CommandSection {
             file_providers: Default::default(),
         }
     }
-
-    pub(crate) fn inline<'a>(
-        &'a mut self,
-        ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
-        // We need to pin this future on the heap to be able to poll it in order to avoid a
-        // recursively defined future (which is infinitely sized). We end up being recursively
-        // defined because of the FromCommand file provider which is just a wrapper around
-        // this CommandSection struct. Therefore, the call to inline_all_relative_paths
-        // below ends up calling back into inline_all_relative_paths which calls this method.
-        Box::pin(async move {
-            let mut errs = inlining::ErrorBuilder::new();
-
-            errs.append(self.command.command_provider.inline(ctx).await);
-            for named_file_provider in self.file_providers.iter_mut() {
-                errs.append(named_file_provider.provider.inline(ctx).await);
-            }
-
-            errs.into_result(())
-        })
-    }
-
-    pub(crate) fn inline_all_relative_paths<'a>(
-        &'a mut self,
-        ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
-        // We need to pin this future on the heap to be able to poll it in order to avoid a
-        // recursively defined future (which is infinitely sized). We end up being recursively
-        // defined because of the FromCommand file provider which is just a wrapper around
-        // this CommandSection struct. Therefore, the call to inline_all_relative_paths
-        // below ends up calling back into inline_all_relative_paths which calls this method.
-        Box::pin(async move {
-            let mut errs = inlining::ErrorBuilder::new();
-
-            errs.append(
-                self.command
-                    .command_provider
-                    .inline_all_relative_paths(ctx)
-                    .await,
-            );
-            for named_file_provider in self.file_providers.iter_mut() {
-                errs.append(
-                    named_file_provider
-                        .provider
-                        .inline_all_relative_paths(ctx)
-                        .await,
-                );
-            }
-
-            errs.into_result(())
-        })
-    }
 }
 
-impl Resolve for CommandSection {
+impl RunProviders for CommandSection {
     async fn run_providers(
         &self,
         providers_dir: &Path,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
-        for nfp in self.file_providers.iter() {
-            let cache_key = Provider::File { fp: &nfp.provider };
-            if ctx.known_provider_output_path(cache_key).is_some() {
-                continue;
-            }
-
-            trace!(name=%nfp.name, "running file provider");
-            let file_path = providers_dir.join(&nfp.name);
-
-            // We need to box the future here in order to prevent us ending up with a recursive
-            // type definition for the Future we are building with this method. We end up being
-            // recursively defined because of the FromCommand file provider which is just a wrapper
-            // around this struct, meaning that the call to resolve_and_write below ends up calling
-            // back into run_providers_and_execute which then calls this method (run_providers).
-            match Box::pin(nfp.resolve_and_write(&file_path, ctx)).await {
-                Ok(b) => b,
-                Err(e) => {
-                    return Err(providers::Error::ResolveAndWriteFailed {
-                        name: nfp.env_var.to_string(),
-                        err: e.to_string(),
-                    });
-                }
-            };
-
-            ctx.store_provider_output_path(Provider::File { fp: &nfp.provider }, file_path);
-        }
+        self.file_providers
+            .run_providers(providers_dir, ctx)
+            .await?;
 
         let cache_key = Provider::Command {
             name: &self.command.name,
@@ -255,6 +180,37 @@ impl Resolve for CommandSection {
         }
 
         Ok(())
+    }
+
+    fn inline<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        Box::pin(async move {
+            let mut errs = inlining::ErrorBuilder::new();
+
+            errs.append(self.command.command_provider.inline(ctx).await);
+            errs.append(self.file_providers.inline(ctx).await);
+            errs.into_result(())
+        })
+    }
+
+    fn inline_all_relative_paths<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        Box::pin(async move {
+            let mut errs = inlining::ErrorBuilder::new();
+
+            errs.append(
+                self.command
+                    .command_provider
+                    .inline_all_relative_paths(ctx)
+                    .await,
+            );
+            errs.append(self.file_providers.inline_all_relative_paths(ctx).await);
+            errs.into_result(())
+        })
     }
 }
 
@@ -572,7 +528,7 @@ mod tests {
             file::{FileProvider, InlineFile},
             test_helpers::create_temp_dir_with_file,
         },
-        run::{PROVIDER_DIR, ResolveAndExecute},
+        run::{Execute, PROVIDER_DIR},
         templating::Template,
     };
     use indoc::indoc;

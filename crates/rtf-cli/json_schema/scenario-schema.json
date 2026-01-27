@@ -1,5 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "anyOf": [
+    {
+      "$ref": "#/definitions/DockerScenario"
+    },
+    {
+      "$ref": "#/definitions/CommandSection"
+    }
+  ],
   "definitions": {
     "BuildRouterFromSource": {
       "description": "A file provider used for building the Router from source at a specific git commit\nor reference. A profile and list of features can optionally be provided.\n\n```yaml\n- name: \"router-build.sh\"\n  env_var: ROUTER_BUILD_SCRIPT\n  kind: build_router_from_source\n  git_ref: \"some-ref\"\n  rust_version: \"1.89.0\"\n  profile: \"release\"\n  features: \"default\"\n```",
@@ -44,6 +52,40 @@
         "git_ref"
       ],
       "title": "Build Router from source",
+      "type": "object"
+    },
+    "CommandSection": {
+      "description": "Defines an executable command along with environment variables that should be set prior to\nexecution and file providers that should be made available.",
+      "properties": {
+        "command": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CommandSpec"
+            }
+          ],
+          "description": "The command to be run"
+        },
+        "env_vars": {
+          "additionalProperties": {
+            "$ref": "#/definitions/Templatable%20Scalar"
+          },
+          "default": {},
+          "description": "Environment variables to set",
+          "type": "object"
+        },
+        "file_providers": {
+          "default": [],
+          "description": "File providers to run and make available prior to execution",
+          "items": {
+            "$ref": "#/definitions/NamedFileProvider"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "title": "Command Section",
       "type": "object"
     },
     "CommandSpec": {
@@ -639,6 +681,47 @@
       "properties": {
         "command": {
           "$ref": "#/definitions/Templatable%20string"
+        },
+        "image": {
+          "$ref": "#/definitions/Templatable%20string"
+        },
+        "tag": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Templatable%20string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "image",
+        "command"
+      ],
+      "type": "object"
+    },
+    "DockerScenario": {
+      "properties": {
+        "command": {
+          "$ref": "#/definitions/Templatable%20string"
+        },
+        "env_vars": {
+          "additionalProperties": {
+            "$ref": "#/definitions/Templatable%20Scalar"
+          },
+          "default": {},
+          "description": "Environment variables to set",
+          "type": "object"
+        },
+        "file_providers": {
+          "default": [],
+          "description": "File providers to run and make available prior to execution",
+          "items": {
+            "$ref": "#/definitions/NamedFileProvider"
+          },
+          "type": "array"
         },
         "image": {
           "$ref": "#/definitions/Templatable%20string"
@@ -1667,14 +1750,6 @@
   },
   "description": "Configuration for a single test scenario to be executed as part of a test plan.",
   "properties": {
-    "command": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/CommandSpec"
-        }
-      ],
-      "description": "The command to be run"
-    },
     "custom_providers": {
       "default": [],
       "description": "Custom provider declarations to load for this scenario",
@@ -1686,22 +1761,6 @@
     "description": {
       "description": "A brief description of the purpose / behaviour of this scenario",
       "type": "string"
-    },
-    "env_vars": {
-      "additionalProperties": {
-        "$ref": "#/definitions/Templatable%20Scalar"
-      },
-      "default": {},
-      "description": "Environment variables to set",
-      "type": "object"
-    },
-    "file_providers": {
-      "default": [],
-      "description": "File providers to run and make available prior to execution",
-      "items": {
-        "$ref": "#/definitions/NamedFileProvider"
-      },
-      "type": "array"
     },
     "name": {
       "description": "The name of this scenario",
@@ -1718,8 +1777,7 @@
   },
   "required": [
     "name",
-    "description",
-    "command"
+    "description"
   ],
   "title": "Scenario Config",
   "type": "object"

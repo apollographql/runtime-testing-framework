@@ -12,7 +12,7 @@ use crate::{
             ResolveAndWrite, apollo::GraphosSubgraphRouterUrlOverrides, github::GithubFile,
         },
     },
-    run::ResolveAndExecute,
+    run::{Execute, RunProviders},
     templating::{self, Scalar, Template, TemplateContext},
 };
 use rtf_derive::Template;

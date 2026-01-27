@@ -6,6 +6,7 @@ use crate::{
     formats::{CustomProviderDeclaration, Result},
     inlining,
     providers::{command::CommandSection, file::SourceDir},
+    run::RunProviders,
     templating::{self, FileType, Template, TemplateContext},
 };
 use schemars::JsonSchema;

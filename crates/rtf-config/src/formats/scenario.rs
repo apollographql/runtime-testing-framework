@@ -4,12 +4,23 @@ use crate::{
     context::ResolutionContext,
     formats::{CustomProviderDeclaration, Result},
     inlining,
-    providers::{command::CommandSection, file::SourceDir},
-    templating::{self, FileType, Template, TemplateContext},
+    providers::{
+        self, Provider,
+        command::CommandSection,
+        file::{NamedFileProvider, SourceDir},
+    },
+    run::{Execute, OUTDIR, OUTPUT_PATH, RunProviders},
+    templating::{self, Field, FileType, Scalar, Template, TemplateContext},
 };
+use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, fs, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+    path::Path,
+    pin::Pin,
+};
 
 /// # Scenario Config
 ///
@@ -29,7 +40,7 @@ pub struct ScenarioConfig {
     pub custom_providers: Vec<CustomProviderDeclaration>,
     /// The command to execute as this scenario
     #[serde(flatten)]
-    pub command: CommandSection,
+    pub command: ScenarioCommand,
 }
 
 impl ScenarioConfig {
@@ -40,9 +51,7 @@ impl ScenarioConfig {
     }
 
     pub async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
-        self.command.inline(ctx).await?;
-
-        Ok(())
+        self.command.inline(ctx).await
     }
 
     pub async fn inline_all_relative_paths(
@@ -60,7 +69,7 @@ impl ScenarioConfig {
             description: Default::default(),
             variable_definitions: Default::default(),
             custom_providers: Default::default(),
-            command: CommandSection::empty(),
+            command: ScenarioCommand::Script(CommandSection::empty()),
         }
     }
 }
@@ -120,11 +129,14 @@ impl Check for ScenarioConfig {
         path: &mut Vec<String>,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        let mut path = path.clone();
         if path.last().map(String::as_str) != Some("scenario") {
             path.push("scenario".to_string());
         }
-        self.command.try_check(&mut path, ctx)
+
+        match &self.command {
+            ScenarioCommand::Docker(inner) => inner.try_check(path, ctx),
+            ScenarioCommand::Script(inner) => inner.try_check(path, ctx),
+        }
     }
 }
 
@@ -132,16 +144,257 @@ impl CheckArrayDuplicates for ScenarioConfig {
     const BASE_PATH: &str = "scenario";
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
+        let file_providers = match &mut self.command {
+            ScenarioCommand::Docker(inner) => &mut inner.file_providers,
+            ScenarioCommand::Script(inner) => &mut inner.file_providers,
+        };
+
         vec![
             (
                 "variables",
                 DedupArray::VariableDef(&mut self.variable_definitions),
             ),
-            (
-                "file_providers",
-                DedupArray::Nfp(&mut self.command.file_providers),
-            ),
+            ("file_providers", DedupArray::Nfp(file_providers)),
         ]
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+#[serde(untagged)]
+pub enum ScenarioCommand {
+    Docker(DockerScenario),
+    Script(CommandSection),
+}
+
+impl RunProviders for ScenarioCommand {
+    async fn run_providers(
+        &self,
+        providers_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<()> {
+        match self {
+            Self::Docker(inner) => inner.file_providers.run_providers(providers_dir, ctx).await,
+            Self::Script(inner) => inner.run_providers(providers_dir, ctx).await,
+        }
+    }
+
+    fn inline<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        match self {
+            Self::Docker(inner) => inner.file_providers.inline(ctx),
+            Self::Script(inner) => inner.inline(ctx),
+        }
+    }
+
+    fn inline_all_relative_paths<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        match self {
+            Self::Docker(inner) => inner.file_providers.inline_all_relative_paths(ctx),
+            Self::Script(inner) => inner.inline_all_relative_paths(ctx),
+        }
+    }
+}
+
+impl Execute for ScenarioCommand {
+    fn command_name(&self) -> &str {
+        match self {
+            Self::Docker(inner) => inner.command_name(),
+            Self::Script(inner) => inner.command_name(),
+        }
+    }
+
+    fn execute(
+        &self,
+        out_dir: &Path,
+        output_path: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        match self {
+            Self::Docker(inner) => inner.execute(out_dir, output_path, ctx),
+            Self::Script(inner) => inner.execute(out_dir, output_path, ctx),
+        }
+    }
+}
+
+impl Check for ScenarioCommand {
+    fn try_check(
+        &self,
+        path: &mut Vec<String>,
+        ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        match self {
+            Self::Docker(inner) => inner.try_check(path, ctx),
+            Self::Script(inner) => inner.try_check(path, ctx),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+pub struct DockerScenario {
+    pub image: Field<String>,
+    pub tag: Option<Field<String>>,
+    pub command: Field<String>,
+
+    /// Environment variables to set
+    #[serde(default)]
+    pub env_vars: HashMap<String, Field<Scalar>>,
+    /// File providers to run and make available prior to execution
+    #[serde(default)]
+    pub file_providers: Vec<NamedFileProvider>,
+}
+
+impl DockerScenario {
+    fn as_command_and_args(
+        &self,
+        env_vars: &HashMap<String, String>,
+        ctx: &impl ResolutionContext,
+    ) -> (&'static str, Vec<String>) {
+        let image = match self.tag.as_ref() {
+            Some(tag) => format!("{}:{}", self.image.as_resolved(), tag.as_resolved()),
+            None => self.image.as_resolved().to_string(),
+        };
+
+        let mut args = vec![
+            "run".to_string(),
+            "--rm".to_string(),
+            "-v".to_string(),
+            format!("{}:/output", ctx.output_path().display()),
+        ];
+
+        for (k, v) in env_vars.iter() {
+            args.extend(["-e".to_string(), format!("{k}={v}")]);
+        }
+
+        args.extend([
+            image,
+            "sh".to_string(),
+            "-c".to_string(),
+            self.command.as_resolved().to_string(),
+        ]);
+
+        ("docker", args)
+    }
+
+    /// Combine the base environment variables we have with the ones coming from the file providers
+    /// we need to run. The `out_dir` argument here needs to match the one used when running
+    /// and outputting the content of the file providers.
+    pub fn all_env_vars(
+        &self,
+        out_dir: &Path,
+        output_path: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<HashMap<String, String>> {
+        let mut vars = self.file_path_env_vars(out_dir, output_path, ctx)?;
+
+        let out_dir = ctx.output_path().to_string_lossy();
+        for path in vars.values_mut() {
+            let in_container_path = match path.strip_prefix(out_dir.as_ref()) {
+                Some(tail) => format!("/output{tail}"),
+                None => {
+                    panic!("provider path found that is outside of the output directory: {path}")
+                }
+            };
+
+            *path = in_container_path;
+        }
+
+        vars.extend(self.explicit_env_vars());
+
+        Ok(vars)
+    }
+
+    fn explicit_env_vars(&self) -> HashMap<String, String> {
+        self.env_vars
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.as_resolved().to_string()))
+            .collect()
+    }
+
+    fn file_path_env_vars(
+        &self,
+        out_dir: &Path,
+        output_path: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<HashMap<String, String>> {
+        let mut vars = HashMap::with_capacity(self.file_providers.len() + 2);
+
+        for nfp in self.file_providers.iter() {
+            let path = ctx
+                .known_provider_output_path(Provider::File { fp: &nfp.provider })
+                .ok_or(providers::Error::MissingProviderOutput {
+                    name: nfp.name.clone(),
+                })?;
+            vars.insert(nfp.env_var.clone(), path.to_string_lossy().to_string());
+        }
+
+        vars.insert(OUTDIR.to_string(), out_dir.display().to_string());
+        vars.insert(OUTPUT_PATH.to_string(), output_path.display().to_string());
+
+        Ok(vars)
+    }
+}
+
+impl Execute for DockerScenario {
+    fn command_name(&self) -> &str {
+        "docker"
+    }
+
+    fn execute(
+        &self,
+        out_dir: &Path,
+        output_path: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        let env_vars = self.all_env_vars(out_dir, output_path, ctx)?;
+        let (cmd, args) = self.as_command_and_args(&env_vars, ctx);
+
+        ctx.run_command_blocking(cmd, args.iter().map(|s| s.as_str()), &HashMap::default())
+            .map_err(Into::into)
+    }
+}
+
+impl RunProviders for DockerScenario {
+    async fn run_providers(
+        &self,
+        providers_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<()> {
+        self.file_providers.run_providers(providers_dir, ctx).await
+    }
+
+    fn inline<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        self.file_providers.inline(ctx)
+    }
+
+    fn inline_all_relative_paths<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        self.file_providers.inline_all_relative_paths(ctx)
+    }
+}
+
+impl Check for DockerScenario {
+    fn try_check(
+        &self,
+        _path: &mut Vec<String>,
+        _ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        // We deliberately _don't_ check for the presence of docker on the PATH as part of static
+        // checks as we can't guarantee that checks are being run on the same system that will
+        // ultimately execute the test plan.
+        // This means that docker _not_ being on the PATH will result in a runtime error during
+        // command execution, which matches the behaviour of missing dependencies in other
+        // CommandProivider variants where we don't even know what dependencies the script has.
+
+        Ok(())
     }
 }
 
@@ -162,10 +415,10 @@ pub(crate) mod test_helpers {
     ) -> ScenarioConfig {
         ScenarioConfig {
             custom_providers: custom_providers.to_vec(),
-            command: CommandSection {
+            command: ScenarioCommand::Script(CommandSection {
                 file_providers: named_file_providers_with_fields(fields),
                 ..CommandSection::empty()
-            },
+            }),
             ..ScenarioConfig::empty()
         }
     }
@@ -179,10 +432,10 @@ pub(crate) mod test_helpers {
         ScenarioConfig {
             custom_providers: custom_providers.to_vec(),
             variable_definitions: variable_definitions(variable_names),
-            command: CommandSection {
+            command: ScenarioCommand::Script(CommandSection {
                 file_providers: templatable_file_providers(scenario_fields),
                 ..CommandSection::empty()
-            },
+            }),
             ..ScenarioConfig::empty()
         }
     }
@@ -391,7 +644,7 @@ mod tests {
     #[test]
     fn check_success() {
         let scenario = ScenarioConfig {
-            command: cmd_with_inline_file(),
+            command: ScenarioCommand::Script(cmd_with_inline_file()),
             ..ScenarioConfig::empty()
         };
 
@@ -404,7 +657,7 @@ mod tests {
     #[test]
     fn check_command_errors() {
         let scenario = ScenarioConfig {
-            command: cmd_with_required_file(),
+            command: ScenarioCommand::Script(cmd_with_required_file()),
             ..ScenarioConfig::empty()
         };
 
@@ -666,7 +919,7 @@ mod tests {
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
 
         let mut scenario = ScenarioConfig {
-            command: CommandSection {
+            command: ScenarioCommand::Script(CommandSection {
                 command: CommandSpec {
                     name: "example.sh".to_string(),
                     command_provider: CommandProvider::RelativePath(RelativeFile {
@@ -676,15 +929,20 @@ mod tests {
                     args: Vec::new(),
                 },
                 ..CommandSection::empty()
-            },
+            }),
             ..ScenarioConfig::empty()
         };
 
         let result = scenario.inline(&ctx).await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
+        let command_provider = match scenario.command {
+            ScenarioCommand::Script(inner) => inner.command.command_provider,
+            ScenarioCommand::Docker(_) => panic!("scenario command should be a script"),
+        };
+
         assert_eq!(
-            scenario.command.command.command_provider,
+            command_provider,
             CommandProvider::Inline(InlineFile {
                 content: file_content.to_string(),
             }),

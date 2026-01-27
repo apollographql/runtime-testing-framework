@@ -6,7 +6,7 @@ use rtf_config::{
     checks::Check,
     context::Context,
     formats::CustomProviderDefinition,
-    run::{OUTPUT_PATH, PROVIDER_DIR, ResolveAndExecute},
+    run::{Execute, OUTPUT_PATH, PROVIDER_DIR},
     templating::{Scalar, Template, TemplateContext},
 };
 use similar::{ChangeTag, TextDiff};

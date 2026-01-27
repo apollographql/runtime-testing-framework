@@ -13,7 +13,7 @@ use rtf_config::{
     SourceDir,
     checks::Check,
     context::ResolutionContext,
-    run::{OUTPUT_PATH, PROVIDER_DIR, ResolveAndExecute},
+    run::{Execute, OUTPUT_PATH, PROVIDER_DIR},
     templating::{Template, TemplateContext},
 };
 use std::env::current_dir;

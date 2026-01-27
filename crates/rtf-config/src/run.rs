@@ -2,11 +2,20 @@
 //!
 //! Running a given test plan section (scenario, environment) is split into two stages: resolution
 //! of file providers and execution of the command itself.
-use crate::{context::ResolutionContext, providers};
+use crate::{
+    context::ResolutionContext,
+    inlining,
+    providers::{
+        self, Provider,
+        file::{NamedFileProvider, ResolveAndWrite},
+    },
+};
 use std::{
     io,
     path::{Path, PathBuf},
+    pin::Pin,
 };
+use tracing::trace;
 
 /// The environment variable used to provide the location of the output directory to user specified
 /// commands
@@ -15,7 +24,7 @@ pub const OUTPUT_PATH: &str = "RTF_OUTPUT";
 pub const PROVIDER_DIR: &str = "providers";
 
 #[allow(async_fn_in_trait)]
-pub trait Resolve {
+pub trait RunProviders {
     /// Run all of the [FileProviders][0] associated with this command and write out their file
     /// contents to the specified directory.
     ///
@@ -25,9 +34,93 @@ pub trait Resolve {
         providers_dir: &Path,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()>;
+
+    // We need to pin these futures on the heap to be able to poll it in order to avoid a
+    // recursively defined future (which is infinitely sized). We end up being recursively
+    // defined because of the FromCommand file provider which is just a wrapper around
+    // this CommandSection struct. Therefore, the call to inline_all_relative_paths
+    // below ends up calling back into inline_all_relative_paths which calls this method.
+
+    fn inline<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>>;
+
+    fn inline_all_relative_paths<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>>;
 }
 
-pub trait Execute {
+impl RunProviders for Vec<NamedFileProvider> {
+    async fn run_providers(
+        &self,
+        providers_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<()> {
+        for nfp in self.iter() {
+            let cache_key = Provider::File { fp: &nfp.provider };
+            if ctx.known_provider_output_path(cache_key).is_some() {
+                continue;
+            }
+
+            trace!(name=%nfp.name, "running file provider");
+            let file_path = providers_dir.join(&nfp.name);
+
+            // We need to box the future here in order to prevent us ending up with a recursive
+            // type definition for the Future we are building with this method. We end up being
+            // recursively defined because of the FromCommand file provider which is just a wrapper
+            // around this struct, meaning that the call to resolve_and_write below ends up calling
+            // back into run_providers_and_execute which then calls this method (run_providers).
+            match Box::pin(nfp.resolve_and_write(&file_path, ctx)).await {
+                Ok(b) => b,
+                Err(e) => {
+                    return Err(providers::Error::ResolveAndWriteFailed {
+                        name: nfp.env_var.to_string(),
+                        err: e.to_string(),
+                    });
+                }
+            };
+
+            ctx.store_provider_output_path(Provider::File { fp: &nfp.provider }, file_path);
+        }
+
+        Ok(())
+    }
+
+    fn inline<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        Box::pin(async move {
+            let mut errs = inlining::ErrorBuilder::new();
+
+            for nfp in self.iter_mut() {
+                errs.append(nfp.provider.inline(ctx).await);
+            }
+
+            errs.into_result(())
+        })
+    }
+
+    fn inline_all_relative_paths<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        Box::pin(async move {
+            let mut errs = inlining::ErrorBuilder::new();
+
+            for nfp in self.iter_mut() {
+                errs.append(nfp.provider.inline_all_relative_paths(ctx).await);
+            }
+
+            errs.into_result(())
+        })
+    }
+}
+
+#[allow(async_fn_in_trait)]
+pub trait Execute: RunProviders {
     fn command_name(&self) -> &str;
 
     /// Execute this command with the specified environment, returning the output path used.
@@ -41,10 +134,7 @@ pub trait Execute {
         output_path: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<()>;
-}
 
-#[allow(async_fn_in_trait)]
-pub trait ResolveAndExecute: Resolve + Execute {
     /// Run all of the [FileProviders][0] associated with this command and write out their file
     /// contents to the specified directory before executing the command with the specified
     /// environment, returning the the output path passed to the command.
@@ -101,8 +191,6 @@ pub trait ResolveAndExecute: Resolve + Execute {
         try_read_output_and_remove(&output_path, ctx)
     }
 }
-
-impl<T> ResolveAndExecute for T where T: Resolve + Execute {}
 
 /// It is possible that no output is set in the environment setup script. If the output is
 /// blank then default to an empty json object. If there is an error reading the user defined
