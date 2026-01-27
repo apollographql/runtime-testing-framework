@@ -1,0 +1,24 @@
+name: environment-docker-based-scenario
+description: Execute a scenario from a docker image
+
+variable_definitions:
+  - name: message
+    description: "A message to echo out"
+
+setup:
+  command:
+    name: echo-message.sh
+    kind: relative_path
+    path: scripts/echo-message.sh
+  env_vars:
+    MESSAGE: "{{ message }}"
+    STAGE: "env-setup"
+
+teardown:
+  command:
+    name: echo-message.sh
+    kind: relative_path
+    path: scripts/echo-message.sh
+  env_vars:
+    MESSAGE: "{{ message }}"
+    STAGE: "env-teardown"

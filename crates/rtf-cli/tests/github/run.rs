@@ -15,8 +15,8 @@ fn github_flag_completes(dir: &str) {
 #[test]
 #[ignore = "requires a valid GitHub API Token"]
 fn github_flag_produces_expected_output() {
-    let temp = TempDir::new().unwrap();
-    let outdir = temp.child("output");
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    let outdir = tmp.child("output");
     let outdir = outdir.path().to_str().unwrap();
 
     let mut cmd = cargo_bin_cmd!("rtf");
@@ -35,8 +35,8 @@ fn github_flag_produces_expected_output() {
 #[test]
 #[ignore = "requires a valid GitHub API Token"]
 fn github_flag_invalid_path_fails() {
-    let temp = TempDir::new().unwrap();
-    let outdir = temp.child("output");
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    let outdir = tmp.child("output");
     let outdir = outdir.path().to_str().unwrap();
 
     let mut cmd = cargo_bin_cmd!("rtf");

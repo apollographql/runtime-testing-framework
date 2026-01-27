@@ -3,6 +3,7 @@ use crate::{
     context::ResolutionContext,
     formats::{CustomProviderDeclaration, EnvironmentConfig, Matrix, Result, ScenarioConfig},
     providers::file::SourceDir,
+    run::Execute,
     templating::{self, Scalar, Template, TemplateContext},
 };
 use rtf_integrations::github::{self, Client};
@@ -279,7 +280,7 @@ mod tests {
         formats::{
             Error,
             environment::test_helpers::environment_with_fields,
-            scenario::test_helpers::scenario_with_fields,
+            scenario::{ScenarioCommand, test_helpers::scenario_with_fields},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
                 templatable_file_providers, template_context, variable_definitions,
@@ -1246,7 +1247,7 @@ mod tests {
             .expect("failed to write environment file");
 
         let expected_scenario_name = "scenario";
-        let expected_scenario_command = CommandSection {
+        let expected_scenario_command = ScenarioCommand::Script(CommandSection {
             command: CommandSpec {
                 name: "scenario.sh".to_string(),
                 args: Vec::new(),
@@ -1255,7 +1256,7 @@ mod tests {
                 }),
             },
             ..CommandSection::empty()
-        };
+        });
         let expected_env_files = vec![NamedFileProvider {
             name: "file.txt".to_string(),
             env_var: "FILE".to_string(),
@@ -1364,10 +1365,10 @@ mod tests {
         let mut test_plan = TestPlanConfig {
             scenario: ScenarioConfig {
                 variable_definitions: variable_definitions(scenario_fields),
-                command: CommandSection {
+                command: ScenarioCommand::Script(CommandSection {
                     file_providers: templatable_file_providers(scenario_fields),
                     ..CommandSection::empty()
-                },
+                }),
                 ..ScenarioConfig::empty()
             },
             environment: EnvironmentConfig {
@@ -1403,10 +1404,10 @@ mod tests {
         TestPlanConfig {
             scenario: ScenarioConfig {
                 variable_definitions: variable_definitions(scenario_variable_defs),
-                command: CommandSection {
+                command: ScenarioCommand::Script(CommandSection {
                     file_providers: templatable_file_providers(scenario_fields),
                     ..CommandSection::empty()
-                },
+                }),
                 ..ScenarioConfig::empty()
             },
             environment: EnvironmentConfig {
@@ -1653,7 +1654,7 @@ mod tests {
     fn check_success() {
         let test_plan = TestPlanConfig {
             scenario: ScenarioConfig {
-                command: cmd_with_inline_file(),
+                command: ScenarioCommand::Script(cmd_with_inline_file()),
                 ..ScenarioConfig::empty()
             },
             environment: EnvironmentConfig {
@@ -1695,7 +1696,7 @@ mod tests {
     ) {
         let test_plan = TestPlanConfig {
             scenario: ScenarioConfig {
-                command: scenario_cmd,
+                command: ScenarioCommand::Script(scenario_cmd),
                 ..ScenarioConfig::empty()
             },
             environment: EnvironmentConfig {

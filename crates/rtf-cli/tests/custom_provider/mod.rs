@@ -259,7 +259,7 @@ fn check_with_value_not_in_allowed_values_fails() {
 
 #[test]
 fn run_single_file_creates_expected_output() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/valid/single-file",
         &["provider.yaml"],
@@ -292,7 +292,7 @@ fn run_single_file_creates_expected_output() {
 
 #[test]
 fn run_with_variables_creates_expected_output() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/valid/with-variables",
         &["provider.yaml"],
@@ -322,7 +322,7 @@ fn run_with_variables_creates_expected_output() {
 
 #[test]
 fn run_with_allowed_values_uses_default() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/valid/with-allowed-values",
         &["provider.yaml"],
@@ -355,7 +355,7 @@ fn run_with_allowed_values_uses_default() {
 
 #[test]
 fn run_with_allowed_values_override_valid() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/valid/with-allowed-values",
         &["provider.yaml"],
@@ -389,7 +389,7 @@ fn run_with_allowed_values_override_valid() {
 
 #[test]
 fn run_with_allowed_values_override_invalid_fails() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/valid/with-allowed-values",
         &["provider.yaml"],
@@ -418,7 +418,7 @@ fn run_with_allowed_values_override_invalid_fails() {
 
 #[test]
 fn run_with_existing_outdir_fails() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/valid/single-file",
         &["provider.yaml"],
@@ -448,7 +448,7 @@ fn run_with_existing_outdir_fails() {
 
 #[test]
 fn run_with_file_provider_creates_expected_output() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/valid/with-file-provider",
         &["provider.yaml", "data/**"],
@@ -476,7 +476,7 @@ fn run_with_file_provider_creates_expected_output() {
 
 #[test]
 fn test_passing_single_file() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/valid/single-file",
         &["provider.yaml", "test-cases/**"],
@@ -498,7 +498,7 @@ fn test_passing_single_file() {
 
 #[test]
 fn test_passing_multi_file() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/valid/multi-file",
         &["provider.yaml", "test-cases/**", "data/**"],
@@ -520,7 +520,7 @@ fn test_passing_multi_file() {
 
 #[test]
 fn test_passing_expected_error() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/valid/expected-error",
         &["provider.yaml", "test-cases/**"],
@@ -542,7 +542,7 @@ fn test_passing_expected_error() {
 
 #[test]
 fn test_expected_failure_mismatch() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/invalid/test-error-mismatch",
         &["provider.yaml", "test-cases/**"],
@@ -566,7 +566,7 @@ fn test_expected_failure_mismatch() {
 
 #[test]
 fn test_error_on_empty() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/valid/single-file",
         &["provider.yaml"], // not copying in the test case
@@ -590,7 +590,7 @@ fn test_error_on_empty() {
 
 #[test]
 fn test_expected_failure_but_provider_passes() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/valid/single-file",
         &["provider.yaml"], // not copying in the test case
@@ -624,7 +624,7 @@ fn test_expected_failure_but_provider_passes() {
 
 #[test]
 fn test_passing_with_allowed_values() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/valid/with-allowed-values",
         &["provider.yaml", "test-cases/**"],
@@ -649,7 +649,7 @@ fn test_passing_with_allowed_values() {
 
 #[test]
 fn test_value_not_in_allowed_fails() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/valid/with-allowed-values",
         &["provider.yaml"],
@@ -682,7 +682,7 @@ fn test_value_not_in_allowed_fails() {
 
 #[test]
 fn test_empty_allowed_values_fails() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/invalid",
         &["empty-allowed-values.yaml"],
@@ -715,7 +715,7 @@ fn test_empty_allowed_values_fails() {
 
 #[test]
 fn test_default_not_in_allowed_values_fails() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
         "resources/custom-providers/invalid",
         &["default-not-in-allowed-values.yaml"],

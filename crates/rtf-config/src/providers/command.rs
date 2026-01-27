@@ -1,7 +1,7 @@
 use crate::{
     checks::{self, Check, duplicate_keys},
     context::ResolutionContext,
-    enum_impl_as_utf8_file_content, enum_impl_check, inlining,
+    enum_impl_check, inlining,
     providers::{
         self, Provider,
         file::{
@@ -9,25 +9,14 @@ use crate::{
             ResolveAndWrite,
         },
     },
+    run::{Execute, OUTDIR, OUTPUT_PATH, RunProviders},
     templating::{Field, Scalar},
 };
 use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    future::Future,
-    io,
-    path::{Path, PathBuf},
-    pin::Pin,
-};
+use std::{collections::HashMap, future::Future, io, path::Path, pin::Pin};
 use tracing::trace;
-
-/// The environment variable used to provide the location of the output directory to user specified
-/// commands
-pub const OUTDIR: &str = "OUTDIR";
-pub const OUTPUT_PATH: &str = "RTF_OUTPUT";
-pub const PROVIDER_DIR: &str = "providers";
 
 /// # Command Section
 ///
@@ -46,104 +35,6 @@ pub struct CommandSection {
 }
 
 impl CommandSection {
-    /// Run all of the [FileProviders][0] associated with this command and write out their file
-    /// contents to the specified directory before executing the command with the specified
-    /// environment, returning the the output path passed to the command.
-    ///
-    /// [0]: crate::providers::file::FileProvider
-    pub async fn run_providers_and_execute(
-        &self,
-        name: &str,
-        out_dir: &Path,
-        output_path: PathBuf,
-        providers_dir: PathBuf,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<PathBuf> {
-        self.run_providers(&providers_dir.join(format!("{name}_providers")), ctx)
-            .await?;
-
-        if let Err(e) = self.execute(out_dir, &output_path, ctx) {
-            return Err(providers::Error::CommandFailed {
-                name: self.command.name.to_string(),
-                err: e.to_string(),
-            });
-        };
-
-        Ok(output_path)
-    }
-
-    /// Run all of the [FileProviders][0] associated with this command and write out their file
-    /// contents to the specified directory before executing the command with the specified
-    /// environment, returning the the content written to [OUTPUT_PATH] and removing the output
-    /// file if it was created.
-    ///
-    /// This method assumes that the command being executed is writing a single file out at the
-    /// provided output path rather than a directory of files. To run a command and leave the
-    /// resources available on disk after execution, use [run_providers_and_execute][1] instead.
-    ///
-    /// [0]: crate::providers::file::FileProvider
-    /// [1]: CommandSection::run_providers_and_execute
-    pub async fn run_providers_and_execute_for_output(
-        &self,
-        name: &str,
-        out_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<String> {
-        let output_path = self
-            .run_providers_and_execute(
-                name,
-                out_dir,
-                out_dir.join(OUTPUT_PATH),
-                out_dir.join(PROVIDER_DIR),
-                ctx,
-            )
-            .await?;
-
-        try_read_output_and_remove(&output_path, ctx)
-    }
-
-    /// Execute this command with the specified environment, returning the output path used.
-    ///
-    /// [CommandSection::run_providers] must have been run successfully before calling this method
-    /// in order to ensure that all file providers have written out their file content to the
-    /// expected location.
-    fn execute(
-        &self,
-        out_dir: &Path,
-        output_path: &Path,
-        ctx: &impl ResolutionContext,
-    ) -> providers::Result<()> {
-        let env_vars = self.all_env_vars(out_dir, output_path, ctx)?;
-
-        let file_path = ctx
-            .known_provider_output_path(Provider::Command {
-                name: &self.command.name,
-                cmd: &self.command.command_provider,
-            })
-            .ok_or(providers::Error::MissingProviderOutput {
-                name: self.command.name.clone(),
-            })?;
-
-        let prog = match file_path.to_str() {
-            Some(v) => v,
-            None => {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "unable to convert command path to valid string",
-                )
-                .into());
-            }
-        };
-        let it = self
-            .command
-            .args
-            .iter()
-            .map(|arg| arg.as_resolved().as_str());
-        ctx.run_command_blocking(prog, it, &env_vars)?;
-
-        Ok(())
-    }
-
     /// Combine the base environment variables we have with the ones coming from the file providers
     /// we need to run. The `out_dir` argument here needs to match the one used when running
     /// and outputting the content of the file providers.
@@ -174,70 +65,6 @@ impl CommandSection {
         Ok(vars)
     }
 
-    /// Run all of the [FileProviders][0] associated with this command and write out their file
-    /// contents to the specified directory.
-    ///
-    /// [0]: crate::providers::file::FileProvider
-    async fn run_providers(
-        &self,
-        providers_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<()> {
-        if ctx
-            .known_provider_output_path(Provider::Command {
-                name: &self.command.name,
-                cmd: &self.command.command_provider,
-            })
-            .is_none()
-        {
-            trace!(name=%self.command.name, "running command provider");
-            let file_path = providers_dir.join(&self.command.name);
-            self.command
-                .command_provider
-                .resolve_and_write(&file_path, ctx)
-                .await?;
-            ctx.make_executable(&file_path)?;
-            ctx.store_provider_output_path(
-                Provider::Command {
-                    name: &self.command.name,
-                    cmd: &self.command.command_provider,
-                },
-                file_path,
-            );
-        }
-
-        for nfp in self.file_providers.iter() {
-            if ctx
-                .known_provider_output_path(Provider::File { fp: &nfp.provider })
-                .is_some()
-            {
-                continue;
-            }
-
-            trace!(name=%nfp.name, "running command provider");
-            let file_path = providers_dir.join(&nfp.name);
-
-            // We need to box the future here in order to prevent us ending up with a recursive
-            // type definition for the Future we are building with this method. We end up being
-            // recursively defined because of the FromCommand file provider which is just a wrapper
-            // around this struct, meaning that the call to resolve_and_write below ends up calling
-            // back into run_providers_and_execute which then calls this method (run_providers).
-            match Box::pin(nfp.resolve_and_write(&file_path, ctx)).await {
-                Ok(b) => b,
-                Err(e) => {
-                    return Err(providers::Error::ResolveAndWriteFailed {
-                        name: nfp.env_var.to_string(),
-                        err: e.to_string(),
-                    });
-                }
-            };
-
-            ctx.store_provider_output_path(Provider::File { fp: &nfp.provider }, file_path);
-        }
-
-        Ok(())
-    }
-
     /// Create an empty [CommandSection] for tests
     #[cfg(test)]
     pub(crate) fn empty() -> CommandSection {
@@ -253,37 +80,49 @@ impl CommandSection {
             file_providers: Default::default(),
         }
     }
+}
 
-    pub(crate) fn inline<'a>(
+impl RunProviders for CommandSection {
+    async fn run_providers(
+        &self,
+        providers_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<()> {
+        self.file_providers
+            .run_providers(providers_dir, ctx)
+            .await?;
+
+        let cache_key = Provider::Command {
+            name: &self.command.name,
+            cmd: &self.command.command_provider,
+        };
+
+        if ctx.known_provider_output_path(cache_key).is_none() {
+            self.command
+                .try_resolve_as_script(providers_dir, ctx)
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    fn inline<'a>(
         &'a mut self,
         ctx: &'a impl ResolutionContext,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
-        // We need to pin this future on the heap to be able to poll it in order to avoid a
-        // recursively defined future (which is infinitely sized). We end up being recursively
-        // defined because of the FromCommand file provider which is just a wrapper around
-        // this CommandSection struct. Therefore, the call to inline_all_relative_paths
-        // below ends up calling back into inline_all_relative_paths which calls this method.
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
             errs.append(self.command.command_provider.inline(ctx).await);
-            for named_file_provider in self.file_providers.iter_mut() {
-                errs.append(named_file_provider.provider.inline(ctx).await);
-            }
-
+            errs.append(self.file_providers.inline(ctx).await);
             errs.into_result(())
         })
     }
 
-    pub(crate) fn inline_all_relative_paths<'a>(
+    fn inline_all_relative_paths<'a>(
         &'a mut self,
         ctx: &'a impl ResolutionContext,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
-        // We need to pin this future on the heap to be able to poll it in order to avoid a
-        // recursively defined future (which is infinitely sized). We end up being recursively
-        // defined because of the FromCommand file provider which is just a wrapper around
-        // this CommandSection struct. Therefore, the call to inline_all_relative_paths
-        // below ends up calling back into inline_all_relative_paths which calls this method.
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
@@ -293,17 +132,52 @@ impl CommandSection {
                     .inline_all_relative_paths(ctx)
                     .await,
             );
-            for named_file_provider in self.file_providers.iter_mut() {
-                errs.append(
-                    named_file_provider
-                        .provider
-                        .inline_all_relative_paths(ctx)
-                        .await,
-                );
-            }
-
+            errs.append(self.file_providers.inline_all_relative_paths(ctx).await);
             errs.into_result(())
         })
+    }
+}
+
+impl Execute for CommandSection {
+    fn command_name(&self) -> &str {
+        &self.command.name
+    }
+
+    fn execute(
+        &self,
+        out_dir: &Path,
+        output_path: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        let env_vars = self.all_env_vars(out_dir, output_path, ctx)?;
+        let args = self
+            .command
+            .args
+            .iter()
+            .map(|arg| arg.as_resolved().as_str());
+
+        let file_path = ctx
+            .known_provider_output_path(Provider::Command {
+                name: &self.command.name,
+                cmd: &self.command.command_provider,
+            })
+            .ok_or(providers::Error::MissingProviderOutput {
+                name: self.command.name.clone(),
+            })?;
+
+        let prog = match file_path.to_str() {
+            Some(v) => v,
+            None => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "unable to convert command path to valid string",
+                )
+                .into());
+            }
+        };
+
+        ctx.run_command_blocking(prog, args, &env_vars)
+            .map_err(Into::into)
     }
 }
 
@@ -356,26 +230,6 @@ impl Check for CommandSection {
     }
 }
 
-/// It is possible that no output is set in the environment setup script. If the output is
-/// blank then default to an empty json object. If there is an error reading the user defined
-/// output to the file then we still pass that error to the user. This is a quality of life
-/// improvement so if the user does not define any output the rtf execution will continue.
-fn try_read_output_and_remove(
-    output_path: &Path,
-    ctx: &impl ResolutionContext,
-) -> providers::Result<String> {
-    let output = match ctx.read_path_to_string(output_path) {
-        Ok(s) => {
-            ctx.remove_file(output_path)?;
-            s
-        }
-        Err(e) if e.kind() == io::ErrorKind::NotFound => "{}".to_string(),
-        Err(e) => return Err(e.into()),
-    };
-
-    Ok(output)
-}
-
 /// # Command Spec
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct CommandSpec {
@@ -388,6 +242,40 @@ pub struct CommandSpec {
     /// Arguments to the command
     #[serde(default)]
     pub args: Vec<Field<String>>,
+}
+
+impl CommandSpec {
+    async fn try_resolve_as_script(
+        &self,
+        providers_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<()> {
+        trace!(name=%self.name, "running command provider");
+        let file_path = providers_dir.join(&self.name);
+
+        match &self.command_provider {
+            CommandProvider::Inline(inner) => inner.resolve_and_write(&file_path, ctx).await?,
+            CommandProvider::RelativePath(inner) => {
+                inner.resolve_and_write(&file_path, ctx).await?
+            }
+
+            // This will panic but we want to ensure that we have a consistent error message
+            // for the user so we call through to resolve_and_write to trigger it rather than
+            // writing a custom panic message here.
+            CommandProvider::Required(inner) => inner.resolve_and_write(&file_path, ctx).await?,
+        }
+
+        ctx.make_executable(&file_path)?;
+        ctx.store_provider_output_path(
+            Provider::Command {
+                name: &self.name,
+                cmd: &self.command_provider,
+            },
+            file_path,
+        );
+
+        Ok(())
+    }
 }
 
 impl Check for CommandSpec {
@@ -449,14 +337,7 @@ impl CommandProvider {
 // to the macro invocation below in order to update the trait implementations for the enum. (You
 // can't really forget to do this as the compiler will complain about missing match arms if you
 // do!)
-macro_rules! enum_impl_command_provider {
-    ($($variant:ident),+) => {
-        enum_impl_check!(CommandProvider => $($variant),+);
-        enum_impl_as_utf8_file_content!(CommandProvider => $($variant),+);
-    };
-}
-
-enum_impl_command_provider!(Inline, RelativePath, Required);
+enum_impl_check!(CommandProvider => Inline, RelativePath, Required);
 
 #[cfg(test)]
 pub(crate) mod test_helpers {
@@ -504,6 +385,7 @@ mod tests {
             file::{FileProvider, InlineFile},
             test_helpers::create_temp_dir_with_file,
         },
+        run::{Execute, PROVIDER_DIR},
         templating::Template,
     };
     use indoc::indoc;
@@ -770,6 +652,12 @@ mod tests {
 
         fn http_client(&self) -> &Self::HttpClient {
             &NullClient
+        }
+
+        fn set_output_path(&mut self, _path: impl Into<PathBuf>) {}
+
+        fn output_path(&self) -> &Path {
+            Path::new("")
         }
 
         fn store_provider_output_path(&mut self, provider: Provider<'_>, path: PathBuf) {

@@ -17,6 +17,7 @@ use std::{
 pub(crate) struct MockContext<C: HttpClient + Clone> {
     http: C,
     github: Option<MockGithubClient>,
+    output_path: PathBuf,
 }
 
 impl MockContext<MockHttpClient> {
@@ -24,6 +25,7 @@ impl MockContext<MockHttpClient> {
         MockContext {
             http: MockHttpClient::with_responses(responses),
             github: None,
+            output_path: PathBuf::new(),
         }
     }
 }
@@ -38,6 +40,7 @@ impl MockContext<NullClient> {
                     .map(|(url, content)| (url.to_string(), content.to_string()))
                     .collect(),
             }),
+            output_path: PathBuf::new(),
         }
     }
 }
@@ -53,6 +56,14 @@ impl<C: HttpClient + Clone + 'static> ResolutionContext for MockContext<C> {
 
     fn github_client(&self) -> Option<&MockGithubClient> {
         self.github.as_ref()
+    }
+
+    fn set_output_path(&mut self, path: impl Into<PathBuf>) {
+        self.output_path = path.into();
+    }
+
+    fn output_path(&self) -> &Path {
+        &self.output_path
     }
 
     fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {

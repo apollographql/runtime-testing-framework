@@ -28,6 +28,7 @@ pub mod inlining;
 #[cfg(test)]
 mod mock_context;
 pub mod providers;
+pub mod run;
 pub mod templating;
 
 pub use providers::file::SourceDir;

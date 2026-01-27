@@ -8,6 +8,7 @@ use crate::{
         self,
         file::{RawSource, SourceDir},
     },
+    run::RunProviders,
     templating::{self, Scalar, Template, TemplateContext},
 };
 use schemars::JsonSchema;

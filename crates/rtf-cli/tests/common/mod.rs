@@ -95,7 +95,12 @@ pub struct TestSetup {
 }
 
 pub fn prepare_for_test(dir: &str) -> TestSetup {
-    let tmp = TempDir::new().unwrap();
+    // For the sake of tests that need to volume mount into docker containers, we place our temp
+    // directories in CARGO_TARGET_TMPDIR rather than /tmp. This allows us to avoid all of the
+    // "fun" of OSX /tmp symlinks and the fact that docker under OSX runs in a VM that doesn't have
+    // access to paths outside of the user's homedir.
+    //   See https://doc.rust-lang.org/cargo/reference/environment-variables.html
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(dir, &["**"]).unwrap();
 
     let output_file_path = tmp.child("output").path().to_path_buf();
@@ -128,7 +133,7 @@ pub fn prepare_rtf_run(dir: &str) -> CmdWithTmpDir {
 pub fn prepare_rtf_run_with_vars_file(dir: &str, vars_content: &str) -> CmdWithTmpDir {
     use std::fs;
 
-    let tmp = TempDir::new().unwrap();
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(dir, &["**"]).unwrap();
 
     // Write the variables file
