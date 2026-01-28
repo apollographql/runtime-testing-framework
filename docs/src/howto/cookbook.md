@@ -157,6 +157,77 @@ is written. Specifying additional matrix dimensions via the `--vars` flag on `rt
 the number of variants which in turn may result in a previously valid `variant_names` template
 becoming invalid if it now produces non-unique names.
 
+## Conditional YAML merging
+
+**Problem**: You want to use a variable to conditionally decide which YAML snippets get merged into
+your YAML files.
+
+**Solution**: Use a conditional file provider to apply the correct YAML snippets based on the
+variable's value. Here, we use the example of optionally merging DataDog telemetry configuration
+into router configuration if the `telemetry_backend` variable is set to `"datadog"`:
+
+```yaml
+file_providers:
+  - name: router-config.yaml
+    env_var: ROUTER_CONFIG
+    kind: conditional
+    cases:
+      # DataDog: include telemetry exporter config
+      - where: { var: telemetry_backend, eq: datadog }
+        kind: merge_yaml
+        base:
+          kind: relative_path
+          path: data/router-config.yaml
+        overrides:
+          - kind: relative_path
+            path: data/datadog-telemetry-overlay.yaml
+          - kind: graphos_subgraph_router_url_overrides
+            graph_ref: "{{ graph_ref }}"
+            url_format: "docker"
+
+      # Local: no exporter config needed
+      - where: { var: telemetry_backend, eq: local }
+        kind: merge_yaml
+        base:
+          kind: relative_path
+          path: data/router-config.yaml
+        overrides:
+          kind: graphos_subgraph_router_url_overrides
+          graph_ref: "{{ graph_ref }}"
+          url_format: "docker"
+```
+
+This allows you to run the same test plan with different telemetry backends:
+
+```bash
+# Run with local telemetry
+rtf run test-plan.yaml -v "telemetry_backend=local"
+
+# Run with DataDog telemetry
+rtf run test-plan.yaml -v "telemetry_backend=datadog"
+```
+
+**Discussion**: This pattern combines `kind: conditional` with `kind: merge_yaml` to dynamically
+compose configuration files based on variable values. Each case applies different overlays while
+sharing the same base configuration.
+
+Key considerations:
+
+- The first matching `where` clause is used; order cases from most to least specific
+- All cases must produce valid output—RTF validates during static analysis
+- Base configuration should omit sections that overlays will provide to avoid merge conflicts
+- Multiple overlays can be chained as an array, merging in sequence
+
+This pattern is useful when:
+
+- Different deployment targets require different configuration snippets
+- Feature flags should toggle configuration sections
+- Environment-specific settings need conditional inclusion
+
+The telemetry example above demonstrates this by conditionally including DataDog exporter
+configuration only when `telemetry_backend=datadog`, while both cases share the same base router
+config and subgraph URL overrides.
+
 [0]: ../tutorials/index.md
 [1]: ../reference/framework/index.md
 [2]: ../reference/framework/test-plans.md#working-with-matrices
