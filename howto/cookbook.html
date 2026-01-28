@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-bf3027ee.js";
+            window.path_to_searchindex_js = "../searchindex-47a2dacf.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-6484d70d.js"></script>
@@ -293,6 +293,67 @@ green_pear_bar_3
 is written. Specifying additional matrix dimensions via the <code>--vars</code> flag on <code>rtf run</code> will alter
 the number of variants which in turn may result in a previously valid <code>variant_names</code> template
 becoming invalid if it now produces non-unique names.</p>
+<h2 id="conditional-yaml-merging"><a class="header" href="#conditional-yaml-merging">Conditional YAML merging</a></h2>
+<p><strong>Problem</strong>: You want to use a variable to conditionally decide which YAML snippets get merged into
+your YAML files.</p>
+<p><strong>Solution</strong>: Use a conditional file provider to apply the correct YAML snippets based on the
+variable’s value. Here, we use the example of optionally merging DataDog telemetry configuration
+into router configuration if the <code>telemetry_backend</code> variable is set to <code>"datadog"</code>:</p>
+<pre><code class="language-yaml">file_providers:
+  - name: router-config.yaml
+    env_var: ROUTER_CONFIG
+    kind: conditional
+    cases:
+      # DataDog: include telemetry exporter config
+      - where: { var: telemetry_backend, eq: datadog }
+        kind: merge_yaml
+        base:
+          kind: relative_path
+          path: data/router-config.yaml
+        overrides:
+          - kind: relative_path
+            path: data/datadog-telemetry-overlay.yaml
+          - kind: graphos_subgraph_router_url_overrides
+            graph_ref: "{{ graph_ref }}"
+            url_format: "docker"
+
+      # Local: no exporter config needed
+      - where: { var: telemetry_backend, eq: local }
+        kind: merge_yaml
+        base:
+          kind: relative_path
+          path: data/router-config.yaml
+        overrides:
+          kind: graphos_subgraph_router_url_overrides
+          graph_ref: "{{ graph_ref }}"
+          url_format: "docker"
+</code></pre>
+<p>This allows you to run the same test plan with different telemetry backends:</p>
+<pre><code class="language-bash"># Run with local telemetry
+rtf run test-plan.yaml -v "telemetry_backend=local"
+
+# Run with DataDog telemetry
+rtf run test-plan.yaml -v "telemetry_backend=datadog"
+</code></pre>
+<p><strong>Discussion</strong>: This pattern combines <code>kind: conditional</code> with <code>kind: merge_yaml</code> to dynamically
+compose configuration files based on variable values. Each case applies different overlays while
+sharing the same base configuration.</p>
+<p>Key considerations:</p>
+<ul>
+<li>The first matching <code>where</code> clause is used; order cases from most to least specific</li>
+<li>All cases must produce valid output—RTF validates during static analysis</li>
+<li>Base configuration should omit sections that overlays will provide to avoid merge conflicts</li>
+<li>Multiple overlays can be chained as an array, merging in sequence</li>
+</ul>
+<p>This pattern is useful when:</p>
+<ul>
+<li>Different deployment targets require different configuration snippets</li>
+<li>Feature flags should toggle configuration sections</li>
+<li>Environment-specific settings need conditional inclusion</li>
+</ul>
+<p>The telemetry example above demonstrates this by conditionally including DataDog exporter
+configuration only when <code>telemetry_backend=datadog</code>, while both cases share the same base router
+config and subgraph URL overrides.</p>
 
                     </main>
 
