@@ -1,5 +1,8 @@
 //! Providers are how we expose the rest of the framework to user facing config.
-use crate::providers::{command::CommandProvider, file::FileProvider};
+use crate::providers::{
+    command::CommandProvider,
+    file::{FileProvider, compose::ComposeFileProvider},
+};
 use rtf_integrations::graphos::supergraph::FetchError;
 use serde::Serialize;
 use std::io;
@@ -61,6 +64,9 @@ pub enum Provider<'a> {
     Command {
         name: &'a str,
         cmd: &'a CommandProvider,
+    },
+    ComposeFile {
+        fp: &'a ComposeFileProvider,
     },
 }
 

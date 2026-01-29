@@ -7,7 +7,7 @@ use crate::{
     inlining,
     providers::{
         self, Provider,
-        file::{NamedFileProvider, ResolveAndWrite},
+        file::{NamedFileProvider, ResolveAndWrite, compose::NamedComposeFileProvider},
     },
 };
 use std::{
@@ -82,6 +82,73 @@ impl RunProviders for Vec<NamedFileProvider> {
             };
 
             ctx.store_provider_output_path(Provider::File { fp: &nfp.provider }, file_path);
+        }
+
+        Ok(())
+    }
+
+    fn inline<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        Box::pin(async move {
+            let mut errs = inlining::ErrorBuilder::new();
+
+            for nfp in self.iter_mut() {
+                errs.append(nfp.provider.inline(ctx).await);
+            }
+
+            errs.into_result(())
+        })
+    }
+
+    fn inline_all_relative_paths<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        Box::pin(async move {
+            let mut errs = inlining::ErrorBuilder::new();
+
+            for nfp in self.iter_mut() {
+                errs.append(nfp.provider.inline_all_relative_paths(ctx).await);
+            }
+
+            errs.into_result(())
+        })
+    }
+}
+
+impl RunProviders for Vec<NamedComposeFileProvider> {
+    async fn run_providers(
+        &self,
+        providers_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<()> {
+        for nfp in self.iter() {
+            let cache_key = Provider::ComposeFile { fp: &nfp.provider };
+            if ctx.known_provider_output_path(cache_key).is_some() {
+                continue;
+            }
+
+            trace!(name=%nfp.name, "running file provider");
+            let file_path = providers_dir.join(&nfp.name);
+
+            // We need to box the future here in order to prevent us ending up with a recursive
+            // type definition for the Future we are building with this method. We end up being
+            // recursively defined because of the FromCommand file provider which is just a wrapper
+            // around CommandSection, meaning that the call to resolve_and_write below ends up calling
+            // back into run_providers_and_execute which then calls this method (run_providers).
+            match Box::pin(nfp.resolve_and_write(&file_path, ctx)).await {
+                Ok(b) => b,
+                Err(e) => {
+                    return Err(providers::Error::ResolveAndWriteFailed {
+                        name: nfp.name.to_string(),
+                        err: e.to_string(),
+                    });
+                }
+            };
+
+            ctx.store_provider_output_path(Provider::ComposeFile { fp: &nfp.provider }, file_path);
         }
 
         Ok(())

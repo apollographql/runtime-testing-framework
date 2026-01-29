@@ -18,6 +18,7 @@ use std::{
 };
 
 pub mod apollo;
+pub mod compose;
 pub mod custom;
 pub mod github;
 mod source;
@@ -295,7 +296,10 @@ impl Check for NamedFileProvider {
 }
 
 /// Helper function for checking for invalid relative path specifiers
-fn check_relative_path_specifiers(relative_path: &Path, path: &mut [String]) -> checks::Result<()> {
+pub(crate) fn check_relative_path_specifiers(
+    relative_path: &Path,
+    path: &mut [String],
+) -> checks::Result<()> {
     if !relative_path
         .components()
         .all(|c| matches!(c, Component::Normal(_)))
