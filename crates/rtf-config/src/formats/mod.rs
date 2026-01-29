@@ -12,7 +12,7 @@ pub use custom_provider::{CustomProviderDeclaration, CustomProviderDefinition};
 pub use environment::EnvironmentConfig;
 pub use matrix::Matrix;
 use rtf_integrations::github;
-pub use scenario::ScenarioConfig;
+pub use scenario::{ScenarioCommand, ScenarioConfig};
 pub use test_plan::{RawTestPlanConfig, TestPlanConfig};
 
 /// Errors that can be encountered resolving config files

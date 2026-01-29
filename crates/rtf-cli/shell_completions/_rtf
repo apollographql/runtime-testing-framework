@@ -241,6 +241,64 @@ esac
     ;;
 esac
 ;;
+(resolve)
+_arguments "${_arguments_options[@]}" : \
+'*--var=[A single additional templating variable in the form "key=value"]:VAR:_default' \
+'--vars=[Path to a JSON file containing additional template variables]:VARS:_files' \
+'*-v[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'*--verbose[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_rtf__resolve_commands" \
+"*::: :->resolve" \
+&& ret=0
+
+    case $state in
+    (resolve)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:rtf-resolve-command-$line[1]:"
+        case $line[1] in
+            (scenario)
+_arguments "${_arguments_options[@]}" : \
+'--outdir=[Output directory for resolved providers and scenario.env]:OUTDIR:_default' \
+'*--var=[A single additional templating variable in the form "key=value"]:VAR:_default' \
+'--vars=[Path to a JSON file containing additional template variables]:VARS:_files' \
+'*-v[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'*--verbose[Flag to control logging verbosity. Default level is \`warn\`. \`-v\` sets logging level to \`info\`,\`-vv\` to \`debug\` and \`-vvv\` to \`trace\`]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':scenario_path -- Relative path to the scenario.yaml file:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_rtf__resolve__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:rtf-resolve-help-command-$line[1]:"
+        case $line[1] in
+            (scenario)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
 (help)
 _arguments "${_arguments_options[@]}" : \
 ":: :_rtf__help_commands" \
@@ -317,6 +375,26 @@ _arguments "${_arguments_options[@]}" : \
     ;;
 esac
 ;;
+(resolve)
+_arguments "${_arguments_options[@]}" : \
+":: :_rtf__help__resolve_commands" \
+"*::: :->resolve" \
+&& ret=0
+
+    case $state in
+    (resolve)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:rtf-help-resolve-command-$line[1]:"
+        case $line[1] in
+            (scenario)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
 (help)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -338,6 +416,7 @@ _rtf_commands() {
 'template:Template a test plan using provided variables, outputting the resulting config to stdout' \
 'custom-provider:Work directly with custom file provider definitions' \
 'inline:Inline file providers in a test plan. Outputs the resulting test plan to the given directory' \
+'resolve:Resolve file providers for a config file without executing it' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'rtf commands' commands "$@"
@@ -410,6 +489,7 @@ _rtf__help_commands() {
 'template:Template a test plan using provided variables, outputting the resulting config to stdout' \
 'custom-provider:Work directly with custom file provider definitions' \
 'inline:Inline file providers in a test plan. Outputs the resulting test plan to the given directory' \
+'resolve:Resolve file providers for a config file without executing it' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'rtf help commands' commands "$@"
@@ -466,6 +546,18 @@ _rtf__help__inline__relative-files_commands() {
     local commands; commands=()
     _describe -t commands 'rtf help inline relative-files commands' commands "$@"
 }
+(( $+functions[_rtf__help__resolve_commands] )) ||
+_rtf__help__resolve_commands() {
+    local commands; commands=(
+'scenario:Resolve file providers for a standalone scenario config' \
+    )
+    _describe -t commands 'rtf help resolve commands' commands "$@"
+}
+(( $+functions[_rtf__help__resolve__scenario_commands] )) ||
+_rtf__help__resolve__scenario_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf help resolve scenario commands' commands "$@"
+}
 (( $+functions[_rtf__help__run_commands] )) ||
 _rtf__help__run_commands() {
     local commands; commands=()
@@ -518,6 +610,37 @@ _rtf__inline__help__relative-files_commands() {
 _rtf__inline__relative-files_commands() {
     local commands; commands=()
     _describe -t commands 'rtf inline relative-files commands' commands "$@"
+}
+(( $+functions[_rtf__resolve_commands] )) ||
+_rtf__resolve_commands() {
+    local commands; commands=(
+'scenario:Resolve file providers for a standalone scenario config' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'rtf resolve commands' commands "$@"
+}
+(( $+functions[_rtf__resolve__help_commands] )) ||
+_rtf__resolve__help_commands() {
+    local commands; commands=(
+'scenario:Resolve file providers for a standalone scenario config' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'rtf resolve help commands' commands "$@"
+}
+(( $+functions[_rtf__resolve__help__help_commands] )) ||
+_rtf__resolve__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf resolve help help commands' commands "$@"
+}
+(( $+functions[_rtf__resolve__help__scenario_commands] )) ||
+_rtf__resolve__help__scenario_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf resolve help scenario commands' commands "$@"
+}
+(( $+functions[_rtf__resolve__scenario_commands] )) ||
+_rtf__resolve__scenario_commands() {
+    local commands; commands=()
+    _describe -t commands 'rtf resolve scenario commands' commands "$@"
 }
 (( $+functions[_rtf__run_commands] )) ||
 _rtf__run_commands() {

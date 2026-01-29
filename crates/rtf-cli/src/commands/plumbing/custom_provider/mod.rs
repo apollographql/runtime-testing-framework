@@ -1,6 +1,5 @@
 //! Commands for checking and running custom provider definitions independently.
-use crate::{ParsedVariables, cli::Variables};
-use anyhow::{Context, anyhow};
+use anyhow::Context;
 use rtf_config::{SourceDir, context::ResolutionContext, formats::CustomProviderDefinition};
 
 mod run;
@@ -34,27 +33,4 @@ async fn load_definition(
         .with_context(|| "Unable to parse custom provider definition yaml")?;
 
     Ok((source, definition))
-}
-
-fn parse_cli_variables(
-    variables: Variables,
-    cwd_source: &SourceDir,
-    ctx: &impl ResolutionContext,
-) -> anyhow::Result<ParsedVariables> {
-    let parsed = variables.parse(cwd_source, ctx)?;
-
-    if !parsed.matrix_dimensions.is_empty() {
-        let mut keys: Vec<_> = parsed
-            .matrix_dimensions
-            .keys()
-            .map(|s| s.as_str())
-            .collect();
-        keys.sort_unstable();
-        return Err(anyhow!(
-            "Expected only scalar variables but found matrix dimensions for: {}",
-            keys.join(", ")
-        ));
-    }
-
-    Ok(parsed)
 }

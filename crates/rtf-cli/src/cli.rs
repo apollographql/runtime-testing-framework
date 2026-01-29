@@ -105,6 +105,12 @@ pub enum Command {
         #[clap(subcommand)]
         subcommand: InlineSubcommand,
     },
+
+    /// Resolve file providers for a config file without executing it
+    Resolve {
+        #[clap(subcommand)]
+        subcommand: ResolveSubcommand,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -178,5 +184,18 @@ pub enum InlineSubcommand {
     RelativeFiles {
         #[command(flatten)]
         args: InlineArgs,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ResolveSubcommand {
+    /// Resolve file providers for a standalone scenario config
+    Scenario {
+        /// Relative path to the scenario.yaml file
+        scenario_path: String,
+
+        /// Output directory for resolved providers and scenario.env
+        #[arg(long, default_value = "output")]
+        outdir: String,
     },
 }

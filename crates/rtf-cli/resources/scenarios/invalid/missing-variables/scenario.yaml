@@ -1,0 +1,10 @@
+name: scenario-with-undefined-variable
+description: A scenario that uses an undefined template variable
+command:
+  name: test.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "Value is $MY_VAR"
+env_vars:
+  MY_VAR: "{{ undefined_var }}"

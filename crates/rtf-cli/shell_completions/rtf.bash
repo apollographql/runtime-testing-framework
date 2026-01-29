@@ -28,6 +28,9 @@ _rtf() {
             rtf,inline)
                 cmd="rtf__inline"
                 ;;
+            rtf,resolve)
+                cmd="rtf__resolve"
+                ;;
             rtf,run)
                 cmd="rtf__run"
                 ;;
@@ -70,6 +73,9 @@ _rtf() {
             rtf__help,inline)
                 cmd="rtf__help__inline"
                 ;;
+            rtf__help,resolve)
+                cmd="rtf__help__resolve"
+                ;;
             rtf__help,run)
                 cmd="rtf__help__run"
                 ;;
@@ -91,6 +97,9 @@ _rtf() {
             rtf__help__inline,relative-files)
                 cmd="rtf__help__inline__relative__files"
                 ;;
+            rtf__help__resolve,scenario)
+                cmd="rtf__help__resolve__scenario"
+                ;;
             rtf__inline,all)
                 cmd="rtf__inline__all"
                 ;;
@@ -109,6 +118,18 @@ _rtf() {
             rtf__inline__help,relative-files)
                 cmd="rtf__inline__help__relative__files"
                 ;;
+            rtf__resolve,help)
+                cmd="rtf__resolve__help"
+                ;;
+            rtf__resolve,scenario)
+                cmd="rtf__resolve__scenario"
+                ;;
+            rtf__resolve__help,help)
+                cmd="rtf__resolve__help__help"
+                ;;
+            rtf__resolve__help,scenario)
+                cmd="rtf__resolve__help__scenario"
+                ;;
             *)
                 ;;
         esac
@@ -116,7 +137,7 @@ _rtf() {
 
     case "${cmd}" in
         rtf)
-            opts="-v -h --var --vars --verbose --help run expand-matrix template custom-provider inline help"
+            opts="-v -h --var --vars --verbose --help run expand-matrix template custom-provider inline resolve help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -326,7 +347,7 @@ _rtf() {
             return 0
             ;;
         rtf__help)
-            opts="run expand-matrix template custom-provider inline help"
+            opts="run expand-matrix template custom-provider inline resolve help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -452,6 +473,34 @@ _rtf() {
             return 0
             ;;
         rtf__help__inline__relative__files)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        rtf__help__resolve)
+            opts="scenario"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        rtf__help__resolve__scenario)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -613,6 +662,96 @@ _rtf() {
                     return 0
                     ;;
                 --ref)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --var)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --vars)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        rtf__resolve)
+            opts="-v -h --var --vars --verbose --help scenario help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --var)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --vars)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        rtf__resolve__help)
+            opts="scenario help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        rtf__resolve__help__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        rtf__resolve__help__scenario)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        rtf__resolve__scenario)
+            opts="-v -h --outdir --var --vars --verbose --help <SCENARIO_PATH>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --outdir)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;

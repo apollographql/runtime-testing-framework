@@ -4,8 +4,9 @@ use crate::{
     cli::Variables,
     commands::{
         get_context_and_check_outdir,
-        plumbing::custom_provider::{
-            RESOLVED_PROVIDER_PATH, VARIABLES_PATH, load_definition, parse_cli_variables,
+        plumbing::{
+            custom_provider::{RESOLVED_PROVIDER_PATH, VARIABLES_PATH, load_definition},
+            parse_cli_variables,
         },
     },
 };
