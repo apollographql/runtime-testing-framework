@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-47a2dacf.js";
+            window.path_to_searchindex_js = "searchindex-16737c59.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6484d70d.js"></script>
@@ -4233,6 +4233,8 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li><a href="#rtf-inline"><code>rtf inline</code>↴</a></li>
 <li><a href="#rtf-inline-all"><code>rtf inline all</code>↴</a></li>
 <li><a href="#rtf-inline-relative-files"><code>rtf inline relative-files</code>↴</a></li>
+<li><a href="#rtf-resolve"><code>rtf resolve</code>↴</a></li>
+<li><a href="#rtf-resolve-scenario"><code>rtf resolve scenario</code>↴</a></li>
 </ul>
 <h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
 <p>A swiss army knife for testing the Apollo Runtime</p>
@@ -4244,6 +4246,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li><code>template</code> — Template a test plan using provided variables, outputting the resulting config to stdout</li>
 <li><code>custom-provider</code> — Work directly with custom file provider definitions</li>
 <li><code>inline</code> — Inline file providers in a test plan. Outputs the resulting test plan to the given directory</li>
+<li><code>resolve</code> — Resolve file providers for a config file without executing it</li>
 </ul>
 <h6 id="options"><a class="header" href="#options"><strong>Options:</strong></a></h6>
 <ul>
@@ -4384,6 +4387,27 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 </li>
 <li>
 <p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
+</li>
+</ul>
+<h2 id="rtf-resolve"><a class="header" href="#rtf-resolve"><code>rtf resolve</code></a></h2>
+<p>Resolve file providers for a config file without executing it</p>
+<p><strong>Usage:</strong> <code>rtf resolve &lt;COMMAND&gt;</code></p>
+<h6 id="subcommands-3"><a class="header" href="#subcommands-3"><strong>Subcommands:</strong></a></h6>
+<ul>
+<li><code>scenario</code> — Resolve file providers for a standalone scenario config</li>
+</ul>
+<h2 id="rtf-resolve-scenario"><a class="header" href="#rtf-resolve-scenario"><code>rtf resolve scenario</code></a></h2>
+<p>Resolve file providers for a standalone scenario config</p>
+<p><strong>Usage:</strong> <code>rtf resolve scenario [OPTIONS] &lt;SCENARIO_PATH&gt;</code></p>
+<h6 id="arguments-7"><a class="header" href="#arguments-7"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;SCENARIO_PATH&gt;</code> — Relative path to the scenario.yaml file</li>
+</ul>
+<h6 id="options-8"><a class="header" href="#options-8"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--outdir &lt;OUTDIR&gt;</code> — Output directory for resolved providers and scenario.env</p>
+<p>Default value: <code>output</code></p>
 </li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
