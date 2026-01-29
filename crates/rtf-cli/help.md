@@ -14,6 +14,8 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf inline`↴](#rtf-inline)
 * [`rtf inline all`↴](#rtf-inline-all)
 * [`rtf inline relative-files`↴](#rtf-inline-relative-files)
+* [`rtf resolve`↴](#rtf-resolve)
+* [`rtf resolve scenario`↴](#rtf-resolve-scenario)
 
 ## `rtf`
 
@@ -28,6 +30,7 @@ A swiss army knife for testing the Apollo Runtime
 * `template` — Template a test plan using provided variables, outputting the resulting config to stdout
 * `custom-provider` — Work directly with custom file provider definitions
 * `inline` — Inline file providers in a test plan. Outputs the resulting test plan to the given directory
+* `resolve` — Resolve file providers for a config file without executing it
 
 ###### **Options:**
 
@@ -196,6 +199,36 @@ Inline only relative file providers
 
   Default value: `false`
 * `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
+
+
+
+## `rtf resolve`
+
+Resolve file providers for a config file without executing it
+
+**Usage:** `rtf resolve <COMMAND>`
+
+###### **Subcommands:**
+
+* `scenario` — Resolve file providers for a standalone scenario config
+
+
+
+## `rtf resolve scenario`
+
+Resolve file providers for a standalone scenario config
+
+**Usage:** `rtf resolve scenario [OPTIONS] <SCENARIO_PATH>`
+
+###### **Arguments:**
+
+* `<SCENARIO_PATH>` — Relative path to the scenario.yaml file
+
+###### **Options:**
+
+* `--outdir <OUTDIR>` — Output directory for resolved providers and scenario.env
+
+  Default value: `output`
 
 
 

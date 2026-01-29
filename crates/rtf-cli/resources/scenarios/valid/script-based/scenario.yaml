@@ -1,0 +1,15 @@
+name: script-scenario
+description: A simple script-based scenario for testing resolve
+command:
+  name: test.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "Hello from script"
+env_vars:
+  MY_VAR: "my_value"
+file_providers:
+  - name: data.txt
+    env_var: DATA_FILE
+    kind: inline
+    content: "test data content"

@@ -4,7 +4,7 @@ use crate::{
     cli::Variables,
     commands::{
         get_context,
-        plumbing::custom_provider::{load_definition, parse_cli_variables},
+        plumbing::{custom_provider::load_definition, parse_cli_variables},
     },
 };
 use rtf_config::{

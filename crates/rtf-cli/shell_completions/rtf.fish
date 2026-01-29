@@ -33,6 +33,7 @@ complete -c rtf -n "__fish_rtf_needs_command" -f -a "expand-matrix" -d 'Expand a
 complete -c rtf -n "__fish_rtf_needs_command" -f -a "template" -d 'Template a test plan using provided variables, outputting the resulting config to stdout'
 complete -c rtf -n "__fish_rtf_needs_command" -f -a "custom-provider" -d 'Work directly with custom file provider definitions'
 complete -c rtf -n "__fish_rtf_needs_command" -f -a "inline" -d 'Inline file providers in a test plan. Outputs the resulting test plan to the given directory'
+complete -c rtf -n "__fish_rtf_needs_command" -f -a "resolve" -d 'Resolve file providers for a config file without executing it'
 complete -c rtf -n "__fish_rtf_needs_command" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c rtf -n "__fish_rtf_using_subcommand run" -l ref -d 'Optional git ref to pull files from when using --github' -r
 complete -c rtf -n "__fish_rtf_using_subcommand run" -l outdir -d 'Output directory for providers when they run' -r
@@ -106,14 +107,29 @@ complete -c rtf -n "__fish_rtf_using_subcommand inline; and __fish_seen_subcomma
 complete -c rtf -n "__fish_rtf_using_subcommand inline; and __fish_seen_subcommand_from help" -f -a "all" -d 'Inline all file providers'
 complete -c rtf -n "__fish_rtf_using_subcommand inline; and __fish_seen_subcommand_from help" -f -a "relative-files" -d 'Inline only relative file providers'
 complete -c rtf -n "__fish_rtf_using_subcommand inline; and __fish_seen_subcommand_from help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
-complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider inline help" -f -a "run" -d 'Check and run a test plan'
-complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider inline help" -f -a "expand-matrix" -d 'Expand a test plan matrix into JSON'
-complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider inline help" -f -a "template" -d 'Template a test plan using provided variables, outputting the resulting config to stdout'
-complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider inline help" -f -a "custom-provider" -d 'Work directly with custom file provider definitions'
-complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider inline help" -f -a "inline" -d 'Inline file providers in a test plan. Outputs the resulting test plan to the given directory'
-complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider inline help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario help" -l var -d 'A single additional templating variable in the form "key=value"' -r
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario help" -l vars -d 'Path to a JSON file containing additional template variables' -r -F
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario help" -s v -l verbose -d 'Flag to control logging verbosity. Default level is `warn`. `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`'
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario help" -s h -l help -d 'Print help'
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario help" -f -a "scenario" -d 'Resolve file providers for a standalone scenario config'
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from scenario" -l outdir -d 'Output directory for resolved providers and scenario.env' -r
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from scenario" -l var -d 'A single additional templating variable in the form "key=value"' -r
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from scenario" -l vars -d 'Path to a JSON file containing additional template variables' -r -F
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from scenario" -s v -l verbose -d 'Flag to control logging verbosity. Default level is `warn`. `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`'
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from scenario" -s h -l help -d 'Print help'
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from help" -f -a "scenario" -d 'Resolve file providers for a standalone scenario config'
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider inline resolve help" -f -a "run" -d 'Check and run a test plan'
+complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider inline resolve help" -f -a "expand-matrix" -d 'Expand a test plan matrix into JSON'
+complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider inline resolve help" -f -a "template" -d 'Template a test plan using provided variables, outputting the resulting config to stdout'
+complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider inline resolve help" -f -a "custom-provider" -d 'Work directly with custom file provider definitions'
+complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider inline resolve help" -f -a "inline" -d 'Inline file providers in a test plan. Outputs the resulting test plan to the given directory'
+complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider inline resolve help" -f -a "resolve" -d 'Resolve file providers for a config file without executing it'
+complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider inline resolve help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c rtf -n "__fish_rtf_using_subcommand help; and __fish_seen_subcommand_from custom-provider" -f -a "template" -d 'Template a custom provider definition, outputting the resulting config to stdout'
 complete -c rtf -n "__fish_rtf_using_subcommand help; and __fish_seen_subcommand_from custom-provider" -f -a "run" -d 'Execute a custom provider definition'
 complete -c rtf -n "__fish_rtf_using_subcommand help; and __fish_seen_subcommand_from custom-provider" -f -a "test" -d '!!EXPERIMENTAL!! Run tests for the given provider'
 complete -c rtf -n "__fish_rtf_using_subcommand help; and __fish_seen_subcommand_from inline" -f -a "all" -d 'Inline all file providers'
 complete -c rtf -n "__fish_rtf_using_subcommand help; and __fish_seen_subcommand_from inline" -f -a "relative-files" -d 'Inline only relative file providers'
+complete -c rtf -n "__fish_rtf_using_subcommand help; and __fish_seen_subcommand_from resolve" -f -a "scenario" -d 'Resolve file providers for a standalone scenario config'

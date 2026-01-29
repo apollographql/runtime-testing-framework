@@ -1,0 +1,13 @@
+name: scenario-with-custom-providers
+description: A scenario that uses custom providers (should error)
+custom_providers:
+  - kind: local
+    relative_path: ./providers
+    using:
+      my_provider: provider.yaml
+command:
+  name: test.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "This should not run"

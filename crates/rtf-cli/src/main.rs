@@ -2,11 +2,12 @@ use anyhow::Context;
 use clap::Parser;
 use rtf_cli::{
     LOG_LEVEL_ENV_VAR,
-    cli::{Args, Command, CustomProviderSubcommand, InlineSubcommand},
+    cli::{Args, Command, CustomProviderSubcommand, InlineSubcommand, ResolveSubcommand},
     commands::{
         plumbing::{
-            InlineMode, expand_test_plan_matrix, inline_test_plan, run_custom_provider,
-            template_custom_provider, template_test_plan, test_custom_provider,
+            InlineMode, expand_test_plan_matrix, inline_test_plan, resolve_scenario,
+            run_custom_provider, template_custom_provider, template_test_plan,
+            test_custom_provider,
         },
         porcelain::check_and_run_test_plan,
     },
@@ -93,6 +94,14 @@ async fn main() {
         } => {
             test_custom_provider(&definition_path, test_cases_dir, error_on_empty, no_capture).await
         }
+
+        Command::Resolve {
+            subcommand:
+                ResolveSubcommand::Scenario {
+                    scenario_path,
+                    outdir,
+                },
+        } => resolve_scenario(&scenario_path, variables, &outdir).await,
     };
 
     if let Err(e) = res {

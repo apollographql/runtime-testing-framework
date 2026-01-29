@@ -1,0 +1,13 @@
+name: docker-scenario
+description: A docker-based scenario for testing resolve
+docker:
+  image: alpine
+  tag: latest
+  command: cat $DATA_FILE
+env_vars:
+  DOCKER_VAR: "docker_value"
+file_providers:
+  - name: data.txt
+    env_var: DATA_FILE
+    kind: inline
+    content: "docker test data"

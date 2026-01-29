@@ -166,6 +166,29 @@ pub enum ScenarioCommand {
     Script(CommandSection),
 }
 
+impl ScenarioCommand {
+    /// Return all environment variables for this scenario command with absolute host paths.
+    ///
+    /// This includes explicit env_vars, file provider paths, OUTDIR, and OUTPUT_PATH.
+    /// For docker scenarios, file provider paths are returned as host paths (not container paths).
+    pub fn all_env_vars(
+        &self,
+        out_dir: &Path,
+        output_path: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<HashMap<String, String>> {
+        match self {
+            Self::Docker(inner) => {
+                let mut vars = inner.file_path_env_vars(out_dir, output_path, ctx)?;
+                vars.extend(inner.explicit_env_vars());
+
+                Ok(vars)
+            }
+            Self::Script(inner) => inner.all_env_vars(out_dir, output_path, ctx),
+        }
+    }
+}
+
 impl RunProviders for ScenarioCommand {
     async fn run_providers(
         &self,
@@ -290,7 +313,10 @@ impl DockerScenario {
     /// Combine the base environment variables we have with the ones coming from the file providers
     /// we need to run. The `out_dir` argument here needs to match the one used when running
     /// and outputting the content of the file providers.
-    pub fn all_env_vars(
+    ///
+    /// File provider paths are remapped to container paths (e.g., `/output/...`) for use when
+    /// executing inside the docker container.
+    pub fn container_env_vars(
         &self,
         out_dir: &Path,
         output_path: &Path,
@@ -345,7 +371,7 @@ impl Execute for DockerScenario {
         output_path: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<()> {
-        let env_vars = self.all_env_vars(out_dir, output_path, ctx)?;
+        let env_vars = self.container_env_vars(out_dir, output_path, ctx)?;
         let (cmd, args) = self.as_command_and_args(&env_vars, ctx);
 
         ctx.run_command_blocking(cmd, args.iter().map(|s| s.as_str()), &HashMap::default())
