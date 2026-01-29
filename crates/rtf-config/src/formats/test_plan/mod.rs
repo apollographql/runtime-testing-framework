@@ -98,38 +98,14 @@ impl TestPlanConfig {
         }))
     }
 
-    pub fn try_template_environment_setup(
-        &mut self,
-        ctx: &TemplateContext,
-    ) -> templating::Result<()> {
-        let mut path = vec!["environment".to_string()];
-        self.environment
-            .try_template_setup(&mut path, self.sources.environment(), ctx)
-    }
-
-    pub fn try_template_environment_teardown(
-        &mut self,
-        ctx: &TemplateContext,
-    ) -> templating::Result<()> {
-        let mut path = vec!["environment".to_string()];
-        self.environment
-            .try_template_teardown(&mut path, self.sources.environment(), ctx)
-    }
-
-    pub fn try_template_scenario(&mut self, ctx: &TemplateContext) -> templating::Result<()> {
-        let mut path = vec!["scenario".to_string()];
-        self.scenario
-            .try_template(&mut path, self.sources.scenario(), ctx)
-    }
-
     pub async fn run_environment_setup(
         &self,
         out_dir: &Path,
         ctx: &mut impl ResolutionContext,
     ) -> Result<()> {
         self.environment
-            .setup
-            .run_providers_and_execute_for_output(SETUP_PROVIDER_DIR, out_dir, ctx)
+            .execution
+            .execute_setup(SETUP_PROVIDER_DIR, out_dir, ctx)
             .await?;
 
         Ok(())
@@ -141,8 +117,8 @@ impl TestPlanConfig {
         ctx: &mut impl ResolutionContext,
     ) -> Result<()> {
         self.environment
-            .teardown
-            .run_providers_and_execute_for_output(TEARDOWN_PROVIDER_DIR, out_dir, ctx)
+            .execution
+            .execute_teardown(TEARDOWN_PROVIDER_DIR, out_dir, ctx)
             .await?;
 
         Ok(())
@@ -279,7 +255,9 @@ mod tests {
         context::Context,
         formats::{
             Error,
-            environment::test_helpers::environment_with_fields,
+            environment::{
+                EnvironmentExecution, ScriptEnvironment, test_helpers::environment_with_fields,
+            },
             scenario::{ScenarioCommand, test_helpers::scenario_with_fields},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
@@ -1283,7 +1261,8 @@ mod tests {
             "test the scenario command comes from overrides"
         );
 
-        let environment_files = &test_plan.environment.setup.file_providers;
+        let EnvironmentExecution::Script(script) = &test_plan.environment.execution;
+        let environment_files = &script.setup.file_providers;
         assert_eq!(
             environment_files, &expected_env_files,
             "test the environment setup files come from overrides"
@@ -1373,10 +1352,13 @@ mod tests {
             },
             environment: EnvironmentConfig {
                 variable_definitions: variable_definitions(env_fields.as_slice()),
-                teardown: CommandSection {
-                    file_providers: templatable_file_providers(env_fields.as_slice()),
-                    ..CommandSection::empty()
-                },
+                execution: EnvironmentExecution::Script(ScriptEnvironment {
+                    setup: CommandSection::empty(),
+                    teardown: CommandSection {
+                        file_providers: templatable_file_providers(env_fields.as_slice()),
+                        ..CommandSection::empty()
+                    },
+                }),
                 ..EnvironmentConfig::empty()
             },
             ..TestPlanConfig::empty()
@@ -1412,10 +1394,13 @@ mod tests {
             },
             environment: EnvironmentConfig {
                 variable_definitions: variable_definitions(env_variable_defs),
-                teardown: CommandSection {
-                    file_providers: templatable_file_providers(env_fields),
-                    ..CommandSection::empty()
-                },
+                execution: EnvironmentExecution::Script(ScriptEnvironment {
+                    setup: CommandSection::empty(),
+                    teardown: CommandSection {
+                        file_providers: templatable_file_providers(env_fields),
+                        ..CommandSection::empty()
+                    },
+                }),
                 ..EnvironmentConfig::empty()
             },
             ..TestPlanConfig::empty()
@@ -1658,7 +1643,10 @@ mod tests {
                 ..ScenarioConfig::empty()
             },
             environment: EnvironmentConfig {
-                teardown: cmd_with_inline_file(),
+                execution: EnvironmentExecution::Script(ScriptEnvironment {
+                    setup: CommandSection::empty(),
+                    teardown: cmd_with_inline_file(),
+                }),
                 ..EnvironmentConfig::empty()
             },
             ..TestPlanConfig::empty()
@@ -1700,7 +1688,10 @@ mod tests {
                 ..ScenarioConfig::empty()
             },
             environment: EnvironmentConfig {
-                teardown: environment_cmd,
+                execution: EnvironmentExecution::Script(ScriptEnvironment {
+                    setup: CommandSection::empty(),
+                    teardown: environment_cmd,
+                }),
                 ..EnvironmentConfig::empty()
             },
             ..TestPlanConfig::empty()

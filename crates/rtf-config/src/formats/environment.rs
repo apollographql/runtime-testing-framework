@@ -3,12 +3,14 @@ use crate::{
     VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
+    enum_impl_check,
     formats::{CustomProviderDeclaration, Result},
     inlining,
-    providers::{command::CommandSection, file::SourceDir},
-    run::RunProviders,
+    providers::{self, command::CommandSection, file::SourceDir},
+    run::{Execute, RunProviders},
     templating::{self, FileType, Template, TemplateContext},
 };
+use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fs, path::Path};
@@ -29,10 +31,8 @@ pub struct EnvironmentConfig {
     /// Custom provider declarations to load for this environment
     #[serde(default)]
     pub custom_providers: Vec<CustomProviderDeclaration>,
-    /// The command to execute to prepare the environment for executing the test scenario
-    pub setup: CommandSection,
-    /// The command to execute to clean up the environment after executing the test scenario
-    pub teardown: CommandSection,
+    #[serde(flatten)]
+    pub execution: EnvironmentExecution,
 }
 
 impl EnvironmentConfig {
@@ -40,45 +40,6 @@ impl EnvironmentConfig {
         let content = fs::read_to_string(p)?;
 
         Ok(serde_yaml::from_str(&content)?)
-    }
-
-    /// Try to template the setup [CommandSection].
-    ///
-    /// Setup is only allowed to reference variables that are declared in the variables section of this
-    /// config file.
-    pub fn try_template_setup(
-        &mut self,
-        path: &mut Vec<String>,
-        source: &SourceDir,
-        ctx: &TemplateContext,
-    ) -> templating::Result<()> {
-        let ctx = ctx.for_config_file(
-            source,
-            Some(FileType::Environment),
-            self.variable_definitions.iter(),
-        );
-
-        self.setup.try_template_nested(path, "setup", source, &ctx)
-    }
-
-    /// Try to template the teardown [CommandSection].
-    ///
-    /// Teardown is allowed to reference variables that come from the output of setup in addition to
-    /// the variables decalered in the variables section of this config file.
-    pub fn try_template_teardown(
-        &mut self,
-        path: &mut Vec<String>,
-        source: &SourceDir,
-        ctx: &TemplateContext,
-    ) -> templating::Result<()> {
-        let ctx = ctx.for_config_file(
-            source,
-            Some(FileType::Environment),
-            self.variable_definitions.iter(),
-        );
-
-        self.teardown
-            .try_template_nested(path, "teardown", source, &ctx)
     }
 
     /// Create an empty [EnvironmentConfig] for tests
@@ -89,43 +50,32 @@ impl EnvironmentConfig {
             description: Default::default(),
             variable_definitions: Vec::new(),
             custom_providers: Default::default(),
-            setup: CommandSection::empty(),
-            teardown: CommandSection::empty(),
+            execution: EnvironmentExecution::Script(ScriptEnvironment {
+                setup: CommandSection::empty(),
+                teardown: CommandSection::empty(),
+            }),
         }
     }
 
     pub async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
-        let mut errs = inlining::ErrorBuilder::new();
-
-        errs.append(self.setup.inline(ctx).await);
-        errs.append(self.teardown.inline(ctx).await);
-
-        errs.into_result(())
+        self.execution.inline(ctx).await
     }
 
     pub async fn inline_all_relative_paths(
         &mut self,
         ctx: &impl ResolutionContext,
     ) -> inlining::Result<()> {
-        let mut errs = inlining::ErrorBuilder::new();
-
-        errs.append(self.setup.inline_all_relative_paths(ctx).await);
-        errs.append(self.teardown.inline_all_relative_paths(ctx).await);
-
-        errs.into_result(())
+        self.execution.inline_all_relative_paths(ctx).await
     }
 }
 
 impl Template for EnvironmentConfig {
     fn has_pending_fields(&self) -> bool {
-        self.setup.has_pending_fields() || self.teardown.has_pending_fields()
+        self.execution.has_pending_fields()
     }
 
     fn required_variables(&self) -> Vec<String> {
-        let mut vals = self.setup.required_variables();
-        vals.extend(self.teardown.required_variables());
-
-        vals
+        self.execution.required_variables()
     }
 
     fn validate_context(
@@ -144,23 +94,8 @@ impl Template for EnvironmentConfig {
             self.variable_definitions.iter(),
         );
 
-        let mut errs = templating::ErrorBuilder::from(self.setup.validate_context_nested(
-            path,
-            "setup",
-            &allowed_variables,
-            file_source,
-            &ctx,
-        ));
-
-        errs.append(self.teardown.validate_context_nested(
-            path,
-            "teardown",
-            &allowed_variables,
-            file_source,
-            &ctx,
-        ));
-
-        errs.into_result(())
+        self.execution
+            .validate_context(path, &allowed_variables, file_source, &ctx)
     }
 
     fn try_template(
@@ -169,10 +104,15 @@ impl Template for EnvironmentConfig {
         source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let mut errs = templating::ErrorBuilder::from(self.try_template_setup(path, source, ctx));
-        errs.append(self.try_template_teardown(path, source, ctx));
+        let ctx = ctx.for_config_file(
+            source,
+            Some(FileType::Environment),
+            self.variable_definitions.iter(),
+        );
 
-        errs.into_result(())
+        // We call try_template here instead of try_template_nested to avoid appending
+        // an unnecessary entry to the path
+        self.execution.try_template(path, source, &ctx)
     }
 }
 
@@ -196,8 +136,9 @@ impl Check for EnvironmentConfig {
         }
 
         // Check that each command is valid in isolation
-        errs.append(self.setup.try_check_nested(path, "setup", ctx));
-        errs.append(self.teardown.try_check_nested(path, "teardown", ctx));
+        // We call try_check here instead of try_check_nested to avoid appending
+        // an unnecessary entry to the path
+        errs.append(self.execution.try_check(path, ctx));
 
         errs.into_result(())
     }
@@ -207,20 +148,176 @@ impl CheckArrayDuplicates for EnvironmentConfig {
     const BASE_PATH: &str = "environment";
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
-        vec![
-            (
-                "variables",
-                DedupArray::VariableDef(&mut self.variable_definitions),
-            ),
-            (
-                "setup.file_providers",
-                DedupArray::Nfp(&mut self.setup.file_providers),
-            ),
-            (
-                "teardown.file_providers",
-                DedupArray::Nfp(&mut self.teardown.file_providers),
-            ),
-        ]
+        let mut arrays = vec![(
+            "variables",
+            DedupArray::VariableDef(&mut self.variable_definitions),
+        )];
+
+        match &mut self.execution {
+            EnvironmentExecution::Script(script) => {
+                arrays.push((
+                    "setup.file_providers",
+                    DedupArray::Nfp(&mut script.setup.file_providers),
+                ));
+                arrays.push((
+                    "teardown.file_providers",
+                    DedupArray::Nfp(&mut script.teardown.file_providers),
+                ));
+            }
+        }
+
+        arrays
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+#[serde(
+    untagged,
+    expecting = "expected docker-compose environment (with compose_files) or script environment (with setup/teardown)"
+)]
+pub enum EnvironmentExecution {
+    Script(ScriptEnvironment),
+}
+
+impl EnvironmentExecution {
+    pub async fn execute_setup(
+        &self,
+        name: &str,
+        out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<String> {
+        match &self {
+            EnvironmentExecution::Script(inner) => inner.execute_setup(name, out_dir, ctx).await,
+        }
+    }
+
+    pub async fn execute_teardown(
+        &self,
+        name: &str,
+        out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<String> {
+        match &self {
+            EnvironmentExecution::Script(inner) => inner.execute_teardown(name, out_dir, ctx).await,
+        }
+    }
+}
+
+enum_impl_check!(EnvironmentExecution => Script);
+
+impl RunProviders for EnvironmentExecution {
+    async fn run_providers(
+        &self,
+        providers_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> crate::providers::Result<()> {
+        match self {
+            EnvironmentExecution::Script(inner) => inner.run_providers(providers_dir, ctx).await,
+        }
+    }
+
+    fn inline<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> std::pin::Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        match self {
+            EnvironmentExecution::Script(inner) => inner.inline(ctx),
+        }
+    }
+
+    fn inline_all_relative_paths<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> std::pin::Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        match self {
+            EnvironmentExecution::Script(inner) => inner.inline_all_relative_paths(ctx),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+pub struct ScriptEnvironment {
+    pub setup: CommandSection,
+    pub teardown: CommandSection,
+}
+
+impl ScriptEnvironment {
+    pub async fn execute_setup(
+        &self,
+        name: &str,
+        out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<String> {
+        self.setup
+            .run_providers_and_execute_for_output(name, out_dir, ctx)
+            .await
+    }
+
+    pub async fn execute_teardown(
+        &self,
+        name: &str,
+        out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<String> {
+        self.teardown
+            .run_providers_and_execute_for_output(name, out_dir, ctx)
+            .await
+    }
+}
+
+impl Check for ScriptEnvironment {
+    fn try_check(
+        &self,
+        path: &mut Vec<String>,
+        ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        let mut errs = checks::ErrorBuilder::new();
+
+        errs.append(self.setup.try_check_nested(path, "setup", ctx));
+        errs.append(self.teardown.try_check_nested(path, "teardown", ctx));
+
+        errs.into_result(())
+    }
+}
+
+impl RunProviders for ScriptEnvironment {
+    async fn run_providers(
+        &self,
+        providers_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> crate::providers::Result<()> {
+        self.setup.run_providers(providers_dir, ctx).await?;
+        self.teardown.run_providers(providers_dir, ctx).await?;
+
+        Ok(())
+    }
+
+    fn inline<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> std::pin::Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        Box::pin(async move {
+            let mut errs = inlining::ErrorBuilder::new();
+
+            errs.append(self.setup.inline(ctx).await);
+            errs.append(self.teardown.inline(ctx).await);
+
+            errs.into_result(())
+        })
+    }
+
+    fn inline_all_relative_paths<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> std::pin::Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        Box::pin(async move {
+            let mut errs = inlining::ErrorBuilder::new();
+
+            errs.append(self.setup.inline_all_relative_paths(ctx).await);
+            errs.append(self.teardown.inline_all_relative_paths(ctx).await);
+
+            errs.into_result(())
+        })
     }
 }
 
@@ -242,14 +339,16 @@ pub(crate) mod test_helpers {
     ) -> EnvironmentConfig {
         EnvironmentConfig {
             custom_providers: custom_providers.to_vec(),
-            setup: CommandSection {
-                file_providers: named_file_providers_with_fields(setup_fields),
-                ..CommandSection::empty()
-            },
-            teardown: CommandSection {
-                file_providers: named_file_providers_with_fields(teardown_fields),
-                ..CommandSection::empty()
-            },
+            execution: EnvironmentExecution::Script(ScriptEnvironment {
+                setup: CommandSection {
+                    file_providers: named_file_providers_with_fields(setup_fields),
+                    ..CommandSection::empty()
+                },
+                teardown: CommandSection {
+                    file_providers: named_file_providers_with_fields(teardown_fields),
+                    ..CommandSection::empty()
+                },
+            }),
             ..EnvironmentConfig::empty()
         }
     }
@@ -264,14 +363,16 @@ pub(crate) mod test_helpers {
         EnvironmentConfig {
             custom_providers: custom_providers.to_vec(),
             variable_definitions: variable_definitions(variable_names),
-            setup: CommandSection {
-                file_providers: templatable_file_providers(setup_fields),
-                ..CommandSection::empty()
-            },
-            teardown: CommandSection {
-                file_providers: templatable_file_providers(teardown_fields),
-                ..CommandSection::empty()
-            },
+            execution: EnvironmentExecution::Script(ScriptEnvironment {
+                setup: CommandSection {
+                    file_providers: templatable_file_providers(setup_fields),
+                    ..CommandSection::empty()
+                },
+                teardown: CommandSection {
+                    file_providers: templatable_file_providers(teardown_fields),
+                    ..CommandSection::empty()
+                },
+            }),
             ..EnvironmentConfig::empty()
         }
     }
@@ -287,7 +388,7 @@ pub(crate) mod tests {
             environment::test_helpers::{environment_with_fields, templatable_environment},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
-                templatable_file_providers, template_context, variable_definitions,
+                template_context, variable_definitions,
             },
         },
         providers::{
@@ -299,7 +400,7 @@ pub(crate) mod tests {
             file::{InlineFile, RawSource, RelativeFile, SourceDir},
             test_helpers::create_temp_dir_with_file,
         },
-        templating::{Field, Scalar},
+        templating::Field,
     };
     use assert_fs::{
         fixture::PathChild,
@@ -310,7 +411,7 @@ pub(crate) mod tests {
     use std::{collections::HashMap, path::PathBuf};
 
     // An example environment config to check parsing and templating
-    const TEMPLATED_ENVIRONMENT: &str = indoc!(
+    const TEMPLATED_SCRIPT_ENVIRONMENT: &str = indoc!(
         r#"
         name: environment
         description: a templated environment
@@ -357,9 +458,9 @@ pub(crate) mod tests {
     );
 
     #[test]
-    fn parse_success() {
-        let config: EnvironmentConfig =
-            serde_yaml::from_str(TEMPLATED_ENVIRONMENT).expect("environment config to parse");
+    fn parse_script_environment_success() {
+        let config: EnvironmentConfig = serde_yaml::from_str(TEMPLATED_SCRIPT_ENVIRONMENT)
+            .expect("environment config to parse");
 
         let mut res = config.required_variables();
         res.sort(); // Sorting so variables are in a determistic order for the assert_eq
@@ -450,7 +551,7 @@ pub(crate) mod tests {
     #[test_case(&[], &["teardown1"]; "setup no variable and teardown single variable")]
     #[test_case(&[], &[]; "setup no variable and teardown no variable")]
     #[test]
-    fn try_template_succeeds(setup_fields: &[&str], teardown_fields: &[&str]) {
+    fn try_template_script_succeeds(setup_fields: &[&str], teardown_fields: &[&str]) {
         let mut field_names: Vec<&str> = setup_fields.to_vec();
         field_names.extend_from_slice(teardown_fields);
 
@@ -533,86 +634,17 @@ pub(crate) mod tests {
         assert_env_template_errors(&mut environment, ctx, &["setup"], &["teardown"]);
     }
 
-    /// Tests that setup can access variables from top-level variables.
-    /// Setup can access variables declared in the top-level `variables` section.
-    #[test]
-    fn try_template_setup_can_access_top_level_variables() {
-        // Setup a config where variables are defined in top-level variables
-        let mut config = EnvironmentConfig {
-            variable_definitions: variable_definitions(&["foo", "setup-path"]),
-            setup: CommandSection {
-                env_vars: [("foo".to_uppercase(), Field::Pending("foo".to_string()))]
-                    .into_iter()
-                    .collect(),
-                file_providers: templatable_file_providers(&["setup-path"]),
-                ..CommandSection::empty()
-            },
-            teardown: CommandSection {
-                ..CommandSection::empty()
-            },
-            ..EnvironmentConfig::empty()
-        };
-
-        // Variables exist in the map and are defined in top-level variables
-        let variables: HashMap<String, Scalar> = [("foo", "a"), ("setup-path", "b")]
-            .iter()
-            .map(|(k, v)| (k.to_string(), Scalar::String(v.to_string())))
-            .collect();
-
-        let res = config.try_template_setup(
-            &mut Vec::new(),
-            &SourceDir::local("/"),
-            &TemplateContext::new_stubbed(variables),
-        );
-
-        // Setup should succeed because it can access top-level variables
-        assert!(
-            res.is_ok(),
-            "expected setup to succeed when accessing top-level variables, got {res:?}"
-        );
-    }
-
-    /// Tests that teardown can access variables from top-level variables.
-    /// Teardown can access variables from the top-level `variables` section.
-    #[test]
-    fn try_template_teardown_can_access_top_level_variables() {
-        // Setup a config where variables are defined in top-level variables
-        let mut config = EnvironmentConfig {
-            variable_definitions: variable_definitions(&["bar", "teardown-path"]),
-            setup: CommandSection {
-                ..CommandSection::empty()
-            },
-            teardown: CommandSection {
-                env_vars: [("bar".to_uppercase(), Field::Pending("bar".to_string()))]
-                    .into_iter()
-                    .collect(),
-                file_providers: templatable_file_providers(&["teardown-path"]),
-                ..CommandSection::empty()
-            },
-            ..EnvironmentConfig::empty()
-        };
-
-        // Variables exist in the map and are defined in top-level variables
-        let ctx = template_context(&["bar", "teardown-path"]);
-
-        let res = config.try_template_teardown(&mut Vec::new(), &SourceDir::local("/"), &ctx);
-
-        // Teardown should succeed because it can access top-level variables
-        assert!(
-            res.is_ok(),
-            "expected teardown to succeed when accessing top-level variables, got {res:?}"
-        );
-    }
-
     // The success test is here to complete the matrix of failure tests below (i.e. no failure)
     // It shows all parts of the env config that *could* fail not failing. In reality we could
     // just use an "empty" config here and get the same result but this is a more illustrative
     // example
     #[test]
-    fn check_success() {
+    fn check_script_success() {
         let environment = EnvironmentConfig {
-            setup: cmd_with_inline_file(),
-            teardown: cmd_with_inline_file(),
+            execution: EnvironmentExecution::Script(ScriptEnvironment {
+                setup: cmd_with_inline_file(),
+                teardown: cmd_with_inline_file(),
+            }),
             ..EnvironmentConfig::empty()
         };
 
@@ -652,8 +684,10 @@ pub(crate) mod tests {
     ) {
         let environment = EnvironmentConfig {
             variable_definitions: variable_definitions(variables),
-            setup: setup_command,
-            teardown: teardown_command,
+            execution: EnvironmentExecution::Script(ScriptEnvironment {
+                setup: setup_command,
+                teardown: teardown_command,
+            }),
             ..EnvironmentConfig::empty()
         };
 
@@ -909,22 +943,24 @@ pub(crate) mod tests {
         });
 
         let mut environment = EnvironmentConfig {
-            setup: CommandSection {
-                command: CommandSpec {
-                    name: "setup.sh".to_string(),
-                    command_provider: relative_command_provider.clone(),
-                    args: Vec::new(),
+            execution: EnvironmentExecution::Script(ScriptEnvironment {
+                setup: CommandSection {
+                    command: CommandSpec {
+                        name: "setup.sh".to_string(),
+                        command_provider: relative_command_provider.clone(),
+                        args: Vec::new(),
+                    },
+                    ..CommandSection::empty()
                 },
-                ..CommandSection::empty()
-            },
-            teardown: CommandSection {
-                command: CommandSpec {
-                    name: "teardown.sh".to_string(),
-                    command_provider: relative_command_provider,
-                    args: Vec::new(),
+                teardown: CommandSection {
+                    command: CommandSpec {
+                        name: "teardown.sh".to_string(),
+                        command_provider: relative_command_provider,
+                        args: Vec::new(),
+                    },
+                    ..CommandSection::empty()
                 },
-                ..CommandSection::empty()
-            },
+            }),
             ..EnvironmentConfig::empty()
         };
 
@@ -935,12 +971,14 @@ pub(crate) mod tests {
         let expected_inline = CommandProvider::Inline(InlineFile {
             content: file_content.to_string(),
         });
+        let EnvironmentExecution::Script(script) = &environment.execution;
+
         assert_eq!(
-            environment.setup.command.command_provider, expected_inline,
+            script.setup.command.command_provider, expected_inline,
             "Expected setup command provider to be inlined"
         );
         assert_eq!(
-            environment.teardown.command.command_provider, expected_inline,
+            script.teardown.command.command_provider, expected_inline,
             "Expected teardown command provider to be inlined"
         );
     }

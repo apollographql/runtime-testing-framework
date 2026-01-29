@@ -1,5 +1,10 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "anyOf": [
+    {
+      "$ref": "#/definitions/ScriptEnvironment"
+    }
+  ],
   "definitions": {
     "BuildRouterFromSource": {
       "description": "A file provider used for building the Router from source at a specific git commit\nor reference. A profile and list of features can optionally be provided.\n\n```yaml\n- name: \"router-build.sh\"\n  env_var: ROUTER_BUILD_SCRIPT\n  kind: build_router_from_source\n  git_ref: \"some-ref\"\n  rust_version: \"1.89.0\"\n  profile: \"release\"\n  features: \"default\"\n```",
@@ -1402,6 +1407,21 @@
       "description": "A scalar that is valid to be used as a template variable for a [Field].",
       "title": "Scalar"
     },
+    "ScriptEnvironment": {
+      "properties": {
+        "setup": {
+          "$ref": "#/definitions/CommandSection"
+        },
+        "teardown": {
+          "$ref": "#/definitions/CommandSection"
+        }
+      },
+      "required": [
+        "setup",
+        "teardown"
+      ],
+      "type": "object"
+    },
     "Templatable Scalar": {
       "description": "A templatable Scalar that can be replaced with a user specified variable at runtime",
       "oneOf": [
@@ -1675,22 +1695,6 @@
       "description": "The name of this environment configuration",
       "type": "string"
     },
-    "setup": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/CommandSection"
-        }
-      ],
-      "description": "The command to execute to prepare the environment for executing the test scenario"
-    },
-    "teardown": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/CommandSection"
-        }
-      ],
-      "description": "The command to execute to clean up the environment after executing the test scenario"
-    },
     "variable_definitions": {
       "default": [],
       "description": "Definitions for the required variables for templating this environment",
@@ -1702,9 +1706,7 @@
   },
   "required": [
     "name",
-    "description",
-    "setup",
-    "teardown"
+    "description"
   ],
   "title": "Environment Config",
   "type": "object"
