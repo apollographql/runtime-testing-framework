@@ -6,14 +6,23 @@ use crate::{
     enum_impl_check,
     formats::{CustomProviderDeclaration, Result},
     inlining,
-    providers::{self, command::CommandSection, file::SourceDir},
-    run::{Execute, RunProviders},
-    templating::{self, FileType, Template, TemplateContext},
+    providers::{
+        self, Provider,
+        command::CommandSection,
+        file::{NamedFileProvider, SourceDir, compose::NamedComposeFileProvider},
+    },
+    run::{Execute, OUTDIR, OUTPUT_PATH, PROVIDER_DIR, RunProviders},
+    templating::{self, Field, FileType, Scalar, Template, TemplateContext},
 };
 use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, fs, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+    path::Path,
+    pin::Pin,
+};
 
 /// # Environment Config
 ///
@@ -154,14 +163,18 @@ impl CheckArrayDuplicates for EnvironmentConfig {
         )];
 
         match &mut self.execution {
-            EnvironmentExecution::Script(script) => {
+            EnvironmentExecution::DockerCompose(inner) => {
+                arrays.push(("compose_files", DedupArray::Ncfp(&mut inner.compose_files)));
+                arrays.push(("file_providers", DedupArray::Nfp(&mut inner.file_providers)));
+            }
+            EnvironmentExecution::Script(inner) => {
                 arrays.push((
                     "setup.file_providers",
-                    DedupArray::Nfp(&mut script.setup.file_providers),
+                    DedupArray::Nfp(&mut inner.setup.file_providers),
                 ));
                 arrays.push((
                     "teardown.file_providers",
-                    DedupArray::Nfp(&mut script.teardown.file_providers),
+                    DedupArray::Nfp(&mut inner.teardown.file_providers),
                 ));
             }
         }
@@ -175,7 +188,9 @@ impl CheckArrayDuplicates for EnvironmentConfig {
     untagged,
     expecting = "expected docker-compose environment (with compose_files) or script environment (with setup/teardown)"
 )]
+#[allow(clippy::large_enum_variant)] // We only ever allocate one of these, not multiples, so the difference in variant size should not be an issue
 pub enum EnvironmentExecution {
+    DockerCompose(DockerComposeEnvironment),
     Script(ScriptEnvironment),
 }
 
@@ -187,6 +202,9 @@ impl EnvironmentExecution {
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
         match &self {
+            EnvironmentExecution::DockerCompose(inner) => {
+                inner.execute_setup(name, out_dir, ctx).await
+            }
             EnvironmentExecution::Script(inner) => inner.execute_setup(name, out_dir, ctx).await,
         }
     }
@@ -198,12 +216,13 @@ impl EnvironmentExecution {
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
         match &self {
+            EnvironmentExecution::DockerCompose(inner) => inner.execute_teardown(name, ctx).await,
             EnvironmentExecution::Script(inner) => inner.execute_teardown(name, out_dir, ctx).await,
         }
     }
 }
 
-enum_impl_check!(EnvironmentExecution => Script);
+enum_impl_check!(EnvironmentExecution => Script, DockerCompose);
 
 impl RunProviders for EnvironmentExecution {
     async fn run_providers(
@@ -212,6 +231,9 @@ impl RunProviders for EnvironmentExecution {
         ctx: &mut impl ResolutionContext,
     ) -> crate::providers::Result<()> {
         match self {
+            EnvironmentExecution::DockerCompose(inner) => {
+                inner.run_providers(providers_dir, ctx).await
+            }
             EnvironmentExecution::Script(inner) => inner.run_providers(providers_dir, ctx).await,
         }
     }
@@ -221,6 +243,7 @@ impl RunProviders for EnvironmentExecution {
         ctx: &'a impl ResolutionContext,
     ) -> std::pin::Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
         match self {
+            EnvironmentExecution::DockerCompose(inner) => inner.inline(ctx),
             EnvironmentExecution::Script(inner) => inner.inline(ctx),
         }
     }
@@ -230,6 +253,7 @@ impl RunProviders for EnvironmentExecution {
         ctx: &'a impl ResolutionContext,
     ) -> std::pin::Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
         match self {
+            EnvironmentExecution::DockerCompose(inner) => inner.inline_all_relative_paths(ctx),
             EnvironmentExecution::Script(inner) => inner.inline_all_relative_paths(ctx),
         }
     }
@@ -295,7 +319,7 @@ impl RunProviders for ScriptEnvironment {
     fn inline<'a>(
         &'a mut self,
         ctx: &'a impl ResolutionContext,
-    ) -> std::pin::Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
@@ -309,7 +333,7 @@ impl RunProviders for ScriptEnvironment {
     fn inline_all_relative_paths<'a>(
         &'a mut self,
         ctx: &'a impl ResolutionContext,
-    ) -> std::pin::Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
@@ -321,15 +345,216 @@ impl RunProviders for ScriptEnvironment {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
+pub struct DockerComposeEnvironment {
+    /// The name of the docker compose project. Defaults to the environment name if not set.
+    #[serde(default)]
+    #[template(skip)]
+    pub project_name: Option<String>,
+    /// A list of all the docker compose files to start for this environment
+    pub compose_files: Vec<NamedComposeFileProvider>,
+    /// A list of all other files the docker compose environment depends on
+    #[serde(default)]
+    pub file_providers: Vec<NamedFileProvider>,
+    // Environment variables to set
+    #[serde(default)]
+    pub env_vars: HashMap<String, Field<Scalar>>,
+}
+
+impl DockerComposeEnvironment {
+    fn project_name(&self, name: &str) -> String {
+        self.project_name.as_deref().unwrap_or(name).to_string()
+    }
+
+    pub async fn execute_setup(
+        &self,
+        name: &str,
+        out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<String> {
+        let output_path = out_dir.join(OUTPUT_PATH);
+        let providers_dir = out_dir.join(PROVIDER_DIR);
+
+        self.run_providers(&providers_dir.join(format!("{name}_providers")), ctx)
+            .await?;
+
+        let project_name = self.project_name(name);
+        let env_vars = self.all_env_vars(out_dir, &output_path, ctx)?;
+        let (cmd, args) = self.setup_as_command_and_args(&project_name, ctx)?;
+
+        ctx.run_command_blocking(cmd, args.iter().map(|s| s.as_str()), &env_vars)
+            .map_err(|e| providers::Error::CommandFailed {
+                name: "docker compose up".to_string(),
+                err: e.to_string(),
+            })?;
+
+        Ok("{}".to_string())
+    }
+
+    pub async fn execute_teardown(
+        &self,
+        name: &str,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<String> {
+        let project_name = self.project_name(name);
+        let (cmd, args) = self.teardown_as_command_and_args(&project_name)?;
+
+        ctx.run_command_blocking(cmd, args.iter().map(|s| s.as_str()), &HashMap::new())
+            .map_err(|e| providers::Error::CommandFailed {
+                name: "docker compose down".to_string(),
+                err: e.to_string(),
+            })?;
+
+        Ok("{}".to_string())
+    }
+
+    fn setup_as_command_and_args(
+        &self,
+        project_name: &str,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<(&'static str, Vec<String>)> {
+        let mut args = vec![
+            "compose".to_string(),
+            "-p".to_string(),
+            project_name.to_string(),
+        ];
+
+        for ncfp in self.compose_files.iter() {
+            let path = ctx
+                .known_provider_output_path(Provider::ComposeFile { fp: &ncfp.provider })
+                .ok_or(providers::Error::MissingProviderOutput {
+                    name: ncfp.name.clone(),
+                })?;
+            args.push("-f".to_string());
+            args.push(path.to_string_lossy().to_string());
+        }
+
+        // Add up command with flags: detached mode, wait for health checks
+        args.extend(["up".to_string(), "-d".to_string(), "--wait".to_string()]);
+
+        Ok(("docker", args))
+    }
+
+    fn teardown_as_command_and_args(
+        &self,
+        project_name: &str,
+    ) -> providers::Result<(&'static str, Vec<String>)> {
+        let mut args = vec![
+            "compose".to_string(),
+            "-p".to_string(),
+            project_name.to_string(),
+        ];
+
+        args.push("down".to_string());
+
+        Ok(("docker", args))
+    }
+
+    pub fn all_env_vars(
+        &self,
+        out_dir: &Path,
+        output_path: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<HashMap<String, String>> {
+        let mut vars: HashMap<String, String> = self
+            .env_vars
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.as_resolved().to_string()))
+            .collect();
+
+        for nfp in self.file_providers.iter() {
+            let path = ctx
+                .known_provider_output_path(Provider::File { fp: &nfp.provider })
+                .ok_or(providers::Error::MissingProviderOutput {
+                    name: nfp.name.clone(),
+                })?;
+            vars.insert(nfp.env_var.clone(), path.to_string_lossy().to_string());
+        }
+
+        vars.insert(OUTDIR.to_string(), out_dir.display().to_string());
+        vars.insert(OUTPUT_PATH.to_string(), output_path.display().to_string());
+
+        Ok(vars)
+    }
+}
+
+impl Check for DockerComposeEnvironment {
+    fn try_check(
+        &self,
+        path: &mut Vec<String>,
+        ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        let mut errs = checks::ErrorBuilder::new();
+
+        for ncfp in self.compose_files.iter() {
+            errs.append(ncfp.try_check_nested(path, "compose_files", ctx));
+        }
+        for nfp in self.file_providers.iter() {
+            errs.append(nfp.try_check_nested(path, "file_providers", ctx));
+        }
+
+        errs.into_result(())
+    }
+}
+
+impl RunProviders for DockerComposeEnvironment {
+    async fn run_providers(
+        &self,
+        providers_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> crate::providers::Result<()> {
+        self.compose_files.run_providers(providers_dir, ctx).await?;
+        self.file_providers
+            .run_providers(providers_dir, ctx)
+            .await?;
+
+        Ok(())
+    }
+
+    fn inline<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        Box::pin(async move {
+            let mut errs = inlining::ErrorBuilder::new();
+
+            errs.append(self.compose_files.inline(ctx).await);
+            errs.append(self.file_providers.inline(ctx).await);
+
+            errs.into_result(())
+        })
+    }
+
+    fn inline_all_relative_paths<'a>(
+        &'a mut self,
+        ctx: &'a impl ResolutionContext,
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+        Box::pin(async move {
+            let mut errs = inlining::ErrorBuilder::new();
+
+            errs.append(self.compose_files.inline_all_relative_paths(ctx).await);
+            errs.append(self.file_providers.inline_all_relative_paths(ctx).await);
+
+            errs.into_result(())
+        })
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod test_helpers {
     use super::*;
     use crate::{
+        context::Context,
         formats::tests::{
             named_file_providers_with_fields, templatable_file_providers, variable_definitions,
         },
+        providers::{
+            Provider,
+            file::{InlineFile, compose::ComposeFileProvider},
+        },
         templating::Field,
     };
+    use std::path::PathBuf;
 
     /// Create an EnvironmentConfig for testing Template trait methods (has_pending_fields, required_variables)
     pub(crate) fn environment_with_fields(
@@ -376,6 +601,53 @@ pub(crate) mod test_helpers {
             ..EnvironmentConfig::empty()
         }
     }
+
+    /// Create a named compose file with inline content unique to the name.
+    /// Using the name in the content ensures each compose file has a unique provider
+    /// identity (since providers are keyed by their serialized content).
+    pub(crate) fn named_compose_file(name: &str) -> NamedComposeFileProvider {
+        NamedComposeFileProvider {
+            name: name.to_string(),
+            provider: ComposeFileProvider::Inline(InlineFile {
+                content: format!("# {name}\nservices: {{}}"),
+            }),
+        }
+    }
+
+    /// Create a simple DockerComposeEnvironment for command-building tests
+    pub(crate) fn docker_compose_env(
+        project_name: Option<&str>,
+        compose_file_names: &[&str],
+    ) -> DockerComposeEnvironment {
+        DockerComposeEnvironment {
+            project_name: project_name.map(String::from),
+            compose_files: compose_file_names
+                .iter()
+                .map(|name| named_compose_file(name))
+                .collect(),
+            file_providers: Vec::new(),
+            env_vars: HashMap::new(),
+        }
+    }
+
+    /// Store compose file paths in context, returning the paths for use in assertions
+    pub(crate) fn register_compose_paths(
+        ctx: &mut Context,
+        env: &DockerComposeEnvironment,
+        base_path: &str,
+    ) -> Vec<String> {
+        env.compose_files
+            .iter()
+            .map(|ncfp| {
+                let path = format!("{}/{}", base_path, ncfp.name);
+                ctx.store_provider_output_path(
+                    Provider::ComposeFile { fp: &ncfp.provider },
+                    PathBuf::from(&path),
+                );
+                path
+            })
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -385,10 +657,13 @@ pub(crate) mod tests {
         checks::ErrorKind,
         context::Context,
         formats::{
-            environment::test_helpers::{environment_with_fields, templatable_environment},
+            environment::test_helpers::{
+                docker_compose_env, environment_with_fields, register_compose_paths,
+                templatable_environment,
+            },
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
-                template_context, variable_definitions,
+                templatable_file_providers, template_context, variable_definitions,
             },
         },
         providers::{
@@ -397,7 +672,10 @@ pub(crate) mod tests {
                 CommandProvider, CommandSection, CommandSpec,
                 test_helpers::{cmd_with_inline_file, cmd_with_required_file},
             },
-            file::{InlineFile, RawSource, RelativeFile, SourceDir},
+            file::{
+                FileProvider, InlineFile, RawSource, RelativeFile, RequiredFile, SourceDir,
+                compose::ComposeFileProvider,
+            },
             test_helpers::create_temp_dir_with_file,
         },
         templating::Field,
@@ -457,6 +735,33 @@ pub(crate) mod tests {
     "#
     );
 
+    // An example docker compose environment config to check parsing and templating
+    const TEMPLATED_COMPOSE_ENVIRONMENT: &str = indoc!(
+        r#"
+        name: docker-compose-environment
+        description: a templated docker compose environment
+        variable_definitions:
+          - name: foo
+            description: a value foo
+            allowed_values: ["foo1", "foo2"]
+          - name: bar
+            description: a value bar
+            default: "bar"
+        project_name: docker-compose-env
+        env_vars:
+            ENV_VAR: "value"
+        compose_files:
+          - name: foo.yaml
+            kind: relative_path
+            path: "{{ foo }}"
+        file_providers:
+          - name: bar.txt
+            env_var: BAR
+            kind: relative_path
+            path: "{{ bar }}"
+        "#
+    );
+
     #[test]
     fn parse_script_environment_success() {
         let config: EnvironmentConfig = serde_yaml::from_str(TEMPLATED_SCRIPT_ENVIRONMENT)
@@ -496,6 +801,18 @@ pub(crate) mod tests {
             cp.using.get("another_provider").unwrap(),
             "another_provider.yaml",
         );
+    }
+
+    #[test]
+    fn parse_compose_environment_success() {
+        let config: EnvironmentConfig = serde_yaml::from_str(TEMPLATED_COMPOSE_ENVIRONMENT)
+            .expect("environment config to parse");
+
+        let mut res = config.required_variables();
+        res.sort(); // Sorting so variables are in a determistic order for the assert_eq
+
+        assert_eq!(res, &["bar", "foo"], "expected variables to match");
+        assert_eq!(config.custom_providers.len(), 0);
     }
 
     #[test_case(p("setup"), p("teardown"), true; "setup and teardown pending is pending")]
@@ -558,6 +875,38 @@ pub(crate) mod tests {
         let ctx = template_context(field_names.as_slice());
         let mut environment =
             templatable_environment(field_names.as_slice(), setup_fields, teardown_fields, &[]);
+
+        let res = environment.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
+        assert!(
+            res.is_ok(),
+            "expected to template successfully, got {res:?}"
+        )
+    }
+
+    #[test]
+    fn try_template_docker_compose_succeeds() {
+        let field_names = &["compose", "file", "env"];
+        let ctx = template_context(field_names);
+
+        let mut env_vars = HashMap::new();
+        env_vars.insert("ENV_VAR".to_string(), Field::Pending("env".to_string()));
+
+        let mut environment = EnvironmentConfig {
+            variable_definitions: variable_definitions(field_names),
+            execution: EnvironmentExecution::DockerCompose(DockerComposeEnvironment {
+                project_name: None,
+                compose_files: vec![NamedComposeFileProvider {
+                    name: "compose.yaml".to_string(),
+                    provider: ComposeFileProvider::RelativePath(RelativeFile {
+                        path: Field::Pending("compose".to_string()),
+                        src: None,
+                    }),
+                }],
+                file_providers: templatable_file_providers(&["file"]),
+                env_vars,
+            }),
+            ..EnvironmentConfig::empty()
+        };
 
         let res = environment.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
         assert!(
@@ -654,6 +1003,35 @@ pub(crate) mod tests {
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
     }
 
+    #[test]
+    fn check_docker_compose_success() {
+        let environment = EnvironmentConfig {
+            execution: EnvironmentExecution::DockerCompose(DockerComposeEnvironment {
+                project_name: None,
+                compose_files: vec![NamedComposeFileProvider {
+                    name: "compose.yaml".to_string(),
+                    provider: ComposeFileProvider::Inline(InlineFile {
+                        content: "content".to_string(),
+                    }),
+                }],
+                file_providers: vec![NamedFileProvider {
+                    name: "file.txt".to_string(),
+                    env_var: "FILE".to_string(),
+                    provider: FileProvider::Inline(InlineFile {
+                        content: "content".to_string(),
+                    }),
+                }],
+                env_vars: HashMap::new(),
+            }),
+            ..EnvironmentConfig::empty()
+        };
+
+        let ctx = Context::new();
+
+        let res = environment.try_check(&mut Vec::new(), &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+    }
+
     #[test_case(
         cmd_with_required_file(),
         CommandSection::empty(),
@@ -692,6 +1070,59 @@ pub(crate) mod tests {
         };
 
         let ctx = Context::new();
+
+        assert_check_errors(environment, &ctx, expected_err_kinds);
+    }
+
+    #[test]
+    fn try_check_docker_compose_compose_file_errors() {
+        let variables = &["foo"];
+        let environment = EnvironmentConfig {
+            variable_definitions: variable_definitions(variables),
+            execution: EnvironmentExecution::DockerCompose(DockerComposeEnvironment {
+                project_name: None,
+                compose_files: vec![NamedComposeFileProvider {
+                    name: "compose.yaml".to_string(),
+                    provider: ComposeFileProvider::Required(RequiredFile {
+                        message: "this is a required file".to_string(),
+                    }),
+                }],
+                file_providers: Vec::new(),
+                env_vars: HashMap::new(),
+            }),
+            ..EnvironmentConfig::empty()
+        };
+
+        let ctx = Context::new();
+
+        let expected_err_kinds = &[checks::ErrorKind::RequiredFileMissing];
+
+        assert_check_errors(environment, &ctx, expected_err_kinds);
+    }
+
+    #[test]
+    fn try_check_docker_compose_file_provider_errors() {
+        let variables = &["foo"];
+        let environment = EnvironmentConfig {
+            variable_definitions: variable_definitions(variables),
+            execution: EnvironmentExecution::DockerCompose(DockerComposeEnvironment {
+                project_name: None,
+                compose_files: Vec::new(),
+                file_providers: vec![NamedFileProvider {
+                    name: "file.txt".to_string(),
+                    env_var: "FILE".to_string(),
+                    provider: FileProvider::Required(RequiredFile {
+                        message: "this is a required file".to_string(),
+                    }),
+                }],
+                env_vars: HashMap::new(),
+            }),
+            ..EnvironmentConfig::empty()
+        };
+
+        let ctx = Context::new();
+
+        let expected_err_kinds = &[checks::ErrorKind::RequiredFileMissing];
 
         assert_check_errors(environment, &ctx, expected_err_kinds);
     }
@@ -930,7 +1361,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
-    async fn environment_config_inline_succeeds() {
+    async fn script_environment_config_inline_succeeds() {
         let file_content = "example file content";
         let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", file_content);
 
@@ -971,7 +1402,10 @@ pub(crate) mod tests {
         let expected_inline = CommandProvider::Inline(InlineFile {
             content: file_content.to_string(),
         });
-        let EnvironmentExecution::Script(script) = &environment.execution;
+        let script = match &environment.execution {
+            EnvironmentExecution::Script(script) => script,
+            _ => panic!("Expected EnvironmentExecution::Script variant"),
+        };
 
         assert_eq!(
             script.setup.command.command_provider, expected_inline,
@@ -981,5 +1415,230 @@ pub(crate) mod tests {
             script.teardown.command.command_provider, expected_inline,
             "Expected teardown command provider to be inlined"
         );
+    }
+
+    #[tokio::test]
+    async fn docker_compose_environment_config_inline_succeeds() {
+        let file_content = "example file content";
+        let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", file_content);
+
+        let ctx = Context::new();
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+
+        let relative_compose_file = ComposeFileProvider::RelativePath(RelativeFile {
+            path: Field::Resolved("file.txt".to_string()),
+            src: Some(src.clone()),
+        });
+
+        let relative_file = FileProvider::RelativePath(RelativeFile {
+            path: Field::Resolved("file.txt".to_string()),
+            src: Some(src.clone()),
+        });
+
+        let mut environment = EnvironmentConfig {
+            execution: EnvironmentExecution::DockerCompose(DockerComposeEnvironment {
+                project_name: None,
+                compose_files: vec![NamedComposeFileProvider {
+                    name: "compose.yaml".to_string(),
+                    provider: relative_compose_file,
+                }],
+                file_providers: vec![NamedFileProvider {
+                    name: "file.txt".to_string(),
+                    env_var: "FILE".to_string(),
+                    provider: relative_file,
+                }],
+                env_vars: HashMap::new(),
+            }),
+            ..EnvironmentConfig::empty()
+        };
+
+        let result = environment.inline(&ctx).await;
+
+        assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
+
+        let expected_inline_compose_file = NamedComposeFileProvider {
+            name: "compose.yaml".to_string(),
+            provider: ComposeFileProvider::Inline(InlineFile {
+                content: "example file content".to_string(),
+            }),
+        };
+        let expected_inline_file = NamedFileProvider {
+            name: "file.txt".to_string(),
+            env_var: "FILE".to_string(),
+            provider: FileProvider::Inline(InlineFile {
+                content: "example file content".to_string(),
+            }),
+        };
+
+        let compose = match &environment.execution {
+            EnvironmentExecution::DockerCompose(compose) => compose,
+            _ => panic!("Expected EnvironmentExecution::DockerCompose variant"),
+        };
+
+        assert_eq!(
+            compose.compose_files[0], expected_inline_compose_file,
+            "Expected compose file to be inlined"
+        );
+        assert_eq!(
+            compose.file_providers[0], expected_inline_file,
+            "Expected file provider to be inlined"
+        );
+    }
+
+    #[test]
+    fn docker_compose_setup_as_command_and_args_builds_correct_command() {
+        let docker_compose = docker_compose_env(Some("test-project"), &["compose.yaml"]);
+
+        let mut ctx = Context::new();
+        let paths = register_compose_paths(&mut ctx, &docker_compose, "/tmp/providers");
+
+        let result = docker_compose.setup_as_command_and_args("test-project", &ctx);
+        assert!(result.is_ok(), "Expected command to build successfully");
+
+        let (cmd, args) = result.unwrap();
+        assert_eq!(cmd, "docker");
+        assert_eq!(
+            args,
+            vec![
+                "compose",
+                "-p",
+                "test-project",
+                "-f",
+                &paths[0],
+                "up",
+                "-d",
+                "--wait"
+            ]
+        );
+    }
+
+    #[test]
+    fn docker_compose_setup_with_multiple_compose_files() {
+        let docker_compose =
+            docker_compose_env(Some("multi-compose"), &["base.yaml", "overlay.yaml"]);
+
+        let mut ctx = Context::new();
+        let paths = register_compose_paths(&mut ctx, &docker_compose, "/tmp/providers");
+
+        let result = docker_compose.setup_as_command_and_args("multi-compose", &ctx);
+        assert!(result.is_ok(), "Expected command to build successfully");
+
+        let (cmd, args) = result.unwrap();
+        assert_eq!(cmd, "docker");
+        assert_eq!(
+            args,
+            vec![
+                "compose",
+                "-p",
+                "multi-compose",
+                "-f",
+                &paths[0],
+                "-f",
+                &paths[1],
+                "up",
+                "-d",
+                "--wait"
+            ]
+        );
+    }
+
+    #[test]
+    fn docker_compose_teardown_as_command_and_args_builds_correct_command() {
+        let docker_compose = docker_compose_env(Some("test-project"), &["compose.yaml"]);
+
+        let result = docker_compose.teardown_as_command_and_args("test-project");
+        assert!(result.is_ok(), "Expected command to build successfully");
+
+        let (cmd, args) = result.unwrap();
+        assert_eq!(cmd, "docker");
+        assert_eq!(args, vec!["compose", "-p", "test-project", "down"]);
+    }
+
+    #[test]
+    fn docker_compose_command_fails_when_compose_file_path_unknown() {
+        let docker_compose = docker_compose_env(Some("test-project"), &["compose.yaml"]);
+
+        // Context without stored provider path
+        let ctx = Context::new();
+
+        let result = docker_compose.setup_as_command_and_args("test-project", &ctx);
+        assert!(
+            result.is_err(),
+            "Expected error when compose file path unknown"
+        );
+
+        let err = result.unwrap_err();
+        assert!(
+            matches!(&err, providers::Error::MissingProviderOutput { name } if name == "compose.yaml"),
+            "Expected MissingProviderOutput error, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn docker_compose_all_env_vars_includes_file_providers_and_explicit_vars() {
+        let file_provider = FileProvider::Inline(InlineFile {
+            content: "file content".to_string(),
+        });
+
+        let mut explicit_env_vars = HashMap::new();
+        explicit_env_vars.insert(
+            "EXPLICIT_VAR".to_string(),
+            Field::Resolved(Scalar::from("explicit_value")),
+        );
+
+        let docker_compose = DockerComposeEnvironment {
+            project_name: Some("test-project".to_string()),
+            compose_files: Vec::new(),
+            file_providers: vec![NamedFileProvider {
+                name: "config.txt".to_string(),
+                env_var: "CONFIG_FILE".to_string(),
+                provider: file_provider.clone(),
+            }],
+            env_vars: explicit_env_vars,
+        };
+
+        let mut ctx = Context::new();
+        ctx.store_provider_output_path(
+            Provider::File { fp: &file_provider },
+            PathBuf::from("/tmp/providers/config.txt"),
+        );
+
+        let out_dir = PathBuf::from("/tmp/output");
+        let output_path = out_dir.join("rtf_output");
+
+        let result = docker_compose.all_env_vars(&out_dir, &output_path, &ctx);
+        assert!(result.is_ok(), "Expected env vars to be built successfully");
+
+        let env_vars = result.unwrap();
+
+        assert_eq!(
+            env_vars.get("CONFIG_FILE"),
+            Some(&"/tmp/providers/config.txt".to_string()),
+        );
+        assert_eq!(
+            env_vars.get("EXPLICIT_VAR"),
+            Some(&"explicit_value".to_string()),
+        );
+        assert_eq!(env_vars.get("OUTDIR"), Some(&"/tmp/output".to_string()));
+        assert_eq!(
+            env_vars.get("RTF_OUTPUT"),
+            Some(&"/tmp/output/rtf_output".to_string()),
+        );
+    }
+
+    #[test]
+    fn docker_compose_uses_environment_name_when_project_name_not_set() {
+        let docker_compose = docker_compose_env(None, &["compose.yaml"]);
+
+        let mut ctx = Context::new();
+        register_compose_paths(&mut ctx, &docker_compose, "/tmp/providers");
+
+        // Pass "fallback-name" as the environment name
+        let result = docker_compose.setup_as_command_and_args("fallback-name", &ctx);
+        assert!(result.is_ok(), "Expected command to build successfully");
+
+        let (_, args) = result.unwrap();
+        // The project name should be "fallback-name" (passed as argument)
+        assert_eq!(args[2], "fallback-name");
     }
 }

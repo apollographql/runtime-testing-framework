@@ -1,0 +1,27 @@
+name: docker-compose-service-exits
+description: Test error when container starts but immediately exits with failure
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: A simple scenario
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "This should not run"
+
+environment:
+  inline:
+    name: docker-compose-service-exits
+    description: Environment where service immediately exits with error
+    project_name: service-exits-test
+    compose_files:
+      - name: compose.yaml
+        kind: inline
+        content: |
+          services:
+            failing-service:
+              image: alpine:latest
+              command: ["sh", "-c", "echo 'About to fail' && exit 1"]

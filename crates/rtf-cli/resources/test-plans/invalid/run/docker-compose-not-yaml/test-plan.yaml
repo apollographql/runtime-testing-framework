@@ -1,0 +1,26 @@
+name: docker-compose-not-yaml
+description: Test error when compose file is not valid YAML
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: A simple scenario
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "This should not run"
+
+environment:
+  inline:
+    name: docker-compose-not-yaml
+    description: Environment with invalid YAML compose file
+    project_name: not-yaml-test
+    compose_files:
+      - name: compose.yaml
+        kind: inline
+        content: |
+          this is not valid yaml: [
+          services:
+            missing: closing bracket

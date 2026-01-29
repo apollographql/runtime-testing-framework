@@ -1,0 +1,28 @@
+name: docker-compose-invalid-compose
+description: Test error when compose file is valid YAML but invalid docker compose
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: A simple scenario
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "This should not run"
+
+environment:
+  inline:
+    name: docker-compose-invalid-compose
+    description: Environment with valid YAML but invalid docker compose structure
+    project_name: invalid-compose-test
+    compose_files:
+      - name: compose.yaml
+        kind: inline
+        content: |
+          # Valid YAML but missing required 'services' key
+          version: "3.8"
+          not_services:
+            my-service:
+              image: alpine

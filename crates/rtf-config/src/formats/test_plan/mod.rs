@@ -1261,7 +1261,10 @@ mod tests {
             "test the scenario command comes from overrides"
         );
 
-        let EnvironmentExecution::Script(script) = &test_plan.environment.execution;
+        let script = match &test_plan.environment.execution {
+            EnvironmentExecution::Script(script) => script,
+            _ => panic!("Expected EnvironmentExecution::Script variant"),
+        };
         let environment_files = &script.setup.file_providers;
         assert_eq!(
             environment_files, &expected_env_files,
