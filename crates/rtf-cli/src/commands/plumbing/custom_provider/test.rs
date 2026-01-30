@@ -1,7 +1,7 @@
 //! Run validation tests for a custom provider
-use crate::commands::{get_context, plumbing::custom_provider::load_definition};
+use crate::commands::{get_context, load_config};
 use anyhow::{Context as _, anyhow};
-use rtf_config::context::ResolutionContext;
+use rtf_config::{context::ResolutionContext, formats::CustomProviderDefinition};
 use rtf_core::custom_provider::{Outcome, TestSuite};
 use std::{
     io::{IsTerminal, stdout},
@@ -23,7 +23,12 @@ pub async fn test_custom_provider(
     warn!("This is an experimental sub-command that is subject to changes in behaviour!");
 
     let ctx = get_context();
-    let (source, definition) = load_definition(definition_path, &ctx).await?;
+    let (source, definition) = load_config::<CustomProviderDefinition>(
+        definition_path,
+        "custom provider definition",
+        &ctx,
+    )
+    .await?;
 
     let abs_path = ctx
         .canonicalize_path(definition_path)

@@ -1,0 +1,12 @@
+name: fallback-project-name
+description: Docker compose environment without explicit project_name
+env_vars:
+  DB_HOST: "localhost"
+compose_files:
+  - name: docker-compose.yaml
+    kind: inline
+    content: |
+      version: "3.8"
+      services:
+        db:
+          image: postgres:latest

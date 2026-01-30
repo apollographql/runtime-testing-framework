@@ -419,28 +419,9 @@ impl DockerComposeEnvironment {
             project_name.to_string(),
         ];
 
-        for ncfp in self.compose_files.iter() {
-            let path = ctx
-                .known_provider_output_path(Provider::ComposeFile { fp: &ncfp.provider })
-                .ok_or(providers::Error::MissingProviderOutput {
-                    name: ncfp.name.clone(),
-                })?;
-
-            // Handle both single files and directories of compose files
-            let compose_files = match ctx.path_kind(&path) {
-                PathKind::File => vec![path],
-                PathKind::OccupiedDir => collect_compose_files(&path)?,
-                _ => {
-                    return Err(providers::Error::ProviderOutputNotFileOrDir {
-                        path_kind: ctx.path_kind(path),
-                    });
-                }
-            };
-
-            for file in compose_files {
-                args.push("-f".to_string());
-                args.push(file.to_string_lossy().to_string());
-            }
+        for file in self.compose_file_paths(ctx)? {
+            args.push("-f".to_string());
+            args.push(file.to_string_lossy().to_string());
         }
 
         // Add up command with flags: detached mode, wait for health checks
@@ -489,6 +470,41 @@ impl DockerComposeEnvironment {
         vars.insert(OUTPUT_PATH.to_string(), output_path.display().to_string());
 
         Ok(vars)
+    }
+
+    /// Collect all compose file paths from the resolved providers.
+    ///
+    /// Handles both single files and directories of compose files. When a provider
+    /// outputs a directory, all .yaml/.yml files within it are collected and sorted.
+    pub fn compose_file_paths(
+        &self,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<Vec<PathBuf>> {
+        let mut paths = Vec::new();
+
+        for ncfp in self.compose_files.iter() {
+            let path = ctx
+                .known_provider_output_path(Provider::ComposeFile { fp: &ncfp.provider })
+                .ok_or(providers::Error::MissingProviderOutput {
+                    name: ncfp.name.clone(),
+                })?;
+
+            match ctx.path_kind(&path) {
+                PathKind::File => {
+                    paths.push(path);
+                }
+                PathKind::OccupiedDir => {
+                    paths.extend(collect_compose_files(&path)?);
+                }
+                _ => {
+                    return Err(providers::Error::ProviderOutputNotFileOrDir {
+                        path_kind: ctx.path_kind(path),
+                    });
+                }
+            }
+        }
+
+        Ok(paths)
     }
 }
 

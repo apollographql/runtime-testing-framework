@@ -3,9 +3,9 @@ use crate::{
     ParsedVariables,
     cli::Variables,
     commands::{
-        get_context_and_check_outdir,
+        get_context_and_check_outdir, load_config,
         plumbing::{
-            custom_provider::{RESOLVED_PROVIDER_PATH, VARIABLES_PATH, load_definition},
+            custom_provider::{RESOLVED_PROVIDER_PATH, VARIABLES_PATH},
             parse_cli_variables,
         },
     },
@@ -14,6 +14,7 @@ use rtf_config::{
     SourceDir,
     checks::Check,
     context::ResolutionContext,
+    formats::CustomProviderDefinition,
     run::{Execute, OUTPUT_PATH, PROVIDER_DIR},
     templating::{Template, TemplateContext},
 };
@@ -30,7 +31,12 @@ pub async fn run_custom_provider(
     let cwd_source = SourceDir::local(cwd);
 
     info!("loading custom provider definition");
-    let (source, mut definition) = load_definition(definition_path, &ctx).await?;
+    let (source, mut definition) = load_config::<CustomProviderDefinition>(
+        definition_path,
+        "custom provider definition",
+        &ctx,
+    )
+    .await?;
 
     let ParsedVariables {
         variables,

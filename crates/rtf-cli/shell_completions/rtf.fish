@@ -107,18 +107,25 @@ complete -c rtf -n "__fish_rtf_using_subcommand inline; and __fish_seen_subcomma
 complete -c rtf -n "__fish_rtf_using_subcommand inline; and __fish_seen_subcommand_from help" -f -a "all" -d 'Inline all file providers'
 complete -c rtf -n "__fish_rtf_using_subcommand inline; and __fish_seen_subcommand_from help" -f -a "relative-files" -d 'Inline only relative file providers'
 complete -c rtf -n "__fish_rtf_using_subcommand inline; and __fish_seen_subcommand_from help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
-complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario help" -l var -d 'A single additional templating variable in the form "key=value"' -r
-complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario help" -l vars -d 'Path to a JSON file containing additional template variables' -r -F
-complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario help" -s v -l verbose -d 'Flag to control logging verbosity. Default level is `warn`. `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`'
-complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario help" -s h -l help -d 'Print help'
-complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario help" -f -a "scenario" -d 'Resolve file providers for a standalone scenario config'
-complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario environment help" -l var -d 'A single additional templating variable in the form "key=value"' -r
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario environment help" -l vars -d 'Path to a JSON file containing additional template variables' -r -F
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario environment help" -s v -l verbose -d 'Flag to control logging verbosity. Default level is `warn`. `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`'
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario environment help" -s h -l help -d 'Print help'
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario environment help" -f -a "scenario" -d 'Resolve file providers for a standalone scenario config'
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario environment help" -f -a "environment" -d 'Resolve file providers for a standalone environment config'
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and not __fish_seen_subcommand_from scenario environment help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from scenario" -l outdir -d 'Output directory for resolved providers and scenario.env' -r
 complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from scenario" -l var -d 'A single additional templating variable in the form "key=value"' -r
 complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from scenario" -l vars -d 'Path to a JSON file containing additional template variables' -r -F
 complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from scenario" -s v -l verbose -d 'Flag to control logging verbosity. Default level is `warn`. `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`'
 complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from scenario" -s h -l help -d 'Print help'
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from environment" -l outdir -d 'Output directory for resolved providers and env files' -r
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from environment" -l var -d 'A single additional templating variable in the form "key=value"' -r
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from environment" -l vars -d 'Path to a JSON file containing additional template variables' -r -F
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from environment" -s v -l verbose -d 'Flag to control logging verbosity. Default level is `warn`. `-v` sets logging level to `info`,`-vv` to `debug` and `-vvv` to `trace`'
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from environment" -s h -l help -d 'Print help'
 complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from help" -f -a "scenario" -d 'Resolve file providers for a standalone scenario config'
+complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from help" -f -a "environment" -d 'Resolve file providers for a standalone environment config'
 complete -c rtf -n "__fish_rtf_using_subcommand resolve; and __fish_seen_subcommand_from help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider inline resolve help" -f -a "run" -d 'Check and run a test plan'
 complete -c rtf -n "__fish_rtf_using_subcommand help; and not __fish_seen_subcommand_from run expand-matrix template custom-provider inline resolve help" -f -a "expand-matrix" -d 'Expand a test plan matrix into JSON'
@@ -133,3 +140,4 @@ complete -c rtf -n "__fish_rtf_using_subcommand help; and __fish_seen_subcommand
 complete -c rtf -n "__fish_rtf_using_subcommand help; and __fish_seen_subcommand_from inline" -f -a "all" -d 'Inline all file providers'
 complete -c rtf -n "__fish_rtf_using_subcommand help; and __fish_seen_subcommand_from inline" -f -a "relative-files" -d 'Inline only relative file providers'
 complete -c rtf -n "__fish_rtf_using_subcommand help; and __fish_seen_subcommand_from resolve" -f -a "scenario" -d 'Resolve file providers for a standalone scenario config'
+complete -c rtf -n "__fish_rtf_using_subcommand help; and __fish_seen_subcommand_from resolve" -f -a "environment" -d 'Resolve file providers for a standalone environment config'

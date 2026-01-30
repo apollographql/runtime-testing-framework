@@ -1,0 +1,19 @@
+name: docker-compose-environment
+description: A docker-compose environment for testing resolve
+project_name: test-project
+env_vars:
+  COMPOSE_VAR: "compose_value"
+compose_files:
+  - name: docker-compose.yaml
+    kind: inline
+    content: |
+      version: "3.8"
+      services:
+        test:
+          image: alpine:latest
+          command: ["echo", "hello"]
+file_providers:
+  - name: config.txt
+    env_var: CONFIG_FILE
+    kind: inline
+    content: "compose config content"

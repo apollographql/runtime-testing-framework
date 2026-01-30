@@ -198,4 +198,14 @@ pub enum ResolveSubcommand {
         #[arg(long, default_value = "output")]
         outdir: String,
     },
+
+    /// Resolve file providers for a standalone environment config
+    Environment {
+        /// Relative path to the environment.yaml file
+        environment_path: String,
+
+        /// Output directory for resolved providers and env files
+        #[arg(long, default_value = "output")]
+        outdir: String,
+    },
 }

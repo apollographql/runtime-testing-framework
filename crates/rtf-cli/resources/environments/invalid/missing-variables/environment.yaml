@@ -1,0 +1,14 @@
+name: invalid-environment
+description: Environment with missing variables that should fail
+setup:
+  command:
+    name: setup.sh
+    kind: inline
+    content: "echo setup"
+  env_vars:
+    MY_VAR: "{{ undefined_var }}"
+teardown:
+  command:
+    name: teardown.sh
+    kind: inline
+    content: "echo teardown"

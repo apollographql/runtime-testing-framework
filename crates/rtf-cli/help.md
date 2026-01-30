@@ -16,6 +16,7 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf inline relative-files`↴](#rtf-inline-relative-files)
 * [`rtf resolve`↴](#rtf-resolve)
 * [`rtf resolve scenario`↴](#rtf-resolve-scenario)
+* [`rtf resolve environment`↴](#rtf-resolve-environment)
 
 ## `rtf`
 
@@ -211,6 +212,7 @@ Resolve file providers for a config file without executing it
 ###### **Subcommands:**
 
 * `scenario` — Resolve file providers for a standalone scenario config
+* `environment` — Resolve file providers for a standalone environment config
 
 
 
@@ -227,6 +229,24 @@ Resolve file providers for a standalone scenario config
 ###### **Options:**
 
 * `--outdir <OUTDIR>` — Output directory for resolved providers and scenario.env
+
+  Default value: `output`
+
+
+
+## `rtf resolve environment`
+
+Resolve file providers for a standalone environment config
+
+**Usage:** `rtf resolve environment [OPTIONS] <ENVIRONMENT_PATH>`
+
+###### **Arguments:**
+
+* `<ENVIRONMENT_PATH>` — Relative path to the environment.yaml file
+
+###### **Options:**
+
+* `--outdir <OUTDIR>` — Output directory for resolved providers and env files
 
   Default value: `output`
 

@@ -1,0 +1,30 @@
+name: script-environment
+description: A simple script-based environment for testing resolve
+setup:
+  command:
+    name: setup.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+      echo "Running setup"
+  env_vars:
+    SETUP_VAR: "setup_value"
+  file_providers:
+    - name: setup-config.txt
+      env_var: SETUP_CONFIG
+      kind: inline
+      content: "setup config content"
+teardown:
+  command:
+    name: teardown.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+      echo "Running teardown"
+  env_vars:
+    TEARDOWN_VAR: "teardown_value"
+  file_providers:
+    - name: teardown-config.txt
+      env_var: TEARDOWN_CONFIG
+      kind: inline
+      content: "teardown config content"
