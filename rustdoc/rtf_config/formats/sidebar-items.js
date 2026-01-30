@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Error","ScenarioCommand"],"struct":["CustomProviderDeclaration","CustomProviderDefinition","EnvironmentConfig","Matrix","RawTestPlanConfig","ScenarioConfig","TestPlanConfig"],"type":["Result"]};
+window.SIDEBAR_ITEMS = {"enum":["EnvironmentExecution","Error","ScenarioCommand"],"struct":["CustomProviderDeclaration","CustomProviderDefinition","DockerComposeEnvironment","EnvironmentConfig","Matrix","RawTestPlanConfig","ScenarioConfig","ScriptEnvironment","TestPlanConfig"],"type":["Result"]};

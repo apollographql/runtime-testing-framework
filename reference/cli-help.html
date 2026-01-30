@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-16737c59.js";
+            window.path_to_searchindex_js = "../searchindex-30f14c4e.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-6484d70d.js"></script>
@@ -194,6 +194,7 @@
 <li><a href="#rtf-inline-relative-files"><code>rtf inline relative-files</code>↴</a></li>
 <li><a href="#rtf-resolve"><code>rtf resolve</code>↴</a></li>
 <li><a href="#rtf-resolve-scenario"><code>rtf resolve scenario</code>↴</a></li>
+<li><a href="#rtf-resolve-environment"><code>rtf resolve environment</code>↴</a></li>
 </ul>
 <h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
 <p>A swiss army knife for testing the Apollo Runtime</p>
@@ -354,6 +355,7 @@
 <h6 id="subcommands-3"><a class="header" href="#subcommands-3"><strong>Subcommands:</strong></a></h6>
 <ul>
 <li><code>scenario</code> — Resolve file providers for a standalone scenario config</li>
+<li><code>environment</code> — Resolve file providers for a standalone environment config</li>
 </ul>
 <h2 id="rtf-resolve-scenario"><a class="header" href="#rtf-resolve-scenario"><code>rtf resolve scenario</code></a></h2>
 <p>Resolve file providers for a standalone scenario config</p>
@@ -366,6 +368,20 @@
 <ul>
 <li>
 <p><code>--outdir &lt;OUTDIR&gt;</code> — Output directory for resolved providers and scenario.env</p>
+<p>Default value: <code>output</code></p>
+</li>
+</ul>
+<h2 id="rtf-resolve-environment"><a class="header" href="#rtf-resolve-environment"><code>rtf resolve environment</code></a></h2>
+<p>Resolve file providers for a standalone environment config</p>
+<p><strong>Usage:</strong> <code>rtf resolve environment [OPTIONS] &lt;ENVIRONMENT_PATH&gt;</code></p>
+<h6 id="arguments-8"><a class="header" href="#arguments-8"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;ENVIRONMENT_PATH&gt;</code> — Relative path to the environment.yaml file</li>
+</ul>
+<h6 id="options-9"><a class="header" href="#options-9"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--outdir &lt;OUTDIR&gt;</code> — Output directory for resolved providers and env files</p>
 <p>Default value: <code>output</code></p>
 </li>
 </ul>
