@@ -97,6 +97,9 @@ _rtf() {
             rtf__help__inline,relative-files)
                 cmd="rtf__help__inline__relative__files"
                 ;;
+            rtf__help__resolve,environment)
+                cmd="rtf__help__resolve__environment"
+                ;;
             rtf__help__resolve,scenario)
                 cmd="rtf__help__resolve__scenario"
                 ;;
@@ -118,11 +121,17 @@ _rtf() {
             rtf__inline__help,relative-files)
                 cmd="rtf__inline__help__relative__files"
                 ;;
+            rtf__resolve,environment)
+                cmd="rtf__resolve__environment"
+                ;;
             rtf__resolve,help)
                 cmd="rtf__resolve__help"
                 ;;
             rtf__resolve,scenario)
                 cmd="rtf__resolve__scenario"
+                ;;
+            rtf__resolve__help,environment)
+                cmd="rtf__resolve__help__environment"
                 ;;
             rtf__resolve__help,help)
                 cmd="rtf__resolve__help__help"
@@ -487,8 +496,22 @@ _rtf() {
             return 0
             ;;
         rtf__help__resolve)
-            opts="scenario"
+            opts="scenario environment"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        rtf__help__resolve__environment)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -681,7 +704,7 @@ _rtf() {
             return 0
             ;;
         rtf__resolve)
-            opts="-v -h --var --vars --verbose --help scenario help"
+            opts="-v -h --var --vars --verbose --help scenario environment help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -702,9 +725,49 @@ _rtf() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        rtf__resolve__help)
-            opts="scenario help"
+        rtf__resolve__environment)
+            opts="-v -h --outdir --var --vars --verbose --help <ENVIRONMENT_PATH>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --outdir)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --var)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --vars)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        rtf__resolve__help)
+            opts="scenario environment help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        rtf__resolve__help__environment)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi

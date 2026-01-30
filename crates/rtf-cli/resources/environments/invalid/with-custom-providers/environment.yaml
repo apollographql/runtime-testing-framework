@@ -1,0 +1,17 @@
+name: invalid-environment
+description: Environment with custom providers that should fail
+custom_providers:
+  - kind: local
+    relative_path: ./providers
+    using:
+      my_provider: provider.yaml
+setup:
+  command:
+    name: setup.sh
+    kind: inline
+    content: "echo setup"
+teardown:
+  command:
+    name: teardown.sh
+    kind: inline
+    content: "echo teardown"

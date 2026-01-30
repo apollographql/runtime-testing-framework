@@ -9,7 +9,9 @@ mod scenario;
 mod test_plan;
 
 pub use custom_provider::{CustomProviderDeclaration, CustomProviderDefinition};
-pub use environment::EnvironmentConfig;
+pub use environment::{
+    DockerComposeEnvironment, EnvironmentConfig, EnvironmentExecution, ScriptEnvironment,
+};
 pub use matrix::Matrix;
 use rtf_integrations::github;
 pub use scenario::{ScenarioCommand, ScenarioConfig};

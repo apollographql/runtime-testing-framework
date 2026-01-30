@@ -1,0 +1,25 @@
+name: multi-compose-environment
+description: Docker compose environment with multiple compose files
+project_name: multi-project
+env_vars:
+  APP_ENV: "test"
+compose_files:
+  - name: base.yaml
+    kind: inline
+    content: |
+      version: "3.8"
+      services:
+        app:
+          image: alpine:latest
+  - name: override.yaml
+    kind: inline
+    content: |
+      version: "3.8"
+      services:
+        app:
+          command: ["echo", "override"]
+file_providers:
+  - name: app-config.json
+    env_var: APP_CONFIG
+    kind: inline
+    content: '{"key": "value"}'
