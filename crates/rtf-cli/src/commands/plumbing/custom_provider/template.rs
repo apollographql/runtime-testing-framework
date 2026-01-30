@@ -2,14 +2,12 @@
 use crate::{
     ParsedVariables,
     cli::Variables,
-    commands::{
-        get_context,
-        plumbing::{custom_provider::load_definition, parse_cli_variables},
-    },
+    commands::{get_context, load_config, plumbing::parse_cli_variables},
 };
 use rtf_config::{
     SourceDir,
     checks::Check,
+    formats::CustomProviderDefinition,
     templating::{Template, TemplateContext},
 };
 use std::env::current_dir;
@@ -25,7 +23,12 @@ pub async fn template_custom_provider(
     let cwd_source = SourceDir::local(cwd);
 
     info!("loading custom provider definition");
-    let (source, mut definition) = load_definition(definition_path, &ctx).await?;
+    let (source, mut definition) = load_config::<CustomProviderDefinition>(
+        definition_path,
+        "custom provider definition",
+        &ctx,
+    )
+    .await?;
 
     let ParsedVariables {
         variables,

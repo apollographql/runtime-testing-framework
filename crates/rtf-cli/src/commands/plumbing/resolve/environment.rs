@@ -3,11 +3,8 @@ use crate::{
     ParsedVariables,
     cli::Variables,
     commands::{
-        get_context_and_check_outdir,
-        plumbing::{
-            parse_cli_variables,
-            resolve::{generate_env_file, load_environment},
-        },
+        get_context_and_check_outdir, load_config,
+        plumbing::{parse_cli_variables, resolve::generate_env_file},
     },
 };
 use anyhow::bail;
@@ -15,7 +12,9 @@ use rtf_config::{
     SourceDir,
     checks::Check,
     context::ResolutionContext,
-    formats::{DockerComposeEnvironment, EnvironmentExecution, ScriptEnvironment},
+    formats::{
+        DockerComposeEnvironment, EnvironmentConfig, EnvironmentExecution, ScriptEnvironment,
+    },
     run::{OUTPUT_PATH, PROVIDER_DIR, RunProviders},
     templating::{Template, TemplateContext},
 };
@@ -36,7 +35,8 @@ pub async fn resolve_environment(
     let cwd_source = SourceDir::local(cwd);
 
     info!("loading environment");
-    let (source, mut environment) = load_environment(environment_path, &ctx).await?;
+    let (source, mut environment) =
+        load_config::<EnvironmentConfig>(environment_path, "environment", &ctx).await?;
 
     // Custom providers are not supported by resolve environment
     if !environment.custom_providers.is_empty() {

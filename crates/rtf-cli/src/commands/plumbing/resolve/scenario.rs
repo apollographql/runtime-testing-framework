@@ -3,11 +3,8 @@ use crate::{
     ParsedVariables,
     cli::Variables,
     commands::{
-        get_context_and_check_outdir,
-        plumbing::{
-            parse_cli_variables,
-            resolve::{generate_env_file, load_scenario},
-        },
+        get_context_and_check_outdir, load_config,
+        plumbing::{parse_cli_variables, resolve::generate_env_file},
     },
 };
 use anyhow::bail;
@@ -15,6 +12,7 @@ use rtf_config::{
     SourceDir,
     checks::Check,
     context::ResolutionContext,
+    formats::ScenarioConfig,
     run::{OUTPUT_PATH, PROVIDER_DIR, RunProviders},
     templating::{Template, TemplateContext},
 };
@@ -33,7 +31,8 @@ pub async fn resolve_scenario(
     let cwd_source = SourceDir::local(cwd);
 
     info!("loading scenario");
-    let (source, mut scenario) = load_scenario(scenario_path, &ctx).await?;
+    let (source, mut scenario) =
+        load_config::<ScenarioConfig>(scenario_path, "scenario", &ctx).await?;
 
     // Custom providers are not supported by resolve scenario
     if !scenario.custom_providers.is_empty() {

@@ -4,11 +4,13 @@
 //! and high level "porcelain" categories.
 //!
 //! [0]: https://git-scm.com/docs
-use anyhow::{anyhow, bail};
+use anyhow::{Context as _, anyhow, bail};
 use rtf_config::{
+    SourceDir,
     context::{Context, PathKind, ResolutionContext},
     formats::{self, TestPlanConfig},
 };
+use serde::Deserialize;
 use std::{
     collections::HashMap,
     env::{self, current_dir},
@@ -42,6 +44,33 @@ pub(crate) fn get_context_and_check_outdir(out_dir: &str) -> anyhow::Result<(Con
         }
         _ => Ok((ctx, out_dir)),
     }
+}
+
+/// Load a config file from a path.
+pub(crate) async fn load_config<T>(
+    path: &str,
+    type_name: &str,
+    ctx: &impl ResolutionContext,
+) -> anyhow::Result<(SourceDir, T)>
+where
+    T: for<'de> Deserialize<'de>,
+{
+    let abs_path = ctx
+        .canonicalize_path(path)
+        .with_context(|| format!("Unable to resolve path: {path}"))?;
+    let content = ctx
+        .read_path_to_string(&abs_path)
+        .with_context(|| format!("Unable to read {type_name} from {path}"))?;
+    let source = SourceDir::local(
+        abs_path
+            .parent()
+            .expect("we just read the file so it has a parent"),
+    );
+
+    let config: T = serde_yaml::from_str(&content)
+        .with_context(|| format!("Unable to parse {type_name} yaml"))?;
+
+    Ok((source, config))
 }
 
 /// Handles loading a local test plan and displaying user facing errors
