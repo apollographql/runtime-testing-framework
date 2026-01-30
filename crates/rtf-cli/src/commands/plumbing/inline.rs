@@ -9,7 +9,7 @@ use rtf_config::{
     SourceDir,
     context::ResolutionContext,
     formats::TestPlanConfig,
-    inlining,
+    inlining::{self, InlineMode},
     templating::{Template, TemplateContext},
 };
 use std::{
@@ -21,17 +21,9 @@ use tracing::info;
 
 const INLINED_TEST_PLAN_PATH: &str = "inlined-test-plan.yaml";
 
-/// The subcommand that the inline command runs
-/// This enum exists so the command args don't need to be propagated down through
-/// all of the inline methods
-pub enum InlineMode {
-    All,
-    RelativeFiles,
-}
-
 pub async fn inline_test_plan(
     test_plan_path: &str,
-    mode: InlineMode,
+    mode: &InlineMode,
     outdir: &str,
     github: bool,
     git_ref: Option<String>,
@@ -52,7 +44,7 @@ pub async fn inline_test_plan(
 
 async fn inline_file_providers_with_context(
     mut test_plan: TestPlanConfig,
-    mode: InlineMode,
+    mode: &InlineMode,
     variables: Variables,
     mut ctx: impl ResolutionContext,
     cwd: PathBuf,
@@ -70,7 +62,7 @@ async fn inline_file_providers_with_context(
 
         return inline_one(
             &mut test_plan,
-            &mode,
+            mode,
             &variable_sources,
             &outdir,
             None,
@@ -86,7 +78,7 @@ async fn inline_file_providers_with_context(
         info!("inlining relative file providers for matrix variant {i}/{n}");
         inline_one(
             &mut variant,
-            &mode,
+            mode,
             &variable_sources,
             &outdir,
             Some(variant_name),

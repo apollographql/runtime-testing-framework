@@ -5,13 +5,14 @@ use rtf_cli::{
     cli::{Args, Command, CustomProviderSubcommand, InlineSubcommand, ResolveSubcommand},
     commands::{
         plumbing::{
-            InlineMode, expand_test_plan_matrix, inline_test_plan, resolve_environment,
-            resolve_scenario, run_custom_provider, template_custom_provider, template_test_plan,
+            expand_test_plan_matrix, inline_test_plan, resolve_environment, resolve_scenario,
+            run_custom_provider, template_custom_provider, template_test_plan,
             test_custom_provider,
         },
         porcelain::check_and_run_test_plan,
     },
 };
+use rtf_config::inlining::InlineMode;
 use std::{io::stderr, process::exit};
 use tracing::{Level, error, level_filters::LevelFilter, subscriber::set_global_default};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
@@ -58,7 +59,7 @@ async fn main() {
             };
             inline_test_plan(
                 &args.test_plan_path,
-                mode,
+                &mode,
                 &args.outdir,
                 args.github,
                 args.git_ref,
