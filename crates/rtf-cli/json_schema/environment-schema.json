@@ -1087,6 +1087,23 @@
         {
           "allOf": [
             {
+              "$ref": "#/definitions/InlineDir"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "inline_dir",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
               "$ref": "#/definitions/RelativeFile"
             }
           ],
@@ -1121,7 +1138,7 @@
       ],
       "properties": {
         "name": {
-          "description": "The name to use for the output produced by this provider\n\nThis must be a single YAML file.",
+          "description": "The name to use for the output produced by this provider\n\nFor single-file providers, this is the output filename.\nFor directory providers, this is the directory name.",
           "type": "string"
         }
       },

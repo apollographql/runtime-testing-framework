@@ -1,0 +1,28 @@
+name: docker-compose-inline-dir
+description: Test InlineDir compose file provider with multiple compose files
+
+variable_definitions:
+  - name: message
+    description: "A message to echo"
+
+project_name: inline-dir-test
+
+env_vars:
+  ECHO_MESSAGE: "{{ message }}"
+
+compose_files:
+  - name: compose-dir
+    kind: inline_dir
+    files:
+      - path: base.yaml
+        content: |
+          services:
+            echo-server:
+              image: python:3.11-alpine
+              command: ["echo", "base loaded"]
+      - path: overlay.yaml
+        content: |
+          services:
+            echo-server:
+              environment:
+                - ECHO_MSG=${ECHO_MESSAGE}

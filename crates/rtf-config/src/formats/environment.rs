@@ -2,7 +2,7 @@
 use crate::{
     VariableDefinition,
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
-    context::ResolutionContext,
+    context::{PathKind, ResolutionContext},
     enum_impl_check,
     formats::{CustomProviderDeclaration, Result},
     inlining,
@@ -19,8 +19,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
-    fs,
-    path::Path,
+    fs::{self, read_dir},
+    path::{Path, PathBuf},
     pin::Pin,
 };
 
@@ -229,7 +229,7 @@ impl RunProviders for EnvironmentExecution {
         &self,
         providers_dir: &Path,
         ctx: &mut impl ResolutionContext,
-    ) -> crate::providers::Result<()> {
+    ) -> providers::Result<()> {
         match self {
             EnvironmentExecution::DockerCompose(inner) => {
                 inner.run_providers(providers_dir, ctx).await
@@ -241,7 +241,7 @@ impl RunProviders for EnvironmentExecution {
     fn inline<'a>(
         &'a mut self,
         ctx: &'a impl ResolutionContext,
-    ) -> std::pin::Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
         match self {
             EnvironmentExecution::DockerCompose(inner) => inner.inline(ctx),
             EnvironmentExecution::Script(inner) => inner.inline(ctx),
@@ -251,7 +251,7 @@ impl RunProviders for EnvironmentExecution {
     fn inline_all_relative_paths<'a>(
         &'a mut self,
         ctx: &'a impl ResolutionContext,
-    ) -> std::pin::Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
         match self {
             EnvironmentExecution::DockerCompose(inner) => inner.inline_all_relative_paths(ctx),
             EnvironmentExecution::Script(inner) => inner.inline_all_relative_paths(ctx),
@@ -309,7 +309,7 @@ impl RunProviders for ScriptEnvironment {
         &self,
         providers_dir: &Path,
         ctx: &mut impl ResolutionContext,
-    ) -> crate::providers::Result<()> {
+    ) -> providers::Result<()> {
         self.setup.run_providers(providers_dir, ctx).await?;
         self.teardown.run_providers(providers_dir, ctx).await?;
 
@@ -425,8 +425,22 @@ impl DockerComposeEnvironment {
                 .ok_or(providers::Error::MissingProviderOutput {
                     name: ncfp.name.clone(),
                 })?;
-            args.push("-f".to_string());
-            args.push(path.to_string_lossy().to_string());
+
+            // Handle both single files and directories of compose files
+            let compose_files = match ctx.path_kind(&path) {
+                PathKind::File => vec![path],
+                PathKind::OccupiedDir => collect_compose_files(&path)?,
+                _ => {
+                    return Err(providers::Error::ProviderOutputNotFileOrDir {
+                        path_kind: ctx.path_kind(path),
+                    });
+                }
+            };
+
+            for file in compose_files {
+                args.push("-f".to_string());
+                args.push(file.to_string_lossy().to_string());
+            }
         }
 
         // Add up command with flags: detached mode, wait for health checks
@@ -478,6 +492,26 @@ impl DockerComposeEnvironment {
     }
 }
 
+/// Collect all YAML compose files from a directory.
+fn collect_compose_files(dir: &Path) -> providers::Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+
+    for entry in read_dir(dir)? {
+        let path = entry?.path();
+        if path.is_file()
+            && path
+                .extension()
+                .is_some_and(|ext| ext == "yaml" || ext == "yml")
+        {
+            files.push(path);
+        }
+    }
+
+    files.sort();
+
+    Ok(files)
+}
+
 impl Check for DockerComposeEnvironment {
     fn try_check(
         &self,
@@ -502,7 +536,7 @@ impl RunProviders for DockerComposeEnvironment {
         &self,
         providers_dir: &Path,
         ctx: &mut impl ResolutionContext,
-    ) -> crate::providers::Result<()> {
+    ) -> providers::Result<()> {
         self.compose_files.run_providers(providers_dir, ctx).await?;
         self.file_providers
             .run_providers(providers_dir, ctx)
@@ -554,6 +588,7 @@ pub(crate) mod test_helpers {
         },
         templating::Field,
     };
+    use assert_fs::{TempDir, prelude::*};
     use std::path::PathBuf;
 
     /// Create an EnvironmentConfig for testing Template trait methods (has_pending_fields, required_variables)
@@ -630,23 +665,29 @@ pub(crate) mod test_helpers {
         }
     }
 
-    /// Store compose file paths in context, returning the paths for use in assertions
+    /// Create temp files and store their paths in context, returning the paths for use in assertions.
+    /// The returned TempDir must be kept alive for the duration of the test to prevent cleanup.
     pub(crate) fn register_compose_paths(
         ctx: &mut Context,
         env: &DockerComposeEnvironment,
-        base_path: &str,
-    ) -> Vec<String> {
-        env.compose_files
+    ) -> (TempDir, Vec<String>) {
+        let temp_dir = TempDir::new().unwrap();
+        let paths = env
+            .compose_files
             .iter()
             .map(|ncfp| {
-                let path = format!("{}/{}", base_path, ncfp.name);
+                let file = temp_dir.child(&ncfp.name);
+                file.write_str(&format!("# {}\nservices: {{}}", ncfp.name))
+                    .unwrap();
+                let path = file.path().to_string_lossy().to_string();
                 ctx.store_provider_output_path(
                     Provider::ComposeFile { fp: &ncfp.provider },
                     PathBuf::from(&path),
                 );
                 path
             })
-            .collect()
+            .collect();
+        (temp_dir, paths)
     }
 }
 
@@ -673,8 +714,8 @@ pub(crate) mod tests {
                 test_helpers::{cmd_with_inline_file, cmd_with_required_file},
             },
             file::{
-                FileProvider, InlineFile, RawSource, RelativeFile, RequiredFile, SourceDir,
-                compose::ComposeFileProvider,
+                DirFile, FileProvider, InlineDir, InlineFile, RawSource, RelativeFile,
+                RequiredFile, SourceDir, compose::ComposeFileProvider,
             },
             test_helpers::create_temp_dir_with_file,
         },
@@ -1490,7 +1531,7 @@ pub(crate) mod tests {
         let docker_compose = docker_compose_env(Some("test-project"), &["compose.yaml"]);
 
         let mut ctx = Context::new();
-        let paths = register_compose_paths(&mut ctx, &docker_compose, "/tmp/providers");
+        let (_temp_dir, paths) = register_compose_paths(&mut ctx, &docker_compose);
 
         let result = docker_compose.setup_as_command_and_args("test-project", &ctx);
         assert!(result.is_ok(), "Expected command to build successfully");
@@ -1518,7 +1559,7 @@ pub(crate) mod tests {
             docker_compose_env(Some("multi-compose"), &["base.yaml", "overlay.yaml"]);
 
         let mut ctx = Context::new();
-        let paths = register_compose_paths(&mut ctx, &docker_compose, "/tmp/providers");
+        let (_temp_dir, paths) = register_compose_paths(&mut ctx, &docker_compose);
 
         let result = docker_compose.setup_as_command_and_args("multi-compose", &ctx);
         assert!(result.is_ok(), "Expected command to build successfully");
@@ -1631,7 +1672,7 @@ pub(crate) mod tests {
         let docker_compose = docker_compose_env(None, &["compose.yaml"]);
 
         let mut ctx = Context::new();
-        register_compose_paths(&mut ctx, &docker_compose, "/tmp/providers");
+        let _temp_dir = register_compose_paths(&mut ctx, &docker_compose);
 
         // Pass "fallback-name" as the environment name
         let result = docker_compose.setup_as_command_and_args("fallback-name", &ctx);
@@ -1640,5 +1681,66 @@ pub(crate) mod tests {
         let (_, args) = result.unwrap();
         // The project name should be "fallback-name" (passed as argument)
         assert_eq!(args[2], "fallback-name");
+    }
+
+    #[test]
+    fn docker_compose_setup_with_inline_dir_multiple_files() {
+        // Create a temp directory with compose files to simulate InlineDir output
+        let (tmp, base_file) = create_temp_dir_with_file("base.yaml", "version: '3'");
+        let overlay_file = tmp.child("overlay.yaml");
+        overlay_file.write_str("version: '3'").unwrap();
+
+        let inline_dir = InlineDir {
+            files: vec![
+                DirFile {
+                    path: base_file.path().to_path_buf(),
+                    content: "version: '3'".to_string(),
+                },
+                DirFile {
+                    path: overlay_file.path().to_path_buf(),
+                    content: "version: '3'".to_string(),
+                },
+            ],
+        };
+
+        let docker_compose = DockerComposeEnvironment {
+            project_name: Some("inline-dir-test".to_string()),
+            compose_files: vec![NamedComposeFileProvider {
+                name: "compose-dir".to_string(),
+                provider: ComposeFileProvider::InlineDir(inline_dir),
+            }],
+            file_providers: Vec::new(),
+            env_vars: HashMap::new(),
+        };
+
+        // Register the directory path (not individual files)
+        let mut ctx = Context::new();
+        ctx.store_provider_output_path(
+            Provider::ComposeFile {
+                fp: &docker_compose.compose_files[0].provider,
+            },
+            tmp.path().to_path_buf(),
+        );
+
+        let res = docker_compose.setup_as_command_and_args("inline-dir-test", &ctx);
+        assert!(res.is_ok(), "Expected command to build successfully");
+
+        let (cmd, args) = res.unwrap();
+        assert_eq!(cmd, "docker");
+
+        // Verify structure: compose -p name -f file1 -f file2 up -d --wait
+        let expected_args = vec![
+            "compose".to_string(),
+            "-p".to_string(),
+            "inline-dir-test".to_string(),
+            "-f".to_string(),
+            base_file.to_str().unwrap().to_string(),
+            "-f".to_string(),
+            overlay_file.to_str().unwrap().to_string(),
+            "up".to_string(),
+            "-d".to_string(),
+            "--wait".to_string(),
+        ];
+        assert_eq!(args, expected_args, "expected args to match");
     }
 }

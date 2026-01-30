@@ -4,7 +4,7 @@ use crate::{
     context::ResolutionContext,
     enum_impl_resolve_and_write, inlining,
     providers::file::{
-        AsUtf8FileContent, InlineFile, RelativeFile, RequiredFile, ResolveAndWrite,
+        AsUtf8FileContent, InlineDir, InlineFile, RelativeFile, RequiredFile, ResolveAndWrite,
         check_relative_path_specifiers, custom::CustomProvider, enum_impl_check,
         github::GithubFile, utility::FromCommand,
     },
@@ -29,7 +29,8 @@ use std::{
 pub struct NamedComposeFileProvider {
     /// The name to use for the output produced by this provider
     ///
-    /// This must be a single YAML file.
+    /// For single-file providers, this is the output filename.
+    /// For directory providers, this is the directory name.
     pub name: String,
     #[serde(flatten)]
     pub provider: ComposeFileProvider,
@@ -137,6 +138,7 @@ pub enum ComposeFileProvider {
     FromCommand(FromCommand),
     GithubFile(GithubFile),
     Inline(InlineFile),
+    InlineDir(InlineDir),
     RelativePath(RelativeFile),
     Required(RequiredFile),
 }
@@ -160,6 +162,7 @@ impl ComposeFileProvider {
                 Ok(())
             }
             ComposeFileProvider::Inline(_) => Ok(()),
+            ComposeFileProvider::InlineDir(_) => Ok(()),
             ComposeFileProvider::RelativePath(inner) => {
                 *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
 
@@ -197,6 +200,7 @@ enum_impl_compose_file_provider!(
     FromCommand,
     GithubFile,
     Inline,
+    InlineDir,
     RelativePath,
     Required,
 );
@@ -206,6 +210,7 @@ mod tests {
     use super::*;
     use crate::{
         context::Context,
+        providers::file::DirFile,
         templating::{ErrorKind, Field, Scalar},
     };
     use simple_test_case::test_case;
@@ -330,5 +335,27 @@ mod tests {
         let err = res.unwrap_err().unwrap_single();
         assert_eq!(err.path, "path.___inline_yaml");
         assert_eq!(err.kind, checks::ErrorKind::InvalidPathSpecifiers)
+    }
+
+    #[test]
+    fn inline_dir_compose_file_provider_check_succeeds() {
+        let nfp = NamedComposeFileProvider {
+            name: "compose-dir".to_string(),
+            provider: ComposeFileProvider::InlineDir(InlineDir {
+                files: vec![
+                    DirFile {
+                        path: PathBuf::from("base.yaml"),
+                        content: "content".to_string(),
+                    },
+                    DirFile {
+                        path: PathBuf::from("overlay.yaml"),
+                        content: "content".to_string(),
+                    },
+                ],
+            }),
+        };
+
+        let res = nfp.try_check(&mut Vec::new(), &Context::new());
+        assert!(res.is_ok(), "Expected check to succeed, got {res:?}");
     }
 }

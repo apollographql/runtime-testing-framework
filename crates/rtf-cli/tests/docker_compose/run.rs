@@ -13,6 +13,17 @@ fn docker_compose_environment_produces_expected_output() {
 
 #[test]
 #[ignore = "requires docker on the PATH"]
+fn docker_compose_inline_dir_runs_with_multiple_compose_files() {
+    // This test verifies that InlineDir compose files are correctly
+    // resolved and passed to docker compose with multiple -f flags
+    prepare_rtf_run("resources/test-plans/valid/docker-compose-inline-dir")
+        .assert()
+        .success()
+        .stdout(contains("Scenario ran with: hello from inline dir"));
+}
+
+#[test]
+#[ignore = "requires docker on the PATH"]
 fn docker_compose_not_yaml_fails() {
     prepare_rtf_run("resources/test-plans/invalid/run/docker-compose-not-yaml")
         .assert()

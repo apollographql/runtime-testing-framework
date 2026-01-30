@@ -1,7 +1,10 @@
 //! Providers are how we expose the rest of the framework to user facing config.
-use crate::providers::{
-    command::CommandProvider,
-    file::{FileProvider, compose::ComposeFileProvider},
+use crate::{
+    context::PathKind,
+    providers::{
+        command::CommandProvider,
+        file::{FileProvider, compose::ComposeFileProvider},
+    },
 };
 use rtf_integrations::graphos::supergraph::FetchError;
 use serde::Serialize;
@@ -39,6 +42,9 @@ pub enum Error {
 
     #[error("Custom providers are not permitted to make use of nested custom providers")]
     NestedCustomProvider,
+
+    #[error("Provider output must be a file or a directory, got path kind: {path_kind:?}")]
+    ProviderOutputNotFileOrDir { path_kind: PathKind },
 
     #[error("Unable to resolve and write {name} file: {err}")]
     ResolveAndWriteFailed { name: String, err: String },
