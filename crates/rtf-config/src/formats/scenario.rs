@@ -3,7 +3,7 @@ use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray},
     context::ResolutionContext,
     formats::{CustomProviderDeclaration, Result},
-    inlining,
+    inlining::{self, InlineMode},
     providers::{
         self, Provider,
         command::CommandSection,
@@ -50,15 +50,12 @@ impl ScenarioConfig {
         Ok(serde_yaml::from_str(&content)?)
     }
 
-    pub async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
-        self.command.inline(ctx).await
-    }
-
-    pub async fn inline_all_relative_paths(
+    pub async fn inline(
         &mut self,
+        mode: &InlineMode,
         ctx: &impl ResolutionContext,
     ) -> inlining::Result<()> {
-        self.command.inline_all_relative_paths(ctx).await
+        self.command.inline(mode, ctx).await
     }
 
     /// Create an empty [ScenarioConfig] for tests
@@ -203,21 +200,12 @@ impl RunProviders for ScenarioCommand {
 
     fn inline<'a>(
         &'a mut self,
+        mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
         match self {
-            Self::Docker(inner) => inner.file_providers.inline(ctx),
-            Self::Script(inner) => inner.inline(ctx),
-        }
-    }
-
-    fn inline_all_relative_paths<'a>(
-        &'a mut self,
-        ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
-        match self {
-            Self::Docker(inner) => inner.file_providers.inline_all_relative_paths(ctx),
-            Self::Script(inner) => inner.inline_all_relative_paths(ctx),
+            Self::Docker(inner) => inner.file_providers.inline(mode, ctx),
+            Self::Script(inner) => inner.inline(mode, ctx),
         }
     }
 }
@@ -390,16 +378,10 @@ impl RunProviders for DockerScenario {
 
     fn inline<'a>(
         &'a mut self,
+        mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
-        self.file_providers.inline(ctx)
-    }
-
-    fn inline_all_relative_paths<'a>(
-        &'a mut self,
-        ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
-        self.file_providers.inline_all_relative_paths(ctx)
+        self.file_providers.inline(mode, ctx)
     }
 }
 
@@ -1013,7 +995,7 @@ mod tests {
             ..ScenarioConfig::empty()
         };
 
-        let result = scenario.inline(&ctx).await;
+        let result = scenario.inline(&InlineMode::All, &ctx).await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
         let command_provider = match scenario.command {

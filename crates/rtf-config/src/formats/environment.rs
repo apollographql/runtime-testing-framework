@@ -5,7 +5,7 @@ use crate::{
     context::{PathKind, ResolutionContext},
     enum_impl_check,
     formats::{CustomProviderDeclaration, Result},
-    inlining,
+    inlining::{self, InlineMode},
     providers::{
         self, Provider,
         command::CommandSection,
@@ -66,15 +66,12 @@ impl EnvironmentConfig {
         }
     }
 
-    pub async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
-        self.execution.inline(ctx).await
-    }
-
-    pub async fn inline_all_relative_paths(
+    pub async fn inline(
         &mut self,
+        mode: &InlineMode,
         ctx: &impl ResolutionContext,
     ) -> inlining::Result<()> {
-        self.execution.inline_all_relative_paths(ctx).await
+        self.execution.inline(mode, ctx).await
     }
 }
 
@@ -240,21 +237,12 @@ impl RunProviders for EnvironmentExecution {
 
     fn inline<'a>(
         &'a mut self,
+        mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
         match self {
-            EnvironmentExecution::DockerCompose(inner) => inner.inline(ctx),
-            EnvironmentExecution::Script(inner) => inner.inline(ctx),
-        }
-    }
-
-    fn inline_all_relative_paths<'a>(
-        &'a mut self,
-        ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
-        match self {
-            EnvironmentExecution::DockerCompose(inner) => inner.inline_all_relative_paths(ctx),
-            EnvironmentExecution::Script(inner) => inner.inline_all_relative_paths(ctx),
+            EnvironmentExecution::DockerCompose(inner) => inner.inline(mode, ctx),
+            EnvironmentExecution::Script(inner) => inner.inline(mode, ctx),
         }
     }
 }
@@ -318,27 +306,14 @@ impl RunProviders for ScriptEnvironment {
 
     fn inline<'a>(
         &'a mut self,
+        mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
-            errs.append(self.setup.inline(ctx).await);
-            errs.append(self.teardown.inline(ctx).await);
-
-            errs.into_result(())
-        })
-    }
-
-    fn inline_all_relative_paths<'a>(
-        &'a mut self,
-        ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
-        Box::pin(async move {
-            let mut errs = inlining::ErrorBuilder::new();
-
-            errs.append(self.setup.inline_all_relative_paths(ctx).await);
-            errs.append(self.teardown.inline_all_relative_paths(ctx).await);
+            errs.append(self.setup.inline(mode, ctx).await);
+            errs.append(self.teardown.inline(mode, ctx).await);
 
             errs.into_result(())
         })
@@ -563,27 +538,14 @@ impl RunProviders for DockerComposeEnvironment {
 
     fn inline<'a>(
         &'a mut self,
+        mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
-            errs.append(self.compose_files.inline(ctx).await);
-            errs.append(self.file_providers.inline(ctx).await);
-
-            errs.into_result(())
-        })
-    }
-
-    fn inline_all_relative_paths<'a>(
-        &'a mut self,
-        ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
-        Box::pin(async move {
-            let mut errs = inlining::ErrorBuilder::new();
-
-            errs.append(self.compose_files.inline_all_relative_paths(ctx).await);
-            errs.append(self.file_providers.inline_all_relative_paths(ctx).await);
+            errs.append(self.compose_files.inline(mode, ctx).await);
+            errs.append(self.file_providers.inline(mode, ctx).await);
 
             errs.into_result(())
         })
@@ -1452,7 +1414,7 @@ pub(crate) mod tests {
             ..EnvironmentConfig::empty()
         };
 
-        let result = environment.inline(&ctx).await;
+        let result = environment.inline(&InlineMode::All, &ctx).await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
 
@@ -1509,7 +1471,7 @@ pub(crate) mod tests {
             ..EnvironmentConfig::empty()
         };
 
-        let result = environment.inline(&ctx).await;
+        let result = environment.inline(&InlineMode::All, &ctx).await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
 

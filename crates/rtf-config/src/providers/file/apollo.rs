@@ -888,6 +888,7 @@ mod tests {
     use crate::{
         checks::ErrorKind,
         context::Context,
+        inlining::InlineMode,
         mock_context::MockContext,
         providers::file::{
             FileProvider, InlineFile,
@@ -1556,7 +1557,7 @@ mod tests {
             version: Field::Resolved(version.to_string()),
         });
 
-        let res = provider.inline(&ctx).await;
+        let res = provider.inline(&InlineMode::All, &ctx).await;
         assert!(res.is_ok(), "expected provider to inline, got {res:?}");
 
         let expected_inline_provider = FileProvider::Inline(InlineFile {
@@ -1591,7 +1592,7 @@ mod tests {
             features: Field::Resolved("default".to_string()),
         });
 
-        let res = provider.inline(&ctx).await;
+        let res = provider.inline(&InlineMode::All, &ctx).await;
         assert!(res.is_ok(), "expected provider to inline, got {res:?}");
 
         let expected_inline_provider = FileProvider::Inline(InlineFile {

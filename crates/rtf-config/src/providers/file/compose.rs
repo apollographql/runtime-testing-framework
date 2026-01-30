@@ -2,7 +2,8 @@ use crate::{
     SourceDir,
     checks::{self, Check},
     context::ResolutionContext,
-    enum_impl_resolve_and_write, inlining,
+    enum_impl_resolve_and_write,
+    inlining::{self, InlineMode},
     providers::file::{
         AsUtf8FileContent, InlineDir, InlineFile, RelativeFile, RequiredFile, ResolveAndWrite,
         check_relative_path_specifiers, custom::CustomProvider, enum_impl_check,
@@ -144,47 +145,43 @@ pub enum ComposeFileProvider {
 }
 
 impl ComposeFileProvider {
-    pub async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
-        match self {
-            ComposeFileProvider::CustomProvider(inner) => {
-                *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
-
-                Ok(())
-            }
-            ComposeFileProvider::FromCommand(inner) => {
-                inner.inline(ctx).await?;
-
-                Ok(())
-            }
-            ComposeFileProvider::GithubFile(inner) => {
-                *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
-
-                Ok(())
-            }
-            ComposeFileProvider::Inline(_) => Ok(()),
-            ComposeFileProvider::InlineDir(_) => Ok(()),
-            ComposeFileProvider::RelativePath(inner) => {
-                *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
-
-                Ok(())
-            }
-            ComposeFileProvider::Required(inner) => {
-                *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
-
-                Ok(())
-            }
-        }
-    }
-
-    pub async fn inline_all_relative_paths<'a>(
-        &'a mut self,
-        ctx: &'a impl ResolutionContext,
+    pub async fn inline(
+        &mut self,
+        mode: &InlineMode,
+        ctx: &impl ResolutionContext,
     ) -> inlining::Result<()> {
-        if let Self::RelativePath(relative_path) = self {
-            *self = Self::Inline(relative_path.try_into_inline_file(ctx).await?);
-        }
+        match (&mut *self, mode) {
+            (ComposeFileProvider::FromCommand(inner), mode) => {
+                inner.inline(mode, ctx).await?;
 
-        Ok(())
+                Ok(())
+            }
+            (ComposeFileProvider::RelativePath(inner), _) => {
+                *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
+
+                Ok(())
+            }
+            (_, InlineMode::RelativeFiles) => Ok(()),
+            (ComposeFileProvider::CustomProvider(inner), InlineMode::All) => {
+                *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
+
+                Ok(())
+            }
+            (ComposeFileProvider::GithubFile(inner), InlineMode::All) => {
+                *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
+
+                Ok(())
+            }
+            (
+                ComposeFileProvider::Inline(_) | ComposeFileProvider::InlineDir(_),
+                InlineMode::All,
+            ) => Ok(()),
+            (ComposeFileProvider::Required(inner), InlineMode::All) => {
+                *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
+
+                Ok(())
+            }
+        }
     }
 }
 

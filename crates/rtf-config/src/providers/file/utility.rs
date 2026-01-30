@@ -3,7 +3,9 @@ use crate::{
     SourceDir,
     checks::{self, Check},
     context::ResolutionContext,
-    enum_impl_as_utf8_file_content, enum_impl_check, inlining, merge_yaml,
+    enum_impl_as_utf8_file_content, enum_impl_check,
+    inlining::{self, InlineMode},
+    merge_yaml,
     providers::{
         self, Result,
         command::CommandSection,
@@ -287,15 +289,12 @@ impl FromCommand {
         Self { inner }
     }
 
-    pub(crate) async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
-        self.inner.inline(ctx).await
-    }
-
-    pub(crate) async fn inline_all_relative_paths<'a>(
-        &'a mut self,
-        ctx: &'a impl ResolutionContext,
+    pub(crate) async fn inline(
+        &mut self,
+        mode: &InlineMode,
+        ctx: &impl ResolutionContext,
     ) -> inlining::Result<()> {
-        self.inner.inline_all_relative_paths(ctx).await
+        self.inner.inline(mode, ctx).await
     }
 }
 
@@ -1086,7 +1085,7 @@ mod tests {
             })),
         });
 
-        let result = file_provider.inline(&ctx).await;
+        let result = file_provider.inline(&InlineMode::All, &ctx).await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
         assert_eq!(
@@ -1116,6 +1115,6 @@ mod tests {
             }],
         });
 
-        let _res = file_provider.inline(&ctx).await;
+        let _res = file_provider.inline(&InlineMode::All, &ctx).await;
     }
 }

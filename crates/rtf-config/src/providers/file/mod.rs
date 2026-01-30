@@ -2,7 +2,9 @@
 use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
-    enum_impl_check, inlining, providers,
+    enum_impl_check,
+    inlining::{self, InlineMode},
+    providers,
     templating::{self, Field, Template, TemplateContext},
 };
 use rtf_derive::Template;
@@ -159,20 +161,43 @@ macro_rules! enum_impl_resolve_and_write {
 /// All the FileProviders that implement IntoUtf8Content have to be specified in the macro arguments
 macro_rules! impl_inline {
     (
-        $self:expr, $ctx:expr;
+        $self:expr, $mode:expr, $ctx:expr;
         $($inline:ident),*
     ) => {
-        match $self {
-            Self::Inline(_) | Self::InlineDir(_) => Ok(()),
-            Self::FromCommand(inner) => {
-                inner.inline($ctx).await?;
+        match (&mut *$self, $mode) {
+            // FromCommand just inlines any file providers it wraps using the mode provided
+            (Self::FromCommand(inner), mode) => {
+                inner.inline(mode, $ctx).await?;
                 Ok(())
             }
-            Self::GraphosSubgraphs(inner) => {
+            // MergeYaml is a special case, when inlining relative files only the inner providers
+            // should be inlined
+            (Self::MergeYaml(inner), mode) => {
+                match mode {
+                    InlineMode::All => {
+                        *$self = FileProvider::Inline(inner.try_into_inline_file($ctx).await?);
+                        Ok(())
+                    }
+                    InlineMode::RelativeFiles => {
+                        inner.inline_all_relative_paths($ctx).await?;
+                        Ok(())
+                    }
+                }
+            }
+            // RelativePaths get inlined the same way in both modes
+            (FileProvider::RelativePath(inner), _) => {
+                *$self = FileProvider::Inline(inner.try_into_inline_file($ctx).await?);
+                Ok(())
+            }
+            // No other file providers need to do anything when mode is RelativeFiles
+            (_, InlineMode::RelativeFiles) => Ok(()),
+            // The methods required for inlining the rest of the providers
+            (Self::Inline(_) | Self::InlineDir(_), InlineMode::All) => Ok(()),
+            (Self::GraphosSubgraphs(inner), InlineMode::All) => {
                 *$self = FileProvider::InlineDir(inner.inline($ctx).await?);
                 Ok(())
             }
-            $(Self::$inline(inner) => {
+            $((Self::$inline(inner), InlineMode::All) => {
                 *$self = FileProvider::Inline(inner.try_into_inline_file($ctx).await?);
                 Ok(())
             })*
@@ -351,9 +376,13 @@ impl FileProvider {
     }
 
     /// Recursively inline file providers into their inline form
-    pub async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
+    pub async fn inline(
+        &mut self,
+        mode: &InlineMode,
+        ctx: &impl ResolutionContext,
+    ) -> inlining::Result<()> {
         impl_inline!(
-            self, ctx;
+            self, mode, ctx;
             BuildRouterFromSource,
             Conditional,
             CustomProvider,
@@ -363,32 +392,10 @@ impl FileProvider {
             GraphosSubgraphRouterUrlOverrides,
             GraphosSubgraphNames,
             GraphosSupergraph,
-            MergeYaml,
             OfflineGraphosLicense,
-            RelativePath,
             Required,
             RouterDownloadScript
-
         )
-    }
-
-    /// Recursively inline any RelativePath file providers into Inline providers.
-    pub async fn inline_all_relative_paths(
-        &mut self,
-        ctx: &impl ResolutionContext,
-    ) -> inlining::Result<()> {
-        match self {
-            Self::RelativePath(relative_path) => {
-                *self = Self::Inline(relative_path.try_into_inline_file(ctx).await?);
-
-                Ok(())
-            }
-            Self::FromCommand(from_command) => from_command.inline_all_relative_paths(ctx).await,
-            Self::MergeYaml(merge_yaml) => merge_yaml.inline_all_relative_paths(ctx).await,
-
-            // This is a no-op for other types of file providers
-            _ => Ok(()),
-        }
     }
 }
 
@@ -1492,7 +1499,7 @@ mod tests {
             message: "required file must be defined".to_string(),
         });
 
-        let _res = required.inline(&ctx).await;
+        let _res = required.inline(&InlineMode::All, &ctx).await;
     }
 
     #[tokio::test]
@@ -1519,7 +1526,7 @@ mod tests {
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
 
         let mut file_provider = FileProvider::RelativePath(relative_file("file.txt", src));
-        let result = file_provider.inline(&ctx).await;
+        let result = file_provider.inline(&InlineMode::All, &ctx).await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
         assert_eq!(
@@ -1539,7 +1546,7 @@ mod tests {
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
 
         let mut file_provider = FileProvider::RelativePath(relative_file("file.txt", src.clone()));
-        let result = file_provider.inline_all_relative_paths(&ctx).await;
+        let result = file_provider.inline(&InlineMode::RelativeFiles, &ctx).await;
 
         assert!(
             result.is_ok(),
@@ -1564,7 +1571,7 @@ mod tests {
         });
         let expected_file_provider = file_provider.clone();
 
-        let result = file_provider.inline_all_relative_paths(&ctx).await;
+        let result = file_provider.inline(&InlineMode::RelativeFiles, &ctx).await;
         assert!(
             result.is_ok(),
             "Expected inline_relative_path_provider to succeed, got {result:?}"

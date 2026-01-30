@@ -113,20 +113,10 @@ async fn inline_file_providers(
             .map_err(Into::into),
     );
 
-    match mode {
-        InlineMode::All => {
-            // Inline all file providers after templating
-            info!("inlining file providers for test plan");
-            errs.append(test_plan.scenario.inline(ctx).await);
-            errs.append(test_plan.environment.inline(ctx).await);
-        }
-        InlineMode::RelativeFiles => {
-            // Inline relative file providers after templating to ensure relative file paths that might be used in the template are resolved
-            info!("inlining relative file providers for test plan");
-            errs.append(test_plan.scenario.inline_all_relative_paths(ctx).await);
-            errs.append(test_plan.environment.inline_all_relative_paths(ctx).await);
-        }
-    };
+    // Inline all file providers after templating
+    info!("inlining file providers for test plan");
+    errs.append(test_plan.scenario.inline(mode, ctx).await);
+    errs.append(test_plan.environment.inline(mode, ctx).await);
 
     errs.into_result(())
 }
