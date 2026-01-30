@@ -1,0 +1,14 @@
+name: inline-dir-scenario
+description: Scenario for InlineDir test
+
+variable_definitions:
+  - name: message
+    description: "A message to echo"
+
+command:
+  name: run-scenario.sh
+  kind: relative_path
+  path: scripts/run-scenario.sh
+
+env_vars:
+  ECHO_MESSAGE: "{{ message }}"

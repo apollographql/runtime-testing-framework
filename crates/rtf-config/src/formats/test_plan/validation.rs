@@ -260,7 +260,9 @@ mod tests {
         formats::{
             CustomProviderDeclaration, CustomProviderDefinition, EnvironmentConfig, Matrix,
             ScenarioConfig, TestPlanConfig,
-            environment::test_helpers::templatable_environment,
+            environment::{
+                EnvironmentExecution, ScriptEnvironment, test_helpers::templatable_environment,
+            },
             scenario::{ScenarioCommand, test_helpers::templatable_scenario},
             test_plan::Sources,
             tests::{named_file_provider_with_field, p, template_context},
@@ -657,14 +659,19 @@ mod tests {
                     variable_with_default("setup", "setup"),
                     variable_with_default("teardown", "teardown"),
                 ],
-                setup: CommandSection {
-                    file_providers: vec![named_file_provider_with_field("setup", p("setup"))],
-                    ..CommandSection::empty()
-                },
-                teardown: CommandSection {
-                    file_providers: vec![named_file_provider_with_field("teardown", p("teardown"))],
-                    ..CommandSection::empty()
-                },
+                execution: EnvironmentExecution::Script(ScriptEnvironment {
+                    setup: CommandSection {
+                        file_providers: vec![named_file_provider_with_field("setup", p("setup"))],
+                        ..CommandSection::empty()
+                    },
+                    teardown: CommandSection {
+                        file_providers: vec![named_file_provider_with_field(
+                            "teardown",
+                            p("teardown"),
+                        )],
+                        ..CommandSection::empty()
+                    },
+                }),
                 ..EnvironmentConfig::empty()
             },
             scenario: ScenarioConfig {

@@ -1,5 +1,9 @@
 //! Helpers for checking config files
-use crate::{VariableDefinition, context::ResolutionContext, providers::file::NamedFileProvider};
+use crate::{
+    VariableDefinition,
+    context::ResolutionContext,
+    providers::file::{NamedFileProvider, compose::NamedComposeFileProvider},
+};
 use std::{collections::HashMap, hash::Hash, mem};
 
 /// User facing descriptions of the reason that validation failed.
@@ -155,6 +159,7 @@ pub trait CheckArrayDuplicates {
 pub enum DedupArray<'a> {
     VariableDef(&'a mut Vec<VariableDefinition>),
     Nfp(&'a mut Vec<NamedFileProvider>),
+    Ncfp(&'a mut Vec<NamedComposeFileProvider>),
 }
 
 impl<'a> DedupArray<'a> {
@@ -162,6 +167,7 @@ impl<'a> DedupArray<'a> {
         let duplicates = match self {
             DedupArray::VariableDef(vds) => duplicate_keys(vds.iter(), |vd| &vd.name),
             DedupArray::Nfp(nfps) => duplicate_keys(nfps.iter(), |nfp| &nfp.env_var),
+            DedupArray::Ncfp(ncfps) => duplicate_keys(ncfps.iter(), |ncfp| &ncfp.name),
         };
 
         if !duplicates.is_empty() {
@@ -180,6 +186,7 @@ impl<'a> DedupArray<'a> {
         match self {
             DedupArray::VariableDef(vds) => vds.sort_by_key(|vd| vd.name.clone()),
             DedupArray::Nfp(nfps) => nfps.sort_by_key(|nfp| nfp.env_var.clone()),
+            DedupArray::Ncfp(ncfps) => ncfps.sort_by_key(|nfp| nfp.name.clone()),
         }
     }
 
@@ -201,6 +208,7 @@ impl<'a> DedupArray<'a> {
         match self {
             DedupArray::VariableDef(vds) => inner(vds, |vd| vd.name.clone(), base_path, p),
             DedupArray::Nfp(nfps) => inner(nfps, |nfp| nfp.env_var.clone(), base_path, p),
+            DedupArray::Ncfp(ncfps) => inner(ncfps, |nfp| nfp.name.clone(), base_path, p),
         }
     }
 
@@ -221,6 +229,7 @@ impl<'a> DedupArray<'a> {
         match self {
             DedupArray::VariableDef(vds) => inner(vds, |vd| vd.name.clone()),
             DedupArray::Nfp(nfps) => inner(nfps, |nfp| nfp.env_var.clone()),
+            DedupArray::Ncfp(ncfps) => inner(ncfps, |nfp| nfp.name.clone()),
         }
     }
 }

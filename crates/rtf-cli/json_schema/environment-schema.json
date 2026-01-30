@@ -1,5 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "anyOf": [
+    {
+      "$ref": "#/definitions/DockerComposeEnvironment"
+    },
+    {
+      "$ref": "#/definitions/ScriptEnvironment"
+    }
+  ],
   "definitions": {
     "BuildRouterFromSource": {
       "description": "A file provider used for building the Router from source at a specific git commit\nor reference. A profile and list of features can optionally be provided.\n\n```yaml\n- name: \"router-build.sh\"\n  env_var: ROUTER_BUILD_SCRIPT\n  kind: build_router_from_source\n  git_ref: \"some-ref\"\n  rust_version: \"1.89.0\"\n  profile: \"release\"\n  features: \"default\"\n```",
@@ -652,6 +660,44 @@
       ],
       "type": "object"
     },
+    "DockerComposeEnvironment": {
+      "properties": {
+        "compose_files": {
+          "description": "A list of all the docker compose files to start for this environment",
+          "items": {
+            "$ref": "#/definitions/NamedComposeFileProvider"
+          },
+          "type": "array"
+        },
+        "env_vars": {
+          "additionalProperties": {
+            "$ref": "#/definitions/Templatable%20Scalar"
+          },
+          "default": {},
+          "type": "object"
+        },
+        "file_providers": {
+          "default": [],
+          "description": "A list of all other files the docker compose environment depends on",
+          "items": {
+            "$ref": "#/definitions/NamedFileProvider"
+          },
+          "type": "array"
+        },
+        "project_name": {
+          "default": null,
+          "description": "The name of the docker compose project. Defaults to the environment name if not set.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "compose_files"
+      ],
+      "type": "object"
+    },
     "FromCommand": {
       "description": "Run a command provider and use its output as a file provider resource.\n\nAs with all other command providers, you can provide both environment variables\nand other file providers as inputs to the command being executed. RTF will use\nthe contents of the `$RTF_OUTPUT` path as the output of this provider, supporting\nboth writing a single file to that path and creating a directory at that path\ncontaining multiple files.\n\n```yaml\n- name: vegeta-ops.json\n  env_var: VEGETA_OPS\n  kind: from_command\n  command:\n    name: format-for-vegeta.sh\n    kind: relative_path\n    path: scripts/format-for-vegeta.sh\n  env_vars:\n    ROUTER_URL: \"http://127.0.0.1:4000/\"\n  file_providers:\n    - name: canned_ops.json\n      env_var: CANNED_OPS_FILE\n      kind: graphos_canned_ops\n      graph_ref: \"my@graph\"\n      top_n: 20\n      skip_mutations: true\n```\n\n### format-for-vegeta.sh\n```bash\n#!/usr/bin/env sh\nwhile read -r req; do\n  if [[ \"$OSTYPE\" == \"darwin\"* ]]; then\n    encoded=$(echo \"$req\" | base64 -b 0)\n  else\n    encoded=$(echo \"$req\" | base64 -w 0)\n  fi\n  \n  jq -nc \\\n    --arg body \"$encoded\" \\\n    --arg url \"$ROUTER_URL\" \\\n    '{\n      \"body\": $body,\n      \"header\": { \"Content-type\": [\"application/json\"] },\n      \"method\": \"POST\",\n      \"url\": $url\n    }' >> \"$RTF_OUTPUT\"\ndone <\"$CANNED_OPS_FILE\"\n```",
       "properties": {
@@ -965,6 +1011,141 @@
         "overrides"
       ],
       "title": "Merge YAML",
+      "type": "object"
+    },
+    "NamedComposeFileProvider": {
+      "description": "Shared metadata that wraps every docker compose file provider. This is specifically\nfor the DockerComposeEnvironment and is implemented to restrict how users can specify\ndocker compose files in that config.",
+      "oneOf": [
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/CustomProvider"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "custom_provider",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/FromCommand"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "from_command",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/GithubFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "github_file",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/InlineFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "inline",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/InlineDir"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "inline_dir",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RelativeFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "relative_path",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RequiredFile"
+            }
+          ],
+          "properties": {
+            "kind": {
+              "const": "required",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ],
+      "properties": {
+        "name": {
+          "description": "The name to use for the output produced by this provider\n\nFor single-file providers, this is the output filename.\nFor directory providers, this is the directory name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Named Compose File Provider",
       "type": "object"
     },
     "NamedFileProvider": {
@@ -1402,6 +1583,21 @@
       "description": "A scalar that is valid to be used as a template variable for a [Field].",
       "title": "Scalar"
     },
+    "ScriptEnvironment": {
+      "properties": {
+        "setup": {
+          "$ref": "#/definitions/CommandSection"
+        },
+        "teardown": {
+          "$ref": "#/definitions/CommandSection"
+        }
+      },
+      "required": [
+        "setup",
+        "teardown"
+      ],
+      "type": "object"
+    },
     "Templatable Scalar": {
       "description": "A templatable Scalar that can be replaced with a user specified variable at runtime",
       "oneOf": [
@@ -1675,22 +1871,6 @@
       "description": "The name of this environment configuration",
       "type": "string"
     },
-    "setup": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/CommandSection"
-        }
-      ],
-      "description": "The command to execute to prepare the environment for executing the test scenario"
-    },
-    "teardown": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/CommandSection"
-        }
-      ],
-      "description": "The command to execute to clean up the environment after executing the test scenario"
-    },
     "variable_definitions": {
       "default": [],
       "description": "Definitions for the required variables for templating this environment",
@@ -1702,9 +1882,7 @@
   },
   "required": [
     "name",
-    "description",
-    "setup",
-    "teardown"
+    "description"
   ],
   "title": "Environment Config",
   "type": "object"

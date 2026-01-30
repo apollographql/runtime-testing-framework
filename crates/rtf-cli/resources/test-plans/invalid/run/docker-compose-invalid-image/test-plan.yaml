@@ -1,0 +1,27 @@
+name: docker-compose-invalid-image
+description: Test error when compose file references an image that doesn't exist
+
+scenario:
+  inline:
+    name: inline-scenario
+    description: A simple scenario
+    command:
+      name: scenario.sh
+      kind: inline
+      content: |
+        #!/usr/bin/env sh
+        echo "This should not run"
+
+environment:
+  inline:
+    name: docker-compose-invalid-image
+    description: Environment with non-existent image
+    project_name: invalid-image-test
+    compose_files:
+      - name: compose.yaml
+        kind: inline
+        content: |
+          services:
+            failing-service:
+              image: this-image-definitely-does-not-exist-anywhere:nonexistent-tag
+              command: ["echo", "hello"]
