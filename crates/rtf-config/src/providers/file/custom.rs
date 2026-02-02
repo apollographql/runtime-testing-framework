@@ -472,7 +472,7 @@ mod tests {
     #[test_case(None; "provider not from overrides")]
     #[test_case(Some("/test-plan"); "provider from overrides")]
     /// This tests a variable's value coming from the file context's variables.
-    /// It checks that the variable's source is from the file context and superceeds any defaults
+    /// It checks that the variable's source is from the file context and supersedes any defaults
     ///
     /// [FileContext(Variable values set)] -> [CustomProvider(Pending(argument))] -> [CustomProviderDefinition(Default value)] -> [Pending(FileProvider)]
     #[test]
