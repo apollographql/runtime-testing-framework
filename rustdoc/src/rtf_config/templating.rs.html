@@ -465,7 +465,7 @@
 <a href=#465 id=465 data-nosnippet>465</a>}
 <a href=#466 id=466 data-nosnippet>466</a>
 <a href=#467 id=467 data-nosnippet>467</a><span class="doccomment">/// A [Field] wraps some scalar type that implements [Template] in order to mark it as
-<a href=#468 id=468 data-nosnippet>468</a>/// requriring a templated variable coming from user provided variables as part of resolving the config
+<a href=#468 id=468 data-nosnippet>468</a>/// requiring a templated variable coming from user provided variables as part of resolving the config
 <a href=#469 id=469 data-nosnippet>469</a>/// file.
 <a href=#470 id=470 data-nosnippet>470</a>///
 <a href=#471 id=471 data-nosnippet>471</a>/// Fields must be resolved in order to be usable during a test run.
@@ -1147,7 +1147,7 @@
 <a href=#1147 id=1147 data-nosnippet>1147</a>    <span class="attr">#[test]
 <a href=#1148 id=1148 data-nosnippet>1148</a>    </span><span class="kw">fn </span>template_required_variables(t: Box&lt;<span class="kw">dyn </span>Template&gt;, expected: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) {
 <a href=#1149 id=1149 data-nosnippet>1149</a>        <span class="kw">let </span><span class="kw-2">mut </span>res = t.required_variables();
-<a href=#1150 id=1150 data-nosnippet>1150</a>        res.sort(); <span class="comment">// Sorting so variables are in a determistic order for the assert_eq
+<a href=#1150 id=1150 data-nosnippet>1150</a>        res.sort(); <span class="comment">// Sorting so variables are in a deterministic order for the assert_eq
 <a href=#1151 id=1151 data-nosnippet>1151</a>
 <a href=#1152 id=1152 data-nosnippet>1152</a>        </span><span class="macro">assert_eq!</span>(
 <a href=#1153 id=1153 data-nosnippet>1153</a>            res.as_slice(),
