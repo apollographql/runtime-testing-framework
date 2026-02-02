@@ -247,6 +247,7 @@ mod tests {
     use crate::{
         VariableDefinition,
         context::Context,
+        inlining::InlineMode,
         providers::{
             command::CommandSection,
             file::{FileProvider, NamedFileProvider, RelativeFile},
@@ -683,6 +684,6 @@ mod tests {
             src: None,
         });
 
-        let _res = provider.inline(&ctx).await;
+        let _res = provider.inline(&InlineMode::All, &ctx).await;
     }
 }

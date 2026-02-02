@@ -49,3 +49,10 @@ impl From<templating::Errors> for Errors {
         }
     }
 }
+
+/// The mode used to inline files
+#[derive(Debug)]
+pub enum InlineMode {
+    All,
+    RelativeFiles,
+}

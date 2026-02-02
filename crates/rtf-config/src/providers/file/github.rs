@@ -78,6 +78,7 @@ mod tests {
     use super::*;
     use crate::{
         context::Context,
+        inlining::InlineMode,
         mock_context::MockContext,
         providers::file::{
             FileProvider, InlineFile, ResolveAndWrite,
@@ -129,7 +130,7 @@ mod tests {
         let ctx = MockContext::with_github_client(&[("org/repo/path", expected_content)]);
         let mut github_file = FileProvider::GithubFile(github_file());
 
-        let res = github_file.inline(&ctx).await;
+        let res = github_file.inline(&InlineMode::All, &ctx).await;
         assert!(res.is_ok(), "expected provider to inline, got {res:?}");
         assert_eq!(
             github_file, expected_inline_provider,
@@ -143,7 +144,7 @@ mod tests {
         let ctx = Context::new();
         let mut github_file = FileProvider::GithubFile(github_file());
 
-        let _res = github_file.inline(&ctx).await;
+        let _res = github_file.inline(&InlineMode::All, &ctx).await;
     }
 
     #[tokio::test]

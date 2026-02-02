@@ -4,7 +4,7 @@
 //! of file providers and execution of the command itself.
 use crate::{
     context::ResolutionContext,
-    inlining,
+    inlining::{self, InlineMode},
     providers::{
         self, Provider,
         file::{NamedFileProvider, ResolveAndWrite, compose::NamedComposeFileProvider},
@@ -42,11 +42,7 @@ pub trait RunProviders {
 
     fn inline<'a>(
         &'a mut self,
-        ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>>;
-
-    fn inline_all_relative_paths<'a>(
-        &'a mut self,
+        mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>>;
 }
@@ -89,28 +85,14 @@ impl RunProviders for Vec<NamedFileProvider> {
 
     fn inline<'a>(
         &'a mut self,
+        mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
             for nfp in self.iter_mut() {
-                errs.append(nfp.provider.inline(ctx).await);
-            }
-
-            errs.into_result(())
-        })
-    }
-
-    fn inline_all_relative_paths<'a>(
-        &'a mut self,
-        ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
-        Box::pin(async move {
-            let mut errs = inlining::ErrorBuilder::new();
-
-            for nfp in self.iter_mut() {
-                errs.append(nfp.provider.inline_all_relative_paths(ctx).await);
+                errs.append(nfp.provider.inline(mode, ctx).await);
             }
 
             errs.into_result(())
@@ -156,28 +138,14 @@ impl RunProviders for Vec<NamedComposeFileProvider> {
 
     fn inline<'a>(
         &'a mut self,
+        mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
             for nfp in self.iter_mut() {
-                errs.append(nfp.provider.inline(ctx).await);
-            }
-
-            errs.into_result(())
-        })
-    }
-
-    fn inline_all_relative_paths<'a>(
-        &'a mut self,
-        ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
-        Box::pin(async move {
-            let mut errs = inlining::ErrorBuilder::new();
-
-            for nfp in self.iter_mut() {
-                errs.append(nfp.provider.inline_all_relative_paths(ctx).await);
+                errs.append(nfp.provider.inline(mode, ctx).await);
             }
 
             errs.into_result(())

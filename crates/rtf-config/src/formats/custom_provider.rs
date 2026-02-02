@@ -2,10 +2,10 @@ use crate::{
     VariableDefinition,
     context::ResolutionContext,
     formats::{self, test_plan::strip_sources_for_relative_paths},
-    inlining,
-    providers::command::CommandSection,
+    inlining::{self, InlineMode},
     providers::{
         self,
+        command::CommandSection,
         file::{RawSource, SourceDir},
     },
     run::RunProviders,
@@ -40,11 +40,12 @@ impl CustomProviderDefinition {
         Ok(serde_yaml::to_string(&val)?)
     }
 
-    pub async fn inline_all_relative_paths(
+    pub async fn inline(
         &mut self,
+        mode: &InlineMode,
         ctx: &impl ResolutionContext,
     ) -> inlining::Result<()> {
-        self.command.inline_all_relative_paths(ctx).await
+        self.command.inline(mode, ctx).await
     }
 
     /// Validate variable definitions and provided values against allowed_values constraints.

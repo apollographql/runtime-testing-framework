@@ -1,7 +1,8 @@
 use crate::{
     checks::{self, Check, duplicate_keys},
     context::ResolutionContext,
-    enum_impl_check, inlining,
+    enum_impl_check,
+    inlining::{self, InlineMode},
     providers::{
         self, Provider,
         file::{
@@ -108,31 +109,14 @@ impl RunProviders for CommandSection {
 
     fn inline<'a>(
         &'a mut self,
+        mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
-            errs.append(self.command.command_provider.inline(ctx).await);
-            errs.append(self.file_providers.inline(ctx).await);
-            errs.into_result(())
-        })
-    }
-
-    fn inline_all_relative_paths<'a>(
-        &'a mut self,
-        ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
-        Box::pin(async move {
-            let mut errs = inlining::ErrorBuilder::new();
-
-            errs.append(
-                self.command
-                    .command_provider
-                    .inline_all_relative_paths(ctx)
-                    .await,
-            );
-            errs.append(self.file_providers.inline_all_relative_paths(ctx).await);
+            errs.append(self.command.command_provider.inline(mode, ctx).await);
+            errs.append(self.file_providers.inline(mode, ctx).await);
             errs.into_result(())
         })
     }
@@ -305,31 +289,25 @@ pub enum CommandProvider {
 }
 
 impl CommandProvider {
-    pub(crate) async fn inline(&mut self, ctx: &impl ResolutionContext) -> inlining::Result<()> {
-        match self {
-            CommandProvider::Inline(_) => Ok(()),
-            CommandProvider::RelativePath(inner) => {
-                *self = CommandProvider::Inline(inner.try_into_inline_file(ctx).await?);
-
-                Ok(())
-            }
-            CommandProvider::Required(inner) => {
-                *self = CommandProvider::Inline(inner.try_into_inline_file(ctx).await?);
-
-                Ok(())
-            }
-        }
-    }
-
-    pub(crate) async fn inline_all_relative_paths(
+    pub(crate) async fn inline(
         &mut self,
+        mode: &InlineMode,
         ctx: &impl ResolutionContext,
     ) -> inlining::Result<()> {
-        if let Self::RelativePath(relative_path) = self {
-            *self = Self::Inline(relative_path.try_into_inline_file(ctx).await?);
-        }
+        match (&mut *self, mode) {
+            (CommandProvider::RelativePath(inner), _) => {
+                *self = CommandProvider::Inline(inner.try_into_inline_file(ctx).await?);
 
-        Ok(())
+                Ok(())
+            }
+            (_, InlineMode::RelativeFiles) => Ok(()),
+            (CommandProvider::Inline(_), InlineMode::All) => Ok(()),
+            (CommandProvider::Required(inner), InlineMode::All) => {
+                *self = CommandProvider::Inline(inner.try_into_inline_file(ctx).await?);
+
+                Ok(())
+            }
+        }
     }
 }
 
@@ -927,10 +905,12 @@ mod tests {
             src: Some(src),
         });
 
-        let result = command_provider.inline_all_relative_paths(&ctx).await;
+        let result = command_provider
+            .inline(&InlineMode::RelativeFiles, &ctx)
+            .await;
         assert!(
             result.is_ok(),
-            "Expected inline_all_relative_paths to succeed, got {result:?}"
+            "Expected inlining relative paths to succeed, got {result:?}"
         );
         assert_eq!(
             command_provider,
@@ -950,10 +930,12 @@ mod tests {
         });
         let expected_command_provider = command_provider.clone();
 
-        let result = command_provider.inline_all_relative_paths(&ctx).await;
+        let result = command_provider
+            .inline(&InlineMode::RelativeFiles, &ctx)
+            .await;
         assert!(
             result.is_ok(),
-            "Expected inline_all_relative_paths to succeed, got {result:?}"
+            "Expected inlining relative paths to succeed, got {result:?}"
         );
         assert_eq!(command_provider, expected_command_provider);
     }
@@ -997,10 +979,10 @@ mod tests {
             ],
         };
 
-        let result = command_section.inline(&ctx).await;
+        let result = command_section.inline(&InlineMode::All, &ctx).await;
         assert!(
             result.is_ok(),
-            "Expected inline_all_relative_paths to succeed, got {result:?}"
+            "Expected inlining relative paths to succeed, got {result:?}"
         );
 
         let expected = CommandSection {
@@ -1068,10 +1050,12 @@ mod tests {
             ],
         };
 
-        let result = command_section.inline_all_relative_paths(&ctx).await;
+        let result = command_section
+            .inline(&InlineMode::RelativeFiles, &ctx)
+            .await;
         assert!(
             result.is_ok(),
-            "Expected inline_all_relative_paths to succeed, got {result:?}"
+            "Expected inlining relative paths to succeed, got {result:?}"
         );
 
         let expected = CommandSection {
