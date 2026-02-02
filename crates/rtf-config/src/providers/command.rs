@@ -418,7 +418,7 @@ mod tests {
         let config: CommandSection = serde_yaml::from_str(content).unwrap();
 
         let mut res = config.required_variables();
-        res.sort(); // Sorting so variables are in a determistic order for the assert_eq
+        res.sort(); // Sorting so variables are in a deterministic order for the assert_eq
         assert_eq!(res, expected_variables, "expected variables to match")
     }
 

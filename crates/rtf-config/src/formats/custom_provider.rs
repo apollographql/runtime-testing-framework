@@ -313,7 +313,7 @@ mod tests {
             .expect("custom provider config to parse");
 
         let mut res = config.required_variables();
-        res.sort(); // Sorting so variables are in a determistic order for the assert_eq
+        res.sort(); // Sorting so variables are in a deterministic order for the assert_eq
         assert_eq!(res, &["bar", "foo"], "expected variables to match")
     }
 

@@ -465,7 +465,7 @@ where
 }
 
 /// A [Field] wraps some scalar type that implements [Template] in order to mark it as
-/// requriring a templated variable coming from user provided variables as part of resolving the config
+/// requiring a templated variable coming from user provided variables as part of resolving the config
 /// file.
 ///
 /// Fields must be resolved in order to be usable during a test run.
@@ -1147,7 +1147,7 @@ mod tests {
     #[test]
     fn template_required_variables(t: Box<dyn Template>, expected: &[&str]) {
         let mut res = t.required_variables();
-        res.sort(); // Sorting so variables are in a determistic order for the assert_eq
+        res.sort(); // Sorting so variables are in a deterministic order for the assert_eq
 
         assert_eq!(
             res.as_slice(),

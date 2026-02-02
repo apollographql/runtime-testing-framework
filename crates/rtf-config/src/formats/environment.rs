@@ -787,7 +787,7 @@ pub(crate) mod tests {
             .expect("environment config to parse");
 
         let mut res = config.required_variables();
-        res.sort(); // Sorting so variables are in a determistic order for the assert_eq
+        res.sort(); // Sorting so variables are in a deterministic order for the assert_eq
 
         assert_eq!(res, &["bar", "foo"], "expected variables to match");
         assert_eq!(config.custom_providers.len(), 2);
@@ -828,7 +828,7 @@ pub(crate) mod tests {
             .expect("environment config to parse");
 
         let mut res = config.required_variables();
-        res.sort(); // Sorting so variables are in a determistic order for the assert_eq
+        res.sort(); // Sorting so variables are in a deterministic order for the assert_eq
 
         assert_eq!(res, &["bar", "foo"], "expected variables to match");
         assert_eq!(config.custom_providers.len(), 0);
