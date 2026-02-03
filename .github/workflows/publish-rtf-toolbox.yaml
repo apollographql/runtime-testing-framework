@@ -32,4 +32,4 @@ jobs:
           dockerfile_location: ${{ github.workspace }}/toolbox/Dockerfile
           image_description: "RTF toolbox image with rtf binary and supporting tools for use in CI and REP"
           image_name: rtf-toolbox
-          platforms: linux/amd64,linux/arm64,darwin/arm64
+          platforms: linux/amd64,linux/arm64
