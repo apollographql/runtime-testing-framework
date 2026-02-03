@@ -41,7 +41,7 @@ RUN curl -L "https://github.com/kubernetes/kompose/releases/download/$V_KOMPOSE/
 COPY --from=builder /rtf/target/release/rtf /usr/local/bin/rtf
 
 
-# Copy over scripts and add themm to the PATH
+# Copy over scripts and add them to the PATH
 COPY toolbox/scripts/ /toolbox/scripts/
 RUN chmod +x /toolbox/scripts/* 2>/dev/null || true
 ENV PATH="/toolbox/scripts:${PATH}"
