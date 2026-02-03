@@ -1,0 +1,35 @@
+name: Publish RTF Toolbox Docker Image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'crates/**'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - 'toolbox/**'
+
+env:
+  REGISTRY: ghcr.io
+
+permissions:
+  contents: read
+  packages: write
+  attestations: write
+  id-token: write
+
+jobs:
+  publish-toolbox:
+    name: Build and publish RTF toolbox image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: apollographql/release-tooling/build-and-publish@c3f1e8e459a22e5dbd9ac6112f2125995bd890d8
+        with:
+          context: ${{ github.workspace }}
+          dockerfile_location: ${{ github.workspace }}/toolbox/Dockerfile
+          image_description: "RTF toolbox image with rtf binary and supporting tools for use in CI and REP"
+          image_name: rtf-toolbox
+          platforms: linux/amd64,linux/arm64

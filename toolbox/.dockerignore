@@ -1,0 +1,9 @@
+# This .dockerignore is for when building from the toolbox/ directory
+# For the GitHub Actions build (from workspace root), a separate .dockerignore may be needed
+
+# Ignore everything by default
+*
+
+# Include only what we need
+!Dockerfile
+!scripts/
