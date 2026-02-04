@@ -113,7 +113,9 @@ pub enum Command {
         subcommand: ResolveSubcommand,
     },
 
+    /// Write a shell completion file to STDOUT for the given shell
     Completion {
+        /// The shell to generate completions for (defaults to identifying from the environment)
         #[arg(long, short)]
         shell: Option<Shell>,
     },
