@@ -37,4 +37,4 @@ jobs:
 
       - uses: apollographql/release-tooling/rtf-run-test-plan@91551f996e38a3d64e31d47d961bc5913da38e68
         with:
-          test_plan_path: crates/rtf-cli/resources/valid/test-plans/sanity-check/test-plan.yaml
+          test_plan_path: crates/rtf-cli/resources/test-plans/valid/sanity-check/test-plan.yaml
