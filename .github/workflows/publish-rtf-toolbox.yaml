@@ -27,10 +27,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: apollographql/release-tooling/build-and-publish@b683dcdbbaf56fdcd96c12e76670aa8db05f7801
+      - uses: apollographql/release-tooling/build-and-publish@91551f996e38a3d64e31d47d961bc5913da38e68
         with:
           context: ${{ github.workspace }}
           dockerfile_location: ${{ github.workspace }}/toolbox/Dockerfile
           image_description: "RTF toolbox image with rtf binary and supporting tools for use in CI and REP"
           image_name: rtf-toolbox
           platforms: linux/amd64,linux/arm64
+
+      - uses: apollographql/release-tooling/rtf-run-test-plan@91551f996e38a3d64e31d47d961bc5913da38e68
+        with:
+          test_plan_path: crates/rtf-cli/resources/valid/test-plans/sanity-check/test-plan.yaml
