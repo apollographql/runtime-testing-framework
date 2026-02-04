@@ -1,0 +1,17 @@
+name: Test RTF Run Action
+
+on: workflow_dispatch
+
+jobs:
+  run-sanity-check:
+    name: Run sanity check test plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: apollographql/release-tooling/rtf-run-test-plan@7be02a26384c8f3694bdb334d99a3000fb4d0985
+        with:
+          test_plan_path: crates/rtf-cli/resources/test-plans/valid/sanity-check/test-plan.yaml
