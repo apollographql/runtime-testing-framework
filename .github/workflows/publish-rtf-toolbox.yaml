@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: apollographql/release-tooling/build-and-publish@fc0d6bc05ee3f27d67aca21dc238e3926e9132e8
+      - uses: apollographql/release-tooling/build-and-publish@b683dcdbbaf56fdcd96c12e76670aa8db05f7801
         with:
           context: ${{ github.workspace }}
           dockerfile_location: ${{ github.workspace }}/toolbox/Dockerfile
