@@ -5,6 +5,7 @@ on:
     branches:
       - main
     paths:
+      - ".github/workflows/publish-rtf-toolbox.yaml"
       - "crates/**"
       - "Cargo.lock"
       - "Cargo.toml"
@@ -26,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: apollographql/release-tooling/build-and-publish@1c37b0f6560326adeb06d2beb715887e6e02626e
+      - uses: apollographql/release-tooling/build-and-publish@fc0d6bc05ee3f27d67aca21dc238e3926e9132e8
         with:
           context: ${{ github.workspace }}
           dockerfile_location: ${{ github.workspace }}/toolbox/Dockerfile
