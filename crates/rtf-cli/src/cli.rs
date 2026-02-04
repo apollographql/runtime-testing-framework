@@ -113,7 +113,7 @@ pub enum Command {
         subcommand: ResolveSubcommand,
     },
 
-    Complete {
+    Completion {
         #[arg(long, short)]
         shell: Option<Shell>,
     },

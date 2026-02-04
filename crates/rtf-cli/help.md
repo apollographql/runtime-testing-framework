@@ -17,7 +17,7 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf resolve`↴](#rtf-resolve)
 * [`rtf resolve scenario`↴](#rtf-resolve-scenario)
 * [`rtf resolve environment`↴](#rtf-resolve-environment)
-* [`rtf complete`↴](#rtf-complete)
+* [`rtf completion`↴](#rtf-completion)
 
 ## `rtf`
 
@@ -33,7 +33,7 @@ A swiss army knife for testing the Apollo Runtime
 * `custom-provider` — Work directly with custom file provider definitions
 * `inline` — Inline file providers in a test plan. Outputs the resulting test plan to the given directory
 * `resolve` — Resolve file providers for a config file without executing it
-* `complete` — 
+* `completion` — 
 
 ###### **Options:**
 
@@ -254,9 +254,9 @@ Resolve file providers for a standalone environment config
 
 
 
-## `rtf complete`
+## `rtf completion`
 
-**Usage:** `rtf complete [OPTIONS]`
+**Usage:** `rtf completion [OPTIONS]`
 
 ###### **Options:**
 

@@ -112,7 +112,7 @@ async fn main() {
                 },
         } => resolve_environment(&environment_path, variables, &outdir).await,
 
-        Command::Complete { shell } => generate_shell_completions(shell),
+        Command::Completion { shell } => generate_shell_completions(shell),
     };
 
     if let Err(e) = res {

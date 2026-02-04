@@ -20,6 +20,7 @@
 
 - [How-to guides](howto/cookbook.md)
   - [Troubleshooting](howto/troubleshooting.md)
+  - [Generating CLI shell completions](howto/shell-completions.md)
 
 - [Reference](reference/index.md)
   - [Framework](reference/framework/index.md)
