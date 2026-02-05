@@ -1,4 +1,5 @@
 pub mod common;
+pub mod completion;
 pub mod custom_provider;
 pub mod docker;
 pub mod docker_compose;

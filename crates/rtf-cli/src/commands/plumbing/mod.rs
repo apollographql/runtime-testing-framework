@@ -3,12 +3,14 @@ use crate::{ParsedVariables, cli::Variables};
 use anyhow::anyhow;
 use rtf_config::{SourceDir, context::ResolutionContext};
 
+mod completion;
 mod custom_provider;
 mod expand_matrix;
 mod inline;
 mod resolve;
 mod template;
 
+pub use completion::generate_shell_completions;
 pub use custom_provider::{run_custom_provider, template_custom_provider, test_custom_provider};
 pub use expand_matrix::expand_test_plan_matrix;
 pub use inline::inline_test_plan;

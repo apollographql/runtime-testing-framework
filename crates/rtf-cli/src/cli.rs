@@ -1,5 +1,6 @@
 //! Parsing of our command line arguments using Clap's derive API
 use clap::{ArgAction, Parser, Subcommand};
+use clap_complete::Shell;
 use std::path::PathBuf;
 
 // NOTE: All of the doc comments here are parsed by Clap and used to build out the documentation
@@ -110,6 +111,13 @@ pub enum Command {
     Resolve {
         #[clap(subcommand)]
         subcommand: ResolveSubcommand,
+    },
+
+    /// Write a shell completion file to STDOUT for the given shell
+    Completion {
+        /// The shell to generate completions for (defaults to identifying from the environment)
+        #[arg(long, short)]
+        shell: Option<Shell>,
     },
 }
 

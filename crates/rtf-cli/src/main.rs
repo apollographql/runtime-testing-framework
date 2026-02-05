@@ -5,9 +5,9 @@ use rtf_cli::{
     cli::{Args, Command, CustomProviderSubcommand, InlineSubcommand, ResolveSubcommand},
     commands::{
         plumbing::{
-            expand_test_plan_matrix, inline_test_plan, resolve_environment, resolve_scenario,
-            run_custom_provider, template_custom_provider, template_test_plan,
-            test_custom_provider,
+            expand_test_plan_matrix, generate_shell_completions, inline_test_plan,
+            resolve_environment, resolve_scenario, run_custom_provider, template_custom_provider,
+            template_test_plan, test_custom_provider,
         },
         porcelain::check_and_run_test_plan,
     },
@@ -111,6 +111,8 @@ async fn main() {
                     outdir,
                 },
         } => resolve_environment(&environment_path, variables, &outdir).await,
+
+        Command::Completion { shell } => generate_shell_completions(shell),
     };
 
     if let Err(e) = res {
