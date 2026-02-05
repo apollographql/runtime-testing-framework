@@ -9,6 +9,7 @@ pub mod graphos;
 pub mod inline;
 pub mod resolve;
 pub mod run;
+pub mod schemas;
 pub mod template;
 
 use assert_cmd::cargo::cargo_bin_cmd;

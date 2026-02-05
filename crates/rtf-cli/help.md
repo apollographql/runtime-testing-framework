@@ -18,6 +18,7 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf resolve scenario`↴](#rtf-resolve-scenario)
 * [`rtf resolve environment`↴](#rtf-resolve-environment)
 * [`rtf completion`↴](#rtf-completion)
+* [`rtf json-schemas`↴](#rtf-json-schemas)
 
 ## `rtf`
 
@@ -34,6 +35,7 @@ A swiss army knife for testing the Apollo Runtime
 * `inline` — Inline file providers in a test plan. Outputs the resulting test plan to the given directory
 * `resolve` — Resolve file providers for a config file without executing it
 * `completion` — Write a shell completion file to STDOUT for the given shell
+* `json-schemas` — Output json schemas for environment configuration
 
 ###### **Options:**
 
@@ -265,6 +267,21 @@ Write a shell completion file to STDOUT for the given shell
 * `-s`, `--shell <SHELL>` — The shell to generate completions for (defaults to identifying from the environment)
 
   Possible values: `bash`, `elvish`, `fish`, `powershell`, `zsh`
+
+
+
+
+## `rtf json-schemas`
+
+Output json schemas for environment configuration
+
+**Usage:** `rtf json-schemas <CONFIG>`
+
+###### **Arguments:**
+
+* `<CONFIG>`
+
+  Possible values: `test-plan`, `environment`, `scenario`
 
 
 

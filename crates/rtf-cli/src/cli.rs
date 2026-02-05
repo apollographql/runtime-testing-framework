@@ -1,5 +1,5 @@
 //! Parsing of our command line arguments using Clap's derive API
-use clap::{ArgAction, Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
 use std::path::PathBuf;
 
@@ -119,6 +119,9 @@ pub enum Command {
         #[arg(long, short)]
         shell: Option<Shell>,
     },
+
+    /// Output json schemas for environment configuration
+    JsonSchemas { config: SchemasConfig },
 }
 
 #[derive(Debug, Subcommand)]
@@ -216,4 +219,11 @@ pub enum ResolveSubcommand {
         #[arg(long, default_value = "output")]
         outdir: String,
     },
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+pub enum SchemasConfig {
+    TestPlan,
+    Environment,
+    Scenario,
 }

@@ -7,6 +7,7 @@ mod completion;
 mod custom_provider;
 mod expand_matrix;
 mod inline;
+mod json_schemas;
 mod resolve;
 mod template;
 
@@ -14,6 +15,7 @@ pub use completion::generate_shell_completions;
 pub use custom_provider::{run_custom_provider, template_custom_provider, test_custom_provider};
 pub use expand_matrix::expand_test_plan_matrix;
 pub use inline::inline_test_plan;
+pub use json_schemas::generate_json_schema;
 pub use resolve::{resolve_environment, resolve_scenario};
 pub use template::template_test_plan;
 
