@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-e5ae7949.js";
+            window.path_to_searchindex_js = "searchindex-824f96a2.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-f80621b6.js"></script>
+        <script src="toc-056b2a77.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -2993,6 +2993,23 @@ compinit -i
 <p>Generate an <code>rtf.fish</code> completion script:</p>
 <pre><code class="language-sh">rtf completion -s fish &gt; ~/.config/fish/completions/rtf.fish
 </code></pre>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
+<h1 id="generating-json-schemas-for-config-files"><a class="header" href="#generating-json-schemas-for-config-files">Generating JSON schemas for config files</a></h1>
+<p>The <code>rtf json-schemas &lt;config&gt;</code> command can be used to generate the JSON schema for the test plan,
+environment and scenario config file formats.</p>
+<p>To save the JSON schema files, navigate to the directory they should be stored in and run:</p>
+<pre><code>rtf json-schemas test-plan &gt; test-plan-schema.json
+rtf json-schemas environment &gt; environment-schema.json
+rtf json-schemas scenario &gt; scenario-schema.json
+</code></pre>
+<p>To reference the JSON schemas in your config files, add the following annotation to the start of
+your file</p>
+<pre><code class="language-yaml"># yaml-language-server: $schema=relative/path/to/test-plan-schema.json
+
+name: Test Plan
+description: A test plan config validated against its JSON schema
+...
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="reference"><a class="header" href="#reference">Reference</a></h1>
 <p>This section contains reference documentation for RTF.</p>
@@ -4261,6 +4278,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li><a href="#rtf-resolve-scenario"><code>rtf resolve scenario</code>↴</a></li>
 <li><a href="#rtf-resolve-environment"><code>rtf resolve environment</code>↴</a></li>
 <li><a href="#rtf-completion"><code>rtf completion</code>↴</a></li>
+<li><a href="#rtf-json-schemas"><code>rtf json-schemas</code>↴</a></li>
 </ul>
 <h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
 <p>A swiss army knife for testing the Apollo Runtime</p>
@@ -4274,6 +4292,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li><code>inline</code> — Inline file providers in a test plan. Outputs the resulting test plan to the given directory</li>
 <li><code>resolve</code> — Resolve file providers for a config file without executing it</li>
 <li><code>completion</code> — Write a shell completion file to STDOUT for the given shell</li>
+<li><code>json-schemas</code> — Output json schemas for environment configuration</li>
 </ul>
 <h6 id="options"><a class="header" href="#options"><strong>Options:</strong></a></h6>
 <ul>
@@ -4460,6 +4479,16 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li>
 <p><code>-s</code>, <code>--shell &lt;SHELL&gt;</code> — The shell to generate completions for (defaults to identifying from the environment)</p>
 <p>Possible values: <code>bash</code>, <code>elvish</code>, <code>fish</code>, <code>powershell</code>, <code>zsh</code></p>
+</li>
+</ul>
+<h2 id="rtf-json-schemas"><a class="header" href="#rtf-json-schemas"><code>rtf json-schemas</code></a></h2>
+<p>Output json schemas for environment configuration</p>
+<p><strong>Usage:</strong> <code>rtf json-schemas &lt;CONFIG&gt;</code></p>
+<h6 id="arguments-9"><a class="header" href="#arguments-9"><strong>Arguments:</strong></a></h6>
+<ul>
+<li>
+<p><code>&lt;CONFIG&gt;</code></p>
+<p>Possible values: <code>test-plan</code>, <code>environment</code>, <code>scenario</code></p>
 </li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
