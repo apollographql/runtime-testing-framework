@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-30f14c4e.js";
+            window.path_to_searchindex_js = "searchindex-e5ae7949.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-6484d70d.js"></script>
+        <script src="toc-f80621b6.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -2969,6 +2969,30 @@ rtf run test-plan.yaml -vvv    # TRACE level
 <h3 id="check-file-provider-resolution"><a class="header" href="#check-file-provider-resolution">Check file provider resolution</a></h3>
 <p>The output directory contains a <code>providers/</code> subdirectory with all resolved file provider outputs.
 Inspect these files to verify providers produced the expected content.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
+<h1 id="generating-cli-shell-completions"><a class="header" href="#generating-cli-shell-completions">Generating CLI shell completions</a></h1>
+<p>The <code>rtf completion -s &lt;shell&gt;</code> command can be used to generate shell completion scripts for your
+shell of choice.</p>
+<p>To set up completions manually, follow the instructions below. The exact config file locations might
+vary based on your system. Make sure to restart your shell before testing whether completions are
+working.</p>
+<h2 id="bash"><a class="header" href="#bash">bash</a></h2>
+<p>First, ensure that you install <code>bash-completion</code> using your package manager.</p>
+<p>After, add this to your ~/.bash_profile:</p>
+<pre><code class="language-sh">eval "$(rtf completion -s bash)"
+</code></pre>
+<h2 id="zsh"><a class="header" href="#zsh">zsh</a></h2>
+<p>Generate an <code>_rtf</code> completion script and put it somewhere in your <code>$fpath</code>:</p>
+<pre><code class="language-sh">rtf completion -s zsh &gt; /usr/local/share/zsh/site-functions/_rtf
+</code></pre>
+<p>Ensure that the following is present in your <code>~/.zshrc</code>:</p>
+<pre><code class="language-sh">autoload -U compinit
+compinit -i
+</code></pre>
+<h2 id="fish"><a class="header" href="#fish">fish</a></h2>
+<p>Generate an <code>rtf.fish</code> completion script:</p>
+<pre><code class="language-sh">rtf completion -s fish &gt; ~/.config/fish/completions/rtf.fish
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="reference"><a class="header" href="#reference">Reference</a></h1>
 <p>This section contains reference documentation for RTF.</p>
@@ -4236,6 +4260,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li><a href="#rtf-resolve"><code>rtf resolve</code>↴</a></li>
 <li><a href="#rtf-resolve-scenario"><code>rtf resolve scenario</code>↴</a></li>
 <li><a href="#rtf-resolve-environment"><code>rtf resolve environment</code>↴</a></li>
+<li><a href="#rtf-completion"><code>rtf completion</code>↴</a></li>
 </ul>
 <h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
 <p>A swiss army knife for testing the Apollo Runtime</p>
@@ -4248,6 +4273,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li><code>custom-provider</code> — Work directly with custom file provider definitions</li>
 <li><code>inline</code> — Inline file providers in a test plan. Outputs the resulting test plan to the given directory</li>
 <li><code>resolve</code> — Resolve file providers for a config file without executing it</li>
+<li><code>completion</code> — Write a shell completion file to STDOUT for the given shell</li>
 </ul>
 <h6 id="options"><a class="header" href="#options"><strong>Options:</strong></a></h6>
 <ul>
@@ -4424,6 +4450,16 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li>
 <p><code>--outdir &lt;OUTDIR&gt;</code> — Output directory for resolved providers and env files</p>
 <p>Default value: <code>output</code></p>
+</li>
+</ul>
+<h2 id="rtf-completion"><a class="header" href="#rtf-completion"><code>rtf completion</code></a></h2>
+<p>Write a shell completion file to STDOUT for the given shell</p>
+<p><strong>Usage:</strong> <code>rtf completion [OPTIONS]</code></p>
+<h6 id="options-10"><a class="header" href="#options-10"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>-s</code>, <code>--shell &lt;SHELL&gt;</code> — The shell to generate completions for (defaults to identifying from the environment)</p>
+<p>Possible values: <code>bash</code>, <code>elvish</code>, <code>fish</code>, <code>powershell</code>, <code>zsh</code></p>
 </li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["expand_test_plan_matrix","inline_test_plan","resolve_environment","resolve_scenario","run_custom_provider","template_custom_provider","template_test_plan","test_custom_provider"]};
+window.SIDEBAR_ITEMS = {"fn":["expand_test_plan_matrix","generate_shell_completions","inline_test_plan","resolve_environment","resolve_scenario","run_custom_provider","template_custom_provider","template_test_plan","test_custom_provider"]};

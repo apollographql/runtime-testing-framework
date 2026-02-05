@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-30f14c4e.js";
+            window.path_to_searchindex_js = "../searchindex-e5ae7949.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-6484d70d.js"></script>
+        <script src="../toc-f80621b6.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -195,6 +195,7 @@
 <li><a href="#rtf-resolve"><code>rtf resolve</code>↴</a></li>
 <li><a href="#rtf-resolve-scenario"><code>rtf resolve scenario</code>↴</a></li>
 <li><a href="#rtf-resolve-environment"><code>rtf resolve environment</code>↴</a></li>
+<li><a href="#rtf-completion"><code>rtf completion</code>↴</a></li>
 </ul>
 <h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
 <p>A swiss army knife for testing the Apollo Runtime</p>
@@ -207,6 +208,7 @@
 <li><code>custom-provider</code> — Work directly with custom file provider definitions</li>
 <li><code>inline</code> — Inline file providers in a test plan. Outputs the resulting test plan to the given directory</li>
 <li><code>resolve</code> — Resolve file providers for a config file without executing it</li>
+<li><code>completion</code> — Write a shell completion file to STDOUT for the given shell</li>
 </ul>
 <h6 id="options"><a class="header" href="#options"><strong>Options:</strong></a></h6>
 <ul>
@@ -383,6 +385,16 @@
 <li>
 <p><code>--outdir &lt;OUTDIR&gt;</code> — Output directory for resolved providers and env files</p>
 <p>Default value: <code>output</code></p>
+</li>
+</ul>
+<h2 id="rtf-completion"><a class="header" href="#rtf-completion"><code>rtf completion</code></a></h2>
+<p>Write a shell completion file to STDOUT for the given shell</p>
+<p><strong>Usage:</strong> <code>rtf completion [OPTIONS]</code></p>
+<h6 id="options-10"><a class="header" href="#options-10"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>-s</code>, <code>--shell &lt;SHELL&gt;</code> — The shell to generate completions for (defaults to identifying from the environment)</p>
+<p>Possible values: <code>bash</code>, <code>elvish</code>, <code>fish</code>, <code>powershell</code>, <code>zsh</code></p>
 </li>
 </ul>
 
