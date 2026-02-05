@@ -21,6 +21,7 @@
 - [How-to guides](howto/cookbook.md)
   - [Troubleshooting](howto/troubleshooting.md)
   - [Generating CLI shell completions](howto/shell-completions.md)
+  - [Generating JSON Schemas](howto/json-schemas.md)
 
 - [Reference](reference/index.md)
   - [Framework](reference/framework/index.md)
