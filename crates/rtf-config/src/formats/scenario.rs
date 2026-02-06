@@ -279,6 +279,12 @@ impl DockerScenario {
 
         let mut args = vec![
             "run".to_string(),
+            // We can't guarantee that the image we are running has a shell as its default
+            // entrypoint so we need to force that. (See below)
+            "--entrypoint".to_string(),
+            "/bin/sh".to_string(),
+            // Needed for the scenario to be able to access services running in the Environment
+            "--net=host".to_string(),
             "--rm".to_string(),
             "-v".to_string(),
             format!("{}:/output", ctx.output_path().display()),
@@ -288,9 +294,11 @@ impl DockerScenario {
             args.extend(["-e".to_string(), format!("{k}={v}")]);
         }
 
+        // This looks a little convoluted but in order to support users referencing files coming
+        // from file providers as env vars we need to execute under sh in order to get the shell to
+        // perform shell expansion for us.
         args.extend([
             image,
-            "sh".to_string(),
             "-c".to_string(),
             self.docker.command.as_resolved().to_string(),
         ]);
