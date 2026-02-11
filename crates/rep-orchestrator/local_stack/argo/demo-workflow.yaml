@@ -23,9 +23,16 @@ spec:
               parameters:
                 - name: namespace-name
                   value: "{{workflow.parameters.namespace-name}}"
+          - name: create-pull-secret
+            template: create-pull-secret
+            dependencies: [create-namespace]
+            arguments:
+              parameters:
+                - name: namespace-name
+                  value: "{{workflow.parameters.namespace-name}}"
           - name: deploy-environment
             template: deploy-environment
-            dependencies: [create-namespace]
+            dependencies: [create-pull-secret]
             arguments:
               parameters:
                 - name: namespace-name
@@ -56,6 +63,45 @@ spec:
             mountPath: /kubeconfig
             readOnly: true
 
+    - name: create-pull-secret
+      inputs:
+        parameters:
+          - name: namespace-name
+      volumes:
+        - name: gcr-secret
+          secret:
+            secretName: gcr-secret
+            items:
+              - key: .dockerconfigjson
+                path: config.json
+      container:
+        image: bitnami/kubectl:latest
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "Creating image pull secret in namespace '{{inputs.parameters.namespace-name}}'..."
+            kubectl --kubeconfig=/kubeconfig/value \
+              create secret docker-registry gcr-secret \
+              --namespace={{inputs.parameters.namespace-name}} \
+              --from-file=.dockerconfigjson=/gcr-secret/config.json \
+              --dry-run=client -o yaml |
+                kubectl --kubeconfig=/kubeconfig/value apply -f -
+
+            echo "Patching default service account..."
+            kubectl --kubeconfig=/kubeconfig/value \
+              patch serviceaccount default \
+              --namespace={{inputs.parameters.namespace-name}} \
+              -p '{"imagePullSecrets": [{"name": "gcr-secret"}]}'
+
+            echo "Pull secret created successfully."
+        volumeMounts:
+          - name: kubeconfig
+            mountPath: /kubeconfig
+            readOnly: true
+          - name: gcr-secret
+            mountPath: /gcr-secret
+            readOnly: true
+
     - name: deploy-environment
       inputs:
         parameters:
@@ -76,15 +122,16 @@ spec:
             mkdir -p $WORKDIR/k8s
 
             echo "Resolving environment docker-compose files..."
-            rtf resolve environment /environment/environment.yaml --output $WORKDIR/output
+            rtf resolve environment /environment/environment.yaml --outdir $WORKDIR/output
 
             # Source RTF env vars
-            . $WORKDIR/output/environment-setup/setup.env
-
+            . $WORKDIR/output/setup/setup.env
             echo "Converting to kubernetes manifests..."
-            for f in $COMPOSE_FILES; do
-              kompose convert -f "$f" -o $WORKDIR/k8s/
-            done
+            KOMPOSE_ARGS=""
+            while IFS= read -r f || [ -n "$f" ]; do
+              [ -n "$f" ] && KOMPOSE_ARGS="$KOMPOSE_ARGS -f $f"
+            done < "$COMPOSE_FILES"
+            kompose convert $KOMPOSE_ARGS -o $WORKDIR/k8s/
 
             echo "Applying manifests to namespace '{{inputs.parameters.namespace-name}}'..."
             kubectl --kubeconfig=/kubeconfig/value apply \
