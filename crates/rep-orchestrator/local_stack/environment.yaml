@@ -1,0 +1,882 @@
+name: constellation-gateway-env
+description: |
+  A docker-compose based environment for testing the Constellation Gateway against a single
+  back end Apollo MCP Server.
+
+  Requirements:
+  - Docker installed and running
+  - GCP CLI installed
+  - Run `gcloud auth configure-docker us-central1-docker.pkg.dev` to authenticate pulling the gateway image
+variable_definitions:
+- name: gateway_image
+  description: Docker image for Constellation Gateway
+  default: us-central1-docker.pkg.dev/platform-cross-environment/platform-docker/constellation-gateway
+  allowed_values: null
+- name: gateway_port
+  description: The port to run the gateway on
+  default: 8005
+  allowed_values: null
+- name: gateway_tag
+  description: Docker tag for the Constellation Gateway image
+  default: main-3244ac5
+  allowed_values: null
+- name: mcp_server_image
+  description: Docker image for Apollo MCP Server
+  default: ghcr.io/apollographql/apollo-mcp-server
+  allowed_values: null
+- name: mcp_server_port
+  description: Port for MCP Server HTTP endpoint
+  default: 8000
+  allowed_values: null
+- name: mcp_server_tag
+  description: Docker tag for the Apollo MCP Server image
+  default: latest
+  allowed_values: null
+- name: subgraph_mock_image
+  description: Docker image for Subgraph Mock
+  default: ghcr.io/apollographql/subgraph-mock
+  allowed_values: null
+- name: subgraph_mock_port
+  description: Port for Subgraph Mock server
+  default: 4000
+  allowed_values: null
+- name: subgraph_mock_tag
+  description: Docker image for Subgraph Mock
+  default: 0.1.0-alpha
+  allowed_values: null
+custom_providers: []
+project_name: rtf-constellation-smoke
+compose_files:
+- name: docker-compose.yaml
+  kind: inline
+  content: |
+    # An additional docker compose file for adding the Constellation Gateway to the MCP server stack
+    services:
+      constellation-gateway:
+        image: ${GATEWAY_IMAGE}:${GATEWAY_TAG}
+        container_name: constellation-gateway
+        ports:
+          - "${GATEWAY_PORT}:8005"
+        environment:
+          PORT: "${GATEWAY_PORT}"
+        # The server config file is passed as a positional arg rather than via a `--config` flag
+        command: >
+          /app/gateway.yaml
+        volumes:
+          - ${GATEWAY_CONFIG}:/app/gateway.yaml
+        entrypoint: ./gateway
+        depends_on:
+          apollo-mcp-server:
+            condition: service_started
+        restart: unless-stopped
+
+      apollo-mcp-server:
+        image: ${MCP_SERVER_IMAGE}:${MCP_SERVER_TAG}
+        container_name: apollo-mcp-server
+        ports:
+          - "${MCP_SERVER_PORT}:8000"
+        command: ["/config.yaml"]
+        volumes:
+          - ${MCP_CONFIG}:/config.yaml:ro
+          - ${OPERATIONS_DIR}:/operations:ro
+          - ${SUPERGRAPH_SCHEMA}:/schema.graphql:ro
+        depends_on:
+          subgraph-mock:
+            condition: service_started
+        restart: unless-stopped
+
+      subgraph-mock:
+        image: ${SUBGRAPH_MOCK_IMAGE}:${SUBGRAPH_MOCK_TAG}
+        container_name: subgraph-mock
+        command:
+          - --schema
+          - /app/supergraph.graphql
+          - --config
+          - /app/config.yaml
+        ports:
+          - "${SUBGRAPH_MOCK_PORT}:8080"
+        volumes:
+          - ${SUPERGRAPH_SCHEMA}:/app/supergraph.graphql:ro
+          - ${SUBGRAPH_CONFIG}:/app/config.yaml:ro
+        restart: unless-stopped
+file_providers:
+- name: gateway.yaml
+  env_var: GATEWAY_CONFIG
+  kind: inline
+  content: |
+    gateway:
+      name: test-gateway
+      version: "0.1.0"
+
+    # List of upstream MCP servers to proxy
+    upstreams:
+      server1:
+        type: mcp-server
+        url: http://apollo-mcp-server:8000/mcp
+
+    # telemetry:
+    #   exporters:
+    #     logging:
+    #       stdout:
+    #         format: text
+    #         level: info
+    #     metrics:
+    #       otlp:
+    #         protocol: grpc
+    #         endpoint: http://otel-lgtm:4317
+    #     tracing:
+    #       otlp:
+    #         protocol: grpc
+    #         endpoint: http://otel-lgtm:4317
+- name: mcp-config.yaml
+  env_var: MCP_CONFIG
+  kind: inline
+  content: |
+    # Apollo MCP Server configuration
+    # This file is used as a template - the setup script generates the final config
+    # with the correct endpoint URL based on the docker network.
+
+    endpoint: http://subgraph-mock:8080/
+
+    transport:
+      type: streamable_http
+      address: "0.0.0.0"
+      port: 8000
+
+    operations:
+      source: local
+      paths:
+        - /operations/
+
+    schema:
+      source: local
+      path: /schema.graphql
+
+    health_check:
+      enabled: true
+      path: "/health"
+- name: mcp-ecommerce-fixtures
+  env_var: OPERATIONS_DIR
+  kind: from_command
+  command:
+    name: generate.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env bash
+      set -e
+
+      mkdir -p "$RTF_OUTPUT"
+
+      cp "$OP_GET_CUSTOMER_WITH_ORDERS" "$RTF_OUTPUT"
+      cp "$OP_GET_FEATURED_PRODUCTS" "$RTF_OUTPUT"
+      cp "$OP_GET_ORDER_DETAILS" "$RTF_OUTPUT"
+      cp "$OP_GET_PRODUCT_BY_ID" "$RTF_OUTPUT"
+      cp "$OP_GET_PRODUCT_BY_SKU" "$RTF_OUTPUT"
+      cp "$OP_GET_PRODUCT_REVIEWS" "$RTF_OUTPUT"
+      cp "$OP_GET_RECENT_REVIEWS" "$RTF_OUTPUT"
+      cp "$OP_GET_STORE_STATS" "$RTF_OUTPUT"
+      cp "$OP_LIST_PRODUCTS" "$RTF_OUTPUT"
+      cp "$OP_SEARCH_PRODUCTS" "$RTF_OUTPUT"
+    args: []
+  env_vars: {}
+  file_providers:
+  - name: GetCustomerWithOrders.graphql
+    env_var: OP_GET_CUSTOMER_WITH_ORDERS
+    kind: inline
+    content: |
+      # Get customer details including their order history
+      # Tests: Deep nesting, multiple relationship traversals
+
+      query GetCustomerWithOrders($customerId: ID!) {
+        customer(id: $customerId) {
+          id
+          email
+          firstName
+          lastName
+          fullName
+          phone
+          isActive
+          createdAt
+          addresses {
+            street
+            city
+            state
+            postalCode
+            country
+          }
+          orders {
+            id
+            orderNumber
+            status
+            total
+            createdAt
+            items {
+              quantity
+              unitPrice
+              totalPrice
+              product {
+                id
+                name
+                sku
+              }
+            }
+          }
+        }
+      }
+  - name: GetFeaturedProducts.graphql
+    env_var: OP_GET_FEATURED_PRODUCTS
+    kind: inline
+    content: |
+      # Get featured products for homepage display
+      # Tests: Simple list query, optional argument with default
+
+      query GetFeaturedProducts($limit: Int) {
+        featuredProducts(limit: $limit) {
+          id
+          name
+          description
+          category
+          price
+          compareAtPrice
+          images {
+            url
+            altText
+            isPrimary
+          }
+          averageRating
+          tags
+        }
+      }
+  - name: GetOrderDetails.graphql
+    env_var: OP_GET_ORDER_DETAILS
+    kind: inline
+    content: |
+      # Get complete order details including addresses and line items
+      # Tests: Complex object graph, multiple nested levels
+
+      query GetOrderDetails($orderId: ID!) {
+        order(id: $orderId) {
+          id
+          orderNumber
+          status
+          subtotal
+          tax
+          shipping
+          total
+          notes
+          createdAt
+          updatedAt
+          customer {
+            id
+            email
+            fullName
+          }
+          shippingAddress {
+            street
+            city
+            state
+            postalCode
+            country
+          }
+          billingAddress {
+            street
+            city
+            state
+            postalCode
+            country
+          }
+          items {
+            quantity
+            unitPrice
+            totalPrice
+            product {
+              id
+              sku
+              name
+              category
+              images {
+                url
+                isPrimary
+              }
+            }
+          }
+        }
+      }
+  - name: GetProductById.graphql
+    env_var: OP_GET_PRODUCT_BY_ID
+    kind: inline
+    content: |
+      # Fetch a single product by ID with full details
+      # Tests: ID argument, nullable return type, nested objects, lists
+
+      query GetProductById($productId: ID!) {
+        product(id: $productId) {
+          id
+          sku
+          name
+          description
+          category
+          price
+          compareAtPrice
+          inStock
+          stockQuantity
+          tags
+          images {
+            url
+            altText
+            isPrimary
+          }
+          averageRating
+          createdAt
+          updatedAt
+        }
+      }
+  - name: GetProductBySku.graphql
+    env_var: OP_GET_PRODUCT_BY_SKU
+    kind: inline
+    content: |
+      # Look up a product by its SKU code
+      # Tests: String argument lookup, alternative to ID lookup
+
+      query GetProductBySku($sku: String!) {
+        productBySku(sku: $sku) {
+          id
+          sku
+          name
+          description
+          category
+          price
+          inStock
+          stockQuantity
+          tags
+          relatedProducts {
+            id
+            name
+            price
+            category
+          }
+        }
+      }
+  - name: GetProductReviews.graphql
+    env_var: OP_GET_PRODUCT_REVIEWS
+    kind: inline
+    content: |
+      # Get paginated reviews for a product with optional rating filter
+      # Tests: Connection type, pagination, optional filter argument
+
+      query GetProductReviews(
+        $productId: ID!
+        $minRating: Int
+        $pagination: PaginationInput
+      ) {
+        productReviews(
+          productId: $productId
+          minRating: $minRating
+          pagination: $pagination
+        ) {
+          edges {
+            node {
+              id
+              rating
+              title
+              body
+              helpful
+              verified
+              createdAt
+              author {
+                id
+                firstName
+                lastName
+              }
+            }
+            cursor
+          }
+          pageInfo {
+            hasNextPage
+            hasPreviousPage
+            totalCount
+            currentPage
+          }
+        }
+      }
+  - name: GetRecentReviews.graphql
+    env_var: OP_GET_RECENT_REVIEWS
+    kind: inline
+    content: |
+      # Get recent reviews across all products
+      # Tests: Simple list with limit, cross-entity relationships
+
+      query GetRecentReviews($limit: Int) {
+        recentReviews(limit: $limit) {
+          id
+          rating
+          title
+          body
+          verified
+          createdAt
+          author {
+            id
+            fullName
+          }
+          product {
+            id
+            name
+            category
+            price
+          }
+        }
+      }
+  - name: GetStoreStats.graphql
+    env_var: OP_GET_STORE_STATS
+    kind: inline
+    content: |
+      # Get overall store statistics and category breakdown
+      # Tests: Aggregate data, nested list of stats, no arguments
+
+      query GetStoreStats {
+        storeStats {
+          totalProducts
+          totalCustomers
+          totalOrders
+          totalRevenue
+          categoryBreakdown {
+            category
+            productCount
+            averagePrice
+            totalRevenue
+          }
+        }
+      }
+  - name: ListProducts.graphql
+    env_var: OP_LIST_PRODUCTS
+    kind: inline
+    content: |
+      # List products with filtering, sorting, and pagination
+      # Tests: Input types, connection pattern, pageInfo, edges/nodes
+
+      query ListProducts(
+        $filter: ProductFilter
+        $sort: ProductSortInput
+        $pagination: PaginationInput
+      ) {
+        products(filter: $filter, sort: $sort, pagination: $pagination) {
+          edges {
+            node {
+              id
+              sku
+              name
+              category
+              price
+              inStock
+              stockQuantity
+              averageRating
+            }
+            cursor
+          }
+          pageInfo {
+            hasNextPage
+            hasPreviousPage
+            totalCount
+            currentPage
+          }
+          totalCount
+        }
+      }
+  - name: SearchProducts.graphql
+    env_var: OP_SEARCH_PRODUCTS
+    kind: inline
+    content: |
+      # Search products by text query with optional category filter
+      # Tests: String argument, enum argument, default limit, list return
+
+      query SearchProducts($query: String!, $category: ProductCategory, $limit: Int) {
+        searchProducts(query: $query, category: $category, limit: $limit) {
+          id
+          name
+          description
+          category
+          price
+          inStock
+          averageRating
+          images {
+            url
+            isPrimary
+          }
+        }
+      }
+- name: subgraph-config.yaml
+  env_var: SUBGRAPH_CONFIG
+  kind: inline
+  content: |
+    # Subgraph Mock configuration for MCP Server testing
+    port: 8080
+    cache_responses: true
+
+    latency:
+      base: 1ms
+
+    response_generation:
+      null_ratio: [1, 10]
+      header_ratio: {}
+      array:
+        min_length: 1
+        max_length: 5
+      scalars:
+        Id:
+          type: int
+          min: 1
+          max: 1000
+        String:
+          type: string
+          min_len: 3
+          max_len: 20
+        Int:
+          type: int
+          min: 0
+          max: 100
+        Float:
+          type: float
+          min: 0.0
+          max: 1000.0
+        Boolean:
+          type: bool
+- name: schema.graphql
+  env_var: SUPERGRAPH_SCHEMA
+  kind: inline
+  content: |
+    # MCP Server Test Schema
+    # A moderately complex schema for testing MCP tool generation and execution.
+    # Covers: scalars, enums, objects, lists, nullability, arguments, pagination, nested types.
+
+    schema {
+      query: Query
+    }
+
+    # =============================================================================
+    # Enums
+    # =============================================================================
+
+    enum ProductCategory {
+      ELECTRONICS
+      CLOTHING
+      FOOD
+      BOOKS
+      HOME
+    }
+
+    enum OrderStatus {
+      PENDING
+      PROCESSING
+      SHIPPED
+      DELIVERED
+      CANCELLED
+    }
+
+    enum SortOrder {
+      ASC
+      DESC
+    }
+
+    # =============================================================================
+    # Scalar Types (using built-ins, but demonstrating variety)
+    # =============================================================================
+
+    # Custom scalar for demonstration (ISO 8601 date-time string)
+    scalar DateTime
+
+    # =============================================================================
+    # Input Types
+    # =============================================================================
+
+    input ProductFilter {
+      category: ProductCategory
+      minPrice: Float
+      maxPrice: Float
+      inStock: Boolean
+    }
+
+    input PaginationInput {
+      limit: Int = 10
+      offset: Int = 0
+    }
+
+    input ProductSortInput {
+      field: ProductSortField = NAME
+      order: SortOrder = ASC
+    }
+
+    enum ProductSortField {
+      NAME
+      PRICE
+      CREATED_AT
+      RATING
+    }
+
+    # =============================================================================
+    # Object Types
+    # =============================================================================
+
+    type PageInfo {
+      hasNextPage: Boolean!
+      hasPreviousPage: Boolean!
+      totalCount: Int!
+      currentPage: Int!
+    }
+
+    type Address {
+      street: String!
+      city: String!
+      state: String
+      postalCode: String!
+      country: String!
+    }
+
+    type Customer {
+      id: ID!
+      email: String!
+      firstName: String!
+      lastName: String!
+      fullName: String!
+      phone: String
+      addresses: [Address!]!
+      orders: [Order!]!
+      createdAt: DateTime!
+      isActive: Boolean!
+    }
+
+    type Product {
+      id: ID!
+      sku: String!
+      name: String!
+      description: String
+      category: ProductCategory!
+      price: Float!
+      compareAtPrice: Float
+      inStock: Boolean!
+      stockQuantity: Int!
+      tags: [String!]!
+      images: [ProductImage!]!
+      reviews: [Review!]!
+      averageRating: Float
+      relatedProducts: [Product!]!
+      createdAt: DateTime!
+      updatedAt: DateTime!
+    }
+
+    type ProductImage {
+      url: String!
+      altText: String
+      width: Int
+      height: Int
+      isPrimary: Boolean!
+    }
+
+    type Review {
+      id: ID!
+      rating: Int!
+      title: String
+      body: String!
+      author: Customer!
+      product: Product!
+      helpful: Int!
+      verified: Boolean!
+      createdAt: DateTime!
+    }
+
+    type OrderItem {
+      product: Product!
+      quantity: Int!
+      unitPrice: Float!
+      totalPrice: Float!
+    }
+
+    type Order {
+      id: ID!
+      orderNumber: String!
+      customer: Customer!
+      items: [OrderItem!]!
+      status: OrderStatus!
+      subtotal: Float!
+      tax: Float!
+      shipping: Float!
+      total: Float!
+      shippingAddress: Address!
+      billingAddress: Address!
+      notes: String
+      createdAt: DateTime!
+      updatedAt: DateTime!
+    }
+
+    # =============================================================================
+    # Connection Types (Relay-style pagination)
+    # =============================================================================
+
+    type ProductConnection {
+      edges: [ProductEdge!]!
+      pageInfo: PageInfo!
+      totalCount: Int!
+    }
+
+    type ProductEdge {
+      node: Product!
+      cursor: String!
+    }
+
+    type ReviewConnection {
+      edges: [ReviewEdge!]!
+      pageInfo: PageInfo!
+    }
+
+    type ReviewEdge {
+      node: Review!
+      cursor: String!
+    }
+
+    # =============================================================================
+    # Statistics / Aggregate Types
+    # =============================================================================
+
+    type CategoryStats {
+      category: ProductCategory!
+      productCount: Int!
+      averagePrice: Float!
+      totalRevenue: Float!
+    }
+
+    type StoreStats {
+      totalProducts: Int!
+      totalCustomers: Int!
+      totalOrders: Int!
+      totalRevenue: Float!
+      categoryBreakdown: [CategoryStats!]!
+    }
+
+    # =============================================================================
+    # Query Type
+    # =============================================================================
+
+    type Query {
+      # -----------------------------------------------------------------------------
+      # Product Queries
+      # -----------------------------------------------------------------------------
+
+      """
+      Get a single product by its unique identifier.
+      """
+      product(id: ID!): Product
+
+      """
+      Get a product by its SKU code.
+      """
+      productBySku(sku: String!): Product
+
+      """
+      Search and filter products with pagination.
+      """
+      products(
+        filter: ProductFilter
+        sort: ProductSortInput
+        pagination: PaginationInput
+      ): ProductConnection!
+
+      """
+      Get featured products for the homepage.
+      """
+      featuredProducts(limit: Int = 5): [Product!]!
+
+      """
+      Search products by text query across name, description, and tags.
+      """
+      searchProducts(
+        query: String!
+        category: ProductCategory
+        limit: Int = 20
+      ): [Product!]!
+
+      # -----------------------------------------------------------------------------
+      # Customer Queries
+      # -----------------------------------------------------------------------------
+
+      """
+      Get a customer by their unique identifier.
+      """
+      customer(id: ID!): Customer
+
+      """
+      Look up a customer by email address.
+      """
+      customerByEmail(email: String!): Customer
+
+      """
+      List all customers with optional filtering.
+      """
+      customers(
+        isActive: Boolean
+        pagination: PaginationInput
+      ): [Customer!]!
+
+      # -----------------------------------------------------------------------------
+      # Order Queries
+      # -----------------------------------------------------------------------------
+
+      """
+      Get an order by its unique identifier.
+      """
+      order(id: ID!): Order
+
+      """
+      Get an order by its human-readable order number.
+      """
+      orderByNumber(orderNumber: String!): Order
+
+      """
+      List orders with optional status filtering.
+      """
+      orders(
+        status: OrderStatus
+        customerId: ID
+        pagination: PaginationInput
+      ): [Order!]!
+
+      # -----------------------------------------------------------------------------
+      # Review Queries
+      # -----------------------------------------------------------------------------
+
+      """
+      Get reviews for a specific product with pagination.
+      """
+      productReviews(
+        productId: ID!
+        minRating: Int
+        pagination: PaginationInput
+      ): ReviewConnection!
+
+      """
+      Get recent reviews across all products.
+      """
+      recentReviews(limit: Int = 10): [Review!]!
+
+      # -----------------------------------------------------------------------------
+      # Analytics / Stats Queries
+      # -----------------------------------------------------------------------------
+
+      """
+      Get overall store statistics.
+      """
+      storeStats: StoreStats!
+
+      """
+      Get statistics for a specific product category.
+      """
+      categoryStats(category: ProductCategory!): CategoryStats
+    }
+env_vars:
+  SUBGRAPH_MOCK_PORT: 4000
+  SUBGRAPH_MOCK_IMAGE: ghcr.io/apollographql/subgraph-mock
+  GATEWAY_TAG: main-3244ac5
+  MCP_SERVER_IMAGE: ghcr.io/apollographql/apollo-mcp-server
+  MCP_SERVER_TAG: latest
+  GATEWAY_IMAGE: us-central1-docker.pkg.dev/platform-cross-environment/platform-docker/constellation-gateway
+  SUBGRAPH_MOCK_TAG: 0.1.0-alpha
+  GATEWAY_PORT: 8005
+  MCP_SERVER_PORT: 8000

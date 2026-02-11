@@ -1,0 +1,120 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: provision-rtf-environment
+  namespace: cluster-api
+spec:
+  serviceAccountName: argo-workflow
+  entrypoint: main
+  onExit: cleanup
+  arguments:
+    parameters:
+      - name: namespace-name
+        value: "my-first-namespace"
+      - name: environment-configmap
+        value: "rtf-environment-config"
+  templates:
+    - name: main
+      dag:
+        tasks:
+          - name: create-namespace
+            template: create-namespace
+            arguments:
+              parameters:
+                - name: namespace-name
+                  value: "{{workflow.parameters.namespace-name}}"
+          - name: deploy-environment
+            template: deploy-environment
+            dependencies: [create-namespace]
+            arguments:
+              parameters:
+                - name: namespace-name
+                  value: "{{workflow.parameters.namespace-name}}"
+                - name: environment-configmap
+                  value: "{{workflow.parameters.environment-configmap}}"
+
+    - name: create-namespace
+      inputs:
+        parameters:
+          - name: namespace-name
+      container:
+        image: bitnami/kubectl:latest
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "Creating namespace '{{inputs.parameters.namespace-name}}' in workload cluster..."
+            kubectl \
+              --kubeconfig=/kubeconfig/value \
+              create namespace {{inputs.parameters.namespace-name}} \
+              --dry-run=client \
+              -o yaml |
+                kubectl --kubeconfig=/kubeconfig/value apply -f -
+
+            echo "Namespace created successfully."
+        volumeMounts:
+          - name: kubeconfig
+            mountPath: /kubeconfig
+            readOnly: true
+
+    - name: deploy-environment
+      inputs:
+        parameters:
+          - name: namespace-name
+          - name: environment-configmap
+      volumes:
+        - name: environment
+          configMap:
+            name: "{{inputs.parameters.environment-configmap}}"
+      container:
+        image: us-central1-docker.pkg.dev/platform-cross-environment/platform-docker/rtf-toolbox:edge
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            set -e
+            WORKDIR=/tmp/rtf-work
+            mkdir -p $WORKDIR
+            mkdir -p $WORKDIR/k8s
+
+            echo "Resolving environment docker-compose files..."
+            rtf resolve environment /environment/environment.yaml --output $WORKDIR/output
+
+            # Source RTF env vars
+            . $WORKDIR/output/environment-setup/setup.env
+
+            echo "Converting to kubernetes manifests..."
+            for f in $COMPOSE_FILES; do
+              kompose convert -f "$f" -o $WORKDIR/k8s/
+            done
+
+            echo "Applying manifests to namespace '{{inputs.parameters.namespace-name}}'..."
+            kubectl --kubeconfig=/kubeconfig/value apply \
+              -n {{inputs.parameters.namespace-name}} \
+              -f $WORKDIR/k8s/
+
+            echo "Environment deployed successfully."
+        volumeMounts:
+          - name: kubeconfig
+            mountPath: /kubeconfig
+            readOnly: true
+          - name: environment
+            mountPath: /environment
+            readOnly: true
+
+    - name: cleanup
+      container:
+        image: bitnami/kubectl:latest
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "Cleaning up ConfigMap '{{workflow.parameters.environment-configmap}}'..."
+
+            kubectl delete configmap {{workflow.parameters.environment-configmap}} \
+              -n argo \
+              --ignore-not-found
+
+            echo "Cleanup complete."
+
+  volumes:
+    - name: kubeconfig
+      secret:
+        secretName: workload-kubeconfig

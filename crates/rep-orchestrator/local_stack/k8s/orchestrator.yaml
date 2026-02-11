@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: orchestrator
+  namespace: cluster-api
+---
+# The orchestrator needs to create ConfigMaps (for environment/scenario configs passed to
+# Argo workflows and k8s jobs) and submit Argo Workflows in the cluster-api namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: orchestrator
+  namespace: cluster-api
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create", "get", "delete"]
+  - apiGroups: ["argoproj.io"]
+    resources: ["workflows"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: orchestrator
+  namespace: cluster-api
+subjects:
+  - kind: ServiceAccount
+    name: orchestrator
+    namespace: cluster-api
+roleRef:
+  kind: Role
+  name: orchestrator
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+  namespace: cluster-api
+  labels:
+    app: orchestrator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orchestrator
+  template:
+    metadata:
+      labels:
+        app: orchestrator
+    spec:
+      serviceAccountName: orchestrator
+      containers:
+        - name: orchestrator
+          image: rep-orchestrator
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: WORKLOAD_KUBECONFIG_PATH
+              value: /kubeconfig/value
+          volumeMounts:
+            - name: workload-kubeconfig
+              mountPath: /kubeconfig
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: workload-kubeconfig
+          secret:
+            secretName: workload-kubeconfig
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator
+  namespace: cluster-api
+  labels:
+    app: orchestrator
+spec:
+  selector:
+    app: orchestrator
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+# NodePort service so workload cluster pods can call back to the orchestrator
+# (e.g. scenario jobs reporting status)
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator-nodeport
+  namespace: cluster-api
+  labels:
+    app: orchestrator
+spec:
+  type: NodePort
+  selector:
+    app: orchestrator
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      nodePort: 30808

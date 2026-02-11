@@ -1,0 +1,97 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: scenario-execution
+  namespace: XXX  # Namespace created by the workflow
+  labels:
+    rtf.io/execution-id: "{{ execution-id }}"
+spec:
+  backoffLimit: 0  # Don't retry failed scenarios
+  ttlSecondsAfterFinished: 3600  # Cleanup after 1 hour
+  template:
+    metadata:
+      labels:
+        rtf.io/execution-id: "{{ execution-id }}"
+    spec:
+      restartPolicy: Never
+
+      initContainers:
+        - name: rtf-resolve
+          image: rtf-toolbox:latest # Same image as in the Argo workflow
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+
+              echo "Resolving scenario..."
+              rtf resolve scenario /scenario/scenario.yaml --output /shared/providers
+
+              echo "Writing run script"
+              write-run-script.sh {USER_COMMAND} >> /shared/run.sh
+
+              ls -la /shared/providers/
+
+              curl -d '{ "status": "RUNNING" }' orchestrator:1234/test-execution/.../status
+          volumeMounts:
+            - name: scenario-config
+              mountPath: /scenario
+              readOnly: true
+            - name: shared
+              mountPath: /shared
+
+      containers:
+        - name: scenario-runner
+          image: XXX   # Image specified in the user's scenario
+          command: ["/bin/sh", "-c", "/shared/run.sh"]
+          workingDir: /shared
+          volumeMounts:
+            - name: shared
+              mountPath: /shared
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sync"]  # Ensure writes are flushed
+
+        - name: output-collector
+          image: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Waiting for scenario to complete..."
+              while [ ! -f /shared/scenario-exited ]; do
+                sleep 5
+              done
+
+              echo "Scenario finished. Uploading output to GCS..."
+              zip -r output.zip /shared/output
+              gsutil -m cp output.zip gs://{{ gcs-bucket }}/{{ execution-id }}/
+
+              if [ -f /shared/.failed ]; then
+                echo "Scenario failed."
+                curl -d '{ "status": "FAILED" }' orchestrator:1234/test-execution/.../status
+                exit 1
+              fi
+
+              curl -d '{ "status": "SUCCESSFUL" }' orchestrator:1234/test-execution/.../status
+              echo "Upload complete."
+
+          volumeMounts:
+            - name: shared
+              mountPath: /shared
+              readOnly: true
+            - name: gcs-credentials
+              mountPath: /gcs
+              readOnly: true
+          env:
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /gcs/key.json
+
+      volumes:
+        - name: scenario-config
+          configMap:
+            name: "{{ scenario-configmap-name }}"
+        - name: shared
+          emptyDir: {}
+        - name: gcs-credentials
+          secret:
+            secretName: gcs-upload-credentials

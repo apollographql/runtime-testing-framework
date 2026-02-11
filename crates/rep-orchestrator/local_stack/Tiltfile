@@ -1,0 +1,66 @@
+load("ext://secret", "secret_from_dict")
+
+ARGO_WORKFLOWS_VERSION = "v3.6.5"
+ARGO_INSTALL_URL = "https://github.com/argoproj/argo-workflows/releases/download/%s/quick-start-minimal.yaml" % ARGO_WORKFLOWS_VERSION
+
+
+# Extract the workload cluster control-plane container IP on the kind network.
+# This is reachable from pods in the management cluster since both kind clusters
+# share the same docker network.
+workload_ip = str(local(
+    "docker inspect rtf-workload-control-plane"
+    + " --format '{{ .NetworkSettings.Networks.kind.IPAddress }}'",
+    quiet=True,
+)).strip()
+
+# Get the workload kubeconfig and rewrite the server address to use the container
+# IP (port 6443) rather than the localhost port-forward.
+workload_kubeconfig = str(local(
+    "kind get kubeconfig --name rtf-workload"
+    + " | sed 's|https://127.0.0.1:[0-9]*|https://%s:6443|g'" % workload_ip,
+    quiet=True,
+))
+
+# Build the orchestrator image. The context is the repo root (two levels up from
+# crates/rep-orchestrator/) so that Cargo.toml, Cargo.lock, and all crates are
+# available to the Docker build.
+# docker_build(
+#     "rep-orchestrator",
+#     context="../..",
+#     dockerfile="./Dockerfile",
+#     # Only watch files that affect the build to avoid unnecessary rebuilds
+#     only=[
+#         "Cargo.toml",
+#         "Cargo.lock",
+#         "crates/",
+#     ],
+# )
+
+# Install argo into the management cluster
+local_resource(
+    "argo-install",
+    cmd="kubectl apply -n argo --server-side -f "
+        + ARGO_INSTALL_URL
+        + " && kubectl -n argo rollout status deployment/workflow-controller --timeout=120s",
+    labels=["infra"],
+)
+
+# Deploy k8s resources to the management cluster
+k8s_yaml([
+    "k8s/namespace.yaml",
+    "k8s/service-account.yaml",
+    # "k8s/orchestrator.yaml",
+])
+
+k8s_yaml(secret_from_dict(
+    "workload-kubeconfig",
+    namespace="cluster-api",
+    inputs={"value": workload_kubeconfig},
+))
+
+# Group and configure resources in the Tilt UI
+# k8s_resource(
+#     "orchestrator",
+#     port_forwards="8080:8080",
+#     labels=["orchestrator"],
+# )
