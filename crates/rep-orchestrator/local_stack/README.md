@@ -8,6 +8,13 @@ You need to have the following tools installed for this local stack to run on yo
 brew install docker docker-compose kind tilt docker-buildx
 ```
 
+You also need to be authenticated to GCP as an `apollographql` user in order to pull images from the
+container registry:
+```bash
+gcloud auth login
+gcloud auth configure-docker us-docker.pkg.dev
+```
+
 We also recommend that you install `k9s` for easier management of your local clusters
 ```bash
 brew install derailed/k9s/k9s
