@@ -9,10 +9,11 @@
 //!   <https://github.com/graphql-rust/graphql-client?tab=readme-ov-file#getting-started>
 use crate::PlatformClient;
 use graphql_client::GraphQLQuery;
-use reqwest::header::HeaderValue;
+use reqwest::{StatusCode, header::HeaderValue};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use tracing::error;
+use std::{collections::BTreeMap, time::Duration};
+use tokio::time::sleep;
+use tracing::{error, warn};
 
 /// API endpoint for the staging studio instance.
 /// -> Apollo internal graphs are queried from here
@@ -21,6 +22,10 @@ pub(crate) const STAGING_STUDIO_URL: &str =
 /// API endpoint for the production studio instance.
 /// -> Customer graphs are queried from here
 pub(crate) const PROD_STUDIO_URL: &str = "https://graphql.api.apollographql.com/api/graphql";
+/// Maximum number of times to attempt a platform API request before giving up.
+const MAX_ATTEMPTS: u32 = 3;
+/// Delay between retry attempts.
+const RETRY_DELAY: Duration = Duration::from_secs(1);
 
 /// Error variants that we can encounter when making graphQL requests to the platform API.
 #[derive(Debug, thiserror::Error)]
@@ -45,6 +50,13 @@ pub enum Error {
         extensions: serde_json::Map<String, serde_json::Value>,
     },
 
+    /// The platform API returned a non-success HTTP status code
+    #[error("platform API returned HTTP {status}")]
+    HttpStatus {
+        /// The HTTP status code returned by the platform API
+        status: StatusCode,
+    },
+
     /// The value for a header was invalid
     #[error("the value provided for the header {key:?} is not a valid header value")]
     InvalidHeaderValue {
@@ -64,6 +76,17 @@ pub enum Error {
     /// An underlying error from the serde-json crate
     #[error(transparent)]
     SerdeJson(#[from] serde_json::Error),
+}
+
+impl Error {
+    /// Whether this error is transient and the request should be retried.
+    fn is_retryable(&self) -> bool {
+        match self {
+            Error::HttpStatus { status } => status.is_server_error(),
+            Error::Reqwest(_) => true,
+            _ => false,
+        }
+    }
 }
 
 /// Serialization format for graphQL errors: <https://spec.graphql.org/October2021/#sec-Errors.Error-result-format>
@@ -242,24 +265,85 @@ impl Client for PlatformClient {
 
         api_key.set_sensitive(true);
 
-        let mut req_builder = self
-            .inner
-            .post(self.url.as_ref())
-            .json(body)
-            .header("x-api-key", api_key)
-            .header("apollographql-client-name", "runtime-testing-framework")
-            .header("apollographql-client-version", "0.1.0");
+        for attempt in 1..=MAX_ATTEMPTS {
+            let mut req_builder = self
+                .inner
+                .post(self.url.as_ref())
+                .json(body)
+                .header("x-api-key", api_key.clone())
+                .header("apollographql-client-name", "runtime-testing-framework")
+                .header("apollographql-client-version", "0.1.0");
 
-        if self.sudo {
-            req_builder = req_builder.header("apollo-sudo", "true");
+            if self.sudo {
+                req_builder = req_builder.header("apollo-sudo", "true");
+            }
+
+            let result = async {
+                let response = req_builder.send().await?;
+                let status = response.status();
+
+                if !status.is_success() {
+                    return Err(Error::HttpStatus { status });
+                }
+
+                let raw = response.json::<serde_json::Value>().await?;
+                Ok(raw)
+            }
+            .await;
+
+            match result {
+                Ok(value) => return Ok(value),
+                Err(err) if err.is_retryable() && attempt < MAX_ATTEMPTS => {
+                    warn!(
+                        attempt,
+                        max_attempts = MAX_ATTEMPTS,
+                        error = %err,
+                        "platform API request failed, retrying"
+                    );
+                    sleep(RETRY_DELAY).await;
+                }
+                Err(err) => return Err(err),
+            }
         }
 
-        let raw = req_builder
-            .send()
-            .await?
-            .json::<serde_json::Value>()
-            .await?;
+        // This is unreachable in practice: the loop always returns on the final attempt via the
+        // `Err(err) => return Err(err)` arm. But the compiler can't prove that, so we need this.
+        unreachable!("the loop should execute at least once")
+    }
+}
 
-        Ok(raw)
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use reqwest::StatusCode;
+    use simple_test_case::test_case;
+
+    #[test_case(StatusCode::INTERNAL_SERVER_ERROR; "500 internal server error")]
+    #[test_case(StatusCode::BAD_GATEWAY; "502 bad gateway")]
+    #[test_case(StatusCode::SERVICE_UNAVAILABLE; "503 service unavailable")]
+    #[test_case(StatusCode::GATEWAY_TIMEOUT; "504 gateway timeout")]
+    #[test]
+    fn is_retryable_server_errors(status: StatusCode) {
+        let err = Error::HttpStatus { status };
+        assert!(err.is_retryable());
+    }
+
+    #[test_case(StatusCode::BAD_REQUEST; "400 bad request")]
+    #[test_case(StatusCode::UNAUTHORIZED; "401 unauthorized")]
+    #[test_case(StatusCode::FORBIDDEN; "403 forbidden")]
+    #[test_case(StatusCode::NOT_FOUND; "404 not found")]
+    #[test]
+    fn is_not_retryable_client_errors(status: StatusCode) {
+        let err = Error::HttpStatus { status };
+        assert!(!err.is_retryable());
+    }
+
+    #[test_case(Error::InvalidHeaderValue { key: "x-api-key".to_string() }; "invalid header value")]
+    #[test_case(Error::NoData; "no data")]
+    #[test_case(Error::GraphqlErrors { errors: vec![] }; "graphql errors")]
+    #[test_case(Error::GraphqlExtensions { extensions: Default::default() }; "graphql extensions")]
+    #[test]
+    fn is_not_retryable_other_variants(err: Error) {
+        assert!(!err.is_retryable());
     }
 }
