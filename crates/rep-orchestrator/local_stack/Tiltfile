@@ -47,7 +47,6 @@ k8s_yaml(
     [
         "k8s/namespaces.yaml",
         "k8s/service-account.yaml",
-        # "k8s/orchestrator.yaml",
         blob(gcr_secret_yaml),
     ]
 )
@@ -60,21 +59,6 @@ k8s_yaml(
     )
 )
 
-# Build the orchestrator image. The context is the repo root (two levels up from
-# crates/rep-orchestrator/) so that Cargo.toml, Cargo.lock, and all crates are
-# available to the Docker build.
-# docker_build(
-#     "rep-orchestrator",
-#     context="../..",
-#     dockerfile="./Dockerfile",
-#     # Only watch files that affect the build to avoid unnecessary rebuilds
-#     only=[
-#         "Cargo.toml",
-#         "Cargo.lock",
-#         "crates/",
-#     ],
-# )
-
 # Install argo into the management cluster
 local_resource(
     "argo-install",
@@ -83,10 +67,3 @@ local_resource(
     + " && kubectl -n argo rollout status deployment/workflow-controller --timeout=120s",
     labels=["infra"],
 )
-
-# Group and configure resources in the Tilt UI
-# k8s_resource(
-#     "orchestrator",
-#     port_forwards="8080:8080",
-#     labels=["orchestrator"],
-# )
