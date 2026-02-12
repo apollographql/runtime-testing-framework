@@ -34,8 +34,8 @@ if (( ${#missing[@]} != 0 )); then
 fi
 
 echo "Creating kind clusters..."
-create_cluster --name "rtf-mgmt"
-create_cluster --name "rtf-workload"
+create_cluster "rtf-mgmt"
+create_cluster "rtf-workload"
 echo ""
 echo "  Management cluster context: kind-rtf-mgmt"
 echo "  Workload cluster context:   kind-rtf-workload"

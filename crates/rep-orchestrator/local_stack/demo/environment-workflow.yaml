@@ -45,7 +45,7 @@ spec:
         parameters:
           - name: namespace-name
       container:
-        image: bitnami/kubectl:latest
+        image: us-central1-docker.pkg.dev/platform-cross-environment/platform-docker/rtf-toolbox:edge
         command: ["/bin/sh", "-c"]
         args:
           - |
@@ -75,7 +75,7 @@ spec:
               - key: .dockerconfigjson
                 path: config.json
       container:
-        image: bitnami/kubectl:latest
+        image: us-central1-docker.pkg.dev/platform-cross-environment/platform-docker/rtf-toolbox:edge
         command: ["/bin/sh", "-c"]
         args:
           - |
@@ -149,14 +149,14 @@ spec:
 
     - name: cleanup
       container:
-        image: bitnami/kubectl:latest
+        image: us-central1-docker.pkg.dev/platform-cross-environment/platform-docker/rtf-toolbox:edge
         command: ["/bin/sh", "-c"]
         args:
           - |
             echo "Cleaning up ConfigMap '{{workflow.parameters.environment-configmap}}'..."
 
             kubectl delete configmap {{workflow.parameters.environment-configmap}} \
-              -n argo \
+              -n cluster-api \
               --ignore-not-found
 
             echo "Cleanup complete."
