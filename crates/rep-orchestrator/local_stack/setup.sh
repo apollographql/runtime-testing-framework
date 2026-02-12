@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+cluster_exists() {
+  kind get clusters 2>/dev/null | grep -qx "$1"
+}
+
+create_cluster() {
+  if cluster_exists "$1"; then
+    echo "Cluster '$1' already exists, skipping creation"
+  else
+    kind create cluster --name "$1"
+  fi
+}
+
 echo "Checking local stack dependencies..."
 dependencies="docker gcloud k9s kind rtf tilt"
 
@@ -22,8 +34,8 @@ if (( ${#missing[@]} != 0 )); then
 fi
 
 echo "Creating kind clusters..."
-kind create cluster --name "rtf-mgmt"
-kind create cluster --name "rtf-workload"
+create_cluster --name "rtf-mgmt"
+create_cluster --name "rtf-workload"
 echo ""
 echo "  Management cluster context: kind-rtf-mgmt"
 echo "  Workload cluster context:   kind-rtf-workload"
