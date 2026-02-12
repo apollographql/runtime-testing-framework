@@ -140,6 +140,8 @@ file_providers:
 
     transport:
       type: streamable_http
+      host_validation:
+        enabled: false
       address: "0.0.0.0"
       port: 8000
 

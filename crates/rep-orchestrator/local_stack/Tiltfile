@@ -51,6 +51,12 @@ k8s_yaml(
     ]
 )
 
+k8s_resource(
+    objects=["argo:namespace"],
+    new_name="argo-namespace",
+    labels=["infra"],
+)
+
 k8s_yaml(
     secret_from_dict(
         "workload-kubeconfig",
@@ -65,5 +71,6 @@ local_resource(
     cmd="kubectl apply -n argo --server-side -f "
     + ARGO_INSTALL_URL
     + " && kubectl -n argo rollout status deployment/workflow-controller --timeout=120s",
+    resource_deps=["argo-namespace"],
     labels=["infra"],
 )

@@ -1,0 +1,66 @@
+name: mcp smoke test
+description: A simple smoke test for Apollo MCP servers
+variable_definitions:
+  - name: target_port
+    description: |
+      The port that the MCP server being tested is running on.
+      Note that the server must be running on localhost.
+    default: null
+    allowed_values: null
+  - name: healthcheck_endpoint
+    description: |
+      If provided, this endpoint should return 200OK when a GET request is made against it.
+    default: ''
+    allowed_values: null
+  - name: n_expected_tools
+    description: |
+      The expected number of tools to be returned from the MCP server when tools are listed
+    default: null
+    allowed_values: null
+custom_providers: []
+docker:
+  image: ghcr.io/modelcontextprotocol/inspector
+  tag: latest
+  command: sh $SMOKE_SCRIPT
+env_vars:
+  HEALTHCHECK_ENDPOINT: ''
+  N_EXPECTED_TOOLS: 10
+  TARGET_PORT: 8005
+file_providers:
+  - name: smoke.sh
+    env_var: SMOKE_SCRIPT
+    kind: inline
+    content: |
+      #!/usr/bin/env bash
+
+      set -e
+
+      apt-get update && apt-get install -y curl jq
+
+      printf "\n\n"
+
+      MCP_URL="http://constellation-gateway:${TARGET_PORT}/mcp"
+
+      echo "Using MCP server URL: $MCP_URL"
+
+      if [ -n "$HEALTHCHECK_ENDPOINT" ]; then
+        HEALTH_URL="http://localhost:${TARGET_PORT}/$HEALTHCHECK_ENDPOINT"
+        echo "Making GET request to healthcheck endpoint at $HEALTHCHECK..."
+        curl -sf "$HEALTH_URL" || { echo "Health check failed"; exit 1; }
+      fi
+
+
+      echo "Listing MCP tools..."
+      TOOLS_RESPONSE="$(node /app/cli/build/index.js "$MCP_URL" --method tools/list)"
+
+      printf '%s' "$TOOLS_RESPONSE" | jq -r '.tools[].name' | sort
+
+      TOOL_COUNT=$(printf '%s' "$TOOLS_RESPONSE" | jq '.tools | length')
+      echo "Server returned $TOOL_COUNT tools"
+
+      if [ "$TOOL_COUNT" -ne "$N_EXPECTED_TOOLS" ]; then
+        echo "WARNING: Expected $N_EXPECTED_TOOLS tools, found $TOOL_COUNT"
+        exit 1
+      fi
+
+      echo "Done"
