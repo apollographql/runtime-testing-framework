@@ -1,0 +1,6 @@
+[package]
+name = "rep-orchestrator"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
