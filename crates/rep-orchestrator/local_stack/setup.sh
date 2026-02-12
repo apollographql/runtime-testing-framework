@@ -22,20 +22,13 @@ create_cluster() {
   fi
 }
 
-create_namespace() {
-  kubectl --context "$MGMT_CONTEXT" create namespace "$1" --dry-run=client -o yaml \
-    | kubectl --context "$MGMT_CONTEXT" apply -f -
-}
-
 
 echo "Creating kind clusters..."
-create_cluster "$MGMT_CLUSTER" management.yaml
-create_cluster "$WORKLOAD_CLUSTER" workload.yaml
+# create_cluster "$MGMT_CLUSTER" management.yaml
+# create_cluster "$WORKLOAD_CLUSTER" workload.yaml
 
-
-echo "Creating namespaces in management cluster..."
-create_namespace argo
-create_namespace cluster-api
+kind create cluster --name "$MGMT_CLIUSTER"
+kind create cluster --name "$WORKFLOW_CLIUSTER"
 
 
 echo "Local stack setup complete."
