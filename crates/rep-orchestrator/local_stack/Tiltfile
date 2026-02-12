@@ -28,30 +28,6 @@ workload_kubeconfig = str(
     )
 )
 
-# Build the orchestrator image. The context is the repo root (two levels up from
-# crates/rep-orchestrator/) so that Cargo.toml, Cargo.lock, and all crates are
-# available to the Docker build.
-# docker_build(
-#     "rep-orchestrator",
-#     context="../..",
-#     dockerfile="./Dockerfile",
-#     # Only watch files that affect the build to avoid unnecessary rebuilds
-#     only=[
-#         "Cargo.toml",
-#         "Cargo.lock",
-#         "crates/",
-#     ],
-# )
-
-# Install argo into the management cluster
-local_resource(
-    "argo-install",
-    cmd="kubectl apply -n argo --server-side -f "
-    + ARGO_INSTALL_URL
-    + " && kubectl -n argo rollout status deployment/workflow-controller --timeout=120s",
-    labels=["infra"],
-)
-
 # GCP Artifact Registry pull secret so workflow pods can pull images from
 # us-central1-docker.pkg.dev. Uses the current gcloud access token which
 # expires after ~1 hour — restart Tilt to refresh.
@@ -82,6 +58,30 @@ k8s_yaml(
         namespace="cluster-api",
         inputs={"value": workload_kubeconfig},
     )
+)
+
+# Build the orchestrator image. The context is the repo root (two levels up from
+# crates/rep-orchestrator/) so that Cargo.toml, Cargo.lock, and all crates are
+# available to the Docker build.
+# docker_build(
+#     "rep-orchestrator",
+#     context="../..",
+#     dockerfile="./Dockerfile",
+#     # Only watch files that affect the build to avoid unnecessary rebuilds
+#     only=[
+#         "Cargo.toml",
+#         "Cargo.lock",
+#         "crates/",
+#     ],
+# )
+
+# Install argo into the management cluster
+local_resource(
+    "argo-install",
+    cmd="kubectl apply -n argo --server-side -f "
+    + ARGO_INSTALL_URL
+    + " && kubectl -n argo rollout status deployment/workflow-controller --timeout=120s",
+    labels=["infra"],
 )
 
 # Group and configure resources in the Tilt UI
