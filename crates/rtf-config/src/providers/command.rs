@@ -621,6 +621,7 @@ mod tests {
         written_files: Mutex<HashMap<String, String>>,
         writes: Mutex<HashMap<String, usize>>,
         fp_output_paths: HashMap<String, PathBuf>,
+        run_metadata: HashMap<&'static str, String>,
     }
 
     impl ResolutionContext for MockCommandContext {
@@ -699,6 +700,14 @@ mod tests {
 
         fn make_executable(&self, _path: impl AsRef<Path>) -> io::Result<()> {
             Ok(())
+        }
+
+        fn store_run_metadata(&mut self, key: &'static str, value: impl Into<String>) {
+            self.run_metadata.insert(key, value.into());
+        }
+
+        fn run_metadata(&self, key: &str) -> Option<&str> {
+            self.run_metadata.get(key).map(|s| s.as_str())
         }
 
         fn read_path_to_string(&self, path: impl AsRef<Path>) -> io::Result<String> {
