@@ -48,14 +48,14 @@ k9s --context kind-rtf-mgmt
 # Create the configmap containing the RTF environment definition
 kubectl -n cluster-api --context kind-rtf-mgmt create configmap rtf-environment-config --from-file=demo/environment.yaml
 # Create the workflow (monitor in k9s)
-kubectl create -n cluster-api --context kind-rtf-mgmt -f demo/environment-workflow.yaml
+kubectl -n cluster-api --context kind-rtf-mgmt create -f demo/environment-workflow.yaml
 
 # Wait for environment to finish provisioning
 
-# Crate the config map for the RTF scenario definition
-kubectl -n my-first-namespace --context kind-rtf-workload create configmap rtf-scenario-config --from-file=demo/scenario.yaml
+# Create the config map for the RTF scenario definition
+kubectl -n demo-namespace --context kind-rtf-workload create configmap rtf-scenario-config --from-file=demo/scenario.yaml
 # Run the scenario job
-kubectl apply -n my-first-namespace --context kind-rtf-workload -f demo/scenario-job.yaml
+kubectl -n demo-namespace --context kind-rtf-workload apply -f demo/scenario-job.yaml
 
 # Clean up the namespace and scenario config map (/ data in the volume once that's how we're handling this)
 ```
