@@ -25,7 +25,7 @@ use futures::future::try_join_all;
 use graphql_client::GraphQLQuery;
 use itertools::Itertools;
 use rand::{
-    Rng,
+    RngExt,
     distr::{Alphanumeric, SampleString},
     rngs::ThreadRng,
     seq::IndexedRandom,
