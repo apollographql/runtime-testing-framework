@@ -8,12 +8,12 @@ proc-macro = true
 
 [dependencies]
 darling = "0.23.0"
-proc-macro2 = "1.0.101"
-quote = "1.0.40"
-syn = "2.0.106"
+proc-macro2 = "1.0.106"
+quote = "1.0.44"
+syn = "2.0.115"
 
 [dev-dependencies]
 rtf-config = { path = "../rtf-config" }
 rustversion = "1.0.22"
 simple_test_case.workspace = true
-trybuild = "1.0.111"
+trybuild = "1.0.116"

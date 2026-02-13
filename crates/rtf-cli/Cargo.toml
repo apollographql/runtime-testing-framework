@@ -16,7 +16,7 @@ rtf-integrations = { path = "../rtf-integrations" }
 anyhow.workspace = true 
 assert_fs.workspace = true
 clap.workspace = true
-clap_complete = "4.5.65"
+clap_complete = "4.5.66"
 schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -36,5 +36,5 @@ walkdir = "2.5.0"
 rtf-config = { path = "../rtf-config" }
 
 clap-markdown = "0.1.5"
-clap_complete = "4.5.65"
+clap_complete = "4.5.66"
 clap.workspace = true

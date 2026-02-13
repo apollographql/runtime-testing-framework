@@ -85,7 +85,7 @@ fn generate_toc_link(fp_item: &Item) -> Result<String> {
         .replace("# ", "");
 
     let kebab_title = title
-        .with_boundaries(&[Boundary::SPACE])
+        .set_boundaries(&[Boundary::Space])
         .to_case(Case::Kebab);
 
     Ok(format!("- [{title}](#{kebab_title})"))
