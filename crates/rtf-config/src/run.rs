@@ -23,6 +23,10 @@ pub const OUTDIR: &str = "OUTDIR";
 pub const OUTPUT_PATH: &str = "RTF_OUTPUT";
 pub const PROVIDER_DIR: &str = "providers";
 
+/// Well-known run metadata key for the docker compose network name.
+/// Stored during environment setup and read during scenario execution.
+pub const DOCKER_COMPOSE_NETWORK: &str = "DOCKER_COMPOSE_NETWORK";
+
 #[allow(async_fn_in_trait)]
 pub trait RunProviders {
     /// Run all of the [FileProviders][0] contained within this type and write out their file

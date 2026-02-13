@@ -104,7 +104,6 @@ impl TestPlanConfig {
         ctx: &mut impl ResolutionContext,
     ) -> Result<()> {
         self.environment
-            .execution
             .execute_setup(SETUP_PROVIDER_DIR, out_dir, ctx)
             .await?;
 
@@ -117,7 +116,6 @@ impl TestPlanConfig {
         ctx: &mut impl ResolutionContext,
     ) -> Result<()> {
         self.environment
-            .execution
             .execute_teardown(TEARDOWN_PROVIDER_DIR, out_dir, ctx)
             .await?;
 

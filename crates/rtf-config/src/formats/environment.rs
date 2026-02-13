@@ -11,7 +11,7 @@ use crate::{
         command::CommandSection,
         file::{NamedFileProvider, SourceDir, compose::NamedComposeFileProvider},
     },
-    run::{Execute, OUTDIR, OUTPUT_PATH, PROVIDER_DIR, RunProviders},
+    run::{DOCKER_COMPOSE_NETWORK, Execute, OUTDIR, OUTPUT_PATH, PROVIDER_DIR, RunProviders},
     templating::{self, Field, FileType, Scalar, Template, TemplateContext},
 };
 use rtf_derive::Template;
@@ -72,6 +72,34 @@ impl EnvironmentConfig {
         ctx: &impl ResolutionContext,
     ) -> inlining::Result<()> {
         self.execution.inline(mode, ctx).await
+    }
+
+    pub async fn execute_setup(
+        &self,
+        name: &str,
+        out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<String> {
+        match &self.execution {
+            EnvironmentExecution::DockerCompose(inner) => {
+                inner.execute_setup(name, &self.name, out_dir, ctx).await
+            }
+            EnvironmentExecution::Script(inner) => inner.execute_setup(name, out_dir, ctx).await,
+        }
+    }
+
+    pub async fn execute_teardown(
+        &self,
+        name: &str,
+        out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<String> {
+        match &self.execution {
+            EnvironmentExecution::DockerCompose(inner) => {
+                inner.execute_teardown(&self.name, ctx).await
+            }
+            EnvironmentExecution::Script(inner) => inner.execute_teardown(name, out_dir, ctx).await,
+        }
     }
 }
 
@@ -189,34 +217,6 @@ impl CheckArrayDuplicates for EnvironmentConfig {
 pub enum EnvironmentExecution {
     DockerCompose(DockerComposeEnvironment),
     Script(ScriptEnvironment),
-}
-
-impl EnvironmentExecution {
-    pub async fn execute_setup(
-        &self,
-        name: &str,
-        out_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<String> {
-        match &self {
-            EnvironmentExecution::DockerCompose(inner) => {
-                inner.execute_setup(name, out_dir, ctx).await
-            }
-            EnvironmentExecution::Script(inner) => inner.execute_setup(name, out_dir, ctx).await,
-        }
-    }
-
-    pub async fn execute_teardown(
-        &self,
-        name: &str,
-        out_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<String> {
-        match &self {
-            EnvironmentExecution::DockerCompose(inner) => inner.execute_teardown(name, ctx).await,
-            EnvironmentExecution::Script(inner) => inner.execute_teardown(name, out_dir, ctx).await,
-        }
-    }
 }
 
 enum_impl_check!(EnvironmentExecution => Script, DockerCompose);
@@ -338,12 +338,14 @@ pub struct DockerComposeEnvironment {
 
 impl DockerComposeEnvironment {
     fn project_name(&self, name: &str) -> String {
-        self.project_name.as_deref().unwrap_or(name).to_string()
+        let raw = self.project_name.as_deref().unwrap_or(name);
+        slugify_compose_project_name(raw)
     }
 
     pub async fn execute_setup(
         &self,
         name: &str,
+        env_name: &str,
         out_dir: &Path,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
@@ -353,7 +355,7 @@ impl DockerComposeEnvironment {
         self.run_providers(&providers_dir.join(format!("{name}_providers")), ctx)
             .await?;
 
-        let project_name = self.project_name(name);
+        let project_name = self.project_name(env_name);
         let env_vars = self.all_env_vars(out_dir, &output_path, ctx)?;
         let (cmd, args) = self.setup_as_command_and_args(&project_name, ctx)?;
 
@@ -363,15 +365,17 @@ impl DockerComposeEnvironment {
                 err: e.to_string(),
             })?;
 
+        ctx.store_run_metadata(DOCKER_COMPOSE_NETWORK, format!("{project_name}_default"));
+
         Ok("{}".to_string())
     }
 
     pub async fn execute_teardown(
         &self,
-        name: &str,
+        env_name: &str,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
-        let project_name = self.project_name(name);
+        let project_name = self.project_name(env_name);
         let (cmd, args) = self.teardown_as_command_and_args(&project_name)?;
 
         ctx.run_command_blocking(cmd, args.iter().map(|s| s.as_str()), &HashMap::new())
@@ -481,6 +485,28 @@ impl DockerComposeEnvironment {
 
         Ok(paths)
     }
+}
+
+/// Slugify a string into a valid docker compose project name.
+///
+/// Project names must contain only lowercase letters, decimal digits, dashes, and underscores,
+/// and must begin with a lowercase letter or decimal digit.
+fn slugify_compose_project_name(name: &str) -> String {
+    let mut slug: String = name
+        .chars()
+        .map(|c| match c {
+            'A'..='Z' => c.to_ascii_lowercase(),
+            'a'..='z' | '0'..='9' | '-' | '_' => c,
+            _ => '-',
+        })
+        .collect();
+
+    // Strip leading characters that aren't a lowercase letter or digit
+    while slug.starts_with('-') || slug.starts_with('_') {
+        slug.remove(0);
+    }
+
+    slug
 }
 
 /// Collect all YAML compose files from a directory.
@@ -1720,5 +1746,18 @@ pub(crate) mod tests {
             "--wait".to_string(),
         ];
         assert_eq!(args, expected_args, "expected args to match");
+    }
+
+    #[test_case("already-valid", "already-valid"; "already valid name unchanged")]
+    #[test_case("My Environment", "my-environment"; "uppercase and spaces")]
+    #[test_case("foo.bar.baz", "foo-bar-baz"; "dots replaced with dashes")]
+    #[test_case("--leading-dashes", "leading-dashes"; "leading dashes stripped")]
+    #[test_case("__leading_underscores", "leading_underscores"; "leading underscores stripped")]
+    #[test_case("MiXeD_CaSe-123", "mixed_case-123"; "mixed case lowered")]
+    #[test_case("foo@bar!baz", "foo-bar-baz"; "special chars replaced")]
+    #[test_case("123-starts-with-digit", "123-starts-with-digit"; "leading digit preserved")]
+    #[test]
+    fn slugify_compose_project_name_produces_valid_name(input: &str, expected: &str) {
+        assert_eq!(slugify_compose_project_name(input), expected);
     }
 }

@@ -149,6 +149,14 @@ pub trait ResolutionContext {
         file.set_permissions(permissions)
     }
 
+    /// Store a key-value pair of run metadata for cross-phase communication.
+    fn store_run_metadata(&mut self, _key: &'static str, _value: impl Into<String>) {}
+
+    /// Retrieve a previously stored run metadata value by key.
+    fn run_metadata(&self, _key: &str) -> Option<&str> {
+        None
+    }
+
     fn remove_file(&self, path: impl AsRef<Path>) -> io::Result<()>;
 
     /// Recursively create a directory and all of its parent components if they
@@ -172,6 +180,7 @@ pub struct Context {
     capture_output: bool,
     captured_stdout: RwLock<Vec<u8>>,
     captured_stderr: RwLock<Vec<u8>>,
+    run_metadata: HashMap<&'static str, String>,
 }
 
 impl Context {
@@ -380,6 +389,14 @@ impl ResolutionContext for Context {
         }
 
         Ok(())
+    }
+
+    fn store_run_metadata(&mut self, key: &'static str, value: impl Into<String>) {
+        self.run_metadata.insert(key, value.into());
+    }
+
+    fn run_metadata(&self, key: &str) -> Option<&str> {
+        self.run_metadata.get(key).map(|s| s.as_str())
     }
 
     fn remove_file(&self, path: impl AsRef<Path>) -> io::Result<()> {

@@ -9,7 +9,7 @@ use crate::{
         command::CommandSection,
         file::{NamedFileProvider, SourceDir},
     },
-    run::{Execute, OUTDIR, OUTPUT_PATH, RunProviders},
+    run::{DOCKER_COMPOSE_NETWORK, Execute, OUTDIR, OUTPUT_PATH, RunProviders},
     templating::{self, Field, FileType, Scalar, Template, TemplateContext},
 };
 use rtf_derive::Template;
@@ -277,6 +277,11 @@ impl DockerScenario {
             None => self.docker.image.as_resolved().to_string(),
         };
 
+        let net_flag = match ctx.run_metadata(DOCKER_COMPOSE_NETWORK) {
+            Some(network) => format!("--net={network}"),
+            None => "--net=host".to_string(),
+        };
+
         let mut args = vec![
             "run".to_string(),
             // We can't guarantee that the image we are running has a shell as its default
@@ -284,7 +289,7 @@ impl DockerScenario {
             "--entrypoint".to_string(),
             "/bin/sh".to_string(),
             // Needed for the scenario to be able to access services running in the Environment
-            "--net=host".to_string(),
+            net_flag,
             "--rm".to_string(),
             "-v".to_string(),
             format!("{}:/output", ctx.output_path().display()),
@@ -1017,6 +1022,61 @@ mod tests {
                 content: file_content.to_string(),
             }),
             "Expected command provider to be inlined"
+        );
+    }
+
+    #[test]
+    fn docker_scenario_uses_compose_network_when_metadata_present() {
+        let scenario = DockerScenario {
+            docker: DockerCommand {
+                image: Field::Resolved("alpine".to_string()),
+                tag: Some(Field::Resolved("latest".to_string())),
+                command: Field::Resolved("echo hello".to_string()),
+            },
+            env_vars: HashMap::new(),
+            file_providers: Vec::new(),
+        };
+
+        let mut ctx = Context::new();
+        ctx.set_output_path("/tmp/output");
+        ctx.store_run_metadata(DOCKER_COMPOSE_NETWORK, "myproject_default");
+
+        let env_vars = HashMap::new();
+        let (cmd, args) = scenario.as_command_and_args(&env_vars, &ctx);
+
+        assert_eq!(cmd, "docker");
+        assert!(
+            args.contains(&"--net=myproject_default".to_string()),
+            "expected --net=myproject_default in args, got {args:?}"
+        );
+        assert!(
+            !args.contains(&"--net=host".to_string()),
+            "should not contain --net=host when compose network is set"
+        );
+    }
+
+    #[test]
+    fn docker_scenario_falls_back_to_host_network_without_metadata() {
+        let scenario = DockerScenario {
+            docker: DockerCommand {
+                image: Field::Resolved("alpine".to_string()),
+                tag: Some(Field::Resolved("latest".to_string())),
+                command: Field::Resolved("echo hello".to_string()),
+            },
+            env_vars: HashMap::new(),
+            file_providers: Vec::new(),
+        };
+
+        let mut ctx = Context::new();
+        ctx.set_output_path("/tmp/output");
+
+        let env_vars = HashMap::new();
+        let (cmd, args) = scenario.as_command_and_args(&env_vars, &ctx);
+
+        assert_eq!(cmd, "docker");
+        assert!(
+            args.contains(&"--net=host".to_string()),
+            "expected --net=host in args, got {args:?}"
         );
     }
 
