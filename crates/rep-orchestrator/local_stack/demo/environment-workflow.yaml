@@ -10,7 +10,7 @@ spec:
   arguments:
     parameters:
       - name: namespace-name
-        value: "my-first-namespace"
+        value: "demo-namespace"
       - name: environment-configmap
         value: "rtf-environment-config"
   templates:
@@ -137,6 +137,14 @@ spec:
             kubectl --kubeconfig=/kubeconfig/value apply \
               -n {{inputs.parameters.namespace-name}} \
               -f $WORKDIR/k8s/
+
+            echo "Waiting for deployments to become available..."
+            kubectl --kubeconfig=/kubeconfig/value wait \
+              --for=condition=available \
+              deployment \
+              --all \
+              -n {{inputs.parameters.namespace-name}} \
+              --timeout=300s
 
             echo "Environment deployed successfully."
         volumeMounts:
