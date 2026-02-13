@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["OUTDIR","OUTPUT_PATH","PROVIDER_DIR"],"trait":["Execute","RunProviders"]};
+window.SIDEBAR_ITEMS = {"constant":["DOCKER_COMPOSE_NETWORK","OUTDIR","OUTPUT_PATH","PROVIDER_DIR"],"trait":["Execute","RunProviders"]};
