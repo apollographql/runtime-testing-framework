@@ -23,18 +23,24 @@ permissions:
 jobs:
   publish-toolbox:
     name: Build and publish RTF toolbox image
+    uses: apollographql/release-tooling/.github/workflows/build_and_publish.yml@a46e497cc5bed75d0b5d0bddd7822f2c14528d38
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      image_name: rtf-toolbox
+      image_description: "RTF toolbox image with rtf binary and supporting tools for use in CI and REP"
+      platforms: '[{"platform":"linux/amd64","runner":"rust-4c"},{"platform":"linux/arm64","runner":"ubuntu-24.04-arm"}]'
+      context: ${{ github.workspace }}
+      dockerfile_location: ${{ github.workspace }}/toolbox/Dockerfile
+    secrets: inherit
+
+  validate-image:
+    name: Validate the new toolbox image works by running the rtf-run-test-plan action
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: apollographql/release-tooling/build-and-publish@91551f996e38a3d64e31d47d961bc5913da38e68
-        with:
-          context: ${{ github.workspace }}
-          dockerfile_location: ${{ github.workspace }}/toolbox/Dockerfile
-          image_description: "RTF toolbox image with rtf binary and supporting tools for use in CI and REP"
-          image_name: rtf-toolbox
-          platforms: linux/amd64,linux/arm64
-
-      - uses: apollographql/release-tooling/rtf-run-test-plan@91551f996e38a3d64e31d47d961bc5913da38e68
+      - uses: apollographql/release-tooling/rtf-run-test-plan@a46e497cc5bed75d0b5d0bddd7822f2c14528d38
         with:
           test_plan_path: crates/rtf-cli/resources/test-plans/valid/sanity-check/test-plan.yaml
