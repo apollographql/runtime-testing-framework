@@ -7,6 +7,72 @@ Plans to achieve specific goals. For an introductory overview of how to work wit
 to the [getting started guide][0]. For a technical reference on RTF as a whole please refer to the
 [framework section of the docs][1].
 
+## Only running a stage from a Test Plan
+
+**Problem**: You only want to run a single stage of a Test Plan rather than the entire thing.
+
+**Solution**: RTF's `run` command supports limiting execution to one of the three stages:
+
+- Environment setup
+- Scenario
+- Environment teardown
+
+To do so, simply add the appropriate flag to your use of `rtf run`:
+
+```bash
+# Only the environment setup
+rtf run --environment-up <test-plan>
+
+# Only the scenario
+rtf run --scenario <test-plan>
+
+# Only the environment teardown
+rtf run --environment-down <test-plan>
+```
+
+**Discussion**: All other `rtf run` flags behave normally in combination with these flags, but it is
+an error to specify multiple at the same time. If your Test Plan includes a matrix this will still
+result in an execution per matrix variant. To limit execution to a single variant you should make
+use of the `--var` flag to pin variables to a single value (see below).
+
+## Limiting a matrix based Test Plan to run a single dimension
+
+**Problem**: Your Test Plan contains a matrix but you would like to run it for a single dimension.
+
+**Solution**: You can use the command line `--var` flag to replace individual matrix dimensions with
+scalar variables:
+
+```bash
+rtf run --var 'router_version=v2.5.0' --var 'graph_ref=foo@prod' test-plan.yaml
+```
+
+Alternatively, if you are happy to edit the Test Plan itself, you can always comment out the matrix
+definition and replace it with variable definitions like so:
+
+```yaml
+variables:
+  router_cpu_limit: "4"
+  # New variables to replace the matrix dimensions
+  router_version: "v2.5.0"
+  graph_ref: "foo@prod"
+
+# Commented out matrix dimensions
+#
+# matrix:
+#   dimensions:
+#     router_version:
+#       - "v2.5.0"
+#       - "v2.6.1"
+# 
+#     graph_ref:
+#       - "foo@prod"
+#       - "bar@production"
+```
+
+**Discussion**: The use of command line arguments is recommended over editing the test plan file
+directly as it prevents the common issue of accidentally committing a modified test plan that now no
+longer runs the originally intended set of dimensions.
+
 ## Running multiple iterations of a Test Plan
 
 **Problem**: You have a test plan that you would like to run multiple times in order to collect
@@ -41,7 +107,7 @@ Using this approach is encouraged over simply running the Test Plan multiple tim
 allows RTF to cache provider data internally as it runs in order to reduce network calls and work
 required to generate the output of each provider.
 
-## Determining how many variants of test plan will be run by a given matrix
+## Determining how many variants of Test Plan will be run by a given matrix
 
 **Problem**: You have written a Test Plan that defines a non-trivial matrix and you want to work out
 something like the expected running time or other properties related to the number of variants being

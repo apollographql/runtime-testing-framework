@@ -18,7 +18,8 @@
     - [Writing a custom provider definition](tutorials/custom-providers/writing-a-custom-provider-definition.md)
     - [Using a custom provider](tutorials/custom-providers/using-a-custom-provider.md)
 
-- [How-to guides](howto/cookbook.md)
+- [How-to guides](howto/index.md)
+  - [RTF Cookbook](howto/cookbook.md)
   - [Troubleshooting](howto/troubleshooting.md)
   - [Generating CLI shell completions](howto/shell-completions.md)
   - [Generating JSON Schemas](howto/json-schemas.md)
