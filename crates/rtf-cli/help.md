@@ -19,6 +19,7 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf resolve environment`↴](#rtf-resolve-environment)
 * [`rtf completion`↴](#rtf-completion)
 * [`rtf json-schemas`↴](#rtf-json-schemas)
+* [`rtf version`↴](#rtf-version)
 
 ## `rtf`
 
@@ -36,6 +37,7 @@ A swiss army knife for testing the Apollo Runtime
 * `resolve` — Resolve file providers for a config file without executing it
 * `completion` — Write a shell completion file to STDOUT for the given shell
 * `json-schemas` — Output json schemas for environment configuration
+* `version` — Display CLI version and exit
 
 ###### **Options:**
 
@@ -286,6 +288,14 @@ Output json schemas for environment configuration
 
   Possible values: `test-plan`, `environment`, `scenario`
 
+
+
+
+## `rtf version`
+
+Display CLI version and exit
+
+**Usage:** `rtf version`
 
 
 
