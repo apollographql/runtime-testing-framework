@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-824f96a2.js";
+            window.path_to_searchindex_js = "searchindex-3f2ef610.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-056b2a77.js"></script>
@@ -2654,18 +2654,17 @@ LOG_LEVEL=debug
 <p>In this guide, we have covered how to use a custom provider in a test plan, pass arguments to it,
 and use test plan variables for dynamic configuration.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
-<h1 id="cookbook"><a class="header" href="#cookbook">Cookbook</a></h1>
-<p><em>Common patterns and idioms for working with RTF</em></p>
+<h1 id="working-with-common-rtf-patterns"><a class="header" href="#working-with-common-rtf-patterns">Working with common RTF patterns</a></h1>
 <p>This page is a collection of short configuration snippets and strategies for working with RTF Test
 Plans to achieve specific goals. For an introductory overview of how to work with RTF please refer
 to the <a href="#getting-started">getting started guide</a>. For a technical reference on RTF as a whole please refer to the
 <a href="#the-framework">framework section of the docs</a>.</p>
 <h2 id="running-multiple-iterations-of-a-test-plan"><a class="header" href="#running-multiple-iterations-of-a-test-plan">Running multiple iterations of a Test Plan</a></h2>
 <p><strong>Problem</strong>: You have a test plan that you would like to run multiple times in order to collect
-results that can be analysed statistically.</p>
-<p><strong>Solution</strong>: RTF’s <a href="#working-with-matrices">matrix</a> feature can be used with a dummy dimension that will be expanded
-over to produce <code>n</code> copies of a given test plan (or dimensions within an existing matrix) by
-providing a series of unique values for the dimension:</p>
+results that can be analyzed statistically.</p>
+<p><strong>Solution</strong>: RTF’s <a href="#working-with-matrices">matrix</a> feature can be used with a placeholder dimension that will be
+expanded over to produce <code>n</code> copies of a given test plan (or dimensions within an existing matrix)
+by providing a series of unique values for the dimension:</p>
 <pre><code class="language-yaml">matrix:
   variant_names: "iteration_${n}"
   dimensions:
@@ -2724,7 +2723,7 @@ matrix:
 <pre><code class="language-bash">rtf expand-matrix test-plan.yaml | jq '.variants | length'
 </code></pre>
 <p>Output:</p>
-<pre><code>12
+<pre><code class="language-text">12
 </code></pre>
 <p><strong>Discussion</strong>: This will work even for Test Plans without a matrix by returning the single
 “variant” representing the top level variables for the Test Plan.</p>
@@ -2752,7 +2751,7 @@ matrix:
     jq -r '.variants | map(.name) | join("\n")'
 </code></pre>
 <p>Output:</p>
-<pre><code>red_apple_foo_1
+<pre><code class="language-text">red_apple_foo_1
 green_pear_foo_1
 red_apple_bar_1
 green_pear_bar_1
@@ -2835,7 +2834,7 @@ config and subgraph URL overrides.</p>
 <p>This page covers common issues encountered when using RTF and how to resolve them.</p>
 <h2 id="output-directory-already-exists"><a class="header" href="#output-directory-already-exists">Output directory already exists</a></h2>
 <p><strong>Symptom:</strong></p>
-<pre><code>ERROR /path/to/output already exists and is non-empty
+<pre><code class="language-text">ERROR /path/to/output already exists and is non-empty
 </code></pre>
 <p><strong>Cause:</strong> RTF refuses to overwrite existing output directories to prevent accidental data loss.</p>
 <p><strong>Solution:</strong> Either remove the existing directory or specify a different output directory:</p>
@@ -2847,13 +2846,13 @@ rtf run test-plan.yaml
 </code></pre>
 <h2 id="missing-template-variable"><a class="header" href="#missing-template-variable">Missing template variable</a></h2>
 <p><strong>Symptom:</strong></p>
-<pre><code>ERROR Templating failed
+<pre><code class="language-text">ERROR Templating failed
 (scenario.env_vars.MY_VAR) Missing template variables definition. Make sure the variable is defined in the scenario or environment config variable definitions
   - my_variable: "Description of the variable"
 </code></pre>
-<p><strong>Cause:</strong> A config file references a variable that isn’t defined in the test plan’s <code>variables</code>
-section and has no default value.</p>
-<p><strong>Solution:</strong> Either define the variable in the test plan:</p>
+<p><strong>Cause:</strong> A config file references a variable that isn’t defined in the <a href="#glossary">Test Plan’s</a>
+<code>variables</code> section and has no default value.</p>
+<p><strong>Solution:</strong> Either define the variable in the Test Plan:</p>
 <pre><code class="language-yaml">variables:
   my_variable: "some value"
 </code></pre>
@@ -2865,13 +2864,13 @@ section and has no default value.</p>
 </code></pre>
 <h2 id="static-analysis-check-failed---required-file"><a class="header" href="#static-analysis-check-failed---required-file">Static analysis check failed - required file</a></h2>
 <p><strong>Symptom:</strong></p>
-<pre><code>ERROR Static analysis checks failed
+<pre><code class="language-text">ERROR Static analysis checks failed
 (MY_FILE) A required file has not been defined
 You must provide a file for MY_FILE
 </code></pre>
-<p><strong>Cause:</strong> A <code>required</code> file provider exists that must be replaced with an actual provider in the
-test plan’s overrides.</p>
-<p><strong>Solution:</strong> Add an override in the test plan that replaces the required provider:</p>
+<p><strong>Cause:</strong> A <code>required</code> <a href="#glossary">File Provider</a> exists that must be replaced with an actual provider in
+the Test Plan’s overrides.</p>
+<p><strong>Solution:</strong> Add an override in the Test Plan that replaces the required provider:</p>
 <pre><code class="language-yaml">environment:
   from:
     kind: local
@@ -2885,20 +2884,21 @@ test plan’s overrides.</p>
 </code></pre>
 <h2 id="static-analysis-check-failed---file-not-found"><a class="header" href="#static-analysis-check-failed---file-not-found">Static analysis check failed - file not found</a></h2>
 <p><strong>Symptom:</strong></p>
-<pre><code>ERROR Static analysis checks failed
+<pre><code class="language-text">ERROR Static analysis checks failed
 (scenario.command.command_provider) The requested file did not exist
 provided path was file:///path/to/missing-script.sh
 </code></pre>
-<p><strong>Cause:</strong> A <code>relative_path</code> command or file provider references a file that doesn’t exist.</p>
+<p><strong>Cause:</strong> A <code>relative_path</code> <a href="#glossary">Command Provider</a> or File Provider references a file that doesn’t
+exist.</p>
 <p><strong>Solution:</strong></p>
 <ol>
 <li>Verify the file exists at the specified path</li>
-<li>Remember that paths are relative to the config file containing them, not the test plan</li>
-<li>If using overrides, paths in the override are relative to the test plan file</li>
+<li>Remember that paths are relative to the config file containing them, not the Test Plan</li>
+<li>If using overrides, paths in the override are relative to the Test Plan file</li>
 </ol>
 <h2 id="command-execution-failed"><a class="header" href="#command-execution-failed">Command execution failed</a></h2>
 <p><strong>Symptom:</strong></p>
-<pre><code>ERROR Unable to execute the my-script.sh command: "/path/to/my-script.sh" failed to terminate successfully
+<pre><code class="language-text">ERROR Unable to execute the my-script.sh command: "/path/to/my-script.sh" failed to terminate successfully
 </code></pre>
 <p><strong>Cause:</strong> The command exited with a non-zero status code.</p>
 <p><strong>Solution:</strong> Check the command output above the error for clues. Common causes include:</p>
@@ -2908,7 +2908,7 @@ provided path was file:///path/to/missing-script.sh
 </ol>
 <h2 id="interpreter-not-found"><a class="header" href="#interpreter-not-found">Interpreter not found</a></h2>
 <p><strong>Symptom:</strong></p>
-<pre><code>ERROR Unable to execute the my-script.sh command: No such file or directory (os error 2)
+<pre><code class="language-text">ERROR Unable to execute the my-script.sh command: No such file or directory (os error 2)
 </code></pre>
 <p><strong>Cause:</strong> The script’s shebang references an interpreter that doesn’t exist.</p>
 <p><strong>Solution:</strong> Use a portable shebang:</p>
@@ -2917,7 +2917,7 @@ provided path was file:///path/to/missing-script.sh
 <p>Avoid hardcoded paths like <code>#!/bin/bash</code> which may not exist on all systems.</p>
 <h2 id="github-authentication-failed"><a class="header" href="#github-authentication-failed">GitHub authentication failed</a></h2>
 <p><strong>Symptom:</strong></p>
-<pre><code>ERROR malformed scenario config section
+<pre><code class="language-text">ERROR malformed scenario config section
 ERROR Unable to load and resolve test plan: HTTP status client error (401 Unauthorized) for url (https://api.github.com/repos/org/repo/contents/path/to/file.yaml)
 </code></pre>
 <p><strong>Cause:</strong> The <code>GITHUB_TOKEN</code> environment variable is not set or the token lacks required
@@ -2925,10 +2925,10 @@ permissions.</p>
 <p><strong>Solution:</strong> Export a valid GitHub personal access token:</p>
 <pre><code class="language-bash">export GITHUB_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 </code></pre>
-<p>The token needs read access to the repositories referenced in the test plan.</p>
+<p>The token needs read access to the repositories referenced in the Test Plan.</p>
 <h2 id="graphos-authentication-failed"><a class="header" href="#graphos-authentication-failed">GraphOS authentication failed</a></h2>
 <p><strong>Symptom:</strong></p>
-<pre><code>ERROR errors returned when running graphql operation
+<pre><code class="language-text">ERROR errors returned when running graphql operation
 ERROR Unable to resolve and write SUPERGRAPH file: unable to fetch details for graph@variant: graphql errors returned when running operation: ["HTTP fetch failed from 'kotlin': 406: Not Acceptable", "Invalid credentials provided"]
 </code></pre>
 <p><strong>Cause:</strong> The <code>APOLLO_KEY</code> environment variable is not set or is invalid.</p>
@@ -2937,7 +2937,7 @@ ERROR Unable to resolve and write SUPERGRAPH file: unable to fetch details for g
 </code></pre>
 <h2 id="matrix-variant-names-are-not-unique"><a class="header" href="#matrix-variant-names-are-not-unique">Matrix variant names are not unique</a></h2>
 <p><strong>Symptom:</strong></p>
-<pre><code>ERROR The provided variant_names template produced duplicate names: ["duplicate_name"]
+<pre><code class="language-text">ERROR The provided variant_names template produced duplicate names: ["duplicate_name"]
 </code></pre>
 <p><strong>Cause:</strong> The <code>matrix.variant_names</code> template produces duplicate names for different variants.</p>
 <p><strong>Solution:</strong> Ensure the template includes enough dimensions to produce unique names:</p>
@@ -2966,8 +2966,8 @@ rtf run test-plan.yaml -vvv    # TRACE level
 <p>Use <code>rtf expand-matrix</code> to see all variants that will be run:</p>
 <pre><code class="language-bash">rtf expand-matrix test-plan.yaml
 </code></pre>
-<h3 id="check-file-provider-resolution"><a class="header" href="#check-file-provider-resolution">Check file provider resolution</a></h3>
-<p>The output directory contains a <code>providers/</code> subdirectory with all resolved file provider outputs.
+<h3 id="check-file-provider-resolution"><a class="header" href="#check-file-provider-resolution">Check File Provider resolution</a></h3>
+<p>The output directory contains a <code>providers/</code> subdirectory with all resolved File Provider outputs.
 Inspect these files to verify providers produced the expected content.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
 <h1 id="generating-cli-shell-completions"><a class="header" href="#generating-cli-shell-completions">Generating CLI shell completions</a></h1>
@@ -2978,7 +2978,7 @@ vary based on your system. Make sure to restart your shell before testing whethe
 working.</p>
 <h2 id="bash"><a class="header" href="#bash">bash</a></h2>
 <p>First, ensure that you install <code>bash-completion</code> using your package manager.</p>
-<p>After, add this to your ~/.bash_profile:</p>
+<p>After, add this to your <code>~/.bash_profile</code>:</p>
 <pre><code class="language-sh">eval "$(rtf completion -s bash)"
 </code></pre>
 <h2 id="zsh"><a class="header" href="#zsh">zsh</a></h2>
@@ -2998,7 +2998,7 @@ compinit -i
 <p>The <code>rtf json-schemas &lt;config&gt;</code> command can be used to generate the JSON schema for the test plan,
 environment and scenario config file formats.</p>
 <p>To save the JSON schema files, navigate to the directory they should be stored in and run:</p>
-<pre><code>rtf json-schemas test-plan &gt; test-plan-schema.json
+<pre><code class="language-bash">rtf json-schemas test-plan &gt; test-plan-schema.json
 rtf json-schemas environment &gt; environment-schema.json
 rtf json-schemas scenario &gt; scenario-schema.json
 </code></pre>

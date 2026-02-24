@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-824f96a2.js";
+            window.path_to_searchindex_js = "../searchindex-3f2ef610.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-056b2a77.js"></script>
@@ -178,18 +178,17 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: howto -->
-<h1 id="cookbook"><a class="header" href="#cookbook">Cookbook</a></h1>
-<p><em>Common patterns and idioms for working with RTF</em></p>
+<h1 id="working-with-common-rtf-patterns"><a class="header" href="#working-with-common-rtf-patterns">Working with common RTF patterns</a></h1>
 <p>This page is a collection of short configuration snippets and strategies for working with RTF Test
 Plans to achieve specific goals. For an introductory overview of how to work with RTF please refer
 to the <a href="../tutorials/index.html">getting started guide</a>. For a technical reference on RTF as a whole please refer to the
 <a href="../reference/framework/index.html">framework section of the docs</a>.</p>
 <h2 id="running-multiple-iterations-of-a-test-plan"><a class="header" href="#running-multiple-iterations-of-a-test-plan">Running multiple iterations of a Test Plan</a></h2>
 <p><strong>Problem</strong>: You have a test plan that you would like to run multiple times in order to collect
-results that can be analysed statistically.</p>
-<p><strong>Solution</strong>: RTF’s <a href="../reference/framework/test-plans.html#working-with-matrices">matrix</a> feature can be used with a dummy dimension that will be expanded
-over to produce <code>n</code> copies of a given test plan (or dimensions within an existing matrix) by
-providing a series of unique values for the dimension:</p>
+results that can be analyzed statistically.</p>
+<p><strong>Solution</strong>: RTF’s <a href="../reference/framework/test-plans.html#working-with-matrices">matrix</a> feature can be used with a placeholder dimension that will be
+expanded over to produce <code>n</code> copies of a given test plan (or dimensions within an existing matrix)
+by providing a series of unique values for the dimension:</p>
 <pre><code class="language-yaml">matrix:
   variant_names: "iteration_${n}"
   dimensions:
@@ -248,7 +247,7 @@ matrix:
 <pre><code class="language-bash">rtf expand-matrix test-plan.yaml | jq '.variants | length'
 </code></pre>
 <p>Output:</p>
-<pre><code>12
+<pre><code class="language-text">12
 </code></pre>
 <p><strong>Discussion</strong>: This will work even for Test Plans without a matrix by returning the single
 “variant” representing the top level variables for the Test Plan.</p>
@@ -276,7 +275,7 @@ matrix:
     jq -r '.variants | map(.name) | join("\n")'
 </code></pre>
 <p>Output:</p>
-<pre><code>red_apple_foo_1
+<pre><code class="language-text">red_apple_foo_1
 green_pear_foo_1
 red_apple_bar_1
 green_pear_bar_1
