@@ -1,5 +1,5 @@
 use crate::{
-    cli::Variables,
+    cli::{RunTarget, Variables},
     commands::{
         get_context_and_check_outdir, load_and_resolve_test_plan_from_github,
         load_and_resolve_test_plan_from_local,
@@ -28,6 +28,7 @@ pub async fn check_and_run_test_plan(
     github: bool,
     git_ref: Option<String>,
     variables: Variables,
+    run_target: RunTarget,
     out_dir: &str,
 ) -> anyhow::Result<()> {
     let (ctx, out_dir) = get_context_and_check_outdir(out_dir)?;
@@ -40,7 +41,7 @@ pub async fn check_and_run_test_plan(
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
 
-    check_and_run_test_plan_with_context(test_plan, variables, &out_dir, cwd, ctx).await
+    check_and_run_test_plan_with_context(test_plan, variables, &out_dir, cwd, run_target, ctx).await
 }
 
 async fn check_and_run_test_plan_with_context(
@@ -48,6 +49,7 @@ async fn check_and_run_test_plan_with_context(
     variables: Variables,
     out_dir: &Path,
     cwd: PathBuf,
+    run_target: RunTarget,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
     let variable_sources = variables.merge(&mut test_plan, &SourceDir::local(cwd), &mut ctx)?;
@@ -62,7 +64,14 @@ async fn check_and_run_test_plan_with_context(
 
     if test_plan.matrix.is_empty() {
         info!("executing test plan");
-        return run_one(test_plan, &out_dir, &variable_sources, &mut ctx).await;
+        return run_one(
+            test_plan,
+            &out_dir,
+            &variable_sources,
+            &run_target,
+            &mut ctx,
+        )
+        .await;
     }
 
     let n = test_plan.matrix.n_variants();
@@ -74,7 +83,7 @@ async fn check_and_run_test_plan_with_context(
         ctx.create_dir_all(&sub_dir)?;
 
         info!("executing test plan {i}/{n}");
-        run_one(tp, &sub_dir, &variable_sources, &mut ctx).await?;
+        run_one(tp, &sub_dir, &variable_sources, &run_target, &mut ctx).await?;
     }
 
     Ok(())
@@ -84,6 +93,7 @@ async fn run_one(
     mut test_plan: TestPlanConfig,
     out_dir: &Path,
     variable_sources: &HashMap<String, SourceDir>,
+    run_target: &RunTarget,
     ctx: &mut impl ResolutionContext,
 ) -> anyhow::Result<()> {
     let variables = take(&mut test_plan.variables);
@@ -101,14 +111,22 @@ async fn run_one(
     info!("checking test plan");
     test_plan.try_check(&mut Vec::new(), ctx)?;
 
-    info!("executing environment setup");
-    test_plan.run_environment_setup(out_dir, ctx).await?;
+    let (run_setup, run_scenario, run_teardown) = run_target.as_flags();
 
-    info!("executing scenario");
-    test_plan.run_scenario(out_dir, ctx).await?;
+    if run_setup {
+        info!("executing environment setup");
+        test_plan.run_environment_setup(out_dir, ctx).await?;
+    }
 
-    info!("executing environment teardown");
-    test_plan.run_environment_teardown(out_dir, ctx).await?;
+    if run_scenario {
+        info!("executing scenario");
+        test_plan.run_scenario(out_dir, ctx).await?;
+    }
+
+    if run_teardown {
+        info!("executing environment teardown");
+        test_plan.run_environment_teardown(out_dir, ctx).await?;
+    }
 
     info!("writing out resolved test plan and variables");
     ctx.write(

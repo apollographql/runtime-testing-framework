@@ -57,6 +57,9 @@ Check and run a test plan
 
 ###### **Options:**
 
+* `--environment-up` — Only run the environment setup
+* `--environment-down` — Only run the environment teardown
+* `--scenario` — Only run the environment scenario
 * `--github` — Execute a test plan file in GitHub instead of from a local path
 
   Default value: `false`

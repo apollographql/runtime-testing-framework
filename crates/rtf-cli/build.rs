@@ -4,7 +4,13 @@ use std::{
     io,
 };
 
+// The #[path = ...] macro here is required for us to pull in the cli::Args struct and generate the
+// help docs. Annoyingly, the way that works is as a distinct module so we end up with a "dead code"
+// warning for methods in that file despite them being used in the CLI itself.
+// If we instead try to directly import the module from rtf-cli then we end up depending on the
+// crate that this build.rs is a pre-req for and rustc gets (understandably) sad.
 #[path = "src/cli.rs"]
+#[allow(dead_code)]
 mod cli;
 
 fn main() -> io::Result<()> {

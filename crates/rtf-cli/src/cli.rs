@@ -52,6 +52,9 @@ pub enum Command {
         /// Relative path to the test plan file that should be executed. When using --github this must be in the format ORG/REPO/PATH
         test_plan_path: String,
 
+        #[command(flatten)]
+        run_target: RunTarget,
+
         /// Execute a test plan file in GitHub instead of from a local path
         #[arg(long, default_value = "false")]
         github: bool,
@@ -122,6 +125,37 @@ pub enum Command {
 
     /// Output json schemas for environment configuration
     JsonSchemas { config: SchemasConfig },
+}
+
+#[derive(Debug, clap::Args, Clone, Copy)]
+#[group(required = false, multiple = false)]
+pub struct RunTarget {
+    /// Only run the environment setup
+    #[arg(long)]
+    pub environment_up: bool,
+
+    /// Only run the environment teardown
+    #[arg(long)]
+    pub environment_down: bool,
+
+    /// Only run the environment scenario
+    #[arg(long)]
+    pub scenario: bool,
+}
+
+impl RunTarget {
+    /// Resolved flags for running setup, scenario & teardown
+    pub fn as_flags(&self) -> (bool, bool, bool) {
+        match (self.environment_up, self.scenario, self.environment_down) {
+            // Clap ensures that we only ever have one of these flags set.
+            // See https://docs.rs/clap/latest/clap/_derive/_tutorial/index.html#argument-relations
+            (true, _, _) => (true, false, false),
+            (_, true, _) => (false, true, false),
+            (_, _, true) => (false, false, true),
+            // No flags being set means we run everything
+            (false, false, false) => (true, true, true),
+        }
+    }
 }
 
 #[derive(Debug, Subcommand)]
