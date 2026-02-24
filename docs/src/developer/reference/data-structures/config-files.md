@@ -7,8 +7,10 @@ The [rtf-config][0] crate provides parsers for the three config files used by RT
 
 ## Scenario Config
 
-The simplest of the three config file formats is the scenario config which simply provides a way for
-the user to pair [templating][1] variables with a [command][2].
+The scenario config pairs [templating][1] variables with a command to execute. The command can be
+one of two variants: a docker command, which runs the scenario inside a Docker container using a
+specified image, tag, and command string; or a script command, which executes a script or binary
+directly on the host.
 
 ## Environment Config
 
