@@ -1,5 +1,6 @@
 use anyhow::Context;
 use clap::Parser;
+use git_version::git_version;
 use rtf_cli::{
     LOG_LEVEL_ENV_VAR,
     cli::{Args, Command, CustomProviderSubcommand, InlineSubcommand, ResolveSubcommand},
@@ -126,6 +127,15 @@ async fn main() {
         Command::Completion { shell } => generate_shell_completions(shell),
 
         Command::JsonSchemas { config } => generate_json_schema(config),
+
+        Command::Version => {
+            println!(
+                "{}-{}",
+                env!("CARGO_PKG_VERSION"),
+                git_version!(fallback = "unknown")
+            );
+            exit(0);
+        }
     };
 
     if let Err(e) = res {

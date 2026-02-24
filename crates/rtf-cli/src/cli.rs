@@ -125,6 +125,9 @@ pub enum Command {
 
     /// Output json schemas for environment configuration
     JsonSchemas { config: SchemasConfig },
+
+    /// Display CLI version and exit
+    Version,
 }
 
 #[derive(Debug, clap::Args, Clone, Copy)]
