@@ -13,7 +13,7 @@ working.
 
 First, ensure that you install `bash-completion` using your package manager.
 
-After, add this to your ~/.bash_profile:
+After, add this to your `~/.bash_profile`:
 
 ```sh
 eval "$(rtf completion -s bash)"

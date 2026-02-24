@@ -1,8 +1,6 @@
 <!-- diataxis-type: howto -->
 
-# Cookbook
-
-_Common patterns and idioms for working with RTF_
+# Working with common RTF patterns
 
 This page is a collection of short configuration snippets and strategies for working with RTF Test
 Plans to achieve specific goals. For an introductory overview of how to work with RTF please refer
@@ -12,11 +10,11 @@ to the [getting started guide][0]. For a technical reference on RTF as a whole p
 ## Running multiple iterations of a Test Plan
 
 **Problem**: You have a test plan that you would like to run multiple times in order to collect
-results that can be analysed statistically.
+results that can be analyzed statistically.
 
-**Solution**: RTF's [matrix][2] feature can be used with a dummy dimension that will be expanded
-over to produce `n` copies of a given test plan (or dimensions within an existing matrix) by
-providing a series of unique values for the dimension:
+**Solution**: RTF's [matrix][2] feature can be used with a placeholder dimension that will be
+expanded over to produce `n` copies of a given test plan (or dimensions within an existing matrix)
+by providing a series of unique values for the dimension:
 
 ```yaml
 matrix:
@@ -97,7 +95,7 @@ rtf expand-matrix test-plan.yaml | jq '.variants | length'
 
 Output:
 
-```
+```text
 12
 ```
 
@@ -137,7 +135,7 @@ rtf expand-matrix test-plan.yaml |
 
 Output:
 
-```
+```text
 red_apple_foo_1
 green_pear_foo_1
 red_apple_bar_1

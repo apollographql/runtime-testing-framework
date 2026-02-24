@@ -7,7 +7,7 @@ environment and scenario config file formats.
 
 To save the JSON schema files, navigate to the directory they should be stored in and run:
 
-```
+```bash
 rtf json-schemas test-plan > test-plan-schema.json
 rtf json-schemas environment > environment-schema.json
 rtf json-schemas scenario > scenario-schema.json
