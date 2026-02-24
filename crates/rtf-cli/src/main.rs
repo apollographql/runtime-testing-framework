@@ -34,10 +34,21 @@ async fn main() {
         // porcelain commands
         Command::Run {
             test_plan_path,
+            run_target,
             github,
             git_ref,
             outdir,
-        } => check_and_run_test_plan(&test_plan_path, github, git_ref, variables, &outdir).await,
+        } => {
+            check_and_run_test_plan(
+                &test_plan_path,
+                github,
+                git_ref,
+                variables,
+                run_target,
+                &outdir,
+            )
+            .await
+        }
 
         // plumbing commands
         Command::ExpandMatrix {

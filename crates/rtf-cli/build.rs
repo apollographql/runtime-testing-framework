@@ -5,6 +5,7 @@ use std::{
 };
 
 #[path = "src/cli.rs"]
+#[allow(dead_code)]
 mod cli;
 
 fn main() -> io::Result<()> {

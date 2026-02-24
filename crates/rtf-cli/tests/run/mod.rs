@@ -1,6 +1,6 @@
 use crate::common::{is_valid_test_plan, prepare_rtf_run, prepare_rtf_run_with_vars_file};
 use assert_cmd::cargo::cargo_bin_cmd;
-use predicates::str::contains;
+use predicates::{boolean::PredicateBooleanExt, str::contains};
 use simple_test_case::test_case;
 
 #[test]
@@ -106,6 +106,71 @@ fn variables_override_with_backwards_compatible_flag_works() {
         .assert()
         .success()
         .stdout(contains("baz"));
+}
+
+#[test]
+fn only_environment_setup_works() {
+    prepare_rtf_run("resources/test-plans/valid/sanity-check")
+        .arg("--environment-up")
+        .assert()
+        .success()
+        .stdout(contains("env-setup"))
+        .stdout(contains("env-teardown").not())
+        .stdout(contains("scenario").not());
+}
+
+#[test]
+fn only_environment_teardown_works() {
+    prepare_rtf_run("resources/test-plans/valid/sanity-check")
+        .arg("--environment-down")
+        .assert()
+        .success()
+        .stdout(contains("env-setup").not())
+        .stdout(contains("env-teardown"))
+        .stdout(contains("scenario").not());
+}
+
+#[test]
+fn only_scenario_works() {
+    prepare_rtf_run("resources/test-plans/valid/sanity-check")
+        .arg("--scenario")
+        .assert()
+        .success()
+        .stdout(contains("env-setup").not())
+        .stdout(contains("env-teardown").not())
+        .stdout(contains("scenario"));
+}
+
+#[test]
+fn combining_run_target_flags_errors() {
+    // up & down
+    prepare_rtf_run("resources/test-plans/valid/sanity-check")
+        .arg("--environment-up")
+        .arg("--environment-down")
+        .assert()
+        .failure();
+
+    // up & scenario
+    prepare_rtf_run("resources/test-plans/valid/sanity-check")
+        .arg("--environment-up")
+        .arg("--scenario")
+        .assert()
+        .failure();
+
+    // down & scenario
+    prepare_rtf_run("resources/test-plans/valid/sanity-check")
+        .arg("--environment-down")
+        .arg("--scenario")
+        .assert()
+        .failure();
+
+    // all three
+    prepare_rtf_run("resources/test-plans/valid/sanity-check")
+        .arg("--environment-up")
+        .arg("--environment-down")
+        .arg("--scenario")
+        .assert()
+        .failure();
 }
 
 #[test]

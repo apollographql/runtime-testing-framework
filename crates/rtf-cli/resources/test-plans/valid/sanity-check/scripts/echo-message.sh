@@ -1,3 +1,3 @@
 #!/usr/bin/env sh
 
-echo "${STAGE} :: ${MESSAGE}" >> "$OUTDIR/$STAGE.txt"
+echo "${STAGE} :: ${MESSAGE}" | tee -a "$OUTDIR/$STAGE.txt"
