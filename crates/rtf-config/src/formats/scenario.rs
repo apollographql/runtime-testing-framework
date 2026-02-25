@@ -1,6 +1,6 @@
 use crate::{
     VariableDefinition,
-    checks::{self, Check, CheckArrayDuplicates, DedupArray},
+    checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
     formats::{CustomProviderDeclaration, Result},
     inlining::{self, InlineMode},
@@ -401,8 +401,8 @@ impl RunProviders for DockerScenario {
 impl Check for DockerScenario {
     fn try_check(
         &self,
-        _path: &mut Vec<String>,
-        _ctx: &impl ResolutionContext,
+        path: &mut Vec<String>,
+        ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         // We deliberately _don't_ check for the presence of docker on the PATH as part of static
         // checks as we can't guarantee that checks are being run on the same system that will
@@ -411,7 +411,44 @@ impl Check for DockerScenario {
         // command execution, which matches the behaviour of missing dependencies in other
         // CommandProivider variants where we don't even know what dependencies the script has.
 
-        Ok(())
+        let mut errs = checks::ErrorBuilder::new();
+
+        for nfp in self.file_providers.iter() {
+            errs.append(nfp.try_check(path, ctx));
+        }
+
+        // We are checking whether the env vars in the command are duplicates of any env vars
+        // defined in the file providers. Each individual list has been checks for duplicates
+        // by this point.
+        let env_var_names = self
+            .env_vars
+            .keys()
+            .map(|k| k.as_str())
+            .chain(self.file_providers.iter().map(|f| f.env_var.as_str()));
+
+        let duplicates = duplicate_keys(env_var_names, |name| name);
+
+        if !duplicates.is_empty() {
+            errs.push(
+                checks::ErrorKind::DuplicateEnvironmentVariables,
+                duplicates.join("\n"),
+                path,
+            );
+        }
+
+        let duplicates = duplicate_keys(
+            self.file_providers.iter().map(|f| f.name.as_str()),
+            |name| name,
+        );
+        if !duplicates.is_empty() {
+            errs.push(
+                checks::ErrorKind::DuplicateFileProviderNames,
+                duplicates.join("\n"),
+                path,
+            );
+        }
+
+        errs.into_result(())
     }
 }
 
