@@ -35,7 +35,7 @@
             const path_to_root = "../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../searchindex-6d6bbd0b.js";
+            window.path_to_searchindex_js = "../../../searchindex-21192eb9.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../../toc-056b2a77.js"></script>
@@ -182,8 +182,10 @@
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config">rtf-config</a> crate provides parsers for the three config files used by RTF: <code>TestPlanConfig</code>,
 <code>EnvironmentConfig</code> and <code>ScenarioConfig</code>.</p>
 <h2 id="scenario-config"><a class="header" href="#scenario-config">Scenario config</a></h2>
-<p>The simplest of the three config file formats is the scenario config which simply provides a way for
-the user to pair <a href="./fields.html">templating</a> variables with a <a href="./command-providers.html">command</a>.</p>
+<p>The scenario config pairs <a href="./fields.html">templating</a> variables with a command to execute. The command can be
+one of two variants: a docker command, which runs the scenario inside a Docker container using a
+specified image, tag, and command string; or a script command, which executes a script or binary
+directly on the host.</p>
 <h2 id="environment-config"><a class="header" href="#environment-config">Environment config</a></h2>
 <p>The environment config file defines how RTF sets up and tears down the test environment. There are
 two execution models: <strong>docker compose</strong> and <strong>script</strong>.</p>

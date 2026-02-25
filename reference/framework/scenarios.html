@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-6d6bbd0b.js";
+            window.path_to_searchindex_js = "../../searchindex-21192eb9.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-056b2a77.js"></script>
@@ -181,10 +181,6 @@
 <h1 id="scenarios"><a class="header" href="#scenarios">Scenarios</a></h1>
 <p>A Scenario defines the test command to execute within a Test Plan. It is a <a href="./command-providers.html">Command Provider</a>
 that runs between the Environment’s setup and teardown phases.</p>
-<blockquote>
-<p>An example of a valid <code>scenario.yaml</code> is provided in the <a href="#full-example">Full example</a> section
-below.</p>
-</blockquote>
 <h2 id="top-level-keys"><a class="header" href="#top-level-keys">Top level keys</a></h2>
 <ul>
 <li><code>name</code>: The name for this Scenario configuration.
@@ -215,12 +211,63 @@ Plan but with different defaults, each config file will fall back to its own def
 <a href="./custom-providers.html">Custom Providers</a> page of the Framework documentation.</li>
 </ul>
 </li>
+</ul>
+<p>The remaining keys depend on the command variant:</p>
+<h2 id="docker-command"><a class="header" href="#docker-command">Docker command</a></h2>
+<p>Runs the scenario inside a Docker container. The container has access to the output of any
+<code>file_providers</code>, with their paths remapped to <code>/output/…</code> inside the container.</p>
+<ul>
+<li><code>docker</code>: Configuration for the Docker image and command to run.
+<ul>
+<li><code>image</code>: The Docker image to use (e.g. <code>alpine</code>, <code>ghcr.io/my-org/my-image</code>). Supports
+templating.</li>
+<li><code>tag</code>: The image tag to pull. Defaults to <code>latest</code> if omitted. Supports templating.</li>
+<li><code>command</code>: The command executed under <code>sh -c</code> inside the container. Supports templating.</li>
+</ul>
+</li>
+<li><code>env_vars</code>: Environment variables passed into the container. Values support templating.</li>
+<li><code>file_providers</code>: See <a href="./file-providers.html">File Providers</a>. It is possible to run a script from a file provider as
+your command (see the <a href="#full-example">full example</a> below). File providers won’t be executable
+directly so you need to make sure to run using <code>sh $MY_SCRIPT</code>, not <code>./$MY_SCRIPT</code>.</li>
+</ul>
+<h3 id="full-example"><a class="header" href="#full-example">Full Example</a></h3>
+<pre><code class="language-yaml">name: example
+description: An example description
+
+variable_definitions:
+  - name: my_variable
+    description: "A description for my variable"
+    default: "foo"
+
+custom_providers:
+  - kind: local
+    relative_path: ./providers
+    using:
+      my_provider: my_provider.yaml
+
+docker:
+  image: alpine
+  tag: "3.18"
+  command: "sh $MY_SCRIPT"
+
+env_vars:
+  MY_VARIABLE: "{{ my_variable }}"
+
+file_providers:
+  - name: my-script.sh
+    env_var: MY_SCRIPT
+    kind: relative_path
+    path: scripts/scenario.sh
+</code></pre>
+<h2 id="script-command"><a class="header" href="#script-command">Script command</a></h2>
+<p>Runs the scenario as a script or binary executed directly on the host. See <a href="./command-providers.html">Command Provider</a> for
+the full set of supported command kinds.</p>
+<ul>
 <li><code>command</code>: See <a href="./command-providers.html">Command Provider</a>.</li>
-<li><code>env_vars</code>: See <a href="./command-providers.html">Command Provider</a>.</li>
+<li><code>env_vars</code>: Environment variables passed to the command. Values support templating.</li>
 <li><code>file_providers</code>: See <a href="./command-providers.html">Command Provider</a>.</li>
 </ul>
-<h2 id="full-example"><a class="header" href="#full-example">Full example</a></h2>
-<p>The following is a minimal “kitchen sink” example of the structure of a valid <code>scenario.yaml</code>.</p>
+<h3 id="full-example-1"><a class="header" href="#full-example-1">Full example</a></h3>
 <pre><code class="language-yaml">name: example
 description: An example description
 
