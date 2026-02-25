@@ -1,6 +1,6 @@
 use crate::{
     VariableDefinition,
-    checks::{self, Check, CheckArrayDuplicates, DedupArray},
+    checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
     formats::{CustomProviderDeclaration, Result},
     inlining::{self, InlineMode},
@@ -401,8 +401,8 @@ impl RunProviders for DockerScenario {
 impl Check for DockerScenario {
     fn try_check(
         &self,
-        _path: &mut Vec<String>,
-        _ctx: &impl ResolutionContext,
+        path: &mut Vec<String>,
+        ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
         // We deliberately _don't_ check for the presence of docker on the PATH as part of static
         // checks as we can't guarantee that checks are being run on the same system that will
@@ -411,7 +411,44 @@ impl Check for DockerScenario {
         // command execution, which matches the behaviour of missing dependencies in other
         // CommandProivider variants where we don't even know what dependencies the script has.
 
-        Ok(())
+        let mut errs = checks::ErrorBuilder::new();
+
+        for nfp in self.file_providers.iter() {
+            errs.append(nfp.try_check(path, ctx));
+        }
+
+        // We are checking whether the env vars in the command are duplicates of any env vars
+        // defined in the file providers. Each individual list has been checks for duplicates
+        // by this point.
+        let env_var_names = self
+            .env_vars
+            .keys()
+            .map(|k| k.as_str())
+            .chain(self.file_providers.iter().map(|f| f.env_var.as_str()));
+
+        let duplicates = duplicate_keys(env_var_names, |name| name);
+
+        if !duplicates.is_empty() {
+            errs.push(
+                checks::ErrorKind::DuplicateEnvironmentVariables,
+                duplicates.join("\n"),
+                path,
+            );
+        }
+
+        let duplicates = duplicate_keys(
+            self.file_providers.iter().map(|f| f.name.as_str()),
+            |name| name,
+        );
+        if !duplicates.is_empty() {
+            errs.push(
+                checks::ErrorKind::DuplicateFileProviderNames,
+                duplicates.join("\n"),
+                path,
+            );
+        }
+
+        errs.into_result(())
     }
 }
 
@@ -495,7 +532,9 @@ mod tests {
                 CommandProvider, CommandSection, CommandSpec,
                 test_helpers::{cmd_with_inline_file, cmd_with_required_file},
             },
-            file::{InlineFile, RawSource, RelativeFile, SourceDir},
+            file::{
+                FileProvider, InlineFile, NamedFileProvider, RawSource, RelativeFile, SourceDir,
+            },
             test_helpers::create_temp_dir_with_file,
         },
         templating::Field,
@@ -1077,6 +1116,96 @@ mod tests {
         assert!(
             args.contains(&"--net=host".to_string()),
             "expected --net=host in args, got {args:?}"
+        );
+    }
+
+    #[test]
+    fn docker_scenario_check_passes_with_valid_config() {
+        let scenario = ScenarioCommand::Docker(DockerScenario {
+            docker: DockerCommand {
+                image: Field::Resolved("alpine".to_string()),
+                tag: None,
+                command: Field::Resolved("echo hello".to_string()),
+            },
+            env_vars: HashMap::from([(
+                "MY_VAR".to_string(),
+                Field::Resolved(Scalar::String("value".to_string())),
+            )]),
+            file_providers: vec![NamedFileProvider {
+                name: "my_file".to_string(),
+                env_var: "MY_FILE".to_string(),
+                provider: FileProvider::Inline(InlineFile {
+                    content: "content".to_string(),
+                }),
+            }],
+        });
+
+        let ctx = Context::new();
+        let res = scenario.try_check(&mut Vec::new(), &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+    }
+
+    #[test]
+    fn docker_scenario_check_duplicate_env_var_between_env_vars_and_file_provider() {
+        let scenario = ScenarioCommand::Docker(DockerScenario {
+            docker: DockerCommand {
+                image: Field::Resolved("alpine".to_string()),
+                tag: None,
+                command: Field::Resolved("echo hello".to_string()),
+            },
+            env_vars: HashMap::from([(
+                "SHARED_VAR".to_string(),
+                Field::Resolved(Scalar::String("value".to_string())),
+            )]),
+            file_providers: vec![NamedFileProvider {
+                name: "my_file".to_string(),
+                env_var: "SHARED_VAR".to_string(),
+                provider: FileProvider::Inline(InlineFile {
+                    content: "content".to_string(),
+                }),
+            }],
+        });
+
+        let ctx = Context::new();
+        assert_check_errors(
+            scenario,
+            &ctx,
+            &[checks::ErrorKind::DuplicateEnvironmentVariables],
+        );
+    }
+
+    #[test]
+    fn docker_scenario_check_duplicate_file_provider_names() {
+        let scenario = ScenarioCommand::Docker(DockerScenario {
+            docker: DockerCommand {
+                image: Field::Resolved("alpine".to_string()),
+                tag: None,
+                command: Field::Resolved("echo hello".to_string()),
+            },
+            env_vars: HashMap::new(),
+            file_providers: vec![
+                NamedFileProvider {
+                    name: "my_file".to_string(),
+                    env_var: "MY_FILE_1".to_string(),
+                    provider: FileProvider::Inline(InlineFile {
+                        content: "content".to_string(),
+                    }),
+                },
+                NamedFileProvider {
+                    name: "my_file".to_string(),
+                    env_var: "MY_FILE_2".to_string(),
+                    provider: FileProvider::Inline(InlineFile {
+                        content: "content".to_string(),
+                    }),
+                },
+            ],
+        });
+
+        let ctx = Context::new();
+        assert_check_errors(
+            scenario,
+            &ctx,
+            &[checks::ErrorKind::DuplicateFileProviderNames],
         );
     }
 
