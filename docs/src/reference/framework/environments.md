@@ -2,13 +2,14 @@
 
 # Environments
 
-An Environment defines setup and teardown commands that bracket a Scenario's execution. Each phase
-is a [Command Provider][1].
+An Environment defines how RTF sets up and tears down the infrastructure required for a test. There
+are two execution models: **docker compose** and **script**. Docker compose is the recommended
+approach; script-based environments are available as a fallback for cases that docker compose cannot
+handle.
 
-> An example of a valid `environment.yaml` is provided in the [Full example](#full-example) section
-> below.
+## Shared keys
 
-## Top level keys
+The following keys apply to both execution models.
 
 - `name`: The name for this Environment configuration.
   - Uniqueness is not enforced by the `rtf` CLI but environments should have unique names that can
@@ -25,15 +26,68 @@ is a [Command Provider][1].
     Plan but with different defaults, each config file will fall back to its own default.
 - `custom_providers`: Declarations for loading Custom Provider Definitions.
   - For full details on the structure of Custom Provider Declarations and Definitions see the
-    [Custom Providers][3] page of the Framework documentation.
-- `setup`: A [Command Provider][1] that defines how the environment should be set up before the
+    [Custom Providers][1] page of the Framework documentation.
+
+## Docker compose environment
+
+A docker compose environment brings the test infrastructure up and down using `docker compose`. RTF
+writes the declared compose files and any additional file providers to a temporary directory before
+invoking `docker compose up`, and runs `docker compose down` during teardown.
+
+### Docker compose keys
+
+- `compose_files`: A list of named compose file providers describing the compose files to start.
+  This field is required.
+  - Each entry is a [File Provider][2] with a required `name` field. For single-file providers,
+    `name` is used as the output filename; for directory providers it is used as the directory name.
+- `project_name`: The docker compose project name. Optional; defaults to the environment `name` if
+  not set.
+- `env_vars`: Environment variables to pass to `docker compose up`.
+- `file_providers`: Additional files the compose stack depends on, exposed to the stack as
+  environment variables. Each entry is a [File Provider][2] with a required `name` and `env_var`
+  field.
+
+### Full example
+
+```yaml
+name: docker-compose-environment
+description: Setup and teardown a docker compose environment
+
+variable_definitions:
+  - name: message
+    description: "A message to echo out"
+
+project_name: docker-compose-env
+
+env_vars:
+  ECHO_MESSAGE: "{{ message }}"
+
+compose_files:
+  - name: compose.yaml
+    kind: relative_path
+    path: providers/compose.yaml
+
+file_providers:
+  - name: echo-server.py
+    env_var: ECHO_SERVER_SCRIPT
+    kind: relative_path
+    path: providers/echo-server.py
+```
+
+## Script environment
+
+A script environment defines setup and teardown commands that bracket a Scenario's execution. Each
+phase is a [Command Provider][3]. This model is intended as a fallback for cases that cannot be
+achieved using a docker compose environment.
+
+### Script keys
+
+- `setup`: A [Command Provider][3] that defines how the environment should be set up before the
   scenario is run.
-- `teardown`: A [Command Provider][1] that defines how the environment should be torn down after the
+- `teardown`: A [Command Provider][3] that defines how the environment should be torn down after the
   scenario is run.
 
-## Full example
-
-The following is a minimal "kitchen sink" example of the structure of a valid `environment.yaml`.
+### Full example
 
 ```yaml
 name: example
@@ -73,6 +127,6 @@ teardown:
 ```
 
 [0]: ./test-plans.md
-[1]: ./command-providers.md
-[2]: ./index.md
-[3]: ./custom-providers.md
+[1]: ./custom-providers.md
+[2]: ./file-providers.md
+[3]: ./command-providers.md

@@ -5,17 +5,27 @@
 The [rtf-config][0] crate provides parsers for the three config files used by RTF: `TestPlanConfig`,
 `EnvironmentConfig` and `ScenarioConfig`.
 
-## Scenario Config
+## Scenario config
 
 The simplest of the three config file formats is the scenario config which simply provides a way for
 the user to pair [templating][1] variables with a [command][2].
 
-## Environment Config
+## Environment config
 
-The environment config file defines a pair of command sections: one for setting up the environment
-before the test is run and another for tearing it down after the test is complete. The setup section
-also requires the user to declare the structure of additional JSON variables that will be provided
-by the setup command for it to pass data along to the scenario and teardown sections.
+The environment config file defines how RTF sets up and tears down the test environment. There are
+two execution models: **docker compose** and **script**.
+
+### Docker compose environment
+
+A docker compose environment uses a list of docker compose files to bring the environment up and
+down using `docker compose`. Additional environment variables can be passed to `docker compose up`,
+and any extra files the compose stack depends on can be declared in a list of File Providers, which
+exposes them to the stack as environment variables.
+
+### Script environment
+
+A script environment defines a pair of command sections: one for setting up the environment before
+the test is run and another for tearing it down after the test is complete.
 
 ## Test plan config
 
