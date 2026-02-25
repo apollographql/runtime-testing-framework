@@ -11,6 +11,7 @@ use crate::{
     },
 };
 use std::{
+    collections::HashMap,
     io,
     path::{Path, PathBuf},
     pin::Pin,
@@ -157,9 +158,23 @@ impl RunProviders for Vec<NamedComposeFileProvider> {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct ExecuteArgs {
+    pub prog: String,
+    pub args: Vec<String>,
+    pub env_vars: HashMap<String, String>,
+}
+
 #[allow(async_fn_in_trait)]
 pub trait Execute: RunProviders {
     fn command_name(&self) -> &str;
+
+    fn as_execute_args(
+        &self,
+        out_dir: &Path,
+        output_path: &Path,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<ExecuteArgs>;
 
     /// Execute this command with the specified environment, returning the output path used.
     ///
@@ -171,7 +186,16 @@ pub trait Execute: RunProviders {
         out_dir: &Path,
         output_path: &Path,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<()>;
+    ) -> providers::Result<()> {
+        let ExecuteArgs {
+            prog,
+            args,
+            env_vars,
+        } = self.as_execute_args(out_dir, output_path, ctx)?;
+
+        ctx.run_command_blocking(&prog, args.iter().map(|s| s.as_str()), &env_vars)
+            .map_err(Into::into)
+    }
 
     /// Run all of the [FileProviders][0] associated with this command and write out their file
     /// contents to the specified directory before executing the command with the specified

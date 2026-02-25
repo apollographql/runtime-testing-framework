@@ -10,7 +10,7 @@ use crate::{
             ResolveAndWrite,
         },
     },
-    run::{Execute, OUTDIR, OUTPUT_PATH, RunProviders},
+    run::{Execute, ExecuteArgs, OUTDIR, OUTPUT_PATH, RunProviders},
     templating::{Field, Scalar},
 };
 use rtf_derive::Template;
@@ -127,18 +127,19 @@ impl Execute for CommandSection {
         &self.command.name
     }
 
-    fn execute(
+    fn as_execute_args(
         &self,
         out_dir: &Path,
         output_path: &Path,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<()> {
+    ) -> providers::Result<ExecuteArgs> {
         let env_vars = self.all_env_vars(out_dir, output_path, ctx)?;
-        let args = self
+        let args: Vec<String> = self
             .command
             .args
             .iter()
-            .map(|arg| arg.as_resolved().as_str());
+            .map(|arg| arg.as_resolved().to_string())
+            .collect();
 
         let file_path = ctx
             .known_provider_output_path(Provider::Command {
@@ -150,7 +151,7 @@ impl Execute for CommandSection {
             })?;
 
         let prog = match file_path.to_str() {
-            Some(v) => v,
+            Some(v) => v.to_owned(),
             None => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -160,8 +161,11 @@ impl Execute for CommandSection {
             }
         };
 
-        ctx.run_command_blocking(prog, args, &env_vars)
-            .map_err(Into::into)
+        Ok(ExecuteArgs {
+            prog,
+            args,
+            env_vars,
+        })
     }
 }
 

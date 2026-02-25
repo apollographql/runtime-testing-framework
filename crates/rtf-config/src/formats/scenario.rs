@@ -9,7 +9,7 @@ use crate::{
         command::CommandSection,
         file::{NamedFileProvider, SourceDir},
     },
-    run::{DOCKER_COMPOSE_NETWORK, Execute, OUTDIR, OUTPUT_PATH, RunProviders},
+    run::{DOCKER_COMPOSE_NETWORK, Execute, ExecuteArgs, OUTDIR, OUTPUT_PATH, RunProviders},
     templating::{self, Field, FileType, Scalar, Template, TemplateContext},
 };
 use rtf_derive::Template;
@@ -218,15 +218,15 @@ impl Execute for ScenarioCommand {
         }
     }
 
-    fn execute(
+    fn as_execute_args(
         &self,
         out_dir: &Path,
         output_path: &Path,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<()> {
+    ) -> providers::Result<ExecuteArgs> {
         match self {
-            Self::Docker(inner) => inner.execute(out_dir, output_path, ctx),
-            Self::Script(inner) => inner.execute(out_dir, output_path, ctx),
+            Self::Docker(inner) => inner.as_execute_args(out_dir, output_path, ctx),
+            Self::Script(inner) => inner.as_execute_args(out_dir, output_path, ctx),
         }
     }
 }
@@ -366,17 +366,20 @@ impl Execute for DockerScenario {
         "docker"
     }
 
-    fn execute(
+    fn as_execute_args(
         &self,
         out_dir: &Path,
         output_path: &Path,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<()> {
+    ) -> providers::Result<ExecuteArgs> {
         let env_vars = self.container_env_vars(out_dir, output_path, ctx)?;
-        let (cmd, args) = self.as_command_and_args(&env_vars, ctx);
+        let (prog, args) = self.as_command_and_args(&env_vars, ctx);
 
-        ctx.run_command_blocking(cmd, args.iter().map(|s| s.as_str()), &HashMap::default())
-            .map_err(Into::into)
+        Ok(ExecuteArgs {
+            prog: prog.to_owned(),
+            args,
+            env_vars: HashMap::default(),
+        })
     }
 }
 
