@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-2b3527f4.js";
+            window.path_to_searchindex_js = "searchindex-6d6bbd0b.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-056b2a77.js"></script>
@@ -3367,13 +3367,12 @@ environment:
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="environments"><a class="header" href="#environments">Environments</a></h1>
-<p>An Environment defines setup and teardown commands that bracket a Scenario’s execution. Each phase
-is a <a href="#command-providers">Command Provider</a>.</p>
-<blockquote>
-<p>An example of a valid <code>environment.yaml</code> is provided in the <a href="#full-example-1">Full example</a> section
-below.</p>
-</blockquote>
-<h2 id="top-level-keys-1"><a class="header" href="#top-level-keys-1">Top level keys</a></h2>
+<p>An Environment defines how RTF sets up and tears down the infrastructure required for a test. There
+are two execution models: <strong>docker compose</strong> and <strong>script</strong>. Docker compose is the recommended
+approach; script-based environments are available as a fallback for cases that docker compose cannot
+handle.</p>
+<h2 id="shared-keys"><a class="header" href="#shared-keys">Shared keys</a></h2>
+<p>The following keys apply to both execution models.</p>
 <ul>
 <li><code>name</code>: The name for this Environment configuration.
 <ul>
@@ -3403,13 +3402,63 @@ Plan but with different defaults, each config file will fall back to its own def
 <a href="#custom-providers">Custom Providers</a> page of the Framework documentation.</li>
 </ul>
 </li>
+</ul>
+<h2 id="docker-compose-environment"><a class="header" href="#docker-compose-environment">Docker compose environment</a></h2>
+<p>A docker compose environment brings the test infrastructure up and down using <code>docker compose</code>. RTF
+writes the declared compose files and any additional file providers to a temporary directory before
+invoking <code>docker compose up</code>, and runs <code>docker compose down</code> during teardown.</p>
+<h3 id="docker-compose-keys"><a class="header" href="#docker-compose-keys">Docker compose keys</a></h3>
+<ul>
+<li><code>compose_files</code>: A list of named compose file providers describing the compose files to start.
+This field is required.
+<ul>
+<li>Each entry is a <a href="#file-providers">File Provider</a> with a required <code>name</code> field. For single-file providers,
+<code>name</code> is used as the output filename; for directory providers it is used as the directory name.</li>
+</ul>
+</li>
+<li><code>project_name</code>: The docker compose project name. Optional; defaults to the environment <code>name</code> if
+not set.</li>
+<li><code>env_vars</code>: Environment variables to pass to <code>docker compose up</code>.</li>
+<li><code>file_providers</code>: Additional files the compose stack depends on, exposed to the stack as
+environment variables. Each entry is a <a href="#file-providers">File Provider</a> with a required <code>name</code> and <code>env_var</code>
+field.</li>
+</ul>
+<h3 id="full-example-1"><a class="header" href="#full-example-1">Full example</a></h3>
+<pre><code class="language-yaml">name: docker-compose-environment
+description: Setup and teardown a docker compose environment
+
+variable_definitions:
+  - name: message
+    description: "A message to echo out"
+
+project_name: docker-compose-env
+
+env_vars:
+  ECHO_MESSAGE: "{{ message }}"
+
+compose_files:
+  - name: compose.yaml
+    kind: relative_path
+    path: providers/compose.yaml
+
+file_providers:
+  - name: echo-server.py
+    env_var: ECHO_SERVER_SCRIPT
+    kind: relative_path
+    path: providers/echo-server.py
+</code></pre>
+<h2 id="script-environment"><a class="header" href="#script-environment">Script environment</a></h2>
+<p>A script environment defines setup and teardown commands that bracket a Scenario’s execution. Each
+phase is a <a href="#command-providers">Command Provider</a>. This model is intended as a fallback for cases that cannot be
+achieved using a docker compose environment.</p>
+<h3 id="script-keys"><a class="header" href="#script-keys">Script keys</a></h3>
+<ul>
 <li><code>setup</code>: A <a href="#command-providers">Command Provider</a> that defines how the environment should be set up before the
 scenario is run.</li>
 <li><code>teardown</code>: A <a href="#command-providers">Command Provider</a> that defines how the environment should be torn down after the
 scenario is run.</li>
 </ul>
-<h2 id="full-example-1"><a class="header" href="#full-example-1">Full example</a></h2>
-<p>The following is a minimal “kitchen sink” example of the structure of a valid <code>environment.yaml</code>.</p>
+<h3 id="full-example-1-1"><a class="header" href="#full-example-1-1">Full example</a></h3>
 <pre><code class="language-yaml">name: example
 description: An example description
 
@@ -3453,7 +3502,7 @@ that runs between the Environment’s setup and teardown phases.</p>
 <p>An example of a valid <code>scenario.yaml</code> is provided in the <a href="#full-example-2">Full example</a> section
 below.</p>
 </blockquote>
-<h2 id="top-level-keys-2"><a class="header" href="#top-level-keys-2">Top level keys</a></h2>
+<h2 id="top-level-keys-1"><a class="header" href="#top-level-keys-1">Top level keys</a></h2>
 <ul>
 <li><code>name</code>: The name for this Scenario configuration.
 <ul>
@@ -4121,7 +4170,7 @@ section below.</p>
 commands to produce one or more files for other RTF config files to use, whereas Scenarios execute
 test actions. Custom provider definitions cannot reference other custom providers. They are
 templated using the arguments provided to the custom provider in a configuration file.</p>
-<h3 id="top-level-keys-3"><a class="header" href="#top-level-keys-3">Top level keys</a></h3>
+<h3 id="top-level-keys-2"><a class="header" href="#top-level-keys-2">Top level keys</a></h3>
 <ul>
 <li><code>name</code>: The name for this Custom Provider Definition.
 <ul>
@@ -5428,7 +5477,7 @@ files.</p>
 </blockquote>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="traits-for-working-with-config-structs"><a class="header" href="#traits-for-working-with-config-structs">Traits for working with config structs</a></h1>
-<p>We have a set of four traits that are used to provide the shared behaviour needed to parse, validate
+<p>We have a set of five traits that are used to provide the shared behaviour needed to parse, validate
 and execute rtf config files:</p>
 <ul>
 <li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/templating.rs#L45">Template</a>: used to locate and resolve templatable <a href="#templating-fields">fields</a> within larger config data
@@ -5437,12 +5486,15 @@ structures.</li>
 executed.</li>
 <li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L90">AsUtf8FileContent</a>: used by providers that return a single string data file to define how
 their content is generated.</li>
+<li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L92">ResolveFileContent</a>: used by providers that return multiple files to define how their content
+is generated.</li>
 <li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L118">ResolveAndWrite</a>: used by providers to define how they generate their content and write it out
 to the user specified output directory.</li>
 </ul>
-<p>All <a href="#file-providers-1">file providers</a> are required to implement the <code>Template</code> and <code>Check</code> traits and <em>either</em> the
-<code>AsUtf8FileContent</code> trait or the <code>ResolveAndWrite</code> trait. You should prefer implementing
-<code>AsUtf8FileContent</code> where possible as it will handle some of the boiler plate logic for you.</p>
+<p>All <a href="#file-providers-1">File Providers</a> are required to implement the <code>Template</code> and <code>Check</code> traits and <em>either</em> the
+<code>AsUtf8FileContent</code> trait, the <code>ResolveFileContent</code> trait, or the <code>ResolveAndWrite</code> trait. You
+should prefer implementing <code>AsUtf8FileContent</code> where possible as it will handle some of the
+boilerplate logic for you.</p>
 <blockquote>
 <p>This is possible whenever your provider is writing out a single utf8 encoded file as its output.</p>
 </blockquote>
@@ -6424,14 +6476,20 @@ available when the command executes.</p>
 <h1 id="config-file-formats"><a class="header" href="#config-file-formats">Config file formats</a></h1>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config">rtf-config</a> crate provides parsers for the three config files used by RTF: <code>TestPlanConfig</code>,
 <code>EnvironmentConfig</code> and <code>ScenarioConfig</code>.</p>
-<h2 id="scenario-config"><a class="header" href="#scenario-config">Scenario Config</a></h2>
+<h2 id="scenario-config"><a class="header" href="#scenario-config">Scenario config</a></h2>
 <p>The simplest of the three config file formats is the scenario config which simply provides a way for
 the user to pair <a href="#templating-fields">templating</a> variables with a <a href="#command-providers-1">command</a>.</p>
-<h2 id="environment-config"><a class="header" href="#environment-config">Environment Config</a></h2>
-<p>The environment config file defines a pair of command sections: one for setting up the environment
-before the test is run and another for tearing it down after the test is complete. The setup section
-also requires the user to declare the structure of additional JSON variables that will be provided
-by the setup command for it to pass data along to the scenario and teardown sections.</p>
+<h2 id="environment-config"><a class="header" href="#environment-config">Environment config</a></h2>
+<p>The environment config file defines how RTF sets up and tears down the test environment. There are
+two execution models: <strong>docker compose</strong> and <strong>script</strong>.</p>
+<h3 id="docker-compose-environment-1"><a class="header" href="#docker-compose-environment-1">Docker compose environment</a></h3>
+<p>A docker compose environment uses a list of docker compose files to bring the environment up and
+down using <code>docker compose</code>. Additional environment variables can be passed to <code>docker compose up</code>,
+and any extra files the compose stack depends on can be declared in a list of File Providers, which
+exposes them to the stack as environment variables.</p>
+<h3 id="script-environment-1"><a class="header" href="#script-environment-1">Script environment</a></h3>
+<p>A script environment defines a pair of command sections: one for setting up the environment before
+the test is run and another for tearing it down after the test is complete.</p>
 <h2 id="test-plan-config"><a class="header" href="#test-plan-config">Test plan config</a></h2>
 <p>The test plan config file is where the user defines the variables they wish to use for templating
 along with the scenario and environment configurations, either provided inline or as references to

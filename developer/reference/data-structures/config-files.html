@@ -35,7 +35,7 @@
             const path_to_root = "../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../searchindex-2b3527f4.js";
+            window.path_to_searchindex_js = "../../../searchindex-6d6bbd0b.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../../toc-056b2a77.js"></script>
@@ -181,14 +181,20 @@
 <h1 id="config-file-formats"><a class="header" href="#config-file-formats">Config file formats</a></h1>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config">rtf-config</a> crate provides parsers for the three config files used by RTF: <code>TestPlanConfig</code>,
 <code>EnvironmentConfig</code> and <code>ScenarioConfig</code>.</p>
-<h2 id="scenario-config"><a class="header" href="#scenario-config">Scenario Config</a></h2>
+<h2 id="scenario-config"><a class="header" href="#scenario-config">Scenario config</a></h2>
 <p>The simplest of the three config file formats is the scenario config which simply provides a way for
 the user to pair <a href="./fields.html">templating</a> variables with a <a href="./command-providers.html">command</a>.</p>
-<h2 id="environment-config"><a class="header" href="#environment-config">Environment Config</a></h2>
-<p>The environment config file defines a pair of command sections: one for setting up the environment
-before the test is run and another for tearing it down after the test is complete. The setup section
-also requires the user to declare the structure of additional JSON variables that will be provided
-by the setup command for it to pass data along to the scenario and teardown sections.</p>
+<h2 id="environment-config"><a class="header" href="#environment-config">Environment config</a></h2>
+<p>The environment config file defines how RTF sets up and tears down the test environment. There are
+two execution models: <strong>docker compose</strong> and <strong>script</strong>.</p>
+<h3 id="docker-compose-environment"><a class="header" href="#docker-compose-environment">Docker compose environment</a></h3>
+<p>A docker compose environment uses a list of docker compose files to bring the environment up and
+down using <code>docker compose</code>. Additional environment variables can be passed to <code>docker compose up</code>,
+and any extra files the compose stack depends on can be declared in a list of File Providers, which
+exposes them to the stack as environment variables.</p>
+<h3 id="script-environment"><a class="header" href="#script-environment">Script environment</a></h3>
+<p>A script environment defines a pair of command sections: one for setting up the environment before
+the test is run and another for tearing it down after the test is complete.</p>
 <h2 id="test-plan-config"><a class="header" href="#test-plan-config">Test plan config</a></h2>
 <p>The test plan config file is where the user defines the variables they wish to use for templating
 along with the scenario and environment configurations, either provided inline or as references to

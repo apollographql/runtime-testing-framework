@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-2b3527f4.js";
+            window.path_to_searchindex_js = "../../searchindex-6d6bbd0b.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-056b2a77.js"></script>
@@ -179,7 +179,7 @@
                     <main>
                         <!-- diataxis-type: reference -->
 <h1 id="traits-for-working-with-config-structs"><a class="header" href="#traits-for-working-with-config-structs">Traits for working with config structs</a></h1>
-<p>We have a set of four traits that are used to provide the shared behaviour needed to parse, validate
+<p>We have a set of five traits that are used to provide the shared behaviour needed to parse, validate
 and execute rtf config files:</p>
 <ul>
 <li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/templating.rs#L45">Template</a>: used to locate and resolve templatable <a href="./data-structures/fields.html">fields</a> within larger config data
@@ -188,12 +188,15 @@ structures.</li>
 executed.</li>
 <li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L90">AsUtf8FileContent</a>: used by providers that return a single string data file to define how
 their content is generated.</li>
+<li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L92">ResolveFileContent</a>: used by providers that return multiple files to define how their content
+is generated.</li>
 <li><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L118">ResolveAndWrite</a>: used by providers to define how they generate their content and write it out
 to the user specified output directory.</li>
 </ul>
-<p>All <a href="./data-structures/file-providers.html">file providers</a> are required to implement the <code>Template</code> and <code>Check</code> traits and <em>either</em> the
-<code>AsUtf8FileContent</code> trait or the <code>ResolveAndWrite</code> trait. You should prefer implementing
-<code>AsUtf8FileContent</code> where possible as it will handle some of the boiler plate logic for you.</p>
+<p>All <a href="./data-structures/file-providers.html">File Providers</a> are required to implement the <code>Template</code> and <code>Check</code> traits and <em>either</em> the
+<code>AsUtf8FileContent</code> trait, the <code>ResolveFileContent</code> trait, or the <code>ResolveAndWrite</code> trait. You
+should prefer implementing <code>AsUtf8FileContent</code> where possible as it will handle some of the
+boilerplate logic for you.</p>
 <blockquote>
 <p>This is possible whenever your provider is writing out a single utf8 encoded file as its output.</p>
 </blockquote>
