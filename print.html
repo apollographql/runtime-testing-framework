@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-21192eb9.js";
+            window.path_to_searchindex_js = "searchindex-975a1663.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-056b2a77.js"></script>
+        <script src="toc-b526dd5b.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -2654,11 +2654,65 @@ LOG_LEVEL=debug
 <p>In this guide, we have covered how to use a custom provider in a test plan, pass arguments to it,
 and use test plan variables for dynamic configuration.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
+<h1 id="how-to-guides"><a class="header" href="#how-to-guides">How-To Guides</a></h1>
+<p>This section contains how-to guides and runbooks for working with RTF.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
 <h1 id="working-with-common-rtf-patterns"><a class="header" href="#working-with-common-rtf-patterns">Working with common RTF patterns</a></h1>
 <p>This page is a collection of short configuration snippets and strategies for working with RTF Test
 Plans to achieve specific goals. For an introductory overview of how to work with RTF please refer
 to the <a href="#getting-started">getting started guide</a>. For a technical reference on RTF as a whole please refer to the
 <a href="#the-framework">framework section of the docs</a>.</p>
+<h2 id="only-running-a-stage-from-a-test-plan"><a class="header" href="#only-running-a-stage-from-a-test-plan">Only running a stage from a Test Plan</a></h2>
+<p><strong>Problem</strong>: You only want to run a single stage of a Test Plan rather than the entire thing.</p>
+<p><strong>Solution</strong>: RTF’s <code>run</code> command supports limiting execution to one of the three stages:</p>
+<ul>
+<li>Environment setup</li>
+<li>Scenario</li>
+<li>Environment teardown</li>
+</ul>
+<p>To do so, simply add the appropriate flag to your use of <code>rtf run</code>:</p>
+<pre><code class="language-bash"># Only the environment setup
+rtf run --environment-up &lt;test-plan&gt;
+
+# Only the scenario
+rtf run --scenario &lt;test-plan&gt;
+
+# Only the environment teardown
+rtf run --environment-down &lt;test-plan&gt;
+</code></pre>
+<p><strong>Discussion</strong>: All other <code>rtf run</code> flags behave normally in combination with these flags, but it is
+an error to specify multiple at the same time. If your Test Plan includes a matrix this will still
+result in an execution per matrix variant. To limit execution to a single variant you should make
+use of the <code>--var</code> flag to pin variables to a single value (see below).</p>
+<h2 id="limiting-a-matrix-based-test-plan-to-run-a-single-dimension"><a class="header" href="#limiting-a-matrix-based-test-plan-to-run-a-single-dimension">Limiting a matrix based Test Plan to run a single dimension</a></h2>
+<p><strong>Problem</strong>: Your Test Plan contains a matrix but you would like to run it for a single dimension.</p>
+<p><strong>Solution</strong>: You can use the command line <code>--var</code> flag to replace individual matrix dimensions with
+scalar variables:</p>
+<pre><code class="language-bash">rtf run --var 'router_version=v2.5.0' --var 'graph_ref=foo@prod' test-plan.yaml
+</code></pre>
+<p>Alternatively, if you are happy to edit the Test Plan itself, you can always comment out the matrix
+definition and replace it with variable definitions like so:</p>
+<pre><code class="language-yaml">variables:
+  router_cpu_limit: "4"
+  # New variables to replace the matrix dimensions
+  router_version: "v2.5.0"
+  graph_ref: "foo@prod"
+
+# Commented out matrix dimensions
+#
+# matrix:
+#   dimensions:
+#     router_version:
+#       - "v2.5.0"
+#       - "v2.6.1"
+# 
+#     graph_ref:
+#       - "foo@prod"
+#       - "bar@production"
+</code></pre>
+<p><strong>Discussion</strong>: The use of command line arguments is recommended over editing the test plan file
+directly as it prevents the common issue of accidentally committing a modified test plan that now no
+longer runs the originally intended set of dimensions.</p>
 <h2 id="running-multiple-iterations-of-a-test-plan"><a class="header" href="#running-multiple-iterations-of-a-test-plan">Running multiple iterations of a Test Plan</a></h2>
 <p><strong>Problem</strong>: You have a test plan that you would like to run multiple times in order to collect
 results that can be analyzed statistically.</p>
@@ -2683,7 +2737,7 @@ the same values other than this.</p>
 <p>Using this approach is encouraged over simply running the Test Plan multiple times manually as it
 allows RTF to cache provider data internally as it runs in order to reduce network calls and work
 required to generate the output of each provider.</p>
-<h2 id="determining-how-many-variants-of-test-plan-will-be-run-by-a-given-matrix"><a class="header" href="#determining-how-many-variants-of-test-plan-will-be-run-by-a-given-matrix">Determining how many variants of test plan will be run by a given matrix</a></h2>
+<h2 id="determining-how-many-variants-of-test-plan-will-be-run-by-a-given-matrix"><a class="header" href="#determining-how-many-variants-of-test-plan-will-be-run-by-a-given-matrix">Determining how many variants of Test Plan will be run by a given matrix</a></h2>
 <p><strong>Problem</strong>: You have written a Test Plan that defines a non-trivial matrix and you want to work out
 something like the expected running time or other properties related to the number of variants being
 run.</p>
@@ -4989,7 +5043,7 @@ remaining easy for contributors and tooling to identify.</p>
 <li>Use “you” throughout</li>
 <li>Celebrate milestones (“You now have a working test plan!”)</li>
 </ul>
-<h4 id="how-to-guides"><a class="header" href="#how-to-guides">How-to Guides</a></h4>
+<h4 id="how-to-guides-1"><a class="header" href="#how-to-guides-1">How-to Guides</a></h4>
 <ul>
 <li>Assume competence; don’t teach fundamentals</li>
 <li>Focus on the task, not the concepts</li>

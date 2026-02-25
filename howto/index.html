@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>PR Checks - Runtime Testing Framework</title>
+        <title>How-to guides - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../../favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="../../favicon-8114d1fc.png">
-        <link rel="stylesheet" href="../../css/variables-8adf115d.css">
-        <link rel="stylesheet" href="../../css/general-2459343d.css">
-        <link rel="stylesheet" href="../../css/chrome-ae938929.css">
-        <link rel="stylesheet" href="../../css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../../fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="../../highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "../../";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-975a1663.js";
+            window.path_to_searchindex_js = "../searchindex-975a1663.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-b526dd5b.js"></script>
+        <script src="../toc-b526dd5b.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">Runtime Testing Framework</h1>
 
                     <div class="right-buttons">
-                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/apollographql/runtime-testing-framework" title="Git repository" aria-label="Git repository">
@@ -178,81 +178,18 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: howto -->
-<h1 id="pr-checks"><a class="header" href="#pr-checks">PR checks</a></h1>
-<p>This page documents all the checks that run when raising a PR, how to run the corresponding checks
-locally and how to resolve them.</p>
-<p>All the tasks required to run these checks locally are defined using <a href="https://mise.jdx.dev/tasks/">mise tasks</a>. To run all the
-PR checks locally:</p>
-<pre><code class="language-bash">mise run pr-all
-</code></pre>
-<h2 id="test"><a class="header" href="#test">test</a></h2>
-<p>The GitHub action runs <code>cargo test</code>. It will run this for <code>stable</code>, <code>beta</code> and <code>nightly</code> rust
-builds.</p>
-<p>To run locally</p>
-<pre><code class="language-bash">mise run pr-test
-</code></pre>
-<p>This will show details for all failing test cases.</p>
-<h2 id="rust-fmt"><a class="header" href="#rust-fmt">rust-fmt</a></h2>
-<p>The GitHub action runs the <code>cargo pr-format</code> alias defined in the <code>.cargo/config.toml</code> file. It
-checks the code complies with rust <code>fmt</code>.</p>
-<p>To run locally</p>
-<pre><code class="language-bash">mise run pr-format
-</code></pre>
-<p>This will show details for all formatting issues.</p>
-<h2 id="clippy"><a class="header" href="#clippy">clippy</a></h2>
-<p>The GitHub action runs the <code>cargo pr-clippy</code> alias defined in the <code>.cargo/config.toml</code> file. It
-checks the code complies with rust <code>clippy</code>.</p>
-<p>To run locally</p>
-<pre><code class="language-bash">mise run pr-clippy
-</code></pre>
-<p>This will show details for all clippy issues.</p>
-<h2 id="rustdoc-links"><a class="header" href="#rustdoc-links">rustdoc-links</a></h2>
-<p>The GitHub action runs <code>cargo doc</code> with additional flags to check that doc links work correctly.</p>
-<p>To run locally</p>
-<pre><code class="language-bash">mise run pr-doclinks
-</code></pre>
-<p>This will show details for all doclink issues.</p>
-<blockquote>
-<p><strong>Note</strong>: Most of the <code>cargo docs</code> output will be warnings. This might be quite noisey but won’t
-necessarily fail your PR checks.</p>
-</blockquote>
-<h2 id="spell-check"><a class="header" href="#spell-check">spell-check</a></h2>
-<p>This uses the <a href="https://github.com/crate-ci/typos">typos-cli crate</a> to check all the docstrings, YAML files and READMEs for typos.
-This tool in particular has been chosen as the spell checker for RTF as it has been designed to
-reduce false positives.</p>
-<p>To run locally</p>
-<pre><code class="language-bash">mise run pr-spell-check
-</code></pre>
-<p>This will print all the typos in the repo to screen.</p>
-<p>To fix all these typos automatically</p>
-<pre><code class="language-bash">mise run fix-spelling
-</code></pre>
-<p>This will automatically fix all the detected spelling errors locally.</p>
-<p>Before committing to <code>main</code>, manually review the diff to check all spelling errors are actually
-errors and have been fixed correctly.</p>
-<p>If there are any detected spelling errors that should be valid, or files that should be ignored,
-then <a href="https://github.com/crate-ci/typos?tab=readme-ov-file#false-positives">update the <code>.typos.toml</code> file</a> at the root of the repo.</p>
-<h2 id="lint-markdown"><a class="header" href="#lint-markdown">lint-markdown</a></h2>
-<p>This uses the <a href="https://github.com/dprint/dprint">dprint crate</a> lint the markdown files and ensure consistent style and formatting.</p>
-<p>To run locally</p>
-<pre><code class="language-bash">mise run lint-markdown
-</code></pre>
-<p>This will highlight any issues with the markdown files.</p>
-<p>To fix all these issues automatically</p>
-<pre><code class="language-bash">mise run format-markdown
-</code></pre>
-<p>Before committing to <code>main</code>, manually review the diff to check all formatting fixes are desired.</p>
-<p>Files can be excluded using the <code>dprint.json</code> file at the root of the repo.</p>
+<h1 id="how-to-guides"><a class="header" href="#how-to-guides">How-To Guides</a></h1>
+<p>This section contains how-to guides and runbooks for working with RTF.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../developer/howto/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../tutorials/custom-providers/using-a-custom-provider.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../developer/reference/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../howto/cookbook.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -262,11 +199,11 @@ then <a href="https://github.com/crate-ci/typos?tab=readme-ov-file#false-positiv
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../developer/howto/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../tutorials/custom-providers/using-a-custom-provider.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../developer/reference/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../howto/cookbook.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -285,19 +222,19 @@ then <a href="https://github.com/crate-ci/typos?tab=readme-ov-file#false-positiv
             window.playground_copyable = true;
         </script>
 
-        <script src="../../ace-2a3cd908.js"></script>
-        <script src="../../mode-rust-2c9d5c9a.js"></script>
-        <script src="../../editor-16ca416c.js"></script>
-        <script src="../../theme-dawn-4493f9c8.js"></script>
-        <script src="../../theme-tomorrow_night-9dbe62a9.js"></script>
+        <script src="../ace-2a3cd908.js"></script>
+        <script src="../mode-rust-2c9d5c9a.js"></script>
+        <script src="../editor-16ca416c.js"></script>
+        <script src="../theme-dawn-4493f9c8.js"></script>
+        <script src="../theme-tomorrow_night-9dbe62a9.js"></script>
 
-        <script src="../../elasticlunr-ef4e11c1.min.js"></script>
-        <script src="../../mark-09e88c2c.min.js"></script>
-        <script src="../../searcher-c2a407aa.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
 
-        <script src="../../clipboard-1626706a.min.js"></script>
-        <script src="../../highlight-abc7f01d.js"></script>
-        <script src="../../book-a0b12cfe.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
 
         <!-- Custom JS scripts -->
 
