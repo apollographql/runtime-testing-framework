@@ -17,6 +17,9 @@
     - [Writing a custom provider definition](tutorials/custom-providers/writing-a-custom-provider-definition.md)
     - [Using a custom provider](tutorials/custom-providers/using-a-custom-provider.md)
   - [Writing script based test plans](tutorials/script-test-plans/index.md)
+    - [Writing a test plan](tutorials/script-test-plans/writing-a-test-plan.md)
+    - [Writing a command](tutorials/script-test-plans/writing-a-command.md)
+    - [Using variables and overrides](tutorials/script-test-plans/using-variables-and-overrides.md)
 
 - [How-to guides](howto/index.md)
   - [RTF Cookbook](howto/cookbook.md)
