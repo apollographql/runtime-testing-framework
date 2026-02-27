@@ -1,5 +1,6 @@
 use crate::common::{is_valid_test_plan, prepare_rtf_run, prepare_rtf_run_with_vars_file};
 use assert_cmd::cargo::cargo_bin_cmd;
+use assert_fs::prelude::*;
 use predicates::{boolean::PredicateBooleanExt, str::contains};
 use simple_test_case::test_case;
 
@@ -332,4 +333,26 @@ fn allowed_values_vars_file_override_invalid_fails() {
     .failure()
     .stderr(contains("Variable value not in allowed values"))
     .stderr(contains("variable 'env_type' has value 'invalid'"));
+}
+
+#[test]
+fn run_with_existing_outdir_fails() {
+    let mut cmd = prepare_rtf_run("resources/test-plans/valid/sanity-check");
+    let out_dir = cmd.child("output");
+    out_dir.create_dir_all().unwrap();
+    out_dir.child("existing.txt").write_str("content").unwrap();
+
+    cmd.assert()
+        .failure()
+        .stderr(contains("already exists and is non-empty"));
+}
+
+#[test]
+fn run_with_existing_outdir_and_force_succeeds() {
+    let mut cmd = prepare_rtf_run("resources/test-plans/valid/sanity-check");
+    let out_dir = cmd.child("output");
+    out_dir.create_dir_all().unwrap();
+    out_dir.child("existing.txt").write_str("content").unwrap();
+
+    cmd.arg("--force").assert().success();
 }

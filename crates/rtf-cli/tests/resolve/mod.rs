@@ -410,6 +410,116 @@ fn resolve_docker_compose_no_project_name_uses_environment_name() {
 }
 
 #[test]
+fn resolve_scenario_with_existing_outdir_fails() {
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    tmp.copy_from("resources/scenarios/valid/script-based", &["**"])
+        .unwrap();
+
+    let output_dir = tmp.child("output");
+    output_dir.create_dir_all().unwrap();
+    output_dir
+        .child("existing-file.txt")
+        .write_str("content")
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("resolve")
+        .arg("scenario")
+        .arg(tmp.child("scenario.yaml").path())
+        .arg("--outdir")
+        .arg(output_dir.path())
+        .assert();
+
+    res.failure()
+        .stderr(contains("already exists and is non-empty"));
+}
+
+#[test]
+fn resolve_scenario_with_existing_outdir_and_force_succeeds() {
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    tmp.copy_from("resources/scenarios/valid/script-based", &["**"])
+        .unwrap();
+
+    let output_dir = tmp.child("output");
+    output_dir.create_dir_all().unwrap();
+    output_dir
+        .child("existing-file.txt")
+        .write_str("content")
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("resolve")
+        .arg("scenario")
+        .arg(tmp.child("scenario.yaml").path())
+        .arg("--outdir")
+        .arg(output_dir.path())
+        .arg("--force")
+        .arg("-v")
+        .assert();
+
+    res.success().stderr(contains("done"));
+}
+
+#[test]
+fn resolve_environment_with_existing_outdir_fails() {
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    tmp.copy_from("resources/environments/valid/script-based", &["**"])
+        .unwrap();
+
+    let output_dir = tmp.child("output");
+    output_dir.create_dir_all().unwrap();
+    output_dir
+        .child("existing-file.txt")
+        .write_str("content")
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("resolve")
+        .arg("environment")
+        .arg(tmp.child("environment.yaml").path())
+        .arg("--outdir")
+        .arg(output_dir.path())
+        .assert();
+
+    res.failure()
+        .stderr(contains("already exists and is non-empty"));
+}
+
+#[test]
+fn resolve_environment_with_existing_outdir_and_force_succeeds() {
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    tmp.copy_from("resources/environments/valid/script-based", &["**"])
+        .unwrap();
+
+    let output_dir = tmp.child("output");
+    output_dir.create_dir_all().unwrap();
+    output_dir
+        .child("existing-file.txt")
+        .write_str("content")
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("resolve")
+        .arg("environment")
+        .arg(tmp.child("environment.yaml").path())
+        .arg("--outdir")
+        .arg(output_dir.path())
+        .arg("--force")
+        .arg("-v")
+        .assert();
+
+    res.success().stderr(contains("done"));
+}
+
+#[test]
 fn resolve_docker_compose_setup_env_has_complete_content() {
     let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(

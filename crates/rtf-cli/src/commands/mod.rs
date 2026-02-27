@@ -50,7 +50,10 @@ pub(crate) fn get_context_and_check_outdir(
         }
 
         PathKind::OccupiedDir => {
-            bail!("{} already exists and is non-empty", out_dir.display())
+            bail!(
+                "{} already exists and is non-empty.\nRe-run with the '--force' flag to force removal of the existing directory",
+                out_dir.display()
+            )
         }
 
         _ => Ok((ctx, out_dir)),

@@ -2,6 +2,7 @@ use super::{
     MERGE_YAML, RELATIVE_PATH, prepare_rtf_inline_relative_files,
     prepare_rtf_inline_relative_files_from_file,
 };
+use assert_fs::prelude::*;
 use predicates::str::contains;
 use simple_test_case::test_case;
 
@@ -247,4 +248,26 @@ fn execution_fails_when_load_and_resolve_fails(file: &str, err_contains: &str) {
     let res = cmd.env_clear().assert();
 
     res.failure().stderr(contains(err_contains));
+}
+
+#[test]
+fn with_existing_outdir_fails() {
+    let mut cmd = prepare_rtf_inline_relative_files("resources/test-plans/valid/command-from-spec");
+    let out_dir = cmd.child("output");
+    out_dir.create_dir_all().unwrap();
+    out_dir.child("existing.txt").write_str("content").unwrap();
+
+    cmd.assert()
+        .failure()
+        .stderr(contains("already exists and is non-empty"));
+}
+
+#[test]
+fn with_existing_outdir_and_force_succeeds() {
+    let mut cmd = prepare_rtf_inline_relative_files("resources/test-plans/valid/command-from-spec");
+    let out_dir = cmd.child("output");
+    out_dir.create_dir_all().unwrap();
+    out_dir.child("existing.txt").write_str("content").unwrap();
+
+    cmd.arg("--force").assert().success();
 }

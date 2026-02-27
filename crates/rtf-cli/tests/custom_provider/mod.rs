@@ -447,6 +447,37 @@ fn run_with_existing_outdir_fails() {
 }
 
 #[test]
+fn run_with_existing_outdir_and_force_succeeds() {
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    tmp.copy_from(
+        "resources/custom-providers/valid/single-file",
+        &["provider.yaml"],
+    )
+    .unwrap();
+
+    let output_dir = tmp.child("output");
+    output_dir.create_dir_all().unwrap();
+    output_dir
+        .child("existing-file.txt")
+        .write_str("content")
+        .unwrap();
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("custom-provider")
+        .arg("run")
+        .arg(tmp.child("provider.yaml").path())
+        .arg("--outdir")
+        .arg(output_dir.path())
+        .arg("--force")
+        .arg("-v")
+        .assert();
+
+    res.success().stderr(contains("done"));
+}
+
+#[test]
 fn run_with_file_provider_creates_expected_output() {
     let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(
