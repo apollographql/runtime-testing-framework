@@ -1,6 +1,7 @@
 use assert_cmd::{Command, cargo::cargo_bin_cmd};
 use assert_fs::{
     TempDir,
+    fixture::ChildPath,
     prelude::{PathChild, PathCopy},
 };
 use std::{
@@ -37,6 +38,10 @@ impl DerefMut for CmdWithTmpDir {
 }
 
 impl CmdWithTmpDir {
+    pub fn child(&self, path: &str) -> ChildPath {
+        self.tmp.child(path)
+    }
+
     pub fn child_path(&self, path: &str) -> PathBuf {
         self.tmp.child(path).to_path_buf()
     }

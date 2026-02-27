@@ -728,6 +728,10 @@ mod tests {
             Ok(())
         }
 
+        fn remove_dir_all(&self, _path: impl AsRef<Path>) -> io::Result<()> {
+            Ok(())
+        }
+
         fn create_dir_all(&self, _path: impl AsRef<Path>) -> io::Result<()> {
             Ok(())
         }

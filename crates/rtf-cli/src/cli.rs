@@ -66,6 +66,10 @@ pub enum Command {
         /// Output directory for providers when they run
         #[arg(long, default_value = "output")]
         outdir: String,
+
+        /// Force removal of an existing output directory before running.
+        #[arg(long, default_value = "false")]
+        force: bool,
     },
 
     // Plumbing commands
@@ -181,6 +185,10 @@ pub enum CustomProviderSubcommand {
         /// Output directory for provider execution
         #[arg(long, default_value = "output")]
         outdir: String,
+
+        /// Force removal of an existing output directory before running.
+        #[arg(long, default_value = "false")]
+        force: bool,
     },
 
     /// !!EXPERIMENTAL!! Run tests for the given provider
@@ -211,6 +219,10 @@ pub struct InlineArgs {
     /// Output directory for inlined test plan
     #[arg(long, default_value = "output")]
     pub outdir: String,
+
+    /// Force removal of an existing output directory before running.
+    #[arg(long, default_value = "false")]
+    pub force: bool,
 
     /// Inline a test plan file from GitHub instead of from a local path
     #[arg(long, default_value = "false")]
@@ -245,6 +257,10 @@ pub enum ResolveSubcommand {
         /// Output directory for resolved providers and scenario.env
         #[arg(long, default_value = "output")]
         outdir: String,
+
+        /// Force removal of an existing output directory before running.
+        #[arg(long, default_value = "false")]
+        force: bool,
     },
 
     /// Resolve file providers for a standalone environment config
@@ -255,6 +271,10 @@ pub enum ResolveSubcommand {
         /// Output directory for resolved providers and env files
         #[arg(long, default_value = "output")]
         outdir: String,
+
+        /// Force removal of an existing output directory before running.
+        #[arg(long, default_value = "false")]
+        force: bool,
     },
 }
 

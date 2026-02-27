@@ -30,8 +30,9 @@ pub async fn check_and_run_test_plan(
     variables: Variables,
     run_target: RunTarget,
     out_dir: &str,
+    force: bool,
 ) -> anyhow::Result<()> {
-    let (ctx, out_dir) = get_context_and_check_outdir(out_dir)?;
+    let (ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
     let cwd = current_dir()?;
 
     info!("loading and resolving test plan");

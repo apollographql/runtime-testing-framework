@@ -39,6 +39,7 @@ async fn main() {
             github,
             git_ref,
             outdir,
+            force,
         } => {
             check_and_run_test_plan(
                 &test_plan_path,
@@ -47,6 +48,7 @@ async fn main() {
                 variables,
                 run_target,
                 &outdir,
+                force,
             )
             .await
         }
@@ -71,11 +73,12 @@ async fn main() {
             };
             inline_test_plan(
                 &args.test_plan_path,
-                &mode,
-                &args.outdir,
                 args.github,
                 args.git_ref,
                 variables,
+                &mode,
+                &args.outdir,
+                args.force,
             )
             .await
         }
@@ -93,8 +96,9 @@ async fn main() {
                 CustomProviderSubcommand::Run {
                     definition_path,
                     outdir,
+                    force,
                 },
-        } => run_custom_provider(&definition_path, variables, &outdir).await,
+        } => run_custom_provider(&definition_path, variables, &outdir, force).await,
 
         Command::CustomProvider {
             subcommand:
@@ -113,16 +117,18 @@ async fn main() {
                 ResolveSubcommand::Scenario {
                     scenario_path,
                     outdir,
+                    force,
                 },
-        } => resolve_scenario(&scenario_path, variables, &outdir).await,
+        } => resolve_scenario(&scenario_path, variables, &outdir, force).await,
 
         Command::Resolve {
             subcommand:
                 ResolveSubcommand::Environment {
                     environment_path,
                     outdir,
+                    force,
                 },
-        } => resolve_environment(&environment_path, variables, &outdir).await,
+        } => resolve_environment(&environment_path, variables, &outdir, force).await,
 
         Command::Completion { shell } => generate_shell_completions(shell),
 

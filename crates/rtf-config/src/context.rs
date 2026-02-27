@@ -159,6 +159,8 @@ pub trait ResolutionContext {
 
     fn remove_file(&self, path: impl AsRef<Path>) -> io::Result<()>;
 
+    fn remove_dir_all(&self, path: impl AsRef<Path>) -> io::Result<()>;
+
     /// Recursively create a directory and all of its parent components if they
     /// are missing.
     ///
@@ -401,6 +403,10 @@ impl ResolutionContext for Context {
 
     fn remove_file(&self, path: impl AsRef<Path>) -> io::Result<()> {
         fs::remove_file(path)
+    }
+
+    fn remove_dir_all(&self, path: impl AsRef<Path>) -> io::Result<()> {
+        fs::remove_dir_all(path)
     }
 
     fn create_dir_all(&self, path: impl AsRef<Path>) -> io::Result<()> {
