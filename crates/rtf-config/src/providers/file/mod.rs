@@ -97,6 +97,16 @@ pub(crate) trait ResolveFileContent:
         target: impl AsRef<Path>,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<Vec<DirFile>>;
+
+    /// Attempt to convert this file provider into an InlineDir
+    async fn try_into_inline_files(
+        &self,
+        ctx: &impl ResolutionContext,
+    ) -> inlining::Result<InlineDir> {
+        let files = self.try_get_all_file_contents(PathBuf::new(), ctx).await?;
+
+        Ok(InlineDir { files })
+    }
 }
 
 impl<T> ResolveAndWrite for T
@@ -170,6 +180,7 @@ macro_rules! impl_inline {
                 inner.inline(mode, $ctx).await?;
                 Ok(())
             }
+
             // MergeYaml is a special case, when inlining relative files only the inner providers
             // should be inlined
             (Self::MergeYaml(inner), mode) => {
@@ -184,13 +195,20 @@ macro_rules! impl_inline {
                     }
                 }
             }
+
             // RelativePaths get inlined the same way in both modes
+            (FileProvider::RelativeDir(inner), _) => {
+                *$self = FileProvider::InlineDir(inner.try_into_inline_files($ctx).await?);
+                Ok(())
+            }
             (FileProvider::RelativePath(inner), _) => {
                 *$self = FileProvider::Inline(inner.try_into_inline_file($ctx).await?);
                 Ok(())
             }
+
             // No other file providers need to do anything when mode is RelativeFiles
             (_, InlineMode::RelativeFiles) => Ok(()),
+
             // The methods required for inlining the rest of the providers
             (Self::Inline(_) | Self::InlineDir(_), InlineMode::All) => Ok(()),
             (Self::GraphosSubgraphs(inner), InlineMode::All) => {
@@ -360,6 +378,7 @@ pub enum FileProvider {
     InlineDir(InlineDir),
     MergeYaml(utility::MergeYaml),
     OfflineGraphosLicense(apollo::OfflineGraphosLicense),
+    RelativeDir(RelativeDir),
     RelativePath(RelativeFile),
     Required(RequiredFile),
     RouterDownloadScript(apollo::RouterDownloadScript),
@@ -425,6 +444,7 @@ enum_impl_file_provider!(
     InlineDir,
     MergeYaml,
     OfflineGraphosLicense,
+    RelativeDir,
     RelativePath,
     Required,
     RouterDownloadScript,
@@ -596,44 +616,7 @@ impl Template for RelativeFile {
         file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        use templating::{ErrorKind, Errors, ValidField};
-
-        path.push("path".into());
-
-        match &mut self.path {
-            // If we're pending then we template and store the source of the variable we used
-            Field::Pending(variable) => match ctx.get_with_source(variable) {
-                Some((source, raw)) => match String::try_from_scalar(raw.clone()) {
-                    Ok(path) => {
-                        self.path = Field::Resolved(path);
-                        self.src = Some(source.clone());
-                    }
-                    Err(reason) => {
-                        return Err(Errors::new(ErrorKind::InvalidData, reason, path));
-                    }
-                },
-                None => {
-                    return Err(Errors::new(
-                        ErrorKind::UnknownVariable,
-                        variable.clone(),
-                        path,
-                    ));
-                }
-            },
-
-            // If we aren't already pinned to a source, we store the source of the file we are in
-            Field::Resolved(_) if self.src.is_none() => self.src = Some(file_source.clone()),
-
-            // Otherwise we are resolved and already have a source set
-            Field::Resolved(_) => (),
-        }
-
-        assert!(
-            self.src.is_some(),
-            "should always have a source once we've templated"
-        );
-
-        Ok(())
+        try_template_path_and_source(&mut self.path, &mut self.src, path, file_source, ctx)
     }
 }
 
@@ -675,62 +658,299 @@ impl Check for RelativeFile {
         path: &mut Vec<String>,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        let res = match self.src.as_ref() {
-            Some(SourceDir::Local { abs_path }) => {
-                ctx.canonicalize_path(abs_path.join(self.path.as_resolved()))
-            }
+        let file_path = self.path.as_resolved();
+        let src = self
+            .src
+            .as_ref()
+            .expect("attempt to check a RelativeFile without a source");
 
-            Some(SourceDir::Github { .. }) => {
-                return if ctx.github_client().is_none() {
-                    Err(checks::Errors::new(
-                        checks::ErrorKind::MissingGithubApiKey,
-                        "expected os env key GITHUB_TOKEN",
-                        path,
-                    ))
-                } else {
-                    Ok(())
-                };
-            }
-
-            None => panic!("attempt to check a RelativeFile without a source"),
-        };
-
-        let format_error_message = || {
-            let uri = self
-                .src
-                .as_ref()
-                .expect("we know we have a source")
-                .to_uri_for(self.path.as_resolved());
-
-            format!("provided path was {uri}")
-        };
-
-        let p = match res {
-            Ok(p) => p,
-            Err(e) => {
-                let kind = if e.kind() == io::ErrorKind::NotFound {
-                    checks::ErrorKind::FileNotFound
-                } else {
-                    checks::ErrorKind::InvalidRelativePath
-                };
-
-                return Err(checks::Errors::new(kind, format_error_message(), path));
-            }
+        let p = match check_path(file_path, src, path, ctx)? {
+            Some(p) => p,
+            None => return Ok(()),
         };
 
         match ctx.path_kind(&p) {
             PathKind::File => Ok(()),
             PathKind::EmptyDir | PathKind::OccupiedDir => Err(checks::Errors::new(
                 checks::ErrorKind::IsADirectory,
-                format_error_message(),
+                format_error_message(src, file_path),
                 path,
             )),
             PathKind::Missing => Err(checks::Errors::new(
                 checks::ErrorKind::FileNotFound,
-                format_error_message(),
+                format_error_message(src, file_path),
                 path,
             )),
         }
+    }
+}
+
+#[inline(always)]
+fn format_error_message(src: &SourceDir, path: impl AsRef<Path>) -> String {
+    format!("provided path was {}", src.to_uri_for(path))
+}
+
+fn check_path(
+    str_path: &str,
+    src: &SourceDir,
+    err_path: &[String],
+    ctx: &impl ResolutionContext,
+) -> checks::Result<Option<PathBuf>> {
+    let res = match src {
+        SourceDir::Local { abs_path } => ctx.canonicalize_path(abs_path.join(str_path)).map(Some),
+
+        SourceDir::Github { .. } => {
+            return if ctx.github_client().is_none() {
+                Err(checks::Errors::new(
+                    checks::ErrorKind::MissingGithubApiKey,
+                    "expected os env key GITHUB_TOKEN",
+                    err_path,
+                ))
+            } else {
+                Ok(None)
+            };
+        }
+    };
+
+    res.map_err(|e| {
+        let kind = if e.kind() == io::ErrorKind::NotFound {
+            checks::ErrorKind::FileNotFound
+        } else {
+            checks::ErrorKind::InvalidRelativePath
+        };
+
+        checks::Errors::new(kind, format_error_message(src, str_path), err_path)
+    })
+}
+
+/// Shared logic for templating RelativeFile and RelativeDir
+fn try_template_path_and_source(
+    path_field: &mut Field<String>,
+    src: &mut Option<SourceDir>,
+    path: &mut Vec<String>,
+    file_source: &SourceDir,
+    ctx: &TemplateContext,
+) -> templating::Result<()> {
+    use templating::{ErrorKind, Errors, ValidField};
+
+    path.push("path".into());
+
+    match path_field {
+        // If we're pending then we template and store the source of the variable we used
+        Field::Pending(variable) => match ctx.get_with_source(variable) {
+            Some((source, raw)) => match String::try_from_scalar(raw.clone()) {
+                Ok(path) => {
+                    *path_field = Field::Resolved(path);
+                    *src = Some(source.clone());
+                }
+                Err(reason) => {
+                    return Err(Errors::new(ErrorKind::InvalidData, reason, path));
+                }
+            },
+            None => {
+                return Err(Errors::new(
+                    ErrorKind::UnknownVariable,
+                    variable.clone(),
+                    path,
+                ));
+            }
+        },
+
+        // If we aren't already pinned to a source, we store the source of the file we are in
+        Field::Resolved(_) if src.is_none() => *src = Some(file_source.clone()),
+
+        // Otherwise we are resolved and already have a source set
+        Field::Resolved(_) => (),
+    }
+
+    assert!(
+        src.is_some(),
+        "should always have a source once we've templated"
+    );
+
+    Ok(())
+}
+
+/// # Relative dir
+///
+/// A relative path from the containing config file to a target directory and a list of files
+/// that should be made available as part of the test run. This provider works both with local
+/// directories and directories within GitHub if the containing config file was pulled from a
+/// repository.
+///
+/// The specified environment variable for this provider will point to the location of the
+/// directory itself. Relative paths under the specified directory will be maintained and in
+/// order to provided deterministic locations for each included file.
+///
+/// Only the specified files will be included and there is no way to wildcard multiple files.
+///
+/// ```yaml
+/// - name: "my-data"
+///   env_var: MY_DATA
+///   kind: relative_dir
+///   path: "../../resources/test-data"
+///   files:
+///     - "my-file.txt"
+///     - "nested/my-nested-file.json"
+/// ```
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
+pub struct RelativeDir {
+    /// The relative path from the containing config file to the target directory.
+    pub(crate) path: Field<String>,
+
+    /// The file paths under this directory that should be included.
+    pub(crate) files: Vec<String>,
+
+    /// Set during TestPlan parsing as part of overrides and templating.
+    #[serde(default)]
+    #[schemars(skip)]
+    #[doc(hidden)]
+    pub(crate) src: Option<SourceDir>,
+}
+
+impl Template for RelativeDir {
+    fn has_pending_fields(&self) -> bool {
+        self.path.has_pending_fields()
+    }
+
+    fn required_variables(&self) -> Vec<String> {
+        self.path.required_variables()
+    }
+
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        file_source: &SourceDir,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        self.path
+            .validate_context_nested(path, "path", allowed_variables, file_source, ctx)
+    }
+
+    fn try_template(
+        &mut self,
+        path: &mut Vec<String>,
+        file_source: &SourceDir,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        try_template_path_and_source(&mut self.path, &mut self.src, path, file_source, ctx)
+    }
+}
+
+#[allow(async_fn_in_trait)]
+impl ResolveFileContent for RelativeDir {
+    async fn try_get_all_file_contents(
+        &self,
+        target: impl AsRef<Path>,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<Vec<DirFile>> {
+        let mut src = self
+            .src
+            .clone()
+            .expect("attempt to resolve a RelativeDir without a source");
+        match &mut src {
+            SourceDir::Local { abs_path } => *abs_path = abs_path.join(self.path.as_resolved()),
+            SourceDir::Github { path, .. } => *path = path.join(self.path.as_resolved()),
+        }
+
+        let mut contents = Vec::with_capacity(self.files.len());
+
+        // Dedup to ensure that we don't pull in files multiple times
+        let mut files = self.files.clone();
+        files.sort_unstable();
+        files.dedup();
+
+        for fname in files.into_iter() {
+            let path = target.as_ref().join(&fname);
+            let rel_file = RelativeFile {
+                path: Field::Resolved(fname),
+                src: Some(src.clone()),
+            };
+
+            contents.push(DirFile {
+                path,
+                content: rel_file.try_get_file_content(ctx).await?,
+            });
+        }
+
+        Ok(contents)
+    }
+}
+
+impl Check for RelativeDir {
+    fn try_check(
+        &self,
+        path: &mut Vec<String>,
+        ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        let dir_path = self.path.as_resolved();
+        let src = self
+            .src
+            .as_ref()
+            .expect("attempt to check a RelativeDir without a source");
+
+        // Early return on errors here because without the top level path we can't check anything
+        // else.
+        let p = match check_path(dir_path, src, path, ctx)? {
+            Some(p) => p,
+            None => return Ok(()),
+        };
+
+        match ctx.path_kind(&p) {
+            // Allow missing files to be handled below
+            PathKind::EmptyDir | PathKind::OccupiedDir => (),
+
+            PathKind::File => {
+                return Err(checks::Errors::new(
+                    checks::ErrorKind::NotADirectory,
+                    format_error_message(src, dir_path),
+                    path,
+                ));
+            }
+
+            PathKind::Missing => {
+                return Err(checks::Errors::new(
+                    checks::ErrorKind::FileNotFound,
+                    format_error_message(src, dir_path),
+                    path,
+                ));
+            }
+        };
+
+        // Gather all errors from missing file paths within the directory if we got this far
+        let mut errs = checks::ErrorBuilder::new();
+
+        // We check for an empty files array as a hard error as in this instance the file provider
+        // does nothing at all, but we don't check for duplicate file paths. When resolving, we
+        // ensure that files are only pulled in once so duplicates here don't cause us any problems.
+        if self.files.is_empty() {
+            errs.push(checks::ErrorKind::EmptyArray, "files", path);
+        }
+
+        for (i, fname) in self.files.iter().enumerate() {
+            let mut fpath = path.clone();
+            fpath.push(i.to_string());
+
+            match check_relative_path_specifiers(Path::new(fname), path) {
+                Err(e) => errs.append(Err(e)),
+                Ok(()) => match ctx.path_kind(p.join(fname)) {
+                    PathKind::File => (),
+                    PathKind::EmptyDir | PathKind::OccupiedDir => errs.push(
+                        checks::ErrorKind::IsADirectory,
+                        format_error_message(src, fname),
+                        path,
+                    ),
+                    PathKind::Missing => errs.push(
+                        checks::ErrorKind::FileNotFound,
+                        format_error_message(src, fname),
+                        path,
+                    ),
+                },
+            }
+        }
+
+        errs.into_result(())
     }
 }
 
@@ -993,6 +1213,15 @@ mod tests {
         graph_id: "{{ graph_id }}"
     "#
     );
+    const RELATIVE_DIR: &str = indoc!(
+        r#"
+        kind: relative_dir
+        path: "{{ path }}"
+        files:
+          - "foo"
+          - "bar"
+    "#
+    );
     const RELATIVE_PATH: &str = indoc!(
         r#"
         kind: relative_path
@@ -1055,6 +1284,7 @@ mod tests {
     #[test_case(INLINE, &[]; "inline")]
     #[test_case(INLINE_DIR, &[]; "inline_dir")]
     #[test_case(OFFLINE_GRAPHOS_LICENSE, &["graph_id"]; "offline_graphos_license")]
+    #[test_case(RELATIVE_DIR, &["path"]; "relative_dir")]
     #[test_case(RELATIVE_PATH, &["path"]; "relative_path")]
     #[test_case(REQUIRED_FILE, &[]; "required")]
     #[test_case(ROUTER_DOWNLOAD_SCRIPT, &["version"]; "router_download_script")]
@@ -1306,6 +1536,93 @@ mod tests {
         );
     }
 
+    fn relative_dir(path: &str, files: &[&str], source: SourceDir) -> RelativeDir {
+        RelativeDir {
+            path: Field::Resolved(path.to_string()),
+            files: files.iter().map(|s| s.to_string()).collect(),
+            src: Some(source),
+        }
+    }
+
+    #[test]
+    fn relative_dir_check_local_success() {
+        let file_name = "my-dir/file.txt";
+        let (temp, _) = create_temp_dir_with_file(file_name, "some content");
+
+        let ctx = Context::new();
+        let relative_dir = relative_dir("my-dir", &["file.txt"], SourceDir::local(temp.path()));
+        let res = relative_dir.try_check(&mut Vec::new(), &ctx);
+
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}")
+    }
+
+    #[test]
+    fn relative_dir_check_github_success() {
+        // This test works because all that's needed for success in the GitHub case is
+        // a GitHub token to be defined in the context
+        let relative_dir = relative_dir(
+            "my-dir",
+            &["file.txt"],
+            SourceDir::github("org", "repo", "path", Some("ref")),
+        );
+
+        let mut ctx = Context::new();
+        ctx.with_github_config("dummy_token");
+
+        let res = relative_dir.try_check(&mut Vec::new(), &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}")
+    }
+
+    #[test]
+    fn relative_dir_check_does_not_exist() {
+        let relative_dir = relative_dir("nope", &["not-here.txt"], SourceDir::local("/foo"));
+        let ctx = Context::new();
+
+        assert_check_errors(relative_dir, &ctx, &[checks::ErrorKind::FileNotFound]);
+    }
+
+    #[test]
+    fn relative_dir_check_is_file() {
+        let (temp, _file) = create_temp_dir_with_file("dir/file.txt", "some content");
+
+        let ctx = Context::new();
+        let relative_dir = relative_dir(
+            "dir/file.txt",
+            &["oh-no"],
+            SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap()),
+        );
+
+        assert_check_errors(relative_dir, &ctx, &[checks::ErrorKind::NotADirectory]);
+    }
+
+    #[test]
+    fn relative_dir_check_empty_files_array() {
+        let (temp, _) = create_temp_dir_with_file("my-dir/foo.txt", "some content");
+
+        let ctx = Context::new();
+        let relative_dir = relative_dir("my-dir", &[], SourceDir::local(temp.path()));
+
+        assert_check_errors(relative_dir, &ctx, &[checks::ErrorKind::EmptyArray]);
+    }
+
+    #[test]
+    fn relative_dir_check_missing_github_api_token() {
+        let relative_dir = relative_dir(
+            "my-dir",
+            &["file.txt"],
+            SourceDir::github("org", "repo", "path", Some("ref")),
+        );
+
+        // There is no github client added to this context so this fails
+        let ctx = Context::new();
+
+        assert_check_errors(
+            relative_dir,
+            &ctx,
+            &[checks::ErrorKind::MissingGithubApiKey],
+        );
+    }
+
     #[test]
     fn required_file_check_is_missing() {
         let required_file = RequiredFile {
@@ -1487,6 +1804,119 @@ mod tests {
         let relative = FileProvider::RelativePath(relative_file("file.txt", src));
 
         assert_resolve_and_write_error(relative, &target, &mut ctx, expected_err).await
+    }
+
+    fn create_temp_dir_with_files(files: &[(&str, &str)]) -> TempDir {
+        let temp = TempDir::new().unwrap();
+
+        for (file_path, file_content) in files.iter() {
+            let file = temp.child(file_path);
+            file.write_str(file_content).unwrap();
+        }
+
+        temp
+    }
+
+    #[tokio::test]
+    async fn relative_dir_resolve_and_write_local_success() {
+        let files = &[
+            ("relative/one.txt", "foo"),
+            ("relative/nested/two.txt", "bar"),
+        ];
+
+        let temp = create_temp_dir_with_files(files);
+        let output = temp.child("output");
+
+        let mut ctx = Context::new();
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+        let relative = FileProvider::RelativeDir(relative_dir(
+            "relative",
+            &["one.txt", "nested/two.txt"],
+            src,
+        ));
+
+        let res = relative.resolve_and_write(&output, &mut ctx).await;
+        assert!(res.is_ok(), "expected Ok, got {res:?}");
+
+        assert_file_content(&output.child("one.txt"), "foo");
+        assert_file_content(&output.child("nested/two.txt"), "bar");
+    }
+
+    #[tokio::test]
+    async fn relative_dir_resolve_and_write_github_success() {
+        let temp = TempDir::new().unwrap();
+        let output = temp.child("output");
+
+        let mut ctx = MockContext::with_github_client(&[
+            ("org/repo/data/one.txt", "foo"),
+            ("org/repo/data/two.txt", "bar"),
+        ]);
+        let src = SourceDir::Github {
+            org: "org".to_string(),
+            repo: "repo".to_string(),
+            path: "".into(),
+            git_ref: None,
+        };
+
+        let relative =
+            FileProvider::RelativeDir(relative_dir("data", &["one.txt", "two.txt"], src));
+
+        let res = relative.resolve_and_write(&output, &mut ctx).await;
+        assert!(res.is_ok(), "expected Ok, got {res:?}");
+
+        assert_file_content(&output.child("one.txt"), "foo");
+        assert_file_content(&output.child("two.txt"), "bar");
+    }
+
+    #[tokio::test]
+    async fn relative_dir_resolve_and_write_local_does_not_exist() {
+        let temp = create_temp_dir_with_files(&[]);
+        let output = temp.child("output");
+
+        let mut ctx = Context::new();
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+        let relative =
+            FileProvider::RelativeDir(relative_dir("relative", &["one.txt", "two.txt"], src));
+
+        let expected_err = "No such file or directory (os error 2)";
+        assert_resolve_and_write_error(relative, &output, &mut ctx, expected_err).await
+    }
+
+    #[tokio::test]
+    async fn relative_dir_resolve_and_write_local_is_not_text() {
+        let temp = TempDir::new().unwrap();
+        let output = temp.child("output");
+
+        let crate_root_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let mut ctx = Context::new();
+        let src = SourceDir::Local {
+            abs_path: ctx.canonicalize_path(crate_root_path).unwrap(),
+        };
+
+        // The frog-no.gif cannot be read since the file to read is not utf-8
+        let relative = FileProvider::RelativeDir(relative_dir("resources", &["frog-no.gif"], src));
+
+        let expected_err = "stream did not contain valid UTF-8";
+        assert_resolve_and_write_error(relative, &output, &mut ctx, expected_err).await
+    }
+
+    #[tokio::test]
+    async fn relative_dir_resolve_and_write_github_no_github_client() {
+        let temp = TempDir::new().unwrap();
+
+        let mut ctx = Context::new();
+        let src = SourceDir::Github {
+            org: "org".to_string(),
+            repo: "repo".to_string(),
+            path: "".into(),
+            git_ref: None,
+        };
+
+        let relative = FileProvider::RelativeDir(relative_dir("my-dir", &["one.txt"], src));
+
+        let expected_err = "no GitHub client available";
+        assert_resolve_and_write_error(relative, &temp.child("my-dir"), &mut ctx, expected_err)
+            .await
     }
 
     #[tokio::test]

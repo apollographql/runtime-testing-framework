@@ -19,6 +19,7 @@ Available file providers:
 - [Inline directory](#inline-directory)
 - [Merge YAML](#merge-yaml)
 - [GraphOS offline license](#graphos-offline-license)
+- [Relative dir](#relative-dir)
 - [Relative path](#relative-path)
 - [Required file](#required-file)
 - [Router download script](#router-download-script)
@@ -625,6 +626,41 @@ API.
 ### `graph_id`
 
 The Apollo graph id to pull an offline license for.
+
+</details>
+
+## Relative dir
+
+A relative path from the containing config file to a target directory and a list of files that
+should be made available as part of the test run. This provider works both with local directories
+and directories within GitHub if the containing config file was pulled from a repository.
+
+The specified environment variable for this provider will point to the location of the directory
+itself. Relative paths under the specified directory will be maintained and in order to provided
+deterministic locations for each included file.
+
+Only the specified files will be included and there is no way to wildcard multiple files.
+
+```yaml
+- name: "my-data"
+  env_var: MY_DATA
+  kind: relative_dir
+  path: "../../resources/test-data"
+  files:
+    - "my-file.txt"
+    - "nested/my-nested-file.json"
+```
+
+<details>
+<summary>Fields</summary>
+
+### `path`
+
+The relative path from the containing config file to the target directory.
+
+### `files`
+
+The file paths under this directory that should be included.
 
 </details>
 
