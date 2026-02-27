@@ -29,8 +29,9 @@ pub async fn resolve_environment(
     environment_path: &str,
     variables: Variables,
     out_dir: &str,
+    force: bool,
 ) -> anyhow::Result<()> {
-    let (mut ctx, out_dir) = get_context_and_check_outdir(out_dir)?;
+    let (mut ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
     let cwd = current_dir()?;
     let cwd_source = SourceDir::local(cwd);
 

@@ -109,6 +109,10 @@ impl<C: HttpClient + Clone + 'static> ResolutionContext for MockContext<C> {
         fs::remove_file(path)
     }
 
+    fn remove_dir_all(&self, path: impl AsRef<Path>) -> io::Result<()> {
+        fs::remove_dir_all(path)
+    }
+
     fn create_dir_all(&self, path: impl AsRef<Path>) -> io::Result<()> {
         fs::create_dir_all(path)
     }

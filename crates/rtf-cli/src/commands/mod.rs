@@ -33,15 +33,26 @@ pub(crate) fn get_context() -> Context {
     Context::new_from_env_vars(env_vars)
 }
 
-pub(crate) fn get_context_and_check_outdir(out_dir: &str) -> anyhow::Result<(Context, PathBuf)> {
+pub(crate) fn get_context_and_check_outdir(
+    out_dir: &str,
+    force: bool,
+) -> anyhow::Result<(Context, PathBuf)> {
     let ctx = get_context();
     let out_dir = current_dir()?.join(out_dir);
 
     match ctx.path_kind(&out_dir) {
-        PathKind::File => bail!("{} is not a directory", out_dir.display()),
+        PathKind::File => bail!("{} exists and is a file", out_dir.display()),
+
+        PathKind::OccupiedDir if force => {
+            ctx.remove_dir_all(&out_dir)?;
+
+            Ok((ctx, out_dir))
+        }
+
         PathKind::OccupiedDir => {
             bail!("{} already exists and is non-empty", out_dir.display())
         }
+
         _ => Ok((ctx, out_dir)),
     }
 }

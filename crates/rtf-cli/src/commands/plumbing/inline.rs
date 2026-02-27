@@ -23,14 +23,15 @@ const INLINED_TEST_PLAN_PATH: &str = "inlined-test-plan.yaml";
 
 pub async fn inline_test_plan(
     test_plan_path: &str,
-    mode: &InlineMode,
-    outdir: &str,
     github: bool,
     git_ref: Option<String>,
     variables: Variables,
+    mode: &InlineMode,
+    outdir: &str,
+    force: bool,
 ) -> anyhow::Result<()> {
     let cwd = current_dir()?;
-    let (ctx, _outdir) = get_context_and_check_outdir(outdir)?;
+    let (ctx, _outdir) = get_context_and_check_outdir(outdir, force)?;
 
     info!("loading and resolving test plan");
     let test_plan = if github {

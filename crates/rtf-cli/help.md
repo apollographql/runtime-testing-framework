@@ -69,6 +69,9 @@ Check and run a test plan
 * `--outdir <OUTDIR>` — Output directory for providers when they run
 
   Default value: `output`
+* `--force` — Force removal of an existing output directory before running
+
+  Default value: `false`
 
 
 
@@ -152,6 +155,9 @@ Execute a custom provider definition
 * `--outdir <OUTDIR>` — Output directory for provider execution
 
   Default value: `output`
+* `--force` — Force removal of an existing output directory before running
+
+  Default value: `false`
 
 
 
@@ -183,6 +189,9 @@ Inline all file providers
 * `--outdir <OUTDIR>` — Output directory for inlined test plan
 
   Default value: `output`
+* `--force` — Force removal of an existing output directory before running
+
+  Default value: `false`
 * `--github` — Inline a test plan file from GitHub instead of from a local path
 
   Default value: `false`
@@ -205,6 +214,9 @@ Inline only relative file providers
 * `--outdir <OUTDIR>` — Output directory for inlined test plan
 
   Default value: `output`
+* `--force` — Force removal of an existing output directory before running
+
+  Default value: `false`
 * `--github` — Inline a test plan file from GitHub instead of from a local path
 
   Default value: `false`
@@ -240,6 +252,9 @@ Resolve file providers for a standalone scenario config
 * `--outdir <OUTDIR>` — Output directory for resolved providers and scenario.env
 
   Default value: `output`
+* `--force` — Force removal of an existing output directory before running
+
+  Default value: `false`
 
 
 
@@ -258,6 +273,9 @@ Resolve file providers for a standalone environment config
 * `--outdir <OUTDIR>` — Output directory for resolved providers and env files
 
   Default value: `output`
+* `--force` — Force removal of an existing output directory before running
+
+  Default value: `false`
 
 
 
