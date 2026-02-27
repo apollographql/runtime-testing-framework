@@ -226,7 +226,10 @@ fn set_source_for_relative_paths(val: &mut serde_yaml::Value, src: &serde_yaml::
     match val {
         Value::Mapping(map) => {
             let kind = map.get("kind").and_then(|v| v.as_str());
-            if matches!(kind, Some("relative_path" | "custom_provider")) {
+            if matches!(
+                kind,
+                Some("relative_path" | "relative_dir" | "custom_provider")
+            ) {
                 map.insert(Value::String("src".into()), src.clone());
                 return;
             }
