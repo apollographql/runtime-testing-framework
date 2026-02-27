@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-975a1663.js";
+            window.path_to_searchindex_js = "../../searchindex-6d2d10e3.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-b526dd5b.js"></script>
@@ -196,6 +196,7 @@
 <li><a href="#inline-directory">Inline directory</a></li>
 <li><a href="#merge-yaml">Merge YAML</a></li>
 <li><a href="#graphos-offline-license">GraphOS offline license</a></li>
+<li><a href="#relative-dir">Relative dir</a></li>
 <li><a href="#relative-path">Relative path</a></li>
 <li><a href="#required-file">Required file</a></li>
 <li><a href="#router-download-script">Router download script</a></li>
@@ -600,6 +601,29 @@ API.</p>
 <h3 id="graph_id"><a class="header" href="#graph_id"><code>graph_id</code></a></h3>
 <p>The Apollo graph id to pull an offline license for.</p>
 </details>
+<h2 id="relative-dir"><a class="header" href="#relative-dir">Relative dir</a></h2>
+<p>A relative path from the containing config file to a target directory and a list of files that
+should be made available as part of the test run. This provider works both with local directories
+and directories within GitHub if the containing config file was pulled from a repository.</p>
+<p>The specified environment variable for this provider will point to the location of the directory
+itself. Relative paths under the specified directory will be maintained and in order to provided
+deterministic locations for each included file.</p>
+<p>Only the specified files will be included and there is no way to wildcard multiple files.</p>
+<pre><code class="language-yaml">- name: "my-data"
+  env_var: MY_DATA
+  kind: relative_dir
+  path: "../../resources/test-data"
+  files:
+    - "my-file.txt"
+    - "nested/my-nested-file.json"
+</code></pre>
+<details>
+<summary>Fields</summary>
+<h3 id="path-1"><a class="header" href="#path-1"><code>path</code></a></h3>
+<p>The relative path from the containing config file to the target directory.</p>
+<h3 id="files-1"><a class="header" href="#files-1"><code>files</code></a></h3>
+<p>The file paths under this directory that should be included.</p>
+</details>
 <h2 id="relative-path"><a class="header" href="#relative-path">Relative path</a></h2>
 <p>A relative path from the containing config file to a target file that should be made available as
 part of the test run. This provider works both with local files and files within GitHub if the
@@ -611,7 +635,7 @@ containing config file was pulled from a repository.</p>
 </code></pre>
 <details>
 <summary>Fields</summary>
-<h3 id="path-1"><a class="header" href="#path-1"><code>path</code></a></h3>
+<h3 id="path-2"><a class="header" href="#path-2"><code>path</code></a></h3>
 <p>The relative path from the containing config file to the target file.</p>
 </details>
 <h2 id="required-file"><a class="header" href="#required-file">Required file</a></h2>
