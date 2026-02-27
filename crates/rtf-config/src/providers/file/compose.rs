@@ -5,9 +5,9 @@ use crate::{
     enum_impl_resolve_and_write,
     inlining::{self, InlineMode},
     providers::file::{
-        AsUtf8FileContent, InlineDir, InlineFile, RelativeFile, RequiredFile, ResolveAndWrite,
-        check_relative_path_specifiers, custom::CustomProvider, enum_impl_check,
-        github::GithubFile, utility::FromCommand,
+        AsUtf8FileContent, InlineDir, InlineFile, RelativeDir, RelativeFile, RequiredFile,
+        ResolveAndWrite, ResolveFileContent, check_relative_path_specifiers, enum_impl_check,
+        github::GithubFile,
     },
     templating::{self, Template, TemplateContext},
 };
@@ -81,18 +81,8 @@ impl Template for NamedComposeFileProvider {
         // Normalize the name: replace '.' and '/' with '_'
         let tail = self.name.replace(['.', '/'], "_");
 
-        match &mut self.provider {
-            ComposeFileProvider::CustomProvider(cp) => {
-                let from_command = cp.expand_and_template(path, file_source, ctx)?;
-                self.provider = ComposeFileProvider::FromCommand(from_command);
-            }
-
-            _ => self
-                .provider
-                .try_template_nested(path, &tail, file_source, ctx)?,
-        }
-
-        Ok(())
+        self.provider
+            .try_template_nested(path, &tail, file_source, ctx)
     }
 }
 
@@ -135,11 +125,10 @@ impl Check for NamedComposeFileProvider {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ComposeFileProvider {
-    CustomProvider(CustomProvider),
-    FromCommand(FromCommand),
     GithubFile(GithubFile),
     Inline(InlineFile),
     InlineDir(InlineDir),
+    RelativeDir(RelativeDir),
     RelativePath(RelativeFile),
     Required(RequiredFile),
 }
@@ -151,8 +140,8 @@ impl ComposeFileProvider {
         ctx: &impl ResolutionContext,
     ) -> inlining::Result<()> {
         match (&mut *self, mode) {
-            (ComposeFileProvider::FromCommand(inner), mode) => {
-                inner.inline(mode, ctx).await?;
+            (ComposeFileProvider::RelativeDir(inner), _) => {
+                *self = ComposeFileProvider::InlineDir(inner.try_into_inline_files(ctx).await?);
 
                 Ok(())
             }
@@ -162,11 +151,6 @@ impl ComposeFileProvider {
                 Ok(())
             }
             (_, InlineMode::RelativeFiles) => Ok(()),
-            (ComposeFileProvider::CustomProvider(inner), InlineMode::All) => {
-                *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
-
-                Ok(())
-            }
             (ComposeFileProvider::GithubFile(inner), InlineMode::All) => {
                 *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
 
@@ -193,11 +177,10 @@ macro_rules! enum_impl_compose_file_provider {
 }
 
 enum_impl_compose_file_provider!(
-    CustomProvider,
-    FromCommand,
     GithubFile,
     Inline,
     InlineDir,
+    RelativeDir,
     RelativePath,
     Required,
 );
