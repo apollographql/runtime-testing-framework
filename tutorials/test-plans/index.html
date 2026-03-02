@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-7adde950.js";
+            window.path_to_searchindex_js = "../../searchindex-facabee8.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-b526dd5b.js"></script>
+        <script src="../../toc-b894ec53.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,14 +178,28 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: tutorial -->
-<h1 id="writing-test-plans"><a class="header" href="#writing-test-plans">Writing test Plans</a></h1>
-<p>This section will guide you through writing a test plan for rtf from a blank file. The test plan
-will be a simple “Hello, World!” example that introduces you to the concepts of writing RTF test
-plans. For examples of test plans that can be used for specific testing use cases, please refer to
-the <a href="https://github.com/apollographql/rtf-morgue">morgue</a>.</p>
-<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
-<p>We recommend completing the <a href="../hello-world.html">“Hello, World!”</a> guide first to ensure you’re familiar with the rtf
-CLI and have it properly installed.</p>
+<h1 id="writing-test-plans"><a class="header" href="#writing-test-plans">Writing test plans</a></h1>
+<p>This section will guide you through writing a test plan for RTF from a blank file. The test plan
+will be a simple example that introduces you to the concepts of writing RTF test plans using a
+<code>docker compose</code> environment and <code>docker</code> scenario. For examples of test plans that can be used for
+specific testing use cases, please refer to the <a href="https://github.com/apollographql/rtf-morgue">morgue</a>.</p>
+<blockquote>
+<p><strong>Prerequisites</strong></p>
+<ul>
+<li>Recommended: completed the <a href="../hello-world.html">“Hello, World!”</a> guide — ensures you’re familiar with the RTF CLI
+and have it installed</li>
+<li><code>docker</code> and <code>docker compose</code> available locally with your docker daemon running</li>
+</ul>
+</blockquote>
+<pre><code class="language-bash">docker info
+docker compose --help
+</code></pre>
+<blockquote>
+<p><strong>Note</strong> This tutorial uses <code>docker</code> and <code>docker compose</code> as execution backends. RTF parameterizes
+these tools from your config — this tutorial does not teach Docker or Docker Compose themselves.
+Refer to the <a href="https://docs.docker.com/">Docker documentation</a> and the <a href="https://docs.docker.com/compose/">Docker Compose documentation</a> for details on
+those tools.</p>
+</blockquote>
 <hr>
 <p><strong>Next:</strong> <a href="writing-a-test-plan.html">Writing a test plan</a></p>
 

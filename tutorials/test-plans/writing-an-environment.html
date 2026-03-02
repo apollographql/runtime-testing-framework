@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-7adde950.js";
+            window.path_to_searchindex_js = "../../searchindex-facabee8.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-b526dd5b.js"></script>
+        <script src="../../toc-b894ec53.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -179,17 +179,29 @@
                     <main>
                         <!-- diataxis-type: tutorial -->
 <h1 id="writing-a-new-environment"><a class="header" href="#writing-a-new-environment">Writing a new environment</a></h1>
-<p>This guide assumes you’ve completed the <a href="writing-a-scenario.html">“Writing a scenario”</a> guide. You should already have the
-files in a directory named <code>rtf-hello-world</code>. Your directory should be in the state it was at the
-end of that guide.</p>
-<pre><code class="language-bash">ls -R
-configs         scripts         test-plan.yaml
+<p>In this guide, we’ll take the inline environment from the <a href="writing-a-scenario.html">“Writing a scenario”</a> tutorial and
+move it into its own file. We’ll then extend it by adding a second compose service, and use RTF
+environment variables to configure the docker compose stack.</p>
+<blockquote>
+<p><strong>Note</strong> RTF manages the environment by parameterizing <code>docker compose up</code> and
+<code>docker compose down</code> from the <code>compose_files</code> config. For details on Docker Compose files and
+multi-file composition, refer to the <a href="https://docs.docker.com/compose/">Docker Compose documentation</a>.</p>
+</blockquote>
+<blockquote>
+<p><strong>Prerequisites</strong></p>
+<ul>
+<li>Completed the <a href="writing-a-scenario.html">“Writing a scenario”</a> tutorial</li>
+<li>An <code>rtf-hello-world</code> directory in the state it was at the end of that guide</li>
+</ul>
+</blockquote>
+<p>Your directory should look like this:</p>
+<pre><code class="language-bash">configs         scripts         test-plan.yaml
 
-configs:
+./configs:
 scenario.yaml
 
-scripts:
-scenario.sh
+./scripts:
+check-status-v2.sh      check-status.sh
 </code></pre>
 <h2 id="creating-an-environment-file"><a class="header" href="#creating-an-environment-file">Creating an environment file</a></h2>
 <p>Creating a separate environment file works exactly the same way and has the same benefits as
@@ -199,24 +211,17 @@ creating a separate scenario file outlined in the <a href="writing-a-scenario.ht
 </code></pre>
 <p>Make sure the <code>environment.yaml</code> contains a copy of the environment config currently in your
 <code>test-plan.yaml</code> file:</p>
-<pre><code class="language-yaml">name: Inline environment config
-description: An inline environment config
-setup:
-  command:
-    name: setup.sh
+<pre><code class="language-yaml">name: Docker compose environment config
+description: A docker compose environment config
+compose_files:
+  - name: docker-compose.yaml
     kind: inline
     content: |
-      #!/usr/bin/env sh
-
-      echo "environment setup command executed"
-teardown:
-  command:
-    name: teardown.sh
-    kind: inline
-    content: |
-      #!/usr/bin/env sh
-
-      echo "environment teardown command executed"
+      services:
+        hello-world:
+          image: nginx:alpine
+          ports:
+            - "8080:80"
 </code></pre>
 <p>Finally, update the <code>test-plan.yaml</code> file to use the new <code>environment.yaml</code> file:</p>
 <pre><code class="language-yaml">name: Hello World
@@ -235,119 +240,245 @@ environment:
 <p>Let’s verify this has made no material difference to the templated test plan:</p>
 <pre><code class="language-bash">rtf template test-plan.yaml --check
 </code></pre>
-<p>You should see output similar to this:</p>
+<p>The output is similar to this:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 variables:
-  scenario_variable: scenario executed with test plan variable
-matrix: {}
+  scenario_variable: scenario env var value from test plan
+matrix:
+  variant_names: null
+  dimensions: {}
+  include: []
+custom_providers: []
 scenario:
-  name: Inline scenario config
   ...
 environment:
-  name: Inline environment config
   ...
 </code></pre>
-<h2 id="environment-config-structure"><a class="header" href="#environment-config-structure">Environment config structure</a></h2>
-<p>Now is a good time to review how the environment config is structured. The main difference compared
-to the <a href="writing-a-scenario.html#scenario-config-structure">scenario config</a> is that an environment can run two commands using the <code>setup</code> and
-<code>teardown</code> keys. The fields in an environment config are:</p>
-<ul>
-<li><code>name</code> (required) is used to give the environment an identifiable title. It can be any valid
-string. It has no impact on the execution of an environment.</li>
-<li><code>description</code> (required) is used to give more information about the environment. It can be any
-valid string. It has no impact on the execution of an environment.</li>
-<li><code>variable_definitions</code> (optional) are used to define which variables an environment requires to
-successfully execute. This works the same as it does for a scenario and is explained more in the
-<a href="writing-a-scenario.html#using-variables">“using variables”</a> section of that guide.</li>
-<li><code>setup</code> (required) is used to define the command that executes at the start of the <code>rtf run</code>
-command. It is intended to be used to create and configure the environment for the scenario to
-test. It requires the following keys:
-<ul>
-<li><code>command</code> (required) is used to define what is executed when the environment setup is run. The
-<a href="writing-a-command.html">“Writing a command” guide</a> explains commands in more detail.</li>
-<li><code>env_vars</code> (optional) is used to define the environment variables that are set when the
-<code>command</code> is executed.</li>
-<li><code>file_providers</code> (optional) is used to define the files and data that the environment setup
-depends on to execute. The <a href="using-file-providers.html">“Using file providers” guide</a> explains how these are used in more
-detail.</li>
-</ul>
-</li>
-<li><code>teardown</code> (required) is used to define the command that executes at the end of the <code>rtf run</code>
-command. It is intended to be used to collect results and shutdown the environment the scenario
-tested. It requires the following keys:
-<ul>
-<li><code>command</code> (required) is used to define what is executed when the environment teardown is run.
-The <a href="writing-a-command.html">“Writing a command” guide</a> explains commands in more detail.</li>
-<li><code>env_vars</code> (optional) is used to define the environment variables that are set when the
-<code>command</code> is executed.</li>
-<li><code>file_providers</code> (optional) is used to define the files and data that the environment teardown
-depends on to execute. The <a href="using-file-providers.html">“Using file providers” guide</a> explains how these are used in more
-detail.</li>
-</ul>
-</li>
-</ul>
-<h2 id="using-overrides"><a class="header" href="#using-overrides">Using overrides</a></h2>
-<p>One of the main benefits of defining environment (and scenario) config in a separate file is that it
-can be reused across multiple test plans. There will be occasions where you want to reuse the
-majority of what’s defined in an environment config but make small edits. Instead of making a new
-file with the edits, you can use <code>overrides</code>.</p>
-<p>Before we look at overrides, let’s create a new <code>setup.sh</code> script. We’ll use this instead of the
-current inline script in <code>environment.yaml</code>:</p>
-<pre><code class="language-bash">touch scripts/setup.sh
+<p>You now have a reusable environment in its own file! See the <a href="../../reference/framework/index.html">framework reference docs</a> for the
+full Environment config structure.</p>
+<h2 id="adding-additional-compose-files"><a class="header" href="#adding-additional-compose-files">Adding additional compose files</a></h2>
+<p>RTF supports <a href="using-file-providers.html">multiple compose files</a> via the <code>compose_files</code> key — each file is passed to
+<code>docker compose up</code> using the <code>-f</code> flag.</p>
+<p>Let’s create a new compose file.</p>
+<pre><code class="language-bash">mkdir data
+touch data/compose-app.yaml
 </code></pre>
-<p>Add the following to the <code>setup.sh</code> file (this will make it obvious we’ve run the intended setup):</p>
-<pre><code class="language-sh">#!/usr/bin/env sh
-
-echo "Using the override setup script"
-echo "Environment setup complete.
+<p>We are going to create a python web server that returns <code>Hello, World!</code> when called. Add the
+following content to the <code>compose-app.yaml</code> file:</p>
+<pre><code class="language-yaml">services:
+  app:
+    image: python:alpine
+    environment:
+      HELLO_MESSAGE: Hello, World!
+    ports:
+      - 8000:8000
+    command:
+      - python
+      - -c
+      - |
+        from http.server import HTTPServer, BaseHTTPRequestHandler
+        import os
+        class H(BaseHTTPRequestHandler):
+            def do_GET(self):
+                msg = os.environ.get('HELLO_MESSAGE').encode()
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(msg)
+            def log_message(self, *a):
+                pass
+        HTTPServer(('', 8000), H).serve_forever()
 </code></pre>
-<p>Overrides can be added to either the <code>environment</code> or <code>scenario</code> in the test plan config. Add this
-to <code>test-plan.yaml</code>:</p>
-<pre><code class="language-yaml">name: Hello World
-description: A test plan created as a guide for writing test plans
-variables:
-  scenario_variable: "scenario executed with test plan variable"
-  process_id: dummy
-scenario:
-  from:
-    kind: local
-    relative_path: configs/scenario.yaml
-environment:
-  from:
-    kind: local
-    relative_path: configs/environment.yaml
-# --- Add an override for the setup command ---
-  overrides:
-    setup:
-      command:
-        name: setup.sh
-        kind: relative_path
-        path: scripts/setup.sh
-# ---------------------------------------------
+<p>Let’s add this to our <code>compose_files</code> in <code>environment.yaml</code>:</p>
+<pre><code class="language-yaml">name: Docker compose environment config
+description: A docker compose environment config
+compose_files:
+  - name: docker-compose.yaml
+    kind: inline
+    content: |
+      services:
+        hello-world:
+          image: nginx:alpine
+          ports:
+            - "8080:80"
+# --- Add the compose-app.yaml file ---
+  - name: compose-app.yaml
+    kind: relative_path
+    path: ../data/compose-app.yaml
+# -------------------------------------
 </code></pre>
-<p>Before checking if this works, let’s look at how it works. We only want to change the
-<code>setup.command</code>, so only that segment of the config is required. rtf will merge the YAML on matching
-keys before checking if it templates. If you run the <code>template</code> command now:</p>
-<pre><code class="language-bash">rtf template test-plan.yaml --check
-</code></pre>
-<p>You should see that the setup command now matches what we defined in the <code>overrides</code>, while the rest
-of the environment config is unchanged. If we run the test plan:</p>
+<blockquote>
+<p><strong>Note</strong> The path to the <code>compose-app.yaml</code> file is relative to the <code>environment.yaml</code> file its
+path is defined in.</p>
+</blockquote>
+<p>We have not explained File Providers yet and will cover them in detail in the
+<a href="using-file-providers.html">“Using file providers” guide</a>.</p>
+<p>Let’s run the test plan</p>
 <pre><code class="language-bash">rtf run test-plan.yaml
 </code></pre>
 <p>Output:</p>
-<pre><code>Using the override setup script
-Environment setup complete.
-Running scenario from an external file
-scenario executed with test plan variable
-Environment teardown complete.
+<pre><code>[+] up 3/3
+ ✔ Network docker-compose-environment-config_default         Created     0.0s
+ ✔ Container docker-compose-environment-config-app-1         Healthy     0.6s
+ ✔ Container docker-compose-environment-config-hello-world-1 Healthy     0.6s
+scenario env var value from test plan
+Response: &lt;removed for brevity&gt;
+HTTP status: 200
+[+] down 3/3
+ ✔ Container docker-compose-environment-config-app-1         Removed     10.1s
+ ✔ Container docker-compose-environment-config-hello-world-1 Removed     0.1s
+ ✔ Network docker-compose-environment-config_default         Removed     0.1s
 </code></pre>
-<p>This confirms we’re successfully using a new <code>setup.sh</code> script for the environment without changing
-any other config for the environment.</p>
-<hr>
-<p>In this guide, we’ve covered moving environment config into its own file and using overrides in the
-test plan. Next, we’ll guide you through how to use file providers.</p>
-<p><strong>Next:</strong> <a href="using-file-providers.html">Using file providers</a></p>
+<p>In addition to the <code>docker-compose-environment-config-hello-world-1</code> container that was running
+before, we now can also see the <code>docker-compose-environment-config-app-1</code> starting up. You now have
+an additional service running from a new compose file! Let’s update our test to actually use it!</p>
+<h2 id="using-environment-variables"><a class="header" href="#using-environment-variables">Using environment variables</a></h2>
+<p>We have a running <code>nginx</code> server and our new <code>python</code> web server. We are going to update the <code>nginx</code>
+config so that when we call <code>nginx</code>, it forwards our request to our new service. We are going to do
+this by updating the docker compose configuration in our <code>environment.yaml</code> file:</p>
+<pre><code class="language-yaml">name: Docker compose environment config
+description: A docker compose environment config
+compose_files:
+  - name: docker-compose.yaml
+    kind: inline
+    content: |
+      services:
+        hello-world:
+          image: nginx:alpine
+          ports:
+            - "8080:80"
+# -------- Add nginx config ---------
+          configs:
+            - source: nginx_conf
+              target: /etc/nginx/conf.d/default.conf
+      configs:
+        nginx_conf:
+          content: |
+            server {
+              listen 80;
+              location / {
+                proxy_pass http://app:8000;
+              }
+            }
+# -----------------------------------
+  - name: compose-app.yaml
+    kind: relative_path
+    path: ../data/compose-app.yaml
+</code></pre>
+<p>Let’s run the test plan:</p>
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>[+] up 3/3
+ ✔ Network docker-compose-environment-config_default         Created     0.0s
+ ✔ Container docker-compose-environment-config-app-1         Healthy     0.6s
+ ✔ Container docker-compose-environment-config-hello-world-1 Healthy     0.6s
+scenario env var value from test plan
+Response: Hello, World!
+HTTP status: 200
+[+] down 3/3
+ ✔ Container docker-compose-environment-config-app-1         Removed     10.1s
+ ✔ Container docker-compose-environment-config-hello-world-1 Removed     0.1s
+ ✔ Network docker-compose-environment-config_default         Removed     0.1s
+</code></pre>
+<blockquote>
+<p><strong>Note</strong> Inlining configuration to docker compose like this is an antipattern in RTF, as it
+requires you to supply a completely new docker compose YAML file if you want to update any part of
+its configuration. There is a better way to do this, using File Providers. We cover how to do this
+in the <a href="using-file-providers.html">“Using file providers” guide</a>.</p>
+</blockquote>
+<p>Notice that we now also get <code>Response: Hello, World!</code>. Now, everything in our test is connecting as
+expected! Let’s verify this by changing the response message using an environment variable.</p>
+<p>First, let’s update our <code>environment.yaml</code> to define an environment variable for the docker compose
+stack to use. We are not going to set this environment variable using RTF variables, instead we are
+just going to hardcode it for ease. The <a href="writing-a-scenario.html">“Writing a scenario” guide</a> contains an example of
+setting environment variables using RTF variables. Update <code>environment.yaml</code>:</p>
+<pre><code class="language-yaml">name: Docker compose environment config
+description: A docker compose environment config
+# ------ Add an environment variable ------
+env_vars:
+  HELLO_MESSAGE: "Goodbye, World!"
+# -----------------------------------------
+compose_files:
+  - name: docker-compose.yaml
+    kind: inline
+    content: |
+      services:
+        hello-world:
+          image: nginx:alpine
+          ports:
+            - "8080:80"
+          configs:
+            - source: nginx_conf
+              target: /etc/nginx/conf.d/default.conf
+      configs:
+        nginx_conf:
+          content: |
+            server {
+              listen 80;
+              location / {
+                proxy_pass http://app:8000;
+              }
+            }
+  - name: compose-app.yaml
+    kind: relative_path
+    path: ../data/compose-app.yaml
+</code></pre>
+<p>We also need to update <code>compose-app.yaml</code> to use this environment variable, instead of the hardcoded
+value:</p>
+<pre><code class="language-yaml">services:
+  app:
+    image: python:alpine
+    environment:
+# ---- Replace hardcoded message with one from the env var ----
+      HELLO_MESSAGE: ${HELLO_MESSAGE}
+# ------------------------------------------------------------
+    ports:
+      - 8000:8000
+    command:
+      - python
+      - -c
+      - |
+        from http.server import HTTPServer, BaseHTTPRequestHandler
+        import os
+        class H(BaseHTTPRequestHandler):
+            def do_GET(self):
+                msg = os.environ.get('HELLO_MESSAGE').encode()
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(msg)
+            def log_message(self, *a):
+                pass
+        HTTPServer(('', 8000), H).serve_forever()
+</code></pre>
+<blockquote>
+<p><strong>Note</strong> This is making use of <a href="https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/#ways-to-set-variables-with-interpolation">docker compose variable interpolation</a>.</p>
+</blockquote>
+<p>Now, run the test plan:</p>
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>[+] up 3/3
+ ✔ Network docker-compose-environment-config_default         Created     0.0s
+ ✔ Container docker-compose-environment-config-app-1         Healthy     0.6s
+ ✔ Container docker-compose-environment-config-hello-world-1 Healthy     0.6s
+scenario env var value from test plan
+Response: Goodbye, World!
+HTTP status: 200
+[+] down 3/3
+ ✔ Container docker-compose-environment-config-app-1         Removed     10.1s
+ ✔ Container docker-compose-environment-config-hello-world-1 Removed     0.1s
+ ✔ Network docker-compose-environment-config_default         Removed     0.1s
+</code></pre>
+<p>Our test plan has successfully used an environment variable from RTF to set configuration in our
+docker compose environment!</p>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
+<p>In this guide, we moved environment config into its own file, added an additional compose service,
+and used RTF environment variables to configure the docker compose stack. Next, we’ll guide you
+through how to use file providers.</p>
+<p><a href="using-file-providers.html">Using file providers</a></p>
 
                     </main>
 

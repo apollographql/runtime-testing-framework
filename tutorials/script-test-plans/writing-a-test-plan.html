@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Troubleshooting - Runtime Testing Framework</title>
+        <title>Writing a test plan - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
-        <link rel="stylesheet" href="../css/variables-8adf115d.css">
-        <link rel="stylesheet" href="../css/general-2459343d.css">
-        <link rel="stylesheet" href="../css/chrome-ae938929.css">
-        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../../css/general-2459343d.css">
+        <link rel="stylesheet" href="../../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "../";
+            const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-facabee8.js";
+            window.path_to_searchindex_js = "../../searchindex-facabee8.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-b894ec53.js"></script>
+        <script src="../../toc-b894ec53.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">Runtime Testing Framework</h1>
 
                     <div class="right-buttons">
-                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/apollographql/runtime-testing-framework" title="Git repository" aria-label="Git repository">
@@ -177,156 +177,104 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <!-- diataxis-type: howto -->
-<h1 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h1>
-<p>This page covers common issues encountered when using RTF and how to resolve them.</p>
-<h2 id="output-directory-already-exists"><a class="header" href="#output-directory-already-exists">Output directory already exists</a></h2>
-<p><strong>Symptom:</strong></p>
-<pre><code class="language-text">ERROR /path/to/output already exists and is non-empty
+                        <!-- diataxis-type: tutorial -->
+<h1 id="writing-a-test-plan"><a class="header" href="#writing-a-test-plan">Writing a test plan</a></h1>
+<p>In this guide, we’ll write a script-based <a href="../../reference/glossary.html">Test Plan</a> from scratch. The Test Plan structure is
+identical to the <a href="../test-plans/writing-a-test-plan.html">docker tutorial</a> — the differences are in the Scenario and Environment configs,
+which will use <code>command</code>s instead of <code>docker</code>.</p>
+<p>Create a working directory:</p>
+<pre><code class="language-bash">mkdir rtf-hello-world
+cd rtf-hello-world
+mkdir configs
 </code></pre>
-<p><strong>Cause:</strong> RTF refuses to overwrite existing output directories to prevent accidental data loss.</p>
-<p><strong>Solution:</strong> Either remove the existing directory or specify a different output directory:</p>
-<pre><code class="language-bash">rm -rf output
-rtf run test-plan.yaml
+<p>Create the three config files:</p>
+<pre><code class="language-bash">touch test-plan.yaml configs/scenario.yaml configs/environment.yaml
 </code></pre>
-<p>Or:</p>
-<pre><code class="language-bash">rtf run test-plan.yaml --outdir=new_output
-</code></pre>
-<h2 id="missing-template-variable"><a class="header" href="#missing-template-variable">Missing template variable</a></h2>
-<p><strong>Symptom:</strong></p>
-<pre><code class="language-text">ERROR Templating failed
-(scenario.env_vars.MY_VAR) Missing template variables definition. Make sure the variable is defined in the scenario or environment config variable definitions
-  - my_variable: "Description of the variable"
-</code></pre>
-<p><strong>Cause:</strong> A config file references a variable that isn’t defined in the <a href="../reference/glossary.html">Test Plan’s</a>
-<code>variables</code> section and has no default value.</p>
-<p><strong>Solution:</strong> Either define the variable in the Test Plan:</p>
-<pre><code class="language-yaml">variables:
-  my_variable: "some value"
-</code></pre>
-<p>Or add a default value in the scenario/environment’s <code>variable_definitions</code>:</p>
-<pre><code class="language-yaml">variable_definitions:
-  - name: my_variable
-    description: "Description of the variable"
-    default: "default value"
-</code></pre>
-<h2 id="static-analysis-check-failed---required-file"><a class="header" href="#static-analysis-check-failed---required-file">Static analysis check failed - required file</a></h2>
-<p><strong>Symptom:</strong></p>
-<pre><code class="language-text">ERROR Static analysis checks failed
-(MY_FILE) A required file has not been defined
-You must provide a file for MY_FILE
-</code></pre>
-<p><strong>Cause:</strong> A <code>required</code> <a href="../reference/glossary.html">File Provider</a> exists that must be replaced with an actual provider in
-the Test Plan’s overrides.</p>
-<p><strong>Solution:</strong> Add an override in the Test Plan that replaces the required provider:</p>
-<pre><code class="language-yaml">environment:
+<p>Add the following to <code>test-plan.yaml</code>:</p>
+<pre><code class="language-yaml">name: Hello World
+description: A test plan created as a guide for writing test plans
+scenario:
   from:
     kind: local
-    relative_path: ./environment.yaml
-  overrides:
-    file_providers:
-      - name: my-file
-        env_var: MY_FILE
-        kind: inline
-        content: "actual content"
+    relative_path: configs/scenario.yaml
+environment:
+  from:
+    kind: local
+    relative_path: configs/environment.yaml
 </code></pre>
-<h2 id="static-analysis-check-failed---file-not-found"><a class="header" href="#static-analysis-check-failed---file-not-found">Static analysis check failed - file not found</a></h2>
-<p><strong>Symptom:</strong></p>
-<pre><code class="language-text">ERROR Static analysis checks failed
-(scenario.command.command_provider) The requested file did not exist
-provided path was file:///path/to/missing-script.sh
+<p>Add the following to <code>configs/scenario.yaml</code>:</p>
+<pre><code class="language-yaml">name: Script scenario
+description: A script scenario
+command:
+  name: scenario.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+
+    echo "scenario executed"
 </code></pre>
-<p><strong>Cause:</strong> A <code>relative_path</code> <a href="../reference/glossary.html">Command Provider</a> or File Provider references a file that doesn’t
-exist.</p>
-<p><strong>Solution:</strong></p>
-<ol>
-<li>Verify the file exists at the specified path</li>
-<li>Remember that paths are relative to the config file containing them, not the Test Plan</li>
-<li>If using overrides, paths in the override are relative to the Test Plan file</li>
-</ol>
-<h2 id="command-execution-failed"><a class="header" href="#command-execution-failed">Command execution failed</a></h2>
-<p><strong>Symptom:</strong></p>
-<pre><code class="language-text">ERROR Unable to execute the my-script.sh command: "/path/to/my-script.sh" failed to terminate successfully
+<p>Add the following to <code>configs/environment.yaml</code>:</p>
+<pre><code class="language-yaml">name: Script environment
+description: A script environment
+setup:
+  command:
+    name: setup.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      echo "environment setup"
+teardown:
+  command:
+    name: teardown.sh
+    kind: inline
+    content: |
+      #!/usr/bin/env sh
+
+      echo "environment teardown"
 </code></pre>
-<p><strong>Cause:</strong> The command exited with a non-zero status code.</p>
-<p><strong>Solution:</strong> Check the command output above the error for clues. Common causes include:</p>
-<ol>
-<li><strong>Script logic errors</strong> - The script encountered an error during execution</li>
-<li><strong>Missing dependencies</strong> - A command used within the script isn’t available</li>
-</ol>
-<h2 id="interpreter-not-found"><a class="header" href="#interpreter-not-found">Interpreter not found</a></h2>
-<p><strong>Symptom:</strong></p>
-<pre><code class="language-text">ERROR Unable to execute the my-script.sh command: No such file or directory (os error 2)
-</code></pre>
-<p><strong>Cause:</strong> The script’s shebang references an interpreter that doesn’t exist.</p>
-<p><strong>Solution:</strong> Use a portable shebang:</p>
-<pre><code class="language-bash">#!/usr/bin/env bash
-</code></pre>
-<p>Avoid hardcoded paths like <code>#!/bin/bash</code> which may not exist on all systems.</p>
-<h2 id="github-authentication-failed"><a class="header" href="#github-authentication-failed">GitHub authentication failed</a></h2>
-<p><strong>Symptom:</strong></p>
-<pre><code class="language-text">ERROR malformed scenario config section
-ERROR Unable to load and resolve test plan: HTTP status client error (401 Unauthorized) for url (https://api.github.com/repos/org/repo/contents/path/to/file.yaml)
-</code></pre>
-<p><strong>Cause:</strong> The <code>GITHUB_TOKEN</code> environment variable is not set or the token lacks required
-permissions.</p>
-<p><strong>Solution:</strong> Export a valid GitHub personal access token:</p>
-<pre><code class="language-bash">export GITHUB_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-</code></pre>
-<p>The token needs read access to the repositories referenced in the Test Plan.</p>
-<h2 id="graphos-authentication-failed"><a class="header" href="#graphos-authentication-failed">GraphOS authentication failed</a></h2>
-<p><strong>Symptom:</strong></p>
-<pre><code class="language-text">ERROR errors returned when running graphql operation
-ERROR Unable to resolve and write SUPERGRAPH file: unable to fetch details for graph@variant: graphql errors returned when running operation: ["HTTP fetch failed from 'kotlin': 406: Not Acceptable", "Invalid credentials provided"]
-</code></pre>
-<p><strong>Cause:</strong> The <code>APOLLO_KEY</code> environment variable is not set or is invalid.</p>
-<p><strong>Solution:</strong> Export a valid Apollo API key:</p>
-<pre><code class="language-bash">export APOLLO_KEY="service:my-graph:xxxxxxxxxxxxxxxxxxxx"
-</code></pre>
-<h2 id="matrix-variant-names-are-not-unique"><a class="header" href="#matrix-variant-names-are-not-unique">Matrix variant names are not unique</a></h2>
-<p><strong>Symptom:</strong></p>
-<pre><code class="language-text">ERROR The provided variant_names template produced duplicate names: ["duplicate_name"]
-</code></pre>
-<p><strong>Cause:</strong> The <code>matrix.variant_names</code> template produces duplicate names for different variants.</p>
-<p><strong>Solution:</strong> Ensure the template includes enough dimensions to produce unique names:</p>
-<pre><code class="language-yaml">matrix:
-  variant_names: "${dim1}_${dim2}"  # Include all varying dimensions
-  dimensions:
-    dim1: ["a", "b"]
-    dim2: [1, 2]
-</code></pre>
-<p>Use <code>rtf expand-matrix</code> to check how the matrix dimensions will be named.</p>
-<h2 id="debugging-tips"><a class="header" href="#debugging-tips">Debugging tips</a></h2>
-<h3 id="use-verbose-logging"><a class="header" href="#use-verbose-logging">Use verbose logging</a></h3>
-<p>Add <code>-v</code> flags to increase log verbosity:</p>
-<pre><code class="language-bash">rtf run test-plan.yaml -v      # INFO level
-rtf run test-plan.yaml -vv     # DEBUG level
-rtf run test-plan.yaml -vvv    # TRACE level
-</code></pre>
-<h3 id="preview-templated-config"><a class="header" href="#preview-templated-config">Preview templated config</a></h3>
-<p>Use <code>rtf template</code> to see the fully resolved config before running:</p>
-<pre><code class="language-bash">rtf template test-plan.yaml
-</code></pre>
-<p>Add <code>--check</code> to also run static analysis:</p>
+<h2 id="scenario-config"><a class="header" href="#scenario-config">Scenario config</a></h2>
+<p>A script <a href="../../reference/glossary.html">Scenario</a> uses <code>command:</code> instead of <code>docker:</code>. The <code>command:</code> defines a shell script
+that runs directly on the host. We cover <code>command:</code> in detail in the <a href="writing-a-command.html">Writing a command</a> guide.</p>
+<h2 id="environment-config"><a class="header" href="#environment-config">Environment config</a></h2>
+<p>A script <a href="../../reference/glossary.html">Environment</a> uses <code>setup:</code> and <code>teardown:</code> instead of <code>compose_files:</code>. Each phase
+defines a <code>command:</code> that runs a shell script on the host, bracketing the Scenario’s execution. See
+the <a href="../../reference/framework/environments.html">framework reference</a> for the full Environment config structure.</p>
+<h2 id="checking-the-test-plan"><a class="header" href="#checking-the-test-plan">Checking the Test Plan</a></h2>
+<p>The <code>rtf template</code> command works the same way as in the docker tutorial. Run it to confirm the Test
+Plan templates correctly:</p>
 <pre><code class="language-bash">rtf template test-plan.yaml --check
 </code></pre>
-<h3 id="inspect-matrix-expansion"><a class="header" href="#inspect-matrix-expansion">Inspect matrix expansion</a></h3>
-<p>Use <code>rtf expand-matrix</code> to see all variants that will be run:</p>
-<pre><code class="language-bash">rtf expand-matrix test-plan.yaml
+<h2 id="running-the-test-plan"><a class="header" href="#running-the-test-plan">Running the Test Plan</a></h2>
+<pre><code class="language-bash">rtf run test-plan.yaml
 </code></pre>
-<h3 id="check-file-provider-resolution"><a class="header" href="#check-file-provider-resolution">Check File Provider resolution</a></h3>
-<p>The output directory contains a <code>providers/</code> subdirectory with all resolved File Provider outputs.
-Inspect these files to verify providers produced the expected content.</p>
+<p>Output:</p>
+<pre><code>environment setup
+scenario executed
+environment teardown
+</code></pre>
+<p>RTF runs the Environment setup command, then the Scenario, then the Environment teardown — in that
+order. Remove the output directory before the next run:</p>
+<pre><code class="language-bash">rm -rf output/
+</code></pre>
+<h2 id="variables-and-matrix"><a class="header" href="#variables-and-matrix">Variables and matrix</a></h2>
+<p>The <code>variables</code> and <code>matrix</code> fields work identically in script-based Test Plans. See the
+<a href="../test-plans/writing-a-test-plan.html#setting-variables">Setting variables</a> and <a href="../test-plans/writing-a-test-plan.html#using-a-matrix">Using a matrix</a> sections of the docker tutorial for full
+walkthroughs.</p>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
+<p>In this guide, we wrote a script-based Test Plan and ran it successfully. Next, we’ll look at the
+<code>command</code> configuration in more detail.</p>
+<p><a href="writing-a-command.html">Writing a command</a></p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../howto/cookbook.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../tutorials/script-test-plans/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../howto/shell-completions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../tutorials/script-test-plans/writing-a-command.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -336,11 +284,11 @@ Inspect these files to verify providers produced the expected content.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../howto/cookbook.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../tutorials/script-test-plans/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../howto/shell-completions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../tutorials/script-test-plans/writing-a-command.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -359,19 +307,19 @@ Inspect these files to verify providers produced the expected content.</p>
             window.playground_copyable = true;
         </script>
 
-        <script src="../ace-2a3cd908.js"></script>
-        <script src="../mode-rust-2c9d5c9a.js"></script>
-        <script src="../editor-16ca416c.js"></script>
-        <script src="../theme-dawn-4493f9c8.js"></script>
-        <script src="../theme-tomorrow_night-9dbe62a9.js"></script>
+        <script src="../../ace-2a3cd908.js"></script>
+        <script src="../../mode-rust-2c9d5c9a.js"></script>
+        <script src="../../editor-16ca416c.js"></script>
+        <script src="../../theme-dawn-4493f9c8.js"></script>
+        <script src="../../theme-tomorrow_night-9dbe62a9.js"></script>
 
-        <script src="../elasticlunr-ef4e11c1.min.js"></script>
-        <script src="../mark-09e88c2c.min.js"></script>
-        <script src="../searcher-c2a407aa.js"></script>
+        <script src="../../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../../mark-09e88c2c.min.js"></script>
+        <script src="../../searcher-c2a407aa.js"></script>
 
-        <script src="../clipboard-1626706a.min.js"></script>
-        <script src="../highlight-abc7f01d.js"></script>
-        <script src="../book-a0b12cfe.js"></script>
+        <script src="../../clipboard-1626706a.min.js"></script>
+        <script src="../../highlight-abc7f01d.js"></script>
+        <script src="../../book-a0b12cfe.js"></script>
 
         <!-- Custom JS scripts -->
 

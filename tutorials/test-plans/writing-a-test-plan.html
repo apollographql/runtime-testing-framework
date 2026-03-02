@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-7adde950.js";
+            window.path_to_searchindex_js = "../../searchindex-facabee8.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-b526dd5b.js"></script>
+        <script src="../../toc-b894ec53.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -179,11 +179,21 @@
                     <main>
                         <!-- diataxis-type: tutorial -->
 <h1 id="writing-a-test-plan"><a class="header" href="#writing-a-test-plan">Writing a test plan</a></h1>
+<p>In this guide, we’ll write a docker-based <a href="../../reference/glossary.html">Test Plan</a> from scratch. We’ll cover the four required
+fields, run the Test Plan, then add variables and a matrix to parameterize runs across multiple
+configurations.</p>
+<blockquote>
+<p><strong>Prerequisites</strong></p>
+<ul>
+<li>RTF CLI installed and available in your terminal</li>
+<li>Docker and Docker Compose available in your terminal</li>
+</ul>
+</blockquote>
 <p>Create an empty directory and make it your working directory:</p>
 <pre><code class="language-bash">mkdir rtf-hello-world
 cd rtf-hello-world
 </code></pre>
-<p>Create an empty YAML file for the test plan:</p>
+<p>Create an empty YAML file for the Test Plan:</p>
 <pre><code class="language-bash">touch test-plan.yaml
 </code></pre>
 <p>Add the following content to <code>test-plan.yaml</code>:</p>
@@ -193,140 +203,133 @@ scenario:
   inline:
     name: Inline scenario config
     description: An inline scenario config
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "scenario command executed"
+    docker:
+      image: alpine
+      tag: latest
+      command: echo "hello world!"
 environment:
   inline:
-    name: Inline environment config
-    description: An inline environment config
-    setup:
-      command:
-        name: setup.sh
+    name: Inline docker compose environment config
+    description: An inline docker compose environment config
+    compose_files:
+      - name: docker-compose.yaml
         kind: inline
         content: |
-          #!/usr/bin/env sh
-
-          echo "environment setup command executed"
-    teardown:
-      command:
-        name: teardown.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment teardown command executed"
+          services:
+            hello-world:
+              image: nginx:alpine
+              ports:
+                - "8080:80"
 </code></pre>
 <p>This will all be explained as we progress through the guide, for now all you need to know is this is
-the simplest test plan it is possible to write in rtf.</p>
+the most basic docker based <a href="../../reference/glossary.html">Test Plan</a> it is possible to write in RTF.</p>
 <h2 id="adding-required-fields"><a class="header" href="#adding-required-fields">Adding required fields</a></h2>
-<p>An rtf test plan has four required fields: <code>name</code>, <code>description</code>, <code>scenario</code>, and <code>environment</code>. The
+<p>An RTF Test Plan has four required fields: <code>name</code>, <code>description</code>, <code>scenario</code>, and <code>environment</code>. The
 sections below add each of these required fields and explain them in more detail.</p>
 <h3 id="name"><a class="header" href="#name"><code>name</code></a></h3>
 <p>Add the <code>name</code> field to the <code>test-plan.yaml</code> file</p>
 <pre><code class="language-yaml">name: Hello World
 </code></pre>
-<p><code>name</code> is used to give each test plan an identifiable title. It can be any valid string. The value
-used for the <code>name</code> field has no impact on the execution of the test plan. This makes it easier to
-work with the test plan programmatically.</p>
+<p><code>name</code> is used to give each Test Plan an identifiable title. It can be any valid string. The value
+used for the <code>name</code> field has no impact on the execution of the Test Plan. This makes it easier to
+work with the Test Plan programmatically.</p>
 <h3 id="description"><a class="header" href="#description"><code>description</code></a></h3>
 <p>Add the <code>description</code> field to the <code>test-plan.yaml</code> file</p>
 <pre><code class="language-yaml">name: Hello World
 description: Created as a guide for writing test plans
 </code></pre>
-<p><code>description</code> is used to give more information about the test plan for future users. It can be any
-valid string. The value used for the <code>description</code> field has no impact on the execution of the test
-plan itself. This is a useful place to add links or reference materials and should be preferred over
+<p><code>description</code> is used to give more information about the Test Plan for future users. It can be any
+valid string. The value used for the <code>description</code> field has no impact on the execution of the Test
+Plan itself. This is a useful place to add links or reference materials and should be preferred over
 adding that context to inline comments.</p>
 <h3 id="scenario"><a class="header" href="#scenario"><code>scenario</code></a></h3>
 <p>The <code>scenario</code> is used to define the configuration and command that runs the actual testing logic in
-the test plan. The <code>scenario</code> can be defined inline within the test plan or in its own file. In this
-guide, we’ll define the scenario inline. The guide on <a href="writing-a-scenario.html">writing a new scenario</a> covers how to
-define a scenario in a separate file.</p>
-<p>Add the <code>scenario</code> field to the <code>test-plan.yaml</code> file.</p>
+the Test Plan. The <code>scenario</code> can be defined inline within the Test Plan or in its own file. In this
+guide, we’ll define the <a href="../../reference/glossary.html">Scenario</a> inline. The guide on <a href="writing-a-scenario.html">writing a new Scenario</a> covers how to
+define a Scenario in a separate file.</p>
+<p>We’ll use a <code>docker</code> based Scenario — the recommended approach in RTF. If <code>docker</code> isn’t an option,
+see <a href="../script-test-plans/index.html">script based Scenarios</a>. We’ll cover more advanced Scenario configuration in the guide on
+<a href="writing-a-scenario.html">writing a new Scenario</a>.</p>
+<blockquote>
+<p><strong>Note</strong> RTF runs the scenario by passing the <code>image</code>, <code>tag</code>, and <code>command</code> config fields as
+arguments to <code>docker run</code>. For details on <code>docker run</code> and Docker images, refer to the
+<a href="https://docs.docker.com/reference/cli/docker/container/run/">Docker documentation</a>.</p>
+</blockquote>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 scenario:
   inline:
-    name: Inline scenario config
-    description: An inline scenario config
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "scenario command executed"
+    name: Inline docker scenario config
+    description: An inline docker scenario config
+    docker:
+      image: alpine
+      tag: latest
+      command: echo "hello world!"
 </code></pre>
-<p>This is the simplest <code>scenario</code> it is possible to define.</p>
 <ul>
-<li>The <code>inline</code> field is used to indicate the scenario will be defined in the test plan file.</li>
-<li>The <code>name</code> and <code>description</code> fields are required and used to identify the scenario and work the
-same as <code>name</code> and <code>description</code> in the test plan.</li>
-<li><code>command</code> defines what will be executed when rtf executes the scenario. This is the simplest case
-which executes a single command. The guide on <a href="writing-a-scenario.html">writing a new scenario</a> covers how to execute
-files or more complex scripts.</li>
+<li>The <code>inline</code> field is used to indicate the Scenario will be defined in the Test Plan file.</li>
+<li>The <code>name</code> and <code>description</code> fields are required and used to identify the Scenario and work the
+same as <code>name</code> and <code>description</code> in the Test Plan.</li>
+<li>The <code>docker</code> field is used to define the container the Scenario will run
+<ul>
+<li><code>image</code> is the name of the container image. Note that you will need to ensure that wherever you
+are running <code>docker</code> from is authenticated to pull the image.</li>
+<li><code>tag</code> defines the image tag that should be pulled.</li>
+<li><code>command</code> optionally sets the command the container runs.</li>
+</ul>
+</li>
 </ul>
 <h3 id="environment"><a class="header" href="#environment"><code>environment</code></a></h3>
-<p>The <code>environment</code> is used to define the configuration and commands that setup the environment for
-testing and tear it down after the test has completed. The <code>environment</code> can be defined inline
-within the test plan or in its own file. In this guide, we’ll define the environment inline. The
-guide on <a href="writing-an-environment.html">writing a new environment</a> covers how to define an environment in a separate file.</p>
-<p>Add the <code>environment</code> field to the <code>test-plan.yaml</code> file:</p>
+<p>The <code>environment</code> is used to define the configuration and commands that set up the <a href="../../reference/glossary.html">Environment</a>
+for testing and tear it down after the test has completed. The <code>environment</code> can be defined inline
+within the Test Plan or in its own file. In this guide, we’ll define the Environment inline. The
+guide on <a href="writing-an-environment.html">writing a new Environment</a> covers how to define an Environment in a separate file.</p>
+<p>We’ll use a <code>docker compose</code> based Environment — the recommended approach in RTF. If
+<code>docker compose</code> isn’t an option, see <a href="../script-test-plans/index.html">script based Environments</a>. We’ll cover more advanced
+Environment configuration in the guide on <a href="writing-an-environment.html">writing a new Environment</a>.</p>
+<blockquote>
+<p><strong>Note</strong> RTF manages the environment by running <code>docker compose up</code> and <code>docker compose down</code>,
+passing the resolved compose files as <code>-f</code> arguments. For details on Docker Compose files and
+options, refer to the <a href="https://docs.docker.com/compose/">Docker Compose documentation</a>.</p>
+</blockquote>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 scenario:
   inline:
-    name: Inline scenario config
-    description: An inline scenario config
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "scenario command executed"
+    name: Inline docker scenario config
+    description: An inline docker scenario config
+    docker:
+      image: alpine
+      tag: latest
+      command: echo "hello world!"
 environment:
   inline:
-    name: Inline environment config
-    description: An inline environment config
-    setup:
-      command:
-        name: setup.sh
+    name: Inline docker compose environment config
+    description: An inline docker compose environment config
+    compose_files:
+      - name: docker-compose.yaml
         kind: inline
         content: |
-          #!/usr/bin/env sh
-
-          echo "environment setup command executed"
-    teardown:
-      command:
-        name: teardown.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment teardown command executed"
+          services:
+            hello-world:
+              image: nginx:alpine
+              ports:
+                - "8080:80"
 </code></pre>
-<p>This is the simplest <code>environment</code> it is possible to define.</p>
 <ul>
-<li>The <code>inline</code> field is used to indicate the environment will be defined in the test plan file.</li>
-<li>The <code>name</code> and <code>description</code> fields are required and used to identify the scenario and work the
-same as <code>name</code> and <code>description</code> in the test plan.</li>
-<li>The <code>setup</code> field defines what will happen during the environment setup phase of <code>rtf run</code>.</li>
-<li>The <code>teardown</code> field defines what will happen during the environment teardown phase of <code>rtf run</code>.</li>
-<li><code>command</code> defines what will be executed when rtf executes the <code>setup</code> and <code>teardown</code>. This is the
-simplest case which executes a single command. The guide on <a href="writing-an-environment.html">writing a new environment</a> covers
-how to execute files or more complex scripts.</li>
+<li>The <code>inline</code> field is used to indicate the Environment will be defined in the Test Plan file.</li>
+<li>The <code>name</code> and <code>description</code> fields are required and used to identify the Environment and work the
+same as <code>name</code> and <code>description</code> in the Test Plan.</li>
+<li>The <code>compose_files</code> array defines a list of <code>docker compose</code> files the Environment will run.</li>
 </ul>
-<h2 id="checking-the-test-plan"><a class="header" href="#checking-the-test-plan">Checking the test plan</a></h2>
-<p>Now, let’s check that the test plan has been defined correctly:</p>
+<p>The service we are running in the <code>docker-compose.yaml</code> test service is a simple web server. We will
+show how to connect the docker container that runs in the scenario to the service running in the
+environment in the <a href="writing-a-scenario.html">“Writing a scenario” guide</a>.</p>
+<h2 id="checking-the-test-plan"><a class="header" href="#checking-the-test-plan">Checking the Test Plan</a></h2>
+<p>Now, let’s check that the Test Plan has been defined correctly:</p>
 <pre><code class="language-bash">rtf template test-plan.yaml
 </code></pre>
-<p>This should result in the fully templated test plan being printed to the terminal:</p>
+<p>The output is similar to this:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 variables: {}
@@ -340,63 +343,55 @@ scenario:
   description: An inline scenario config
   variable_definitions: []
   custom_providers: []
-  command:
-    name: scenario.sh
-    kind: inline
-    content: |
-      #!/usr/bin/env sh
-
-      echo "scenario command executed"
-    args: []
+  docker:
+    image: alpine
+    tag: latest
+    command: echo "hello world!"
   env_vars: {}
   file_providers: []
 environment:
-  name: Inline environment config
-  description: An inline environment config
+  name: Inline docker compose environment config
+  description: An inline docker compose environment config
   variable_definitions: []
   custom_providers: []
-  setup:
-    command:
-      name: setup.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "environment setup command executed"
-      args: []
-    env_vars: {}
-    file_providers: []
-  teardown:
-    command:
-      name: teardown.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "environment teardown command executed"
-      args: []
-    env_vars: {}
-    file_providers: []
+  project_name: null
+  compose_files:
+  - name: docker-compose.yaml
+    kind: inline
+    content: |
+      services:
+        hello-world:
+          image: nginx:alpine
+          ports:
+            - "8080:80"
+  file_providers: []
+  env_vars: {}
 </code></pre>
-<p>This highlights two optional fields for test plans that have not yet been used; <code>variables</code> and
-<code>matrix</code>. These are discussed more below.</p>
-<h2 id="running-the-test-plan"><a class="header" href="#running-the-test-plan">Running the test plan</a></h2>
-<p>Before looking at <code>variables</code> and <code>matrix</code>, let’s run the test plan:</p>
+<p>The Test Plan templates successfully! This also highlights two optional fields — <code>variables</code> and
+<code>matrix</code> — that have not yet been used. These are discussed more below.</p>
+<h2 id="running-the-test-plan"><a class="header" href="#running-the-test-plan">Running the Test Plan</a></h2>
+<p>Before looking at <code>variables</code> and <code>matrix</code>, let’s run the Test Plan:</p>
 <pre><code class="language-bash">rtf run test-plan.yaml
 </code></pre>
-<p>You should see output similar to this:</p>
-<pre><code>environment setup command executed
-scenario command executed
-environment teardown command executed
+<p>The output is similar to this:</p>
+<pre><code>[+] up 2/2
+ ✔ Network inline-docker-compose-environment-config_default         Created      0.0s
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Healthy      0.7s
+hello world!
+[+] down 2/2
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Removed      0.1s
+ ✔ Network inline-docker-compose-environment-config_default         Removed      0.1s
 </code></pre>
+<p>Your first Test Plan ran successfully! The <code>hello world!</code> output confirms the scenario container ran
+the command we configured.</p>
 <p>This also creates an <code>output</code> directory.</p>
 <p>The <code>output</code> directory contains a <code>providers</code> directory and two files: <code>resolved-test-plan.yaml</code> and
 <code>test-plan-variables.json</code>.</p>
 <ul>
-<li><code>resolved-test-plan.yaml</code> contains the fully resolved test plan config. This should be the same as
-what was shown in the <code>rtf template</code> command. This is a way to verify the test plan that ran to
+<li><code>resolved-test-plan.yaml</code> contains the fully resolved Test Plan config. This should be the same as
+what was shown in the <code>rtf template</code> command. This is a way to verify the Test Plan that ran to
 give you the output.</li>
-<li><code>test-plan-variables.json</code> contains the variables used during the execution of the test plan. This
+<li><code>test-plan-variables.json</code> contains the variables used during the execution of the Test Plan. This
 is empty since no variables were set.</li>
 </ul>
 <p>Remove the output directory before continuing (forgetting to do this will result in an error next
@@ -404,18 +399,18 @@ time <code>rtf run</code> is used):</p>
 <pre><code class="language-bash">rm -rf output/
 </code></pre>
 <blockquote>
-<p><strong>Note</strong> rtf is deliberately configured to not overwrite an existing output directory. This is so
+<p><strong>Note</strong> RTF is deliberately configured to not overwrite an existing output directory. This is so
 you cannot accidentally overwrite output you intend to keep. The <code>--output</code> flag can be used with
 <code>rtf run</code> to set a different output directory if you want to keep the existing output and run a
 new test.</p>
 </blockquote>
 <h2 id="setting-variables"><a class="header" href="#setting-variables">Setting variables</a></h2>
 <p>The <code>variables</code> field is used to set global variables that can be referenced in your scenario and/or
-environment. Any variables set in the test plan config can be overridden using the <code>--var</code> and
-<code>--vars</code> flags in the rtf CLI (see the <a href="../hello-world.html#modifying-variables">modifying variables section of the hello world guide</a> for
+environment. Any variables set in the Test Plan config can be overridden using the <code>--var</code> and
+<code>--vars</code> flags in the RTF CLI (see the <a href="../hello-world.html#modifying-variables">modifying variables section of the hello world guide</a> for
 more information).</p>
-<p>Let’s add some example variables to <code>test-plan.yaml</code>. We are also going to update the scenario
-command to use this variable. The <a href="writing-a-command.html">“Writing a command” section</a> will explain how this works, for
+<p>Let’s add some example variables to <code>test-plan.yaml</code>. We are also going to update the Scenario
+command to use this variable. The <a href="writing-a-scenario.html">“Writing a Scenario” section</a> will explain how this works, for
 now just add the configuration:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
@@ -431,45 +426,40 @@ scenario:
     variable_definitions:
       - name: example_variable
         description: An example variable
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-        echo "$EXAMPLE_VARIABLE"
     env_vars:
       EXAMPLE_VARIABLE: "{{ example_variable }}"
+    docker:
+      image: alpine
+      tag: latest
+      command: echo "$EXAMPLE_VARIABLE"
 # -----------------------
 environment:
   inline:
-    name: Inline environment config
-    description: An inline environment config
-    setup:
-      command:
-        name: setup.sh
+    name: Inline docker compose environment config
+    description: An inline docker compose environment config
+    compose_files:
+      - name: docker-compose.yaml
         kind: inline
         content: |
-          #!/usr/bin/env sh
-
-          echo "environment setup command executed"
-    teardown:
-      command:
-        name: teardown.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment teardown command executed"
+          services:
+            hello-world:
+              image: nginx:alpine
+              ports:
+                - "8080:80"
 </code></pre>
-<p>You can see the value being used by running the test plan again:</p>
+<p>You can see the value being used by running the Test Plan again:</p>
 <pre><code class="language-bash">rtf run test-plan.yaml
 </code></pre>
 <p>Output:</p>
-<pre><code>environment setup command executed
+<pre><code>[+] up 2/2
+ ✔ Network inline-docker-compose-environment-config_default         Created      0.0s
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Healthy      0.7s
 example variable
-environment teardown command executed
+[+] down 2/2
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Removed      0.1s
+ ✔ Network inline-docker-compose-environment-config_default         Removed      0.1s
 </code></pre>
-<p>Now, the <code>test-plan-variables.json</code> file contains the variable that we set in the test plan:</p>
+<p>Now, the <code>test-plan-variables.json</code> file contains the variable that we set in the Test Plan:</p>
 <pre><code class="language-bash">cat output/test-plan-variables.json
 </code></pre>
 <p>Output:</p>
@@ -480,7 +470,7 @@ environment teardown command executed
 <h2 id="using-a-matrix"><a class="header" href="#using-a-matrix">Using a matrix</a></h2>
 <p>The <code>matrix</code> field is used to create a matrix of variable dimensions to iterate over (see the
 <a href="../hello-world.html#matrix-variables">matrix variables section of the hello world guide</a> for more information). A matrix can only be
-defined in the test plan config.</p>
+defined in the Test Plan config.</p>
 <p>Let’s add a matrix to and remove the <code>variables</code> from our <code>test-plan.yaml</code>:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
@@ -499,36 +489,27 @@ scenario:
     variable_definitions:
       - name: example_variable
         description: An example variable
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-        echo "$EXAMPLE_VARIABLE"
     env_vars:
       EXAMPLE_VARIABLE: "{{ example_variable }}"
+    docker:
+      image: alpine
+      tag: latest
+      command: echo "$EXAMPLE_VARIABLE"
 environment:
   inline:
-    name: Inline environment config
-    description: An inline environment config
-    setup:
-      command:
-        name: setup.sh
+    name: Inline docker compose environment config
+    description: An inline docker compose environment config
+    compose_files:
+      - name: docker-compose.yaml
         kind: inline
         content: |
-          #!/usr/bin/env sh
-
-          echo "environment setup command executed"
-    teardown:
-      command:
-        name: teardown.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment teardown command executed"
+          services:
+            hello-world:
+              image: nginx:alpine
+              ports:
+                - "8080:80"
 </code></pre>
-<p>Run the test plan again (make sure the <code>output</code> directory has been deleted after previous test
+<p>Run the Test Plan again (make sure the <code>output</code> directory has been deleted after previous test
 runs):</p>
 <pre><code class="language-bash">rtf run test-plan.yaml
 </code></pre>
@@ -555,11 +536,13 @@ execution:</p>
   "example_variable": "variable2"
 }
 </code></pre>
-<p>The <code>example-variable</code>’s variable changes per execution.</p>
-<hr>
-<p>In this guide we have covered writing the simplest possible test plan. Next, we will guide you
-through how to write more powerful commands.</p>
-<p><strong>Next:</strong> <a href="writing-a-command.html">Writing a command</a></p>
+<p>The <code>example_variable</code>’s variable changes per execution. You’ve run your first matrix — the scenario
+executed twice, once for each value in the <code>example_variable</code> dimension!</p>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
+<p>In this guide, we covered writing a docker-based Test Plan with inline scenario and environment
+configs, and used variables and a matrix to parameterize runs. Next, we’ll walk through how to write
+scenarios in more detail.</p>
+<p><a href="writing-a-scenario.html">Writing a scenario</a></p>
 
                     </main>
 
@@ -569,7 +552,7 @@ through how to write more powerful commands.</p>
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../tutorials/test-plans/writing-a-command.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../tutorials/test-plans/writing-a-scenario.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -583,7 +566,7 @@ through how to write more powerful commands.</p>
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../tutorials/test-plans/writing-a-command.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../tutorials/test-plans/writing-a-scenario.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

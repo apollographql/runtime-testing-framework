@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-7adde950.js";
+            window.path_to_searchindex_js = "../../searchindex-facabee8.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-b526dd5b.js"></script>
+        <script src="../../toc-b894ec53.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -179,49 +179,198 @@
                     <main>
                         <!-- diataxis-type: tutorial -->
 <h1 id="writing-a-new-scenario"><a class="header" href="#writing-a-new-scenario">Writing a new scenario</a></h1>
-<p>This guide assumes you have completed the <a href="writing-a-test-plan.html">“Writing a test plan”</a> and <a href="writing-a-command.html">“Writing a command”</a>
-guides. You should already have a <code>test-plan.yaml</code> file in a directory named <code>rtf-hello-world</code>. Your
-<code>test-plan.yaml</code> file should contain:</p>
+<p>In this guide, we’ll take the inline scenario from the <a href="writing-a-test-plan.html">“Writing a test plan”</a> tutorial and
+improve it step by step. We’ll connect it to the docker compose environment, move the docker command
+into a script using file providers, extract the scenario into its own file, use variables to pass
+values into the scenario, and use overrides to swap out scenario config without modifying the base
+file.</p>
+<blockquote>
+<p><strong>Prerequisites</strong></p>
+<ul>
+<li>Completed the <a href="writing-a-test-plan.html">“Writing a test plan”</a> tutorial</li>
+<li>An <code>rtf-hello-world</code> directory containing <code>test-plan.yaml</code> with the exact content shown below</li>
+</ul>
+<p>We’re going to remove the variables and matrix added in the final step of the “Writing a test
+plan” guide before continuing.</p>
+</blockquote>
+<p>Your <code>test-plan.yaml</code> file should contain:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 scenario:
   inline:
     name: Inline scenario config
     description: An inline scenario config
-    command:
-      name: scenario.sh
-      kind: relative_path
-      path: scripts/scenario.sh
-    env_vars:
-      SCENARIO_ENV: scenario command executed
+    docker:
+      image: alpine
+      tag: latest
+      command: echo "hello world"
 environment:
   inline:
-    name: Inline environment config
-    description: An inline environment config
-    setup:
-      command:
-        name: setup.sh
+    name: Inline docker compose environment config
+    description: An inline docker compose environment config
+    compose_files:
+      - name: docker-compose.yaml
         kind: inline
         content: |
-          #!/usr/bin/env sh
-
-          echo "environment setup command executed"
-    teardown:
-      command:
-        name: teardown.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment teardown command executed"
+          services:
+            hello-world:
+              image: nginx:alpine
+              ports:
+                - "8080:80"
 </code></pre>
+<h2 id="changing-the-docker-command"><a class="header" href="#changing-the-docker-command">Changing the docker command</a></h2>
+<blockquote>
+<p><strong>Note</strong> RTF runs the scenario container by parameterizing <code>docker run</code> from the <code>docker</code> config.
+For details on <code>docker run</code>, Docker images, and networking, refer to the
+<a href="https://docs.docker.com/reference/cli/docker/container/run/">Docker documentation</a>.</p>
+</blockquote>
+<p>The scenario container in the test plan does not interact with the docker compose environment, it
+just echos “hello world”. In a real test scenario, we would want the scenario container to call a
+service in the docker compose stack.</p>
+<p>Let’s update our <code>command</code> to call the <code>hello-world</code> service we start in the docker compose
+environment.</p>
+<pre><code class="language-yaml">name: Hello World
+description: A test plan created as a guide for writing test plans
+scenario:
+  inline:
+    name: Inline scenario config
+    description: An inline scenario config
+    docker:
+      image: alpine
+      tag: latest
+# --- Update the docker scenario command ---
+      command: wget -qO- http://hello-world:80
+# ------------------------------------------
+environment:
+  inline:
+    name: Inline docker compose environment config
+    description: An inline docker compose environment config
+    compose_files:
+      - name: docker-compose.yaml
+        kind: inline
+        content: |
+          services:
+            hello-world:
+              image: nginx:alpine
+              ports:
+                - "8080:80"
+</code></pre>
+<p>We are using <code>wget</code> to make the HTTP request because the <code>alpine</code> container already has this
+installed.</p>
+<blockquote>
+<p><strong>Note</strong> We are using <code>http://hello-world:80</code> as the endpoint. This works because RTF
+automatically adds a docker scenario container to the docker compose environment network using the
+<code>--net</code> flag. This avoids the need to map the docker compose services to localhost.</p>
+</blockquote>
+<p>Now, if we run the test plan:</p>
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>[+] up 2/2
+ ✔ Network inline-docker-compose-environment-config_default         Created      0.0s
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Healthy      0.7s
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;Welcome to nginx!&lt;/title&gt;
+&lt;style&gt;
+html { color-scheme: light dark; }
+body { width: 35em; margin: 0 auto;
+font-family: Tahoma, Verdana, Arial, sans-serif; }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;h1&gt;Welcome to nginx!&lt;/h1&gt;
+&lt;p&gt;If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.&lt;/p&gt;
+
+&lt;p&gt;For online documentation and support please refer to
+&lt;a href="http://nginx.org/"&gt;nginx.org&lt;/a&gt;.&lt;br/&gt;
+Commercial support is available at
+&lt;a href="http://nginx.com/"&gt;nginx.com&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Thank you for using nginx.&lt;/em&gt;&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+[+] down 2/2
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Removed      0.1s
+ ✔ Network inline-docker-compose-environment-config_default         Removed      0.1s
+</code></pre>
+<p>Your scenario container is now talking to the docker compose service! The <code>wget</code> output confirms the
+two containers are on the same network.</p>
+<h2 id="running-a-script-as-a-docker-command"><a class="header" href="#running-a-script-as-a-docker-command">Running a script as a docker command</a></h2>
+<p>Specifying commands like this works for a simple one line command, but is not useful for anything
+more complex. It is possible to execute a script in the <code>command</code> for more complex use cases
+instead. Let’s move the <code>wget</code> command into a file instead of specifying it inline and wrap it in
+some additional logic so we just get the HTTP status code in the terminal output.</p>
+<pre><code class="language-bash">mkdir scripts
+touch scripts/check-status.sh
+</code></pre>
+<p>Then add the command to the <code>check-status.sh</code> file</p>
+<pre><code class="language-sh">#!/bin/sh
+response=$(wget -S -O /dev/null http://hello-world:80 2&gt;&amp;1)
+status=$(echo "$response" | grep "HTTP/" | grep -o "[0-9][0-9][0-9]")
+echo "HTTP status: $status"
+</code></pre>
+<p>Next, update the <code>test-plan.yaml</code> file so the scenario executes the <code>check-status.sh</code> file:</p>
+<pre><code class="language-yaml">name: Hello World
+description: A test plan created as a guide for writing test plans
+scenario:
+  inline:
+    name: Inline scenario config
+    description: An inline scenario config
+    docker:
+      image: alpine
+      tag: latest
+# --- Update the docker scenario command ---
+      command: sh "$CHECK_STATUS_SCRIPT"
+    file_providers:
+      - name: check-status.sh
+        env_var: CHECK_STATUS_SCRIPT
+        kind: relative_path
+        path: scripts/check-status.sh
+# ------------------------------------------
+environment:
+  inline:
+    name: Inline docker compose environment config
+    description: An inline docker compose environment config
+    compose_files:
+      - name: docker-compose.yaml
+        kind: inline
+        content: |
+          services:
+            hello-world:
+              image: nginx:alpine
+              ports:
+                - "8080:80"
+</code></pre>
+<blockquote>
+<p><strong>Note</strong> File providers won’t be executable directly so you need to make sure to run using
+<code>sh $CHECK_STATUS_SCRIPT</code>, not <code>./$CHECK_STATUS_SCRIPT</code>.</p>
+</blockquote>
+<p>We have not explained how File Providers work yet. This is covered more in the
+<a href="using-file-providers.html">“Using file providers” guide</a>.</p>
+<p>Let’s run the test plan:</p>
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>[+] up 2/2
+ ✔ Network inline-docker-compose-environment-config_default         Created      0.0s
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Healthy      0.7s
+HTTP status: 200
+[+] down 2/2
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Removed      0.1s
+ ✔ Network inline-docker-compose-environment-config_default         Removed      0.1s
+</code></pre>
+<p>We now get a much more readable output from the scenario container instead of the verbose <code>nginx</code>
+response. You now have a scenario running a script and reporting a clean HTTP 200!</p>
 <h2 id="creating-a-scenario-file"><a class="header" href="#creating-a-scenario-file">Creating a scenario file</a></h2>
 <p>Writing the scenario inline like this works for simple test plans. However, more comprehensive
 scenarios quickly become harder to read and maintain. It is possible to create a separate file to
 store your scenario config and update your test plan to refer to that file. As well as
 maintainability benefits this also means the same scenario can be reused in multiple test plans. It
 is also possible to update the base scenario (and environment) config using overrides in the test
-plan. We cover how to use overrides in the <a href="writing-an-environment.html#using-overrides">“Writing an environment” guide</a>.</p>
+plan. We cover how to use overrides in the <a href="#using-overrides">Using overrides</a> section below.</p>
 <p>Let’s walkthrough how to create a scenario config. First, create a <code>configs</code> directory and an empty
 YAML file inside it:</p>
 <pre><code class="language-bash">mkdir configs
@@ -229,14 +378,17 @@ touch configs/scenario.yaml
 </code></pre>
 <p>We want to move the scenario config so it is no longer defined inline in the test plan config. Copy
 the scenario config from the test plan and add to the <code>scenario.yaml</code> file:</p>
-<pre><code class="language-yaml">name: Inline scenario config
-description: An inline scenario config
-command:
-    name: scenario.sh
+<pre><code class="language-yaml">name: Docker scenario config
+description: A docker scenario config
+docker:
+  image: alpine
+  tag: latest
+  command: sh "$CHECK_STATUS_SCRIPT"
+file_providers:
+  - name: check-status.sh
+    env_var: CHECK_STATUS_SCRIPT
     kind: relative_path
-    path: scripts/scenario.sh
-env_vars:
-    SCENARIO_ENV: scenario command executed
+    path: scripts/check-status.sh
 </code></pre>
 <p>Now, we need to update the test plan so it uses the scenario config in the <code>scenario.yaml</code> file. To
 do this, we need to delete the <code>inline</code> key (and the scenario config nested beneath it) and switch
@@ -251,24 +403,17 @@ scenario:
 # -----------------------------------
 environment:
   inline:
-    name: Inline environment config
-    description: An inline environment config
-    setup:
-      command:
-        name: setup.sh
+    name: Inline docker compose environment config
+    description: An inline docker compose environment config
+    compose_files:
+      - name: docker-compose.yaml
         kind: inline
         content: |
-          #!/usr/bin/env sh
-
-          echo "environment setup command executed"
-    teardown:
-      command:
-        name: teardown.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment teardown command executed"
+          services:
+            hello-world:
+              image: nginx:alpine
+              ports:
+                - "8080:80"
 </code></pre>
 <p>Now check the test plan templates:</p>
 <pre><code class="language-bash">rtf template test-plan.yaml
@@ -283,28 +428,31 @@ Let’s see what happens when we run with that flag:</p>
 </code></pre>
 <p>Output:</p>
 <pre><code>ERROR Static analysis checks failed
-(scenario.command.command_provider) The requested file did not exist
-provided path was file:///path/to/configs/scripts/scenario.sh
+(scenario.CHECK_STATUS_SCRIPT) The requested file did not exist
+provided path was file:///path/to/configs/scripts/check-status.sh
 </code></pre>
 <p>When copying over our inline scenario config we forgot to account for the fact that our
 <code>scenario.yaml</code> file is on a different path to our <code>test-plan.yaml</code> file. Relative paths are always
 relative to the file they are defined in. Let’s fix our mistake in the <code>scenario.yaml</code> file:</p>
-<pre><code class="language-yaml">name: Inline scenario config
-description: An inline scenario config
-command:
-  name: scenario.sh
-  kind: relative_path
+<pre><code class="language-yaml">name: Docker scenario config
+description: A docker scenario config
+docker:
+  image: alpine
+  tag: latest
+  command: sh "$CHECK_STATUS_SCRIPT"
+file_providers:
+  - name: check-status.sh
+    env_var: CHECK_STATUS_SCRIPT
+    kind: relative_path
 # --- Update the path to the scenario script ---
-  path: ../scripts/scenario.sh
+    path: ../scripts/check-status.sh
 # ----------------------------------------------
-env_vars:
-  SCENARIO_ENV: scenario command executed
 </code></pre>
 <p>If we run the <code>template</code> command again with the <code>--check</code> flag you should see the config YAML
 printed to your terminal:</p>
 <pre><code class="language-bash">rtf template test-plan.yaml --check
 </code></pre>
-<p>You should see output similar to this:</p>
+<p>The output is similar to this:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 ...
@@ -313,53 +461,41 @@ description: A test plan created as a guide for writing test plans
 will import the scenario config from the file on the relative path defined in the <code>relative_path</code>
 key.</p>
 <p>The <code>github</code> key allows the scenario config to be imported from a GitHub repo. It is not discussed
-in detail in this guide, please refer to the <a href="../../reference/framework/index.html">framework reference docs</a> reference for more
-detail.</p>
-<h2 id="scenario-config-structure"><a class="header" href="#scenario-config-structure">Scenario config structure</a></h2>
-<p>Let’s take a moment to review how scenario config is structured. There are six fields that can be
-defined in the scenario</p>
-<ul>
-<li><code>name</code> (required) is used to give the scenario an identifiable title. It can be any valid string.
-It has no impact on the execution of a scenario.</li>
-<li><code>description</code> (required) is used to give more information about the scenario. It can be any valid
-string. It has no impact on the execution of a scenario.</li>
-<li><code>variable_definitions</code> (optional) are used to define which variables a scenario requires to
-successfully execute. The <a href="#using-variables">“using variables”</a> section explains this in more
-detail.</li>
-<li><code>command</code> (required) is used to define what is executed when the scenario is run. The
-<a href="writing-a-command.html">“Writing a command” guide</a> explains commands in more detail.</li>
-<li><code>env_vars</code> (optional) is used to define the environment variables that are set when the <code>command</code>
-is executed.</li>
-<li><code>file_providers</code> (optional) is used to define the files and data that the scenario depends on to
-execute. The <a href="using-file-providers.html">“Using file providers” guide</a> explains how these are used in more detail.</li>
-</ul>
+in detail in this guide, please refer to the <a href="../../reference/framework/index.html">framework reference docs</a> for more detail.</p>
+<p>You now have a reusable scenario in its own file! See the <a href="../../reference/framework/index.html">framework reference docs</a> for the full
+Scenario config structure.</p>
 <h2 id="using-variables"><a class="header" href="#using-variables">Using variables</a></h2>
-<p>We saw how to set variables in the test plan in the <a href="writing-a-test-plan.html#setting-variables">“Writing a test plan” guide</a>. However, the
-variable we set was not used anywhere in the scenario or environment. To use variables in a
-scenario, we need to define them in the <code>variables</code> field.</p>
+<p>We saw how to set variables in the test plan in the <a href="writing-a-test-plan.html#setting-variables">“Writing a test plan” guide</a>. Let’s look at
+this in more detail. To use variables in a scenario, we need to define them in the <code>variables</code>
+field.</p>
 <p>Declaring the variables here declares a contract between the scenario and test plan and lists the
 variables that must be specified for the scenario to complete. The value of the variable can be set
 using a default in the scenario, in the test plan or provided via the CLI. If the variable is used
 by the scenario and not set via any of those methods, it will cause the test plan execution to fail.
 If variables are defined for usage in the scenario but not defined in the <code>variables</code> field then the
 test plan will fail to template.</p>
-<p>Let’s see that in action. We are going to replace the static environment variable variable with one
-defined using a variable. Update <code>scenario.yaml</code>:</p>
-<pre><code class="language-yaml">name: Inline scenario config
-description: An inline scenario config
+<p>Let’s see that in action. We are going to add an environment variable to the scenario and use a
+variable to set its value. Update <code>scenario.yaml</code>:</p>
+<pre><code class="language-yaml">name: Docker scenario config
+description: A docker scenario config
 # --- Add a variables section ---
 variable_definitions:
   - name: scenario_variable
     description: An example variable that the scenario expects to be defined
-# ----------------------------
-command:
-  name: scenario.sh
-  kind: relative_path
-  path: ../scripts/scenario.sh
+# -------------------------------
+docker:
+  image: alpine
+  tag: latest
+  command: sh "$CHECK_STATUS_SCRIPT"
 # --- Use the scenario_variable in the environment variables ---
 env_vars:
   SCENARIO_ENV: "{{ scenario_variable }}"
-# -----------------------------------------------------------
+# --------------------------------------------------------------
+file_providers:
+  - name: check-status.sh
+    env_var: CHECK_STATUS_SCRIPT
+    kind: relative_path
+    path: ../scripts/check-status.sh
 </code></pre>
 <p>Let’s explain how this works. The variables each have a <code>name</code> and <code>description</code>. The <code>name</code> is the
 variable’s identifier and is used in the template string. The <code>description</code> is there to give more
@@ -370,104 +506,220 @@ information about how and why the variable is used. Variables are templated into
 the template string does not match this exactly, then rtf will error and call out there is a
 malformed template string.</p>
 </blockquote>
+<p>To show this is added to the scenario container’s environment, let’s also add a line to the
+<code>check-status.sh</code> script to echo the environment variable’s value.</p>
+<pre><code class="language-sh">#!/bin/sh
+# New line to echo the SCENARIO_ENV
+echo $SCENARIO_ENV
+response=$(wget -S -O /dev/null http://hello-world:80 2&gt;&amp;1)
+status=$(echo "$response" | grep "HTTP/" | grep -o "[0-9][0-9][0-9]")
+echo "HTTP status: $status"
+</code></pre>
 <p>Let’s attempt to template the test plan:</p>
 <pre><code class="language-bash">rtf template test-plan.yaml
 </code></pre>
 <p>Output:</p>
 <pre><code>ERROR Templating failed
-(scenario.env_vars.SCENARIO_ENV) Missing template variables definition
+(scenario.env_vars.SCENARIO_ENV) Missing template variables definition. Make sure the variable is defined in the scenario or environment config variable definitions
+  - scenario_variable: "An example variable that the scenario expects to be defined"
 </code></pre>
 <p>We have successfully defined a variable and where it should be used. However, we have not specified
 what value it should actually have. If we attempted to run this test plan we would see the same
 error. Let’s define a default for this variable:</p>
-<pre><code class="language-yaml">name: Inline scenario config
-description: An inline scenario config
+<pre><code class="language-yaml">name: Docker scenario config
+description: A docker scenario config
 variable_definitions:
   - name: scenario_variable
     description: An example variable that the scenario expects to be defined
 # --- Set a default for this variable ---
-    default: "scenario executed with default value"
-# ------------------------------------
-command:
-  name: scenario.sh
-  kind: relative_path
-  path: ../scripts/scenario.sh
+    default: "default scenario env var value"
+# ---------------------------------------
+docker:
+  image: alpine
+  tag: latest
+  command: sh "$CHECK_STATUS_SCRIPT"
 env_vars:
   SCENARIO_ENV: "{{ scenario_variable }}"
+file_providers:
+  - name: check-status.sh
+    env_var: CHECK_STATUS_SCRIPT
+    kind: relative_path
+    path: ../scripts/check-status.sh
 </code></pre>
-<p>Lets run this and see what happens:</p>
+<p>Let’s run this and see what happens:</p>
 <pre><code class="language-bash">rtf run test-plan.yaml
 </code></pre>
 <p>Output:</p>
-<pre><code>environment setup command executed
-Running scenario from an external file
-scenario executed with default value
-environment teardown command executed
+<pre><code>[+] up 2/2
+ ✔ Network inline-docker-compose-environment-config_default         Created      0.0s
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Healthy      0.7s
+default scenario env var value
+HTTP status: 200
+[+] down 2/2
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Removed      0.2s
+ ✔ Network inline-docker-compose-environment-config_default         Removed      0.1s
 </code></pre>
-<p>The second scenario <code>echo</code> statement uses the default variable. We can override this variable by
-setting a different value in the test plan (this will take precedence over a default). Update
-<code>test-plan.yaml</code>:</p>
+<p>The scenario environment variable <code>echo</code> statement uses the default variable. We can override this
+variable by setting a different value in the test plan (this will take precedence over a default).
+Update <code>test-plan.yaml</code>:</p>
 <pre><code class="language-yaml">name: Hello World
 description: A test plan created as a guide for writing test plans
 # --- Add a new value for scenario_variable ---
 variables:
-  scenario_variable: "scenario executed with test plan variable"
-# ------------------------------------------
+  scenario_variable: "scenario env var value from test plan"
+# ---------------------------------------------
 scenario:
   from:
     kind: local
     relative_path: configs/scenario.yaml
-
 environment:
   inline:
-    name: Inline environment config
-    description: An inline environment config
-    setup:
-      command:
-        name: setup.sh
+    name: Inline docker compose environment config
+    description: An inline docker compose environment config
+    compose_files:
+      - name: docker-compose.yaml
         kind: inline
         content: |
-          #!/usr/bin/env sh
-
-          echo "environment setup command executed"
-    teardown:
-      command:
-        name: teardown.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment teardown command executed"
+          services:
+            hello-world:
+              image: nginx:alpine
+              ports:
+                - "8080:80"
 </code></pre>
 <p>Now if we run:</p>
 <pre><code class="language-bash">rtf run test-plan.yaml
 </code></pre>
 <p>Output:</p>
-<pre><code>environment setup command executed
-Running scenario from an external file
-scenario executed with test plan variable
-environment teardown command executed
+<pre><code>[+] up 2/2
+ ✔ Network inline-docker-compose-environment-config_default         Created      0.0s
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Healthy      0.7s
+scenario env var value from test plan
+HTTP status: 200
+[+] down 2/2
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Removed      0.2s
+ ✔ Network inline-docker-compose-environment-config_default         Removed      0.1s
 </code></pre>
 <p>We can see that the variable from the test plan has overridden the default. Similarly, if the
 variable is specified from the CLI it will override both the test plan variable and default:</p>
-<pre><code class="language-bash">rtf run test-plan.yaml --var scenario_variable="scenario executed with cli variable"
+<pre><code class="language-bash">rtf run test-plan.yaml --var scenario_variable="scenario env var value from cli variable"
 </code></pre>
 <p>Output:</p>
-<pre><code>environment setup command executed
-Running scenario from an external file
-scenario executed with cli variable
-environment teardown command executed
+<pre><code>[+] up 2/2
+ ✔ Network inline-docker-compose-environment-config_default         Created      0.0s
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Healthy      0.7s
+scenario env var value from cli variable
+HTTP status: 200
+[+] down 2/2
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Removed      0.2s
+ ✔ Network inline-docker-compose-environment-config_default         Removed      0.1s
 </code></pre>
-<hr>
-<p>In this guide, we’ve covered moving scenario config into its own file and using variables. Next,
-we’ll guide you through how to write an environment config.</p>
-<p><strong>Next:</strong> <a href="writing-an-environment.html">Writing an environment</a></p>
+<p>You now know how to pass variables at all three levels: scenario default, test plan, and CLI. Each
+level overrides the one before it.</p>
+<h2 id="using-overrides"><a class="header" href="#using-overrides">Using overrides</a></h2>
+<p>One of the main benefits of defining scenario (and environment) config in a separate file is that it
+can be reused across multiple test plans. There will be occasions where you want to reuse the
+majority of what’s defined in a scenario config but make small edits. Instead of making a new file
+with the edits, you can use <code>overrides</code>.</p>
+<p>Before we add the override to our test plan, let’s create an updated script for the scenario to run
+that prints the response as well as the HTTP status code:</p>
+<pre><code class="language-bash">touch scripts/check-status-v2.sh
+</code></pre>
+<p>Add the following to <code>check-status-v2.sh</code>:</p>
+<pre><code class="language-sh">#!/bin/sh
+echo $SCENARIO_ENV
+body=$(wget -qO- http://hello-world:80)
+echo "Response: $body"
+status=$(wget -S -O /dev/null http://hello-world:80 2&gt;&amp;1 | grep "HTTP/" | grep -o "[0-9][0-9][0-9]")
+echo "HTTP status: $status"
+</code></pre>
+<p>Overrides can be added to either the <code>environment</code> or <code>scenario</code> in the test plan config. Add this
+to <code>test-plan.yaml</code>:</p>
+<pre><code class="language-yaml">name: Hello World
+description: A test plan created as a guide for writing test plans
+variables:
+  scenario_variable: "scenario env var value from test plan"
+scenario:
+  from:
+    kind: local
+    relative_path: configs/scenario.yaml
+# --- Add a new overrides section ---
+  overrides:
+    file_providers:
+      - name: check-status.sh
+        env_var: CHECK_STATUS_SCRIPT
+        kind: relative_path
+        path: scripts/check-status-v2.sh
+# ------------------------------------
+environment:
+  inline:
+    name: Inline docker compose environment config
+    description: An inline docker compose environment config
+    compose_files:
+      - name: docker-compose.yaml
+        kind: inline
+        content: |
+          services:
+            hello-world:
+              image: nginx:alpine
+              ports:
+                - "8080:80"
+</code></pre>
+<p>Before checking if this works, let’s look at how it works. We only want to change the
+<code>CHECK_STATUS_SCRIPT</code>, so only that segment of the config is required. RTF will merge the YAML on
+matching keys before checking if it templates. If you run the <code>template</code> command now:</p>
+<pre><code class="language-bash">rtf template test-plan.yaml --check
+</code></pre>
+<p>You should see that the scenario <code>CHECK_STATUS_SCRIPT</code> now matches what we defined in the
+<code>overrides</code>, while the rest of the scenario config is unchanged. If we run the test plan:</p>
+<pre><code class="language-bash">rtf run test-plan.yaml
+</code></pre>
+<p>Output:</p>
+<pre><code>[+] up 2/2
+ ✔ Network docker-compose-environment-config_default         Created               0.0s
+ ✔ Container docker-compose-environment-config-hello-world-1 Healthy               0.7s
+scenario env var value from test plan
+Response: &lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;Welcome to nginx!&lt;/title&gt;
+&lt;style&gt;
+html { color-scheme: light dark; }
+body { width: 35em; margin: 0 auto;
+font-family: Tahoma, Verdana, Arial, sans-serif; }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;h1&gt;Welcome to nginx!&lt;/h1&gt;
+&lt;p&gt;If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.&lt;/p&gt;
+
+&lt;p&gt;For online documentation and support please refer to
+&lt;a href="http://nginx.org/"&gt;nginx.org&lt;/a&gt;.&lt;br/&gt;
+Commercial support is available at
+&lt;a href="http://nginx.com/"&gt;nginx.com&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Thank you for using nginx.&lt;/em&gt;&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+HTTP status: 200
+[+] down 2/2
+ ✔ Container docker-compose-environment-config-hello-world-1 Removed               0.1s
+ ✔ Network docker-compose-environment-config_default         Removed               0.1s
+</code></pre>
+<p>We can now see the response being printed in the terminal output again. This confirms we’re
+successfully using the new <code>check-status-v2.sh</code> script for the scenario without changing any other
+config for the scenario.</p>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
+<p>In this guide, we moved a scenario into its own file, used file providers to run a script, wired up
+variables with defaults that can be overridden at runtime, and used overrides to swap out config
+without touching the base file. Next, we’ll walk through writing an environment config.</p>
+<p><a href="writing-an-environment.html">Writing an environment</a></p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../tutorials/test-plans/writing-a-command.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../tutorials/test-plans/writing-a-test-plan.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
@@ -481,7 +733,7 @@ we’ll guide you through how to write an environment config.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../tutorials/test-plans/writing-a-command.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../tutorials/test-plans/writing-a-test-plan.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
