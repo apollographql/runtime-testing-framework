@@ -1,6 +1,6 @@
 services:
   echo-server:
-    image: python:3.12-alpine
+    image: python:3.14-alpine
     working_dir: /app
     volumes:
       - ${ECHO_SERVER_SCRIPT}:/app/echo-server.py:ro
