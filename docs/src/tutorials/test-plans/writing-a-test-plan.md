@@ -2,6 +2,15 @@
 
 # Writing a test plan
 
+In this guide, we'll write a docker-based [Test Plan][0] from scratch. We'll cover the four required
+fields, run the Test Plan, then add variables and a matrix to parameterize runs across multiple
+configurations.
+
+> **Prerequisites**
+>
+> - RTF CLI installed and available in your terminal
+> - Docker and Docker Compose available in your terminal
+
 Create an empty directory and make it your working directory:
 
 ```bash
@@ -9,7 +18,7 @@ mkdir rtf-hello-world
 cd rtf-hello-world
 ```
 
-Create an empty YAML file for the test plan:
+Create an empty YAML file for the Test Plan:
 
 ```bash
 touch test-plan.yaml
@@ -24,41 +33,31 @@ scenario:
   inline:
     name: Inline scenario config
     description: An inline scenario config
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "scenario command executed"
+    docker:
+      image: alpine
+      tag: latest
+      command: echo "hello world!"
 environment:
   inline:
-    name: Inline environment config
-    description: An inline environment config
-    setup:
-      command:
-        name: setup.sh
+    name: Inline docker compose environment config
+    description: An inline docker compose environment config
+    compose_files:
+      - name: docker-compose.yaml
         kind: inline
         content: |
-          #!/usr/bin/env sh
-
-          echo "environment setup command executed"
-    teardown:
-      command:
-        name: teardown.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment teardown command executed"
+          services:
+            hello-world:
+              image: nginx:alpine
+              ports:
+                - "8080:80"
 ```
 
 This will all be explained as we progress through the guide, for now all you need to know is this is
-the simplest test plan it is possible to write in rtf.
+the most basic docker based [Test Plan][0] it is possible to write in RTF.
 
 ## Adding required fields
 
-An rtf test plan has four required fields: `name`, `description`, `scenario`, and `environment`. The
+An RTF Test Plan has four required fields: `name`, `description`, `scenario`, and `environment`. The
 sections below add each of these required fields and explain them in more detail.
 
 ### `name`
@@ -69,9 +68,9 @@ Add the `name` field to the `test-plan.yaml` file
 name: Hello World
 ```
 
-`name` is used to give each test plan an identifiable title. It can be any valid string. The value
-used for the `name` field has no impact on the execution of the test plan. This makes it easier to
-work with the test plan programmatically.
+`name` is used to give each Test Plan an identifiable title. It can be any valid string. The value
+used for the `name` field has no impact on the execution of the Test Plan. This makes it easier to
+work with the Test Plan programmatically.
 
 ### `description`
 
@@ -82,110 +81,107 @@ name: Hello World
 description: Created as a guide for writing test plans
 ```
 
-`description` is used to give more information about the test plan for future users. It can be any
-valid string. The value used for the `description` field has no impact on the execution of the test
-plan itself. This is a useful place to add links or reference materials and should be preferred over
+`description` is used to give more information about the Test Plan for future users. It can be any
+valid string. The value used for the `description` field has no impact on the execution of the Test
+Plan itself. This is a useful place to add links or reference materials and should be preferred over
 adding that context to inline comments.
 
 ### `scenario`
 
 The `scenario` is used to define the configuration and command that runs the actual testing logic in
-the test plan. The `scenario` can be defined inline within the test plan or in its own file. In this
-guide, we'll define the scenario inline. The guide on [writing a new scenario][0] covers how to
-define a scenario in a separate file.
+the Test Plan. The `scenario` can be defined inline within the Test Plan or in its own file. In this
+guide, we'll define the [Scenario][0] inline. The guide on [writing a new Scenario][1] covers how to
+define a Scenario in a separate file.
 
-Add the `scenario` field to the `test-plan.yaml` file.
+We'll use a `docker` based Scenario — the recommended approach in RTF. If `docker` isn't an option,
+see [script based Scenarios][2]. We'll cover more advanced Scenario configuration in the guide on
+[writing a new Scenario][1].
+
+> **Note** RTF runs the scenario by passing the `image`, `tag`, and `command` config fields as
+> arguments to `docker run`. For details on `docker run` and Docker images, refer to the
+> [Docker documentation][3].
 
 ```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
 scenario:
   inline:
-    name: Inline scenario config
-    description: An inline scenario config
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "scenario command executed"
+    name: Inline docker scenario config
+    description: An inline docker scenario config
+    docker:
+      image: alpine
+      tag: latest
+      command: echo "hello world!"
 ```
 
-This is the simplest `scenario` it is possible to define.
-
-- The `inline` field is used to indicate the scenario will be defined in the test plan file.
-- The `name` and `description` fields are required and used to identify the scenario and work the
-  same as `name` and `description` in the test plan.
-- `command` defines what will be executed when rtf executes the scenario. This is the simplest case
-  which executes a single command. The guide on [writing a new scenario][0] covers how to execute
-  files or more complex scripts.
+- The `inline` field is used to indicate the Scenario will be defined in the Test Plan file.
+- The `name` and `description` fields are required and used to identify the Scenario and work the
+  same as `name` and `description` in the Test Plan.
+- The `docker` field is used to define the container the Scenario will run
+  - `image` is the name of the container image. Note that you will need to ensure that wherever you
+    are running `docker` from is authenticated to pull the image.
+  - `tag` defines the image tag that should be pulled.
+  - `command` optionally sets the command the container runs.
 
 ### `environment`
 
-The `environment` is used to define the configuration and commands that setup the environment for
-testing and tear it down after the test has completed. The `environment` can be defined inline
-within the test plan or in its own file. In this guide, we'll define the environment inline. The
-guide on [writing a new environment][1] covers how to define an environment in a separate file.
+The `environment` is used to define the configuration and commands that set up the [Environment][0]
+for testing and tear it down after the test has completed. The `environment` can be defined inline
+within the Test Plan or in its own file. In this guide, we'll define the Environment inline. The
+guide on [writing a new Environment][4] covers how to define an Environment in a separate file.
 
-Add the `environment` field to the `test-plan.yaml` file:
+We'll use a `docker compose` based Environment — the recommended approach in RTF. If
+`docker compose` isn't an option, see [script based Environments][2]. We'll cover more advanced
+Environment configuration in the guide on [writing a new Environment][4].
+
+> **Note** RTF manages the environment by running `docker compose up` and `docker compose down`,
+> passing the resolved compose files as `-f` arguments. For details on Docker Compose files and
+> options, refer to the [Docker Compose documentation][5].
 
 ```yaml
 name: Hello World
 description: A test plan created as a guide for writing test plans
 scenario:
   inline:
-    name: Inline scenario config
-    description: An inline scenario config
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "scenario command executed"
+    name: Inline docker scenario config
+    description: An inline docker scenario config
+    docker:
+      image: alpine
+      tag: latest
+      command: echo "hello world!"
 environment:
   inline:
-    name: Inline environment config
-    description: An inline environment config
-    setup:
-      command:
-        name: setup.sh
+    name: Inline docker compose environment config
+    description: An inline docker compose environment config
+    compose_files:
+      - name: docker-compose.yaml
         kind: inline
         content: |
-          #!/usr/bin/env sh
-
-          echo "environment setup command executed"
-    teardown:
-      command:
-        name: teardown.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment teardown command executed"
+          services:
+            hello-world:
+              image: nginx:alpine
+              ports:
+                - "8080:80"
 ```
 
-This is the simplest `environment` it is possible to define.
+- The `inline` field is used to indicate the Environment will be defined in the Test Plan file.
+- The `name` and `description` fields are required and used to identify the Environment and work the
+  same as `name` and `description` in the Test Plan.
+- The `compose_files` array defines a list of `docker compose` files the Environment will run.
 
-- The `inline` field is used to indicate the environment will be defined in the test plan file.
-- The `name` and `description` fields are required and used to identify the scenario and work the
-  same as `name` and `description` in the test plan.
-- The `setup` field defines what will happen during the environment setup phase of `rtf run`.
-- The `teardown` field defines what will happen during the environment teardown phase of `rtf run`.
-- `command` defines what will be executed when rtf executes the `setup` and `teardown`. This is the
-  simplest case which executes a single command. The guide on [writing a new environment][1] covers
-  how to execute files or more complex scripts.
+The service we are running in the `docker-compose.yaml` test service is a simple web server. We will
+show how to connect the docker container that runs in the scenario to the service running in the
+environment in the ["Writing a scenario" guide][1].
 
-## Checking the test plan
+## Checking the Test Plan
 
-Now, let's check that the test plan has been defined correctly:
+Now, let's check that the Test Plan has been defined correctly:
 
 ```bash
 rtf template test-plan.yaml
 ```
 
-This should result in the fully templated test plan being printed to the terminal:
+The output is similar to this:
 
 ```yaml
 name: Hello World
@@ -201,73 +197,66 @@ scenario:
   description: An inline scenario config
   variable_definitions: []
   custom_providers: []
-  command:
-    name: scenario.sh
-    kind: inline
-    content: |
-      #!/usr/bin/env sh
-
-      echo "scenario command executed"
-    args: []
+  docker:
+    image: alpine
+    tag: latest
+    command: echo "hello world!"
   env_vars: {}
   file_providers: []
 environment:
-  name: Inline environment config
-  description: An inline environment config
+  name: Inline docker compose environment config
+  description: An inline docker compose environment config
   variable_definitions: []
   custom_providers: []
-  setup:
-    command:
-      name: setup.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "environment setup command executed"
-      args: []
-    env_vars: {}
-    file_providers: []
-  teardown:
-    command:
-      name: teardown.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-
-        echo "environment teardown command executed"
-      args: []
-    env_vars: {}
-    file_providers: []
+  project_name: null
+  compose_files:
+  - name: docker-compose.yaml
+    kind: inline
+    content: |
+      services:
+        hello-world:
+          image: nginx:alpine
+          ports:
+            - "8080:80"
+  file_providers: []
+  env_vars: {}
 ```
 
-This highlights two optional fields for test plans that have not yet been used; `variables` and
-`matrix`. These are discussed more below.
+The Test Plan templates successfully! This also highlights two optional fields — `variables` and
+`matrix` — that have not yet been used. These are discussed more below.
 
-## Running the test plan
+## Running the Test Plan
 
-Before looking at `variables` and `matrix`, let's run the test plan:
+Before looking at `variables` and `matrix`, let's run the Test Plan:
 
 ```bash
 rtf run test-plan.yaml
 ```
 
-You should see output similar to this:
+The output is similar to this:
 
 ```
-environment setup command executed
-scenario command executed
-environment teardown command executed
+[+] up 2/2
+ ✔ Network inline-docker-compose-environment-config_default         Created      0.0s
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Healthy      0.7s
+hello world!
+[+] down 2/2
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Removed      0.1s
+ ✔ Network inline-docker-compose-environment-config_default         Removed      0.1s
 ```
+
+Your first Test Plan ran successfully! The `hello world!` output confirms the scenario container ran
+the command we configured.
 
 This also creates an `output` directory.
 
 The `output` directory contains a `providers` directory and two files: `resolved-test-plan.yaml` and
 `test-plan-variables.json`.
 
-- `resolved-test-plan.yaml` contains the fully resolved test plan config. This should be the same as
-  what was shown in the `rtf template` command. This is a way to verify the test plan that ran to
+- `resolved-test-plan.yaml` contains the fully resolved Test Plan config. This should be the same as
+  what was shown in the `rtf template` command. This is a way to verify the Test Plan that ran to
   give you the output.
-- `test-plan-variables.json` contains the variables used during the execution of the test plan. This
+- `test-plan-variables.json` contains the variables used during the execution of the Test Plan. This
   is empty since no variables were set.
 
 Remove the output directory before continuing (forgetting to do this will result in an error next
@@ -277,7 +266,7 @@ time `rtf run` is used):
 rm -rf output/
 ```
 
-> **Note** rtf is deliberately configured to not overwrite an existing output directory. This is so
+> **Note** RTF is deliberately configured to not overwrite an existing output directory. This is so
 > you cannot accidentally overwrite output you intend to keep. The `--output` flag can be used with
 > `rtf run` to set a different output directory if you want to keep the existing output and run a
 > new test.
@@ -285,12 +274,12 @@ rm -rf output/
 ## Setting variables
 
 The `variables` field is used to set global variables that can be referenced in your scenario and/or
-environment. Any variables set in the test plan config can be overridden using the `--var` and
-`--vars` flags in the rtf CLI (see the [modifying variables section of the hello world guide][2] for
+environment. Any variables set in the Test Plan config can be overridden using the `--var` and
+`--vars` flags in the RTF CLI (see the [modifying variables section of the hello world guide][6] for
 more information).
 
-Let's add some example variables to `test-plan.yaml`. We are also going to update the scenario
-command to use this variable. The ["Writing a command" section][3] will explain how this works, for
+Let's add some example variables to `test-plan.yaml`. We are also going to update the Scenario
+command to use this variable. The ["Writing a Scenario" section][1] will explain how this works, for
 now just add the configuration:
 
 ```yaml
@@ -308,38 +297,29 @@ scenario:
     variable_definitions:
       - name: example_variable
         description: An example variable
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-        echo "$EXAMPLE_VARIABLE"
     env_vars:
       EXAMPLE_VARIABLE: "{{ example_variable }}"
+    docker:
+      image: alpine
+      tag: latest
+      command: echo "$EXAMPLE_VARIABLE"
 # -----------------------
 environment:
   inline:
-    name: Inline environment config
-    description: An inline environment config
-    setup:
-      command:
-        name: setup.sh
+    name: Inline docker compose environment config
+    description: An inline docker compose environment config
+    compose_files:
+      - name: docker-compose.yaml
         kind: inline
         content: |
-          #!/usr/bin/env sh
-
-          echo "environment setup command executed"
-    teardown:
-      command:
-        name: teardown.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment teardown command executed"
+          services:
+            hello-world:
+              image: nginx:alpine
+              ports:
+                - "8080:80"
 ```
 
-You can see the value being used by running the test plan again:
+You can see the value being used by running the Test Plan again:
 
 ```bash
 rtf run test-plan.yaml
@@ -348,12 +328,16 @@ rtf run test-plan.yaml
 Output:
 
 ```
-environment setup command executed
+[+] up 2/2
+ ✔ Network inline-docker-compose-environment-config_default         Created      0.0s
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Healthy      0.7s
 example variable
-environment teardown command executed
+[+] down 2/2
+ ✔ Container inline-docker-compose-environment-config-hello-world-1 Removed      0.1s
+ ✔ Network inline-docker-compose-environment-config_default         Removed      0.1s
 ```
 
-Now, the `test-plan-variables.json` file contains the variable that we set in the test plan:
+Now, the `test-plan-variables.json` file contains the variable that we set in the Test Plan:
 
 ```bash
 cat output/test-plan-variables.json
@@ -370,8 +354,8 @@ Output:
 ## Using a matrix
 
 The `matrix` field is used to create a matrix of variable dimensions to iterate over (see the
-[matrix variables section of the hello world guide][4] for more information). A matrix can only be
-defined in the test plan config.
+[matrix variables section of the hello world guide][7] for more information). A matrix can only be
+defined in the Test Plan config.
 
 Let's add a matrix to and remove the `variables` from our `test-plan.yaml`:
 
@@ -393,37 +377,28 @@ scenario:
     variable_definitions:
       - name: example_variable
         description: An example variable
-    command:
-      name: scenario.sh
-      kind: inline
-      content: |
-        #!/usr/bin/env sh
-        echo "$EXAMPLE_VARIABLE"
     env_vars:
       EXAMPLE_VARIABLE: "{{ example_variable }}"
+    docker:
+      image: alpine
+      tag: latest
+      command: echo "$EXAMPLE_VARIABLE"
 environment:
   inline:
-    name: Inline environment config
-    description: An inline environment config
-    setup:
-      command:
-        name: setup.sh
+    name: Inline docker compose environment config
+    description: An inline docker compose environment config
+    compose_files:
+      - name: docker-compose.yaml
         kind: inline
         content: |
-          #!/usr/bin/env sh
-
-          echo "environment setup command executed"
-    teardown:
-      command:
-        name: teardown.sh
-        kind: inline
-        content: |
-          #!/usr/bin/env sh
-
-          echo "environment teardown command executed"
+          services:
+            hello-world:
+              image: nginx:alpine
+              ports:
+                - "8080:80"
 ```
 
-Run the test plan again (make sure the `output` directory has been deleted after previous test
+Run the Test Plan again (make sure the `output` directory has been deleted after previous test
 runs):
 
 ```bash
@@ -470,17 +445,22 @@ Output:
 }
 ```
 
-The `example-variable`'s variable changes per execution.
+The `example_variable`'s variable changes per execution. You've run your first matrix — the scenario
+executed twice, once for each value in the `example_variable` dimension!
 
----
+## Next steps
 
-In this guide we have covered writing the simplest possible test plan. Next, we will guide you
-through how to write more powerful commands.
+In this guide, we covered writing a docker-based Test Plan with inline scenario and environment
+configs, and used variables and a matrix to parameterize runs. Next, we'll walk through how to write
+scenarios in more detail.
 
-**Next:** [Writing a command][3]
+[Writing a scenario][1]
 
-[0]: writing-a-scenario.md
-[1]: writing-an-environment.md
-[2]: ../hello-world.md#modifying-variables
-[3]: writing-a-command.md
-[4]: ../hello-world.md#matrix-variables
+[0]: ../../reference/glossary.md
+[1]: writing-a-scenario.md
+[2]: ../script-test-plans/index.md
+[3]: https://docs.docker.com/reference/cli/docker/container/run/
+[4]: writing-an-environment.md
+[5]: https://docs.docker.com/compose/
+[6]: ../hello-world.md#modifying-variables
+[7]: ../hello-world.md#matrix-variables

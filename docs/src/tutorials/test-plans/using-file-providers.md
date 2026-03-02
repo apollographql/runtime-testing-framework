@@ -2,76 +2,104 @@
 
 # Using file providers
 
-This guide assumes you've completed the ["Writing an environment"](writing-an-environment.md) guide.
-You should already have the files in a directory named `rtf-hello-world`. Your directory should be
-in the state it was at the end of that guide:
+In this guide, we'll use File Providers to manage files that our environment and scenario configs
+depend on. We'll move the `nginx` config from being inlined in docker compose to being managed by
+RTF, then learn about the `inline`, `relative_path`, and `required` provider types.
+
+> **Prerequisites**
+>
+> - Completed the ["Writing an environment"][0] tutorial
+> - An `rtf-hello-world` directory in the state it was at the end of that guide
+
+Your directory should look like this:
 
 ```bash
 ls -R
-configs         scripts         test-plan.yaml
+```
 
-rtf-hello-world/configs:
+Output:
+
+```
+configs         data            scripts         test-plan.yaml
+
+./configs:
 environment.yaml        scenario.yaml
 
-rtf-hello-world/scripts:
-scenario.sh     setup.sh
+./data:
+compose-app.yaml
+
+./scripts:
+check-status-v2.sh      check-status.sh
 ```
 
 ## What are file providers?
 
-We've already been using file providers in the `command` configuration throughout the previous
-guides. File providers are rtf's way of referring to files and data that are required for the
-environment setup, environment teardown, and scenario to run successfully. Commands make use of two
-kinds of file providers, `inline` and `relative_path`. These are the most commonly used file
-providers as they provide the file content either from the local filesystem or from within the test
-plan configuration itself.
+We've already been using File Providers in the scenario configuration throughout the previous
+guides. File Providers are RTF's way of referring to files and data that are required for the
+environment and scenario to run successfully. The most commonly used File Providers are `inline` and
+`relative_path`. They provide the file content either from the local filesystem or from within the
+test plan configuration itself.
 
-There are additional file providers that, amongst other things, can pull data from APIs (such as
+There are additional File Providers that, amongst other things, can pull data from APIs (such as
 GraphOS specific providers). These will not be discussed in this guide but can be seen in the
-[framework reference](../../reference/framework/file-providers.md).
+[framework reference][1].
 
-All file providers follow the same basic principle - they create one or more files and place it on a
-path for rtf to make use of. If you need to know that path (for your command script, for example),
-rtf will assign an environment variable that contains the file's path. This is a deliberate design
-choice that allows rtf to make changes to how it stores files obtained from providers without
-breaking assumptions made about paths in user-written scripts.
+All File Providers follow the same basic principle — they create one or more files and place them on
+a path for RTF to make use of. If you need to know that path (for your scenario docker command, for
+example), RTF will assign an environment variable that contains the file's path. This is a
+deliberate design choice that allows RTF to make changes to how it stores files obtained from
+providers without breaking assumptions made about paths in user-written scripts.
 
 ## Adding an inline file
 
-Let's see how file providers can be used in our test plan config. We'll add an inline file to our
-scenario and just `cat` the output to the terminal. First, we need to make use of the
-`file_providers` key in the `scenario.yaml`:
+Let's see how File Providers can be used in our test plan config. In the
+["Writing an environment" guide][0] we created an `nginx` config file by writing it inline in the
+`compose-app.yaml` file. This is an antipattern and forces us to write a completely new
+`compose-app.yaml` file if we just want to amend the `nginx` config. Let's fix that by using a file
+provider to supply the config instead.
+
+Let's update our `environment.yaml` file to make use of the `file_providers` key:
 
 ```yaml
-name: Inline scenario config
-description: An inline scenario config
-variable_definitions:
-  - name: scenario_variable
-    description: An example variable that the scenario expects to be defined
-    default: "scenario executed with default value"
-command:
-  name: scenario.sh
-  kind: relative_path
-  path: ../scripts/scenario.sh
+name: Docker compose environment config
+description: A docker compose environment config
 env_vars:
-  SCENARIO_ENV: "{{ scenario_variable }}"
-# --- Add a new file to the scenario ---
-file_providers:
-  - name: scenario.txt
-    env_var: SCENARIO_TXT
+  HELLO_MESSAGE: "Goodbye, World!"
+compose_files:
+  - name: docker-compose.yaml
     kind: inline
     content: |
-      Some inline text content for our scenario
-# --------------------------------------
+      services:
+        hello-world:
+          image: nginx:alpine
+          ports:
+            - "8080:80"
+# ---- Replace the inline config with a volume ----
+          volumes:
+            - ${NGINX_CONFIG}:/etc/nginx/conf.d/default.conf
+# -------------------------------------------------
+  - name: compose-app.yaml
+    kind: relative_path
+    path: ../data/compose-app.yaml
+# ---- Add an inline file provider ----
+file_providers:
+  - name: nginx.conf
+    env_var: NGINX_CONFIG
+    kind: inline
+    content: |
+      server {
+        listen 80;
+        location / {
+          proxy_pass http://app:8000;
+        }
+      }
+# -------------------------------------
 ```
 
-> **Note** The environment setup and teardown configs can also define a `file_providers` section and
-> it works in the exact same way as specified here. Files defined in the environment setup can also
-> be referred to in the scenario and environment teardown using the same `env_var`. Similarly, files
-> defined in the scenario will also be available to the teardown.
+> **Note** `compose_files` also use a subset of File Providers. These do not set an environment
+> variable that RTF can refer to since they are run using the `docker compose` `-f` flag.
 
-We haven't yet updated the scenario's command to make use of this, but let's look at what happens
-when we run the test plan and examine the providers output:
+Now, run the test plan:
 
 ```bash
 rtf run test-plan.yaml
@@ -80,143 +108,127 @@ rtf run test-plan.yaml
 Output:
 
 ```
-Using the override setup script
-Environment setup complete.
-Running scenario from an external file
-scenario executed with test plan variable
-Environment teardown complete.
+[+] up 3/3
+ ✔ Network docker-compose-environment-config_default         Created     0.0s
+ ✔ Container docker-compose-environment-config-app-1         Healthy     0.6s
+ ✔ Container docker-compose-environment-config-hello-world-1 Healthy     0.6s
+scenario env var value from test plan
+Response: Goodbye, World!
+HTTP status: 200
+[+] down 3/3
+ ✔ Container docker-compose-environment-config-app-1         Removed     10.1s
+ ✔ Container docker-compose-environment-config-hello-world-1 Removed     0.1s
+ ✔ Network docker-compose-environment-config_default         Removed     0.1s
 ```
 
+This is the exact same output as we got before making this change. All we have done is refactored
+where the config file is defined.
+
+This works because RTF sets the path to the `nginx.conf` file it creates as an environment variable.
+The docker compose file (which is also written inline to the test plan) uses this path to volume
+mount the config file to the container.
+
+Let's examine the providers output:
+
 ```bash
-ls output/providers/scenario_providers
+ls output/providers/setup_providers
 ```
 
 Output:
 
 ```
-scenario.sh     scenario.txt
+compose-app.yaml        docker-compose.yaml     nginx.conf
 ```
 
 ```bash
-cat output/providers/scenario_providers/scenario.txt
+cat output/providers/setup_providers/nginx.conf
 ```
 
 Output:
 
-```
-Some inline text content for our scenario
-```
-
-We've successfully updated our test plan to write a new `scenario.txt` file to the output with the
-content we specified inline. Let's make use of this in our command script. Note that when specifying
-file providers, we must set an `env_var`. This is the name of the environment variable that will be
-set when this is run and it will contain the path to the file. Let's update our `scenario.sh`
-script:
-
-```sh
-#!/usr/bin/env sh
-
-echo "Running scenario from an external file"
-# The SCENARIO_TXT environment variable is used to refer to the scenario.txt file's path
-cat $SCENARIO_TXT
-echo "$SCENARIO_ENV"
+```nginx
+server {
+  listen 80;
+  location / {
+    proxy_pass http://app:8000;
+  }
+}
 ```
 
-Now, if we run the test plan:
-
-```bash
-rtf run test-plan.yaml
-```
-
-Output:
-
-```
-Using the override setup script
-Environment setup complete.
-Running scenario from an external file
-Some inline text content for our scenario
-scenario executed with test plan variable
-Environment teardown complete.
-```
-
-We can see the content from `scenario.txt` being printed to the terminal.
+We've successfully updated our test plan to write the `nginx.conf` file to the output with the
+content we specified inline!
 
 ## File provider config structure
 
-Now that we've seen a file provider being defined, let's discuss how the config is structured. There
+Now that we've seen a File Provider being defined, let's discuss how the config is structured. There
 are three required fields:
 
 1. `name` is the name the file will be saved with in the `providers` directory of the output.
 2. `env_var` is the environment variable the file's path will be stored in. This is used by
    subsequent commands to refer to the file.
-3. `kind` is used to set which kind of file provider is being used. See the
-   [file provider reference](../../reference/framework/file-providers.md) for details on all the
-   providers available.
+3. `kind` is used to set which kind of File Provider is being used. See the [framework reference][1]
+   for details on all the providers available.
 
-Each file provider will have other fields that need to be defined, like `content` for `inline`.
+Each File Provider will have other fields that need to be defined, like `content` for `inline`.
 These are specific to each provider type, and the `template` command will highlight any missing or
 incorrectly defined keys.
 
 ## Adding a file from a relative path
 
-Let's add a file from a relative path to the scenario config. The `file_provider` field can accept
-as many files as you need via a list. Before adding the new file to the config, let's create the
-file itself:
+Our `nginx` config is no longer defined inline to our docker compose file, but it _is_ still inline
+in our environment config. Let's further reduce our inline dependencies by changing from using an
+`inline` File Provider to using a `relative_path` File Provider. This allows us to define the
+`nginx.conf` file in the local filesystem and direct RTF to use that file.
+
+First, let's create the `nginx.conf` file:
 
 ```bash
-mkdir data
-touch data/file.txt
+touch data/nginx.conf
 ```
 
-Add the following content to `file.txt`:
+Then, add the config to that file:
 
-```
-More content from a file for our scenario
+```nginx
+server {
+  listen 80;
+  location / {
+    proxy_pass http://app:8000;
+  }
+}
 ```
 
-Let's update `scenario.yaml` to refer to this file, this time using the `relative_path` file
+Let's update `environment.yaml` to refer to this file, this time using the `relative_path` file
 provider:
 
 ```yaml
-name: Inline scenario config
-description: An inline scenario config
-variable_definitions:
-  - name: scenario_variable
-    description: An example variable that the scenario expects to be defined
-    default: "scenario executed with default value"
-command:
-  name: scenario.sh
-  kind: relative_path
-  path: ../scripts/scenario.sh
+name: Docker compose environment config
+description: A docker compose environment config
 env_vars:
-  SCENARIO_ENV: "{{ scenario_variable }}"
-file_providers:
-  - name: scenario.txt
-    env_var: SCENARIO_TXT
+  HELLO_MESSAGE: "Goodbye, World!"
+compose_files:
+  - name: docker-compose.yaml
     kind: inline
     content: |
-      Some inline text content for our scenario
-# --- Add a new relative_path provider ---
-  - name: file.txt
-    env_var: FILE_TXT
+      services:
+        hello-world:
+          image: nginx:alpine
+          ports:
+            - "8080:80"
+          volumes:
+            - ${NGINX_CONFIG}:/etc/nginx/conf.d/default.conf
+  - name: compose-app.yaml
     kind: relative_path
-    path: ../data/file.txt
-# ----------------------------------------
+    path: ../data/compose-app.yaml
+file_providers:
+  - name: nginx.conf
+    env_var: NGINX_CONFIG
+# --- Replace inline provider with relative_path ---
+    kind: relative_path
+    path: ../data/nginx.conf
+# --------------------------------------------------
 ```
 
-> **Note** The path is relative to the `scenario.yaml` file!
-
-Let's update our `scenario.sh` script too:
-
-```sh
-#!/usr/bin/env sh
-
-echo "Running scenario from an external file"
-cat $SCENARIO_TXT
-# Add the cat command for file.txt
-cat $FILE_TXT
-echo "$SCENARIO_ENV"
-```
+> **Note** The path is relative to the `environment.yaml` file!
 
 Now, let's run the test plan:
 
@@ -224,75 +236,76 @@ Now, let's run the test plan:
 rtf run test-plan.yaml
 ```
 
+The output should be exactly as it was when we defined this file inline. Likewise, if we examine the
+output directory:
+
+```bash
+ls output/providers/setup_providers
+```
+
 Output:
 
 ```
-Using the override setup script
-Environment setup complete.
-Running scenario from an external file
-Some inline text content for our scenario
-More content from a file for our scenario
-scenario executed with test plan variable
-Environment teardown complete.
+compose-app.yaml        docker-compose.yaml     nginx.conf
 ```
 
 ```bash
-ls output/providers/scenario_providers
+cat output/providers/setup_providers/nginx.conf
 ```
 
 Output:
 
-```
-file.txt        scenario.sh     scenario.txt
+```nginx
+server {
+  listen 80;
+  location / {
+    proxy_pass http://app:8000;
+  }
+}
 ```
 
-As expected, we also see the content of `file.txt` in our test plan execution. We can also see the
-file itself in the output.
+As expected, we also see the `nginx.conf` file with the same content as before.
 
 ## Required files
 
 As discussed in previous sections of this guide, the environment and scenario configs are designed
 to be reused. For config designed to be reused often, you might want to force the user of the test
 plan to define a file, but not give them a default file to work with. For this use case, the
-`required` file provider is the perfect solution. Any test plan that tries to execute with a
-`required` file provider will fail and tell the user to specify the file themselves (normally this
+`required` File Provider is the perfect solution. Any test plan that tries to execute with a
+`required` File Provider will fail and tell the user to specify the file themselves (normally this
 is done using `overrides`). Let's walk through how `required` can be used:
 
-Let's say we need a configuration file for our environment setup. We don't want to give a base
-example because users might end up using that without thinking about what configuration they
+Let's update our environment to require the user supply the `nginx.conf` file. We don't want to give
+a base example because users might end up using that without thinking about what configuration they
 actually need for their specific test. In other words, we don't want it to "just work" by design.
 Let's add a `required` file to our `environment.yaml`:
 
 ```yaml
-name: Inline environment config
-description: An inline environment config
-setup:
-  command:
-    name: setup.sh
+name: Docker compose environment config
+description: A docker compose environment config
+env_vars:
+  HELLO_MESSAGE: "Goodbye, World!"
+compose_files:
+  - name: docker-compose.yaml
     kind: inline
     content: |
-      #!/usr/bin/env sh
-
-      PROCESS_ID="1"
-      echo "Environment setup complete. PROCESS_ID=$PROCESS_ID"
-      echo "{ \"process_id\": \"$PROCESS_ID\" }" > "$RTF_OUTPUT"
-# --- Add a required file ---
-  file_providers:
-    - name: config.txt
-      env_var: CONFIG
-      kind: required
-      message: Please specify a config file
-# ---------------------------
-teardown:
-  command:
-    name: teardown.sh
-    kind: inline
-    content: |
-      #!/usr/bin/env sh
-
-      echo "Environment teardown complete. PROCESS_ID=$PROCESS_ID"
-  env_vars:
-    PROCESS_ID: "{{ process_id }}"
+      services:
+        hello-world:
+          image: nginx:alpine
+          ports:
+            - "8080:80"
+          volumes:
+            - ${NGINX_CONFIG}:/etc/nginx/conf.d/default.conf
+  - name: compose-app.yaml
+    kind: relative_path
+    path: ../data/compose-app.yaml
+file_providers:
+  - name: nginx.conf
+    env_var: NGINX_CONFIG
+# --- Replace relative_path provider with required ---
+    kind: required
+    message: Please specify an nginx config file
+# --------------------------------------------------
 ```
 
 Now, let's see what happens when we try to template this test plan:
@@ -305,8 +318,8 @@ Output:
 
 ```
 ERROR Static analysis checks failed
-(setup.CONFIG) A required file has not been defined
-Please specify a config file
+(environment.file_providers.NGINX_CONFIG) A required file has not been defined
+Please specify an nginx config file
 ```
 
 We get an error saying we haven't defined a required file, along with the message we put in the
@@ -318,28 +331,28 @@ To make this work, the test plan user should make use of overrides. Let's update
 name: Hello World
 description: A test plan created as a guide for writing test plans
 variables:
-  scenario_variable: "scenario executed with test plan variable"
+  scenario_variable: "scenario env var value from test plan"
 scenario:
   from:
     kind: local
     relative_path: configs/scenario.yaml
+  overrides:
+    file_providers:
+      - name: check-status.sh
+        env_var: CHECK_STATUS_SCRIPT
+        kind: relative_path
+        path: scripts/check-status-v2.sh
 environment:
   from:
     kind: local
     relative_path: configs/environment.yaml
+# --- Override the nginx config ---
   overrides:
-    setup:
-      command:
-        name: setup.sh
+    file_providers:
+      - name: nginx.conf
+        env_var: NGINX_CONFIG
         kind: relative_path
-        path: scripts/setup.sh
-# --- Override the config.txt config ---
-      file_providers:
-        - name: config.txt
-          env_var: CONFIG
-          kind: inline
-          content: |
-            Config
+        path: data/nginx.conf
 # --------------------------------------
 ```
 
@@ -349,10 +362,24 @@ The override will match based on the `name` key. If we template now:
 rtf template test-plan.yaml --check
 ```
 
-You should see the full templated output. If you look at `setup.file_providers`, you can see that
-`config.txt` now uses the config from the overrides. Our test plan no longer contains a `required`
-file, so we no longer get that error. The `rtf run` command can also complete successfully now.
+You should see the full templated output. If you look at `environment.file_providers`, you can see
+that `nginx.conf` now uses the config from the overrides. Our test plan no longer contains a
+`required` file, so we no longer get that error. The `rtf run` command can also complete
+successfully now.
 
----
+## Next steps
 
-Congratulations! You've now completed the guide on how to write test plans.
+You've now completed the test plan tutorials! You've worked through writing a test plan, scenario,
+and environment from scratch, and learned how to use File Providers to manage external files.
+
+To go further, explore these topics:
+
+- [Custom providers][2] — learn how to write your own providers to pull data from external sources
+- [Script-based test plans][3] — an alternative to docker-based scenarios and environments, for
+  cases where docker isn't available
+- [Framework reference][1] — the full reference for all config fields and provider types
+
+[0]: writing-an-environment.md
+[1]: ../../reference/framework/file-providers.md
+[2]: ../custom-providers/index.md
+[3]: ../script-test-plans/index.md
