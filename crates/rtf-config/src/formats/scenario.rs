@@ -5,11 +5,13 @@ use crate::{
     formats::{CustomProviderDeclaration, Result},
     inlining::{self, InlineMode},
     providers::{
-        self, Provider,
+        self,
         command::CommandSection,
         file::{NamedFileProvider, SourceDir},
     },
-    run::{DOCKER_COMPOSE_NETWORK, Execute, ExecuteArgs, OUTDIR, OUTPUT_PATH, RunProviders},
+    run::{
+        DOCKER_COMPOSE_NETWORK, Execute, ExecuteArgs, OUTDIR, OUTPUT_PATH, Provider, RunProviders,
+    },
     templating::{self, Field, FileType, Scalar, Template, TemplateContext},
 };
 use rtf_derive::Template;
@@ -187,14 +189,10 @@ impl ScenarioCommand {
 }
 
 impl RunProviders for ScenarioCommand {
-    async fn run_providers(
-        &self,
-        providers_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<()> {
+    fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
         match self {
-            Self::Docker(inner) => inner.file_providers.run_providers(providers_dir, ctx).await,
-            Self::Script(inner) => inner.run_providers(providers_dir, ctx).await,
+            Self::Docker(inner) => inner.named_providers(),
+            Self::Script(inner) => inner.named_providers(),
         }
     }
 
@@ -384,12 +382,8 @@ impl Execute for DockerScenario {
 }
 
 impl RunProviders for DockerScenario {
-    async fn run_providers(
-        &self,
-        providers_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<()> {
-        self.file_providers.run_providers(providers_dir, ctx).await
+    fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
+        self.file_providers.named_providers()
     }
 
     fn inline<'a>(

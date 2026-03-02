@@ -1,13 +1,6 @@
 //! Providers are how we expose the rest of the framework to user facing config.
-use crate::{
-    context::PathKind,
-    providers::{
-        command::CommandProvider,
-        file::{FileProvider, compose::ComposeFileProvider},
-    },
-};
+use crate::context::PathKind;
 use rtf_integrations::graphos::supergraph::FetchError;
-use serde::Serialize;
 use std::io;
 
 pub mod command;
@@ -60,21 +53,6 @@ pub enum Error {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
-
-/// Wrapper enum for supporting caching of provider output
-#[derive(Debug, Serialize)]
-pub enum Provider<'a> {
-    File {
-        fp: &'a FileProvider,
-    },
-    Command {
-        name: &'a str,
-        cmd: &'a CommandProvider,
-    },
-    ComposeFile {
-        fp: &'a ComposeFileProvider,
-    },
-}
 
 #[cfg(test)]
 pub(crate) mod test_helpers {

@@ -6,17 +6,22 @@ use crate::{
     context::ResolutionContext,
     inlining::{self, InlineMode},
     providers::{
-        self, Provider,
-        file::{NamedFileProvider, ResolveAndWrite, compose::NamedComposeFileProvider},
+        self,
+        command::CommandProvider,
+        file::{
+            FileProvider, NamedFileProvider, ResolveAndWrite, compose::ComposeFileProvider,
+            compose::NamedComposeFileProvider,
+        },
     },
 };
+use serde::Serialize;
 use std::{
     collections::HashMap,
-    io,
+    fmt, io,
     path::{Path, PathBuf},
     pin::Pin,
 };
-use tracing::trace;
+use tracing::{debug, trace};
 
 /// The environment variable used to provide the location of the output directory to user specified
 /// commands
@@ -28,8 +33,25 @@ pub const PROVIDER_DIR: &str = "providers";
 /// Stored during environment setup and read during scenario execution.
 pub const DOCKER_COMPOSE_NETWORK: &str = "DOCKER_COMPOSE_NETWORK";
 
+/// Wrapper enum for supporting caching of provider output
+#[derive(Debug, Copy, Clone, Serialize)]
+pub enum Provider<'a> {
+    File {
+        fp: &'a FileProvider,
+    },
+    Command {
+        name: &'a str,
+        cmd: &'a CommandProvider,
+    },
+    ComposeFile {
+        fp: &'a ComposeFileProvider,
+    },
+}
+
 #[allow(async_fn_in_trait)]
 pub trait RunProviders {
+    fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)>;
+
     /// Run all of the [FileProviders][0] contained within this type and write out their file
     /// contents to the specified directory.
     ///
@@ -38,7 +60,44 @@ pub trait RunProviders {
         &self,
         providers_dir: &Path,
         ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<()>;
+    ) -> providers::Result<()> {
+        for (name, provider) in self.named_providers() {
+            if ctx.known_provider_output_path(provider).is_some() {
+                continue;
+            }
+
+            trace!(%name, "running file provider");
+            let file_path = providers_dir.join(name);
+
+            // We need to box the futures here in order to prevent us ending up with a recursive
+            // type definition for the Future we are building with this method. We end up being
+            // recursively defined because of the FromCommand file provider which is just a wrapper
+            // around CommandSection, meaning that the call to resolve_and_write below ends up calling
+            // back into run_providers_and_execute which then calls this method (run_providers).
+            let res = match provider {
+                Provider::File { fp } => Box::pin(fp.resolve_and_write(&file_path, ctx)).await,
+
+                Provider::Command { cmd, .. } => Box::pin(cmd.resolve_and_write(&file_path, ctx))
+                    .await
+                    .and_then(|_| ctx.make_executable(&file_path).map_err(Into::into)),
+
+                Provider::ComposeFile { fp } => {
+                    Box::pin(fp.resolve_and_write(&file_path, ctx)).await
+                }
+            };
+
+            if let Err(e) = res {
+                return Err(providers::Error::ResolveAndWriteFailed {
+                    name: name.to_owned(),
+                    err: e.to_string(),
+                });
+            };
+
+            ctx.store_provider_output_path(provider, file_path);
+        }
+
+        Ok(())
+    }
 
     // We need to pin these futures on the heap to be able to poll it in order to avoid a
     // recursively defined future (which is infinitely sized). We end up being recursively
@@ -53,39 +112,10 @@ pub trait RunProviders {
 }
 
 impl RunProviders for Vec<NamedFileProvider> {
-    async fn run_providers(
-        &self,
-        providers_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<()> {
-        for nfp in self.iter() {
-            let cache_key = Provider::File { fp: &nfp.provider };
-            if ctx.known_provider_output_path(cache_key).is_some() {
-                continue;
-            }
-
-            trace!(name=%nfp.name, "running file provider");
-            let file_path = providers_dir.join(&nfp.name);
-
-            // We need to box the future here in order to prevent us ending up with a recursive
-            // type definition for the Future we are building with this method. We end up being
-            // recursively defined because of the FromCommand file provider which is just a wrapper
-            // around CommandSection, meaning that the call to resolve_and_write below ends up calling
-            // back into run_providers_and_execute which then calls this method (run_providers).
-            match Box::pin(nfp.resolve_and_write(&file_path, ctx)).await {
-                Ok(b) => b,
-                Err(e) => {
-                    return Err(providers::Error::ResolveAndWriteFailed {
-                        name: nfp.env_var.to_string(),
-                        err: e.to_string(),
-                    });
-                }
-            };
-
-            ctx.store_provider_output_path(Provider::File { fp: &nfp.provider }, file_path);
-        }
-
-        Ok(())
+    fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
+        self.iter()
+            .map(|nfp| (nfp.name.as_str(), Provider::File { fp: &nfp.provider }))
+            .collect()
     }
 
     fn inline<'a>(
@@ -106,39 +136,15 @@ impl RunProviders for Vec<NamedFileProvider> {
 }
 
 impl RunProviders for Vec<NamedComposeFileProvider> {
-    async fn run_providers(
-        &self,
-        providers_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<()> {
-        for nfp in self.iter() {
-            let cache_key = Provider::ComposeFile { fp: &nfp.provider };
-            if ctx.known_provider_output_path(cache_key).is_some() {
-                continue;
-            }
-
-            trace!(name=%nfp.name, "running file provider");
-            let file_path = providers_dir.join(&nfp.name);
-
-            // We need to box the future here in order to prevent us ending up with a recursive
-            // type definition for the Future we are building with this method. We end up being
-            // recursively defined because of the FromCommand file provider which is just a wrapper
-            // around CommandSection, meaning that the call to resolve_and_write below ends up calling
-            // back into run_providers_and_execute which then calls this method (run_providers).
-            match Box::pin(nfp.resolve_and_write(&file_path, ctx)).await {
-                Ok(b) => b,
-                Err(e) => {
-                    return Err(providers::Error::ResolveAndWriteFailed {
-                        name: nfp.name.to_string(),
-                        err: e.to_string(),
-                    });
-                }
-            };
-
-            ctx.store_provider_output_path(Provider::ComposeFile { fp: &nfp.provider }, file_path);
-        }
-
-        Ok(())
+    fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
+        self.iter()
+            .map(|nfp| {
+                (
+                    nfp.name.as_str(),
+                    Provider::ComposeFile { fp: &nfp.provider },
+                )
+            })
+            .collect()
     }
 
     fn inline<'a>(
@@ -165,6 +171,24 @@ pub struct ExecuteArgs {
     pub env_vars: HashMap<String, String>,
 }
 
+impl fmt::Display for ExecuteArgs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (k, v) in self.env_vars.iter() {
+            // trailing space to pad for next pair / prog
+            write!(f, "{k}={v:?} ")?;
+        }
+
+        f.write_str(&self.prog)?;
+
+        for arg in self.args.iter() {
+            // leading space to pad for prog / prev arg
+            write!(f, " {arg:?}")?;
+        }
+
+        Ok(())
+    }
+}
+
 #[allow(async_fn_in_trait)]
 pub trait Execute: RunProviders {
     fn command_name(&self) -> &str;
@@ -187,14 +211,16 @@ pub trait Execute: RunProviders {
         output_path: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<()> {
-        let ExecuteArgs {
-            prog,
-            args,
-            env_vars,
-        } = self.as_execute_args(out_dir, output_path, ctx)?;
+        let e_args = self.as_execute_args(out_dir, output_path, ctx)?;
 
-        ctx.run_command_blocking(&prog, args.iter().map(|s| s.as_str()), &env_vars)
-            .map_err(Into::into)
+        debug!(command=%e_args, "Executing command");
+
+        ctx.run_command_blocking(
+            &e_args.prog,
+            e_args.args.iter().map(|s| s.as_str()),
+            &e_args.env_vars,
+        )
+        .map_err(Into::into)
     }
 
     /// Run all of the [FileProviders][0] associated with this command and write out their file

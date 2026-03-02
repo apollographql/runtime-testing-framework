@@ -1,4 +1,4 @@
-use crate::providers::{self, Provider};
+use crate::{providers, run::Provider};
 use rtf_integrations::{
     APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, GITHUB_TOKEN_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR,
     HttpClient, ReqwestClient, github,
