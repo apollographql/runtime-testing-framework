@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Error","Provider"],"mod":["command","file"],"type":["Result"]};
+window.SIDEBAR_ITEMS = {"enum":["Error"],"mod":["command","file"],"type":["Result"]};
