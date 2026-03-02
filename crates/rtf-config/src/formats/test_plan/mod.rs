@@ -23,9 +23,9 @@ pub(crate) use raw::strip_sources_for_relative_paths;
 pub use sources::Sources;
 
 // Namespace directories for containing the file provider output from each command section
-const SETUP_PROVIDER_DIR: &str = "setup";
-const SCENARIO_PROVIDER_DIR: &str = "scenario";
-const TEARDOWN_PROVIDER_DIR: &str = "teardown";
+pub const SETUP_PROVIDER_DIR: &str = "setup";
+pub const SCENARIO_PROVIDER_DIR: &str = "scenario";
+pub const TEARDOWN_PROVIDER_DIR: &str = "teardown";
 
 /// The format for parsing scenario config
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

@@ -7,11 +7,13 @@ use crate::{
     formats::{CustomProviderDeclaration, Result},
     inlining::{self, InlineMode},
     providers::{
-        self, Provider,
+        self,
         command::CommandSection,
         file::{NamedFileProvider, SourceDir, compose::NamedComposeFileProvider},
     },
-    run::{DOCKER_COMPOSE_NETWORK, Execute, OUTDIR, OUTPUT_PATH, PROVIDER_DIR, RunProviders},
+    run::{
+        DOCKER_COMPOSE_NETWORK, Execute, OUTDIR, OUTPUT_PATH, PROVIDER_DIR, Provider, RunProviders,
+    },
     templating::{self, Field, FileType, Scalar, Template, TemplateContext},
 };
 use rtf_derive::Template;
@@ -222,16 +224,10 @@ pub enum EnvironmentExecution {
 enum_impl_check!(EnvironmentExecution => Script, DockerCompose);
 
 impl RunProviders for EnvironmentExecution {
-    async fn run_providers(
-        &self,
-        providers_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<()> {
+    fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
         match self {
-            EnvironmentExecution::DockerCompose(inner) => {
-                inner.run_providers(providers_dir, ctx).await
-            }
-            EnvironmentExecution::Script(inner) => inner.run_providers(providers_dir, ctx).await,
+            EnvironmentExecution::DockerCompose(inner) => inner.named_providers(),
+            EnvironmentExecution::Script(inner) => inner.named_providers(),
         }
     }
 
@@ -293,15 +289,11 @@ impl Check for ScriptEnvironment {
 }
 
 impl RunProviders for ScriptEnvironment {
-    async fn run_providers(
-        &self,
-        providers_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<()> {
-        self.setup.run_providers(providers_dir, ctx).await?;
-        self.teardown.run_providers(providers_dir, ctx).await?;
+    fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
+        let mut providers = self.setup.named_providers();
+        providers.extend(self.teardown.named_providers());
 
-        Ok(())
+        providers
     }
 
     fn inline<'a>(
@@ -549,17 +541,11 @@ impl Check for DockerComposeEnvironment {
 }
 
 impl RunProviders for DockerComposeEnvironment {
-    async fn run_providers(
-        &self,
-        providers_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<()> {
-        self.compose_files.run_providers(providers_dir, ctx).await?;
-        self.file_providers
-            .run_providers(providers_dir, ctx)
-            .await?;
+    fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
+        let mut providers = self.compose_files.named_providers();
+        providers.extend(self.file_providers.named_providers());
 
-        Ok(())
+        providers
     }
 
     fn inline<'a>(
@@ -586,10 +572,8 @@ pub(crate) mod test_helpers {
         formats::tests::{
             named_file_providers_with_fields, templatable_file_providers, variable_definitions,
         },
-        providers::{
-            Provider,
-            file::{InlineFile, compose::ComposeFileProvider},
-        },
+        providers::file::{InlineFile, compose::ComposeFileProvider},
+        run::Provider,
         templating::Field,
     };
     use assert_fs::{TempDir, prelude::*};

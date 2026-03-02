@@ -232,7 +232,7 @@ fn matrix_include_completes() {
 }
 
 #[test_case("setup-execution-fails", "Unable to execute the setup.sh command:"; "setup script execution fails")]
-#[test_case("setup-file-provider-fails", "Unable to resolve and write FROG_GIF file: stream did not contain valid UTF-8"; "setup file provider fails")]
+#[test_case("setup-file-provider-fails", "Unable to resolve and write frog-no.gif file: stream did not contain valid UTF-8"; "setup file provider fails")]
 #[test_case("scenario-execution-fails", "Unable to execute the scenario.sh command:"; "scenario script execution fails")]
 #[test_case("teardown-execution-fails", "Unable to execute the teardown.sh command:"; "teardown script execution fails")]
 #[test]

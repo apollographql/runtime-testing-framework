@@ -1,23 +1,22 @@
 use crate::{
     checks::{self, Check, duplicate_keys},
     context::ResolutionContext,
-    enum_impl_check,
+    enum_impl_check, enum_impl_resolve_and_write,
     inlining::{self, InlineMode},
     providers::{
-        self, Provider,
+        self,
         file::{
             AsUtf8FileContent, InlineFile, NamedFileProvider, RelativeFile, RequiredFile,
             ResolveAndWrite,
         },
     },
-    run::{Execute, OUTDIR, OUTPUT_PATH, RunProviders},
+    run::{Execute, ExecuteArgs, OUTDIR, OUTPUT_PATH, Provider, RunProviders},
     templating::{Field, Scalar},
 };
 use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, future::Future, io, path::Path, pin::Pin};
-use tracing::trace;
 
 /// # Command Section
 ///
@@ -84,27 +83,17 @@ impl CommandSection {
 }
 
 impl RunProviders for CommandSection {
-    async fn run_providers(
-        &self,
-        providers_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<()> {
-        self.file_providers
-            .run_providers(providers_dir, ctx)
-            .await?;
+    fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
+        let mut providers = self.file_providers.named_providers();
+        providers.push((
+            self.command.name.as_str(),
+            Provider::Command {
+                name: &self.command.name,
+                cmd: &self.command.command_provider,
+            },
+        ));
 
-        let cache_key = Provider::Command {
-            name: &self.command.name,
-            cmd: &self.command.command_provider,
-        };
-
-        if ctx.known_provider_output_path(cache_key).is_none() {
-            self.command
-                .try_resolve_as_script(providers_dir, ctx)
-                .await?;
-        }
-
-        Ok(())
+        providers
     }
 
     fn inline<'a>(
@@ -127,18 +116,19 @@ impl Execute for CommandSection {
         &self.command.name
     }
 
-    fn execute(
+    fn as_execute_args(
         &self,
         out_dir: &Path,
         output_path: &Path,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<()> {
+    ) -> providers::Result<ExecuteArgs> {
         let env_vars = self.all_env_vars(out_dir, output_path, ctx)?;
-        let args = self
+        let args: Vec<String> = self
             .command
             .args
             .iter()
-            .map(|arg| arg.as_resolved().as_str());
+            .map(|arg| arg.as_resolved().to_string())
+            .collect();
 
         let file_path = ctx
             .known_provider_output_path(Provider::Command {
@@ -150,7 +140,7 @@ impl Execute for CommandSection {
             })?;
 
         let prog = match file_path.to_str() {
-            Some(v) => v,
+            Some(v) => v.to_owned(),
             None => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -160,8 +150,11 @@ impl Execute for CommandSection {
             }
         };
 
-        ctx.run_command_blocking(prog, args, &env_vars)
-            .map_err(Into::into)
+        Ok(ExecuteArgs {
+            prog,
+            args,
+            env_vars,
+        })
     }
 }
 
@@ -228,40 +221,6 @@ pub struct CommandSpec {
     pub args: Vec<Field<String>>,
 }
 
-impl CommandSpec {
-    async fn try_resolve_as_script(
-        &self,
-        providers_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<()> {
-        trace!(name=%self.name, "running command provider");
-        let file_path = providers_dir.join(&self.name);
-
-        match &self.command_provider {
-            CommandProvider::Inline(inner) => inner.resolve_and_write(&file_path, ctx).await?,
-            CommandProvider::RelativePath(inner) => {
-                inner.resolve_and_write(&file_path, ctx).await?
-            }
-
-            // This will panic but we want to ensure that we have a consistent error message
-            // for the user so we call through to resolve_and_write to trigger it rather than
-            // writing a custom panic message here.
-            CommandProvider::Required(inner) => inner.resolve_and_write(&file_path, ctx).await?,
-        }
-
-        ctx.make_executable(&file_path)?;
-        ctx.store_provider_output_path(
-            Provider::Command {
-                name: &self.name,
-                cmd: &self.command_provider,
-            },
-            file_path,
-        );
-
-        Ok(())
-    }
-}
-
 impl Check for CommandSpec {
     fn try_check(
         &self,
@@ -316,6 +275,7 @@ impl CommandProvider {
 // can't really forget to do this as the compiler will complain about missing match arms if you
 // do!)
 enum_impl_check!(CommandProvider => Inline, RelativePath, Required);
+enum_impl_resolve_and_write!(CommandProvider => Inline, RelativePath, Required);
 
 #[cfg(test)]
 pub(crate) mod test_helpers {
@@ -358,12 +318,11 @@ mod tests {
         context::{Context, PathKind},
         mock_context::NullClient,
         providers::{
-            Provider,
             command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
             file::{FileProvider, InlineFile},
             test_helpers::create_temp_dir_with_file,
         },
-        run::{Execute, PROVIDER_DIR},
+        run::{Execute, PROVIDER_DIR, Provider},
         templating::Template,
     };
     use indoc::indoc;

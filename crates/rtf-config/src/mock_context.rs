@@ -1,11 +1,14 @@
 use crate::{
     context::{PathKind, ResolutionContext},
     providers,
+    run::Provider,
 };
 use bytes::Bytes;
 use reqwest::StatusCode;
-use rtf_integrations::{HttpClient, HttpResponse, graphos::supergraph::SupergraphDetails};
-use rtf_integrations::{github, graphos::platform_query};
+use rtf_integrations::{
+    HttpClient, HttpResponse, github, graphos::platform_query,
+    graphos::supergraph::SupergraphDetails,
+};
 use std::{
     collections::HashMap,
     fs, io,
@@ -80,11 +83,7 @@ impl<C: HttpClient + Clone + 'static> ResolutionContext for MockContext<C> {
         fs::read_to_string(path)
     }
 
-    fn store_provider_output_path(
-        &mut self,
-        _provider: crate::providers::Provider<'_>,
-        _path: PathBuf,
-    ) {
+    fn store_provider_output_path(&mut self, _provider: Provider<'_>, _path: PathBuf) {
         unimplemented!(
             "If you are hitting this we have not needed to mock this yet which is why it is not implemented"
         )
