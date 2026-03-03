@@ -10,7 +10,7 @@ use rtf_cli::{
             inline_test_plan, resolve_environment, resolve_scenario, run_custom_provider,
             template_custom_provider, template_test_plan, test_custom_provider,
         },
-        porcelain::check_and_run_test_plan,
+        porcelain::{check_and_run_test_plan, open_docs},
     },
 };
 use rtf_config::inlining::InlineMode;
@@ -52,6 +52,8 @@ async fn main() {
             )
             .await
         }
+
+        Command::Docs { search_term } => open_docs(&search_term),
 
         // plumbing commands
         Command::ExpandMatrix {

@@ -6,6 +6,7 @@ This document contains the help content for the `rtf` command-line program.
 
 * [`rtf`↴](#rtf)
 * [`rtf run`↴](#rtf-run)
+* [`rtf docs`↴](#rtf-docs)
 * [`rtf expand-matrix`↴](#rtf-expand-matrix)
 * [`rtf template`↴](#rtf-template)
 * [`rtf custom-provider`↴](#rtf-custom-provider)
@@ -30,6 +31,7 @@ A swiss army knife for testing the Apollo Runtime
 ###### **Subcommands:**
 
 * `run` — Check and run a test plan
+* `docs` — Open the RTF documentation in your browser
 * `expand-matrix` — Expand a test plan matrix into JSON
 * `template` — Template a test plan using provided variables, outputting the resulting config to stdout
 * `custom-provider` — Work directly with custom file provider definitions
@@ -72,6 +74,18 @@ Check and run a test plan
 * `--force` — Force removal of an existing output directory before running
 
   Default value: `false`
+
+
+
+## `rtf docs`
+
+Open the RTF documentation in your browser
+
+**Usage:** `rtf docs [SEARCH_TERM]...`
+
+###### **Arguments:**
+
+* `<SEARCH_TERM>` — An optional search term to search for within the docs
 
 
 

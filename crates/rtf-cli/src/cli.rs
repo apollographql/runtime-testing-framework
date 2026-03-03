@@ -72,6 +72,13 @@ pub enum Command {
         force: bool,
     },
 
+    /// Open the RTF documentation in your browser
+    #[command(alias = "m")]
+    Docs {
+        /// An optional search term to search for within the docs.
+        search_term: Vec<String>,
+    },
+
     // Plumbing commands
     /// Expand a test plan matrix into JSON
     ExpandMatrix {
