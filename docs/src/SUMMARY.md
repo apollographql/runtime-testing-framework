@@ -5,6 +5,7 @@
 # User Documentation
 
 - [Understanding RTF](explanation/overview.md)
+- [Where RTF fits in your test suite](explanation/testing-with-rtf.md)
 
 - [Tutorials](tutorials/index.md)
   - [Hello, world!](tutorials/hello-world.md)
