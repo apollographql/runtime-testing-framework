@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-facabee8.js";
+            window.path_to_searchindex_js = "searchindex-e699f76c.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-b894ec53.js"></script>
+        <script src="toc-015b6cd2.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -206,6 +206,10 @@ workflows for running tests of the Apollo Router. This repo is maintained by the
 team in order to support Router Core with release validation, regression testing and running
 investigations into customer issues.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
+<h1 id="understanding-rtf"><a class="header" href="#understanding-rtf">Understanding RTF</a></h1>
+<p>This section explains the thinking behind RTF — what it is, how it fits into your testing strategy,
+and why it’s designed the way it is.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="overview"><a class="header" href="#overview">Overview</a></h1>
 <p>Throughout the rest of the <em>User Documentation</em> you’ll see us talking about RTF both as the
 framework itself and as part of the richer tooling and testing capabilities provided by the Runtime
@@ -321,6 +325,156 @@ how RTF works and how you can work with pre-existing test plans. If you want to 
 framework itself, then the <a href="#writing-test-plans">Test plans</a> and <a href="#the-framework">framework</a> sections are more likely what you are
 after.</p>
 <p>Happy testing!</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
+<h1 id="where-rtf-fits-in-your-test-suite"><a class="header" href="#where-rtf-fits-in-your-test-suite">Where RTF fits in your test suite</a></h1>
+<p>Before diving in, it’s worth being precise about what RTF actually is — because it’s easy to mistake
+it for something it isn’t.</p>
+<p>RTF is a framework for <strong>building and reproducing complex integrated environments</strong>. It handles
+spinning up services, resolving credentials, pulling in parameterised test data, and tearing
+everything down cleanly afterwards. What it is <em>not</em> is a framework for writing tests. RTF doesn’t
+provide assertions, test runners, or anything that touches the logic of your test scenarios — that
+part is entirely up to you and your existing tooling.</p>
+<p>This distinction matters. The value RTF provides is reliability and repeatability at the
+<em>environment</em> level: the confidence that every time you run a <a href="#glossary">Test Plan</a>, the services under
+test are in the same known-good state, with the same data, in the same configuration. See
+<a href="#overview">Understanding RTF</a> for more on the design philosophy behind this.</p>
+<p>A further benefit of this approach is consistency. When <a href="#glossary">Environments</a> and Test Plans are defined
+in RTF, they can be shared, reviewed, and reproduced by any team — whether that’s another
+engineering team building on the same services, or Apollo’s support team trying to reproduce a
+customer issue. Everyone is working from the same definition, in the same way.</p>
+<p>Because standing up a full integrated environment has a non-trivial cost, RTF is best suited to
+tests that justify that overhead — tests that can only be run meaningfully against a real, running
+system. Understanding where that threshold sits in the testing pyramid will help you decide what
+belongs in an RTF Test Plan and what doesn’t.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Test type</th><th>✅ Use RTF</th><th>❌ Don’t use RTF</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>E2E</strong></td><td>• Full-stack tests against real running services<br>• Tests requiring real credentials or external dependencies</td><td>• Tests of logic within a single service<br>• Tests that can run meaningfully against a mock or stub</td></tr>
+<tr><td><strong>Smoke</strong></td><td>• Post-deployment health checks against a real environment<br>• Confirming environment setup before a full run</td><td>• Exhaustive regression coverage<br>• Checks that need to run in under a second</td></tr>
+<tr><td><strong>Performance</strong></td><td>• Load testing against staging with representative workloads<br>• Comparing throughput across service configurations</td><td>• Microbenchmarks of isolated functions<br>• Profiling the internals of a single service</td></tr>
+<tr><td><strong>Exploratory</strong></td><td>• Reproducing a bug against a live or staging environment<br>• Testing a hypothesis under a specific configuration</td><td>• Structured regression runs that need a pass/fail record<br>• Investigations that only require reading logs or metrics</td></tr>
+<tr><td><strong>Integration tests</strong></td><td>—</td><td>Tests of internal component boundaries within a single service</td></tr>
+<tr><td><strong>Unit tests</strong></td><td>—</td><td>Any test that doesn’t require a running service</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="the-testing-pyramid"><a class="header" href="#the-testing-pyramid">The testing pyramid</a></h2>
+<p>The testing pyramid is a useful mental model for thinking about how to distribute your automated
+tests, <a href="https://martinfowler.com/bliki/TestPyramid.html">originally described by Martin Fowler</a>. It has three layers:</p>
+<ul>
+<li><strong>Unit tests</strong> (base) — test the smallest piece of logic in isolation. Fast, numerous, highly
+specific. A failing unit test points directly at the problem.</li>
+<li><strong>Integration tests</strong> (middle) — test how two or more real components work together. Slower than
+unit tests, but they catch problems that only emerge at the boundaries between components.</li>
+<li><strong>End-to-end tests</strong> (top) — test the full system from the outside, the way a real user or
+consumer would. The most expensive layer: they’re slow, require real infrastructure, and are prone
+to flakiness.</li>
+</ul>
+<p>The pyramid shape reflects a practical ratio: many unit tests, fewer integration tests, and a small
+number of E2E tests covering your most critical paths. The top of the pyramid is valuable but
+costly, so you reserve it for the things that matter most.</p>
+<h2 id="where-rtf-lives"><a class="header" href="#where-rtf-lives">Where RTF lives</a></h2>
+<p>RTF operates at the <strong>top of the pyramid</strong>. Every RTF Test Plan requires one or more real, running
+services to test against. The services themselves, how they’re configured, and how your test
+scenarios interact with them are all up to you — RTF is the layer that makes sure they’re all in
+place, in the right state, before your tests run.</p>
+<p>This is intentional. RTF is designed for tests that can’t be meaningfully run in isolation — where
+the question you’re answering is “does this actually work, end to end, in this configuration?”</p>
+<h2 id="test-types-rtf-is-suited-for"><a class="header" href="#test-types-rtf-is-suited-for">Test types RTF is suited for</a></h2>
+<p>All of the following test types sit at the top of the pyramid. What differs is their purpose and how
+often you’d run them.</p>
+<h3 id="end-to-end-suites"><a class="header" href="#end-to-end-suites">End-to-end suites</a></h3>
+<p>The most common use of RTF is running a full E2E suite — a set of <a href="#glossary">Scenarios</a> that together
+verify the critical behaviour of a service across a set of configurations. A good E2E suite covers
+the flows your users depend on most, not every possible code path. Because E2E tests are expensive
+to run and maintain, selectivity is a virtue.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Use RTF</th><th>Don’t use RTF</th></tr>
+</thead>
+<tbody>
+<tr><td>Verifying end-to-end behaviour across a full set of running services</td><td>Tests of logic within a single service that don’t require a running environment</td></tr>
+<tr><td>Verifying behaviour across multiple service configurations</td><td>Tests that can run meaningfully against a mock or stub</td></tr>
+<tr><td>Tests requiring real credentials, tokens, or external dependencies</td><td>Tests that cover every possible code path</td></tr>
+<tr><td>Reproducing customer-facing bugs against a representative environment</td><td>Fast regression checks that should run on every commit</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="smoke-and-diagnostic-runs"><a class="header" href="#smoke-and-diagnostic-runs">Smoke and diagnostic runs</a></h3>
+<p>A smoke run should be just enough to confirm configuration and connectivity of a deployment of your
+service is working as expected. You’d typically run smoke tests immediately before and after a
+deployment.</p>
+<p>In RTF, you can run a smoke suite by writing a dedicated Test Plan that references a subset of your
+Scenarios, or by passing specific <code>--var</code> values to target a narrower slice of your matrix.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Use RTF</th><th>Don’t use RTF</th></tr>
+</thead>
+<tbody>
+<tr><td>Pre- and Post-deployment health checks against a real environment</td><td>Comprehensive regression coverage</td></tr>
+<tr><td>Verifying the single most critical path is functional</td><td>Deep scenario coverage or exhaustive matrix runs</td></tr>
+<tr><td>Confirming environment setup is correct before a full run</td><td>Checks that should run in under a second</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="performance-runs"><a class="header" href="#performance-runs">Performance runs</a></h3>
+<p>RTF can be used for performance and load testing, where the Scenario exercises the service under
+representative load rather than verifying correctness alone. Performance tests are typically run on
+a different cadence to your functional E2E suite — against a staging environment before a release,
+rather than on every commit.</p>
+<p>Performance tests are most valuable when they reflect realistic workloads against the actual
+services under test — which means they need a real environment and real data. RTF gives you a
+reproducible way to stand that environment up consistently.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Use RTF</th><th>Don’t use RTF</th></tr>
+</thead>
+<tbody>
+<tr><td>Load testing against a staging environment with representative workloads</td><td>Microbenchmarks of isolated functions or algorithms</td></tr>
+<tr><td>Measuring throughput or latency across different service configurations</td><td>Profiling the internals of a single service process</td></tr>
+<tr><td>Comparing performance before and after a configuration change</td><td>Performance tests that don’t require a running service</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="exploratory-testing"><a class="header" href="#exploratory-testing">Exploratory testing</a></h3>
+<p>RTF’s granular execution flags make it well suited to exploratory testing — running a specific
+Scenario against a live service to investigate unexpected behaviour or test a hypothesis. For a
+broader treatment of exploratory testing and where it fits alongside automated suites, see
+<a href="https://martinfowler.com/articles/practical-test-pyramid.html">The Practical Test Pyramid</a>.</p>
+<p>You can run a single Scenario directly:</p>
+<pre><code class="language-shell">rtf run --scenario test-plan.yaml
+</code></pre>
+<p>Or pin <code>--var</code> flags to run against a single matrix configuration without executing the full matrix.
+This makes RTF useful not just as an automated test runner, but as a tool for debugging and
+investigation in live environments.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Use RTF</th><th>Don’t use RTF</th></tr>
+</thead>
+<tbody>
+<tr><td>Reproducing a bug against a live or staging environment</td><td>Structured regression runs that need a pass/fail record</td></tr>
+<tr><td>Testing a hypothesis about service behaviour under a specific configuration</td><td>Investigations that only require reading logs or metrics</td></tr>
+<tr><td>Manually verifying a fix before promoting to the full suite</td><td>Debugging issues within a single service’s internal logic</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="everything-else"><a class="header" href="#everything-else">Everything else</a></h2>
+<p>RTF is not the right tool for unit tests or integration tests within a single service. If what
+you’re testing doesn’t require a real running service — a parsing edge case, an internal function, a
+validation rule — you should test it with your language’s native test tooling. If you don’t require
+a running service, don’t use RTF.</p>
+<p>This isn’t a limitation of RTF; it’s a deliberate boundary. The framework is designed to compose
+with your existing tooling, not replace it. A healthy test suite uses RTF alongside unit and
+integration tests, not instead of them.</p>
+<p>If you’re unsure whether something belongs in RTF, ask: does this test require a real service to be
+running? If the answer is no, it probably doesn’t belong here.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: tutorial -->
 <h1 id="getting-started"><a class="header" href="#getting-started">Getting started</a></h1>
 <p>To build <code>rtf</code> from source, start by cloning the repo locally:</p>
