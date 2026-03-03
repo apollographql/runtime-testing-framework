@@ -26,12 +26,12 @@ use std::{
 };
 use tracing::error;
 
-/// # Text file provider
+/// # Merge file provider
 ///
-/// A subset of file providers that can produce arbitrary utf-8 text as their output.
+/// A subset of file providers that can be merged into a base YAML file.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(rename_all = "snake_case", tag = "kind")]
-pub enum TextFileProvider {
+pub enum MergeFileProvider {
     GithubFile(GithubFile),
     GraphosSubgraphRouterUrlOverrides(GraphosSubgraphRouterUrlOverrides),
     Inline(InlineFile),
@@ -39,7 +39,7 @@ pub enum TextFileProvider {
     Required(RequiredFile),
 }
 
-impl TextFileProvider {
+impl MergeFileProvider {
     pub(crate) async fn inline_all_relative_paths<'a>(
         &'a mut self,
         ctx: &'a impl ResolutionContext,
@@ -52,18 +52,18 @@ impl TextFileProvider {
     }
 }
 
-// Each time we add a new variant to the TextFileProvider enum above we need to remember to add it
+// Each time we add a new variant to the MergeFileProvider enum above we need to remember to add it
 // to the macro invocation below in order to update the trait implementations for the enum. (You
 // can't really forget to do this as the compiler will complain about missing match arms if you
 // do!)
-macro_rules! enum_impl_text_file_provider {
+macro_rules! enum_impl_merge_file_provider {
     ($($variant:ident),+) => {
-        enum_impl_check!(TextFileProvider => $($variant),+);
-        enum_impl_as_utf8_file_content!(TextFileProvider => $($variant),+);
+        enum_impl_check!(MergeFileProvider => $($variant),+);
+        enum_impl_as_utf8_file_content!(MergeFileProvider => $($variant),+);
     };
 }
 
-enum_impl_text_file_provider!(
+enum_impl_merge_file_provider!(
     GithubFile,
     GraphosSubgraphRouterUrlOverrides,
     Inline,
@@ -110,7 +110,7 @@ enum_impl_text_file_provider!(
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct MergeYaml {
     /// A base YAML file to start with.
-    pub(crate) base: TextFileProvider,
+    pub(crate) base: MergeFileProvider,
     /// One or more YAML files to merge on top of the base file in sequence.
     pub(crate) overrides: Overrides,
 }
@@ -195,8 +195,8 @@ impl MergeYaml {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(untagged)]
 pub enum Overrides {
-    One(TextFileProvider),
-    Array(Vec<TextFileProvider>),
+    One(MergeFileProvider),
+    Array(Vec<MergeFileProvider>),
 }
 
 impl Overrides {
@@ -214,12 +214,12 @@ impl Overrides {
         let mut errs = inlining::ErrorBuilder::new();
 
         match self {
-            Self::One(text_file_provider) => {
-                errs.append(text_file_provider.inline_all_relative_paths(ctx).await);
+            Self::One(merge_file_provider) => {
+                errs.append(merge_file_provider.inline_all_relative_paths(ctx).await);
             }
-            Self::Array(text_file_providers) => {
-                for tfp in text_file_providers.iter_mut() {
-                    errs.append(tfp.inline_all_relative_paths(ctx).await);
+            Self::Array(merge_file_providers) => {
+                for mfp in merge_file_providers.iter_mut() {
+                    errs.append(mfp.inline_all_relative_paths(ctx).await);
                 }
             }
         }
@@ -541,7 +541,7 @@ mod tests {
     use simple_test_case::test_case;
 
     fn one(content: &str) -> Overrides {
-        Overrides::One(TextFileProvider::Inline(InlineFile {
+        Overrides::One(MergeFileProvider::Inline(InlineFile {
             content: content.to_string(),
         }))
     }
@@ -551,7 +551,7 @@ mod tests {
             files
                 .iter()
                 .map(|content| {
-                    TextFileProvider::Inline(InlineFile {
+                    MergeFileProvider::Inline(InlineFile {
                         content: content.to_string(),
                     })
                 })
@@ -561,7 +561,7 @@ mod tests {
 
     fn merge_yaml(base: &str, overrides: Overrides) -> FileProvider {
         FileProvider::MergeYaml(MergeYaml {
-            base: TextFileProvider::Inline(InlineFile {
+            base: MergeFileProvider::Inline(InlineFile {
                 content: base.to_string(),
             }),
             overrides,
@@ -578,7 +578,7 @@ mod tests {
     #[tokio::test]
     async fn merge_yaml_resolve_expected_output(overrides: Overrides, expected: &str) {
         let provider = MergeYaml {
-            base: TextFileProvider::Inline(InlineFile {
+            base: MergeFileProvider::Inline(InlineFile {
                 content: "key1: A\nkey2: B".into(),
             }),
             overrides,
@@ -597,10 +597,10 @@ mod tests {
     #[test]
     fn merge_yaml_check_success() {
         let merge_yaml = MergeYaml {
-            base: TextFileProvider::Inline(InlineFile {
+            base: MergeFileProvider::Inline(InlineFile {
                 content: "some content".to_string(),
             }),
-            overrides: Overrides::One(TextFileProvider::Inline(InlineFile {
+            overrides: Overrides::One(MergeFileProvider::Inline(InlineFile {
                 content: "override content".to_string(),
             })),
         };
@@ -611,32 +611,32 @@ mod tests {
     }
 
     #[test_case(
-        TextFileProvider::Required(RequiredFile {message: "will fail check".to_string(),}),
-        Overrides::One(TextFileProvider::Inline(InlineFile {content: "override content".to_string(),})),
+        MergeFileProvider::Required(RequiredFile {message: "will fail check".to_string(),}),
+        Overrides::One(MergeFileProvider::Inline(InlineFile {content: "override content".to_string(),})),
         &[ErrorKind::RequiredFileMissing];
         "base only"
     )]
     #[test_case(
-        TextFileProvider::Inline(InlineFile {content: "some content".to_string(),}),
-        Overrides::One(TextFileProvider::Required(RequiredFile {message: "will fail check".to_string(),})),
+        MergeFileProvider::Inline(InlineFile {content: "some content".to_string(),}),
+        Overrides::One(MergeFileProvider::Required(RequiredFile {message: "will fail check".to_string(),})),
         &[ErrorKind::RequiredFileMissing];
         "single override only"
     )]
     #[test_case(
-        TextFileProvider::Inline(InlineFile {content: "some content".to_string(),}),
-        Overrides::Array(vec![TextFileProvider::Required(RequiredFile {message: "will fail check".to_string(),}),TextFileProvider::Required(RequiredFile {message: "will fail check".to_string(),})]),
+        MergeFileProvider::Inline(InlineFile {content: "some content".to_string(),}),
+        Overrides::Array(vec![MergeFileProvider::Required(RequiredFile {message: "will fail check".to_string(),}),MergeFileProvider::Required(RequiredFile {message: "will fail check".to_string(),})]),
         &[ErrorKind::RequiredFileMissing, ErrorKind::RequiredFileMissing];
         "multiple overrides only"
     )]
     #[test_case(
-        TextFileProvider::Required(RequiredFile {message: "will fail check".to_string(),}),
-        Overrides::One(TextFileProvider::Required(RequiredFile {message: "will fail check".to_string(),})),
+        MergeFileProvider::Required(RequiredFile {message: "will fail check".to_string(),}),
+        Overrides::One(MergeFileProvider::Required(RequiredFile {message: "will fail check".to_string(),})),
         &[ErrorKind::RequiredFileMissing, ErrorKind::RequiredFileMissing];
         "base and single override"
     )]
     #[test]
     fn merge_yaml_check_errors(
-        base: TextFileProvider,
+        base: MergeFileProvider,
         overrides: Overrides,
         expected_err_kinds: &[checks::ErrorKind],
     ) {
@@ -971,13 +971,13 @@ mod tests {
         let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
 
-        let mut text_file_provider = TextFileProvider::RelativePath(RelativeFile {
+        let mut text_file_provider = MergeFileProvider::RelativePath(RelativeFile {
             path: Field::Resolved(relative_file_path.to_string()),
             src: Some(src.clone()),
         });
 
         let result = text_file_provider.inline_all_relative_paths(&ctx).await;
-        let expected_text_file_provider = TextFileProvider::Inline(InlineFile {
+        let expected_text_file_provider = MergeFileProvider::Inline(InlineFile {
             content: file_content.to_string(),
         });
         assert!(
@@ -993,7 +993,7 @@ mod tests {
         let ctx = Context::new();
         let file_content = "example file content";
 
-        let mut text_file_provider = TextFileProvider::Inline(InlineFile {
+        let mut text_file_provider = MergeFileProvider::Inline(InlineFile {
             content: file_content.to_string(),
         });
         let expected_text_file_provider = text_file_provider.clone();
@@ -1017,16 +1017,16 @@ mod tests {
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
 
         let overrides = match num_overrides {
-            1 => Overrides::One(TextFileProvider::RelativePath(RelativeFile {
+            1 => Overrides::One(MergeFileProvider::RelativePath(RelativeFile {
                 path: Field::Resolved(relative_file_path.to_string()),
                 src: Some(src.clone()),
             })),
             _ => Overrides::Array(vec![
-                TextFileProvider::RelativePath(RelativeFile {
+                MergeFileProvider::RelativePath(RelativeFile {
                     path: Field::Resolved(relative_file_path.to_string()),
                     src: Some(src.clone()),
                 }),
-                TextFileProvider::RelativePath(RelativeFile {
+                MergeFileProvider::RelativePath(RelativeFile {
                     path: Field::Resolved(relative_file_path.to_string()),
                     src: Some(src.clone()),
                 }),
@@ -1034,7 +1034,7 @@ mod tests {
         };
 
         let mut merge_yaml = MergeYaml {
-            base: TextFileProvider::RelativePath(RelativeFile {
+            base: MergeFileProvider::RelativePath(RelativeFile {
                 path: Field::Resolved(relative_file_path.to_string()),
                 src: Some(src),
             }),
@@ -1044,20 +1044,20 @@ mod tests {
         let result = merge_yaml.inline_all_relative_paths(&ctx).await;
 
         let expected_overrides = match num_overrides {
-            1 => Overrides::One(TextFileProvider::Inline(InlineFile {
+            1 => Overrides::One(MergeFileProvider::Inline(InlineFile {
                 content: file_content.to_string(),
             })),
             _ => Overrides::Array(vec![
-                TextFileProvider::Inline(InlineFile {
+                MergeFileProvider::Inline(InlineFile {
                     content: file_content.to_string(),
                 }),
-                TextFileProvider::Inline(InlineFile {
+                MergeFileProvider::Inline(InlineFile {
                     content: file_content.to_string(),
                 }),
             ]),
         };
         let expected_merge_yaml = MergeYaml {
-            base: TextFileProvider::Inline(InlineFile {
+            base: MergeFileProvider::Inline(InlineFile {
                 content: file_content.to_string(),
             }),
             overrides: expected_overrides,
@@ -1077,10 +1077,10 @@ mod tests {
         let override_content = "key2: override_value";
 
         let mut file_provider = FileProvider::MergeYaml(MergeYaml {
-            base: TextFileProvider::Inline(InlineFile {
+            base: MergeFileProvider::Inline(InlineFile {
                 content: base_content.to_string(),
             }),
-            overrides: Overrides::One(TextFileProvider::Inline(InlineFile {
+            overrides: Overrides::One(MergeFileProvider::Inline(InlineFile {
                 content: override_content.to_string(),
             })),
         });
