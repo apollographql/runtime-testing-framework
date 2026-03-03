@@ -15,7 +15,9 @@ use crate::{
         },
     },
     run::{Execute, RunProviders},
-    templating::{self, Scalar, Template, TemplateContext},
+    templating::{
+        self, Scalar, Template, TemplateContext, extract_template_vars, interpolate_variables,
+    },
 };
 use rtf_derive::Template;
 use schemars::JsonSchema;
@@ -25,6 +27,91 @@ use std::{
     path::Path,
 };
 use tracing::error;
+
+/// # Templated file
+///
+/// Write a file whose content is an inline string with `${variable}` patterns interpolated
+/// from the RTF template variables defined for the current run.
+///
+/// ```yaml
+/// - name: config.json
+///   env_var: CONFIG_FILE
+///   kind: templated
+///   content: |
+///     { "endpoint": "${router_url}" }
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+pub struct TemplatedFile {
+    /// The file content with optional `${variable}` interpolation patterns.
+    pub(crate) content: String,
+}
+
+impl Template for TemplatedFile {
+    fn has_pending_fields(&self) -> bool {
+        false
+    }
+
+    fn required_variables(&self) -> Vec<String> {
+        extract_template_vars(&self.content)
+    }
+
+    fn validate_context(
+        &self,
+        path: &mut Vec<String>,
+        allowed_variables: &HashSet<&String>,
+        _file_source: &SourceDir,
+        _ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        let mut errs = templating::ErrorBuilder::new();
+
+        for var in self.required_variables() {
+            if !allowed_variables.contains(&var) {
+                errs.push(templating::ErrorKind::UnknownVariable, &var, path);
+            }
+        }
+
+        errs.into_result(())
+    }
+
+    fn try_template(
+        &mut self,
+        path: &mut Vec<String>,
+        _file_source: &SourceDir,
+        ctx: &TemplateContext,
+    ) -> templating::Result<()> {
+        let (interpolated, unresolved) = interpolate_variables(&self.content, ctx.variables());
+
+        if !unresolved.is_empty() {
+            let mut errs = templating::ErrorBuilder::new();
+            for var in unresolved {
+                errs.push(templating::ErrorKind::UnknownVariable, var, path);
+            }
+            return errs.into_result(());
+        }
+
+        self.content = interpolated;
+        Ok(())
+    }
+}
+
+impl AsUtf8FileContent for TemplatedFile {
+    async fn try_get_file_content(
+        &self,
+        _ctx: &impl ResolutionContext,
+    ) -> providers::Result<String> {
+        Ok(self.content.clone())
+    }
+}
+
+impl Check for TemplatedFile {
+    fn try_check(
+        &self,
+        _path: &mut Vec<String>,
+        _ctx: &impl ResolutionContext,
+    ) -> checks::Result<()> {
+        Ok(())
+    }
+}
 
 /// # Merge file provider
 ///
@@ -37,6 +124,7 @@ pub enum MergeFileProvider {
     Inline(InlineFile),
     RelativePath(RelativeFile),
     Required(RequiredFile),
+    Templated(TemplatedFile),
 }
 
 impl MergeFileProvider {
@@ -68,7 +156,8 @@ enum_impl_merge_file_provider!(
     GraphosSubgraphRouterUrlOverrides,
     Inline,
     RelativePath,
-    Required
+    Required,
+    Templated
 );
 
 /// # Merge YAML
@@ -534,11 +623,12 @@ mod tests {
             },
             test_helpers::create_temp_dir_with_file,
         },
-        templating::Field,
+        templating::{Field, TemplateContext},
     };
     use assert_fs::{TempDir, fixture::PathChild};
     use indoc::indoc;
     use simple_test_case::test_case;
+    use std::collections::{HashMap, HashSet};
 
     fn one(content: &str) -> Overrides {
         Overrides::One(MergeFileProvider::Inline(InlineFile {
@@ -1116,5 +1206,78 @@ mod tests {
         });
 
         let _res = file_provider.inline(&InlineMode::All, &ctx).await;
+    }
+
+    fn templated(content: &str) -> TemplatedFile {
+        TemplatedFile {
+            content: content.to_string(),
+        }
+    }
+
+    fn vars(pairs: &[(&str, &str)]) -> HashMap<String, Scalar> {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), Scalar::String(v.to_string())))
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn templated_file_resolves_variables() {
+        let mut tf = templated("hello ${name}!");
+        let ctx = TemplateContext::new_stubbed(vars(&[("name", "world")]));
+
+        tf.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx)
+            .expect("try_template to succeed");
+
+        let result = tf
+            .try_get_file_content(&Context::new())
+            .await
+            .expect("try_get_file_content to succeed");
+
+        assert_eq!(result, "hello world!");
+    }
+
+    #[test]
+    fn templated_file_try_template_errors_on_unknown_variable() {
+        let mut tf = templated("value: ${unknown}");
+        let ctx = TemplateContext::new_stubbed(HashMap::new());
+
+        let res = tf.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
+
+        assert!(res.is_err(), "expected error, got {res:?}");
+        let err = res.unwrap_err().unwrap_single();
+        assert_eq!(err.kind, templating::ErrorKind::UnknownVariable);
+        assert_eq!(err.message, "unknown");
+    }
+
+    #[test]
+    fn templated_file_check_always_succeeds() {
+        let tf = templated("${unresolved_is_fine_at_check_time}");
+        let ctx = Context::new();
+        let res = tf.try_check(&mut Vec::new(), &ctx);
+        assert!(res.is_ok(), "expected check to succeed, got {res:?}");
+    }
+
+    #[test]
+    fn templated_file_required_variables() {
+        let tf = templated("${foo} and ${bar}");
+        let mut vars = tf.required_variables();
+        vars.sort_unstable();
+        assert_eq!(vars, vec!["bar", "foo"]);
+    }
+
+    #[test]
+    fn templated_file_validate_context_errors_on_unknown() {
+        let tf = templated("${known} and ${unknown}");
+        let known = "known".to_string();
+        let allowed: HashSet<&String> = HashSet::from([&known]);
+        let ctx = TemplateContext::new_stubbed(HashMap::new());
+
+        let res = tf.validate_context(&mut Vec::new(), &allowed, &SourceDir::local("/"), &ctx);
+
+        assert!(res.is_err(), "expected error, got {res:?}");
+        let err = res.unwrap_err().unwrap_single();
+        assert_eq!(err.kind, templating::ErrorKind::UnknownVariable);
+        assert_eq!(err.message, "unknown");
     }
 }

@@ -382,6 +382,7 @@ pub enum FileProvider {
     RelativePath(RelativeFile),
     Required(RequiredFile),
     RouterDownloadScript(apollo::RouterDownloadScript),
+    Templated(utility::TemplatedFile),
 }
 
 impl FileProvider {
@@ -413,7 +414,8 @@ impl FileProvider {
             GraphosSupergraph,
             OfflineGraphosLicense,
             Required,
-            RouterDownloadScript
+            RouterDownloadScript,
+            Templated
         )
     }
 }
@@ -448,6 +450,7 @@ enum_impl_file_provider!(
     RelativePath,
     Required,
     RouterDownloadScript,
+    Templated,
 );
 
 /// # Inline file
@@ -1269,6 +1272,13 @@ mod tests {
               another_new_key: another_new_value
     "#
     );
+    const TEMPLATED: &str = indoc!(
+        r#"
+        kind: templated
+        content: |
+          { "endpoint": "${router_url}", "key": "${api_key}" }
+    "#
+    );
 
     #[test_case(BUILD_ROUTER_FROM_SOURCE, &["git_ref", "rust_version", "profile", "features"]; "build_router_from_source")]
     #[test_case(CONDITIONAL, &["case_1", "case_2", "test_type"]; "conditional")]
@@ -1290,6 +1300,7 @@ mod tests {
     #[test_case(ROUTER_DOWNLOAD_SCRIPT, &["version"]; "router_download_script")]
     #[test_case(MERGE_YAML, &[]; "merge_yaml")]
     #[test_case(MERGE_YAML_ARRAY, &[]; "merge_yaml_array")]
+    #[test_case(TEMPLATED, &["router_url", "api_key"]; "templated")]
     #[test]
     fn all_fields_templated(content: &str, expected_variables: &[&str]) {
         let config: FileProvider = serde_yaml::from_str(content).unwrap();

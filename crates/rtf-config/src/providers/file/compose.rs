@@ -7,7 +7,7 @@ use crate::{
     providers::file::{
         AsUtf8FileContent, InlineDir, InlineFile, RelativeDir, RelativeFile, RequiredFile,
         ResolveAndWrite, ResolveFileContent, check_relative_path_specifiers, enum_impl_check,
-        github::GithubFile,
+        github::GithubFile, utility::TemplatedFile,
     },
     templating::{self, Template, TemplateContext},
 };
@@ -131,6 +131,7 @@ pub enum ComposeFileProvider {
     RelativeDir(RelativeDir),
     RelativePath(RelativeFile),
     Required(RequiredFile),
+    Templated(TemplatedFile),
 }
 
 impl ComposeFileProvider {
@@ -157,7 +158,9 @@ impl ComposeFileProvider {
                 Ok(())
             }
             (
-                ComposeFileProvider::Inline(_) | ComposeFileProvider::InlineDir(_),
+                ComposeFileProvider::Inline(_)
+                | ComposeFileProvider::InlineDir(_)
+                | ComposeFileProvider::Templated(_),
                 InlineMode::All,
             ) => Ok(()),
             (ComposeFileProvider::Required(inner), InlineMode::All) => {
@@ -183,6 +186,7 @@ enum_impl_compose_file_provider!(
     RelativeDir,
     RelativePath,
     Required,
+    Templated,
 );
 
 #[cfg(test)]

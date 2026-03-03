@@ -23,6 +23,7 @@ Available file providers:
 - [Relative path](#relative-path)
 - [Required file](#required-file)
 - [Router download script](#router-download-script)
+- [Templated file](#templated-file)
 
 ## Build Router from source
 
@@ -599,6 +600,7 @@ A base YAML file to start with.
 - [Inline file](#inline-file)
 - [Relative path](#relative-path)
 - [Required file](#required-file)
+- [Templated file](#templated-file)
 
 </details>
 
@@ -726,5 +728,27 @@ Router.
 ### `version`
 
 The version of the Apollo Router to download.
+
+</details>
+
+## Templated file
+
+Write a file whose content is an inline string with `${variable}` patterns interpolated from the RTF
+template variables defined for the current run.
+
+```yaml
+- name: config.json
+  env_var: CONFIG_FILE
+  kind: templated
+  content: |
+    { "endpoint": "${router_url}" }
+```
+
+<details>
+<summary>Fields</summary>
+
+### `content`
+
+The file content with optional `${variable}` interpolation patterns.
 
 </details>
