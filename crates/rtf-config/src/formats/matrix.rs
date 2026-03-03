@@ -1,22 +1,16 @@
 use crate::{
     checks::duplicate_keys,
     formats::{Error, Result},
-    templating::{self, Scalar},
+    templating::{self, Scalar, interpolate_variables},
 };
 use itertools::Itertools;
-use regex::Regex;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::max,
     collections::HashMap,
     mem::{self, Discriminant},
-    sync::LazyLock,
 };
-
-// Used to extract "unknown_val" from "...${unknown_val}..."
-static RE_UNKNOWN_VAL: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"\$\{(.*?)\}"#).expect("valid regex"));
 
 /// A matrix of user provided variable dimensions that is expanded out into multiple variable sets for
 /// templating the test plan containing the matrix.
@@ -205,32 +199,20 @@ fn variant_name(
     variables: &HashMap<String, Scalar>,
     n: usize,
 ) -> Result<String> {
-    let mut s = match template {
-        Some(s) => s.to_string(),
+    let template = match template {
+        Some(s) => s,
         None => return Ok(format!("matrix_variant_{}", n + 1)),
     };
 
-    for (k, v) in variables.iter() {
-        // ${k} is what we are replacing but we need to escape the curlies
-        s = s.replace(&format!("${{{k}}}"), &v.to_string());
-    }
+    let (interpolated, unresolved) = interpolate_variables(template, variables);
 
-    // Ensure that all template patterns have been filled
-    let remaining_template_vals: Vec<_> = RE_UNKNOWN_VAL
-        .captures_iter(&s)
-        .map(|cap| {
-            let (_, [val]) = cap.extract();
-            val.to_string()
-        })
-        .collect();
-
-    if !remaining_template_vals.is_empty() {
+    if !unresolved.is_empty() {
         return Err(Error::UnknownMatrixVariantTemplateVariables {
-            variables: remaining_template_vals,
+            variables: unresolved,
         });
     }
 
-    Ok(slugify(&s))
+    Ok(slugify(&interpolated))
 }
 
 // Replace whitespace and path separators with underscores

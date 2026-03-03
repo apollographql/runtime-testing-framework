@@ -1,5 +1,6 @@
 //! Helpers for supporting minimal templating of user config files.
 use crate::{SourceDir, VariableDefinition, formats::CustomProviderDefinition};
+use regex::Regex;
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
@@ -11,7 +12,7 @@ use std::{
     fmt,
     hash::Hash,
     marker::PhantomData,
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
 /// User facing descriptions of the reason that templating a [Field] failed.
@@ -911,6 +912,43 @@ impl_integer_scalars!(
     [u8, u16, u32, u64, usize] => as_u64;
 );
 
+/// Regex matching `${variable_name}` interpolation patterns used in templated file content.
+pub static RE_TEMPLATE_VAR: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"\$\{(.*?)\}"#).expect("valid regex"));
+
+/// Extract all `${variable}` names from `content` in the order they appear.
+pub fn extract_template_vars(content: &str) -> Vec<String> {
+    let mut seen = HashSet::new();
+    RE_TEMPLATE_VAR
+        .captures_iter(content)
+        .map(|cap| {
+            let (_, [val]) = cap.extract();
+            val.to_string()
+        })
+        .filter(|val| seen.insert(val.clone()))
+        .collect()
+}
+
+/// Substitute `${k}` patterns in `content` with values from `variables`.
+///
+/// Returns the interpolated string and a list of any variable names that remain
+/// unresolved (i.e. patterns whose key was not present in `variables`), in the
+/// order they appear in the string.
+pub fn interpolate_variables(
+    content: &str,
+    variables: &HashMap<String, Scalar>,
+) -> (String, Vec<String>) {
+    let mut result = content.to_string();
+
+    for (k, v) in variables.iter() {
+        result = result.replace(&format!("${{{k}}}"), &v.to_string());
+    }
+
+    let unresolved = extract_template_vars(&result);
+
+    (result, unresolved)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1298,5 +1336,30 @@ mod tests {
         assert!(res.is_ok(), "expected ok, got {res:?}");
         // Field should remain unchanged
         assert_eq!(field, Field::Resolved("any_value".to_string()));
+    }
+
+    fn variables(pairs: &[(&str, &str)]) -> HashMap<String, Scalar> {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), Scalar::String(v.to_string())))
+            .collect()
+    }
+
+    #[test_case("hello ${name}!", &[("name", "world")], "hello world!", &[]; "known variable substituted")]
+    #[test_case("${a} and ${b}", &[("a", "foo"), ("b", "bar")], "foo and bar", &[]; "multiple variables substituted")]
+    #[test_case("${known} and ${unknown}", &[("known", "value")], "value and ${unknown}", &["unknown"]; "unknown variables reported")]
+    #[test_case("plain string", &[], "plain string", &[]; "no patterns passes through")]
+    #[test_case("${x} and ${x}", &[], "${x} and ${x}", &["x"]; "duplicate unknown variable deduplicated")]
+    #[test]
+    fn interpolate_variables_result(
+        content: &str,
+        var_pairs: &[(&str, &str)],
+        expected_result: &str,
+        expected_unresolved: &[&str],
+    ) {
+        let vars = variables(var_pairs);
+        let (result, unresolved) = interpolate_variables(content, &vars);
+        assert_eq!(result, expected_result);
+        assert_eq!(unresolved, expected_unresolved);
     }
 }
