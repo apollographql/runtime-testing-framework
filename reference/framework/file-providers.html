@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-77850af5.js";
+            window.path_to_searchindex_js = "../../searchindex-f80e7325.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-015b6cd2.js"></script>
@@ -200,6 +200,7 @@
 <li><a href="#relative-path">Relative path</a></li>
 <li><a href="#required-file">Required file</a></li>
 <li><a href="#router-download-script">Router download script</a></li>
+<li><a href="#templated-file">Templated file</a></li>
 </ul>
 <h2 id="build-router-from-source"><a class="header" href="#build-router-from-source">Build Router from source</a></h2>
 <p>A file provider used for building the Router from source at a specific git commit or reference. A
@@ -583,6 +584,7 @@ an array:</p>
 <li><a href="#inline-file">Inline file</a></li>
 <li><a href="#relative-path">Relative path</a></li>
 <li><a href="#required-file">Required file</a></li>
+<li><a href="#templated-file">Templated file</a></li>
 </ul>
 </details>
 <h3 id="overrides"><a class="header" href="#overrides"><code>overrides</code></a></h3>
@@ -664,6 +666,20 @@ Router.</p>
 <summary>Fields</summary>
 <h3 id="version"><a class="header" href="#version"><code>version</code></a></h3>
 <p>The version of the Apollo Router to download.</p>
+</details>
+<h2 id="templated-file"><a class="header" href="#templated-file">Templated file</a></h2>
+<p>Write a file whose content is an inline string with <code>${variable}</code> patterns interpolated from the RTF
+template variables defined for the current run.</p>
+<pre><code class="language-yaml">- name: config.json
+  env_var: CONFIG_FILE
+  kind: templated
+  content: |
+    { "endpoint": "${router_url}" }
+</code></pre>
+<details>
+<summary>Fields</summary>
+<h3 id="content-1"><a class="header" href="#content-1"><code>content</code></a></h3>
+<p>The file content with optional <code>${variable}</code> interpolation patterns.</p>
 </details>
 
                     </main>

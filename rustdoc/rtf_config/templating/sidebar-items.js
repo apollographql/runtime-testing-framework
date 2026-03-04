@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ErrorKind","Field","FileType","Scalar"],"struct":["CustomProviderDefinitions","Number","TemplateContext"],"trait":["Template","ValidField"],"type":["Error","ErrorBuilder","Errors","Result"]};
+window.SIDEBAR_ITEMS = {"enum":["ErrorKind","Field","FileType","Scalar"],"fn":["extract_template_vars","interpolate_variables"],"static":["RE_TEMPLATE_VAR"],"struct":["CustomProviderDefinitions","Number","TemplateContext"],"trait":["Template","ValidField"],"type":["Error","ErrorBuilder","Errors","Result"]};
