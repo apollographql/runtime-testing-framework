@@ -931,13 +931,12 @@ pub fn extract_template_vars(content: &str) -> Vec<String> {
 
 /// Substitute `${k}` patterns in `content` with values from `variables`.
 ///
-/// Returns the interpolated string and a list of any variable names that remain
-/// unresolved (i.e. patterns whose key was not present in `variables`), in the
-/// order they appear in the string.
+/// Returns `Ok(interpolated)` when all variables are resolved, or
+/// `Err(unresolved)` with the names of any remaining unknown variables.
 pub fn interpolate_variables(
     content: &str,
     variables: &HashMap<String, Scalar>,
-) -> (String, Vec<String>) {
+) -> std::result::Result<String, Vec<String>> {
     let mut result = content.to_string();
 
     for (k, v) in variables.iter() {
@@ -946,7 +945,11 @@ pub fn interpolate_variables(
 
     let unresolved = extract_template_vars(&result);
 
-    (result, unresolved)
+    if unresolved.is_empty() {
+        Ok(result)
+    } else {
+        Err(unresolved)
+    }
 }
 
 #[cfg(test)]
@@ -1345,21 +1348,28 @@ mod tests {
             .collect()
     }
 
-    #[test_case("hello ${name}!", &[("name", "world")], "hello world!", &[]; "known variable substituted")]
-    #[test_case("${a} and ${b}", &[("a", "foo"), ("b", "bar")], "foo and bar", &[]; "multiple variables substituted")]
-    #[test_case("${known} and ${unknown}", &[("known", "value")], "value and ${unknown}", &["unknown"]; "unknown variables reported")]
-    #[test_case("plain string", &[], "plain string", &[]; "no patterns passes through")]
-    #[test_case("${x} and ${x}", &[], "${x} and ${x}", &["x"]; "duplicate unknown variable deduplicated")]
+    #[test_case("hello ${name}!", &[("name", "world")], "hello world!"; "known variable substituted")]
+    #[test_case("${a} and ${b}", &[("a", "foo"), ("b", "bar")], "foo and bar"; "multiple variables substituted")]
+    #[test_case("plain string", &[], "plain string"; "no patterns passes through")]
     #[test]
-    fn interpolate_variables_result(
+    fn interpolate_variables_success(content: &str, var_pairs: &[(&str, &str)], expected: &str) {
+        let vars = variables(var_pairs);
+        assert_eq!(
+            interpolate_variables(content, &vars),
+            Ok(expected.to_string())
+        );
+    }
+
+    #[test_case("${known} and ${unknown}", &[("known", "value")], &["unknown"]; "unknown variables reported")]
+    #[test_case("${x} and ${x}", &[], &["x"]; "duplicate unknown variable deduplicated")]
+    #[test]
+    fn interpolate_variables_errors(
         content: &str,
         var_pairs: &[(&str, &str)],
-        expected_result: &str,
         expected_unresolved: &[&str],
     ) {
         let vars = variables(var_pairs);
-        let (result, unresolved) = interpolate_variables(content, &vars);
-        assert_eq!(result, expected_result);
-        assert_eq!(unresolved, expected_unresolved);
+        let expected: Vec<String> = expected_unresolved.iter().map(|s| s.to_string()).collect();
+        assert_eq!(interpolate_variables(content, &vars), Err(expected));
     }
 }

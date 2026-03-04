@@ -204,15 +204,11 @@ fn variant_name(
         None => return Ok(format!("matrix_variant_{}", n + 1)),
     };
 
-    let (interpolated, unresolved) = interpolate_variables(template, variables);
-
-    if !unresolved.is_empty() {
-        return Err(Error::UnknownMatrixVariantTemplateVariables {
+    interpolate_variables(template, variables)
+        .map(|s| slugify(&s))
+        .map_err(|unresolved| Error::UnknownMatrixVariantTemplateVariables {
             variables: unresolved,
-        });
-    }
-
-    Ok(slugify(&interpolated))
+        })
 }
 
 // Replace whitespace and path separators with underscores

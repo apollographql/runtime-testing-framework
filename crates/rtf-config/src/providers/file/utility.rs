@@ -79,18 +79,19 @@ impl Template for TemplatedFile {
         _file_source: &SourceDir,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
-        let (interpolated, unresolved) = interpolate_variables(&self.content, ctx.variables());
-
-        if !unresolved.is_empty() {
-            let mut errs = templating::ErrorBuilder::new();
-            for var in unresolved {
-                errs.push(templating::ErrorKind::UnknownVariable, var, path);
+        match interpolate_variables(&self.content, ctx.variables()) {
+            Ok(interpolated) => {
+                self.content = interpolated;
+                Ok(())
             }
-            return errs.into_result(());
+            Err(unresolved) => {
+                let mut errs = templating::ErrorBuilder::new();
+                for var in unresolved {
+                    errs.push(templating::ErrorKind::UnknownVariable, var, path);
+                }
+                errs.into_result(())
+            }
         }
-
-        self.content = interpolated;
-        Ok(())
     }
 }
 
