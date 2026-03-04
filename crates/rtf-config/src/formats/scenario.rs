@@ -74,10 +74,6 @@ impl ScenarioConfig {
 }
 
 impl Template for ScenarioConfig {
-    fn has_pending_fields(&self) -> bool {
-        self.command.has_pending_fields()
-    }
-
     fn required_variables(&self) -> Vec<String> {
         self.command.required_variables()
     }
@@ -675,22 +671,6 @@ mod tests {
             cp.using.get("another_provider").unwrap(),
             "another_provider.yaml"
         );
-    }
-
-    #[test_case(&[p("foo")], true; "single field is pending")]
-    #[test_case(&[r("foo")], false; "single field is resolved")]
-    #[test_case(&[p("field1"), p("field2")], true; "multiple fields pending is pending")]
-    #[test_case(&[p("field1"), r("field2")], true; "multiple fields with single field pending is pending")]
-    #[test_case(&[r("field1"), r("field2")], false; "multiple fields none pending is resolved")]
-    #[test]
-    fn has_pending_fields(fields: &[Field<String>], expected: bool) {
-        let scenario = scenario_with_fields(fields, &[]);
-
-        let res = scenario.has_pending_fields();
-        assert_eq!(
-            res, expected,
-            "tests that has_pending_fields has expected value"
-        )
     }
 
     #[test_case(&[p("foo")], &["foo"]; "single field is required")]

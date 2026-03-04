@@ -159,10 +159,6 @@ impl TestPlanConfig {
 }
 
 impl Template for TestPlanConfig {
-    fn has_pending_fields(&self) -> bool {
-        self.environment.has_pending_fields() || self.scenario.has_pending_fields()
-    }
-
     fn required_variables(&self) -> Vec<String> {
         let mut vals = self.environment.required_variables();
         vals.extend(self.scenario.required_variables());
@@ -1278,25 +1274,6 @@ mod tests {
     }
 
     // Tests for the Template trait implementations and field resolution
-    #[test_case(p("foo"), p("bar"), true; "scenario and environment have pending fields is pending")]
-    #[test_case(p("foo"), r("bar"), true; "scenario has pending field is pending")]
-    #[test_case(r("foo"), p("bar"), true; "environment has pending field is pending")]
-    #[test_case(r("foo"), r("bar"), false; "scenario and environment have no pending fields is resolved")]
-    #[test]
-    fn has_pending_fields(
-        scenario_field: Field<String>,
-        environment_field: Field<String>,
-        expected: bool,
-    ) {
-        let test_plan = test_plan_with_fields(&[scenario_field], &[environment_field], &[]);
-
-        let res = test_plan.has_pending_fields();
-        assert_eq!(
-            res, expected,
-            "tests that has_pending_variables has expected value"
-        )
-    }
-
     #[test_case(p("scenario"), p("environment"), &["environment", "scenario"]; "scenario and environment fields required")]
     #[test_case(p("scenario"), r("environment"), &["scenario"]; "scenario field required")]
     #[test_case(r("scenario"), p("environment"), &["environment"]; "environment field required")]

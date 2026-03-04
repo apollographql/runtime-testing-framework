@@ -133,10 +133,6 @@ impl CustomProvider {
 }
 
 impl Template for CustomProvider {
-    fn has_pending_fields(&self) -> bool {
-        self.arguments.values().any(|v| v.has_pending_fields())
-    }
-
     fn required_variables(&self) -> Vec<String> {
         self.arguments
             .values()

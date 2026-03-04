@@ -158,36 +158,6 @@ fn ttsf(foo: Field<String>) -> Box<TemplateTypes> {
     Box::new(TemplateTypes::SingleField(SingleField { foo }))
 }
 
-#[test_case(sinf(p("foo")), true; "single_field_is_pending")]
-#[test_case(sinf(r("foo")), false; "single_field_is_resolved")]
-#[test_case(ntf("foo", "bar"), false; "no_templatable_fields_is_resolved")]
-#[test_case(mf(p("foo"), p("bar"), p("baz")), true; "multi_field_all_fields_pending")]
-#[test_case(mf(p("foo"), r("bar"), r("baz")), true; "multi_field_single_field_pending")]
-#[test_case(mf(r("foo"), r("bar"), r("baz")), false; "multi_field_all_fields_resolved")]
-#[test_case(ns(p("inner")), true; "inner_structs_field_is_pending")]
-#[test_case(ns(r("inner")), false; "inner_structs_field_is_resolved")]
-#[test_case(mfwis(p("foo"), p("bar"), p("inner")), true; "multi_field_with_inner_struct_all_fields_pending")]
-#[test_case(mfwis(r("foo"), r("bar"), p("inner")), true; "multi_field_with_inner_struct_inner_field_pending")]
-#[test_case(mfwis(p("foo"), r("bar"), r("inner")), true; "multi_field_with_inner_struct_outer_field_pending")]
-#[test_case(mfwis(r("foo"), r("bar"), r("inner")), false; "multi_field_with_inner_struct_resolved")]
-#[test_case(skipf(r("foo"), p("bar")), false; "skipped_field_does_make_status_pending")]
-#[test_case(skipnf(p("foo"), "bar"), true; "skipped_not_field_pending")]
-#[test_case(skipnf(r("foo"), "bar"), false; "skipped_not_field_resolved")]
-#[test_case(mns(p("inner")), true; "nested_inner_structs_field_is_pending")]
-#[test_case(mns(r("inner")), false; "nested_inner_structs_field_is_resolved")]
-#[test_case(ttf(p("foo")), true; "field_in_enum_is_pending")]
-#[test_case(ttf(r("foo")), false; "field_in_enum_is_resolved")]
-#[test_case(ttsf(p("foo")), true; "struct_in_enum_is_pending")]
-#[test_case(ttsf(r("foo")), false; "struct_in_enum_is_resolved")]
-#[test]
-fn has_pending_fields(t: Box<dyn Template>, expected: bool) {
-    let res = t.has_pending_fields();
-    assert!(
-        res == expected,
-        "expected has pending fields to be {expected:?}, got {res:?}"
-    )
-}
-
 #[test_case(sinf(p("foo")), &["foo"]; "single_field_field_required")]
 #[test_case(sinf(r("foo")), &[]; "single_field_no_fields_required")]
 #[test_case(ntf("foo", "bar"), &[]; "no_templatable_fields_no_fields_required")]
@@ -286,11 +256,6 @@ fn try_template_unknown_variable_error(mut t: Box<dyn Template>) {
 fn template_enum_unit_skipped() {
     let mut t = TemplateTypes::Unit;
     let template_ctx = template_context!(["unused"]);
-
-    assert!(
-        !t.has_pending_fields(),
-        "A unit type enum variant should never have pending fields"
-    );
 
     assert!(
         t.required_variables().is_empty(),
