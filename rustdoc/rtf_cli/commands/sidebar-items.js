@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["plumbing","porcelain"]};
+window.SIDEBAR_ITEMS = {"fn":["get_context_and_check_outdir","load_and_resolve_test_plan_from_github","load_and_resolve_test_plan_from_local"],"mod":["plumbing","porcelain"]};
