@@ -256,10 +256,6 @@ impl DerefMut for NamedFileProvider {
 // used to identify the file provider are added to the path when templating a
 // NamedFileProvider
 impl Template for NamedFileProvider {
-    fn has_pending_fields(&self) -> bool {
-        self.provider.has_pending_fields()
-    }
-
     fn required_variables(&self) -> Vec<String> {
         self.provider.required_variables()
     }
@@ -594,10 +590,6 @@ pub struct RelativeFile {
 }
 
 impl Template for RelativeFile {
-    fn has_pending_fields(&self) -> bool {
-        self.path.has_pending_fields()
-    }
-
     fn required_variables(&self) -> Vec<String> {
         self.path.required_variables()
     }
@@ -812,10 +804,6 @@ pub struct RelativeDir {
 }
 
 impl Template for RelativeDir {
-    fn has_pending_fields(&self) -> bool {
-        self.path.has_pending_fields()
-    }
-
     fn required_variables(&self) -> Vec<String> {
         self.path.required_variables()
     }
@@ -1307,23 +1295,6 @@ mod tests {
 
         let res = config.required_variables();
         assert_eq!(res, expected_variables, "expected variables to match")
-    }
-
-    #[test_case(Field::Pending("foo".to_string()), true; "field is pending")]
-    #[test_case(Field::Resolved("foo".to_string()), false; "field is resolved")]
-    #[test]
-    fn named_file_provider_has_pending_fields(f: Field<String>, expected: bool) {
-        let nfp = NamedFileProvider {
-            name: "inline.txt".to_string(),
-            env_var: "INLINE".to_string(),
-            provider: FileProvider::RelativePath(RelativeFile { path: f, src: None }),
-        };
-
-        let res = nfp.has_pending_fields();
-        assert_eq!(
-            res, expected,
-            "tests that has_pending_fields has expected value"
-        )
     }
 
     #[test_case(Field::Pending("foo".to_string()), &["foo"]; "field is required")]

@@ -35,7 +35,6 @@ fn main() {
         baz: "BAZ".to_string(),
     };
 
-    println!("{:?}", s.has_pending_fields());
     println!("{:?}", s.required_variables());
     println!("{:?}", s);
 
@@ -54,6 +53,5 @@ fn main() {
     )
     .unwrap();
 
-    println!("{:?}", s.has_pending_fields());
     println!("{:?}", s);
 }

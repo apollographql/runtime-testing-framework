@@ -245,9 +245,6 @@ impl CustomProviderDefinitions {
 /// [Template] supports walking its contents to locate and template fields using a provided map
 /// of scalar variables.
 pub trait Template {
-    /// Whether or not there are any pending [Field]s contained within this variable.
-    fn has_pending_fields(&self) -> bool;
-
     /// The list of template variables that are required to template this type fully.
     fn required_variables(&self) -> Vec<String>;
 
@@ -330,12 +327,6 @@ impl<T> Template for Option<T>
 where
     T: Template,
 {
-    fn has_pending_fields(&self) -> bool {
-        self.as_ref()
-            .map(|inner| inner.has_pending_fields())
-            .unwrap_or_default()
-    }
-
     fn required_variables(&self) -> Vec<String> {
         self.as_ref()
             .map(|inner| inner.required_variables())
@@ -370,10 +361,6 @@ impl<T> Template for Vec<T>
 where
     T: Template,
 {
-    fn has_pending_fields(&self) -> bool {
-        self.iter().any(|elem| elem.has_pending_fields())
-    }
-
     fn required_variables(&self) -> Vec<String> {
         self.iter()
             .flat_map(|elem| elem.required_variables())
@@ -417,10 +404,6 @@ where
     K: AsRef<str>,
     T: Template,
 {
-    fn has_pending_fields(&self) -> bool {
-        self.values().any(|elem| elem.has_pending_fields())
-    }
-
     fn required_variables(&self) -> Vec<String> {
         self.values()
             .flat_map(|elem| elem.required_variables())
@@ -562,10 +545,6 @@ impl<T> Template for Field<T>
 where
     T: ValidField,
 {
-    fn has_pending_fields(&self) -> bool {
-        matches!(self, Self::Pending(_))
-    }
-
     fn required_variables(&self) -> Vec<String> {
         match self {
             Self::Pending(var) => vec![var.clone()],
@@ -1144,30 +1123,6 @@ mod tests {
     fn hmf(map: &[Field<String>]) -> Box<HashMapField> {
         let foo = field_map!(map);
         Box::new(HashMapField { foo })
-    }
-
-    #[test_case(of(Some(p("foo"))), true; "optional field is some pending")]
-    #[test_case(of(Some(r("foo"))), false; "optional field is some resolved")]
-    #[test_case(of(None), false; "optional field is none is resolved")]
-    #[test_case(vf(&[p("foo"), p("bar"), p("baz")]), true; "vec all entries are pending")]
-    #[test_case(vf(&[p("foo"), r("bar"), r("baz")]), true; "vec one entry is pending")]
-    #[test_case(vf(&[p("foo")]), true; "vec single entry is pending")]
-    #[test_case(vf(&[r("foo"), r("bar"), r("baz")]), false; "vec all entries are resolved")]
-    #[test_case(vf(&[r("foo")]), false; "vec single entry is resolved")]
-    #[test_case(vf(&[]), false; "vec no entries is resolved")]
-    #[test_case(hmf(&[p("foo"), p("bar"), p("baz")]), true; "hash map multiple entries pending")]
-    #[test_case(hmf(&[p("foo"), r("bar"), r("baz")]), true; "hash map single entry pending")]
-    #[test_case(hmf(&[p("foo")]), true; "hash map one entry pending")]
-    #[test_case(hmf(&[r("foo"), r("bar"), r("baz")]), false; "hash map all entries resolved")]
-    #[test_case(hmf(&[r("foo")]), false; "hash map single entry resolved")]
-    #[test_case(hmf(&[]), false; "hash map no entries resolved")]
-    #[test]
-    fn template_has_pending_fields(t: Box<dyn Template>, expected: bool) {
-        let res = t.has_pending_fields();
-        assert_eq!(
-            res, expected,
-            "tests that has_pending_fields has expected variable"
-        )
     }
 
     #[test_case(of(Some(p("foo"))), &["foo"]; "some optional field is required")]

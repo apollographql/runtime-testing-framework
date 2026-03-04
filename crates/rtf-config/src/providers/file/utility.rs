@@ -47,10 +47,6 @@ pub struct TemplatedFile {
 }
 
 impl Template for TemplatedFile {
-    fn has_pending_fields(&self) -> bool {
-        false
-    }
-
     fn required_variables(&self) -> Vec<String> {
         extract_template_vars(&self.content)
     }
@@ -468,10 +464,6 @@ pub struct Conditional {
 }
 
 impl Template for Conditional {
-    fn has_pending_fields(&self) -> bool {
-        self.cases.has_pending_fields()
-    }
-
     fn required_variables(&self) -> Vec<String> {
         let mut vars = HashSet::new();
 
@@ -929,24 +921,6 @@ mod tests {
         let merge_yaml = merge_yaml(base_yaml, arr(&[override_one_yaml, override_two_yaml]));
 
         assert_resolve_and_write_error(merge_yaml, &target, &mut ctx, expected_err).await
-    }
-
-    #[test_case(Field::Pending("foo".to_string()), true; "field is pending")]
-    #[test_case(Field::Resolved("foo".to_string()), false; "field is resolved")]
-    #[test]
-    fn conditional_has_pending_fields(f: Field<String>, expected: bool) {
-        let fp = Conditional {
-            cases: vec![ConditionalCase {
-                where_clause: WhereClause {
-                    var: "bar".to_string(),
-                    comp: VarComp::Eq(42.into()),
-                },
-                inner: FileProvider::RelativePath(RelativeFile { path: f, src: None }),
-            }],
-        };
-
-        let res = fp.has_pending_fields();
-        assert_eq!(res, expected)
     }
 
     #[test_case(Field::Pending("foo".to_string()), &["bar", "foo"]; "required field and where clause")]

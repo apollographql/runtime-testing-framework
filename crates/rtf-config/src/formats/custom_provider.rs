@@ -99,10 +99,6 @@ impl CustomProviderDefinition {
 // form when a check is performed. It is only possible to check a custom provider definition after it has been transformed into a
 // FromCommand Provider.
 impl Template for CustomProviderDefinition {
-    fn has_pending_fields(&self) -> bool {
-        self.command.has_pending_fields()
-    }
-
     fn required_variables(&self) -> Vec<String> {
         self.command.required_variables()
     }
@@ -315,21 +311,6 @@ mod tests {
         let mut res = config.required_variables();
         res.sort(); // Sorting so variables are in a deterministic order for the assert_eq
         assert_eq!(res, &["bar", "foo"], "expected variables to match")
-    }
-
-    #[test_case(&[p("foo")], true; "single field is pending")]
-    #[test_case(&[r("foo")], false; "single field is resolved")]
-    #[test_case(&[p("foo"), p("bar")], true; "multiple fields pending is pending")]
-    #[test_case(&[p("foo"), r("bar")], true; "multiple fields with single field pending is pending")]
-    #[test_case(&[r("foo"), r("bar")], false; "multiple fields none pending is resolved")]
-    #[test]
-    fn has_pending_fields(fields: &[Field<String>], expected: bool) {
-        let config = custom_provider_with_fields(fields);
-        assert_eq!(
-            config.has_pending_fields(),
-            expected,
-            "expected has_pending_fields to be {expected}"
-        )
     }
 
     #[test_case(&[p("foo")], &["foo"]; "single field is required")]

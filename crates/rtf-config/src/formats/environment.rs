@@ -106,10 +106,6 @@ impl EnvironmentConfig {
 }
 
 impl Template for EnvironmentConfig {
-    fn has_pending_fields(&self) -> bool {
-        self.execution.has_pending_fields()
-    }
-
     fn required_variables(&self) -> Vec<String> {
         self.execution.required_variables()
     }
@@ -842,25 +838,6 @@ pub(crate) mod tests {
 
         assert_eq!(res, &["bar", "foo"], "expected variables to match");
         assert_eq!(config.custom_providers.len(), 0);
-    }
-
-    #[test_case(p("setup"), p("teardown"), true; "setup and teardown pending is pending")]
-    #[test_case(p("setup"), r("teardown"), true; "setup pending and teardown resolved is pending")]
-    #[test_case(r("setup"), p("teardown"), true; "setup resolved and teardown pending is pending")]
-    #[test_case(r("setup"), r("teardown"), false; "setup resolved and teardown resolved is resolved")]
-    #[test]
-    fn has_pending_fields(
-        setup_field: Field<String>,
-        teardown_field: Field<String>,
-        expected: bool,
-    ) {
-        let environment = environment_with_fields(&[setup_field], &[teardown_field], &[]);
-
-        let res = environment.has_pending_fields();
-        assert_eq!(
-            res, expected,
-            "tests that has_pending_fields has expected value"
-        )
     }
 
     #[test_case(&[p("setup1"), p("setup2")], &[p("teardown1"), p("teardown2")], &["setup1", "setup2", "teardown1", "teardown2"]; "both setup and both teardown pending requires variables")]

@@ -52,10 +52,6 @@ impl DerefMut for NamedComposeFileProvider {
 }
 
 impl Template for NamedComposeFileProvider {
-    fn has_pending_fields(&self) -> bool {
-        self.provider.has_pending_fields()
-    }
-
     fn required_variables(&self) -> Vec<String> {
         self.provider.required_variables()
     }
@@ -208,22 +204,6 @@ mod tests {
 
             TemplateContext::new_stubbed(m)
         }};
-    }
-
-    #[test_case(Field::Pending("foo".to_string()), true; "field is pending")]
-    #[test_case(Field::Resolved("foo".to_string()), false; "field is resolved")]
-    #[test]
-    fn named_compose_file_provider_has_pending_fields(f: Field<String>, expected: bool) {
-        let nfp = NamedComposeFileProvider {
-            name: "inline.yaml".to_string(),
-            provider: ComposeFileProvider::RelativePath(RelativeFile { path: f, src: None }),
-        };
-
-        let res = nfp.has_pending_fields();
-        assert_eq!(
-            res, expected,
-            "tests that has_pending_fields has expected value"
-        )
     }
 
     #[test_case(Field::Pending("foo".to_string()), &["foo"]; "field is required")]
