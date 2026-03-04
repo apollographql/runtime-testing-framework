@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["check_and_run_test_plan"]};
+window.SIDEBAR_ITEMS = {"fn":["check_and_run_test_plan","open_docs"]};

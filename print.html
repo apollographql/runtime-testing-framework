@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-e699f76c.js";
+            window.path_to_searchindex_js = "searchindex-77850af5.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-015b6cd2.js"></script>
@@ -5163,6 +5163,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <ul>
 <li><a href="#rtf"><code>rtf</code>↴</a></li>
 <li><a href="#rtf-run"><code>rtf run</code>↴</a></li>
+<li><a href="#rtf-docs"><code>rtf docs</code>↴</a></li>
 <li><a href="#rtf-expand-matrix"><code>rtf expand-matrix</code>↴</a></li>
 <li><a href="#rtf-template"><code>rtf template</code>↴</a></li>
 <li><a href="#rtf-custom-provider"><code>rtf custom-provider</code>↴</a></li>
@@ -5184,6 +5185,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <h6 id="subcommands"><a class="header" href="#subcommands"><strong>Subcommands:</strong></a></h6>
 <ul>
 <li><code>run</code> — Check and run a test plan</li>
+<li><code>docs</code> — Open the RTF documentation in your browser</li>
 <li><code>expand-matrix</code> — Expand a test plan matrix into JSON</li>
 <li><code>template</code> — Template a test plan using provided variables, outputting the resulting config to stdout</li>
 <li><code>custom-provider</code> — Work directly with custom file provider definitions</li>
@@ -5233,10 +5235,17 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <p>Default value: <code>false</code></p>
 </li>
 </ul>
+<h2 id="rtf-docs"><a class="header" href="#rtf-docs"><code>rtf docs</code></a></h2>
+<p>Open the RTF documentation in your browser</p>
+<p><strong>Usage:</strong> <code>rtf docs [SEARCH_TERM]...</code></p>
+<h6 id="arguments-1"><a class="header" href="#arguments-1"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;SEARCH_TERM&gt;</code> — An optional search term to search for within the docs</li>
+</ul>
 <h2 id="rtf-expand-matrix"><a class="header" href="#rtf-expand-matrix"><code>rtf expand-matrix</code></a></h2>
 <p>Expand a test plan matrix into JSON</p>
 <p><strong>Usage:</strong> <code>rtf expand-matrix [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
-<h6 id="arguments-1"><a class="header" href="#arguments-1"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-2"><a class="header" href="#arguments-2"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test-plan.yaml file that should have its matrix expanded</li>
 </ul>
@@ -5247,7 +5256,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <h2 id="rtf-template"><a class="header" href="#rtf-template"><code>rtf template</code></a></h2>
 <p>Template a test plan using provided variables, outputting the resulting config to stdout</p>
 <p><strong>Usage:</strong> <code>rtf template [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
-<h6 id="arguments-2"><a class="header" href="#arguments-2"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-3"><a class="header" href="#arguments-3"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test plan file that should be templated. When using –github this must be in the format ORG/REPO/PATH</li>
 </ul>
@@ -5275,7 +5284,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <h2 id="rtf-custom-provider-template"><a class="header" href="#rtf-custom-provider-template"><code>rtf custom-provider template</code></a></h2>
 <p>Template a custom provider definition, outputting the resulting config to stdout</p>
 <p><strong>Usage:</strong> <code>rtf custom-provider template [OPTIONS] &lt;DEFINITION_PATH&gt;</code></p>
-<h6 id="arguments-3"><a class="header" href="#arguments-3"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-4"><a class="header" href="#arguments-4"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;DEFINITION_PATH&gt;</code> — Relative path to the custom provider definition file</li>
 </ul>
@@ -5286,7 +5295,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <h2 id="rtf-custom-provider-run"><a class="header" href="#rtf-custom-provider-run"><code>rtf custom-provider run</code></a></h2>
 <p>Execute a custom provider definition</p>
 <p><strong>Usage:</strong> <code>rtf custom-provider run [OPTIONS] &lt;DEFINITION_PATH&gt;</code></p>
-<h6 id="arguments-4"><a class="header" href="#arguments-4"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-5"><a class="header" href="#arguments-5"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;DEFINITION_PATH&gt;</code> — Relative path to the custom provider definition file</li>
 </ul>
@@ -5312,7 +5321,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <h2 id="rtf-inline-all"><a class="header" href="#rtf-inline-all"><code>rtf inline all</code></a></h2>
 <p>Inline all file providers</p>
 <p><strong>Usage:</strong> <code>rtf inline all [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
-<h6 id="arguments-5"><a class="header" href="#arguments-5"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-6"><a class="header" href="#arguments-6"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test-plan.yaml file that should be inlined. When using –github this must be in the format ORG/REPO/PATH</li>
 </ul>
@@ -5337,7 +5346,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <h2 id="rtf-inline-relative-files"><a class="header" href="#rtf-inline-relative-files"><code>rtf inline relative-files</code></a></h2>
 <p>Inline only relative file providers</p>
 <p><strong>Usage:</strong> <code>rtf inline relative-files [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
-<h6 id="arguments-6"><a class="header" href="#arguments-6"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-7"><a class="header" href="#arguments-7"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test-plan.yaml file that should be inlined. When using –github this must be in the format ORG/REPO/PATH</li>
 </ul>
@@ -5370,7 +5379,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <h2 id="rtf-resolve-scenario"><a class="header" href="#rtf-resolve-scenario"><code>rtf resolve scenario</code></a></h2>
 <p>Resolve file providers for a standalone scenario config</p>
 <p><strong>Usage:</strong> <code>rtf resolve scenario [OPTIONS] &lt;SCENARIO_PATH&gt;</code></p>
-<h6 id="arguments-7"><a class="header" href="#arguments-7"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-8"><a class="header" href="#arguments-8"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;SCENARIO_PATH&gt;</code> — Relative path to the scenario.yaml file</li>
 </ul>
@@ -5388,7 +5397,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <h2 id="rtf-resolve-environment"><a class="header" href="#rtf-resolve-environment"><code>rtf resolve environment</code></a></h2>
 <p>Resolve file providers for a standalone environment config</p>
 <p><strong>Usage:</strong> <code>rtf resolve environment [OPTIONS] &lt;ENVIRONMENT_PATH&gt;</code></p>
-<h6 id="arguments-8"><a class="header" href="#arguments-8"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-9"><a class="header" href="#arguments-9"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;ENVIRONMENT_PATH&gt;</code> — Relative path to the environment.yaml file</li>
 </ul>
@@ -5416,7 +5425,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <h2 id="rtf-json-schemas"><a class="header" href="#rtf-json-schemas"><code>rtf json-schemas</code></a></h2>
 <p>Output json schemas for environment configuration</p>
 <p><strong>Usage:</strong> <code>rtf json-schemas &lt;CONFIG&gt;</code></p>
-<h6 id="arguments-9"><a class="header" href="#arguments-9"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-10"><a class="header" href="#arguments-10"><strong>Arguments:</strong></a></h6>
 <ul>
 <li>
 <p><code>&lt;CONFIG&gt;</code></p>
