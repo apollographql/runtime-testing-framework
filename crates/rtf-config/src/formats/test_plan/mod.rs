@@ -3,7 +3,7 @@ use crate::{
     context::ResolutionContext,
     formats::{CustomProviderDeclaration, EnvironmentConfig, Matrix, Result, ScenarioConfig},
     providers::file::SourceDir,
-    run::Execute,
+    run::{Execute, RunProviders},
     templating::{self, Scalar, Template, TemplateContext},
 };
 use rtf_integrations::github::{self, Client};
@@ -81,6 +81,23 @@ impl TestPlanConfig {
         raw.try_into_test_plan(tp_source, ctx).await
     }
 
+    pub async fn try_extract_relative_files(
+        &self,
+        files: &mut HashMap<PathBuf, String>,
+        ctx: &impl ResolutionContext,
+    ) -> Result<()> {
+        self.environment
+            .execution
+            .try_extract_relative_files(files, ctx)
+            .await?;
+        self.scenario
+            .command
+            .try_extract_relative_files(files, ctx)
+            .await?;
+
+        Ok(())
+    }
+
     /// Iteratate over all variants of this test plan that arise from [expanding](Matrix::try_expand)
     /// any matrix variables that it contains.
     ///
@@ -148,6 +165,13 @@ impl TestPlanConfig {
             environment: EnvironmentConfig::empty(),
             sources: Sources::default(),
         }
+    }
+
+    pub fn as_yaml_map_without_sources(&self) -> Result<serde_yaml::Value> {
+        let mut val = serde_yaml::to_value(self)?;
+        raw::strip_sources_for_relative_paths(&mut val);
+
+        Ok(val)
     }
 
     pub fn as_yaml_string_without_sources(&self) -> Result<String> {

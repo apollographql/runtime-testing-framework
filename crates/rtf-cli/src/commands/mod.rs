@@ -33,7 +33,7 @@ pub(crate) fn get_context() -> Context {
     Context::new_from_env_vars(env_vars)
 }
 
-pub(crate) fn get_context_and_check_outdir(
+pub fn get_context_and_check_outdir(
     out_dir: &str,
     force: bool,
 ) -> anyhow::Result<(Context, PathBuf)> {
@@ -88,7 +88,7 @@ where
 }
 
 /// Handles loading a local test plan and displaying user facing errors
-async fn load_and_resolve_test_plan_from_local(
+pub async fn load_and_resolve_test_plan_from_local(
     path: &str,
     ctx: &impl ResolutionContext,
 ) -> anyhow::Result<TestPlanConfig> {
@@ -103,7 +103,7 @@ async fn load_and_resolve_test_plan_from_local(
 }
 
 /// Handles loading a test plan from github and displaying user facing errors
-async fn load_and_resolve_test_plan_from_github(
+pub async fn load_and_resolve_test_plan_from_github(
     test_plan_path: &str,
     git_ref: Option<String>,
     ctx: &impl ResolutionContext,
