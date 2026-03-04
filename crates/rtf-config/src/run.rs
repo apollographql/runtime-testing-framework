@@ -9,8 +9,9 @@ use crate::{
         self,
         command::CommandProvider,
         file::{
-            FileProvider, NamedFileProvider, ResolveAndWrite, compose::ComposeFileProvider,
-            compose::NamedComposeFileProvider,
+            AsUtf8FileContent, FileProvider, NamedFileProvider, RelativeDir, RelativeFile,
+            ResolveAndWrite,
+            compose::{ComposeFileProvider, NamedComposeFileProvider},
         },
     },
 };
@@ -48,9 +49,72 @@ pub enum Provider<'a> {
     },
 }
 
+async fn try_read_relative_file(
+    rf: &RelativeFile,
+    files: &mut HashMap<PathBuf, String>,
+    ctx: &impl ResolutionContext,
+) -> providers::Result<()> {
+    let path = PathBuf::from(rf.path.as_resolved());
+    if files.contains_key(&path) {
+        return Ok(());
+    }
+
+    let content = rf.try_get_file_content(ctx).await?;
+    files.insert(path, content);
+
+    Ok(())
+}
+
+async fn try_read_relative_dir(
+    rd: &RelativeDir,
+    files: &mut HashMap<PathBuf, String>,
+    ctx: &impl ResolutionContext,
+) -> providers::Result<()> {
+    for rf in rd.as_relative_files() {
+        try_read_relative_file(&rf, files, ctx).await?;
+    }
+
+    Ok(())
+}
+
 #[allow(async_fn_in_trait)]
 pub trait RunProviders {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)>;
+
+    async fn try_extract_relative_files(
+        &self,
+        files: &mut HashMap<PathBuf, String>,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        for (_, fp) in self.named_providers() {
+            match fp {
+                Provider::File {
+                    fp: FileProvider::RelativePath(rf),
+                } => try_read_relative_file(rf, files, ctx).await?,
+
+                Provider::File {
+                    fp: FileProvider::RelativeDir(rd),
+                } => try_read_relative_dir(rd, files, ctx).await?,
+
+                Provider::Command {
+                    cmd: CommandProvider::RelativePath(rf),
+                    ..
+                } => try_read_relative_file(rf, files, ctx).await?,
+
+                Provider::ComposeFile {
+                    fp: ComposeFileProvider::RelativePath(rf),
+                } => try_read_relative_file(rf, files, ctx).await?,
+
+                Provider::ComposeFile {
+                    fp: ComposeFileProvider::RelativeDir(rd),
+                } => try_read_relative_dir(rd, files, ctx).await?,
+
+                _ => (),
+            }
+        }
+
+        Ok(())
+    }
 
     /// Run all of the [FileProviders][0] contained within this type and write out their file
     /// contents to the specified directory.

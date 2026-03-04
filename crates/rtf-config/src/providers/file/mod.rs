@@ -557,12 +557,12 @@ impl Check for InlineDir {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
-pub(crate) struct DirFile {
+pub struct DirFile {
     /// The relative path to the generated file within the directory
-    pub(crate) path: PathBuf,
+    pub path: PathBuf,
 
     /// The text to write out as the contents of the generated file.
-    pub(crate) content: String,
+    pub content: String,
 }
 
 /// # Relative path
@@ -803,6 +803,32 @@ pub struct RelativeDir {
     pub(crate) src: Option<SourceDir>,
 }
 
+impl RelativeDir {
+    pub fn as_relative_files(&self) -> Vec<RelativeFile> {
+        let mut src = self
+            .src
+            .clone()
+            .expect("attempt to resolve a RelativeDir without a source");
+        match &mut src {
+            SourceDir::Local { abs_path } => *abs_path = abs_path.join(self.path.as_resolved()),
+            SourceDir::Github { path, .. } => *path = path.join(self.path.as_resolved()),
+        }
+
+        // Dedup to ensure that we don't pull in files multiple times
+        let mut files = self.files.clone();
+        files.sort_unstable();
+        files.dedup();
+
+        files
+            .into_iter()
+            .map(|fname| RelativeFile {
+                path: Field::Resolved(fname),
+                src: Some(src.clone()),
+            })
+            .collect()
+    }
+}
+
 impl Template for RelativeDir {
     fn required_variables(&self) -> Vec<String> {
         self.path.required_variables()
@@ -836,29 +862,10 @@ impl ResolveFileContent for RelativeDir {
         target: impl AsRef<Path>,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<Vec<DirFile>> {
-        let mut src = self
-            .src
-            .clone()
-            .expect("attempt to resolve a RelativeDir without a source");
-        match &mut src {
-            SourceDir::Local { abs_path } => *abs_path = abs_path.join(self.path.as_resolved()),
-            SourceDir::Github { path, .. } => *path = path.join(self.path.as_resolved()),
-        }
-
         let mut contents = Vec::with_capacity(self.files.len());
 
-        // Dedup to ensure that we don't pull in files multiple times
-        let mut files = self.files.clone();
-        files.sort_unstable();
-        files.dedup();
-
-        for fname in files.into_iter() {
-            let path = target.as_ref().join(&fname);
-            let rel_file = RelativeFile {
-                path: Field::Resolved(fname),
-                src: Some(src.clone()),
-            };
-
+        for rel_file in self.as_relative_files() {
+            let path = target.as_ref().join(rel_file.path.as_resolved());
             contents.push(DirFile {
                 path,
                 content: rel_file.try_get_file_content(ctx).await?,
