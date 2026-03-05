@@ -9,13 +9,15 @@ use crate::{
         ResolveAndWrite, ResolveFileContent, check_relative_path_specifiers, enum_impl_check,
         github::GithubFile, utility::TemplatedFile,
     },
+    providers::{self},
+    run::{ExtractRelativeFiles, try_read_relative_dir, try_read_relative_file},
     templating::{self, Template, TemplateContext},
 };
 use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     str::FromStr,
@@ -184,6 +186,25 @@ enum_impl_compose_file_provider!(
     Required,
     Templated,
 );
+
+impl ExtractRelativeFiles for ComposeFileProvider {
+    async fn try_extract_relative_files(
+        &self,
+        files: &mut HashMap<PathBuf, String>,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        match self {
+            Self::RelativePath(rf) => try_read_relative_file(rf, files, ctx).await,
+            Self::RelativeDir(rd) => try_read_relative_dir(rd, files, ctx).await,
+
+            Self::GithubFile(_)
+            | Self::Inline(_)
+            | Self::InlineDir(_)
+            | Self::Required(_)
+            | Self::Templated(_) => Ok(()),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {

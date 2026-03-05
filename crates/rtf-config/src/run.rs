@@ -49,7 +49,7 @@ pub enum Provider<'a> {
     },
 }
 
-async fn try_read_relative_file(
+pub(crate) async fn try_read_relative_file(
     rf: &RelativeFile,
     files: &mut HashMap<PathBuf, String>,
     ctx: &impl ResolutionContext,
@@ -65,7 +65,7 @@ async fn try_read_relative_file(
     Ok(())
 }
 
-async fn try_read_relative_dir(
+pub(crate) async fn try_read_relative_dir(
     rd: &RelativeDir,
     files: &mut HashMap<PathBuf, String>,
     ctx: &impl ResolutionContext,
@@ -78,6 +78,15 @@ async fn try_read_relative_dir(
 }
 
 #[allow(async_fn_in_trait)]
+pub(crate) trait ExtractRelativeFiles {
+    async fn try_extract_relative_files(
+        &self,
+        files: &mut HashMap<PathBuf, String>,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<()>;
+}
+
+#[allow(async_fn_in_trait)]
 pub trait RunProviders {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)>;
 
@@ -86,30 +95,11 @@ pub trait RunProviders {
         files: &mut HashMap<PathBuf, String>,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<()> {
-        for (_, fp) in self.named_providers() {
-            match fp {
-                Provider::File {
-                    fp: FileProvider::RelativePath(rf),
-                } => try_read_relative_file(rf, files, ctx).await?,
-
-                Provider::File {
-                    fp: FileProvider::RelativeDir(rd),
-                } => try_read_relative_dir(rd, files, ctx).await?,
-
-                Provider::Command {
-                    cmd: CommandProvider::RelativePath(rf),
-                    ..
-                } => try_read_relative_file(rf, files, ctx).await?,
-
-                Provider::ComposeFile {
-                    fp: ComposeFileProvider::RelativePath(rf),
-                } => try_read_relative_file(rf, files, ctx).await?,
-
-                Provider::ComposeFile {
-                    fp: ComposeFileProvider::RelativeDir(rd),
-                } => try_read_relative_dir(rd, files, ctx).await?,
-
-                _ => (),
+        for (_, provider) in self.named_providers() {
+            match provider {
+                Provider::File { fp } => fp.try_extract_relative_files(files, ctx).await?,
+                Provider::Command { cmd, .. } => cmd.try_extract_relative_files(files, ctx).await?,
+                Provider::ComposeFile { fp } => fp.try_extract_relative_files(files, ctx).await?,
             }
         }
 
