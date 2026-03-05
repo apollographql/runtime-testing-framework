@@ -9,12 +9,17 @@ rtf-core = { path = "../rtf-core" }
 rtf-integrations = { path = "../rtf-integrations" }
 
 anyhow.workspace = true 
+axum = { version = "0.8.8", features = ["macros"] }
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+chrono = { version = "0.4.44", features = ["serde"] }
+flate2 = "1.1.9"
+tar = "0.4.44"
+uuid = { version = "1.21.0", features = ["serde", "v4"] }
 
 [dev-dependencies]
 rtf-cli = { path = "../rtf-cli" }
