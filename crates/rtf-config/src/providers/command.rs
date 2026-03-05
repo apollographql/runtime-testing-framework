@@ -336,8 +336,8 @@ pub(crate) mod test_helpers {
 mod tests {
     use super::*;
     use crate::{
-        SourceDir,
-        context::{Context, PathKind},
+        SourceDir, StableSource,
+        context::{Context, PathKind, ResolutionContext},
         mock_context::NullClient,
         providers::{
             command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
@@ -888,15 +888,21 @@ mod tests {
 
     #[tokio::test]
     async fn command_provider_inline_all_relative_paths_succeeds() {
-        let ctx = Context::new();
+        let mut ctx = Context::new();
         let file_content = "example file content";
         let relative_file_path = "file.txt";
         let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+        ctx.set_sources(crate::formats::Sources::with_custom_providers(
+            src.clone(),
+            None,
+            None,
+            Default::default(),
+        ));
 
         let mut command_provider = CommandProvider::RelativePath(RelativeFile {
             path: Field::Resolved(relative_file_path.to_string()),
-            src: Some(src),
+            src: Some(StableSource::TestPlan),
         });
 
         let result = command_provider
@@ -936,11 +942,17 @@ mod tests {
 
     #[tokio::test]
     async fn command_section_inline_succeeds() {
-        let ctx = Context::new();
+        let mut ctx = Context::new();
         let file_content = "example file content";
         let relative_file_path = "file.txt";
         let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+        ctx.set_sources(crate::formats::Sources::with_custom_providers(
+            src.clone(),
+            None,
+            None,
+            Default::default(),
+        ));
 
         let inline_file_provider = FileProvider::Inline(InlineFile {
             content: file_content.to_string(),
@@ -951,7 +963,7 @@ mod tests {
                 name: "example.sh".to_string(),
                 command_provider: CommandProvider::RelativePath(RelativeFile {
                     path: Field::Resolved(relative_file_path.to_string()),
-                    src: Some(src.clone()),
+                    src: Some(StableSource::TestPlan),
                 }),
                 args: Vec::new(),
             },
@@ -962,7 +974,7 @@ mod tests {
                     env_var: "FP1".to_string(),
                     provider: FileProvider::RelativePath(RelativeFile {
                         path: Field::Resolved(relative_file_path.to_string()),
-                        src: Some(src.clone()),
+                        src: Some(StableSource::TestPlan),
                     }),
                 },
                 NamedFileProvider {
@@ -1007,11 +1019,17 @@ mod tests {
 
     #[tokio::test]
     async fn command_section_inline_all_relative_providers_succeeds() {
-        let ctx = Context::new();
+        let mut ctx = Context::new();
         let file_content = "example file content";
         let relative_file_path = "file.txt";
         let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+        ctx.set_sources(crate::formats::Sources::with_custom_providers(
+            src.clone(),
+            None,
+            None,
+            Default::default(),
+        ));
 
         let inline_file_provider = FileProvider::Inline(InlineFile {
             content: file_content.to_string(),
@@ -1022,7 +1040,7 @@ mod tests {
                 name: "example.sh".to_string(),
                 command_provider: CommandProvider::RelativePath(RelativeFile {
                     path: Field::Resolved(relative_file_path.to_string()),
-                    src: Some(src.clone()),
+                    src: Some(StableSource::TestPlan),
                 }),
                 args: Vec::new(),
             },
@@ -1033,7 +1051,7 @@ mod tests {
                     env_var: "FP1".to_string(),
                     provider: FileProvider::RelativePath(RelativeFile {
                         path: Field::Resolved(relative_file_path.to_string()),
-                        src: Some(src.clone()),
+                        src: Some(StableSource::TestPlan),
                     }),
                 },
                 NamedFileProvider {

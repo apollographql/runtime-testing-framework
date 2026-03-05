@@ -1,11 +1,10 @@
 use crate::{
-    SourceDir,
     checks::{self, Check},
     context::ResolutionContext,
     formats::CustomProviderDefinition,
     providers::{
         self,
-        file::{AsUtf8FileContent, utility::FromCommand},
+        file::{AsUtf8FileContent, StableSource, utility::FromCommand},
     },
     templating::{self, ErrorKind, Errors, Field, Result, Scalar, Template, TemplateContext},
 };
@@ -37,10 +36,10 @@ pub struct CustomProvider {
     pub(crate) arguments: HashMap<String, Field<Scalar>>,
 
     /// Set during TestPlan parsing as part of overrides and templating.
-    #[serde(default, skip_serializing)]
+    #[serde(default)]
     #[schemars(skip)]
     #[doc(hidden)]
-    pub(crate) src: Option<SourceDir>,
+    pub(crate) src: Option<StableSource>,
 }
 
 impl CustomProvider {
@@ -48,7 +47,7 @@ impl CustomProvider {
     pub fn expand_and_template(
         &mut self,
         path: &mut Vec<String>,
-        file_source: &SourceDir,
+        file_source: &StableSource,
         file_ctx: &TemplateContext,
     ) -> Result<FromCommand> {
         let mut definition = match file_ctx.custom_provider_definition(&self.ty) {
@@ -62,20 +61,18 @@ impl CustomProvider {
             }
         };
 
-        let definition_src = file_ctx
-            .custom_provider_source(&self.ty)
-            .expect("custom provider definition found but source missing");
+        let definition_src = StableSource::CustomProvider(self.ty.clone());
 
         let definition_ctx = self.build_templating_context(
             path,
             file_source,
             file_ctx,
             &definition,
-            definition_src,
+            &definition_src,
         )?;
 
         path.push("definition".into());
-        definition.try_template(path, definition_src, &definition_ctx)?;
+        definition.try_template(path, &definition_src, &definition_ctx)?;
 
         Ok(FromCommand::new(definition.command))
     }
@@ -83,10 +80,10 @@ impl CustomProvider {
     fn build_templating_context(
         &mut self,
         path: &[String],
-        file_src: &SourceDir,
+        file_src: &StableSource,
         file_ctx: &TemplateContext,
         definition: &CustomProviderDefinition,
-        definition_src: &SourceDir,
+        definition_src: &StableSource,
     ) -> Result<TemplateContext> {
         // First we template the arguments of this `CustomProvider` using the
         // source and context for the file containing it. As we template arguments
@@ -110,8 +107,10 @@ impl CustomProvider {
                     }
                 }
                 Field::Resolved(_) => {
-                    argument_sources
-                        .insert(k.clone(), self.src.as_ref().unwrap_or(file_src).clone());
+                    argument_sources.insert(
+                        k.clone(),
+                        self.src.clone().unwrap_or_else(|| file_src.clone()),
+                    );
                 }
             }
 
@@ -148,7 +147,7 @@ impl Template for CustomProvider {
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        file_source: &SourceDir,
+        file_source: &StableSource,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
@@ -159,14 +158,12 @@ impl Template for CustomProvider {
 
         match ctx.custom_provider_definition(&self.ty) {
             Some(def) => {
-                let def_src = ctx
-                    .custom_provider_source(&self.ty)
-                    .expect("custom provider definition found but source missing");
+                let def_src = StableSource::CustomProvider(self.ty.clone());
                 // We don't reuse `build_templating_context` here as that actually resolves the
                 // fields in our `arguments` map and cares about the value associated with each
                 // variable. Here, all we care about is the fact that the correct variables are
                 // defined.
-                let mut ctx = ctx.for_config_file(def_src, None, def.variable_definitions.iter());
+                let mut ctx = ctx.for_config_file(&def_src, None, def.variable_definitions.iter());
 
                 // Add resolved argument values to the context for validation.
                 // Without this, validation fails for static (non-templated) argument values
@@ -180,9 +177,14 @@ impl Template for CustomProvider {
                     })
                     .collect();
 
-                let sources: HashMap<String, SourceDir> = resolved_arguments
+                let sources: HashMap<String, StableSource> = resolved_arguments
                     .keys()
-                    .map(|k| (k.clone(), self.src.as_ref().unwrap_or(file_source).clone()))
+                    .map(|k| {
+                        (
+                            k.clone(),
+                            self.src.clone().unwrap_or_else(|| file_source.clone()),
+                        )
+                    })
                     .collect();
 
                 ctx.extend_with_sources(sources, resolved_arguments);
@@ -198,7 +200,7 @@ impl Template for CustomProvider {
                     )
                     .collect();
 
-                errs.append(def.validate_context(path, &allowed_variables, def_src, &ctx));
+                errs.append(def.validate_context(path, &allowed_variables, &def_src, &ctx));
             }
 
             None => errs.push(ErrorKind::MissingCustomProvider, &self.ty, path),
@@ -210,7 +212,7 @@ impl Template for CustomProvider {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        file_source: &SourceDir,
+        file_source: &StableSource,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         self.arguments.try_template(path, file_source, ctx)
@@ -220,10 +222,10 @@ impl Template for CustomProvider {
 // AsUtf8FileContent needs to be implemented for CustomProvider to be a valid FileProvider that can be added to the NamedFileProvider enum
 // However, the AsUtf8FileContent methods should never actually be called
 impl AsUtf8FileContent for CustomProvider {
-    async fn try_get_file_content(
-        &self,
-        _ctx: &impl ResolutionContext,
-    ) -> providers::Result<String> {
+    async fn try_get_file_content(&self, _ctx: &impl ResolutionContext) -> providers::Result<String>
+    where
+        Self: Sized,
+    {
         panic!(
             "Should not be able to get here. Custom provider should have been expanded when templating the config."
         )
@@ -253,7 +255,7 @@ mod tests {
         inlining::InlineMode,
         providers::{
             command::CommandSection,
-            file::{FileProvider, NamedFileProvider, RelativeFile},
+            file::{FileProvider, NamedFileProvider, RelativeFile, SourceDir, StableSource},
         },
         templating::{CustomProviderDefinitions, ErrorKind},
     };
@@ -266,7 +268,7 @@ mod tests {
         def_field: Field<String>,
         provider_argument: Option<(&str, Field<Scalar>)>,
         provider_src: Option<&str>,
-        file_ctx: Option<(&str, &str, SourceDir)>,
+        file_ctx: Option<(&str, &str, StableSource)>,
     ) -> Result<TemplateContext> {
         // There are two parts of the `CustomProviderDefinition`` we want to parameterise
         // 1. The default value for the definition variable (Some or None)
@@ -310,7 +312,7 @@ mod tests {
         let mut provider = CustomProvider {
             ty: "custom-provider".to_string(),
             arguments,
-            src: provider_src.map(SourceDir::local),
+            src: provider_src.map(|_| StableSource::TestPlan),
         };
 
         // The file context can either contain no variables or sources or,
@@ -324,17 +326,17 @@ mod tests {
         }
         let file_ctx = TemplateContext::new(
             variables,
-            SourceDir::local("/test-plan"),
+            StableSource::TestPlan,
             variable_sources,
             Default::default(),
         );
 
         provider.build_templating_context(
-            &[],                            // The path is empty as this is not used in the test assertions
-            &SourceDir::local("/provider"), // This is the source for the file the custom provider is defined in
+            &[],                        // The path is empty as this is not used in the test assertions
+            &StableSource::Environment, // This is the source for the file the custom provider is defined in
             &file_ctx,
             &definition,
-            &SourceDir::local("/definition"), // This is the source for the file the custom provider definition is in
+            &StableSource::Scenario, // This is the source for the file the custom provider definition is in
         )
     }
 
@@ -433,15 +435,12 @@ mod tests {
         let ctx = res.unwrap();
         assert_eq!(
             ctx.get_with_source("definition_variable"),
-            Some((
-                &SourceDir::local("/definition"),
-                &"definition default value".into()
-            ))
+            Some((&StableSource::Scenario, &"definition default value".into()))
         );
     }
 
-    #[test_case(None, SourceDir::local("/provider"); "provider not from overrides")]
-    #[test_case(Some("/test-plan"), SourceDir::local("/test-plan"); "provider from overrides")]
+    #[test_case(None, StableSource::Environment; "provider not from overrides")]
+    #[test_case(Some("/test-plan"), StableSource::TestPlan; "provider from overrides")]
     #[test]
     /// This tests a variable's value coming from the provider arguments. A default is included to show that the argument value takes precedence.
     /// This is the situation where the custom provider's source is relevant.
@@ -451,7 +450,7 @@ mod tests {
     /// [FileContext(No variable values)] -> [CustomProvider(Resolved(argument))] -> [CustomProviderDefinition(Default value)] -> [Pending(FileProvider)]
     fn custom_provider_build_templating_context_pending_field_in_definition_uses_resolved_provider_argument_success(
         provider_src: Option<&str>,
-        expected_src: SourceDir,
+        expected_src: StableSource,
     ) {
         let res = test_build_templating_context(
             Some("definition_default_value".into()), // We still supply a default to sanity check the value from provider arguments overrides it
@@ -493,7 +492,7 @@ mod tests {
             Some((
                 "provider_variable",
                 "value from file context",
-                SourceDir::local("wherever this variable came from"),
+                StableSource::VariablesFile,
             )),
         );
         assert!(res.is_ok(), "expected TemplateContext, got {res:?}");
@@ -502,7 +501,7 @@ mod tests {
         assert_eq!(
             ctx.get_with_source("definition_variable"),
             Some((
-                &SourceDir::local("wherever this variable came from"),
+                &StableSource::VariablesFile,
                 &"value from file context".into()
             ))
         );
@@ -601,16 +600,13 @@ mod tests {
         let res = custom_provider.validate_context(
             &mut Vec::new(),
             &HashSet::new(),
-            &SourceDir::local("/"),
+            &StableSource::TestPlan,
             &TemplateContext::new(
                 HashMap::new(),
-                SourceDir::local("/"),
+                StableSource::TestPlan,
                 HashMap::new(),
                 Arc::new(CustomProviderDefinitions {
-                    test_plan: HashMap::from([(
-                        "my-custom-provider".to_string(),
-                        definition,
-                    )]),
+                    test_plan: HashMap::from([("my-custom-provider".to_string(), definition)]),
                     sources: HashMap::from([(
                         "my-custom-provider".to_string(),
                         SourceDir::local("/providers"),
@@ -658,16 +654,13 @@ mod tests {
         let res = custom_provider.validate_context(
             &mut Vec::new(),
             &HashSet::new(),
-            &SourceDir::local("/"),
+            &StableSource::TestPlan,
             &TemplateContext::new(
                 HashMap::new(),
-                SourceDir::local("/"),
+                StableSource::TestPlan,
                 HashMap::new(),
                 Arc::new(CustomProviderDefinitions {
-                    test_plan: HashMap::from([(
-                        "my-custom-provider".to_string(),
-                        definition,
-                    )]),
+                    test_plan: HashMap::from([("my-custom-provider".to_string(), definition)]),
                     sources: HashMap::from([(
                         "my-custom-provider".to_string(),
                         SourceDir::local("/providers"),

@@ -1,6 +1,9 @@
 use crate::{
     context::{PathKind, ResolutionContext},
-    providers,
+    providers::{
+        self,
+        file::{SourceDir, StableSource},
+    },
     run::Provider,
 };
 use bytes::Bytes;
@@ -21,6 +24,15 @@ pub(crate) struct MockContext<C: HttpClient + Clone> {
     http: C,
     github: Option<MockGithubClient>,
     output_path: PathBuf,
+    source: Option<SourceDir>,
+}
+
+impl<C: HttpClient + Clone> MockContext<C> {
+    /// Set the source dir returned by `source_dir_for` (used in tests that need IO from a specific source).
+    pub(crate) fn with_source(mut self, source: SourceDir) -> Self {
+        self.source = Some(source);
+        self
+    }
 }
 
 impl MockContext<MockHttpClient> {
@@ -29,6 +41,7 @@ impl MockContext<MockHttpClient> {
             http: MockHttpClient::with_responses(responses),
             github: None,
             output_path: PathBuf::new(),
+            source: None,
         }
     }
 }
@@ -44,6 +57,7 @@ impl MockContext<NullClient> {
                     .collect(),
             }),
             output_path: PathBuf::new(),
+            source: None,
         }
     }
 }
@@ -73,10 +87,24 @@ impl<C: HttpClient + Clone + 'static> ResolutionContext for MockContext<C> {
         relative_path.as_ref().canonicalize()
     }
 
-    fn path_kind(&self, _path: impl AsRef<Path>) -> PathKind {
-        unimplemented!(
-            "If you are hitting this we have not needed to mock this yet which is why it is not implemented"
-        )
+    fn path_kind(&self, path: impl AsRef<Path>) -> PathKind {
+        let p = path.as_ref();
+        if !p.exists() {
+            PathKind::Missing
+        } else if p.is_file() {
+            PathKind::File
+        } else {
+            match p.read_dir() {
+                Ok(mut rd) => {
+                    if rd.next().is_some() {
+                        PathKind::OccupiedDir
+                    } else {
+                        PathKind::EmptyDir
+                    }
+                }
+                Err(_) => PathKind::Missing,
+            }
+        }
     }
 
     fn read_path_to_string(&self, path: impl AsRef<Path>) -> io::Result<String> {
@@ -114,6 +142,12 @@ impl<C: HttpClient + Clone + 'static> ResolutionContext for MockContext<C> {
 
     fn create_dir_all(&self, path: impl AsRef<Path>) -> io::Result<()> {
         fs::create_dir_all(path)
+    }
+
+    fn source_dir_for(&self, _src: &StableSource) -> &SourceDir {
+        self.source
+            .as_ref()
+            .expect("source not configured in MockContext - call .with_source()")
     }
 
     async fn with_supergraph_details<T>(

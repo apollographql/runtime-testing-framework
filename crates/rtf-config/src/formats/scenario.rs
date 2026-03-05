@@ -7,7 +7,7 @@ use crate::{
     providers::{
         self,
         command::CommandSection,
-        file::{NamedFileProvider, SourceDir},
+        file::{NamedFileProvider, StableSource},
     },
     run::{
         DOCKER_COMPOSE_NETWORK, Execute, ExecuteArgs, OUTDIR, OUTPUT_PATH, Provider, RunProviders,
@@ -82,7 +82,7 @@ impl Template for ScenarioConfig {
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        file_source: &SourceDir,
+        file_source: &StableSource,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut allowed_variables = allowed_variables.clone();
@@ -101,7 +101,7 @@ impl Template for ScenarioConfig {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        source: &SourceDir,
+        source: &StableSource,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let ctx = ctx.for_config_file(
@@ -698,7 +698,7 @@ mod tests {
         let ctx = template_context(field_names);
         let mut scenario = templatable_scenario(field_names, field_names, &[]);
 
-        let res = scenario.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
+        let res = scenario.try_template(&mut Vec::new(), &StableSource::Scenario, &ctx);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -1006,8 +1006,14 @@ mod tests {
         let file_content = "example file content";
         let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", file_content);
 
-        let ctx = Context::new();
+        let mut ctx = Context::new();
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+        ctx.set_sources(crate::formats::Sources::with_custom_providers(
+            src.clone(),
+            None,
+            None,
+            Default::default(),
+        ));
 
         let mut scenario = ScenarioConfig {
             command: ScenarioCommand::Script(CommandSection {
@@ -1015,7 +1021,7 @@ mod tests {
                     name: "example.sh".to_string(),
                     command_provider: CommandProvider::RelativePath(RelativeFile {
                         path: Field::Resolved("file.txt".to_string()),
-                        src: Some(src.clone()),
+                        src: Some(StableSource::TestPlan),
                     }),
                     args: Vec::new(),
                 },

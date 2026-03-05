@@ -9,7 +9,7 @@ use crate::{
     providers::{
         self,
         command::CommandSection,
-        file::{NamedFileProvider, SourceDir, compose::NamedComposeFileProvider},
+        file::{NamedFileProvider, StableSource, compose::NamedComposeFileProvider},
     },
     run::{
         DOCKER_COMPOSE_NETWORK, Execute, OUTDIR, OUTPUT_PATH, PROVIDER_DIR, Provider, RunProviders,
@@ -114,7 +114,7 @@ impl Template for EnvironmentConfig {
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        file_source: &SourceDir,
+        file_source: &StableSource,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut allowed_variables = allowed_variables.clone();
@@ -133,7 +133,7 @@ impl Template for EnvironmentConfig {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        source: &SourceDir,
+        source: &StableSource,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let ctx = ctx.for_config_file(
@@ -882,7 +882,7 @@ pub(crate) mod tests {
         let mut environment =
             templatable_environment(field_names.as_slice(), setup_fields, teardown_fields, &[]);
 
-        let res = environment.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
+        let res = environment.try_template(&mut Vec::new(), &StableSource::Environment, &ctx);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -914,7 +914,7 @@ pub(crate) mod tests {
             ..EnvironmentConfig::empty()
         };
 
-        let res = environment.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
+        let res = environment.try_template(&mut Vec::new(), &StableSource::Environment, &ctx);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -1371,12 +1371,18 @@ pub(crate) mod tests {
         let file_content = "example file content";
         let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", file_content);
 
-        let ctx = Context::new();
+        let mut ctx = Context::new();
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+        ctx.set_sources(crate::formats::Sources::with_custom_providers(
+            SourceDir::default(),
+            None,
+            Some(src.clone()),
+            Default::default(),
+        ));
 
         let relative_command_provider = CommandProvider::RelativePath(RelativeFile {
             path: Field::Resolved("file.txt".to_string()),
-            src: Some(src.clone()),
+            src: Some(StableSource::Environment),
         });
 
         let mut environment = EnvironmentConfig {
@@ -1428,17 +1434,23 @@ pub(crate) mod tests {
         let file_content = "example file content";
         let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", file_content);
 
-        let ctx = Context::new();
+        let mut ctx = Context::new();
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+        ctx.set_sources(crate::formats::Sources::with_custom_providers(
+            SourceDir::default(),
+            None,
+            Some(src.clone()),
+            Default::default(),
+        ));
 
         let relative_compose_file = ComposeFileProvider::RelativePath(RelativeFile {
             path: Field::Resolved("file.txt".to_string()),
-            src: Some(src.clone()),
+            src: Some(StableSource::Environment),
         });
 
         let relative_file = FileProvider::RelativePath(RelativeFile {
             path: Field::Resolved("file.txt".to_string()),
-            src: Some(src.clone()),
+            src: Some(StableSource::Environment),
         });
 
         let mut environment = EnvironmentConfig {

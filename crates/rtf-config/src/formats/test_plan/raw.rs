@@ -6,7 +6,7 @@ use crate::{
         TestPlanConfig, test_plan::Sources,
     },
     merge_yaml,
-    providers::file::{RawSource, SourceDir},
+    providers::file::{RawSource, SourceDir, StableSource},
     templating::Scalar,
 };
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
@@ -190,7 +190,7 @@ impl ConfigSpec {
                     }
 
                     let mut base: serde_yaml::Value = serde_yaml::from_str(&file_content)?;
-                    let yaml_src = serde_yaml::to_value(tp_source)?;
+                    let yaml_src = serde_yaml::to_value(&StableSource::TestPlan)?;
                     set_source_for_relative_paths(&mut overrides, &yaml_src);
                     merge_yaml(overrides, &mut base);
 

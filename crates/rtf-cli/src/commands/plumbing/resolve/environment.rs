@@ -9,7 +9,7 @@ use crate::{
 };
 use anyhow::bail;
 use rtf_config::{
-    SourceDir,
+    StableSource,
     checks::Check,
     context::ResolutionContext,
     formats::{
@@ -18,7 +18,7 @@ use rtf_config::{
     run::{OUTPUT_PATH, PROVIDER_DIR, RunProviders},
     templating::{Template, TemplateContext},
 };
-use std::{collections::HashMap, env::current_dir, path::Path};
+use std::{collections::HashMap, path::Path};
 use tracing::info;
 
 const SETUP_ENV_FILE: &str = "setup.env";
@@ -32,8 +32,6 @@ pub async fn resolve_environment(
     force: bool,
 ) -> anyhow::Result<()> {
     let (mut ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
-    let cwd = current_dir()?;
-    let cwd_source = SourceDir::local(cwd);
 
     info!("loading environment");
     let (source, mut environment) =
@@ -48,17 +46,17 @@ pub async fn resolve_environment(
         variables,
         variable_sources,
         ..
-    } = parse_cli_variables(variables, &cwd_source, &ctx)?;
+    } = parse_cli_variables(variables, source, &mut ctx)?;
 
     let template_ctx = TemplateContext::new(
         variables,
-        source.clone(),
+        StableSource::Cli,
         variable_sources,
         Default::default(),
     );
 
     info!("templating environment");
-    environment.try_template(&mut Vec::new(), &source, &template_ctx)?;
+    environment.try_template(&mut Vec::new(), &StableSource::Cli, &template_ctx)?;
 
     info!("running static checks");
     environment.try_check(&mut vec!["environment".to_string()], &ctx)?;

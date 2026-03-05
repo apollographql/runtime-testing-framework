@@ -6,18 +6,13 @@ use crate::{
     },
 };
 use rtf_config::{
+    StableSource,
     checks::Check,
     context::ResolutionContext,
     formats::TestPlanConfig,
-    providers::file::SourceDir,
     templating::{Template, TemplateContext},
 };
-use std::{
-    collections::HashMap,
-    env::current_dir,
-    mem::take,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, mem::take, path::Path};
 use tracing::info;
 
 const VARIABLES_PATH: &str = "test-plan-variables.json";
@@ -33,7 +28,6 @@ pub async fn check_and_run_test_plan(
     force: bool,
 ) -> anyhow::Result<()> {
     let (mut ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
-    let cwd = current_dir()?;
 
     info!("loading and resolving test plan");
     let test_plan = if github {
@@ -43,18 +37,17 @@ pub async fn check_and_run_test_plan(
     };
     ctx.set_sources(test_plan.sources.clone());
 
-    check_and_run_test_plan_with_context(test_plan, variables, &out_dir, cwd, run_target, ctx).await
+    check_and_run_test_plan_with_context(test_plan, variables, &out_dir, run_target, ctx).await
 }
 
 async fn check_and_run_test_plan_with_context(
     mut test_plan: TestPlanConfig,
     variables: Variables,
     out_dir: &Path,
-    cwd: PathBuf,
     run_target: RunTarget,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    let variable_sources = variables.merge(&mut test_plan, &SourceDir::local(cwd), &mut ctx)?;
+    let variable_sources = variables.merge(&mut test_plan, &mut ctx)?;
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work(&variable_sources, &ctx)?;
@@ -94,21 +87,20 @@ async fn check_and_run_test_plan_with_context(
 async fn run_one(
     mut test_plan: TestPlanConfig,
     out_dir: &Path,
-    variable_sources: &HashMap<String, SourceDir>,
+    variable_sources: &HashMap<String, StableSource>,
     run_target: &RunTarget,
     ctx: &mut impl ResolutionContext,
 ) -> anyhow::Result<()> {
     let variables = take(&mut test_plan.variables);
-    let source = test_plan.sources.test_plan().clone();
     let template_ctx = TemplateContext::new(
         variables,
-        test_plan.sources.test_plan().clone(),
+        StableSource::TestPlan,
         variable_sources.clone(),
         test_plan.sources.custom_providers(),
     );
 
     info!("templating test plan");
-    test_plan.try_template(&mut Vec::new(), &source, &template_ctx)?;
+    test_plan.try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)?;
 
     info!("checking test plan");
     test_plan.try_check(&mut Vec::new(), ctx)?;

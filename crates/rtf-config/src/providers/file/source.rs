@@ -144,7 +144,7 @@ impl fmt::Display for SourceDir {
 ///
 /// Unlike [SourceDir] which carries absolute disk paths or GitHub refs, `StableSource` carries
 /// only a logical name that is safe to serialize and share without leaking local path information.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StableSource {
     /// The value came from the test plan config file

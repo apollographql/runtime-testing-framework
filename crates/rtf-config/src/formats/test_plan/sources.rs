@@ -23,7 +23,7 @@ pub struct Sources {
 }
 
 impl Sources {
-    pub(super) fn new(
+    pub fn new(
         test_plan: SourceDir,
         scenario: Option<SourceDir>,
         environment: Option<SourceDir>,

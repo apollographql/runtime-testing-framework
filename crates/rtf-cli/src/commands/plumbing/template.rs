@@ -5,13 +5,12 @@ use crate::{
     },
 };
 use rtf_config::{
-    SourceDir,
+    StableSource,
     checks::Check,
     context::ResolutionContext,
     formats::TestPlanConfig,
     templating::{Template, TemplateContext},
 };
-use std::{env::current_dir, path::PathBuf};
 use tracing::info;
 
 pub async fn template_test_plan(
@@ -22,7 +21,6 @@ pub async fn template_test_plan(
     variables: Variables,
 ) -> anyhow::Result<()> {
     let mut ctx = get_context();
-    let cwd = current_dir()?;
 
     info!("loading and resolving test plan");
     let test_plan = if github {
@@ -32,31 +30,29 @@ pub async fn template_test_plan(
     };
     ctx.set_sources(test_plan.sources.clone());
 
-    template_test_plan_with_context(test_plan, variables, check, cwd, ctx).await
+    template_test_plan_with_context(test_plan, variables, check, ctx).await
 }
 
 async fn template_test_plan_with_context(
     mut test_plan: TestPlanConfig,
     variables: Variables,
     check: bool,
-    cwd: PathBuf,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    let variable_sources = variables.merge(&mut test_plan, &SourceDir::local(cwd), &mut ctx)?;
+    let variable_sources = variables.merge(&mut test_plan, &mut ctx)?;
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work(&variable_sources, &ctx)?;
 
     let (_, variables) = test_plan.matrix.try_expand(&test_plan.variables)?.remove(0);
-    let source = test_plan.sources.test_plan().clone();
     let template_ctx = TemplateContext::new(
         variables,
-        source.clone(),
+        StableSource::TestPlan,
         variable_sources,
         test_plan.sources.custom_providers(),
     );
 
-    test_plan.try_template(&mut Vec::new(), &source, &template_ctx)?;
+    test_plan.try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)?;
 
     if check {
         info!("checking test plan");

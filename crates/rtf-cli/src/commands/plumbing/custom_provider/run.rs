@@ -11,14 +11,13 @@ use crate::{
     },
 };
 use rtf_config::{
-    SourceDir,
+    StableSource,
     checks::Check,
     context::ResolutionContext,
     formats::CustomProviderDefinition,
     run::{Execute, OUTPUT_PATH, PROVIDER_DIR},
     templating::{Template, TemplateContext},
 };
-use std::env::current_dir;
 use tracing::info;
 
 pub async fn run_custom_provider(
@@ -28,8 +27,6 @@ pub async fn run_custom_provider(
     force: bool,
 ) -> anyhow::Result<()> {
     let (mut ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
-    let cwd = current_dir()?;
-    let cwd_source = SourceDir::local(cwd);
 
     info!("loading custom provider definition");
     let (source, mut definition) = load_config::<CustomProviderDefinition>(
@@ -43,18 +40,18 @@ pub async fn run_custom_provider(
         variables,
         variable_sources,
         ..
-    } = parse_cli_variables(variables, &cwd_source, &ctx)?;
+    } = parse_cli_variables(variables, source, &mut ctx)?;
 
     let template_ctx = TemplateContext::new(
         variables,
-        source.clone(),
+        StableSource::Cli,
         variable_sources.clone(),
         Default::default(),
     );
 
     definition.validate_variables(template_ctx.variables(), Some(&variable_sources))?;
 
-    definition.try_template(&mut Vec::new(), &source, &template_ctx)?;
+    definition.try_template(&mut Vec::new(), &StableSource::Cli, &template_ctx)?;
     definition
         .command
         .try_check(&mut vec!["custom_provider".to_string()], &ctx)?;

@@ -1,9 +1,9 @@
 use crate::{
-    SourceDir,
     checks::{self, Check},
     context::ResolutionContext,
     enum_impl_resolve_and_write,
     inlining::{self, InlineMode},
+    providers::file::StableSource,
     providers::file::{
         AsUtf8FileContent, InlineDir, InlineFile, RelativeDir, RelativeFile, RequiredFile,
         ResolveAndWrite, ResolveFileContent, check_relative_path_specifiers, enum_impl_check,
@@ -62,7 +62,7 @@ impl Template for NamedComposeFileProvider {
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        file_source: &SourceDir,
+        file_source: &StableSource,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let tail = self.name.clone();
@@ -73,7 +73,7 @@ impl Template for NamedComposeFileProvider {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        file_source: &SourceDir,
+        file_source: &StableSource,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         // Normalize the name: replace '.' and '/' with '_'
@@ -211,7 +211,8 @@ mod tests {
     use super::*;
     use crate::{
         context::Context,
-        providers::file::DirFile,
+        mock_context::MockContext,
+        providers::file::{DirFile, SourceDir},
         templating::{ErrorKind, Field, Scalar},
     };
     use simple_test_case::test_case;
@@ -254,7 +255,7 @@ mod tests {
         };
         let ctx = template_context!(&["path"]);
 
-        let res = nfp.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
+        let res = nfp.try_template(&mut Vec::new(), &StableSource::TestPlan, &ctx);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -272,7 +273,7 @@ mod tests {
         };
         let ctx = template_context!(&["unused"]);
 
-        let res = nfp.try_template(&mut vec!["path".to_string()], &SourceDir::local("/"), &ctx);
+        let res = nfp.try_template(&mut vec!["path".to_string()], &StableSource::TestPlan, &ctx);
         assert!(res.is_err(), "expected templating to error, got {res:?}");
 
         let errors = res.unwrap_err();
@@ -296,11 +297,12 @@ mod tests {
             name: "relative.yaml".to_string(),
             provider: ComposeFileProvider::RelativePath(RelativeFile {
                 path: Field::Resolved("does/not/exist/relative.yaml".to_string()),
-                src: Some(SourceDir::local("/foo")),
+                src: Some(StableSource::TestPlan),
             }),
         };
 
-        let res = nfp.try_check(&mut vec!["path".to_string()], &Context::new());
+        let ctx = MockContext::with_http_client(&[]).with_source(SourceDir::local("/foo"));
+        let res = nfp.try_check(&mut vec!["path".to_string()], &ctx);
         assert!(res.is_err(), "expected to check to error, got {res:?}");
         let err = res.unwrap_err().unwrap_single();
         assert_eq!(err.path, "path.relative_yaml")

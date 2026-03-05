@@ -5,12 +5,11 @@ use crate::{
     commands::{get_context, load_config, plumbing::parse_cli_variables},
 };
 use rtf_config::{
-    SourceDir,
+    StableSource,
     checks::Check,
     formats::CustomProviderDefinition,
     templating::{Template, TemplateContext},
 };
-use std::env::current_dir;
 use tracing::info;
 
 pub async fn template_custom_provider(
@@ -18,9 +17,7 @@ pub async fn template_custom_provider(
     variables: Variables,
     check: bool,
 ) -> anyhow::Result<()> {
-    let ctx = get_context();
-    let cwd = current_dir()?;
-    let cwd_source = SourceDir::local(cwd);
+    let mut ctx = get_context();
 
     info!("loading custom provider definition");
     let (source, mut definition) = load_config::<CustomProviderDefinition>(
@@ -34,18 +31,18 @@ pub async fn template_custom_provider(
         variables,
         variable_sources,
         ..
-    } = parse_cli_variables(variables, &cwd_source, &ctx)?;
+    } = parse_cli_variables(variables, source, &mut ctx)?;
 
     let template_ctx = TemplateContext::new(
         variables,
-        source.clone(),
+        StableSource::Cli,
         variable_sources.clone(),
         Default::default(),
     );
 
     definition.validate_variables(template_ctx.variables(), Some(&variable_sources))?;
 
-    definition.try_template(&mut Vec::new(), &source, &template_ctx)?;
+    definition.try_template(&mut Vec::new(), &StableSource::Cli, &template_ctx)?;
 
     if check {
         definition

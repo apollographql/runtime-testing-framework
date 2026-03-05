@@ -9,14 +9,13 @@ use crate::{
 };
 use anyhow::bail;
 use rtf_config::{
-    SourceDir,
+    StableSource,
     checks::Check,
     context::ResolutionContext,
     formats::ScenarioConfig,
     run::{OUTPUT_PATH, PROVIDER_DIR, RunProviders},
     templating::{Template, TemplateContext},
 };
-use std::env::current_dir;
 use tracing::info;
 
 const SCENARIO_ENV_FILE: &str = "scenario.env";
@@ -28,8 +27,6 @@ pub async fn resolve_scenario(
     force: bool,
 ) -> anyhow::Result<()> {
     let (mut ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
-    let cwd = current_dir()?;
-    let cwd_source = SourceDir::local(cwd);
 
     info!("loading scenario");
     let (source, mut scenario) =
@@ -44,17 +41,17 @@ pub async fn resolve_scenario(
         variables,
         variable_sources,
         ..
-    } = parse_cli_variables(variables, &cwd_source, &ctx)?;
+    } = parse_cli_variables(variables, source, &mut ctx)?;
 
     let template_ctx = TemplateContext::new(
         variables,
-        source.clone(),
+        StableSource::Cli,
         variable_sources,
         Default::default(),
     );
 
     info!("templating scenario");
-    scenario.try_template(&mut Vec::new(), &source, &template_ctx)?;
+    scenario.try_template(&mut Vec::new(), &StableSource::Cli, &template_ctx)?;
 
     info!("running static checks");
     scenario

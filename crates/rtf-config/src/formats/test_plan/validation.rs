@@ -2,7 +2,6 @@ use crate::{
     StableSource, VariableDefinition,
     context::ResolutionContext,
     formats::TestPlanConfig,
-    providers::file::SourceDir,
     templating::{self, CustomProviderDefinitions, Scalar, Template, TemplateContext},
 };
 use std::collections::{HashMap, HashSet};
@@ -23,11 +22,10 @@ impl TestPlanConfig {
     /// configuration for conflicting keys and dimensions, and checks the overall template context for errors.
     pub fn check_templating_will_work(
         &mut self,
-        variable_sources: &HashMap<String, SourceDir>,
+        variable_sources: &HashMap<String, StableSource>,
         ctx: &impl ResolutionContext,
     ) -> templating::Result<()> {
-        // Prefer ctx sources if available; fall back to self.sources for backwards compatibility
-        let tp_source = ctx.source_dir_for(&StableSource::TestPlan);
+        let tp_source = StableSource::TestPlan;
         let custom_providers = ctx.custom_provider_definitions();
         let stub_variables = self
             .allowed_variables()
@@ -54,7 +52,7 @@ impl TestPlanConfig {
         errs.append(self.validate_context(
             &mut Vec::new(),
             &HashSet::new(), // overwritten in self.validate_context
-            tp_source,
+            &tp_source,
             &template_ctx,
         ));
 
@@ -206,7 +204,7 @@ impl TestPlanConfig {
     /// Validate that all variable values are in their effective allowed values.
     fn validate_values_against_allowed(
         &self,
-        variable_sources: &HashMap<String, SourceDir>,
+        variable_sources: &HashMap<String, StableSource>,
         effective_allowed: &HashMap<String, Vec<Scalar>>,
         errs: &mut templating::ErrorBuilder,
     ) {
@@ -274,7 +272,7 @@ impl TestPlanConfig {
 #[cfg(test)]
 mod tests {
     use crate::{
-        SourceDir, VariableDefinition,
+        SourceDir, StableSource, VariableDefinition,
         context::{Context, ResolutionContext},
         formats::{
             CustomProviderDeclaration, CustomProviderDefinition, EnvironmentConfig, Matrix,
@@ -1206,8 +1204,8 @@ mod tests {
             ..TestPlanConfig::empty()
         };
 
-        let variable_sources: HashMap<String, SourceDir> = if is_cli_override {
-            [("foo".into(), SourceDir::local("/cli"))].into()
+        let variable_sources: HashMap<String, StableSource> = if is_cli_override {
+            [("foo".into(), StableSource::Cli)].into()
         } else {
             HashMap::new()
         };

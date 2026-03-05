@@ -6,7 +6,7 @@ use crate::{
     providers::{
         self,
         command::CommandSection,
-        file::{RawSource, SourceDir},
+        file::{RawSource, SourceDir, StableSource},
     },
     run::RunProviders,
     templating::{self, Scalar, Template, TemplateContext},
@@ -52,7 +52,7 @@ impl CustomProviderDefinition {
     pub fn validate_variables(
         &self,
         variables: &HashMap<String, Scalar>,
-        cli_overrides: Option<&HashMap<String, SourceDir>>,
+        cli_overrides: Option<&HashMap<String, StableSource>>,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
 
@@ -64,9 +64,11 @@ impl CustomProviderDefinition {
 
             if let Some(value) = variables.get(&vd.name) {
                 let source_desc = match cli_overrides {
-                    None => "test variable",
-                    Some(overrides) if overrides.contains_key(&vd.name) => "CLI variable",
-                    Some(_) => "variable",
+                    None => "test plan variable",
+                    Some(overrides) => match overrides.get(&vd.name) {
+                        Some(StableSource::Cli | StableSource::VariablesFile) => "CLI variable",
+                        _ => "test plan variable",
+                    },
                 };
                 vd.validate_value(
                     value,
@@ -107,7 +109,7 @@ impl Template for CustomProviderDefinition {
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        file_source: &SourceDir,
+        file_source: &StableSource,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let file_ctx = ctx.for_config_file(file_source, None, self.variable_definitions.iter());
@@ -119,7 +121,7 @@ impl Template for CustomProviderDefinition {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        source: &SourceDir,
+        source: &StableSource,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let file_ctx = ctx.for_config_file(source, None, self.variable_definitions.iter());
@@ -338,7 +340,7 @@ mod tests {
         let mut config = templatable_custom_provider(field_names, field_names);
         let variables = template_context(field_names);
 
-        let res = config.try_template(&mut Vec::new(), &SourceDir::local("/"), &variables);
+        let res = config.try_template(&mut Vec::new(), &StableSource::TestPlan, &variables);
         assert!(
             res.is_ok(),
             "expected to template successfully, got {res:?}"
@@ -527,10 +529,10 @@ mod tests {
             .collect()
     }
 
-    fn source_overrides(names: &[&str]) -> HashMap<String, SourceDir> {
+    fn source_overrides(names: &[&str]) -> HashMap<String, StableSource> {
         names
             .iter()
-            .map(|&n| (n.to_string(), SourceDir::local("/")))
+            .map(|&n| (n.to_string(), StableSource::Cli))
             .collect()
     }
 
@@ -569,7 +571,7 @@ mod tests {
 
         let err = result.unwrap_err().unwrap_single();
         assert!(matches!(err.kind, ErrorKind::ValueNotAllowed));
-        assert!(err.message.contains("test variable"));
+        assert!(err.message.contains("test plan variable"));
     }
 
     #[test]
@@ -597,10 +599,9 @@ mod tests {
 
         let err = result.unwrap_err().unwrap_single();
         assert!(matches!(err.kind, ErrorKind::ValueNotAllowed));
-        // Should say "variable" not "CLI variable" or "test variable"
-        assert!(err.message.contains("variable 'foo'"));
+        // Should say "test plan variable" not "CLI variable"
+        assert!(err.message.contains("test plan variable"));
         assert!(!err.message.contains("CLI"));
-        assert!(!err.message.contains("test"));
     }
 
     #[test]

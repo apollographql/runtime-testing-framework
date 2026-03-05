@@ -187,6 +187,16 @@ pub trait ResolutionContext {
         unimplemented!("set_sources not implemented for this context")
     }
 
+    /// Set the [SourceDir] for variables coming from the CLI (`--var k=v`).
+    fn set_cli_source(&mut self, _source: SourceDir) {
+        unimplemented!("set_cli_source not implemented for this context")
+    }
+
+    /// Set the [SourceDir] for variables coming from a `--vars` file.
+    fn set_variables_file_source(&mut self, _source: SourceDir) {
+        unimplemented!("set_variables_file_source not implemented for this context")
+    }
+
     /// Resolve a [SourceDir] from a [StableSource] logical name.
     fn source_dir_for(&self, _src: &StableSource) -> &SourceDir {
         unimplemented!("source_dir_for not implemented for this context")
@@ -273,16 +283,6 @@ impl Context {
     pub fn with_github_config(&mut self, api_token: impl Into<String>) -> &mut Self {
         self.client.with_github_config(api_token);
         self
-    }
-
-    /// Set the CLI source (the current working directory when rtf was invoked).
-    pub fn set_cli_source(&mut self, source: SourceDir) {
-        self.cli_source = source;
-    }
-
-    /// Set the variables file source.
-    pub fn set_variables_file_source(&mut self, source: SourceDir) {
-        self.variables_file_source = Some(source);
     }
 
     /// Enable output capture mode. When enabled, `run_command_blocking` will
@@ -490,69 +490,45 @@ impl ResolutionContext for Context {
     fn custom_provider_definitions(&self) -> Arc<CustomProviderDefinitions> {
         self.sources.custom_providers()
     }
+
+    fn set_cli_source(&mut self, source: SourceDir) {
+        self.cli_source = source;
+    }
+
+    fn set_variables_file_source(&mut self, source: SourceDir) {
+        self.variables_file_source = Some(source);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
-        SourceDir,
+        StableSource,
         providers::file::{FileProvider, RelativeFile},
         templating::Field,
     };
     use simple_test_case::test_case;
 
     #[test_case(None, None, true; "no sources")]
-    #[test_case(Some("foo/bar"), Some("foo/bar"), true; "same source")]
-    #[test_case(Some("foo/bar"), None, false; "cache with source new without")]
-    #[test_case(None, Some("foo/bar"), false; "cache without source new with")]
-    #[test_case(Some("foo/bar"), Some("foo/baz"), false; "different sources")]
+    #[test_case(Some(StableSource::TestPlan), Some(StableSource::TestPlan), true; "same source")]
+    #[test_case(Some(StableSource::TestPlan), None, false; "cache with source new without")]
+    #[test_case(None, Some(StableSource::TestPlan), false; "cache without source new with")]
+    #[test_case(Some(StableSource::TestPlan), Some(StableSource::Environment), false; "different sources")]
     #[test]
-    fn context_provider_caching_respects_relative_path_local_sources(
-        source_1: Option<&str>,
-        source_2: Option<&str>,
+    fn context_provider_caching_respects_relative_path_sources(
+        source_1: Option<StableSource>,
+        source_2: Option<StableSource>,
         path_is_known: bool,
     ) {
         let provider_1 = FileProvider::RelativePath(RelativeFile {
             path: Field::Resolved("scripts/run.sh".to_string()),
-            src: source_1.map(SourceDir::local),
+            src: source_1,
         });
 
         let provider_2 = FileProvider::RelativePath(RelativeFile {
             path: Field::Resolved("scripts/run.sh".to_string()),
-            src: source_2.map(SourceDir::local),
-        });
-
-        let mut ctx = Context::new();
-
-        ctx.store_provider_output_path(
-            Provider::File { fp: &provider_1 },
-            PathBuf::from("/some/path"),
-        );
-        let maybe_path = ctx.known_provider_output_path(Provider::File { fp: &provider_2 });
-
-        assert_eq!(maybe_path.is_some(), path_is_known);
-    }
-
-    #[test_case(None, None, true; "no sources")]
-    #[test_case(Some("foo/bar"), Some("foo/bar"), true; "same source")]
-    #[test_case(Some("foo/bar"), None, false; "cache with source new without")]
-    #[test_case(None, Some("foo/bar"), false; "cache without source new with")]
-    #[test_case(Some("foo/bar"), Some("foo/baz"), false; "different sources")]
-    #[test]
-    fn context_provider_caching_respects_relative_path_github_sources(
-        source_1: Option<&str>,
-        source_2: Option<&str>,
-        path_is_known: bool,
-    ) {
-        let provider_1 = FileProvider::RelativePath(RelativeFile {
-            path: Field::Resolved("scripts/run.sh".to_string()),
-            src: source_1.map(|path| SourceDir::github("org", "repo", path, Some("git_ref"))),
-        });
-
-        let provider_2 = FileProvider::RelativePath(RelativeFile {
-            path: Field::Resolved("scripts/run.sh".to_string()),
-            src: source_2.map(|path| SourceDir::github("org", "repo", path, Some("git_ref"))),
+            src: source_2,
         });
 
         let mut ctx = Context::new();

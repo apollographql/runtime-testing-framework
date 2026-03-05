@@ -2,7 +2,7 @@ use crate::{
     checks::{self, Check},
     context::ResolutionContext,
     formats::{CustomProviderDeclaration, EnvironmentConfig, Matrix, Result, ScenarioConfig},
-    providers::file::SourceDir,
+    providers::file::{SourceDir, StableSource},
     run::{Execute, RunProviders},
     templating::{self, Scalar, Template, TemplateContext},
 };
@@ -194,7 +194,7 @@ impl Template for TestPlanConfig {
         &self,
         path: &mut Vec<String>,
         _allowed_variables: &HashSet<&String>,
-        _file_source: &SourceDir,
+        _file_source: &StableSource,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let allowed_variables = self.allowed_variables();
@@ -202,14 +202,14 @@ impl Template for TestPlanConfig {
             path,
             "environment",
             &allowed_variables,
-            self.sources.environment(),
+            &StableSource::Environment,
             ctx,
         ));
         errs.append(self.scenario.validate_context_nested(
             path,
             "scenario",
             &allowed_variables,
-            self.sources.scenario(),
+            &StableSource::Scenario,
             ctx,
         ));
 
@@ -219,19 +219,19 @@ impl Template for TestPlanConfig {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        _source: &SourceDir,
+        _source: &StableSource,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::from(self.environment.try_template_nested(
             path,
             "environment",
-            self.sources.environment(),
+            &StableSource::Environment,
             ctx,
         ));
         errs.append(self.scenario.try_template_nested(
             path,
             "scenario",
-            self.sources.scenario(),
+            &StableSource::Scenario,
             ctx,
         ));
 
@@ -1369,7 +1369,7 @@ mod tests {
         };
         let result = test_plan.try_template(
             &mut Vec::new(),
-            &SourceDir::local("/"),
+            &StableSource::TestPlan,
             &template_context(all_fields.as_slice()),
         );
 

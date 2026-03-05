@@ -6,17 +6,13 @@ use crate::{
     },
 };
 use rtf_config::{
-    SourceDir,
+    StableSource,
     context::ResolutionContext,
     formats::TestPlanConfig,
     inlining::{self, InlineMode},
     templating::{Template, TemplateContext},
 };
-use std::{
-    collections::HashMap,
-    env::current_dir,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, path::Path};
 use tracing::info;
 
 const INLINED_TEST_PLAN_PATH: &str = "inlined-test-plan.yaml";
@@ -30,7 +26,6 @@ pub async fn inline_test_plan(
     outdir: &str,
     force: bool,
 ) -> anyhow::Result<()> {
-    let cwd = current_dir()?;
     let (mut ctx, _outdir) = get_context_and_check_outdir(outdir, force)?;
 
     info!("loading and resolving test plan");
@@ -41,7 +36,7 @@ pub async fn inline_test_plan(
     };
     ctx.set_sources(test_plan.sources.clone());
 
-    inline_file_providers_with_context(test_plan, mode, variables, ctx, cwd, outdir).await
+    inline_file_providers_with_context(test_plan, mode, variables, ctx, outdir).await
 }
 
 async fn inline_file_providers_with_context(
@@ -49,10 +44,9 @@ async fn inline_file_providers_with_context(
     mode: &InlineMode,
     variables: Variables,
     mut ctx: impl ResolutionContext,
-    cwd: PathBuf,
     outdir: &str,
 ) -> anyhow::Result<()> {
-    let variable_sources = variables.merge(&mut test_plan, &SourceDir::local(cwd), &mut ctx)?;
+    let variable_sources = variables.merge(&mut test_plan, &mut ctx)?;
 
     info!("creating output directory for inlined test plan templates");
     ctx.create_dir_all(outdir)?;
@@ -96,14 +90,13 @@ async fn inline_file_providers(
     test_plan: &mut TestPlanConfig,
     mode: &InlineMode,
     ctx: &mut impl ResolutionContext,
-    template_variables: &HashMap<String, SourceDir>,
+    template_variables: &HashMap<String, StableSource>,
 ) -> inlining::Result<()> {
     let mut errs = inlining::ErrorBuilder::new();
 
-    let source = test_plan.sources.test_plan().clone();
     let template_ctx = TemplateContext::new(
         test_plan.variables.clone(),
-        source.clone(),
+        StableSource::TestPlan,
         template_variables.clone(),
         test_plan.sources.custom_providers(),
     );
@@ -111,7 +104,7 @@ async fn inline_file_providers(
     info!("templating test plan");
     errs.append(
         test_plan
-            .try_template(&mut Vec::new(), &source, &template_ctx)
+            .try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
             .map_err(Into::into),
     );
 
@@ -126,7 +119,7 @@ async fn inline_file_providers(
 async fn inline_one(
     test_plan: &mut TestPlanConfig,
     mode: &InlineMode,
-    template_variables: &HashMap<String, SourceDir>,
+    template_variables: &HashMap<String, StableSource>,
     outdir: &Path,
     test_plan_name: Option<String>,
     ctx: &mut impl ResolutionContext,
