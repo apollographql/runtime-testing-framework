@@ -10,13 +10,22 @@ use crate::{
             ResolveAndWrite,
         },
     },
-    run::{Execute, ExecuteArgs, OUTDIR, OUTPUT_PATH, Provider, RunProviders},
+    run::{
+        Execute, ExecuteArgs, ExtractRelativeFiles, OUTDIR, OUTPUT_PATH, Provider, RunProviders,
+        try_read_relative_file,
+    },
     templating::{Field, Scalar},
 };
 use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, future::Future, io, path::Path, pin::Pin};
+use std::{
+    collections::HashMap,
+    future::Future,
+    io,
+    path::{Path, PathBuf},
+    pin::Pin,
+};
 
 /// # Command Section
 ///
@@ -276,6 +285,19 @@ impl CommandProvider {
 // do!)
 enum_impl_check!(CommandProvider => Inline, RelativePath, Required);
 enum_impl_resolve_and_write!(CommandProvider => Inline, RelativePath, Required);
+
+impl ExtractRelativeFiles for CommandProvider {
+    async fn try_extract_relative_files(
+        &self,
+        files: &mut HashMap<PathBuf, String>,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        match self {
+            CommandProvider::RelativePath(p) => try_read_relative_file(p, files, ctx).await,
+            CommandProvider::Inline(_) | CommandProvider::Required(_) => Ok(()),
+        }
+    }
+}
 
 #[cfg(test)]
 pub(crate) mod test_helpers {

@@ -14,7 +14,7 @@ use crate::{
             ResolveAndWrite, apollo::GraphosSubgraphRouterUrlOverrides, github::GithubFile,
         },
     },
-    run::{Execute, RunProviders},
+    run::{Execute, ExtractRelativeFiles, RunProviders, try_read_relative_file},
     templating::{
         self, Scalar, Template, TemplateContext, extract_template_vars, interpolate_variables,
     },
@@ -24,7 +24,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
-    path::Path,
+    path::{Path, PathBuf},
 };
 use tracing::error;
 
@@ -264,6 +264,36 @@ impl Check for MergeYaml {
     }
 }
 
+impl ExtractRelativeFiles for MergeYaml {
+    async fn try_extract_relative_files(
+        &self,
+        files: &mut HashMap<PathBuf, String>,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        if let MergeFileProvider::RelativePath(p) = &self.base {
+            try_read_relative_file(p, files, ctx).await?;
+        }
+
+        match &self.overrides {
+            Overrides::One(mfp) => {
+                if let MergeFileProvider::RelativePath(p) = mfp {
+                    try_read_relative_file(p, files, ctx).await?;
+                }
+            }
+
+            Overrides::Array(mfps) => {
+                for mfp in mfps {
+                    if let MergeFileProvider::RelativePath(p) = mfp {
+                        try_read_relative_file(p, files, ctx).await?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
 impl MergeYaml {
     pub(crate) async fn inline_all_relative_paths<'a>(
         &'a mut self,
@@ -367,7 +397,7 @@ impl Overrides {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct FromCommand {
     #[serde(flatten)]
-    inner: CommandSection,
+    pub(crate) inner: CommandSection,
 }
 
 impl FromCommand {

@@ -5,6 +5,7 @@ use crate::{
     enum_impl_check,
     inlining::{self, InlineMode},
     providers,
+    run::{ExtractRelativeFiles, RunProviders, try_read_relative_dir, try_read_relative_file},
     templating::{self, Field, Template, TemplateContext},
 };
 use rtf_derive::Template;
@@ -12,7 +13,7 @@ use rtf_integrations::github::Client;
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fmt, io,
     ops::{Deref, DerefMut},
     path::{Component, Path, PathBuf},
@@ -413,6 +414,40 @@ impl FileProvider {
             RouterDownloadScript,
             Templated
         )
+    }
+}
+
+impl ExtractRelativeFiles for FileProvider {
+    async fn try_extract_relative_files(
+        &self,
+        files: &mut HashMap<PathBuf, String>,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<()> {
+        match self {
+            Self::RelativePath(p) => try_read_relative_file(p, files, ctx).await,
+            Self::RelativeDir(p) => try_read_relative_dir(p, files, ctx).await,
+            Self::FromCommand(p) => Box::pin(p.inner.try_extract_relative_files(files, ctx)).await,
+            Self::MergeYaml(p) => p.try_extract_relative_files(files, ctx).await,
+
+            // We deliberately list out every variant here so we are forced to think about whether
+            // or not new variants have internal relative files that we need to resolve.
+            Self::BuildRouterFromSource(_)
+            | Self::Conditional(_)
+            | Self::CustomProvider(_)
+            | Self::GithubFile(_)
+            | Self::GraphosCannedOps(_)
+            | Self::GraphosCannedOpsById(_)
+            | Self::GraphosSubgraphRouterUrlOverrides(_)
+            | Self::GraphosSubgraphs(_)
+            | Self::GraphosSubgraphNames(_)
+            | Self::GraphosSupergraph(_)
+            | Self::Inline(_)
+            | Self::InlineDir(_)
+            | Self::OfflineGraphosLicense(_)
+            | Self::Required(_)
+            | Self::RouterDownloadScript(_)
+            | Self::Templated(_) => Ok(()),
+        }
     }
 }
 
