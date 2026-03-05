@@ -31,7 +31,7 @@ pub async fn inline_test_plan(
     force: bool,
 ) -> anyhow::Result<()> {
     let cwd = current_dir()?;
-    let (ctx, _outdir) = get_context_and_check_outdir(outdir, force)?;
+    let (mut ctx, _outdir) = get_context_and_check_outdir(outdir, force)?;
 
     info!("loading and resolving test plan");
     let test_plan = if github {
@@ -39,6 +39,7 @@ pub async fn inline_test_plan(
     } else {
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
+    ctx.set_sources(test_plan.sources.clone());
 
     inline_file_providers_with_context(test_plan, mode, variables, ctx, cwd, outdir).await
 }

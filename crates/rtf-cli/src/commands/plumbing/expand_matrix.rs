@@ -6,16 +6,16 @@ use tracing::info;
 pub async fn expand_test_plan_matrix(config_file_path: &str, compact: bool) -> anyhow::Result<()> {
     let ctx = get_context();
 
-    expand_test_plan_matrix_with_context(config_file_path, compact, ctx).await
+    expand_test_plan_matrix_with_context(config_file_path, compact, &ctx).await
 }
 
 async fn expand_test_plan_matrix_with_context(
     path: &str,
     compact: bool,
-    ctx: impl ResolutionContext,
+    ctx: &impl ResolutionContext,
 ) -> anyhow::Result<()> {
     info!("loading and resolving test plan");
-    let test_plan = load_and_resolve_test_plan_from_local(path, &ctx).await?;
+    let test_plan = load_and_resolve_test_plan_from_local(path, ctx).await?;
 
     info!("expanding test plan matrix");
     let expanded: Vec<_> = test_plan

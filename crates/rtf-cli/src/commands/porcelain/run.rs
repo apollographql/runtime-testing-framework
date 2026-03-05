@@ -32,7 +32,7 @@ pub async fn check_and_run_test_plan(
     out_dir: &str,
     force: bool,
 ) -> anyhow::Result<()> {
-    let (ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
+    let (mut ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
     let cwd = current_dir()?;
 
     info!("loading and resolving test plan");
@@ -41,6 +41,7 @@ pub async fn check_and_run_test_plan(
     } else {
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
+    ctx.set_sources(test_plan.sources.clone());
 
     check_and_run_test_plan_with_context(test_plan, variables, &out_dir, cwd, run_target, ctx).await
 }
@@ -56,7 +57,7 @@ async fn check_and_run_test_plan_with_context(
     let variable_sources = variables.merge(&mut test_plan, &SourceDir::local(cwd), &mut ctx)?;
 
     info!("checking if templating will work");
-    test_plan.check_templating_will_work(&variable_sources)?;
+    test_plan.check_templating_will_work(&variable_sources, &ctx)?;
 
     info!("creating output directory");
     ctx.create_dir_all(out_dir)?;

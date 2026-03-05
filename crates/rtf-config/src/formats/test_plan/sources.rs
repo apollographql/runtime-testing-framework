@@ -10,9 +10,9 @@ use std::sync::Arc;
 
 /// The source paths of each of the configs for a given test plan.
 ///
-/// If the [ScenarioConfig] or [EnvironmentConfig] are specified inline then their source will
-/// match that of the overall [TestPlanConfig], otherwise we store the source as defined in the
-/// [RawTestPlanConfig].
+/// If the `ScenarioConfig` or `EnvironmentConfig` are specified inline then their source will
+/// match that of the overall `TestPlanConfig`, otherwise we store the source as defined in the
+/// `RawTestPlanConfig`.
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Sources {
     test_plan: SourceDir,
@@ -109,7 +109,7 @@ impl Sources {
         &self.test_plan
     }
 
-    /// The [Source] of the [EnvironmentConfig] in this test plan.
+    /// The `SourceDir` of the `EnvironmentConfig` in this test plan.
     ///
     /// Defaults to the source of the test plan itself if the environment was specified inline.
     pub fn environment(&self) -> &SourceDir {
@@ -119,7 +119,7 @@ impl Sources {
         }
     }
 
-    /// The [Source] of the [ScenarioConfig] in this test plan.
+    /// The `SourceDir` of the `ScenarioConfig` in this test plan.
     ///
     /// Defaults to the source of the test plan itself if the scenario was specified inline.
     pub fn scenario(&self) -> &SourceDir {

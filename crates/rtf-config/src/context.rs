@@ -1,4 +1,12 @@
-use crate::{providers, run::Provider};
+use crate::{
+    formats::Sources,
+    providers::{
+        self,
+        file::{SourceDir, StableSource},
+    },
+    run::Provider,
+    templating::CustomProviderDefinitions,
+};
 use rtf_integrations::{
     APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, GITHUB_TOKEN_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR,
     HttpClient, ReqwestClient, github,
@@ -170,6 +178,24 @@ pub trait ResolutionContext {
     /// If the empty path is passed to this function, it always succeeds without
     /// creating any directories.
     fn create_dir_all(&self, path: impl AsRef<Path>) -> io::Result<()>;
+
+    /// Store the resolved [Sources] for the current test plan.
+    ///
+    /// Callers of `try_load_and_resolve_from_*` are responsible for calling this
+    /// with `test_plan.sources.clone()` before passing `ctx` to an execution phase.
+    fn set_sources(&mut self, _sources: Sources) {
+        unimplemented!("set_sources not implemented for this context")
+    }
+
+    /// Resolve a [SourceDir] from a [StableSource] logical name.
+    fn source_dir_for(&self, _src: &StableSource) -> &SourceDir {
+        unimplemented!("source_dir_for not implemented for this context")
+    }
+
+    /// Return the [CustomProviderDefinitions] for the current test plan.
+    fn custom_provider_definitions(&self) -> Arc<CustomProviderDefinitions> {
+        unimplemented!("custom_provider_definitions not implemented for this context")
+    }
 }
 
 /// A [ResolutionContext] that will perform real IO.
@@ -183,6 +209,9 @@ pub struct Context {
     captured_stdout: RwLock<Vec<u8>>,
     captured_stderr: RwLock<Vec<u8>>,
     run_metadata: HashMap<&'static str, String>,
+    sources: Sources,
+    cli_source: SourceDir,
+    variables_file_source: Option<SourceDir>,
 }
 
 impl Context {
@@ -230,6 +259,16 @@ impl Context {
     pub fn with_github_config(&mut self, api_token: impl Into<String>) -> &mut Self {
         self.client.with_github_config(api_token);
         self
+    }
+
+    /// Set the CLI source (the current working directory when rtf was invoked).
+    pub fn set_cli_source(&mut self, source: SourceDir) {
+        self.cli_source = source;
+    }
+
+    /// Set the variables file source.
+    pub fn set_variables_file_source(&mut self, source: SourceDir) {
+        self.variables_file_source = Some(source);
     }
 
     /// Enable output capture mode. When enabled, `run_command_blocking` will
@@ -411,6 +450,31 @@ impl ResolutionContext for Context {
 
     fn create_dir_all(&self, path: impl AsRef<Path>) -> io::Result<()> {
         fs::create_dir_all(path)
+    }
+
+    fn set_sources(&mut self, sources: Sources) {
+        self.sources = sources;
+    }
+
+    fn source_dir_for(&self, src: &StableSource) -> &SourceDir {
+        match src {
+            StableSource::TestPlan => self.sources.test_plan(),
+            StableSource::Environment => self.sources.environment(),
+            StableSource::Scenario => self.sources.scenario(),
+            StableSource::CustomProvider(n) => self
+                .sources
+                .custom_provider_source(n)
+                .expect("custom provider source not found"),
+            StableSource::Cli => &self.cli_source,
+            StableSource::VariablesFile => self
+                .variables_file_source
+                .as_ref()
+                .expect("VariablesFile source not set"),
+        }
+    }
+
+    fn custom_provider_definitions(&self) -> Arc<CustomProviderDefinitions> {
+        self.sources.custom_providers()
     }
 }
 

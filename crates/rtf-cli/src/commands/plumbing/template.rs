@@ -21,7 +21,7 @@ pub async fn template_test_plan(
     git_ref: Option<String>,
     variables: Variables,
 ) -> anyhow::Result<()> {
-    let ctx = get_context();
+    let mut ctx = get_context();
     let cwd = current_dir()?;
 
     info!("loading and resolving test plan");
@@ -30,6 +30,7 @@ pub async fn template_test_plan(
     } else {
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
+    ctx.set_sources(test_plan.sources.clone());
 
     template_test_plan_with_context(test_plan, variables, check, cwd, ctx).await
 }
@@ -44,7 +45,7 @@ async fn template_test_plan_with_context(
     let variable_sources = variables.merge(&mut test_plan, &SourceDir::local(cwd), &mut ctx)?;
 
     info!("checking if templating will work");
-    test_plan.check_templating_will_work(&variable_sources)?;
+    test_plan.check_templating_will_work(&variable_sources, &ctx)?;
 
     let (_, variables) = test_plan.matrix.try_expand(&test_plan.variables)?.remove(0);
     let source = test_plan.sources.test_plan().clone();

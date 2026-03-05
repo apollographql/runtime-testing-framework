@@ -15,7 +15,7 @@ pub use environment::{
 pub use matrix::Matrix;
 use rtf_integrations::github;
 pub use scenario::{ScenarioCommand, ScenarioConfig};
-pub use test_plan::{RawTestPlanConfig, TestPlanConfig};
+pub use test_plan::{RawTestPlanConfig, Sources, TestPlanConfig};
 
 /// Errors that can be encountered resolving config files
 #[derive(Debug, thiserror::Error)]

@@ -1172,7 +1172,8 @@ mod tests {
             Default::default(),
         );
 
-        let res = TestPlanConfig::try_load_and_resolve_from_path(tp_file.to_path_buf(), &ctx).await;
+        let res =
+            TestPlanConfig::try_load_and_resolve_from_path(tp_file.to_path_buf(), &ctx).await;
         assert!(res.is_ok(), "expected TestPlanConfig, got {res:?}");
 
         let test_plan = res.unwrap();
@@ -1263,7 +1264,8 @@ mod tests {
 
         let ctx = Context::new();
 
-        let res = TestPlanConfig::try_load_and_resolve_from_path(tp_file.to_path_buf(), &ctx).await;
+        let res =
+            TestPlanConfig::try_load_and_resolve_from_path(tp_file.to_path_buf(), &ctx).await;
         assert!(res.is_ok(), "expected TestPlanConfig, got {res:?}");
 
         let test_plan = res.unwrap();

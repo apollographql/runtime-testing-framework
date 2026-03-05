@@ -24,7 +24,7 @@ const OUTDIR: &str = "output";
 async fn main() -> anyhow::Result<()> {
     let test_plan_path = env::args().nth(1).expect("need a test plan path");
     let cwd = current_dir()?;
-    let (ctx, _outdir) = get_context_and_check_outdir(OUTDIR, false)?;
+    let (mut ctx, _outdir) = get_context_and_check_outdir(OUTDIR, false)?;
     let variables = Variables {
         var: Vec::new(),
         vars: None,
@@ -32,6 +32,7 @@ async fn main() -> anyhow::Result<()> {
 
     info!("loading and resolving test plan");
     let test_plan = load_and_resolve_test_plan_from_local(&test_plan_path, &ctx).await?;
+    ctx.set_sources(test_plan.sources.clone());
 
     extract_relative_files_with_context(test_plan, variables, ctx, cwd, OUTDIR).await
 }
