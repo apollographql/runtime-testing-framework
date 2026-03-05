@@ -76,7 +76,7 @@ impl TestPlanConfig {
             &custom_providers.environment,
         ];
         for definitions in sections.into_iter() {
-            for (name, (_, def)) in definitions.iter() {
+            for (name, def) in definitions.iter() {
                 sources.push((
                     vec!["custom_providers".into(), name.clone()],
                     def.variable_definitions.clone(),
@@ -318,10 +318,12 @@ mod tests {
         };
 
         let mut custom_providers = CustomProviderDefinitions::default();
-        custom_providers.test_plan.insert(
-            "test_provider".into(),
-            (SourceDir::default(), custom_provider_def),
-        );
+        custom_providers
+            .sources
+            .insert("test_provider".into(), SourceDir::default());
+        custom_providers
+            .test_plan
+            .insert("test_provider".into(), custom_provider_def);
 
         let sources = Sources::with_custom_providers(
             SourceDir::default(),

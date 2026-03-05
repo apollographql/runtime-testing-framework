@@ -204,12 +204,20 @@ impl TemplateContext {
     pub fn custom_provider_definition<Q>(
         &self,
         key: &Q,
-    ) -> Option<&(SourceDir, CustomProviderDefinition)>
+    ) -> Option<&CustomProviderDefinition>
     where
         String: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
     {
         self.custom_provider_definitions.get(key, self.resolve_for)
+    }
+
+    pub fn custom_provider_source<Q>(&self, key: &Q) -> Option<&SourceDir>
+    where
+        String: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        self.custom_provider_definitions.source(key)
     }
 }
 
@@ -222,13 +230,15 @@ pub enum FileType {
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
 pub struct CustomProviderDefinitions {
-    pub(crate) test_plan: HashMap<String, (SourceDir, CustomProviderDefinition)>,
-    pub(crate) scenario: HashMap<String, (SourceDir, CustomProviderDefinition)>,
-    pub(crate) environment: HashMap<String, (SourceDir, CustomProviderDefinition)>,
+    pub(crate) test_plan: HashMap<String, CustomProviderDefinition>,
+    pub(crate) scenario: HashMap<String, CustomProviderDefinition>,
+    pub(crate) environment: HashMap<String, CustomProviderDefinition>,
+    /// Flat map from provider name to the [SourceDir] it was loaded from.
+    pub(crate) sources: HashMap<String, SourceDir>,
 }
 
 impl CustomProviderDefinitions {
-    fn get<Q>(&self, k: &Q, resolve_for: FileType) -> Option<&(SourceDir, CustomProviderDefinition)>
+    fn get<Q>(&self, k: &Q, resolve_for: FileType) -> Option<&CustomProviderDefinition>
     where
         String: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
@@ -237,6 +247,14 @@ impl CustomProviderDefinitions {
             FileType::Scenario => self.scenario.get(k).or_else(|| self.test_plan.get(k)),
             FileType::Environment => self.environment.get(k).or_else(|| self.test_plan.get(k)),
         }
+    }
+
+    pub(crate) fn source<Q>(&self, k: &Q) -> Option<&SourceDir>
+    where
+        String: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        self.sources.get(k)
     }
 }
 

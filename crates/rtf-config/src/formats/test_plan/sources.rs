@@ -58,21 +58,36 @@ impl Sources {
 
         for declaration in tp.iter() {
             match declaration.try_load_all(self.test_plan(), ctx).await {
-                Ok(providers) => custom_providers.test_plan.extend(providers),
+                Ok(providers) => {
+                    for (name, (src, def)) in providers {
+                        custom_providers.test_plan.insert(name.clone(), def);
+                        custom_providers.sources.insert(name, src);
+                    }
+                }
                 Err(errors) => errs.push(format_errors("test plan", errors)),
             }
         }
 
         for declaration in scenario.iter() {
             match declaration.try_load_all(self.scenario(), ctx).await {
-                Ok(providers) => custom_providers.scenario.extend(providers),
+                Ok(providers) => {
+                    for (name, (src, def)) in providers {
+                        custom_providers.scenario.insert(name.clone(), def);
+                        custom_providers.sources.insert(name, src);
+                    }
+                }
                 Err(errors) => errs.push(format_errors("scenario", errors)),
             }
         }
 
         for declaration in environment.iter() {
             match declaration.try_load_all(self.environment(), ctx).await {
-                Ok(providers) => custom_providers.environment.extend(providers),
+                Ok(providers) => {
+                    for (name, (src, def)) in providers {
+                        custom_providers.environment.insert(name.clone(), def);
+                        custom_providers.sources.insert(name, src);
+                    }
+                }
                 Err(errors) => errs.push(format_errors("environment", errors)),
             }
         }
@@ -84,6 +99,10 @@ impl Sources {
         self.custom_providers = Arc::new(custom_providers);
 
         Ok(())
+    }
+
+    pub fn custom_provider_source(&self, name: &str) -> Option<&SourceDir> {
+        self.custom_providers.source(name)
     }
 
     pub fn test_plan(&self) -> &SourceDir {
