@@ -196,6 +196,20 @@ pub trait ResolutionContext {
     fn custom_provider_definitions(&self) -> Arc<CustomProviderDefinitions> {
         unimplemented!("custom_provider_definitions not implemented for this context")
     }
+
+    /// Read the contents of a file relative to the given [StableSource].
+    async fn read_file_content(
+        &self,
+        src: &StableSource,
+        relative_path: impl AsRef<Path>,
+    ) -> providers::Result<String>
+    where
+        Self: Sized,
+    {
+        self.source_dir_for(src)
+            .try_get_file_content(relative_path, self)
+            .await
+    }
 }
 
 /// A [ResolutionContext] that will perform real IO.
