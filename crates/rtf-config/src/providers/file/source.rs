@@ -140,6 +140,27 @@ impl fmt::Display for SourceDir {
     }
 }
 
+/// A stable, human-readable logical name for the source of a configuration value.
+///
+/// Unlike [SourceDir] which carries absolute disk paths or GitHub refs, `StableSource` carries
+/// only a logical name that is safe to serialize and share without leaking local path information.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StableSource {
+    /// The value came from the test plan config file
+    TestPlan,
+    /// The value came from the environment config file
+    Environment,
+    /// The value came from the scenario config file
+    Scenario,
+    /// The value came from a custom provider definition
+    CustomProvider(String),
+    /// The value was provided on the command line
+    Cli,
+    /// The value was provided from a variables file
+    VariablesFile,
+}
+
 /// # Config Source
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case", tag = "kind")]

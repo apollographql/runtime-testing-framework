@@ -31,7 +31,7 @@ pub mod providers;
 pub mod run;
 pub mod templating;
 
-pub use providers::file::{DirFile, SourceDir};
+pub use providers::file::{DirFile, SourceDir, StableSource};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct VariableDefinition {

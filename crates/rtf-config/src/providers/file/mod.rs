@@ -27,7 +27,7 @@ pub mod github;
 mod source;
 pub mod utility;
 
-pub use source::{RawSource, SourceDir};
+pub use source::{RawSource, SourceDir, StableSource};
 
 /// Something that can obtain or synthesise utf-8 file content based on a user provided
 /// specification.
