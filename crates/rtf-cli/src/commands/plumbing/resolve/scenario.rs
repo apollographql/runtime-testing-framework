@@ -9,13 +9,14 @@ use crate::{
 };
 use anyhow::bail;
 use rtf_config::{
-    StableSource,
+    SourceDir, StableSource,
     checks::Check,
     context::ResolutionContext,
-    formats::ScenarioConfig,
+    formats::{ScenarioConfig, Sources},
     run::{OUTPUT_PATH, PROVIDER_DIR, RunProviders},
     templating::{Template, TemplateContext},
 };
+use std::env::current_dir;
 use tracing::info;
 
 const SCENARIO_ENV_FILE: &str = "scenario.env";
@@ -37,16 +38,26 @@ pub async fn resolve_scenario(
         bail!("custom_providers are not supported by resolve scenario");
     }
 
-    let ParsedVariables {
-        variables,
-        variable_sources,
-        ..
-    } = parse_cli_variables(variables, source, &mut ctx)?;
+    let (
+        ParsedVariables {
+            variables,
+            variable_sources,
+            ..
+        },
+        vars_file_src,
+    ) = parse_cli_variables(variables, &ctx)?;
+
+    ctx.set_sources(
+        Sources::default()
+            .with_scenario(source)
+            .with_cli(SourceDir::local(current_dir()?))
+            .with_variables_file(vars_file_src),
+    );
 
     let template_ctx = TemplateContext::new(variables, variable_sources, Default::default());
 
     info!("templating scenario");
-    scenario.try_template(&mut Vec::new(), &StableSource::Cli, &template_ctx)?;
+    scenario.try_template(&mut Vec::new(), &StableSource::Scenario, &template_ctx)?;
 
     info!("running static checks");
     scenario

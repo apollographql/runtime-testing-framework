@@ -94,8 +94,32 @@ impl Sources {
         Ok(())
     }
 
-    /// Set the [SourceDir] for variables coming from the CLI (`--var k=v` or a standalone
-    /// config file such as an environment or custom provider definition).
+    /// Set the [SourceDir] for the standalone environment config being operated on.
+    pub fn with_environment(mut self, source: SourceDir) -> Self {
+        self.environment = Some(source);
+        self
+    }
+
+    /// Set the [SourceDir] for the standalone scenario config being operated on.
+    pub fn with_scenario(mut self, source: SourceDir) -> Self {
+        self.scenario = Some(source);
+        self
+    }
+
+    /// Register a single custom provider source for use in standalone `custom-provider` commands
+    /// that operate on a definition file outside of a test plan.
+    ///
+    /// The provider is registered under [CustomProviderSection::TestPlan] so that path fields
+    /// stamped with [StableSource::CustomProvider] during templating resolve correctly.
+    pub fn with_custom_provider_source(mut self, name: String, source: SourceDir) -> Self {
+        self.custom_provider_sources.insert(
+            StableSource::CustomProvider(name, CustomProviderSection::TestPlan),
+            source,
+        );
+        self
+    }
+
+    /// Set the [SourceDir] for variables coming from the CLI (`--var k=v`).
     pub fn with_cli(mut self, source: SourceDir) -> Self {
         self.cli = source;
         self
@@ -118,15 +142,9 @@ impl Sources {
         &self.cli
     }
 
-    /// Returns the [SourceDir] for the variables file.
-    ///
-    /// # Panics
-    ///
-    /// Panics if no variables file source has been set.
-    pub fn variables_file(&self) -> &SourceDir {
-        self.variables_file
-            .as_ref()
-            .expect("VariablesFile source not set")
+    /// Returns the [SourceDir] for the variables file, or `None` if no `--vars` file was provided.
+    pub fn variables_file(&self) -> Option<&SourceDir> {
+        self.variables_file.as_ref()
     }
 
     /// The `SourceDir` of the `EnvironmentConfig` in this test plan.
@@ -163,7 +181,10 @@ impl Sources {
                 .get(src)
                 .expect("custom provider source not found"),
             StableSource::Cli => self.cli(),
-            StableSource::VariablesFile => self.variables_file(),
+            StableSource::VariablesFile => self
+                .variables_file
+                .as_ref()
+                .expect("VariablesFile source not set"),
         }
     }
 

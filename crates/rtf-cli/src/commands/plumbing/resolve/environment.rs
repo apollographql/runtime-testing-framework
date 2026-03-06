@@ -9,16 +9,17 @@ use crate::{
 };
 use anyhow::bail;
 use rtf_config::{
-    StableSource,
+    SourceDir, StableSource,
     checks::Check,
     context::ResolutionContext,
     formats::{
         DockerComposeEnvironment, EnvironmentConfig, EnvironmentExecution, ScriptEnvironment,
+        Sources,
     },
     run::{OUTPUT_PATH, PROVIDER_DIR, RunProviders},
     templating::{Template, TemplateContext},
 };
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, env::current_dir, path::Path};
 use tracing::info;
 
 const SETUP_ENV_FILE: &str = "setup.env";
@@ -42,16 +43,26 @@ pub async fn resolve_environment(
         bail!("custom_providers are not supported by resolve environment");
     }
 
-    let ParsedVariables {
-        variables,
-        variable_sources,
-        ..
-    } = parse_cli_variables(variables, source, &mut ctx)?;
+    let (
+        ParsedVariables {
+            variables,
+            variable_sources,
+            ..
+        },
+        vars_file_src,
+    ) = parse_cli_variables(variables, &ctx)?;
+
+    ctx.set_sources(
+        Sources::default()
+            .with_environment(source)
+            .with_cli(SourceDir::local(current_dir()?))
+            .with_variables_file(vars_file_src),
+    );
 
     let template_ctx = TemplateContext::new(variables, variable_sources, Default::default());
 
     info!("templating environment");
-    environment.try_template(&mut Vec::new(), &StableSource::Cli, &template_ctx)?;
+    environment.try_template(&mut Vec::new(), &StableSource::Environment, &template_ctx)?;
 
     info!("running static checks");
     environment.try_check(&mut vec!["environment".to_string()], &ctx)?;
