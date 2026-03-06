@@ -181,8 +181,8 @@ impl CustomProviderDeclaration {
 
         for (provider_name, filename) in self.using.iter() {
             match load_one(self.source.with_child_path(filename), file_source, ctx).await {
-                Ok((src, def)) => {
-                    providers.insert(provider_name.clone(), (src, def));
+                Ok(entry) => {
+                    providers.insert(provider_name.clone(), entry);
                 }
                 Err(e) => errs.push((provider_name.clone(), e)),
             }

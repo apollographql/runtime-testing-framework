@@ -930,6 +930,7 @@ mod tests {
             None,
             None,
             Default::default(),
+            Default::default(),
         ));
 
         let mut command_provider = CommandProvider::RelativePath(RelativeFile {
@@ -983,6 +984,7 @@ mod tests {
             src.clone(),
             None,
             None,
+            Default::default(),
             Default::default(),
         ));
 
@@ -1060,6 +1062,7 @@ mod tests {
             src.clone(),
             None,
             None,
+            Default::default(),
             Default::default(),
         ));
 

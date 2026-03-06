@@ -1379,6 +1379,7 @@ pub(crate) mod tests {
             None,
             Some(src.clone()),
             Default::default(),
+            Default::default(),
         ));
 
         let relative_command_provider = CommandProvider::RelativePath(RelativeFile {
@@ -1441,6 +1442,7 @@ pub(crate) mod tests {
             SourceDir::default(),
             None,
             Some(src.clone()),
+            Default::default(),
             Default::default(),
         ));
 

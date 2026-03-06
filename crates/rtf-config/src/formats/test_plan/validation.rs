@@ -333,9 +333,6 @@ mod tests {
 
         let mut custom_providers = CustomProviderDefinitions::default();
         custom_providers
-            .sources
-            .insert("test_provider".into(), SourceDir::default());
-        custom_providers
             .test_plan
             .insert("test_provider".into(), custom_provider_def);
 
@@ -344,6 +341,7 @@ mod tests {
             None,
             None,
             Arc::new(custom_providers),
+            Default::default(),
         );
 
         let mut ctx = Context::new();

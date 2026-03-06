@@ -140,6 +140,29 @@ impl fmt::Display for SourceDir {
     }
 }
 
+/// Identifies which config section a custom provider was declared in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CustomProviderSection {
+    TestPlan,
+    Scenario,
+    Environment,
+}
+
+impl CustomProviderSection {
+    pub(crate) fn as_stable_source(&self, key: &str) -> StableSource {
+        StableSource::CustomProvider(key.to_string(), *self)
+    }
+
+    pub(crate) fn as_label(&self) -> &'static str {
+        match self {
+            Self::TestPlan => "test plan",
+            Self::Scenario => "scenario",
+            Self::Environment => "environment",
+        }
+    }
+}
+
 /// A stable, human-readable logical name for the source of a configuration value.
 ///
 /// Unlike [SourceDir] which carries absolute disk paths or GitHub refs, `StableSource` carries
@@ -153,8 +176,9 @@ pub enum StableSource {
     Environment,
     /// The value came from the scenario config file
     Scenario,
-    /// The value came from a custom provider definition
-    CustomProvider(String),
+    /// The value came from a custom provider definition. The first element is the provider name
+    /// and the second is the section in which it was declared.
+    CustomProvider(String, CustomProviderSection),
     /// The value was provided on the command line
     Cli,
     /// The value was provided from a variables file

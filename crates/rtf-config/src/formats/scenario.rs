@@ -1014,6 +1014,7 @@ mod tests {
             None,
             None,
             Default::default(),
+            Default::default(),
         ));
 
         let mut scenario = ScenarioConfig {

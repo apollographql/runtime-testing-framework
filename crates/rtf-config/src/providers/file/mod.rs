@@ -26,7 +26,7 @@ pub mod github;
 mod source;
 pub mod utility;
 
-pub use source::{RawSource, SourceDir, StableSource};
+pub use source::{CustomProviderSection, RawSource, SourceDir, StableSource};
 
 /// Something that can obtain or synthesise utf-8 file content based on a user provided
 /// specification.
@@ -1915,6 +1915,7 @@ mod tests {
             None,
             None,
             Default::default(),
+            Default::default(),
         ));
 
         let relative =
@@ -1965,6 +1966,7 @@ mod tests {
             None,
             None,
             Default::default(),
+            Default::default(),
         ));
 
         let mut file_provider =
@@ -1991,6 +1993,7 @@ mod tests {
             src.clone(),
             None,
             None,
+            Default::default(),
             Default::default(),
         ));
 

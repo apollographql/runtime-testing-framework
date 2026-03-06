@@ -50,8 +50,8 @@ impl CustomProvider {
         file_source: &StableSource,
         file_ctx: &TemplateContext,
     ) -> Result<FromCommand> {
-        let mut definition = match file_ctx.custom_provider_definition(&self.ty) {
-            Some(def) => def.clone(),
+        let (definition_src, mut definition) = match file_ctx.custom_provider_definition(&self.ty) {
+            Some((src, def)) => (src, def.clone()),
             None => {
                 return Err(Errors::new(
                     ErrorKind::MissingCustomProvider,
@@ -60,8 +60,6 @@ impl CustomProvider {
                 ));
             }
         };
-
-        let definition_src = StableSource::CustomProvider(self.ty.clone());
 
         let definition_ctx = self.build_templating_context(
             path,
@@ -157,8 +155,7 @@ impl Template for CustomProvider {
         );
 
         match ctx.custom_provider_definition(&self.ty) {
-            Some(def) => {
-                let def_src = StableSource::CustomProvider(self.ty.clone());
+            Some((def_src, def)) => {
                 // We don't reuse `build_templating_context` here as that actually resolves the
                 // fields in our `arguments` map and cares about the value associated with each
                 // variable. Here, all we care about is the fact that the correct variables are
@@ -255,7 +252,7 @@ mod tests {
         inlining::InlineMode,
         providers::{
             command::CommandSection,
-            file::{FileProvider, NamedFileProvider, RelativeFile, SourceDir, StableSource},
+            file::{FileProvider, NamedFileProvider, RelativeFile, StableSource},
         },
         templating::{CustomProviderDefinitions, ErrorKind},
     };
@@ -601,10 +598,6 @@ mod tests {
                 HashMap::new(),
                 Arc::new(CustomProviderDefinitions {
                     test_plan: HashMap::from([("my-custom-provider".to_string(), definition)]),
-                    sources: HashMap::from([(
-                        "my-custom-provider".to_string(),
-                        SourceDir::local("/providers"),
-                    )]),
                     ..Default::default()
                 }),
             ),
@@ -654,10 +647,6 @@ mod tests {
                 HashMap::new(),
                 Arc::new(CustomProviderDefinitions {
                     test_plan: HashMap::from([("my-custom-provider".to_string(), definition)]),
-                    sources: HashMap::from([(
-                        "my-custom-provider".to_string(),
-                        SourceDir::local("/providers"),
-                    )]),
                     ..Default::default()
                 }),
             ),

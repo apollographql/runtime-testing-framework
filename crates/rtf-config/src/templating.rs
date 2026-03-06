@@ -2,7 +2,7 @@
 use crate::{
     VariableDefinition,
     formats::CustomProviderDefinition,
-    providers::file::{SourceDir, StableSource},
+    providers::file::{CustomProviderSection, StableSource},
 };
 use regex::Regex;
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
@@ -197,11 +197,10 @@ impl TemplateContext {
             .find(|vd| vd.name == key.as_ref())
     }
 
-    pub fn custom_provider_definition<Q>(&self, key: &Q) -> Option<&CustomProviderDefinition>
-    where
-        String: Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
-    {
+    pub fn custom_provider_definition(
+        &self,
+        key: &str,
+    ) -> Option<(StableSource, &CustomProviderDefinition)> {
         self.custom_provider_definitions.get(key, self.resolve_for)
     }
 }
@@ -218,28 +217,30 @@ pub struct CustomProviderDefinitions {
     pub(crate) test_plan: HashMap<String, CustomProviderDefinition>,
     pub(crate) scenario: HashMap<String, CustomProviderDefinition>,
     pub(crate) environment: HashMap<String, CustomProviderDefinition>,
-    /// Flat map from provider name to the [SourceDir] it was loaded from.
-    pub(crate) sources: HashMap<String, SourceDir>,
 }
 
 impl CustomProviderDefinitions {
-    fn get<Q>(&self, k: &Q, resolve_for: FileType) -> Option<&CustomProviderDefinition>
-    where
-        String: Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
-    {
-        match resolve_for {
-            FileType::Scenario => self.scenario.get(k).or_else(|| self.test_plan.get(k)),
-            FileType::Environment => self.environment.get(k).or_else(|| self.test_plan.get(k)),
-        }
-    }
+    fn get(
+        &self,
+        k: &str,
+        resolve_for: FileType,
+    ) -> Option<(StableSource, &CustomProviderDefinition)> {
+        let opt = match resolve_for {
+            FileType::Scenario => self
+                .scenario
+                .get(k)
+                .map(|def| (CustomProviderSection::Scenario.as_stable_source(k), def)),
+            FileType::Environment => self
+                .environment
+                .get(k)
+                .map(|def| (CustomProviderSection::Environment.as_stable_source(k), def)),
+        };
 
-    pub(crate) fn source<Q>(&self, k: &Q) -> Option<&SourceDir>
-    where
-        String: Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
-    {
-        self.sources.get(k)
+        opt.or_else(|| {
+            self.test_plan
+                .get(k)
+                .map(|def| (CustomProviderSection::TestPlan.as_stable_source(k), def))
+        })
     }
 }
 

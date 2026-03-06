@@ -1,14 +1,11 @@
 use crate::{
     context::ResolutionContext,
-    formats::{CustomProviderDeclaration, Error, Result},
-    providers::{
-        self,
-        file::{SourceDir, StableSource},
-    },
+    formats::{CustomProviderDeclaration, CustomProviderDefinition, Error, Result},
+    providers::file::{CustomProviderSection, SourceDir, StableSource},
     templating::CustomProviderDefinitions,
 };
 use itertools::Itertools;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 /// The source paths of each of the configs for a given test plan.
 ///
@@ -21,6 +18,7 @@ pub struct Sources {
     scenario: Option<SourceDir>,
     environment: Option<SourceDir>,
     custom_providers: Arc<CustomProviderDefinitions>,
+    custom_provider_sources: HashMap<StableSource, SourceDir>,
     cli: SourceDir,
     variables_file: Option<SourceDir>,
 }
@@ -36,6 +34,7 @@ impl Sources {
             scenario,
             environment,
             custom_providers: Default::default(),
+            custom_provider_sources: HashMap::new(),
             cli: SourceDir::default(),
             variables_file: None,
         }
@@ -50,58 +49,47 @@ impl Sources {
     ) -> Result<()> {
         let mut errs = Vec::new();
         let mut custom_providers = CustomProviderDefinitions::default();
+        let mut custom_provider_sources = HashMap::new();
 
-        let format_errors = |section: &str, errors: Vec<(String, providers::Error)>| {
-            format!(
-                "{section}:\n{}",
-                errors
-                    .into_iter()
-                    .map(|(provider_name, e)| format!(" - {provider_name}: {e}"))
-                    .join("\n")
-            )
-        };
+        load_custom_providers(
+            tp,
+            self.test_plan(),
+            CustomProviderSection::TestPlan,
+            &mut custom_providers.test_plan,
+            &mut custom_provider_sources,
+            &mut errs,
+            ctx,
+        )
+        .await;
 
-        for declaration in tp.iter() {
-            match declaration.try_load_all(self.test_plan(), ctx).await {
-                Ok(providers) => {
-                    for (name, (src, def)) in providers {
-                        custom_providers.test_plan.insert(name.clone(), def);
-                        custom_providers.sources.insert(name, src);
-                    }
-                }
-                Err(errors) => errs.push(format_errors("test plan", errors)),
-            }
-        }
+        load_custom_providers(
+            scenario,
+            self.scenario(),
+            CustomProviderSection::Scenario,
+            &mut custom_providers.scenario,
+            &mut custom_provider_sources,
+            &mut errs,
+            ctx,
+        )
+        .await;
 
-        for declaration in scenario.iter() {
-            match declaration.try_load_all(self.scenario(), ctx).await {
-                Ok(providers) => {
-                    for (name, (src, def)) in providers {
-                        custom_providers.scenario.insert(name.clone(), def);
-                        custom_providers.sources.insert(name, src);
-                    }
-                }
-                Err(errors) => errs.push(format_errors("scenario", errors)),
-            }
-        }
-
-        for declaration in environment.iter() {
-            match declaration.try_load_all(self.environment(), ctx).await {
-                Ok(providers) => {
-                    for (name, (src, def)) in providers {
-                        custom_providers.environment.insert(name.clone(), def);
-                        custom_providers.sources.insert(name, src);
-                    }
-                }
-                Err(errors) => errs.push(format_errors("environment", errors)),
-            }
-        }
+        load_custom_providers(
+            environment,
+            self.environment(),
+            CustomProviderSection::Environment,
+            &mut custom_providers.environment,
+            &mut custom_provider_sources,
+            &mut errs,
+            ctx,
+        )
+        .await;
 
         if !errs.is_empty() {
             return Err(Error::FailedCustomProviderDefinitions { errs });
         }
 
         self.custom_providers = Arc::new(custom_providers);
+        self.custom_provider_sources = custom_provider_sources;
 
         Ok(())
     }
@@ -120,10 +108,6 @@ impl Sources {
     pub fn with_variables_file(mut self, source: Option<SourceDir>) -> Self {
         self.variables_file = source;
         self
-    }
-
-    pub fn custom_provider_source(&self, name: &str) -> Option<&SourceDir> {
-        self.custom_providers.source(name)
     }
 
     pub fn test_plan(&self) -> &SourceDir {
@@ -174,31 +158,175 @@ impl Sources {
             StableSource::TestPlan => self.test_plan(),
             StableSource::Environment => self.environment(),
             StableSource::Scenario => self.scenario(),
-            StableSource::CustomProvider(n) => self
-                .custom_provider_source(n)
+            StableSource::CustomProvider(_, _) => self
+                .custom_provider_sources
+                .get(src)
                 .expect("custom provider source not found"),
             StableSource::Cli => self.cli(),
             StableSource::VariablesFile => self.variables_file(),
         }
     }
-}
 
-#[cfg(test)]
-impl Sources {
+    #[cfg(test)]
     /// Test constructor that allows setting all fields including custom_providers
     pub fn with_custom_providers(
         test_plan: SourceDir,
         scenario: Option<SourceDir>,
         environment: Option<SourceDir>,
         custom_providers: Arc<CustomProviderDefinitions>,
+        custom_provider_sources: HashMap<StableSource, SourceDir>,
     ) -> Self {
         Self {
             test_plan,
             scenario,
             environment,
             custom_providers,
+            custom_provider_sources,
             cli: SourceDir::default(),
             variables_file: None,
         }
+    }
+}
+
+async fn load_custom_providers(
+    declarations: &[CustomProviderDeclaration],
+    source_dir: &SourceDir,
+    section: CustomProviderSection,
+    definitions: &mut HashMap<String, CustomProviderDefinition>,
+    custom_provider_sources: &mut HashMap<StableSource, SourceDir>,
+    errs: &mut Vec<String>,
+    ctx: &impl ResolutionContext,
+) {
+    for declaration in declarations.iter() {
+        let section_label = section.as_label();
+
+        match declaration.try_load_all(source_dir, ctx).await {
+            Ok(providers) => {
+                for (name, (source_dir, definition)) in providers {
+                    match definitions.insert(name.clone(), definition) {
+                        Some(_) => errs.push(format!(
+                            "{section_label}:\n - {name}: duplicate custom provider name"
+                        )),
+                        None => {
+                            custom_provider_sources
+                                .insert(StableSource::CustomProvider(name, section), source_dir);
+                        }
+                    }
+                }
+            }
+            Err(errors) => errs.push(format!(
+                "{section_label}:\n{}",
+                errors
+                    .into_iter()
+                    .map(|(provider_name, e)| format!(" - {provider_name}: {e}"))
+                    .join("\n")
+            )),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        context::Context, formats::providers::test_helpers::create_temp_dir_with_file,
+        providers::file::RawSource,
+    };
+    use indoc::indoc;
+
+    const MINIMAL_PROVIDER: &str = indoc!(
+        r#"
+        name: my_provider
+        description: A test provider
+        command:
+          name: run.sh
+          kind: relative_path
+          path: run.sh
+        "#
+    );
+
+    fn declaration_with_provider(
+        relative_path: &str,
+        provider_name: &str,
+    ) -> CustomProviderDeclaration {
+        CustomProviderDeclaration {
+            source: RawSource::Local {
+                relative_path: relative_path.into(),
+            },
+            using: [(provider_name.to_string(), "provider.yaml".to_string())]
+                .into_iter()
+                .collect(),
+        }
+    }
+
+    #[tokio::test]
+    async fn duplicate_provider_name_within_section_is_an_error() {
+        let (temp, _) = create_temp_dir_with_file("config.yaml", "");
+
+        for dir in ["providers", "providers2"] {
+            let providers_dir = temp.path().join(dir);
+            std::fs::create_dir_all(&providers_dir).unwrap();
+            std::fs::write(providers_dir.join("provider.yaml"), MINIMAL_PROVIDER).unwrap();
+        }
+
+        let tp_source = SourceDir::local(temp.path().canonicalize().unwrap());
+        let mut sources = Sources::new(tp_source, None, None);
+
+        let declarations = vec![
+            declaration_with_provider("providers", "my_custom_provider"),
+            declaration_with_provider("providers2", "my_custom_provider"),
+        ];
+
+        let result = sources
+            .try_load_custom_providers(&declarations, &[], &[], &Context::new())
+            .await;
+
+        assert!(
+            result.is_err(),
+            "expected error for duplicate provider name"
+        );
+        let err = result.unwrap_err();
+        let err_str = format!("{err:?}");
+        assert!(
+            err_str.contains("duplicate custom provider name"),
+            "expected duplicate error, got: {err_str}"
+        );
+    }
+
+    #[tokio::test]
+    async fn same_provider_name_in_different_sections_is_not_an_error() {
+        let (temp, _) = create_temp_dir_with_file("config.yaml", "");
+
+        for dir in ["tp_providers", "scenario_providers"] {
+            let providers_dir = temp.path().join(dir);
+            std::fs::create_dir_all(&providers_dir).unwrap();
+            std::fs::write(providers_dir.join("provider.yaml"), MINIMAL_PROVIDER).unwrap();
+        }
+
+        let tp_source = SourceDir::local(temp.path().canonicalize().unwrap());
+        let mut sources = Sources::new(tp_source, None, None);
+
+        let tp_declarations = vec![declaration_with_provider(
+            "tp_providers",
+            "my_custom_provider",
+        )];
+        let scenario_declarations = vec![declaration_with_provider(
+            "scenario_providers",
+            "my_custom_provider",
+        )];
+
+        let result = sources
+            .try_load_custom_providers(
+                &tp_declarations,
+                &scenario_declarations,
+                &[],
+                &Context::new(),
+            )
+            .await;
+
+        assert!(
+            result.is_ok(),
+            "expected no error for same name in different sections, got: {result:?}"
+        );
     }
 }

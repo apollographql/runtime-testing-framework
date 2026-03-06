@@ -418,6 +418,7 @@ mod tests {
             None,
             None,
             Default::default(),
+            Default::default(),
         );
 
         let res = raw_test_plan
@@ -1157,6 +1158,7 @@ mod tests {
             Some(SourceDir::Local {
                 abs_path: config_file_dir(&environment_file),
             }),
+            Default::default(),
             Default::default(),
         );
 
