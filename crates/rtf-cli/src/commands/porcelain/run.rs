@@ -30,12 +30,12 @@ pub async fn check_and_run_test_plan(
     let (mut ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
 
     info!("loading and resolving test plan");
-    let test_plan = if github {
+    let (test_plan, sources) = if github {
         load_and_resolve_test_plan_from_github(test_plan_path, git_ref, &ctx).await?
     } else {
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
-    ctx.set_sources(test_plan.sources.clone());
+    ctx.set_sources(sources);
 
     check_and_run_test_plan_with_context(test_plan, variables, &out_dir, run_target, ctx).await
 }
@@ -96,7 +96,7 @@ async fn run_one(
         variables,
         StableSource::TestPlan,
         variable_sources.clone(),
-        test_plan.sources.custom_providers(),
+        ctx.custom_provider_definitions(),
     );
 
     info!("templating test plan");

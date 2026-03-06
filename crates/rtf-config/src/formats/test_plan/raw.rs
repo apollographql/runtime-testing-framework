@@ -45,7 +45,7 @@ impl RawTestPlanConfig {
         self,
         tp_source: SourceDir,
         ctx: &impl ResolutionContext,
-    ) -> Result<TestPlanConfig> {
+    ) -> Result<(TestPlanConfig, Sources)> {
         let res = self
             .environment
             .try_into_config_with_source::<EnvironmentConfig>(&tp_source, ctx)
@@ -80,16 +80,18 @@ impl RawTestPlanConfig {
             )
             .await?;
 
-        Ok(TestPlanConfig {
-            name: self.name,
-            description: self.description,
-            variables: self.variables,
-            matrix: self.matrix.into(),
-            custom_providers: self.custom_providers,
-            scenario,
-            environment,
+        Ok((
+            TestPlanConfig {
+                name: self.name,
+                description: self.description,
+                variables: self.variables,
+                matrix: self.matrix.into(),
+                custom_providers: self.custom_providers,
+                scenario,
+                environment,
+            },
             sources,
-        })
+        ))
     }
 }
 

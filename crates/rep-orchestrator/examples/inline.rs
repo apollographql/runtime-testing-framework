@@ -29,8 +29,8 @@ async fn main() -> anyhow::Result<()> {
     };
 
     info!("loading and resolving test plan");
-    let test_plan = load_and_resolve_test_plan_from_local(&test_plan_path, &ctx).await?;
-    ctx.set_sources(test_plan.sources.clone());
+    let (test_plan, sources) = load_and_resolve_test_plan_from_local(&test_plan_path, &ctx).await?;
+    ctx.set_sources(sources);
 
     extract_relative_files_with_context(test_plan, variables, ctx, OUTDIR).await
 }
@@ -59,7 +59,7 @@ async fn extract_relative_files_with_context(
             variables,
             StableSource::TestPlan,
             variable_sources.clone(),
-            variant.sources.custom_providers(),
+            ctx.custom_provider_definitions(),
         );
 
         info!("extracting relative file providers for matrix variant {i}/{n}");

@@ -8,7 +8,7 @@ use anyhow::{Context as _, anyhow, bail};
 use rtf_config::{
     SourceDir,
     context::{Context, PathKind, ResolutionContext},
-    formats::{self, TestPlanConfig},
+    formats::{self, Sources, TestPlanConfig},
 };
 use serde::Deserialize;
 use std::{
@@ -91,9 +91,9 @@ where
 pub async fn load_and_resolve_test_plan_from_local(
     path: &str,
     ctx: &impl ResolutionContext,
-) -> anyhow::Result<TestPlanConfig> {
+) -> anyhow::Result<(TestPlanConfig, Sources)> {
     match TestPlanConfig::try_load_and_resolve_from_path(path, ctx).await {
-        Ok(test_plan) => Ok(test_plan),
+        Ok(result) => Ok(result),
         Err(e) => match e {
             formats::Error::Io(e) => bail!("Unable to load test plan from {path}: {e}"),
             formats::Error::Yaml(e) => bail!("Unable to parse test plan yaml: {e}"),
@@ -107,7 +107,7 @@ pub async fn load_and_resolve_test_plan_from_github(
     test_plan_path: &str,
     git_ref: Option<String>,
     ctx: &impl ResolutionContext,
-) -> anyhow::Result<TestPlanConfig> {
+) -> anyhow::Result<(TestPlanConfig, Sources)> {
     let (org, repo_and_path) = test_plan_path.split_once('/').ok_or(anyhow!(
         "invalid GitHub uri: \"{test_plan_path}\" - GitHub uri must be in format ORG/REPO/PATH"
     ))?;
@@ -116,7 +116,7 @@ pub async fn load_and_resolve_test_plan_from_github(
     ))?;
 
     match TestPlanConfig::try_load_and_resolve_from_github(org, repo, path, git_ref, ctx).await {
-        Ok(test_plan) => Ok(test_plan),
+        Ok(result) => Ok(result),
         Err(e) => bail!("Unable to load and resolve test plan from GitHub: {e}"),
     }
 }

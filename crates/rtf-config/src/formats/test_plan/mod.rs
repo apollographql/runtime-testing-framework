@@ -40,15 +40,13 @@ pub struct TestPlanConfig {
     pub custom_providers: Vec<CustomProviderDeclaration>,
     pub scenario: ScenarioConfig,
     pub environment: EnvironmentConfig,
-    #[serde(skip)]
-    pub sources: Sources,
 }
 
 impl TestPlanConfig {
     pub async fn try_load_and_resolve_from_path(
         p: impl AsRef<Path>,
         ctx: &impl ResolutionContext,
-    ) -> Result<Self> {
+    ) -> Result<(Self, Sources)> {
         let content = ctx.read_path_to_string(p.as_ref())?;
         let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
         let abs_path = ctx.canonicalize_path(p.as_ref())?;
@@ -63,7 +61,7 @@ impl TestPlanConfig {
         path: &str,
         git_ref: Option<String>,
         ctx: &impl ResolutionContext,
-    ) -> Result<Self> {
+    ) -> Result<(Self, Sources)> {
         let client = match ctx.github_client() {
             Some(client) => client,
             None => return Err(github::Error::NoClient.into()),
@@ -162,7 +160,6 @@ impl TestPlanConfig {
             custom_providers: Default::default(),
             scenario: ScenarioConfig::empty(),
             environment: EnvironmentConfig::empty(),
-            sources: Sources::default(),
         }
     }
 
@@ -433,8 +430,7 @@ mod tests {
             .await;
         assert!(res.is_ok(), "expected TestPlanConfig, got {res:?}");
 
-        let test_plan = res.unwrap();
-        let sources = test_plan.clone().sources;
+        let (test_plan, sources) = res.unwrap();
         assert_eq!(
             sources, expected_sources,
             "test that sources are set correctly"
@@ -612,8 +608,7 @@ mod tests {
 
         assert!(res.is_ok(), "expected TestPlanConfig, got {res:?}");
 
-        let test_plan = res.unwrap();
-        let sources = &test_plan.sources;
+        let (_, sources) = res.unwrap();
 
         assert_eq!(sources.custom_providers().test_plan.len(), 1);
         assert!(
@@ -1165,12 +1160,10 @@ mod tests {
             Default::default(),
         );
 
-        let res =
-            TestPlanConfig::try_load_and_resolve_from_path(tp_file.to_path_buf(), &ctx).await;
+        let res = TestPlanConfig::try_load_and_resolve_from_path(tp_file.to_path_buf(), &ctx).await;
         assert!(res.is_ok(), "expected TestPlanConfig, got {res:?}");
 
-        let test_plan = res.unwrap();
-        let sources = test_plan.clone().sources;
+        let (test_plan, sources) = res.unwrap();
         assert_eq!(
             sources, expected_sources,
             "test that sources are set correctly"
@@ -1257,11 +1250,10 @@ mod tests {
 
         let ctx = Context::new();
 
-        let res =
-            TestPlanConfig::try_load_and_resolve_from_path(tp_file.to_path_buf(), &ctx).await;
+        let res = TestPlanConfig::try_load_and_resolve_from_path(tp_file.to_path_buf(), &ctx).await;
         assert!(res.is_ok(), "expected TestPlanConfig, got {res:?}");
 
-        let test_plan = res.unwrap();
+        let (test_plan, _sources) = res.unwrap();
         let scenario_name = &test_plan.scenario.name;
         assert_eq!(
             scenario_name, &expected_scenario_name,

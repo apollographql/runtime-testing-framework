@@ -29,12 +29,12 @@ pub async fn inline_test_plan(
     let (mut ctx, _outdir) = get_context_and_check_outdir(outdir, force)?;
 
     info!("loading and resolving test plan");
-    let test_plan = if github {
+    let (test_plan, sources) = if github {
         load_and_resolve_test_plan_from_github(test_plan_path, git_ref, &ctx).await?
     } else {
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
-    ctx.set_sources(test_plan.sources.clone());
+    ctx.set_sources(sources);
 
     inline_file_providers_with_context(test_plan, mode, variables, ctx, outdir).await
 }
@@ -98,7 +98,7 @@ async fn inline_file_providers(
         test_plan.variables.clone(),
         StableSource::TestPlan,
         template_variables.clone(),
-        test_plan.sources.custom_providers(),
+        ctx.custom_provider_definitions(),
     );
 
     info!("templating test plan");

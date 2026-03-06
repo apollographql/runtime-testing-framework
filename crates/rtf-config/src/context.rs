@@ -182,7 +182,7 @@ pub trait ResolutionContext {
     /// Store the resolved [Sources] for the current test plan.
     ///
     /// Callers of `try_load_and_resolve_from_*` are responsible for calling this
-    /// with `test_plan.sources.clone()` before passing `ctx` to an execution phase.
+    /// with the [Sources] returned alongside the [crate::formats::TestPlanConfig].
     fn set_sources(&mut self, _sources: Sources) {
         unimplemented!("set_sources not implemented for this context")
     }
