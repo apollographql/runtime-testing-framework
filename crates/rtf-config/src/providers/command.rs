@@ -338,6 +338,7 @@ mod tests {
     use crate::{
         SourceDir, StableSource,
         context::{Context, PathKind, ResolutionContext},
+        formats::Sources,
         mock_context::NullClient,
         providers::{
             command::test_helpers::{cmd_with_inline_file, cmd_with_required_file},
@@ -924,7 +925,7 @@ mod tests {
         let relative_file_path = "file.txt";
         let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
-        ctx.set_sources(crate::formats::Sources::with_custom_providers(
+        ctx.set_sources(Sources::with_custom_providers(
             src.clone(),
             None,
             None,
@@ -978,7 +979,7 @@ mod tests {
         let relative_file_path = "file.txt";
         let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
-        ctx.set_sources(crate::formats::Sources::with_custom_providers(
+        ctx.set_sources(Sources::with_custom_providers(
             src.clone(),
             None,
             None,
@@ -1055,7 +1056,7 @@ mod tests {
         let relative_file_path = "file.txt";
         let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
-        ctx.set_sources(crate::formats::Sources::with_custom_providers(
+        ctx.set_sources(Sources::with_custom_providers(
             src.clone(),
             None,
             None,

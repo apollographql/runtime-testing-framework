@@ -682,6 +682,7 @@ pub(crate) mod tests {
         checks::ErrorKind,
         context::Context,
         formats::{
+            Sources,
             environment::test_helpers::{
                 docker_compose_env, environment_with_fields, register_compose_paths,
                 templatable_environment,
@@ -1373,7 +1374,7 @@ pub(crate) mod tests {
 
         let mut ctx = Context::new();
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
-        ctx.set_sources(crate::formats::Sources::with_custom_providers(
+        ctx.set_sources(Sources::with_custom_providers(
             SourceDir::default(),
             None,
             Some(src.clone()),
@@ -1436,7 +1437,7 @@ pub(crate) mod tests {
 
         let mut ctx = Context::new();
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
-        ctx.set_sources(crate::formats::Sources::with_custom_providers(
+        ctx.set_sources(Sources::with_custom_providers(
             SourceDir::default(),
             None,
             Some(src.clone()),

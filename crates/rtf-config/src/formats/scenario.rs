@@ -513,6 +513,7 @@ mod tests {
     use crate::{
         context::Context,
         formats::{
+            Sources,
             scenario::test_helpers::{scenario_with_fields, templatable_scenario},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
@@ -1008,7 +1009,7 @@ mod tests {
 
         let mut ctx = Context::new();
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
-        ctx.set_sources(crate::formats::Sources::with_custom_providers(
+        ctx.set_sources(Sources::with_custom_providers(
             src.clone(),
             None,
             None,

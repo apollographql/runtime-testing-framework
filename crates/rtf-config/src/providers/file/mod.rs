@@ -1018,6 +1018,7 @@ mod tests {
     use super::*;
     use crate::{
         context::Context,
+        formats::Sources,
         mock_context::MockContext,
         providers::test_helpers::{assert_file_content, create_temp_dir_with_file},
         templating::{ErrorKind, Scalar},
@@ -1909,7 +1910,7 @@ mod tests {
             path: "".into(),
             git_ref: None,
         };
-        ctx.set_sources(crate::formats::Sources::with_custom_providers(
+        ctx.set_sources(Sources::with_custom_providers(
             src.clone(),
             None,
             None,
@@ -1959,7 +1960,7 @@ mod tests {
 
         let mut ctx = Context::new();
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
-        ctx.set_sources(crate::formats::Sources::with_custom_providers(
+        ctx.set_sources(Sources::with_custom_providers(
             src.clone(),
             None,
             None,
@@ -1986,7 +1987,7 @@ mod tests {
         let file_content = "example file content";
         let (temp, _file_to_read) = create_temp_dir_with_file("file.txt", file_content);
         let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
-        ctx.set_sources(crate::formats::Sources::with_custom_providers(
+        ctx.set_sources(Sources::with_custom_providers(
             src.clone(),
             None,
             None,
