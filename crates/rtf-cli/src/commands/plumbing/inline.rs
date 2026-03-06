@@ -131,7 +131,7 @@ async fn inline_one(
         Some(name) => outdir.join(format!("{name}-{INLINED_TEST_PLAN_PATH}")),
         None => outdir.join(INLINED_TEST_PLAN_PATH),
     };
-    ctx.write(output_path, test_plan.as_yaml_string_without_sources()?)?;
+    ctx.write(output_path, test_plan.as_yaml_string()?)?;
 
     info!("done");
 

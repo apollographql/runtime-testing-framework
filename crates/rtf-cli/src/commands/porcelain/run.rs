@@ -127,10 +127,7 @@ async fn run_one(
         out_dir.join(VARIABLES_PATH),
         serde_json::to_string_pretty(template_ctx.variables())?,
     )?;
-    ctx.write(
-        out_dir.join(RESOLVED_TP_PATH),
-        test_plan.as_yaml_string_without_sources()?,
-    )?;
+    ctx.write(out_dir.join(RESOLVED_TP_PATH), test_plan.as_yaml_string()?)?;
 
     info!("done");
 

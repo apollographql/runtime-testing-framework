@@ -50,7 +50,7 @@ pub async fn template_custom_provider(
             .try_check(&mut vec!["custom_provider".to_string()], &ctx)?;
     }
 
-    println!("{}", definition.as_yaml_string_without_sources()?);
+    println!("{}", definition.as_yaml_string()?);
 
     Ok(())
 }

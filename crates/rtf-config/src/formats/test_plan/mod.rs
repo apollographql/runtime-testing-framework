@@ -19,7 +19,6 @@ pub(crate) mod raw;
 pub(crate) mod sources;
 
 pub use raw::RawTestPlanConfig;
-pub(crate) use raw::strip_sources_for_relative_paths;
 pub use sources::Sources;
 
 // Namespace directories for containing the file provider output from each command section
@@ -167,18 +166,12 @@ impl TestPlanConfig {
         }
     }
 
-    pub fn as_yaml_map_without_sources(&self) -> Result<serde_yaml::Value> {
-        let mut val = serde_yaml::to_value(self)?;
-        raw::strip_sources_for_relative_paths(&mut val);
-
-        Ok(val)
+    pub fn as_yaml_map(&self) -> Result<serde_yaml::Value> {
+        Ok(serde_yaml::to_value(self)?)
     }
 
-    pub fn as_yaml_string_without_sources(&self) -> Result<String> {
-        let mut val = serde_yaml::to_value(self)?;
-        raw::strip_sources_for_relative_paths(&mut val);
-
-        Ok(serde_yaml::to_string(&val)?)
+    pub fn as_yaml_string(&self) -> Result<String> {
+        Ok(serde_yaml::to_string(&serde_yaml::to_value(self)?)?)
     }
 }
 

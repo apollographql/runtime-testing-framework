@@ -59,7 +59,7 @@ async fn template_test_plan_with_context(
         test_plan.try_check(&mut Vec::new(), &ctx)?;
     }
 
-    println!("{}", test_plan.as_yaml_string_without_sources()?);
+    println!("{}", test_plan.as_yaml_string()?);
 
     Ok(())
 }
