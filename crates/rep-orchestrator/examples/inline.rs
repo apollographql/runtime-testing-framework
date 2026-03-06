@@ -5,7 +5,7 @@ use rtf_cli::{
 use rtf_config::{
     DirFile, StableSource,
     context::ResolutionContext,
-    formats::TestPlanConfig,
+    formats::{Sources, TestPlanConfig},
     templating::{Template, TemplateContext},
 };
 use serde::Serialize;
@@ -22,7 +22,7 @@ const OUTDIR: &str = "output";
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let test_plan_path = env::args().nth(1).expect("need a test plan path");
-    let (mut ctx, _outdir) = get_context_and_check_outdir(OUTDIR, false)?;
+    let (ctx, _outdir) = get_context_and_check_outdir(OUTDIR, false)?;
     let variables = Variables {
         var: Vec::new(),
         vars: None,
@@ -30,18 +30,18 @@ async fn main() -> anyhow::Result<()> {
 
     info!("loading and resolving test plan");
     let (test_plan, sources) = load_and_resolve_test_plan_from_local(&test_plan_path, &ctx).await?;
-    ctx.set_sources(sources);
-
-    extract_relative_files_with_context(test_plan, variables, ctx, OUTDIR).await
+    extract_relative_files_with_context(test_plan, sources, variables, ctx, OUTDIR).await
 }
 
 async fn extract_relative_files_with_context(
     mut test_plan: TestPlanConfig,
+    sources: Sources,
     variables: Variables,
     mut ctx: impl ResolutionContext,
     outdir: &str,
 ) -> anyhow::Result<()> {
-    let variable_sources = variables.merge(&mut test_plan, &mut ctx)?;
+    let (variable_sources, vars_file_src) = variables.merge(&mut test_plan, &ctx)?;
+    ctx.set_sources(sources.with_variables_file(vars_file_src));
 
     info!("creating output directory");
     ctx.create_dir_all(outdir)?;

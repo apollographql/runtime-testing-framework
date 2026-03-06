@@ -8,7 +8,7 @@ use rtf_config::{
     StableSource,
     checks::Check,
     context::ResolutionContext,
-    formats::TestPlanConfig,
+    formats::{Sources, TestPlanConfig},
     templating::{Template, TemplateContext},
 };
 use tracing::info;
@@ -20,7 +20,7 @@ pub async fn template_test_plan(
     git_ref: Option<String>,
     variables: Variables,
 ) -> anyhow::Result<()> {
-    let mut ctx = get_context();
+    let ctx = get_context();
 
     info!("loading and resolving test plan");
     let (test_plan, sources) = if github {
@@ -28,18 +28,18 @@ pub async fn template_test_plan(
     } else {
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
-    ctx.set_sources(sources);
-
-    template_test_plan_with_context(test_plan, variables, check, ctx).await
+    template_test_plan_with_context(test_plan, sources, variables, check, ctx).await
 }
 
 async fn template_test_plan_with_context(
     mut test_plan: TestPlanConfig,
+    sources: Sources,
     variables: Variables,
     check: bool,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    let variable_sources = variables.merge(&mut test_plan, &mut ctx)?;
+    let (variable_sources, vars_file_src) = variables.merge(&mut test_plan, &ctx)?;
+    ctx.set_sources(sources.with_variables_file(vars_file_src));
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work(&variable_sources, &ctx)?;

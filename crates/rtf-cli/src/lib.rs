@@ -26,8 +26,15 @@ enum ScalarOrArray {
 }
 
 impl cli::Variables {
-    /// Parse variables coming from CLI flags into a form that we can merge with the test plan
-    pub(crate) fn parse(self, ctx: &mut impl ResolutionContext) -> anyhow::Result<ParsedVariables> {
+    /// Parse variables coming from CLI flags into a form that we can merge with the test plan.
+    ///
+    /// Returns the parsed variables alongside the [SourceDir] of the `--vars` file, if one was
+    /// provided. Callers are responsible for incorporating this into [Sources] via
+    /// [Sources::with_variables_file] before calling [ResolutionContext::set_sources].
+    pub(crate) fn parse(
+        self,
+        ctx: &impl ResolutionContext,
+    ) -> anyhow::Result<(ParsedVariables, Option<SourceDir>)> {
         let variable_json_data = match self.vars.as_ref() {
             Some(path) => {
                 let s = ctx.read_path_to_string(path)?;
@@ -40,14 +47,18 @@ impl cli::Variables {
                     .expect("we just read the file so we know it has a parent")
                     .to_owned();
 
-                ctx.set_variables_file_source(SourceDir::local(source_dir));
-                Some((StableSource::VariablesFile, variables_json))
+                Some((StableSource::VariablesFile, variables_json, source_dir))
             }
 
             None => None,
         };
 
-        self.parse_inner(variable_json_data)
+        let vars_file_src = variable_json_data
+            .as_ref()
+            .map(|(_, _, src)| SourceDir::local(src));
+        let variable_json_data = variable_json_data.map(|(stable_src, json, _)| (stable_src, json));
+
+        Ok((self.parse_inner(variable_json_data)?, vars_file_src))
     }
 
     fn parse_inner(
@@ -98,13 +109,19 @@ impl cli::Variables {
 
     /// Merge any variables obtained from the CLI with the ones found in a test plan, removing any
     /// existing variable or matrix definitions with the same key.
+    ///
+    /// Returns the variable sources map alongside the [SourceDir] of the `--vars` file, if one
+    /// was provided. Callers are responsible for incorporating this into [rtf_config::formats::Sources] via
+    /// [ResolutionContext::set_sources].
     pub fn merge(
         self,
         test_plan: &mut TestPlanConfig,
-        ctx: &mut impl ResolutionContext,
-    ) -> anyhow::Result<HashMap<String, StableSource>> {
-        self.parse(ctx)?
-            .merge_inner(&mut test_plan.variables, &mut test_plan.matrix.dimensions)
+        ctx: &impl ResolutionContext,
+    ) -> anyhow::Result<(HashMap<String, StableSource>, Option<SourceDir>)> {
+        let (parsed, vars_file_src) = self.parse(ctx)?;
+        let variable_sources =
+            parsed.merge_inner(&mut test_plan.variables, &mut test_plan.matrix.dimensions)?;
+        Ok((variable_sources, vars_file_src))
     }
 }
 

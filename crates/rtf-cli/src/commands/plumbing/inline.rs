@@ -8,7 +8,7 @@ use crate::{
 use rtf_config::{
     StableSource,
     context::ResolutionContext,
-    formats::TestPlanConfig,
+    formats::{Sources, TestPlanConfig},
     inlining::{self, InlineMode},
     templating::{Template, TemplateContext},
 };
@@ -26,7 +26,7 @@ pub async fn inline_test_plan(
     outdir: &str,
     force: bool,
 ) -> anyhow::Result<()> {
-    let (mut ctx, _outdir) = get_context_and_check_outdir(outdir, force)?;
+    let (ctx, _outdir) = get_context_and_check_outdir(outdir, force)?;
 
     info!("loading and resolving test plan");
     let (test_plan, sources) = if github {
@@ -34,19 +34,19 @@ pub async fn inline_test_plan(
     } else {
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
-    ctx.set_sources(sources);
-
-    inline_file_providers_with_context(test_plan, mode, variables, ctx, outdir).await
+    inline_file_providers_with_context(test_plan, sources, mode, variables, ctx, outdir).await
 }
 
 async fn inline_file_providers_with_context(
     mut test_plan: TestPlanConfig,
+    sources: Sources,
     mode: &InlineMode,
     variables: Variables,
     mut ctx: impl ResolutionContext,
     outdir: &str,
 ) -> anyhow::Result<()> {
-    let variable_sources = variables.merge(&mut test_plan, &mut ctx)?;
+    let (variable_sources, vars_file_src) = variables.merge(&mut test_plan, &ctx)?;
+    ctx.set_sources(sources.with_variables_file(vars_file_src));
 
     info!("creating output directory for inlined test plan templates");
     ctx.create_dir_all(outdir)?;

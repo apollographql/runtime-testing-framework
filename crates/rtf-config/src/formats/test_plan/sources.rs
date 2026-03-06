@@ -1,11 +1,13 @@
 use crate::{
     context::ResolutionContext,
     formats::{CustomProviderDeclaration, Error, Result},
-    providers::{self, file::SourceDir},
+    providers::{
+        self,
+        file::{SourceDir, StableSource},
+    },
     templating::CustomProviderDefinitions,
 };
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 /// The source paths of each of the configs for a given test plan.
@@ -13,13 +15,14 @@ use std::sync::Arc;
 /// If the `ScenarioConfig` or `EnvironmentConfig` are specified inline then their source will
 /// match that of the overall `TestPlanConfig`, otherwise we store the source as defined in the
 /// `RawTestPlanConfig`.
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Sources {
     test_plan: SourceDir,
     scenario: Option<SourceDir>,
     environment: Option<SourceDir>,
-    #[serde(default, skip)]
     custom_providers: Arc<CustomProviderDefinitions>,
+    cli: SourceDir,
+    variables_file: Option<SourceDir>,
 }
 
 impl Sources {
@@ -33,6 +36,8 @@ impl Sources {
             scenario,
             environment,
             custom_providers: Default::default(),
+            cli: SourceDir::default(),
+            variables_file: None,
         }
     }
 
@@ -101,12 +106,43 @@ impl Sources {
         Ok(())
     }
 
+    /// Set the [SourceDir] for variables coming from the CLI (`--var k=v` or a standalone
+    /// config file such as an environment or custom provider definition).
+    pub fn with_cli(mut self, source: SourceDir) -> Self {
+        self.cli = source;
+        self
+    }
+
+    /// Set the [SourceDir] for variables coming from a `--vars` file.
+    ///
+    /// Accepts `Option` so callers can forward the result of `Variables::merge` directly
+    /// without an extra `if let`.
+    pub fn with_variables_file(mut self, source: Option<SourceDir>) -> Self {
+        self.variables_file = source;
+        self
+    }
+
     pub fn custom_provider_source(&self, name: &str) -> Option<&SourceDir> {
         self.custom_providers.source(name)
     }
 
     pub fn test_plan(&self) -> &SourceDir {
         &self.test_plan
+    }
+
+    pub fn cli(&self) -> &SourceDir {
+        &self.cli
+    }
+
+    /// Returns the [SourceDir] for the variables file.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no variables file source has been set.
+    pub fn variables_file(&self) -> &SourceDir {
+        self.variables_file
+            .as_ref()
+            .expect("VariablesFile source not set")
     }
 
     /// The `SourceDir` of the `EnvironmentConfig` in this test plan.
@@ -132,6 +168,19 @@ impl Sources {
     pub fn custom_providers(&self) -> Arc<CustomProviderDefinitions> {
         self.custom_providers.clone()
     }
+
+    pub(crate) fn source_dir_for(&self, src: &StableSource) -> &SourceDir {
+        match src {
+            StableSource::TestPlan => self.test_plan(),
+            StableSource::Environment => self.environment(),
+            StableSource::Scenario => self.scenario(),
+            StableSource::CustomProvider(n) => self
+                .custom_provider_source(n)
+                .expect("custom provider source not found"),
+            StableSource::Cli => self.cli(),
+            StableSource::VariablesFile => self.variables_file(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -148,6 +197,8 @@ impl Sources {
             scenario,
             environment,
             custom_providers,
+            cli: SourceDir::default(),
+            variables_file: None,
         }
     }
 }

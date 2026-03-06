@@ -9,7 +9,7 @@ use rtf_config::{
     StableSource,
     checks::Check,
     context::ResolutionContext,
-    formats::TestPlanConfig,
+    formats::{Sources, TestPlanConfig},
     templating::{Template, TemplateContext},
 };
 use std::{collections::HashMap, mem::take, path::Path};
@@ -27,7 +27,7 @@ pub async fn check_and_run_test_plan(
     out_dir: &str,
     force: bool,
 ) -> anyhow::Result<()> {
-    let (mut ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
+    let (ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
 
     info!("loading and resolving test plan");
     let (test_plan, sources) = if github {
@@ -35,19 +35,20 @@ pub async fn check_and_run_test_plan(
     } else {
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
-    ctx.set_sources(sources);
-
-    check_and_run_test_plan_with_context(test_plan, variables, &out_dir, run_target, ctx).await
+    check_and_run_test_plan_with_context(test_plan, sources, variables, &out_dir, run_target, ctx)
+        .await
 }
 
 async fn check_and_run_test_plan_with_context(
     mut test_plan: TestPlanConfig,
+    sources: Sources,
     variables: Variables,
     out_dir: &Path,
     run_target: RunTarget,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    let variable_sources = variables.merge(&mut test_plan, &mut ctx)?;
+    let (variable_sources, vars_file_src) = variables.merge(&mut test_plan, &ctx)?;
+    ctx.set_sources(sources.with_variables_file(vars_file_src));
 
     info!("checking if templating will work");
     test_plan.check_templating_will_work(&variable_sources, &ctx)?;

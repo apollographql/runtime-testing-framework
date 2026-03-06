@@ -99,7 +99,7 @@ pub trait ResolutionContext {
 
     /// Returns the canonical, absolute form of the path with all intermediate
     /// components normalized and symbolic links resolved.
-    fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf>;
+    fn canonicalize_path(&self, path: impl AsRef<Path>) -> io::Result<PathBuf>;
 
     fn dir_containing(&self, path: impl AsRef<Path>) -> PathBuf {
         match path.as_ref().parent() {
@@ -113,6 +113,9 @@ pub trait ResolutionContext {
     /// If you cannot access the metadata of the file, e.g. because of a permission error or broken
     /// symbolic links, this will return [PathKind::Missing].
     fn path_kind(&self, path: impl AsRef<Path>) -> PathKind;
+
+    /// Resolve a [SourceDir] from a [StableSource] logical name.
+    fn source_dir_for(&self, src: &StableSource) -> &SourceDir;
 
     /// Reads the entire contents of a file into a string.
     ///
@@ -128,6 +131,13 @@ pub trait ResolutionContext {
     ///
     /// [0]: std::fs::OpenOptions::open
     fn read_path_to_string(&self, path: impl AsRef<Path>) -> io::Result<String>;
+
+    /// Read the contents of a file relative to the given [StableSource].
+    async fn read_file_content(
+        &self,
+        src: &StableSource,
+        relative_path: impl AsRef<Path>,
+    ) -> providers::Result<String>;
 
     /// Writes a slice as the entire contents of a file.
     ///
@@ -180,46 +190,10 @@ pub trait ResolutionContext {
     fn create_dir_all(&self, path: impl AsRef<Path>) -> io::Result<()>;
 
     /// Store the resolved [Sources] for the current test plan.
-    ///
-    /// Callers of `try_load_and_resolve_from_*` are responsible for calling this
-    /// with the [Sources] returned alongside the [crate::formats::TestPlanConfig].
-    fn set_sources(&mut self, _sources: Sources) {
-        unimplemented!("set_sources not implemented for this context")
-    }
-
-    /// Set the [SourceDir] for variables coming from the CLI (`--var k=v`).
-    fn set_cli_source(&mut self, _source: SourceDir) {
-        unimplemented!("set_cli_source not implemented for this context")
-    }
-
-    /// Set the [SourceDir] for variables coming from a `--vars` file.
-    fn set_variables_file_source(&mut self, _source: SourceDir) {
-        unimplemented!("set_variables_file_source not implemented for this context")
-    }
-
-    /// Resolve a [SourceDir] from a [StableSource] logical name.
-    fn source_dir_for(&self, _src: &StableSource) -> &SourceDir {
-        unimplemented!("source_dir_for not implemented for this context")
-    }
+    fn set_sources(&mut self, sources: Sources);
 
     /// Return the [CustomProviderDefinitions] for the current test plan.
-    fn custom_provider_definitions(&self) -> Arc<CustomProviderDefinitions> {
-        unimplemented!("custom_provider_definitions not implemented for this context")
-    }
-
-    /// Read the contents of a file relative to the given [StableSource].
-    async fn read_file_content(
-        &self,
-        src: &StableSource,
-        relative_path: impl AsRef<Path>,
-    ) -> providers::Result<String>
-    where
-        Self: Sized,
-    {
-        self.source_dir_for(src)
-            .try_get_file_content(relative_path, self)
-            .await
-    }
+    fn custom_provider_definitions(&self) -> Arc<CustomProviderDefinitions>;
 }
 
 /// A [ResolutionContext] that will perform real IO.
@@ -234,8 +208,6 @@ pub struct Context {
     captured_stderr: RwLock<Vec<u8>>,
     run_metadata: HashMap<&'static str, String>,
     sources: Sources,
-    cli_source: SourceDir,
-    variables_file_source: Option<SourceDir>,
 }
 
 impl Context {
@@ -379,8 +351,8 @@ impl ResolutionContext for Context {
         f(details)
     }
 
-    fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
-        relative_path.as_ref().canonicalize()
+    fn canonicalize_path(&self, path: impl AsRef<Path>) -> io::Result<PathBuf> {
+        path.as_ref().canonicalize()
     }
 
     fn path_kind(&self, path: impl AsRef<Path>) -> PathKind {
@@ -404,8 +376,22 @@ impl ResolutionContext for Context {
         }
     }
 
+    fn source_dir_for(&self, src: &StableSource) -> &SourceDir {
+        self.sources.source_dir_for(src)
+    }
+
     fn read_path_to_string(&self, path: impl AsRef<Path>) -> io::Result<String> {
         fs::read_to_string(path)
+    }
+
+    async fn read_file_content(
+        &self,
+        src: &StableSource,
+        relative_path: impl AsRef<Path>,
+    ) -> providers::Result<String> {
+        let src_dir = self.sources.source_dir_for(src);
+
+        src_dir.try_get_file_content(relative_path, self).await
     }
 
     fn write(&self, path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> io::Result<()> {
@@ -470,33 +456,8 @@ impl ResolutionContext for Context {
         self.sources = sources;
     }
 
-    fn source_dir_for(&self, src: &StableSource) -> &SourceDir {
-        match src {
-            StableSource::TestPlan => self.sources.test_plan(),
-            StableSource::Environment => self.sources.environment(),
-            StableSource::Scenario => self.sources.scenario(),
-            StableSource::CustomProvider(n) => self
-                .sources
-                .custom_provider_source(n)
-                .expect("custom provider source not found"),
-            StableSource::Cli => &self.cli_source,
-            StableSource::VariablesFile => self
-                .variables_file_source
-                .as_ref()
-                .expect("VariablesFile source not set"),
-        }
-    }
-
     fn custom_provider_definitions(&self) -> Arc<CustomProviderDefinitions> {
         self.sources.custom_providers()
-    }
-
-    fn set_cli_source(&mut self, source: SourceDir) {
-        self.cli_source = source;
-    }
-
-    fn set_variables_file_source(&mut self, source: SourceDir) {
-        self.variables_file_source = Some(source);
     }
 }
 

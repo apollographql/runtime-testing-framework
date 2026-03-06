@@ -345,11 +345,14 @@ mod tests {
             test_helpers::create_temp_dir_with_file,
         },
         run::{Execute, PROVIDER_DIR, Provider},
-        templating::Template,
+        templating::{CustomProviderDefinitions, Template},
     };
     use indoc::indoc;
     use simple_test_case::test_case;
-    use std::{path::PathBuf, sync::Mutex};
+    use std::{
+        path::PathBuf,
+        sync::{Arc, Mutex},
+    };
 
     // Sample command yaml
     const FULL_INLINE: &str = indoc!(
@@ -679,6 +682,12 @@ mod tests {
             relative_path.as_ref().canonicalize()
         }
 
+        fn source_dir_for(&self, _src: &StableSource) -> &SourceDir {
+            unimplemented!(
+                "If you are hitting this we have not needed to mock this yet which is why it is not implemented"
+            )
+        }
+
         fn make_executable(&self, _path: impl AsRef<Path>) -> io::Result<()> {
             Ok(())
         }
@@ -702,6 +711,16 @@ mod tests {
                 .ok_or(io::Error::new(io::ErrorKind::NotFound, ""))
         }
 
+        async fn read_file_content(
+            &self,
+            _src: &StableSource,
+            _relative_path: impl AsRef<Path>,
+        ) -> providers::Result<String> {
+            unimplemented!(
+                "If you are hitting this we have not needed to mock this yet which is why it is not implemented"
+            )
+        }
+
         fn remove_file(&self, path: impl AsRef<Path>) -> io::Result<()> {
             let k = path.as_ref().display().to_string();
             self.written_files.lock().unwrap().remove(&k);
@@ -715,6 +734,18 @@ mod tests {
 
         fn create_dir_all(&self, _path: impl AsRef<Path>) -> io::Result<()> {
             Ok(())
+        }
+
+        fn set_sources(&mut self, _sources: Sources) {
+            unimplemented!(
+                "If you are hitting this we have not needed to mock this yet which is why it is not implemented"
+            )
+        }
+
+        fn custom_provider_definitions(&self) -> Arc<CustomProviderDefinitions> {
+            unimplemented!(
+                "If you are hitting this we have not needed to mock this yet which is why it is not implemented"
+            )
         }
     }
 

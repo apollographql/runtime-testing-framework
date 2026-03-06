@@ -673,6 +673,7 @@ impl Check for RelativeFile {
             .src
             .as_ref()
             .expect("attempt to check a RelativeFile without a source");
+
         let src = ctx.source_dir_for(stable_src);
 
         let p = match check_path(file_path, src, path, ctx)? {
@@ -709,7 +710,6 @@ fn check_path(
 ) -> checks::Result<Option<PathBuf>> {
     let res = match src {
         SourceDir::Local { abs_path } => ctx.canonicalize_path(abs_path.join(str_path)).map(Some),
-
         SourceDir::Github { .. } => {
             return if ctx.github_client().is_none() {
                 Err(checks::Errors::new(
@@ -722,7 +722,6 @@ fn check_path(
             };
         }
     };
-
     res.map_err(|e| {
         let kind = if e.kind() == io::ErrorKind::NotFound {
             checks::ErrorKind::FileNotFound
@@ -903,6 +902,7 @@ impl Check for RelativeDir {
             .src
             .as_ref()
             .expect("attempt to check a RelativeDir without a source");
+
         let src = ctx.source_dir_for(stable_src);
 
         // Early return on errors here because without the top level path we can't check anything

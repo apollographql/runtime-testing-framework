@@ -1,7 +1,7 @@
 //! Lower level commands for running individual pieces of functionality from the framework.
 use crate::{ParsedVariables, cli::Variables};
 use anyhow::anyhow;
-use rtf_config::{SourceDir, context::ResolutionContext};
+use rtf_config::{SourceDir, context::ResolutionContext, formats::Sources};
 
 mod completion;
 mod custom_provider;
@@ -24,8 +24,12 @@ fn parse_cli_variables(
     cli_source: SourceDir,
     ctx: &mut impl ResolutionContext,
 ) -> anyhow::Result<ParsedVariables> {
-    ctx.set_cli_source(cli_source);
-    let parsed = variables.parse(ctx)?;
+    let (parsed, vars_file_src) = variables.parse(ctx)?;
+    ctx.set_sources(
+        Sources::default()
+            .with_cli(cli_source)
+            .with_variables_file(vars_file_src),
+    );
 
     if !parsed.matrix_dimensions.is_empty() {
         let mut keys: Vec<_> = parsed
