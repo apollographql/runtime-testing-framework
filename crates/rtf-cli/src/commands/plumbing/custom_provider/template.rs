@@ -33,12 +33,8 @@ pub async fn template_custom_provider(
         ..
     } = parse_cli_variables(variables, source, &mut ctx)?;
 
-    let template_ctx = TemplateContext::new(
-        variables,
-        StableSource::Cli,
-        variable_sources.clone(),
-        Default::default(),
-    );
+    let template_ctx =
+        TemplateContext::new(variables, variable_sources.clone(), Default::default());
 
     definition.validate_variables(template_ctx.variables(), Some(&variable_sources))?;
 

@@ -95,7 +95,6 @@ async fn run_one(
     let variables = take(&mut test_plan.variables);
     let template_ctx = TemplateContext::new(
         variables,
-        StableSource::TestPlan,
         variable_sources.clone(),
         ctx.custom_provider_definitions(),
     );

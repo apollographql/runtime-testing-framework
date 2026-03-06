@@ -90,7 +90,6 @@ pub type Result<T> = std::result::Result<T, Errors>;
 #[derive(Debug, Clone)]
 pub struct TemplateContext {
     variables: HashMap<String, Scalar>,
-    test_plan_source: StableSource,
     variable_sources: HashMap<String, StableSource>,
     resolve_for: FileType,
     custom_provider_definitions: Arc<CustomProviderDefinitions>,
@@ -100,13 +99,11 @@ pub struct TemplateContext {
 impl TemplateContext {
     pub fn new(
         variables: HashMap<String, Scalar>,
-        test_plan_source: StableSource,
         variable_sources: HashMap<String, StableSource>,
         custom_provider_definitions: Arc<CustomProviderDefinitions>,
     ) -> Self {
         Self {
             variables,
-            test_plan_source,
             variable_sources,
             resolve_for: FileType::Environment,
             custom_provider_definitions,
@@ -116,12 +113,7 @@ impl TemplateContext {
 
     #[cfg(test)]
     pub(crate) fn new_stubbed(variables: HashMap<String, Scalar>) -> Self {
-        Self::new(
-            variables,
-            StableSource::TestPlan,
-            Default::default(),
-            Default::default(),
-        )
+        Self::new(variables, Default::default(), Default::default())
     }
 
     pub fn variables(&self) -> &HashMap<String, Scalar> {
@@ -194,7 +186,7 @@ impl TemplateContext {
         let source = self
             .variable_sources
             .get(key)
-            .unwrap_or(&self.test_plan_source);
+            .unwrap_or(&StableSource::TestPlan);
 
         Some((source, s))
     }

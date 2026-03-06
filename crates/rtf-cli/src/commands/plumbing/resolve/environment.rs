@@ -48,12 +48,7 @@ pub async fn resolve_environment(
         ..
     } = parse_cli_variables(variables, source, &mut ctx)?;
 
-    let template_ctx = TemplateContext::new(
-        variables,
-        StableSource::Cli,
-        variable_sources,
-        Default::default(),
-    );
+    let template_ctx = TemplateContext::new(variables, variable_sources, Default::default());
 
     info!("templating environment");
     environment.try_template(&mut Vec::new(), &StableSource::Cli, &template_ctx)?;

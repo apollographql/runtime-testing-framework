@@ -196,12 +196,7 @@ macro_rules! template_context {
             m.insert(k.to_string(), Scalar::from(k.to_string()));
         }
 
-        TemplateContext::new(
-            m,
-            StableSource::TestPlan,
-            Default::default(),
-            Default::default(),
-        )
+        TemplateContext::new(m, Default::default(), Default::default())
     }};
 }
 

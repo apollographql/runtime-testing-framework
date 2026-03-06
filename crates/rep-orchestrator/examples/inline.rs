@@ -57,7 +57,6 @@ async fn extract_relative_files_with_context(
         let variables = take(&mut variant.variables);
         let template_ctx = TemplateContext::new(
             variables,
-            StableSource::TestPlan,
             variable_sources.clone(),
             ctx.custom_provider_definitions(),
         );

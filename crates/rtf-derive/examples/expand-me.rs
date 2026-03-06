@@ -44,12 +44,7 @@ fn main() {
     s.try_template(
         &mut Vec::new(),
         &StableSource::TestPlan,
-        &TemplateContext::new(
-            vals,
-            StableSource::TestPlan,
-            Default::default(),
-            Default::default(),
-        ),
+        &TemplateContext::new(vals, Default::default(), Default::default()),
     )
     .unwrap();
 

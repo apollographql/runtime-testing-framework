@@ -43,12 +43,7 @@ pub async fn resolve_scenario(
         ..
     } = parse_cli_variables(variables, source, &mut ctx)?;
 
-    let template_ctx = TemplateContext::new(
-        variables,
-        StableSource::Cli,
-        variable_sources,
-        Default::default(),
-    );
+    let template_ctx = TemplateContext::new(variables, variable_sources, Default::default());
 
     info!("templating scenario");
     scenario.try_template(&mut Vec::new(), &StableSource::Cli, &template_ctx)?;

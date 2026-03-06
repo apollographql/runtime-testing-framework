@@ -47,7 +47,6 @@ async fn template_test_plan_with_context(
     let (_, variables) = test_plan.matrix.try_expand(&test_plan.variables)?.remove(0);
     let template_ctx = TemplateContext::new(
         variables,
-        StableSource::TestPlan,
         variable_sources,
         ctx.custom_provider_definitions(),
     );

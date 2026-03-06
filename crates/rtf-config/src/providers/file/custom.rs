@@ -267,7 +267,7 @@ mod tests {
         def_var_default: Option<Scalar>,
         def_field: Field<String>,
         provider_argument: Option<(&str, Field<Scalar>)>,
-        provider_src: Option<&str>,
+        provider_src: Option<StableSource>,
         file_ctx: Option<(&str, &str, StableSource)>,
     ) -> Result<TemplateContext> {
         // There are two parts of the `CustomProviderDefinition`` we want to parameterise
@@ -324,12 +324,7 @@ mod tests {
             variables.insert(var_name.to_string(), var_value.into());
             variable_sources.insert(var_name.to_string(), src);
         }
-        let file_ctx = TemplateContext::new(
-            variables,
-            StableSource::TestPlan,
-            variable_sources,
-            Default::default(),
-        );
+        let file_ctx = TemplateContext::new(variables, variable_sources, Default::default());
 
         provider.build_templating_context(
             &[],                        // The path is empty as this is not used in the test assertions
@@ -341,14 +336,14 @@ mod tests {
     }
 
     #[test_case(None; "provider not from overrides")]
-    #[test_case(Some("/test-plan"); "provider from overrides")]
+    #[test_case(Some(StableSource::TestPlan); "provider from overrides")]
     #[test]
     /// This is the simplest test case for `build_templating_context`. The custom provider definition has no fields that need templating,
     /// so no variables come back from the context
     ///
     /// [FileContext(No variable values)] -> [CustomProvider(No arguments)] -> [CustomProviderDefinition(No defaults)] -> [Resolved(FileProvider)]
     fn custom_provider_build_templating_context_resolved_field_in_definition_success(
-        provider_src: Option<&str>,
+        provider_src: Option<StableSource>,
     ) {
         let res = test_build_templating_context(
             None,
@@ -364,7 +359,7 @@ mod tests {
     }
 
     #[test_case(None; "provider not from overrides")]
-    #[test_case(Some("/test-plan"); "provider from overrides")]
+    #[test_case(Some(StableSource::TestPlan); "provider from overrides")]
     /// This is counter-intuitive and included for completeness
     /// This is not a valid state but is not an error condition we catch in this function. It should be caught in pre-templating checks and,
     /// if not, should error in `expand_and_template`.
@@ -373,7 +368,7 @@ mod tests {
     /// [FileContext(No variable values)] -> [CustomProvider(No arguments)] -> [CustomProviderDefinition(No defaults)] -> [Pending(FileProvider)]
     #[test]
     fn custom_provider_build_templating_context_pending_field_in_definition_missing_variable_definition_success(
-        provider_src: Option<&str>,
+        provider_src: Option<StableSource>,
     ) {
         let res = test_build_templating_context(
             None,
@@ -389,7 +384,7 @@ mod tests {
     }
 
     #[test_case(None; "provider not from overrides")]
-    #[test_case(Some("/test-plan"); "provider from overrides")]
+    #[test_case(Some(StableSource::TestPlan); "provider from overrides")]
     #[test]
     /// This is counter-intuitive and included for completeness
     /// This is not a valid state but is not an error condition we catch in this function. It should be caught in pre-templating checks and,
@@ -398,7 +393,7 @@ mod tests {
     ///
     /// [FileContext(No variable values)] -> [CustomProvider(No arguments)] -> [CustomProviderDefinition(No defaults)] -> [Pending(FileProvider)]
     fn custom_provider_build_templating_context_pending_field_in_definition_no_default_value_no_resolved_arg_no_file_ctx_variable_success(
-        provider_src: Option<&str>,
+        provider_src: Option<StableSource>,
     ) {
         let res = test_build_templating_context(
             None,
@@ -414,14 +409,14 @@ mod tests {
     }
 
     #[test_case(None; "provider not from overrides")]
-    #[test_case(Some("/test-plan"); "provider from overrides")]
+    #[test_case(Some(StableSource::TestPlan); "provider from overrides")]
     #[test]
     /// This is the next simplest success case, there are no values provided in either the provider arguments or file variables.
     /// The value used is from the provider definition's default.
     ///
     /// [FileContext(No variable values)] -> [CustomProvider(No arguments)] -> [CustomProviderDefinition(Default value)] -> [Pending(FileProvider)]
     fn custom_provider_build_templating_context_pending_field_in_definition_uses_default_success(
-        provider_src: Option<&str>,
+        provider_src: Option<StableSource>,
     ) {
         let res = test_build_templating_context(
             Some("definition default value".into()),
@@ -440,7 +435,7 @@ mod tests {
     }
 
     #[test_case(None, StableSource::Environment; "provider not from overrides")]
-    #[test_case(Some("/test-plan"), StableSource::TestPlan; "provider from overrides")]
+    #[test_case(Some(StableSource::TestPlan), StableSource::TestPlan; "provider from overrides")]
     #[test]
     /// This tests a variable's value coming from the provider arguments. A default is included to show that the argument value takes precedence.
     /// This is the situation where the custom provider's source is relevant.
@@ -449,7 +444,7 @@ mod tests {
     ///
     /// [FileContext(No variable values)] -> [CustomProvider(Resolved(argument))] -> [CustomProviderDefinition(Default value)] -> [Pending(FileProvider)]
     fn custom_provider_build_templating_context_pending_field_in_definition_uses_resolved_provider_argument_success(
-        provider_src: Option<&str>,
+        provider_src: Option<StableSource>,
         expected_src: StableSource,
     ) {
         let res = test_build_templating_context(
@@ -472,14 +467,14 @@ mod tests {
     }
 
     #[test_case(None; "provider not from overrides")]
-    #[test_case(Some("/test-plan"); "provider from overrides")]
+    #[test_case(Some(StableSource::TestPlan); "provider from overrides")]
     /// This tests a variable's value coming from the file context's variables.
     /// It checks that the variable's source is from the file context and supersedes any defaults
     ///
     /// [FileContext(Variable values set)] -> [CustomProvider(Pending(argument))] -> [CustomProviderDefinition(Default value)] -> [Pending(FileProvider)]
     #[test]
     fn custom_provider_build_templating_context_pending_field_in_provider_uses_file_context_variable_success(
-        provider_src: Option<&str>,
+        provider_src: Option<StableSource>,
     ) {
         let res = test_build_templating_context(
             Some("definition_default_value".into()), // We still supply a default to sanity check the value from provider fields overrides it,
@@ -508,14 +503,14 @@ mod tests {
     }
 
     #[test_case(None; "provider not from overrides")]
-    #[test_case(Some("/test-plan"); "provider from overrides")]
+    #[test_case(Some(StableSource::TestPlan); "provider from overrides")]
     #[test]
     /// This tests an error path, the custom provider argument is pending, but no variable values are set in the
     /// file context. This will fail with an UnknownVariable error.
     ///
     /// [FileContext(No variable values)] -> [CustomProvider(Pending(argument))] -> [CustomProviderDefinition(Default value)] -> [Pending(FileProvider)]
     fn custom_provider_build_templating_context_pending_field_in_provider_missing_value_error(
-        provider_src: Option<&str>,
+        provider_src: Option<StableSource>,
     ) {
         let res = test_build_templating_context(
             None,
@@ -603,7 +598,6 @@ mod tests {
             &StableSource::TestPlan,
             &TemplateContext::new(
                 HashMap::new(),
-                StableSource::TestPlan,
                 HashMap::new(),
                 Arc::new(CustomProviderDefinitions {
                     test_plan: HashMap::from([("my-custom-provider".to_string(), definition)]),
@@ -657,7 +651,6 @@ mod tests {
             &StableSource::TestPlan,
             &TemplateContext::new(
                 HashMap::new(),
-                StableSource::TestPlan,
                 HashMap::new(),
                 Arc::new(CustomProviderDefinitions {
                     test_plan: HashMap::from([("my-custom-provider".to_string(), definition)]),

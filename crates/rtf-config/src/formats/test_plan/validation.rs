@@ -33,12 +33,8 @@ impl TestPlanConfig {
             .map(|var| (var.to_string(), Scalar::String(var.to_string())))
             .collect();
 
-        let template_ctx = TemplateContext::new(
-            stub_variables,
-            tp_source.clone(),
-            HashMap::new(),
-            custom_providers.clone(),
-        );
+        let template_ctx =
+            TemplateContext::new(stub_variables, HashMap::new(), custom_providers.clone());
 
         let mut errs = templating::ErrorBuilder::new();
         self.validate_all_variable_definitions(&custom_providers, &mut errs);

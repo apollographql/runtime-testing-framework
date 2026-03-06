@@ -96,7 +96,6 @@ async fn inline_file_providers(
 
     let template_ctx = TemplateContext::new(
         test_plan.variables.clone(),
-        StableSource::TestPlan,
         template_variables.clone(),
         ctx.custom_provider_definitions(),
     );

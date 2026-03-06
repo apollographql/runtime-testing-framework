@@ -277,7 +277,6 @@ impl TestCase {
         debug!("building templating context");
         let template_ctx = TemplateContext::new(
             load_variables(&self.path.join(VARIABLES_FILE))?,
-            StableSource::TestPlan,
             Default::default(),
             Default::default(),
         );
