@@ -66,7 +66,7 @@ async fn extract_relative_files_with_context(
         variant.try_extract_relative_files(&mut files, &ctx).await?;
     }
 
-    let yaml_test_plan = test_plan.as_yaml_map()?;
+    let yaml_test_plan = serde_yaml::to_value(&test_plan)?;
     let mut relative_files: Vec<DirFile> = files
         .into_iter()
         .map(|(path, content)| DirFile { path, content })

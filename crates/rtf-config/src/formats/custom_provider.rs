@@ -1,7 +1,6 @@
 use crate::{
     VariableDefinition,
     context::ResolutionContext,
-    formats,
     inlining::{self, InlineMode},
     providers::{
         self,
@@ -33,10 +32,6 @@ pub struct CustomProviderDefinition {
 }
 
 impl CustomProviderDefinition {
-    pub fn as_yaml_string(&self) -> formats::Result<String> {
-        Ok(serde_yaml::to_string(&serde_yaml::to_value(self)?)?)
-    }
-
     pub async fn inline(
         &mut self,
         mode: &InlineMode,

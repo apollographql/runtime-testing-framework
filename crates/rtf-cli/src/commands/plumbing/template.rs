@@ -58,7 +58,7 @@ async fn template_test_plan_with_context(
         test_plan.try_check(&mut Vec::new(), &ctx)?;
     }
 
-    println!("{}", test_plan.as_yaml_string()?);
+    println!("{}", serde_yaml::to_string(&test_plan)?);
 
     Ok(())
 }

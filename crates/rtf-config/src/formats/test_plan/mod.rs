@@ -162,14 +162,6 @@ impl TestPlanConfig {
             environment: EnvironmentConfig::empty(),
         }
     }
-
-    pub fn as_yaml_map(&self) -> Result<serde_yaml::Value> {
-        Ok(serde_yaml::to_value(self)?)
-    }
-
-    pub fn as_yaml_string(&self) -> Result<String> {
-        Ok(serde_yaml::to_string(&serde_yaml::to_value(self)?)?)
-    }
 }
 
 impl Template for TestPlanConfig {
