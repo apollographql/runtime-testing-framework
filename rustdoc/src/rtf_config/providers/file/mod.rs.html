@@ -419,7 +419,7 @@
 <a href=#419 id=419 data-nosnippet>419</a><span class="kw">impl </span>ExtractRelativeFiles <span class="kw">for </span>FileProvider {
 <a href=#420 id=420 data-nosnippet>420</a>    <span class="kw">async fn </span>try_extract_relative_files(
 <a href=#421 id=421 data-nosnippet>421</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#422 id=422 data-nosnippet>422</a>        files: <span class="kw-2">&amp;mut </span>HashMap&lt;PathBuf, String&gt;,
+<a href=#422 id=422 data-nosnippet>422</a>        files: <span class="kw-2">&amp;mut </span>HashMap&lt;(StableSource, String), String&gt;,
 <a href=#423 id=423 data-nosnippet>423</a>        ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,
 <a href=#424 id=424 data-nosnippet>424</a>    ) -&gt; providers::Result&lt;()&gt; {
 <a href=#425 id=425 data-nosnippet>425</a>        <span class="kw">match </span><span class="self">self </span>{
@@ -617,7 +617,7 @@
 <a href=#617 id=617 data-nosnippet>617</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) path: Field&lt;String&gt;,
 <a href=#618 id=618 data-nosnippet>618</a>
 <a href=#619 id=619 data-nosnippet>619</a>    <span class="doccomment">/// Set during TestPlan parsing as part of overrides and templating.
-<a href=#620 id=620 data-nosnippet>620</a>    </span><span class="attr">#[serde(default)]
+<a href=#620 id=620 data-nosnippet>620</a>    </span><span class="attr">#[serde(default, skip_serializing_if = <span class="string">"Option::is_none"</span>)]
 <a href=#621 id=621 data-nosnippet>621</a>    #[schemars(skip)]
 <a href=#622 id=622 data-nosnippet>622</a>    #[doc(hidden)]
 <a href=#623 id=623 data-nosnippet>623</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) src: <span class="prelude-ty">Option</span>&lt;StableSource&gt;,

@@ -80,7 +80,7 @@
 <a href=#80 id=80 data-nosnippet>80</a>
 <a href=#81 id=81 data-nosnippet>81</a>    <span class="kw">pub async fn </span>try_extract_relative_files(
 <a href=#82 id=82 data-nosnippet>82</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#83 id=83 data-nosnippet>83</a>        files: <span class="kw-2">&amp;mut </span>HashMap&lt;PathBuf, String&gt;,
+<a href=#83 id=83 data-nosnippet>83</a>        files: <span class="kw-2">&amp;mut </span>HashMap&lt;(StableSource, String), String&gt;,
 <a href=#84 id=84 data-nosnippet>84</a>        ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,
 <a href=#85 id=85 data-nosnippet>85</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#86 id=86 data-nosnippet>86</a>        <span class="self">self</span>.environment
