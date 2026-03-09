@@ -80,7 +80,7 @@ impl TestPlanConfig {
 
     pub async fn try_extract_relative_files(
         &self,
-        files: &mut HashMap<PathBuf, String>,
+        files: &mut HashMap<(StableSource, String), String>,
         ctx: &impl ResolutionContext,
     ) -> Result<()> {
         self.environment

@@ -141,7 +141,7 @@ impl fmt::Display for SourceDir {
 }
 
 /// Identifies which config section a custom provider was declared in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CustomProviderSection {
     TestPlan,
@@ -151,7 +151,10 @@ pub enum CustomProviderSection {
 
 impl CustomProviderSection {
     pub(crate) fn as_stable_source(&self, key: &str) -> StableSource {
-        StableSource::CustomProvider(key.to_string(), *self)
+        StableSource::CustomProvider {
+            section: *self,
+            ident: key.to_string(),
+        }
     }
 
     pub(crate) fn as_label(&self) -> &'static str {
@@ -167,8 +170,8 @@ impl CustomProviderSection {
 ///
 /// Unlike [SourceDir] which carries absolute disk paths or GitHub refs, `StableSource` carries
 /// only a logical name that is safe to serialize and share without leaking local path information.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
 pub enum StableSource {
     /// The value came from the test plan config file
     TestPlan,
@@ -178,7 +181,10 @@ pub enum StableSource {
     Scenario,
     /// The value came from a custom provider definition. The first element is the provider name
     /// and the second is the section in which it was declared.
-    CustomProvider(String, CustomProviderSection),
+    CustomProvider {
+        section: CustomProviderSection,
+        ident: String,
+    },
     /// The value was provided on the command line
     Cli,
     /// The value was provided from a variables file

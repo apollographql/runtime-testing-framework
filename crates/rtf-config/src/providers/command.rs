@@ -1,4 +1,5 @@
 use crate::{
+    StableSource,
     checks::{self, Check, duplicate_keys},
     context::ResolutionContext,
     enum_impl_check, enum_impl_resolve_and_write,
@@ -19,13 +20,7 @@ use crate::{
 use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    future::Future,
-    io,
-    path::{Path, PathBuf},
-    pin::Pin,
-};
+use std::{collections::HashMap, future::Future, io, path::Path, pin::Pin};
 
 /// # Command Section
 ///
@@ -289,7 +284,7 @@ enum_impl_resolve_and_write!(CommandProvider => Inline, RelativePath, Required);
 impl ExtractRelativeFiles for CommandProvider {
     async fn try_extract_relative_files(
         &self,
-        files: &mut HashMap<PathBuf, String>,
+        files: &mut HashMap<(StableSource, String), String>,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<()> {
         match self {

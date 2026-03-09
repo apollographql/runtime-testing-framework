@@ -214,9 +214,9 @@ pub enum FileType {
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
 pub struct CustomProviderDefinitions {
-    pub(crate) test_plan: HashMap<String, CustomProviderDefinition>,
-    pub(crate) scenario: HashMap<String, CustomProviderDefinition>,
-    pub(crate) environment: HashMap<String, CustomProviderDefinition>,
+    pub test_plan: HashMap<String, CustomProviderDefinition>,
+    pub scenario: HashMap<String, CustomProviderDefinition>,
+    pub environment: HashMap<String, CustomProviderDefinition>,
 }
 
 impl CustomProviderDefinitions {

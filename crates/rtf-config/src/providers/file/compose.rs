@@ -190,7 +190,7 @@ enum_impl_compose_file_provider!(
 impl ExtractRelativeFiles for ComposeFileProvider {
     async fn try_extract_relative_files(
         &self,
-        files: &mut HashMap<PathBuf, String>,
+        files: &mut HashMap<(StableSource, String), String>,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<()> {
         match self {

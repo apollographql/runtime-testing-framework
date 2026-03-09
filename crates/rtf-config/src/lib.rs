@@ -40,10 +40,10 @@ pub struct VariableDefinition {
     /// A brief description of how this variable is used
     pub description: String,
     /// An optional default to use if this variable is not provided in the parent test plan
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default: Option<templating::Scalar>,
     /// An optional array of allowed values for this variable. Templating will fail if any values are set for this variable that are not defined here.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub allowed_values: Option<Vec<templating::Scalar>>,
 }
 

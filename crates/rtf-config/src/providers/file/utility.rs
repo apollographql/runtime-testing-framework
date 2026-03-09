@@ -24,7 +24,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
+    path::Path,
 };
 use tracing::error;
 
@@ -267,7 +267,7 @@ impl Check for MergeYaml {
 impl ExtractRelativeFiles for MergeYaml {
     async fn try_extract_relative_files(
         &self,
-        files: &mut HashMap<PathBuf, String>,
+        files: &mut HashMap<(StableSource, String), String>,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<()> {
         if let MergeFileProvider::RelativePath(p) = &self.base {
