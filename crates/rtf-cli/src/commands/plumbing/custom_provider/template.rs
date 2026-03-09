@@ -38,8 +38,10 @@ pub async fn template_custom_provider(
         vars_file_src,
     ) = parse_cli_variables(variables, &ctx)?;
 
-    let stable_src =
-        StableSource::CustomProvider(definition.name.clone(), CustomProviderSection::TestPlan);
+    let stable_src = StableSource::CustomProvider {
+        section: CustomProviderSection::TestPlan,
+        ident: definition.name.clone(),
+    };
     ctx.set_sources(
         Sources::default()
             .with_custom_provider_source(definition.name.clone(), source)

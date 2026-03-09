@@ -419,7 +419,7 @@ impl FileProvider {
 impl ExtractRelativeFiles for FileProvider {
     async fn try_extract_relative_files(
         &self,
-        files: &mut HashMap<PathBuf, String>,
+        files: &mut HashMap<(StableSource, String), String>,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<()> {
         match self {
@@ -617,7 +617,7 @@ pub struct RelativeFile {
     pub(crate) path: Field<String>,
 
     /// Set during TestPlan parsing as part of overrides and templating.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(skip)]
     #[doc(hidden)]
     pub(crate) src: Option<StableSource>,

@@ -111,9 +111,12 @@ impl Sources {
     ///
     /// The provider is registered under [CustomProviderSection::TestPlan] so that path fields
     /// stamped with [StableSource::CustomProvider] during templating resolve correctly.
-    pub fn with_custom_provider_source(mut self, name: String, source: SourceDir) -> Self {
+    pub fn with_custom_provider_source(mut self, ident: String, source: SourceDir) -> Self {
         self.custom_provider_sources.insert(
-            StableSource::CustomProvider(name, CustomProviderSection::TestPlan),
+            StableSource::CustomProvider {
+                section: CustomProviderSection::TestPlan,
+                ident,
+            },
             source,
         );
         self
@@ -176,7 +179,7 @@ impl Sources {
             StableSource::TestPlan => self.test_plan(),
             StableSource::Environment => self.environment(),
             StableSource::Scenario => self.scenario(),
-            StableSource::CustomProvider(_, _) => self
+            StableSource::CustomProvider { .. } => self
                 .custom_provider_sources
                 .get(src)
                 .expect("custom provider source not found"),
@@ -223,14 +226,16 @@ async fn load_custom_providers(
 
         match declaration.try_load_all(source_dir, ctx).await {
             Ok(providers) => {
-                for (name, (source_dir, definition)) in providers {
-                    match definitions.insert(name.clone(), definition) {
+                for (ident, (source_dir, definition)) in providers {
+                    match definitions.insert(ident.clone(), definition) {
                         Some(_) => errs.push(format!(
-                            "{section_label}:\n - {name}: duplicate custom provider name"
+                            "{section_label}:\n - {ident}: duplicate custom provider name"
                         )),
                         None => {
-                            custom_provider_sources
-                                .insert(StableSource::CustomProvider(name, section), source_dir);
+                            custom_provider_sources.insert(
+                                StableSource::CustomProvider { section, ident },
+                                source_dir,
+                            );
                         }
                     }
                 }

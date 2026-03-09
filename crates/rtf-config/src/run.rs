@@ -3,6 +3,7 @@
 //! Running a given test plan section (scenario, environment) is split into two stages: resolution
 //! of file providers and execution of the command itself.
 use crate::{
+    StableSource,
     context::ResolutionContext,
     inlining::{self, InlineMode},
     providers::{
@@ -51,23 +52,26 @@ pub enum Provider<'a> {
 
 pub(crate) async fn try_read_relative_file(
     rf: &RelativeFile,
-    files: &mut HashMap<PathBuf, String>,
+    files: &mut HashMap<(StableSource, String), String>,
     ctx: &impl ResolutionContext,
 ) -> providers::Result<()> {
-    let path = PathBuf::from(rf.path.as_resolved());
-    if files.contains_key(&path) {
+    let key = (
+        rf.src.clone().expect("no source"),
+        rf.path.as_resolved().to_string(),
+    );
+    if files.contains_key(&key) {
         return Ok(());
     }
 
     let content = rf.try_get_file_content(ctx).await?;
-    files.insert(path, content);
+    files.insert(key, content);
 
     Ok(())
 }
 
 pub(crate) async fn try_read_relative_dir(
     rd: &RelativeDir,
-    files: &mut HashMap<PathBuf, String>,
+    files: &mut HashMap<(StableSource, String), String>,
     ctx: &impl ResolutionContext,
 ) -> providers::Result<()> {
     for rf in rd.as_relative_files() {
@@ -81,7 +85,7 @@ pub(crate) async fn try_read_relative_dir(
 pub(crate) trait ExtractRelativeFiles {
     async fn try_extract_relative_files(
         &self,
-        files: &mut HashMap<PathBuf, String>,
+        files: &mut HashMap<(StableSource, String), String>,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<()>;
 }
@@ -92,7 +96,7 @@ pub trait RunProviders {
 
     async fn try_extract_relative_files(
         &self,
-        files: &mut HashMap<PathBuf, String>,
+        files: &mut HashMap<(StableSource, String), String>,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<()> {
         for (_, provider) in self.named_providers() {
