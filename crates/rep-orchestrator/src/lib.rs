@@ -7,8 +7,18 @@ use axum::{
 };
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
+use tracing::info;
 
+pub mod context;
 pub mod endpoints;
+pub mod resolver;
+pub mod test_execution;
+pub mod test_run;
+
+use context::ServerState;
+use resolver::test_plan_resolver_task;
+
+const DEFAULT_PORT: u16 = 8035;
 
 pub async fn run_server() -> anyhow::Result<()> {
     // Read env vars
@@ -21,21 +31,26 @@ pub async fn run_server() -> anyhow::Result<()> {
     // check DB connectivity
 
     // spawn event loop task
-    // spawn test plan resolver task
 
-    let routes = build_routes();
-    let port = 8035; // will need to be read from env var
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let (state, rx) = ServerState::new();
 
-    // Start axum server
+    info!("spawning test plan resolver task");
+    tokio::spawn(test_plan_resolver_task(rx));
+
+    info!("starting axum server");
+    let routes = build_routes(state);
+    let addr = SocketAddr::from(([0, 0, 0, 0], DEFAULT_PORT));
     let listener = TcpListener::bind(addr).await.unwrap();
+
     serve(listener, routes).await?;
 
     Ok(())
 }
 
-fn build_routes() -> Router {
-    Router::new().route("/test-run/trigger", post(endpoints::trigger::handler))
+fn build_routes(state: ServerState) -> Router {
+    Router::new()
+        .route("/test-run/trigger", post(endpoints::trigger::handler))
+        .with_state(state)
 }
 
 pub struct AppError(pub anyhow::Error);

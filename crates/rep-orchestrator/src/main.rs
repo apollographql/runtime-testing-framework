@@ -12,9 +12,9 @@ async fn main() {
         .flatten_event(true)
         .with_span_list(true)
         .with_current_span(false)
-        .with_file(true)
-        .with_line_number(true)
-        .with_thread_ids(true)
+        // .with_file(true)
+        // .with_line_number(true)
+        // .with_thread_ids(true)
         .finish();
 
     // TODO: wire up a reload handle for runtime setting of the logging filter
