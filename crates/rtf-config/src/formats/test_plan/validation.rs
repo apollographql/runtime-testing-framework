@@ -1,8 +1,8 @@
 use crate::{
-    VariableDefinition,
+    StableSource, VariableDefinition,
+    context::ResolutionContext,
     formats::TestPlanConfig,
-    providers::file::SourceDir,
-    templating::{self, Scalar, Template, TemplateContext},
+    templating::{self, CustomProviderDefinitions, Scalar, Template, TemplateContext},
 };
 use std::collections::{HashMap, HashSet};
 
@@ -22,25 +22,24 @@ impl TestPlanConfig {
     /// configuration for conflicting keys and dimensions, and checks the overall template context for errors.
     pub fn check_templating_will_work(
         &mut self,
-        variable_sources: &HashMap<String, SourceDir>,
+        variable_sources: &HashMap<String, StableSource>,
+        ctx: &impl ResolutionContext,
     ) -> templating::Result<()> {
+        let tp_source = StableSource::TestPlan;
+        let custom_providers = ctx.custom_provider_definitions();
         let stub_variables = self
             .allowed_variables()
             .into_iter()
             .map(|var| (var.to_string(), Scalar::String(var.to_string())))
             .collect();
 
-        let ctx = TemplateContext::new(
-            stub_variables,
-            self.sources.test_plan().clone(),
-            HashMap::new(),
-            self.sources.custom_providers(),
-        );
+        let template_ctx =
+            TemplateContext::new(stub_variables, HashMap::new(), custom_providers.clone());
 
         let mut errs = templating::ErrorBuilder::new();
-        self.validate_all_variable_definitions(&mut errs);
+        self.validate_all_variable_definitions(&custom_providers, &mut errs);
 
-        let effective_allowed = self.compute_effective_allowed_values(&mut errs);
+        let effective_allowed = self.compute_effective_allowed_values(&custom_providers, &mut errs);
         self.validate_values_against_allowed(variable_sources, &effective_allowed, &mut errs);
 
         self.matrix
@@ -49,15 +48,18 @@ impl TestPlanConfig {
         errs.append(self.validate_context(
             &mut Vec::new(),
             &HashSet::new(), // overwritten in self.validate_context
-            self.sources.test_plan(),
-            &ctx,
+            &tp_source,
+            &template_ctx,
         ));
 
         errs.into_result(())
     }
 
     /// Returns all variable definition sources as (path, variable_definitions) pairs.
-    fn variable_definition_sources(&self) -> Vec<(Vec<String>, Vec<VariableDefinition>)> {
+    fn variable_definition_sources(
+        &self,
+        custom_providers: &CustomProviderDefinitions,
+    ) -> Vec<(Vec<String>, Vec<VariableDefinition>)> {
         let mut sources: Vec<(Vec<String>, Vec<VariableDefinition>)> = vec![
             (
                 vec!["environment".into()],
@@ -69,14 +71,13 @@ impl TestPlanConfig {
             ),
         ];
 
-        let custom_providers = self.sources.custom_providers();
         let sections = [
             &custom_providers.test_plan,
             &custom_providers.scenario,
             &custom_providers.environment,
         ];
         for definitions in sections.into_iter() {
-            for (name, (_, def)) in definitions.iter() {
+            for (name, def) in definitions.iter() {
                 sources.push((
                     vec!["custom_providers".into(), name.clone()],
                     def.variable_definitions.clone(),
@@ -88,8 +89,15 @@ impl TestPlanConfig {
     }
 
     /// Validate all the variable definitions
-    fn validate_all_variable_definitions(&self, errs: &mut templating::ErrorBuilder) {
-        for (path, variable_definitions) in self.variable_definition_sources().into_iter() {
+    fn validate_all_variable_definitions(
+        &self,
+        custom_providers: &CustomProviderDefinitions,
+        errs: &mut templating::ErrorBuilder,
+    ) {
+        for (path, variable_definitions) in self
+            .variable_definition_sources(custom_providers)
+            .into_iter()
+        {
             for vd in variable_definitions.iter() {
                 let full_path: Vec<String> = path
                     .iter()
@@ -104,11 +112,14 @@ impl TestPlanConfig {
     /// Collect all variable definitions grouped by name, with their source paths for error messages
     fn collect_variable_definitions_by_name(
         &self,
+        custom_providers: &CustomProviderDefinitions,
     ) -> HashMap<String, Vec<(Vec<String>, VariableDefinition)>> {
         let mut defs_by_name: HashMap<String, Vec<(Vec<String>, VariableDefinition)>> =
             HashMap::new();
 
-        for (path, variable_definitions) in self.variable_definition_sources().iter() {
+        for (path, variable_definitions) in
+            self.variable_definition_sources(custom_providers).iter()
+        {
             for vd in variable_definitions.iter() {
                 let full_path: Vec<String> = path
                     .iter()
@@ -130,9 +141,10 @@ impl TestPlanConfig {
     /// Adds errors to `errs` if definitions have incompatible (empty intersection) allowed values.
     fn compute_effective_allowed_values(
         &self,
+        custom_providers: &CustomProviderDefinitions,
         errs: &mut templating::ErrorBuilder,
     ) -> HashMap<String, Vec<Scalar>> {
-        let definitions_by_name = self.collect_variable_definitions_by_name();
+        let definitions_by_name = self.collect_variable_definitions_by_name(custom_providers);
 
         let mut effective: HashMap<String, Vec<Scalar>> = HashMap::new();
 
@@ -188,7 +200,7 @@ impl TestPlanConfig {
     /// Validate that all variable values are in their effective allowed values.
     fn validate_values_against_allowed(
         &self,
-        variable_sources: &HashMap<String, SourceDir>,
+        variable_sources: &HashMap<String, StableSource>,
         effective_allowed: &HashMap<String, Vec<Scalar>>,
         errs: &mut templating::ErrorBuilder,
     ) {
@@ -256,7 +268,8 @@ impl TestPlanConfig {
 #[cfg(test)]
 mod tests {
     use crate::{
-        SourceDir, VariableDefinition,
+        SourceDir, StableSource, VariableDefinition,
+        context::{Context, ResolutionContext},
         formats::{
             CustomProviderDeclaration, CustomProviderDefinition, EnvironmentConfig, Matrix,
             ScenarioConfig, TestPlanConfig,
@@ -306,10 +319,11 @@ mod tests {
         }
     }
 
-    // Helper to create a TestPlanConfig with custom provider definitions for testing
+    // Helper to create a TestPlanConfig with custom provider definitions for testing.
+    // Returns (TestPlanConfig, Context) where the context holds the custom provider sources.
     fn test_plan_with_custom_provider_definitions(
         custom_provider_variable_definitions: Vec<VariableDefinition>,
-    ) -> TestPlanConfig {
+    ) -> (TestPlanConfig, Context) {
         let custom_provider_def = CustomProviderDefinition {
             name: "test_provider".into(),
             description: "A test provider".into(),
@@ -318,22 +332,22 @@ mod tests {
         };
 
         let mut custom_providers = CustomProviderDefinitions::default();
-        custom_providers.test_plan.insert(
-            "test_provider".into(),
-            (SourceDir::default(), custom_provider_def),
-        );
+        custom_providers
+            .test_plan
+            .insert("test_provider".into(), custom_provider_def);
 
         let sources = Sources::with_custom_providers(
             SourceDir::default(),
             None,
             None,
             Arc::new(custom_providers),
+            Default::default(),
         );
 
-        TestPlanConfig {
-            sources,
-            ..TestPlanConfig::empty()
-        }
+        let mut ctx = Context::new();
+        ctx.set_sources(sources);
+
+        (TestPlanConfig::empty(), ctx)
     }
 
     /// Create a matrix with two variables per key provided
@@ -401,7 +415,7 @@ mod tests {
             &[],
         );
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &Context::new());
         assert!(
             res.is_ok(),
             "expected templating will work to succeed, got {:?}",
@@ -429,7 +443,7 @@ mod tests {
 
         let expected_err_kind = ErrorKind::ConflictingVariables;
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &Context::new());
         assert!(
             res.is_err(),
             "expected templating will work to fail, got {:?}",
@@ -462,7 +476,7 @@ mod tests {
 
         let expected_err_kind = ErrorKind::EmptyMatrixVariable;
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &Context::new());
         assert!(
             res.is_err(),
             "expected templating will work to fail, got {:?}",
@@ -502,7 +516,7 @@ mod tests {
         let expected_err_kind = ErrorKind::InconsistentMatrixVariable;
         let expected_err_message = "foo";
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &Context::new());
         assert!(
             res.is_err(),
             "expected templating will work to fail, got {:?}",
@@ -534,7 +548,7 @@ mod tests {
         let expected_err_kind = ErrorKind::InconsistentMatrixInclude;
         let expected_err_message = "matrix include maps must share consistent keys and types";
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &Context::new());
         assert!(
             res.is_err(),
             "expected templating will work to fail, got {:?}",
@@ -579,7 +593,7 @@ mod tests {
             &[],
         );
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &Context::new());
         assert!(
             res.is_err(),
             "expected templating will work to fail, got {:?}",
@@ -638,7 +652,7 @@ mod tests {
         );
         let expected_errs = expected_errs.into_result("").unwrap_err();
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &Context::new());
         assert!(
             res.is_err(),
             "expected templating will work to fail, got {:?}",
@@ -685,7 +699,7 @@ mod tests {
             ..TestPlanConfig::empty()
         };
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &Context::new());
         assert!(
             res.is_ok(),
             "expected templating will work to succeed, got {:?}",
@@ -716,7 +730,7 @@ mod tests {
             ..TestPlanConfig::empty()
         };
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &Context::new());
         assert!(
             res.is_ok(),
             "expected templating will work to succeed with valid allowed_values, got {:?}",
@@ -769,7 +783,7 @@ mod tests {
             ..TestPlanConfig::empty()
         };
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &Context::new());
         assert!(
             res.is_err(),
             "expected templating will work to fail for empty allowed_values, got {:?}",
@@ -839,7 +853,7 @@ mod tests {
             ..TestPlanConfig::empty()
         };
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &Context::new());
         assert!(
             res.is_err(),
             "expected templating will work to fail for default not in allowed_values, got {:?}",
@@ -904,7 +918,7 @@ mod tests {
             ..TestPlanConfig::empty()
         };
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &Context::new());
         assert!(
             res.is_err(),
             "expected templating will work to fail, got {:?}",
@@ -934,14 +948,14 @@ mod tests {
 
     #[test]
     fn check_templating_will_work_custom_provider_valid_allowed_values() {
-        let mut test_plan =
+        let (mut test_plan, ctx) =
             test_plan_with_custom_provider_definitions(vec![variable_with_allowed_values(
                 "env_type",
                 Some("dev"),
                 Some(vec!["dev", "staging", "prod"]),
             )]);
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &ctx);
         assert!(
             res.is_ok(),
             "expected templating will work to succeed with valid custom provider allowed_values, got {:?}",
@@ -952,14 +966,14 @@ mod tests {
     #[test]
     fn check_templating_will_work_custom_provider_empty_allowed_values_errors() {
         // Use None for default to avoid also triggering DefaultNotInAllowedValues
-        let mut test_plan =
+        let (mut test_plan, ctx) =
             test_plan_with_custom_provider_definitions(vec![variable_with_allowed_values(
                 "env_type",
                 None,
                 Some(vec![]),
             )]);
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &ctx);
         assert!(
             res.is_err(),
             "expected templating will work to fail for custom provider with empty allowed_values, got {:?}",
@@ -988,14 +1002,14 @@ mod tests {
 
     #[test]
     fn check_templating_will_work_custom_provider_default_not_in_allowed_values_errors() {
-        let mut test_plan =
+        let (mut test_plan, ctx) =
             test_plan_with_custom_provider_definitions(vec![variable_with_allowed_values(
                 "env_type",
                 Some("test"),
                 Some(vec!["dev", "staging", "prod"]),
             )]);
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &ctx);
         assert!(
             res.is_err(),
             "expected templating will work to fail for custom provider with default not in allowed_values, got {:?}",
@@ -1051,7 +1065,7 @@ mod tests {
             ..TestPlanConfig::empty()
         };
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &Context::new());
         assert!(
             res.is_ok(),
             "expected compatible allowed_values to succeed, got {:?}",
@@ -1082,7 +1096,7 @@ mod tests {
             ..TestPlanConfig::empty()
         };
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &Context::new());
         assert!(res.is_err(), "expected incompatible allowed_values to fail");
 
         let errors = res.unwrap_err();
@@ -1133,7 +1147,7 @@ mod tests {
             ..TestPlanConfig::empty()
         };
 
-        let res = test_plan.check_templating_will_work(&HashMap::new());
+        let res = test_plan.check_templating_will_work(&HashMap::new(), &Context::new());
         assert!(
             res.is_err(),
             "expected matrix {} with invalid value to fail",
@@ -1184,13 +1198,13 @@ mod tests {
             ..TestPlanConfig::empty()
         };
 
-        let variable_sources: HashMap<String, SourceDir> = if is_cli_override {
-            [("foo".into(), SourceDir::local("/cli"))].into()
+        let variable_sources: HashMap<String, StableSource> = if is_cli_override {
+            [("foo".into(), StableSource::Cli)].into()
         } else {
             HashMap::new()
         };
 
-        let res = test_plan.check_templating_will_work(&variable_sources);
+        let res = test_plan.check_templating_will_work(&variable_sources, &Context::new());
         assert!(
             res.is_err(),
             "expected {} with invalid value to fail",

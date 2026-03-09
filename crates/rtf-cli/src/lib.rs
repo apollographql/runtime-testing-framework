@@ -1,7 +1,8 @@
 //! Runtime Testing Framework CLI - a swiss army knife for testing the Apollo Runtime
 use anyhow::{Context, anyhow};
 use rtf_config::{
-    SourceDir, context::ResolutionContext, formats::TestPlanConfig, templating::Scalar,
+    SourceDir, StableSource, context::ResolutionContext, formats::TestPlanConfig,
+    templating::Scalar,
 };
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -25,12 +26,15 @@ enum ScalarOrArray {
 }
 
 impl cli::Variables {
-    /// Parse variables coming from CLI flags into a form that we can merge with the test plan
+    /// Parse variables coming from CLI flags into a form that we can merge with the test plan.
+    ///
+    /// Returns the parsed variables alongside the [SourceDir] of the `--vars` file, if one was
+    /// provided. Callers are responsible for incorporating this into [Sources] via
+    /// [Sources::with_variables_file] before calling [ResolutionContext::set_sources].
     pub(crate) fn parse(
         self,
-        cwd_source: &SourceDir,
         ctx: &impl ResolutionContext,
-    ) -> anyhow::Result<ParsedVariables> {
+    ) -> anyhow::Result<(ParsedVariables, Option<SourceDir>)> {
         let variable_json_data = match self.vars.as_ref() {
             Some(path) => {
                 let s = ctx.read_path_to_string(path)?;
@@ -43,19 +47,23 @@ impl cli::Variables {
                     .expect("we just read the file so we know it has a parent")
                     .to_owned();
 
-                Some((SourceDir::local(source_dir), variables_json))
+                Some((StableSource::VariablesFile, variables_json, source_dir))
             }
 
             None => None,
         };
 
-        self.parse_inner(variable_json_data, cwd_source)
+        let vars_file_src = variable_json_data
+            .as_ref()
+            .map(|(_, _, src)| SourceDir::local(src));
+        let variable_json_data = variable_json_data.map(|(stable_src, json, _)| (stable_src, json));
+
+        Ok((self.parse_inner(variable_json_data)?, vars_file_src))
     }
 
     fn parse_inner(
         self,
-        variable_json_data: Option<(SourceDir, HashMap<String, ScalarOrArray>)>,
-        cwd_source: &SourceDir,
+        variable_json_data: Option<(StableSource, HashMap<String, ScalarOrArray>)>,
     ) -> anyhow::Result<ParsedVariables> {
         let mut variables = HashMap::new();
         let mut matrix_dimensions = HashMap::new();
@@ -88,7 +96,7 @@ impl cli::Variables {
             }
 
             let v: Scalar = serde_yaml::from_str(v).context(format!("invalid value for {k:?}"))?;
-            variable_sources.insert(k.to_string(), cwd_source.clone());
+            variable_sources.insert(k.to_string(), StableSource::Cli);
             variables.insert(k.to_string(), v);
         }
 
@@ -101,14 +109,19 @@ impl cli::Variables {
 
     /// Merge any variables obtained from the CLI with the ones found in a test plan, removing any
     /// existing variable or matrix definitions with the same key.
+    ///
+    /// Returns the variable sources map alongside the [SourceDir] of the `--vars` file, if one
+    /// was provided. Callers are responsible for incorporating this into [rtf_config::formats::Sources] via
+    /// [ResolutionContext::set_sources].
     pub fn merge(
         self,
         test_plan: &mut TestPlanConfig,
-        cwd_source: &SourceDir,
-        ctx: &mut impl ResolutionContext,
-    ) -> anyhow::Result<HashMap<String, SourceDir>> {
-        self.parse(cwd_source, ctx)?
-            .merge_inner(&mut test_plan.variables, &mut test_plan.matrix.dimensions)
+        ctx: &impl ResolutionContext,
+    ) -> anyhow::Result<(HashMap<String, StableSource>, Option<SourceDir>)> {
+        let (parsed, vars_file_src) = self.parse(ctx)?;
+        let variable_sources =
+            parsed.merge_inner(&mut test_plan.variables, &mut test_plan.matrix.dimensions)?;
+        Ok((variable_sources, vars_file_src))
     }
 }
 
@@ -117,7 +130,7 @@ impl cli::Variables {
 pub(crate) struct ParsedVariables {
     variables: HashMap<String, Scalar>,
     matrix_dimensions: HashMap<String, Vec<Scalar>>,
-    variable_sources: HashMap<String, SourceDir>,
+    variable_sources: HashMap<String, StableSource>,
 }
 
 impl ParsedVariables {
@@ -126,7 +139,7 @@ impl ParsedVariables {
         self,
         variables_from_test_plan: &mut HashMap<String, Scalar>,
         matrix_from_test_plan: &mut HashMap<String, Vec<Scalar>>,
-    ) -> anyhow::Result<HashMap<String, SourceDir>> {
+    ) -> anyhow::Result<HashMap<String, StableSource>> {
         for (k, dim) in self.matrix_dimensions.into_iter() {
             variables_from_test_plan.remove(&k);
             matrix_from_test_plan.insert(k.clone(), dim);
@@ -144,7 +157,7 @@ impl ParsedVariables {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rtf_config::templating::Scalar;
+    use rtf_config::{StableSource, templating::Scalar};
     use serde_json::json;
     use simple_test_case::test_case;
     use std::path::PathBuf;
@@ -177,15 +190,12 @@ mod tests {
         };
 
         let parsed = from_cli
-            .parse_inner(
-                Some((
-                    SourceDir::local("/json_variables"),
-                    variables_json!({
-                        "bar": "laugh", "baz": false
-                    }),
-                )),
-                &SourceDir::local("/cli"),
-            )
+            .parse_inner(Some((
+                StableSource::VariablesFile,
+                variables_json!({
+                    "bar": "laugh", "baz": false
+                }),
+            )))
             .unwrap();
         parsed.merge_inner(&mut variables, &mut matrix).unwrap();
 
@@ -230,15 +240,12 @@ mod tests {
         assert_eq!(&initial_matrix_dimensions, &["bar", "baz"]);
 
         let parsed = from_cli
-            .parse_inner(
-                Some((
-                    SourceDir::local("/json_variables"),
-                    variables_json!({
-                        "foo": [2], "baz": 42
-                    }),
-                )),
-                &SourceDir::local("/cli"),
-            )
+            .parse_inner(Some((
+                StableSource::VariablesFile,
+                variables_json!({
+                    "foo": [2], "baz": 42
+                }),
+            )))
             .unwrap();
         parsed.merge_inner(&mut variables, &mut matrix).unwrap();
 
@@ -264,7 +271,7 @@ mod tests {
             vars: None,
         };
 
-        let res = from_cli.parse_inner(None, &SourceDir::local("/cli"));
+        let res = from_cli.parse_inner(None);
 
         assert!(res.is_err(), "expected error, ended up with {res:?}");
     }

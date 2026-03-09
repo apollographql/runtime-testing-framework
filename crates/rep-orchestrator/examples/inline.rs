@@ -3,17 +3,16 @@ use rtf_cli::{
     commands::{get_context_and_check_outdir, load_and_resolve_test_plan_from_local},
 };
 use rtf_config::{
-    DirFile, SourceDir,
+    DirFile, StableSource,
     context::ResolutionContext,
-    formats::TestPlanConfig,
+    formats::{Sources, TestPlanConfig},
     templating::{Template, TemplateContext},
 };
 use serde::Serialize;
 use std::{
     collections::HashMap,
-    env::{self, current_dir},
+    env::{self},
     mem::take,
-    path::PathBuf,
 };
 use tracing::info;
 
@@ -23,7 +22,6 @@ const OUTDIR: &str = "output";
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let test_plan_path = env::args().nth(1).expect("need a test plan path");
-    let cwd = current_dir()?;
     let (ctx, _outdir) = get_context_and_check_outdir(OUTDIR, false)?;
     let variables = Variables {
         var: Vec::new(),
@@ -31,19 +29,19 @@ async fn main() -> anyhow::Result<()> {
     };
 
     info!("loading and resolving test plan");
-    let test_plan = load_and_resolve_test_plan_from_local(&test_plan_path, &ctx).await?;
-
-    extract_relative_files_with_context(test_plan, variables, ctx, cwd, OUTDIR).await
+    let (test_plan, sources) = load_and_resolve_test_plan_from_local(&test_plan_path, &ctx).await?;
+    extract_relative_files_with_context(test_plan, sources, variables, ctx, OUTDIR).await
 }
 
 async fn extract_relative_files_with_context(
     mut test_plan: TestPlanConfig,
+    sources: Sources,
     variables: Variables,
     mut ctx: impl ResolutionContext,
-    cwd: PathBuf,
     outdir: &str,
 ) -> anyhow::Result<()> {
-    let variable_sources = variables.merge(&mut test_plan, &SourceDir::local(cwd), &mut ctx)?;
+    let (variable_sources, vars_file_src) = variables.merge(&mut test_plan, &ctx)?;
+    ctx.set_sources(sources.with_variables_file(vars_file_src));
 
     info!("creating output directory");
     ctx.create_dir_all(outdir)?;
@@ -57,20 +55,18 @@ async fn extract_relative_files_with_context(
         i += 1;
 
         let variables = take(&mut variant.variables);
-        let source = variant.sources.test_plan().clone();
         let template_ctx = TemplateContext::new(
             variables,
-            variant.sources.test_plan().clone(),
             variable_sources.clone(),
-            variant.sources.custom_providers(),
+            ctx.custom_provider_definitions(),
         );
 
         info!("extracting relative file providers for matrix variant {i}/{n}");
-        variant.try_template(&mut Vec::new(), &source, &template_ctx)?;
+        variant.try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)?;
         variant.try_extract_relative_files(&mut files, &ctx).await?;
     }
 
-    let yaml_test_plan = test_plan.as_yaml_map_without_sources()?;
+    let yaml_test_plan = serde_yaml::to_value(&test_plan)?;
     let mut relative_files: Vec<DirFile> = files
         .into_iter()
         .map(|(path, content)| DirFile { path, content })

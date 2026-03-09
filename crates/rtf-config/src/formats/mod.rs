@@ -15,7 +15,7 @@ pub use environment::{
 pub use matrix::Matrix;
 use rtf_integrations::github;
 pub use scenario::{ScenarioCommand, ScenarioConfig};
-pub use test_plan::{RawTestPlanConfig, TestPlanConfig};
+pub use test_plan::{RawTestPlanConfig, Sources, TestPlanConfig};
 
 /// Errors that can be encountered resolving config files
 #[derive(Debug, thiserror::Error)]
@@ -66,7 +66,7 @@ mod tests {
         VariableDefinition,
         checks::Check,
         context::Context,
-        providers::file::{FileProvider, NamedFileProvider, RelativeFile, SourceDir},
+        providers::file::{FileProvider, NamedFileProvider, RelativeFile, StableSource},
         templating::{ErrorKind, Field, Scalar, Template, TemplateContext},
     };
 
@@ -168,7 +168,7 @@ mod tests {
         expected_err_messages: Vec<String>,
         expected_err_paths: Vec<String>,
     ) {
-        let res = t.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
+        let res = t.try_template(&mut Vec::new(), &StableSource::TestPlan, &ctx);
         assert!(res.is_err(), "expected templating to fail, got {res:?}");
 
         let errors = res.unwrap_err();

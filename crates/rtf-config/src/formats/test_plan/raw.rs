@@ -6,7 +6,7 @@ use crate::{
         TestPlanConfig, test_plan::Sources,
     },
     merge_yaml,
-    providers::file::{RawSource, SourceDir},
+    providers::file::{RawSource, SourceDir, StableSource},
     templating::Scalar,
 };
 use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
@@ -45,7 +45,7 @@ impl RawTestPlanConfig {
         self,
         tp_source: SourceDir,
         ctx: &impl ResolutionContext,
-    ) -> Result<TestPlanConfig> {
+    ) -> Result<(TestPlanConfig, Sources)> {
         let res = self
             .environment
             .try_into_config_with_source::<EnvironmentConfig>(&tp_source, ctx)
@@ -80,16 +80,18 @@ impl RawTestPlanConfig {
             )
             .await?;
 
-        Ok(TestPlanConfig {
-            name: self.name,
-            description: self.description,
-            variables: self.variables,
-            matrix: self.matrix.into(),
-            custom_providers: self.custom_providers,
-            scenario,
-            environment,
+        Ok((
+            TestPlanConfig {
+                name: self.name,
+                description: self.description,
+                variables: self.variables,
+                matrix: self.matrix.into(),
+                custom_providers: self.custom_providers,
+                scenario,
+                environment,
+            },
             sources,
-        })
+        ))
     }
 }
 
@@ -190,7 +192,7 @@ impl ConfigSpec {
                     }
 
                     let mut base: serde_yaml::Value = serde_yaml::from_str(&file_content)?;
-                    let yaml_src = serde_yaml::to_value(tp_source)?;
+                    let yaml_src = serde_yaml::to_value(&StableSource::TestPlan)?;
                     set_source_for_relative_paths(&mut overrides, &yaml_src);
                     merge_yaml(overrides, &mut base);
 
@@ -242,36 +244,6 @@ fn set_source_for_relative_paths(val: &mut serde_yaml::Value, src: &serde_yaml::
         Value::Sequence(seq) => {
             for v in seq {
                 set_source_for_relative_paths(v, src);
-            }
-        }
-
-        _ => (),
-    }
-}
-
-/// This is the inverse of `set_source_for_relative_paths`.
-///
-/// We use this to keep sources as an internal detail of Test Plans when serializing out the
-/// resolved Test Plan at the end of test runs.
-pub(crate) fn strip_sources_for_relative_paths(val: &mut serde_yaml::Value) {
-    use serde_yaml::Value;
-
-    match val {
-        Value::Mapping(map) => {
-            let kind = map.get("kind").and_then(|v| v.as_str());
-            if matches!(kind, Some("relative_path" | "custom_provider")) {
-                map.remove("src");
-                return;
-            }
-
-            for v in map.values_mut() {
-                strip_sources_for_relative_paths(v);
-            }
-        }
-
-        Value::Sequence(seq) => {
-            for v in seq {
-                strip_sources_for_relative_paths(v);
             }
         }
 

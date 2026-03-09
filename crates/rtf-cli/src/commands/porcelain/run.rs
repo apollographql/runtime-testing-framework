@@ -6,18 +6,13 @@ use crate::{
     },
 };
 use rtf_config::{
+    StableSource,
     checks::Check,
     context::ResolutionContext,
-    formats::TestPlanConfig,
-    providers::file::SourceDir,
+    formats::{Sources, TestPlanConfig},
     templating::{Template, TemplateContext},
 };
-use std::{
-    collections::HashMap,
-    env::current_dir,
-    mem::take,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, mem::take, path::Path};
 use tracing::info;
 
 const VARIABLES_PATH: &str = "test-plan-variables.json";
@@ -33,30 +28,30 @@ pub async fn check_and_run_test_plan(
     force: bool,
 ) -> anyhow::Result<()> {
     let (ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
-    let cwd = current_dir()?;
 
     info!("loading and resolving test plan");
-    let test_plan = if github {
+    let (test_plan, sources) = if github {
         load_and_resolve_test_plan_from_github(test_plan_path, git_ref, &ctx).await?
     } else {
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
-
-    check_and_run_test_plan_with_context(test_plan, variables, &out_dir, cwd, run_target, ctx).await
+    check_and_run_test_plan_with_context(test_plan, sources, variables, &out_dir, run_target, ctx)
+        .await
 }
 
 async fn check_and_run_test_plan_with_context(
     mut test_plan: TestPlanConfig,
+    sources: Sources,
     variables: Variables,
     out_dir: &Path,
-    cwd: PathBuf,
     run_target: RunTarget,
     mut ctx: impl ResolutionContext,
 ) -> anyhow::Result<()> {
-    let variable_sources = variables.merge(&mut test_plan, &SourceDir::local(cwd), &mut ctx)?;
+    let (variable_sources, vars_file_src) = variables.merge(&mut test_plan, &ctx)?;
+    ctx.set_sources(sources.with_variables_file(vars_file_src));
 
     info!("checking if templating will work");
-    test_plan.check_templating_will_work(&variable_sources)?;
+    test_plan.check_templating_will_work(&variable_sources, &ctx)?;
 
     info!("creating output directory");
     ctx.create_dir_all(out_dir)?;
@@ -93,21 +88,19 @@ async fn check_and_run_test_plan_with_context(
 async fn run_one(
     mut test_plan: TestPlanConfig,
     out_dir: &Path,
-    variable_sources: &HashMap<String, SourceDir>,
+    variable_sources: &HashMap<String, StableSource>,
     run_target: &RunTarget,
     ctx: &mut impl ResolutionContext,
 ) -> anyhow::Result<()> {
     let variables = take(&mut test_plan.variables);
-    let source = test_plan.sources.test_plan().clone();
     let template_ctx = TemplateContext::new(
         variables,
-        test_plan.sources.test_plan().clone(),
         variable_sources.clone(),
-        test_plan.sources.custom_providers(),
+        ctx.custom_provider_definitions(),
     );
 
     info!("templating test plan");
-    test_plan.try_template(&mut Vec::new(), &source, &template_ctx)?;
+    test_plan.try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)?;
 
     info!("checking test plan");
     test_plan.try_check(&mut Vec::new(), ctx)?;
@@ -136,7 +129,7 @@ async fn run_one(
     )?;
     ctx.write(
         out_dir.join(RESOLVED_TP_PATH),
-        test_plan.as_yaml_string_without_sources()?,
+        serde_yaml::to_string(&test_plan)?,
     )?;
 
     info!("done");

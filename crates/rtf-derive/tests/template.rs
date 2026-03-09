@@ -1,7 +1,7 @@
 #![allow(clippy::disallowed_names)]
 
 use rtf_config::{
-    SourceDir,
+    StableSource,
     templating::{Field, Scalar, Template, TemplateContext, ValidField},
 };
 use rtf_derive::Template;
@@ -196,12 +196,7 @@ macro_rules! template_context {
             m.insert(k.to_string(), Scalar::from(k.to_string()));
         }
 
-        TemplateContext::new(
-            m,
-            SourceDir::local("/"),
-            Default::default(),
-            Default::default(),
-        )
+        TemplateContext::new(m, Default::default(), Default::default())
     }};
 }
 
@@ -219,7 +214,7 @@ macro_rules! template_context {
 #[test]
 fn try_template_all_fields(mut t: Box<dyn Template>, variables: &[&str]) {
     let template_ctx = template_context!(variables);
-    let res = t.try_template(&mut Vec::new(), &SourceDir::local("/"), &template_ctx);
+    let res = t.try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx);
     assert!(
         res.is_ok(),
         "expected to template successfully, got {res:?}"
@@ -240,7 +235,7 @@ fn try_template_all_fields(mut t: Box<dyn Template>, variables: &[&str]) {
 fn try_template_unknown_variable_error(mut t: Box<dyn Template>) {
     let template_ctx = template_context!(["unused"]);
 
-    let res = t.try_template(&mut Vec::new(), &SourceDir::local("/"), &template_ctx);
+    let res = t.try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx);
     assert!(res.is_err(), "expected templating to fail, got {res:?}");
     let errors = res.unwrap_err();
     assert!(
@@ -262,6 +257,6 @@ fn template_enum_unit_skipped() {
         "A unit type enum variant should have no required variables"
     );
 
-    let res = t.try_template(&mut Vec::new(), &SourceDir::local("/"), &template_ctx);
+    let res = t.try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx);
     assert!(res.is_ok(), "A unit type enum should template successfully");
 }

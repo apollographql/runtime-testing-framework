@@ -9,10 +9,10 @@ use crate::{
 };
 use anyhow::bail;
 use rtf_config::{
-    SourceDir,
+    SourceDir, StableSource,
     checks::Check,
     context::ResolutionContext,
-    formats::ScenarioConfig,
+    formats::{ScenarioConfig, Sources},
     run::{OUTPUT_PATH, PROVIDER_DIR, RunProviders},
     templating::{Template, TemplateContext},
 };
@@ -28,8 +28,6 @@ pub async fn resolve_scenario(
     force: bool,
 ) -> anyhow::Result<()> {
     let (mut ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
-    let cwd = current_dir()?;
-    let cwd_source = SourceDir::local(cwd);
 
     info!("loading scenario");
     let (source, mut scenario) =
@@ -40,21 +38,26 @@ pub async fn resolve_scenario(
         bail!("custom_providers are not supported by resolve scenario");
     }
 
-    let ParsedVariables {
-        variables,
-        variable_sources,
-        ..
-    } = parse_cli_variables(variables, &cwd_source, &ctx)?;
+    let (
+        ParsedVariables {
+            variables,
+            variable_sources,
+            ..
+        },
+        vars_file_src,
+    ) = parse_cli_variables(variables, &ctx)?;
 
-    let template_ctx = TemplateContext::new(
-        variables,
-        source.clone(),
-        variable_sources,
-        Default::default(),
+    ctx.set_sources(
+        Sources::default()
+            .with_scenario(source)
+            .with_cli(SourceDir::local(current_dir()?))
+            .with_variables_file(vars_file_src),
     );
 
+    let template_ctx = TemplateContext::new(variables, variable_sources, Default::default());
+
     info!("templating scenario");
-    scenario.try_template(&mut Vec::new(), &source, &template_ctx)?;
+    scenario.try_template(&mut Vec::new(), &StableSource::Scenario, &template_ctx)?;
 
     info!("running static checks");
     scenario

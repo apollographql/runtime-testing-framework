@@ -1,11 +1,11 @@
 //! File providers that act as combinators or otherwise modify the output of other providers
 use crate::{
-    SourceDir,
     checks::{self, Check},
     context::ResolutionContext,
     enum_impl_as_utf8_file_content, enum_impl_check,
     inlining::{self, InlineMode},
     merge_yaml,
+    providers::file::StableSource,
     providers::{
         self, Result,
         command::CommandSection,
@@ -55,7 +55,7 @@ impl Template for TemplatedFile {
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        _file_source: &SourceDir,
+        _file_source: &StableSource,
         _ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::new();
@@ -72,7 +72,7 @@ impl Template for TemplatedFile {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        _file_source: &SourceDir,
+        _file_source: &StableSource,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         match interpolate_variables(&self.content, ctx.variables()) {
@@ -514,7 +514,7 @@ impl Template for Conditional {
         &self,
         path: &mut Vec<String>,
         allowed_variables: &HashSet<&String>,
-        file_source: &SourceDir,
+        file_source: &StableSource,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         self.cases
@@ -524,7 +524,7 @@ impl Template for Conditional {
     fn try_template(
         &mut self,
         _path: &mut Vec<String>,
-        _file_source: &SourceDir,
+        _file_source: &StableSource,
         _ctx: &TemplateContext,
     ) -> templating::Result<()> {
         panic!(
@@ -636,9 +636,10 @@ mod tests {
     use crate::{
         checks::ErrorKind,
         context::Context,
+        mock_context::MockContext,
         providers::{
             file::{
-                FileProvider, NamedFileProvider,
+                FileProvider, NamedFileProvider, SourceDir,
                 tests::{
                     assert_check_errors, assert_resolve_and_write_error,
                     assert_resolve_and_write_success,
@@ -979,9 +980,7 @@ mod tests {
         let mut fp = Conditional { cases: vec![] };
         let _ = fp.try_template(
             &mut Vec::new(),
-            &SourceDir::Local {
-                abs_path: Default::default(),
-            },
+            &StableSource::TestPlan,
             &TemplateContext::new_stubbed(HashMap::new()),
         );
     }
@@ -1060,15 +1059,15 @@ mod tests {
 
     #[tokio::test]
     async fn text_file_provider_inline_all_relative_paths_succeeds() {
-        let ctx = Context::new();
         let file_content = "example file content";
         let relative_file_path = "file.txt";
         let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
-        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+        let src = SourceDir::local(temp.path().canonicalize().unwrap());
+        let ctx = MockContext::with_http_client(&[]).with_source(src);
 
         let mut text_file_provider = MergeFileProvider::RelativePath(RelativeFile {
             path: Field::Resolved(relative_file_path.to_string()),
-            src: Some(src.clone()),
+            src: Some(StableSource::TestPlan),
         });
 
         let result = text_file_provider.inline_all_relative_paths(&ctx).await;
@@ -1105,25 +1104,25 @@ mod tests {
     #[test_case(2; "multiple overrides")]
     #[tokio::test]
     async fn merge_yaml_inline_all_relative_paths_succeeds(num_overrides: u8) {
-        let ctx = Context::new();
         let file_content = "example file content";
         let relative_file_path = "file.txt";
         let (temp, _file_to_read) = create_temp_dir_with_file(relative_file_path, file_content);
-        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+        let src = SourceDir::local(temp.path().canonicalize().unwrap());
+        let ctx = MockContext::with_http_client(&[]).with_source(src);
 
         let overrides = match num_overrides {
             1 => Overrides::One(MergeFileProvider::RelativePath(RelativeFile {
                 path: Field::Resolved(relative_file_path.to_string()),
-                src: Some(src.clone()),
+                src: Some(StableSource::TestPlan),
             })),
             _ => Overrides::Array(vec![
                 MergeFileProvider::RelativePath(RelativeFile {
                     path: Field::Resolved(relative_file_path.to_string()),
-                    src: Some(src.clone()),
+                    src: Some(StableSource::TestPlan),
                 }),
                 MergeFileProvider::RelativePath(RelativeFile {
                     path: Field::Resolved(relative_file_path.to_string()),
-                    src: Some(src.clone()),
+                    src: Some(StableSource::TestPlan),
                 }),
             ]),
         };
@@ -1131,7 +1130,7 @@ mod tests {
         let mut merge_yaml = MergeYaml {
             base: MergeFileProvider::RelativePath(RelativeFile {
                 path: Field::Resolved(relative_file_path.to_string()),
-                src: Some(src),
+                src: Some(StableSource::TestPlan),
             }),
             overrides,
         };
@@ -1231,7 +1230,7 @@ mod tests {
         let mut tf = templated("hello ${name}!");
         let ctx = TemplateContext::new_stubbed(vars(&[("name", "world")]));
 
-        tf.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx)
+        tf.try_template(&mut Vec::new(), &StableSource::TestPlan, &ctx)
             .expect("try_template to succeed");
 
         let result = tf
@@ -1247,7 +1246,7 @@ mod tests {
         let mut tf = templated("value: ${unknown}");
         let ctx = TemplateContext::new_stubbed(HashMap::new());
 
-        let res = tf.try_template(&mut Vec::new(), &SourceDir::local("/"), &ctx);
+        let res = tf.try_template(&mut Vec::new(), &StableSource::TestPlan, &ctx);
 
         assert!(res.is_err(), "expected error, got {res:?}");
         let err = res.unwrap_err().unwrap_single();
@@ -1278,7 +1277,7 @@ mod tests {
         let allowed: HashSet<&String> = HashSet::from([&known]);
         let ctx = TemplateContext::new_stubbed(HashMap::new());
 
-        let res = tf.validate_context(&mut Vec::new(), &allowed, &SourceDir::local("/"), &ctx);
+        let res = tf.validate_context(&mut Vec::new(), &allowed, &StableSource::TestPlan, &ctx);
 
         assert!(res.is_err(), "expected error, got {res:?}");
         let err = res.unwrap_err().unwrap_single();

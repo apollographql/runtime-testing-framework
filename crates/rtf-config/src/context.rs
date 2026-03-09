@@ -1,4 +1,12 @@
-use crate::{providers, run::Provider};
+use crate::{
+    formats::Sources,
+    providers::{
+        self,
+        file::{SourceDir, StableSource},
+    },
+    run::Provider,
+    templating::CustomProviderDefinitions,
+};
 use rtf_integrations::{
     APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, GITHUB_TOKEN_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR,
     HttpClient, ReqwestClient, github,
@@ -91,7 +99,7 @@ pub trait ResolutionContext {
 
     /// Returns the canonical, absolute form of the path with all intermediate
     /// components normalized and symbolic links resolved.
-    fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf>;
+    fn canonicalize_path(&self, path: impl AsRef<Path>) -> io::Result<PathBuf>;
 
     fn dir_containing(&self, path: impl AsRef<Path>) -> PathBuf {
         match path.as_ref().parent() {
@@ -105,6 +113,9 @@ pub trait ResolutionContext {
     /// If you cannot access the metadata of the file, e.g. because of a permission error or broken
     /// symbolic links, this will return [PathKind::Missing].
     fn path_kind(&self, path: impl AsRef<Path>) -> PathKind;
+
+    /// Resolve a [SourceDir] from a [StableSource] logical name.
+    fn source_dir_for(&self, src: &StableSource) -> &SourceDir;
 
     /// Reads the entire contents of a file into a string.
     ///
@@ -120,6 +131,13 @@ pub trait ResolutionContext {
     ///
     /// [0]: std::fs::OpenOptions::open
     fn read_path_to_string(&self, path: impl AsRef<Path>) -> io::Result<String>;
+
+    /// Read the contents of a file relative to the given [StableSource].
+    async fn read_file_content(
+        &self,
+        src: &StableSource,
+        relative_path: impl AsRef<Path>,
+    ) -> providers::Result<String>;
 
     /// Writes a slice as the entire contents of a file.
     ///
@@ -170,6 +188,12 @@ pub trait ResolutionContext {
     /// If the empty path is passed to this function, it always succeeds without
     /// creating any directories.
     fn create_dir_all(&self, path: impl AsRef<Path>) -> io::Result<()>;
+
+    /// Store the resolved [Sources] for the current test plan.
+    fn set_sources(&mut self, sources: Sources);
+
+    /// Return the [CustomProviderDefinitions] for the current test plan.
+    fn custom_provider_definitions(&self) -> Arc<CustomProviderDefinitions>;
 }
 
 /// A [ResolutionContext] that will perform real IO.
@@ -183,6 +207,7 @@ pub struct Context {
     captured_stdout: RwLock<Vec<u8>>,
     captured_stderr: RwLock<Vec<u8>>,
     run_metadata: HashMap<&'static str, String>,
+    sources: Sources,
 }
 
 impl Context {
@@ -326,8 +351,8 @@ impl ResolutionContext for Context {
         f(details)
     }
 
-    fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
-        relative_path.as_ref().canonicalize()
+    fn canonicalize_path(&self, path: impl AsRef<Path>) -> io::Result<PathBuf> {
+        path.as_ref().canonicalize()
     }
 
     fn path_kind(&self, path: impl AsRef<Path>) -> PathKind {
@@ -351,8 +376,22 @@ impl ResolutionContext for Context {
         }
     }
 
+    fn source_dir_for(&self, src: &StableSource) -> &SourceDir {
+        self.sources.source_dir_for(src)
+    }
+
     fn read_path_to_string(&self, path: impl AsRef<Path>) -> io::Result<String> {
         fs::read_to_string(path)
+    }
+
+    async fn read_file_content(
+        &self,
+        src: &StableSource,
+        relative_path: impl AsRef<Path>,
+    ) -> providers::Result<String> {
+        let src_dir = self.sources.source_dir_for(src);
+
+        src_dir.try_get_file_content(relative_path, self).await
     }
 
     fn write(&self, path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> io::Result<()> {
@@ -412,69 +451,45 @@ impl ResolutionContext for Context {
     fn create_dir_all(&self, path: impl AsRef<Path>) -> io::Result<()> {
         fs::create_dir_all(path)
     }
+
+    fn set_sources(&mut self, sources: Sources) {
+        self.sources = sources;
+    }
+
+    fn custom_provider_definitions(&self) -> Arc<CustomProviderDefinitions> {
+        self.sources.custom_providers()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
-        SourceDir,
+        StableSource,
         providers::file::{FileProvider, RelativeFile},
         templating::Field,
     };
     use simple_test_case::test_case;
 
     #[test_case(None, None, true; "no sources")]
-    #[test_case(Some("foo/bar"), Some("foo/bar"), true; "same source")]
-    #[test_case(Some("foo/bar"), None, false; "cache with source new without")]
-    #[test_case(None, Some("foo/bar"), false; "cache without source new with")]
-    #[test_case(Some("foo/bar"), Some("foo/baz"), false; "different sources")]
+    #[test_case(Some(StableSource::TestPlan), Some(StableSource::TestPlan), true; "same source")]
+    #[test_case(Some(StableSource::TestPlan), None, false; "cache with source new without")]
+    #[test_case(None, Some(StableSource::TestPlan), false; "cache without source new with")]
+    #[test_case(Some(StableSource::TestPlan), Some(StableSource::Environment), false; "different sources")]
     #[test]
-    fn context_provider_caching_respects_relative_path_local_sources(
-        source_1: Option<&str>,
-        source_2: Option<&str>,
+    fn context_provider_caching_respects_relative_path_sources(
+        source_1: Option<StableSource>,
+        source_2: Option<StableSource>,
         path_is_known: bool,
     ) {
         let provider_1 = FileProvider::RelativePath(RelativeFile {
             path: Field::Resolved("scripts/run.sh".to_string()),
-            src: source_1.map(SourceDir::local),
+            src: source_1,
         });
 
         let provider_2 = FileProvider::RelativePath(RelativeFile {
             path: Field::Resolved("scripts/run.sh".to_string()),
-            src: source_2.map(SourceDir::local),
-        });
-
-        let mut ctx = Context::new();
-
-        ctx.store_provider_output_path(
-            Provider::File { fp: &provider_1 },
-            PathBuf::from("/some/path"),
-        );
-        let maybe_path = ctx.known_provider_output_path(Provider::File { fp: &provider_2 });
-
-        assert_eq!(maybe_path.is_some(), path_is_known);
-    }
-
-    #[test_case(None, None, true; "no sources")]
-    #[test_case(Some("foo/bar"), Some("foo/bar"), true; "same source")]
-    #[test_case(Some("foo/bar"), None, false; "cache with source new without")]
-    #[test_case(None, Some("foo/bar"), false; "cache without source new with")]
-    #[test_case(Some("foo/bar"), Some("foo/baz"), false; "different sources")]
-    #[test]
-    fn context_provider_caching_respects_relative_path_github_sources(
-        source_1: Option<&str>,
-        source_2: Option<&str>,
-        path_is_known: bool,
-    ) {
-        let provider_1 = FileProvider::RelativePath(RelativeFile {
-            path: Field::Resolved("scripts/run.sh".to_string()),
-            src: source_1.map(|path| SourceDir::github("org", "repo", path, Some("git_ref"))),
-        });
-
-        let provider_2 = FileProvider::RelativePath(RelativeFile {
-            path: Field::Resolved("scripts/run.sh".to_string()),
-            src: source_2.map(|path| SourceDir::github("org", "repo", path, Some("git_ref"))),
+            src: source_2,
         });
 
         let mut ctx = Context::new();

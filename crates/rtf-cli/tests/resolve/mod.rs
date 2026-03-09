@@ -520,6 +520,45 @@ fn resolve_environment_with_existing_outdir_and_force_succeeds() {
 }
 
 #[test]
+fn resolve_scenario_var_file_path_resolves_from_cwd() {
+    // The scenario yaml lives in one temp dir; the data file lives in another dir used as CWD.
+    // This verifies that --var paths resolve relative to the CWD of the rtf invocation,
+    // not the config file's directory.
+    let scenario_dir = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    scenario_dir
+        .copy_from(
+            "resources/scenarios/valid/var-file-from-cwd",
+            &["scenario.yaml"],
+        )
+        .unwrap();
+
+    let cwd_dir = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    cwd_dir
+        .child("data.txt")
+        .write_str("expected content")
+        .unwrap();
+
+    let output_dir = scenario_dir.child("output");
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    cmd.env_clear()
+        .current_dir(cwd_dir.path())
+        .arg("resolve")
+        .arg("scenario")
+        .arg(scenario_dir.child("scenario.yaml").path())
+        .arg("--outdir")
+        .arg(output_dir.path())
+        .arg("--var")
+        .arg("data_path=./data.txt")
+        .assert()
+        .success();
+
+    let provider_content =
+        fs::read_to_string(output_dir.child("providers/data.txt").path()).unwrap();
+    assert_eq!(provider_content, "expected content");
+}
+
+#[test]
 fn resolve_docker_compose_setup_env_has_complete_content() {
     let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from(

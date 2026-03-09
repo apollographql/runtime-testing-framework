@@ -11,10 +11,10 @@ use crate::{
     },
 };
 use rtf_config::{
-    SourceDir,
+    CustomProviderSection, SourceDir, StableSource,
     checks::Check,
     context::ResolutionContext,
-    formats::CustomProviderDefinition,
+    formats::{CustomProviderDefinition, Sources},
     run::{Execute, OUTPUT_PATH, PROVIDER_DIR},
     templating::{Template, TemplateContext},
 };
@@ -28,8 +28,6 @@ pub async fn run_custom_provider(
     force: bool,
 ) -> anyhow::Result<()> {
     let (mut ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
-    let cwd = current_dir()?;
-    let cwd_source = SourceDir::local(cwd);
 
     info!("loading custom provider definition");
     let (source, mut definition) = load_config::<CustomProviderDefinition>(
@@ -39,22 +37,30 @@ pub async fn run_custom_provider(
     )
     .await?;
 
-    let ParsedVariables {
-        variables,
-        variable_sources,
-        ..
-    } = parse_cli_variables(variables, &cwd_source, &ctx)?;
+    let (
+        ParsedVariables {
+            variables,
+            variable_sources,
+            ..
+        },
+        vars_file_src,
+    ) = parse_cli_variables(variables, &ctx)?;
 
-    let template_ctx = TemplateContext::new(
-        variables,
-        source.clone(),
-        variable_sources.clone(),
-        Default::default(),
+    let stable_src =
+        StableSource::CustomProvider(definition.name.clone(), CustomProviderSection::TestPlan);
+    ctx.set_sources(
+        Sources::default()
+            .with_custom_provider_source(definition.name.clone(), source)
+            .with_cli(SourceDir::local(current_dir()?))
+            .with_variables_file(vars_file_src),
     );
+
+    let template_ctx =
+        TemplateContext::new(variables, variable_sources.clone(), Default::default());
 
     definition.validate_variables(template_ctx.variables(), Some(&variable_sources))?;
 
-    definition.try_template(&mut Vec::new(), &source, &template_ctx)?;
+    definition.try_template(&mut Vec::new(), &stable_src, &template_ctx)?;
     definition
         .command
         .try_check(&mut vec!["custom_provider".to_string()], &ctx)?;
@@ -83,7 +89,7 @@ pub async fn run_custom_provider(
     )?;
     ctx.write(
         out_dir.join(RESOLVED_PROVIDER_PATH),
-        definition.as_yaml_string_without_sources()?,
+        serde_yaml::to_string(&definition)?,
     )?;
 
     info!("done");

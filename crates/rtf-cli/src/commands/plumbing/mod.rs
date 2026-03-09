@@ -21,10 +21,9 @@ pub use template::template_test_plan;
 
 fn parse_cli_variables(
     variables: Variables,
-    cwd_source: &SourceDir,
     ctx: &impl ResolutionContext,
-) -> anyhow::Result<ParsedVariables> {
-    let parsed = variables.parse(cwd_source, ctx)?;
+) -> anyhow::Result<(ParsedVariables, Option<SourceDir>)> {
+    let (parsed, vars_file_src) = variables.parse(ctx)?;
 
     if !parsed.matrix_dimensions.is_empty() {
         let mut keys: Vec<_> = parsed
@@ -39,5 +38,5 @@ fn parse_cli_variables(
         ));
     }
 
-    Ok(parsed)
+    Ok((parsed, vars_file_src))
 }

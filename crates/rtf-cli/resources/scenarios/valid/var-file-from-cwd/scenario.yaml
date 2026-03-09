@@ -1,0 +1,19 @@
+name: var-file-from-cwd
+description: Scenario with a file provider path supplied via --var for testing CWD resolution
+
+variable_definitions:
+  - name: data_path
+    description: Path to the data file, resolved relative to the CWD of the rtf invocation
+
+command:
+  name: test.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "ok"
+
+file_providers:
+  - name: data.txt
+    env_var: DATA_FILE
+    kind: relative_path
+    path: "{{ data_path }}"

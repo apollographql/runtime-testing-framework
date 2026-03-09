@@ -2,7 +2,7 @@ use crate::{
     checks::{self, Check},
     context::ResolutionContext,
     formats::{CustomProviderDeclaration, EnvironmentConfig, Matrix, Result, ScenarioConfig},
-    providers::file::SourceDir,
+    providers::file::{SourceDir, StableSource},
     run::{Execute, RunProviders},
     templating::{self, Scalar, Template, TemplateContext},
 };
@@ -19,7 +19,6 @@ pub(crate) mod raw;
 pub(crate) mod sources;
 
 pub use raw::RawTestPlanConfig;
-pub(crate) use raw::strip_sources_for_relative_paths;
 pub use sources::Sources;
 
 // Namespace directories for containing the file provider output from each command section
@@ -41,15 +40,13 @@ pub struct TestPlanConfig {
     pub custom_providers: Vec<CustomProviderDeclaration>,
     pub scenario: ScenarioConfig,
     pub environment: EnvironmentConfig,
-    #[serde(skip)]
-    pub sources: Sources,
 }
 
 impl TestPlanConfig {
     pub async fn try_load_and_resolve_from_path(
         p: impl AsRef<Path>,
         ctx: &impl ResolutionContext,
-    ) -> Result<Self> {
+    ) -> Result<(Self, Sources)> {
         let content = ctx.read_path_to_string(p.as_ref())?;
         let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
         let abs_path = ctx.canonicalize_path(p.as_ref())?;
@@ -64,7 +61,7 @@ impl TestPlanConfig {
         path: &str,
         git_ref: Option<String>,
         ctx: &impl ResolutionContext,
-    ) -> Result<Self> {
+    ) -> Result<(Self, Sources)> {
         let client = match ctx.github_client() {
             Some(client) => client,
             None => return Err(github::Error::NoClient.into()),
@@ -163,22 +160,7 @@ impl TestPlanConfig {
             custom_providers: Default::default(),
             scenario: ScenarioConfig::empty(),
             environment: EnvironmentConfig::empty(),
-            sources: Sources::default(),
         }
-    }
-
-    pub fn as_yaml_map_without_sources(&self) -> Result<serde_yaml::Value> {
-        let mut val = serde_yaml::to_value(self)?;
-        raw::strip_sources_for_relative_paths(&mut val);
-
-        Ok(val)
-    }
-
-    pub fn as_yaml_string_without_sources(&self) -> Result<String> {
-        let mut val = serde_yaml::to_value(self)?;
-        raw::strip_sources_for_relative_paths(&mut val);
-
-        Ok(serde_yaml::to_string(&val)?)
     }
 }
 
@@ -194,7 +176,7 @@ impl Template for TestPlanConfig {
         &self,
         path: &mut Vec<String>,
         _allowed_variables: &HashSet<&String>,
-        _file_source: &SourceDir,
+        _file_source: &StableSource,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let allowed_variables = self.allowed_variables();
@@ -202,14 +184,14 @@ impl Template for TestPlanConfig {
             path,
             "environment",
             &allowed_variables,
-            self.sources.environment(),
+            &StableSource::Environment,
             ctx,
         ));
         errs.append(self.scenario.validate_context_nested(
             path,
             "scenario",
             &allowed_variables,
-            self.sources.scenario(),
+            &StableSource::Scenario,
             ctx,
         ));
 
@@ -219,19 +201,19 @@ impl Template for TestPlanConfig {
     fn try_template(
         &mut self,
         path: &mut Vec<String>,
-        _source: &SourceDir,
+        _source: &StableSource,
         ctx: &TemplateContext,
     ) -> templating::Result<()> {
         let mut errs = templating::ErrorBuilder::from(self.environment.try_template_nested(
             path,
             "environment",
-            self.sources.environment(),
+            &StableSource::Environment,
             ctx,
         ));
         errs.append(self.scenario.try_template_nested(
             path,
             "scenario",
-            self.sources.scenario(),
+            &StableSource::Scenario,
             ctx,
         ));
 
@@ -428,6 +410,7 @@ mod tests {
             None,
             None,
             Default::default(),
+            Default::default(),
         );
 
         let res = raw_test_plan
@@ -440,8 +423,7 @@ mod tests {
             .await;
         assert!(res.is_ok(), "expected TestPlanConfig, got {res:?}");
 
-        let test_plan = res.unwrap();
-        let sources = test_plan.clone().sources;
+        let (test_plan, sources) = res.unwrap();
         assert_eq!(
             sources, expected_sources,
             "test that sources are set correctly"
@@ -619,8 +601,7 @@ mod tests {
 
         assert!(res.is_ok(), "expected TestPlanConfig, got {res:?}");
 
-        let test_plan = res.unwrap();
-        let sources = &test_plan.sources;
+        let (_, sources) = res.unwrap();
 
         assert_eq!(sources.custom_providers().test_plan.len(), 1);
         assert!(
@@ -1170,13 +1151,13 @@ mod tests {
                 abs_path: config_file_dir(&environment_file),
             }),
             Default::default(),
+            Default::default(),
         );
 
         let res = TestPlanConfig::try_load_and_resolve_from_path(tp_file.to_path_buf(), &ctx).await;
         assert!(res.is_ok(), "expected TestPlanConfig, got {res:?}");
 
-        let test_plan = res.unwrap();
-        let sources = test_plan.clone().sources;
+        let (test_plan, sources) = res.unwrap();
         assert_eq!(
             sources, expected_sources,
             "test that sources are set correctly"
@@ -1266,7 +1247,7 @@ mod tests {
         let res = TestPlanConfig::try_load_and_resolve_from_path(tp_file.to_path_buf(), &ctx).await;
         assert!(res.is_ok(), "expected TestPlanConfig, got {res:?}");
 
-        let test_plan = res.unwrap();
+        let (test_plan, _sources) = res.unwrap();
         let scenario_name = &test_plan.scenario.name;
         assert_eq!(
             scenario_name, &expected_scenario_name,
@@ -1367,7 +1348,7 @@ mod tests {
         };
         let result = test_plan.try_template(
             &mut Vec::new(),
-            &SourceDir::local("/"),
+            &StableSource::TestPlan,
             &template_context(all_fields.as_slice()),
         );
 

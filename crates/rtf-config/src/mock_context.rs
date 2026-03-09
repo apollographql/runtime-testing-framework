@@ -1,7 +1,12 @@
 use crate::{
     context::{PathKind, ResolutionContext},
-    providers,
+    formats::Sources,
+    providers::{
+        self,
+        file::{SourceDir, StableSource},
+    },
     run::Provider,
+    templating::CustomProviderDefinitions,
 };
 use bytes::Bytes;
 use reqwest::StatusCode;
@@ -21,6 +26,15 @@ pub(crate) struct MockContext<C: HttpClient + Clone> {
     http: C,
     github: Option<MockGithubClient>,
     output_path: PathBuf,
+    source: Option<SourceDir>,
+}
+
+impl<C: HttpClient + Clone> MockContext<C> {
+    /// Set the source dir used for source-relative path operations (used in tests that need IO from a specific source).
+    pub(crate) fn with_source(mut self, source: SourceDir) -> Self {
+        self.source = Some(source);
+        self
+    }
 }
 
 impl MockContext<MockHttpClient> {
@@ -29,6 +43,7 @@ impl MockContext<MockHttpClient> {
             http: MockHttpClient::with_responses(responses),
             github: None,
             output_path: PathBuf::new(),
+            source: None,
         }
     }
 }
@@ -44,6 +59,7 @@ impl MockContext<NullClient> {
                     .collect(),
             }),
             output_path: PathBuf::new(),
+            source: None,
         }
     }
 }
@@ -69,25 +85,53 @@ impl<C: HttpClient + Clone + 'static> ResolutionContext for MockContext<C> {
         &self.output_path
     }
 
-    fn canonicalize_path(&self, relative_path: impl AsRef<Path>) -> io::Result<PathBuf> {
-        relative_path.as_ref().canonicalize()
+    fn canonicalize_path(&self, path: impl AsRef<Path>) -> io::Result<PathBuf> {
+        path.as_ref().canonicalize()
     }
 
-    fn path_kind(&self, _path: impl AsRef<Path>) -> PathKind {
-        unimplemented!(
-            "If you are hitting this we have not needed to mock this yet which is why it is not implemented"
-        )
+    fn path_kind(&self, path: impl AsRef<Path>) -> PathKind {
+        let p = path.as_ref();
+        if !p.exists() {
+            PathKind::Missing
+        } else if p.is_file() {
+            PathKind::File
+        } else {
+            match p.read_dir() {
+                Ok(mut rd) => {
+                    if rd.next().is_some() {
+                        PathKind::OccupiedDir
+                    } else {
+                        PathKind::EmptyDir
+                    }
+                }
+                Err(_) => PathKind::Missing,
+            }
+        }
+    }
+
+    fn source_dir_for(&self, _src: &StableSource) -> &SourceDir {
+        self.source
+            .as_ref()
+            .expect("source not configured in MockContext - call .with_source()")
     }
 
     fn read_path_to_string(&self, path: impl AsRef<Path>) -> io::Result<String> {
         fs::read_to_string(path)
     }
 
-    fn store_provider_output_path(&mut self, _provider: Provider<'_>, _path: PathBuf) {
-        unimplemented!(
-            "If you are hitting this we have not needed to mock this yet which is why it is not implemented"
-        )
+    async fn read_file_content(
+        &self,
+        _src: &StableSource,
+        relative_path: impl AsRef<Path>,
+    ) -> providers::Result<String> {
+        let source = self
+            .source
+            .as_ref()
+            .expect("MockContext::read_file_content requires a source set via with_source");
+        source.try_get_file_content(relative_path, self).await
     }
+
+    fn store_provider_output_path(&mut self, _provider: Provider<'_>, _path: PathBuf) {}
 
     fn write(&self, path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> io::Result<()> {
         fs::write(path, contents)
@@ -124,6 +168,18 @@ impl<C: HttpClient + Clone + 'static> ResolutionContext for MockContext<C> {
     ) -> providers::Result<T> {
         panic!(
             "This should not be called in tests, we test the methods that transform the response from this method instead"
+        )
+    }
+
+    fn set_sources(&mut self, _sources: Sources) {
+        unimplemented!(
+            "If you are hitting this we have not needed to mock this yet which is why it is not implemented"
+        )
+    }
+
+    fn custom_provider_definitions(&self) -> Arc<CustomProviderDefinitions> {
+        unimplemented!(
+            "If you are hitting this we have not needed to mock this yet which is why it is not implemented"
         )
     }
 }

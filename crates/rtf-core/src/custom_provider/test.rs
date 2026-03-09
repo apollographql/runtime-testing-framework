@@ -2,10 +2,11 @@
 use anyhow::{Context as _, anyhow};
 use assert_fs::TempDir;
 use rtf_config::{
-    SourceDir,
+    StableSource,
     checks::Check,
-    context::Context,
-    formats::CustomProviderDefinition,
+    context::{Context, ResolutionContext},
+    formats::{CustomProviderDefinition, Sources},
+    providers::file::SourceDir,
     run::{Execute, OUTPUT_PATH, PROVIDER_DIR},
     templating::{Scalar, Template, TemplateContext},
 };
@@ -53,8 +54,8 @@ impl TestSuite {
         let (tx, rx) = mpsc::channel();
 
         for case in self.0.into_iter() {
-            let source = source.clone();
             let definition = definition.clone();
+            let source = source.clone();
             let tx = tx.clone();
 
             thread::spawn(move || {
@@ -73,10 +74,11 @@ impl TestSuite {
                     // We need a fresh context for each test to avoid incorrectly trying to use cached
                     // provider output that was just removed in the temp dir of a previous run
                     let mut ctx = (get_context)();
+                    ctx.set_sources(Sources::new(source.clone(), None, None));
                     ctx.enable_output_capture();
 
                     let start = Instant::now();
-                    let outcome = match case.run(&source, definition, &mut ctx).await {
+                    let outcome = match case.run(definition, &mut ctx).await {
                         Ok(outcome) => outcome,
                         Err(e) => Outcome::Run { err: e.to_string() },
                     };
@@ -269,14 +271,12 @@ impl TestCase {
 
     async fn run(
         self,
-        source: &SourceDir,
         mut definition: CustomProviderDefinition,
         ctx: &mut Context,
     ) -> anyhow::Result<Outcome> {
         debug!("building templating context");
         let template_ctx = TemplateContext::new(
             load_variables(&self.path.join(VARIABLES_FILE))?,
-            source.clone(),
             Default::default(),
             Default::default(),
         );
@@ -287,7 +287,9 @@ impl TestCase {
         }
 
         debug!("templating provider");
-        if let Err(e) = definition.try_template(&mut Vec::new(), source, &template_ctx) {
+        if let Err(e) =
+            definition.try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
+        {
             return Ok(Outcome::Template { err: e.to_string() });
         }
         debug!("running checks");
