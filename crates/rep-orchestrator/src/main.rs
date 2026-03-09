@@ -1,5 +1,6 @@
-use rep_orchestrator::run_server;
+use rep_orchestrator::{resolver::test_plan_resolver_task, run_server, state::ServerState};
 use std::{io::stdout, process};
+use tokio::task::{LocalSet, spawn_local};
 use tracing::{error, info, subscriber::set_global_default};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
@@ -21,9 +22,23 @@ async fn main() {
 
     set_global_default(subscriber).expect("unable to set a global tracing subscriber");
 
-    info!("starting server");
-    if let Err(e) = run_server().await {
-        error!(error=%e, "Fatal error");
+    let (state, rx) = ServerState::new();
+
+    tokio::spawn(async move {
+        info!("starting server");
+        if let Err(error) = run_server(state).await {
+            error!(%error, "Fatal error in axum server task");
+            process::exit(1);
+        }
+    });
+
+    // We need to use a local set for the non-Send futures needed to resolve test plans
+    info!("spawning test plan resolver task");
+    if let Err(error) = LocalSet::new()
+        .run_until(async { spawn_local(test_plan_resolver_task(rx)).await })
+        .await
+    {
+        error!(%error, "Fatal error in resolver task");
         process::exit(1);
-    }
+    };
 }

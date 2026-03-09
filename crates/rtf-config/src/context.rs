@@ -199,15 +199,15 @@ pub trait ResolutionContext: Send + Sync {
 }
 
 /// A [ResolutionContext] that will perform real IO.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Context {
     client: ReqwestClient,
-    supergraph_details: Mutex<HashMap<String, Arc<SupergraphDetails>>>,
+    supergraph_details: Arc<Mutex<HashMap<String, Arc<SupergraphDetails>>>>,
     fp_output_paths: HashMap<String, PathBuf>,
     output_path: PathBuf,
     capture_output: bool,
-    captured_stdout: RwLock<Vec<u8>>,
-    captured_stderr: RwLock<Vec<u8>>,
+    captured_stdout: Arc<RwLock<Vec<u8>>>,
+    captured_stderr: Arc<RwLock<Vec<u8>>>,
     run_metadata: HashMap<&'static str, String>,
     sources: Sources,
 }

@@ -1,27 +1,25 @@
 //! Trigger a new test run
-use crate::{AppError, context::ServerState, test_run::TestRunSummary};
+use crate::{AppError, rep_test_plan::RepTestPlan, state::ServerState, test_run::TestRunSummary};
 use axum::{Json, extract::State};
-use rtf_config::formats::TestPlanConfig;
-use tracing::error;
+use tracing::{error, info};
 use uuid::Uuid;
 
 pub async fn handler(
     State(state): State<ServerState>,
-    body: String,
+    Json(rtp): Json<RepTestPlan>,
 ) -> Result<Json<TestRunSummary>, AppError> {
-    inner(body, state).await.map_err(AppError)
+    inner(rtp, state).await.map_err(AppError)
 }
 
-async fn inner(body: String, state: ServerState) -> anyhow::Result<Json<TestRunSummary>> {
-    let tp: TestPlanConfig = serde_yaml::from_str(&body)?;
-
+async fn inner(rtp: RepTestPlan, state: ServerState) -> anyhow::Result<Json<TestRunSummary>> {
     let summary = TestRunSummary {
         id: Uuid::new_v4(),
         ..Default::default()
     };
 
-    if let Err(tp) = state.submit_test_plan(summary.id, tp) {
-        error!(id=%summary.id, name=%tp.name, "unable to submit test plan for resolution");
+    info!(id=%summary.id, "Submitting test plan for resolution");
+    if let Err(rtp) = state.submit_test_plan(summary.id, rtp) {
+        error!(id=%summary.id, name=%rtp.test_plan.name, "unable to submit test plan for resolution");
     };
 
     Ok(Json(summary))

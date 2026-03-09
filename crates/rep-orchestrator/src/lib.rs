@@ -11,16 +11,17 @@ use tracing::info;
 
 pub mod context;
 pub mod endpoints;
+pub mod rep_test_plan;
 pub mod resolver;
+pub mod state;
 pub mod test_execution;
 pub mod test_run;
 
-use context::ServerState;
-use resolver::test_plan_resolver_task;
+use state::ServerState;
 
 const DEFAULT_PORT: u16 = 8035;
 
-pub async fn run_server() -> anyhow::Result<()> {
+pub async fn run_server(state: ServerState) -> anyhow::Result<()> {
     // Read env vars
     // - port
     // - kubeconfig
@@ -31,11 +32,6 @@ pub async fn run_server() -> anyhow::Result<()> {
     // check DB connectivity
 
     // spawn event loop task
-
-    let (state, rx) = ServerState::new();
-
-    info!("spawning test plan resolver task");
-    tokio::spawn(test_plan_resolver_task(rx));
 
     info!("starting axum server");
     let routes = build_routes(state);
