@@ -15,7 +15,7 @@
 <a href=#15 id=15 data-nosnippet>15</a><span class="kw">pub use </span>matrix::Matrix;
 <a href=#16 id=16 data-nosnippet>16</a><span class="kw">use </span>rtf_integrations::github;
 <a href=#17 id=17 data-nosnippet>17</a><span class="kw">pub use </span>scenario::{ScenarioCommand, ScenarioConfig};
-<a href=#18 id=18 data-nosnippet>18</a><span class="kw">pub use </span>test_plan::{RawTestPlanConfig, TestPlanConfig};
+<a href=#18 id=18 data-nosnippet>18</a><span class="kw">pub use </span>test_plan::{RawTestPlanConfig, Sources, TestPlanConfig};
 <a href=#19 id=19 data-nosnippet>19</a>
 <a href=#20 id=20 data-nosnippet>20</a><span class="doccomment">/// Errors that can be encountered resolving config files
 <a href=#21 id=21 data-nosnippet>21</a></span><span class="attr">#[derive(Debug, thiserror::Error)]
@@ -66,7 +66,7 @@
 <a href=#66 id=66 data-nosnippet>66</a>        VariableDefinition,
 <a href=#67 id=67 data-nosnippet>67</a>        checks::Check,
 <a href=#68 id=68 data-nosnippet>68</a>        context::Context,
-<a href=#69 id=69 data-nosnippet>69</a>        providers::file::{FileProvider, NamedFileProvider, RelativeFile, SourceDir},
+<a href=#69 id=69 data-nosnippet>69</a>        providers::file::{FileProvider, NamedFileProvider, RelativeFile, StableSource},
 <a href=#70 id=70 data-nosnippet>70</a>        templating::{ErrorKind, Field, Scalar, Template, TemplateContext},
 <a href=#71 id=71 data-nosnippet>71</a>    };
 <a href=#72 id=72 data-nosnippet>72</a>
@@ -168,7 +168,7 @@
 <a href=#168 id=168 data-nosnippet>168</a>        expected_err_messages: Vec&lt;String&gt;,
 <a href=#169 id=169 data-nosnippet>169</a>        expected_err_paths: Vec&lt;String&gt;,
 <a href=#170 id=170 data-nosnippet>170</a>    ) {
-<a href=#171 id=171 data-nosnippet>171</a>        <span class="kw">let </span>res = t.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>SourceDir::local(<span class="string">"/"</span>), <span class="kw-2">&amp;</span>ctx);
+<a href=#171 id=171 data-nosnippet>171</a>        <span class="kw">let </span>res = t.try_template(<span class="kw-2">&amp;mut </span>Vec::new(), <span class="kw-2">&amp;</span>StableSource::TestPlan, <span class="kw-2">&amp;</span>ctx);
 <a href=#172 id=172 data-nosnippet>172</a>        <span class="macro">assert!</span>(res.is_err(), <span class="string">"expected templating to fail, got {res:?}"</span>);
 <a href=#173 id=173 data-nosnippet>173</a>
 <a href=#174 id=174 data-nosnippet>174</a>        <span class="kw">let </span>errors = res.unwrap_err();
