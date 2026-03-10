@@ -157,11 +157,14 @@ impl GraphosSubgraphs {
 }
 
 impl ResolveFileContent for GraphosSubgraphs {
-    async fn try_get_all_file_contents(
+    async fn try_get_all_file_contents<P>(
         &self,
-        target: impl AsRef<Path>,
+        target: P,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<Vec<DirFile>> {
+    ) -> providers::Result<Vec<DirFile>>
+    where
+        P: AsRef<Path> + Send,
+    {
         let (graph_id, variant) = self
             .graph_ref
             .as_resolved()

@@ -77,13 +77,16 @@ macro_rules! enum_impl_as_utf8_file_content {
 
 impl<T> ResolveFileContent for T
 where
-    T: AsUtf8FileContent,
+    T: AsUtf8FileContent + Sync,
 {
-    async fn try_get_all_file_contents(
+    async fn try_get_all_file_contents<P>(
         &self,
-        target: impl AsRef<Path>,
+        target: P,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<Vec<DirFile>> {
+    ) -> providers::Result<Vec<DirFile>>
+    where
+        P: AsRef<Path> + Send,
+    {
         Ok(vec![DirFile {
             path: target.as_ref().to_path_buf(),
             content: self.try_get_file_content(ctx).await?,
@@ -93,24 +96,27 @@ where
 
 /// Something that can obtain or synthesise the contents of multiple utf-8 files based on a user
 /// provided specification.
-#[allow(async_fn_in_trait)]
 pub(crate) trait ResolveFileContent:
-    Check + Serialize + DeserializeOwned + fmt::Debug
+    Check + Serialize + DeserializeOwned + fmt::Debug + Send + Sync
 {
-    async fn try_get_all_file_contents(
+    fn try_get_all_file_contents<P>(
         &self,
-        target: impl AsRef<Path>,
+        target: P,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<Vec<DirFile>>;
+    ) -> impl Future<Output = providers::Result<Vec<DirFile>>> + Send
+    where
+        P: AsRef<Path> + Send;
 
     /// Attempt to convert this file provider into an InlineDir
-    async fn try_into_inline_files(
+    fn try_into_inline_files(
         &self,
         ctx: &impl ResolutionContext,
-    ) -> inlining::Result<InlineDir> {
-        let files = self.try_get_all_file_contents(PathBuf::new(), ctx).await?;
+    ) -> impl Future<Output = inlining::Result<InlineDir>> + Send {
+        async move {
+            let files = self.try_get_all_file_contents(PathBuf::new(), ctx).await?;
 
-        Ok(InlineDir { files })
+            Ok(InlineDir { files })
+        }
     }
 }
 
@@ -120,7 +126,7 @@ where
 {
     async fn resolve_and_write(
         &self,
-        target: impl AsRef<Path>,
+        target: impl AsRef<Path> + Send,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
         let files = self.try_get_all_file_contents(target, ctx).await?;
@@ -147,7 +153,7 @@ where
 pub(crate) trait ResolveAndWrite: Check + Serialize + DeserializeOwned + fmt::Debug {
     async fn resolve_and_write(
         &self,
-        target: impl AsRef<Path>,
+        target: impl AsRef<Path> + Send,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()>;
 }
@@ -160,7 +166,7 @@ macro_rules! enum_impl_resolve_and_write {
         impl ResolveAndWrite for $enum {
             async fn resolve_and_write(
                 &self,
-                target: impl AsRef<Path>,
+                target: impl AsRef<Path> + Send,
                 ctx: &mut impl ResolutionContext,
             ) -> $crate::providers::Result<()> {
                 match self {
@@ -872,11 +878,10 @@ impl Template for RelativeDir {
     }
 }
 
-#[allow(async_fn_in_trait)]
 impl ResolveFileContent for RelativeDir {
-    async fn try_get_all_file_contents(
+    async fn try_get_all_file_contents<P: AsRef<Path> + Send>(
         &self,
-        target: impl AsRef<Path>,
+        target: P,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<Vec<DirFile>> {
         let mut contents = Vec::with_capacity(self.files.len());
