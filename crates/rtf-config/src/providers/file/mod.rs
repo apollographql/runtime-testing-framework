@@ -13,7 +13,9 @@ use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
-    fmt, io,
+    fmt,
+    future::Future,
+    io,
     ops::{Deref, DerefMut},
     path::{Component, Path, PathBuf},
     str::FromStr,
@@ -33,23 +35,26 @@ pub use source::{CustomProviderSection, RawSource, SourceDir, StableSource};
 ///
 /// This trait is deliberately pub(crate) rather than pub so that the validation and resolution
 /// logic is only exposed through the public API as part of the methods on the config file structs.
-#[allow(async_fn_in_trait)]
 pub(crate) trait AsUtf8FileContent:
-    Check + Serialize + DeserializeOwned + fmt::Debug
+    Check + Serialize + DeserializeOwned + fmt::Debug + Send + Sync
 {
     /// Attempt to convert this file provider into an InlineFile
-    async fn try_into_inline_file(
+    fn try_into_inline_file(
         &self,
         ctx: &impl ResolutionContext,
-    ) -> inlining::Result<InlineFile> {
-        let content = self.try_get_file_content(ctx).await?;
+    ) -> impl Future<Output = inlining::Result<InlineFile>> + Send {
+        async move {
+            let content = self.try_get_file_content(ctx).await?;
 
-        Ok(InlineFile { content })
+            Ok(InlineFile { content })
+        }
     }
 
     /// Attempt to run this file provider and convert it into the required file content.
-    async fn try_get_file_content(&self, ctx: &impl ResolutionContext)
-    -> providers::Result<String>;
+    fn try_get_file_content(
+        &self,
+        ctx: &impl ResolutionContext,
+    ) -> impl Future<Output = providers::Result<String>> + Send;
 }
 
 /// Helper macro for stamping out implementations of the AsUtf8FileContent trait on an enum where
@@ -72,13 +77,16 @@ macro_rules! enum_impl_as_utf8_file_content {
 
 impl<T> ResolveFileContent for T
 where
-    T: AsUtf8FileContent,
+    T: AsUtf8FileContent + Sync,
 {
-    async fn try_get_all_file_contents(
+    async fn try_get_all_file_contents<P>(
         &self,
-        target: impl AsRef<Path>,
+        target: P,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<Vec<DirFile>> {
+    ) -> providers::Result<Vec<DirFile>>
+    where
+        P: AsRef<Path> + Send,
+    {
         Ok(vec![DirFile {
             path: target.as_ref().to_path_buf(),
             content: self.try_get_file_content(ctx).await?,
@@ -88,36 +96,42 @@ where
 
 /// Something that can obtain or synthesise the contents of multiple utf-8 files based on a user
 /// provided specification.
-#[allow(async_fn_in_trait)]
 pub(crate) trait ResolveFileContent:
-    Check + Serialize + DeserializeOwned + fmt::Debug
+    Check + Serialize + DeserializeOwned + fmt::Debug + Send + Sync
 {
-    async fn try_get_all_file_contents(
+    fn try_get_all_file_contents<P>(
         &self,
-        target: impl AsRef<Path>,
+        target: P,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<Vec<DirFile>>;
+    ) -> impl Future<Output = providers::Result<Vec<DirFile>>> + Send
+    where
+        P: AsRef<Path> + Send;
 
     /// Attempt to convert this file provider into an InlineDir
-    async fn try_into_inline_files(
+    fn try_into_inline_files(
         &self,
         ctx: &impl ResolutionContext,
-    ) -> inlining::Result<InlineDir> {
-        let files = self.try_get_all_file_contents(PathBuf::new(), ctx).await?;
+    ) -> impl Future<Output = inlining::Result<InlineDir>> + Send {
+        async move {
+            let files = self.try_get_all_file_contents(PathBuf::new(), ctx).await?;
 
-        Ok(InlineDir { files })
+            Ok(InlineDir { files })
+        }
     }
 }
 
 impl<T> ResolveAndWrite for T
 where
-    T: ResolveFileContent,
+    T: ResolveFileContent + Sync,
 {
-    async fn resolve_and_write(
+    async fn resolve_and_write<P>(
         &self,
-        target: impl AsRef<Path>,
+        target: P,
         ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<()> {
+    ) -> providers::Result<()>
+    where
+        P: AsRef<Path> + Send,
+    {
         let files = self.try_get_all_file_contents(target, ctx).await?;
         for file in files.into_iter() {
             if let Some(parent) = file.path.parent() {
@@ -138,13 +152,16 @@ where
 /// trait. If however you need to write out multiple files or run some additional logic after
 /// writing out a file (such as making it executable) then you should implement this trait
 /// directly.
-#[allow(async_fn_in_trait)]
-pub(crate) trait ResolveAndWrite: Check + Serialize + DeserializeOwned + fmt::Debug {
-    async fn resolve_and_write(
+pub(crate) trait ResolveAndWrite:
+    Check + Serialize + DeserializeOwned + fmt::Debug + Send + Sync
+{
+    fn resolve_and_write<P>(
         &self,
-        target: impl AsRef<Path>,
+        target: P,
         ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<()>;
+    ) -> impl Future<Output = providers::Result<()>> + Send
+    where
+        P: AsRef<Path> + Send;
 }
 
 /// Helper macro for stamping out implementations of the ResolveAndWrite trait on an enum where
@@ -152,14 +169,23 @@ pub(crate) trait ResolveAndWrite: Check + Serialize + DeserializeOwned + fmt::De
 #[macro_export]
 macro_rules! enum_impl_resolve_and_write {
     ($enum:ident => $($variant:ident),+) => {
+        // `async fn` cannot be used here even though the trait requires `impl Future + Send`.
+        // When a macro expands in the same module as the trait definition, the compiler cannot
+        // verify that the hidden future type returned by `async fn` satisfies `Send` — it only
+        // inspects hidden types from outside their defining scope. Using explicit
+        // `fn -> impl Future + Send` sidesteps this by asserting `Send` directly in the return
+        // type rather than requiring the compiler to infer it.
+        #[allow(clippy::manual_async_fn)]
         impl ResolveAndWrite for $enum {
-            async fn resolve_and_write(
+            fn resolve_and_write<P: AsRef<Path> + Send>(
                 &self,
-                target: impl AsRef<Path>,
+                target: P,
                 ctx: &mut impl ResolutionContext,
-            ) -> $crate::providers::Result<()> {
-                match self {
-                    $(Self::$variant(inner) => inner.resolve_and_write(target, ctx).await,)+
+            ) -> impl Future<Output = $crate::providers::Result<()>> + Send {
+                async move {
+                    match self {
+                        $(Self::$variant(inner) => inner.resolve_and_write(target, ctx).await,)+
+                    }
                 }
             }
         }
@@ -554,11 +580,14 @@ pub struct InlineDir {
 }
 
 impl ResolveAndWrite for InlineDir {
-    async fn resolve_and_write(
+    async fn resolve_and_write<P>(
         &self,
-        target: impl AsRef<Path>,
+        target: P,
         ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<()> {
+    ) -> providers::Result<()>
+    where
+        P: AsRef<Path> + Send,
+    {
         for file in self.files.iter() {
             let abs_path = target.as_ref().join(&file.path);
             if let Some(parent) = abs_path.parent() {
@@ -867,11 +896,10 @@ impl Template for RelativeDir {
     }
 }
 
-#[allow(async_fn_in_trait)]
 impl ResolveFileContent for RelativeDir {
-    async fn try_get_all_file_contents(
+    async fn try_get_all_file_contents<P: AsRef<Path> + Send>(
         &self,
-        target: impl AsRef<Path>,
+        target: P,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<Vec<DirFile>> {
         let mut contents = Vec::with_capacity(self.files.len());

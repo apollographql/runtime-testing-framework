@@ -1,6 +1,6 @@
 //! A lightweight GitHub API client
 use bytes::Bytes;
-use std::{string::FromUtf8Error, sync::Arc};
+use std::{future::Future, string::FromUtf8Error, sync::Arc};
 
 const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub(crate) const GITHUB_API_URL: &str = "https://api.github.com";
@@ -23,33 +23,34 @@ pub enum Error {
 }
 
 /// An API client that can make requests to the GitHub REST API.
-#[allow(async_fn_in_trait)]
-pub trait Client {
+pub trait Client: Send + Sync {
     /// Attempt to pull the raw file content of a given file as [Bytes] from the specified GitHub
     /// repo.
     ///
     /// The API token used to create this client must have access to the repo in question.
-    async fn raw_file_content(
+    fn raw_file_content<G: AsRef<str> + Send>(
         &self,
         org: &str,
         repo: &str,
         path: &str,
-        git_ref: Option<impl AsRef<str>>,
-    ) -> Result<Bytes, Error>;
+        git_ref: Option<G>,
+    ) -> impl Future<Output = Result<Bytes, Error>> + Send;
 
     /// Attempt to pull the raw file content of a given file as a utf-8 [String] from the specified
     /// GitHub repo.
     ///
     /// The API token used to create this client must have access to the repo in question.
-    async fn string_file_content(
+    fn string_file_content<G: AsRef<str> + Send>(
         &self,
         org: &str,
         repo: &str,
         path: &str,
-        git_ref: Option<impl AsRef<str>>,
-    ) -> Result<String, Error> {
-        let bytes = self.raw_file_content(org, repo, path, git_ref).await?;
-        Ok(String::from_utf8(bytes.to_vec())?)
+        git_ref: Option<G>,
+    ) -> impl Future<Output = Result<String, Error>> + Send {
+        async move {
+            let bytes = self.raw_file_content(org, repo, path, git_ref).await?;
+            Ok(String::from_utf8(bytes.to_vec())?)
+        }
     }
 }
 
@@ -89,12 +90,12 @@ impl GithubClient {
 }
 
 impl Client for GithubClient {
-    async fn raw_file_content(
+    async fn raw_file_content<G: AsRef<str> + Send>(
         &self,
         org: &str,
         repo: &str,
         path: &str,
-        git_ref: Option<impl AsRef<str>>,
+        git_ref: Option<G>,
     ) -> Result<Bytes, Error> {
         let mut url = format!("{}/repos/{org}/{repo}/contents/{path}", self.base_url);
         if let Some(r) = git_ref {

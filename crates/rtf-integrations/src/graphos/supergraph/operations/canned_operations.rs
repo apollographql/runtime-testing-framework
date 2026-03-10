@@ -23,7 +23,6 @@ use apollo_compiler::{
 };
 use futures::future::try_join_all;
 use graphql_client::GraphQLQuery;
-use itertools::Itertools;
 use rand::{
     RngExt,
     distr::{Alphanumeric, SampleString},
@@ -318,16 +317,14 @@ async fn fetch_operation_signatures(
         n_batches += 1;
     }
 
-    for (i, batch) in ids
-        .into_iter()
-        .chunks(N_PARALLEL_FETCH)
-        .into_iter()
-        .enumerate()
-    {
+    for (i, batch) in ids.chunks(N_PARALLEL_FETCH).enumerate() {
         info!("requesting batch {}/{n_batches}", i + 1);
-        let items =
-            try_join_all(batch.map(|op_id| Signature::fetch(graph_id.to_string(), op_id, client)))
-                .await?;
+        let items = try_join_all(
+            batch
+                .iter()
+                .map(|op_id| Signature::fetch(graph_id.to_string(), op_id.clone(), client)),
+        )
+        .await?;
         signatures.extend(items);
     }
 

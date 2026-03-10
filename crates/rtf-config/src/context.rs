@@ -15,6 +15,7 @@ use rtf_integrations::{
 use std::{
     collections::{HashMap, hash_map::Entry},
     fs::{self, File},
+    future::Future,
     io,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
@@ -40,8 +41,7 @@ pub enum PathKind {
 /// trait are wrappers around [std::fs] and API clients for making requests to third party APIs.
 ///
 /// For the canonical real implementations that should be mocked see [Context].
-#[allow(async_fn_in_trait)]
-pub trait ResolutionContext {
+pub trait ResolutionContext: Send + Sync {
     type PlatformClient: platform_query::Client;
     type GithubClient: github::Client;
     type HttpClient: HttpClient;
@@ -85,16 +85,18 @@ pub trait ResolutionContext {
     ///
     /// # Panics
     /// The default implementation will panic if [ResolutionContext::platform_client] is [None].
-    async fn with_supergraph_details<T>(
+    fn with_supergraph_details<T: Send>(
         &self,
-        graph_id: impl Into<String>,
-        variant: impl Into<String>,
-        f: impl FnOnce(&Arc<SupergraphDetails>) -> providers::Result<T>,
-    ) -> providers::Result<T> {
-        let client = self.platform_client().expect("no platform client");
-        let details = SupergraphDetails::fetch(graph_id, variant, client).await?;
+        graph_id: impl Into<String> + Send,
+        variant: impl Into<String> + Send,
+        f: impl FnOnce(&Arc<SupergraphDetails>) -> providers::Result<T> + Send,
+    ) -> impl Future<Output = providers::Result<T>> + Send {
+        async move {
+            let client = self.platform_client().expect("no platform client");
+            let details = SupergraphDetails::fetch(graph_id, variant, client).await?;
 
-        f(&Arc::new(details))
+            f(&Arc::new(details))
+        }
     }
 
     /// Returns the canonical, absolute form of the path with all intermediate
@@ -133,11 +135,11 @@ pub trait ResolutionContext {
     fn read_path_to_string(&self, path: impl AsRef<Path>) -> io::Result<String>;
 
     /// Read the contents of a file relative to the given [StableSource].
-    async fn read_file_content(
+    fn read_file_content(
         &self,
         src: &StableSource,
-        relative_path: impl AsRef<Path>,
-    ) -> providers::Result<String>;
+        relative_path: impl AsRef<Path> + Send,
+    ) -> impl Future<Output = providers::Result<String>> + Send;
 
     /// Writes a slice as the entire contents of a file.
     ///
@@ -325,11 +327,11 @@ impl ResolutionContext for Context {
         self.fp_output_paths.get(&key).cloned()
     }
 
-    async fn with_supergraph_details<T>(
+    async fn with_supergraph_details<T: Send>(
         &self,
-        graph_id: impl Into<String>,
-        variant: impl Into<String>,
-        f: impl FnOnce(&Arc<SupergraphDetails>) -> providers::Result<T>,
+        graph_id: impl Into<String> + Send,
+        variant: impl Into<String> + Send,
+        f: impl FnOnce(&Arc<SupergraphDetails>) -> providers::Result<T> + Send,
     ) -> providers::Result<T> {
         let graph_id = graph_id.into();
         let variant = variant.into();
@@ -387,7 +389,7 @@ impl ResolutionContext for Context {
     async fn read_file_content(
         &self,
         src: &StableSource,
-        relative_path: impl AsRef<Path>,
+        relative_path: impl AsRef<Path> + Send,
     ) -> providers::Result<String> {
         let src_dir = self.sources.source_dir_for(src);
 

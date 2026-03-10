@@ -11,7 +11,7 @@ use crate::PlatformClient;
 use graphql_client::GraphQLQuery;
 use reqwest::{StatusCode, header::HeaderValue};
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, time::Duration};
+use std::{collections::BTreeMap, future::Future, time::Duration};
 use tokio::time::sleep;
 use tracing::{error, warn};
 
@@ -177,10 +177,9 @@ pub struct GqlError {
 /// ```
 ///
 ///   [0]: https://github.com/graphql-rust/graphql-client?tab=readme-ov-file#getting-started
-#[allow(async_fn_in_trait)]
 pub trait PlatformQuery: GraphQLQuery + Sized
 where
-    Self::Variables: Clone,
+    Self::Variables: Clone + Send + Sync,
 {
     /// The output type returned from `try_parse`
     type Output;
@@ -194,66 +193,82 @@ where
     ) -> Result<Self::Output, Self::Error>;
 
     /// Execute this query and parse the returned data
-    async fn fetch(
+    fn fetch(
         variables: Self::Variables,
         client: &impl Client,
-    ) -> Result<Self::Output, Self::Error> {
-        let raw = client.execute_operation::<Self>(variables.clone()).await?;
-
-        Self::try_parse(raw, variables)
+    ) -> impl Future<Output = Result<Self::Output, Self::Error>> + Send
+    where
+        Self::Output: Send,
+        Self::Error: Send,
+    {
+        async move {
+            let raw = client.execute_operation::<Self>(variables.clone()).await?;
+            Self::try_parse(raw, variables)
+        }
     }
 }
 
 /// An API client that can make requests to the Apollo platform API.
-#[allow(async_fn_in_trait)]
-pub trait Client {
+pub trait Client: Send + Sync {
     /// POST a GraphQL operation to the studio API with appropriate headers, returning the raw JSON
     /// response.
     ///
     /// [Client::execute_operation] is used to handle creating the POST body and parsing the
     /// response.
-    async fn post_operation(&self, body: &impl Serialize) -> Result<serde_json::Value, Error>;
+    fn post_operation(
+        &self,
+        body: &(impl Serialize + Sync),
+    ) -> impl Future<Output = Result<serde_json::Value, Error>> + Send;
 
     /// Helper for making an API request to studio and handling any serialization or graphQL errors so
     /// that implementations of [PlatformQuery::try_parse] only need to care about mapping valid data.
-    async fn execute_operation<T>(&self, variables: T::Variables) -> Result<T::ResponseData, Error>
+    fn execute_operation<T>(
+        &self,
+        variables: T::Variables,
+    ) -> impl Future<Output = Result<T::ResponseData, Error>> + Send
     where
         T: GraphQLQuery,
+        T::Variables: Send + Sync,
     {
-        let body = T::build_query(variables);
-        let raw = self.post_operation(&body).await?;
+        async move {
+            let body = T::build_query(variables);
+            let raw = self.post_operation(&body).await?;
 
-        let resp: GqlResponse<T::ResponseData> = serde_json::from_value(raw)?;
+            let resp: GqlResponse<T::ResponseData> = serde_json::from_value(raw)?;
 
-        if !resp.errors.is_empty() {
-            error!("errors returned when running graphql operation");
-            return Err(Error::GraphqlErrors {
-                errors: resp.errors,
-            });
-        } else if !resp.extensions.is_empty() {
-            error!("unexpected extensions returned when running graphql operation");
-            return Err(Error::GraphqlExtensions {
-                extensions: resp.extensions,
-            });
-        }
+            if !resp.errors.is_empty() {
+                error!("errors returned when running graphql operation");
+                return Err(Error::GraphqlErrors {
+                    errors: resp.errors,
+                });
+            } else if !resp.extensions.is_empty() {
+                error!("unexpected extensions returned when running graphql operation");
+                return Err(Error::GraphqlExtensions {
+                    extensions: resp.extensions,
+                });
+            }
 
-        return resp.data.ok_or(Error::NoData);
+            return resp.data.ok_or(Error::NoData);
 
-        // Serde type for parsing the graphql response from the server
+            // Serde type for parsing the graphql response from the server
 
-        #[derive(Debug, Deserialize)]
-        struct GqlResponse<T> {
-            data: Option<T>,
-            #[serde(default)]
-            errors: Vec<GqlError>,
-            #[serde(default)]
-            extensions: serde_json::Map<String, serde_json::Value>,
+            #[derive(Debug, Deserialize)]
+            struct GqlResponse<T> {
+                data: Option<T>,
+                #[serde(default)]
+                errors: Vec<GqlError>,
+                #[serde(default)]
+                extensions: serde_json::Map<String, serde_json::Value>,
+            }
         }
     }
 }
 
 impl Client for PlatformClient {
-    async fn post_operation(&self, body: &impl Serialize) -> Result<serde_json::Value, Error> {
+    async fn post_operation(
+        &self,
+        body: &(impl Serialize + Sync),
+    ) -> Result<serde_json::Value, Error> {
         let mut api_key = match HeaderValue::from_str(&self.api_key) {
             Ok(val) => val,
             Err(_) => {
