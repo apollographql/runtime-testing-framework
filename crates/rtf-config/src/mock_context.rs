@@ -222,24 +222,24 @@ pub(crate) struct MockGithubClient {
 }
 
 impl github::Client for MockGithubClient {
-    async fn raw_file_content(
+    async fn raw_file_content<G: AsRef<str> + Send>(
         &self,
         _org: &str,
         _repo: &str,
         _path: &str,
-        _git_ref: Option<impl AsRef<str>>,
+        _git_ref: Option<G>,
     ) -> Result<Bytes, github::Error> {
         unimplemented!(
             "If you are hitting this we have not needed to mock this yet which is why it is not implemented"
         )
     }
 
-    async fn string_file_content(
+    async fn string_file_content<G: AsRef<str> + Send>(
         &self,
         org: &str,
         repo: &str,
         path: &str,
-        git_ref: Option<impl AsRef<str>>,
+        git_ref: Option<G>,
     ) -> Result<String, github::Error> {
         let git_ref = match git_ref {
             Some(s) => format!("?ref={}", s.as_ref()),
@@ -277,12 +277,12 @@ impl platform_query::Client for NullClient {
 }
 
 impl github::Client for NullClient {
-    async fn raw_file_content(
+    async fn raw_file_content<G: AsRef<str> + Send>(
         &self,
         _org: &str,
         _repo: &str,
         _path: &str,
-        _git_ref: Option<impl AsRef<str>>,
+        _git_ref: Option<G>,
     ) -> Result<bytes::Bytes, github::Error> {
         panic!("a NullClient can not be used to make requests")
     }
