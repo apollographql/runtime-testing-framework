@@ -11,7 +11,7 @@
 <a href=#11 id=11 data-nosnippet>11</a><span class="kw">use </span>graphql_client::GraphQLQuery;
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span>reqwest::{StatusCode, header::HeaderValue};
 <a href=#13 id=13 data-nosnippet>13</a><span class="kw">use </span>serde::{Deserialize, Serialize};
-<a href=#14 id=14 data-nosnippet>14</a><span class="kw">use </span>std::{collections::BTreeMap, time::Duration};
+<a href=#14 id=14 data-nosnippet>14</a><span class="kw">use </span>std::{collections::BTreeMap, future::Future, time::Duration};
 <a href=#15 id=15 data-nosnippet>15</a><span class="kw">use </span>tokio::time::sleep;
 <a href=#16 id=16 data-nosnippet>16</a><span class="kw">use </span>tracing::{error, warn};
 <a href=#17 id=17 data-nosnippet>17</a>
@@ -177,174 +177,189 @@
 <a href=#177 id=177 data-nosnippet>177</a>/// ```
 <a href=#178 id=178 data-nosnippet>178</a>///
 <a href=#179 id=179 data-nosnippet>179</a>///   [0]: https://github.com/graphql-rust/graphql-client?tab=readme-ov-file#getting-started
-<a href=#180 id=180 data-nosnippet>180</a></span><span class="attr">#[allow(async_fn_in_trait)]
-<a href=#181 id=181 data-nosnippet>181</a></span><span class="kw">pub trait </span>PlatformQuery: GraphQLQuery + Sized
-<a href=#182 id=182 data-nosnippet>182</a><span class="kw">where
-<a href=#183 id=183 data-nosnippet>183</a>    </span><span class="self">Self</span>::Variables: Clone,
-<a href=#184 id=184 data-nosnippet>184</a>{
-<a href=#185 id=185 data-nosnippet>185</a>    <span class="doccomment">/// The output type returned from `try_parse`
-<a href=#186 id=186 data-nosnippet>186</a>    </span><span class="kw">type </span>Output;
-<a href=#187 id=187 data-nosnippet>187</a>    <span class="doccomment">/// The error type returned from `try_parse`
-<a href=#188 id=188 data-nosnippet>188</a>    </span><span class="kw">type </span>Error: From&lt;Error&gt;;
-<a href=#189 id=189 data-nosnippet>189</a>
-<a href=#190 id=190 data-nosnippet>190</a>    <span class="doccomment">/// Attempt to parse the raw data returned from a graphQL query into a usable Rust type.
-<a href=#191 id=191 data-nosnippet>191</a>    </span><span class="kw">fn </span>try_parse(
-<a href=#192 id=192 data-nosnippet>192</a>        data: <span class="self">Self</span>::ResponseData,
-<a href=#193 id=193 data-nosnippet>193</a>        variables: <span class="self">Self</span>::Variables,
-<a href=#194 id=194 data-nosnippet>194</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Output, <span class="self">Self</span>::Error&gt;;
-<a href=#195 id=195 data-nosnippet>195</a>
-<a href=#196 id=196 data-nosnippet>196</a>    <span class="doccomment">/// Execute this query and parse the returned data
-<a href=#197 id=197 data-nosnippet>197</a>    </span><span class="kw">async fn </span>fetch(
-<a href=#198 id=198 data-nosnippet>198</a>        variables: <span class="self">Self</span>::Variables,
-<a href=#199 id=199 data-nosnippet>199</a>        client: <span class="kw-2">&amp;</span><span class="kw">impl </span>Client,
-<a href=#200 id=200 data-nosnippet>200</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Output, <span class="self">Self</span>::Error&gt; {
-<a href=#201 id=201 data-nosnippet>201</a>        <span class="kw">let </span>raw = client.execute_operation::&lt;<span class="self">Self</span>&gt;(variables.clone()).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#202 id=202 data-nosnippet>202</a>
-<a href=#203 id=203 data-nosnippet>203</a>        <span class="self">Self</span>::try_parse(raw, variables)
-<a href=#204 id=204 data-nosnippet>204</a>    }
-<a href=#205 id=205 data-nosnippet>205</a>}
-<a href=#206 id=206 data-nosnippet>206</a>
-<a href=#207 id=207 data-nosnippet>207</a><span class="doccomment">/// An API client that can make requests to the Apollo platform API.
-<a href=#208 id=208 data-nosnippet>208</a></span><span class="attr">#[allow(async_fn_in_trait)]
-<a href=#209 id=209 data-nosnippet>209</a></span><span class="kw">pub trait </span>Client {
-<a href=#210 id=210 data-nosnippet>210</a>    <span class="doccomment">/// POST a GraphQL operation to the studio API with appropriate headers, returning the raw JSON
-<a href=#211 id=211 data-nosnippet>211</a>    /// response.
-<a href=#212 id=212 data-nosnippet>212</a>    ///
-<a href=#213 id=213 data-nosnippet>213</a>    /// [Client::execute_operation] is used to handle creating the POST body and parsing the
+<a href=#180 id=180 data-nosnippet>180</a></span><span class="kw">pub trait </span>PlatformQuery: GraphQLQuery + Sized
+<a href=#181 id=181 data-nosnippet>181</a><span class="kw">where
+<a href=#182 id=182 data-nosnippet>182</a>    </span><span class="self">Self</span>::Variables: Clone + Send + Sync,
+<a href=#183 id=183 data-nosnippet>183</a>{
+<a href=#184 id=184 data-nosnippet>184</a>    <span class="doccomment">/// The output type returned from `try_parse`
+<a href=#185 id=185 data-nosnippet>185</a>    </span><span class="kw">type </span>Output;
+<a href=#186 id=186 data-nosnippet>186</a>    <span class="doccomment">/// The error type returned from `try_parse`
+<a href=#187 id=187 data-nosnippet>187</a>    </span><span class="kw">type </span>Error: From&lt;Error&gt;;
+<a href=#188 id=188 data-nosnippet>188</a>
+<a href=#189 id=189 data-nosnippet>189</a>    <span class="doccomment">/// Attempt to parse the raw data returned from a graphQL query into a usable Rust type.
+<a href=#190 id=190 data-nosnippet>190</a>    </span><span class="kw">fn </span>try_parse(
+<a href=#191 id=191 data-nosnippet>191</a>        data: <span class="self">Self</span>::ResponseData,
+<a href=#192 id=192 data-nosnippet>192</a>        variables: <span class="self">Self</span>::Variables,
+<a href=#193 id=193 data-nosnippet>193</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Output, <span class="self">Self</span>::Error&gt;;
+<a href=#194 id=194 data-nosnippet>194</a>
+<a href=#195 id=195 data-nosnippet>195</a>    <span class="doccomment">/// Execute this query and parse the returned data
+<a href=#196 id=196 data-nosnippet>196</a>    </span><span class="kw">fn </span>fetch(
+<a href=#197 id=197 data-nosnippet>197</a>        variables: <span class="self">Self</span>::Variables,
+<a href=#198 id=198 data-nosnippet>198</a>        client: <span class="kw-2">&amp;</span><span class="kw">impl </span>Client,
+<a href=#199 id=199 data-nosnippet>199</a>    ) -&gt; <span class="kw">impl </span>Future&lt;Output = <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Output, <span class="self">Self</span>::Error&gt;&gt; + Send
+<a href=#200 id=200 data-nosnippet>200</a>    <span class="kw">where
+<a href=#201 id=201 data-nosnippet>201</a>        </span><span class="self">Self</span>::Output: Send,
+<a href=#202 id=202 data-nosnippet>202</a>        <span class="self">Self</span>::Error: Send,
+<a href=#203 id=203 data-nosnippet>203</a>    {
+<a href=#204 id=204 data-nosnippet>204</a>        <span class="kw">async move </span>{
+<a href=#205 id=205 data-nosnippet>205</a>            <span class="kw">let </span>raw = client.execute_operation::&lt;<span class="self">Self</span>&gt;(variables.clone()).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#206 id=206 data-nosnippet>206</a>            <span class="self">Self</span>::try_parse(raw, variables)
+<a href=#207 id=207 data-nosnippet>207</a>        }
+<a href=#208 id=208 data-nosnippet>208</a>    }
+<a href=#209 id=209 data-nosnippet>209</a>}
+<a href=#210 id=210 data-nosnippet>210</a>
+<a href=#211 id=211 data-nosnippet>211</a><span class="doccomment">/// An API client that can make requests to the Apollo platform API.
+<a href=#212 id=212 data-nosnippet>212</a></span><span class="kw">pub trait </span>Client: Send + Sync {
+<a href=#213 id=213 data-nosnippet>213</a>    <span class="doccomment">/// POST a GraphQL operation to the studio API with appropriate headers, returning the raw JSON
 <a href=#214 id=214 data-nosnippet>214</a>    /// response.
-<a href=#215 id=215 data-nosnippet>215</a>    </span><span class="kw">async fn </span>post_operation(<span class="kw-2">&amp;</span><span class="self">self</span>, body: <span class="kw-2">&amp;</span><span class="kw">impl </span>Serialize) -&gt; <span class="prelude-ty">Result</span>&lt;serde_json::Value, Error&gt;;
-<a href=#216 id=216 data-nosnippet>216</a>
-<a href=#217 id=217 data-nosnippet>217</a>    <span class="doccomment">/// Helper for making an API request to studio and handling any serialization or graphQL errors so
-<a href=#218 id=218 data-nosnippet>218</a>    /// that implementations of [PlatformQuery::try_parse] only need to care about mapping valid data.
-<a href=#219 id=219 data-nosnippet>219</a>    </span><span class="kw">async fn </span>execute_operation&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, variables: T::Variables) -&gt; <span class="prelude-ty">Result</span>&lt;T::ResponseData, Error&gt;
-<a href=#220 id=220 data-nosnippet>220</a>    <span class="kw">where
-<a href=#221 id=221 data-nosnippet>221</a>        </span>T: GraphQLQuery,
-<a href=#222 id=222 data-nosnippet>222</a>    {
-<a href=#223 id=223 data-nosnippet>223</a>        <span class="kw">let </span>body = T::build_query(variables);
-<a href=#224 id=224 data-nosnippet>224</a>        <span class="kw">let </span>raw = <span class="self">self</span>.post_operation(<span class="kw-2">&amp;</span>body).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#225 id=225 data-nosnippet>225</a>
-<a href=#226 id=226 data-nosnippet>226</a>        <span class="kw">let </span>resp: GqlResponse&lt;T::ResponseData&gt; = serde_json::from_value(raw)<span class="question-mark">?</span>;
-<a href=#227 id=227 data-nosnippet>227</a>
-<a href=#228 id=228 data-nosnippet>228</a>        <span class="kw">if </span>!resp.errors.is_empty() {
-<a href=#229 id=229 data-nosnippet>229</a>            <span class="macro">error!</span>(<span class="string">"errors returned when running graphql operation"</span>);
-<a href=#230 id=230 data-nosnippet>230</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::GraphqlErrors {
-<a href=#231 id=231 data-nosnippet>231</a>                errors: resp.errors,
-<a href=#232 id=232 data-nosnippet>232</a>            });
-<a href=#233 id=233 data-nosnippet>233</a>        } <span class="kw">else if </span>!resp.extensions.is_empty() {
-<a href=#234 id=234 data-nosnippet>234</a>            <span class="macro">error!</span>(<span class="string">"unexpected extensions returned when running graphql operation"</span>);
-<a href=#235 id=235 data-nosnippet>235</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::GraphqlExtensions {
-<a href=#236 id=236 data-nosnippet>236</a>                extensions: resp.extensions,
-<a href=#237 id=237 data-nosnippet>237</a>            });
-<a href=#238 id=238 data-nosnippet>238</a>        }
-<a href=#239 id=239 data-nosnippet>239</a>
-<a href=#240 id=240 data-nosnippet>240</a>        <span class="kw">return </span>resp.data.ok_or(Error::NoData);
-<a href=#241 id=241 data-nosnippet>241</a>
-<a href=#242 id=242 data-nosnippet>242</a>        <span class="comment">// Serde type for parsing the graphql response from the server
-<a href=#243 id=243 data-nosnippet>243</a>
-<a href=#244 id=244 data-nosnippet>244</a>        </span><span class="attr">#[derive(Debug, Deserialize)]
-<a href=#245 id=245 data-nosnippet>245</a>        </span><span class="kw">struct </span>GqlResponse&lt;T&gt; {
-<a href=#246 id=246 data-nosnippet>246</a>            data: <span class="prelude-ty">Option</span>&lt;T&gt;,
-<a href=#247 id=247 data-nosnippet>247</a>            <span class="attr">#[serde(default)]
-<a href=#248 id=248 data-nosnippet>248</a>            </span>errors: Vec&lt;GqlError&gt;,
-<a href=#249 id=249 data-nosnippet>249</a>            <span class="attr">#[serde(default)]
-<a href=#250 id=250 data-nosnippet>250</a>            </span>extensions: serde_json::Map&lt;String, serde_json::Value&gt;,
-<a href=#251 id=251 data-nosnippet>251</a>        }
-<a href=#252 id=252 data-nosnippet>252</a>    }
-<a href=#253 id=253 data-nosnippet>253</a>}
+<a href=#215 id=215 data-nosnippet>215</a>    ///
+<a href=#216 id=216 data-nosnippet>216</a>    /// [Client::execute_operation] is used to handle creating the POST body and parsing the
+<a href=#217 id=217 data-nosnippet>217</a>    /// response.
+<a href=#218 id=218 data-nosnippet>218</a>    </span><span class="kw">fn </span>post_operation(
+<a href=#219 id=219 data-nosnippet>219</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#220 id=220 data-nosnippet>220</a>        body: <span class="kw-2">&amp;</span>(<span class="kw">impl </span>Serialize + Sync),
+<a href=#221 id=221 data-nosnippet>221</a>    ) -&gt; <span class="kw">impl </span>Future&lt;Output = <span class="prelude-ty">Result</span>&lt;serde_json::Value, Error&gt;&gt; + Send;
+<a href=#222 id=222 data-nosnippet>222</a>
+<a href=#223 id=223 data-nosnippet>223</a>    <span class="doccomment">/// Helper for making an API request to studio and handling any serialization or graphQL errors so
+<a href=#224 id=224 data-nosnippet>224</a>    /// that implementations of [PlatformQuery::try_parse] only need to care about mapping valid data.
+<a href=#225 id=225 data-nosnippet>225</a>    </span><span class="kw">fn </span>execute_operation&lt;T&gt;(
+<a href=#226 id=226 data-nosnippet>226</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#227 id=227 data-nosnippet>227</a>        variables: T::Variables,
+<a href=#228 id=228 data-nosnippet>228</a>    ) -&gt; <span class="kw">impl </span>Future&lt;Output = <span class="prelude-ty">Result</span>&lt;T::ResponseData, Error&gt;&gt; + Send
+<a href=#229 id=229 data-nosnippet>229</a>    <span class="kw">where
+<a href=#230 id=230 data-nosnippet>230</a>        </span>T: GraphQLQuery,
+<a href=#231 id=231 data-nosnippet>231</a>        T::Variables: Send + Sync,
+<a href=#232 id=232 data-nosnippet>232</a>    {
+<a href=#233 id=233 data-nosnippet>233</a>        <span class="kw">async move </span>{
+<a href=#234 id=234 data-nosnippet>234</a>            <span class="kw">let </span>body = T::build_query(variables);
+<a href=#235 id=235 data-nosnippet>235</a>            <span class="kw">let </span>raw = <span class="self">self</span>.post_operation(<span class="kw-2">&amp;</span>body).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#236 id=236 data-nosnippet>236</a>
+<a href=#237 id=237 data-nosnippet>237</a>            <span class="kw">let </span>resp: GqlResponse&lt;T::ResponseData&gt; = serde_json::from_value(raw)<span class="question-mark">?</span>;
+<a href=#238 id=238 data-nosnippet>238</a>
+<a href=#239 id=239 data-nosnippet>239</a>            <span class="kw">if </span>!resp.errors.is_empty() {
+<a href=#240 id=240 data-nosnippet>240</a>                <span class="macro">error!</span>(<span class="string">"errors returned when running graphql operation"</span>);
+<a href=#241 id=241 data-nosnippet>241</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::GraphqlErrors {
+<a href=#242 id=242 data-nosnippet>242</a>                    errors: resp.errors,
+<a href=#243 id=243 data-nosnippet>243</a>                });
+<a href=#244 id=244 data-nosnippet>244</a>            } <span class="kw">else if </span>!resp.extensions.is_empty() {
+<a href=#245 id=245 data-nosnippet>245</a>                <span class="macro">error!</span>(<span class="string">"unexpected extensions returned when running graphql operation"</span>);
+<a href=#246 id=246 data-nosnippet>246</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::GraphqlExtensions {
+<a href=#247 id=247 data-nosnippet>247</a>                    extensions: resp.extensions,
+<a href=#248 id=248 data-nosnippet>248</a>                });
+<a href=#249 id=249 data-nosnippet>249</a>            }
+<a href=#250 id=250 data-nosnippet>250</a>
+<a href=#251 id=251 data-nosnippet>251</a>            <span class="kw">return </span>resp.data.ok_or(Error::NoData);
+<a href=#252 id=252 data-nosnippet>252</a>
+<a href=#253 id=253 data-nosnippet>253</a>            <span class="comment">// Serde type for parsing the graphql response from the server
 <a href=#254 id=254 data-nosnippet>254</a>
-<a href=#255 id=255 data-nosnippet>255</a><span class="kw">impl </span>Client <span class="kw">for </span>PlatformClient {
-<a href=#256 id=256 data-nosnippet>256</a>    <span class="kw">async fn </span>post_operation(<span class="kw-2">&amp;</span><span class="self">self</span>, body: <span class="kw-2">&amp;</span><span class="kw">impl </span>Serialize) -&gt; <span class="prelude-ty">Result</span>&lt;serde_json::Value, Error&gt; {
-<a href=#257 id=257 data-nosnippet>257</a>        <span class="kw">let </span><span class="kw-2">mut </span>api_key = <span class="kw">match </span>HeaderValue::from_str(<span class="kw-2">&amp;</span><span class="self">self</span>.api_key) {
-<a href=#258 id=258 data-nosnippet>258</a>            <span class="prelude-val">Ok</span>(val) =&gt; val,
-<a href=#259 id=259 data-nosnippet>259</a>            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
-<a href=#260 id=260 data-nosnippet>260</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::InvalidHeaderValue {
-<a href=#261 id=261 data-nosnippet>261</a>                    key: <span class="string">"x-api-key"</span>.to_string(),
-<a href=#262 id=262 data-nosnippet>262</a>                });
-<a href=#263 id=263 data-nosnippet>263</a>            }
-<a href=#264 id=264 data-nosnippet>264</a>        };
-<a href=#265 id=265 data-nosnippet>265</a>
-<a href=#266 id=266 data-nosnippet>266</a>        api_key.set_sensitive(<span class="bool-val">true</span>);
-<a href=#267 id=267 data-nosnippet>267</a>
-<a href=#268 id=268 data-nosnippet>268</a>        <span class="kw">for </span>attempt <span class="kw">in </span><span class="number">1</span>..=MAX_ATTEMPTS {
-<a href=#269 id=269 data-nosnippet>269</a>            <span class="kw">let </span><span class="kw-2">mut </span>req_builder = <span class="self">self
-<a href=#270 id=270 data-nosnippet>270</a>                </span>.inner
-<a href=#271 id=271 data-nosnippet>271</a>                .post(<span class="self">self</span>.url.as_ref())
-<a href=#272 id=272 data-nosnippet>272</a>                .json(body)
-<a href=#273 id=273 data-nosnippet>273</a>                .header(<span class="string">"x-api-key"</span>, api_key.clone())
-<a href=#274 id=274 data-nosnippet>274</a>                .header(<span class="string">"apollographql-client-name"</span>, <span class="string">"runtime-testing-framework"</span>)
-<a href=#275 id=275 data-nosnippet>275</a>                .header(<span class="string">"apollographql-client-version"</span>, <span class="string">"0.1.0"</span>);
-<a href=#276 id=276 data-nosnippet>276</a>
-<a href=#277 id=277 data-nosnippet>277</a>            <span class="kw">if </span><span class="self">self</span>.sudo {
-<a href=#278 id=278 data-nosnippet>278</a>                req_builder = req_builder.header(<span class="string">"apollo-sudo"</span>, <span class="string">"true"</span>);
-<a href=#279 id=279 data-nosnippet>279</a>            }
+<a href=#255 id=255 data-nosnippet>255</a>            </span><span class="attr">#[derive(Debug, Deserialize)]
+<a href=#256 id=256 data-nosnippet>256</a>            </span><span class="kw">struct </span>GqlResponse&lt;T&gt; {
+<a href=#257 id=257 data-nosnippet>257</a>                data: <span class="prelude-ty">Option</span>&lt;T&gt;,
+<a href=#258 id=258 data-nosnippet>258</a>                <span class="attr">#[serde(default)]
+<a href=#259 id=259 data-nosnippet>259</a>                </span>errors: Vec&lt;GqlError&gt;,
+<a href=#260 id=260 data-nosnippet>260</a>                <span class="attr">#[serde(default)]
+<a href=#261 id=261 data-nosnippet>261</a>                </span>extensions: serde_json::Map&lt;String, serde_json::Value&gt;,
+<a href=#262 id=262 data-nosnippet>262</a>            }
+<a href=#263 id=263 data-nosnippet>263</a>        }
+<a href=#264 id=264 data-nosnippet>264</a>    }
+<a href=#265 id=265 data-nosnippet>265</a>}
+<a href=#266 id=266 data-nosnippet>266</a>
+<a href=#267 id=267 data-nosnippet>267</a><span class="kw">impl </span>Client <span class="kw">for </span>PlatformClient {
+<a href=#268 id=268 data-nosnippet>268</a>    <span class="kw">async fn </span>post_operation(
+<a href=#269 id=269 data-nosnippet>269</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#270 id=270 data-nosnippet>270</a>        body: <span class="kw-2">&amp;</span>(<span class="kw">impl </span>Serialize + Sync),
+<a href=#271 id=271 data-nosnippet>271</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;serde_json::Value, Error&gt; {
+<a href=#272 id=272 data-nosnippet>272</a>        <span class="kw">let </span><span class="kw-2">mut </span>api_key = <span class="kw">match </span>HeaderValue::from_str(<span class="kw-2">&amp;</span><span class="self">self</span>.api_key) {
+<a href=#273 id=273 data-nosnippet>273</a>            <span class="prelude-val">Ok</span>(val) =&gt; val,
+<a href=#274 id=274 data-nosnippet>274</a>            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
+<a href=#275 id=275 data-nosnippet>275</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::InvalidHeaderValue {
+<a href=#276 id=276 data-nosnippet>276</a>                    key: <span class="string">"x-api-key"</span>.to_string(),
+<a href=#277 id=277 data-nosnippet>277</a>                });
+<a href=#278 id=278 data-nosnippet>278</a>            }
+<a href=#279 id=279 data-nosnippet>279</a>        };
 <a href=#280 id=280 data-nosnippet>280</a>
-<a href=#281 id=281 data-nosnippet>281</a>            <span class="kw">let </span>result = <span class="kw">async </span>{
-<a href=#282 id=282 data-nosnippet>282</a>                <span class="kw">let </span>response = req_builder.send().<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#283 id=283 data-nosnippet>283</a>                <span class="kw">let </span>status = response.status();
-<a href=#284 id=284 data-nosnippet>284</a>
-<a href=#285 id=285 data-nosnippet>285</a>                <span class="kw">if </span>!status.is_success() {
-<a href=#286 id=286 data-nosnippet>286</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::HttpStatus { status });
-<a href=#287 id=287 data-nosnippet>287</a>                }
-<a href=#288 id=288 data-nosnippet>288</a>
-<a href=#289 id=289 data-nosnippet>289</a>                <span class="kw">let </span>raw = response.json::&lt;serde_json::Value&gt;().<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#290 id=290 data-nosnippet>290</a>                <span class="prelude-val">Ok</span>(raw)
-<a href=#291 id=291 data-nosnippet>291</a>            }
-<a href=#292 id=292 data-nosnippet>292</a>            .<span class="kw">await</span>;
-<a href=#293 id=293 data-nosnippet>293</a>
-<a href=#294 id=294 data-nosnippet>294</a>            <span class="kw">match </span>result {
-<a href=#295 id=295 data-nosnippet>295</a>                <span class="prelude-val">Ok</span>(value) =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(value),
-<a href=#296 id=296 data-nosnippet>296</a>                <span class="prelude-val">Err</span>(err) <span class="kw">if </span>err.is_retryable() &amp;&amp; attempt &lt; MAX_ATTEMPTS =&gt; {
-<a href=#297 id=297 data-nosnippet>297</a>                    <span class="macro">warn!</span>(
-<a href=#298 id=298 data-nosnippet>298</a>                        attempt,
-<a href=#299 id=299 data-nosnippet>299</a>                        max_attempts = MAX_ATTEMPTS,
-<a href=#300 id=300 data-nosnippet>300</a>                        error = %err,
-<a href=#301 id=301 data-nosnippet>301</a>                        <span class="string">"platform API request failed, retrying"
-<a href=#302 id=302 data-nosnippet>302</a>                    </span>);
-<a href=#303 id=303 data-nosnippet>303</a>                    sleep(RETRY_DELAY).<span class="kw">await</span>;
-<a href=#304 id=304 data-nosnippet>304</a>                }
-<a href=#305 id=305 data-nosnippet>305</a>                <span class="prelude-val">Err</span>(err) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(err),
+<a href=#281 id=281 data-nosnippet>281</a>        api_key.set_sensitive(<span class="bool-val">true</span>);
+<a href=#282 id=282 data-nosnippet>282</a>
+<a href=#283 id=283 data-nosnippet>283</a>        <span class="kw">for </span>attempt <span class="kw">in </span><span class="number">1</span>..=MAX_ATTEMPTS {
+<a href=#284 id=284 data-nosnippet>284</a>            <span class="kw">let </span><span class="kw-2">mut </span>req_builder = <span class="self">self
+<a href=#285 id=285 data-nosnippet>285</a>                </span>.inner
+<a href=#286 id=286 data-nosnippet>286</a>                .post(<span class="self">self</span>.url.as_ref())
+<a href=#287 id=287 data-nosnippet>287</a>                .json(body)
+<a href=#288 id=288 data-nosnippet>288</a>                .header(<span class="string">"x-api-key"</span>, api_key.clone())
+<a href=#289 id=289 data-nosnippet>289</a>                .header(<span class="string">"apollographql-client-name"</span>, <span class="string">"runtime-testing-framework"</span>)
+<a href=#290 id=290 data-nosnippet>290</a>                .header(<span class="string">"apollographql-client-version"</span>, <span class="string">"0.1.0"</span>);
+<a href=#291 id=291 data-nosnippet>291</a>
+<a href=#292 id=292 data-nosnippet>292</a>            <span class="kw">if </span><span class="self">self</span>.sudo {
+<a href=#293 id=293 data-nosnippet>293</a>                req_builder = req_builder.header(<span class="string">"apollo-sudo"</span>, <span class="string">"true"</span>);
+<a href=#294 id=294 data-nosnippet>294</a>            }
+<a href=#295 id=295 data-nosnippet>295</a>
+<a href=#296 id=296 data-nosnippet>296</a>            <span class="kw">let </span>result = <span class="kw">async </span>{
+<a href=#297 id=297 data-nosnippet>297</a>                <span class="kw">let </span>response = req_builder.send().<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#298 id=298 data-nosnippet>298</a>                <span class="kw">let </span>status = response.status();
+<a href=#299 id=299 data-nosnippet>299</a>
+<a href=#300 id=300 data-nosnippet>300</a>                <span class="kw">if </span>!status.is_success() {
+<a href=#301 id=301 data-nosnippet>301</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::HttpStatus { status });
+<a href=#302 id=302 data-nosnippet>302</a>                }
+<a href=#303 id=303 data-nosnippet>303</a>
+<a href=#304 id=304 data-nosnippet>304</a>                <span class="kw">let </span>raw = response.json::&lt;serde_json::Value&gt;().<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#305 id=305 data-nosnippet>305</a>                <span class="prelude-val">Ok</span>(raw)
 <a href=#306 id=306 data-nosnippet>306</a>            }
-<a href=#307 id=307 data-nosnippet>307</a>        }
+<a href=#307 id=307 data-nosnippet>307</a>            .<span class="kw">await</span>;
 <a href=#308 id=308 data-nosnippet>308</a>
-<a href=#309 id=309 data-nosnippet>309</a>        <span class="comment">// This is unreachable in practice: the loop always returns on the final attempt via the
-<a href=#310 id=310 data-nosnippet>310</a>        // `Err(err) =&gt; return Err(err)` arm. But the compiler can't prove that, so we need this.
-<a href=#311 id=311 data-nosnippet>311</a>        </span><span class="macro">unreachable!</span>(<span class="string">"the loop should execute at least once"</span>)
-<a href=#312 id=312 data-nosnippet>312</a>    }
-<a href=#313 id=313 data-nosnippet>313</a>}
-<a href=#314 id=314 data-nosnippet>314</a>
-<a href=#315 id=315 data-nosnippet>315</a><span class="attr">#[cfg(test)]
-<a href=#316 id=316 data-nosnippet>316</a></span><span class="kw">mod </span>tests {
-<a href=#317 id=317 data-nosnippet>317</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#318 id=318 data-nosnippet>318</a>    <span class="kw">use </span>reqwest::StatusCode;
-<a href=#319 id=319 data-nosnippet>319</a>    <span class="kw">use </span>simple_test_case::test_case;
-<a href=#320 id=320 data-nosnippet>320</a>
-<a href=#321 id=321 data-nosnippet>321</a>    <span class="attr">#[test_case(StatusCode::INTERNAL_SERVER_ERROR; <span class="string">"500 internal server error"</span>)]
-<a href=#322 id=322 data-nosnippet>322</a>    #[test_case(StatusCode::BAD_GATEWAY; <span class="string">"502 bad gateway"</span>)]
-<a href=#323 id=323 data-nosnippet>323</a>    #[test_case(StatusCode::SERVICE_UNAVAILABLE; <span class="string">"503 service unavailable"</span>)]
-<a href=#324 id=324 data-nosnippet>324</a>    #[test_case(StatusCode::GATEWAY_TIMEOUT; <span class="string">"504 gateway timeout"</span>)]
-<a href=#325 id=325 data-nosnippet>325</a>    #[test]
-<a href=#326 id=326 data-nosnippet>326</a>    </span><span class="kw">fn </span>is_retryable_server_errors(status: StatusCode) {
-<a href=#327 id=327 data-nosnippet>327</a>        <span class="kw">let </span>err = Error::HttpStatus { status };
-<a href=#328 id=328 data-nosnippet>328</a>        <span class="macro">assert!</span>(err.is_retryable());
-<a href=#329 id=329 data-nosnippet>329</a>    }
-<a href=#330 id=330 data-nosnippet>330</a>
-<a href=#331 id=331 data-nosnippet>331</a>    <span class="attr">#[test_case(StatusCode::BAD_REQUEST; <span class="string">"400 bad request"</span>)]
-<a href=#332 id=332 data-nosnippet>332</a>    #[test_case(StatusCode::UNAUTHORIZED; <span class="string">"401 unauthorized"</span>)]
-<a href=#333 id=333 data-nosnippet>333</a>    #[test_case(StatusCode::FORBIDDEN; <span class="string">"403 forbidden"</span>)]
-<a href=#334 id=334 data-nosnippet>334</a>    #[test_case(StatusCode::NOT_FOUND; <span class="string">"404 not found"</span>)]
-<a href=#335 id=335 data-nosnippet>335</a>    #[test]
-<a href=#336 id=336 data-nosnippet>336</a>    </span><span class="kw">fn </span>is_not_retryable_client_errors(status: StatusCode) {
-<a href=#337 id=337 data-nosnippet>337</a>        <span class="kw">let </span>err = Error::HttpStatus { status };
-<a href=#338 id=338 data-nosnippet>338</a>        <span class="macro">assert!</span>(!err.is_retryable());
-<a href=#339 id=339 data-nosnippet>339</a>    }
-<a href=#340 id=340 data-nosnippet>340</a>
-<a href=#341 id=341 data-nosnippet>341</a>    <span class="attr">#[test_case(Error::InvalidHeaderValue { key: <span class="string">"x-api-key"</span>.to_string() }; <span class="string">"invalid header value"</span>)]
-<a href=#342 id=342 data-nosnippet>342</a>    #[test_case(Error::NoData; <span class="string">"no data"</span>)]
-<a href=#343 id=343 data-nosnippet>343</a>    #[test_case(Error::GraphqlErrors { errors: <span class="macro">vec!</span>[] </span>}; <span class="string">"graphql errors"</span>)]
-<a href=#344 id=344 data-nosnippet>344</a>    <span class="attr">#[test_case(Error::GraphqlExtensions { extensions: Default::default() }; <span class="string">"graphql extensions"</span>)]
-<a href=#345 id=345 data-nosnippet>345</a>    #[test]
-<a href=#346 id=346 data-nosnippet>346</a>    </span><span class="kw">fn </span>is_not_retryable_other_variants(err: Error) {
-<a href=#347 id=347 data-nosnippet>347</a>        <span class="macro">assert!</span>(!err.is_retryable());
-<a href=#348 id=348 data-nosnippet>348</a>    }
-<a href=#349 id=349 data-nosnippet>349</a>}
+<a href=#309 id=309 data-nosnippet>309</a>            <span class="kw">match </span>result {
+<a href=#310 id=310 data-nosnippet>310</a>                <span class="prelude-val">Ok</span>(value) =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(value),
+<a href=#311 id=311 data-nosnippet>311</a>                <span class="prelude-val">Err</span>(err) <span class="kw">if </span>err.is_retryable() &amp;&amp; attempt &lt; MAX_ATTEMPTS =&gt; {
+<a href=#312 id=312 data-nosnippet>312</a>                    <span class="macro">warn!</span>(
+<a href=#313 id=313 data-nosnippet>313</a>                        attempt,
+<a href=#314 id=314 data-nosnippet>314</a>                        max_attempts = MAX_ATTEMPTS,
+<a href=#315 id=315 data-nosnippet>315</a>                        error = %err,
+<a href=#316 id=316 data-nosnippet>316</a>                        <span class="string">"platform API request failed, retrying"
+<a href=#317 id=317 data-nosnippet>317</a>                    </span>);
+<a href=#318 id=318 data-nosnippet>318</a>                    sleep(RETRY_DELAY).<span class="kw">await</span>;
+<a href=#319 id=319 data-nosnippet>319</a>                }
+<a href=#320 id=320 data-nosnippet>320</a>                <span class="prelude-val">Err</span>(err) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(err),
+<a href=#321 id=321 data-nosnippet>321</a>            }
+<a href=#322 id=322 data-nosnippet>322</a>        }
+<a href=#323 id=323 data-nosnippet>323</a>
+<a href=#324 id=324 data-nosnippet>324</a>        <span class="comment">// This is unreachable in practice: the loop always returns on the final attempt via the
+<a href=#325 id=325 data-nosnippet>325</a>        // `Err(err) =&gt; return Err(err)` arm. But the compiler can't prove that, so we need this.
+<a href=#326 id=326 data-nosnippet>326</a>        </span><span class="macro">unreachable!</span>(<span class="string">"the loop should execute at least once"</span>)
+<a href=#327 id=327 data-nosnippet>327</a>    }
+<a href=#328 id=328 data-nosnippet>328</a>}
+<a href=#329 id=329 data-nosnippet>329</a>
+<a href=#330 id=330 data-nosnippet>330</a><span class="attr">#[cfg(test)]
+<a href=#331 id=331 data-nosnippet>331</a></span><span class="kw">mod </span>tests {
+<a href=#332 id=332 data-nosnippet>332</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#333 id=333 data-nosnippet>333</a>    <span class="kw">use </span>reqwest::StatusCode;
+<a href=#334 id=334 data-nosnippet>334</a>    <span class="kw">use </span>simple_test_case::test_case;
+<a href=#335 id=335 data-nosnippet>335</a>
+<a href=#336 id=336 data-nosnippet>336</a>    <span class="attr">#[test_case(StatusCode::INTERNAL_SERVER_ERROR; <span class="string">"500 internal server error"</span>)]
+<a href=#337 id=337 data-nosnippet>337</a>    #[test_case(StatusCode::BAD_GATEWAY; <span class="string">"502 bad gateway"</span>)]
+<a href=#338 id=338 data-nosnippet>338</a>    #[test_case(StatusCode::SERVICE_UNAVAILABLE; <span class="string">"503 service unavailable"</span>)]
+<a href=#339 id=339 data-nosnippet>339</a>    #[test_case(StatusCode::GATEWAY_TIMEOUT; <span class="string">"504 gateway timeout"</span>)]
+<a href=#340 id=340 data-nosnippet>340</a>    #[test]
+<a href=#341 id=341 data-nosnippet>341</a>    </span><span class="kw">fn </span>is_retryable_server_errors(status: StatusCode) {
+<a href=#342 id=342 data-nosnippet>342</a>        <span class="kw">let </span>err = Error::HttpStatus { status };
+<a href=#343 id=343 data-nosnippet>343</a>        <span class="macro">assert!</span>(err.is_retryable());
+<a href=#344 id=344 data-nosnippet>344</a>    }
+<a href=#345 id=345 data-nosnippet>345</a>
+<a href=#346 id=346 data-nosnippet>346</a>    <span class="attr">#[test_case(StatusCode::BAD_REQUEST; <span class="string">"400 bad request"</span>)]
+<a href=#347 id=347 data-nosnippet>347</a>    #[test_case(StatusCode::UNAUTHORIZED; <span class="string">"401 unauthorized"</span>)]
+<a href=#348 id=348 data-nosnippet>348</a>    #[test_case(StatusCode::FORBIDDEN; <span class="string">"403 forbidden"</span>)]
+<a href=#349 id=349 data-nosnippet>349</a>    #[test_case(StatusCode::NOT_FOUND; <span class="string">"404 not found"</span>)]
+<a href=#350 id=350 data-nosnippet>350</a>    #[test]
+<a href=#351 id=351 data-nosnippet>351</a>    </span><span class="kw">fn </span>is_not_retryable_client_errors(status: StatusCode) {
+<a href=#352 id=352 data-nosnippet>352</a>        <span class="kw">let </span>err = Error::HttpStatus { status };
+<a href=#353 id=353 data-nosnippet>353</a>        <span class="macro">assert!</span>(!err.is_retryable());
+<a href=#354 id=354 data-nosnippet>354</a>    }
+<a href=#355 id=355 data-nosnippet>355</a>
+<a href=#356 id=356 data-nosnippet>356</a>    <span class="attr">#[test_case(Error::InvalidHeaderValue { key: <span class="string">"x-api-key"</span>.to_string() }; <span class="string">"invalid header value"</span>)]
+<a href=#357 id=357 data-nosnippet>357</a>    #[test_case(Error::NoData; <span class="string">"no data"</span>)]
+<a href=#358 id=358 data-nosnippet>358</a>    #[test_case(Error::GraphqlErrors { errors: <span class="macro">vec!</span>[] </span>}; <span class="string">"graphql errors"</span>)]
+<a href=#359 id=359 data-nosnippet>359</a>    <span class="attr">#[test_case(Error::GraphqlExtensions { extensions: Default::default() }; <span class="string">"graphql extensions"</span>)]
+<a href=#360 id=360 data-nosnippet>360</a>    #[test]
+<a href=#361 id=361 data-nosnippet>361</a>    </span><span class="kw">fn </span>is_not_retryable_other_variants(err: Error) {
+<a href=#362 id=362 data-nosnippet>362</a>        <span class="macro">assert!</span>(!err.is_retryable());
+<a href=#363 id=363 data-nosnippet>363</a>    }
+<a href=#364 id=364 data-nosnippet>364</a>}
 </code></pre></div></section></main></body></html>

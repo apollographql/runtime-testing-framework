@@ -415,9 +415,9 @@
 <a href=#415 id=415 data-nosnippet>415</a>}
 <a href=#416 id=416 data-nosnippet>416</a>
 <a href=#417 id=417 data-nosnippet>417</a><span class="kw">impl </span>ResolveAndWrite <span class="kw">for </span>FromCommand {
-<a href=#418 id=418 data-nosnippet>418</a>    <span class="kw">async fn </span>resolve_and_write(
+<a href=#418 id=418 data-nosnippet>418</a>    <span class="kw">async fn </span>resolve_and_write&lt;P: AsRef&lt;Path&gt; + Send&gt;(
 <a href=#419 id=419 data-nosnippet>419</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#420 id=420 data-nosnippet>420</a>        target: <span class="kw">impl </span>AsRef&lt;Path&gt;,
+<a href=#420 id=420 data-nosnippet>420</a>        target: P,
 <a href=#421 id=421 data-nosnippet>421</a>        ctx: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>ResolutionContext,
 <a href=#422 id=422 data-nosnippet>422</a>    ) -&gt; providers::Result&lt;()&gt; {
 <a href=#423 id=423 data-nosnippet>423</a>        <span class="kw">let </span>target = target.as_ref();
