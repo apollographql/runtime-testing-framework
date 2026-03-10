@@ -30,7 +30,7 @@ pub(crate) fn get_context() -> Context {
         })
         .collect();
 
-    Context::new_from_env_vars(env_vars)
+    Context::new_from_env_vars(&env_vars)
 }
 
 pub fn get_context_and_check_outdir(

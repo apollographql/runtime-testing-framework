@@ -5,7 +5,7 @@ use axum::{
     routing::post,
     serve,
 };
-use std::net::SocketAddr;
+use std::{collections::HashMap, env, net::SocketAddr, sync::LazyLock};
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -20,6 +20,9 @@ pub mod test_run;
 use state::ServerState;
 
 const DEFAULT_PORT: u16 = 8035;
+
+pub(crate) static ENV_VARS: LazyLock<HashMap<String, String>> =
+    LazyLock::new(|| env::vars().collect());
 
 pub async fn run_server(state: ServerState) -> anyhow::Result<()> {
     // Read env vars

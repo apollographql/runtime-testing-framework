@@ -1,5 +1,5 @@
 use rtf_config::{
-    SourceDir, StableSource,
+    SourceDir, StableSource, checks,
     context::{Context, PathKind, ResolutionContext},
     formats::{CustomProviderDefinition, Sources},
     providers,
@@ -39,18 +39,6 @@ impl RepContext {
             custom_providers: Arc::new(custom_providers.try_into_custom_provider_definitions()?),
         })
     }
-
-    pub fn try_new_from_env_vars(
-        env_vars: HashMap<String, String>,
-        relative_files: SourceKeyedArrayMap<String>,
-        custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
-    ) -> anyhow::Result<Self> {
-        Self::try_new(
-            Context::new_from_env_vars(env_vars),
-            relative_files,
-            custom_providers,
-        )
-    }
 }
 
 #[allow(async_fn_in_trait)]
@@ -87,11 +75,11 @@ impl ResolutionContext for RepContext {
         self.inner.known_provider_output_path(provider)
     }
 
-    async fn with_supergraph_details<T>(
+    async fn with_supergraph_details<T: Send>(
         &self,
-        graph_id: impl Into<String>,
-        variant: impl Into<String>,
-        f: impl FnOnce(&Arc<SupergraphDetails>) -> providers::Result<T>,
+        graph_id: impl Into<String> + Send,
+        variant: impl Into<String> + Send,
+        f: impl FnOnce(&Arc<SupergraphDetails>) -> providers::Result<T> + Send,
     ) -> providers::Result<T> {
         self.inner
             .with_supergraph_details(graph_id, variant, f)
@@ -114,6 +102,28 @@ impl ResolutionContext for RepContext {
 
     fn custom_provider_definitions(&self) -> Arc<CustomProviderDefinitions> {
         self.custom_providers.clone()
+    }
+
+    fn check_path_kind(
+        &self,
+        stable_src: &StableSource,
+        str_path: &str,
+        err_path: &[String],
+    ) -> checks::Result<Option<PathKind>> {
+        match self.relative_files.get(stable_src.clone(), str_path) {
+            Some(_) => Ok(Some(PathKind::File)),
+            None => {
+                if self.relative_files.has_path_prefix(stable_src, str_path) {
+                    Ok(Some(PathKind::OccupiedDir))
+                } else {
+                    Err(checks::Errors::new(
+                        checks::ErrorKind::FileNotFound,
+                        format!("unknown file path: {stable_src:?} {str_path:?}"),
+                        err_path,
+                    ))
+                }
+            }
+        }
     }
 
     // All other file system related methods panic as we can't / shouldn't run them in a server

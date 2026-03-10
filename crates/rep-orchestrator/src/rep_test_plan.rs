@@ -90,9 +90,15 @@ pub struct SourceKeyedMap<T> {
 
 impl<T> SourceKeyedMap<T> {
     // TODO: this sig can be better / smarter
-    pub fn get(&self, source: StableSource, key: &str) -> Option<&T> {
-        let i = self.keys.get(&(source, key.to_string()))?;
+    pub fn get(&self, src: StableSource, key: &str) -> Option<&T> {
+        let i = self.keys.get(&(src, key.to_string()))?;
 
         self.data.get(*i)
+    }
+
+    pub fn has_path_prefix(&self, src: &StableSource, prefix: &str) -> bool {
+        self.keys
+            .keys()
+            .any(|(s, p)| s == src && p.starts_with(prefix))
     }
 }

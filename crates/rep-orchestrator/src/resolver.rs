@@ -1,9 +1,9 @@
 //! Long lived task for resolving test plans
-use crate::{context::RepContext, rep_test_plan::RepTestPlan};
+use crate::{ENV_VARS, context::RepContext, rep_test_plan::RepTestPlan};
 use rtf_config::{
     StableSource,
     checks::Check,
-    context::ResolutionContext,
+    context::{Context, ResolutionContext},
     formats::TestPlanConfig,
     inlining::InlineMode,
     templating::{Template, TemplateContext},
@@ -20,6 +20,9 @@ pub struct TestPlanWithId {
 }
 
 pub async fn test_plan_resolver_task(mut rx: UnboundedReceiver<TestPlanWithId>) {
+    // TODO: work out what we want / need to do about clearing the cache of supergraph details
+    let base_ctx = Context::new_from_env_vars(&ENV_VARS);
+
     loop {
         let TestPlanWithId {
             id,
@@ -40,12 +43,7 @@ pub async fn test_plan_resolver_task(mut rx: UnboundedReceiver<TestPlanWithId>) 
         let span = info_span!("resolve_test_plan", %id, test_plan_name=%test_plan.name);
         let _guard = span.enter();
 
-        // TODO: need to use a primary context to seed things here
-        let ctx = match RepContext::try_new_from_env_vars(
-            HashMap::new(),
-            relative_files,
-            custom_providers,
-        ) {
+        let ctx = match RepContext::try_new(base_ctx.clone(), relative_files, custom_providers) {
             Ok(ctx) => ctx,
             Err(error) => {
                 warn!(%error, "unable to create context");

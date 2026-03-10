@@ -15,7 +15,6 @@ use std::{
     collections::{HashMap, HashSet},
     fmt,
     future::Future,
-    io,
     ops::{Deref, DerefMut},
     path::{Component, Path, PathBuf},
     str::FromStr,
@@ -703,23 +702,17 @@ impl Check for RelativeFile {
             .as_ref()
             .expect("attempt to check a RelativeFile without a source");
 
-        let src = ctx.source_dir_for(stable_src);
-
-        let p = match check_path(file_path, src, path, ctx)? {
-            Some(p) => p,
-            None => return Ok(()),
-        };
-
-        match ctx.path_kind(&p) {
-            PathKind::File => Ok(()),
-            PathKind::EmptyDir | PathKind::OccupiedDir => Err(checks::Errors::new(
+        match ctx.check_path_kind(stable_src, file_path, path)? {
+            None => Ok(()), // github source
+            Some(PathKind::File) => Ok(()),
+            Some(PathKind::EmptyDir | PathKind::OccupiedDir) => Err(checks::Errors::new(
                 checks::ErrorKind::IsADirectory,
-                format_error_message(src, file_path),
+                format_error_message(ctx.source_dir_for(stable_src), file_path),
                 path,
             )),
-            PathKind::Missing => Err(checks::Errors::new(
+            Some(PathKind::Missing) => Err(checks::Errors::new(
                 checks::ErrorKind::FileNotFound,
-                format_error_message(src, file_path),
+                format_error_message(ctx.source_dir_for(stable_src), file_path),
                 path,
             )),
         }
@@ -729,37 +722,6 @@ impl Check for RelativeFile {
 #[inline(always)]
 fn format_error_message(src: &SourceDir, path: impl AsRef<Path>) -> String {
     format!("provided path was {}", src.to_uri_for(path))
-}
-
-fn check_path(
-    str_path: &str,
-    src: &SourceDir,
-    err_path: &[String],
-    ctx: &impl ResolutionContext,
-) -> checks::Result<Option<PathBuf>> {
-    let res = match src {
-        SourceDir::Local { abs_path } => ctx.canonicalize_path(abs_path.join(str_path)).map(Some),
-        SourceDir::Github { .. } => {
-            return if ctx.github_client().is_none() {
-                Err(checks::Errors::new(
-                    checks::ErrorKind::MissingGithubApiKey,
-                    "expected os env key GITHUB_TOKEN",
-                    err_path,
-                ))
-            } else {
-                Ok(None)
-            };
-        }
-    };
-    res.map_err(|e| {
-        let kind = if e.kind() == io::ErrorKind::NotFound {
-            checks::ErrorKind::FileNotFound
-        } else {
-            checks::ErrorKind::InvalidRelativePath
-        };
-
-        checks::Errors::new(kind, format_error_message(src, str_path), err_path)
-    })
 }
 
 /// Shared logic for templating RelativeFile and RelativeDir
@@ -931,35 +893,30 @@ impl Check for RelativeDir {
             .as_ref()
             .expect("attempt to check a RelativeDir without a source");
 
-        let src = ctx.source_dir_for(stable_src);
-
         // Early return on errors here because without the top level path we can't check anything
         // else.
-        let p = match check_path(dir_path, src, path, ctx)? {
-            Some(p) => p,
-            None => return Ok(()),
-        };
+        match ctx.check_path_kind(stable_src, dir_path, path)? {
+            None => return Ok(()), // github source
 
-        match ctx.path_kind(&p) {
             // Allow missing files to be handled below
-            PathKind::EmptyDir | PathKind::OccupiedDir => (),
+            Some(PathKind::EmptyDir | PathKind::OccupiedDir) => (),
 
-            PathKind::File => {
+            Some(PathKind::File) => {
                 return Err(checks::Errors::new(
                     checks::ErrorKind::NotADirectory,
-                    format_error_message(src, dir_path),
+                    format_error_message(ctx.source_dir_for(stable_src), dir_path),
                     path,
                 ));
             }
 
-            PathKind::Missing => {
+            Some(PathKind::Missing) => {
                 return Err(checks::Errors::new(
                     checks::ErrorKind::FileNotFound,
-                    format_error_message(src, dir_path),
+                    format_error_message(ctx.source_dir_for(stable_src), dir_path),
                     path,
                 ));
             }
-        };
+        }
 
         // Gather all errors from missing file paths within the directory if we got this far
         let mut errs = checks::ErrorBuilder::new();
@@ -977,19 +934,23 @@ impl Check for RelativeDir {
 
             match check_relative_path_specifiers(Path::new(fname), path) {
                 Err(e) => errs.append(Err(e)),
-                Ok(()) => match ctx.path_kind(p.join(fname)) {
-                    PathKind::File => (),
-                    PathKind::EmptyDir | PathKind::OccupiedDir => errs.push(
-                        checks::ErrorKind::IsADirectory,
-                        format_error_message(src, fname),
-                        path,
-                    ),
-                    PathKind::Missing => errs.push(
-                        checks::ErrorKind::FileNotFound,
-                        format_error_message(src, fname),
-                        path,
-                    ),
-                },
+                Ok(()) => {
+                    let full_path = format!("{dir_path}/{fname}");
+
+                    match ctx.check_path_kind(stable_src, &full_path, path)? {
+                        None | Some(PathKind::File) => (),
+                        Some(PathKind::EmptyDir | PathKind::OccupiedDir) => errs.push(
+                            checks::ErrorKind::IsADirectory,
+                            format_error_message(ctx.source_dir_for(stable_src), full_path),
+                            path,
+                        ),
+                        Some(PathKind::Missing) => errs.push(
+                            checks::ErrorKind::FileNotFound,
+                            format_error_message(ctx.source_dir_for(stable_src), full_path),
+                            path,
+                        ),
+                    }
+                }
             }
         }
 
