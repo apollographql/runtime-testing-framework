@@ -14,6 +14,7 @@
 use bytes::Bytes;
 use github::{GITHUB_API_URL, GithubClient};
 use reqwest::{Error, StatusCode};
+use std::future::Future;
 
 pub mod github;
 pub mod graphos;
@@ -115,14 +116,13 @@ pub struct HttpResponse {
 }
 
 /// Types that implement HttpClient may be used to perform http requests
-#[allow(async_fn_in_trait)]
-pub trait HttpClient {
+pub trait HttpClient: Send + Sync {
     /// Sends an HTTP GET request to the given `url` and returns the full response.
     ///
     /// This method performs no automatic error handling or status code validation;
     /// callers are responsible for interpreting the response body, including parsing
     /// it as JSON or text if desired, and handling any HTTP status errors.
-    async fn get(&self, url: &str) -> Result<HttpResponse, Error>;
+    fn get(&self, url: &str) -> impl Future<Output = Result<HttpResponse, Error>> + Send;
 }
 
 impl HttpClient for ReqwestClient {
