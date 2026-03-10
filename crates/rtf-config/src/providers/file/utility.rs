@@ -415,9 +415,9 @@ impl FromCommand {
 }
 
 impl ResolveAndWrite for FromCommand {
-    async fn resolve_and_write(
+    async fn resolve_and_write<P: AsRef<Path> + Send>(
         &self,
-        target: impl AsRef<Path>,
+        target: P,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<()> {
         let target = target.as_ref();
