@@ -270,7 +270,7 @@ impl HttpClient for NullClient {
 impl platform_query::Client for NullClient {
     async fn post_operation(
         &self,
-        _body: &impl serde::Serialize,
+        _body: &(impl serde::Serialize + Sync),
     ) -> Result<serde_json::Value, platform_query::Error> {
         panic!("a NullClient can not be used to make requests")
     }
