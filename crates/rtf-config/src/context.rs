@@ -179,7 +179,7 @@ pub trait ResolutionContext: Send + Sync {
     fn read_file_content(
         &self,
         src: &StableSource,
-        relative_path: impl AsRef<Path> + Send,
+        relative_path: &str,
     ) -> impl Future<Output = providers::Result<String>> + Send;
 
     /// Writes a slice as the entire contents of a file.
@@ -430,7 +430,7 @@ impl ResolutionContext for Context {
     async fn read_file_content(
         &self,
         src: &StableSource,
-        relative_path: impl AsRef<Path> + Send,
+        relative_path: &str,
     ) -> providers::Result<String> {
         let src_dir = self.sources.source_dir_for(src);
 

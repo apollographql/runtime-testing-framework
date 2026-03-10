@@ -710,7 +710,7 @@ mod tests {
         async fn read_file_content(
             &self,
             _src: &StableSource,
-            _relative_path: impl AsRef<Path> + Send,
+            _relative_path: &str,
         ) -> providers::Result<String> {
             unimplemented!(
                 "If you are hitting this we have not needed to mock this yet which is why it is not implemented"

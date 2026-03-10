@@ -11,6 +11,8 @@ use tracing::info;
 
 pub mod context;
 pub mod endpoints;
+pub mod event_loop;
+pub mod k8s;
 pub mod rep_test_plan;
 pub mod resolver;
 pub mod state;
