@@ -19,7 +19,9 @@ use crate::{
 use serde::Serialize;
 use std::{
     collections::HashMap,
-    fmt, io,
+    fmt,
+    future::Future,
+    io,
     path::{Path, PathBuf},
     pin::Pin,
 };
@@ -81,80 +83,88 @@ pub(crate) async fn try_read_relative_dir(
     Ok(())
 }
 
-#[allow(async_fn_in_trait)]
 pub(crate) trait ExtractRelativeFiles {
-    async fn try_extract_relative_files(
+    fn try_extract_relative_files(
         &self,
         files: &mut HashMap<(StableSource, String), String>,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<()>;
+    ) -> impl Future<Output = providers::Result<()>> + Send;
 }
 
-#[allow(async_fn_in_trait)]
-pub trait RunProviders {
+pub trait RunProviders: Send + Sync {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)>;
 
-    async fn try_extract_relative_files(
+    fn try_extract_relative_files(
         &self,
         files: &mut HashMap<(StableSource, String), String>,
         ctx: &impl ResolutionContext,
-    ) -> providers::Result<()> {
-        for (_, provider) in self.named_providers() {
-            match provider {
-                Provider::File { fp } => fp.try_extract_relative_files(files, ctx).await?,
-                Provider::Command { cmd, .. } => cmd.try_extract_relative_files(files, ctx).await?,
-                Provider::ComposeFile { fp } => fp.try_extract_relative_files(files, ctx).await?,
+    ) -> impl Future<Output = providers::Result<()>> + Send {
+        async move {
+            for (_, provider) in self.named_providers() {
+                match provider {
+                    Provider::File { fp } => fp.try_extract_relative_files(files, ctx).await?,
+                    Provider::Command { cmd, .. } => {
+                        cmd.try_extract_relative_files(files, ctx).await?
+                    }
+                    Provider::ComposeFile { fp } => {
+                        fp.try_extract_relative_files(files, ctx).await?
+                    }
+                }
             }
-        }
 
-        Ok(())
+            Ok(())
+        }
     }
 
     /// Run all of the [FileProviders][0] contained within this type and write out their file
     /// contents to the specified directory.
     ///
     /// [0]: crate::providers::file::FileProvider
-    async fn run_providers(
+    fn run_providers(
         &self,
         providers_dir: &Path,
         ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<()> {
-        for (name, provider) in self.named_providers() {
-            if ctx.known_provider_output_path(provider).is_some() {
-                continue;
+    ) -> impl Future<Output = providers::Result<()>> + Send {
+        async move {
+            for (name, provider) in self.named_providers() {
+                if ctx.known_provider_output_path(provider).is_some() {
+                    continue;
+                }
+
+                trace!(%name, "running file provider");
+                let file_path = providers_dir.join(name);
+
+                // We need to box the futures here in order to prevent us ending up with a recursive
+                // type definition for the Future we are building with this method. We end up being
+                // recursively defined because of the FromCommand file provider which is just a wrapper
+                // around CommandSection, meaning that the call to resolve_and_write below ends up calling
+                // back into run_providers_and_execute which then calls this method (run_providers).
+                let res = match provider {
+                    Provider::File { fp } => Box::pin(fp.resolve_and_write(&file_path, ctx)).await,
+
+                    Provider::Command { cmd, .. } => {
+                        Box::pin(cmd.resolve_and_write(&file_path, ctx))
+                            .await
+                            .and_then(|_| ctx.make_executable(&file_path).map_err(Into::into))
+                    }
+
+                    Provider::ComposeFile { fp } => {
+                        Box::pin(fp.resolve_and_write(&file_path, ctx)).await
+                    }
+                };
+
+                if let Err(e) = res {
+                    return Err(providers::Error::ResolveAndWriteFailed {
+                        name: name.to_owned(),
+                        err: e.to_string(),
+                    });
+                };
+
+                ctx.store_provider_output_path(provider, file_path);
             }
 
-            trace!(%name, "running file provider");
-            let file_path = providers_dir.join(name);
-
-            // We need to box the futures here in order to prevent us ending up with a recursive
-            // type definition for the Future we are building with this method. We end up being
-            // recursively defined because of the FromCommand file provider which is just a wrapper
-            // around CommandSection, meaning that the call to resolve_and_write below ends up calling
-            // back into run_providers_and_execute which then calls this method (run_providers).
-            let res = match provider {
-                Provider::File { fp } => Box::pin(fp.resolve_and_write(&file_path, ctx)).await,
-
-                Provider::Command { cmd, .. } => Box::pin(cmd.resolve_and_write(&file_path, ctx))
-                    .await
-                    .and_then(|_| ctx.make_executable(&file_path).map_err(Into::into)),
-
-                Provider::ComposeFile { fp } => {
-                    Box::pin(fp.resolve_and_write(&file_path, ctx)).await
-                }
-            };
-
-            if let Err(e) = res {
-                return Err(providers::Error::ResolveAndWriteFailed {
-                    name: name.to_owned(),
-                    err: e.to_string(),
-                });
-            };
-
-            ctx.store_provider_output_path(provider, file_path);
+            Ok(())
         }
-
-        Ok(())
     }
 
     // We need to pin these futures on the heap to be able to poll it in order to avoid a
