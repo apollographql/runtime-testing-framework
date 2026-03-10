@@ -47,6 +47,7 @@ dir = "../../"
 run = "cargo test"
 
 [tools]
+"cargo:cargo-edit" = "0.13.9"
 "cargo:cargo-expand" = "1.0.119"
 "cargo:cargo-llvm-cov" = "0.8.2"
 "cargo:typos-cli" = "1.42.3"
