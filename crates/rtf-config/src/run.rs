@@ -83,7 +83,7 @@ pub(crate) async fn try_read_relative_dir(
     Ok(())
 }
 
-pub(crate) trait ExtractRelativeFiles {
+pub(crate) trait ExtractRelativeFiles: Send + Sync {
     fn try_extract_relative_files(
         &self,
         files: &mut HashMap<(StableSource, String), String>,
@@ -257,7 +257,6 @@ impl fmt::Display for ExecuteArgs {
     }
 }
 
-#[allow(async_fn_in_trait)]
 pub trait Execute: RunProviders {
     fn command_name(&self) -> &str;
 
@@ -296,25 +295,27 @@ pub trait Execute: RunProviders {
     /// environment, returning the the output path passed to the command.
     ///
     /// [0]: crate::providers::file::FileProvider
-    async fn run_providers_and_execute(
+    fn run_providers_and_execute(
         &self,
         name: &str,
         out_dir: &Path,
         output_path: PathBuf,
         providers_dir: PathBuf,
         ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<PathBuf> {
-        self.run_providers(&providers_dir.join(format!("{name}_providers")), ctx)
-            .await?;
+    ) -> impl Future<Output = providers::Result<PathBuf>> + Send {
+        async move {
+            self.run_providers(&providers_dir.join(format!("{name}_providers")), ctx)
+                .await?;
 
-        if let Err(e) = self.execute(out_dir, &output_path, ctx) {
-            return Err(providers::Error::CommandFailed {
-                name: self.command_name().to_string(),
-                err: e.to_string(),
-            });
-        };
+            if let Err(e) = self.execute(out_dir, &output_path, ctx) {
+                return Err(providers::Error::CommandFailed {
+                    name: self.command_name().to_string(),
+                    err: e.to_string(),
+                });
+            };
 
-        Ok(output_path)
+            Ok(output_path)
+        }
     }
 
     /// Run all of the [FileProviders][0] associated with this command and write out their file
@@ -328,23 +329,25 @@ pub trait Execute: RunProviders {
     ///
     /// [0]: crate::providers::file::FileProvider
     /// [1]: Execute::run_providers_and_execute
-    async fn run_providers_and_execute_for_output(
+    fn run_providers_and_execute_for_output(
         &self,
         name: &str,
         out_dir: &Path,
         ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<String> {
-        let output_path = self
-            .run_providers_and_execute(
-                name,
-                out_dir,
-                out_dir.join(OUTPUT_PATH),
-                out_dir.join(PROVIDER_DIR),
-                ctx,
-            )
-            .await?;
+    ) -> impl Future<Output = providers::Result<String>> + Send {
+        async move {
+            let output_path = self
+                .run_providers_and_execute(
+                    name,
+                    out_dir,
+                    out_dir.join(OUTPUT_PATH),
+                    out_dir.join(PROVIDER_DIR),
+                    ctx,
+                )
+                .await?;
 
-        try_read_output_and_remove(&output_path, ctx)
+            try_read_output_and_remove(&output_path, ctx)
+        }
     }
 }
 
