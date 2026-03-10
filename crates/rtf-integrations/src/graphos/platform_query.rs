@@ -177,10 +177,9 @@ pub struct GqlError {
 /// ```
 ///
 ///   [0]: https://github.com/graphql-rust/graphql-client?tab=readme-ov-file#getting-started
-#[allow(async_fn_in_trait)]
 pub trait PlatformQuery: GraphQLQuery + Sized
 where
-    Self::Variables: Clone,
+    Self::Variables: Clone + Send + Sync,
 {
     /// The output type returned from `try_parse`
     type Output;
@@ -194,16 +193,18 @@ where
     ) -> Result<Self::Output, Self::Error>;
 
     /// Execute this query and parse the returned data
-    async fn fetch(
+    fn fetch(
         variables: Self::Variables,
         client: &impl Client,
-    ) -> Result<Self::Output, Self::Error>
+    ) -> impl Future<Output = Result<Self::Output, Self::Error>> + Send
     where
-        Self::Variables: Send + Sync,
+        Self::Output: Send,
+        Self::Error: Send,
     {
-        let raw = client.execute_operation::<Self>(variables.clone()).await?;
-
-        Self::try_parse(raw, variables)
+        async move {
+            let raw = client.execute_operation::<Self>(variables.clone()).await?;
+            Self::try_parse(raw, variables)
+        }
     }
 }
 
