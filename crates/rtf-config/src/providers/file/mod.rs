@@ -13,7 +13,9 @@ use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{HashMap, HashSet},
-    fmt, io,
+    fmt,
+    future::Future,
+    io,
     ops::{Deref, DerefMut},
     path::{Component, Path, PathBuf},
     str::FromStr,
@@ -33,23 +35,26 @@ pub use source::{CustomProviderSection, RawSource, SourceDir, StableSource};
 ///
 /// This trait is deliberately pub(crate) rather than pub so that the validation and resolution
 /// logic is only exposed through the public API as part of the methods on the config file structs.
-#[allow(async_fn_in_trait)]
 pub(crate) trait AsUtf8FileContent:
-    Check + Serialize + DeserializeOwned + fmt::Debug
+    Check + Serialize + DeserializeOwned + fmt::Debug + Send + Sync
 {
     /// Attempt to convert this file provider into an InlineFile
-    async fn try_into_inline_file(
+    fn try_into_inline_file(
         &self,
         ctx: &impl ResolutionContext,
-    ) -> inlining::Result<InlineFile> {
-        let content = self.try_get_file_content(ctx).await?;
+    ) -> impl Future<Output = inlining::Result<InlineFile>> + Send {
+        async move {
+            let content = self.try_get_file_content(ctx).await?;
 
-        Ok(InlineFile { content })
+            Ok(InlineFile { content })
+        }
     }
 
     /// Attempt to run this file provider and convert it into the required file content.
-    async fn try_get_file_content(&self, ctx: &impl ResolutionContext)
-    -> providers::Result<String>;
+    fn try_get_file_content(
+        &self,
+        ctx: &impl ResolutionContext,
+    ) -> impl Future<Output = providers::Result<String>> + Send;
 }
 
 /// Helper macro for stamping out implementations of the AsUtf8FileContent trait on an enum where
