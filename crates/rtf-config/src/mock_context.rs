@@ -64,7 +64,7 @@ impl MockContext<NullClient> {
     }
 }
 
-impl<C: HttpClient + Clone + 'static> ResolutionContext for MockContext<C> {
+impl<C: HttpClient + Clone + Send + Sync + 'static> ResolutionContext for MockContext<C> {
     type HttpClient = C;
     type GithubClient = MockGithubClient;
     type PlatformClient = NullClient;
@@ -122,7 +122,7 @@ impl<C: HttpClient + Clone + 'static> ResolutionContext for MockContext<C> {
     async fn read_file_content(
         &self,
         _src: &StableSource,
-        relative_path: impl AsRef<Path>,
+        relative_path: impl AsRef<Path> + Send,
     ) -> providers::Result<String> {
         let source = self
             .source
@@ -160,11 +160,11 @@ impl<C: HttpClient + Clone + 'static> ResolutionContext for MockContext<C> {
         fs::create_dir_all(path)
     }
 
-    async fn with_supergraph_details<T>(
+    async fn with_supergraph_details<T: Send>(
         &self,
-        _graph_id: impl Into<String>,
-        _variant: impl Into<String>,
-        _f: impl FnOnce(&Arc<SupergraphDetails>) -> providers::Result<T>,
+        _graph_id: impl Into<String> + Send,
+        _variant: impl Into<String> + Send,
+        _f: impl FnOnce(&Arc<SupergraphDetails>) -> providers::Result<T> + Send,
     ) -> providers::Result<T> {
         panic!(
             "This should not be called in tests, we test the methods that transform the response from this method instead"
