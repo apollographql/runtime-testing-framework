@@ -60,6 +60,15 @@ Check `.github/workflows/*.yaml` for any tool versions that are now out of sync 
 
 Note: The Rust version in CI is already read dynamically from `mise.toml` — do not hardcode it.
 
+## Phase 5 — Dockerfile runtime tool versions
+
+Check `toolbox/Dockerfile` for pinned runtime tool versions:
+
+1. `V_KUBECTL` — check the latest stable release at https://kubernetes.io/releases/
+2. `V_KOMPOSE` — check the latest release at https://github.com/kubernetes/kompose/releases
+
+Update any that are behind. Commit: `Upgrade Dockerfile runtime tools to latest versions`
+
 ## Summary
 
 After all phases, report:
