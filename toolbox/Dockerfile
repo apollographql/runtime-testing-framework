@@ -1,5 +1,5 @@
 # Rust build image
-FROM --platform=$BUILDPLATFORM rust:1.93.0 AS builder
+FROM --platform=$BUILDPLATFORM rust:1.94.0 AS builder
 
 WORKDIR /rtf
 
@@ -11,7 +11,7 @@ RUN cargo build --release --bin rtf
 
 
 # Runtime image build
-FROM --platform=$BUILDPLATFORM rust:1.93.0-slim
+FROM --platform=$BUILDPLATFORM rust:1.94.0-slim
 
 # https://kubernetes.io/releases/
 ENV V_KUBECTL="v1.35.0"
