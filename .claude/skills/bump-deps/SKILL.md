@@ -10,9 +10,10 @@ phase ends with a commit — only commit if `mise run pr-all` passes cleanly.
 
 1. Run `rustup check` to find the latest stable version.
 2. Update `rust = "..."` in `.config/mise/mise.toml`.
-3. Run `mise install`.
-4. Run `mise run pr-all`.
-5. Commit: `Update Rust toolchain to <version> in mise`
+3. Update both `rust:<version>` image tags in `toolbox/Dockerfile` to match.
+4. Run `mise install`.
+5. Run `mise run pr-all`.
+6. Commit: `Update Rust toolchain to <version> in mise and Dockerfile`
 
 ## Phase 2 — mise tool versions
 
@@ -58,6 +59,15 @@ Check `.github/workflows/*.yaml` for any tool versions that are now out of sync 
 3. Commit: `Align GitHub Actions tool versions with mise`
 
 Note: The Rust version in CI is already read dynamically from `mise.toml` — do not hardcode it.
+
+## Phase 5 — Dockerfile runtime tool versions
+
+Check `toolbox/Dockerfile` for pinned runtime tool versions:
+
+1. `V_KUBECTL` — check the latest stable release at https://kubernetes.io/releases/
+2. `V_KOMPOSE` — check the latest release at https://github.com/kubernetes/kompose/releases
+
+Update any that are behind. Commit: `Upgrade Dockerfile runtime tools to latest versions`
 
 ## Summary
 
