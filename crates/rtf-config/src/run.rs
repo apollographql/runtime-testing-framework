@@ -176,7 +176,7 @@ pub trait RunProviders: Send + Sync {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>>;
 }
 
 impl RunProviders for Vec<NamedFileProvider> {
@@ -190,7 +190,7 @@ impl RunProviders for Vec<NamedFileProvider> {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
@@ -219,7 +219,7 @@ impl RunProviders for Vec<NamedComposeFileProvider> {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 

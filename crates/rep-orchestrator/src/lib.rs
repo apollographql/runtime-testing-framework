@@ -6,7 +6,7 @@ use axum::{
     serve,
 };
 use std::{collections::HashMap, env, net::SocketAddr, sync::LazyLock};
-use tokio::net::TcpListener;
+use tokio::{net::TcpListener, sync::mpsc::unbounded_channel};
 use tracing::info;
 
 pub mod context;
@@ -19,6 +19,8 @@ pub mod state;
 pub mod test_execution;
 pub mod test_run;
 
+use event_loop::event_loop_task;
+use resolver::test_plan_resolver_task;
 use state::ServerState;
 
 const DEFAULT_PORT: u16 = 8035;
@@ -26,7 +28,7 @@ const DEFAULT_PORT: u16 = 8035;
 pub(crate) static ENV_VARS: LazyLock<HashMap<String, String>> =
     LazyLock::new(|| env::vars().collect());
 
-pub async fn run_server(state: ServerState) -> anyhow::Result<()> {
+pub async fn run_server() -> anyhow::Result<()> {
     // Read env vars
     // - port
     // - kubeconfig
@@ -35,6 +37,20 @@ pub async fn run_server(state: ServerState) -> anyhow::Result<()> {
     // - gcp creds?
 
     // check DB connectivity
+
+    let (state, rx) = ServerState::new();
+    let (etx, erx) = unbounded_channel();
+    let tx = etx.clone();
+
+    tokio::spawn(async {
+        info!("spawning test plan resolver task");
+        test_plan_resolver_task(rx, tx).await;
+    });
+
+    tokio::spawn(async {
+        info!("spawning primary event loop task");
+        event_loop_task(etx, erx).await;
+    });
 
     // spawn event loop task
 

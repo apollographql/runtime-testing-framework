@@ -1,16 +1,21 @@
 //! Long lived task for resolving test plans
-use crate::{ENV_VARS, context::RepContext, rep_test_plan::RepTestPlan};
+use crate::{
+    ENV_VARS,
+    context::RepContext,
+    event_loop::{Event, EventType},
+    rep_test_plan::RepTestPlan,
+};
 use rtf_config::{
     StableSource,
     checks::Check,
     context::{Context, ResolutionContext},
-    formats::TestPlanConfig,
+    formats::{EnvironmentExecution, ScenarioCommand, TestPlanConfig},
     inlining::InlineMode,
     templating::{Template, TemplateContext},
 };
 use std::{collections::HashMap, mem::take};
-use tokio::sync::mpsc::UnboundedReceiver;
-use tracing::{debug, info, info_span, warn};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tracing::{debug, error, info, info_span, warn};
 use uuid::Uuid;
 
 #[derive(Debug)]
@@ -19,7 +24,10 @@ pub struct TestPlanWithId {
     pub rtp: RepTestPlan,
 }
 
-pub async fn test_plan_resolver_task(mut rx: UnboundedReceiver<TestPlanWithId>) {
+pub async fn test_plan_resolver_task(
+    mut rx: UnboundedReceiver<TestPlanWithId>,
+    etx: UnboundedSender<Event>,
+) {
     // TODO: work out what we want / need to do about clearing the cache of supergraph details
     let base_ctx = Context::new_from_env_vars(&ENV_VARS);
 
@@ -69,18 +77,40 @@ pub async fn test_plan_resolver_task(mut rx: UnboundedReceiver<TestPlanWithId>) 
             }
         };
 
-        for (name, variant) in it {
+        for (name, mut variant) in it {
             debug!(%name, "resolving variant");
-            if let Err(error) = resolve_variant(variant, &ctx).await {
+            if let Err(error) = resolve_variant(&mut variant, &ctx).await {
                 warn!(%error, %name, "unable to resolve variant");
                 // TODO: mark TestRun as unrunnable
                 continue;
             }
+
+            let environment = match variant.environment.execution {
+                EnvironmentExecution::DockerCompose(inner) => inner,
+                // FIXME: Need to enforce this invariant in the axum handler
+                EnvironmentExecution::Script(_) => {
+                    panic!("got a test plan with a script environment")
+                }
+            };
+
+            let scenario = match variant.scenario.command {
+                ScenarioCommand::Docker(inner) => inner,
+                // FIXME: Need to enforce this invariant in the axum handler
+                ScenarioCommand::Script(_) => panic!("got a test plan with a script scenario"),
+            };
+
+            if let Err(error) = etx.send(Event {
+                execution_id: Uuid::new_v4(),
+                ty: EventType::ProvisionEnvironment(environment, scenario),
+            }) {
+                error!(%error, "unable to send test plan to event loop. exiting.");
+                return;
+            };
         }
     }
 }
 
-async fn resolve_variant(mut test_plan: TestPlanConfig, ctx: &RepContext) -> anyhow::Result<()> {
+async fn resolve_variant(test_plan: &mut TestPlanConfig, ctx: &RepContext) -> anyhow::Result<()> {
     debug!("creating templating context");
     let variables = take(&mut test_plan.variables);
     let template_ctx =

@@ -9,6 +9,7 @@ use k8s_openapi::api::{
 use kube::api::ObjectMeta;
 use rtf_config::formats::DockerScenario;
 use std::collections::BTreeMap;
+use uuid::Uuid;
 
 pub const CONFIG_MAP_NAME_SCENARIO: &str = "rtf-scenario-config";
 const SHARED_DIR_PATH: &str = "/shared";
@@ -63,7 +64,7 @@ ls -laR /shared/providers/
 "#;
 
 /// Create a new [JobSpec] for the given [DockerScenario].
-pub fn scenario_job(execution_id: &str, scenario: &DockerScenario) -> JobSpec {
+pub fn scenario_job(execution_id: &Uuid, scenario: &DockerScenario) -> JobSpec {
     JobSpec {
         backoff_limit: Some(0), // don't retry failed scenarios
         ttl_seconds_after_finished: Some(TTL_SECONDS_AFTER_FINISHED),
@@ -71,7 +72,7 @@ pub fn scenario_job(execution_id: &str, scenario: &DockerScenario) -> JobSpec {
             metadata: Some(ObjectMeta {
                 labels: Some(BTreeMap::from([(
                     EXECUTION_ID_LABEL.to_owned(),
-                    execution_id.to_owned(),
+                    execution_id.to_string(),
                 )])),
                 ..Default::default()
             }),
@@ -94,7 +95,7 @@ fn init_container_spec(scenario: &DockerScenario) -> Container {
     Container {
         name: "rtf-resolve".to_owned(),
         image: Some(TOOLBOX_IMAGE.to_owned()),
-        command: Some(vec!["/bin/sh/".to_owned(), "-c".to_owned()]),
+        command: Some(vec!["/bin/sh".to_owned(), "-c".to_owned()]),
         args: Some(vec![RESOLVE_SCRIPT.to_owned(), scenario.command()]),
         volume_mounts: Some(vec![
             VolumeMount {
@@ -118,7 +119,7 @@ fn scenario_run_container_spec(scenario: &DockerScenario) -> Container {
         name: "scenario-runner".to_owned(),
         image: Some(scenario.docker_image()),
         command: Some(vec![
-            "/bin/sh/".to_owned(),
+            "/bin/sh".to_owned(),
             "-c".to_owned(),
             "/shared/run.sh".to_owned(),
         ]),
@@ -149,7 +150,7 @@ fn output_collector_container_spec() -> Container {
     Container {
         name: "output-collector".to_owned(),
         image: Some(TOOLBOX_IMAGE.to_owned()),
-        command: Some(vec!["/bin/sh/".to_owned(), "-c".to_owned()]),
+        command: Some(vec!["/bin/sh".to_owned(), "-c".to_owned()]),
         args: Some(vec![OUTPUT_COLLECTOR_SCRIPT.to_owned()]),
         volume_mounts: Some(vec![
             VolumeMount {

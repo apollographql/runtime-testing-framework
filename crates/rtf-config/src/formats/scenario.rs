@@ -196,7 +196,7 @@ impl RunProviders for ScenarioCommand {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         match self {
             Self::Docker(inner) => inner.file_providers.inline(mode, ctx),
             Self::Script(inner) => inner.inline(mode, ctx),
@@ -393,7 +393,7 @@ impl RunProviders for DockerScenario {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         self.file_providers.inline(mode, ctx)
     }
 }

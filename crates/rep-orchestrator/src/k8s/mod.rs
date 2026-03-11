@@ -9,15 +9,17 @@ use kube::{
     core::NamespaceResourceScope,
 };
 use kube_runtime::{WatchStreamExt, watcher};
-use serde::Serialize;
 use std::{collections::BTreeMap, path::Path, pin::pin};
 use tokio_stream::StreamExt;
+use tracing::error;
+use uuid::Uuid;
 
 mod job;
 mod workflow;
 
-pub use job::scenario_job;
-use workflow::{Workflow, WorkflowSpec};
+pub use job::{CONFIG_MAP_NAME_SCENARIO, scenario_job};
+use workflow::Workflow;
+pub use workflow::{WorkflowSpec, env_configmap_name, workflow_name};
 
 pub const CLUSTER_API_NAMESPACE: &str = "cluster-api";
 pub const ENVIRONMENT_CONFIG_FILENAME: &str = "environment.yaml";
@@ -40,6 +42,7 @@ pub enum WatchOutcome {
     StreamClosed,
 }
 
+#[derive(Clone)]
 pub struct ClusterClients {
     /// rtf-mgmt — where the Argo workflows run
     management: Client,
@@ -49,7 +52,7 @@ pub struct ClusterClients {
 
 impl ClusterClients {
     /// Construct a new pair of k8s clients using the provided kubeconfig path and contexts.
-    pub async fn new(
+    pub async fn try_new(
         path: &Path,
         management_context: &str,
         workload_context: &str,
@@ -108,24 +111,18 @@ impl ClusterClients {
     // FIXME: we need a unique identifier for each workflow. We have the execution ID available but
     // its a UUID so that's not going to be particularly readable? But it may be the way to go...
 
-    pub async fn create_argo_workflow(
-        &self,
-        ident: &str,
-        spec: impl Serialize,
-    ) -> anyhow::Result<Workflow> {
+    pub async fn create_argo_workflow(&self, execution_id: &Uuid) -> anyhow::Result<Workflow> {
         let wf = self
             .namespaced_api(Cluster::Management, CLUSTER_API_NAMESPACE)
             .create(
                 &Default::default(),
                 &Workflow {
                     metadata: ObjectMeta {
-                        name: Some(workflow_name(ident)),
+                        name: Some(workflow_name(execution_id)),
                         namespace: Some(CLUSTER_API_NAMESPACE.to_owned()),
                         ..Default::default()
                     },
-                    spec: WorkflowSpec {
-                        spec: serde_json::to_value(spec)?,
-                    },
+                    spec: WorkflowSpec::for_execution_id(execution_id),
                     ..Default::default()
                 },
             )
@@ -160,10 +157,12 @@ impl ClusterClients {
         Ok(job)
     }
 
-    pub async fn wait_for_workflow(&self, ident: &str) -> WatchOutcome {
+    // FIXME: watch based on lables rather than names
+
+    pub async fn wait_for_workflow(&self, execution_id: &Uuid) -> WatchOutcome {
         let api: Api<Workflow> = self.namespaced_api(Cluster::Management, CLUSTER_API_NAMESPACE);
-        let config =
-            watcher::Config::default().fields(&format!("metadata.name={}", workflow_name(ident)));
+        let config = watcher::Config::default()
+            .fields(&format!("metadata.name={}", workflow_name(execution_id)));
         let mut stream = pin!(watcher(api, config).applied_objects());
 
         while let Some(res) = stream.next().await {
@@ -181,7 +180,12 @@ impl ClusterClients {
                         return WatchOutcome::Failed(msg);
                     }
 
-                    _ => continue,
+                    Some("Running") => (),
+
+                    _ => {
+                        error!(?status, "unexpected status");
+                        continue;
+                    }
                 }
             }
         }
@@ -219,11 +223,6 @@ impl ClusterClients {
 
         WatchOutcome::StreamClosed
     }
-}
-
-#[inline(always)]
-fn workflow_name(ident: &str) -> String {
-    format!("provision-env-{ident}")
 }
 
 async fn client_for_context(kfg: Kubeconfig, context: &str) -> anyhow::Result<Client> {
