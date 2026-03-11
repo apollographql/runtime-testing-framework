@@ -10,9 +10,10 @@ phase ends with a commit — only commit if `mise run pr-all` passes cleanly.
 
 1. Run `rustup check` to find the latest stable version.
 2. Update `rust = "..."` in `.config/mise/mise.toml`.
-3. Run `mise install`.
-4. Run `mise run pr-all`.
-5. Commit: `Update Rust toolchain to <version> in mise`
+3. Update both `rust:<version>` image tags in `toolbox/Dockerfile` to match.
+4. Run `mise install`.
+5. Run `mise run pr-all`.
+6. Commit: `Update Rust toolchain to <version> in mise and Dockerfile`
 
 ## Phase 2 — mise tool versions
 
