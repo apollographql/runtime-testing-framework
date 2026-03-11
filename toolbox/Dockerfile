@@ -14,7 +14,7 @@ RUN cargo build --release --bin rtf
 FROM --platform=$BUILDPLATFORM rust:1.94.0-slim
 
 # https://kubernetes.io/releases/
-ENV V_KUBECTL="v1.35.0"
+ENV V_KUBECTL="v1.35.2"
 # https://github.com/kubernetes/kompose/releases
 ENV V_KOMPOSE="v1.38.0"
 
