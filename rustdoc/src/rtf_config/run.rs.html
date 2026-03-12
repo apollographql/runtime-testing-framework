@@ -176,7 +176,7 @@
 <a href=#176 id=176 data-nosnippet>176</a>        <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span><span class="self">self</span>,
 <a href=#177 id=177 data-nosnippet>177</a>        mode: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>InlineMode,
 <a href=#178 id=178 data-nosnippet>178</a>        ctx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw">impl </span>ResolutionContext,
-<a href=#179 id=179 data-nosnippet>179</a>    ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = inlining::Result&lt;()&gt;&gt; + <span class="lifetime">'a</span>&gt;&gt;;
+<a href=#179 id=179 data-nosnippet>179</a>    ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = inlining::Result&lt;()&gt;&gt; + Send + <span class="lifetime">'a</span>&gt;&gt;;
 <a href=#180 id=180 data-nosnippet>180</a>}
 <a href=#181 id=181 data-nosnippet>181</a>
 <a href=#182 id=182 data-nosnippet>182</a><span class="kw">impl </span>RunProviders <span class="kw">for </span>Vec&lt;NamedFileProvider&gt; {
@@ -190,7 +190,7 @@
 <a href=#190 id=190 data-nosnippet>190</a>        <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span><span class="self">self</span>,
 <a href=#191 id=191 data-nosnippet>191</a>        mode: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>InlineMode,
 <a href=#192 id=192 data-nosnippet>192</a>        ctx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw">impl </span>ResolutionContext,
-<a href=#193 id=193 data-nosnippet>193</a>    ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = inlining::Result&lt;()&gt;&gt; + <span class="lifetime">'a</span>&gt;&gt; {
+<a href=#193 id=193 data-nosnippet>193</a>    ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = inlining::Result&lt;()&gt;&gt; + Send + <span class="lifetime">'a</span>&gt;&gt; {
 <a href=#194 id=194 data-nosnippet>194</a>        Box::pin(<span class="kw">async move </span>{
 <a href=#195 id=195 data-nosnippet>195</a>            <span class="kw">let </span><span class="kw-2">mut </span>errs = inlining::ErrorBuilder::new();
 <a href=#196 id=196 data-nosnippet>196</a>
@@ -219,7 +219,7 @@
 <a href=#219 id=219 data-nosnippet>219</a>        <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span><span class="self">self</span>,
 <a href=#220 id=220 data-nosnippet>220</a>        mode: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>InlineMode,
 <a href=#221 id=221 data-nosnippet>221</a>        ctx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw">impl </span>ResolutionContext,
-<a href=#222 id=222 data-nosnippet>222</a>    ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = inlining::Result&lt;()&gt;&gt; + <span class="lifetime">'a</span>&gt;&gt; {
+<a href=#222 id=222 data-nosnippet>222</a>    ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = inlining::Result&lt;()&gt;&gt; + Send + <span class="lifetime">'a</span>&gt;&gt; {
 <a href=#223 id=223 data-nosnippet>223</a>        Box::pin(<span class="kw">async move </span>{
 <a href=#224 id=224 data-nosnippet>224</a>            <span class="kw">let </span><span class="kw-2">mut </span>errs = inlining::ErrorBuilder::new();
 <a href=#225 id=225 data-nosnippet>225</a>

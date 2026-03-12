@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CLUSTER_API_NAMESPACE","CONFIG_MAP_NAME_SCENARIO","ENVIRONMENT_CONFIG_FILENAME","EXECUTION_ID_LABEL","SCENARIO_CONFIG_FILENAME","TOOLBOX_IMAGE"],"enum":["Cluster","WatchOutcome"],"fn":["env_configmap_name","scenario_job","workflow_name"],"struct":["ClusterClients","WorkflowSpec"]};

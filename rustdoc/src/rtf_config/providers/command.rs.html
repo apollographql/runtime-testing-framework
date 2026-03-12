@@ -104,7 +104,7 @@
 <a href=#104 id=104 data-nosnippet>104</a>        <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span><span class="self">self</span>,
 <a href=#105 id=105 data-nosnippet>105</a>        mode: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>InlineMode,
 <a href=#106 id=106 data-nosnippet>106</a>        ctx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw">impl </span>ResolutionContext,
-<a href=#107 id=107 data-nosnippet>107</a>    ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = inlining::Result&lt;()&gt;&gt; + <span class="lifetime">'a</span>&gt;&gt; {
+<a href=#107 id=107 data-nosnippet>107</a>    ) -&gt; Pin&lt;Box&lt;<span class="kw">dyn </span>Future&lt;Output = inlining::Result&lt;()&gt;&gt; + Send + <span class="lifetime">'a</span>&gt;&gt; {
 <a href=#108 id=108 data-nosnippet>108</a>        Box::pin(<span class="kw">async move </span>{
 <a href=#109 id=109 data-nosnippet>109</a>            <span class="kw">let </span><span class="kw-2">mut </span>errs = inlining::ErrorBuilder::new();
 <a href=#110 id=110 data-nosnippet>110</a>
@@ -710,7 +710,7 @@
 <a href=#710 id=710 data-nosnippet>710</a>        <span class="kw">async fn </span>read_file_content(
 <a href=#711 id=711 data-nosnippet>711</a>            <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#712 id=712 data-nosnippet>712</a>            _src: <span class="kw-2">&amp;</span>StableSource,
-<a href=#713 id=713 data-nosnippet>713</a>            _relative_path: <span class="kw">impl </span>AsRef&lt;Path&gt;,
+<a href=#713 id=713 data-nosnippet>713</a>            _relative_path: <span class="kw-2">&amp;</span>str,
 <a href=#714 id=714 data-nosnippet>714</a>        ) -&gt; providers::Result&lt;String&gt; {
 <a href=#715 id=715 data-nosnippet>715</a>            <span class="macro">unimplemented!</span>(
 <a href=#716 id=716 data-nosnippet>716</a>                <span class="string">"If you are hitting this we have not needed to mock this yet which is why it is not implemented"
