@@ -7,6 +7,7 @@ pub mod expand_matrix;
 pub mod github;
 pub mod graphos;
 pub mod inline;
+pub mod rep;
 pub mod resolve;
 pub mod run;
 pub mod schemas;

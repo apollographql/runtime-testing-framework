@@ -1,0 +1,9 @@
+name: rep-prepare-environment
+description: Minimal DockerCompose environment for rep prepare tests
+
+project_name: rep-prepare
+
+compose_files:
+  - name: compose.yaml
+    kind: relative_path
+    path: providers/compose.yaml

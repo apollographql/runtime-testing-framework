@@ -134,6 +134,23 @@ pub fn prepare_rtf_run(dir: &str) -> CmdWithTmpDir {
     }
 }
 
+pub fn prepare_rtf_rep_prepare(dir: &str) -> CmdWithTmpDir {
+    let test_setup = prepare_for_test(dir);
+    let mut cmd = cargo_bin_cmd!("rtf");
+
+    cmd.arg("rep")
+        .arg("prepare")
+        .arg(&test_setup.test_plan_file_path)
+        .arg("--outdir")
+        .arg(&test_setup.output_file_path)
+        .arg("-vv");
+
+    CmdWithTmpDir {
+        cmd,
+        tmp: test_setup.tmp,
+    }
+}
+
 /// Prepare an rtf run command with a variables file containing the given content.
 pub fn prepare_rtf_run_with_vars_file(dir: &str, vars_content: &str) -> CmdWithTmpDir {
     use std::fs;
