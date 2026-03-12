@@ -370,3 +370,103 @@ pub(crate) fn try_read_output_and_remove(
 
     Ok(output)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        mock_context::MockContext,
+        providers::{file::SourceDir, test_helpers::create_temp_dir_with_file},
+        templating::Field,
+    };
+    use assert_fs::{
+        TempDir,
+        fixture::{FileWriteStr, PathChild},
+    };
+
+    #[tokio::test]
+    async fn relative_file_extract_content() {
+        let (temp, _) = create_temp_dir_with_file("file.txt", "hello");
+        let ctx = MockContext::with_http_client(&[])
+            .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
+        let rf = RelativeFile {
+            path: Field::Resolved("file.txt".to_string()),
+            src: Some(StableSource::TestPlan),
+        };
+        let mut files = HashMap::new();
+
+        let res = try_read_relative_file(&rf, &mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert_eq!(
+            files.get(&(StableSource::TestPlan, "file.txt".to_string())),
+            Some(&"hello".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn relative_file_extract_deduplicates() {
+        let (temp, _) = create_temp_dir_with_file("file.txt", "hello");
+        let ctx = MockContext::with_http_client(&[])
+            .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
+        let rf = RelativeFile {
+            path: Field::Resolved("file.txt".to_string()),
+            src: Some(StableSource::TestPlan),
+        };
+        let mut files = HashMap::new();
+
+        try_read_relative_file(&rf, &mut files, &ctx).await.unwrap();
+        try_read_relative_file(&rf, &mut files, &ctx).await.unwrap();
+
+        assert_eq!(files.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn relative_dir_extract_single_file() {
+        let (temp, _) = create_temp_dir_with_file("dir/a.txt", "aaa");
+        let ctx = MockContext::with_http_client(&[])
+            .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
+        let rd = RelativeDir {
+            path: Field::Resolved("dir".to_string()),
+            files: vec!["a.txt".to_string()],
+            src: Some(StableSource::TestPlan),
+        };
+        let mut files = HashMap::new();
+
+        let res = try_read_relative_dir(&rd, &mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert_eq!(
+            files.get(&(StableSource::TestPlan, "dir/a.txt".to_string())),
+            Some(&"aaa".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn relative_dir_extract_multiple_files() {
+        let temp = TempDir::new().unwrap();
+        temp.child("dir/a.txt").write_str("aaa").unwrap();
+        temp.child("dir/b.txt").write_str("bbb").unwrap();
+        let ctx = MockContext::with_http_client(&[])
+            .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
+        let rd = RelativeDir {
+            path: Field::Resolved("dir".to_string()),
+            files: vec!["a.txt".to_string(), "b.txt".to_string()],
+            src: Some(StableSource::TestPlan),
+        };
+        let mut files = HashMap::new();
+
+        let res = try_read_relative_dir(&rd, &mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert_eq!(files.len(), 2);
+        assert_eq!(
+            files.get(&(StableSource::TestPlan, "dir/a.txt".to_string())),
+            Some(&"aaa".to_string())
+        );
+        assert_eq!(
+            files.get(&(StableSource::TestPlan, "dir/b.txt".to_string())),
+            Some(&"bbb".to_string())
+        );
+    }
+}

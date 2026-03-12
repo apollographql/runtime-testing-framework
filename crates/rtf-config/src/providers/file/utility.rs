@@ -1284,4 +1284,115 @@ mod tests {
         assert_eq!(err.kind, templating::ErrorKind::UnknownVariable);
         assert_eq!(err.message, "unknown");
     }
+
+    #[tokio::test]
+    async fn merge_yaml_extract_base_rp_override_rp_both() {
+        use assert_fs::fixture::FileWriteStr;
+
+        let temp = TempDir::new().unwrap();
+        temp.child("base.yaml").write_str("key: A").unwrap();
+        temp.child("override.yaml").write_str("key: B").unwrap();
+        let ctx = MockContext::with_http_client(&[])
+            .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
+
+        let provider = MergeYaml {
+            base: MergeFileProvider::RelativePath(RelativeFile {
+                path: Field::Resolved("base.yaml".to_string()),
+                src: Some(StableSource::TestPlan),
+            }),
+            overrides: Overrides::One(MergeFileProvider::RelativePath(RelativeFile {
+                path: Field::Resolved("override.yaml".to_string()),
+                src: Some(StableSource::TestPlan),
+            })),
+        };
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert_eq!(files.len(), 2);
+        assert!(files.contains_key(&(StableSource::TestPlan, "base.yaml".to_string())));
+        assert!(files.contains_key(&(StableSource::TestPlan, "override.yaml".to_string())));
+    }
+
+    #[tokio::test]
+    async fn merge_yaml_extract_base_rp_override_array_all() {
+        use assert_fs::fixture::FileWriteStr;
+
+        let temp = TempDir::new().unwrap();
+        temp.child("base.yaml").write_str("key: A").unwrap();
+        temp.child("o1.yaml").write_str("key: B").unwrap();
+        temp.child("o2.yaml").write_str("key: C").unwrap();
+        let ctx = MockContext::with_http_client(&[])
+            .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
+
+        let provider = MergeYaml {
+            base: MergeFileProvider::RelativePath(RelativeFile {
+                path: Field::Resolved("base.yaml".to_string()),
+                src: Some(StableSource::TestPlan),
+            }),
+            overrides: Overrides::Array(vec![
+                MergeFileProvider::RelativePath(RelativeFile {
+                    path: Field::Resolved("o1.yaml".to_string()),
+                    src: Some(StableSource::TestPlan),
+                }),
+                MergeFileProvider::RelativePath(RelativeFile {
+                    path: Field::Resolved("o2.yaml".to_string()),
+                    src: Some(StableSource::TestPlan),
+                }),
+            ]),
+        };
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert_eq!(files.len(), 3);
+        assert!(files.contains_key(&(StableSource::TestPlan, "base.yaml".to_string())));
+        assert!(files.contains_key(&(StableSource::TestPlan, "o1.yaml".to_string())));
+        assert!(files.contains_key(&(StableSource::TestPlan, "o2.yaml".to_string())));
+    }
+
+    #[tokio::test]
+    async fn merge_yaml_extract_base_inline_override_rp_only_override() {
+        let (temp, _) = create_temp_dir_with_file("override.yaml", "key: B");
+        let ctx = MockContext::with_http_client(&[])
+            .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
+
+        let provider = MergeYaml {
+            base: MergeFileProvider::Inline(InlineFile {
+                content: "key: A".to_string(),
+            }),
+            overrides: Overrides::One(MergeFileProvider::RelativePath(RelativeFile {
+                path: Field::Resolved("override.yaml".to_string()),
+                src: Some(StableSource::TestPlan),
+            })),
+        };
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert_eq!(files.len(), 1);
+        assert!(files.contains_key(&(StableSource::TestPlan, "override.yaml".to_string())));
+    }
+
+    #[tokio::test]
+    async fn merge_yaml_extract_both_inline_unchanged() {
+        let provider = MergeYaml {
+            base: MergeFileProvider::Inline(InlineFile {
+                content: "key: A".to_string(),
+            }),
+            overrides: Overrides::One(MergeFileProvider::Inline(InlineFile {
+                content: "key: B".to_string(),
+            })),
+        };
+        let ctx = MockContext::with_http_client(&[]);
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert!(files.is_empty());
+    }
 }

@@ -1125,4 +1125,61 @@ mod tests {
 
         assert_eq!(command_section, expected);
     }
+
+    #[tokio::test]
+    async fn command_provider_extract_relative_path() {
+        let file_content = "#!/bin/sh\necho hello";
+        let (temp, _) = create_temp_dir_with_file("script.sh", file_content);
+        let mut ctx = Context::new();
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+        ctx.set_sources(Sources::with_custom_providers(
+            src,
+            None,
+            None,
+            Default::default(),
+            Default::default(),
+        ));
+
+        let provider = CommandProvider::RelativePath(RelativeFile {
+            path: Field::Resolved("script.sh".to_string()),
+            src: Some(StableSource::TestPlan),
+        });
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert_eq!(
+            files.get(&(StableSource::TestPlan, "script.sh".to_string())),
+            Some(&file_content.to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn command_provider_extract_inline_unchanged() {
+        let ctx = Context::new();
+        let provider = CommandProvider::Inline(InlineFile {
+            content: "echo hello".to_string(),
+        });
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert!(files.is_empty());
+    }
+
+    #[tokio::test]
+    async fn command_provider_extract_required_unchanged() {
+        let ctx = Context::new();
+        let provider = CommandProvider::Required(RequiredFile {
+            message: "required".to_string(),
+        });
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert!(files.is_empty());
+    }
 }

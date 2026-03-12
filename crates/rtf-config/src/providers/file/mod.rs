@@ -2023,4 +2023,122 @@ mod tests {
             "Expected the inline file provider to remain unchanged"
         );
     }
+
+    #[tokio::test]
+    async fn file_provider_extract_relative_path() {
+        let expected_content = "file content";
+        let (temp, _) = create_temp_dir_with_file("file.txt", expected_content);
+        let ctx = MockContext::with_http_client(&[])
+            .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
+
+        let provider =
+            FileProvider::RelativePath(relative_file("file.txt", StableSource::TestPlan));
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert_eq!(
+            files.get(&(StableSource::TestPlan, "file.txt".to_string())),
+            Some(&expected_content.to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn file_provider_extract_relative_dir() {
+        let (temp, _) = create_temp_dir_with_file("dir/a.txt", "content");
+        let ctx = MockContext::with_http_client(&[])
+            .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
+
+        let provider =
+            FileProvider::RelativeDir(relative_dir("dir", &["a.txt"], StableSource::TestPlan));
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert_eq!(
+            files.get(&(StableSource::TestPlan, "dir/a.txt".to_string())),
+            Some(&"content".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn file_provider_extract_from_command_relative_path() {
+        use crate::providers::command::{CommandProvider, CommandSection, CommandSpec};
+
+        let file_content = "cmd content";
+        let (temp, _) = create_temp_dir_with_file("script.sh", file_content);
+        let mut ctx = Context::new();
+        let src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+        ctx.set_sources(Sources::with_custom_providers(
+            src,
+            None,
+            None,
+            Default::default(),
+            Default::default(),
+        ));
+
+        let inner = CommandSection {
+            command: CommandSpec {
+                name: "script.sh".to_string(),
+                command_provider: CommandProvider::RelativePath(RelativeFile {
+                    path: Field::Resolved("script.sh".to_string()),
+                    src: Some(StableSource::TestPlan),
+                }),
+                args: vec![],
+            },
+            env_vars: HashMap::new(),
+            file_providers: vec![],
+        };
+        let provider = FileProvider::FromCommand(utility::FromCommand::new(inner));
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert_eq!(
+            files.get(&(StableSource::TestPlan, "script.sh".to_string())),
+            Some(&file_content.to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn file_provider_extract_from_command_inline_unchanged() {
+        use crate::providers::command::{CommandProvider, CommandSection, CommandSpec};
+
+        let inner = CommandSection {
+            command: CommandSpec {
+                name: "script.sh".to_string(),
+                command_provider: CommandProvider::Inline(InlineFile {
+                    content: "echo hi".to_string(),
+                }),
+                args: vec![],
+            },
+            env_vars: HashMap::new(),
+            file_providers: vec![],
+        };
+        let ctx = MockContext::with_http_client(&[]);
+        let provider = FileProvider::FromCommand(utility::FromCommand::new(inner));
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert!(files.is_empty());
+    }
+
+    #[tokio::test]
+    async fn file_provider_extract_non_extractable_unchanged() {
+        let ctx = MockContext::with_http_client(&[]);
+        let provider = FileProvider::Inline(InlineFile {
+            content: "inline content".to_string(),
+        });
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert!(files.is_empty());
+    }
 }
