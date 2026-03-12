@@ -196,7 +196,7 @@ impl RunProviders for ScenarioCommand {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         match self {
             Self::Docker(inner) => inner.file_providers.inline(mode, ctx),
             Self::Script(inner) => inner.inline(mode, ctx),
@@ -261,16 +261,23 @@ pub struct DockerScenario {
 }
 
 impl DockerScenario {
+    pub fn docker_image(&self) -> String {
+        match self.docker.tag.as_ref() {
+            Some(tag) => format!("{}:{}", self.docker.image.as_resolved(), tag.as_resolved()),
+            None => self.docker.image.as_resolved().to_string(),
+        }
+    }
+
+    pub fn command(&self) -> String {
+        self.docker.command.as_resolved().to_string()
+    }
+
     fn as_command_and_args(
         &self,
         env_vars: &HashMap<String, String>,
         ctx: &impl ResolutionContext,
     ) -> (&'static str, Vec<String>) {
-        let image = match self.docker.tag.as_ref() {
-            Some(tag) => format!("{}:{}", self.docker.image.as_resolved(), tag.as_resolved()),
-            None => self.docker.image.as_resolved().to_string(),
-        };
-
+        let image = self.docker_image();
         let net_flag = match ctx.run_metadata(DOCKER_COMPOSE_NETWORK) {
             Some(network) => format!("--net={network}"),
             None => "--net=host".to_string(),
@@ -386,7 +393,7 @@ impl RunProviders for DockerScenario {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         self.file_providers.inline(mode, ctx)
     }
 }

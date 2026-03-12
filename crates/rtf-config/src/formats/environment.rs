@@ -231,7 +231,7 @@ impl RunProviders for EnvironmentExecution {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         match self {
             EnvironmentExecution::DockerCompose(inner) => inner.inline(mode, ctx),
             EnvironmentExecution::Script(inner) => inner.inline(mode, ctx),
@@ -296,7 +296,7 @@ impl RunProviders for ScriptEnvironment {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
@@ -536,6 +536,7 @@ impl Check for DockerComposeEnvironment {
     }
 }
 
+#[allow(async_fn_in_trait)]
 impl RunProviders for DockerComposeEnvironment {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
         let mut providers = self.compose_files.named_providers();
@@ -548,7 +549,7 @@ impl RunProviders for DockerComposeEnvironment {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 

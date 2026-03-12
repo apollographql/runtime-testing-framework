@@ -122,7 +122,7 @@ impl<C: HttpClient + Clone + Send + Sync + 'static> ResolutionContext for MockCo
     async fn read_file_content(
         &self,
         _src: &StableSource,
-        relative_path: impl AsRef<Path> + Send,
+        relative_path: &str,
     ) -> providers::Result<String> {
         let source = self
             .source

@@ -104,7 +104,7 @@ impl RunProviders for CommandSection {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
-    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
@@ -710,7 +710,7 @@ mod tests {
         async fn read_file_content(
             &self,
             _src: &StableSource,
-            _relative_path: impl AsRef<Path>,
+            _relative_path: &str,
         ) -> providers::Result<String> {
             unimplemented!(
                 "If you are hitting this we have not needed to mock this yet which is why it is not implemented"

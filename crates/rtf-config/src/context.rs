@@ -1,4 +1,5 @@
 use crate::{
+    checks,
     formats::Sources,
     providers::{
         self,
@@ -110,6 +111,46 @@ pub trait ResolutionContext: Send + Sync {
         }
     }
 
+    fn check_path_kind(
+        &self,
+        stable_src: &StableSource,
+        str_path: &str,
+        err_path: &[String],
+    ) -> checks::Result<Option<PathKind>> {
+        let src = self.source_dir_for(stable_src);
+        let res = match src {
+            SourceDir::Local { abs_path } => self
+                .canonicalize_path(abs_path.join(str_path))
+                .map(|p| Some(self.path_kind(p))),
+
+            SourceDir::Github { .. } => {
+                return if self.github_client().is_none() {
+                    Err(checks::Errors::new(
+                        checks::ErrorKind::MissingGithubApiKey,
+                        "expected os env key GITHUB_TOKEN",
+                        err_path,
+                    ))
+                } else {
+                    Ok(None)
+                };
+            }
+        };
+
+        res.map_err(|e| {
+            let kind = if e.kind() == io::ErrorKind::NotFound {
+                checks::ErrorKind::FileNotFound
+            } else {
+                checks::ErrorKind::InvalidRelativePath
+            };
+
+            checks::Errors::new(
+                kind,
+                format!("provided path was {}", src.to_uri_for(str_path)),
+                err_path,
+            )
+        })
+    }
+
     /// Categorise the provided path.
     ///
     /// If you cannot access the metadata of the file, e.g. because of a permission error or broken
@@ -138,7 +179,7 @@ pub trait ResolutionContext: Send + Sync {
     fn read_file_content(
         &self,
         src: &StableSource,
-        relative_path: impl AsRef<Path> + Send,
+        relative_path: &str,
     ) -> impl Future<Output = providers::Result<String>> + Send;
 
     /// Writes a slice as the entire contents of a file.
@@ -199,15 +240,15 @@ pub trait ResolutionContext: Send + Sync {
 }
 
 /// A [ResolutionContext] that will perform real IO.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Context {
     client: ReqwestClient,
-    supergraph_details: Mutex<HashMap<String, Arc<SupergraphDetails>>>,
+    supergraph_details: Arc<Mutex<HashMap<String, Arc<SupergraphDetails>>>>,
     fp_output_paths: HashMap<String, PathBuf>,
     output_path: PathBuf,
     capture_output: bool,
-    captured_stdout: RwLock<Vec<u8>>,
-    captured_stderr: RwLock<Vec<u8>>,
+    captured_stdout: Arc<RwLock<Vec<u8>>>,
+    captured_stderr: Arc<RwLock<Vec<u8>>>,
     run_metadata: HashMap<&'static str, String>,
     sources: Sources,
 }
@@ -219,23 +260,23 @@ impl Context {
     }
 
     /// Construct a new `Context` with environment variables.
-    pub fn new_from_env_vars(mut env_vars: HashMap<String, String>) -> Self {
+    pub fn new_from_env_vars(env_vars: &HashMap<String, String>) -> Self {
         let mut ctx = Self::new();
 
-        if let Some(api_key) = env_vars.remove(APOLLO_KEY_ENV_VAR) {
+        if let Some(api_key) = env_vars.get(APOLLO_KEY_ENV_VAR) {
             let staging = matches!(
-                env_vars.remove(GRAPH_OS_STAGING_ENV_VAR).as_deref(),
+                env_vars.get(GRAPH_OS_STAGING_ENV_VAR).map(|s| s.as_str()),
                 Some("true" | "1")
             );
             let sudo = matches!(
-                env_vars.remove(APOLLO_SUDO_ENV_VAR).as_deref(),
+                env_vars.get(APOLLO_SUDO_ENV_VAR).map(|s| s.as_str()),
                 Some("true" | "1")
             );
 
             ctx.with_platform_config(api_key, staging, sudo);
         }
 
-        if let Some(api_token) = env_vars.remove(GITHUB_TOKEN_ENV_VAR) {
+        if let Some(api_token) = env_vars.get(GITHUB_TOKEN_ENV_VAR) {
             ctx.with_github_config(api_token);
         }
 
@@ -389,7 +430,7 @@ impl ResolutionContext for Context {
     async fn read_file_content(
         &self,
         src: &StableSource,
-        relative_path: impl AsRef<Path> + Send,
+        relative_path: &str,
     ) -> providers::Result<String> {
         let src_dir = self.sources.source_dir_for(src);
 

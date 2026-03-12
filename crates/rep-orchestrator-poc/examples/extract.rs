@@ -1,3 +1,4 @@
+use rep_orchestrator::rep_test_plan::{RepTestPlan, SourceKeyedArrayMap};
 use rtf_cli::{
     cli::Variables,
     commands::{get_context_and_check_outdir, load_and_resolve_test_plan_from_local},
@@ -5,10 +6,9 @@ use rtf_cli::{
 use rtf_config::{
     StableSource,
     context::ResolutionContext,
-    formats::{CustomProviderDefinition, Sources, TestPlanConfig},
+    formats::{Sources, TestPlanConfig},
     templating::{Template, TemplateContext},
 };
-use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     env::{self},
@@ -17,7 +17,7 @@ use std::{
 };
 use tracing::info;
 
-const REP_TEST_PLAN_PATH: &str = "rep-test-plan.yaml";
+const REP_TEST_PLAN_PATH: &str = "rep-test-plan.json";
 const OUTDIR: &str = "output";
 
 #[tokio::main]
@@ -68,7 +68,7 @@ async fn extract_relative_files_with_context(
         variant.try_extract_relative_files(&mut files, &ctx).await?;
     }
 
-    // Extract custom provider definitions
+    // Extract custom provider definitions (so we dedupe providers used in different files)
     let custom_providers = Arc::unwrap_or_clone(ctx.custom_provider_definitions());
     let mut raw_cps = HashMap::new();
     for (k, def) in custom_providers.test_plan.into_iter() {
@@ -83,70 +83,12 @@ async fn extract_relative_files_with_context(
 
     ctx.write(
         outdir.join(REP_TEST_PLAN_PATH),
-        serde_yaml::to_string(&RepTestPlan {
+        serde_json::to_string_pretty(&RepTestPlan {
             test_plan,
-            relative_files: SourceKeyedMap::from_data(files),
-            custom_providers: SourceKeyedMap::from_data(raw_cps),
+            relative_files: SourceKeyedArrayMap::from_data(files),
+            custom_providers: SourceKeyedArrayMap::from_data(raw_cps),
         })?,
     )?;
 
     Ok(())
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct RepTestPlan {
-    test_plan: TestPlanConfig,
-    relative_files: SourceKeyedMap<String>,
-    custom_providers: SourceKeyedMap<CustomProviderDefinition>,
-}
-
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
-struct SourceKey {
-    src: StableSource,
-    k: String,
-    index: usize,
-}
-
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
-struct SourceKeyedMap<T> {
-    keys: Vec<SourceKey>,
-    data: Vec<T>,
-}
-
-impl<T> SourceKeyedMap<T>
-where
-    T: PartialEq,
-{
-    fn from_data(raw: HashMap<(StableSource, String), T>) -> Self {
-        let mut keys = Vec::with_capacity(raw.len());
-        let mut data = Vec::with_capacity(raw.len());
-
-        let mut raw: Vec<_> = raw.into_iter().collect();
-        raw.sort_unstable_by_key(|(k, _)| k.clone());
-
-        for ((src, k), t) in raw.into_iter() {
-            let index = match data.iter().position(|known| known == &t) {
-                Some(i) => i,
-                None => {
-                    let i = data.len();
-                    data.push(t);
-                    i
-                }
-            };
-
-            keys.push(SourceKey { src, k, index });
-        }
-
-        Self { keys, data }
-    }
-
-    // fn into_map_and_data(self) -> (HashMap<(StableSource, String), usize>, Vec<T>) {
-    //     (
-    //         self.keys
-    //             .into_iter()
-    //             .map(|SourceKey { src, k, index }| ((src, k), index))
-    //             .collect(),
-    //         self.data,
-    //     )
-    // }
 }
