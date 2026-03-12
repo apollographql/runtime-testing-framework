@@ -8,6 +8,7 @@ mod custom_provider;
 mod expand_matrix;
 mod inline;
 mod json_schemas;
+mod rep;
 mod resolve;
 mod template;
 
@@ -16,6 +17,7 @@ pub use custom_provider::{run_custom_provider, template_custom_provider, test_cu
 pub use expand_matrix::expand_test_plan_matrix;
 pub use inline::inline_test_plan;
 pub use json_schemas::generate_json_schema;
+pub use rep::prepare_rep_test_plan;
 pub use resolve::{resolve_environment, resolve_scenario};
 pub use template::template_test_plan;
 

@@ -137,6 +137,12 @@ pub enum Command {
     /// Output json schemas for environment configuration
     JsonSchemas { config: SchemasConfig },
 
+    /// Commands for the REP (Runtime Execution Platform) service
+    Rep {
+        #[clap(subcommand)]
+        subcommand: RepSubcommand,
+    },
+
     /// Display CLI version and exit
     Version,
 }
@@ -282,6 +288,33 @@ pub enum ResolveSubcommand {
         /// Force removal of an existing output directory before running.
         #[arg(long, default_value = "false")]
         force: bool,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum RepSubcommand {
+    /// Prepare a test plan for execution by the REP service.
+    /// Outputs a RepTestPlan JSON with inlined relative files and custom providers.
+    Prepare {
+        /// Relative path to the test plan file. When using --github this must be in the
+        /// format ORG/REPO/PATH
+        test_plan_path: String,
+
+        /// Output directory for the prepared test plan
+        #[arg(long, default_value = "output")]
+        outdir: String,
+
+        /// Force removal of an existing output directory before running
+        #[arg(long, default_value = "false")]
+        force: bool,
+
+        /// Prepare a test plan file from GitHub instead of from a local path
+        #[arg(long, default_value = "false")]
+        github: bool,
+
+        /// Optional git ref to pull files from when using --github
+        #[arg(long = "ref", requires = "github")]
+        git_ref: Option<String>,
     },
 }
 
