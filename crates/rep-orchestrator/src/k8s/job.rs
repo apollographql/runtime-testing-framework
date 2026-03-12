@@ -37,28 +37,41 @@ set -e
 echo "Resolving scenario..."
 rtf resolve scenario /scenario/scenario.yaml --outdir /shared/providers
 
-echo "Writing out run script..."
-cat << EOF > /shared/run.sh
+echo "Writing out user scenario script..."
+cat << 'EOF' > /shared/scenario.sh
 #!/bin/sh
-
-trap 'touch /shared/scenario-exited' EXIT
-echo "Exit trap installed"
+set -ex
 
 echo "Sourcing RTF env vars"
 . /shared/providers/scenario.env
 
 export OUTDIR=/shared/output
-export RTF_OUTPUT="\$OUTDIR/RTF_OUTPUT"
+export RTF_OUTPUT="$OUTDIR/RTF_OUTPUT"
+
+echo "Running user specified scenario..."
+__SCENARIO_COMMAND__
+EOF
+
+echo "Writing out run script..."
+cat << 'EOF' > /shared/run.sh
+#!/bin/sh
+set -ex
+
+trap 'touch /shared/scenario-exited' EXIT
+echo "Exit trap installed"
 
 mkdir -p /shared/output
 
 echo "Running test scenario"
-{ __SCENARIO_COMMAND__ 2>&1; echo $? > /shared/scenario_exit_status; } |
+{ /shared/scenario.sh 2>&1; echo $? > /shared/scenario_exit_status; } |
   tee /shared/output/output.log
 EOF
 
-sed -i "s/__SCENARIO_COMMAND__/$1/" /shared/run.sh
+chmod -R 777 /shared/scenario.sh
 chmod -R 777 /shared/run.sh
+
+echo "Contents of scenario script"
+cat /shared/scenario.sh
 
 ls -laR /shared/providers/
 "#;
@@ -96,7 +109,9 @@ fn init_container_spec(scenario: &DockerScenario) -> Container {
         name: "rtf-resolve".to_owned(),
         image: Some(TOOLBOX_IMAGE.to_owned()),
         command: Some(vec!["/bin/sh".to_owned(), "-c".to_owned()]),
-        args: Some(vec![RESOLVE_SCRIPT.to_owned(), scenario.command()]),
+        args: Some(vec![
+            RESOLVE_SCRIPT.replace("__SCENARIO_COMMAND__", &scenario.command()),
+        ]),
         volume_mounts: Some(vec![
             VolumeMount {
                 name: VOLUME_MOUNT_NAME_CONFIG.to_owned(),
@@ -107,6 +122,7 @@ fn init_container_spec(scenario: &DockerScenario) -> Container {
             VolumeMount {
                 name: VOLUME_MOUNT_NAME_SHARED.to_owned(),
                 mount_path: SHARED_DIR_PATH.to_owned(),
+                read_only: Some(false),
                 ..Default::default()
             },
         ]),
@@ -118,15 +134,12 @@ fn scenario_run_container_spec(scenario: &DockerScenario) -> Container {
     Container {
         name: "scenario-runner".to_owned(),
         image: Some(scenario.docker_image()),
-        command: Some(vec![
-            "/bin/sh".to_owned(),
-            "-c".to_owned(),
-            "/shared/run.sh".to_owned(),
-        ]),
+        command: Some(vec!["/bin/sh".to_owned(), "/shared/run.sh".to_owned()]),
         working_dir: Some(SHARED_DIR_PATH.to_owned()),
         volume_mounts: Some(vec![VolumeMount {
             name: VOLUME_MOUNT_NAME_SHARED.to_owned(),
             mount_path: SHARED_DIR_PATH.to_owned(),
+            read_only: Some(false),
             ..Default::default()
         }]),
         lifecycle: Some(Lifecycle {

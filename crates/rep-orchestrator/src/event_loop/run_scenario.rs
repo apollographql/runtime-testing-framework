@@ -7,7 +7,7 @@ use crate::{
 };
 use rtf_config::formats::{DockerScenario, ScenarioCommand, ScenarioConfig};
 use tokio::sync::mpsc::UnboundedSender;
-use tracing::error;
+use tracing::{error, info};
 use uuid::Uuid;
 
 const SCENARIO_JOB_NAME: &str = "scenario-execution";
@@ -21,6 +21,7 @@ pub async fn run(
     let ns = execution_id.to_string();
     let spec = scenario_job(&execution_id, &scenario);
 
+    info!(%execution_id, "creating scenario configmap");
     clients
         .create_configmap(
             Cluster::Workload,
@@ -39,6 +40,7 @@ pub async fn run(
 
     // TODO: mark status in DB
 
+    info!(%execution_id, "running scenario job");
     clients
         .create_job(
             Cluster::Workload,
@@ -54,6 +56,7 @@ pub async fn run(
     let clients = clients.clone();
 
     tokio::spawn(async move {
+        info!(%execution_id, "waiting for scenario to complete");
         match clients
             .wait_for_job(Cluster::Workload, &ns, SCENARIO_JOB_NAME)
             .await
@@ -68,7 +71,9 @@ pub async fn run(
                 });
             }
 
-            outcome => error!(?outcome, "error waiting for scenario job to complete"),
+            outcome => {
+                error!(%execution_id, ?outcome, "error waiting for scenario job to complete")
+            }
         }
     });
 

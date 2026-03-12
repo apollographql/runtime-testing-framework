@@ -9,7 +9,7 @@ use rtf_config::formats::{
     DockerComposeEnvironment, DockerScenario, EnvironmentConfig, EnvironmentExecution,
 };
 use tokio::sync::mpsc::UnboundedSender;
-use tracing::error;
+use tracing::{error, info};
 use uuid::Uuid;
 
 pub async fn run(
@@ -19,6 +19,7 @@ pub async fn run(
     tx: &UnboundedSender<Event>,
     clients: &ClusterClients,
 ) -> anyhow::Result<()> {
+    info!(%execution_id, "creating environment configmap");
     clients
         .create_configmap(
             Cluster::Management,
@@ -37,6 +38,7 @@ pub async fn run(
 
     // TODO: mark status in DB
 
+    info!(%execution_id, "provisioning execution namespace and deploying services");
     clients.create_argo_workflow(&execution_id).await?;
 
     // TODO: mark status in DB
@@ -47,6 +49,7 @@ pub async fn run(
     // FIXME: we need a way of checking for and handling image-pull-backoff
 
     tokio::spawn(async move {
+        info!(%execution_id, "waiting for services to become ready");
         match clients.wait_for_workflow(&execution_id).await {
             WatchOutcome::Succeeded => {
                 // TODO: mark status in DB
@@ -58,7 +61,9 @@ pub async fn run(
                 });
             }
 
-            outcome => error!(?outcome, "error waiting for argo workflow to complete"),
+            outcome => {
+                error!(%execution_id, ?outcome, "error waiting for argo workflow to complete")
+            }
         }
     });
 

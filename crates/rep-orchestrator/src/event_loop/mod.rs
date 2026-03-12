@@ -60,16 +60,11 @@ async fn handle_event(
 ) -> anyhow::Result<()> {
     match evt.ty {
         EventType::ProvisionEnvironment(environment, scenario) => {
-            provision_environment::run(evt.execution_id, environment, scenario, tx, clients)
-                .await?;
+            provision_environment::run(evt.execution_id, environment, scenario, tx, clients).await
         }
         EventType::RunScenario(scenario) => {
-            run_scenario::run(evt.execution_id, scenario, tx, clients).await?;
+            run_scenario::run(evt.execution_id, scenario, tx, clients).await
         }
-        EventType::CleanupNamespace => {
-            info!(execution_id=%evt.execution_id.to_string(), "would remove namespace");
-        }
+        EventType::CleanupNamespace => cleanup_environment::run(evt.execution_id, clients).await,
     }
-
-    Ok(())
 }

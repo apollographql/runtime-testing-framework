@@ -1,6 +1,6 @@
 use k8s_openapi::api::{
     batch::v1::{Job, JobSpec},
-    core::v1::ConfigMap,
+    core::v1::{ConfigMap, Namespace},
 };
 use kube::{
     Client, Config, Resource,
@@ -157,7 +157,7 @@ impl ClusterClients {
         Ok(job)
     }
 
-    // FIXME: watch based on lables rather than names
+    // FIXME: watch based on labels rather than names
 
     pub async fn wait_for_workflow(&self, execution_id: &Uuid) -> WatchOutcome {
         let api: Api<Workflow> = self.namespaced_api(Cluster::Management, CLUSTER_API_NAMESPACE);
@@ -222,6 +222,13 @@ impl ClusterClients {
         }
 
         WatchOutcome::StreamClosed
+    }
+
+    pub async fn delete_workload_namespace(&self, ns: &str) -> anyhow::Result<()> {
+        let api: Api<Namespace> = Api::all(self.workload.clone());
+        api.delete(ns, &Default::default()).await?;
+
+        Ok(())
     }
 }
 
