@@ -1,4 +1,4 @@
-use rep_orchestrator::run_server;
+use rep_orchestrator_poc::run_server;
 use std::{io::stdout, process};
 use tracing::{error, info, subscriber::set_global_default};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
