@@ -6,7 +6,7 @@ use sqlx::{
 use tokio::sync::OnceCell;
 use tracing::info;
 
-const MAX_POOL_CONNECTIONS: u32 = 100;
+const MAX_POOL_CONNECTIONS: u32 = 20;
 static POOL: OnceCell<PgPool> = OnceCell::const_new();
 
 pub async fn init_pool(cfg: &Config) -> Result<PgPool> {
@@ -50,7 +50,7 @@ mod tests {
     use super::*;
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn check_works_with_a_running_db() {
         let res = check_db_conn().await;
         assert!(res.is_ok(), "{res:?}");

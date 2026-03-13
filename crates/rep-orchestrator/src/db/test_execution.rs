@@ -59,7 +59,7 @@ mod tests {
     use crate::conn;
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn create_works() -> Result<()> {
         let c = conn!();
         let tr = TestRun::create("test", c).await?;
@@ -74,7 +74,7 @@ mod tests {
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn get_by_id_works() -> Result<()> {
         let c = conn!();
         let tr = TestRun::create("test", c).await?;
@@ -87,7 +87,7 @@ mod tests {
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn get_by_id_unchecked_works() -> Result<()> {
         let c = conn!();
         let tr = TestRun::create("test", c).await?;
@@ -100,7 +100,7 @@ mod tests {
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn get_by_uuid_works() -> Result<()> {
         let c = conn!();
         let tr = TestRun::create("test", c).await?;
@@ -113,7 +113,7 @@ mod tests {
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_run_works() -> Result<()> {
         let c = conn!();
 
