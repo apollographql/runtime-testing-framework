@@ -345,4 +345,66 @@ mod tests {
         let res = nfp.try_check(&mut Vec::new(), &Context::new());
         assert!(res.is_ok(), "Expected check to succeed, got {res:?}");
     }
+
+    #[tokio::test]
+    async fn compose_file_provider_extract_relative_path() {
+        use crate::providers::test_helpers::create_temp_dir_with_file;
+
+        let content = "services: {}";
+        let (temp, _) = create_temp_dir_with_file("compose.yaml", content);
+        let ctx = MockContext::with_http_client(&[])
+            .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
+
+        let provider = ComposeFileProvider::RelativePath(RelativeFile {
+            path: Field::Resolved("compose.yaml".to_string()),
+            src: Some(StableSource::TestPlan),
+        });
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert_eq!(
+            files.get(&(StableSource::TestPlan, "compose.yaml".to_string())),
+            Some(&content.to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn compose_file_provider_extract_relative_dir() {
+        use crate::providers::test_helpers::create_temp_dir_with_file;
+
+        let (temp, _) = create_temp_dir_with_file("dir/compose.yaml", "services: {}");
+        let ctx = MockContext::with_http_client(&[])
+            .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
+
+        let provider = ComposeFileProvider::RelativeDir(RelativeDir {
+            path: Field::Resolved("dir".to_string()),
+            files: vec!["compose.yaml".to_string()],
+            src: Some(StableSource::TestPlan),
+        });
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert_eq!(
+            files.get(&(StableSource::TestPlan, "dir/compose.yaml".to_string())),
+            Some(&"services: {}".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn compose_file_provider_extract_inline_unchanged() {
+        let provider = ComposeFileProvider::Inline(InlineFile {
+            content: "services: {}".to_string(),
+        });
+        let ctx = MockContext::with_http_client(&[]);
+        let mut files = HashMap::new();
+
+        let res = provider.try_extract_relative_files(&mut files, &ctx).await;
+
+        assert!(res.is_ok(), "expected ok, got {res:?}");
+        assert!(files.is_empty());
+    }
 }
