@@ -1,9 +1,9 @@
 (function() {
-    const implementors = Object.fromEntries([["rtf_cli",[["impl Parser for <a class=\"struct\" href=\"rtf_cli/cli/struct.Args.html\" title=\"struct rtf_cli::cli::Args\">Args</a>",0]]]]);
+    var implementors = Object.fromEntries([["rtf_cli",[["impl Parser for <a class=\"struct\" href=\"rtf_cli/cli/struct.Args.html\" title=\"struct rtf_cli::cli::Args\">Args</a>"]]]]);
     if (window.register_implementors) {
         window.register_implementors(implementors);
     } else {
         window.pending_implementors = implementors;
     }
 })()
-//{"start":59,"fragment_lengths":[138]}
+//{"start":57,"fragment_lengths":[136]}

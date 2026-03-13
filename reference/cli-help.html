@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-f80e7325.js";
+            window.path_to_searchindex_js = "../searchindex-efc46ab7.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-015b6cd2.js"></script>
@@ -198,6 +198,8 @@
 <li><a href="#rtf-resolve-environment"><code>rtf resolve environment</code>↴</a></li>
 <li><a href="#rtf-completion"><code>rtf completion</code>↴</a></li>
 <li><a href="#rtf-json-schemas"><code>rtf json-schemas</code>↴</a></li>
+<li><a href="#rtf-rep"><code>rtf rep</code>↴</a></li>
+<li><a href="#rtf-rep-prepare"><code>rtf rep prepare</code>↴</a></li>
 <li><a href="#rtf-version"><code>rtf version</code>↴</a></li>
 </ul>
 <h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
@@ -214,6 +216,7 @@
 <li><code>resolve</code> — Resolve file providers for a config file without executing it</li>
 <li><code>completion</code> — Write a shell completion file to STDOUT for the given shell</li>
 <li><code>json-schemas</code> — Output json schemas for environment configuration</li>
+<li><code>rep</code> — Commands for the REP (Runtime Execution Platform) service</li>
 <li><code>version</code> — Display CLI version and exit</li>
 </ul>
 <h6 id="options"><a class="header" href="#options"><strong>Options:</strong></a></h6>
@@ -451,6 +454,38 @@
 <li>
 <p><code>&lt;CONFIG&gt;</code></p>
 <p>Possible values: <code>test-plan</code>, <code>environment</code>, <code>scenario</code></p>
+</li>
+</ul>
+<h2 id="rtf-rep"><a class="header" href="#rtf-rep"><code>rtf rep</code></a></h2>
+<p>Commands for the REP (Runtime Execution Platform) service</p>
+<p><strong>Usage:</strong> <code>rtf rep &lt;COMMAND&gt;</code></p>
+<h6 id="subcommands-4"><a class="header" href="#subcommands-4"><strong>Subcommands:</strong></a></h6>
+<ul>
+<li><code>prepare</code> — Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers</li>
+</ul>
+<h2 id="rtf-rep-prepare"><a class="header" href="#rtf-rep-prepare"><code>rtf rep prepare</code></a></h2>
+<p>Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers</p>
+<p><strong>Usage:</strong> <code>rtf rep prepare [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
+<h6 id="arguments-11"><a class="header" href="#arguments-11"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test plan file. When using –github this must be in the format ORG/REPO/PATH</li>
+</ul>
+<h6 id="options-11"><a class="header" href="#options-11"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--outdir &lt;OUTDIR&gt;</code> — Output directory for the prepared test plan</p>
+<p>Default value: <code>output</code></p>
+</li>
+<li>
+<p><code>--force</code> — Force removal of an existing output directory before running</p>
+<p>Default value: <code>false</code></p>
+</li>
+<li>
+<p><code>--github</code> — Prepare a test plan file from GitHub instead of from a local path</p>
+<p>Default value: <code>false</code></p>
+</li>
+<li>
+<p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
 </li>
 </ul>
 <h2 id="rtf-version"><a class="header" href="#rtf-version"><code>rtf version</code></a></h2>
