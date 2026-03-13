@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct RepTestPlan {
+pub struct RepPayload {
     pub test_plan: TestPlanConfig,
     pub relative_files: SourceKeyedArrayMap<String>,
     pub custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,

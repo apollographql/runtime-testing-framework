@@ -10,7 +10,7 @@ use rtf_config::{
     StableSource,
     context::ResolutionContext,
     formats::{
-        EnvironmentExecution, RepTestPlan, ScenarioExecution, SourceKeyedArrayMap, Sources,
+        EnvironmentExecution, RepPayload, ScenarioExecution, SourceKeyedArrayMap, Sources,
         TestPlanConfig,
     },
     templating::{Template, TemplateContext},
@@ -89,7 +89,7 @@ async fn prepare_rep_test_plan_with_context(
 
     ctx.write(
         outdir.join(REP_TEST_PLAN_PATH),
-        serde_json::to_string_pretty(&RepTestPlan {
+        serde_json::to_string_pretty(&RepPayload {
             test_plan,
             relative_files: SourceKeyedArrayMap::from_data(files),
             custom_providers: SourceKeyedArrayMap::from_data(raw_cps),
