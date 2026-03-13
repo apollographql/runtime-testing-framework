@@ -2,6 +2,7 @@ use sqlx::{Database, FromRow, PgConnection, Postgres};
 use thiserror::Error;
 
 pub mod pool;
+pub mod status;
 pub mod test_execution;
 pub mod test_run;
 
