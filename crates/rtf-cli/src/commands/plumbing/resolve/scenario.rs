@@ -61,7 +61,7 @@ pub async fn resolve_scenario(
 
     info!("running static checks");
     scenario
-        .command
+        .execution
         .try_check(&mut vec!["scenario".to_string()], &ctx)?;
 
     info!("creating output directory");
@@ -72,14 +72,14 @@ pub async fn resolve_scenario(
     info!("resolving file providers");
     let providers_dir = out_dir.join(PROVIDER_DIR);
     scenario
-        .command
+        .execution
         .run_providers(&providers_dir, &mut ctx)
         .await?;
 
     info!("writing scenario.env");
     let output_path = out_dir.join(OUTPUT_PATH);
     let env_vars = scenario
-        .command
+        .execution
         .all_env_vars(&out_dir, &output_path, &ctx)?;
     let env_content = generate_env_file(env_vars);
     ctx.write(out_dir.join(SCENARIO_ENV_FILE), env_content)?;

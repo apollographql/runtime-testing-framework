@@ -276,7 +276,7 @@ mod tests {
             environment::{
                 EnvironmentExecution, ScriptEnvironment, test_helpers::templatable_environment,
             },
-            scenario::{ScenarioCommand, test_helpers::templatable_scenario},
+            scenario::{ScenarioExecution, test_helpers::templatable_scenario},
             test_plan::Sources,
             tests::{named_file_provider_with_field, p, template_context},
         },
@@ -690,7 +690,7 @@ mod tests {
             },
             scenario: ScenarioConfig {
                 variable_definitions: vec![variable_with_default("scenario", "scenario")],
-                command: ScenarioCommand::Script(CommandSection {
+                execution: ScenarioExecution::Script(CommandSection {
                     file_providers: vec![named_file_provider_with_field("scenario", p("scenario"))],
                     ..CommandSection::empty()
                 }),

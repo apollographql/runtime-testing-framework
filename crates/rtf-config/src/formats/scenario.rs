@@ -42,7 +42,7 @@ pub struct ScenarioConfig {
     pub custom_providers: Vec<CustomProviderDeclaration>,
     /// The command to execute as this scenario
     #[serde(flatten)]
-    pub command: ScenarioCommand,
+    pub execution: ScenarioExecution,
 }
 
 impl ScenarioConfig {
@@ -57,7 +57,7 @@ impl ScenarioConfig {
         mode: &InlineMode,
         ctx: &impl ResolutionContext,
     ) -> inlining::Result<()> {
-        self.command.inline(mode, ctx).await
+        self.execution.inline(mode, ctx).await
     }
 
     /// Create an empty [ScenarioConfig] for tests
@@ -68,14 +68,14 @@ impl ScenarioConfig {
             description: Default::default(),
             variable_definitions: Default::default(),
             custom_providers: Default::default(),
-            command: ScenarioCommand::Script(CommandSection::empty()),
+            execution: ScenarioExecution::Script(CommandSection::empty()),
         }
     }
 }
 
 impl Template for ScenarioConfig {
     fn required_variables(&self) -> Vec<String> {
-        self.command.required_variables()
+        self.execution.required_variables()
     }
 
     fn validate_context(
@@ -94,7 +94,7 @@ impl Template for ScenarioConfig {
             self.variable_definitions.iter(),
         );
 
-        self.command
+        self.execution
             .validate_context(path, &allowed_variables, file_source, &ctx)
     }
 
@@ -114,7 +114,7 @@ impl Template for ScenarioConfig {
         if path.last().map(String::as_str) != Some("scenario") {
             path.push("scenario".to_string());
         }
-        self.command.try_template(&mut path, source, &ctx)
+        self.execution.try_template(&mut path, source, &ctx)
     }
 }
 
@@ -128,9 +128,9 @@ impl Check for ScenarioConfig {
             path.push("scenario".to_string());
         }
 
-        match &self.command {
-            ScenarioCommand::Docker(inner) => inner.try_check(path, ctx),
-            ScenarioCommand::Script(inner) => inner.try_check(path, ctx),
+        match &self.execution {
+            ScenarioExecution::Docker(inner) => inner.try_check(path, ctx),
+            ScenarioExecution::Script(inner) => inner.try_check(path, ctx),
         }
     }
 }
@@ -139,9 +139,9 @@ impl CheckArrayDuplicates for ScenarioConfig {
     const BASE_PATH: &str = "scenario";
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
-        let file_providers = match &mut self.command {
-            ScenarioCommand::Docker(inner) => &mut inner.file_providers,
-            ScenarioCommand::Script(inner) => &mut inner.file_providers,
+        let file_providers = match &mut self.execution {
+            ScenarioExecution::Docker(inner) => &mut inner.file_providers,
+            ScenarioExecution::Script(inner) => &mut inner.file_providers,
         };
 
         vec![
@@ -156,12 +156,12 @@ impl CheckArrayDuplicates for ScenarioConfig {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(untagged)]
-pub enum ScenarioCommand {
+pub enum ScenarioExecution {
     Docker(DockerScenario),
     Script(CommandSection),
 }
 
-impl ScenarioCommand {
+impl ScenarioExecution {
     /// Return all environment variables for this scenario command with absolute host paths.
     ///
     /// This includes explicit env_vars, file provider paths, OUTDIR, and OUTPUT_PATH.
@@ -184,7 +184,7 @@ impl ScenarioCommand {
     }
 }
 
-impl RunProviders for ScenarioCommand {
+impl RunProviders for ScenarioExecution {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
         match self {
             Self::Docker(inner) => inner.named_providers(),
@@ -204,7 +204,7 @@ impl RunProviders for ScenarioCommand {
     }
 }
 
-impl Execute for ScenarioCommand {
+impl Execute for ScenarioExecution {
     fn command_name(&self) -> &str {
         match self {
             Self::Docker(inner) => inner.command_name(),
@@ -225,7 +225,7 @@ impl Execute for ScenarioCommand {
     }
 }
 
-impl Check for ScenarioCommand {
+impl Check for ScenarioExecution {
     fn try_check(
         &self,
         path: &mut Vec<String>,
@@ -488,7 +488,7 @@ pub(crate) mod test_helpers {
     ) -> ScenarioConfig {
         ScenarioConfig {
             custom_providers: custom_providers.to_vec(),
-            command: ScenarioCommand::Script(CommandSection {
+            execution: ScenarioExecution::Script(CommandSection {
                 file_providers: named_file_providers_with_fields(fields),
                 ..CommandSection::empty()
             }),
@@ -505,7 +505,7 @@ pub(crate) mod test_helpers {
         ScenarioConfig {
             custom_providers: custom_providers.to_vec(),
             variable_definitions: variable_definitions(variable_names),
-            command: ScenarioCommand::Script(CommandSection {
+            execution: ScenarioExecution::Script(CommandSection {
                 file_providers: templatable_file_providers(scenario_fields),
                 ..CommandSection::empty()
             }),
@@ -743,7 +743,7 @@ mod tests {
     #[test]
     fn check_success() {
         let scenario = ScenarioConfig {
-            command: ScenarioCommand::Script(cmd_with_inline_file()),
+            execution: ScenarioExecution::Script(cmd_with_inline_file()),
             ..ScenarioConfig::empty()
         };
 
@@ -756,7 +756,7 @@ mod tests {
     #[test]
     fn check_command_errors() {
         let scenario = ScenarioConfig {
-            command: ScenarioCommand::Script(cmd_with_required_file()),
+            execution: ScenarioExecution::Script(cmd_with_required_file()),
             ..ScenarioConfig::empty()
         };
 
@@ -1025,7 +1025,7 @@ mod tests {
         ));
 
         let mut scenario = ScenarioConfig {
-            command: ScenarioCommand::Script(CommandSection {
+            execution: ScenarioExecution::Script(CommandSection {
                 command: CommandSpec {
                     name: "example.sh".to_string(),
                     command_provider: CommandProvider::RelativePath(RelativeFile {
@@ -1042,9 +1042,9 @@ mod tests {
         let result = scenario.inline(&InlineMode::All, &ctx).await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
-        let command_provider = match scenario.command {
-            ScenarioCommand::Script(inner) => inner.command.command_provider,
-            ScenarioCommand::Docker(_) => panic!("scenario command should be a script"),
+        let command_provider = match scenario.execution {
+            ScenarioExecution::Script(inner) => inner.command.command_provider,
+            ScenarioExecution::Docker(_) => panic!("scenario command should be a script"),
         };
 
         assert_eq!(
@@ -1113,7 +1113,7 @@ mod tests {
 
     #[test]
     fn docker_scenario_check_passes_with_valid_config() {
-        let scenario = ScenarioCommand::Docker(DockerScenario {
+        let scenario = ScenarioExecution::Docker(DockerScenario {
             docker: DockerCommand {
                 image: Field::Resolved("alpine".to_string()),
                 tag: None,
@@ -1139,7 +1139,7 @@ mod tests {
 
     #[test]
     fn docker_scenario_check_duplicate_env_var_between_env_vars_and_file_provider() {
-        let scenario = ScenarioCommand::Docker(DockerScenario {
+        let scenario = ScenarioExecution::Docker(DockerScenario {
             docker: DockerCommand {
                 image: Field::Resolved("alpine".to_string()),
                 tag: None,
@@ -1168,7 +1168,7 @@ mod tests {
 
     #[test]
     fn docker_scenario_check_duplicate_file_provider_names() {
-        let scenario = ScenarioCommand::Docker(DockerScenario {
+        let scenario = ScenarioExecution::Docker(DockerScenario {
             docker: DockerCommand {
                 image: Field::Resolved("alpine".to_string()),
                 tag: None,

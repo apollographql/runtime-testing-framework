@@ -16,7 +16,7 @@ pub use environment::{
 pub use matrix::Matrix;
 pub use rep_test_plan::{RepTestPlan, SourceKey, SourceKeyedArrayMap};
 use rtf_integrations::github;
-pub use scenario::{DockerCommand, DockerScenario, ScenarioCommand, ScenarioConfig};
+pub use scenario::{DockerCommand, DockerScenario, ScenarioConfig, ScenarioExecution};
 pub use test_plan::{RawTestPlanConfig, Sources, TestPlanConfig};
 
 /// Errors that can be encountered resolving config files

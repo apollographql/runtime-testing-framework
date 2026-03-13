@@ -10,7 +10,7 @@ use rtf_config::{
     StableSource,
     context::ResolutionContext,
     formats::{
-        EnvironmentExecution, RepTestPlan, ScenarioCommand, SourceKeyedArrayMap, Sources,
+        EnvironmentExecution, RepTestPlan, ScenarioExecution, SourceKeyedArrayMap, Sources,
         TestPlanConfig,
     },
     templating::{Template, TemplateContext},
@@ -111,7 +111,7 @@ fn validate_test_plan_types(test_plan: &TestPlanConfig) -> anyhow::Result<()> {
         );
     }
 
-    if !matches!(test_plan.scenario.command, ScenarioCommand::Docker(_)) {
+    if !matches!(test_plan.scenario.execution, ScenarioExecution::Docker(_)) {
         errors.push("scenario must be DockerScenario, not a script scenario".to_string());
     }
 

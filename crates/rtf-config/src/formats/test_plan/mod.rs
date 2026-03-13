@@ -88,7 +88,7 @@ impl TestPlanConfig {
             .try_extract_relative_files(files, ctx)
             .await?;
         self.scenario
-            .command
+            .execution
             .try_extract_relative_files(files, ctx)
             .await?;
 
@@ -142,7 +142,7 @@ impl TestPlanConfig {
         ctx: &mut impl ResolutionContext,
     ) -> Result<()> {
         self.scenario
-            .command
+            .execution
             .run_providers_and_execute_for_output(SCENARIO_PROVIDER_DIR, out_dir, ctx)
             .await?;
 
@@ -258,7 +258,7 @@ mod tests {
             environment::{
                 EnvironmentExecution, ScriptEnvironment, test_helpers::environment_with_fields,
             },
-            scenario::{ScenarioCommand, test_helpers::scenario_with_fields},
+            scenario::{ScenarioExecution, test_helpers::scenario_with_fields},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
                 templatable_file_providers, template_context, variable_definitions,
@@ -1224,7 +1224,7 @@ mod tests {
             .expect("failed to write environment file");
 
         let expected_scenario_name = "scenario";
-        let expected_scenario_command = ScenarioCommand::Script(CommandSection {
+        let expected_scenario_command = ScenarioExecution::Script(CommandSection {
             command: CommandSpec {
                 name: "scenario.sh".to_string(),
                 args: Vec::new(),
@@ -1254,7 +1254,7 @@ mod tests {
             "test the scenario name comes from overrides"
         );
 
-        let scenario_command = &test_plan.scenario.command;
+        let scenario_command = &test_plan.scenario.execution;
         assert_eq!(
             scenario_command, &expected_scenario_command,
             "test the scenario command comes from overrides"
@@ -1327,7 +1327,7 @@ mod tests {
         let mut test_plan = TestPlanConfig {
             scenario: ScenarioConfig {
                 variable_definitions: variable_definitions(scenario_fields),
-                command: ScenarioCommand::Script(CommandSection {
+                execution: ScenarioExecution::Script(CommandSection {
                     file_providers: templatable_file_providers(scenario_fields),
                     ..CommandSection::empty()
                 }),
@@ -1369,7 +1369,7 @@ mod tests {
         TestPlanConfig {
             scenario: ScenarioConfig {
                 variable_definitions: variable_definitions(scenario_variable_defs),
-                command: ScenarioCommand::Script(CommandSection {
+                execution: ScenarioExecution::Script(CommandSection {
                     file_providers: templatable_file_providers(scenario_fields),
                     ..CommandSection::empty()
                 }),
@@ -1622,7 +1622,7 @@ mod tests {
     fn check_success() {
         let test_plan = TestPlanConfig {
             scenario: ScenarioConfig {
-                command: ScenarioCommand::Script(cmd_with_inline_file()),
+                execution: ScenarioExecution::Script(cmd_with_inline_file()),
                 ..ScenarioConfig::empty()
             },
             environment: EnvironmentConfig {
@@ -1667,7 +1667,7 @@ mod tests {
     ) {
         let test_plan = TestPlanConfig {
             scenario: ScenarioConfig {
-                command: ScenarioCommand::Script(scenario_cmd),
+                execution: ScenarioExecution::Script(scenario_cmd),
                 ..ScenarioConfig::empty()
             },
             environment: EnvironmentConfig {

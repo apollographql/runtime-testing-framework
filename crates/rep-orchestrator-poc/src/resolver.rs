@@ -9,7 +9,7 @@ use rtf_config::{
     StableSource,
     checks::Check,
     context::{Context, ResolutionContext},
-    formats::{EnvironmentExecution, ScenarioCommand, TestPlanConfig},
+    formats::{EnvironmentExecution, ScenarioExecution, TestPlanConfig},
     inlining::InlineMode,
     templating::{Template, TemplateContext},
 };
@@ -93,10 +93,10 @@ pub async fn test_plan_resolver_task(
                 }
             };
 
-            let scenario = match variant.scenario.command {
-                ScenarioCommand::Docker(inner) => inner,
+            let scenario = match variant.scenario.execution {
+                ScenarioExecution::Docker(inner) => inner,
                 // FIXME: Need to enforce this invariant in the axum handler
-                ScenarioCommand::Script(_) => panic!("got a test plan with a script scenario"),
+                ScenarioExecution::Script(_) => panic!("got a test plan with a script scenario"),
             };
 
             if let Err(error) = etx.send(Event {
