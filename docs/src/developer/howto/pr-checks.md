@@ -14,8 +14,7 @@ mise run pr-all
 
 ## test
 
-The GitHub action runs `cargo test`. It will run this for `stable`, `beta` and `nightly` rust
-builds.
+The GitHub action runs `cargo test` against the `stable` rust toolchain.
 
 To run locally
 
