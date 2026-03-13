@@ -35,7 +35,7 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-efc46ab7.js";
+            window.path_to_searchindex_js = "../../searchindex-9c1e5eeb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-015b6cd2.js"></script>
@@ -186,8 +186,7 @@ PR checks locally:</p>
 <pre><code class="language-bash">mise run pr-all
 </code></pre>
 <h2 id="test"><a class="header" href="#test">test</a></h2>
-<p>The GitHub action runs <code>cargo test</code>. It will run this for <code>stable</code>, <code>beta</code> and <code>nightly</code> rust
-builds.</p>
+<p>The GitHub action runs <code>cargo test</code> against the <code>stable</code> rust toolchain.</p>
 <p>To run locally</p>
 <pre><code class="language-bash">mise run pr-test
 </code></pre>
