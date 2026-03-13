@@ -36,9 +36,15 @@ pub async fn init_pool_and_migrate() -> Result<PgPool> {
 }
 
 pub async fn get_pool() -> Result<&'static PgPool> {
-    let pool = POOL.get_or_try_init(init_pool_and_migrate).await?;
-
-    Ok(pool)
+    if cfg!(test) {
+        // When running tests we need to create a connection pool per-test in order to avoid
+        // async-drop issues, otherwise POOL ends up being owned by the test that initialised it
+        // and that test completing tears it down.
+        let pool = init_pool_and_migrate().await?;
+        Ok(Box::leak(Box::new(pool)))
+    } else {
+        POOL.get_or_try_init(init_pool_and_migrate).await
+    }
 }
 
 pub async fn check_db_conn() -> Result<()> {
@@ -50,7 +56,7 @@ mod tests {
     use super::*;
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test]
     async fn check_works_with_a_running_db() {
         let res = check_db_conn().await;
         assert!(res.is_ok(), "{res:?}");
