@@ -1,0 +1,16 @@
+version: "3.5"
+
+services:
+  db:
+    container_name: db
+    build: ./docker/db
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "@1234"
+      PGPASSWORD: "@1234"
+      SERVICE_USER: "service_user"
+      SERVICE_PASSWORD: "password"
+      DB_NAME: "rtf_rep"

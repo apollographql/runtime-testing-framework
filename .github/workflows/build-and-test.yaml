@@ -55,6 +55,8 @@ jobs:
     - uses: hecrj/setup-rust-action@v2
       with:
         rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
+    - name: Run Orchestrator DB tests
+      run: cd crates/rep-orchestrator && make ci-db-tests
     - name: Run tests
       run: cargo test --verbose
 

@@ -1,0 +1,32 @@
+[package]
+name = "rep-orchestrator"
+version.workspace = true
+edition.workspace = true
+
+[features]
+# Used to prevent tests that need a running DB from executing unless explicitly requested
+# Annotate such tests with the following:
+#   #[cfg_attr(not(feature = "db_tests"), ignore)]
+#
+# Execute the tests using "cargo test --features db_tests"
+db_tests = []
+
+[dependencies]
+rtf-config = { path = "../rtf-config" }
+rtf-core = { path = "../rtf-core" }
+rtf-integrations = { path = "../rtf-integrations" }
+
+axum = { version = "0.8.8", features = ["macros"] }
+chrono = { version = "0.4.44", features = ["serde"] }
+envy = "0.4.2"
+serde_json.workspace = true
+serde.workspace = true
+sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "migrate", "chrono", "json", "uuid"] }
+thiserror.workspace = true
+tokio.workspace = true
+tracing-subscriber.workspace = true
+tracing.workspace = true
+uuid = { version = "1.22.0", features = ["v4", "serde"] }
+
+[dev-dependencies]
+simple_test_case.workspace = true

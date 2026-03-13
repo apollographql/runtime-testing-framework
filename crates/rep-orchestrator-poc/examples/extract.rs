@@ -1,4 +1,4 @@
-use rep_orchestrator::rep_test_plan::{RepTestPlan, SourceKeyedArrayMap};
+use rep_orchestrator_poc::rep_test_plan::{RepTestPlan, SourceKeyedArrayMap};
 use rtf_cli::{
     cli::Variables,
     commands::{get_context_and_check_outdir, load_and_resolve_test_plan_from_local},

@@ -1,5 +1,5 @@
 [package]
-name = "rep-orchestrator"
+name = "rep-orchestrator-poc"
 version.workspace = true
 edition.workspace = true
 
