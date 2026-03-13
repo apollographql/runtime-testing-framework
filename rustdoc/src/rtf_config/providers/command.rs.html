@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-config/src/providers/command.rs`."><title>command.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rtf_config" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.1 (01f6ddf75 2026-02-11)" data-channel="1.93.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rtf_config/providers/</div>command.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use crate</span>::{
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-config/src/providers/command.rs`."><title>command.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rtf_config" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0 (4a4ef493e 2026-03-02)" data-channel="1.94.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rtf_config/providers/</div>command.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>crate::{
 <a href=#2 id=2 data-nosnippet>2</a>    StableSource,
 <a href=#3 id=3 data-nosnippet>3</a>    checks::{<span class="self">self</span>, Check, duplicate_keys},
 <a href=#4 id=4 data-nosnippet>4</a>    context::ResolutionContext,
@@ -296,7 +296,7 @@
 <a href=#296 id=296 data-nosnippet>296</a>
 <a href=#297 id=297 data-nosnippet>297</a><span class="attr">#[cfg(test)]
 <a href=#298 id=298 data-nosnippet>298</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>test_helpers {
-<a href=#299 id=299 data-nosnippet>299</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#299 id=299 data-nosnippet>299</a>    <span class="kw">use </span>super::<span class="kw-2">*</span>;
 <a href=#300 id=300 data-nosnippet>300</a>
 <a href=#301 id=301 data-nosnippet>301</a>    <span class="doccomment">/// Create a Command Section with an inline file
 <a href=#302 id=302 data-nosnippet>302</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>cmd_with_inline_file() -&gt; CommandSection {
@@ -329,8 +329,8 @@
 <a href=#329 id=329 data-nosnippet>329</a>
 <a href=#330 id=330 data-nosnippet>330</a><span class="attr">#[cfg(test)]
 <a href=#331 id=331 data-nosnippet>331</a></span><span class="kw">mod </span>tests {
-<a href=#332 id=332 data-nosnippet>332</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#333 id=333 data-nosnippet>333</a>    <span class="kw">use crate</span>::{
+<a href=#332 id=332 data-nosnippet>332</a>    <span class="kw">use </span>super::<span class="kw-2">*</span>;
+<a href=#333 id=333 data-nosnippet>333</a>    <span class="kw">use </span>crate::{
 <a href=#334 id=334 data-nosnippet>334</a>        SourceDir, StableSource,
 <a href=#335 id=335 data-nosnippet>335</a>        context::{Context, PathKind, ResolutionContext},
 <a href=#336 id=336 data-nosnippet>336</a>        formats::Sources,
@@ -1125,5 +1125,62 @@
 <a href=#1125 id=1125 data-nosnippet>1125</a>
 <a href=#1126 id=1126 data-nosnippet>1126</a>        <span class="macro">assert_eq!</span>(command_section, expected);
 <a href=#1127 id=1127 data-nosnippet>1127</a>    }
-<a href=#1128 id=1128 data-nosnippet>1128</a>}
+<a href=#1128 id=1128 data-nosnippet>1128</a>
+<a href=#1129 id=1129 data-nosnippet>1129</a>    <span class="attr">#[tokio::test]
+<a href=#1130 id=1130 data-nosnippet>1130</a>    </span><span class="kw">async fn </span>command_provider_extract_relative_path() {
+<a href=#1131 id=1131 data-nosnippet>1131</a>        <span class="kw">let </span>file_content = <span class="string">"#!/bin/sh\necho hello"</span>;
+<a href=#1132 id=1132 data-nosnippet>1132</a>        <span class="kw">let </span>(temp, <span class="kw">_</span>) = create_temp_dir_with_file(<span class="string">"script.sh"</span>, file_content);
+<a href=#1133 id=1133 data-nosnippet>1133</a>        <span class="kw">let </span><span class="kw-2">mut </span>ctx = Context::new();
+<a href=#1134 id=1134 data-nosnippet>1134</a>        <span class="kw">let </span>src = SourceDir::local(ctx.canonicalize_path(temp.path()).unwrap());
+<a href=#1135 id=1135 data-nosnippet>1135</a>        ctx.set_sources(Sources::with_custom_providers(
+<a href=#1136 id=1136 data-nosnippet>1136</a>            src,
+<a href=#1137 id=1137 data-nosnippet>1137</a>            <span class="prelude-val">None</span>,
+<a href=#1138 id=1138 data-nosnippet>1138</a>            <span class="prelude-val">None</span>,
+<a href=#1139 id=1139 data-nosnippet>1139</a>            Default::default(),
+<a href=#1140 id=1140 data-nosnippet>1140</a>            Default::default(),
+<a href=#1141 id=1141 data-nosnippet>1141</a>        ));
+<a href=#1142 id=1142 data-nosnippet>1142</a>
+<a href=#1143 id=1143 data-nosnippet>1143</a>        <span class="kw">let </span>provider = CommandProvider::RelativePath(RelativeFile {
+<a href=#1144 id=1144 data-nosnippet>1144</a>            path: Field::Resolved(<span class="string">"script.sh"</span>.to_string()),
+<a href=#1145 id=1145 data-nosnippet>1145</a>            src: <span class="prelude-val">Some</span>(StableSource::TestPlan),
+<a href=#1146 id=1146 data-nosnippet>1146</a>        });
+<a href=#1147 id=1147 data-nosnippet>1147</a>        <span class="kw">let </span><span class="kw-2">mut </span>files = HashMap::new();
+<a href=#1148 id=1148 data-nosnippet>1148</a>
+<a href=#1149 id=1149 data-nosnippet>1149</a>        <span class="kw">let </span>res = provider.try_extract_relative_files(<span class="kw-2">&amp;mut </span>files, <span class="kw-2">&amp;</span>ctx).<span class="kw">await</span>;
+<a href=#1150 id=1150 data-nosnippet>1150</a>
+<a href=#1151 id=1151 data-nosnippet>1151</a>        <span class="macro">assert!</span>(res.is_ok(), <span class="string">"expected ok, got {res:?}"</span>);
+<a href=#1152 id=1152 data-nosnippet>1152</a>        <span class="macro">assert_eq!</span>(
+<a href=#1153 id=1153 data-nosnippet>1153</a>            files.get(<span class="kw-2">&amp;</span>(StableSource::TestPlan, <span class="string">"script.sh"</span>.to_string())),
+<a href=#1154 id=1154 data-nosnippet>1154</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>file_content.to_string())
+<a href=#1155 id=1155 data-nosnippet>1155</a>        );
+<a href=#1156 id=1156 data-nosnippet>1156</a>    }
+<a href=#1157 id=1157 data-nosnippet>1157</a>
+<a href=#1158 id=1158 data-nosnippet>1158</a>    <span class="attr">#[tokio::test]
+<a href=#1159 id=1159 data-nosnippet>1159</a>    </span><span class="kw">async fn </span>command_provider_extract_inline_unchanged() {
+<a href=#1160 id=1160 data-nosnippet>1160</a>        <span class="kw">let </span>ctx = Context::new();
+<a href=#1161 id=1161 data-nosnippet>1161</a>        <span class="kw">let </span>provider = CommandProvider::Inline(InlineFile {
+<a href=#1162 id=1162 data-nosnippet>1162</a>            content: <span class="string">"echo hello"</span>.to_string(),
+<a href=#1163 id=1163 data-nosnippet>1163</a>        });
+<a href=#1164 id=1164 data-nosnippet>1164</a>        <span class="kw">let </span><span class="kw-2">mut </span>files = HashMap::new();
+<a href=#1165 id=1165 data-nosnippet>1165</a>
+<a href=#1166 id=1166 data-nosnippet>1166</a>        <span class="kw">let </span>res = provider.try_extract_relative_files(<span class="kw-2">&amp;mut </span>files, <span class="kw-2">&amp;</span>ctx).<span class="kw">await</span>;
+<a href=#1167 id=1167 data-nosnippet>1167</a>
+<a href=#1168 id=1168 data-nosnippet>1168</a>        <span class="macro">assert!</span>(res.is_ok(), <span class="string">"expected ok, got {res:?}"</span>);
+<a href=#1169 id=1169 data-nosnippet>1169</a>        <span class="macro">assert!</span>(files.is_empty());
+<a href=#1170 id=1170 data-nosnippet>1170</a>    }
+<a href=#1171 id=1171 data-nosnippet>1171</a>
+<a href=#1172 id=1172 data-nosnippet>1172</a>    <span class="attr">#[tokio::test]
+<a href=#1173 id=1173 data-nosnippet>1173</a>    </span><span class="kw">async fn </span>command_provider_extract_required_unchanged() {
+<a href=#1174 id=1174 data-nosnippet>1174</a>        <span class="kw">let </span>ctx = Context::new();
+<a href=#1175 id=1175 data-nosnippet>1175</a>        <span class="kw">let </span>provider = CommandProvider::Required(RequiredFile {
+<a href=#1176 id=1176 data-nosnippet>1176</a>            message: <span class="string">"required"</span>.to_string(),
+<a href=#1177 id=1177 data-nosnippet>1177</a>        });
+<a href=#1178 id=1178 data-nosnippet>1178</a>        <span class="kw">let </span><span class="kw-2">mut </span>files = HashMap::new();
+<a href=#1179 id=1179 data-nosnippet>1179</a>
+<a href=#1180 id=1180 data-nosnippet>1180</a>        <span class="kw">let </span>res = provider.try_extract_relative_files(<span class="kw-2">&amp;mut </span>files, <span class="kw-2">&amp;</span>ctx).<span class="kw">await</span>;
+<a href=#1181 id=1181 data-nosnippet>1181</a>
+<a href=#1182 id=1182 data-nosnippet>1182</a>        <span class="macro">assert!</span>(res.is_ok(), <span class="string">"expected ok, got {res:?}"</span>);
+<a href=#1183 id=1183 data-nosnippet>1183</a>        <span class="macro">assert!</span>(files.is_empty());
+<a href=#1184 id=1184 data-nosnippet>1184</a>    }
+<a href=#1185 id=1185 data-nosnippet>1185</a>}
 </code></pre></div></section></main></body></html>

@@ -1,8 +1,8 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-config/src/run.rs`."><title>run.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rtf_config" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.1 (01f6ddf75 2026-02-11)" data-channel="1.93.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rtf_config/</div>run.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Traits for running RTF test plan sections.
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/rtf-config/src/run.rs`."><title>run.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rtf_config" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0 (4a4ef493e 2026-03-02)" data-channel="1.94.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">rtf_config/</div>run.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Traits for running RTF test plan sections.
 <a href=#2 id=2 data-nosnippet>2</a>//!
 <a href=#3 id=3 data-nosnippet>3</a>//! Running a given test plan section (scenario, environment) is split into two stages: resolution
 <a href=#4 id=4 data-nosnippet>4</a>//! of file providers and execution of the command itself.
-<a href=#5 id=5 data-nosnippet>5</a></span><span class="kw">use crate</span>::{
+<a href=#5 id=5 data-nosnippet>5</a></span><span class="kw">use </span>crate::{
 <a href=#6 id=6 data-nosnippet>6</a>    StableSource,
 <a href=#7 id=7 data-nosnippet>7</a>    context::ResolutionContext,
 <a href=#8 id=8 data-nosnippet>8</a>    inlining::{<span class="self">self</span>, InlineMode},
@@ -370,4 +370,104 @@
 <a href=#370 id=370 data-nosnippet>370</a>
 <a href=#371 id=371 data-nosnippet>371</a>    <span class="prelude-val">Ok</span>(output)
 <a href=#372 id=372 data-nosnippet>372</a>}
+<a href=#373 id=373 data-nosnippet>373</a>
+<a href=#374 id=374 data-nosnippet>374</a><span class="attr">#[cfg(test)]
+<a href=#375 id=375 data-nosnippet>375</a></span><span class="kw">mod </span>tests {
+<a href=#376 id=376 data-nosnippet>376</a>    <span class="kw">use </span>super::<span class="kw-2">*</span>;
+<a href=#377 id=377 data-nosnippet>377</a>    <span class="kw">use </span>crate::{
+<a href=#378 id=378 data-nosnippet>378</a>        mock_context::MockContext,
+<a href=#379 id=379 data-nosnippet>379</a>        providers::{file::SourceDir, test_helpers::create_temp_dir_with_file},
+<a href=#380 id=380 data-nosnippet>380</a>        templating::Field,
+<a href=#381 id=381 data-nosnippet>381</a>    };
+<a href=#382 id=382 data-nosnippet>382</a>    <span class="kw">use </span>assert_fs::{
+<a href=#383 id=383 data-nosnippet>383</a>        TempDir,
+<a href=#384 id=384 data-nosnippet>384</a>        fixture::{FileWriteStr, PathChild},
+<a href=#385 id=385 data-nosnippet>385</a>    };
+<a href=#386 id=386 data-nosnippet>386</a>
+<a href=#387 id=387 data-nosnippet>387</a>    <span class="attr">#[tokio::test]
+<a href=#388 id=388 data-nosnippet>388</a>    </span><span class="kw">async fn </span>relative_file_extract_content() {
+<a href=#389 id=389 data-nosnippet>389</a>        <span class="kw">let </span>(temp, <span class="kw">_</span>) = create_temp_dir_with_file(<span class="string">"file.txt"</span>, <span class="string">"hello"</span>);
+<a href=#390 id=390 data-nosnippet>390</a>        <span class="kw">let </span>ctx = MockContext::with_http_client(<span class="kw-2">&amp;</span>[])
+<a href=#391 id=391 data-nosnippet>391</a>            .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
+<a href=#392 id=392 data-nosnippet>392</a>        <span class="kw">let </span>rf = RelativeFile {
+<a href=#393 id=393 data-nosnippet>393</a>            path: Field::Resolved(<span class="string">"file.txt"</span>.to_string()),
+<a href=#394 id=394 data-nosnippet>394</a>            src: <span class="prelude-val">Some</span>(StableSource::TestPlan),
+<a href=#395 id=395 data-nosnippet>395</a>        };
+<a href=#396 id=396 data-nosnippet>396</a>        <span class="kw">let </span><span class="kw-2">mut </span>files = HashMap::new();
+<a href=#397 id=397 data-nosnippet>397</a>
+<a href=#398 id=398 data-nosnippet>398</a>        <span class="kw">let </span>res = try_read_relative_file(<span class="kw-2">&amp;</span>rf, <span class="kw-2">&amp;mut </span>files, <span class="kw-2">&amp;</span>ctx).<span class="kw">await</span>;
+<a href=#399 id=399 data-nosnippet>399</a>
+<a href=#400 id=400 data-nosnippet>400</a>        <span class="macro">assert!</span>(res.is_ok(), <span class="string">"expected ok, got {res:?}"</span>);
+<a href=#401 id=401 data-nosnippet>401</a>        <span class="macro">assert_eq!</span>(
+<a href=#402 id=402 data-nosnippet>402</a>            files.get(<span class="kw-2">&amp;</span>(StableSource::TestPlan, <span class="string">"file.txt"</span>.to_string())),
+<a href=#403 id=403 data-nosnippet>403</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="string">"hello"</span>.to_string())
+<a href=#404 id=404 data-nosnippet>404</a>        );
+<a href=#405 id=405 data-nosnippet>405</a>    }
+<a href=#406 id=406 data-nosnippet>406</a>
+<a href=#407 id=407 data-nosnippet>407</a>    <span class="attr">#[tokio::test]
+<a href=#408 id=408 data-nosnippet>408</a>    </span><span class="kw">async fn </span>relative_file_extract_deduplicates() {
+<a href=#409 id=409 data-nosnippet>409</a>        <span class="kw">let </span>(temp, <span class="kw">_</span>) = create_temp_dir_with_file(<span class="string">"file.txt"</span>, <span class="string">"hello"</span>);
+<a href=#410 id=410 data-nosnippet>410</a>        <span class="kw">let </span>ctx = MockContext::with_http_client(<span class="kw-2">&amp;</span>[])
+<a href=#411 id=411 data-nosnippet>411</a>            .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
+<a href=#412 id=412 data-nosnippet>412</a>        <span class="kw">let </span>rf = RelativeFile {
+<a href=#413 id=413 data-nosnippet>413</a>            path: Field::Resolved(<span class="string">"file.txt"</span>.to_string()),
+<a href=#414 id=414 data-nosnippet>414</a>            src: <span class="prelude-val">Some</span>(StableSource::TestPlan),
+<a href=#415 id=415 data-nosnippet>415</a>        };
+<a href=#416 id=416 data-nosnippet>416</a>        <span class="kw">let </span><span class="kw-2">mut </span>files = HashMap::new();
+<a href=#417 id=417 data-nosnippet>417</a>
+<a href=#418 id=418 data-nosnippet>418</a>        try_read_relative_file(<span class="kw-2">&amp;</span>rf, <span class="kw-2">&amp;mut </span>files, <span class="kw-2">&amp;</span>ctx).<span class="kw">await</span>.unwrap();
+<a href=#419 id=419 data-nosnippet>419</a>        try_read_relative_file(<span class="kw-2">&amp;</span>rf, <span class="kw-2">&amp;mut </span>files, <span class="kw-2">&amp;</span>ctx).<span class="kw">await</span>.unwrap();
+<a href=#420 id=420 data-nosnippet>420</a>
+<a href=#421 id=421 data-nosnippet>421</a>        <span class="macro">assert_eq!</span>(files.len(), <span class="number">1</span>);
+<a href=#422 id=422 data-nosnippet>422</a>    }
+<a href=#423 id=423 data-nosnippet>423</a>
+<a href=#424 id=424 data-nosnippet>424</a>    <span class="attr">#[tokio::test]
+<a href=#425 id=425 data-nosnippet>425</a>    </span><span class="kw">async fn </span>relative_dir_extract_single_file() {
+<a href=#426 id=426 data-nosnippet>426</a>        <span class="kw">let </span>(temp, <span class="kw">_</span>) = create_temp_dir_with_file(<span class="string">"dir/a.txt"</span>, <span class="string">"aaa"</span>);
+<a href=#427 id=427 data-nosnippet>427</a>        <span class="kw">let </span>ctx = MockContext::with_http_client(<span class="kw-2">&amp;</span>[])
+<a href=#428 id=428 data-nosnippet>428</a>            .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
+<a href=#429 id=429 data-nosnippet>429</a>        <span class="kw">let </span>rd = RelativeDir {
+<a href=#430 id=430 data-nosnippet>430</a>            path: Field::Resolved(<span class="string">"dir"</span>.to_string()),
+<a href=#431 id=431 data-nosnippet>431</a>            files: <span class="macro">vec!</span>[<span class="string">"a.txt"</span>.to_string()],
+<a href=#432 id=432 data-nosnippet>432</a>            src: <span class="prelude-val">Some</span>(StableSource::TestPlan),
+<a href=#433 id=433 data-nosnippet>433</a>        };
+<a href=#434 id=434 data-nosnippet>434</a>        <span class="kw">let </span><span class="kw-2">mut </span>files = HashMap::new();
+<a href=#435 id=435 data-nosnippet>435</a>
+<a href=#436 id=436 data-nosnippet>436</a>        <span class="kw">let </span>res = try_read_relative_dir(<span class="kw-2">&amp;</span>rd, <span class="kw-2">&amp;mut </span>files, <span class="kw-2">&amp;</span>ctx).<span class="kw">await</span>;
+<a href=#437 id=437 data-nosnippet>437</a>
+<a href=#438 id=438 data-nosnippet>438</a>        <span class="macro">assert!</span>(res.is_ok(), <span class="string">"expected ok, got {res:?}"</span>);
+<a href=#439 id=439 data-nosnippet>439</a>        <span class="macro">assert_eq!</span>(
+<a href=#440 id=440 data-nosnippet>440</a>            files.get(<span class="kw-2">&amp;</span>(StableSource::TestPlan, <span class="string">"dir/a.txt"</span>.to_string())),
+<a href=#441 id=441 data-nosnippet>441</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="string">"aaa"</span>.to_string())
+<a href=#442 id=442 data-nosnippet>442</a>        );
+<a href=#443 id=443 data-nosnippet>443</a>    }
+<a href=#444 id=444 data-nosnippet>444</a>
+<a href=#445 id=445 data-nosnippet>445</a>    <span class="attr">#[tokio::test]
+<a href=#446 id=446 data-nosnippet>446</a>    </span><span class="kw">async fn </span>relative_dir_extract_multiple_files() {
+<a href=#447 id=447 data-nosnippet>447</a>        <span class="kw">let </span>temp = TempDir::new().unwrap();
+<a href=#448 id=448 data-nosnippet>448</a>        temp.child(<span class="string">"dir/a.txt"</span>).write_str(<span class="string">"aaa"</span>).unwrap();
+<a href=#449 id=449 data-nosnippet>449</a>        temp.child(<span class="string">"dir/b.txt"</span>).write_str(<span class="string">"bbb"</span>).unwrap();
+<a href=#450 id=450 data-nosnippet>450</a>        <span class="kw">let </span>ctx = MockContext::with_http_client(<span class="kw-2">&amp;</span>[])
+<a href=#451 id=451 data-nosnippet>451</a>            .with_source(SourceDir::local(temp.path().canonicalize().unwrap()));
+<a href=#452 id=452 data-nosnippet>452</a>        <span class="kw">let </span>rd = RelativeDir {
+<a href=#453 id=453 data-nosnippet>453</a>            path: Field::Resolved(<span class="string">"dir"</span>.to_string()),
+<a href=#454 id=454 data-nosnippet>454</a>            files: <span class="macro">vec!</span>[<span class="string">"a.txt"</span>.to_string(), <span class="string">"b.txt"</span>.to_string()],
+<a href=#455 id=455 data-nosnippet>455</a>            src: <span class="prelude-val">Some</span>(StableSource::TestPlan),
+<a href=#456 id=456 data-nosnippet>456</a>        };
+<a href=#457 id=457 data-nosnippet>457</a>        <span class="kw">let </span><span class="kw-2">mut </span>files = HashMap::new();
+<a href=#458 id=458 data-nosnippet>458</a>
+<a href=#459 id=459 data-nosnippet>459</a>        <span class="kw">let </span>res = try_read_relative_dir(<span class="kw-2">&amp;</span>rd, <span class="kw-2">&amp;mut </span>files, <span class="kw-2">&amp;</span>ctx).<span class="kw">await</span>;
+<a href=#460 id=460 data-nosnippet>460</a>
+<a href=#461 id=461 data-nosnippet>461</a>        <span class="macro">assert!</span>(res.is_ok(), <span class="string">"expected ok, got {res:?}"</span>);
+<a href=#462 id=462 data-nosnippet>462</a>        <span class="macro">assert_eq!</span>(files.len(), <span class="number">2</span>);
+<a href=#463 id=463 data-nosnippet>463</a>        <span class="macro">assert_eq!</span>(
+<a href=#464 id=464 data-nosnippet>464</a>            files.get(<span class="kw-2">&amp;</span>(StableSource::TestPlan, <span class="string">"dir/a.txt"</span>.to_string())),
+<a href=#465 id=465 data-nosnippet>465</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="string">"aaa"</span>.to_string())
+<a href=#466 id=466 data-nosnippet>466</a>        );
+<a href=#467 id=467 data-nosnippet>467</a>        <span class="macro">assert_eq!</span>(
+<a href=#468 id=468 data-nosnippet>468</a>            files.get(<span class="kw-2">&amp;</span>(StableSource::TestPlan, <span class="string">"dir/b.txt"</span>.to_string())),
+<a href=#469 id=469 data-nosnippet>469</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="string">"bbb"</span>.to_string())
+<a href=#470 id=470 data-nosnippet>470</a>        );
+<a href=#471 id=471 data-nosnippet>471</a>    }
+<a href=#472 id=472 data-nosnippet>472</a>}
 </code></pre></div></section></main></body></html>
