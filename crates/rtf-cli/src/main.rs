@@ -3,12 +3,15 @@ use clap::Parser;
 use git_version::git_version;
 use rtf_cli::{
     LOG_LEVEL_ENV_VAR,
-    cli::{Args, Command, CustomProviderSubcommand, InlineSubcommand, ResolveSubcommand},
+    cli::{
+        Args, Command, CustomProviderSubcommand, InlineSubcommand, RepSubcommand, ResolveSubcommand,
+    },
     commands::{
         plumbing::{
             expand_test_plan_matrix, generate_json_schema, generate_shell_completions,
-            inline_test_plan, resolve_environment, resolve_scenario, run_custom_provider,
-            template_custom_provider, template_test_plan, test_custom_provider,
+            inline_test_plan, prepare_rep_test_plan, resolve_environment, resolve_scenario,
+            run_custom_provider, template_custom_provider, template_test_plan,
+            test_custom_provider,
         },
         porcelain::{check_and_run_test_plan, open_docs},
     },
@@ -131,6 +134,19 @@ async fn main() {
                     force,
                 },
         } => resolve_environment(&environment_path, variables, &outdir, force).await,
+
+        Command::Rep {
+            subcommand:
+                RepSubcommand::Prepare {
+                    test_plan_path,
+                    outdir,
+                    force,
+                    github,
+                    git_ref,
+                },
+        } => {
+            prepare_rep_test_plan(&test_plan_path, github, git_ref, variables, &outdir, force).await
+        }
 
         Command::Completion { shell } => generate_shell_completions(shell),
 

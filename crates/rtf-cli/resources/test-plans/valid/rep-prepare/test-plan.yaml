@@ -1,0 +1,12 @@
+name: rep-prepare
+description: Minimal fixture for rtf rep prepare tests
+
+scenario:
+  from:
+    kind: local
+    relative_path: scenario.yaml
+
+environment:
+  from:
+    kind: local
+    relative_path: environment.yaml

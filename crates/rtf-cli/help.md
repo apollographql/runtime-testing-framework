@@ -20,6 +20,8 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf resolve environment`↴](#rtf-resolve-environment)
 * [`rtf completion`↴](#rtf-completion)
 * [`rtf json-schemas`↴](#rtf-json-schemas)
+* [`rtf rep`↴](#rtf-rep)
+* [`rtf rep prepare`↴](#rtf-rep-prepare)
 * [`rtf version`↴](#rtf-version)
 
 ## `rtf`
@@ -39,6 +41,7 @@ A swiss army knife for testing the Apollo Runtime
 * `resolve` — Resolve file providers for a config file without executing it
 * `completion` — Write a shell completion file to STDOUT for the given shell
 * `json-schemas` — Output json schemas for environment configuration
+* `rep` — Commands for the REP (Runtime Execution Platform) service
 * `version` — Display CLI version and exit
 
 ###### **Options:**
@@ -320,6 +323,43 @@ Output json schemas for environment configuration
 
   Possible values: `test-plan`, `environment`, `scenario`
 
+
+
+
+## `rtf rep`
+
+Commands for the REP (Runtime Execution Platform) service
+
+**Usage:** `rtf rep <COMMAND>`
+
+###### **Subcommands:**
+
+* `prepare` — Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers
+
+
+
+## `rtf rep prepare`
+
+Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers
+
+**Usage:** `rtf rep prepare [OPTIONS] <TEST_PLAN_PATH>`
+
+###### **Arguments:**
+
+* `<TEST_PLAN_PATH>` — Relative path to the test plan file. When using --github this must be in the format ORG/REPO/PATH
+
+###### **Options:**
+
+* `--outdir <OUTDIR>` — Output directory for the prepared test plan
+
+  Default value: `output`
+* `--force` — Force removal of an existing output directory before running
+
+  Default value: `false`
+* `--github` — Prepare a test plan file from GitHub instead of from a local path
+
+  Default value: `false`
+* `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
 
 
 
