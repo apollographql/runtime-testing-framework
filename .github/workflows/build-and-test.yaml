@@ -57,6 +57,8 @@ jobs:
         rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
     - name: Run tests
       run: cargo test --verbose
+    - name: Run Orchestrator DB tests
+      run: cd crates/rep-orchestrator && make ci-db-tests
 
   rustfmt:
     name: Ensure rustfmt is happy
