@@ -11,6 +11,7 @@ use crate::{
     },
     run::{
         DOCKER_COMPOSE_NETWORK, Execute, ExecuteArgs, OUTDIR, OUTPUT_PATH, Provider, RunProviders,
+        RunScenario,
     },
     templating::{self, Field, FileType, Scalar, Template, TemplateContext},
 };
@@ -139,18 +140,13 @@ impl CheckArrayDuplicates for ScenarioConfig {
     const BASE_PATH: &str = "scenario";
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
-        let file_providers = match &mut self.execution {
-            ScenarioExecution::Docker(inner) => &mut inner.file_providers,
-            ScenarioExecution::Script(inner) => &mut inner.file_providers,
-        };
+        let mut arrays = vec![(
+            "variables",
+            DedupArray::VariableDef(&mut self.variable_definitions),
+        )];
+        arrays.extend(self.execution.deduplicated_arrays());
 
-        vec![
-            (
-                "variables",
-                DedupArray::VariableDef(&mut self.variable_definitions),
-            ),
-            ("file_providers", DedupArray::Nfp(file_providers)),
-        ]
+        arrays
     }
 }
 
@@ -183,6 +179,8 @@ impl ScenarioExecution {
         }
     }
 }
+
+impl RunScenario for ScenarioExecution {}
 
 impl RunProviders for ScenarioExecution {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
@@ -234,6 +232,17 @@ impl Check for ScenarioExecution {
         match self {
             Self::Docker(inner) => inner.try_check(path, ctx),
             Self::Script(inner) => inner.try_check(path, ctx),
+        }
+    }
+}
+
+impl CheckArrayDuplicates for ScenarioExecution {
+    const BASE_PATH: &str = "scenario_execution";
+
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
+        match self {
+            Self::Docker(inner) => inner.deduplicated_arrays(),
+            Self::Script(inner) => inner.deduplicated_arrays(),
         }
     }
 }
@@ -362,6 +371,8 @@ impl DockerScenario {
     }
 }
 
+impl RunScenario for DockerScenario {}
+
 impl Execute for DockerScenario {
     fn command_name(&self) -> &str {
         "docker"
@@ -449,6 +460,14 @@ impl Check for DockerScenario {
         }
 
         errs.into_result(())
+    }
+}
+
+impl CheckArrayDuplicates for DockerScenario {
+    const BASE_PATH: &str = "docker_scenario";
+
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
+        vec![("file_providers", DedupArray::Nfp(&mut self.file_providers))]
     }
 }
 

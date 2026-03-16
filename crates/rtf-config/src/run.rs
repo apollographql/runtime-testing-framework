@@ -109,6 +109,8 @@ pub trait RunEnvironment: RunProviders + Check + Template + CheckArrayDuplicates
     ) -> impl Future<Output = providers::Result<String>> + Send;
 }
 
+pub trait RunScenario: Execute + Check + Template + CheckArrayDuplicates + Clone {}
+
 pub trait RunProviders: Send + Sync {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)>;
 
