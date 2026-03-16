@@ -4,8 +4,9 @@ use std::io;
 
 mod custom_provider;
 mod environment;
+mod execution;
 mod matrix;
-mod rep_test_plan;
+mod rep_payload;
 mod scenario;
 mod test_plan;
 
@@ -13,11 +14,12 @@ pub use custom_provider::{CustomProviderDeclaration, CustomProviderDefinition};
 pub use environment::{
     DockerComposeEnvironment, EnvironmentConfig, EnvironmentExecution, ScriptEnvironment,
 };
+pub use execution::{Execution, Generic, Rep};
 pub use matrix::Matrix;
-pub use rep_test_plan::{RepTestPlan, SourceKey, SourceKeyedArrayMap};
+pub use rep_payload::{RepPayload, SourceKey, SourceKeyedArrayMap};
 use rtf_integrations::github;
-pub use scenario::{DockerCommand, DockerScenario, ScenarioCommand, ScenarioConfig};
-pub use test_plan::{RawTestPlanConfig, Sources, TestPlanConfig};
+pub use scenario::{DockerCommand, DockerScenario, ScenarioConfig, ScenarioExecution};
+pub use test_plan::{RawTestPlanConfig, RepTestPlan, Sources, TestPlan, TestPlanConfig};
 
 /// Errors that can be encountered resolving config files
 #[derive(Debug, thiserror::Error)]

@@ -1,7 +1,10 @@
 use crate::{
     checks::{self, Check},
     context::ResolutionContext,
-    formats::{CustomProviderDeclaration, EnvironmentConfig, Matrix, Result, ScenarioConfig},
+    formats::{
+        CustomProviderDeclaration, EnvironmentConfig, Execution, Generic, Matrix, Rep, Result,
+        ScenarioConfig,
+    },
     providers::file::{SourceDir, StableSource},
     run::{Execute, RunProviders},
     templating::{self, Scalar, Template, TemplateContext},
@@ -26,9 +29,9 @@ pub const SETUP_PROVIDER_DIR: &str = "setup";
 pub const SCENARIO_PROVIDER_DIR: &str = "scenario";
 pub const TEARDOWN_PROVIDER_DIR: &str = "teardown";
 
-/// The format for parsing scenario config
+/// The format for parsing a test plan config
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct TestPlanConfig {
+pub struct TestPlan<E: Execution> {
     pub name: String,
     pub description: String,
     #[serde(default, alias = "values")]
@@ -38,63 +41,17 @@ pub struct TestPlanConfig {
     pub matrix: Matrix,
     #[serde(default)]
     pub custom_providers: Vec<CustomProviderDeclaration>,
-    pub scenario: ScenarioConfig,
-    pub environment: EnvironmentConfig,
+    pub scenario: ScenarioConfig<E::Scenario>,
+    pub environment: EnvironmentConfig<E::Environment>,
 }
 
-impl TestPlanConfig {
-    pub async fn try_load_and_resolve_from_path(
-        p: impl AsRef<Path>,
-        ctx: &impl ResolutionContext,
-    ) -> Result<(Self, Sources)> {
-        let content = ctx.read_path_to_string(p.as_ref())?;
-        let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
-        let abs_path = ctx.canonicalize_path(p.as_ref())?;
-        let tp_source = SourceDir::local(abs_path.parent().unwrap());
+/// Test plan that accepts any scenario/environment execution type.
+pub type TestPlanConfig = TestPlan<Generic>;
 
-        raw.try_into_test_plan(tp_source, ctx).await
-    }
+/// Test plan restricted to Docker scenario + DockerCompose environment.
+pub type RepTestPlan = TestPlan<Rep>;
 
-    pub async fn try_load_and_resolve_from_github(
-        org: &str,
-        repo: &str,
-        path: &str,
-        git_ref: Option<String>,
-        ctx: &impl ResolutionContext,
-    ) -> Result<(Self, Sources)> {
-        let client = match ctx.github_client() {
-            Some(client) => client,
-            None => return Err(github::Error::NoClient.into()),
-        };
-
-        let content = client
-            .string_file_content(org, repo, path, git_ref.as_ref())
-            .await?;
-
-        let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
-        let tp_source =
-            SourceDir::github(org, repo, PathBuf::from(path).parent().unwrap(), git_ref);
-
-        raw.try_into_test_plan(tp_source, ctx).await
-    }
-
-    pub async fn try_extract_relative_files(
-        &self,
-        files: &mut HashMap<(StableSource, String), String>,
-        ctx: &impl ResolutionContext,
-    ) -> Result<()> {
-        self.environment
-            .execution
-            .try_extract_relative_files(files, ctx)
-            .await?;
-        self.scenario
-            .command
-            .try_extract_relative_files(files, ctx)
-            .await?;
-
-        Ok(())
-    }
-
+impl<E: Execution> TestPlan<E> {
     /// Iteratate over all variants of this test plan that arise from [expanding](Matrix::try_expand)
     /// any matrix variables that it contains.
     ///
@@ -142,11 +99,46 @@ impl TestPlanConfig {
         ctx: &mut impl ResolutionContext,
     ) -> Result<()> {
         self.scenario
-            .command
+            .execution
             .run_providers_and_execute_for_output(SCENARIO_PROVIDER_DIR, out_dir, ctx)
             .await?;
 
         Ok(())
+    }
+
+    pub async fn try_load_and_resolve_from_path(
+        p: impl AsRef<Path>,
+        ctx: &impl ResolutionContext,
+    ) -> Result<(Self, Sources)> {
+        let content = ctx.read_path_to_string(p.as_ref())?;
+        let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
+        let abs_path = ctx.canonicalize_path(p.as_ref())?;
+        let tp_source = SourceDir::local(abs_path.parent().unwrap());
+
+        raw.try_into_test_plan(tp_source, ctx).await
+    }
+
+    pub async fn try_load_and_resolve_from_github(
+        org: &str,
+        repo: &str,
+        path: &str,
+        git_ref: Option<String>,
+        ctx: &impl ResolutionContext,
+    ) -> Result<(Self, Sources)> {
+        let client = match ctx.github_client() {
+            Some(client) => client,
+            None => return Err(github::Error::NoClient.into()),
+        };
+
+        let content = client
+            .string_file_content(org, repo, path, git_ref.as_ref())
+            .await?;
+
+        let raw: RawTestPlanConfig = serde_yaml::from_str(&content)?;
+        let tp_source =
+            SourceDir::github(org, repo, PathBuf::from(path).parent().unwrap(), git_ref);
+
+        raw.try_into_test_plan(tp_source, ctx).await
     }
 
     /// Create an empty [TestPlanConfig] for tests
@@ -164,7 +156,26 @@ impl TestPlanConfig {
     }
 }
 
-impl Template for TestPlanConfig {
+impl TestPlan<Rep> {
+    pub async fn try_extract_relative_files(
+        &self,
+        files: &mut HashMap<(StableSource, String), String>,
+        ctx: &impl ResolutionContext,
+    ) -> Result<()> {
+        self.environment
+            .execution
+            .try_extract_relative_files(files, ctx)
+            .await?;
+        self.scenario
+            .execution
+            .try_extract_relative_files(files, ctx)
+            .await?;
+
+        Ok(())
+    }
+}
+
+impl<E: Execution> Template for TestPlan<E> {
     fn required_variables(&self) -> Vec<String> {
         let mut vals = self.environment.required_variables();
         vals.extend(self.scenario.required_variables());
@@ -221,7 +232,7 @@ impl Template for TestPlanConfig {
     }
 }
 
-impl Check for TestPlanConfig {
+impl<E: Execution> Check for TestPlan<E> {
     fn try_check(
         &self,
         path: &mut Vec<String>,
@@ -258,7 +269,7 @@ mod tests {
             environment::{
                 EnvironmentExecution, ScriptEnvironment, test_helpers::environment_with_fields,
             },
-            scenario::{ScenarioCommand, test_helpers::scenario_with_fields},
+            scenario::{ScenarioExecution, test_helpers::scenario_with_fields},
             tests::{
                 assert_check_errors, assert_template_errors, expected_error_details, p, r,
                 templatable_file_providers, template_context, variable_definitions,
@@ -414,7 +425,7 @@ mod tests {
         );
 
         let res = raw_test_plan
-            .try_into_test_plan(
+            .try_into_test_plan::<Generic>(
                 SourceDir::Local {
                     abs_path: "/".into(),
                 },
@@ -1224,7 +1235,7 @@ mod tests {
             .expect("failed to write environment file");
 
         let expected_scenario_name = "scenario";
-        let expected_scenario_command = ScenarioCommand::Script(CommandSection {
+        let expected_scenario_command = ScenarioExecution::Script(CommandSection {
             command: CommandSpec {
                 name: "scenario.sh".to_string(),
                 args: Vec::new(),
@@ -1254,7 +1265,7 @@ mod tests {
             "test the scenario name comes from overrides"
         );
 
-        let scenario_command = &test_plan.scenario.command;
+        let scenario_command = &test_plan.scenario.execution;
         assert_eq!(
             scenario_command, &expected_scenario_command,
             "test the scenario command comes from overrides"
@@ -1327,7 +1338,7 @@ mod tests {
         let mut test_plan = TestPlanConfig {
             scenario: ScenarioConfig {
                 variable_definitions: variable_definitions(scenario_fields),
-                command: ScenarioCommand::Script(CommandSection {
+                execution: ScenarioExecution::Script(CommandSection {
                     file_providers: templatable_file_providers(scenario_fields),
                     ..CommandSection::empty()
                 }),
@@ -1369,7 +1380,7 @@ mod tests {
         TestPlanConfig {
             scenario: ScenarioConfig {
                 variable_definitions: variable_definitions(scenario_variable_defs),
-                command: ScenarioCommand::Script(CommandSection {
+                execution: ScenarioExecution::Script(CommandSection {
                     file_providers: templatable_file_providers(scenario_fields),
                     ..CommandSection::empty()
                 }),
@@ -1622,7 +1633,7 @@ mod tests {
     fn check_success() {
         let test_plan = TestPlanConfig {
             scenario: ScenarioConfig {
-                command: ScenarioCommand::Script(cmd_with_inline_file()),
+                execution: ScenarioExecution::Script(cmd_with_inline_file()),
                 ..ScenarioConfig::empty()
             },
             environment: EnvironmentConfig {
@@ -1667,7 +1678,7 @@ mod tests {
     ) {
         let test_plan = TestPlanConfig {
             scenario: ScenarioConfig {
-                command: ScenarioCommand::Script(scenario_cmd),
+                execution: ScenarioExecution::Script(scenario_cmd),
                 ..ScenarioConfig::empty()
             },
             environment: EnvironmentConfig {

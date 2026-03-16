@@ -1,9 +1,10 @@
 use crate::{
+    Execution,
     checks::CheckArrayDuplicates,
     context::ResolutionContext,
     formats::{
         CustomProviderDeclaration, EnvironmentConfig, Error, Matrix, Result, ScenarioConfig,
-        TestPlanConfig, test_plan::Sources,
+        TestPlan, test_plan::Sources,
     },
     merge_yaml,
     providers::file::{RawSource, SourceDir, StableSource},
@@ -41,14 +42,14 @@ pub struct RawTestPlanConfig {
 }
 
 impl RawTestPlanConfig {
-    pub(super) async fn try_into_test_plan(
+    pub(super) async fn try_into_test_plan<E: Execution>(
         self,
         tp_source: SourceDir,
         ctx: &impl ResolutionContext,
-    ) -> Result<(TestPlanConfig, Sources)> {
+    ) -> Result<(TestPlan<E>, Sources)> {
         let res = self
             .environment
-            .try_into_config_with_source::<EnvironmentConfig>(&tp_source, ctx)
+            .try_into_config_with_source::<EnvironmentConfig<E::Environment>>(&tp_source, ctx)
             .await;
         let (environment, environment_source) = match res {
             Ok(data) => data,
@@ -60,7 +61,7 @@ impl RawTestPlanConfig {
 
         let res = self
             .scenario
-            .try_into_config_with_source::<ScenarioConfig>(&tp_source, ctx)
+            .try_into_config_with_source::<ScenarioConfig<E::Scenario>>(&tp_source, ctx)
             .await;
         let (scenario, scenario_source) = match res {
             Ok(data) => data,
@@ -81,7 +82,7 @@ impl RawTestPlanConfig {
             .await?;
 
         Ok((
-            TestPlanConfig {
+            TestPlan {
                 name: self.name,
                 description: self.description,
                 variables: self.variables,

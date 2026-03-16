@@ -12,7 +12,8 @@ use crate::{
         file::{NamedFileProvider, StableSource, compose::NamedComposeFileProvider},
     },
     run::{
-        DOCKER_COMPOSE_NETWORK, Execute, OUTDIR, OUTPUT_PATH, PROVIDER_DIR, Provider, RunProviders,
+        DOCKER_COMPOSE_NETWORK, Execute, OUTDIR, OUTPUT_PATH, PROVIDER_DIR, Provider,
+        RunEnvironment, RunProviders,
     },
     templating::{self, Field, FileType, Scalar, Template, TemplateContext},
 };
@@ -30,7 +31,7 @@ use std::{
 ///
 /// Configuration for preparing and cleaning up the test environment as part of a test plan.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
-pub struct EnvironmentConfig {
+pub struct EnvironmentConfig<R: RunEnvironment> {
     /// The name of this environment configuration
     pub name: String,
     /// A brief description of how this environment setup works
@@ -43,10 +44,10 @@ pub struct EnvironmentConfig {
     #[serde(default)]
     pub custom_providers: Vec<CustomProviderDeclaration>,
     #[serde(flatten)]
-    pub execution: EnvironmentExecution,
+    pub execution: R,
 }
 
-impl EnvironmentConfig {
+impl EnvironmentConfig<EnvironmentExecution> {
     pub fn try_load_from_path(p: impl AsRef<Path>) -> Result<Self> {
         let content = fs::read_to_string(p)?;
 
@@ -55,7 +56,7 @@ impl EnvironmentConfig {
 
     /// Create an empty [EnvironmentConfig] for tests
     #[cfg(test)]
-    pub(crate) fn empty() -> EnvironmentConfig {
+    pub(crate) fn empty() -> EnvironmentConfig<EnvironmentExecution> {
         EnvironmentConfig {
             name: Default::default(),
             description: Default::default(),
@@ -67,27 +68,16 @@ impl EnvironmentConfig {
             }),
         }
     }
+}
 
-    pub async fn inline(
-        &mut self,
-        mode: &InlineMode,
-        ctx: &impl ResolutionContext,
-    ) -> inlining::Result<()> {
-        self.execution.inline(mode, ctx).await
-    }
-
+impl<R: RunEnvironment> EnvironmentConfig<R> {
     pub async fn execute_setup(
         &self,
         name: &str,
         out_dir: &Path,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
-        match &self.execution {
-            EnvironmentExecution::DockerCompose(inner) => {
-                inner.execute_setup(name, &self.name, out_dir, ctx).await
-            }
-            EnvironmentExecution::Script(inner) => inner.execute_setup(name, out_dir, ctx).await,
-        }
+        self.execution.execute_setup(name, out_dir, ctx).await
     }
 
     pub async fn execute_teardown(
@@ -96,16 +86,21 @@ impl EnvironmentConfig {
         out_dir: &Path,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
-        match &self.execution {
-            EnvironmentExecution::DockerCompose(inner) => {
-                inner.execute_teardown(&self.name, ctx).await
-            }
-            EnvironmentExecution::Script(inner) => inner.execute_teardown(name, out_dir, ctx).await,
-        }
+        self.execution.execute_teardown(name, out_dir, ctx).await
     }
 }
 
-impl Template for EnvironmentConfig {
+impl<R: RunEnvironment> EnvironmentConfig<R> {
+    pub async fn inline(
+        &mut self,
+        mode: &InlineMode,
+        ctx: &impl ResolutionContext,
+    ) -> inlining::Result<()> {
+        self.execution.inline(mode, ctx).await
+    }
+}
+
+impl<R: RunEnvironment> Template for EnvironmentConfig<R> {
     fn required_variables(&self) -> Vec<String> {
         self.execution.required_variables()
     }
@@ -148,7 +143,7 @@ impl Template for EnvironmentConfig {
     }
 }
 
-impl Check for EnvironmentConfig {
+impl<R: RunEnvironment> Check for EnvironmentConfig<R> {
     fn try_check(
         &self,
         path: &mut Vec<String>,
@@ -176,7 +171,7 @@ impl Check for EnvironmentConfig {
     }
 }
 
-impl CheckArrayDuplicates for EnvironmentConfig {
+impl<R: RunEnvironment> CheckArrayDuplicates for EnvironmentConfig<R> {
     const BASE_PATH: &str = "environment";
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
@@ -184,23 +179,7 @@ impl CheckArrayDuplicates for EnvironmentConfig {
             "variables",
             DedupArray::VariableDef(&mut self.variable_definitions),
         )];
-
-        match &mut self.execution {
-            EnvironmentExecution::DockerCompose(inner) => {
-                arrays.push(("compose_files", DedupArray::Ncfp(&mut inner.compose_files)));
-                arrays.push(("file_providers", DedupArray::Nfp(&mut inner.file_providers)));
-            }
-            EnvironmentExecution::Script(inner) => {
-                arrays.push((
-                    "setup.file_providers",
-                    DedupArray::Nfp(&mut inner.setup.file_providers),
-                ));
-                arrays.push((
-                    "teardown.file_providers",
-                    DedupArray::Nfp(&mut inner.teardown.file_providers),
-                ));
-            }
-        }
+        arrays.extend(self.execution.deduplicated_arrays());
 
         arrays
     }
@@ -218,6 +197,36 @@ pub enum EnvironmentExecution {
 }
 
 enum_impl_check!(EnvironmentExecution => Script, DockerCompose);
+
+impl RunEnvironment for EnvironmentExecution {
+    async fn execute_setup(
+        &self,
+        name: &str,
+        out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<String> {
+        match self {
+            EnvironmentExecution::DockerCompose(inner) => {
+                inner.execute_setup(name, out_dir, ctx).await
+            }
+            EnvironmentExecution::Script(inner) => inner.execute_setup(name, out_dir, ctx).await,
+        }
+    }
+
+    async fn execute_teardown(
+        &self,
+        name: &str,
+        out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<String> {
+        match self {
+            EnvironmentExecution::DockerCompose(inner) => {
+                inner.execute_teardown(name, out_dir, ctx).await
+            }
+            EnvironmentExecution::Script(inner) => inner.execute_teardown(name, out_dir, ctx).await,
+        }
+    }
+}
 
 impl RunProviders for EnvironmentExecution {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
@@ -239,14 +248,25 @@ impl RunProviders for EnvironmentExecution {
     }
 }
 
+impl CheckArrayDuplicates for EnvironmentExecution {
+    const BASE_PATH: &str = "environment_execution";
+
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
+        match self {
+            EnvironmentExecution::DockerCompose(inner) => inner.deduplicated_arrays(),
+            EnvironmentExecution::Script(inner) => inner.deduplicated_arrays(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct ScriptEnvironment {
     pub setup: CommandSection,
     pub teardown: CommandSection,
 }
 
-impl ScriptEnvironment {
-    pub async fn execute_setup(
+impl RunEnvironment for ScriptEnvironment {
+    async fn execute_setup(
         &self,
         name: &str,
         out_dir: &Path,
@@ -257,7 +277,7 @@ impl ScriptEnvironment {
             .await
     }
 
-    pub async fn execute_teardown(
+    async fn execute_teardown(
         &self,
         name: &str,
         out_dir: &Path,
@@ -308,6 +328,23 @@ impl RunProviders for ScriptEnvironment {
     }
 }
 
+impl CheckArrayDuplicates for ScriptEnvironment {
+    const BASE_PATH: &str = "script_environment";
+
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
+        vec![
+            (
+                "setup.file_providers",
+                DedupArray::Nfp(&mut self.setup.file_providers),
+            ),
+            (
+                "teardown.file_providers",
+                DedupArray::Nfp(&mut self.teardown.file_providers),
+            ),
+        ]
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 pub struct DockerComposeEnvironment {
     /// The name of the docker compose project. Defaults to the environment name if not set.
@@ -325,15 +362,14 @@ pub struct DockerComposeEnvironment {
 }
 
 impl DockerComposeEnvironment {
-    fn project_name(&self, name: &str) -> String {
-        let raw = self.project_name.as_deref().unwrap_or(name);
+    fn project_name(&self) -> String {
+        let raw = self.project_name.as_deref().unwrap_or("rtf_environment");
         slugify_compose_project_name(raw)
     }
 
     pub async fn execute_setup(
         &self,
         name: &str,
-        env_name: &str,
         out_dir: &Path,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
@@ -342,8 +378,7 @@ impl DockerComposeEnvironment {
 
         self.run_providers(&providers_dir.join(format!("{name}_providers")), ctx)
             .await?;
-
-        let project_name = self.project_name(env_name);
+        let project_name = self.project_name();
         let env_vars = self.all_env_vars(out_dir, &output_path, ctx)?;
         let (cmd, args) = self.setup_as_command_and_args(&project_name, ctx)?;
 
@@ -360,10 +395,11 @@ impl DockerComposeEnvironment {
 
     pub async fn execute_teardown(
         &self,
-        env_name: &str,
+        _name: &str,
+        _out_dir: &Path,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
-        let project_name = self.project_name(env_name);
+        let project_name = self.project_name();
         let (cmd, args) = self.teardown_as_command_and_args(&project_name)?;
 
         ctx.run_command_blocking(cmd, args.iter().map(|s| s.as_str()), &HashMap::new())
@@ -475,6 +511,64 @@ impl DockerComposeEnvironment {
     }
 }
 
+impl RunEnvironment for DockerComposeEnvironment {
+    async fn execute_setup(
+        &self,
+        name: &str,
+        out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<String> {
+        let output_path = out_dir.join(OUTPUT_PATH);
+        let providers_dir = out_dir.join(PROVIDER_DIR);
+
+        self.run_providers(&providers_dir.join(format!("{name}_providers")), ctx)
+            .await?;
+
+        let project_name = self.project_name();
+        let env_vars = self.all_env_vars(out_dir, &output_path, ctx)?;
+        let (cmd, args) = self.setup_as_command_and_args(&project_name, ctx)?;
+
+        ctx.run_command_blocking(cmd, args.iter().map(|s| s.as_str()), &env_vars)
+            .map_err(|e| providers::Error::CommandFailed {
+                name: "docker compose up".to_string(),
+                err: e.to_string(),
+            })?;
+
+        ctx.store_run_metadata(DOCKER_COMPOSE_NETWORK, format!("{project_name}_default"));
+
+        Ok("{}".to_string())
+    }
+
+    async fn execute_teardown(
+        &self,
+        _name: &str,
+        _out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> providers::Result<String> {
+        let project_name = self.project_name();
+        let (cmd, args) = self.teardown_as_command_and_args(&project_name)?;
+
+        ctx.run_command_blocking(cmd, args.iter().map(|s| s.as_str()), &HashMap::new())
+            .map_err(|e| providers::Error::CommandFailed {
+                name: "docker compose down".to_string(),
+                err: e.to_string(),
+            })?;
+
+        Ok("{}".to_string())
+    }
+}
+
+impl CheckArrayDuplicates for DockerComposeEnvironment {
+    const BASE_PATH: &str = "docker_compose_environment";
+
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
+        vec![
+            ("compose_files", DedupArray::Ncfp(&mut self.compose_files)),
+            ("file_providers", DedupArray::Nfp(&mut self.file_providers)),
+        ]
+    }
+}
+
 /// Slugify a string into a valid docker compose project name.
 ///
 /// Project names must contain only lowercase letters, decimal digits, dashes, and underscores,
@@ -581,7 +675,7 @@ pub(crate) mod test_helpers {
         setup_fields: &[Field<String>],
         teardown_fields: &[Field<String>],
         custom_providers: &[CustomProviderDeclaration],
-    ) -> EnvironmentConfig {
+    ) -> EnvironmentConfig<EnvironmentExecution> {
         EnvironmentConfig {
             custom_providers: custom_providers.to_vec(),
             execution: EnvironmentExecution::Script(ScriptEnvironment {
@@ -604,7 +698,7 @@ pub(crate) mod test_helpers {
         setup_fields: &[&str],
         teardown_fields: &[&str],
         custom_providers: &[CustomProviderDeclaration],
-    ) -> EnvironmentConfig {
+    ) -> EnvironmentConfig<EnvironmentExecution> {
         EnvironmentConfig {
             custom_providers: custom_providers.to_vec(),
             variable_definitions: variable_definitions(variable_names),
@@ -791,8 +885,9 @@ pub(crate) mod tests {
 
     #[test]
     fn parse_script_environment_success() {
-        let config: EnvironmentConfig = serde_yaml::from_str(TEMPLATED_SCRIPT_ENVIRONMENT)
-            .expect("environment config to parse");
+        let config: EnvironmentConfig<EnvironmentExecution> =
+            serde_yaml::from_str(TEMPLATED_SCRIPT_ENVIRONMENT)
+                .expect("environment config to parse");
 
         let mut res = config.required_variables();
         res.sort(); // Sorting so variables are in a deterministic order for the assert_eq
@@ -832,8 +927,9 @@ pub(crate) mod tests {
 
     #[test]
     fn parse_compose_environment_success() {
-        let config: EnvironmentConfig = serde_yaml::from_str(TEMPLATED_COMPOSE_ENVIRONMENT)
-            .expect("environment config to parse");
+        let config: EnvironmentConfig<EnvironmentExecution> =
+            serde_yaml::from_str(TEMPLATED_COMPOSE_ENVIRONMENT)
+                .expect("environment config to parse");
 
         let mut res = config.required_variables();
         res.sort(); // Sorting so variables are in a deterministic order for the assert_eq
@@ -925,7 +1021,7 @@ pub(crate) mod tests {
 
     /// Helper function for asserting template errors are as expected
     fn assert_env_template_errors(
-        environment: &mut EnvironmentConfig,
+        environment: &mut EnvironmentConfig<EnvironmentExecution>,
         ctx: TemplateContext,
         expected_setup_err_fields: &[&str],
         expected_teardown_err_fields: &[&str],
@@ -1326,7 +1422,7 @@ pub(crate) mod tests {
             "#
         );
 
-        let env_config: EnvironmentConfig =
+        let env_config: EnvironmentConfig<EnvironmentExecution> =
             serde_yaml::from_str(env_config_yaml).expect("environment config to parse");
 
         assert_eq!(env_config.custom_providers.len(), 1);

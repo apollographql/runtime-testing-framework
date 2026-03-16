@@ -1,12 +1,12 @@
 use crate::{
     StableSource, VariableDefinition,
     context::ResolutionContext,
-    formats::TestPlanConfig,
+    formats::{Execution, TestPlan},
     templating::{self, CustomProviderDefinitions, Scalar, Template, TemplateContext},
 };
 use std::collections::{HashMap, HashSet};
 
-impl TestPlanConfig {
+impl<E: Execution> TestPlan<E> {
     /// The set of allowed templating variables that this test plan supports.
     ///
     /// This is the union of variables defined as a scalars and those that are part of a matrix
@@ -276,7 +276,7 @@ mod tests {
             environment::{
                 EnvironmentExecution, ScriptEnvironment, test_helpers::templatable_environment,
             },
-            scenario::{ScenarioCommand, test_helpers::templatable_scenario},
+            scenario::{ScenarioExecution, test_helpers::templatable_scenario},
             test_plan::Sources,
             tests::{named_file_provider_with_field, p, template_context},
         },
@@ -690,7 +690,7 @@ mod tests {
             },
             scenario: ScenarioConfig {
                 variable_definitions: vec![variable_with_default("scenario", "scenario")],
-                command: ScenarioCommand::Script(CommandSection {
+                execution: ScenarioExecution::Script(CommandSection {
                     file_providers: vec![named_file_provider_with_field("scenario", p("scenario"))],
                     ..CommandSection::empty()
                 }),

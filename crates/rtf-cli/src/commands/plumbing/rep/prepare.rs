@@ -5,14 +5,10 @@ use crate::{
         load_and_resolve_test_plan_from_local,
     },
 };
-use anyhow::bail;
 use rtf_config::{
     StableSource,
     context::ResolutionContext,
-    formats::{
-        EnvironmentExecution, RepTestPlan, ScenarioCommand, SourceKeyedArrayMap, Sources,
-        TestPlanConfig,
-    },
+    formats::{RepPayload, RepTestPlan, SourceKeyedArrayMap, Sources},
     templating::{Template, TemplateContext},
 };
 use std::{collections::HashMap, mem::take, sync::Arc};
@@ -41,7 +37,7 @@ pub async fn prepare_rep_test_plan(
 }
 
 async fn prepare_rep_test_plan_with_context(
-    mut test_plan: TestPlanConfig,
+    mut test_plan: RepTestPlan,
     sources: Sources,
     variables: Variables,
     mut ctx: impl ResolutionContext,
@@ -49,8 +45,6 @@ async fn prepare_rep_test_plan_with_context(
 ) -> anyhow::Result<()> {
     let (variable_sources, vars_file_src) = variables.merge(&mut test_plan, &ctx)?;
     ctx.set_sources(sources.with_variables_file(vars_file_src));
-
-    validate_test_plan_types(&test_plan)?;
 
     info!("creating output directory");
     ctx.create_dir_all(outdir)?;
@@ -89,35 +83,12 @@ async fn prepare_rep_test_plan_with_context(
 
     ctx.write(
         outdir.join(REP_TEST_PLAN_PATH),
-        serde_json::to_string_pretty(&RepTestPlan {
+        serde_json::to_string_pretty(&RepPayload {
             test_plan,
             relative_files: SourceKeyedArrayMap::from_data(files),
             custom_providers: SourceKeyedArrayMap::from_data(raw_cps),
         })?,
     )?;
-
-    Ok(())
-}
-
-fn validate_test_plan_types(test_plan: &TestPlanConfig) -> anyhow::Result<()> {
-    let mut errors: Vec<String> = Vec::new();
-
-    if !matches!(
-        test_plan.environment.execution,
-        EnvironmentExecution::DockerCompose(_)
-    ) {
-        errors.push(
-            "environment must be DockerComposeEnvironment, not a script environment".to_string(),
-        );
-    }
-
-    if !matches!(test_plan.scenario.command, ScenarioCommand::Docker(_)) {
-        errors.push("scenario must be DockerScenario, not a script scenario".to_string());
-    }
-
-    if !errors.is_empty() {
-        bail!("{}", errors.join("\n"));
-    }
 
     Ok(())
 }

@@ -11,6 +11,7 @@ use crate::{
     },
     run::{
         DOCKER_COMPOSE_NETWORK, Execute, ExecuteArgs, OUTDIR, OUTPUT_PATH, Provider, RunProviders,
+        RunScenario,
     },
     templating::{self, Field, FileType, Scalar, Template, TemplateContext},
 };
@@ -28,7 +29,7 @@ use std::{
 ///
 /// Configuration for a single test scenario to be executed as part of a test plan.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
-pub struct ScenarioConfig {
+pub struct ScenarioConfig<R: RunScenario> {
     /// The name of this scenario
     pub name: String,
     /// A brief description of the purpose / behaviour of this scenario
@@ -42,10 +43,10 @@ pub struct ScenarioConfig {
     pub custom_providers: Vec<CustomProviderDeclaration>,
     /// The command to execute as this scenario
     #[serde(flatten)]
-    pub command: ScenarioCommand,
+    pub execution: R,
 }
 
-impl ScenarioConfig {
+impl ScenarioConfig<ScenarioExecution> {
     pub fn try_load_from_path(p: impl AsRef<Path>) -> Result<Self> {
         let content = fs::read_to_string(p)?;
 
@@ -57,25 +58,25 @@ impl ScenarioConfig {
         mode: &InlineMode,
         ctx: &impl ResolutionContext,
     ) -> inlining::Result<()> {
-        self.command.inline(mode, ctx).await
+        self.execution.inline(mode, ctx).await
     }
 
     /// Create an empty [ScenarioConfig] for tests
     #[cfg(test)]
-    pub(crate) fn empty() -> ScenarioConfig {
+    pub(crate) fn empty() -> ScenarioConfig<ScenarioExecution> {
         ScenarioConfig {
             name: Default::default(),
             description: Default::default(),
             variable_definitions: Default::default(),
             custom_providers: Default::default(),
-            command: ScenarioCommand::Script(CommandSection::empty()),
+            execution: ScenarioExecution::Script(CommandSection::empty()),
         }
     }
 }
 
-impl Template for ScenarioConfig {
+impl<R: RunScenario> Template for ScenarioConfig<R> {
     fn required_variables(&self) -> Vec<String> {
-        self.command.required_variables()
+        self.execution.required_variables()
     }
 
     fn validate_context(
@@ -94,7 +95,7 @@ impl Template for ScenarioConfig {
             self.variable_definitions.iter(),
         );
 
-        self.command
+        self.execution
             .validate_context(path, &allowed_variables, file_source, &ctx)
     }
 
@@ -114,11 +115,11 @@ impl Template for ScenarioConfig {
         if path.last().map(String::as_str) != Some("scenario") {
             path.push("scenario".to_string());
         }
-        self.command.try_template(&mut path, source, &ctx)
+        self.execution.try_template(&mut path, source, &ctx)
     }
 }
 
-impl Check for ScenarioConfig {
+impl<R: RunScenario> Check for ScenarioConfig<R> {
     fn try_check(
         &self,
         path: &mut Vec<String>,
@@ -128,40 +129,31 @@ impl Check for ScenarioConfig {
             path.push("scenario".to_string());
         }
 
-        match &self.command {
-            ScenarioCommand::Docker(inner) => inner.try_check(path, ctx),
-            ScenarioCommand::Script(inner) => inner.try_check(path, ctx),
-        }
+        self.execution.try_check(path, ctx)
     }
 }
 
-impl CheckArrayDuplicates for ScenarioConfig {
+impl<R: RunScenario> CheckArrayDuplicates for ScenarioConfig<R> {
     const BASE_PATH: &str = "scenario";
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
-        let file_providers = match &mut self.command {
-            ScenarioCommand::Docker(inner) => &mut inner.file_providers,
-            ScenarioCommand::Script(inner) => &mut inner.file_providers,
-        };
-
-        vec![
-            (
-                "variables",
-                DedupArray::VariableDef(&mut self.variable_definitions),
-            ),
-            ("file_providers", DedupArray::Nfp(file_providers)),
-        ]
+        let mut arrays = vec![(
+            "variables",
+            DedupArray::VariableDef(&mut self.variable_definitions),
+        )];
+        arrays.extend(self.execution.deduplicated_arrays());
+        arrays
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, Template)]
 #[serde(untagged)]
-pub enum ScenarioCommand {
+pub enum ScenarioExecution {
     Docker(DockerScenario),
     Script(CommandSection),
 }
 
-impl ScenarioCommand {
+impl ScenarioExecution {
     /// Return all environment variables for this scenario command with absolute host paths.
     ///
     /// This includes explicit env_vars, file provider paths, OUTDIR, and OUTPUT_PATH.
@@ -184,7 +176,9 @@ impl ScenarioCommand {
     }
 }
 
-impl RunProviders for ScenarioCommand {
+impl RunScenario for ScenarioExecution {}
+
+impl RunProviders for ScenarioExecution {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {
         match self {
             Self::Docker(inner) => inner.named_providers(),
@@ -204,7 +198,7 @@ impl RunProviders for ScenarioCommand {
     }
 }
 
-impl Execute for ScenarioCommand {
+impl Execute for ScenarioExecution {
     fn command_name(&self) -> &str {
         match self {
             Self::Docker(inner) => inner.command_name(),
@@ -225,7 +219,7 @@ impl Execute for ScenarioCommand {
     }
 }
 
-impl Check for ScenarioCommand {
+impl Check for ScenarioExecution {
     fn try_check(
         &self,
         path: &mut Vec<String>,
@@ -234,6 +228,17 @@ impl Check for ScenarioCommand {
         match self {
             Self::Docker(inner) => inner.try_check(path, ctx),
             Self::Script(inner) => inner.try_check(path, ctx),
+        }
+    }
+}
+
+impl CheckArrayDuplicates for ScenarioExecution {
+    const BASE_PATH: &str = "scenario_execution";
+
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
+        match self {
+            Self::Docker(inner) => inner.deduplicated_arrays(),
+            Self::Script(inner) => inner.deduplicated_arrays(),
         }
     }
 }
@@ -362,6 +367,8 @@ impl DockerScenario {
     }
 }
 
+impl RunScenario for DockerScenario {}
+
 impl Execute for DockerScenario {
     fn command_name(&self) -> &str {
         "docker"
@@ -452,6 +459,14 @@ impl Check for DockerScenario {
     }
 }
 
+impl CheckArrayDuplicates for DockerScenario {
+    const BASE_PATH: &str = "docker_scenario";
+
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
+        vec![("file_providers", DedupArray::Nfp(&mut self.file_providers))]
+    }
+}
+
 fn map_file_path_env_vars(
     mut env_vars: HashMap<String, String>,
     ctx: &impl ResolutionContext,
@@ -485,10 +500,10 @@ pub(crate) mod test_helpers {
     pub(crate) fn scenario_with_fields(
         fields: &[Field<String>],
         custom_providers: &[CustomProviderDeclaration],
-    ) -> ScenarioConfig {
+    ) -> ScenarioConfig<ScenarioExecution> {
         ScenarioConfig {
             custom_providers: custom_providers.to_vec(),
-            command: ScenarioCommand::Script(CommandSection {
+            execution: ScenarioExecution::Script(CommandSection {
                 file_providers: named_file_providers_with_fields(fields),
                 ..CommandSection::empty()
             }),
@@ -501,11 +516,11 @@ pub(crate) mod test_helpers {
         variable_names: &[&str],
         scenario_fields: &[&str],
         custom_providers: &[CustomProviderDeclaration],
-    ) -> ScenarioConfig {
+    ) -> ScenarioConfig<ScenarioExecution> {
         ScenarioConfig {
             custom_providers: custom_providers.to_vec(),
             variable_definitions: variable_definitions(variable_names),
-            command: ScenarioCommand::Script(CommandSection {
+            execution: ScenarioExecution::Script(CommandSection {
                 file_providers: templatable_file_providers(scenario_fields),
                 ..CommandSection::empty()
             }),
@@ -643,7 +658,8 @@ mod tests {
     #[test_case(TEMPLATED_DOCKER_SCENARIO; "docker based")]
     #[test]
     fn parse_and_template(raw: &str) {
-        let config: ScenarioConfig = serde_yaml::from_str(raw).expect("scenario config to parse");
+        let config: ScenarioConfig<ScenarioExecution> =
+            serde_yaml::from_str(raw).expect("scenario config to parse");
 
         let mut res = config.required_variables();
         res.sort(); // Sorting so variables are in a deterministic order for the assert_eq
@@ -743,7 +759,7 @@ mod tests {
     #[test]
     fn check_success() {
         let scenario = ScenarioConfig {
-            command: ScenarioCommand::Script(cmd_with_inline_file()),
+            execution: ScenarioExecution::Script(cmd_with_inline_file()),
             ..ScenarioConfig::empty()
         };
 
@@ -756,7 +772,7 @@ mod tests {
     #[test]
     fn check_command_errors() {
         let scenario = ScenarioConfig {
-            command: ScenarioCommand::Script(cmd_with_required_file()),
+            execution: ScenarioExecution::Script(cmd_with_required_file()),
             ..ScenarioConfig::empty()
         };
 
@@ -813,7 +829,7 @@ mod tests {
             "#
         );
 
-        let scenario_config: ScenarioConfig =
+        let scenario_config: ScenarioConfig<ScenarioExecution> =
             serde_yaml::from_str(scenario_config_yaml).expect("scenario config to parse");
 
         assert_eq!(scenario_config.custom_providers.len(), 1);
@@ -1025,7 +1041,7 @@ mod tests {
         ));
 
         let mut scenario = ScenarioConfig {
-            command: ScenarioCommand::Script(CommandSection {
+            execution: ScenarioExecution::Script(CommandSection {
                 command: CommandSpec {
                     name: "example.sh".to_string(),
                     command_provider: CommandProvider::RelativePath(RelativeFile {
@@ -1042,9 +1058,9 @@ mod tests {
         let result = scenario.inline(&InlineMode::All, &ctx).await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
-        let command_provider = match scenario.command {
-            ScenarioCommand::Script(inner) => inner.command.command_provider,
-            ScenarioCommand::Docker(_) => panic!("scenario command should be a script"),
+        let command_provider = match scenario.execution {
+            ScenarioExecution::Script(inner) => inner.command.command_provider,
+            ScenarioExecution::Docker(_) => panic!("scenario command should be a script"),
         };
 
         assert_eq!(
@@ -1113,7 +1129,7 @@ mod tests {
 
     #[test]
     fn docker_scenario_check_passes_with_valid_config() {
-        let scenario = ScenarioCommand::Docker(DockerScenario {
+        let scenario = ScenarioExecution::Docker(DockerScenario {
             docker: DockerCommand {
                 image: Field::Resolved("alpine".to_string()),
                 tag: None,
@@ -1139,7 +1155,7 @@ mod tests {
 
     #[test]
     fn docker_scenario_check_duplicate_env_var_between_env_vars_and_file_provider() {
-        let scenario = ScenarioCommand::Docker(DockerScenario {
+        let scenario = ScenarioExecution::Docker(DockerScenario {
             docker: DockerCommand {
                 image: Field::Resolved("alpine".to_string()),
                 tag: None,
@@ -1168,7 +1184,7 @@ mod tests {
 
     #[test]
     fn docker_scenario_check_duplicate_file_provider_names() {
-        let scenario = ScenarioCommand::Docker(DockerScenario {
+        let scenario = ScenarioExecution::Docker(DockerScenario {
             docker: DockerCommand {
                 image: Field::Resolved("alpine".to_string()),
                 tag: None,

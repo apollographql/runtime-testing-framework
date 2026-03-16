@@ -31,6 +31,7 @@ pub mod providers;
 pub mod run;
 pub mod templating;
 
+pub use formats::{Execution, Generic, Rep};
 pub use providers::file::{CustomProviderSection, DirFile, SourceDir, StableSource};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]

@@ -1,6 +1,6 @@
 use crate::{
     StableSource,
-    checks::{self, Check, duplicate_keys},
+    checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
     enum_impl_check, enum_impl_resolve_and_write,
     inlining::{self, InlineMode},
@@ -208,6 +208,14 @@ impl Check for CommandSection {
         }
 
         errs.into_result(())
+    }
+}
+
+impl CheckArrayDuplicates for CommandSection {
+    const BASE_PATH: &str = "scenario";
+
+    fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
+        vec![("file_providers", DedupArray::Nfp(&mut self.file_providers))]
     }
 }
 

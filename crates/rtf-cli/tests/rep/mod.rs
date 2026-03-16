@@ -48,22 +48,14 @@ fn rep_prepare_fails_with_non_docker_compose_environment() {
     let mut cmd = prepare_rtf_rep_prepare("resources/test-plans/valid/docker-scenario");
     cmd.assert()
         .failure()
-        .stderr(contains("DockerComposeEnvironment"));
+        .stderr(contains("missing field `compose_files`"));
 }
 
 #[test]
 fn rep_prepare_fails_with_non_docker_scenario() {
     // docker-compose-environment fixture has a docker-compose env + script scenario
     let mut cmd = prepare_rtf_rep_prepare("resources/test-plans/valid/docker-compose-environment");
-    cmd.assert().failure().stderr(contains("DockerScenario"));
-}
-
-#[test]
-fn rep_prepare_fails_with_both_wrong_reports_both_errors() {
-    // sanity-check fixture has a script environment + script scenario
-    let mut cmd = prepare_rtf_rep_prepare("resources/test-plans/valid/sanity-check");
     cmd.assert()
         .failure()
-        .stderr(contains("DockerComposeEnvironment"))
-        .stderr(contains("DockerScenario"));
+        .stderr(contains("missing field `docker`"));
 }

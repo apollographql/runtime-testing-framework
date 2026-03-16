@@ -5,7 +5,7 @@ use crate::{
         scenario_job,
     },
 };
-use rtf_config::formats::{DockerScenario, ScenarioCommand, ScenarioConfig};
+use rtf_config::formats::{DockerScenario, ScenarioConfig, ScenarioExecution};
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{error, info};
 use uuid::Uuid;
@@ -33,7 +33,7 @@ pub async fn run(
                 description: Default::default(),
                 variable_definitions: Default::default(),
                 custom_providers: Default::default(),
-                command: ScenarioCommand::Docker(scenario),
+                execution: ScenarioExecution::Docker(scenario),
             })?,
         )
         .await?;
