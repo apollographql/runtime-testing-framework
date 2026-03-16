@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use std::sync::LazyLock;
+use std::{net::SocketAddr, sync::LazyLock};
 
 static CONFIG: LazyLock<Config> =
     LazyLock::new(|| match envy::prefixed("RTF_").from_env::<Config>() {
@@ -31,5 +31,12 @@ fn default_port() -> u16 {
 impl Config {
     pub fn get() -> &'static Self {
         &CONFIG
+    }
+
+    pub fn socket_addr(&self) -> SocketAddr {
+        match format!("{}:{}", self.host, self.port).parse() {
+            Ok(sa) => sa,
+            Err(e) => panic!("invalid socker addr from config: {e}"),
+        }
     }
 }
