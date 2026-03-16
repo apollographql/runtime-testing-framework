@@ -2,6 +2,7 @@ use sqlx::{Database, FromRow, PgConnection, Postgres};
 use thiserror::Error;
 
 pub mod pool;
+pub mod status;
 pub mod test_execution;
 pub mod test_run;
 
@@ -30,7 +31,12 @@ pub enum Error {
 }
 
 /// Helper trait for common queries and semantics when interacting with the DB.
-pub trait Queryable: Send + Unpin + for<'r> FromRow<'r, <Postgres as Database>::Row> {
+///
+/// # Table requirements
+/// - Must contain an integer "id" column
+pub trait Queryable:
+    Send + Sync + Unpin + for<'r> FromRow<'r, <Postgres as Database>::Row>
+{
     const TABLE_NAME: &'static str;
 
     fn id(&self) -> i32;
