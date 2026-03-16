@@ -83,41 +83,58 @@ impl TestRun {
         execution_status: Status,
         conn: &mut PgConnection,
     ) -> Result<Option<Status>> {
-        use Status::*;
-
         let StatusUpdate {
             status: run_status, ..
         } = self.current_status(conn).await?;
 
-        let new_run_status = match (run_status, execution_status) {
-            // Once at least one execution reports provisioning, the run as a whole is provisioning
-            (Initialising, Provisioning) => Some(Provisioning),
-
-            // Once at least one execution reports running, the run as a whole is running
-            (Initialising | Provisioning, Running) => Some(Running),
-
-            // Once all executions are complete we can determine the terminal status of the run
-            (_, s) if s.is_complete() => {
-                let sibling_executions = self.executions(conn).await?;
-
-                let mut execution_statuses = Vec::with_capacity(sibling_executions.len());
-                for ex in sibling_executions.iter() {
-                    execution_statuses.push(ex.current_status(conn).await?.status);
-                }
-
-                // Combine the statuses of all executions in this run. If the result is a terminal
-                // status then we need to update.
-                execution_statuses
-                    .into_iter()
-                    .reduce(|l, r| l.combine(r))
-                    .and_then(|s| if s.is_complete() { Some(s) } else { None })
+        status_after_execution_update(run_status, execution_status, async move || {
+            let sibling_executions = self.executions(conn).await?;
+            let mut execution_statuses = Vec::with_capacity(sibling_executions.len());
+            for ex in sibling_executions.iter() {
+                execution_statuses.push(ex.current_status(conn).await?.status);
             }
 
-            _ => None,
-        };
-
-        Ok(new_run_status)
+            Ok(execution_statuses)
+        })
+        .await
     }
+}
+
+async fn status_after_execution_update<F, Fut>(
+    run_status: Status,
+    execution_status: Status,
+    get_sibling_statuses: F,
+) -> Result<Option<Status>>
+where
+    F: FnOnce() -> Fut,
+    Fut: Future<Output = Result<Vec<Status>>>,
+{
+    use Status::*;
+
+    let new_run_status = match (run_status, execution_status) {
+        // Once at least one execution reports provisioning, the run as a whole is provisioning
+        (Initialising, Provisioning) => Some(Provisioning),
+
+        // Once at least one execution reports running, the run as a whole is running
+        (Initialising | Provisioning, Running) => Some(Running),
+
+        // Once all executions are complete we can determine the terminal status of the run.
+        // Once the run has a terminal status, further updates are ignored
+        (s_run, s_ex) if s_ex.is_complete() && !s_run.is_complete() => {
+            let execution_statuses = (get_sibling_statuses)().await?;
+
+            // Combine the statuses of all executions in this run. If the result is a terminal
+            // status then we need to update.
+            execution_statuses
+                .into_iter()
+                .reduce(|l, r| l.combine(r))
+                .and_then(|s| if s.is_complete() { Some(s) } else { None })
+        }
+
+        _ => None,
+    };
+
+    Ok(new_run_status)
 }
 
 #[cfg(test)]
@@ -127,6 +144,7 @@ mod tests {
         conn,
         db::status::{Status, StatusTracked},
     };
+    use Status::*;
     use simple_test_case::test_case;
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
@@ -177,6 +195,23 @@ mod tests {
         let tr2 = TestRun::get_by_uuid(&tr1.uuid, c).await?;
 
         assert_eq!(Some(tr1), tr2);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn executions_works() -> Result<()> {
+        let c = conn!();
+
+        let tr = TestRun::init("A", c).await?;
+        let ex1 = tr.init_execution("a", c).await?;
+        let ex2 = tr.init_execution("b", c).await?;
+
+        let executions = tr.executions(c).await?;
+        assert_eq!(executions.len(), 2, "wrong number of executions");
+        assert_eq!(executions[0], ex1, "execution 1");
+        assert_eq!(executions[1], ex2, "execution 2");
 
         Ok(())
     }
@@ -252,19 +287,41 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    // First execution to hit Provisioning/Running should update
+    #[test_case(Initialising, Provisioning, &[], Some(Provisioning); "init to provisioning")]
+    #[test_case(Initialising, Running, &[], Some(Running); "init to running")]
+    #[test_case(Provisioning, Running, &[], Some(Running); "provisioning to running")]
+    // Moving to Provisioning/Running should only happen once
+    #[test_case(Provisioning, Provisioning, &[], None; "already provisioning")]
+    #[test_case(Running, Running, &[], None; "already running")]
+    // Successful while siblings are ongoing
+    #[test_case(Running, Successful, &[Running], None; "successful sibling running")]
+    // Non-successful terminal while siblings are ongoing
+    #[test_case(Running, Failed, &[Running, Successful], Some(Failed); "failed sibling running")]
+    #[test_case(Running, Unrunnable, &[Running, Successful], Some(Unrunnable); "unrunnable sibling running")]
+    // Last execution reporting terminal status
+    #[test_case(Running, Successful, &[Successful], Some(Successful); "final successful")]
+    #[test_case(Running, Unrunnable, &[Successful], Some(Unrunnable); "final unrunnable")]
+    #[test_case(Running, Failed, &[Successful], Some(Failed); "final failed")]
+    // Failed and Unrunnable eagerly update run status, so further terminal execution updates
+    // should be ignored
+    #[test_case(Failed, Successful, &[Failed], None; "final successful but already failed")]
+    #[test_case(Unrunnable, Successful, &[Unrunnable], None; "final successful but already unrunnable")]
     #[tokio::test]
-    async fn executions_works() -> Result<()> {
-        let c = conn!();
+    async fn status_after_execution_update_works(
+        run_status: Status,
+        ex_status: Status,
+        siblings: &[Status],
+        expected: Option<Status>,
+    ) -> Result<()> {
+        let mut ex_statuses = siblings.to_vec();
+        ex_statuses.push(ex_status);
 
-        let tr = TestRun::init("A", c).await?;
-        let ex1 = tr.init_execution("a", c).await?;
-        let ex2 = tr.init_execution("b", c).await?;
+        let new_status =
+            status_after_execution_update(run_status, ex_status, async move || Ok(ex_statuses))
+                .await?;
 
-        let executions = tr.executions(c).await?;
-        assert_eq!(executions.len(), 2, "wrong number of executions");
-        assert_eq!(executions[0], ex1, "execution 1");
-        assert_eq!(executions[1], ex2, "execution 2");
+        assert_eq!(new_status, expected);
 
         Ok(())
     }
