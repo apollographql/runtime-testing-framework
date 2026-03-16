@@ -6,9 +6,9 @@
 //! [0]: https://git-scm.com/docs
 use anyhow::{Context as _, anyhow, bail};
 use rtf_config::{
-    SourceDir,
+    Execution, SourceDir,
     context::{Context, PathKind, ResolutionContext},
-    formats::{self, Sources, TestPlanConfig},
+    formats::{self, Sources, TestPlan},
 };
 use serde::Deserialize;
 use std::{
@@ -88,11 +88,11 @@ where
 }
 
 /// Handles loading a local test plan and displaying user facing errors
-pub async fn load_and_resolve_test_plan_from_local(
+pub async fn load_and_resolve_test_plan_from_local<E: Execution>(
     path: &str,
     ctx: &impl ResolutionContext,
-) -> anyhow::Result<(TestPlanConfig, Sources)> {
-    match TestPlanConfig::try_load_and_resolve_from_path(path, ctx).await {
+) -> anyhow::Result<(TestPlan<E>, Sources)> {
+    match TestPlan::<E>::try_load_and_resolve_from_path(path, ctx).await {
         Ok(result) => Ok(result),
         Err(e) => match e {
             formats::Error::Io(e) => bail!("Unable to load test plan from {path}: {e}"),
@@ -103,11 +103,11 @@ pub async fn load_and_resolve_test_plan_from_local(
 }
 
 /// Handles loading a test plan from github and displaying user facing errors
-pub async fn load_and_resolve_test_plan_from_github(
+pub async fn load_and_resolve_test_plan_from_github<E: Execution>(
     test_plan_path: &str,
     git_ref: Option<String>,
     ctx: &impl ResolutionContext,
-) -> anyhow::Result<(TestPlanConfig, Sources)> {
+) -> anyhow::Result<(TestPlan<E>, Sources)> {
     let (org, repo_and_path) = test_plan_path.split_once('/').ok_or(anyhow!(
         "invalid GitHub uri: \"{test_plan_path}\" - GitHub uri must be in format ORG/REPO/PATH"
     ))?;
@@ -115,7 +115,7 @@ pub async fn load_and_resolve_test_plan_from_github(
         "invalid GitHub uri: \"{test_plan_path}\" - GitHub uri must be in format ORG/REPO/PATH"
     ))?;
 
-    match TestPlanConfig::try_load_and_resolve_from_github(org, repo, path, git_ref, ctx).await {
+    match TestPlan::<E>::try_load_and_resolve_from_github(org, repo, path, git_ref, ctx).await {
         Ok(result) => Ok(result),
         Err(e) => bail!("Unable to load and resolve test plan from GitHub: {e}"),
     }

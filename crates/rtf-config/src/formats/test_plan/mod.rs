@@ -105,9 +105,7 @@ impl<E: Execution> TestPlan<E> {
 
         Ok(())
     }
-}
 
-impl TestPlan<Generic> {
     pub async fn try_load_and_resolve_from_path(
         p: impl AsRef<Path>,
         ctx: &impl ResolutionContext,
@@ -143,6 +141,22 @@ impl TestPlan<Generic> {
         raw.try_into_test_plan(tp_source, ctx).await
     }
 
+    /// Create an empty [TestPlanConfig] for tests
+    #[cfg(test)]
+    pub(crate) fn empty() -> TestPlanConfig {
+        TestPlanConfig {
+            name: Default::default(),
+            description: Default::default(),
+            variables: Default::default(),
+            matrix: Default::default(),
+            custom_providers: Default::default(),
+            scenario: ScenarioConfig::empty(),
+            environment: EnvironmentConfig::empty(),
+        }
+    }
+}
+
+impl TestPlan<Rep> {
     pub async fn try_extract_relative_files(
         &self,
         files: &mut HashMap<(StableSource, String), String>,
@@ -158,20 +172,6 @@ impl TestPlan<Generic> {
             .await?;
 
         Ok(())
-    }
-
-    /// Create an empty [TestPlanConfig] for tests
-    #[cfg(test)]
-    pub(crate) fn empty() -> TestPlanConfig {
-        TestPlanConfig {
-            name: Default::default(),
-            description: Default::default(),
-            variables: Default::default(),
-            matrix: Default::default(),
-            custom_providers: Default::default(),
-            scenario: ScenarioConfig::empty(),
-            environment: EnvironmentConfig::empty(),
-        }
     }
 }
 
@@ -425,7 +425,7 @@ mod tests {
         );
 
         let res = raw_test_plan
-            .try_into_test_plan(
+            .try_into_test_plan::<Generic>(
                 SourceDir::Local {
                     abs_path: "/".into(),
                 },

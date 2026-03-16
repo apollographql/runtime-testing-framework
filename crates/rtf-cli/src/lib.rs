@@ -1,7 +1,7 @@
 //! Runtime Testing Framework CLI - a swiss army knife for testing the Apollo Runtime
 use anyhow::{Context, anyhow};
 use rtf_config::{
-    SourceDir, StableSource, context::ResolutionContext, formats::TestPlanConfig,
+    Execution, SourceDir, StableSource, context::ResolutionContext, formats::TestPlan,
     templating::Scalar,
 };
 use serde::Deserialize;
@@ -113,9 +113,9 @@ impl cli::Variables {
     /// Returns the variable sources map alongside the [SourceDir] of the `--vars` file, if one
     /// was provided. Callers are responsible for incorporating this into [rtf_config::formats::Sources] via
     /// [ResolutionContext::set_sources].
-    pub fn merge(
+    pub fn merge<E: Execution>(
         self,
-        test_plan: &mut TestPlanConfig,
+        test_plan: &mut TestPlan<E>,
         ctx: &impl ResolutionContext,
     ) -> anyhow::Result<(HashMap<String, StableSource>, Option<SourceDir>)> {
         let (parsed, vars_file_src) = self.parse(ctx)?;

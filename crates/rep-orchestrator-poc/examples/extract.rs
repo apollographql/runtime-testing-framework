@@ -1,12 +1,11 @@
-use rep_orchestrator_poc::rep_test_plan::{RepTestPlan, SourceKeyedArrayMap};
 use rtf_cli::{
     cli::Variables,
     commands::{get_context_and_check_outdir, load_and_resolve_test_plan_from_local},
 };
 use rtf_config::{
-    StableSource,
+    Rep, StableSource,
     context::ResolutionContext,
-    formats::{Sources, TestPlanConfig},
+    formats::{RepPayload, RepTestPlan, SourceKeyedArrayMap, Sources},
     templating::{Template, TemplateContext},
 };
 use std::{
@@ -30,12 +29,13 @@ async fn main() -> anyhow::Result<()> {
     };
 
     info!("loading and resolving test plan");
-    let (test_plan, sources) = load_and_resolve_test_plan_from_local(&test_plan_path, &ctx).await?;
+    let (test_plan, sources) =
+        load_and_resolve_test_plan_from_local::<Rep>(&test_plan_path, &ctx).await?;
     extract_relative_files_with_context(test_plan, sources, variables, ctx, OUTDIR).await
 }
 
 async fn extract_relative_files_with_context(
-    mut test_plan: TestPlanConfig,
+    mut test_plan: RepTestPlan,
     sources: Sources,
     variables: Variables,
     mut ctx: impl ResolutionContext,
@@ -83,7 +83,7 @@ async fn extract_relative_files_with_context(
 
     ctx.write(
         outdir.join(REP_TEST_PLAN_PATH),
-        serde_json::to_string_pretty(&RepTestPlan {
+        serde_json::to_string_pretty(&RepPayload {
             test_plan,
             relative_files: SourceKeyedArrayMap::from_data(files),
             custom_providers: SourceKeyedArrayMap::from_data(raw_cps),
