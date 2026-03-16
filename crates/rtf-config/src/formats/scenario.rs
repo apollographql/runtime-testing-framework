@@ -29,7 +29,7 @@ use std::{
 ///
 /// Configuration for a single test scenario to be executed as part of a test plan.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
-pub struct ScenarioConfig {
+pub struct ScenarioConfig<R: RunScenario> {
     /// The name of this scenario
     pub name: String,
     /// A brief description of the purpose / behaviour of this scenario
@@ -43,10 +43,10 @@ pub struct ScenarioConfig {
     pub custom_providers: Vec<CustomProviderDeclaration>,
     /// The command to execute as this scenario
     #[serde(flatten)]
-    pub execution: ScenarioExecution,
+    pub execution: R,
 }
 
-impl ScenarioConfig {
+impl ScenarioConfig<ScenarioExecution> {
     pub fn try_load_from_path(p: impl AsRef<Path>) -> Result<Self> {
         let content = fs::read_to_string(p)?;
 
@@ -63,7 +63,7 @@ impl ScenarioConfig {
 
     /// Create an empty [ScenarioConfig] for tests
     #[cfg(test)]
-    pub(crate) fn empty() -> ScenarioConfig {
+    pub(crate) fn empty() -> ScenarioConfig<ScenarioExecution> {
         ScenarioConfig {
             name: Default::default(),
             description: Default::default(),
@@ -74,7 +74,7 @@ impl ScenarioConfig {
     }
 }
 
-impl Template for ScenarioConfig {
+impl<R: RunScenario> Template for ScenarioConfig<R> {
     fn required_variables(&self) -> Vec<String> {
         self.execution.required_variables()
     }
@@ -119,7 +119,7 @@ impl Template for ScenarioConfig {
     }
 }
 
-impl Check for ScenarioConfig {
+impl<R: RunScenario> Check for ScenarioConfig<R> {
     fn try_check(
         &self,
         path: &mut Vec<String>,
@@ -129,14 +129,11 @@ impl Check for ScenarioConfig {
             path.push("scenario".to_string());
         }
 
-        match &self.execution {
-            ScenarioExecution::Docker(inner) => inner.try_check(path, ctx),
-            ScenarioExecution::Script(inner) => inner.try_check(path, ctx),
-        }
+        self.execution.try_check(path, ctx)
     }
 }
 
-impl CheckArrayDuplicates for ScenarioConfig {
+impl<R: RunScenario> CheckArrayDuplicates for ScenarioConfig<R> {
     const BASE_PATH: &str = "scenario";
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
@@ -145,7 +142,6 @@ impl CheckArrayDuplicates for ScenarioConfig {
             DedupArray::VariableDef(&mut self.variable_definitions),
         )];
         arrays.extend(self.execution.deduplicated_arrays());
-
         arrays
     }
 }
@@ -504,7 +500,7 @@ pub(crate) mod test_helpers {
     pub(crate) fn scenario_with_fields(
         fields: &[Field<String>],
         custom_providers: &[CustomProviderDeclaration],
-    ) -> ScenarioConfig {
+    ) -> ScenarioConfig<ScenarioExecution> {
         ScenarioConfig {
             custom_providers: custom_providers.to_vec(),
             execution: ScenarioExecution::Script(CommandSection {
@@ -520,7 +516,7 @@ pub(crate) mod test_helpers {
         variable_names: &[&str],
         scenario_fields: &[&str],
         custom_providers: &[CustomProviderDeclaration],
-    ) -> ScenarioConfig {
+    ) -> ScenarioConfig<ScenarioExecution> {
         ScenarioConfig {
             custom_providers: custom_providers.to_vec(),
             variable_definitions: variable_definitions(variable_names),
@@ -662,7 +658,8 @@ mod tests {
     #[test_case(TEMPLATED_DOCKER_SCENARIO; "docker based")]
     #[test]
     fn parse_and_template(raw: &str) {
-        let config: ScenarioConfig = serde_yaml::from_str(raw).expect("scenario config to parse");
+        let config: ScenarioConfig<ScenarioExecution> =
+            serde_yaml::from_str(raw).expect("scenario config to parse");
 
         let mut res = config.required_variables();
         res.sort(); // Sorting so variables are in a deterministic order for the assert_eq
@@ -832,7 +829,7 @@ mod tests {
             "#
         );
 
-        let scenario_config: ScenarioConfig =
+        let scenario_config: ScenarioConfig<ScenarioExecution> =
             serde_yaml::from_str(scenario_config_yaml).expect("scenario config to parse");
 
         assert_eq!(scenario_config.custom_providers.len(), 1);

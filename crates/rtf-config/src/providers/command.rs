@@ -13,7 +13,7 @@ use crate::{
     },
     run::{
         Execute, ExecuteArgs, ExtractRelativeFiles, OUTDIR, OUTPUT_PATH, Provider, RunProviders,
-        RunScenario, try_read_relative_file,
+        try_read_relative_file,
     },
     templating::{Field, Scalar},
 };
@@ -85,8 +85,6 @@ impl CommandSection {
         }
     }
 }
-
-impl RunScenario for CommandSection {}
 
 impl RunProviders for CommandSection {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)> {

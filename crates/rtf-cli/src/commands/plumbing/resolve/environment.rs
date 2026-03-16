@@ -35,8 +35,12 @@ pub async fn resolve_environment(
     let (mut ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
 
     info!("loading environment");
-    let (source, mut environment) =
-        load_config::<EnvironmentConfig>(environment_path, "environment", &ctx).await?;
+    let (source, mut environment) = load_config::<EnvironmentConfig<EnvironmentExecution>>(
+        environment_path,
+        "environment",
+        &ctx,
+    )
+    .await?;
 
     // Custom providers are not supported by resolve environment
     if !environment.custom_providers.is_empty() {

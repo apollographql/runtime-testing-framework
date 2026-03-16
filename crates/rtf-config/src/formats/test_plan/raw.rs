@@ -2,8 +2,8 @@ use crate::{
     checks::CheckArrayDuplicates,
     context::ResolutionContext,
     formats::{
-        CustomProviderDeclaration, EnvironmentConfig, Error, Matrix, Result, ScenarioConfig,
-        TestPlanConfig, test_plan::Sources,
+        CustomProviderDeclaration, EnvironmentConfig, EnvironmentExecution, Error, Matrix, Result,
+        ScenarioConfig, ScenarioExecution, TestPlanConfig, test_plan::Sources,
     },
     merge_yaml,
     providers::file::{RawSource, SourceDir, StableSource},
@@ -48,7 +48,7 @@ impl RawTestPlanConfig {
     ) -> Result<(TestPlanConfig, Sources)> {
         let res = self
             .environment
-            .try_into_config_with_source::<EnvironmentConfig>(&tp_source, ctx)
+            .try_into_config_with_source::<EnvironmentConfig<EnvironmentExecution>>(&tp_source, ctx)
             .await;
         let (environment, environment_source) = match res {
             Ok(data) => data,
@@ -60,7 +60,7 @@ impl RawTestPlanConfig {
 
         let res = self
             .scenario
-            .try_into_config_with_source::<ScenarioConfig>(&tp_source, ctx)
+            .try_into_config_with_source::<ScenarioConfig<ScenarioExecution>>(&tp_source, ctx)
             .await;
         let (scenario, scenario_source) = match res {
             Ok(data) => data,

@@ -4,6 +4,7 @@ use std::io;
 
 mod custom_provider;
 mod environment;
+mod execution;
 mod matrix;
 mod rep_payload;
 mod scenario;
@@ -13,6 +14,7 @@ pub use custom_provider::{CustomProviderDeclaration, CustomProviderDefinition};
 pub use environment::{
     DockerComposeEnvironment, EnvironmentConfig, EnvironmentExecution, ScriptEnvironment,
 };
+pub use execution::{Execution, Generic, Rep};
 pub use matrix::Matrix;
 pub use rep_payload::{RepPayload, SourceKey, SourceKeyedArrayMap};
 use rtf_integrations::github;

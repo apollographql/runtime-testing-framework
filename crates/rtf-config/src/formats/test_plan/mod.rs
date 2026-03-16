@@ -1,7 +1,10 @@
 use crate::{
     checks::{self, Check},
     context::ResolutionContext,
-    formats::{CustomProviderDeclaration, EnvironmentConfig, Matrix, Result, ScenarioConfig},
+    formats::{
+        CustomProviderDeclaration, EnvironmentConfig, EnvironmentExecution, Matrix, Result,
+        ScenarioConfig, ScenarioExecution,
+    },
     providers::file::{SourceDir, StableSource},
     run::{Execute, RunProviders},
     templating::{self, Scalar, Template, TemplateContext},
@@ -38,8 +41,8 @@ pub struct TestPlanConfig {
     pub matrix: Matrix,
     #[serde(default)]
     pub custom_providers: Vec<CustomProviderDeclaration>,
-    pub scenario: ScenarioConfig,
-    pub environment: EnvironmentConfig,
+    pub scenario: ScenarioConfig<ScenarioExecution>,
+    pub environment: EnvironmentConfig<EnvironmentExecution>,
 }
 
 impl TestPlanConfig {

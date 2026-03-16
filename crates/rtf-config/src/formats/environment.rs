@@ -31,7 +31,7 @@ use std::{
 ///
 /// Configuration for preparing and cleaning up the test environment as part of a test plan.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
-pub struct EnvironmentConfig {
+pub struct EnvironmentConfig<R: RunEnvironment> {
     /// The name of this environment configuration
     pub name: String,
     /// A brief description of how this environment setup works
@@ -44,10 +44,10 @@ pub struct EnvironmentConfig {
     #[serde(default)]
     pub custom_providers: Vec<CustomProviderDeclaration>,
     #[serde(flatten)]
-    pub execution: EnvironmentExecution,
+    pub execution: R,
 }
 
-impl EnvironmentConfig {
+impl EnvironmentConfig<EnvironmentExecution> {
     pub fn try_load_from_path(p: impl AsRef<Path>) -> Result<Self> {
         let content = fs::read_to_string(p)?;
 
@@ -56,7 +56,7 @@ impl EnvironmentConfig {
 
     /// Create an empty [EnvironmentConfig] for tests
     #[cfg(test)]
-    pub(crate) fn empty() -> EnvironmentConfig {
+    pub(crate) fn empty() -> EnvironmentConfig<EnvironmentExecution> {
         EnvironmentConfig {
             name: Default::default(),
             description: Default::default(),
@@ -68,15 +68,9 @@ impl EnvironmentConfig {
             }),
         }
     }
+}
 
-    pub async fn inline(
-        &mut self,
-        mode: &InlineMode,
-        ctx: &impl ResolutionContext,
-    ) -> inlining::Result<()> {
-        self.execution.inline(mode, ctx).await
-    }
-
+impl<R: RunEnvironment> EnvironmentConfig<R> {
     pub async fn execute_setup(
         &self,
         name: &str,
@@ -96,7 +90,17 @@ impl EnvironmentConfig {
     }
 }
 
-impl Template for EnvironmentConfig {
+impl<R: RunEnvironment> EnvironmentConfig<R> {
+    pub async fn inline(
+        &mut self,
+        mode: &InlineMode,
+        ctx: &impl ResolutionContext,
+    ) -> inlining::Result<()> {
+        self.execution.inline(mode, ctx).await
+    }
+}
+
+impl<R: RunEnvironment> Template for EnvironmentConfig<R> {
     fn required_variables(&self) -> Vec<String> {
         self.execution.required_variables()
     }
@@ -139,7 +143,7 @@ impl Template for EnvironmentConfig {
     }
 }
 
-impl Check for EnvironmentConfig {
+impl<R: RunEnvironment> Check for EnvironmentConfig<R> {
     fn try_check(
         &self,
         path: &mut Vec<String>,
@@ -167,7 +171,7 @@ impl Check for EnvironmentConfig {
     }
 }
 
-impl CheckArrayDuplicates for EnvironmentConfig {
+impl<R: RunEnvironment> CheckArrayDuplicates for EnvironmentConfig<R> {
     const BASE_PATH: &str = "environment";
 
     fn deduplicated_arrays<'a>(&'a mut self) -> Vec<(&'static str, DedupArray<'a>)> {
@@ -671,7 +675,7 @@ pub(crate) mod test_helpers {
         setup_fields: &[Field<String>],
         teardown_fields: &[Field<String>],
         custom_providers: &[CustomProviderDeclaration],
-    ) -> EnvironmentConfig {
+    ) -> EnvironmentConfig<EnvironmentExecution> {
         EnvironmentConfig {
             custom_providers: custom_providers.to_vec(),
             execution: EnvironmentExecution::Script(ScriptEnvironment {
@@ -694,7 +698,7 @@ pub(crate) mod test_helpers {
         setup_fields: &[&str],
         teardown_fields: &[&str],
         custom_providers: &[CustomProviderDeclaration],
-    ) -> EnvironmentConfig {
+    ) -> EnvironmentConfig<EnvironmentExecution> {
         EnvironmentConfig {
             custom_providers: custom_providers.to_vec(),
             variable_definitions: variable_definitions(variable_names),
@@ -881,8 +885,9 @@ pub(crate) mod tests {
 
     #[test]
     fn parse_script_environment_success() {
-        let config: EnvironmentConfig = serde_yaml::from_str(TEMPLATED_SCRIPT_ENVIRONMENT)
-            .expect("environment config to parse");
+        let config: EnvironmentConfig<EnvironmentExecution> =
+            serde_yaml::from_str(TEMPLATED_SCRIPT_ENVIRONMENT)
+                .expect("environment config to parse");
 
         let mut res = config.required_variables();
         res.sort(); // Sorting so variables are in a deterministic order for the assert_eq
@@ -922,8 +927,9 @@ pub(crate) mod tests {
 
     #[test]
     fn parse_compose_environment_success() {
-        let config: EnvironmentConfig = serde_yaml::from_str(TEMPLATED_COMPOSE_ENVIRONMENT)
-            .expect("environment config to parse");
+        let config: EnvironmentConfig<EnvironmentExecution> =
+            serde_yaml::from_str(TEMPLATED_COMPOSE_ENVIRONMENT)
+                .expect("environment config to parse");
 
         let mut res = config.required_variables();
         res.sort(); // Sorting so variables are in a deterministic order for the assert_eq
@@ -1015,7 +1021,7 @@ pub(crate) mod tests {
 
     /// Helper function for asserting template errors are as expected
     fn assert_env_template_errors(
-        environment: &mut EnvironmentConfig,
+        environment: &mut EnvironmentConfig<EnvironmentExecution>,
         ctx: TemplateContext,
         expected_setup_err_fields: &[&str],
         expected_teardown_err_fields: &[&str],
@@ -1416,7 +1422,7 @@ pub(crate) mod tests {
             "#
         );
 
-        let env_config: EnvironmentConfig =
+        let env_config: EnvironmentConfig<EnvironmentExecution> =
             serde_yaml::from_str(env_config_yaml).expect("environment config to parse");
 
         assert_eq!(env_config.custom_providers.len(), 1);

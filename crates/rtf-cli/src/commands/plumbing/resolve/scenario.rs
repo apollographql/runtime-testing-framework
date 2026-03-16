@@ -12,7 +12,7 @@ use rtf_config::{
     SourceDir, StableSource,
     checks::Check,
     context::ResolutionContext,
-    formats::{ScenarioConfig, Sources},
+    formats::{ScenarioConfig, ScenarioExecution, Sources},
     run::{OUTPUT_PATH, PROVIDER_DIR, RunProviders},
     templating::{Template, TemplateContext},
 };
@@ -31,7 +31,7 @@ pub async fn resolve_scenario(
 
     info!("loading scenario");
     let (source, mut scenario) =
-        load_config::<ScenarioConfig>(scenario_path, "scenario", &ctx).await?;
+        load_config::<ScenarioConfig<ScenarioExecution>>(scenario_path, "scenario", &ctx).await?;
 
     // Custom providers are not supported by resolve scenario
     if !scenario.custom_providers.is_empty() {
