@@ -1,7 +1,100 @@
+use crate::db::{Queryable, Result};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use sqlx::FromRow;
+use sqlx::{Executor, FromRow, PgConnection};
 use std::cmp::Ordering;
+
+/// Helper trait for tracking a time series of [StatusUpdate] items for a parent table.
+///
+/// # Primary table requirements
+/// - Must contain a nullable timestamp "completed_at" column
+///
+/// # Status table structure
+/// This trait requires a fixed structure for the status table:
+/// - integer "parent_id"
+/// - integer "status"
+/// - nullable text "message"
+/// - timestamp "updated_at"
+pub trait StatusTracked: Queryable {
+    const STATUS_TABLE: &'static str;
+
+    /// Additional logic to run after recording a status update for this type.
+    fn after_set_status(
+        &self,
+        status: Status,
+        conn: &mut PgConnection,
+    ) -> impl Future<Output = Result<()>> + Send;
+
+    fn set_status(
+        &self,
+        status: Status,
+        message: Option<String>,
+        conn: &mut PgConnection,
+    ) -> impl Future<Output = Result<()>> + Send {
+        async move {
+            conn.execute(
+                sqlx::query(&format!(
+                    "INSERT INTO {} (parent_id, message, status) VALUES ($1, $2, $3)",
+                    Self::STATUS_TABLE
+                ))
+                .bind(self.id())
+                .bind(message)
+                .bind(status),
+            )
+            .await?;
+
+            if status.is_complete() {
+                conn.execute(
+                    sqlx::query(&format!(
+                        "UPDATE {} SET completed_at = NOW() WHERE id = $1;",
+                        Self::TABLE_NAME
+                    ))
+                    .bind(self.id()),
+                )
+                .await?;
+            }
+
+            self.after_set_status(status, conn).await
+        }
+    }
+
+    fn current_status(
+        &self,
+        conn: &mut PgConnection,
+    ) -> impl Future<Output = Result<StatusUpdate>> + Send {
+        async move {
+            Ok(sqlx::query_as(&format!(
+                "SELECT status, message, updated_at
+                 FROM {}
+                 WHERE parent_id = $1
+                 ORDER BY updated_at DESC
+                 LIMIT 1;",
+                Self::STATUS_TABLE
+            ))
+            .bind(self.id())
+            .fetch_one(conn)
+            .await?)
+        }
+    }
+
+    fn status_history(
+        &self,
+        conn: &mut PgConnection,
+    ) -> impl Future<Output = Result<Vec<StatusUpdate>>> + Send {
+        async move {
+            Ok(sqlx::query_as(&format!(
+                "SELECT status, message, updated_at
+                 FROM {}
+                 WHERE parent_id = $1
+                 ORDER BY updated_at DESC;",
+                Self::STATUS_TABLE
+            ))
+            .bind(self.id())
+            .fetch_all(conn)
+            .await?)
+        }
+    }
+}
 
 /// Status updates for test runs and executions are tracked as a time series, with the status of
 /// the test run being driven by the statuses of the executions inside of it.

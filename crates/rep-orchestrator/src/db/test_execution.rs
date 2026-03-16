@@ -1,4 +1,8 @@
-use crate::db::{Queryable, Result, test_run::TestRun};
+use crate::db::{
+    Queryable, Result,
+    status::{Status, StatusTracked},
+    test_run::TestRun,
+};
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgConnection};
 use uuid::Uuid;
@@ -23,6 +27,19 @@ impl Queryable for TestExecution {
     }
 }
 
+impl StatusTracked for TestExecution {
+    const STATUS_TABLE: &'static str = "test_execution_status";
+
+    async fn after_set_status(&self, status: Status, conn: &mut PgConnection) -> Result<()> {
+        let tr = self.test_run(conn).await?;
+        if let Some(new_status) = tr.status_after_execution_update(status, conn).await? {
+            tr.set_status(new_status, None, conn).await?;
+        };
+
+        Ok(())
+    }
+}
+
 impl TestExecution {
     pub async fn get_by_uuid(uuid: &Uuid, conn: &mut PgConnection) -> Result<Option<Self>> {
         Ok(
@@ -33,8 +50,8 @@ impl TestExecution {
         )
     }
 
-    pub async fn create(name: &str, test_run_id: i32, conn: &mut PgConnection) -> Result<Self> {
-        let ex = sqlx::query_as(
+    pub async fn init(name: &str, test_run_id: i32, conn: &mut PgConnection) -> Result<Self> {
+        let ex: TestExecution = sqlx::query_as(
             "INSERT INTO test_execution (test_run_id, name)
              VALUES ($1, $2)
              RETURNING id, uuid, test_run_id, name, exit_code, started_at, updated_at, completed_at;
@@ -42,8 +59,10 @@ impl TestExecution {
         )
         .bind(test_run_id)
         .bind(name)
-        .fetch_one(conn)
+        .fetch_one(&mut *conn)
         .await?;
+
+        ex.set_status(Status::Initialising, None, conn).await?;
 
         Ok(ex)
     }
@@ -56,14 +75,18 @@ impl TestExecution {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::conn;
+    use crate::{
+        conn,
+        db::status::{Status, StatusTracked},
+    };
+    use simple_test_case::test_case;
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn create_works() -> Result<()> {
+    async fn init_works() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::create("test", c).await?;
-        let res = TestExecution::create("test", tr.id(), c).await;
+        let tr = TestRun::init("test", c).await?;
+        let res = TestExecution::init("test", tr.id(), c).await;
         assert!(res.is_ok(), "{res:?}");
 
         let ex = res.unwrap();
@@ -77,8 +100,8 @@ mod tests {
     #[tokio::test]
     async fn get_by_id_works() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::create("test", c).await?;
-        let ex1 = TestExecution::create("test", tr.id(), c).await?;
+        let tr = TestRun::init("test", c).await?;
+        let ex1 = TestExecution::init("test", tr.id(), c).await?;
         let ex2 = TestExecution::get_by_id(ex1.id, c).await?;
 
         assert_eq!(Some(ex1), ex2);
@@ -90,8 +113,8 @@ mod tests {
     #[tokio::test]
     async fn get_by_id_unchecked_works() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::create("test", c).await?;
-        let ex1 = TestExecution::create("test", tr.id(), c).await?;
+        let tr = TestRun::init("test", c).await?;
+        let ex1 = TestExecution::init("test", tr.id(), c).await?;
         let ex2 = TestExecution::get_by_id_unchecked(ex1.id, c).await?;
 
         assert_eq!(ex1, ex2);
@@ -103,8 +126,8 @@ mod tests {
     #[tokio::test]
     async fn get_by_uuid_works() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::create("test", c).await?;
-        let ex1 = TestExecution::create("test", tr.id(), c).await?;
+        let tr = TestRun::init("test", c).await?;
+        let ex1 = TestExecution::init("test", tr.id(), c).await?;
         let ex2 = TestExecution::get_by_uuid(&ex1.uuid, c).await?;
 
         assert_eq!(Some(ex1), ex2);
@@ -117,15 +140,180 @@ mod tests {
     async fn test_run_works() -> Result<()> {
         let c = conn!();
 
-        let tr = TestRun::create("A", c).await?;
-        let ex1 = TestExecution::create("a", tr.id(), c).await?;
-        let ex2 = TestExecution::create("b", tr.id(), c).await?;
+        let tr = TestRun::init("A", c).await?;
+        let ex1 = TestExecution::init("a", tr.id(), c).await?;
+        let ex2 = TestExecution::init("b", tr.id(), c).await?;
 
         let tr_a = ex1.test_run(c).await?;
         assert_eq!(tr_a, tr, "execution 1");
 
         let tr_b = ex2.test_run(c).await?;
         assert_eq!(tr_b, tr, "execution 2");
+
+        Ok(())
+    }
+
+    // Status of Initialising is checked in `init_works` above
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[test_case(Status::Provisioning; "provisioning")]
+    #[test_case(Status::Running; "running")]
+    #[test_case(Status::Successful; "successful")]
+    #[test_case(Status::Failed; "failed")]
+    #[test_case(Status::Unrunnable; "unrunnable")]
+    #[tokio::test]
+    async fn set_status_and_current_status_match(status: Status) -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init("test", c).await?;
+        let ex = TestExecution::init("test", tr.id(), c).await?;
+
+        ex.set_status(status, None, c).await?;
+        let current = ex.current_status(c).await?;
+
+        assert_eq!(current.status, status);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn status_history_works() -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init("test", c).await?;
+        let ex = TestExecution::init("test", tr.id(), c).await?; // sets Status::Initialising
+        ex.set_status(Status::Running, None, c).await?;
+        ex.set_status(Status::Successful, None, c).await?;
+
+        let history = ex.status_history(c).await?;
+        assert_eq!(history.len(), 3, "wrong number of history entries");
+        assert_eq!(history[0].status, Status::Successful, "newest");
+        assert_eq!(history[1].status, Status::Running, "second");
+        assert_eq!(history[2].status, Status::Initialising, "oldest");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[test_case(Status::Successful; "successful")]
+    #[test_case(Status::Failed; "failed")]
+    #[test_case(Status::Unrunnable; "unrunnable")]
+    #[tokio::test]
+    async fn terminal_status_sets_completed_at(status: Status) -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init("test", c).await?;
+        let ex = TestExecution::init("test", tr.id(), c).await?;
+        assert!(ex.completed_at.is_none());
+
+        ex.set_status(status, None, c).await?;
+        let ex = TestExecution::get_by_id_unchecked(ex.id(), c).await?;
+        assert!(ex.completed_at.is_some());
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[test_case(Status::Initialising; "initialising")]
+    #[test_case(Status::Provisioning; "provisioning")]
+    #[test_case(Status::Running; "running")]
+    #[tokio::test]
+    async fn non_terminal_status_does_not_set_completed_at(status: Status) -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init("test", c).await?;
+        let ex = TestExecution::init("test", tr.id(), c).await?;
+        assert!(ex.completed_at.is_none());
+
+        ex.set_status(status, None, c).await?;
+        let ex = TestExecution::get_by_id_unchecked(ex.id(), c).await?;
+        assert!(ex.completed_at.is_none());
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[test_case(None, Status::Provisioning; "initialising to provisioning")]
+    #[test_case(None, Status::Running; "initialising to running")]
+    #[test_case(Some(Status::Provisioning), Status::Running; "provisioning to running")]
+    #[tokio::test]
+    async fn execution_provisioning_and_running_update_parent_run(
+        run_status: Option<Status>,
+        execution_status: Status,
+    ) -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init("test", c).await?;
+        if let Some(s) = run_status {
+            tr.set_status(s, None, c).await?;
+        }
+
+        let ex = tr.init_execution("test", c).await?;
+        ex.set_status(execution_status, None, c).await?;
+
+        assert_eq!(tr.current_status(c).await?.status, execution_status);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[test_case(Status::Provisioning; "provisioning")]
+    #[test_case(Status::Running; "running")]
+    #[tokio::test]
+    async fn execution_provisioning_and_running_are_high_water_mark(status: Status) -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init("test", c).await?;
+        tr.set_status(status, None, c).await?;
+        let ex = tr.init_execution("test", c).await?;
+
+        let history_before = tr.status_history(c).await?;
+        ex.set_status(status, None, c).await?;
+        let history_after = tr.status_history(c).await?;
+
+        // We were already in the correct status so there shouldn't be a further status update
+        assert_eq!(
+            history_before, history_after,
+            "no new status entry expected"
+        );
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[test_case(Status::Successful; "successful")]
+    #[test_case(Status::Failed; "failed")]
+    #[test_case(Status::Unrunnable; "unrunnable")]
+    #[tokio::test]
+    async fn single_execution_terminal_status_propagates_immediately(status: Status) -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init("test", c).await?;
+        let ex = tr.init_execution("test", c).await?;
+        ex.set_status(status, None, c).await?;
+
+        let current = tr.current_status(c).await?;
+        assert_eq!(current.status, status);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn terminal_status_propagation_requires_all_executions() -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init("test", c).await?;
+        let ex1 = tr.init_execution("a", c).await?;
+        let ex2 = tr.init_execution("b", c).await?;
+        let ex3 = tr.init_execution("c", c).await?;
+
+        ex1.set_status(Status::Successful, None, c).await?;
+        let current = tr.current_status(c).await?;
+        let is_complete = current.status.is_complete();
+        assert!(!is_complete, "after ex1: {current:?}");
+
+        ex2.set_status(Status::Successful, None, c).await?;
+        let current = tr.current_status(c).await?;
+        let is_complete = current.status.is_complete();
+        assert!(!is_complete, "after ex2: {current:?}");
+
+        ex3.set_status(Status::Successful, None, c).await?;
+        let current = tr.current_status(c).await?;
+        let is_complete = current.status.is_complete();
+        assert!(is_complete, "after ex3: {current:?}");
 
         Ok(())
     }
