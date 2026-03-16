@@ -5,7 +5,7 @@
 You need to have the following tools installed for this local stack to run on your Mac:
 
 ```bash
-brew install docker docker-compose kind tilt docker-buildx
+brew install docker docker-compose kind tilt docker-buildx kubectl
 ```
 
 You also need to be authenticated to GCP as an `apollographql` user in order to pull images from the
