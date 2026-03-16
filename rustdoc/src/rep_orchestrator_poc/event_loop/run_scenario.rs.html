@@ -5,7 +5,7 @@
 <a href=#5 id=5 data-nosnippet>5</a>        scenario_job,
 <a href=#6 id=6 data-nosnippet>6</a>    },
 <a href=#7 id=7 data-nosnippet>7</a>};
-<a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>rtf_config::formats::{DockerScenario, ScenarioCommand, ScenarioConfig};
+<a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>rtf_config::formats::{DockerScenario, ScenarioConfig, ScenarioExecution};
 <a href=#9 id=9 data-nosnippet>9</a><span class="kw">use </span>tokio::sync::mpsc::UnboundedSender;
 <a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span>tracing::{error, info};
 <a href=#11 id=11 data-nosnippet>11</a><span class="kw">use </span>uuid::Uuid;
@@ -33,7 +33,7 @@
 <a href=#33 id=33 data-nosnippet>33</a>                description: Default::default(),
 <a href=#34 id=34 data-nosnippet>34</a>                variable_definitions: Default::default(),
 <a href=#35 id=35 data-nosnippet>35</a>                custom_providers: Default::default(),
-<a href=#36 id=36 data-nosnippet>36</a>                command: ScenarioCommand::Docker(scenario),
+<a href=#36 id=36 data-nosnippet>36</a>                execution: ScenarioExecution::Docker(scenario),
 <a href=#37 id=37 data-nosnippet>37</a>            })<span class="question-mark">?</span>,
 <a href=#38 id=38 data-nosnippet>38</a>        )
 <a href=#39 id=39 data-nosnippet>39</a>        .<span class="kw">await</span><span class="question-mark">?</span>;

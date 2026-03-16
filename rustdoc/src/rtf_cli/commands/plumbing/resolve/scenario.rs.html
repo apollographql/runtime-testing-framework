@@ -12,7 +12,7 @@
 <a href=#12 id=12 data-nosnippet>12</a>    SourceDir, StableSource,
 <a href=#13 id=13 data-nosnippet>13</a>    checks::Check,
 <a href=#14 id=14 data-nosnippet>14</a>    context::ResolutionContext,
-<a href=#15 id=15 data-nosnippet>15</a>    formats::{ScenarioConfig, Sources},
+<a href=#15 id=15 data-nosnippet>15</a>    formats::{ScenarioConfig, ScenarioExecution, Sources},
 <a href=#16 id=16 data-nosnippet>16</a>    run::{OUTPUT_PATH, PROVIDER_DIR, RunProviders},
 <a href=#17 id=17 data-nosnippet>17</a>    templating::{Template, TemplateContext},
 <a href=#18 id=18 data-nosnippet>18</a>};
@@ -31,7 +31,7 @@
 <a href=#31 id=31 data-nosnippet>31</a>
 <a href=#32 id=32 data-nosnippet>32</a>    <span class="macro">info!</span>(<span class="string">"loading scenario"</span>);
 <a href=#33 id=33 data-nosnippet>33</a>    <span class="kw">let </span>(source, <span class="kw-2">mut </span>scenario) =
-<a href=#34 id=34 data-nosnippet>34</a>        load_config::&lt;ScenarioConfig&gt;(scenario_path, <span class="string">"scenario"</span>, <span class="kw-2">&amp;</span>ctx).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#34 id=34 data-nosnippet>34</a>        load_config::&lt;ScenarioConfig&lt;ScenarioExecution&gt;&gt;(scenario_path, <span class="string">"scenario"</span>, <span class="kw-2">&amp;</span>ctx).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#35 id=35 data-nosnippet>35</a>
 <a href=#36 id=36 data-nosnippet>36</a>    <span class="comment">// Custom providers are not supported by resolve scenario
 <a href=#37 id=37 data-nosnippet>37</a>    </span><span class="kw">if </span>!scenario.custom_providers.is_empty() {
@@ -61,7 +61,7 @@
 <a href=#61 id=61 data-nosnippet>61</a>
 <a href=#62 id=62 data-nosnippet>62</a>    <span class="macro">info!</span>(<span class="string">"running static checks"</span>);
 <a href=#63 id=63 data-nosnippet>63</a>    scenario
-<a href=#64 id=64 data-nosnippet>64</a>        .command
+<a href=#64 id=64 data-nosnippet>64</a>        .execution
 <a href=#65 id=65 data-nosnippet>65</a>        .try_check(<span class="kw-2">&amp;mut </span><span class="macro">vec!</span>[<span class="string">"scenario"</span>.to_string()], <span class="kw-2">&amp;</span>ctx)<span class="question-mark">?</span>;
 <a href=#66 id=66 data-nosnippet>66</a>
 <a href=#67 id=67 data-nosnippet>67</a>    <span class="macro">info!</span>(<span class="string">"creating output directory"</span>);
@@ -72,14 +72,14 @@
 <a href=#72 id=72 data-nosnippet>72</a>    <span class="macro">info!</span>(<span class="string">"resolving file providers"</span>);
 <a href=#73 id=73 data-nosnippet>73</a>    <span class="kw">let </span>providers_dir = out_dir.join(PROVIDER_DIR);
 <a href=#74 id=74 data-nosnippet>74</a>    scenario
-<a href=#75 id=75 data-nosnippet>75</a>        .command
+<a href=#75 id=75 data-nosnippet>75</a>        .execution
 <a href=#76 id=76 data-nosnippet>76</a>        .run_providers(<span class="kw-2">&amp;</span>providers_dir, <span class="kw-2">&amp;mut </span>ctx)
 <a href=#77 id=77 data-nosnippet>77</a>        .<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#78 id=78 data-nosnippet>78</a>
 <a href=#79 id=79 data-nosnippet>79</a>    <span class="macro">info!</span>(<span class="string">"writing scenario.env"</span>);
 <a href=#80 id=80 data-nosnippet>80</a>    <span class="kw">let </span>output_path = out_dir.join(OUTPUT_PATH);
 <a href=#81 id=81 data-nosnippet>81</a>    <span class="kw">let </span>env_vars = scenario
-<a href=#82 id=82 data-nosnippet>82</a>        .command
+<a href=#82 id=82 data-nosnippet>82</a>        .execution
 <a href=#83 id=83 data-nosnippet>83</a>        .all_env_vars(<span class="kw-2">&amp;</span>out_dir, <span class="kw-2">&amp;</span>output_path, <span class="kw-2">&amp;</span>ctx)<span class="question-mark">?</span>;
 <a href=#84 id=84 data-nosnippet>84</a>    <span class="kw">let </span>env_content = generate_env_file(env_vars);
 <a href=#85 id=85 data-nosnippet>85</a>    ctx.write(out_dir.join(SCENARIO_ENV_FILE), env_content)<span class="question-mark">?</span>;
