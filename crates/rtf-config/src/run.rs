@@ -4,6 +4,7 @@
 //! of file providers and execution of the command itself.
 use crate::{
     StableSource,
+    checks::{Check, CheckArrayDuplicates},
     context::ResolutionContext,
     inlining::{self, InlineMode},
     providers::{
@@ -15,6 +16,7 @@ use crate::{
             compose::{ComposeFileProvider, NamedComposeFileProvider},
         },
     },
+    templating::Template,
 };
 use serde::Serialize;
 use std::{
@@ -89,6 +91,22 @@ pub(crate) trait ExtractRelativeFiles: Send + Sync {
         files: &mut HashMap<(StableSource, String), String>,
         ctx: &impl ResolutionContext,
     ) -> impl Future<Output = providers::Result<()>> + Send;
+}
+
+pub trait RunEnvironment: RunProviders + Check + Template + CheckArrayDuplicates + Clone {
+    fn execute_setup(
+        &self,
+        name: &str,
+        out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> impl Future<Output = providers::Result<String>> + Send;
+
+    fn execute_teardown(
+        &self,
+        name: &str,
+        out_dir: &Path,
+        ctx: &mut impl ResolutionContext,
+    ) -> impl Future<Output = providers::Result<String>> + Send;
 }
 
 pub trait RunProviders: Send + Sync {
