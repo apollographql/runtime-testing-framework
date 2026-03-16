@@ -1,12 +1,12 @@
 use crate::{
     StableSource, VariableDefinition,
     context::ResolutionContext,
-    formats::TestPlanConfig,
+    formats::{Execution, TestPlan},
     templating::{self, CustomProviderDefinitions, Scalar, Template, TemplateContext},
 };
 use std::collections::{HashMap, HashSet};
 
-impl TestPlanConfig {
+impl<E: Execution> TestPlan<E> {
     /// The set of allowed templating variables that this test plan supports.
     ///
     /// This is the union of variables defined as a scalars and those that are part of a matrix
