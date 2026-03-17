@@ -2,9 +2,13 @@ use sqlx::{Database, FromRow, PgConnection, Postgres};
 use thiserror::Error;
 
 pub mod pool;
-pub mod status;
-pub mod test_execution;
-pub mod test_run;
+mod status;
+mod test_execution;
+mod test_run;
+
+pub use status::{Status, StatusUpdate};
+pub use test_execution::TestExecution;
+pub use test_run::TestRun;
 
 #[macro_export]
 macro_rules! conn {
