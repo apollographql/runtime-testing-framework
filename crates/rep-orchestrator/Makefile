@@ -35,7 +35,7 @@ wait-for-server:
 	@echo "Waiting for server to start..."
 	@until docker compose -f docker/docker-compose.yaml ps | grep -E '^orchestrator\s' | grep healthy; do \
 		echo "..."; \
-		sleep 1; \
+		sleep 5; \
 	done
 
 

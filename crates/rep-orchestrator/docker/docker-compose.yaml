@@ -8,6 +8,7 @@ services:
     ports:
       - 8035:8035
     environment:
+      CARGO_TARGET_DIR: "/target"
       RUST_LOG: "info,rep_orchestrator=debug,hyper=error"
       RTF_HOST: "0.0.0.0"
       RTF_PORT: "8035"
@@ -19,7 +20,7 @@ services:
     volumes:
       - ../../../:/runtime-testing-framework
       - cargo-cache:/usr/local/cargo/registry
-      - target-cache:/runtime-testing-framework/target
+      - target-cache:/target
     healthcheck:
       test: [ "CMD-SHELL", "curl localhost:8035/health" ]
       interval: 5s
