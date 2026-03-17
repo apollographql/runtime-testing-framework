@@ -1,4 +1,4 @@
-use axum::{Router, routing::post, serve};
+use axum::{Router, routing::get, serve};
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -34,7 +34,13 @@ pub async fn run_server() -> error::Result<()> {
 }
 
 fn build_routes(state: ServerState) -> Router {
+    use endpoints::{execution_status, run_status};
+
     Router::new()
-        .route("/hello", post(async || "Hello, world!"))
+        .route(
+            "/test-execution/{id}/status",
+            get(execution_status::handler),
+        )
+        .route("/test-run/{id}/status", get(run_status::handler))
         .with_state(state)
 }
