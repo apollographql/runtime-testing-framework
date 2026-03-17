@@ -19,6 +19,16 @@ pub struct TestRun {
     completed_at: Option<DateTime<Utc>>,
 }
 
+impl TestRun {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn uuid(&self) -> Uuid {
+        self.uuid
+    }
+}
+
 impl Queryable for TestRun {
     const TABLE_NAME: &'static str = "test_run";
 

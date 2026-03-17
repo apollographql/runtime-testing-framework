@@ -10,6 +10,7 @@ pub mod config;
 pub mod db;
 pub mod endpoints;
 pub mod error;
+pub mod resolver;
 pub mod response_types;
 pub mod state;
 
@@ -26,7 +27,8 @@ pub async fn run_server() -> error::Result<()> {
     info!("Checking database connection");
     check_db_conn().await?;
 
-    let (state, _rx) = ServerState::new();
+    let (state, rx) = ServerState::new();
+    tokio::spawn(resolver::resolver_task(rx));
 
     info!("starting axum server");
     let routes = build_routes(state);
