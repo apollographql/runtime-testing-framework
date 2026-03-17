@@ -4,8 +4,11 @@ use tracing::info;
 
 pub mod config;
 pub mod db;
+pub mod endpoints;
 pub mod error;
 pub mod state;
+
+pub use error::{Error, Result};
 
 use config::Config;
 use db::pool::check_db_conn;
