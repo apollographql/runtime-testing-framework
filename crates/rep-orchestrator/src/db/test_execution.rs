@@ -4,7 +4,7 @@ use crate::{
         status::{Status, StatusTracked},
         test_run::TestRun,
     },
-    response_types::test_execution::TestExecutionSummary,
+    response_types::TestExecutionSummary,
 };
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgConnection};

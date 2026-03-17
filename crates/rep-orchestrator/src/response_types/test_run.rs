@@ -1,6 +1,6 @@
 use crate::{
-    db::status::{Status, StatusUpdate},
-    response_types::test_execution::TestExecutionSummary,
+    db::{Status, StatusUpdate},
+    response_types::TestExecutionSummary,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
