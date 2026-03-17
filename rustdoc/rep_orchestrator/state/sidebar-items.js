@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ServerState","TestPlanWithId"]};
+window.SIDEBAR_ITEMS = {"struct":["ServerState","TestRunWithPayload"]};
