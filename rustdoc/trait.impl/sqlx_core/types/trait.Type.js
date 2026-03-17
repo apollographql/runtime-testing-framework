@@ -1,9 +1,9 @@
 (function() {
-    const implementors = Object.fromEntries([["rep_orchestrator",[["impl&lt;DB: Database&gt; Type&lt;DB&gt; for <a class=\"enum\" href=\"rep_orchestrator/db/status/enum.Status.html\" title=\"enum rep_orchestrator::db::status::Status\">Status</a><div class=\"where\">where\n    <a class=\"primitive\" href=\"https://doc.rust-lang.org/1.94.0/std/primitive.i32.html\">i32</a>: Type&lt;DB&gt;,</div>",0]]]]);
+    const implementors = Object.fromEntries([["rep_orchestrator",[["impl&lt;DB: Database&gt; Type&lt;DB&gt; for <a class=\"enum\" href=\"rep_orchestrator/db/enum.Status.html\" title=\"enum rep_orchestrator::db::Status\">Status</a><div class=\"where\">where\n    <a class=\"primitive\" href=\"https://doc.rust-lang.org/1.94.0/std/primitive.i32.html\">i32</a>: Type&lt;DB&gt;,</div>",0]]]]);
     if (window.register_implementors) {
         window.register_implementors(implementors);
     } else {
         window.pending_implementors = implementors;
     }
 })()
-//{"start":59,"fragment_lengths":[356]}
+//{"start":59,"fragment_lengths":[341]}

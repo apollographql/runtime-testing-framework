@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["test_execution","test_run"]};
+window.SIDEBAR_ITEMS = {"struct":["TestExecutionSummary","TestRunSummary"]};
