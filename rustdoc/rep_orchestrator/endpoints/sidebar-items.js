@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["execution_status","run_status","trigger"]};
+window.SIDEBAR_ITEMS = {"mod":["execution_status","health","run_status","trigger"]};
