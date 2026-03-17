@@ -2673,10 +2673,12 @@ name = "rep-orchestrator"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "assert_fs",
  "axum",
  "chrono",
  "envy",
  "reqwest",
+ "rtf-cli",
  "rtf-config",
  "rtf-core",
  "rtf-integrations",

@@ -19,7 +19,7 @@ services:
     volumes:
       - ../../../:/runtime-testing-framework
       - cargo-cache:/usr/local/cargo/registry
-      - target-cache:/app/target
+      - target-cache:/runtime-testing-framework/target
     healthcheck:
       test: [ "CMD-SHELL", "curl localhost:8035/health" ]
       interval: 5s
