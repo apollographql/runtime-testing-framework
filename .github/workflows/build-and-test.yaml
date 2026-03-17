@@ -56,7 +56,7 @@ jobs:
       with:
         rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
     - name: Run Orchestrator DB tests
-      run: cd crates/rep-orchestrator && make ci-db-tests
+      run: cd crates/rep-orchestrator && make ci-tests
     - name: Run tests
       run: cargo test --verbose
 

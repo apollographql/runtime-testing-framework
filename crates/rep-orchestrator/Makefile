@@ -7,7 +7,7 @@ db-tests:
 		RTF_DB_NAME=rtf_rep \
 		RTF_DB_USER=service_user \
 		RTF_DB_PASS=password \
-		cargo test --features db_tests $(ARGS)
+		cargo test --lib --features db_tests $(ARGS)
 
 .PHONY: integration-tests
 integration-tests: clear-db-data
