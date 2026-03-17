@@ -1,6 +1,6 @@
 use crate::db::{Queryable, Result};
 use chrono::{DateTime, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::{Executor, FromRow, PgConnection};
 use std::cmp::Ordering;
 
@@ -98,7 +98,7 @@ pub trait StatusTracked: Queryable {
 
 /// Status updates for test runs and executions are tracked as a time series, with the status of
 /// the test run being driven by the statuses of the executions inside of it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, FromRow)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, FromRow)]
 pub struct StatusUpdate {
     pub status: Status,
     pub message: Option<String>,
@@ -106,10 +106,11 @@ pub struct StatusUpdate {
 }
 
 /// An individual lifecycle status for a test run or execution.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, sqlx::Type)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Deserialize, Serialize, sqlx::Type)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[repr(i32)]
 pub enum Status {
+    #[default]
     Initialising = 1,
     Provisioning = 2,
     Running = 3,

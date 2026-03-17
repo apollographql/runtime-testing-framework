@@ -6,6 +6,7 @@ pub mod config;
 pub mod db;
 pub mod endpoints;
 pub mod error;
+pub mod response_types;
 pub mod state;
 
 pub use error::{Error, Result};

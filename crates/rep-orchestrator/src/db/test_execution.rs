@@ -1,7 +1,10 @@
-use crate::db::{
-    Queryable, Result,
-    status::{Status, StatusTracked},
-    test_run::TestRun,
+use crate::{
+    db::{
+        Queryable, Result,
+        status::{Status, StatusTracked},
+        test_run::TestRun,
+    },
+    response_types::test_execution::TestExecutionSummary,
 };
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgConnection};
@@ -69,6 +72,22 @@ impl TestExecution {
 
     pub async fn test_run(&self, conn: &mut PgConnection) -> Result<TestRun> {
         TestRun::get_by_id_unchecked(self.test_run_id, conn).await
+    }
+
+    pub async fn try_into_summary(self, conn: &mut PgConnection) -> Result<TestExecutionSummary> {
+        let status_history = self.status_history(conn).await?;
+        let current_status = self.current_status(conn).await?.status;
+
+        Ok(TestExecutionSummary {
+            id: self.uuid,
+            name: self.name,
+            current_status,
+            exit_code: self.exit_code,
+            started_at: self.started_at,
+            updated_at: self.updated_at,
+            completed_at: self.completed_at,
+            status_history,
+        })
     }
 }
 
