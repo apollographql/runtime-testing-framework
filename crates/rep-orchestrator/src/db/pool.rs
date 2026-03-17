@@ -12,7 +12,7 @@ static POOL: OnceCell<PgPool> = OnceCell::const_new();
 pub async fn init_pool(cfg: &Config) -> Result<PgPool> {
     info!("Initialising DB connection pool");
     let opts = PgConnectOptions::new()
-        .host(&cfg.host)
+        .host(&cfg.db_host)
         .port(cfg.db_port)
         .username(&cfg.db_user)
         .password(&cfg.db_pass)
