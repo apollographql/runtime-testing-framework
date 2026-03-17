@@ -16,6 +16,9 @@ pub enum Error {
     #[error(transparent)]
     Io(#[from] io::Error),
 
+    #[error("resolver channel closed")]
+    ResolverChannelClosed,
+
     #[error("{id} is not a known test execution ID")]
     UnknownTestExecution { id: Uuid },
 
