@@ -1,4 +1,8 @@
-use axum::{Router, routing::get, serve};
+use axum::{
+    Router,
+    routing::{get, post},
+    serve,
+};
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -6,6 +10,7 @@ pub mod config;
 pub mod db;
 pub mod endpoints;
 pub mod error;
+pub mod resolver;
 pub mod response_types;
 pub mod state;
 
@@ -22,7 +27,8 @@ pub async fn run_server() -> error::Result<()> {
     info!("Checking database connection");
     check_db_conn().await?;
 
-    let (state, _rx) = ServerState::new();
+    let (state, rx) = ServerState::new();
+    tokio::spawn(resolver::resolver_task(rx));
 
     info!("starting axum server");
     let routes = build_routes(state);
@@ -34,7 +40,7 @@ pub async fn run_server() -> error::Result<()> {
 }
 
 fn build_routes(state: ServerState) -> Router {
-    use endpoints::{execution_status, run_status};
+    use endpoints::{execution_status, run_status, trigger};
 
     Router::new()
         .route(
@@ -42,5 +48,6 @@ fn build_routes(state: ServerState) -> Router {
             get(execution_status::handler),
         )
         .route("/test-run/{id}/status", get(run_status::handler))
+        .route("/test-run/trigger", post(trigger::handler))
         .with_state(state)
 }

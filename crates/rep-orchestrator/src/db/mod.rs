@@ -6,7 +6,7 @@ mod status;
 mod test_execution;
 mod test_run;
 
-pub use status::{Status, StatusUpdate};
+pub use status::{Status, StatusTracked, StatusUpdate};
 pub use test_execution::TestExecution;
 pub use test_run::TestRun;
 

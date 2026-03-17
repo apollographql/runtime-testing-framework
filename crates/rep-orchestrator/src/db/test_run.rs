@@ -19,6 +19,16 @@ pub struct TestRun {
     completed_at: Option<DateTime<Utc>>,
 }
 
+impl TestRun {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn uuid(&self) -> Uuid {
+        self.uuid
+    }
+}
+
 impl Queryable for TestRun {
     const TABLE_NAME: &'static str = "test_run";
 
@@ -136,11 +146,14 @@ where
     use Status::*;
 
     let new_run_status = match (run_status, execution_status) {
+        // Once at least one execution reports resolving, the run as a whole is resolving
+        (Initialising, Resolving) => Some(Resolving),
+
         // Once at least one execution reports provisioning, the run as a whole is provisioning
-        (Initialising, Provisioning) => Some(Provisioning),
+        (Initialising | Resolving, Provisioning) => Some(Provisioning),
 
         // Once at least one execution reports running, the run as a whole is running
-        (Initialising | Provisioning, Running) => Some(Running),
+        (Initialising | Resolving | Provisioning, Running) => Some(Running),
 
         // Once all executions are complete we can determine the terminal status of the run.
         // Once the run has a terminal status, further updates are ignored
@@ -242,6 +255,7 @@ mod tests {
 
     // Status of Initialising is checked in `init_works` above
     #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[test_case(Status::Resolving; "resolving")]
     #[test_case(Status::Provisioning; "provisioning")]
     #[test_case(Status::Running; "running")]
     #[test_case(Status::Successful; "successful")]
@@ -296,6 +310,7 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[test_case(Status::Initialising; "initialising")]
+    #[test_case(Status::Resolving; "resolving")]
     #[test_case(Status::Provisioning; "provisioning")]
     #[test_case(Status::Running; "running")]
     #[tokio::test]
@@ -311,11 +326,15 @@ mod tests {
         Ok(())
     }
 
-    // First execution to hit Provisioning/Running should update
+    // First execution to hit Resolving/Provisioning/Running should update
+    #[test_case(Initialising, Resolving, &[], Some(Resolving); "init to resolving")]
     #[test_case(Initialising, Provisioning, &[], Some(Provisioning); "init to provisioning")]
     #[test_case(Initialising, Running, &[], Some(Running); "init to running")]
+    #[test_case(Resolving, Provisioning, &[], Some(Provisioning); "resolving to provisioning")]
+    #[test_case(Resolving, Running, &[], Some(Running); "resolving to running")]
     #[test_case(Provisioning, Running, &[], Some(Running); "provisioning to running")]
-    // Moving to Provisioning/Running should only happen once
+    // Moving to Resolving/Provisioning/Running should only happen once
+    #[test_case(Resolving, Resolving, &[], None; "already resolving")]
     #[test_case(Provisioning, Provisioning, &[], None; "already provisioning")]
     #[test_case(Running, Running, &[], None; "already running")]
     // Successful while siblings are ongoing
