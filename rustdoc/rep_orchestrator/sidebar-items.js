@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["run_server"],"macro":["conn"],"mod":["config","db","error","state"]};
+window.SIDEBAR_ITEMS = {"fn":["run_server"],"macro":["conn"],"mod":["config","db","endpoints","error","state"]};
