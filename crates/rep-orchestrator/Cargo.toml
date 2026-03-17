@@ -11,6 +11,12 @@ edition.workspace = true
 # Execute the tests using "cargo test --features db_tests"
 db_tests = []
 
+# Mark all integration tests as being DB tests.
+# -> This needs to be done for each test file in /tests/
+[[test]]
+name = "suite"
+required-features = ["db_tests"]
+
 [dependencies]
 rtf-config = { path = "../rtf-config" }
 rtf-core = { path = "../rtf-core" }
@@ -29,4 +35,9 @@ tracing.workspace = true
 uuid = { version = "1.22.0", features = ["v4", "serde"] }
 
 [dev-dependencies]
+rtf-cli = { path = "../rtf-cli" }
+
+anyhow.workspace = true 
+assert_fs.workspace = true
+reqwest.workspace = true
 simple_test_case.workspace = true

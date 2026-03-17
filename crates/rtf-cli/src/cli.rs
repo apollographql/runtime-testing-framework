@@ -29,7 +29,7 @@ pub struct Args {
     pub verbose: u8,
 }
 
-#[derive(Debug, clap::Args)]
+#[derive(Debug, Default, clap::Args)]
 pub struct Variables {
     /// A single additional templating variable in the form "key=value"
     #[arg(long, global = true, alias = "value")]

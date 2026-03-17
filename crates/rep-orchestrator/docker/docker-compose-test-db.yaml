@@ -1,9 +1,7 @@
-version: "3.5"
-
 services:
   db:
     container_name: db
-    build: ./docker/db
+    build: ./db
     restart: always
     ports:
       - "5432:5432"
