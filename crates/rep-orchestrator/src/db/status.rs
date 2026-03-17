@@ -112,11 +112,12 @@ pub struct StatusUpdate {
 pub enum Status {
     #[default]
     Initialising = 1,
-    Provisioning = 2,
-    Running = 3,
-    Successful = 4,
-    Failed = 5,
-    Unrunnable = 6,
+    Resolving = 2,
+    Provisioning = 3,
+    Running = 4,
+    Successful = 5,
+    Failed = 6,
+    Unrunnable = 7,
 }
 
 impl Status {
@@ -135,6 +136,7 @@ impl Status {
             (Unrunnable, _) | (_, Unrunnable) => Unrunnable,
             (Running, _) | (_, Running) => Running,
             (Provisioning, _) | (_, Provisioning) => Provisioning,
+            (Resolving, _) | (_, Resolving) => Resolving,
             (Initialising, _) | (_, Initialising) => Initialising,
         }
     }
@@ -146,9 +148,10 @@ impl PartialOrd for Status {
 
         let sort_val = |&s| match s {
             Initialising => 0,
-            Provisioning => 1,
-            Running => 2,
-            Successful | Failed | Unrunnable => 3, // all count as "complete"
+            Resolving => 1,
+            Provisioning => 2,
+            Running => 3,
+            Successful | Failed | Unrunnable => 4, // all count as "complete"
         };
 
         sort_val(self).partial_cmp(&sort_val(other))
@@ -163,32 +166,37 @@ mod tests {
 
     #[test_case(
         Initialising,
-        &[Provisioning, Running, Unrunnable, Failed, Successful], &[Initialising], &[];
+        &[Resolving, Provisioning, Running, Unrunnable, Failed, Successful], &[Initialising], &[];
         "initialising"
     )]
     #[test_case(
+        Resolving,
+        &[Provisioning, Running, Unrunnable, Failed, Successful], &[Resolving], &[Initialising];
+        "resolving"
+    )]
+    #[test_case(
         Provisioning,
-        &[Running, Unrunnable, Failed, Successful], &[Provisioning], &[Initialising];
+        &[Running, Unrunnable, Failed, Successful], &[Provisioning], &[Initialising, Resolving];
         "provisioning"
     )]
     #[test_case(
         Running,
-        &[Unrunnable, Failed, Successful], &[Running], &[Initialising, Provisioning];
+        &[Unrunnable, Failed, Successful], &[Running], &[Initialising, Resolving, Provisioning];
         "running"
     )]
     #[test_case(
         Unrunnable,
-        &[], &[Unrunnable, Failed, Successful], &[Initialising, Provisioning, Running];
+        &[], &[Unrunnable, Failed, Successful], &[Initialising, Resolving, Provisioning, Running];
         "unrunnable"
     )]
     #[test_case(
         Failed,
-        &[], &[Unrunnable, Failed, Successful], &[Initialising, Provisioning, Running];
+        &[], &[Unrunnable, Failed, Successful], &[Initialising, Resolving, Provisioning, Running];
         "failed"
     )]
     #[test_case(
         Successful,
-        &[], &[Unrunnable, Failed, Successful], &[Initialising, Provisioning, Running];
+        &[], &[Unrunnable, Failed, Successful], &[Initialising, Resolving, Provisioning, Running];
         "successful"
     )]
     #[test]
@@ -209,6 +217,7 @@ mod tests {
     #[test_case(Unrunnable; "unrunnable")]
     #[test_case(Running; "running")]
     #[test_case(Provisioning; "provisioning")]
+    #[test_case(Resolving; "resolving")]
     #[test_case(Initialising; "initialising")]
     #[test]
     fn combine_matching_works(status: Status) {
@@ -219,6 +228,7 @@ mod tests {
     #[test_case(Unrunnable; "unrunnable")]
     #[test_case(Running; "running")]
     #[test_case(Provisioning; "provisioning")]
+    #[test_case(Resolving; "resolving")]
     #[test_case(Initialising; "initialising")]
     #[test]
     fn combine_successful_is_other(other: Status) {
@@ -229,6 +239,7 @@ mod tests {
     #[test_case(Unrunnable; "unrunnable")]
     #[test_case(Running; "running")]
     #[test_case(Provisioning; "provisioning")]
+    #[test_case(Resolving; "resolving")]
     #[test_case(Initialising; "initialising")]
     #[test]
     fn combine_failed_is_failed(other: Status) {
@@ -238,6 +249,7 @@ mod tests {
 
     #[test_case(Running; "running")]
     #[test_case(Provisioning; "provisioning")]
+    #[test_case(Resolving; "resolving")]
     #[test_case(Initialising; "initialising")]
     #[test]
     fn combine_unrunnable(other: Status) {
@@ -246,6 +258,7 @@ mod tests {
     }
 
     #[test_case(Provisioning; "provisioning")]
+    #[test_case(Resolving; "resolving")]
     #[test_case(Initialising; "initialising")]
     #[test]
     fn combine_running(other: Status) {
@@ -254,6 +267,7 @@ mod tests {
     }
 
     #[test_case(Provisioning; "provisioning")]
+    #[test_case(Resolving; "resolving")]
     #[test_case(Initialising; "initialising")]
     #[test]
     fn combine_provisioning(other: Status) {
