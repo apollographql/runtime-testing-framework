@@ -1,7 +1,10 @@
-use crate::db::{
-    Queryable, Result,
-    status::{Status, StatusTracked, StatusUpdate},
-    test_execution::TestExecution,
+use crate::{
+    db::{
+        Queryable, Result,
+        status::{Status, StatusTracked, StatusUpdate},
+        test_execution::TestExecution,
+    },
+    response_types::test_run::TestRunSummary,
 };
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgConnection};
@@ -97,6 +100,27 @@ impl TestRun {
             Ok(execution_statuses)
         })
         .await
+    }
+
+    pub async fn try_into_summary(self, conn: &mut PgConnection) -> Result<TestRunSummary> {
+        let status_history = self.status_history(conn).await?;
+        let current_status = self.current_status(conn).await?.status;
+        let raw_executions = self.executions(conn).await?;
+
+        let mut executions = Vec::with_capacity(raw_executions.len());
+        for ex in raw_executions.into_iter() {
+            executions.push(ex.try_into_summary(conn).await?);
+        }
+
+        Ok(TestRunSummary {
+            id: self.uuid,
+            name: self.name,
+            current_status,
+            started_at: self.started_at,
+            completed_at: self.completed_at,
+            status_history,
+            executions,
+        })
     }
 }
 
