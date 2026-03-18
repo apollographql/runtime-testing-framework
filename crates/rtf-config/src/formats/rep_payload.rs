@@ -12,17 +12,37 @@ pub struct RepPayload {
     pub custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SourceKey {
     pub src: StableSource,
     pub k: String,
     pub index: usize,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SourceKeyedArrayMap<T> {
     pub keys: Vec<SourceKey>,
     pub data: Vec<T>,
+}
+
+impl<T> SourceKeyedArrayMap<T> {
+    /// Look up a value by its `(StableSource, key)` pair.
+    pub fn get(&self, src: StableSource, key: &str) -> Option<&T> {
+        self.keys
+            .iter()
+            .find(|sk| sk.src == src && sk.k == key)
+            .map(|sk| &self.data[sk.index])
+    }
+
+    /// Return true if any entry under `stable_src` has a key with `prefix/` as a path prefix.
+    ///
+    /// Used to distinguish an unknown path (error) from an occupied directory.
+    pub fn has_path_prefix(&self, stable_src: &StableSource, prefix: &str) -> bool {
+        let prefix_with_sep = format!("{prefix}/");
+        self.keys
+            .iter()
+            .any(|sk| &sk.src == stable_src && sk.k.starts_with(&prefix_with_sep))
+    }
 }
 
 impl<T> SourceKeyedArrayMap<T>

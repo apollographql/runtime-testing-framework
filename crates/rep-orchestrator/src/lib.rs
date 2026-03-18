@@ -7,6 +7,7 @@ use tokio::net::TcpListener;
 use tracing::info;
 
 pub mod config;
+pub mod context;
 pub mod db;
 pub mod endpoints;
 pub mod error;
