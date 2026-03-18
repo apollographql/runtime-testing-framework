@@ -98,7 +98,7 @@
 <a href=#98 id=98 data-nosnippet>98</a>
 <a href=#99 id=99 data-nosnippet>99</a><span class="doccomment">/// Status updates for test runs and executions are tracked as a time series, with the status of
 <a href=#100 id=100 data-nosnippet>100</a>/// the test run being driven by the statuses of the executions inside of it.
-<a href=#101 id=101 data-nosnippet>101</a></span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, FromRow)]
+<a href=#101 id=101 data-nosnippet>101</a></span><span class="attr">#[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize, Serialize, FromRow)]
 <a href=#102 id=102 data-nosnippet>102</a></span><span class="kw">pub struct </span>StatusUpdate {
 <a href=#103 id=103 data-nosnippet>103</a>    <span class="kw">pub </span>status: Status,
 <a href=#104 id=104 data-nosnippet>104</a>    <span class="kw">pub </span>message: <span class="prelude-ty">Option</span>&lt;String&gt;,
