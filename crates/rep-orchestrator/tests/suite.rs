@@ -80,7 +80,7 @@ async fn test_run_status_returns_404_for_unknown_run() {
 // Helper for writing status update tests that need a valid test run and execution to work with
 async fn prepare_status_update_test(t: &TestHelper) -> Uuid {
     let from_trigger = trigger_rep_prepare_test_plan(t).await.unwrap();
-    tokio::time::sleep(Duration::from_millis(200)).await; // ensure that we get the status update
+    tokio::time::sleep(Duration::from_millis(500)).await; // ensure that we get the status update
     let queried: TestRunSummary = t
         .json_get(format!("test-run/{}/status", from_trigger.id))
         .await
