@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["EventType"],"fn":["event_loop_task"],"struct":["Event"]};
