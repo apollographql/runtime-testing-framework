@@ -44,6 +44,24 @@ impl StatusTracked for TestExecution {
 }
 
 impl TestExecution {
+    pub fn uuid(&self) -> Uuid {
+        self.uuid
+    }
+
+    #[cfg(test)]
+    pub fn create_stub(id: i32, test_run_id: i32, name: &str) -> Self {
+        Self {
+            id,
+            uuid: Uuid::new_v4(),
+            test_run_id,
+            name: name.into(),
+            exit_code: None,
+            started_at: Utc::now(),
+            updated_at: Utc::now(),
+            completed_at: None,
+        }
+    }
+
     pub async fn get_by_uuid(uuid: &Uuid, conn: &mut PgConnection) -> Result<Option<Self>> {
         Ok(
             sqlx::query_as("SELECT * FROM test_execution WHERE uuid = $1;")

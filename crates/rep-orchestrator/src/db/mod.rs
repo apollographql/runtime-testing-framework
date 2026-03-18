@@ -75,3 +75,148 @@ pub trait Queryable:
         }
     }
 }
+
+pub trait UpdateHandle {
+    fn init_execution(
+        &mut self,
+        tr: &TestRun,
+        name: &str,
+    ) -> impl Future<Output = crate::Result<TestExecution>> + Send;
+
+    fn update_test_run_status(
+        &mut self,
+        tr: &TestRun,
+        status: Status,
+        message: Option<String>,
+    ) -> impl Future<Output = crate::Result<()>> + Send;
+
+    fn update_test_execution_status(
+        &mut self,
+        ex: &TestExecution,
+        status: Status,
+        message: Option<String>,
+    ) -> impl Future<Output = crate::Result<()>> + Send;
+}
+
+impl UpdateHandle for PgConnection {
+    async fn init_execution(&mut self, tr: &TestRun, name: &str) -> crate::Result<TestExecution> {
+        Ok(tr.init_execution(name, self).await?)
+    }
+
+    async fn update_test_run_status(
+        &mut self,
+        tr: &TestRun,
+        status: Status,
+        message: Option<String>,
+    ) -> crate::Result<()> {
+        Ok(tr.set_status(status, message, self).await?)
+    }
+
+    async fn update_test_execution_status(
+        &mut self,
+        ex: &TestExecution,
+        status: Status,
+        message: Option<String>,
+    ) -> crate::Result<()> {
+        Ok(ex.set_status(status, message, self).await?)
+    }
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+mod update_handle {
+    use super::*;
+    use crate::Error;
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub enum TaggedStatusUpdate {
+        Run(i32, StatusUpdate),
+        Execution(i32, StatusUpdate),
+    }
+
+    impl Default for TaggedStatusUpdate {
+        fn default() -> Self {
+            TaggedStatusUpdate::Run(-1, Default::default())
+        }
+    }
+
+    impl TaggedStatusUpdate {
+        pub fn run(id: i32, status: Status, message: Option<String>) -> Self {
+            Self::Run(
+                id,
+                StatusUpdate {
+                    status,
+                    message,
+                    ..Default::default()
+                },
+            )
+        }
+
+        pub fn execution(id: i32, status: Status, message: Option<String>) -> Self {
+            Self::Execution(
+                id,
+                StatusUpdate {
+                    status,
+                    message,
+                    ..Default::default()
+                },
+            )
+        }
+    }
+
+    #[derive(Debug, Default)]
+    pub struct MockUpdateHandle {
+        pub test_runs: Vec<TestRun>,
+        pub test_executions: Vec<TestExecution>,
+        pub status_updates: Vec<TaggedStatusUpdate>,
+    }
+
+    impl UpdateHandle for MockUpdateHandle {
+        async fn init_execution(
+            &mut self,
+            tr: &TestRun,
+            name: &str,
+        ) -> crate::Result<TestExecution> {
+            if self.test_runs.iter().all(|elem| elem.id() != tr.id()) {
+                return Err(Error::UnknownTestRun { id: tr.uuid() });
+            }
+
+            let ex = TestExecution::create_stub(self.test_executions.len() as i32, tr.id(), name);
+            self.test_executions.push(ex.clone());
+
+            Ok(ex)
+        }
+
+        async fn update_test_run_status(
+            &mut self,
+            tr: &TestRun,
+            status: Status,
+            message: Option<String>,
+        ) -> crate::Result<()> {
+            if self.test_runs.iter().all(|elem| elem.id() != tr.id()) {
+                return Err(Error::UnknownTestRun { id: tr.uuid() });
+            }
+
+            self.status_updates
+                .push(TaggedStatusUpdate::run(tr.id(), status, message));
+
+            Ok(())
+        }
+
+        async fn update_test_execution_status(
+            &mut self,
+            ex: &TestExecution,
+            status: Status,
+            message: Option<String>,
+        ) -> crate::Result<()> {
+            if self.test_executions.iter().all(|elem| elem.id() != ex.id()) {
+                return Err(Error::UnknownTestExecution { id: ex.uuid() });
+            }
+
+            self.status_updates
+                .push(TaggedStatusUpdate::execution(ex.id(), status, message));
+
+            Ok(())
+        }
+    }
+}
