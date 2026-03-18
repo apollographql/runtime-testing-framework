@@ -12,6 +12,7 @@ pub struct TestRunSummary {
     pub name: String,
     pub current_status: Status,
     pub started_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
     pub status_history: Vec<StatusUpdate>,
     pub executions: Vec<TestExecutionSummary>,

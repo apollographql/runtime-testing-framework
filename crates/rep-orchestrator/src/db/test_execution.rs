@@ -18,7 +18,6 @@ pub struct TestExecution {
     name: String,
     exit_code: Option<i32>,
     started_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
     completed_at: Option<DateTime<Utc>>,
 }
 
@@ -57,7 +56,6 @@ impl TestExecution {
             name: name.into(),
             exit_code: None,
             started_at: Utc::now(),
-            updated_at: Utc::now(),
             completed_at: None,
         }
     }
@@ -75,7 +73,7 @@ impl TestExecution {
         let ex: TestExecution = sqlx::query_as(
             "INSERT INTO test_execution (test_run_id, name)
              VALUES ($1, $2)
-             RETURNING id, uuid, test_run_id, name, exit_code, started_at, updated_at, completed_at;
+             RETURNING id, uuid, test_run_id, name, exit_code, started_at, completed_at;
             ",
         )
         .bind(test_run_id)
@@ -107,15 +105,15 @@ impl TestExecution {
 
     pub async fn try_into_summary(self, conn: &mut PgConnection) -> Result<TestExecutionSummary> {
         let status_history = self.status_history(conn).await?;
-        let current_status = self.current_status(conn).await?.status;
+        let current = self.current_status(conn).await?;
 
         Ok(TestExecutionSummary {
             id: self.uuid,
             name: self.name,
-            current_status,
+            current_status: current.status,
             exit_code: self.exit_code,
             started_at: self.started_at,
-            updated_at: self.updated_at,
+            updated_at: current.updated_at,
             completed_at: self.completed_at,
             status_history,
         })
