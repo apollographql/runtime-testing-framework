@@ -7,7 +7,7 @@ use crate::{
     response_types::TestExecutionSummary,
 };
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgConnection};
+use sqlx::{Executor, FromRow, PgConnection};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq, FromRow)]
@@ -18,7 +18,6 @@ pub struct TestExecution {
     name: String,
     exit_code: Option<i32>,
     started_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
     completed_at: Option<DateTime<Utc>>,
 }
 
@@ -57,7 +56,6 @@ impl TestExecution {
             name: name.into(),
             exit_code: None,
             started_at: Utc::now(),
-            updated_at: Utc::now(),
             completed_at: None,
         }
     }
@@ -75,7 +73,7 @@ impl TestExecution {
         let ex: TestExecution = sqlx::query_as(
             "INSERT INTO test_execution (test_run_id, name)
              VALUES ($1, $2)
-             RETURNING id, uuid, test_run_id, name, exit_code, started_at, updated_at, completed_at;
+             RETURNING id, uuid, test_run_id, name, exit_code, started_at, completed_at;
             ",
         )
         .bind(test_run_id)
@@ -88,21 +86,34 @@ impl TestExecution {
         Ok(ex)
     }
 
+    pub async fn set_exit_code(&mut self, code: u8, conn: &mut PgConnection) -> Result<()> {
+        conn.execute(
+            sqlx::query("UPDATE test_execution SET exit_code = $1 WHERE id = $2;")
+                .bind(code as i32)
+                .bind(self.id),
+        )
+        .await?;
+
+        self.exit_code = Some(code as i32);
+
+        Ok(())
+    }
+
     pub async fn test_run(&self, conn: &mut PgConnection) -> Result<TestRun> {
         TestRun::get_by_id_unchecked(self.test_run_id, conn).await
     }
 
     pub async fn try_into_summary(self, conn: &mut PgConnection) -> Result<TestExecutionSummary> {
         let status_history = self.status_history(conn).await?;
-        let current_status = self.current_status(conn).await?.status;
+        let current = self.current_status(conn).await?;
 
         Ok(TestExecutionSummary {
             id: self.uuid,
             name: self.name,
-            current_status,
+            current_status: current.status,
             exit_code: self.exit_code,
             started_at: self.started_at,
-            updated_at: self.updated_at,
+            updated_at: current.updated_at,
             completed_at: self.completed_at,
             status_history,
         })
@@ -186,6 +197,25 @@ mod tests {
 
         let tr_b = ex2.test_run(c).await?;
         assert_eq!(tr_b, tr, "execution 2");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn set_exit_code_works() -> Result<()> {
+        let c = conn!();
+
+        let tr = TestRun::init("A", c).await?;
+        let mut ex1 = TestExecution::init("a", tr.id(), c).await?;
+
+        assert!(ex1.exit_code.is_none(), "after init: {ex1:?}");
+
+        ex1.set_exit_code(42, c).await?;
+        assert_eq!(ex1.exit_code, Some(42), "updated struct: {ex1:?}");
+
+        let queried = TestExecution::get_by_id_unchecked(ex1.id, c).await?;
+        assert_eq!(queried.exit_code, Some(42), "queried struct: {queried:?}");
 
         Ok(())
     }

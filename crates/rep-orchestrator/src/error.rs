@@ -1,3 +1,4 @@
+use crate::db::Status;
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Json, Response},
@@ -16,6 +17,18 @@ pub enum Error {
     #[error(transparent)]
     Io(#[from] io::Error),
 
+    #[error("requested execution status ({requested}) does not follow current status ({current})")]
+    InvalidExecutionStatus { current: Status, requested: Status },
+
+    #[error("non-terminal status updates may not include a status code")]
+    InvalidExitCode { status: Status, code: u8 },
+
+    #[error("FAILED status updates must have a non-zero exit code")]
+    InvalidFailedExitCode,
+
+    #[error("FAILED status updates must include an exit code")]
+    MissingExitCode,
+
     #[error("resolver channel closed")]
     ResolverChannelClosed,
 
@@ -28,20 +41,30 @@ pub enum Error {
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
+        let msg = self.to_string();
+
         let raw = match self {
+            Self::MissingExitCode
+            | Self::InvalidFailedExitCode
+            | Self::InvalidExitCode { .. }
+            | Self::InvalidExecutionStatus { .. } => (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": "BAD_REQUEST", "message": msg })),
+            ),
+
             Self::UnknownTestExecution { id } => (
                 StatusCode::NOT_FOUND,
-                Json(json!({ "error": "NOT_FOUND", "id": id })),
+                Json(json!({ "error": "NOT_FOUND", "id": id, "message": msg })),
             ),
 
             Self::UnknownTestRun { id } => (
                 StatusCode::NOT_FOUND,
-                Json(json!({ "error": "NOT_FOUND", "id": id })),
+                Json(json!({ "error": "NOT_FOUND", "id": id, "message": msg })),
             ),
 
-            err => (
+            _ => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": "INTERNAL", "message": err.to_string() })),
+                Json(json!({ "error": "INTERNAL", "message": msg })),
             ),
         };
 

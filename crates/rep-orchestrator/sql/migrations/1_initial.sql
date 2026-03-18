@@ -28,7 +28,6 @@ CREATE TABLE IF NOT EXISTS test_execution (
     test_run_id INT NOT NULL,
     exit_code INT,
     started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     completed_at TIMESTAMPTZ
 );
 

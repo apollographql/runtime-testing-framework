@@ -123,7 +123,7 @@ impl TestRun {
 
     pub async fn try_into_summary(self, conn: &mut PgConnection) -> Result<TestRunSummary> {
         let status_history = self.status_history(conn).await?;
-        let current_status = self.current_status(conn).await?.status;
+        let current = self.current_status(conn).await?;
         let raw_executions = self.executions(conn).await?;
 
         let mut executions = Vec::with_capacity(raw_executions.len());
@@ -134,8 +134,9 @@ impl TestRun {
         Ok(TestRunSummary {
             id: self.uuid,
             name: self.name,
-            current_status,
+            current_status: current.status,
             started_at: self.started_at,
+            updated_at: current.updated_at,
             completed_at: self.completed_at,
             status_history,
             executions,

@@ -2,7 +2,7 @@ use crate::db::{Queryable, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{Executor, FromRow, PgConnection};
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt};
 
 /// Helper trait for tracking a time series of [StatusUpdate] items for a parent table.
 ///
@@ -118,6 +118,22 @@ pub enum Status {
     Successful = 5,
     Failed = 6,
     Unrunnable = 7,
+}
+
+impl fmt::Display for Status {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Status::*;
+
+        match self {
+            Initialising => write!(f, "INITIALISING"),
+            Resolving => write!(f, "RESOLVING"),
+            Provisioning => write!(f, "PROVISIONING"),
+            Running => write!(f, "RUNNING"),
+            Successful => write!(f, "SUCCESSFUL"),
+            Failed => write!(f, "FAILED"),
+            Unrunnable => write!(f, "UNRUNNABLE"),
+        }
+    }
 }
 
 impl Status {
