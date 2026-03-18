@@ -17,12 +17,14 @@ services:
       RTF_DB_NAME: "rtf_rep"
       RTF_DB_USER: "service_user"
       RTF_DB_PASS: "password"
+      RTF_APOLLO_KEY: "dummy"
+      RTF_GITHUB_TOKEN: "dummy"
     volumes:
       - ../../../:/runtime-testing-framework
       - cargo-cache:/usr/local/cargo/registry
       - target-cache:/target
     healthcheck:
-      test: [ "CMD-SHELL", "curl localhost:8035/health" ]
+      test: ["CMD-SHELL", "curl localhost:8035/health"]
       interval: 5s
       retries: 50
     depends_on:

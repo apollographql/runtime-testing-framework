@@ -9,11 +9,13 @@ static CONFIG: LazyLock<Config> =
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
+    pub apollo_key: String,
     pub db_host: String,
     pub db_port: u16,
     pub db_name: String,
     pub db_user: String,
     pub db_pass: String,
+    pub github_token: String,
     #[serde(default = "default_host")]
     pub host: String,
     #[serde(default = "default_port")]
