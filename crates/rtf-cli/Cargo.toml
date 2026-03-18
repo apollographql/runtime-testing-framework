@@ -35,8 +35,6 @@ simple_test_case.workspace = true
 walkdir = "2.5.0"
 
 [build-dependencies]
-rtf-config = { path = "../rtf-config" }
-
 clap-markdown = "0.1.5"
 clap_complete = "4.5.66"
 clap.workspace = true
