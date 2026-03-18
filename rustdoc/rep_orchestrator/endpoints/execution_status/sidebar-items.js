@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["handler"]};
+window.SIDEBAR_ITEMS = {"fn":["get_handler","post_handler"],"struct":["SetStatusPayload"]};
