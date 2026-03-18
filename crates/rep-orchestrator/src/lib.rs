@@ -46,7 +46,7 @@ fn build_routes(state: ServerState) -> Router {
         .route("/health", get(health::handler))
         .route(
             "/test-execution/{id}/status",
-            get(execution_status::handler),
+            get(execution_status::get_handler).post(execution_status::post_handler),
         )
         .route("/test-run/{id}/status", get(run_status::handler))
         .route("/test-run/trigger", post(trigger::handler))
