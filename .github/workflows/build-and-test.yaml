@@ -20,7 +20,7 @@ jobs:
     outputs:
       rust-version: ${{ steps.get-version.outputs.rust-version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
       - id: get-version
         run: |
           version=$(grep '^rust\s*=' .config/mise/mise.toml | sed -E 's/.*"([^"]+)".*/\1/')
@@ -32,7 +32,7 @@ jobs:
     outputs:
       should_run_tests: ${{ steps.check-changes.outputs.should_run }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
       with:
         fetch-depth: 2
     - name: Check for changes in relevant directories and files
@@ -51,14 +51,17 @@ jobs:
     needs: [read-rust-version, check-for-updated-rust-files]
     if: ${{ needs.check-for-updated-rust-files.outputs.should_run_tests == 'true' }}
     steps:
-    - uses: actions/checkout@v4
-    - uses: hecrj/setup-rust-action@v2
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+    - uses: hecrj/setup-rust-action@110f36749599534ca96628b82f52ae67e5d95a3c
       with:
         rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
+    - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
+      with:
+        shared-key: "ci-build-${{ hashFiles('**/Cargo.lock') }}"
     - name: Run Orchestrator DB tests
       run: cd crates/rep-orchestrator && make ci-tests
     - name: Run remaining tests
-      run: cargo test
+      run: cargo test --exclude rep-orchestrator
 
   rustfmt:
     name: Ensure rustfmt is happy
@@ -66,11 +69,14 @@ jobs:
     needs: [read-rust-version, check-for-updated-rust-files]
     if: ${{ needs.check-for-updated-rust-files.outputs.should_run_tests == 'true' }}
     steps:
-    - uses: actions/checkout@v4
-    - uses: hecrj/setup-rust-action@v2
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+    - uses: hecrj/setup-rust-action@110f36749599534ca96628b82f52ae67e5d95a3c
       with:
         components: rustfmt
         rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
+    - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
+      with:
+        shared-key: "ci-build-${{ hashFiles('**/Cargo.lock') }}"
     - run: cargo pr-format
 
   clippy:
@@ -79,11 +85,14 @@ jobs:
     needs: [read-rust-version, check-for-updated-rust-files]
     if: ${{ needs.check-for-updated-rust-files.outputs.should_run_tests == 'true' }}
     steps:
-    - uses: actions/checkout@v4
-    - uses: hecrj/setup-rust-action@v2
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+    - uses: hecrj/setup-rust-action@110f36749599534ca96628b82f52ae67e5d95a3c
       with:
         components: clippy
         rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
+    - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
+      with:
+        shared-key: "ci-build-${{ hashFiles('**/Cargo.lock') }}"
     - run: cargo pr-clippy
 
   rustdoc:
@@ -92,17 +101,20 @@ jobs:
     needs: [read-rust-version, check-for-updated-rust-files]
     if: ${{ needs.check-for-updated-rust-files.outputs.should_run_tests == 'true' }}
     steps:
-    - uses: actions/checkout@v4
-    - uses: hecrj/setup-rust-action@v2
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+    - uses: hecrj/setup-rust-action@110f36749599534ca96628b82f52ae67e5d95a3c
       with:
         rust-version: nightly
+    - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
+      with:
+        shared-key: "ci-build-${{ hashFiles('**/Cargo.lock') }}"
     - run: RUSTDOCFLAGS="-D warnings -D rustdoc::broken-intra-doc-links" cargo doc --all-features --workspace --no-deps
   
   spell-check:
     name: Spell check using the typos-cli crate
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
     - uses: crate-ci/typos@v1.44.0
       with:
         config: ./.typos.toml
@@ -111,7 +123,7 @@ jobs:
     name: Lint Markdown files with dprint
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
       # The action takes too long to build if we install all the tools in the repo
       # This deletes the full mise.toml and instead installs dprint only
     - run: rm -f .config/mise/mise.toml
@@ -126,18 +138,22 @@ jobs:
     name: Check documentation diataxis types
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
     - run: ./scripts/check-doc-types.sh
 
   check-generated-docs:
     name: Check that generated docs are up to date
     runs-on: ubuntu-latest
-    needs: [read-rust-version]
+    needs: [read-rust-version, check-for-updated-rust-files]
+    if: ${{ needs.check-for-updated-rust-files.outputs.should_run_tests == 'true' }}
     steps:
-    - uses: actions/checkout@v4
-    - uses: hecrj/setup-rust-action@v2
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+    - uses: hecrj/setup-rust-action@110f36749599534ca96628b82f52ae67e5d95a3c
       with:
         rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
+    - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
+      with:
+        shared-key: "ci-build-${{ hashFiles('**/Cargo.lock') }}"
       # The action takes too long to build if we install all the tools in the repo
       # This deletes the full mise.toml and instead installs dprint only
     - run: rm -f .config/mise/mise.toml
