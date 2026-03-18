@@ -7,7 +7,7 @@ use crate::{
     response_types::TestExecutionSummary,
 };
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgConnection};
+use sqlx::{Executor, FromRow, PgConnection};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq, FromRow)]
@@ -86,6 +86,19 @@ impl TestExecution {
         ex.set_status(Status::Initialising, None, conn).await?;
 
         Ok(ex)
+    }
+
+    pub async fn set_exit_code(&mut self, code: u8, conn: &mut PgConnection) -> Result<()> {
+        conn.execute(
+            sqlx::query("UPDATE test_execution SET exit_code = $1 WHERE id = $2;")
+                .bind(code as i32)
+                .bind(self.id),
+        )
+        .await?;
+
+        self.exit_code = Some(code as i32);
+
+        Ok(())
     }
 
     pub async fn test_run(&self, conn: &mut PgConnection) -> Result<TestRun> {
@@ -186,6 +199,25 @@ mod tests {
 
         let tr_b = ex2.test_run(c).await?;
         assert_eq!(tr_b, tr, "execution 2");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn set_exit_code_works() -> Result<()> {
+        let c = conn!();
+
+        let tr = TestRun::init("A", c).await?;
+        let mut ex1 = TestExecution::init("a", tr.id(), c).await?;
+
+        assert!(ex1.exit_code.is_none(), "after init: {ex1:?}");
+
+        ex1.set_exit_code(42, c).await?;
+        assert_eq!(ex1.exit_code, Some(42), "updated struct: {ex1:?}");
+
+        let queried = TestExecution::get_by_id_unchecked(ex1.id, c).await?;
+        assert_eq!(queried.exit_code, Some(42), "queried struct: {queried:?}");
 
         Ok(())
     }
