@@ -5,7 +5,7 @@ use crate::{
     response_types::TestExecutionSummary,
 };
 use axum::{Json, extract::Path};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub async fn get_handler(Path(id): Path<Uuid>) -> Result<Json<TestExecutionSummary>> {
@@ -42,7 +42,7 @@ pub async fn post_handler(
     Ok(Json(new))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SetStatusPayload {
     pub status: Status,
     #[serde(default)]

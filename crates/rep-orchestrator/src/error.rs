@@ -44,7 +44,10 @@ impl IntoResponse for Error {
         let msg = self.to_string();
 
         let raw = match self {
-            Self::MissingExitCode | Self::InvalidFailedExitCode | Self::InvalidExitCode { .. } => (
+            Self::MissingExitCode
+            | Self::InvalidFailedExitCode
+            | Self::InvalidExitCode { .. }
+            | Self::InvalidExecutionStatus { .. } => (
                 StatusCode::BAD_REQUEST,
                 Json(json!({ "error": "BAD_REQUEST", "message": msg })),
             ),
