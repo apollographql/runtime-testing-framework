@@ -98,7 +98,7 @@ pub trait StatusTracked: Queryable {
 
 /// Status updates for test runs and executions are tracked as a time series, with the status of
 /// the test run being driven by the statuses of the executions inside of it.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, FromRow)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize, Serialize, FromRow)]
 pub struct StatusUpdate {
     pub status: Status,
     pub message: Option<String>,

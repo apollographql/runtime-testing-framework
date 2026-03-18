@@ -19,16 +19,6 @@ pub struct TestRun {
     completed_at: Option<DateTime<Utc>>,
 }
 
-impl TestRun {
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn uuid(&self) -> Uuid {
-        self.uuid
-    }
-}
-
 impl Queryable for TestRun {
     const TABLE_NAME: &'static str = "test_run";
 
@@ -47,6 +37,25 @@ impl StatusTracked for TestRun {
 }
 
 impl TestRun {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn uuid(&self) -> Uuid {
+        self.uuid
+    }
+
+    #[cfg(test)]
+    pub fn create_stub(id: i32, name: &str) -> Self {
+        Self {
+            id,
+            uuid: Uuid::new_v4(),
+            name: name.into(),
+            started_at: Utc::now(),
+            completed_at: None,
+        }
+    }
+
     pub async fn get_by_uuid(uuid: &Uuid, conn: &mut PgConnection) -> Result<Option<Self>> {
         Ok(sqlx::query_as("SELECT * FROM test_run WHERE uuid = $1;")
             .bind(uuid)
