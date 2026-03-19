@@ -61,6 +61,7 @@
   - [Config Traits](developer/reference/config-traits.md)
   - [Global Flags](developer/reference/global-flags.md)
   - [Testing](developer/reference/testing/index.md)
+    - [rep-orchestrator](developer/reference/testing/rep-orchestrator.md)
     - [rtf-cli](developer/reference/testing/rtf-cli.md)
     - [rtf-config](developer/reference/testing/rtf-config.md)
     - [rtf-derive](developer/reference/testing/rtf-derive.md)
