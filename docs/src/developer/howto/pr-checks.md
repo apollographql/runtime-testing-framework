@@ -1,6 +1,6 @@
 <!-- diataxis-type: howto -->
 
-# PR checks
+# Running PR checks
 
 This page documents all the checks that run when raising a PR, how to run the corresponding checks
 locally and how to resolve them.
@@ -57,7 +57,7 @@ The GitHub action runs `cargo doc` with additional flags to check that doc links
 To run locally
 
 ```bash
-mise run pr-doclinks
+mise run pr-rustdoc
 ```
 
 This will show details for all doclink issues.
@@ -68,8 +68,6 @@ This will show details for all doclink issues.
 ## spell-check
 
 This uses the [typos-cli crate][1] to check all the docstrings, YAML files and READMEs for typos.
-This tool in particular has been chosen as the spell checker for RTF as it has been designed to
-reduce false positives.
 
 To run locally
 
@@ -91,16 +89,16 @@ Before committing to `main`, manually review the diff to check all spelling erro
 errors and have been fixed correctly.
 
 If there are any detected spelling errors that should be valid, or files that should be ignored,
-then [update the `.typos.toml` file][3] at the root of the repo.
+then [update the `.typos.toml` file][2] at the root of the repo.
 
 ## lint-markdown
 
-This uses the [dprint crate][4] lint the markdown files and ensure consistent style and formatting.
+This uses the [dprint crate][3] lint the markdown files and ensure consistent style and formatting.
 
 To run locally
 
 ```bash
-mise run lint-markdown
+mise run pr-markdown
 ```
 
 This will highlight any issues with the markdown files.
@@ -115,8 +113,28 @@ Before committing to `main`, manually review the diff to check all formatting fi
 
 Files can be excluded using the `dprint.json` file at the root of the repo.
 
+## doc-types
+
+All documentation pages must have a valid [Diataxis][4] type annotation as the first line of the
+file:
+
+```markdown
+<!-- diataxis-type: <type> -->
+```
+
+The valid types are `explanation`, `howto`, `reference`, and `tutorial`. This check ensures every
+page is intentionally categorised.
+
+To run locally
+
+```bash
+mise run pr-doc-types
+```
+
+This will print the path of any file that is missing or has an invalid annotation.
+
 [0]: https://mise.jdx.dev/tasks/
 [1]: https://github.com/crate-ci/typos
-[2]: https://github.com/crate-ci/typos?tab=readme-ov-file#install
-[3]: https://github.com/crate-ci/typos?tab=readme-ov-file#false-positives
-[4]: https://github.com/dprint/dprint
+[2]: https://github.com/crate-ci/typos?tab=readme-ov-file#false-positives
+[3]: https://github.com/dprint/dprint
+[4]: https://diataxis.fr

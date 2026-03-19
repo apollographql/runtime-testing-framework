@@ -41,7 +41,7 @@ A swiss army knife for testing the Apollo Runtime
 * `resolve` — Resolve file providers for a config file without executing it
 * `completion` — Write a shell completion file to STDOUT for the given shell
 * `json-schemas` — Output json schemas for environment configuration
-* `rep` — Commands for the REP (Runtime Execution Platform) service
+* `rep` — Commands for the REP (Runtime Environment Provisioner) service
 * `version` — Display CLI version and exit
 
 ###### **Options:**
@@ -328,7 +328,7 @@ Output json schemas for environment configuration
 
 ## `rtf rep`
 
-Commands for the REP (Runtime Execution Platform) service
+Commands for the REP (Runtime Environment Provisioner) service
 
 **Usage:** `rtf rep <COMMAND>`
 
