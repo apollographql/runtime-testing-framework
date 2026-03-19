@@ -3,7 +3,7 @@ use axum::{
     routing::{get, post},
     serve,
 };
-use tokio::net::TcpListener;
+use tokio::{net::TcpListener, sync::mpsc::unbounded_channel};
 use tracing::info;
 
 pub mod config;
@@ -30,7 +30,10 @@ pub async fn run_server() -> error::Result<()> {
     check_db_conn().await?;
 
     let (state, rx) = ServerState::new();
-    tokio::spawn(resolver::resolver_task(rx));
+    let (etx, erx) = unbounded_channel::<event_loop::Event>();
+
+    tokio::spawn(resolver::resolver_task(rx, etx));
+    tokio::spawn(event_loop::event_loop_task(erx));
 
     info!("starting axum server");
     let routes = build_routes(state);

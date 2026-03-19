@@ -39,5 +39,7 @@ rtf-cli = { path = "../rtf-cli" }
 
 anyhow.workspace = true 
 assert_fs.workspace = true
+indoc.workspace = true
 reqwest.workspace = true
+serde_yaml.workspace = true
 simple_test_case.workspace = true

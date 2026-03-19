@@ -123,7 +123,9 @@ impl UpdateHandle for PgConnection {
 }
 
 #[cfg(test)]
-#[allow(dead_code)]
+pub use update_handle::{MockUpdateHandle, TaggedStatusUpdate};
+
+#[cfg(test)]
 mod update_handle {
     use super::*;
     use crate::Error;
