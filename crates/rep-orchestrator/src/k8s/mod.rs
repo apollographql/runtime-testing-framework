@@ -77,12 +77,12 @@ pub trait Client: Send + Sync {
     ) -> impl Future<Output = Result<Job>> + Send;
 
     /// Wait for a [Workflow] running within the [management][Cluster::Management] cluster to reach
-    /// a terminal state.
-    fn wait_for_workflow(&self, name: &str) -> impl Future<Output = WatchOutcome>;
+    /// a terminal state, selecting the workflow by its execution ID label.
+    fn wait_for_workflow(&self, execution_id: &Uuid) -> impl Future<Output = WatchOutcome>;
 
     /// Wait for a k8s [Job] running within the [workload][Cluster::Workload] cluster to reach
-    /// a terminal state.
-    fn wait_for_job(&self, ns: &str, name: &str) -> impl Future<Output = WatchOutcome>;
+    /// a terminal state, selecting the job by its execution ID label.
+    fn wait_for_job(&self, ns: &str, execution_id: &Uuid) -> impl Future<Output = WatchOutcome>;
 
     /// Delete an ephemeral namespace within the [workload][Cluster::Workload].
     fn delete_workload_namespace(&self, ns: &str) -> impl Future<Output = Result<()>>;

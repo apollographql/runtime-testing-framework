@@ -1,5 +1,6 @@
 use crate::k8s::{
-    self, CLUSTER_API_NAMESPACE, Cluster, Result, WatchOutcome, Workflow, WorkflowSpec,
+    self, CLUSTER_API_NAMESPACE, Cluster, EXECUTION_ID_LABEL, Result, WatchOutcome, Workflow,
+    WorkflowSpec,
 };
 use k8s_openapi::api::{
     batch::v1::{Job, JobSpec},
@@ -15,6 +16,7 @@ use kube_runtime::{WatchStreamExt, watcher};
 use std::{collections::BTreeMap, path::Path, pin::pin};
 use tokio_stream::StreamExt;
 use tracing::error;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct ClusterClients {
@@ -137,9 +139,10 @@ impl k8s::Client for ClusterClients {
         Ok(job)
     }
 
-    async fn wait_for_workflow(&self, name: &str) -> WatchOutcome {
+    async fn wait_for_workflow(&self, execution_id: &Uuid) -> WatchOutcome {
         let api: Api<Workflow> = self.namespaced_api(Cluster::Management, CLUSTER_API_NAMESPACE);
-        let config = watcher::Config::default().fields(&format!("metadata.name={name}"));
+        let labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
+        let config = watcher::Config::default().labels(&labels);
         let mut stream = pin!(watcher(api, config).applied_objects());
 
         while let Some(res) = stream.next().await {
@@ -170,9 +173,10 @@ impl k8s::Client for ClusterClients {
         WatchOutcome::StreamClosed
     }
 
-    async fn wait_for_job(&self, ns: &str, name: &str) -> WatchOutcome {
+    async fn wait_for_job(&self, ns: &str, execution_id: &Uuid) -> WatchOutcome {
         let api: Api<Job> = self.namespaced_api(Cluster::Workload, ns);
-        let config = watcher::Config::default().fields(&format!("metadata.name={name}"));
+        let labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
+        let config = watcher::Config::default().labels(&labels);
         let mut stream = pin!(watcher(api, config).applied_objects());
 
         while let Some(res) = stream.next().await {
