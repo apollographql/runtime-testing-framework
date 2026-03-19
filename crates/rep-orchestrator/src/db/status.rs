@@ -216,7 +216,12 @@ mod tests {
         "successful"
     )]
     #[test]
-    fn status_ordering_works(s: Status, lt: &[Status], eq: &[Status], gt: &[Status]) {
+    fn partial_cmp_returns_correct_ordering(
+        s: Status,
+        lt: &[Status],
+        eq: &[Status],
+        gt: &[Status],
+    ) {
         for other in lt.iter() {
             assert_eq!(s.partial_cmp(other), Some(Ordering::Less), "{other:?}");
         }
@@ -236,7 +241,7 @@ mod tests {
     #[test_case(Resolving; "resolving")]
     #[test_case(Initialising; "initialising")]
     #[test]
-    fn combine_matching_works(status: Status) {
+    fn combine_matching_statuses_returns_same_status(status: Status) {
         assert_eq!(status.combine(status), status);
     }
 
@@ -268,7 +273,7 @@ mod tests {
     #[test_case(Resolving; "resolving")]
     #[test_case(Initialising; "initialising")]
     #[test]
-    fn combine_unrunnable(other: Status) {
+    fn combine_unrunnable_is_unrunnable(other: Status) {
         assert_eq!(Unrunnable.combine(other), Unrunnable, "unrunnable + other");
         assert_eq!(other.combine(Unrunnable), Unrunnable, "other + unrunnable");
     }
@@ -277,7 +282,7 @@ mod tests {
     #[test_case(Resolving; "resolving")]
     #[test_case(Initialising; "initialising")]
     #[test]
-    fn combine_running(other: Status) {
+    fn combine_running_is_running(other: Status) {
         assert_eq!(Running.combine(other), Running, "running + other");
         assert_eq!(other.combine(Running), Running, "other + running");
     }
@@ -292,7 +297,7 @@ mod tests {
     }
 
     #[test]
-    fn combine_init_init_works() {
+    fn combine_init_init_returns_initialising() {
         assert_eq!(Initialising.combine(Initialising), Initialising)
     }
 }

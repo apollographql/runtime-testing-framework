@@ -57,7 +57,7 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn check_works_with_a_running_db() {
+    async fn check_db_conn_returns_ok_with_running_db() {
         let res = check_db_conn().await;
         assert!(res.is_ok(), "{res:?}");
     }

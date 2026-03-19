@@ -322,7 +322,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn set_resolving_fails_exits_early() {
+    async fn resolve_test_plan_set_resolving_fails_exits_early() {
         let test_run = TestRun::create_stub(1, "test");
         // Empty handle — test_run is not registered, so update_test_run_status will fail
         let mut handle = MockUpdateHandle::default();
@@ -341,7 +341,10 @@ mod tests {
     #[test_case(payload_with_conflicting_var(), "templating pre-check failed:"; "templating_check_fails")]
     #[test_case(payload_with_bad_variant_names(), "unable to expand matrix variants:"; "matrix_expansion_fails")]
     #[tokio::test]
-    async fn prepare_failure_sets_run_unrunnable(payload: RepPayload, expected_msg: &str) {
+    async fn resolve_test_plan_prepare_failure_sets_run_unrunnable(
+        payload: RepPayload,
+        expected_msg: &str,
+    ) {
         let test_run = TestRun::create_stub(1, "test");
         let mut handle = mock_handle_with_run(&test_run);
         let (etx, _erx) = unbounded_channel::<Event>();
@@ -378,7 +381,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_variant_fails_sets_execution_unrunnable() {
+    async fn resolve_test_plan_variant_static_check_fails_sets_execution_unrunnable() {
         let test_run = TestRun::create_stub(1, "test");
         let mut handle = mock_handle_with_run(&test_run);
         let (etx, _erx) = unbounded_channel::<Event>();
@@ -456,7 +459,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn successful_resolution_sends_provision_event() {
+    async fn resolve_test_plan_success_sends_provision_event() {
         let test_run = TestRun::create_stub(1, "test");
         let mut handle = mock_handle_with_run(&test_run);
         let (etx, mut erx) = unbounded_channel::<Event>();
@@ -508,7 +511,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn event_loop_closed_stops_processing() {
+    async fn resolve_test_plan_event_loop_closed_stops_processing() {
         let test_run = TestRun::create_stub(1, "test");
         let mut handle = mock_handle_with_run(&test_run);
         let (etx, erx) = unbounded_channel::<Event>();
