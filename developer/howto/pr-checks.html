@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-9c1e5eeb.js";
+            window.path_to_searchindex_js = "../../searchindex-fc50b699.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-015b6cd2.js"></script>
+        <script src="../../toc-e5859691.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,7 +178,7 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: howto -->
-<h1 id="pr-checks"><a class="header" href="#pr-checks">PR checks</a></h1>
+<h1 id="running-pr-checks"><a class="header" href="#running-pr-checks">Running PR checks</a></h1>
 <p>This page documents all the checks that run when raising a PR, how to run the corresponding checks
 locally and how to resolve them.</p>
 <p>All the tasks required to run these checks locally are defined using <a href="https://mise.jdx.dev/tasks/">mise tasks</a>. To run all the
@@ -208,7 +208,7 @@ checks the code complies with rust <code>clippy</code>.</p>
 <h2 id="rustdoc-links"><a class="header" href="#rustdoc-links">rustdoc-links</a></h2>
 <p>The GitHub action runs <code>cargo doc</code> with additional flags to check that doc links work correctly.</p>
 <p>To run locally</p>
-<pre><code class="language-bash">mise run pr-doclinks
+<pre><code class="language-bash">mise run pr-rustdoc
 </code></pre>
 <p>This will show details for all doclink issues.</p>
 <blockquote>
@@ -216,9 +216,7 @@ checks the code complies with rust <code>clippy</code>.</p>
 necessarily fail your PR checks.</p>
 </blockquote>
 <h2 id="spell-check"><a class="header" href="#spell-check">spell-check</a></h2>
-<p>This uses the <a href="https://github.com/crate-ci/typos">typos-cli crate</a> to check all the docstrings, YAML files and READMEs for typos.
-This tool in particular has been chosen as the spell checker for RTF as it has been designed to
-reduce false positives.</p>
+<p>This uses the <a href="https://github.com/crate-ci/typos">typos-cli crate</a> to check all the docstrings, YAML files and READMEs for typos.</p>
 <p>To run locally</p>
 <pre><code class="language-bash">mise run pr-spell-check
 </code></pre>
@@ -234,7 +232,7 @@ then <a href="https://github.com/crate-ci/typos?tab=readme-ov-file#false-positiv
 <h2 id="lint-markdown"><a class="header" href="#lint-markdown">lint-markdown</a></h2>
 <p>This uses the <a href="https://github.com/dprint/dprint">dprint crate</a> lint the markdown files and ensure consistent style and formatting.</p>
 <p>To run locally</p>
-<pre><code class="language-bash">mise run lint-markdown
+<pre><code class="language-bash">mise run pr-markdown
 </code></pre>
 <p>This will highlight any issues with the markdown files.</p>
 <p>To fix all these issues automatically</p>
@@ -242,6 +240,17 @@ then <a href="https://github.com/crate-ci/typos?tab=readme-ov-file#false-positiv
 </code></pre>
 <p>Before committing to <code>main</code>, manually review the diff to check all formatting fixes are desired.</p>
 <p>Files can be excluded using the <code>dprint.json</code> file at the root of the repo.</p>
+<h2 id="doc-types"><a class="header" href="#doc-types">doc-types</a></h2>
+<p>All documentation pages must have a valid <a href="https://diataxis.fr">Diataxis</a> type annotation as the first line of the
+file:</p>
+<pre><code class="language-markdown">&lt;!-- diataxis-type: &lt;type&gt; --&gt;
+</code></pre>
+<p>The valid types are <code>explanation</code>, <code>howto</code>, <code>reference</code>, and <code>tutorial</code>. This check ensures every
+page is intentionally categorised.</p>
+<p>To run locally</p>
+<pre><code class="language-bash">mise run pr-doc-types
+</code></pre>
+<p>This will print the path of any file that is missing or has an invalid annotation.</p>
 
                     </main>
 

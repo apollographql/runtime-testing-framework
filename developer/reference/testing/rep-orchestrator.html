@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>RTF Cookbook - Runtime Testing Framework</title>
+        <title>rep-orchestrator - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
-        <link rel="stylesheet" href="../css/variables-8adf115d.css">
-        <link rel="stylesheet" href="../css/general-2459343d.css">
-        <link rel="stylesheet" href="../css/chrome-ae938929.css">
-        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../../../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../../../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../../../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../../../css/general-2459343d.css">
+        <link rel="stylesheet" href="../../../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../../../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../../../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../../../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "../";
+            const path_to_root = "../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-fc50b699.js";
+            window.path_to_searchindex_js = "../../../searchindex-fc50b699.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-e5859691.js"></script>
+        <script src="../../../toc-e5859691.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../../../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">Runtime Testing Framework</h1>
 
                     <div class="right-buttons">
-                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../../../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/apollographql/runtime-testing-framework" title="Git repository" aria-label="Git repository">
@@ -177,243 +177,180 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <!-- diataxis-type: howto -->
-<h1 id="working-with-common-rtf-patterns"><a class="header" href="#working-with-common-rtf-patterns">Working with common RTF patterns</a></h1>
-<p>This page is a collection of short configuration snippets and strategies for working with RTF Test
-Plans to achieve specific goals. For an introductory overview of how to work with RTF please refer
-to the <a href="../tutorials/index.html">getting started guide</a>. For a technical reference on RTF as a whole please refer to the
-<a href="../reference/framework/index.html">framework section of the docs</a>.</p>
-<h2 id="only-running-a-stage-from-a-test-plan"><a class="header" href="#only-running-a-stage-from-a-test-plan">Only running a stage from a Test Plan</a></h2>
-<p><strong>Problem</strong>: You only want to run a single stage of a Test Plan rather than the entire thing.</p>
-<p><strong>Solution</strong>: RTF’s <code>run</code> command supports limiting execution to one of the three stages:</p>
+                        <!-- diataxis-type: reference -->
+<h1 id="rep-orchestrator"><a class="header" href="#rep-orchestrator">rep-orchestrator</a></h1>
+<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rep-orchestrator"><code>rep-orchestrator</code></a> crate are organized and implemented.</p>
+<p>The crate has two categories of test:</p>
 <ul>
-<li>Environment setup</li>
-<li>Scenario</li>
-<li>Environment teardown</li>
+<li><strong>Unit tests</strong> — live alongside source code in <code>src/</code>. Some require a running Postgres instance
+and are gated behind the <code>db_tests</code> feature flag.</li>
+<li><strong>Integration tests</strong> — live in <code>tests/suite.rs</code>. Require a fully running Docker Compose stack
+(orchestrator server + database).</li>
 </ul>
-<p>To do so, simply add the appropriate flag to your use of <code>rtf run</code>:</p>
-<pre><code class="language-bash"># Only the environment setup
-rtf run --environment-up &lt;test-plan&gt;
+<p>Running <code>cargo test</code> from the workspace root will skip all DB-dependent tests. They must be run
+explicitly via <code>make</code>.</p>
+<h2 id="organization"><a class="header" href="#organization">Organization</a></h2>
+<h3 id="unit-tests"><a class="header" href="#unit-tests">Unit tests</a></h3>
+<p>Unit tests in <code>rep-orchestrator</code> follow the same hierarchy used in <a href="./rtf-integrations.html"><code>rtf-integrations</code></a>:</p>
+<ol>
+<li><strong>Module</strong> - A logical grouping of functionality. Since this maps directly to the Rust module
+structure, there are likely to be sub-modules in the path. For example, database operations for
+test executions could be nested under <code>db::test_execution</code>. The primary concern is the logical
+organization of the Rust code for scopes and privacy.</li>
+<li><strong>Function</strong> - The function or logic under test. This most likely maps to a function or trait
+method. If this is not fully specified in the module path, it should be specified as the first
+prefix in the test case name.</li>
+<li><strong>Test class</strong> - A logical grouping of test cases. This is defined when using
+<a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> to create multiple parameterized tests.</li>
+<li><strong>Test case</strong> - The specific test case. This should be uniquely and meaningfully named. Examples
+of test case naming can be seen <a href="./index.html#test-case-naming">here</a>.</li>
+</ol>
+<p>Following the hierarchy above leads to the following generic test case paths:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// When simple_test_case is not used
+module::path::tests::function_test_case
 
-# Only the scenario
-rtf run --scenario &lt;test-plan&gt;
-
-# Only the environment teardown
-rtf run --environment-down &lt;test-plan&gt;
+// When simple_test_case is used
+module::path::tests::function_test_class::test_case
+<span class="boring">}</span></code></pre>
+<h3 id="integration-tests"><a class="header" href="#integration-tests">Integration tests</a></h3>
+<p>Integration tests in <code>tests/suite.rs</code> test the HTTP API as a whole. They do not follow the module
+hierarchy used by unit tests since they are not organized by source module. Instead, they are named
+using the following hierarchy:</p>
+<ol>
+<li><strong>Endpoint</strong> - The HTTP endpoint under test. Examples include <code>trigger</code>
+(<code>POST /test-run/trigger</code>) and <code>run_status</code> (<code>GET /test-run/{id}/status</code>).</li>
+<li><strong>Scenario</strong> - The specific behaviour being verified. Examples include
+<code>returns_200_for_valid_plan</code> or <code>returns_404_for_unknown_run</code>.</li>
+</ol>
+<p>This leads to the following generic test case paths:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>endpoint_scenario
+<span class="boring">}</span></code></pre>
+<h4 id="example---triggering-a-test-run"><a class="header" href="#example---triggering-a-test-run">Example - triggering a test run</a></h4>
+<p>This example demonstrates testing the trigger endpoint with a valid test plan:</p>
+<ol>
+<li><strong>Endpoint</strong> is <code>trigger</code>. This is the endpoint under test.</li>
+<li><strong>Scenario</strong> is <code>valid_rep_test_plan_returns_200</code>. This describes the input and the expected
+outcome.</li>
+</ol>
+<p>This leads to the following full test path:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>test trigger_valid_rep_test_plan_returns_200
+<span class="boring">}</span></code></pre>
+<h4 id="example---querying-run-status-for-an-unknown-run"><a class="header" href="#example---querying-run-status-for-an-unknown-run">Example - querying run status for an unknown run</a></h4>
+<ol>
+<li><strong>Endpoint</strong> is <code>run_status</code>. This is the endpoint under test.</li>
+<li><strong>Scenario</strong> is <code>returns_404_for_unknown_run</code>. This describes the input and the expected outcome.</li>
+</ol>
+<p>This leads to the following full test path:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>test run_status_returns_404_for_unknown_run
+<span class="boring">}</span></code></pre>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing infrastructure</a></h3>
+<p>The crate leverages the following key testing tools:</p>
+<ul>
+<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Provides <code>#[test_case]</code> and <code>#[dir_cases]</code> attributes for
+parameterized testing across both unit and integration tests</li>
+<li><strong><a href="https://docs.rs/tokio/latest/tokio/attr.test.html"><code>tokio</code></a></strong> - Provides the <code>#[tokio::test]</code> attribute for async test functions, used
+extensively in integration tests</li>
+<li><strong><a href="https://docs.rs/reqwest/latest/reqwest/"><code>reqwest</code></a></strong> - HTTP client used by <code>TestHelper</code> to make requests against the running server
+during integration tests</li>
+<li><strong><a href="https://docs.rs/assert_fs/latest/assert_fs/"><code>assert_fs</code></a></strong> - Temporary filesystem utilities used by <code>TestHelper</code> to manage test plan
+directories during integration tests</li>
+<li><strong><a href="https://docs.rs/anyhow/latest/anyhow/"><code>anyhow</code></a></strong> - Ergonomic error handling in tests with the <code>-&gt; anyhow::Result&lt;()&gt;</code> return type</li>
+</ul>
+<h3 id="unit-tests-1"><a class="header" href="#unit-tests-1">Unit tests</a></h3>
+<p>Unit tests live inside <code>#[cfg(test)] mod tests</code> blocks within their source file and test business
+logic directly without requiring HTTP or database infrastructure where possible.</p>
+<p>To run all unit tests (DB tests skipped):</p>
+<pre><code class="language-bash">cargo test -p rep-orchestrator --lib
 </code></pre>
-<p><strong>Discussion</strong>: All other <code>rtf run</code> flags behave normally in combination with these flags, but it is
-an error to specify multiple at the same time. If your Test Plan includes a matrix this will still
-result in an execution per matrix variant. To limit execution to a single variant you should make
-use of the <code>--var</code> flag to pin variables to a single value (see below).</p>
-<h2 id="limiting-a-matrix-based-test-plan-to-run-a-single-dimension"><a class="header" href="#limiting-a-matrix-based-test-plan-to-run-a-single-dimension">Limiting a matrix based Test Plan to run a single dimension</a></h2>
-<p><strong>Problem</strong>: Your Test Plan contains a matrix but you would like to run it for a single dimension.</p>
-<p><strong>Solution</strong>: You can use the command line <code>--var</code> flag to replace individual matrix dimensions with
-scalar variables:</p>
-<pre><code class="language-bash">rtf run --var 'router_version=v2.5.0' --var 'graph_ref=foo@prod' test-plan.yaml
+<h3 id="db-tests"><a class="header" href="#db-tests">DB tests</a></h3>
+<p>Tests that require a live database connection are annotated with:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg_attr(not(feature = "db_tests"), ignore)]
+<span class="boring">}</span></code></pre>
+<p>This means they are skipped by <code>cargo test</code> (and reported as ignored in the output) unless
+<code>--features db_tests</code> is passed. Do not remove this annotation from existing tests — it prevents the
+standard workspace test run from failing when no database is available.</p>
+<p>To run DB tests, first start the test database stack:</p>
+<pre><code class="language-bash">cd crates/rep-orchestrator
+make test-db-up
 </code></pre>
-<p>Alternatively, if you are happy to edit the Test Plan itself, you can always comment out the matrix
-definition and replace it with variable definitions like so:</p>
-<pre><code class="language-yaml">variables:
-  router_cpu_limit: "4"
-  # New variables to replace the matrix dimensions
-  router_version: "v2.5.0"
-  graph_ref: "foo@prod"
-
-# Commented out matrix dimensions
-#
-# matrix:
-#   dimensions:
-#     router_version:
-#       - "v2.5.0"
-#       - "v2.6.1"
-# 
-#     graph_ref:
-#       - "foo@prod"
-#       - "bar@production"
+<p>In a second terminal session, run the tests:</p>
+<pre><code class="language-bash">make db-tests
 </code></pre>
-<p><strong>Discussion</strong>: The use of command line arguments is recommended over editing the test plan file
-directly as it prevents the common issue of accidentally committing a modified test plan that now no
-longer runs the originally intended set of dimensions.</p>
-<h2 id="running-multiple-iterations-of-a-test-plan"><a class="header" href="#running-multiple-iterations-of-a-test-plan">Running multiple iterations of a Test Plan</a></h2>
-<p><strong>Problem</strong>: You have a test plan that you would like to run multiple times in order to collect
-results that can be analyzed statistically.</p>
-<p><strong>Solution</strong>: RTF’s <a href="../reference/framework/test-plans.html#working-with-matrices">matrix</a> feature can be used with a placeholder dimension that will be
-expanded over to produce <code>n</code> copies of a given test plan (or dimensions within an existing matrix)
-by providing a series of unique values for the dimension:</p>
-<pre><code class="language-yaml">matrix:
-  variant_names: "iteration_${n}"
-  dimensions:
-    n: [0, 1, 2, 3, 4]
+<p>To stop the database when done:</p>
+<pre><code class="language-bash">make test-db-down
 </code></pre>
-<p>This also works if you have an existing matrix:</p>
-<pre><code class="language-yaml">matrix:
-  variant_names: "${my_dimension}_${n}"
-  dimensions:
-    n: [0, 1, 2, 3, 4]
-    my_dimension: ["foo", "bar"]
+<h3 id="integration-tests-1"><a class="header" href="#integration-tests-1">Integration tests</a></h3>
+<p>Integration tests require the full Docker Compose stack (orchestrator server + database). They test
+the HTTP API end-to-end and are defined in <code>tests/suite.rs</code>.</p>
+<p>To run the integration tests manually:</p>
+<pre><code class="language-bash">cd crates/rep-orchestrator
+make up
 </code></pre>
-<p><strong>Discussion</strong>: You <em>must</em> include your iteration variable within your <code>variant_names</code> template in
-order to produce unique variant names, as each original variant you are wanting to repeat will have
-the same values other than this.</p>
-<p>Using this approach is encouraged over simply running the Test Plan multiple times manually as it
-allows RTF to cache provider data internally as it runs in order to reduce network calls and work
-required to generate the output of each provider.</p>
-<h2 id="determining-how-many-variants-of-test-plan-will-be-run-by-a-given-matrix"><a class="header" href="#determining-how-many-variants-of-test-plan-will-be-run-by-a-given-matrix">Determining how many variants of Test Plan will be run by a given matrix</a></h2>
-<p><strong>Problem</strong>: You have written a Test Plan that defines a non-trivial matrix and you want to work out
-something like the expected running time or other properties related to the number of variants being
-run.</p>
-<p><strong>Solution</strong>: The <code>rtf expand-matrix</code> subcommand can be used to output the fully expanded variables
-for each variant in the order they will be executed by <code>rtf run</code>:</p>
-<pre><code class="language-yaml"># Example matrix setup
-matrix:
-  variant_names: "${color}_${fruit}_${name}_${count}"
-  dimensions:
-    name: ["foo", "bar"]
-    count: [1, 2, 3]
-  include:
-    - fruit: apple
-      color: red
-    - fruit: pear
-      color: green
+<p>This will show you the server logs for everything in the stack, useful for debugging failed tests.
+In a second terminal window run the tests:</p>
+<pre><code class="language-bash">make integration-tests    # run tests in tests/suite.rs
 </code></pre>
-<pre><code class="language-bash">rtf expand-matrix test-plan.yaml
+<p>To stop the stack when done run:</p>
+<pre><code class="language-bash">make down
 </code></pre>
-<p>Output:</p>
-<pre><code class="language-json">{
-  "variants": [
-    {
-      "name": "red_apple_foo_1",
-      "variables": {
-        "color": "red",
-        "count": 1,
-        "fruit": "apple",
-        "name": "foo"
-      }
-    },
-    ...
-  ]
+<p>To run all tests as CI does (spin up, wait, test, tear down):</p>
+<pre><code class="language-bash">cd crates/rep-orchestrator
+make ci-tests
+</code></pre>
+<h4 id="testing-infrastructure-1"><a class="header" href="#testing-infrastructure-1">Testing infrastructure</a></h4>
+<p>Integration tests use a <code>TestHelper</code> struct defined in <code>tests/common/mod.rs</code>. Any shared logic
+between tests should be added as further methods to this helper. It wraps a <code>reqwest::Client</code> and
+provides convenience methods for calling server endpoints:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct TestHelper {
+    client: Client,
 }
-</code></pre>
-<p><a href="https://jqlang.org/">jq</a> can be used to count the variants like so:</p>
-<pre><code class="language-bash">rtf expand-matrix test-plan.yaml | jq '.variants | length'
-</code></pre>
-<p>Output:</p>
-<pre><code class="language-text">12
-</code></pre>
-<p><strong>Discussion</strong>: This will work even for Test Plans without a matrix by returning the single
-“variant” representing the top level variables for the Test Plan.</p>
-<p>The variants returned by <code>rtf expand-matrix</code> are computed using the Test Plan as it is written.
-Specifying additional matrix dimensions via the <code>--vars</code> flag on <code>rtf run</code> will alter the number of
-variants.</p>
-<h2 id="previewing-matrix-variant-names"><a class="header" href="#previewing-matrix-variant-names">Previewing matrix variant names</a></h2>
-<p><strong>Problem</strong>: You are specifying a custom matrix variant name template using <code>matrix.variant_names</code>
-and you want to check that it will produce the expected directory names.</p>
-<p><strong>Solution</strong>: The <code>rtf expand-matrix</code> command can be used alongside <a href="https://jqlang.org/">jq</a> to output a list of
-matrix variant names as a shell one-liner:</p>
-<pre><code class="language-yaml"># Example matrix setup
-matrix:
-  variant_names: "${color}_${fruit}_${name}_${count}"
-  dimensions:
-    name: ["foo", "bar"]
-    count: [1, 2, 3]
-  include:
-    - fruit: apple
-      color: red
-    - fruit: pear
-      color: green
-</code></pre>
-<pre><code class="language-bash">rtf expand-matrix test-plan.yaml |
-    jq -r '.variants | map(.name) | join("\n")'
-</code></pre>
-<p>Output:</p>
-<pre><code class="language-text">red_apple_foo_1
-green_pear_foo_1
-red_apple_bar_1
-green_pear_bar_1
-red_apple_foo_2
-green_pear_foo_2
-red_apple_bar_2
-green_pear_bar_2
-red_apple_foo_3
-green_pear_foo_3
-red_apple_bar_3
-green_pear_bar_3
-</code></pre>
-<p><strong>Discussion</strong>: The variants returned by <code>rtf expand-matrix</code> are computed using the Test Plan as it
-is written. Specifying additional matrix dimensions via the <code>--vars</code> flag on <code>rtf run</code> will alter
-the number of variants which in turn may result in a previously valid <code>variant_names</code> template
-becoming invalid if it now produces non-unique names.</p>
-<h2 id="conditional-yaml-merging"><a class="header" href="#conditional-yaml-merging">Conditional YAML merging</a></h2>
-<p><strong>Problem</strong>: You want to use a variable to conditionally decide which YAML snippets get merged into
-your YAML files.</p>
-<p><strong>Solution</strong>: Use a conditional file provider to apply the correct YAML snippets based on the
-variable’s value. Here, we use the example of optionally merging DataDog telemetry configuration
-into router configuration if the <code>telemetry_backend</code> variable is set to <code>"datadog"</code>:</p>
-<pre><code class="language-yaml">file_providers:
-  - name: router-config.yaml
-    env_var: ROUTER_CONFIG
-    kind: conditional
-    cases:
-      # DataDog: include telemetry exporter config
-      - where: { var: telemetry_backend, eq: datadog }
-        kind: merge_yaml
-        base:
-          kind: relative_path
-          path: data/router-config.yaml
-        overrides:
-          - kind: relative_path
-            path: data/datadog-telemetry-overlay.yaml
-          - kind: graphos_subgraph_router_url_overrides
-            graph_ref: "{{ graph_ref }}"
-            url_format: "docker"
-
-      # Local: no exporter config needed
-      - where: { var: telemetry_backend, eq: local }
-        kind: merge_yaml
-        base:
-          kind: relative_path
-          path: data/router-config.yaml
-        overrides:
-          kind: graphos_subgraph_router_url_overrides
-          graph_ref: "{{ graph_ref }}"
-          url_format: "docker"
-</code></pre>
-<p>This allows you to run the same test plan with different telemetry backends:</p>
-<pre><code class="language-bash"># Run with local telemetry
-rtf run test-plan.yaml -v "telemetry_backend=local"
-
-# Run with DataDog telemetry
-rtf run test-plan.yaml -v "telemetry_backend=datadog"
-</code></pre>
-<p><strong>Discussion</strong>: This pattern combines <code>kind: conditional</code> with <code>kind: merge_yaml</code> to dynamically
-compose configuration files based on variable values. Each case applies different overlays while
-sharing the same base configuration.</p>
-<p>Key considerations:</p>
+<span class="boring">}</span></code></pre>
+<p>The helper handles:</p>
 <ul>
-<li>The first matching <code>where</code> clause is used; order cases from most to least specific</li>
-<li>All cases must produce valid output—RTF validates during static analysis</li>
-<li>Base configuration should omit sections that overlays will provide to avoid merge conflicts</li>
-<li>Multiple overlays can be chained as an array, merging in sequence</li>
+<li><strong><code>trigger_run</code></strong> - prepares a <code>RepPayload</code> from a test plan directory and posts it to
+<code>/test-run/trigger</code></li>
+<li><strong><code>json_get</code></strong> / <strong><code>json_post</code></strong> - typed request/response helpers that deserialize JSON responses
+directly into the expected type.</li>
+<li><strong><code>get</code></strong> / <strong><code>post</code></strong> - request/response helpers that return a <code>Response</code> so you can do simple
+high level assertions on things like the status code.</li>
+<li><strong>Temp directory placement</strong> - uses <code>CARGO_TARGET_TMPDIR</code> rather than <code>/tmp</code> to avoid macOS
+symlink issues with Docker volume mounts</li>
 </ul>
-<p>This pattern is useful when:</p>
-<ul>
-<li>Different deployment targets require different configuration snippets</li>
-<li>Feature flags should toggle configuration sections</li>
-<li>Environment-specific settings need conditional inclusion</li>
-</ul>
-<p>The telemetry example above demonstrates this by conditionally including DataDog exporter
-configuration only when <code>telemetry_backend=datadog</code>, while both cases share the same base router
-config and subgraph URL overrides.</p>
+<h4 id="parameterized-integration-tests"><a class="header" href="#parameterized-integration-tests">Parameterized integration tests</a></h4>
+<p>Tests that cover multiple input variations use <code>#[test_case]</code> from <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[test_case(&amp;[su(Provisioning, None), su(Running, None), su(Successful, None)]; "successful")]
+#[test_case(&amp;[su(Provisioning, None), su(Running, None), su(Failed, Some(1))]; "failed")]
+#[test_case(&amp;[su(Provisioning, None), su(Unrunnable, None)]; "unrunnable")]
+#[tokio::test]
+async fn update_test_execution_status_valid_sequence_works(payloads: &amp;[SetStatusPayload]) {
+    // ...
+}
+<span class="boring">}</span></code></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../howto/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../../developer/reference/testing/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../howto/troubleshooting.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../../developer/reference/testing/rtf-cli.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -423,11 +360,11 @@ config and subgraph URL overrides.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../howto/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../../developer/reference/testing/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../howto/troubleshooting.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../../developer/reference/testing/rtf-cli.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -446,19 +383,19 @@ config and subgraph URL overrides.</p>
             window.playground_copyable = true;
         </script>
 
-        <script src="../ace-2a3cd908.js"></script>
-        <script src="../mode-rust-2c9d5c9a.js"></script>
-        <script src="../editor-16ca416c.js"></script>
-        <script src="../theme-dawn-4493f9c8.js"></script>
-        <script src="../theme-tomorrow_night-9dbe62a9.js"></script>
+        <script src="../../../ace-2a3cd908.js"></script>
+        <script src="../../../mode-rust-2c9d5c9a.js"></script>
+        <script src="../../../editor-16ca416c.js"></script>
+        <script src="../../../theme-dawn-4493f9c8.js"></script>
+        <script src="../../../theme-tomorrow_night-9dbe62a9.js"></script>
 
-        <script src="../elasticlunr-ef4e11c1.min.js"></script>
-        <script src="../mark-09e88c2c.min.js"></script>
-        <script src="../searcher-c2a407aa.js"></script>
+        <script src="../../../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../../../mark-09e88c2c.min.js"></script>
+        <script src="../../../searcher-c2a407aa.js"></script>
 
-        <script src="../clipboard-1626706a.min.js"></script>
-        <script src="../highlight-abc7f01d.js"></script>
-        <script src="../book-a0b12cfe.js"></script>
+        <script src="../../../clipboard-1626706a.min.js"></script>
+        <script src="../../../highlight-abc7f01d.js"></script>
+        <script src="../../../book-a0b12cfe.js"></script>
 
         <!-- Custom JS scripts -->
 

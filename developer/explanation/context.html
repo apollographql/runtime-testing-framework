@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-9c1e5eeb.js";
+            window.path_to_searchindex_js = "../../searchindex-fc50b699.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-015b6cd2.js"></script>
+        <script src="../../toc-e5859691.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -180,12 +180,37 @@
                         <!-- diataxis-type: explanation -->
 <h1 id="use-of-io-in-providers"><a class="header" href="#use-of-io-in-providers">Use of IO in providers</a></h1>
 <p>All IO that is run as part of provider logic <em>must</em> be run using the <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs">context</a> argument that is
-passed to methods. This allows the CLI logic to control how providers are run as well as allowing us
-to swap out real IO for mock implementations within tests.</p>
+passed to methods. This allows the caller to control how providers are run as well as allowing us to
+swap out real IO for mock implementations within tests.</p>
 <p>If you are writing a new provider and need to perform IO that is not currently possible via the
 existing <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L35">ResolutionContext</a> methods, you will need to first expose the functionality through
 that trait and provide a default “live” implementation for the concrete <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L157">Context</a> struct that is
 used by the CLI.</p>
+<h2 id="concrete-implementations"><a class="header" href="#concrete-implementations">Concrete implementations</a></h2>
+<h3 id="context-rtf-cli"><a class="header" href="#context-rtf-cli"><code>Context</code> (RTF CLI)</a></h3>
+<p><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/context.rs#L157"><code>Context</code></a> is the concrete implementation used by the RTF CLI. It performs real IO: reading
+files from the filesystem, executing commands, making HTTP requests to GraphOS and GitHub. When the
+CLI runs <code>rtf run</code>, it constructs a <code>Context</code> and passes it through to all provider logic.</p>
+<h3 id="repcontext-rep"><a class="header" href="#repcontext-rep"><code>RepContext</code> (REP)</a></h3>
+<p><a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rep-orchestrator/src/context.rs"><code>RepContext</code></a> is the concrete implementation used by <code>rep-orchestrator</code>. It wraps an inner
+<code>Context</code> but overrides the file IO behaviour: instead of reading from the filesystem, it reads from
+an in-memory map of file contents that was pre-bundled by <code>rtf rep prepare</code> into the <code>RepPayload</code>.</p>
+<p>This is a deliberate design constraint. REP is a server — it has no access to the filesystem paths
+that existed on the developer’s machine when the test plan was prepared. The <code>RepPayload</code> carries
+everything the server needs, and <code>RepContext</code> enforces that only that content is accessible.</p>
+<p>As a consequence, any <code>ResolutionContext</code> methods that would touch the filesystem directly are
+implemented as panics:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn read_path_to_string(&amp;self, _path: impl AsRef&lt;Path&gt;) -&gt; io::Result&lt;String&gt; {
+    panic!("attempt to read path to string")
+}
+<span class="boring">}</span></code></pre>
+<p>This is intentional. We should not be attempting to use the filesystem in the ways these methods
+expose during REP execution. Attempting to use the filesystem via those methods is a bug in the
+architecture, not something to handle gracefully.</p>
+<p>HTTP and API client operations (<code>platform_client</code>, <code>github_client</code>, <code>http_client</code>) are delegated to
+the inner <code>Context</code>.</p>
 
                     </main>
 

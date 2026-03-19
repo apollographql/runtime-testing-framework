@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-9c1e5eeb.js";
+            window.path_to_searchindex_js = "../../searchindex-fc50b699.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-015b6cd2.js"></script>
+        <script src="../../toc-e5859691.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,9 +178,9 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: explanation -->
-<h1 id="concepts-and-architecture"><a class="header" href="#concepts-and-architecture">Concepts and Architecture</a></h1>
-<p>This page provides a high-level overview of RTF’s architecture and the key concepts that inform its
-design.</p>
+<h1 id="concepts-and-architecture"><a class="header" href="#concepts-and-architecture">Concepts and architecture</a></h1>
+<p>This page provides a high-level overview of RTF and REP’s architecture and the key concepts that
+inform their design.</p>
 <h2 id="crates"><a class="header" href="#crates">Crates</a></h2>
 <p>RTF is organized as a <a href="https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html">Cargo workspace</a> with crates stored in the <code>crates</code> directory. Each crate
 has its own README file explaining its purpose at the crate’s root.</p>
@@ -194,50 +194,105 @@ typed Rust structs</li>
 </ul>
 <p>The crate exposes a <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs">ResolutionContext</a> trait that abstracts all IO operations, enabling
 testability and CLI control over execution.</p>
+<p>The <code>rep-orchestrator</code> crate is a server-side orchestration layer for REP. It is an <a href="https://docs.rs/axum">axum</a> HTTP
+server that receives test plans and manages the lifecycle of test runs and individual test
+executions.</p>
 <p>The <code>rtf-integrations</code> crate provides the <code>rtf-config</code> crate with clients to make various HTTP
 requests.</p>
 <p>The other crates sit above these crates, providing business logic and presentation layers for RTF.</p>
 <h2 id="data-flow"><a class="header" href="#data-flow">Data flow</a></h2>
 <p>When a user runs <code>rtf run test-plan.yaml</code>, the following flow occurs:</p>
 <pre><code>┌─────────────────────────────────────────────────────────────────────────┐
-│                              rtf run                                     │
+│                              rtf run                                    │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  1. Load Test Plan                                                       │
-│     - Parse test-plan.yaml                                               │
-│     - Load custom provider definitions                                   │
-│     - Resolve scenario/environment references (local or GitHub)          │
-│     - Apply any overrides                                                │
+│  1. Load Test Plan                                                      │
+│     - Parse test-plan.yaml                                              │
+│     - Load custom provider definitions                                  │
+│     - Resolve scenario/environment references (local or GitHub)         │
+│     - Apply any overrides                                               │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  2. Template Test Plan                                                   │
-│     - Substitute variables into test plan.                               │
-│     - Run static analysis checks                                         │
+│  2. Template Test Plan                                                  │
+│     - Substitute variables into test plan.                              │
+│     - Run static analysis checks                                        │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  3. Execute Environment Setup                                            │
-│     - Resolve file providers                                             │
-│     - Run setup command                                                  │
+│  3. Execute Environment Setup                                           │
+│     - Resolve file providers                                            │
+│     - Run setup command                                                 │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  4. Execute Scenario                                                     │
-│     - Resolve file providers                                             │
-│     - Run scenario command                                               │
+│  4. Execute Scenario                                                    │
+│     - Resolve file providers                                            │
+│     - Run scenario command                                              │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  5. Execute Environment Teardown                                         │
-│     - Resolve file providers                                             │
-│     - Run teardown command                                               │
+│  5. Execute Environment Teardown                                        │
+│     - Resolve file providers                                            │
+│     - Run teardown command                                              │
+└─────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+<h2 id="rtf-and-rep"><a class="header" href="#rtf-and-rep">RTF and REP</a></h2>
+<p>RTF and REP are related but distinct systems that serve different execution contexts:</p>
+<ul>
+<li><strong>RTF CLI</strong> (<code>rtf</code>) is a local command-line tool. A developer runs it directly to perform actions
+against test plans on the same system the CLI is hosted on.</li>
+<li><strong>REP (Runtime Environment Provisioner) Orchestrator Service</strong> is a server-side system. It
+receives test plans over HTTP, manages their execution in a REP provisioned cluster
+asynchronously, and reports results back to callers via status endpoints.</li>
+</ul>
+<p>The handoff point between the two systems is the <code>RepPayload</code> — a resolved test plan produced by
+<code>rtf rep prepare</code> and submitted to REP via <code>POST /test-run/trigger</code>. REP does not replace the RTF
+CLI; they are complementary tools for different execution contexts.</p>
+<h3 id="rep-data-flow"><a class="header" href="#rep-data-flow">REP data flow</a></h3>
+<p>When a caller triggers a test run via REP:</p>
+<pre><code>┌─────────────────────────────────────────────────────────────────────────┐
+│  POST /test-run/trigger (RepPayload)                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  1. Create Test Run                                                     │
+│     - Test run record created in DB (status: Initialising)              │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  2. Resolve                                                             │
+│     - Resolver task picks up the run                                    │
+│     - Test plan resolved into individual executions (status: Resolving) │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  3. Provision                                                           │
+│     - Event loop provisions the environment (status: Provisioning)      │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  4. Run                                                                 │
+│     - Scenario job dispatched (status: Running)                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  5. Complete                                                            │
+│     - Event loop monitors for terminal status                           │
+│       (Successful / Failed)                                             │
+│     - Environment teardown run                                          │
+│     - Test run marked complete                                          │
 └─────────────────────────────────────────────────────────────────────────┘
 </code></pre>
 <h2 id="key-abstractions"><a class="header" href="#key-abstractions">Key abstractions</a></h2>
@@ -306,12 +361,10 @@ the <a href="../../explanation/overview.html">Overview</a> for more on this phil
 </li>
 <li>
 <p><strong>Plumbing and porcelain</strong> - Commands are split into low-level “plumbing” (like <code>template</code>) and
-high-level “porcelain” (like <code>run</code>). See
-<a href="cli-design/plumbing-vs-porcelain.html">Plumbing vs Porcelain</a>.</p>
+high-level “porcelain” (like <code>run</code>). See <a href="cli-design/plumbing-vs-porcelain.html">Plumbing vs Porcelain</a>.</p>
 </li>
 <li>
-<p><strong>No built-in magic</strong> - Commands don’t have special inline logic. See
-<a href="cli-design/no-built-in-magic.html">No Built-in Magic</a>.</p>
+<p><strong>No built-in magic</strong> - Commands don’t have special inline logic. See <a href="cli-design/no-built-in-magic.html">No Built-in Magic</a>.</p>
 </li>
 <li>
 <p><strong>Fail fast with good errors</strong> - RTF validates early and reports all known errors in batch rather
