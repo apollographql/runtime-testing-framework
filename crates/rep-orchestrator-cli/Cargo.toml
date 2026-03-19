@@ -1,0 +1,17 @@
+[package]
+name = "rep-orchestrator-cli"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rtf-cli-shared = { path = "../rtf-cli-shared" }
+
+anyhow.workspace = true
+clap.workspace = true
+k8s-openapi.workspace = true
+kube.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
