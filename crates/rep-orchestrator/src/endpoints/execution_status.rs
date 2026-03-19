@@ -1,11 +1,11 @@
 //! Fetch the status of a given [TestExecution] by its UUID.
 use crate::{
     Error, Result, conn,
-    db::{Status, StatusTracked, StatusUpdate, TestExecution},
+    db::{StatusTracked, TestExecution},
     response_types::TestExecutionSummary,
 };
 use axum::{Json, extract::Path};
-use serde::{Deserialize, Serialize};
+use rep_orchestrator_shared::{SetStatusPayload, Status, StatusUpdate};
 use uuid::Uuid;
 
 pub async fn get_handler(Path(id): Path<Uuid>) -> Result<Json<TestExecutionSummary>> {
@@ -30,63 +30,56 @@ pub async fn post_handler(
     };
 
     let current = ex.current_status(conn).await?;
-    payload.validate(current.status)?;
+    validate(&payload, current.status.into())?;
 
-    ex.set_status(payload.status, payload.message, conn).await?;
+    ex.set_status(payload.status.into(), payload.message.clone(), conn)
+        .await?;
     if let (Status::Failed, Some(code)) = (payload.status, payload.exit_code) {
         ex.set_exit_code(code, conn).await?;
     }
 
     let new = ex.current_status(conn).await?;
 
-    Ok(Json(new))
+    Ok(Json(new.into()))
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct SetStatusPayload {
-    pub status: Status,
-    #[serde(default)]
-    pub message: Option<String>,
-    #[serde(default)]
-    pub exit_code: Option<u8>,
-}
+fn validate(payload: &SetStatusPayload, current_status: Status) -> Result<()> {
+    use Status::*;
 
-impl SetStatusPayload {
-    fn validate(&self, current_status: Status) -> Result<()> {
-        use Status::*;
+    let db_current_status: crate::db::Status = current_status.into();
+    let db_payload_status: crate::db::Status = payload.status.into();
 
-        // We check strictly greater than in order to allow multiple updates at the same Status
-        // with different messages (e.g. the different stages of provisioning). But we disallow
-        // moving backward through the statuses or setting multiple terminal statuses.
-        if current_status > self.status || current_status.is_complete() {
-            return Err(Error::InvalidExecutionStatus {
-                current: current_status,
-                requested: self.status,
+    // We check strictly greater than in order to allow multiple updates at the same Status
+    // with different messages (e.g. the different stages of provisioning). But we disallow
+    // moving backward through the statuses or setting multiple terminal statuses.
+    if db_current_status > db_payload_status || db_current_status.is_complete() {
+        return Err(Error::InvalidExecutionStatus {
+            current: current_status,
+            requested: payload.status,
+        });
+    }
+
+    match (payload.status, payload.exit_code) {
+        (Failed, None) => return Err(Error::MissingExitCode),
+        (Failed, Some(0)) => return Err(Error::InvalidFailedExitCode),
+        (Failed, Some(_)) => (),
+        (Successful, Some(0)) => (),
+        (_, Some(code)) => {
+            return Err(Error::InvalidExitCode {
+                status: payload.status,
+                code,
             });
         }
+        _ => (),
+    };
 
-        match (self.status, self.exit_code) {
-            (Failed, None) => return Err(Error::MissingExitCode),
-            (Failed, Some(0)) => return Err(Error::InvalidFailedExitCode),
-            (Failed, Some(_)) => (),
-            (Successful, Some(0)) => (),
-            (_, Some(code)) => {
-                return Err(Error::InvalidExitCode {
-                    status: self.status,
-                    code,
-                });
-            }
-            _ => (),
-        };
-
-        Ok(())
-    }
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use Status::*;
+    use rep_orchestrator_shared::Status::*;
     use simple_test_case::test_case;
 
     // valid
@@ -105,13 +98,17 @@ mod tests {
         "status rollback"
     )]
     #[test]
-    fn validate(status: Status, exit_code: Option<u8>, expected: Result<()>) {
+    fn payload_validation_works(
+        status: rep_orchestrator_shared::Status,
+        exit_code: Option<u8>,
+        expected: Result<()>,
+    ) {
         let payload = SetStatusPayload {
             status,
             message: None,
             exit_code,
         };
-        let res = payload.validate(Provisioning);
+        let res = validate(&payload, Provisioning);
 
         match (expected, res) {
             (Ok(()), Ok(())) => (),
@@ -130,7 +127,7 @@ mod tests {
             message: None,
             exit_code: None,
         };
-        let res = payload.validate(current);
+        let res = validate(&payload, current);
 
         assert!(
             matches!(

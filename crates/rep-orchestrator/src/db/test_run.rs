@@ -134,11 +134,11 @@ impl TestRun {
         Ok(TestRunSummary {
             id: self.uuid,
             name: self.name,
-            current_status: current.status,
+            current_status: current.status.into(),
             started_at: self.started_at,
             updated_at: current.updated_at,
             completed_at: self.completed_at,
-            status_history,
+            status_history: status_history.into_iter().map(Into::into).collect(),
             executions,
         })
     }

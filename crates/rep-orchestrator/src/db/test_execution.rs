@@ -105,7 +105,8 @@ impl TestExecution {
 
     pub async fn try_into_summary(self, conn: &mut PgConnection) -> Result<TestExecutionSummary> {
         let status_history = self.status_history(conn).await?;
-        let current = self.current_status(conn).await?;
+        let current: rep_orchestrator_shared::StatusUpdate =
+            self.current_status(conn).await?.into();
 
         Ok(TestExecutionSummary {
             id: self.uuid,
@@ -115,7 +116,7 @@ impl TestExecution {
             started_at: self.started_at,
             updated_at: current.updated_at,
             completed_at: self.completed_at,
-            status_history,
+            status_history: status_history.into_iter().map(Into::into).collect(),
         })
     }
 }

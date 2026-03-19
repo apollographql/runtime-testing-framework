@@ -1,13 +1,10 @@
 mod common;
 
 use common::TestHelper;
-use rep_orchestrator::{
-    db::{
-        Status::{self, *},
-        StatusUpdate,
-    },
-    endpoints::execution_status::SetStatusPayload,
-    response_types::{TestExecutionSummary, TestRunSummary},
+use rep_orchestrator_shared::{
+    SetStatusPayload,
+    Status::{self, *},
+    StatusUpdate, TestExecutionSummary, TestRunSummary,
 };
 use reqwest::StatusCode;
 use simple_test_case::test_case;

@@ -1,8 +1,8 @@
-use crate::db::Status;
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Json, Response},
 };
+use rep_orchestrator_shared::Status;
 use serde_json::json;
 use std::io;
 use uuid::Uuid;

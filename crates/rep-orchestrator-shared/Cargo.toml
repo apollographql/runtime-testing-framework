@@ -1,0 +1,9 @@
+[package]
+name = "rep-orchestrator-shared"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+chrono.workspace = true
+serde.workspace = true
+uuid.workspace = true

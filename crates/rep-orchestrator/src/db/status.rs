@@ -1,8 +1,7 @@
 use crate::db::{Queryable, Result};
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use sqlx::{Executor, FromRow, PgConnection};
-use std::{cmp::Ordering, fmt};
+use std::cmp::Ordering;
 
 /// Helper trait for tracking a time series of [StatusUpdate] items for a parent table.
 ///
@@ -98,16 +97,25 @@ pub trait StatusTracked: Queryable {
 
 /// Status updates for test runs and executions are tracked as a time series, with the status of
 /// the test run being driven by the statuses of the executions inside of it.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize, Serialize, FromRow)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, FromRow)]
 pub struct StatusUpdate {
-    pub status: Status,
-    pub message: Option<String>,
-    pub updated_at: DateTime<Utc>,
+    pub(crate) status: Status,
+    pub(crate) message: Option<String>,
+    pub(crate) updated_at: DateTime<Utc>,
+}
+
+impl From<StatusUpdate> for rep_orchestrator_shared::StatusUpdate {
+    fn from(u: StatusUpdate) -> Self {
+        Self {
+            status: u.status.into(),
+            message: u.message,
+            updated_at: u.updated_at,
+        }
+    }
 }
 
 /// An individual lifecycle status for a test run or execution.
-#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Deserialize, Serialize, sqlx::Type)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, sqlx::Type)]
 #[repr(i32)]
 pub enum Status {
     #[default]
@@ -118,22 +126,6 @@ pub enum Status {
     Successful = 5,
     Failed = 6,
     Unrunnable = 7,
-}
-
-impl fmt::Display for Status {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use Status::*;
-
-        match self {
-            Initialising => write!(f, "INITIALISING"),
-            Resolving => write!(f, "RESOLVING"),
-            Provisioning => write!(f, "PROVISIONING"),
-            Running => write!(f, "RUNNING"),
-            Successful => write!(f, "SUCCESSFUL"),
-            Failed => write!(f, "FAILED"),
-            Unrunnable => write!(f, "UNRUNNABLE"),
-        }
-    }
 }
 
 impl Status {
@@ -171,6 +163,36 @@ impl PartialOrd for Status {
         };
 
         sort_val(self).partial_cmp(&sort_val(other))
+    }
+}
+
+impl From<Status> for rep_orchestrator_shared::Status {
+    fn from(s: Status) -> Self {
+        use Status::*;
+        match s {
+            Initialising => Self::Initialising,
+            Resolving => Self::Resolving,
+            Provisioning => Self::Provisioning,
+            Running => Self::Running,
+            Successful => Self::Successful,
+            Failed => Self::Failed,
+            Unrunnable => Self::Unrunnable,
+        }
+    }
+}
+
+impl From<rep_orchestrator_shared::Status> for Status {
+    fn from(s: rep_orchestrator_shared::Status) -> Self {
+        use rep_orchestrator_shared::Status::*;
+        match s {
+            Initialising => Self::Initialising,
+            Resolving => Self::Resolving,
+            Provisioning => Self::Provisioning,
+            Running => Self::Running,
+            Successful => Self::Successful,
+            Failed => Self::Failed,
+            Unrunnable => Self::Unrunnable,
+        }
     }
 }
 
