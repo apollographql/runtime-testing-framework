@@ -2812,6 +2812,7 @@ dependencies = [
  "open",
  "predicates",
  "rep-orchestrator-shared",
+ "rtf-cli-shared",
  "rtf-config",
  "rtf-core",
  "rtf-integrations",
@@ -2824,6 +2825,15 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "walkdir",
+]
+
+[[package]]
+name = "rtf-cli-shared"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
