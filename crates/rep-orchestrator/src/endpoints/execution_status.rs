@@ -105,7 +105,7 @@ mod tests {
         "status rollback"
     )]
     #[test]
-    fn payload_validation_works(status: Status, exit_code: Option<u8>, expected: Result<()>) {
+    fn validate(status: Status, exit_code: Option<u8>, expected: Result<()>) {
         let payload = SetStatusPayload {
             status,
             message: None,
@@ -124,7 +124,7 @@ mod tests {
     #[test_case(Failed; "failed")]
     #[test_case(Unrunnable; "unrunnable")]
     #[test]
-    fn attempt_to_set_second_terminal_status_is_invalid(current: Status) {
+    fn validate_second_terminal_status_is_invalid(current: Status) {
         let payload = SetStatusPayload {
             status: Successful,
             message: None,
