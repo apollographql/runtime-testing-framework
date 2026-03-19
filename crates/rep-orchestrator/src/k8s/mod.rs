@@ -5,8 +5,10 @@ use k8s_openapi::api::{
 use kube::config::KubeconfigError;
 use uuid::Uuid;
 
+mod client;
 mod workflow;
 
+pub use client::ClusterClients;
 pub use workflow::{Workflow, WorkflowSpec};
 
 pub const CLUSTER_API_NAMESPACE: &str = "cluster-api";
@@ -44,7 +46,7 @@ pub enum WatchOutcome {
 }
 
 /// Kubernetes API actions required for executing RTF test plans inside of REP clusters.
-pub trait K8sClient {
+pub trait Client: Send + Sync {
     /// Create a new config map in either the [management][Cluster::Management] or
     /// [workload][Cluster::Workload] cluster.
     fn create_configmap(
@@ -76,7 +78,7 @@ pub trait K8sClient {
 
     /// Wait for a [Workflow] running within the [management][Cluster::Management] cluster to reach
     /// a terminal state.
-    fn wait_for_workflow(&self, execution_id: &Uuid) -> impl Future<Output = WatchOutcome>;
+    fn wait_for_workflow(&self, name: &str) -> impl Future<Output = WatchOutcome>;
 
     /// Wait for a k8s [Job] running within the [workload][Cluster::Workload] cluster to reach
     /// a terminal state.
