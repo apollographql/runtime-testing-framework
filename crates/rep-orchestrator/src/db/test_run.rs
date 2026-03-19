@@ -196,7 +196,7 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn init_works() -> Result<()> {
+    async fn init_creates_run_with_initialising_status() -> Result<()> {
         let c = conn!();
         let res = TestRun::init("test", c).await;
         assert!(res.is_ok(), "{res:?}");
@@ -212,7 +212,7 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn get_by_id_works() -> Result<()> {
+    async fn get_by_id_returns_matching_run() -> Result<()> {
         let c = conn!();
         let tr1 = TestRun::init("test", c).await?;
         let tr2 = TestRun::get_by_id(tr1.id, c).await?;
@@ -224,7 +224,7 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn get_by_id_unchecked_works() -> Result<()> {
+    async fn get_by_id_unchecked_returns_matching_run() -> Result<()> {
         let c = conn!();
         let tr1 = TestRun::init("test", c).await?;
         let tr2 = TestRun::get_by_id_unchecked(tr1.id, c).await?;
@@ -236,7 +236,7 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn get_by_uuid_works() -> Result<()> {
+    async fn get_by_uuid_returns_matching_run() -> Result<()> {
         let c = conn!();
         let tr1 = TestRun::init("test", c).await?;
         let tr2 = TestRun::get_by_uuid(&tr1.uuid, c).await?;
@@ -248,7 +248,7 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn executions_works() -> Result<()> {
+    async fn executions_returns_all_associated_executions() -> Result<()> {
         let c = conn!();
 
         let tr = TestRun::init("A", c).await?;
@@ -263,7 +263,7 @@ mod tests {
         Ok(())
     }
 
-    // Status of Initialising is checked in `init_works` above
+    // Status of Initialising is checked in `init_creates_run_with_initialising_status` above
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[test_case(Status::Resolving; "resolving")]
     #[test_case(Status::Provisioning; "provisioning")]
@@ -286,7 +286,7 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn status_history_works() -> Result<()> {
+    async fn status_history_returns_entries_newest_first() -> Result<()> {
         let c = conn!();
         let tr = TestRun::init("test", c).await?; // sets Status::Initialising
         tr.set_status(Status::Running, None, c).await?;
@@ -361,7 +361,7 @@ mod tests {
     #[test_case(Failed, Successful, &[Failed], None; "final successful but already failed")]
     #[test_case(Unrunnable, Successful, &[Unrunnable], None; "final successful but already unrunnable")]
     #[tokio::test]
-    async fn status_after_execution_update_works(
+    async fn status_after_execution_update(
         run_status: Status,
         ex_status: Status,
         siblings: &[Status],
