@@ -25,10 +25,15 @@ rtf-integrations = { path = "../rtf-integrations" }
 axum = { version = "0.8.8", features = ["macros"] }
 chrono = { version = "0.4.44", features = ["serde"] }
 envy = "0.4.2"
+k8s-openapi = { version = "0.27.1", features = ["schemars", "v1_35"] }
+kube = { version = "3.0.1", features = ["aws-lc-rs", "derive", "runtime"] }
+kube-runtime = "3.0.1"
+schemars.workspace = true
 serde_json.workspace = true
 serde.workspace = true
 sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "migrate", "chrono", "json", "uuid"] }
 thiserror.workspace = true
+tokio-stream = "0.1.18"
 tokio.workspace = true
 tracing-subscriber.workspace = true
 tracing.workspace = true
