@@ -131,7 +131,7 @@
 <a href=#131 id=131 data-nosnippet>131</a>
 <a href=#132 id=132 data-nosnippet>132</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#133 id=133 data-nosnippet>133</a>    #[tokio::test]
-<a href=#134 id=134 data-nosnippet>134</a>    </span><span class="kw">async fn </span>init_works() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#134 id=134 data-nosnippet>134</a>    </span><span class="kw">async fn </span>init_creates_execution_with_initialising_status() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#135 id=135 data-nosnippet>135</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#136 id=136 data-nosnippet>136</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#137 id=137 data-nosnippet>137</a>        <span class="kw">let </span>res = TestExecution::init(<span class="string">"test"</span>, tr.id(), c).<span class="kw">await</span>;
@@ -146,7 +146,7 @@
 <a href=#146 id=146 data-nosnippet>146</a>
 <a href=#147 id=147 data-nosnippet>147</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#148 id=148 data-nosnippet>148</a>    #[tokio::test]
-<a href=#149 id=149 data-nosnippet>149</a>    </span><span class="kw">async fn </span>get_by_id_works() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#149 id=149 data-nosnippet>149</a>    </span><span class="kw">async fn </span>get_by_id_returns_matching_execution() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#150 id=150 data-nosnippet>150</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#151 id=151 data-nosnippet>151</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#152 id=152 data-nosnippet>152</a>        <span class="kw">let </span>ex1 = TestExecution::init(<span class="string">"test"</span>, tr.id(), c).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -159,7 +159,7 @@
 <a href=#159 id=159 data-nosnippet>159</a>
 <a href=#160 id=160 data-nosnippet>160</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#161 id=161 data-nosnippet>161</a>    #[tokio::test]
-<a href=#162 id=162 data-nosnippet>162</a>    </span><span class="kw">async fn </span>get_by_id_unchecked_works() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#162 id=162 data-nosnippet>162</a>    </span><span class="kw">async fn </span>get_by_id_unchecked_returns_matching_execution() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#163 id=163 data-nosnippet>163</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#164 id=164 data-nosnippet>164</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#165 id=165 data-nosnippet>165</a>        <span class="kw">let </span>ex1 = TestExecution::init(<span class="string">"test"</span>, tr.id(), c).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -172,7 +172,7 @@
 <a href=#172 id=172 data-nosnippet>172</a>
 <a href=#173 id=173 data-nosnippet>173</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#174 id=174 data-nosnippet>174</a>    #[tokio::test]
-<a href=#175 id=175 data-nosnippet>175</a>    </span><span class="kw">async fn </span>get_by_uuid_works() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#175 id=175 data-nosnippet>175</a>    </span><span class="kw">async fn </span>get_by_uuid_returns_matching_execution() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#176 id=176 data-nosnippet>176</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#177 id=177 data-nosnippet>177</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#178 id=178 data-nosnippet>178</a>        <span class="kw">let </span>ex1 = TestExecution::init(<span class="string">"test"</span>, tr.id(), c).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -185,7 +185,7 @@
 <a href=#185 id=185 data-nosnippet>185</a>
 <a href=#186 id=186 data-nosnippet>186</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#187 id=187 data-nosnippet>187</a>    #[tokio::test]
-<a href=#188 id=188 data-nosnippet>188</a>    </span><span class="kw">async fn </span>test_run_works() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#188 id=188 data-nosnippet>188</a>    </span><span class="kw">async fn </span>test_run_returns_parent_run() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#189 id=189 data-nosnippet>189</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#190 id=190 data-nosnippet>190</a>
 <a href=#191 id=191 data-nosnippet>191</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"A"</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -203,7 +203,7 @@
 <a href=#203 id=203 data-nosnippet>203</a>
 <a href=#204 id=204 data-nosnippet>204</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#205 id=205 data-nosnippet>205</a>    #[tokio::test]
-<a href=#206 id=206 data-nosnippet>206</a>    </span><span class="kw">async fn </span>set_exit_code_works() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#206 id=206 data-nosnippet>206</a>    </span><span class="kw">async fn </span>set_exit_code_persists_value() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#207 id=207 data-nosnippet>207</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#208 id=208 data-nosnippet>208</a>
 <a href=#209 id=209 data-nosnippet>209</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"A"</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -220,7 +220,7 @@
 <a href=#220 id=220 data-nosnippet>220</a>        <span class="prelude-val">Ok</span>(())
 <a href=#221 id=221 data-nosnippet>221</a>    }
 <a href=#222 id=222 data-nosnippet>222</a>
-<a href=#223 id=223 data-nosnippet>223</a>    <span class="comment">// Status of Initialising is checked in `init_works` above
+<a href=#223 id=223 data-nosnippet>223</a>    <span class="comment">// Status of Initialising is checked in `init_creates_execution_with_initialising_status` above
 <a href=#224 id=224 data-nosnippet>224</a>    </span><span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#225 id=225 data-nosnippet>225</a>    #[test_case(Status::Provisioning; <span class="string">"provisioning"</span>)]
 <a href=#226 id=226 data-nosnippet>226</a>    #[test_case(Status::Running; <span class="string">"running"</span>)]
@@ -243,7 +243,7 @@
 <a href=#243 id=243 data-nosnippet>243</a>
 <a href=#244 id=244 data-nosnippet>244</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#245 id=245 data-nosnippet>245</a>    #[tokio::test]
-<a href=#246 id=246 data-nosnippet>246</a>    </span><span class="kw">async fn </span>status_history_works() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#246 id=246 data-nosnippet>246</a>    </span><span class="kw">async fn </span>status_history_returns_entries_newest_first() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#247 id=247 data-nosnippet>247</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#248 id=248 data-nosnippet>248</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#249 id=249 data-nosnippet>249</a>        <span class="kw">let </span>ex = TestExecution::init(<span class="string">"test"</span>, tr.id(), c).<span class="kw">await</span><span class="question-mark">?</span>; <span class="comment">// sets Status::Initialising
@@ -264,7 +264,7 @@
 <a href=#264 id=264 data-nosnippet>264</a>    #[test_case(Status::Failed; <span class="string">"failed"</span>)]
 <a href=#265 id=265 data-nosnippet>265</a>    #[test_case(Status::Unrunnable; <span class="string">"unrunnable"</span>)]
 <a href=#266 id=266 data-nosnippet>266</a>    #[tokio::test]
-<a href=#267 id=267 data-nosnippet>267</a>    </span><span class="kw">async fn </span>terminal_status_sets_completed_at(status: Status) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#267 id=267 data-nosnippet>267</a>    </span><span class="kw">async fn </span>set_terminal_status_sets_completed_at(status: Status) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#268 id=268 data-nosnippet>268</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#269 id=269 data-nosnippet>269</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#270 id=270 data-nosnippet>270</a>        <span class="kw">let </span>ex = TestExecution::init(<span class="string">"test"</span>, tr.id(), c).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -282,7 +282,7 @@
 <a href=#282 id=282 data-nosnippet>282</a>    #[test_case(Status::Provisioning; <span class="string">"provisioning"</span>)]
 <a href=#283 id=283 data-nosnippet>283</a>    #[test_case(Status::Running; <span class="string">"running"</span>)]
 <a href=#284 id=284 data-nosnippet>284</a>    #[tokio::test]
-<a href=#285 id=285 data-nosnippet>285</a>    </span><span class="kw">async fn </span>non_terminal_status_does_not_set_completed_at(status: Status) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#285 id=285 data-nosnippet>285</a>    </span><span class="kw">async fn </span>set_non_terminal_status_does_not_set_completed_at(status: Status) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#286 id=286 data-nosnippet>286</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#287 id=287 data-nosnippet>287</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#288 id=288 data-nosnippet>288</a>        <span class="kw">let </span>ex = TestExecution::init(<span class="string">"test"</span>, tr.id(), c).<span class="kw">await</span><span class="question-mark">?</span>;

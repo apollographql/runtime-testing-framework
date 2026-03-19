@@ -105,7 +105,7 @@
 <a href=#105 id=105 data-nosnippet>105</a>        <span class="string">"status rollback"
 <a href=#106 id=106 data-nosnippet>106</a>    </span>)]
 <a href=#107 id=107 data-nosnippet>107</a>    #[test]
-<a href=#108 id=108 data-nosnippet>108</a>    </span><span class="kw">fn </span>payload_validation_works(status: Status, exit_code: <span class="prelude-ty">Option</span>&lt;u8&gt;, expected: <span class="prelude-ty">Result</span>&lt;()&gt;) {
+<a href=#108 id=108 data-nosnippet>108</a>    </span><span class="kw">fn </span>validate(status: Status, exit_code: <span class="prelude-ty">Option</span>&lt;u8&gt;, expected: <span class="prelude-ty">Result</span>&lt;()&gt;) {
 <a href=#109 id=109 data-nosnippet>109</a>        <span class="kw">let </span>payload = SetStatusPayload {
 <a href=#110 id=110 data-nosnippet>110</a>            status,
 <a href=#111 id=111 data-nosnippet>111</a>            message: <span class="prelude-val">None</span>,
@@ -124,7 +124,7 @@
 <a href=#124 id=124 data-nosnippet>124</a>    #[test_case(Failed; <span class="string">"failed"</span>)]
 <a href=#125 id=125 data-nosnippet>125</a>    #[test_case(Unrunnable; <span class="string">"unrunnable"</span>)]
 <a href=#126 id=126 data-nosnippet>126</a>    #[test]
-<a href=#127 id=127 data-nosnippet>127</a>    </span><span class="kw">fn </span>attempt_to_set_second_terminal_status_is_invalid(current: Status) {
+<a href=#127 id=127 data-nosnippet>127</a>    </span><span class="kw">fn </span>validate_second_terminal_status_is_invalid(current: Status) {
 <a href=#128 id=128 data-nosnippet>128</a>        <span class="kw">let </span>payload = SetStatusPayload {
 <a href=#129 id=129 data-nosnippet>129</a>            status: Successful,
 <a href=#130 id=130 data-nosnippet>130</a>            message: <span class="prelude-val">None</span>,

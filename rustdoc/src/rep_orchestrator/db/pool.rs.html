@@ -57,7 +57,7 @@
 <a href=#57 id=57 data-nosnippet>57</a>
 <a href=#58 id=58 data-nosnippet>58</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#59 id=59 data-nosnippet>59</a>    #[tokio::test]
-<a href=#60 id=60 data-nosnippet>60</a>    </span><span class="kw">async fn </span>check_works_with_a_running_db() {
+<a href=#60 id=60 data-nosnippet>60</a>    </span><span class="kw">async fn </span>check_db_conn_returns_ok_with_running_db() {
 <a href=#61 id=61 data-nosnippet>61</a>        <span class="kw">let </span>res = check_db_conn().<span class="kw">await</span>;
 <a href=#62 id=62 data-nosnippet>62</a>        <span class="macro">assert!</span>(res.is_ok(), <span class="string">"{res:?}"</span>);
 <a href=#63 id=63 data-nosnippet>63</a>    }

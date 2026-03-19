@@ -196,7 +196,7 @@
 <a href=#196 id=196 data-nosnippet>196</a>
 <a href=#197 id=197 data-nosnippet>197</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#198 id=198 data-nosnippet>198</a>    #[tokio::test]
-<a href=#199 id=199 data-nosnippet>199</a>    </span><span class="kw">async fn </span>init_works() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#199 id=199 data-nosnippet>199</a>    </span><span class="kw">async fn </span>init_creates_run_with_initialising_status() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#200 id=200 data-nosnippet>200</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#201 id=201 data-nosnippet>201</a>        <span class="kw">let </span>res = TestRun::init(<span class="string">"test"</span>, c).<span class="kw">await</span>;
 <a href=#202 id=202 data-nosnippet>202</a>        <span class="macro">assert!</span>(res.is_ok(), <span class="string">"{res:?}"</span>);
@@ -212,7 +212,7 @@
 <a href=#212 id=212 data-nosnippet>212</a>
 <a href=#213 id=213 data-nosnippet>213</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#214 id=214 data-nosnippet>214</a>    #[tokio::test]
-<a href=#215 id=215 data-nosnippet>215</a>    </span><span class="kw">async fn </span>get_by_id_works() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#215 id=215 data-nosnippet>215</a>    </span><span class="kw">async fn </span>get_by_id_returns_matching_run() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#216 id=216 data-nosnippet>216</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#217 id=217 data-nosnippet>217</a>        <span class="kw">let </span>tr1 = TestRun::init(<span class="string">"test"</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#218 id=218 data-nosnippet>218</a>        <span class="kw">let </span>tr2 = TestRun::get_by_id(tr1.id, c).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -224,7 +224,7 @@
 <a href=#224 id=224 data-nosnippet>224</a>
 <a href=#225 id=225 data-nosnippet>225</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#226 id=226 data-nosnippet>226</a>    #[tokio::test]
-<a href=#227 id=227 data-nosnippet>227</a>    </span><span class="kw">async fn </span>get_by_id_unchecked_works() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#227 id=227 data-nosnippet>227</a>    </span><span class="kw">async fn </span>get_by_id_unchecked_returns_matching_run() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#228 id=228 data-nosnippet>228</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#229 id=229 data-nosnippet>229</a>        <span class="kw">let </span>tr1 = TestRun::init(<span class="string">"test"</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#230 id=230 data-nosnippet>230</a>        <span class="kw">let </span>tr2 = TestRun::get_by_id_unchecked(tr1.id, c).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -236,7 +236,7 @@
 <a href=#236 id=236 data-nosnippet>236</a>
 <a href=#237 id=237 data-nosnippet>237</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#238 id=238 data-nosnippet>238</a>    #[tokio::test]
-<a href=#239 id=239 data-nosnippet>239</a>    </span><span class="kw">async fn </span>get_by_uuid_works() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#239 id=239 data-nosnippet>239</a>    </span><span class="kw">async fn </span>get_by_uuid_returns_matching_run() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#240 id=240 data-nosnippet>240</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#241 id=241 data-nosnippet>241</a>        <span class="kw">let </span>tr1 = TestRun::init(<span class="string">"test"</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#242 id=242 data-nosnippet>242</a>        <span class="kw">let </span>tr2 = TestRun::get_by_uuid(<span class="kw-2">&amp;</span>tr1.uuid, c).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -248,7 +248,7 @@
 <a href=#248 id=248 data-nosnippet>248</a>
 <a href=#249 id=249 data-nosnippet>249</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#250 id=250 data-nosnippet>250</a>    #[tokio::test]
-<a href=#251 id=251 data-nosnippet>251</a>    </span><span class="kw">async fn </span>executions_works() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#251 id=251 data-nosnippet>251</a>    </span><span class="kw">async fn </span>executions_returns_all_associated_executions() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#252 id=252 data-nosnippet>252</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#253 id=253 data-nosnippet>253</a>
 <a href=#254 id=254 data-nosnippet>254</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"A"</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -263,7 +263,7 @@
 <a href=#263 id=263 data-nosnippet>263</a>        <span class="prelude-val">Ok</span>(())
 <a href=#264 id=264 data-nosnippet>264</a>    }
 <a href=#265 id=265 data-nosnippet>265</a>
-<a href=#266 id=266 data-nosnippet>266</a>    <span class="comment">// Status of Initialising is checked in `init_works` above
+<a href=#266 id=266 data-nosnippet>266</a>    <span class="comment">// Status of Initialising is checked in `init_creates_run_with_initialising_status` above
 <a href=#267 id=267 data-nosnippet>267</a>    </span><span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#268 id=268 data-nosnippet>268</a>    #[test_case(Status::Resolving; <span class="string">"resolving"</span>)]
 <a href=#269 id=269 data-nosnippet>269</a>    #[test_case(Status::Provisioning; <span class="string">"provisioning"</span>)]
@@ -286,7 +286,7 @@
 <a href=#286 id=286 data-nosnippet>286</a>
 <a href=#287 id=287 data-nosnippet>287</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
 <a href=#288 id=288 data-nosnippet>288</a>    #[tokio::test]
-<a href=#289 id=289 data-nosnippet>289</a>    </span><span class="kw">async fn </span>status_history_works() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#289 id=289 data-nosnippet>289</a>    </span><span class="kw">async fn </span>status_history_returns_entries_newest_first() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#290 id=290 data-nosnippet>290</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
 <a href=#291 id=291 data-nosnippet>291</a>        <span class="kw">let </span>tr = TestRun::init(<span class="string">"test"</span>, c).<span class="kw">await</span><span class="question-mark">?</span>; <span class="comment">// sets Status::Initialising
 <a href=#292 id=292 data-nosnippet>292</a>        </span>tr.set_status(Status::Running, <span class="prelude-val">None</span>, c).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -361,7 +361,7 @@
 <a href=#361 id=361 data-nosnippet>361</a>    </span><span class="attr">#[test_case(Failed, Successful, <span class="kw-2">&amp;</span>[Failed]</span>, <span class="prelude-val">None</span>; <span class="string">"final successful but already failed"</span>)]
 <a href=#362 id=362 data-nosnippet>362</a>    <span class="attr">#[test_case(Unrunnable, Successful, <span class="kw-2">&amp;</span>[Unrunnable]</span>, <span class="prelude-val">None</span>; <span class="string">"final successful but already unrunnable"</span>)]
 <a href=#363 id=363 data-nosnippet>363</a>    <span class="attr">#[tokio::test]
-<a href=#364 id=364 data-nosnippet>364</a>    </span><span class="kw">async fn </span>status_after_execution_update_works(
+<a href=#364 id=364 data-nosnippet>364</a>    </span><span class="kw">async fn </span>status_after_execution_update(
 <a href=#365 id=365 data-nosnippet>365</a>        run_status: Status,
 <a href=#366 id=366 data-nosnippet>366</a>        ex_status: Status,
 <a href=#367 id=367 data-nosnippet>367</a>        siblings: <span class="kw-2">&amp;</span>[Status],
