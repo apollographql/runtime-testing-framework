@@ -1,9 +1,9 @@
 <!-- diataxis-type: explanation -->
 
-# Concepts and Architecture
+# Concepts and architecture
 
-This page provides a high-level overview of RTF's architecture and the key concepts that inform its
-design.
+This page provides a high-level overview of RTF and REP's architecture and the key concepts that
+inform their design.
 
 ## Crates
 
@@ -21,6 +21,10 @@ The `rtf-config` crate is the heart of RTF. It handles:
 The crate exposes a [ResolutionContext][1] trait that abstracts all IO operations, enabling
 testability and CLI control over execution.
 
+The `rep-orchestrator` crate is a server-side orchestration layer for REP. It is an [axum][2] HTTP
+server that receives test plans and manages the lifecycle of test runs and individual test
+executions.
+
 The `rtf-integrations` crate provides the `rtf-config` crate with clients to make various HTTP
 requests.
 
@@ -32,44 +36,101 @@ When a user runs `rtf run test-plan.yaml`, the following flow occurs:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                              rtf run                                     │
+│                              rtf run                                    │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  1. Load Test Plan                                                       │
-│     - Parse test-plan.yaml                                               │
-│     - Load custom provider definitions                                   │
-│     - Resolve scenario/environment references (local or GitHub)          │
-│     - Apply any overrides                                                │
+│  1. Load Test Plan                                                      │
+│     - Parse test-plan.yaml                                              │
+│     - Load custom provider definitions                                  │
+│     - Resolve scenario/environment references (local or GitHub)         │
+│     - Apply any overrides                                               │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  2. Template Test Plan                                                   │
-│     - Substitute variables into test plan.                               │
-│     - Run static analysis checks                                         │
+│  2. Template Test Plan                                                  │
+│     - Substitute variables into test plan.                              │
+│     - Run static analysis checks                                        │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  3. Execute Environment Setup                                            │
-│     - Resolve file providers                                             │
-│     - Run setup command                                                  │
+│  3. Execute Environment Setup                                           │
+│     - Resolve file providers                                            │
+│     - Run setup command                                                 │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  4. Execute Scenario                                                     │
-│     - Resolve file providers                                             │
-│     - Run scenario command                                               │
+│  4. Execute Scenario                                                    │
+│     - Resolve file providers                                            │
+│     - Run scenario command                                              │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  5. Execute Environment Teardown                                         │
-│     - Resolve file providers                                             │
-│     - Run teardown command                                               │
+│  5. Execute Environment Teardown                                        │
+│     - Resolve file providers                                            │
+│     - Run teardown command                                              │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+## RTF and REP
+
+RTF and REP are related but distinct systems that serve different execution contexts:
+
+- **RTF CLI** (`rtf`) is a local command-line tool. A developer runs it directly to perform actions
+  against test plans on the same system the CLI is hosted on.
+- **REP** (Runtime Execution Platform) is a server-side system. It receives test plans over HTTP,
+  manages their execution asynchronously, and reports results back to callers via status endpoints.
+
+The handoff point between the two systems is the `RepPayload` — a resolved test plan produced by
+`rtf rep prepare` and submitted to REP via `POST /test-run/trigger`. REP does not replace the RTF
+CLI; they are complementary tools for different execution contexts.
+
+### REP data flow
+
+When a caller triggers a test run via REP:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  POST /test-run/trigger (RepPayload)                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  1. Create Test Run                                                     │
+│     - Test run record created in DB (status: Initialising)              │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  2. Resolve                                                             │
+│     - Resolver task picks up the run                                    │
+│     - Test plan resolved into individual executions (status: Resolving) │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  3. Provision                                                           │
+│     - Event loop provisions the environment (status: Provisioning)      │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  4. Run                                                                 │
+│     - Scenario job dispatched (status: Running)                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  5. Complete                                                            │
+│     - Event loop monitors for terminal status                           │
+│       (Successful / Failed)                                             │
+│     - Environment teardown run                                          │
+│     - Test run marked complete                                          │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -139,24 +200,28 @@ All IO in providers must go through the `ResolutionContext` trait. This abstract
 - Gives the CLI control over execution
 - Provides a consistent interface for file operations, HTTP requests, and command execution
 
-See [Use of IO in Providers](context.md) for more details.
+See [Use of IO in Providers][3] for more details.
 
 ## Design principles
 
 RTF follows several key design principles:
 
 1. **Composition over embedding** - RTF composes with external tools rather than embedding them. See
-   the [Overview](../../explanation/overview.md) for more on this philosophy.
+   the [Overview][4] for more on this philosophy.
 
 2. **Plumbing and porcelain** - Commands are split into low-level "plumbing" (like `template`) and
-   high-level "porcelain" (like `run`). See
-   [Plumbing vs Porcelain](cli-design/plumbing-vs-porcelain.md).
+   high-level "porcelain" (like `run`). See [Plumbing vs Porcelain][5].
 
-3. **No built-in magic** - Commands don't have special inline logic. See
-   [No Built-in Magic](cli-design/no-built-in-magic.md).
+3. **No built-in magic** - Commands don't have special inline logic. See [No Built-in Magic][6].
 
 4. **Fail fast with good errors** - RTF validates early and reports all known errors in batch rather
-   than failing on the first error. See [Error Handling](../reference/error-handling.md).
+   than failing on the first error. See [Error Handling][7].
 
 [0]: https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html
 [1]: https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs
+[2]: https://docs.rs/axum
+[3]: context.md
+[4]: ../../explanation/overview.md
+[5]: cli-design/plumbing-vs-porcelain.md
+[6]: cli-design/no-built-in-magic.md
+[7]: ../reference/error-handling.md

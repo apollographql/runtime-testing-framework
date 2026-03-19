@@ -42,7 +42,7 @@
 
 # Developer Documentation
 
-- [Understanding RTF](developer/explanation/index.md)
+- [Understanding RTF and REP](developer/explanation/index.md)
   - [Concepts and Architecture](developer/explanation/concepts-and-architecture.md)
   - [Logging Philosophy](developer/explanation/logging-philosophy.md)
   - [Use of IO in Providers](developer/explanation/context.md)
