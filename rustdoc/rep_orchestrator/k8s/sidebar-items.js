@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CLUSTER_API_NAMESPACE","ENVIRONMENT_CONFIG_FILENAME","EXECUTION_ID_LABEL","SCENARIO_CONFIG_FILENAME","TOOLBOX_IMAGE"],"enum":["Cluster","Error","WatchOutcome"],"fn":["env_configmap_name","workflow_name"],"struct":["ClusterClients","Workflow","WorkflowSpec"],"trait":["Client"],"type":["Result"]};
