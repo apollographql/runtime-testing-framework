@@ -19,7 +19,7 @@ impl Execution for Generic {
     type Environment = EnvironmentExecution;
 }
 
-/// Marker for the REP (Runtime Execution Platform) test plan variant.
+/// Marker for the REP (Runtime Environment Provisioner) test plan variant.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Rep;
 

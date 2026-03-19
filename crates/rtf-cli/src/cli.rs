@@ -137,7 +137,7 @@ pub enum Command {
     /// Output json schemas for environment configuration
     JsonSchemas { config: SchemasConfig },
 
-    /// Commands for the REP (Runtime Execution Platform) service
+    /// Commands for the REP (Runtime Environment Provisioner) service
     Rep {
         #[clap(subcommand)]
         subcommand: RepSubcommand,

@@ -83,8 +83,9 @@ RTF and REP are related but distinct systems that serve different execution cont
 
 - **RTF CLI** (`rtf`) is a local command-line tool. A developer runs it directly to perform actions
   against test plans on the same system the CLI is hosted on.
-- **REP** (Runtime Execution Platform) is a server-side system. It receives test plans over HTTP,
-  manages their execution asynchronously, and reports results back to callers via status endpoints.
+- **REP (Runtime Environment Provisioner) Orchestrator Service** is a server-side system. It
+  receives test plans over HTTP, manages their execution in a REP provisioned cluster
+  asynchronously, and reports results back to callers via status endpoints.
 
 The handoff point between the two systems is the `RepPayload` — a resolved test plan produced by
 `rtf rep prepare` and submitted to REP via `POST /test-run/trigger`. REP does not replace the RTF
