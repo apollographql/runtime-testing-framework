@@ -23,7 +23,7 @@ async fn trigger_rep_prepare_test_plan(t: &TestHelper) -> anyhow::Result<TestRun
 }
 
 #[tokio::test]
-async fn health_check_works() {
+async fn health_returns_200() {
     let t = TestHelper::new();
 
     let resp = t.get("health").await.unwrap();
@@ -53,7 +53,7 @@ async fn trigger_response_summary_is_initialising() {
 }
 
 #[tokio::test]
-async fn test_run_status_returns_200_for_known_run() {
+async fn run_status_returns_200_for_known_run() {
     let t = TestHelper::new();
 
     let from_trigger = trigger_rep_prepare_test_plan(&t).await.unwrap();
@@ -66,7 +66,7 @@ async fn test_run_status_returns_200_for_known_run() {
 }
 
 #[tokio::test]
-async fn test_run_status_returns_404_for_unknown_run() {
+async fn run_status_returns_404_for_unknown_run() {
     let t = TestHelper::new();
 
     let resp = t
@@ -98,7 +98,7 @@ async fn prepare_status_update_test(t: &TestHelper) -> Uuid {
 }
 
 #[tokio::test]
-async fn test_execution_status_returns_200_for_known_execution() {
+async fn execution_status_returns_200_for_known_execution() {
     let t = TestHelper::new();
 
     let ex_id = prepare_status_update_test(&t).await;
@@ -111,7 +111,7 @@ async fn test_execution_status_returns_200_for_known_execution() {
 }
 
 #[tokio::test]
-async fn test_execution_status_returns_404_for_unknown_execution() {
+async fn execution_status_returns_404_for_unknown_execution() {
     let t = TestHelper::new();
 
     let resp = t
@@ -136,7 +136,7 @@ fn su(status: Status, exit_code: Option<u8>) -> SetStatusPayload {
 #[test_case(&[su(Provisioning, None), su(Running, None), su(Failed, Some(1))]; "failed")]
 #[test_case(&[su(Provisioning, None), su(Unrunnable, None)]; "unrunnable")]
 #[tokio::test]
-async fn update_test_execution_status_valid_sequence_works(payloads: &[SetStatusPayload]) {
+async fn execution_status_valid_update_sequence_accepted(payloads: &[SetStatusPayload]) {
     let t = TestHelper::new();
 
     let ex_id = prepare_status_update_test(&t).await;
@@ -171,7 +171,7 @@ async fn update_test_execution_status_valid_sequence_works(payloads: &[SetStatus
 #[test_case(&[], su(Unrunnable, Some(2)); "unrunnable with exit code")]
 #[test_case(&[], su(Running, Some(3)); "non-terminal with exit code")]
 #[tokio::test]
-async fn update_test_execution_status_invalid_sequence_returns_400(
+async fn execution_status_invalid_update_sequence_returns_400(
     valid_payloads: &[SetStatusPayload],
     invalid_payload: SetStatusPayload,
 ) {
@@ -202,7 +202,7 @@ async fn update_test_execution_status_invalid_sequence_returns_400(
 }
 
 #[tokio::test]
-async fn update_test_execution_status_sets_exit_code() {
+async fn execution_status_update_sets_exit_code() {
     let t = TestHelper::new();
 
     let ex_id = prepare_status_update_test(&t).await;
