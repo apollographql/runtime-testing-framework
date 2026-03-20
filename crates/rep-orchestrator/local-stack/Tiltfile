@@ -167,7 +167,8 @@ k8s_yaml(helm(
 
 k8s_resource(
     "rep-orchestrator",
+    objects=["rep-orchestrator:secret:orchestrator"],
     port_forwards=["8035:8035"],
-    resource_deps=["postgres"],
+    resource_deps=["cluster-setup", "postgres", "argo-install"],
     labels=["rep-orchestrator"],
 )

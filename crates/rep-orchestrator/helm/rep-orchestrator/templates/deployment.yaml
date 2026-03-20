@@ -35,9 +35,15 @@ spec:
             - name: RTF_PORT
               value: {{ .Values.config.port | quote }}
             - name: RTF_APOLLO_KEY
-              value: {{ .Values.config.apolloKey | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rep-orchestrator.fullname" . }}
+                  key: apollo-key
             - name: RTF_GITHUB_TOKEN
-              value: {{ .Values.config.githubToken | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rep-orchestrator.fullname" . }}
+                  key: github-token
             - name: RTF_DB_HOST
               value: {{ .Values.db.host | quote }}
             - name: RTF_DB_PORT
@@ -47,7 +53,10 @@ spec:
             - name: RTF_DB_USER
               value: {{ .Values.db.user | quote }}
             - name: RTF_DB_PASS
-              value: {{ .Values.db.pass | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rep-orchestrator.fullname" . }}
+                  key: db-pass
           startupProbe:
             httpGet:
               path: /health
@@ -59,9 +68,3 @@ spec:
               path: /health
               port: {{ .Values.service.port }}
             periodSeconds: 5
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: {{ .Values.service.port }}
-            periodSeconds: 10
-            failureThreshold: 18
