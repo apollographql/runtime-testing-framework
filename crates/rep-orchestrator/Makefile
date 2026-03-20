@@ -1,3 +1,14 @@
+# Local kind cluster management
+
+.PHONY: cluster-up
+cluster-up:
+	@./local-stack/setup.sh
+
+.PHONY: cluster-down
+cluster-down:
+	@./local-stack/teardown.sh
+
+
 # Test actions
 
 .PHONY: db-tests
