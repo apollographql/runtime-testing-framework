@@ -54,6 +54,7 @@
   - [PR Checks](developer/howto/pr-checks.md)
 
 - [Reference](developer/reference/index.md)
+  - [Code style and idioms](developer/reference/code-style-and-idioms.md)
   - [Style Guide](developer/reference/style-guide.md)
   - [Error Handling](developer/reference/error-handling.md)
   - [Logging Reference](developer/reference/logging.md)
