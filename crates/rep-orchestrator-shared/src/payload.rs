@@ -1,8 +1,5 @@
-use crate::Status;
-use rtf_config::{
-    StableSource,
-    formats::{CustomProviderDefinition, RepTestPlan},
-};
+use crate::{Status, test_plan::RepTestPlan};
+use rtf_config::{StableSource, formats::CustomProviderDefinition};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

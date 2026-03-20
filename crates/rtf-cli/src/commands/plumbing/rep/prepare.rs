@@ -5,11 +5,12 @@ use crate::{
         load_and_resolve_test_plan_from_local,
     },
 };
-use rep_orchestrator_shared::{SourceKeyedArrayMap, TriggerPayload};
+use rep_orchestrator_shared::{RepTestPlan, SourceKeyedArrayMap, TriggerPayload};
 use rtf_config::{
     StableSource,
     context::ResolutionContext,
-    formats::{RepTestPlan, Sources},
+    formats::Sources,
+    run::RunProviders,
     templating::{Template, TemplateContext},
 };
 use std::{collections::HashMap, mem::take, sync::Arc};
@@ -67,7 +68,7 @@ async fn prepare_rep_test_plan_with_context(
 
         info!("extracting relative file providers for matrix variant {i}/{n}");
         variant.try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)?;
-        variant.try_extract_relative_files(&mut files, &ctx).await?;
+        try_extract_relative_files(&variant, &mut files, &ctx).await?;
     }
 
     let custom_providers = Arc::unwrap_or_clone(ctx.custom_provider_definitions());
@@ -90,6 +91,25 @@ async fn prepare_rep_test_plan_with_context(
             custom_providers: SourceKeyedArrayMap::from_data(raw_cps),
         })?,
     )?;
+
+    Ok(())
+}
+
+async fn try_extract_relative_files(
+    test_plan: &RepTestPlan,
+    files: &mut HashMap<(StableSource, String), String>,
+    ctx: &impl ResolutionContext,
+) -> anyhow::Result<()> {
+    test_plan
+        .environment
+        .execution
+        .try_extract_relative_files(files, ctx)
+        .await?;
+    test_plan
+        .scenario
+        .execution
+        .try_extract_relative_files(files, ctx)
+        .await?;
 
     Ok(())
 }
