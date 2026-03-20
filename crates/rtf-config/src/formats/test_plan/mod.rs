@@ -2,11 +2,11 @@ use crate::{
     checks::{self, Check},
     context::ResolutionContext,
     formats::{
-        CustomProviderDeclaration, EnvironmentConfig, Execution, Generic, Matrix, Rep, Result,
+        CustomProviderDeclaration, EnvironmentConfig, Execution, Generic, Matrix, Result,
         ScenarioConfig,
     },
     providers::file::{SourceDir, StableSource},
-    run::{Execute, RunProviders},
+    run::Execute,
     templating::{self, Scalar, Template, TemplateContext},
 };
 use rtf_integrations::github::{self, Client};
@@ -47,9 +47,6 @@ pub struct TestPlan<E: Execution> {
 
 /// Test plan that accepts any scenario/environment execution type.
 pub type TestPlanConfig = TestPlan<Generic>;
-
-/// Test plan restricted to Docker scenario + DockerCompose environment.
-pub type RepTestPlan = TestPlan<Rep>;
 
 impl<E: Execution> TestPlan<E> {
     /// Iteratate over all variants of this test plan that arise from [expanding](Matrix::try_expand)
@@ -153,25 +150,6 @@ impl<E: Execution> TestPlan<E> {
             scenario: ScenarioConfig::empty(),
             environment: EnvironmentConfig::empty(),
         }
-    }
-}
-
-impl TestPlan<Rep> {
-    pub async fn try_extract_relative_files(
-        &self,
-        files: &mut HashMap<(StableSource, String), String>,
-        ctx: &impl ResolutionContext,
-    ) -> Result<()> {
-        self.environment
-            .execution
-            .try_extract_relative_files(files, ctx)
-            .await?;
-        self.scenario
-            .execution
-            .try_extract_relative_files(files, ctx)
-            .await?;
-
-        Ok(())
     }
 }
 

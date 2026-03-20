@@ -1,12 +1,10 @@
-use crate::{
-    db::{
-        Queryable, Result,
-        status::{Status, StatusTracked, StatusUpdate},
-        test_execution::TestExecution,
-    },
-    response_types::TestRunSummary,
+use crate::db::{
+    Queryable, Result,
+    status::{Status, StatusTracked, StatusUpdate},
+    test_execution::TestExecution,
 };
 use chrono::{DateTime, Utc};
+use rep_orchestrator_shared::summary::TestRunSummary;
 use sqlx::{FromRow, PgConnection};
 use uuid::Uuid;
 
@@ -134,11 +132,11 @@ impl TestRun {
         Ok(TestRunSummary {
             id: self.uuid,
             name: self.name,
-            current_status: current.status,
+            current_status: current.status.into(),
             started_at: self.started_at,
             updated_at: current.updated_at,
             completed_at: self.completed_at,
-            status_history,
+            status_history: status_history.into_iter().map(Into::into).collect(),
             executions,
         })
     }

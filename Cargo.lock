@@ -2681,6 +2681,7 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "kube-runtime",
+ "rep-orchestrator-shared",
  "reqwest",
  "rtf-cli",
  "rtf-config",
@@ -2697,6 +2698,16 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "rep-orchestrator-shared"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "rtf-config",
+ "serde",
  "uuid",
 ]
 
@@ -2800,6 +2811,7 @@ dependencies = [
  "indoc",
  "open",
  "predicates",
+ "rep-orchestrator-shared",
  "rtf-config",
  "rtf-core",
  "rtf-integrations",

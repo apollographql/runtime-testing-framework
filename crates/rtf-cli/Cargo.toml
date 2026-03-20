@@ -9,6 +9,7 @@ name = "rtf"
 path = "src/main.rs"
 
 [dependencies]
+rep-orchestrator-shared = { path = "../rep-orchestrator-shared" }
 rtf-config = { path = "../rtf-config" }
 rtf-core = { path = "../rtf-core" }
 rtf-integrations = { path = "../rtf-integrations" }

@@ -1,12 +1,19 @@
-use crate::{
-    StableSource,
-    formats::{CustomProviderDefinition, RepTestPlan},
-};
+use crate::{status::Status, test_plan::RepTestPlan};
+use rtf_config::{StableSource, formats::CustomProviderDefinition};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct RepPayload {
+pub struct SetStatusPayload {
+    pub status: Status,
+    #[serde(default)]
+    pub message: Option<String>,
+    #[serde(default)]
+    pub exit_code: Option<u8>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TriggerPayload {
     pub test_plan: RepTestPlan,
     pub relative_files: SourceKeyedArrayMap<String>,
     pub custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
@@ -76,7 +83,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::StableSource;
+    use rtf_config::StableSource;
 
     #[test]
     fn source_keyed_array_map_from_data_deduplicates_equal_values() {

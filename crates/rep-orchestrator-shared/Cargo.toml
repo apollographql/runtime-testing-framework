@@ -1,0 +1,11 @@
+[package]
+name = "rep-orchestrator-shared"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rtf-config = { path = "../rtf-config" }
+
+chrono.workspace = true
+serde.workspace = true
+uuid.workspace = true

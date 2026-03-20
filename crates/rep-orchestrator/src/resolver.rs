@@ -6,11 +6,11 @@ use crate::{
     event_loop::{Event, EventType},
     state::TestRunWithPayload,
 };
+use rep_orchestrator_shared::{payload::TriggerPayload, test_plan::RepTestPlan};
 use rtf_config::{
     StableSource,
     checks::Check,
     context::ResolutionContext,
-    formats::{RepPayload, RepTestPlan},
     inlining::InlineMode,
     run::RunProviders,
     templating::{Template, TemplateContext},
@@ -63,7 +63,7 @@ type Result<T> = std::result::Result<T, ResolverError>;
 
 async fn resolve_test_plan<H: UpdateHandle>(
     test_run: TestRun,
-    payload: RepPayload,
+    payload: TriggerPayload,
     handle: &mut H,
     cfg: &Config,
     etx: &UnboundedSender<Event>,
@@ -94,7 +94,7 @@ async fn resolve_test_plan<H: UpdateHandle>(
 
 async fn try_resolve<H: UpdateHandle>(
     test_run: &TestRun,
-    payload: RepPayload,
+    payload: TriggerPayload,
     handle: &mut H,
     cfg: &Config,
     etx: &UnboundedSender<Event>,
@@ -146,8 +146,8 @@ async fn try_resolve<H: UpdateHandle>(
     Ok(())
 }
 
-fn prepare_resolution(cfg: &Config, payload: RepPayload) -> Result<(RepContext, RepTestPlan)> {
-    let RepPayload {
+fn prepare_resolution(cfg: &Config, payload: TriggerPayload) -> Result<(RepContext, RepTestPlan)> {
+    let TriggerPayload {
         mut test_plan,
         relative_files,
         custom_providers,
@@ -192,9 +192,13 @@ mod tests {
         db::{MockUpdateHandle, Status, TaggedStatusUpdate, TestRun},
     };
     use indoc::indoc;
+    use rep_orchestrator_shared::{
+        payload::{SourceKeyedArrayMap, TriggerPayload},
+        test_plan::RepTestPlan,
+    };
     use rtf_config::formats::{
         DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig, Matrix,
-        RepPayload, RepTestPlan, ScenarioConfig, SourceKeyedArrayMap,
+        ScenarioConfig,
     };
     use rtf_config::providers::file::compose::NamedComposeFileProvider;
     use rtf_config::templating::{Field, Scalar};
@@ -252,8 +256,8 @@ mod tests {
         }
     }
 
-    fn empty_payload() -> RepPayload {
-        RepPayload {
+    fn empty_payload() -> TriggerPayload {
+        TriggerPayload {
             test_plan: minimal_rep_test_plan(),
             relative_files: SourceKeyedArrayMap {
                 keys: vec![],
@@ -266,7 +270,7 @@ mod tests {
         }
     }
 
-    fn payload_with_conflicting_var() -> RepPayload {
+    fn payload_with_conflicting_var() -> TriggerPayload {
         // Conflicting key in both variables and matrix dimensions triggers TemplatingCheck
         let mut test_plan = minimal_rep_test_plan();
         test_plan
@@ -281,7 +285,8 @@ mod tests {
             .into(),
             include: vec![],
         };
-        RepPayload {
+
+        TriggerPayload {
             test_plan,
             relative_files: SourceKeyedArrayMap {
                 keys: vec![],
@@ -294,7 +299,7 @@ mod tests {
         }
     }
 
-    fn payload_with_bad_variant_names() -> RepPayload {
+    fn payload_with_bad_variant_names() -> TriggerPayload {
         // variant_names references a variable not in dimensions → MatrixExpansion fails
         let mut test_plan = minimal_rep_test_plan();
         test_plan.matrix = Matrix {
@@ -302,7 +307,8 @@ mod tests {
             dimensions: [("a".to_string(), vec![Scalar::String("val1".to_string())])].into(),
             include: vec![],
         };
-        RepPayload {
+
+        TriggerPayload {
             test_plan,
             relative_files: SourceKeyedArrayMap {
                 keys: vec![],
@@ -342,7 +348,7 @@ mod tests {
     #[test_case(payload_with_bad_variant_names(), "unable to expand matrix variants:"; "matrix_expansion_fails")]
     #[tokio::test]
     async fn resolve_test_plan_prepare_failure_sets_run_unrunnable(
-        payload: RepPayload,
+        payload: TriggerPayload,
         expected_msg: &str,
     ) {
         let test_run = TestRun::create_stub(1, "test");
@@ -398,7 +404,7 @@ mod tests {
         .expect("required compose file provider must deserialize");
         let mut test_plan = minimal_rep_test_plan();
         test_plan.environment.execution.compose_files = vec![required_compose];
-        let payload = RepPayload {
+        let payload = TriggerPayload {
             test_plan,
             relative_files: SourceKeyedArrayMap {
                 keys: vec![],

@@ -1,5 +1,5 @@
 use crate::{
-    formats::{DockerComposeEnvironment, DockerScenario, EnvironmentExecution, ScenarioExecution},
+    formats::{EnvironmentExecution, ScenarioExecution},
     run::{RunEnvironment, RunScenario},
 };
 use serde::{Serialize, de::DeserializeOwned};
@@ -17,13 +17,4 @@ pub struct Generic;
 impl Execution for Generic {
     type Scenario = ScenarioExecution;
     type Environment = EnvironmentExecution;
-}
-
-/// Marker for the REP (Runtime Environment Provisioner) test plan variant.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Rep;
-
-impl Execution for Rep {
-    type Scenario = DockerScenario;
-    type Environment = DockerComposeEnvironment;
 }
