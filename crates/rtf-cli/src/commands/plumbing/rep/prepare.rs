@@ -1,8 +1,7 @@
 use crate::{
     cli::Variables,
     commands::{
-        get_context_and_check_outdir, load_and_resolve_test_plan_from_github,
-        load_and_resolve_test_plan_from_local,
+        get_context, load_and_resolve_test_plan_from_github, load_and_resolve_test_plan_from_local,
     },
 };
 use rep_orchestrator_shared::{
@@ -19,17 +18,25 @@ use rtf_config::{
 use std::{collections::HashMap, mem::take, sync::Arc};
 use tracing::info;
 
-const REP_TEST_PLAN_PATH: &str = "rep-test-plan.json";
-
-pub async fn prepare_rep_test_plan(
+pub async fn write_rep_trigger_payload_to_stdout(
     test_plan_path: &str,
     github: bool,
     git_ref: Option<String>,
     variables: Variables,
-    outdir: &str,
-    force: bool,
 ) -> anyhow::Result<()> {
-    let (ctx, _outdir) = get_context_and_check_outdir(outdir, force)?;
+    let payload = prepare_rep_trigger_payload(test_plan_path, github, git_ref, variables).await?;
+    print!("{}", serde_json::to_string_pretty(&payload)?);
+
+    Ok(())
+}
+
+pub async fn prepare_rep_trigger_payload(
+    test_plan_path: &str,
+    github: bool,
+    git_ref: Option<String>,
+    variables: Variables,
+) -> anyhow::Result<TriggerPayload> {
+    let ctx = get_context();
 
     info!("loading and resolving test plan");
     let (test_plan, sources) = if github {
@@ -38,23 +45,17 @@ pub async fn prepare_rep_test_plan(
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
 
-    prepare_rep_test_plan_with_context(test_plan, sources, variables, ctx, outdir).await
+    prepare_rep_trigger_payload_with_context(test_plan, sources, variables, ctx).await
 }
 
-async fn prepare_rep_test_plan_with_context(
+async fn prepare_rep_trigger_payload_with_context(
     mut test_plan: RepTestPlan,
     sources: Sources,
     variables: Variables,
     mut ctx: impl ResolutionContext,
-    outdir: &str,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<TriggerPayload> {
     let (variable_sources, vars_file_src) = variables.merge(&mut test_plan, &ctx)?;
     ctx.set_sources(sources.with_variables_file(vars_file_src));
-
-    info!("creating output directory");
-    ctx.create_dir_all(outdir)?;
-    let outdir = ctx.canonicalize_path(outdir)?;
-    ctx.set_output_path(&outdir);
 
     let n = test_plan.matrix.n_variants();
     let mut files = HashMap::new();
@@ -86,16 +87,11 @@ async fn prepare_rep_test_plan_with_context(
         raw_cps.insert((StableSource::Scenario, k), def);
     }
 
-    ctx.write(
-        outdir.join(REP_TEST_PLAN_PATH),
-        serde_json::to_string_pretty(&TriggerPayload {
-            test_plan,
-            relative_files: SourceKeyedArrayMap::from_data(files),
-            custom_providers: SourceKeyedArrayMap::from_data(raw_cps),
-        })?,
-    )?;
-
-    Ok(())
+    Ok(TriggerPayload {
+        test_plan,
+        relative_files: SourceKeyedArrayMap::from_data(files),
+        custom_providers: SourceKeyedArrayMap::from_data(raw_cps),
+    })
 }
 
 async fn try_extract_relative_files(
