@@ -1,0 +1,6 @@
+image:
+  repository: rep-orchestrator-dev
+  tag: latest
+  pullPolicy: Never
+
+command: ["cargo", "watch", "-i", "tests/**", "-x", "run"]
