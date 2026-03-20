@@ -2,9 +2,9 @@ use assert_fs::{
     TempDir,
     prelude::{PathChild, PathCopy},
 };
+use rep_orchestrator_shared::TriggerPayload;
 use reqwest::{Client, Response};
 use rtf_cli::commands::plumbing::prepare_rep_test_plan;
-use rtf_config::formats::RepPayload;
 use serde::{Serialize, de::DeserializeOwned};
 use std::{fmt::Display, fs};
 
@@ -57,7 +57,7 @@ impl TestHelper {
         Ok(self.post(endpoint, body).await?.json().await?)
     }
 
-    pub async fn prepare_rep_payload(&self, test_plan_dir: &str) -> anyhow::Result<RepPayload> {
+    pub async fn prepare_rep_payload(&self, test_plan_dir: &str) -> anyhow::Result<TriggerPayload> {
         // For the sake of tests that need to volume mount into docker containers, we place our temp
         // directories in CARGO_TARGET_TMPDIR rather than /tmp. This allows us to avoid all of the
         // "fun" of OSX /tmp symlinks and the fact that docker under OSX runs in a VM that doesn't have

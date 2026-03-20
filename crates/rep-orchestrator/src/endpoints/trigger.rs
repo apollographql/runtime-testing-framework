@@ -1,10 +1,10 @@
 use crate::{conn, db::TestRun, error::Error, response_types::TestRunSummary, state::ServerState};
 use axum::{Json, extract::State};
-use rtf_config::formats::RepPayload;
+use rep_orchestrator_shared::TriggerPayload;
 
 pub async fn handler(
     State(state): State<ServerState>,
-    Json(payload): Json<RepPayload>,
+    Json(payload): Json<TriggerPayload>,
 ) -> Result<Json<TestRunSummary>, Error> {
     let conn = conn!();
     let test_run = TestRun::init(&payload.test_plan.name, conn).await?;

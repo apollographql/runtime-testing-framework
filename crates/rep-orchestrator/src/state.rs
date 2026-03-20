@@ -1,11 +1,11 @@
 use crate::db::TestRun;
-use rtf_config::formats::RepPayload;
+use rep_orchestrator_shared::TriggerPayload;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
 #[derive(Debug)]
 pub struct TestRunWithPayload {
     pub test_run: TestRun,
-    pub payload: RepPayload,
+    pub payload: TriggerPayload,
 }
 
 #[derive(Debug, Clone)]
@@ -23,8 +23,8 @@ impl ServerState {
     pub fn submit_test_plan(
         &self,
         test_run: TestRun,
-        payload: RepPayload,
-    ) -> Result<(), Box<RepPayload>> {
+        payload: TriggerPayload,
+    ) -> Result<(), Box<TriggerPayload>> {
         self.tx_resolve
             .send(TestRunWithPayload { test_run, payload })
             .map_err(|e| Box::new(e.0.payload))

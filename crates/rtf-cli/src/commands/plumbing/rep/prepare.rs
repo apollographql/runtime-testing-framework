@@ -5,10 +5,11 @@ use crate::{
         load_and_resolve_test_plan_from_local,
     },
 };
+use rep_orchestrator_shared::{SourceKeyedArrayMap, TriggerPayload};
 use rtf_config::{
     StableSource,
     context::ResolutionContext,
-    formats::{RepPayload, RepTestPlan, SourceKeyedArrayMap, Sources},
+    formats::{RepTestPlan, Sources},
     templating::{Template, TemplateContext},
 };
 use std::{collections::HashMap, mem::take, sync::Arc};
@@ -83,7 +84,7 @@ async fn prepare_rep_test_plan_with_context(
 
     ctx.write(
         outdir.join(REP_TEST_PLAN_PATH),
-        serde_json::to_string_pretty(&RepPayload {
+        serde_json::to_string_pretty(&TriggerPayload {
             test_plan,
             relative_files: SourceKeyedArrayMap::from_data(files),
             custom_providers: SourceKeyedArrayMap::from_data(raw_cps),

@@ -2706,6 +2706,7 @@ name = "rep-orchestrator-shared"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "rtf-config",
  "serde",
  "uuid",
 ]
@@ -2810,6 +2811,7 @@ dependencies = [
  "indoc",
  "open",
  "predicates",
+ "rep-orchestrator-shared",
  "rtf-config",
  "rtf-core",
  "rtf-integrations",
