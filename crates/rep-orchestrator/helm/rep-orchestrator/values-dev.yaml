@@ -3,4 +3,6 @@ image:
   tag: latest
   pullPolicy: Never
 
-command: ["cargo", "watch", "-i", "tests/**", "-x", "run"]
+db:
+  pass: password
+

@@ -100,9 +100,25 @@ local_resource(
     labels=["infra"],
 )
 
-# PostgreSQL (local only — not part of Helm chart)
-k8s_yaml("k8s/postgres.yaml")
-k8s_resource("postgres", port_forwards=["5432:5432"], labels=["rep-orchestrator"])
+# PostgreSQL (local only — not part of rep-orchestrator Helm chart)
+k8s_yaml(helm(
+    "helm/postgres",
+    name="postgres",
+    namespace="orchestrator",
+    values=["helm/postgres/values.yaml"],
+))
+k8s_resource("postgres", port_forwards=["5432:5432"], resource_deps=["postgres-config"], labels=["rep-orchestrator"])
+k8s_resource(
+    objects=[
+        "postgres:serviceaccount:orchestrator",
+        "postgres:secret:orchestrator",
+        "postgres:poddisruptionbudget:orchestrator",
+        "postgres:networkpolicy:orchestrator",
+    ],
+    new_name="postgres-config",
+    resource_deps=["cluster-setup"],
+    labels=["rep-orchestrator"],
+)
 
 # Image build
 if dev_mode:
@@ -131,9 +147,15 @@ else:
     ]
 
 # Helm deploy — DB connection wired to local postgres service
-helm_set = ["db.host=postgres", "db.pass=password"]
-if not dev_mode:
-    helm_set += ["image.repository=rep-orchestrator-prod", "image.pullPolicy=Never"]
+helm_set = ["db.host=postgres"]
+if dev_mode:
+    pass  # db.pass comes from values-dev.yaml
+else:
+    helm_set += [
+        "image.repository=rep-orchestrator-prod",
+        "image.pullPolicy=Never",
+        "db.pass=password",  # local postgres — not stored in values-prod.yaml
+    ]
 
 k8s_yaml(helm(
     "../helm/rep-orchestrator",

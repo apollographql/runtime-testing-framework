@@ -32,6 +32,12 @@ if (( ${#missing[@]} != 0 )); then
   exit 1
 fi
 
+echo "Configuring Helm repos..."
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update bitnami
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+helm dependency update "$SCRIPT_DIR/helm/postgres"
+
 echo "Creating kind clusters..."
 create_cluster "rtf-mgmt"
 create_cluster "rtf-workload"
