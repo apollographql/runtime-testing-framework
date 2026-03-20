@@ -33,6 +33,7 @@ without explicit configuration:
 
 - All use statements for a given file are placed at the top of the file in a single block
 - We always use nested imports rather than "line per import / module"
+- `use super::` is only permitted within test modules to bring in the code under test
 
 **Exceptions**
 
@@ -86,6 +87,9 @@ use axum::Router;
 use axum::routing::{get, post};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::unbounded_channel;
+
+// Incorrect - top level use super;
+use super::Result;
 ```
 
 ## Function returns
