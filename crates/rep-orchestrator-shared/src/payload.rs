@@ -1,4 +1,4 @@
-use crate::{Status, test_plan::RepTestPlan};
+use crate::{status::Status, test_plan::RepTestPlan};
 use rtf_config::{StableSource, formats::CustomProviderDefinition};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

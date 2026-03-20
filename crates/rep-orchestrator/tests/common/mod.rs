@@ -2,7 +2,7 @@ use assert_fs::{
     TempDir,
     prelude::{PathChild, PathCopy},
 };
-use rep_orchestrator_shared::TriggerPayload;
+use rep_orchestrator_shared::payload::TriggerPayload;
 use reqwest::{Client, Response};
 use rtf_cli::commands::plumbing::prepare_rep_test_plan;
 use serde::{Serialize, de::DeserializeOwned};

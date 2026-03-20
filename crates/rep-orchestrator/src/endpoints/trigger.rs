@@ -1,6 +1,6 @@
-use crate::{conn, db::TestRun, error::Error, response_types::TestRunSummary, state::ServerState};
+use crate::{conn, db::TestRun, error::Error, state::ServerState};
 use axum::{Json, extract::State};
-use rep_orchestrator_shared::TriggerPayload;
+use rep_orchestrator_shared::{payload::TriggerPayload, summary::TestRunSummary};
 
 pub async fn handler(
     State(state): State<ServerState>,

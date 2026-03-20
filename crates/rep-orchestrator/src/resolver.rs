@@ -6,7 +6,7 @@ use crate::{
     event_loop::{Event, EventType},
     state::TestRunWithPayload,
 };
-use rep_orchestrator_shared::{RepTestPlan, TriggerPayload};
+use rep_orchestrator_shared::{payload::TriggerPayload, test_plan::RepTestPlan};
 use rtf_config::{
     StableSource,
     checks::Check,
@@ -192,7 +192,10 @@ mod tests {
         db::{MockUpdateHandle, Status, TaggedStatusUpdate, TestRun},
     };
     use indoc::indoc;
-    use rep_orchestrator_shared::{RepTestPlan, SourceKeyedArrayMap, TriggerPayload};
+    use rep_orchestrator_shared::{
+        payload::{SourceKeyedArrayMap, TriggerPayload},
+        test_plan::RepTestPlan,
+    };
     use rtf_config::formats::{
         DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig, Matrix,
         ScenarioConfig,

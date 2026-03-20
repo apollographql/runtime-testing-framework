@@ -1,12 +1,10 @@
-use crate::{
-    db::{
-        Queryable, Result,
-        status::{Status, StatusTracked},
-        test_run::TestRun,
-    },
-    response_types::TestExecutionSummary,
+use crate::db::{
+    Queryable, Result,
+    status::{Status, StatusTracked},
+    test_run::TestRun,
 };
 use chrono::{DateTime, Utc};
+use rep_orchestrator_shared::summary::TestExecutionSummary;
 use sqlx::{Executor, FromRow, PgConnection};
 use uuid::Uuid;
 
@@ -105,7 +103,7 @@ impl TestExecution {
 
     pub async fn try_into_summary(self, conn: &mut PgConnection) -> Result<TestExecutionSummary> {
         let status_history = self.status_history(conn).await?;
-        let current: rep_orchestrator_shared::StatusUpdate =
+        let current: rep_orchestrator_shared::status::StatusUpdate =
             self.current_status(conn).await?.into();
 
         Ok(TestExecutionSummary {

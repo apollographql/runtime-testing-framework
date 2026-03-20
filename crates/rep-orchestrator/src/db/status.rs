@@ -104,7 +104,7 @@ pub struct StatusUpdate {
     pub(crate) updated_at: DateTime<Utc>,
 }
 
-impl From<StatusUpdate> for rep_orchestrator_shared::StatusUpdate {
+impl From<StatusUpdate> for rep_orchestrator_shared::status::StatusUpdate {
     fn from(u: StatusUpdate) -> Self {
         Self {
             status: u.status.into(),
@@ -166,9 +166,10 @@ impl PartialOrd for Status {
     }
 }
 
-impl From<Status> for rep_orchestrator_shared::Status {
+impl From<Status> for rep_orchestrator_shared::status::Status {
     fn from(s: Status) -> Self {
         use Status::*;
+
         match s {
             Initialising => Self::Initialising,
             Resolving => Self::Resolving,
@@ -181,9 +182,10 @@ impl From<Status> for rep_orchestrator_shared::Status {
     }
 }
 
-impl From<rep_orchestrator_shared::Status> for Status {
-    fn from(s: rep_orchestrator_shared::Status) -> Self {
-        use rep_orchestrator_shared::Status::*;
+impl From<rep_orchestrator_shared::status::Status> for Status {
+    fn from(s: rep_orchestrator_shared::status::Status) -> Self {
+        use rep_orchestrator_shared::status::Status::*;
+
         match s {
             Initialising => Self::Initialising,
             Resolving => Self::Resolving,

@@ -2,10 +2,13 @@
 use crate::{
     Error, Result, conn,
     db::{StatusTracked, TestExecution},
-    response_types::TestExecutionSummary,
 };
 use axum::{Json, extract::Path};
-use rep_orchestrator_shared::{SetStatusPayload, Status, StatusUpdate};
+use rep_orchestrator_shared::{
+    payload::SetStatusPayload,
+    status::{Status, StatusUpdate},
+    summary::TestExecutionSummary,
+};
 use uuid::Uuid;
 
 pub async fn get_handler(Path(id): Path<Uuid>) -> Result<Json<TestExecutionSummary>> {
@@ -79,7 +82,7 @@ fn validate(payload: &SetStatusPayload, current_status: Status) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rep_orchestrator_shared::Status::*;
+    use rep_orchestrator_shared::status::Status::*;
     use simple_test_case::test_case;
 
     // valid
@@ -99,7 +102,7 @@ mod tests {
     )]
     #[test]
     fn payload_validation_works(
-        status: rep_orchestrator_shared::Status,
+        status: rep_orchestrator_shared::status::Status,
         exit_code: Option<u8>,
         expected: Result<()>,
     ) {

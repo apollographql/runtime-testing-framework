@@ -1,4 +1,4 @@
-use crate::{Status, StatusUpdate};
+use crate::status::{Status, StatusUpdate};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

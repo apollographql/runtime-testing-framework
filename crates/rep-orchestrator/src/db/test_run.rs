@@ -1,12 +1,10 @@
-use crate::{
-    db::{
-        Queryable, Result,
-        status::{Status, StatusTracked, StatusUpdate},
-        test_execution::TestExecution,
-    },
-    response_types::TestRunSummary,
+use crate::db::{
+    Queryable, Result,
+    status::{Status, StatusTracked, StatusUpdate},
+    test_execution::TestExecution,
 };
 use chrono::{DateTime, Utc};
+use rep_orchestrator_shared::summary::TestRunSummary;
 use sqlx::{FromRow, PgConnection};
 use uuid::Uuid;
 

@@ -5,7 +5,10 @@ use crate::{
         load_and_resolve_test_plan_from_local,
     },
 };
-use rep_orchestrator_shared::{RepTestPlan, SourceKeyedArrayMap, TriggerPayload};
+use rep_orchestrator_shared::{
+    payload::{SourceKeyedArrayMap, TriggerPayload},
+    test_plan::RepTestPlan,
+};
 use rtf_config::{
     StableSource,
     context::ResolutionContext,

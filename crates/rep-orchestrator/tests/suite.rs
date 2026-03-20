@@ -2,9 +2,12 @@ mod common;
 
 use common::TestHelper;
 use rep_orchestrator_shared::{
-    SetStatusPayload,
-    Status::{self, *},
-    StatusUpdate, TestExecutionSummary, TestRunSummary,
+    payload::SetStatusPayload,
+    status::{
+        Status::{self, *},
+        StatusUpdate,
+    },
+    summary::{TestExecutionSummary, TestRunSummary},
 };
 use reqwest::StatusCode;
 use simple_test_case::test_case;

@@ -1,5 +1,5 @@
 use crate::db::TestRun;
-use rep_orchestrator_shared::TriggerPayload;
+use rep_orchestrator_shared::payload::TriggerPayload;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
 #[derive(Debug)]

@@ -1,5 +1,5 @@
 use crate::config::Config;
-use rep_orchestrator_shared::SourceKeyedArrayMap;
+use rep_orchestrator_shared::payload::SourceKeyedArrayMap;
 use rtf_config::{
     SourceDir, StableSource, checks,
     context::{Context, PathKind, ResolutionContext},
