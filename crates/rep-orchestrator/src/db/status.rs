@@ -1,5 +1,6 @@
 use crate::db::{Queryable, Result};
 use chrono::{DateTime, Utc};
+use rep_orchestrator_shared::status::{Status as SharedStatus, StatusUpdate as SharedStatusUpdate};
 use sqlx::{Executor, FromRow, PgConnection};
 use std::cmp::Ordering;
 
@@ -104,7 +105,7 @@ pub struct StatusUpdate {
     pub(crate) updated_at: DateTime<Utc>,
 }
 
-impl From<StatusUpdate> for rep_orchestrator_shared::status::StatusUpdate {
+impl From<StatusUpdate> for SharedStatusUpdate {
     fn from(u: StatusUpdate) -> Self {
         Self {
             status: u.status.into(),
@@ -166,7 +167,7 @@ impl PartialOrd for Status {
     }
 }
 
-impl From<Status> for rep_orchestrator_shared::status::Status {
+impl From<Status> for SharedStatus {
     fn from(s: Status) -> Self {
         use Status::*;
 
@@ -182,9 +183,9 @@ impl From<Status> for rep_orchestrator_shared::status::Status {
     }
 }
 
-impl From<rep_orchestrator_shared::status::Status> for Status {
-    fn from(s: rep_orchestrator_shared::status::Status) -> Self {
-        use rep_orchestrator_shared::status::Status::*;
+impl From<SharedStatus> for Status {
+    fn from(s: SharedStatus) -> Self {
+        use SharedStatus::*;
 
         match s {
             Initialising => Self::Initialising,

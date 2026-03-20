@@ -1,12 +1,12 @@
 //! Fetch the status of a given [TestExecution] by its UUID.
 use crate::{
     Error, Result, conn,
-    db::{StatusTracked, TestExecution},
+    db::{Status, StatusTracked, TestExecution},
 };
 use axum::{Json, extract::Path};
 use rep_orchestrator_shared::{
     payload::SetStatusPayload,
-    status::{Status, StatusUpdate},
+    status::{Status as SharedStatus, StatusUpdate as SharedStatusUpdate},
     summary::TestExecutionSummary,
 };
 use uuid::Uuid;
@@ -24,7 +24,7 @@ pub async fn get_handler(Path(id): Path<Uuid>) -> Result<Json<TestExecutionSumma
 pub async fn post_handler(
     Path(id): Path<Uuid>,
     Json(payload): Json<SetStatusPayload>,
-) -> Result<Json<StatusUpdate>> {
+) -> Result<Json<SharedStatusUpdate>> {
     let conn = conn!();
 
     let mut ex = match TestExecution::get_by_uuid(&id, conn).await? {
@@ -37,7 +37,7 @@ pub async fn post_handler(
 
     ex.set_status(payload.status.into(), payload.message.clone(), conn)
         .await?;
-    if let (Status::Failed, Some(code)) = (payload.status, payload.exit_code) {
+    if let (SharedStatus::Failed, Some(code)) = (payload.status, payload.exit_code) {
         ex.set_exit_code(code, conn).await?;
     }
 
@@ -46,11 +46,11 @@ pub async fn post_handler(
     Ok(Json(new.into()))
 }
 
-fn validate(payload: &SetStatusPayload, current_status: Status) -> Result<()> {
-    use Status::*;
+fn validate(payload: &SetStatusPayload, current_status: SharedStatus) -> Result<()> {
+    use SharedStatus::*;
 
-    let db_current_status: crate::db::Status = current_status.into();
-    let db_payload_status: crate::db::Status = payload.status.into();
+    let db_current_status: Status = current_status.into();
+    let db_payload_status: Status = payload.status.into();
 
     // We check strictly greater than in order to allow multiple updates at the same Status
     // with different messages (e.g. the different stages of provisioning). But we disallow
@@ -82,7 +82,7 @@ fn validate(payload: &SetStatusPayload, current_status: Status) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rep_orchestrator_shared::status::Status::*;
+    use SharedStatus::*;
     use simple_test_case::test_case;
 
     // valid
@@ -101,11 +101,7 @@ mod tests {
         "status rollback"
     )]
     #[test]
-    fn payload_validation_works(
-        status: rep_orchestrator_shared::status::Status,
-        exit_code: Option<u8>,
-        expected: Result<()>,
-    ) {
+    fn payload_validation_works(status: SharedStatus, exit_code: Option<u8>, expected: Result<()>) {
         let payload = SetStatusPayload {
             status,
             message: None,
@@ -124,7 +120,7 @@ mod tests {
     #[test_case(Failed; "failed")]
     #[test_case(Unrunnable; "unrunnable")]
     #[test]
-    fn validate_second_terminal_status_is_invalid(current: Status) {
+    fn validate_second_terminal_status_is_invalid(current: SharedStatus) {
         let payload = SetStatusPayload {
             status: Successful,
             message: None,
