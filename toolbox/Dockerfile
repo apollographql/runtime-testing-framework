@@ -7,7 +7,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates/ ./crates/
 
 # Build Rust binaries
-RUN cargo build --release --bin rtf
+RUN cargo build --release --bin rtf --bin rep-orchestrator-cli
 
 
 # Runtime image build
@@ -39,6 +39,7 @@ RUN curl -L "https://github.com/kubernetes/kompose/releases/download/$V_KOMPOSE/
 
 # Copy over Rust binaries from the build image
 COPY --from=builder /rtf/target/release/rtf /usr/local/bin/rtf
+COPY --from=builder /rtf/target/release/rep-orchestrator-cli /usr/local/bin/rep-orchestrator-cli
 
 
 # Copy over scripts and add them to the PATH
