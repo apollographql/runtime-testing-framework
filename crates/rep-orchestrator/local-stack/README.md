@@ -18,7 +18,7 @@ docker  kind  kubectl  helm  tilt  rtf
 From `crates/rep-orchestrator/`:
 
 ```bash
-make cluster-up
+make cluster-setup
 ```
 
 Creates `kind-rtf-mgmt` and `kind-rtf-workload`. Safe to re-run — skips existing clusters.
@@ -26,8 +26,7 @@ Creates `kind-rtf-mgmt` and `kind-rtf-workload`. Safe to re-run — skips existi
 ### 2. Start the stack
 
 ```bash
-cd local-stack
-tilt up --context kind-rtf-mgmt
+make cluster-up
 ```
 
 Tilt will:
@@ -39,10 +38,10 @@ Tilt will:
 
 Open the Tilt UI at `http://localhost:10350` to monitor resource health.
 
-**Prod mode** (uses `docker/prod/Dockerfile` and the GCP registry image):
+**Prod mode** (uses `docker/prod/Dockerfile`):
 
 ```bash
-tilt up --context kind-rtf-mgmt -- --mode=prod
+make cluster-up-prod
 ```
 
 Note: the GCP access token expires after ~1 hour. Restart Tilt to refresh it.
@@ -68,7 +67,11 @@ Expect a `NOT FOUND` error — the run doesn't exist, but the handler must query
 determine that, so a `NOT FOUND` confirms the connection is working. A 500 indicates a database
 problem.
 
-Full integration test coverage against this stack is tracked in a follow-up ticket.
+To run the full integration test suite against this stack (from `crates/rep-orchestrator/`):
+
+```bash
+make integration-tests
+```
 
 ### 5. Live reload (dev mode only)
 

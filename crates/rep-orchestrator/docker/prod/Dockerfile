@@ -14,6 +14,8 @@ RUN cargo build --release --package rep-orchestrator
 
 FROM --platform=$BUILDPLATFORM debian:bookworm-slim
 
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /runtime-testing-framework/target/release/rep-orchestrator .
 
 ENTRYPOINT ["./rep-orchestrator"]

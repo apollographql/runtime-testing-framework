@@ -1,13 +1,12 @@
 # Local kind cluster management
 
-.PHONY: cluster-up
-cluster-up:
+.PHONY: cluster-setup
+cluster-setup:
 	@./local-stack/setup.sh
 
-.PHONY: cluster-down
-cluster-down:
+.PHONY: cluster-teardown
+cluster-teardown:
 	@./local-stack/teardown.sh
-
 
 # Test actions
 
@@ -33,6 +32,17 @@ integration-tests: clear-db-data
 		RTF_GITHUB_TOKEN=dummy \
 		cargo test --features db_tests --test '*' $(ARGS)
 
+.PHONY: compose-integration-tests
+compose-integration-tests: compose-clear-db-data
+	@RTF_DB_HOST=localhost \
+		RTF_DB_PORT=5432 \
+		RTF_DB_NAME=rtf_rep \
+		RTF_DB_USER=service_user \
+		RTF_DB_PASS=password \
+		RTF_APOLLO_KEY=dummy \
+		RTF_GITHUB_TOKEN=dummy \
+		cargo test --features db_tests --test '*' $(ARGS)
+
 .PHONY: test-all
 test-all: db-tests integration-tests
 
@@ -42,8 +52,11 @@ test-all: db-tests integration-tests
 .PHONY: ci-db-tests
 ci-db-tests: test-db-up-detached db-tests test-db-down
 
+.PHONY: ci-compose-tests
+ci-compose-tests: compose-up-detached wait-for-server db-tests compose-integration-tests compose-down
+
 .PHONY: ci-tests
-ci-tests: up-detached wait-for-server test-all down
+ci-tests: cluster-setup cluster-ci integration-tests cluster-down
 
 .PHONY: wait-for-server
 wait-for-server:
@@ -54,22 +67,41 @@ wait-for-server:
 	done
 
 
-# Management of the integration test stack
+# Tilt stack management
+
+.PHONY: cluster-up
+cluster-up:
+	@cd local-stack && tilt up --context kind-rtf-mgmt
+
+.PHONY: cluster-up-prod
+cluster-up-prod:
+	@cd local-stack && tilt up --context kind-rtf-mgmt -- --mode=prod
+
+.PHONY: cluster-ci
+cluster-ci:
+	@cd local-stack && tilt ci --context kind-rtf-mgmt -- --mode=prod
+
+.PHONY: cluster-down
+cluster-down:
+	@cd local-stack && tilt down --context kind-rtf-mgmt
+
+
+# docker-compose stack management
 
 .PHONY: orchestrator-shell
 orchestrator-shell:
 	@docker exec -it orchestrator bash
 
-.PHONY: up
-up:
+.PHONY: compose-up
+compose-up:
 	@docker compose -f docker/docker-compose.yaml up
 
-.PHONY: up-detached
-up-detached:
+.PHONY: compose-up-detached
+compose-up-detached:
 	@docker compose -f docker/docker-compose.yaml up --detach
 
-.PHONY: down
-down:
+.PHONY: compose-down
+compose-down:
 	@docker compose -f docker/docker-compose.yaml down
 
 
@@ -96,4 +128,10 @@ db-shell:
 
 .PHONY: clear-db-data
 clear-db-data:
+	@kubectl exec -n orchestrator --context kind-rtf-mgmt statefulset/postgres -- \
+		env PGPASSWORD=password psql -U service_user rtf_rep -c \
+		"DELETE FROM test_execution_status; DELETE FROM test_execution; DELETE FROM test_run_status; DELETE FROM test_run;"
+
+.PHONY: compose-clear-db-data
+compose-clear-db-data:
 	@docker compose -f docker/docker-compose.yaml exec -T db psql -U postgres rtf_rep < docker/db/clear.sql
