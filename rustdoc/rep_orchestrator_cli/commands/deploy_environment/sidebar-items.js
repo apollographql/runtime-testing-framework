@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["build_kompose_command","deploy_environment","parse_env_file","setup_env","wait_for_deployments"]};
