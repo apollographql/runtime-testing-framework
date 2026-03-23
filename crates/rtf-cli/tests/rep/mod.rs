@@ -1,45 +1,18 @@
 use crate::common::prepare_rtf_rep_prepare;
-use assert_fs::prelude::*;
 use predicates::str::contains;
 
 const FIXTURE: &str = "resources/test-plans/valid/rep-prepare";
-const OUTPUT_FILE: &str = "output/rep-test-plan.json";
 
 #[test]
-fn rep_prepare_produces_output_file() {
+fn rep_prepare_is_successful() {
     let mut cmd = prepare_rtf_rep_prepare(FIXTURE);
     cmd.assert().success();
-    cmd.assert_path_exists(OUTPUT_FILE);
 }
 
 #[test]
 fn rep_prepare_output_contains_relative_file_content() {
     let mut cmd = prepare_rtf_rep_prepare(FIXTURE);
-    cmd.assert().success();
-    cmd.assert_file_contains(OUTPUT_FILE, "alpine:latest");
-}
-
-#[test]
-fn rep_prepare_fails_with_existing_outdir() {
-    let mut cmd = prepare_rtf_rep_prepare(FIXTURE);
-    let out_dir = cmd.child("output");
-    out_dir.create_dir_all().unwrap();
-    out_dir.child("existing.txt").write_str("content").unwrap();
-
-    cmd.assert()
-        .failure()
-        .stderr(contains("already exists and is non-empty"));
-}
-
-#[test]
-fn rep_prepare_force_succeeds_with_existing_outdir() {
-    let mut cmd = prepare_rtf_rep_prepare(FIXTURE);
-    let out_dir = cmd.child("output");
-    out_dir.create_dir_all().unwrap();
-    out_dir.child("existing.txt").write_str("content").unwrap();
-
-    cmd.arg("--force").assert().success();
-    cmd.assert_path_exists(OUTPUT_FILE);
+    cmd.assert().success().stdout(contains("alpine:latest"));
 }
 
 #[test]

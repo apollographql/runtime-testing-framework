@@ -141,8 +141,6 @@ pub fn prepare_rtf_rep_prepare(dir: &str) -> CmdWithTmpDir {
     cmd.arg("rep")
         .arg("prepare")
         .arg(&test_setup.test_plan_file_path)
-        .arg("--outdir")
-        .arg(&test_setup.output_file_path)
         .arg("-vv");
 
     CmdWithTmpDir {

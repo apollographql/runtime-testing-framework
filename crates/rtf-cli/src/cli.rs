@@ -300,14 +300,6 @@ pub enum RepSubcommand {
         /// format ORG/REPO/PATH
         test_plan_path: String,
 
-        /// Output directory for the prepared test plan
-        #[arg(long, default_value = "output")]
-        outdir: String,
-
-        /// Force removal of an existing output directory before running
-        #[arg(long, default_value = "false")]
-        force: bool,
-
         /// Prepare a test plan file from GitHub instead of from a local path
         #[arg(long, default_value = "false")]
         github: bool,

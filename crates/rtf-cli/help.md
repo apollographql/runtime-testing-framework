@@ -350,12 +350,6 @@ Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON
 
 ###### **Options:**
 
-* `--outdir <OUTDIR>` — Output directory for the prepared test plan
-
-  Default value: `output`
-* `--force` — Force removal of an existing output directory before running
-
-  Default value: `false`
 * `--github` — Prepare a test plan file from GitHub instead of from a local path
 
   Default value: `false`
