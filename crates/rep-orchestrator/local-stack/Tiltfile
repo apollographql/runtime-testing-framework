@@ -27,30 +27,8 @@ workload_kubeconfig = str(
     )
 )
 
-# GCP registry auth
-# NOTE: token expires ~1h — restart Tilt to refresh
-gcr_b64 = str(local(
-    """printf '{"auths":{"us-central1-docker.pkg.dev":{"username":"oauth2accesstoken","password":"%s"}}}' \
-    "$(gcloud auth print-access-token)" | base64""",
-    quiet=True,
-)).strip()
-
 # Namespaces
 k8s_yaml("k8s/namespace.yaml")
-
-# GCR pull secret — orchestrator namespace (prod image pull) and cluster-api (workflow pods)
-k8s_yaml(encode_yaml({
-    "apiVersion": "v1", "kind": "Secret",
-    "metadata": {"name": "gcr-secret", "namespace": "orchestrator"},
-    "type": "kubernetes.io/dockerconfigjson",
-    "data": {".dockerconfigjson": gcr_b64},
-}))
-k8s_yaml(encode_yaml({
-    "apiVersion": "v1", "kind": "Secret",
-    "metadata": {"name": "gcr-secret", "namespace": "cluster-api"},
-    "type": "kubernetes.io/dockerconfigjson",
-    "data": {".dockerconfigjson": gcr_b64},
-}))
 
 # Workload kubeconfig — stored as a secret so the orchestrator can reach the workload cluster
 k8s_yaml(
@@ -70,8 +48,6 @@ k8s_resource(
         "argo-workflow:serviceaccount:cluster-api",
         "argo-workflow:role:cluster-api",
         "argo-workflow:rolebinding:cluster-api",
-        "gcr-secret:secret:orchestrator",
-        "gcr-secret:secret:cluster-api",
         "workload-kubeconfig:secret:cluster-api",
     ],
     new_name="cluster-setup",
