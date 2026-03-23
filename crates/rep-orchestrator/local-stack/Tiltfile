@@ -98,10 +98,27 @@ k8s_resource(
 
 # Image build
 if dev_mode:
+    # Base image: system deps + cargo-watch, no source. Rebuilt only when the
+    # Dockerfile itself changes.
+    docker_build(
+        "rep-orchestrator-local",
+        context="../../../",
+        dockerfile="../docker/local/Dockerfile",
+    )
+
+    # Dev image: sets CMD on top of the base. Tilt auto-rebuilds when the base
+    # changes. live_update handles file syncs without any image rebuild.
     docker_build(
         "rep-orchestrator-dev",
         context="../../../",
-        dockerfile="../docker/tilt/Dockerfile",
+        dockerfile_contents="""
+        FROM rep-orchestrator-local
+        WORKDIR /runtime-testing-framework
+        COPY Cargo.toml Cargo.toml
+        COPY Cargo.lock Cargo.lock
+        COPY crates/ crates/
+        WORKDIR /runtime-testing-framework/crates/rep-orchestrator
+        CMD [\"cargo\", \"watch\", \"-i\", \"tests/**\", \"-x\", \"run\"]""",
         ignore=["target/", ".git/", "SCRATCH_*/"],
         live_update=[
             sync("../../../crates/", "/runtime-testing-framework/crates/"),
@@ -130,6 +147,7 @@ else:
     helm_set += [
         "image.repository=rep-orchestrator-prod",
         "image.pullPolicy=Never",
+        "config.logLevel=info",
         "db.pass=password",  # local postgres — not stored in values-prod.yaml
     ]
 
