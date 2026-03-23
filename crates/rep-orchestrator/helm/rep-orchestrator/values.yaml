@@ -1,0 +1,24 @@
+image:
+  repository: ""
+  tag: "latest"
+  pullPolicy: Always
+
+imagePullSecrets: []
+
+command: []
+
+service:
+  port: 8035
+
+config:
+  host: "0.0.0.0"
+  port: "8035"
+  apolloKey: "dummy"
+  githubToken: "dummy"
+
+db:
+  host: ""      # required
+  port: "5432"
+  name: "rtf_rep"
+  user: "service_user"
+  pass: ""      # required

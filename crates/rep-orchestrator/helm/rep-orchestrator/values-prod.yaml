@@ -1,0 +1,4 @@
+image:
+  repository: us-central1-docker.pkg.dev/<project>/rep-orchestrator
+  pullPolicy: Always
+# command omitted — uses Dockerfile ENTRYPOINT (./rep-orchestrator)

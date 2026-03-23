@@ -1,0 +1,8 @@
+image:
+  repository: rep-orchestrator-dev
+  tag: latest
+  pullPolicy: Never
+
+db:
+  pass: password
+

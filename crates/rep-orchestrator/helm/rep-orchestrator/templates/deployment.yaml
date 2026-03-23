@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rep-orchestrator.fullname" . }}
+  labels:
+    {{- include "rep-orchestrator.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "rep-orchestrator.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "rep-orchestrator.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: rep-orchestrator
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.command }}
+          command:
+            {{- toYaml .Values.command | nindent 12 }}
+          {{- end }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            - name: RTF_HOST
+              value: {{ .Values.config.host | quote }}
+            - name: RTF_PORT
+              value: {{ .Values.config.port | quote }}
+            - name: RTF_APOLLO_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rep-orchestrator.fullname" . }}
+                  key: apollo-key
+            - name: RTF_GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rep-orchestrator.fullname" . }}
+                  key: github-token
+            - name: RTF_DB_HOST
+              value: {{ .Values.db.host | quote }}
+            - name: RTF_DB_PORT
+              value: {{ .Values.db.port | quote }}
+            - name: RTF_DB_NAME
+              value: {{ .Values.db.name | quote }}
+            - name: RTF_DB_USER
+              value: {{ .Values.db.user | quote }}
+            - name: RTF_DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "rep-orchestrator.fullname" . }}
+                  key: db-pass
+          startupProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.port }}
+            failureThreshold: 60
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.port }}
+            periodSeconds: 5

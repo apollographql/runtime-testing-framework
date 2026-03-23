@@ -1,0 +1,174 @@
+load("ext://secret", "secret_from_dict")
+
+allow_k8s_contexts("kind-rtf-mgmt")
+
+config.define_string("mode", args=False, usage="Run mode: 'dev' (default) or 'prod'")
+cfg = config.parse()
+dev_mode = cfg.get("mode", "dev") != "prod"
+
+# Extract the workload cluster control-plane container IP on the kind network.
+# This is reachable from pods in the management cluster since both kind clusters
+# share the same docker network.
+workload_ip = str(
+    local(
+        "docker inspect rtf-workload-control-plane"
+        + " --format '{{ .NetworkSettings.Networks.kind.IPAddress }}'",
+        quiet=True,
+    )
+).strip()
+
+# Get the workload kubeconfig and rewrite the server address to use the container
+# IP (port 6443) rather than the localhost port-forward.
+workload_kubeconfig = str(
+    local(
+        "kind get kubeconfig --name rtf-workload"
+        + " | sed 's|https://127.0.0.1:[0-9]*|https://%s:6443|g'" % workload_ip,
+        quiet=True,
+    )
+)
+
+# GCP registry auth
+# NOTE: token expires ~1h — restart Tilt to refresh
+gcr_b64 = str(local(
+    """printf '{"auths":{"us-central1-docker.pkg.dev":{"username":"oauth2accesstoken","password":"%s"}}}' \
+    "$(gcloud auth print-access-token)" | base64""",
+    quiet=True,
+)).strip()
+
+# Namespaces
+k8s_yaml("k8s/namespace.yaml")
+
+# GCR pull secret — orchestrator namespace (prod image pull) and cluster-api (workflow pods)
+k8s_yaml(encode_yaml({
+    "apiVersion": "v1", "kind": "Secret",
+    "metadata": {"name": "gcr-secret", "namespace": "orchestrator"},
+    "type": "kubernetes.io/dockerconfigjson",
+    "data": {".dockerconfigjson": gcr_b64},
+}))
+k8s_yaml(encode_yaml({
+    "apiVersion": "v1", "kind": "Secret",
+    "metadata": {"name": "gcr-secret", "namespace": "cluster-api"},
+    "type": "kubernetes.io/dockerconfigjson",
+    "data": {".dockerconfigjson": gcr_b64},
+}))
+
+# Workload kubeconfig — stored as a secret so the orchestrator can reach the workload cluster
+k8s_yaml(
+    secret_from_dict(
+        "workload-kubeconfig",
+        namespace="cluster-api",
+        inputs={"value": workload_kubeconfig},
+    )
+)
+
+# Argo workflow service account + RBAC in cluster-api
+k8s_yaml("k8s/service-account.yaml")
+k8s_resource(
+    objects=[
+        "cluster-api:namespace",
+        "orchestrator:namespace",
+        "argo-workflow:serviceaccount:cluster-api",
+        "argo-workflow:role:cluster-api",
+        "argo-workflow:rolebinding:cluster-api",
+        "gcr-secret:secret:orchestrator",
+        "gcr-secret:secret:cluster-api",
+        "workload-kubeconfig:secret:cluster-api",
+    ],
+    new_name="cluster-setup",
+    labels=["infra"],
+)
+
+# Argo Workflows
+ARGO_WORKFLOWS_VERSION = "v3.6.5"
+ARGO_INSTALL_URL = (
+    "https://github.com/argoproj/argo-workflows/releases/download/%s/quick-start-minimal.yaml"
+    % ARGO_WORKFLOWS_VERSION
+)
+
+k8s_resource(
+    objects=["argo:namespace"],
+    new_name="argo-namespace",
+    labels=["infra"],
+)
+
+local_resource(
+    "argo-install",
+    cmd="kubectl apply -n argo --server-side -f "
+    + ARGO_INSTALL_URL
+    + " && kubectl -n argo rollout status deployment/workflow-controller --timeout=120s",
+    resource_deps=["argo-namespace"],
+    labels=["infra"],
+)
+
+# PostgreSQL (local only — not part of rep-orchestrator Helm chart)
+k8s_yaml(helm(
+    "helm/postgres",
+    name="postgres",
+    namespace="orchestrator",
+    values=["helm/postgres/values.yaml"],
+))
+k8s_resource("postgres", port_forwards=["5432:5432"], resource_deps=["postgres-config"], labels=["rep-orchestrator"])
+k8s_resource(
+    objects=[
+        "postgres:serviceaccount:orchestrator",
+        "postgres:secret:orchestrator",
+        "postgres:poddisruptionbudget:orchestrator",
+        "postgres:networkpolicy:orchestrator",
+    ],
+    new_name="postgres-config",
+    resource_deps=["cluster-setup"],
+    labels=["rep-orchestrator"],
+)
+
+# Image build
+if dev_mode:
+    docker_build(
+        "rep-orchestrator-dev",
+        context="../../../",
+        dockerfile="../docker/tilt/Dockerfile",
+        ignore=["target/", ".git/", "SCRATCH_*/"],
+        live_update=[
+            sync("../../../crates/", "/runtime-testing-framework/crates/"),
+        ],
+    )
+    values_files = [
+        "../helm/rep-orchestrator/values.yaml",
+        "../helm/rep-orchestrator/values-dev.yaml",
+    ]
+else:
+    docker_build(
+        "rep-orchestrator-prod",
+        context="../../../",
+        dockerfile="../docker/prod/Dockerfile",
+    )
+    values_files = [
+        "../helm/rep-orchestrator/values.yaml",
+        "../helm/rep-orchestrator/values-prod.yaml",
+    ]
+
+# Helm deploy — DB connection wired to local postgres service
+helm_set = ["db.host=postgres"]
+if dev_mode:
+    pass  # db.pass comes from values-dev.yaml
+else:
+    helm_set += [
+        "image.repository=rep-orchestrator-prod",
+        "image.pullPolicy=Never",
+        "db.pass=password",  # local postgres — not stored in values-prod.yaml
+    ]
+
+k8s_yaml(helm(
+    "../helm/rep-orchestrator",
+    name="rep-orchestrator",
+    namespace="orchestrator",
+    values=values_files,
+    set=helm_set,
+))
+
+k8s_resource(
+    "rep-orchestrator",
+    objects=["rep-orchestrator:secret:orchestrator"],
+    port_forwards=["8035:8035"],
+    resource_deps=["cluster-setup", "postgres", "argo-install"],
+    labels=["rep-orchestrator"],
+)
