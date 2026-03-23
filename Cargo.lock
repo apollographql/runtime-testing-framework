@@ -2702,6 +2702,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rep-orchestrator-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "k8s-openapi",
+ "kube",
+ "rtf-cli-shared",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "rep-orchestrator-shared"
 version = "0.1.0"
 dependencies = [
