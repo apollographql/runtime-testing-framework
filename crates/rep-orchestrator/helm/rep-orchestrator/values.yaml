@@ -13,6 +13,7 @@ service:
 config:
   host: "0.0.0.0"
   port: "8035"
+  logLevel: "warn"
   apolloKey: "dummy"
   githubToken: "dummy"
 

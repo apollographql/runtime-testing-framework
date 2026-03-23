@@ -3,6 +3,9 @@ image:
   tag: latest
   pullPolicy: Never
 
+config:
+  logLevel: "info"
+
 db:
   pass: password
 
