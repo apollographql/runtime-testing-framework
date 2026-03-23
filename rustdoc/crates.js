@@ -1,2 +1,2 @@
-window.ALL_CRATES = ["rep_orchestrator","rep_orchestrator_shared","rtf_cli","rtf_config","rtf_core","rtf_derive","rtf_docgen","rtf_integrations"];
-//{"start":21,"fragment_lengths":[18,26,10,13,11,13,13,19]}
+window.ALL_CRATES = ["rep_orchestrator","rep_orchestrator_shared","rtf_cli","rtf_cli_shared","rtf_config","rtf_core","rtf_derive","rtf_docgen","rtf_integrations"];
+//{"start":21,"fragment_lengths":[18,26,10,17,13,11,13,13,19]}
