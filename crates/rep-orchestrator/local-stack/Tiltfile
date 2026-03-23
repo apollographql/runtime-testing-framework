@@ -39,6 +39,13 @@ k8s_yaml(
     )
 )
 
+# Make sure the rtf-toolbox image is available on both clusters
+local_resource(
+    "toolbox-image",
+    cmd="kind load docker-image rtf-toolbox:edge --name rtf-mgmt && kind load docker-image rtf-toolbox:edge --name rtf-workload",
+    labels=["infra"],
+)
+
 # Argo workflow service account + RBAC in cluster-api
 k8s_yaml("k8s/service-account.yaml")
 k8s_resource(
