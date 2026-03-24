@@ -56,7 +56,7 @@ ci-db-tests: test-db-up-detached db-tests test-db-down
 ci-compose-tests: compose-up-detached wait-for-server db-tests compose-integration-tests compose-down
 
 .PHONY: ci-tests
-ci-tests: cluster-setup cluster-ci integration-tests cluster-down
+ci-tests: cluster-setup cluster-ci integration-tests
 
 .PHONY: wait-for-server
 wait-for-server:

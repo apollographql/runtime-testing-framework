@@ -1,0 +1,131 @@
+name: REP orchestrator tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_LOG: info
+  RUST_BACKTRACE: 1
+
+jobs:
+  read-rust-version:
+    name: Read Rust version from mise.toml
+    runs-on: ubuntu-latest
+    outputs:
+      rust-version: ${{ steps.get-version.outputs.rust-version }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - id: get-version
+        run: |
+          version=$(grep '^rust\s*=' .config/mise/mise.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "rust-version=$version" >> "$GITHUB_OUTPUT"
+
+  check-for-updated-files:
+    name: Check whether relevant files have been updated
+    runs-on: ubuntu-latest
+    outputs:
+      should_run_tests: ${{ steps.check-changes.outputs.should_run }}
+    steps:
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      with:
+        fetch-depth: 2
+    - name: Check for changes in relevant directories and files
+      id: check-changes
+      run: |
+        if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "should_run=true" >> $GITHUB_OUTPUT
+        else
+          git diff --name-only HEAD^ HEAD | grep -q -E "^crates/|^Cargo\.toml$|^Cargo\.lock$" && echo "should_run=true" >> $GITHUB_OUTPUT || echo "should_run=false" >> $GITHUB_OUTPUT
+        fi
+
+  orchestrator-test:
+    name: REP orchestrator tests
+    runs-on: rust-4c
+    needs: [read-rust-version, check-for-updated-files]
+    if: ${{ needs.check-for-updated-files.outputs.should_run_tests == 'true' }}
+    timeout-minutes: 45
+    steps:
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+    - name: Install kind
+      uses: helm/kind-action@v1.10.0
+      with:
+        install_only: true
+        version: v0.27.0
+    - name: Install tilt
+      run: |
+        curl -fsSL https://github.com/tilt-dev/tilt/releases/download/v0.33.21/tilt.0.33.21.linux.x86_64.tar.gz \
+          | tar -xzv tilt
+        sudo mv tilt /usr/local/bin/tilt
+    - uses: hecrj/setup-rust-action@110f36749599534ca96628b82f52ae67e5d95a3c
+      with:
+        rust-version: ${{ needs.read-rust-version.outputs.rust-version }}
+    - name: Run integration tests
+      run: cd crates/rep-orchestrator && make ci-tests 2>&1 | tee /tmp/tilt.log; exit ${PIPESTATUS[0]}
+    - name: Collect cluster diagnostics
+      if: failure()
+      run: |
+        CTX="--context kind-rtf-mgmt"
+
+        # kind node health — catches API server / etcd failures
+        docker logs rtf-mgmt-control-plane \
+          2>&1 | tee /tmp/kind-control-plane.log || true
+        docker logs rtf-workload-control-plane \
+          2>&1 | tee /tmp/kind-workload-control-plane.log || true
+
+        # Node status — catches NotReady, resource pressure
+        kubectl get nodes -o wide $CTX \
+          2>&1 | tee /tmp/nodes.txt || true
+        kubectl describe nodes $CTX \
+          2>&1 | tee /tmp/node-descriptions.txt || true
+
+        # Events — catches image pull failures, scheduling failures, namespace issues
+        kubectl get events -A --sort-by='.lastTimestamp' $CTX \
+          2>&1 | tee /tmp/events.txt || true
+
+        # Pod state and descriptions
+        kubectl get pods -A $CTX || true
+        kubectl describe pods -A $CTX \
+          2>&1 | tee /tmp/pod-descriptions.txt || true
+
+        # Helm release status
+        helm list -A --kube-context kind-rtf-mgmt \
+          2>&1 | tee /tmp/helm-releases.txt || true
+        helm status rep-orchestrator -n orchestrator --kube-context kind-rtf-mgmt \
+          2>&1 >> /tmp/helm-releases.txt || true
+
+        # Application logs
+        kubectl get pods -n orchestrator -o name $CTX 2>&1 \
+          | xargs -r -I{} kubectl logs {} -n orchestrator --all-containers --timestamps $CTX \
+          2>&1 | tee /tmp/orchestrator-logs.txt || true
+        kubectl get pods -n cluster-api -o name $CTX 2>&1 \
+          | xargs -r -I{} kubectl logs {} -n cluster-api --all-containers --timestamps $CTX \
+          2>&1 | tee /tmp/cluster-api-logs.txt || true
+        kubectl get pods -n argo -o name $CTX 2>&1 \
+          | xargs -r -I{} kubectl logs {} -n argo --all-containers --timestamps $CTX \
+          2>&1 | tee /tmp/argo-logs.txt || true
+    - name: Upload cluster diagnostics
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: cluster-diagnostics
+        path: |
+          /tmp/tilt.log
+          /tmp/kind-control-plane.log
+          /tmp/kind-workload-control-plane.log
+          /tmp/nodes.txt
+          /tmp/node-descriptions.txt
+          /tmp/events.txt
+          /tmp/pod-descriptions.txt
+          /tmp/helm-releases.txt
+          /tmp/orchestrator-logs.txt
+          /tmp/cluster-api-logs.txt
+          /tmp/argo-logs.txt
+    - name: Tear down clusters
+      if: always()
+      run: cd crates/rep-orchestrator && make cluster-teardown
