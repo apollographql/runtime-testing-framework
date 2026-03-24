@@ -8,7 +8,7 @@ into the cluster — no external database required.
 Install via Homebrew if missing:
 
 ```
-docker  kind  kubectl  helm  tilt  rtf
+docker  kind  kubectl  helm  tilt
 ```
 
 ## Steps
@@ -43,8 +43,6 @@ Open the Tilt UI at `http://localhost:10350` to monitor resource health.
 ```bash
 make cluster-up-prod
 ```
-
-Note: the GCP access token expires after ~1 hour. Restart Tilt to refresh it.
 
 ### 3. Wait for healthy
 

@@ -14,7 +14,7 @@ create_cluster() {
 }
 
 echo "Checking local stack dependencies..."
-dependencies="docker kind kubectl helm tilt rtf"
+dependencies="docker kind kubectl helm tilt"
 
 missing=()
 for dependency in $dependencies; do
