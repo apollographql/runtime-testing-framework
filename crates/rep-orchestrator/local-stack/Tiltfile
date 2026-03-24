@@ -76,9 +76,9 @@ k8s_resource(
 
 local_resource(
     "argo-install",
-    cmd="kubectl apply -n argo --server-side -f "
+    cmd="kubectl apply -n argo --server-side --context kind-rtf-mgmt -f "
     + ARGO_INSTALL_URL
-    + " && kubectl -n argo rollout status deployment/workflow-controller --timeout=120s",
+    + " && kubectl -n argo rollout status --context kind-rtf-mgmt deployment/workflow-controller --timeout=120s",
     resource_deps=["argo-namespace"],
     labels=["infra"],
 )
