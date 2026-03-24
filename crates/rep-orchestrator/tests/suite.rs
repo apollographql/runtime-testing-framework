@@ -28,7 +28,7 @@ async fn health_returns_200() {
 
     let resp = t.get("health").await.unwrap();
 
-    assert_eq!(resp.status(), StatusCode::OK, "{resp:?}");
+    assert_status!(resp, StatusCode::OK);
 }
 
 #[tokio::test]
@@ -40,7 +40,7 @@ async fn trigger_valid_rep_test_plan_returns_200() {
         .await
         .unwrap();
 
-    assert_eq!(resp.status(), StatusCode::OK, "{resp:?}");
+    assert_status!(resp, StatusCode::OK);
 }
 
 #[tokio::test]
@@ -62,7 +62,7 @@ async fn run_status_returns_200_for_known_run() {
         .await
         .unwrap();
 
-    assert_eq!(resp.status(), StatusCode::OK);
+    assert_status!(resp, StatusCode::OK);
 }
 
 #[tokio::test]
@@ -74,7 +74,7 @@ async fn run_status_returns_404_for_unknown_run() {
         .await
         .unwrap();
 
-    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    assert_status!(resp, StatusCode::NOT_FOUND);
 }
 
 // Helper for writing status update tests that need a valid test run and execution to work with
@@ -107,7 +107,7 @@ async fn execution_status_returns_200_for_known_execution() {
         .await
         .unwrap();
 
-    assert_eq!(resp.status(), StatusCode::OK);
+    assert_status!(resp, StatusCode::OK);
 }
 
 #[tokio::test]
@@ -119,7 +119,7 @@ async fn execution_status_returns_404_for_unknown_execution() {
         .await
         .unwrap();
 
-    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    assert_status!(resp, StatusCode::NOT_FOUND);
 }
 
 // Helper for the parameterised test below
