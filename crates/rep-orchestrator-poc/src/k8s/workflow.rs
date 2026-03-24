@@ -149,16 +149,9 @@ impl TaskTemplate {
 }
 
 const CREATE_NAMESPACE_SCRIPT: &str = r#"
-set -e
-echo "Creating namespace '__NAMESPACE__' in workload cluster..."
-kubectl \
-  --kubeconfig=/kubeconfig/value \
-  create namespace __NAMESPACE__ \
-  --dry-run=client \
-  -o yaml |
-    kubectl --kubeconfig=/kubeconfig/value apply -f -
-
-echo "Namespace created successfully."
+rep-orchestrator-cli create-namespace \
+    --namespace __NAMESPACE__ \
+    --kubeconfig /kubeconfig/value
 "#;
 
 fn create_namespace(namespace: &str) -> TaskTemplate {
@@ -176,22 +169,10 @@ fn create_namespace(namespace: &str) -> TaskTemplate {
 }
 
 const CREATE_PULL_SECRET_SCRIPT: &str = r#"
-set -e
-echo "Creating image pull secret in namespace '__NAMESPACE__'..."
-kubectl --kubeconfig=/kubeconfig/value \
-  create secret docker-registry gcr-secret \
-  --namespace=__NAMESPACE__ \
-  --from-file=.dockerconfigjson=/gcr-secret/config.json \
-  --dry-run=client -o yaml |
-    kubectl --kubeconfig=/kubeconfig/value apply -f -
-
-echo "Patching default service account..."
-kubectl --kubeconfig=/kubeconfig/value \
-  patch serviceaccount default \
-  --namespace=__NAMESPACE__ \
-  -p '{"imagePullSecrets": [{"name": "gcr-secret"}]}'
-
-echo "Pull secret created successfully."
+rep-orchestrator-cli create-pull-secret \
+    --namespace __NAMESPACE__ \
+    --kubeconfig /kubeconfig/value
+    --docker-config /gcr-secret/config.json
 "#;
 
 fn create_pull_secret(namespace: &str) -> TaskTemplate {
@@ -229,37 +210,10 @@ fn create_pull_secret(namespace: &str) -> TaskTemplate {
 }
 
 const DEPLOY_ENV_SCRIPT: &str = r#"
-set -e
-WORKDIR=/tmp/rtf-work
-mkdir -p $WORKDIR
-mkdir -p $WORKDIR/k8s
-
-echo "Resolving environment docker-compose files..."
-rtf resolve environment /environment/environment.yaml --outdir $WORKDIR/output
-
-# Source RTF env vars
-. $WORKDIR/output/setup/setup.env
-echo "Converting to kubernetes manifests..."
-KOMPOSE_ARGS=""
-while IFS= read -r f || [ -n "$f" ]; do
-  [ -n "$f" ] && KOMPOSE_ARGS="$KOMPOSE_ARGS -f $f"
-done < "$COMPOSE_FILES"
-kompose convert $KOMPOSE_ARGS -o $WORKDIR/k8s/
-
-echo "Applying manifests to namespace '__NAMESPACE__'..."
-kubectl --kubeconfig=/kubeconfig/value apply \
-  -n __NAMESPACE__ \
-  -f $WORKDIR/k8s/
-
-echo "Waiting for deployments to become available..."
-kubectl --kubeconfig=/kubeconfig/value wait \
-  --for=condition=available \
-  deployment \
-  --all \
-  -n __NAMESPACE__ \
-  --timeout=300s
-
-echo "Environment deployed successfully."
+rep-orchestrator-cli deploy-environment \
+    --namespace __NAMESPACE__ \
+    --kubeconfig /kubeconfig/value
+    --environment /environment/environment.yaml
 "#;
 
 fn deploy_environment(configmap_name: &str, namespace: &str) -> TaskTemplate {
@@ -292,14 +246,7 @@ fn deploy_environment(configmap_name: &str, namespace: &str) -> TaskTemplate {
 }
 
 const CLEANUP_SCRIPT: &str = r#"
-set -e
-echo "Cleaning up ConfigMap '__CONFIGMAP__'..."
-
-kubectl delete configmap __CONFIGMAP__ \
-  -n cluster-api \
-  --ignore-not-found
-
-echo "Cleanup complete."
+rep-orchestrator-cli cleanup --configmap __CONFIGMAP__ --namespace cluster-api
 "#;
 
 fn cleanup(configmap_name: &str) -> TaskTemplate {
