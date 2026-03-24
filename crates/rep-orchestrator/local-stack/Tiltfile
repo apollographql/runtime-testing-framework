@@ -181,7 +181,7 @@ if run_orchestrator_tests:
         "orchestrator-tests",
         cmd="kubectl exec -i -n orchestrator --context kind-rtf-mgmt statefulset/postgres --"
             + " env PGPASSWORD=password psql -U service_user rtf_rep"
-            + " < ../docker/db/clear.sql"
+            + " < db/clear.sql"
             + " && cd .."
             + " && RTF_DB_HOST=localhost"
             + " RTF_DB_PORT=5432"

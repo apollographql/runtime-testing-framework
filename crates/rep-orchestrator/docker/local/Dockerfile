@@ -6,6 +6,6 @@ RUN apt-get update && apt-get install -y cmake clang curl netcat-openbsd \
 
 RUN cargo install cargo-watch
 
-# Source is mounted here at runtime (Tilt live_update or docker-compose volume mount)
+# Source is synced here at runtime via Tilt live_update
 RUN mkdir -p /runtime-testing-framework/crates/rep-orchestrator
 WORKDIR /runtime-testing-framework/crates/rep-orchestrator
