@@ -20,19 +20,21 @@ use tracing::info;
 const MANAGER_NAME: &str = "rep-orchestrator-cli";
 
 /// Build a kube client from a kubeconfig file path.
-async fn client_from_kubeconfig(kubeconfig_path: &Path) -> anyhow::Result<Client> {
-    let kfg = Kubeconfig::read_from(kubeconfig_path).with_context(|| {
-        format!(
-            "failed to read kubeconfig from {}",
-            kubeconfig_path.display()
-        )
-    })?;
+async fn client_from_kubeconfig(kubeconfig_path: Option<&Path>) -> anyhow::Result<Client> {
+    match kubeconfig_path {
+        Some(path) => {
+            let kfg = Kubeconfig::read_from(path)
+                .with_context(|| format!("failed to read kubeconfig from {}", path.display()))?;
 
-    let config = Config::from_custom_kubeconfig(kfg, &KubeConfigOptions::default())
-        .await
-        .context("failed to build kube config")?;
+            let config = Config::from_custom_kubeconfig(kfg, &KubeConfigOptions::default())
+                .await
+                .context("failed to build kube config")?;
 
-    Client::try_from(config).context("failed to create kube client")
+            Client::try_from(config)
+        }
+        None => Client::try_default().await,
+    }
+    .context("failed to create kube client from in-cluster config")
 }
 
 /// Run a shell command, logging it and returning an error if it fails.

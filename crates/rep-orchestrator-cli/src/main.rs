@@ -43,8 +43,7 @@ async fn main() {
         Command::Cleanup {
             configmap,
             namespace,
-            kubeconfig: kubeconfig_path,
-        } => commands::cleanup(&configmap, &namespace, &kubeconfig_path).await,
+        } => commands::cleanup(&configmap, &namespace).await,
     };
 
     if let Err(e) = res {

@@ -11,7 +11,7 @@ use tracing::info;
 pub async fn create_namespace(namespace: &str, kubeconfig_path: &Path) -> anyhow::Result<()> {
     info!("Creating namespace '{namespace}' in workload cluster...");
 
-    let client = client_from_kubeconfig(kubeconfig_path).await?;
+    let client = client_from_kubeconfig(Some(kubeconfig_path)).await?;
     let api: Api<Namespace> = Api::all(client);
 
     let ns = Namespace {

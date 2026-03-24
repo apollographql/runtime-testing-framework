@@ -40,7 +40,7 @@ pub async fn deploy_environment(
             ]),
     )?;
 
-    let client = client_from_kubeconfig(kubeconfig_path).await?;
+    let client = client_from_kubeconfig(Some(kubeconfig_path)).await?;
     wait_for_deployments(&client, namespace, timeout).await?;
     info!("Environment deployed successfully.");
 

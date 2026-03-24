@@ -17,7 +17,7 @@ pub async fn create_pull_secret(
 ) -> anyhow::Result<()> {
     info!("Creating image pull secret in namespace '{namespace}'...");
 
-    let client = client_from_kubeconfig(kubeconfig_path).await?;
+    let client = client_from_kubeconfig(Some(kubeconfig_path)).await?;
 
     let docker_config_json = std::fs::read(docker_config_path).with_context(|| {
         format!(
