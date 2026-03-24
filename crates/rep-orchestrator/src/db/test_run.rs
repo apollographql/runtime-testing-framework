@@ -1,5 +1,5 @@
 use crate::db::{
-    Queryable, Result,
+    self, Queryable, Result,
     status::{Status, StatusTracked, StatusUpdate},
     test_execution::TestExecution,
 };
@@ -126,7 +126,18 @@ impl TestRun {
 
         let mut executions = Vec::with_capacity(raw_executions.len());
         for ex in raw_executions.into_iter() {
-            executions.push(ex.try_into_summary(conn).await?);
+            // It is possible for us to encounter TestExecutions that are part way through
+            // initialising when calling this method (as in, the row for the execution exists
+            // in the DB but we don't yet have the first status row). Building a summary requires
+            // at least one status, so we skip executions missing that information.
+            //
+            // The user facing effect of this is the same as if the main execution row had
+            // not yet been created, namely that the execution is not yet present in the list
+            match ex.try_into_summary(conn).await {
+                Ok(summary) => executions.push(summary),
+                Err(db::Error::Sqlx(sqlx::Error::RowNotFound)) => continue,
+                Err(e) => return Err(e),
+            }
         }
 
         Ok(TestRunSummary {
