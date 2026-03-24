@@ -56,7 +56,7 @@ ci-db-tests: test-db-up-detached db-tests test-db-down
 ci-compose-tests: compose-up-detached wait-for-server db-tests compose-integration-tests compose-down
 
 .PHONY: ci-tests
-ci-tests: cluster-setup cluster-ci integration-tests
+ci-tests: cluster-setup cluster-ci
 
 .PHONY: wait-for-server
 wait-for-server:
@@ -79,7 +79,7 @@ cluster-up-prod:
 
 .PHONY: cluster-ci
 cluster-ci:
-	@cd local-stack && tilt ci --context kind-rtf-mgmt -- --mode=prod
+	@cd local-stack && tilt ci --context kind-rtf-mgmt -- --mode=prod --orchestrator-tests=true
 
 .PHONY: cluster-down
 cluster-down:
@@ -128,9 +128,9 @@ db-shell:
 
 .PHONY: clear-db-data
 clear-db-data:
-	@kubectl exec -n orchestrator --context kind-rtf-mgmt statefulset/postgres -- \
-		env PGPASSWORD=password psql -U service_user rtf_rep -c \
-		"DELETE FROM test_execution_status; DELETE FROM test_execution; DELETE FROM test_run_status; DELETE FROM test_run;"
+	@kubectl exec -i -n orchestrator --context kind-rtf-mgmt statefulset/postgres -- \
+		env PGPASSWORD=password psql -U service_user rtf_rep \
+		< docker/db/clear.sql
 
 .PHONY: compose-clear-db-data
 compose-clear-db-data:

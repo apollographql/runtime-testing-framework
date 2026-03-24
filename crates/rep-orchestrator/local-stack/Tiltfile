@@ -3,8 +3,10 @@ load("ext://secret", "secret_from_dict")
 allow_k8s_contexts("kind-rtf-mgmt")
 
 config.define_string("mode", args=False, usage="Run mode: 'dev' (default) or 'prod'")
+config.define_bool("orchestrator-tests", args=False, usage="Run all cargo tests for the orchestrator crate (off by default)")
 cfg = config.parse()
 dev_mode = cfg.get("mode", "dev") != "prod"
+run_orchestrator_tests = cfg.get("orchestrator-tests", False)
 
 # Extract the workload cluster control-plane container IP on the kind network.
 # This is reachable from pods in the management cluster since both kind clusters
@@ -173,3 +175,22 @@ k8s_resource(
     resource_deps=["cluster-setup", "postgres", "argo-install"],
     labels=["rep-orchestrator"],
 )
+
+if run_orchestrator_tests:
+    local_resource(
+        "orchestrator-tests",
+        cmd="kubectl exec -i -n orchestrator --context kind-rtf-mgmt statefulset/postgres --"
+            + " env PGPASSWORD=password psql -U service_user rtf_rep"
+            + " < ../docker/db/clear.sql"
+            + " && cd .."
+            + " && RTF_DB_HOST=localhost"
+            + " RTF_DB_PORT=5432"
+            + " RTF_DB_NAME=rtf_rep"
+            + " RTF_DB_USER=service_user"
+            + " RTF_DB_PASS=password"
+            + " RTF_APOLLO_KEY=dummy"
+            + " RTF_GITHUB_TOKEN=dummy"
+            + " cargo test --features db_tests",
+        resource_deps=["rep-orchestrator"],
+        labels=["test"],
+    )
