@@ -1,0 +1,10 @@
+image:
+  repository: rep-orchestrator
+  tag: latest
+  pullPolicy: Never
+
+config:
+  logLevel: "info,hyper=error,rep_orchestrator=debug"
+
+db:
+  pass: password

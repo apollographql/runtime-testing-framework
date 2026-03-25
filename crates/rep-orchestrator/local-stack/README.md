@@ -32,17 +32,11 @@ make cluster-up
 Tilt will:
 
 1. Deploy PostgreSQL into the cluster
-2. Build the dev image (first run compiles all of Rust — this takes a few minutes)
+2. Build the orchestrator image (first run compiles all of Rust — this takes a few minutes)
 3. Deploy the orchestrator via Helm, wired to the local postgres service
 4. Forward ports `8035` (orchestrator) and `5432` (postgres) to localhost
 
 Open the Tilt UI at `http://localhost:10350` to monitor resource health.
-
-**Prod mode** (uses `docker/prod/Dockerfile`):
-
-```bash
-make cluster-up-prod
-```
 
 ### 3. Wait for healthy
 
@@ -55,15 +49,7 @@ The orchestrator readiness probe hits `/health` every 5 seconds.
 curl http://localhost:8035/health
 ```
 
-This only confirms the service is up. To also verify the database connection:
-
-```bash
-curl http://localhost:8035/test-run/00000000-0000-0000-0000-000000000000/status
-```
-
-Expect a `NOT FOUND` error — the run doesn't exist, but the handler must query the database to
-determine that, so a `NOT FOUND` confirms the connection is working. A 500 indicates a database
-problem.
+This only confirms the service is up and connects to the database.
 
 To run the full integration test suite against this stack (from `crates/rep-orchestrator/`):
 
@@ -71,17 +57,18 @@ To run the full integration test suite against this stack (from `crates/rep-orch
 make integration-tests
 ```
 
-### 5. Live reload (dev mode only)
+To run the integration test and the db tests, run:
 
-Edit any `.rs` file under `crates/`. Tilt syncs the change into the running container and
-`cargo-watch` recompiles — no image rebuild required.
+```bash
+make test-all
+```
 
-### 6. Tear down
+### 5. Tear down
 
 Stop Tilt with `Ctrl-C`, then:
 
 ```bash
-make cluster-down
+make cluster-teardown
 ```
 
 Deletes both kind clusters.

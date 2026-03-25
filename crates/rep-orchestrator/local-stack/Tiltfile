@@ -2,10 +2,8 @@ load("ext://secret", "secret_from_dict")
 
 allow_k8s_contexts("kind-rtf-mgmt")
 
-config.define_string("mode", args=False, usage="Run mode: 'dev' (default) or 'prod'")
 config.define_bool("orchestrator-tests", args=False, usage="Run all cargo tests for the orchestrator crate (off by default)")
 cfg = config.parse()
-dev_mode = cfg.get("mode", "dev") != "prod"
 run_orchestrator_tests = cfg.get("orchestrator-tests", False)
 
 # Extract the workload cluster control-plane container IP on the kind network.
@@ -105,67 +103,31 @@ k8s_resource(
     labels=["rep-orchestrator"],
 )
 
-# Image build
-if dev_mode:
-    # Base image: system deps + cargo-watch, no source. Rebuilt only when the
-    # Dockerfile itself changes.
-    docker_build(
-        "rep-orchestrator-local",
-        context="../../../",
-        dockerfile="../docker/local/Dockerfile",
-    )
-
-    # Dev image: sets CMD on top of the base. Tilt auto-rebuilds when the base
-    # changes. live_update handles file syncs without any image rebuild.
-    docker_build(
-        "rep-orchestrator-dev",
-        context="../../../",
-        dockerfile_contents="""
-        FROM rep-orchestrator-local
-        WORKDIR /runtime-testing-framework
-        COPY Cargo.toml Cargo.toml
-        COPY Cargo.lock Cargo.lock
-        COPY crates/ crates/
-        WORKDIR /runtime-testing-framework/crates/rep-orchestrator
-        CMD [\"cargo\", \"watch\", \"-i\", \"tests/**\", \"-x\", \"run\"]""",
-        ignore=["target/", ".git/", "SCRATCH_*/"],
-        live_update=[
-            sync("../../../crates/", "/runtime-testing-framework/crates/"),
-        ],
-    )
-    values_files = [
-        "../helm/rep-orchestrator/values.yaml",
-        "../helm/rep-orchestrator/values-dev.yaml",
-    ]
-else:
-    docker_build(
-        "rep-orchestrator-prod",
-        context="../../../",
-        dockerfile="../docker/prod/Dockerfile",
-    )
-    values_files = [
-        "../helm/rep-orchestrator/values.yaml",
-        "../helm/rep-orchestrator/values-prod.yaml",
-    ]
+# Image build — only files consumed by the release build are watched
+docker_build(
+    "rep-orchestrator",
+    context="../../../",
+    dockerfile="../docker/Dockerfile",
+    only=[
+        "Cargo.lock",
+        "Cargo.toml",
+        "crates/",
+    ],
+    ignore=[
+        "crates/rtf-cli/resources/",  # test fixtures only — reading these during integration tests triggers spurious rebuilds via MacOS FSEvents atime updates
+    ],
+)
 
 # Helm deploy — DB connection wired to local postgres service
-helm_set = ["db.host=postgres"]
-if dev_mode:
-    pass  # db.pass comes from values-dev.yaml
-else:
-    helm_set += [
-        "image.repository=rep-orchestrator-prod",
-        "image.pullPolicy=Never",
-        "config.logLevel=info",
-        "db.pass=password",  # local postgres — not stored in values-prod.yaml
-    ]
-
 k8s_yaml(helm(
     "../helm/rep-orchestrator",
     name="rep-orchestrator",
     namespace="orchestrator",
-    values=values_files,
-    set=helm_set,
+    values=[
+        "../helm/rep-orchestrator/values.yaml",
+        "../helm/rep-orchestrator/values-local.yaml",
+    ],
+    set=["db.host=postgres"],
 ))
 
 k8s_resource(
@@ -179,18 +141,7 @@ k8s_resource(
 if run_orchestrator_tests:
     local_resource(
         "orchestrator-tests",
-        cmd="kubectl exec -i -n orchestrator --context kind-rtf-mgmt statefulset/postgres --"
-            + " env PGPASSWORD=password psql -U service_user rtf_rep"
-            + " < db/clear.sql"
-            + " && cd .."
-            + " && RTF_DB_HOST=localhost"
-            + " RTF_DB_PORT=5432"
-            + " RTF_DB_NAME=rtf_rep"
-            + " RTF_DB_USER=service_user"
-            + " RTF_DB_PASS=password"
-            + " RTF_APOLLO_KEY=dummy"
-            + " RTF_GITHUB_TOKEN=dummy"
-            + " cargo test --features db_tests",
+        cmd="./run-orchestrator-tests.sh",
         resource_deps=["rep-orchestrator"],
         labels=["test"],
     )

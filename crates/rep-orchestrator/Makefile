@@ -48,13 +48,9 @@ ci-tests: cluster-setup cluster-ci
 cluster-up:
 	@cd local-stack && tilt up --context kind-rtf-mgmt
 
-.PHONY: cluster-up-prod
-cluster-up-prod:
-	@cd local-stack && tilt up --context kind-rtf-mgmt -- --mode=prod
-
 .PHONY: cluster-ci
 cluster-ci:
-	@cd local-stack && tilt ci --context kind-rtf-mgmt -- --mode=prod --orchestrator-tests=true
+	@cd local-stack && tilt ci --context kind-rtf-mgmt -- --orchestrator-tests=true
 
 .PHONY: cluster-down
 cluster-down:
