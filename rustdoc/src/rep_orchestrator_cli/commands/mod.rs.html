@@ -20,28 +20,30 @@
 <a href=#20 id=20 data-nosnippet>20</a><span class="kw">const </span>MANAGER_NAME: <span class="kw-2">&amp;</span>str = <span class="string">"rep-orchestrator-cli"</span>;
 <a href=#21 id=21 data-nosnippet>21</a>
 <a href=#22 id=22 data-nosnippet>22</a><span class="doccomment">/// Build a kube client from a kubeconfig file path.
-<a href=#23 id=23 data-nosnippet>23</a></span><span class="kw">async fn </span>client_from_kubeconfig(kubeconfig_path: <span class="kw-2">&amp;</span>Path) -&gt; anyhow::Result&lt;Client&gt; {
-<a href=#24 id=24 data-nosnippet>24</a>    <span class="kw">let </span>kfg = Kubeconfig::read_from(kubeconfig_path).with_context(|| {
-<a href=#25 id=25 data-nosnippet>25</a>        <span class="macro">format!</span>(
-<a href=#26 id=26 data-nosnippet>26</a>            <span class="string">"failed to read kubeconfig from {}"</span>,
-<a href=#27 id=27 data-nosnippet>27</a>            kubeconfig_path.display()
-<a href=#28 id=28 data-nosnippet>28</a>        )
-<a href=#29 id=29 data-nosnippet>29</a>    })<span class="question-mark">?</span>;
-<a href=#30 id=30 data-nosnippet>30</a>
-<a href=#31 id=31 data-nosnippet>31</a>    <span class="kw">let </span>config = Config::from_custom_kubeconfig(kfg, <span class="kw-2">&amp;</span>KubeConfigOptions::default())
-<a href=#32 id=32 data-nosnippet>32</a>        .<span class="kw">await
-<a href=#33 id=33 data-nosnippet>33</a>        </span>.context(<span class="string">"failed to build kube config"</span>)<span class="question-mark">?</span>;
-<a href=#34 id=34 data-nosnippet>34</a>
-<a href=#35 id=35 data-nosnippet>35</a>    Client::try_from(config).context(<span class="string">"failed to create kube client"</span>)
-<a href=#36 id=36 data-nosnippet>36</a>}
-<a href=#37 id=37 data-nosnippet>37</a>
-<a href=#38 id=38 data-nosnippet>38</a><span class="doccomment">/// Run a shell command, logging it and returning an error if it fails.
-<a href=#39 id=39 data-nosnippet>39</a></span><span class="kw">fn </span>run_shell(cmd: <span class="kw-2">&amp;mut </span>Command) -&gt; anyhow::Result&lt;()&gt; {
-<a href=#40 id=40 data-nosnippet>40</a>    <span class="macro">info!</span>(<span class="string">"running: {cmd:?}"</span>);
-<a href=#41 id=41 data-nosnippet>41</a>    <span class="kw">let </span>status = cmd.status().context(<span class="string">"failed to execute command"</span>)<span class="question-mark">?</span>;
-<a href=#42 id=42 data-nosnippet>42</a>    <span class="kw">if </span>!status.success() {
-<a href=#43 id=43 data-nosnippet>43</a>        <span class="macro">bail!</span>(<span class="string">"command exited with {status}"</span>);
-<a href=#44 id=44 data-nosnippet>44</a>    }
-<a href=#45 id=45 data-nosnippet>45</a>    <span class="prelude-val">Ok</span>(())
-<a href=#46 id=46 data-nosnippet>46</a>}
+<a href=#23 id=23 data-nosnippet>23</a></span><span class="kw">async fn </span>client_from_kubeconfig(kubeconfig_path: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt;) -&gt; anyhow::Result&lt;Client&gt; {
+<a href=#24 id=24 data-nosnippet>24</a>    <span class="kw">match </span>kubeconfig_path {
+<a href=#25 id=25 data-nosnippet>25</a>        <span class="prelude-val">Some</span>(path) =&gt; {
+<a href=#26 id=26 data-nosnippet>26</a>            <span class="kw">let </span>kfg = Kubeconfig::read_from(path)
+<a href=#27 id=27 data-nosnippet>27</a>                .with_context(|| <span class="macro">format!</span>(<span class="string">"failed to read kubeconfig from {}"</span>, path.display()))<span class="question-mark">?</span>;
+<a href=#28 id=28 data-nosnippet>28</a>
+<a href=#29 id=29 data-nosnippet>29</a>            <span class="kw">let </span>config = Config::from_custom_kubeconfig(kfg, <span class="kw-2">&amp;</span>KubeConfigOptions::default())
+<a href=#30 id=30 data-nosnippet>30</a>                .<span class="kw">await
+<a href=#31 id=31 data-nosnippet>31</a>                </span>.context(<span class="string">"failed to build kube config"</span>)<span class="question-mark">?</span>;
+<a href=#32 id=32 data-nosnippet>32</a>
+<a href=#33 id=33 data-nosnippet>33</a>            Client::try_from(config)
+<a href=#34 id=34 data-nosnippet>34</a>        }
+<a href=#35 id=35 data-nosnippet>35</a>        <span class="prelude-val">None </span>=&gt; Client::try_default().<span class="kw">await</span>,
+<a href=#36 id=36 data-nosnippet>36</a>    }
+<a href=#37 id=37 data-nosnippet>37</a>    .context(<span class="string">"failed to create kube client from in-cluster config"</span>)
+<a href=#38 id=38 data-nosnippet>38</a>}
+<a href=#39 id=39 data-nosnippet>39</a>
+<a href=#40 id=40 data-nosnippet>40</a><span class="doccomment">/// Run a shell command, logging it and returning an error if it fails.
+<a href=#41 id=41 data-nosnippet>41</a></span><span class="kw">fn </span>run_shell(cmd: <span class="kw-2">&amp;mut </span>Command) -&gt; anyhow::Result&lt;()&gt; {
+<a href=#42 id=42 data-nosnippet>42</a>    <span class="macro">info!</span>(<span class="string">"running: {cmd:?}"</span>);
+<a href=#43 id=43 data-nosnippet>43</a>    <span class="kw">let </span>status = cmd.status().context(<span class="string">"failed to execute command"</span>)<span class="question-mark">?</span>;
+<a href=#44 id=44 data-nosnippet>44</a>    <span class="kw">if </span>!status.success() {
+<a href=#45 id=45 data-nosnippet>45</a>        <span class="macro">bail!</span>(<span class="string">"command exited with {status}"</span>);
+<a href=#46 id=46 data-nosnippet>46</a>    }
+<a href=#47 id=47 data-nosnippet>47</a>    <span class="prelude-val">Ok</span>(())
+<a href=#48 id=48 data-nosnippet>48</a>}
 </code></pre></div></section></main></body></html>
