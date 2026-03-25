@@ -20,6 +20,9 @@ pub struct Config {
     pub host: String,
     #[serde(default = "default_port")]
     pub port: u16,
+    pub kubeconfig_path: String,
+    pub mgmt_context: String,
+    pub workload_context: String,
 }
 
 fn default_host() -> String {

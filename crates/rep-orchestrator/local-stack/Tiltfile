@@ -6,12 +6,20 @@ config.define_bool("orchestrator-tests", args=False, usage="Run all cargo tests 
 cfg = config.parse()
 run_orchestrator_tests = cfg.get("orchestrator-tests", False)
 
-# Extract the workload cluster control-plane container IP on the kind network.
-# This is reachable from pods in the management cluster since both kind clusters
+# Extract container IPs for both clusters on the kind network.
+# These are reachable from pods in the management cluster since both kind clusters
 # share the same docker network.
 workload_ip = str(
     local(
         "docker inspect rtf-workload-control-plane"
+        + " --format '{{ .NetworkSettings.Networks.kind.IPAddress }}'",
+        quiet=True,
+    )
+).strip()
+
+mgmt_ip = str(
+    local(
+        "docker inspect rtf-mgmt-control-plane"
         + " --format '{{ .NetworkSettings.Networks.kind.IPAddress }}'",
         quiet=True,
     )
@@ -27,15 +35,37 @@ workload_kubeconfig = str(
     )
 )
 
+# Build a combined kubeconfig (both clusters, container IPs) for the orchestrator pod.
+# Written via temp files to avoid shell quoting issues with YAML content.
+combined_kubeconfig = str(
+    local(
+        "kind get kubeconfig --name rtf-mgmt"
+        + " | sed 's|https://127.0.0.1:[0-9]*|https://%s:6443|g' > /tmp/rtf-mgmt.kubeconfig" % mgmt_ip
+        + " && kind get kubeconfig --name rtf-workload"
+        + " | sed 's|https://127.0.0.1:[0-9]*|https://%s:6443|g' > /tmp/rtf-workload.kubeconfig" % workload_ip
+        + " && KUBECONFIG=/tmp/rtf-mgmt.kubeconfig:/tmp/rtf-workload.kubeconfig kubectl config view --flatten --merge",
+        quiet=True,
+    )
+)
+
 # Namespaces
 k8s_yaml("k8s/namespace.yaml")
 
-# Workload kubeconfig — stored as a secret so the orchestrator can reach the workload cluster
+# Workload kubeconfig — stored as a secret so Argo workflow pods can reach the workload cluster
 k8s_yaml(
     secret_from_dict(
         "workload-kubeconfig",
         namespace="cluster-api",
         inputs={"value": workload_kubeconfig},
+    )
+)
+
+# Combined kubeconfig — mounted into the orchestrator pod so it can reach both clusters
+k8s_yaml(
+    secret_from_dict(
+        "orchestrator-kubeconfig",
+        namespace="orchestrator",
+        inputs={"config": combined_kubeconfig},
     )
 )
 
@@ -56,6 +86,7 @@ k8s_resource(
         "argo-workflow:role:cluster-api",
         "argo-workflow:rolebinding:cluster-api",
         "workload-kubeconfig:secret:cluster-api",
+        "orchestrator-kubeconfig:secret:orchestrator",
     ],
     new_name="cluster-setup",
     labels=["infra"],

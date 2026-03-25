@@ -216,6 +216,9 @@ mod tests {
             github_token: "dummy".to_string(),
             host: "0.0.0.0".to_string(),
             port: 8035,
+            kubeconfig_path: "dummy".to_string(),
+            mgmt_context: "dummy".to_string(),
+            workload_context: "dummy".to_string(),
         }
     }
 

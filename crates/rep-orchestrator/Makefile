@@ -19,6 +19,9 @@ db-tests:
 		RTF_DB_PASS=password \
 		RTF_APOLLO_KEY=dummy \
 		RTF_GITHUB_TOKEN=dummy \
+		RTF_KUBECONFIG_PATH=dummy \
+		RTF_MGMT_CONTEXT=dummy \
+		RTF_WORKLOAD_CONTEXT=dummy \
 		cargo test --lib --features db_tests $(ARGS)
 
 .PHONY: integration-tests
