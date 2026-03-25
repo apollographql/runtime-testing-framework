@@ -73,9 +73,5 @@ pub enum Command {
         /// Namespace where the ConfigMap resides
         #[arg(long)]
         namespace: String,
-
-        /// Path to the kubeconfig file for the workload cluster
-        #[arg(long)]
-        kubeconfig: PathBuf,
     },
 }

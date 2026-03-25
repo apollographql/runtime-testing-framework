@@ -2,19 +2,12 @@ use crate::commands::client_from_kubeconfig;
 use anyhow::Context;
 use k8s_openapi::api::core::v1::ConfigMap;
 use kube::{Api, api::DeleteParams};
-use std::path::Path;
 use tracing::info;
 
-pub async fn cleanup(
-    configmap: &str,
-    namespace: &str,
-    kubeconfig_path: &Path,
-) -> anyhow::Result<()> {
+pub async fn cleanup(configmap: &str, namespace: &str) -> anyhow::Result<()> {
     info!("Cleaning up ConfigMap '{configmap}'...");
 
-    let client = client_from_kubeconfig(kubeconfig_path)
-        .await
-        .context("Failed to create kube client")?;
+    let client = client_from_kubeconfig(None).await?;
 
     let api: Api<ConfigMap> = Api::namespaced(client, namespace);
     match api.delete(configmap, &DeleteParams::default()).await {
