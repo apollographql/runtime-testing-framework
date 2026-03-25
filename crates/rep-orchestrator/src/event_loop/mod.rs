@@ -1,8 +1,9 @@
+use crate::db::TestExecution;
 use rtf_config::formats::{DockerComposeEnvironment, DockerScenario};
 use tokio::sync::mpsc::UnboundedReceiver;
-use tracing::{info, warn};
+use tracing::warn;
 
-use crate::db::TestExecution;
+pub mod provision_environment;
 
 #[derive(Debug)]
 pub enum EventType {
@@ -19,13 +20,7 @@ pub async fn event_loop_task(mut erx: UnboundedReceiver<Event>) {
     while let Some(event) = erx.recv().await {
         match event.ty {
             EventType::ProvisionEnvironment(environment, scenario) => {
-                // This is just a stubbed version of the event loop task. Future PRs will need to implement the full task
-                info!(
-                    execution_id = %event.test_execution.uuid(),
-                    environment = ?environment,
-                    scenario = ?scenario,
-                    "ProvisionEnvironment received - logic to do something with it not yet implemented"
-                );
+                provision_environment::run(event.test_execution, environment, scenario).await;
             }
         }
     }
