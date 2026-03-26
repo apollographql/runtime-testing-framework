@@ -41,10 +41,7 @@ tracing.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
-rtf-cli = { path = "../rtf-cli" }
-
 anyhow.workspace = true 
-assert_fs.workspace = true
 indoc.workspace = true
 reqwest.workspace = true
 serde_yaml.workspace = true
