@@ -15,3 +15,4 @@ tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+simple_test_case.workspace = true

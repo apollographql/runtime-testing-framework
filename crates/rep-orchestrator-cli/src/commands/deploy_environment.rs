@@ -6,6 +6,11 @@ use std::{collections::HashMap, env::temp_dir, fs, path::Path, process::Command,
 use tokio::time::{Instant, sleep};
 use tracing::info;
 
+const DUPLICATE_ERROR: &str =
+    "Encountered a duplicate environment entry in the resolved RTF environment";
+const MALFORMED_ERROR: &str = "Encountered a malformed line in the resolved RTF environment";
+const MISSING_EXPORT_ERROR: &str = "Expected leading 'export ' prefix to env file line";
+
 pub async fn deploy_environment(
     namespace: &str,
     kubeconfig_path: &Path,
@@ -69,25 +74,25 @@ fn setup_env(k8s_dir_path: &Path, outdir_path: &Path) -> anyhow::Result<()> {
 
 /// Parse a `.env` file into a map of key-value pairs.
 ///
+/// Expects all lines in the file to be of the form "export $key=$value"
+///
 /// Assumes clean output from RTF and returns an [anyhow::Error] if the file was in any way malformed.
 fn parse_env_file(contents: &str) -> anyhow::Result<HashMap<String, String>> {
     let mut rtf_env = HashMap::new();
 
     for line in contents.lines() {
-        match line.split_once('=') {
+        let kv = line
+            .strip_prefix("export ")
+            .ok_or(anyhow!("{MISSING_EXPORT_ERROR}: {line:?}"))?;
+
+        match kv.split_once('=') {
             Some((key, value)) => {
                 if let Some(_existing) = rtf_env.insert(key.to_owned(), value.to_owned()) {
-                    return Err(anyhow!(
-                        "Encountered a duplicate environment entry in the resolved RTF environment: {}",
-                        line
-                    ));
+                    return Err(anyhow!("{DUPLICATE_ERROR}: {line:?}"));
                 }
             }
             _ => {
-                return Err(anyhow!(
-                    "Encountered a malformed line in the resolved RTF environment: {}",
-                    line
-                ));
+                return Err(anyhow!("{MALFORMED_ERROR}: {line:?}"));
             }
         }
     }
@@ -188,24 +193,25 @@ async fn wait_for_deployments(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use simple_test_case::test_case;
     use std::path::PathBuf;
 
     #[test]
     fn parse_env_preserves_values_containing_equals() -> anyhow::Result<()> {
-        let vars = parse_env_file("FOO=bar=baz=qux")?;
+        let vars = parse_env_file("export FOO=bar=baz=qux")?;
         assert_eq!(vars.get("FOO").unwrap(), "bar=baz=qux");
 
         Ok(())
     }
 
+    #[test_case("foo=bar", MISSING_EXPORT_ERROR; "no export prefix")]
+    #[test_case("export no_equals_here", MALFORMED_ERROR; "no equals")]
+    #[test_case("export foo=1\nexport foo=2", DUPLICATE_ERROR; "duplicate keys")]
     #[test]
-    fn parse_env_errors_on_malformed_lines() {
-        match parse_env_file("no_equals_here") {
+    fn parse_env_errors_on_malformed_input(lines: &str, error_prefix: &str) {
+        match parse_env_file(lines) {
             Ok(_) => panic!("Expected parsing to fail"),
-            Err(e) => assert_eq!(
-                format!("{}", e),
-                "Encountered a malformed line in the resolved RTF environment: no_equals_here"
-            ),
+            Err(e) => assert!(e.to_string().starts_with(error_prefix), "{e}"),
         }
     }
 
