@@ -1,6 +1,6 @@
 mod common;
 
-use common::TestHelper;
+use common::{TestHelper, assert_configmap_exists};
 use rep_orchestrator_shared::{
     payload::SetStatusPayload,
     status::{
@@ -77,23 +77,15 @@ async fn run_status_returns_404_for_unknown_run() {
     assert_status!(resp, StatusCode::NOT_FOUND);
 }
 
-// Helper for writing status update tests that need a valid test run and execution to work with
+// Helper for writing status update tests that need a valid test run and execution to work with.
+// Polls until the event loop has set Provisioning, so callers start from a known stable state.
 async fn prepare_status_update_test(t: &TestHelper) -> Uuid {
     let from_trigger = trigger_rep_prepare_test_plan(t).await.unwrap();
-    tokio::time::sleep(Duration::from_millis(500)).await; // ensure that we get the status update
-    let queried: TestRunSummary = t
-        .json_get(format!("test-run/{}/status", from_trigger.id))
-        .await
-        .unwrap();
-
-    assert_eq!(queried.executions.len(), 1, "{:?}", queried.executions);
-
-    let ex_id = queried.executions[0].id;
-    let initial_status_history = &queried.executions[0].status_history;
-    let initial_statuses: Vec<Status> = initial_status_history.iter().map(|u| u.status).collect();
-
-    assert_eq!(initial_statuses, vec![Resolving, Initialising], "initial");
-
+    let ex_id = t
+        .poll_for_execution_id(from_trigger.id, Duration::from_secs(5))
+        .await;
+    t.poll_for_status(ex_id, Provisioning, Duration::from_secs(30))
+        .await;
     ex_id
 }
 
@@ -131,16 +123,16 @@ fn su(status: Status, exit_code: Option<u8>) -> SetStatusPayload {
     }
 }
 
-#[test_case(&[su(Provisioning, None), su(Running, None), su(Successful, None)]; "successful")]
-#[test_case(&[su(Provisioning, None), su(Running, None), su(Successful, Some(0))]; "successful with 0 exit code")]
-#[test_case(&[su(Provisioning, None), su(Running, None), su(Failed, Some(1))]; "failed")]
-#[test_case(&[su(Provisioning, None), su(Unrunnable, None)]; "unrunnable")]
+#[test_case(&[su(Running, None), su(Successful, None)]; "successful")]
+#[test_case(&[su(Running, None), su(Successful, Some(0))]; "successful with 0 exit code")]
+#[test_case(&[su(Running, None), su(Failed, Some(1))]; "failed")]
+#[test_case(&[su(Unrunnable, None)]; "unrunnable")]
 #[tokio::test]
 async fn execution_status_valid_update_sequence_accepted(payloads: &[SetStatusPayload]) {
     let t = TestHelper::new();
 
     let ex_id = prepare_status_update_test(&t).await;
-    let mut final_statuses = vec![Initialising, Resolving];
+    let mut final_statuses = vec![Initialising, Resolving, Provisioning];
 
     for payload in payloads.iter() {
         let update: StatusUpdate = t
@@ -223,4 +215,28 @@ async fn execution_status_update_sets_exit_code() {
         .unwrap();
 
     assert_eq!(summary.exit_code, Some(42));
+}
+
+#[tokio::test]
+async fn trigger_creates_configmap_and_sets_provisioning() {
+    let t = TestHelper::new();
+
+    let run: TestRunSummary = t
+        .json_post(
+            "test-run/trigger",
+            t.prepare_rep_payload("resources/test-plans/valid/minimal")
+                .await
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    let ex_id = t
+        .poll_for_execution_id(run.id, Duration::from_secs(5))
+        .await;
+    t.poll_for_status(ex_id, Provisioning, Duration::from_secs(30))
+        .await;
+
+    let cm_name = format!("environment-config-{ex_id}");
+    assert_configmap_exists(&cm_name).await;
 }

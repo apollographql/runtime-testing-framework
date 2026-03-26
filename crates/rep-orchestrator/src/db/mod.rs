@@ -173,6 +173,15 @@ mod update_handle {
         pub status_updates: Vec<TaggedStatusUpdate>,
     }
 
+    impl MockUpdateHandle {
+        pub fn with_execution(ex: TestExecution) -> Self {
+            Self {
+                test_executions: vec![ex],
+                ..Default::default()
+            }
+        }
+    }
+
     impl UpdateHandle for MockUpdateHandle {
         async fn init_execution(
             &mut self,

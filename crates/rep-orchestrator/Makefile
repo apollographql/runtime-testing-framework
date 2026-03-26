@@ -22,7 +22,7 @@ db-tests:
 		RTF_KUBECONFIG_PATH=dummy \
 		RTF_MGMT_CONTEXT=dummy \
 		RTF_WORKLOAD_CONTEXT=dummy \
-		cargo test --lib --features db_tests $(ARGS)
+		cargo test --lib --features k8s_tests $(ARGS)
 
 .PHONY: integration-tests
 integration-tests: clear-db-data
@@ -33,7 +33,10 @@ integration-tests: clear-db-data
 		RTF_DB_PASS=password \
 		RTF_APOLLO_KEY=dummy \
 		RTF_GITHUB_TOKEN=dummy \
-		cargo test --features db_tests --test '*' $(ARGS)
+		RTF_KUBECONFIG_PATH=$(HOME)/.kube/config \
+		RTF_MGMT_CONTEXT=kind-rtf-mgmt \
+		RTF_WORKLOAD_CONTEXT=kind-rtf-workload \
+		cargo test --features k8s_tests --test '*' $(ARGS)
 
 .PHONY: test-all
 test-all: db-tests integration-tests

@@ -1,0 +1,9 @@
+name: minimal-nginx-environment
+description: Minimal DockerCompose environment for ProvisionEnvironment integration tests
+
+project_name: minimal-nginx
+
+compose_files:
+  - name: compose.yaml
+    kind: relative_path
+    path: providers/compose.yaml

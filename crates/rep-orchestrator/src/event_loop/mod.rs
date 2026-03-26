@@ -22,7 +22,7 @@ pub struct Event {
 
 pub async fn event_loop_task(_etx: UnboundedSender<Event>, mut erx: UnboundedReceiver<Event>) {
     let cfg = Config::get();
-    let _clients = match ClusterClients::try_new(
+    let clients = match ClusterClients::try_new(
         Path::new(&cfg.kubeconfig_path),
         &cfg.mgmt_context,
         &cfg.workload_context,
@@ -39,7 +39,8 @@ pub async fn event_loop_task(_etx: UnboundedSender<Event>, mut erx: UnboundedRec
     while let Some(event) = erx.recv().await {
         match event.ty {
             EventType::ProvisionEnvironment(environment, scenario) => {
-                provision_environment::run(event.test_execution, environment, scenario).await;
+                provision_environment::run(event.test_execution, environment, scenario, &clients)
+                    .await;
             }
         }
     }

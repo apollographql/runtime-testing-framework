@@ -8,6 +8,9 @@ use uuid::Uuid;
 mod client;
 mod workflow;
 
+#[cfg(test)]
+pub mod mock_client;
+
 pub use client::ClusterClients;
 pub use workflow::{Workflow, WorkflowSpec};
 
