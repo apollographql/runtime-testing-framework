@@ -2881,7 +2881,6 @@ dependencies = [
 name = "rtf-core"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "assert_fs",
  "rtf-config",
  "serde",

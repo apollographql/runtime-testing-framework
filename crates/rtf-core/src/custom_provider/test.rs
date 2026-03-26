@@ -1,5 +1,4 @@
 //! Run validation tests for a custom provider
-use anyhow::{Context as _, anyhow};
 use assert_fs::TempDir;
 use rtf_config::{
     StableSource,
@@ -10,6 +9,7 @@ use rtf_config::{
     run::{Execute, OUTPUT_PATH, PROVIDER_DIR},
     templating::{Scalar, Template, TemplateContext},
 };
+use serde::de::DeserializeOwned;
 use similar::{ChangeTag, TextDiff};
 use std::{
     collections::HashMap,
@@ -29,11 +29,71 @@ const EXPECTED_RUN_OUTPUT_FILE: &str = "expected-run-output.txt";
 const RTF_OUTPUT: &str = "RTF_OUTPUT";
 const VARIABLES_FILE: &str = "variables.json";
 
+fn invalid_assertion_data_msg() -> String {
+    format!(
+        "Expected one of:\n- {}\n- {}\n- {}",
+        EXPECTED_RUN_OUTPUT_FILE, EXPECTED_RUN_OUTPUT_DIR, EXPECTED_RUN_ERROR_FILE
+    )
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error(transparent)]
+    Io(#[from] io::Error),
+
+    #[error(transparent)]
+    TempDir(#[from] assert_fs::fixture::FixtureError),
+
+    #[error("conflicting test assertion data found for {path}\n{hint}", hint = invalid_assertion_data_msg())]
+    ConflictingAssertionData { path: PathBuf },
+
+    #[error(
+        "invalid test case '{path}': {files} and {dir} have conflicting paths - {conflicts}",
+        files = EXPECTED_COPIED_FILES, dir = EXPECTED_RUN_OUTPUT_DIR
+    )]
+    CopiedFilesOutputDirConflict { path: PathBuf, conflicts: String },
+
+    #[error(
+        "invalid test case '{path}': {files} can not be used with {out_file}",
+        files = EXPECTED_COPIED_FILES, out_file = EXPECTED_RUN_OUTPUT_FILE
+    )]
+    CopiedFilesWithOutputFile { path: PathBuf },
+
+    #[error(
+        "invalid test case '{path}': {files} can not be used with {err_file}",
+        files = EXPECTED_COPIED_FILES, err_file = EXPECTED_RUN_ERROR_FILE
+    )]
+    ExpectedErrorWithCopiedFiles { path: PathBuf },
+
+    #[error("{rtf_output} must be the only copied file key when present", rtf_output = RTF_OUTPUT)]
+    InvalidCopiedRtfOutput,
+
+    #[error("no test assertion data found for {path}\n{hint}", hint = invalid_assertion_data_msg())]
+    NoAssertionData { path: PathBuf },
+
+    #[error("failed to load {kind} file at {path}: {error}")]
+    UnableToLoadFile {
+        kind: &'static str,
+        path: PathBuf,
+        error: String,
+    },
+
+    #[error("unable to read copied file for '{output_path}': {source_path}")]
+    UnableToReadCopiedFile {
+        output_path: String,
+        source_path: PathBuf,
+        #[source]
+        error: io::Error,
+    },
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
+
 #[derive(Debug)]
 pub struct TestSuite(Vec<TestCase>);
 
 impl TestSuite {
-    pub fn try_load(dir: &Path) -> anyhow::Result<Self> {
+    pub fn try_load(dir: &Path) -> Result<Self> {
         Ok(Self(TestCase::try_load_all(dir)?))
     }
 
@@ -126,7 +186,7 @@ impl TestCase {
         )
     }
 
-    fn try_load_all(dir: &Path) -> anyhow::Result<Vec<Self>> {
+    fn try_load_all(dir: &Path) -> Result<Vec<Self>> {
         expect_dir(dir)?;
 
         let mut test_cases = Vec::new();
@@ -153,40 +213,21 @@ impl TestCase {
             .filter(|p| p.exists())
             .count();
 
-            let invalid_assertion_data_msg = || {
-                format!(
-                    "Expected one of:\n- {EXPECTED_RUN_OUTPUT_FILE}\n- {EXPECTED_RUN_OUTPUT_DIR}\n- {EXPECTED_RUN_ERROR_FILE}"
-                )
-            };
-
             let mut expected_files = load_expected_copied_files(&path)?;
 
             if types_present == 0 && expected_files.is_empty() {
-                return Err(anyhow!(
-                    "No test assertion data found for {}\n{}",
-                    path.display(),
-                    invalid_assertion_data_msg()
-                ));
+                return Err(Error::NoAssertionData { path });
             } else if types_present > 1 {
-                return Err(anyhow!(
-                    "Conflicting test assertion data found for {}\n{}",
-                    path.display(),
-                    invalid_assertion_data_msg()
-                ));
+                return Err(Error::ConflictingAssertionData { path });
             }
 
             let data = if expected_failure_file.exists() {
                 expect_file(&expected_failure_file)?;
                 if !expected_files.is_empty() {
-                    return Err(anyhow!(
-                        "Invalid test case '{}': {EXPECTED_COPIED_FILES} can not be used with {EXPECTED_RUN_ERROR_FILE}",
-                        path.display()
-                    ));
+                    return Err(Error::ExpectedErrorWithCopiedFiles { path });
                 }
 
-                TestCaseData::Failure(fs::read_to_string(&expected_failure_file).with_context(
-                    || format!("unable to read {}", expected_failure_file.display()),
-                )?)
+                TestCaseData::Failure(fs::read_to_string(&expected_failure_file)?)
             } else if expected_output_dir.exists() {
                 expect_dir(&expected_output_dir)?;
                 let explicit_files = output_files(&expected_output_dir)?;
@@ -197,11 +238,10 @@ impl TestCase {
                     .collect();
 
                 if !conflicts.is_empty() {
-                    return Err(anyhow!(
-                        "Invalid test case '{}': {EXPECTED_COPIED_FILES} and {EXPECTED_RUN_OUTPUT_DIR} have conflicting paths - {}",
-                        path.display(),
-                        conflicts.join(", ")
-                    ));
+                    return Err(Error::CopiedFilesOutputDirConflict {
+                        path,
+                        conflicts: conflicts.join(", "),
+                    });
                 }
 
                 expected_files.extend(explicit_files);
@@ -210,25 +250,18 @@ impl TestCase {
             } else if expected_output_file.exists() {
                 expect_file(&expected_output_file)?;
                 if !expected_files.is_empty() {
-                    return Err(anyhow!(
-                        "Invalid test case '{}': {EXPECTED_COPIED_FILES} can not be used with {EXPECTED_RUN_OUTPUT_FILE}",
-                        path.display()
-                    ));
+                    return Err(Error::CopiedFilesWithOutputFile { path });
                 }
 
-                TestCaseData::SuccessFile(fs::read_to_string(&expected_output_file).with_context(
-                    || format!("unable to read {}", expected_output_file.display()),
-                )?)
+                TestCaseData::SuccessFile(fs::read_to_string(&expected_output_file)?)
             } else {
                 match expected_files.remove(RTF_OUTPUT) {
                     Some(s) if expected_files.is_empty() => TestCaseData::SuccessFile(s),
                     Some(_) => {
-                        return Err(anyhow!(
-                            "{RTF_OUTPUT} must be the only copied file key when present"
-                        ));
+                        return Err(Error::InvalidCopiedRtfOutput);
                     }
                     None if expected_files.is_empty() => {
-                        return Err(anyhow!("{}", invalid_assertion_data_msg()));
+                        return Err(Error::NoAssertionData { path });
                     }
                     None => TestCaseData::SuccessDir(expected_files),
                 }
@@ -273,7 +306,7 @@ impl TestCase {
         self,
         mut definition: CustomProviderDefinition,
         ctx: &mut Context,
-    ) -> anyhow::Result<Outcome> {
+    ) -> Result<Outcome> {
         debug!("building templating context");
         let template_ctx = TemplateContext::new(
             load_variables(&self.path.join(VARIABLES_FILE))?,
@@ -513,46 +546,47 @@ fn compare_outputs(
     }
 }
 
-fn load_variables(path: &Path) -> anyhow::Result<HashMap<String, Scalar>> {
-    let content = fs::read_to_string(path)
-        .with_context(|| format!("Failed to read variables file: {}", path.display()))?;
-    let vars: HashMap<String, Scalar> = serde_json::from_str(&content)
-        .with_context(|| format!("Failed to parse variables JSON: {}", path.display()))?;
+#[inline(always)]
+fn load_json_file<T>(kind: &'static str, path: &Path) -> Result<T>
+where
+    T: DeserializeOwned,
+{
+    let content = fs::read_to_string(path).map_err(|error| Error::UnableToLoadFile {
+        kind,
+        path: path.to_owned(),
+        error: error.to_string(),
+    })?;
+    let vars = serde_json::from_str(&content).map_err(|error| Error::UnableToLoadFile {
+        kind,
+        path: path.to_owned(),
+        error: error.to_string(),
+    })?;
 
     Ok(vars)
 }
 
-fn load_expected_copied_files(test_case_path: &Path) -> anyhow::Result<HashMap<String, String>> {
+fn load_variables(path: &Path) -> Result<HashMap<String, Scalar>> {
+    load_json_file("variables", path)
+}
+
+fn load_expected_copied_files(test_case_path: &Path) -> Result<HashMap<String, String>> {
     let index_path = test_case_path.join(EXPECTED_COPIED_FILES);
     if !index_path.exists() {
         return Ok(HashMap::new());
     }
 
-    let content = fs::read_to_string(&index_path).with_context(|| {
-        format!(
-            "Failed to read copied files index: {}",
-            index_path.display()
-        )
-    })?;
-
-    let raw_index: HashMap<String, String> = serde_json::from_str(&content).with_context(|| {
-        format!(
-            "Failed to parse copied files index: {}",
-            index_path.display()
-        )
-    })?;
-
+    let raw_index: HashMap<String, String> = load_json_file("copied files index", &index_path)?;
     let mut expected = HashMap::new();
+
     for (output_path, relative_source) in raw_index {
         let source_path = test_case_path.join(&relative_source);
-        let source_path = source_path.canonicalize().with_context(|| {
-            format!(
-                "Source file not found for '{}': {}",
-                output_path,
-                source_path.display()
-            )
-        })?;
-        let content = fs::read_to_string(source_path)?;
+        let content =
+            fs::read_to_string(&source_path).map_err(|error| Error::UnableToReadCopiedFile {
+                output_path: output_path.clone(),
+                source_path: source_path.clone(),
+                error,
+            })?;
+
         expected.insert(output_path, content);
     }
 
@@ -813,9 +847,11 @@ mod tests {
         let res = load_expected_copied_files(tmp.path());
 
         assert!(res.is_err(), "should error when source file doesn't exist");
-        let err = res.unwrap_err().to_string();
-        assert!(err.contains("Source file not found"), "{err}");
-        assert!(err.contains("output.txt"), "{err}");
+        let err = res.unwrap_err();
+        assert!(
+            matches!(err, Error::UnableToReadCopiedFile { .. }),
+            "{err:?}"
+        );
     }
 
     #[test]
@@ -828,8 +864,17 @@ mod tests {
         let res = load_expected_copied_files(tmp.path());
 
         assert!(res.is_err(), "should error on malformed JSON");
-        let err = res.unwrap_err().to_string();
-        assert!(err.contains("Failed to parse copied files index"), "{err}");
+        let err = res.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                Error::UnableToLoadFile {
+                    kind: "copied files index",
+                    ..
+                }
+            ),
+            "{err:?}"
+        );
     }
 
     fn create_valid_test_case(tmp: &TempDir, name: &str) {
@@ -992,9 +1037,11 @@ mod tests {
         let res = TestCase::try_load_all(tmp.path());
 
         assert!(res.is_err(), "expected error, got {res:?}");
-        let err = res.unwrap_err().to_string();
-        assert!(err.contains("Invalid test case"), "{err}");
-        assert!(err.contains("conflict.txt"), "{err}");
+        let err = res.unwrap_err();
+        assert!(
+            matches!(err, Error::CopiedFilesOutputDirConflict { .. }),
+            "{err:?}"
+        );
     }
 
     #[test]
@@ -1247,11 +1294,10 @@ mod tests {
             None => tmp.path().to_path_buf(),
         };
         let err = TestCase::try_load_all(&path).unwrap_err();
-        assert_eq!(
-            err.downcast_ref::<io::Error>().map(|e| e.kind()),
-            Some(expected),
-            "expected IO error, got {err:?}"
-        );
+        match err {
+            Error::Io(e) if e.kind() == expected => (),
+            _ => panic!("expected IO error with kind {expected}, got {err:?}"),
+        };
     }
 
     #[test]
@@ -1332,12 +1378,12 @@ mod tests {
     }
 
     #[test]
-    fn check_expected_failure_file_read_error() {
+    fn check_no_assertion_data_error() {
         let tmp = TempDir::new().unwrap();
         // Only create variables.json, not expected-run-error.txt
         tmp.child("case/variables.json").write_str("{}").unwrap();
 
-        let res = TestCase::try_load_all(tmp.path());
-        assert!(res.is_err());
+        let err = TestCase::try_load_all(tmp.path()).unwrap_err();
+        assert!(matches!(err, Error::NoAssertionData { .. }), "{err:?}");
     }
 }
