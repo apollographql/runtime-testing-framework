@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["custom_provider"]};
+window.SIDEBAR_ITEMS = {"mod":["custom_provider","variables"]};
