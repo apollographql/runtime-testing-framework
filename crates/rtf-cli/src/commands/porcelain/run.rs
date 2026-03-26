@@ -1,5 +1,5 @@
 use crate::{
-    cli::{RunTarget, Variables},
+    cli::RunTarget,
     commands::{
         get_context_and_check_outdir, load_and_resolve_test_plan_from_github,
         load_and_resolve_test_plan_from_local,
@@ -12,6 +12,7 @@ use rtf_config::{
     formats::{Sources, TestPlanConfig},
     templating::{Template, TemplateContext},
 };
+use rtf_core::variables::Variables;
 use std::{collections::HashMap, mem::take, path::Path};
 use tracing::info;
 

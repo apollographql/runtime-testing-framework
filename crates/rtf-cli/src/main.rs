@@ -46,7 +46,7 @@ async fn main() {
                 &test_plan_path,
                 github,
                 git_ref,
-                variables,
+                variables.into(),
                 run_target,
                 &outdir,
                 force,
@@ -67,7 +67,7 @@ async fn main() {
             check,
             github,
             git_ref,
-        } => template_test_plan(&test_plan_path, check, github, git_ref, variables).await,
+        } => template_test_plan(&test_plan_path, check, github, git_ref, variables.into()).await,
 
         Command::Inline { subcommand } => {
             let (args, mode) = match subcommand {
@@ -78,7 +78,7 @@ async fn main() {
                 &args.test_plan_path,
                 args.github,
                 args.git_ref,
-                variables,
+                variables.into(),
                 &mode,
                 &args.outdir,
                 args.force,
@@ -92,7 +92,7 @@ async fn main() {
                     definition_path,
                     check,
                 },
-        } => template_custom_provider(&definition_path, variables, check).await,
+        } => template_custom_provider(&definition_path, variables.into(), check).await,
 
         Command::CustomProvider {
             subcommand:
@@ -101,7 +101,7 @@ async fn main() {
                     outdir,
                     force,
                 },
-        } => run_custom_provider(&definition_path, variables, &outdir, force).await,
+        } => run_custom_provider(&definition_path, variables.into(), &outdir, force).await,
 
         Command::CustomProvider {
             subcommand:
@@ -122,7 +122,7 @@ async fn main() {
                     outdir,
                     force,
                 },
-        } => resolve_scenario(&scenario_path, variables, &outdir, force).await,
+        } => resolve_scenario(&scenario_path, variables.into(), &outdir, force).await,
 
         Command::Resolve {
             subcommand:
@@ -131,7 +131,7 @@ async fn main() {
                     outdir,
                     force,
                 },
-        } => resolve_environment(&environment_path, variables, &outdir, force).await,
+        } => resolve_environment(&environment_path, variables.into(), &outdir, force).await,
 
         Command::Rep {
             subcommand:
@@ -140,7 +140,10 @@ async fn main() {
                     github,
                     git_ref,
                 },
-        } => write_rep_trigger_payload_to_stdout(&test_plan_path, github, git_ref, variables).await,
+        } => {
+            write_rep_trigger_payload_to_stdout(&test_plan_path, github, git_ref, variables.into())
+                .await
+        }
 
         Command::Completion { shell } => generate_shell_completions(shell),
 

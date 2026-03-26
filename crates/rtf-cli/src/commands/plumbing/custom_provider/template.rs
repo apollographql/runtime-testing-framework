@@ -1,9 +1,5 @@
 //! Template a custom provider independently of a test plan
-use crate::{
-    ParsedVariables,
-    cli::Variables,
-    commands::{get_context, load_config, plumbing::parse_cli_variables},
-};
+use crate::commands::{get_context, load_config, plumbing::parse_cli_variables};
 use rtf_config::{
     CustomProviderSection, SourceDir, StableSource,
     checks::Check,
@@ -11,6 +7,7 @@ use rtf_config::{
     formats::{CustomProviderDefinition, Sources},
     templating::{Template, TemplateContext},
 };
+use rtf_core::variables::{ParsedVariables, Variables};
 use std::env::current_dir;
 use tracing::info;
 

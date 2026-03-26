@@ -1,7 +1,7 @@
 //! Lower level commands for running individual pieces of functionality from the framework.
-use crate::{ParsedVariables, cli::Variables};
 use anyhow::anyhow;
 use rtf_config::{SourceDir, context::ResolutionContext};
+use rtf_core::variables::{ParsedVariables, Variables};
 
 mod completion;
 mod custom_provider;

@@ -1,11 +1,7 @@
 //! Resolve file providers for an environment independently of executing it.
-use crate::{
-    ParsedVariables,
-    cli::Variables,
-    commands::{
-        get_context_and_check_outdir, load_config,
-        plumbing::{parse_cli_variables, resolve::generate_env_file},
-    },
+use crate::commands::{
+    get_context_and_check_outdir, load_config,
+    plumbing::{parse_cli_variables, resolve::generate_env_file},
 };
 use anyhow::bail;
 use rtf_config::{
@@ -19,6 +15,7 @@ use rtf_config::{
     run::{OUTPUT_PATH, PROVIDER_DIR, RunProviders},
     templating::{Template, TemplateContext},
 };
+use rtf_core::variables::{ParsedVariables, Variables};
 use std::{collections::HashMap, env::current_dir, path::Path};
 use tracing::info;
 

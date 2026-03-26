@@ -1,8 +1,5 @@
-use crate::{
-    cli::Variables,
-    commands::{
-        get_context, load_and_resolve_test_plan_from_github, load_and_resolve_test_plan_from_local,
-    },
+use crate::commands::{
+    get_context, load_and_resolve_test_plan_from_github, load_and_resolve_test_plan_from_local,
 };
 use rep_orchestrator_shared::{
     payload::{SourceKeyedArrayMap, TriggerPayload},
@@ -15,6 +12,7 @@ use rtf_config::{
     run::RunProviders,
     templating::{Template, TemplateContext},
 };
+use rtf_core::variables::Variables;
 use std::{collections::HashMap, mem::take, sync::Arc};
 use tracing::info;
 
