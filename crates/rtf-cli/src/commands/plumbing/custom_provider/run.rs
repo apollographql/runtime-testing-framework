@@ -1,13 +1,9 @@
 //! Run a custom provider independently of a test plan
-use crate::{
-    ParsedVariables,
-    cli::Variables,
-    commands::{
-        get_context_and_check_outdir, load_config,
-        plumbing::{
-            custom_provider::{RESOLVED_PROVIDER_PATH, VARIABLES_PATH},
-            parse_cli_variables,
-        },
+use crate::commands::{
+    get_context_and_check_outdir, load_config,
+    plumbing::{
+        custom_provider::{RESOLVED_PROVIDER_PATH, VARIABLES_PATH},
+        parse_cli_variables,
     },
 };
 use rtf_config::{
@@ -18,6 +14,7 @@ use rtf_config::{
     run::{Execute, OUTPUT_PATH, PROVIDER_DIR},
     templating::{Template, TemplateContext},
 };
+use rtf_core::variables::{ParsedVariables, Variables};
 use std::env::current_dir;
 use tracing::info;
 

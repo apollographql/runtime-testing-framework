@@ -1,12 +1,8 @@
-use assert_fs::{
-    TempDir,
-    prelude::{PathChild, PathCopy},
-};
-use rep_orchestrator_shared::payload::TriggerPayload;
+use rep_orchestrator_shared::{payload::TriggerPayload, test_plan::Rep};
 use reqwest::{Client, Response};
-use rtf_cli::commands::plumbing::prepare_rep_trigger_payload;
+use rtf_config::{context::Context, formats::TestPlan};
 use serde::{Serialize, de::DeserializeOwned};
-use std::fmt::Display;
+use std::{env, fmt::Display};
 
 const SERVER_URL: &str = "http://localhost:8035";
 
@@ -67,21 +63,14 @@ impl TestHelper {
     }
 
     pub async fn prepare_rep_payload(&self, test_plan_dir: &str) -> anyhow::Result<TriggerPayload> {
-        // For the sake of tests that need to volume mount into docker containers, we place our temp
-        // directories in CARGO_TARGET_TMPDIR rather than /tmp. This allows us to avoid all of the
-        // "fun" of OSX /tmp symlinks and the fact that docker under OSX runs in a VM that doesn't have
-        // access to paths outside of the user's homedir.
-        //   See https://doc.rust-lang.org/cargo/reference/environment-variables.html
-        let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
-        tmp.copy_from(test_plan_dir, &["**"]).unwrap();
-
-        prepare_rep_trigger_payload(
-            tmp.child("test-plan.yaml").to_str().unwrap(),
-            false,
-            None,
-            Default::default(),
+        let ctx = Context::new_from_env_vars(&env::vars().collect());
+        let (test_plan, sources) = TestPlan::<Rep>::try_load_and_resolve_from_path(
+            format!("{test_plan_dir}/test-plan.yaml"),
+            &ctx,
         )
-        .await
+        .await?;
+
+        TriggerPayload::prepare(test_plan, sources, Default::default(), ctx).await
     }
 
     pub async fn trigger_run(&self, test_plan_dir: &str) -> anyhow::Result<Response> {

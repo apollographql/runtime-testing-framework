@@ -2673,7 +2673,6 @@ name = "rep-orchestrator"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "assert_fs",
  "axum",
  "chrono",
  "envy",
@@ -2683,7 +2682,6 @@ dependencies = [
  "kube-runtime",
  "rep-orchestrator-shared",
  "reqwest",
- "rtf-cli",
  "rtf-config",
  "rtf-core",
  "rtf-integrations",
@@ -2719,9 +2717,12 @@ dependencies = [
 name = "rep-orchestrator-shared"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "chrono",
  "rtf-config",
+ "rtf-core",
  "serde",
+ "tracing",
  "uuid",
 ]
 
@@ -2880,15 +2881,14 @@ dependencies = [
 name = "rtf-core"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "assert_fs",
  "rtf-config",
- "rtf-integrations",
  "serde",
  "serde_json",
  "serde_yaml",
  "similar",
  "simple_test_case",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "walkdir",

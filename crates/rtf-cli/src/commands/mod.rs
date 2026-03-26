@@ -12,7 +12,6 @@ use rtf_config::{
 };
 use serde::Deserialize;
 use std::{
-    collections::HashMap,
     env::{self, current_dir},
     path::PathBuf,
 };
@@ -21,16 +20,7 @@ pub mod plumbing;
 pub mod porcelain;
 
 pub(crate) fn get_context() -> Context {
-    let env_vars: HashMap<String, String> = env::vars_os()
-        .map(|(k, v)| {
-            (
-                k.to_string_lossy().to_string(),
-                v.to_string_lossy().to_string(),
-            )
-        })
-        .collect();
-
-    Context::new_from_env_vars(&env_vars)
+    Context::new_from_env_vars(&env::vars().collect())
 }
 
 pub fn get_context_and_check_outdir(

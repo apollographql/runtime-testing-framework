@@ -1,9 +1,6 @@
-use crate::{
-    cli::Variables,
-    commands::{
-        get_context_and_check_outdir, load_and_resolve_test_plan_from_github,
-        load_and_resolve_test_plan_from_local,
-    },
+use crate::commands::{
+    get_context_and_check_outdir, load_and_resolve_test_plan_from_github,
+    load_and_resolve_test_plan_from_local,
 };
 use rtf_config::{
     StableSource,
@@ -12,6 +9,7 @@ use rtf_config::{
     inlining::{self, InlineMode},
     templating::{Template, TemplateContext},
 };
+use rtf_core::variables::Variables;
 use std::{collections::HashMap, path::Path};
 use tracing::info;
 

@@ -1,8 +1,5 @@
-use crate::{
-    cli::Variables,
-    commands::{
-        get_context, load_and_resolve_test_plan_from_github, load_and_resolve_test_plan_from_local,
-    },
+use crate::commands::{
+    get_context, load_and_resolve_test_plan_from_github, load_and_resolve_test_plan_from_local,
 };
 use rtf_config::{
     StableSource,
@@ -11,6 +8,7 @@ use rtf_config::{
     formats::{Sources, TestPlanConfig},
     templating::{Template, TemplateContext},
 };
+use rtf_core::variables::Variables;
 use tracing::info;
 
 pub async fn template_test_plan(
