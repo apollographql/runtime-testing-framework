@@ -2889,6 +2889,7 @@ dependencies = [
  "serde_yaml",
  "similar",
  "simple_test_case",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "walkdir",

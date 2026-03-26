@@ -1,10 +1,34 @@
-use anyhow::{Context, anyhow};
 use rtf_config::{
     Execution, SourceDir, StableSource, context::ResolutionContext, formats::TestPlan,
     templating::Scalar,
 };
 use serde::Deserialize;
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, io, path::PathBuf};
+
+/// An error that can be encountered when parsing runtime overrides to RTF templating variables.
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("could not read variables file")]
+    ReadFile(#[from] io::Error),
+
+    #[error("invalid variables file")]
+    InvalidVariablesFile(#[from] serde_json::Error),
+
+    #[error("expected \"key=value\", got {0:?}")]
+    InvalidVariableFormat(String),
+
+    #[error("no key provided for variable {0:?}")]
+    MissingKey(String),
+
+    #[error("invalid value for {key:?}")]
+    InvalidScalar {
+        key: String,
+        #[source]
+        error: serde_yaml::Error,
+    },
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
@@ -30,13 +54,11 @@ impl Variables {
     pub fn parse(
         self,
         ctx: &impl ResolutionContext,
-    ) -> anyhow::Result<(ParsedVariables, Option<SourceDir>)> {
+    ) -> Result<(ParsedVariables, Option<SourceDir>)> {
         let variable_json_data = match self.vars.as_ref() {
             Some(path) => {
                 let s = ctx.read_path_to_string(path)?;
-                let variables_json: HashMap<String, ScalarOrArray> =
-                    serde_json::from_str(&s).context("invalid variables file")?;
-
+                let variables_json: HashMap<String, ScalarOrArray> = serde_json::from_str(&s)?;
                 let source_dir = ctx
                     .canonicalize_path(path)?
                     .parent()
@@ -60,7 +82,7 @@ impl Variables {
     fn parse_inner(
         self,
         variable_json_data: Option<(StableSource, HashMap<String, ScalarOrArray>)>,
-    ) -> anyhow::Result<ParsedVariables> {
+    ) -> Result<ParsedVariables> {
         let mut variables = HashMap::new();
         let mut matrix_dimensions = HashMap::new();
         let mut variable_sources = HashMap::new();
@@ -85,13 +107,16 @@ impl Variables {
         for kv in self.var.into_iter() {
             let (k, v) = kv
                 .split_once('=')
-                .ok_or_else(|| anyhow!("expected \"key=value\", got {kv:?}"))?;
+                .ok_or_else(|| Error::InvalidVariableFormat(kv.clone()))?;
 
             if k.is_empty() {
-                return Err(anyhow!("no key provided for variable {v:?}"));
+                return Err(Error::MissingKey(v.to_string()));
             }
 
-            let v: Scalar = serde_yaml::from_str(v).context(format!("invalid value for {k:?}"))?;
+            let v: Scalar = serde_yaml::from_str(v).map_err(|error| Error::InvalidScalar {
+                key: k.to_string(),
+                error,
+            })?;
             variable_sources.insert(k.to_string(), StableSource::Cli);
             variables.insert(k.to_string(), v);
         }
@@ -113,7 +138,7 @@ impl Variables {
         self,
         test_plan: &mut TestPlan<E>,
         ctx: &impl ResolutionContext,
-    ) -> anyhow::Result<(HashMap<String, StableSource>, Option<SourceDir>)> {
+    ) -> Result<(HashMap<String, StableSource>, Option<SourceDir>)> {
         let (parsed, vars_file_src) = self.parse(ctx)?;
         let variable_sources =
             parsed.merge_inner(&mut test_plan.variables, &mut test_plan.matrix.dimensions)?;
@@ -136,7 +161,7 @@ impl ParsedVariables {
         self,
         variables_from_test_plan: &mut HashMap<String, Scalar>,
         matrix_from_test_plan: &mut HashMap<String, Vec<Scalar>>,
-    ) -> anyhow::Result<HashMap<String, StableSource>> {
+    ) -> Result<HashMap<String, StableSource>> {
         for (k, dim) in self.matrix_dimensions.into_iter() {
             variables_from_test_plan.remove(&k);
             matrix_from_test_plan.insert(k.clone(), dim);
