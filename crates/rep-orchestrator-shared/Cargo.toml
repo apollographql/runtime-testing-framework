@@ -5,7 +5,10 @@ edition.workspace = true
 
 [dependencies]
 rtf-config = { path = "../rtf-config" }
+rtf-core = { path = "../rtf-core" }
 
+anyhow.workspace = true
 chrono.workspace = true
 serde.workspace = true
+tracing.workspace = true
 uuid.workspace = true

@@ -2719,9 +2719,12 @@ dependencies = [
 name = "rep-orchestrator-shared"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "chrono",
  "rtf-config",
+ "rtf-core",
  "serde",
+ "tracing",
  "uuid",
 ]
 

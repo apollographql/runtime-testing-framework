@@ -1,7 +1,11 @@
-use crate::{status::Status, test_plan::RepTestPlan};
-use rtf_config::{StableSource, formats::CustomProviderDefinition};
+use crate::status::Status;
+use rtf_config::StableSource;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+mod trigger;
+
+pub use trigger::TriggerPayload;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SetStatusPayload {
@@ -10,13 +14,6 @@ pub struct SetStatusPayload {
     pub message: Option<String>,
     #[serde(default)]
     pub exit_code: Option<u8>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct TriggerPayload {
-    pub test_plan: RepTestPlan,
-    pub relative_files: SourceKeyedArrayMap<String>,
-    pub custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
