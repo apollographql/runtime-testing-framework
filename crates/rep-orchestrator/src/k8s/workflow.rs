@@ -37,26 +37,26 @@ pub enum TemplateDef {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct MainTemplate {
-    name: String,
-    dag: Dag,
+    pub name: String,
+    pub dag: Dag,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct Dag {
-    tasks: Vec<TaskSpec>,
+    pub tasks: Vec<TaskSpec>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct TaskSpec {
-    name: String,
-    template: String,
+    pub name: String,
+    pub template: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    dependencies: Vec<String>,
+    pub dependencies: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct TaskTemplate {
-    name: String,
-    container: Container,
-    volumes: Option<Vec<Volume>>,
+    pub name: String,
+    pub container: Container,
+    pub volumes: Option<Vec<Volume>>,
 }

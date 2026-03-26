@@ -240,3 +240,24 @@ async fn trigger_creates_configmap_and_sets_provisioning() {
     let cm_name = format!("environment-config-{ex_id}");
     assert_configmap_exists(&cm_name).await;
 }
+
+#[tokio::test]
+async fn trigger_transitions_to_running_on_workflow_success() {
+    let t = TestHelper::new();
+
+    let run: TestRunSummary = t
+        .json_post(
+            "test-run/trigger",
+            t.prepare_rep_payload("resources/test-plans/valid/minimal")
+                .await
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    let ex_id = t
+        .poll_for_execution_id(run.id, Duration::from_secs(5))
+        .await;
+    t.poll_for_status(ex_id, Running, Duration::from_secs(300))
+        .await;
+}

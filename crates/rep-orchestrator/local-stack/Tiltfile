@@ -69,11 +69,30 @@ k8s_yaml(
     )
 )
 
-# Make sure the rtf-toolbox image is available on both clusters
+# Make sure the rtf-toolbox image is available on both clusters under its full registry name.
+# The workflow spec references the full GCR path, so the image must be loaded under that name
+# even though it was built locally as rtf-toolbox:edge.
+TOOLBOX_IMAGE = "us-central1-docker.pkg.dev/platform-cross-environment/platform-docker/rtf-toolbox:edge"
 local_resource(
     "toolbox-image",
-    cmd="kind load docker-image rtf-toolbox:edge --name rtf-mgmt && kind load docker-image rtf-toolbox:edge --name rtf-workload",
+    cmd=(
+        "docker tag rtf-toolbox:edge {img}"
+        + " && kind load docker-image {img} --name rtf-mgmt"
+        + " && kind load docker-image {img} --name rtf-workload"
+    ).format(img=TOOLBOX_IMAGE),
     labels=["infra"],
+)
+
+# GCR pull secret — dummy for local use. In production this contains real GCR credentials
+# used by create-pull-secret to authorise image pulls in the workload cluster. Locally,
+# all test fixtures use public images, so the credential content is irrelevant; the secret
+# object must exist so Argo can mount it into the create-pull-secret workflow task pod.
+k8s_yaml(
+    secret_from_dict(
+        "gcr-secret",
+        namespace="cluster-api",
+        inputs={".dockerconfigjson": '{"auths":{}}'},
+    )
 )
 
 # Argo workflow service account + RBAC in cluster-api
@@ -87,6 +106,7 @@ k8s_resource(
         "argo-workflow:rolebinding:cluster-api",
         "workload-kubeconfig:secret:cluster-api",
         "orchestrator-kubeconfig:secret:orchestrator",
+        "gcr-secret:secret:cluster-api",
     ],
     new_name="cluster-setup",
     labels=["infra"],

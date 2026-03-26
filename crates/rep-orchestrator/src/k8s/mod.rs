@@ -12,7 +12,9 @@ mod workflow;
 pub mod mock_client;
 
 pub use client::ClusterClients;
-pub use workflow::{Workflow, WorkflowSpec};
+pub use workflow::{
+    Dag, MainTemplate, TaskSpec, TaskTemplate, TemplateDef, Workflow, WorkflowSpec,
+};
 
 pub const CLUSTER_API_NAMESPACE: &str = "cluster-api";
 pub const ENVIRONMENT_CONFIG_FILENAME: &str = "environment.yaml";
@@ -81,14 +83,26 @@ pub trait Client: Send + Sync {
 
     /// Wait for a [Workflow] running within the [management][Cluster::Management] cluster to reach
     /// a terminal state, selecting the workflow by its execution ID label.
-    fn wait_for_workflow(&self, execution_id: &Uuid) -> impl Future<Output = WatchOutcome>;
+    fn wait_for_workflow(&self, execution_id: &Uuid) -> impl Future<Output = WatchOutcome> + Send;
 
     /// Wait for a k8s [Job] running within the [workload][Cluster::Workload] cluster to reach
     /// a terminal state, selecting the job by its execution ID label.
-    fn wait_for_job(&self, ns: &str, execution_id: &Uuid) -> impl Future<Output = WatchOutcome>;
+    fn wait_for_job(
+        &self,
+        ns: &str,
+        execution_id: &Uuid,
+    ) -> impl Future<Output = WatchOutcome> + Send;
+
+    /// Delete a ConfigMap from the management cluster. Called after a workflow reaches a terminal
+    /// state to clean up the environment config that was mounted into the workflow pods.
+    fn delete_management_configmap(
+        &self,
+        namespace: &str,
+        name: &str,
+    ) -> impl Future<Output = Result<()>> + Send;
 
     /// Delete an ephemeral namespace within the [workload][Cluster::Workload].
-    fn delete_workload_namespace(&self, ns: &str) -> impl Future<Output = Result<()>>;
+    fn delete_workload_namespace(&self, ns: &str) -> impl Future<Output = Result<()>> + Send;
 }
 
 pub fn workflow_name(execution_id: &Uuid) -> String {

@@ -12,6 +12,7 @@ pub mod provision_environment;
 #[derive(Debug)]
 pub enum EventType {
     ProvisionEnvironment(DockerComposeEnvironment, DockerScenario),
+    RunScenario(DockerScenario),
 }
 
 #[derive(Debug)]
@@ -20,7 +21,7 @@ pub struct Event {
     pub ty: EventType,
 }
 
-pub async fn event_loop_task(_etx: UnboundedSender<Event>, mut erx: UnboundedReceiver<Event>) {
+pub async fn event_loop_task(etx: UnboundedSender<Event>, mut erx: UnboundedReceiver<Event>) {
     let cfg = Config::get();
     let clients = match ClusterClients::try_new(
         Path::new(&cfg.kubeconfig_path),
@@ -39,8 +40,17 @@ pub async fn event_loop_task(_etx: UnboundedSender<Event>, mut erx: UnboundedRec
     while let Some(event) = erx.recv().await {
         match event.ty {
             EventType::ProvisionEnvironment(environment, scenario) => {
-                provision_environment::run(event.test_execution, environment, scenario, &clients)
-                    .await;
+                provision_environment::run(
+                    event.test_execution,
+                    environment,
+                    scenario,
+                    etx.clone(),
+                    &clients,
+                )
+                .await;
+            }
+            EventType::RunScenario(_scenario) => {
+                warn!("RunScenario not yet implemented");
             }
         }
     }

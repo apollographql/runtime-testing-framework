@@ -1,9 +1,13 @@
-name: minimal-nginx-environment
-description: Minimal DockerCompose environment for ProvisionEnvironment integration tests
-
-project_name: minimal-nginx
-
+name: dc739bed-ff86-4b82-99c9-e4a6978f666e
+description: ""
+variable_definitions: []
+custom_providers: []
+project_name: rep-prepare
 compose_files:
   - name: compose.yaml
-    kind: relative_path
-    path: providers/compose.yaml
+    kind: inline
+    content: |
+      services:                 
+        alpine:
+file_providers: []
+env_vars: {}
