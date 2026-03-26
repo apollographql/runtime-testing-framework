@@ -2,9 +2,9 @@ load("ext://secret", "secret_from_dict")
 
 allow_k8s_contexts("kind-rtf-mgmt")
 
-config.define_string("mode", args=False, usage="Run mode: 'dev' (default) or 'prod'")
+config.define_bool("orchestrator-tests", args=False, usage="Run all cargo tests for the orchestrator crate (off by default)")
 cfg = config.parse()
-dev_mode = cfg.get("mode", "dev") != "prod"
+run_orchestrator_tests = cfg.get("orchestrator-tests", False)
 
 # Extract the workload cluster control-plane container IP on the kind network.
 # This is reachable from pods in the management cluster since both kind clusters
@@ -27,30 +27,8 @@ workload_kubeconfig = str(
     )
 )
 
-# GCP registry auth
-# NOTE: token expires ~1h — restart Tilt to refresh
-gcr_b64 = str(local(
-    """printf '{"auths":{"us-central1-docker.pkg.dev":{"username":"oauth2accesstoken","password":"%s"}}}' \
-    "$(gcloud auth print-access-token)" | base64""",
-    quiet=True,
-)).strip()
-
 # Namespaces
 k8s_yaml("k8s/namespace.yaml")
-
-# GCR pull secret — orchestrator namespace (prod image pull) and cluster-api (workflow pods)
-k8s_yaml(encode_yaml({
-    "apiVersion": "v1", "kind": "Secret",
-    "metadata": {"name": "gcr-secret", "namespace": "orchestrator"},
-    "type": "kubernetes.io/dockerconfigjson",
-    "data": {".dockerconfigjson": gcr_b64},
-}))
-k8s_yaml(encode_yaml({
-    "apiVersion": "v1", "kind": "Secret",
-    "metadata": {"name": "gcr-secret", "namespace": "cluster-api"},
-    "type": "kubernetes.io/dockerconfigjson",
-    "data": {".dockerconfigjson": gcr_b64},
-}))
 
 # Workload kubeconfig — stored as a secret so the orchestrator can reach the workload cluster
 k8s_yaml(
@@ -59,6 +37,13 @@ k8s_yaml(
         namespace="cluster-api",
         inputs={"value": workload_kubeconfig},
     )
+)
+
+# Make sure the rtf-toolbox image is available on both clusters
+local_resource(
+    "toolbox-image",
+    cmd="kind load docker-image rtf-toolbox:edge --name rtf-mgmt && kind load docker-image rtf-toolbox:edge --name rtf-workload",
+    labels=["infra"],
 )
 
 # Argo workflow service account + RBAC in cluster-api
@@ -70,8 +55,6 @@ k8s_resource(
         "argo-workflow:serviceaccount:cluster-api",
         "argo-workflow:role:cluster-api",
         "argo-workflow:rolebinding:cluster-api",
-        "gcr-secret:secret:orchestrator",
-        "gcr-secret:secret:cluster-api",
         "workload-kubeconfig:secret:cluster-api",
     ],
     new_name="cluster-setup",
@@ -93,9 +76,9 @@ k8s_resource(
 
 local_resource(
     "argo-install",
-    cmd="kubectl apply -n argo --server-side -f "
+    cmd="kubectl apply -n argo --server-side --context kind-rtf-mgmt -f "
     + ARGO_INSTALL_URL
-    + " && kubectl -n argo rollout status deployment/workflow-controller --timeout=120s",
+    + " && kubectl -n argo rollout status --context kind-rtf-mgmt deployment/workflow-controller --timeout=120s",
     resource_deps=["argo-namespace"],
     labels=["infra"],
 )
@@ -120,49 +103,31 @@ k8s_resource(
     labels=["rep-orchestrator"],
 )
 
-# Image build
-if dev_mode:
-    docker_build(
-        "rep-orchestrator-dev",
-        context="../../../",
-        dockerfile="../docker/tilt/Dockerfile",
-        ignore=["target/", ".git/", "SCRATCH_*/"],
-        live_update=[
-            sync("../../../crates/", "/runtime-testing-framework/crates/"),
-        ],
-    )
-    values_files = [
-        "../helm/rep-orchestrator/values.yaml",
-        "../helm/rep-orchestrator/values-dev.yaml",
-    ]
-else:
-    docker_build(
-        "rep-orchestrator-prod",
-        context="../../../",
-        dockerfile="../docker/prod/Dockerfile",
-    )
-    values_files = [
-        "../helm/rep-orchestrator/values.yaml",
-        "../helm/rep-orchestrator/values-prod.yaml",
-    ]
+# Image build — only files consumed by the release build are watched
+docker_build(
+    "rep-orchestrator",
+    context="../../../",
+    dockerfile="../docker/Dockerfile",
+    only=[
+        "Cargo.lock",
+        "Cargo.toml",
+        "crates/",
+    ],
+    ignore=[
+        "crates/rtf-cli/resources/",  # test fixtures only — reading these during integration tests triggers spurious rebuilds via MacOS FSEvents atime updates
+    ],
+)
 
 # Helm deploy — DB connection wired to local postgres service
-helm_set = ["db.host=postgres"]
-if dev_mode:
-    pass  # db.pass comes from values-dev.yaml
-else:
-    helm_set += [
-        "image.repository=rep-orchestrator-prod",
-        "image.pullPolicy=Never",
-        "db.pass=password",  # local postgres — not stored in values-prod.yaml
-    ]
-
 k8s_yaml(helm(
     "../helm/rep-orchestrator",
     name="rep-orchestrator",
     namespace="orchestrator",
-    values=values_files,
-    set=helm_set,
+    values=[
+        "../helm/rep-orchestrator/values.yaml",
+        "../helm/rep-orchestrator/values-local.yaml",
+    ],
+    set=["db.host=postgres"],
 ))
 
 k8s_resource(
@@ -172,3 +137,11 @@ k8s_resource(
     resource_deps=["cluster-setup", "postgres", "argo-install"],
     labels=["rep-orchestrator"],
 )
+
+if run_orchestrator_tests:
+    local_resource(
+        "orchestrator-tests",
+        cmd="./run-orchestrator-tests.sh",
+        resource_deps=["rep-orchestrator"],
+        labels=["test"],
+    )

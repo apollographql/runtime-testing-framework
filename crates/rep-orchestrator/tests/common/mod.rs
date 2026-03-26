@@ -10,6 +10,15 @@ use std::fmt::Display;
 
 const SERVER_URL: &str = "http://localhost:8035";
 
+#[macro_export]
+macro_rules! assert_status {
+    ($resp:expr, $expected:expr) => {{
+        let status = $resp.status();
+        let body = $resp.text().await.unwrap_or_default();
+        assert_eq!(status, $expected, "body: {body}");
+    }};
+}
+
 pub struct TestHelper {
     client: Client,
 }

@@ -1,13 +1,12 @@
 # Local kind cluster management
 
-.PHONY: cluster-up
-cluster-up:
+.PHONY: cluster-setup
+cluster-setup:
 	@./local-stack/setup.sh
 
-.PHONY: cluster-down
-cluster-down:
+.PHONY: cluster-teardown
+cluster-teardown:
 	@./local-stack/teardown.sh
-
 
 # Test actions
 
@@ -39,61 +38,29 @@ test-all: db-tests integration-tests
 
 # CI actions
 
-.PHONY: ci-db-tests
-ci-db-tests: test-db-up-detached db-tests test-db-down
-
 .PHONY: ci-tests
-ci-tests: up-detached wait-for-server test-all down
-
-.PHONY: wait-for-server
-wait-for-server:
-	@echo "Waiting for server to start..."
-	@until docker compose -f docker/docker-compose.yaml ps | grep -E '^orchestrator\s' | grep healthy; do \
-		echo "..."; \
-		sleep 5; \
-	done
+ci-tests: cluster-setup cluster-ci
 
 
-# Management of the integration test stack
+# Tilt stack management
 
-.PHONY: orchestrator-shell
-orchestrator-shell:
-	@docker exec -it orchestrator bash
+.PHONY: cluster-up
+cluster-up:
+	@cd local-stack && tilt up --context kind-rtf-mgmt
 
-.PHONY: up
-up:
-	@docker compose -f docker/docker-compose.yaml up
+.PHONY: cluster-ci
+cluster-ci:
+	@cd local-stack && tilt ci --context kind-rtf-mgmt -- --orchestrator-tests=true
 
-.PHONY: up-detached
-up-detached:
-	@docker compose -f docker/docker-compose.yaml up --detach
-
-.PHONY: down
-down:
-	@docker compose -f docker/docker-compose.yaml down
-
-
-# Management of the test DB stack
-
-.PHONY: test-db-up
-test-db-up:
-	@docker compose -f docker/docker-compose-test-db.yaml up
-
-.PHONY: test-db-up-detached
-test-db-up-detached:
-	@docker compose -f docker/docker-compose-test-db.yaml up --detach
-
-.PHONY: test-db-down
-test-db-down:
-	@docker compose -f docker/docker-compose-test-db.yaml down
+.PHONY: cluster-down
+cluster-down:
+	@cd local-stack && tilt down --context kind-rtf-mgmt
 
 
 # Management of the test DB container
 
-.PHONY: db-shell
-db-shell:
-	@docker exec -it db psql -U postgres rtf_rep
-
 .PHONY: clear-db-data
 clear-db-data:
-	@docker compose -f docker/docker-compose.yaml exec -T db psql -U postgres rtf_rep < docker/db/clear.sql
+	@kubectl exec -i -n orchestrator --context kind-rtf-mgmt statefulset/postgres -- \
+		env PGPASSWORD=password psql -U service_user rtf_rep \
+		< local-stack/db/clear.sql

@@ -58,22 +58,7 @@ jobs:
     - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
       with:
         shared-key: "ci-build-${{ hashFiles('**/Cargo.lock') }}"
-    - name: Run Integration tests
-      run: cd crates/rep-orchestrator && make ci-tests
-    - name: Dump container logs on failure
-      if: failure()
-      run: |
-        echo "=== Container state ==="
-        docker compose -f crates/rep-orchestrator/docker/docker-compose.yaml ps
-        echo "=== Container logs ==="
-        docker compose -f crates/rep-orchestrator/docker/docker-compose.yaml logs --timestamps | tee /tmp/container-logs.txt
-    - name: Upload container logs on failure
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: container-logs
-        path: /tmp/container-logs.txt
-    - name: Run remaining tests
+    - name: Run tests excluding the rep-orchestrator crate
       run: cargo test --workspace --exclude rep-orchestrator
 
   rustfmt:

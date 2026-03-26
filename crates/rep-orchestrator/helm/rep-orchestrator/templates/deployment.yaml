@@ -30,6 +30,8 @@ spec:
             - containerPort: {{ .Values.service.port }}
               protocol: TCP
           env:
+            - name: RUST_LOG
+              value: {{ .Values.config.logLevel | quote }}
             - name: RTF_HOST
               value: {{ .Values.config.host | quote }}
             - name: RTF_PORT
