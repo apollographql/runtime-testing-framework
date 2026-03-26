@@ -2883,7 +2883,6 @@ dependencies = [
  "anyhow",
  "assert_fs",
  "rtf-config",
- "rtf-integrations",
  "serde",
  "serde_json",
  "serde_yaml",

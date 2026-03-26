@@ -5,7 +5,6 @@ edition.workspace = true
 
 [dependencies]
 rtf-config = { path = "../rtf-config" }
-rtf-integrations = { path = "../rtf-integrations" }
 
 anyhow.workspace = true 
 assert_fs.workspace = true
