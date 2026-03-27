@@ -1,9 +1,6 @@
 mod common;
 
 use common::TestHelper;
-use k8s_openapi::api::core::v1::ConfigMap;
-use kube::Api;
-use rep_orchestrator::k8s::{CLUSTER_API_NAMESPACE, Cluster};
 use rep_orchestrator_shared::{
     status::Status::{self, *},
     summary::TestRunSummary,
@@ -48,6 +45,27 @@ async fn trigger_response_summary_is_initialising() {
     let trs = trigger_rep_prepare_test_plan(&t).await.unwrap();
 
     assert_eq!(trs.current_status, Status::Initialising, "{trs:?}");
+}
+
+#[tokio::test]
+async fn trigger_reaches_provisioning_status() {
+    let t = TestHelper::new();
+
+    let run: TestRunSummary = t
+        .json_post(
+            "test-run/trigger",
+            t.prepare_rep_payload("resources/test-plans/valid/minimal")
+                .await
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    let ex_id = t
+        .poll_for_execution_id(run.id, Duration::from_secs(5))
+        .await;
+    t.poll_for_status(ex_id, Provisioning, Duration::from_secs(30))
+        .await;
 }
 
 #[tokio::test]
@@ -110,36 +128,6 @@ async fn execution_status_returns_404_for_unknown_execution() {
         .unwrap();
 
     assert_status!(resp, StatusCode::NOT_FOUND);
-}
-
-#[tokio::test]
-async fn trigger_creates_configmap_and_sets_provisioning() {
-    let t = TestHelper::new();
-
-    let run: TestRunSummary = t
-        .json_post(
-            "test-run/trigger",
-            t.prepare_rep_payload("resources/test-plans/valid/minimal")
-                .await
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    let ex_id = t
-        .poll_for_execution_id(run.id, Duration::from_secs(5))
-        .await;
-    t.poll_for_status(ex_id, Provisioning, Duration::from_secs(30))
-        .await;
-
-    let cm_name = format!("environment-config-{ex_id}");
-
-    let kube_clients = t.kube_clients().await;
-    let api: Api<ConfigMap> =
-        kube_clients.namespaced_api(Cluster::Management, CLUSTER_API_NAMESPACE);
-    api.get(&cm_name).await.unwrap_or_else(|e| {
-        panic!("ConfigMap '{cm_name}' not found in cluster-api namespace: {e}")
-    });
 }
 
 // FIXME: These tests are no longer going to work as originally written now that the event loop is

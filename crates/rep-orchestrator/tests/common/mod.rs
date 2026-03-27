@@ -1,4 +1,3 @@
-use rep_orchestrator::k8s::ClusterClients;
 use rep_orchestrator_shared::{
     status::Status,
     summary::{TestExecutionSummary, TestRunSummary},
@@ -31,18 +30,6 @@ impl TestHelper {
         Self {
             client: Client::new(),
         }
-    }
-
-    pub async fn kube_clients(&self) -> ClusterClients {
-        let kubeconfig_path =
-            env::var("RTF_KUBECONFIG_PATH").expect("RTF_KUBECONFIG_PATH must be set");
-        let mgmt_context = env::var("RTF_MGMT_CONTEXT").expect("RTF_MGMT_CONTEXT must be set");
-        let workload_context =
-            env::var("RTF_WORKLOAD_CONTEXT").expect("RTF_WORKLOAD_CONTEXT must be set");
-
-        ClusterClients::try_new(&kubeconfig_path, &mgmt_context, &workload_context)
-            .await
-            .unwrap()
     }
 
     pub async fn get(&self, endpoint: impl Display) -> anyhow::Result<Response> {
