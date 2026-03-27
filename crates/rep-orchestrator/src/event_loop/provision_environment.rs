@@ -1,5 +1,5 @@
 use crate::{
-    conn,
+    Result, conn,
     db::{Status, TestExecution, UpdateHandle},
     event_loop::{Event, EventType},
     k8s::{
@@ -21,20 +21,12 @@ pub async fn run<K>(
     environment: DockerComposeEnvironment,
     scenario: DockerScenario,
     etx: UnboundedSender<Event>,
-    clients: &K,
-) where
-    K: k8s::Client + Clone + Send + 'static,
+    clients: K,
+) -> Result<()>
+where
+    K: k8s::Client,
 {
-    let execution_id = test_execution.uuid();
-    let result: crate::Result<()> = async {
-        try_run(test_execution, environment, scenario, etx, clients, conn!()).await;
-        Ok(())
-    }
-    .await;
-
-    if let Err(e) = result {
-        error!(%e, %execution_id, "failed to acquire DB connection for ProvisionEnvironment");
-    }
+    try_run(test_execution, environment, scenario, etx, clients, conn!()).await
 }
 
 async fn try_run<K, H>(
@@ -42,10 +34,11 @@ async fn try_run<K, H>(
     environment: DockerComposeEnvironment,
     scenario: DockerScenario,
     etx: UnboundedSender<Event>,
-    clients: &K,
+    clients: K,
     db: &mut H,
-) where
-    K: k8s::Client + Clone + Send + 'static,
+) -> Result<()>
+where
+    K: k8s::Client,
     H: UpdateHandle,
 {
     let execution_id = test_execution.uuid();
@@ -67,7 +60,7 @@ async fn try_run<K, H>(
                     Some(e.to_string()),
                 )
                 .await;
-            return;
+            return Ok(());
         }
     };
 
@@ -84,7 +77,7 @@ async fn try_run<K, H>(
         let _ = db
             .update_test_execution_status(&test_execution, Status::Unrunnable, Some(e.to_string()))
             .await;
-        return;
+        return Ok(());
     }
 
     if let Err(e) = db
@@ -92,7 +85,7 @@ async fn try_run<K, H>(
         .await
     {
         error!(%e, %execution_id, "failed to set execution to Provisioning");
-        return;
+        return Ok(());
     }
 
     if let Err(e) = clients
@@ -105,28 +98,28 @@ async fn try_run<K, H>(
         let _ = db
             .update_test_execution_status(&test_execution, Status::Unrunnable, Some(e.to_string()))
             .await;
-        return;
+        return Ok(());
     }
 
-    let ex = test_execution.clone();
-    let clients_spawn = clients.clone();
     tokio::spawn(async move {
         let result: crate::Result<()> = async {
-            wait_and_update(&ex, scenario, &etx, &clients_spawn, conn!()).await;
+            wait_and_update(&test_execution, scenario, &etx, clients, conn!()).await;
             Ok(())
         }
         .await;
         if let Err(e) = result {
-            error!(%e, execution_id = %ex.uuid(), "failed to acquire DB connection for wait_and_update");
+            error!(%e, %execution_id, "failed to acquire DB connection for wait_and_update");
         }
     });
+
+    Ok(())
 }
 
 async fn wait_and_update<K, H>(
     test_execution: &TestExecution,
     scenario: DockerScenario,
     etx: &UnboundedSender<Event>,
-    clients: &K,
+    clients: K,
     db: &mut H,
 ) where
     K: k8s::Client,
@@ -384,12 +377,12 @@ mod tests {
         let clients = MockClient::ok();
         let (etx, _erx) = mpsc::unbounded_channel();
 
-        try_run(
+        _ = try_run(
             ex,
             dummy_environment(),
             dummy_scenario(),
             etx,
-            &clients,
+            clients,
             &mut handle,
         )
         .await;
@@ -404,12 +397,12 @@ mod tests {
         let clients = MockClient::configmap_err();
         let (etx, _erx) = mpsc::unbounded_channel();
 
-        try_run(
+        _ = try_run(
             ex,
             dummy_environment(),
             dummy_scenario(),
             etx,
-            &clients,
+            clients.clone(),
             &mut handle,
         )
         .await;
@@ -428,12 +421,12 @@ mod tests {
         let clients = MockClient::workflow_err();
         let (etx, _erx) = mpsc::unbounded_channel();
 
-        try_run(
+        _ = try_run(
             ex,
             dummy_environment(),
             dummy_scenario(),
             etx,
-            &clients,
+            clients,
             &mut handle,
         )
         .await;
@@ -452,7 +445,7 @@ mod tests {
         let clients = MockClient::with_workflow(WatchOutcome::Succeeded);
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update(&ex, dummy_scenario(), &etx, &clients, &mut handle).await;
+        wait_and_update(&ex, dummy_scenario(), &etx, clients, &mut handle).await;
 
         assert_single_execution_status(&handle.status_updates, Status::Running);
         let event = erx.try_recv().expect("expected RunScenario event");
@@ -470,7 +463,7 @@ mod tests {
         let clients = MockClient::with_workflow(WatchOutcome::Failed("reason".into()));
         let (etx, _erx) = mpsc::unbounded_channel();
 
-        wait_and_update(&ex, dummy_scenario(), &etx, &clients, &mut handle).await;
+        wait_and_update(&ex, dummy_scenario(), &etx, clients, &mut handle).await;
 
         assert_eq!(handle.status_updates.len(), 1);
         let TaggedStatusUpdate::Execution(_, ref s) = handle.status_updates[0] else {
@@ -491,7 +484,7 @@ mod tests {
         let clients = MockClient::with_workflow(WatchOutcome::WatcherError("watch err".into()));
         let (etx, _erx) = mpsc::unbounded_channel();
 
-        wait_and_update(&ex, dummy_scenario(), &etx, &clients, &mut handle).await;
+        wait_and_update(&ex, dummy_scenario(), &etx, clients, &mut handle).await;
 
         assert_single_execution_status(&handle.status_updates, Status::Unrunnable);
     }
@@ -503,7 +496,7 @@ mod tests {
         let clients = MockClient::with_workflow(WatchOutcome::StreamClosed);
         let (etx, _erx) = mpsc::unbounded_channel();
 
-        wait_and_update(&ex, dummy_scenario(), &etx, &clients, &mut handle).await;
+        wait_and_update(&ex, dummy_scenario(), &etx, clients, &mut handle).await;
 
         assert_eq!(handle.status_updates.len(), 1);
         let TaggedStatusUpdate::Execution(_, ref s) = handle.status_updates[0] else {
@@ -524,7 +517,7 @@ mod tests {
         let clients = MockClient::with_workflow(WatchOutcome::Succeeded);
         let (etx, _erx) = mpsc::unbounded_channel();
 
-        wait_and_update(&ex, dummy_scenario(), &etx, &clients, &mut handle).await;
+        wait_and_update(&ex, dummy_scenario(), &etx, clients.clone(), &mut handle).await;
 
         assert!(
             clients.delete_configmap_result.lock().unwrap().is_none(),
@@ -539,7 +532,7 @@ mod tests {
         let clients = MockClient::with_workflow(WatchOutcome::Failed("reason".into()));
         let (etx, _erx) = mpsc::unbounded_channel();
 
-        wait_and_update(&ex, dummy_scenario(), &etx, &clients, &mut handle).await;
+        wait_and_update(&ex, dummy_scenario(), &etx, clients.clone(), &mut handle).await;
 
         assert!(
             clients.delete_configmap_result.lock().unwrap().is_none(),
@@ -554,7 +547,7 @@ mod tests {
         let clients = MockClient::with_workflow_delete_err(WatchOutcome::Succeeded);
         let (etx, _erx) = mpsc::unbounded_channel();
 
-        wait_and_update(&ex, dummy_scenario(), &etx, &clients, &mut handle).await;
+        wait_and_update(&ex, dummy_scenario(), &etx, clients, &mut handle).await;
 
         assert_single_execution_status(&handle.status_updates, Status::Running);
     }

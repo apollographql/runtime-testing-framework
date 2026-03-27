@@ -51,7 +51,7 @@ pub enum WatchOutcome {
 }
 
 /// Kubernetes API actions required for executing RTF test plans inside of REP clusters.
-pub trait Client: Send + Sync {
+pub trait Client: Clone + Send + Sync + 'static {
     /// Create a new config map in either the [management][Cluster::Management] or
     /// [workload][Cluster::Workload] cluster.
     fn create_configmap(
