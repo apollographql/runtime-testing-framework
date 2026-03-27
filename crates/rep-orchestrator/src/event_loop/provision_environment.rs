@@ -2,17 +2,12 @@ use crate::{
     db::{TestExecution, UpdateHandle},
     event_loop::{Error, Event, EventData, Result},
     k8s::{
-        self, CLUSTER_API_NAMESPACE, Cluster, Dag, ENVIRONMENT_CONFIG_FILENAME, MainTemplate,
-        TOOLBOX_IMAGE, TaskSpec, TaskTemplate, TemplateDef, WatchOutcome, WorkflowSpec,
-        env_configmap_name, workflow_name,
+        self, CLUSTER_API_NAMESPACE, Cluster, ENVIRONMENT_CONFIG_FILENAME, WatchOutcome,
+        WorkflowSpec, env_configmap_name, workflow_name,
     },
-};
-use k8s_openapi::api::core::v1::{
-    ConfigMapVolumeSource, Container, KeyToPath, SecretVolumeSource, Volume, VolumeMount,
 };
 use rtf_config::formats::{DockerComposeEnvironment, DockerScenario, EnvironmentConfig};
 use tokio::sync::mpsc::UnboundedSender;
-use uuid::Uuid;
 
 const MSG_CREATE_ENV_CM: &str = "creating environment configmap";
 const MSG_ARGO_CREATE: &str = "creating Argo workflow";
@@ -63,7 +58,7 @@ where
     clients
         .create_argo_workflow(
             &workflow_name(&execution_id),
-            build_workflow_spec(&execution_id),
+            WorkflowSpec::for_execution_id(&execution_id),
         )
         .await
         .map_err(|error| Error::CreateArgoWorkflow { error })?;
@@ -95,150 +90,6 @@ async fn wait_and_update<K>(
         test_execution: ex,
         data,
     });
-}
-
-fn build_workflow_spec(execution_id: &Uuid) -> WorkflowSpec {
-    let ns = execution_id.to_string();
-
-    let kubeconfig_mount = VolumeMount {
-        name: "kubeconfig".into(),
-        mount_path: "/kubeconfig".into(),
-        ..Default::default()
-    };
-    let gcr_secret_mount = VolumeMount {
-        name: "gcr-secret".into(),
-        mount_path: "/gcr-secret".into(),
-        ..Default::default()
-    };
-    let environment_mount = VolumeMount {
-        name: "environment".into(),
-        mount_path: "/environment".into(),
-        ..Default::default()
-    };
-
-    let create_namespace = TaskTemplate {
-        name: "create-namespace".into(),
-        container: Container {
-            image: Some(TOOLBOX_IMAGE.to_owned()),
-            command: Some(vec!["rep-orchestrator-cli".into()]),
-            args: Some(vec![
-                "create-namespace".into(),
-                "--namespace".into(),
-                ns.clone(),
-                "--kubeconfig".into(),
-                "/kubeconfig/value".into(),
-            ]),
-            volume_mounts: Some(vec![kubeconfig_mount.clone()]),
-            ..Default::default()
-        },
-        volumes: None,
-    };
-
-    let create_pull_secret = TaskTemplate {
-        name: "create-pull-secret".into(),
-        container: Container {
-            image: Some(TOOLBOX_IMAGE.to_owned()),
-            command: Some(vec!["rep-orchestrator-cli".into()]),
-            args: Some(vec![
-                "create-pull-secret".into(),
-                "--namespace".into(),
-                ns.clone(),
-                "--kubeconfig".into(),
-                "/kubeconfig/value".into(),
-                "--docker-config".into(),
-                "/gcr-secret/config.json".into(),
-            ]),
-            volume_mounts: Some(vec![kubeconfig_mount.clone(), gcr_secret_mount.clone()]),
-            ..Default::default()
-        },
-        volumes: None,
-    };
-
-    let deploy_environment = TaskTemplate {
-        name: "deploy-environment".into(),
-        container: Container {
-            image: Some(TOOLBOX_IMAGE.to_owned()),
-            command: Some(vec!["rep-orchestrator-cli".into()]),
-            args: Some(vec![
-                "deploy-environment".into(),
-                "--namespace".into(),
-                ns.clone(),
-                "--kubeconfig".into(),
-                "/kubeconfig/value".into(),
-                "--environment".into(),
-                "/environment/environment.yaml".into(),
-                "--timeout".into(),
-                "300".into(),
-            ]),
-            volume_mounts: Some(vec![kubeconfig_mount, environment_mount]),
-            ..Default::default()
-        },
-        volumes: None,
-    };
-
-    WorkflowSpec {
-        service_account_name: "argo-workflow".into(),
-        entrypoint: "main".into(),
-        on_exit: "".into(),
-        templates: vec![
-            TemplateDef::Main(MainTemplate {
-                name: "main".into(),
-                dag: Dag {
-                    tasks: vec![
-                        TaskSpec {
-                            name: "create-namespace".into(),
-                            template: "create-namespace".into(),
-                            dependencies: vec![],
-                        },
-                        TaskSpec {
-                            name: "create-pull-secret".into(),
-                            template: "create-pull-secret".into(),
-                            dependencies: vec!["create-namespace".into()],
-                        },
-                        TaskSpec {
-                            name: "deploy-environment".into(),
-                            template: "deploy-environment".into(),
-                            dependencies: vec!["create-pull-secret".into()],
-                        },
-                    ],
-                },
-            }),
-            TemplateDef::Task(create_namespace),
-            TemplateDef::Task(create_pull_secret),
-            TemplateDef::Task(deploy_environment),
-        ],
-        volumes: vec![
-            Volume {
-                name: "kubeconfig".into(),
-                secret: Some(SecretVolumeSource {
-                    secret_name: Some("workload-kubeconfig".into()),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            },
-            Volume {
-                name: "gcr-secret".into(),
-                secret: Some(SecretVolumeSource {
-                    secret_name: Some("gcr-secret".into()),
-                    items: Some(vec![KeyToPath {
-                        key: ".dockerconfigjson".into(),
-                        path: "config.json".into(),
-                        ..Default::default()
-                    }]),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            },
-            Volume {
-                name: "environment".into(),
-                config_map: Some(ConfigMapVolumeSource {
-                    name: env_configmap_name(execution_id),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            },
-        ],
-    }
 }
 
 #[cfg(test)]

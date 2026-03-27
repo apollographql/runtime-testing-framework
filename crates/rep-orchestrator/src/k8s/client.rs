@@ -42,7 +42,7 @@ impl ClusterClients {
     }
 
     /// Helper for obtaining an [Api] client associated with the appropriate cluster namespace.
-    fn namespaced_api<K>(&self, cluster: Cluster, ns: &str) -> Api<K>
+    pub fn namespaced_api<K>(&self, cluster: Cluster, ns: &str) -> Api<K>
     where
         K: Resource<Scope = NamespaceResourceScope>,
         <K as Resource>::DynamicType: Default,

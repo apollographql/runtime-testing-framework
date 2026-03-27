@@ -1,8 +1,4 @@
-use k8s_openapi::api::core::v1::ConfigMap;
-use kube::{
-    Api, Config as KubeConfig,
-    config::{KubeConfigOptions, Kubeconfig},
-};
+use rep_orchestrator::k8s::ClusterClients;
 use rep_orchestrator_shared::{
     status::Status,
     summary::{TestExecutionSummary, TestRunSummary},
@@ -11,8 +7,8 @@ use rep_orchestrator_shared::{
 use reqwest::{Client, Response};
 use rtf_config::{context::Context, formats::TestPlan};
 use serde::{Serialize, de::DeserializeOwned};
-use std::{env, fmt::Display, path::Path, time::Duration};
-use tokio::time::sleep;
+use std::{env, fmt::Display, time::Duration};
+use tokio::time::{Instant, sleep};
 use uuid::Uuid;
 
 const SERVER_URL: &str = "http://localhost:8035";
@@ -35,6 +31,18 @@ impl TestHelper {
         Self {
             client: Client::new(),
         }
+    }
+
+    pub async fn kube_clients(&self) -> ClusterClients {
+        let kubeconfig_path =
+            env::var("RTF_KUBECONFIG_PATH").expect("RTF_KUBECONFIG_PATH must be set");
+        let mgmt_context = env::var("RTF_MGMT_CONTEXT").expect("RTF_MGMT_CONTEXT must be set");
+        let workload_context =
+            env::var("RTF_WORKLOAD_CONTEXT").expect("RTF_WORKLOAD_CONTEXT must be set");
+
+        ClusterClients::try_new(&kubeconfig_path, &mgmt_context, &workload_context)
+            .await
+            .unwrap()
     }
 
     pub async fn get(&self, endpoint: impl Display) -> anyhow::Result<Response> {
@@ -90,67 +98,65 @@ impl TestHelper {
         self.post("test-run/trigger", body).await
     }
 
+    async fn poll_for_condition<F, T>(
+        &self,
+        cond: F,
+        error_msg: String,
+        timeout: Duration,
+        interval_ms: u64,
+    ) -> T
+    where
+        F: AsyncFn() -> Option<T>,
+    {
+        let deadline = Instant::now() + timeout;
+        loop {
+            assert!(Instant::now() < deadline, "{error_msg}");
+            if let Some(t) = cond().await {
+                return t;
+            }
+
+            sleep(Duration::from_millis(interval_ms)).await;
+        }
+    }
+
     /// Poll `GET /test-run/{id}/status` until at least one execution appears, then return its UUID.
     /// Panics if no execution appears within `timeout`.
     pub async fn poll_for_execution_id(&self, run_id: Uuid, timeout: Duration) -> Uuid {
-        let deadline = tokio::time::Instant::now() + timeout;
-        loop {
-            assert!(
-                tokio::time::Instant::now() < deadline,
-                "timed out waiting for execution to appear for run {run_id}"
-            );
-            let summary: TestRunSummary = self
-                .json_get(format!("test-run/{run_id}/status"))
-                .await
-                .unwrap();
-            if let Some(ex) = summary.executions.first() {
-                return ex.id;
-            }
-            sleep(Duration::from_millis(500)).await;
-        }
+        self.poll_for_condition(
+            async || {
+                let summary: TestRunSummary = self
+                    .json_get(format!("test-run/{run_id}/status"))
+                    .await
+                    .unwrap();
+                summary.executions.first().map(|ex| ex.id)
+            },
+            format!("timed out waiting for execution to appear for run {run_id}"),
+            timeout,
+            500,
+        )
+        .await
     }
 
     /// Poll `GET /test-execution/{id}/status` until `expected` appears in the status history.
     /// Panics if the status does not appear within `timeout`.
     pub async fn poll_for_status(&self, ex_id: Uuid, expected: Status, timeout: Duration) {
-        let deadline = tokio::time::Instant::now() + timeout;
-        loop {
-            assert!(
-                tokio::time::Instant::now() < deadline,
-                "timed out waiting for status {expected:?} on execution {ex_id}"
-            );
-            let summary: TestExecutionSummary = self
-                .json_get(format!("test-execution/{ex_id}/status"))
-                .await
-                .unwrap();
-            if summary.status_history.iter().any(|u| u.status == expected) {
-                return;
-            }
-            sleep(Duration::from_millis(500)).await;
-        }
-    }
-}
+        self.poll_for_condition(
+            async || {
+                let summary: TestExecutionSummary = self
+                    .json_get(format!("test-execution/{ex_id}/status"))
+                    .await
+                    .unwrap();
 
-/// Assert that a ConfigMap with the given name exists in the `cluster-api` namespace of the
-/// management cluster. Reads `RTF_KUBECONFIG_PATH` and `RTF_MGMT_CONTEXT` from the environment.
-pub async fn assert_configmap_exists(name: &str) {
-    let kubeconfig_path = env::var("RTF_KUBECONFIG_PATH").expect("RTF_KUBECONFIG_PATH must be set");
-    let mgmt_context = env::var("RTF_MGMT_CONTEXT").expect("RTF_MGMT_CONTEXT must be set");
-
-    let kfg = Kubeconfig::read_from(Path::new(&kubeconfig_path)).unwrap();
-    let cfg = KubeConfig::from_custom_kubeconfig(
-        kfg,
-        &KubeConfigOptions {
-            context: Some(mgmt_context),
-            ..Default::default()
-        },
-    )
-    .await
-    .unwrap();
-    let client = kube::Client::try_from(cfg).unwrap();
-    let api: Api<ConfigMap> = Api::namespaced(client, "cluster-api");
-
-    api.get(name)
+                if summary.status_history.iter().any(|u| u.status == expected) {
+                    Some(())
+                } else {
+                    None
+                }
+            },
+            format!("timed out waiting for status {expected:?} on execution {ex_id}"),
+            timeout,
+            500,
+        )
         .await
-        .unwrap_or_else(|e| panic!("ConfigMap '{name}' not found in cluster-api namespace: {e}"));
+    }
 }
