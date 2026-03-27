@@ -154,18 +154,21 @@ k8s_resource(
     labels=["rep-orchestrator"],
 )
 
-# Image build — only files consumed by the release build are watched
-docker_build(
+# Image build — custom_build separates file watching (deps/ignore) from the Docker
+# build context, so we can exclude test directories from triggering rebuilds without
+# stripping them from the context that cargo needs.
+# target/ and .git/ are excluded from the Docker context via .dockerignore at the repo root.
+custom_build(
     "rep-orchestrator",
-    context="../../../",
-    dockerfile="../docker/Dockerfile",
-    only=[
-        "Cargo.lock",
-        "Cargo.toml",
-        "crates/",
+    "docker build --file ../docker/Dockerfile --tag $EXPECTED_REF ../../../",
+    deps=[
+        "../../../Cargo.lock",
+        "../../../Cargo.toml",
+        "../../../crates/",
     ],
     ignore=[
-        "crates/rtf-cli/resources/",  # test fixtures only — reading these during integration tests triggers spurious rebuilds via MacOS FSEvents atime updates
+        "../../../crates/rtf-cli/resources/",  # test fixtures only — reading these during integration tests triggers spurious rebuilds via MacOS FSEvents atime updates
+        "../../../crates/rep-orchestrator/tests/",  # integration tests are not compiled into the release binary
     ],
 )
 
