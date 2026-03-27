@@ -6,7 +6,7 @@
 //! processing that event as well as updating the state of the parent [TestExecution] the event is
 //! for.
 //! As there are a number of different ways that we can end up unable to process an event, handler
-//! functions must be written to return a Result that the [Event::handle] method will use to record
+//! functions must be written to return a Result that the `Event::handle` method will use to record
 //! an Unrunnable status.
 use crate::{
     config::Config,
