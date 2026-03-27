@@ -205,12 +205,6 @@ impl k8s::Client for ClusterClients {
         WatchOutcome::StreamClosed
     }
 
-    async fn delete_management_configmap(&self, namespace: &str, name: &str) -> Result<()> {
-        let api: Api<ConfigMap> = self.namespaced_api(Cluster::Management, namespace);
-        api.delete(name, &Default::default()).await?;
-        Ok(())
-    }
-
     async fn delete_workload_namespace(&self, ns: &str) -> Result<()> {
         let api: Api<Namespace> = Api::all(self.workload.clone());
         api.delete(ns, &Default::default()).await?;

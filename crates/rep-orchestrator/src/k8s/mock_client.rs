@@ -1,81 +1,38 @@
-use super::{Cluster, Error, Result, WatchOutcome, Workflow, WorkflowSpec};
+use crate::k8s::{Client, Cluster, Result, WatchOutcome, Workflow, WorkflowSpec};
 use k8s_openapi::api::{
     batch::v1::{Job, JobSpec},
     core::v1::ConfigMap,
 };
-use kube::config::KubeconfigError;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
-#[derive(Clone)]
+/// A simple mock client that can hold a single optional response for each of the methods in the
+/// [Client] trait.
+///
+/// # Assumptions
+/// We only need to handle a single call to each of the methods as each event handler calls any
+/// given method at most once.
+#[derive(Default, Debug, Clone)]
 pub struct MockClient {
-    pub create_configmap_result: Arc<Mutex<Option<Result<ConfigMap>>>>,
-    pub create_workflow_result: Arc<Mutex<Option<Result<Workflow>>>>,
-    pub wait_for_workflow_outcome: Arc<Mutex<Option<WatchOutcome>>>,
-    pub delete_configmap_result: Arc<Mutex<Option<Result<()>>>>,
+    pub create_configmap: Resp<Result<ConfigMap>>,
+    pub create_workflow: Resp<Result<Workflow>>,
+    pub wait_for_workflow: Resp<WatchOutcome>,
 }
 
 impl MockClient {
-    /// All configmap and workflow operations succeed. Use for `try_run` tests — the spawned
-    /// `wait_and_update` task will fail to acquire a DB connection in unit tests, but that is
-    /// silent and does not affect the test's assertions on the sync-path status updates.
-    pub fn ok() -> Self {
+    /// Construct a [MockClient] with all responses set to happy path default values.
+    ///
+    /// Use [MockClient::default] to default all responses to unset.
+    pub fn default_ok() -> Self {
         Self {
-            create_configmap_result: Arc::new(Mutex::new(Some(Ok(Default::default())))),
-            create_workflow_result: Arc::new(Mutex::new(Some(Ok(Default::default())))),
-            wait_for_workflow_outcome: Arc::new(Mutex::new(None)),
-            delete_configmap_result: Arc::new(Mutex::new(None)),
-        }
-    }
-
-    /// ConfigMap creation fails; workflow methods are unimplemented.
-    pub fn configmap_err() -> Self {
-        Self {
-            create_configmap_result: Arc::new(Mutex::new(Some(Err(Error::KubeConfig(
-                KubeconfigError::CurrentContextNotSet,
-            ))))),
-            create_workflow_result: Arc::new(Mutex::new(None)),
-            wait_for_workflow_outcome: Arc::new(Mutex::new(None)),
-            delete_configmap_result: Arc::new(Mutex::new(None)),
-        }
-    }
-
-    /// ConfigMap creation succeeds, workflow creation fails.
-    pub fn workflow_err() -> Self {
-        Self {
-            create_configmap_result: Arc::new(Mutex::new(Some(Ok(Default::default())))),
-            create_workflow_result: Arc::new(Mutex::new(Some(Err(Error::KubeConfig(
-                KubeconfigError::CurrentContextNotSet,
-            ))))),
-            wait_for_workflow_outcome: Arc::new(Mutex::new(None)),
-            delete_configmap_result: Arc::new(Mutex::new(None)),
-        }
-    }
-
-    /// All operations succeed; `wait_for_workflow` returns `outcome`; configmap delete succeeds.
-    pub fn with_workflow(outcome: WatchOutcome) -> Self {
-        Self {
-            create_configmap_result: Arc::new(Mutex::new(Some(Ok(Default::default())))),
-            create_workflow_result: Arc::new(Mutex::new(Some(Ok(Default::default())))),
-            wait_for_workflow_outcome: Arc::new(Mutex::new(Some(outcome))),
-            delete_configmap_result: Arc::new(Mutex::new(Some(Ok(())))),
-        }
-    }
-
-    /// Same as `with_workflow` but configmap deletion returns an error.
-    pub fn with_workflow_delete_err(outcome: WatchOutcome) -> Self {
-        Self {
-            create_configmap_result: Arc::new(Mutex::new(Some(Ok(Default::default())))),
-            create_workflow_result: Arc::new(Mutex::new(Some(Ok(Default::default())))),
-            wait_for_workflow_outcome: Arc::new(Mutex::new(Some(outcome))),
-            delete_configmap_result: Arc::new(Mutex::new(Some(Err(Error::KubeConfig(
-                KubeconfigError::CurrentContextNotSet,
-            ))))),
+            create_configmap: Resp::new(Ok(Default::default())),
+            create_workflow: Resp::new(Ok(Default::default())),
+            wait_for_workflow: Resp::new(WatchOutcome::Succeeded),
         }
     }
 }
 
-impl super::Client for MockClient {
+impl Client for MockClient {
     async fn create_configmap(
         &self,
         _cluster: Cluster,
@@ -84,46 +41,66 @@ impl super::Client for MockClient {
         _file_name: &str,
         _content: String,
     ) -> Result<ConfigMap> {
-        self.create_configmap_result
-            .lock()
-            .unwrap()
+        self.create_configmap
             .take()
             .expect("create_configmap called but no result configured")
     }
 
     async fn create_argo_workflow(&self, _name: &str, _spec: WorkflowSpec) -> Result<Workflow> {
-        self.create_workflow_result
-            .lock()
-            .unwrap()
+        self.create_workflow
             .take()
             .expect("create_argo_workflow called but no result configured")
+    }
+
+    async fn wait_for_workflow(&self, _execution_id: &Uuid) -> WatchOutcome {
+        self.wait_for_workflow
+            .take()
+            .expect("wait_for_workflow called but no outcome configured")
     }
 
     async fn create_job(&self, _ns: &str, _name: &str, _spec: JobSpec) -> Result<Job> {
         unimplemented!("not yet used in tests")
     }
 
-    async fn wait_for_workflow(&self, _execution_id: &Uuid) -> WatchOutcome {
-        self.wait_for_workflow_outcome
-            .lock()
-            .unwrap()
-            .take()
-            .expect("wait_for_workflow called but no outcome configured")
-    }
-
     async fn wait_for_job(&self, _ns: &str, _execution_id: &Uuid) -> WatchOutcome {
         unimplemented!("not yet used in tests")
     }
 
-    async fn delete_management_configmap(&self, _namespace: &str, _name: &str) -> Result<()> {
-        self.delete_configmap_result
-            .lock()
-            .unwrap()
-            .take()
-            .expect("delete_management_configmap called but no result configured")
-    }
-
     async fn delete_workload_namespace(&self, _ns: &str) -> Result<()> {
         unimplemented!("not yet used in tests")
+    }
+}
+
+/// A stubbed response to a method call on [MockClient].
+#[derive(Debug)]
+pub struct Resp<T> {
+    inner: Arc<Mutex<Option<T>>>,
+}
+
+impl<T> Resp<T> {
+    pub fn new(t: T) -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(Some(t))),
+        }
+    }
+
+    fn take(&self) -> Option<T> {
+        self.inner.lock().unwrap().take()
+    }
+}
+
+impl<T> Default for Resp<T> {
+    fn default() -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
+impl<T> Clone for Resp<T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
     }
 }

@@ -3,6 +3,7 @@ use k8s_openapi::api::{
     core::v1::ConfigMap,
 };
 use kube::config::KubeconfigError;
+use std::fmt;
 use uuid::Uuid;
 
 mod client;
@@ -33,22 +34,6 @@ pub enum Error {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
-
-/// Markers for the two REP clusters we use for running test plans.
-#[derive(Debug, Clone, Copy)]
-pub enum Cluster {
-    Management,
-    Workload,
-}
-
-/// Terminal states for argo [Workflow]s and k8s [Job]s.
-#[derive(Debug, Clone)]
-pub enum WatchOutcome {
-    Succeeded,
-    Failed(String),
-    WatcherError(String),
-    StreamClosed,
-}
 
 /// Kubernetes API actions required for executing RTF test plans inside of REP clusters.
 pub trait Client: Clone + Send + Sync + 'static {
@@ -93,16 +78,35 @@ pub trait Client: Clone + Send + Sync + 'static {
         execution_id: &Uuid,
     ) -> impl Future<Output = WatchOutcome> + Send;
 
-    /// Delete a ConfigMap from the management cluster. Called after a workflow reaches a terminal
-    /// state to clean up the environment config that was mounted into the workflow pods.
-    fn delete_management_configmap(
-        &self,
-        namespace: &str,
-        name: &str,
-    ) -> impl Future<Output = Result<()>> + Send;
-
     /// Delete an ephemeral namespace within the [workload][Cluster::Workload].
     fn delete_workload_namespace(&self, ns: &str) -> impl Future<Output = Result<()>> + Send;
+}
+
+/// Markers for the two REP clusters we use for running test plans.
+#[derive(Debug, Clone, Copy)]
+pub enum Cluster {
+    Management,
+    Workload,
+}
+
+/// Terminal states for argo [Workflow]s and k8s [Job]s.
+#[derive(Debug, Clone)]
+pub enum WatchOutcome {
+    Succeeded,
+    Failed(String),
+    WatcherError(String),
+    StreamClosed,
+}
+
+impl fmt::Display for WatchOutcome {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Succeeded => write!(f, "Succeeded"),
+            Self::Failed(msg) => write!(f, "Failed ({msg})"),
+            Self::WatcherError(msg) => write!(f, "Watcher error ({msg})"),
+            Self::StreamClosed => write!(f, "Watcher stream closed unexpectedly"),
+        }
+    }
 }
 
 pub fn workflow_name(execution_id: &Uuid) -> String {

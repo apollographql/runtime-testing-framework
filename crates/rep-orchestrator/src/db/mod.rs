@@ -1,5 +1,6 @@
 use sqlx::{Database, FromRow, PgConnection, Postgres};
 use thiserror::Error;
+use tracing::error;
 
 pub mod pool;
 mod status;
@@ -76,7 +77,7 @@ pub trait Queryable:
     }
 }
 
-pub trait UpdateHandle {
+pub trait UpdateHandle: Send + Sync {
     fn init_execution(
         &mut self,
         tr: &TestRun,
@@ -96,6 +97,36 @@ pub trait UpdateHandle {
         status: Status,
         message: Option<String>,
     ) -> impl Future<Output = crate::Result<()>> + Send;
+
+    fn mark_execution_as_provisioning(
+        &mut self,
+        ex: &TestExecution,
+        message: String,
+    ) -> impl Future<Output = ()> + Send {
+        async {
+            if let Err(err) = self
+                .update_test_execution_status(ex, Status::Provisioning, Some(message))
+                .await
+            {
+                error!(id=%ex.uuid(), %err, "Unable to mark Test Execution as provisioning");
+            }
+        }
+    }
+
+    fn mark_execution_as_unrunnable(
+        &mut self,
+        ex: &TestExecution,
+        message: String,
+    ) -> impl Future<Output = ()> + Send {
+        async {
+            if let Err(err) = self
+                .update_test_execution_status(ex, Status::Unrunnable, Some(message))
+                .await
+            {
+                error!(id=%ex.uuid(), %err, "Unable to mark Test Execution as unrunnable");
+            }
+        }
+    }
 }
 
 impl UpdateHandle for PgConnection {
@@ -143,23 +174,23 @@ mod update_handle {
     }
 
     impl TaggedStatusUpdate {
-        pub fn run(id: i32, status: Status, message: Option<String>) -> Self {
+        pub fn run(id: i32, status: Status, message: Option<impl Into<String>>) -> Self {
             Self::Run(
                 id,
                 StatusUpdate {
                     status,
-                    message,
+                    message: message.map(Into::into),
                     ..Default::default()
                 },
             )
         }
 
-        pub fn execution(id: i32, status: Status, message: Option<String>) -> Self {
+        pub fn execution(id: i32, status: Status, message: Option<impl Into<String>>) -> Self {
             Self::Execution(
                 id,
                 StatusUpdate {
                     status,
-                    message,
+                    message: message.map(Into::into),
                     ..Default::default()
                 },
             )
@@ -179,6 +210,16 @@ mod update_handle {
                 test_executions: vec![ex],
                 ..Default::default()
             }
+        }
+
+        pub fn statuses(&self) -> Vec<Status> {
+            self.status_updates
+                .iter()
+                .map(|u| match u {
+                    TaggedStatusUpdate::Run(_, s) => s.status,
+                    TaggedStatusUpdate::Execution(_, s) => s.status,
+                })
+                .collect()
         }
     }
 
