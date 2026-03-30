@@ -20,6 +20,7 @@ pub struct MockClient {
     pub create_job: Resp<Result<Job>>,
     pub wait_for_workflow: Resp<WatchOutcome>,
     pub wait_for_job: Resp<WatchOutcome>,
+    pub delete_workload_namespace: Resp<Result<()>>,
 }
 
 impl MockClient {
@@ -34,6 +35,7 @@ impl MockClient {
             create_job: Resp::new(Ok(Default::default())),
             wait_for_workflow: Resp::new(WatchOutcome::Succeeded),
             wait_for_job: Resp::new(WatchOutcome::Succeeded),
+            delete_workload_namespace: Resp::new(Ok(())),
         }
     }
 }
@@ -80,7 +82,9 @@ impl Client for MockClient {
     }
 
     async fn delete_workload_namespace(&self, _ns: &str) -> Result<()> {
-        unimplemented!("not yet used in tests")
+        self.delete_workload_namespace
+            .take()
+            .expect("delete_workload_namespace called but no outcome configured")
     }
 }
 

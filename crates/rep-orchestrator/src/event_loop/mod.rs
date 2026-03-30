@@ -18,6 +18,7 @@ use rtf_config::formats::{DockerComposeEnvironment, DockerScenario};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tracing::{error, warn};
 
+mod cleanup_namespace;
 mod provision_environment;
 mod run_scenario;
 
@@ -75,6 +76,12 @@ enum Error {
 
     #[error("unable to create Kubernetes job: {error}")]
     CreateJob {
+        #[source]
+        error: crate::k8s::Error,
+    },
+
+    #[error("unable to delete workload cluster namespace: {error}")]
+    DeleteNamespace {
         #[source]
         error: crate::k8s::Error,
     },
@@ -139,8 +146,7 @@ impl Event {
             }
 
             EventData::CleanupNamespace => {
-                warn!("CleanupNamespace not yet implemented");
-                Ok(())
+                cleanup_namespace::try_run(self.test_execution.clone(), clients).await
             }
         };
 
