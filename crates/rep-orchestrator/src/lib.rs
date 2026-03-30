@@ -57,3 +57,35 @@ fn build_routes(state: ServerState) -> Router {
         .route("/test-run/trigger", post(trigger::handler))
         .with_state(state)
 }
+
+#[cfg(test)]
+mod test_helpers {
+    use super::*;
+    use crate::state::TestRunWithPayload;
+    use axum_test::TestServer;
+    use tokio::sync::mpsc::UnboundedReceiver;
+
+    /// A wrapper around the top level state needed for writing tests of the overall server
+    /// behaviour using [axum_test](https://docs.rs/axum-test/latest/axum_test/).
+    pub struct TestServerState {
+        pub test_server: TestServer,
+        pub resolver_rx: UnboundedReceiver<TestRunWithPayload>,
+    }
+
+    impl TestServerState {
+        pub fn new() -> Self {
+            let (state, resolver_rx) = ServerState::new();
+            let test_server = TestServer::new(build_routes(state));
+
+            Self {
+                test_server,
+                resolver_rx,
+            }
+        }
+
+        pub fn minimal_trigger_payload(&self) -> serde_json::Value {
+            serde_json::from_str(include_str!("../resources/trigger-payloads/minimal.json"))
+                .unwrap()
+        }
+    }
+}

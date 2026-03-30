@@ -1,0 +1,50 @@
+{
+  "test_plan": {
+    "name": "minimal-nginx",
+    "description": "",
+    "variables": {},
+    "matrix": {
+      "variant_names": null,
+      "dimensions": {},
+      "include": []
+    },
+    "custom_providers": [],
+    "scenario": {
+      "name": "minimal-nginx-scenario",
+      "description": "",
+      "variable_definitions": [],
+      "custom_providers": [],
+      "docker": {
+        "image": "nginx",
+        "tag": "alpine",
+        "command": "echo test"
+      },
+      "env_vars": {},
+      "file_providers": []
+    },
+    "environment": {
+      "name": "dc739bed-ff86-4b82-99c9-e4a6978f666e",
+      "description": "",
+      "variable_definitions": [],
+      "custom_providers": [],
+      "project_name": "rep-prepare",
+      "compose_files": [
+        {
+          "name": "compose.yaml",
+          "kind": "inline",
+          "content": "services:\n  alpine:\n"
+        }
+      ],
+      "file_providers": [],
+      "env_vars": {}
+    }
+  },
+  "relative_files": {
+    "keys": [],
+    "data": []
+  },
+  "custom_providers": {
+    "keys": [],
+    "data": []
+  }
+}

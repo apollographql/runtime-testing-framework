@@ -22,7 +22,7 @@ db-tests:
 		RTF_KUBECONFIG_PATH=dummy \
 		RTF_MGMT_CONTEXT=dummy \
 		RTF_WORKLOAD_CONTEXT=dummy \
-		cargo test --lib --features k8s_tests $(ARGS)
+		cargo test --lib --features db_tests $(ARGS)
 
 .PHONY: integration-tests
 integration-tests: clear-db-data
@@ -61,6 +61,21 @@ cluster-ci:
 .PHONY: cluster-down
 cluster-down:
 	@cd local-stack && tilt down --context kind-rtf-mgmt
+
+
+# DB stack management
+
+.PHONY: db-up
+db-up:
+	@docker compose -f local-stack/db/docker-compose.yaml up
+
+.PHONY: db-down
+db-down:
+	@docker compose -f local-stack/db/docker-compose.yaml down
+
+.PHONY: db-shell
+db-shell:
+	@docker exec -it db psql -U service_user rtf_rep
 
 
 # Management of the test DB container

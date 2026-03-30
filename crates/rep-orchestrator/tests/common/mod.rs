@@ -79,12 +79,6 @@ impl TestHelper {
         TriggerPayload::prepare(test_plan, sources, Default::default(), ctx).await
     }
 
-    pub async fn trigger_run(&self, test_plan_dir: &str) -> anyhow::Result<Response> {
-        let body = self.prepare_rep_payload(test_plan_dir).await?;
-
-        self.post("test-run/trigger", body).await
-    }
-
     async fn poll_for_condition<F, T>(
         &self,
         cond: F,

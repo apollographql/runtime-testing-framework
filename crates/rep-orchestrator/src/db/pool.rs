@@ -18,8 +18,13 @@ pub async fn init_pool(cfg: &Config) -> Result<PgPool> {
         .password(&cfg.db_pass)
         .database(&cfg.db_name);
 
+    // See `get_pool` below: we create a pool per-test to avoid issues with async drop so we need
+    // to ensure that those pools don't attempt to grab multiple connections from DB container
+    // otherwise we hit max connections really quickly.
+    let max_connections = if cfg!(test) { 1 } else { MAX_POOL_CONNECTIONS };
+
     let pool = PgPoolOptions::new()
-        .max_connections(MAX_POOL_CONNECTIONS)
+        .max_connections(max_connections)
         .connect_with(opts)
         .await?;
 
@@ -55,7 +60,7 @@ pub async fn check_db_conn() -> Result<()> {
 mod tests {
     use super::*;
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn check_db_conn_returns_ok_with_running_db() {
         let res = check_db_conn().await;

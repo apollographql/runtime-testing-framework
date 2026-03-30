@@ -12,3 +12,18 @@ pub async fn handler() -> Result<Json<HealthResponse>> {
 pub struct HealthResponse {
     ok: bool,
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::test_helpers::TestServerState;
+    use reqwest::StatusCode;
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn handler_returns_200() {
+        let tss = TestServerState::new();
+
+        let resp = tss.test_server.get("/health").await;
+        assert_eq!(resp.status_code(), StatusCode::OK);
+    }
+}
