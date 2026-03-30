@@ -203,7 +203,7 @@ mod tests {
     use Status::*;
     use simple_test_case::test_case;
 
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
     #[tokio::test]
     async fn init_creates_run_with_initialising_status() -> Result<()> {
         let c = conn!();
@@ -219,7 +219,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
     #[tokio::test]
     async fn get_by_id_returns_matching_run() -> Result<()> {
         let c = conn!();
@@ -231,7 +231,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
     #[tokio::test]
     async fn get_by_id_unchecked_returns_matching_run() -> Result<()> {
         let c = conn!();
@@ -243,7 +243,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
     #[tokio::test]
     async fn get_by_uuid_returns_matching_run() -> Result<()> {
         let c = conn!();
@@ -255,7 +255,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
     #[tokio::test]
     async fn executions_returns_all_associated_executions() -> Result<()> {
         let c = conn!();
@@ -273,7 +273,7 @@ mod tests {
     }
 
     // Status of Initialising is checked in `init_creates_run_with_initialising_status` above
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
     #[test_case(Status::Resolving; "resolving")]
     #[test_case(Status::Provisioning; "provisioning")]
     #[test_case(Status::Running; "running")]
@@ -293,7 +293,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
     #[tokio::test]
     async fn status_history_returns_entries_newest_first() -> Result<()> {
         let c = conn!();
@@ -310,7 +310,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
     #[test_case(Status::Successful; "successful")]
     #[test_case(Status::Failed; "failed")]
     #[test_case(Status::Unrunnable; "unrunnable")]
@@ -327,7 +327,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
     #[test_case(Status::Initialising; "initialising")]
     #[test_case(Status::Resolving; "resolving")]
     #[test_case(Status::Provisioning; "provisioning")]

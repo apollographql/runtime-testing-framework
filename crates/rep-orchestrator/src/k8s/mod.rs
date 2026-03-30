@@ -3,13 +3,19 @@ use k8s_openapi::api::{
     core::v1::ConfigMap,
 };
 use kube::config::KubeconfigError;
+use std::fmt;
 use uuid::Uuid;
 
 mod client;
 mod workflow;
 
+#[cfg(test)]
+pub mod mock_client;
+
 pub use client::ClusterClients;
-pub use workflow::{Workflow, WorkflowSpec};
+pub use workflow::{
+    Dag, MainTemplate, TaskSpec, TaskTemplate, TemplateDef, Workflow, WorkflowSpec,
+};
 
 pub const CLUSTER_API_NAMESPACE: &str = "cluster-api";
 pub const ENVIRONMENT_CONFIG_FILENAME: &str = "environment.yaml";
@@ -29,24 +35,8 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Markers for the two REP clusters we use for running test plans.
-#[derive(Debug, Clone, Copy)]
-pub enum Cluster {
-    Management,
-    Workload,
-}
-
-/// Terminal states for argo [Workflow]s and k8s [Job]s.
-#[derive(Debug, Clone)]
-pub enum WatchOutcome {
-    Succeeded,
-    Failed(String),
-    WatcherError(String),
-    StreamClosed,
-}
-
 /// Kubernetes API actions required for executing RTF test plans inside of REP clusters.
-pub trait Client: Send + Sync {
+pub trait Client: Clone + Send + Sync + 'static {
     /// Create a new config map in either the [management][Cluster::Management] or
     /// [workload][Cluster::Workload] cluster.
     fn create_configmap(
@@ -78,14 +68,45 @@ pub trait Client: Send + Sync {
 
     /// Wait for a [Workflow] running within the [management][Cluster::Management] cluster to reach
     /// a terminal state, selecting the workflow by its execution ID label.
-    fn wait_for_workflow(&self, execution_id: &Uuid) -> impl Future<Output = WatchOutcome>;
+    fn wait_for_workflow(&self, execution_id: &Uuid) -> impl Future<Output = WatchOutcome> + Send;
 
     /// Wait for a k8s [Job] running within the [workload][Cluster::Workload] cluster to reach
     /// a terminal state, selecting the job by its execution ID label.
-    fn wait_for_job(&self, ns: &str, execution_id: &Uuid) -> impl Future<Output = WatchOutcome>;
+    fn wait_for_job(
+        &self,
+        ns: &str,
+        execution_id: &Uuid,
+    ) -> impl Future<Output = WatchOutcome> + Send;
 
     /// Delete an ephemeral namespace within the [workload][Cluster::Workload].
-    fn delete_workload_namespace(&self, ns: &str) -> impl Future<Output = Result<()>>;
+    fn delete_workload_namespace(&self, ns: &str) -> impl Future<Output = Result<()>> + Send;
+}
+
+/// Markers for the two REP clusters we use for running test plans.
+#[derive(Debug, Clone, Copy)]
+pub enum Cluster {
+    Management,
+    Workload,
+}
+
+/// Terminal states for argo [Workflow]s and k8s [Job]s.
+#[derive(Debug, Clone)]
+pub enum WatchOutcome {
+    Succeeded,
+    Failed(String),
+    WatcherError(String),
+    StreamClosed,
+}
+
+impl fmt::Display for WatchOutcome {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Succeeded => write!(f, "Succeeded"),
+            Self::Failed(msg) => write!(f, "Failed ({msg})"),
+            Self::WatcherError(msg) => write!(f, "Watcher error ({msg})"),
+            Self::StreamClosed => write!(f, "Watcher stream closed unexpectedly"),
+        }
+    }
 }
 
 pub fn workflow_name(execution_id: &Uuid) -> String {

@@ -6,12 +6,12 @@ This page documents how tests in the [`rep-orchestrator`][0] crate are organized
 
 The crate has two categories of test:
 
-- **Unit tests** — live alongside source code in `src/`. Some require a running Postgres instance
-  and are gated behind the `db_tests` feature flag.
+- **Unit tests** — live alongside source code in `src/`. Some require a running stack and are gated
+  behind the `k8s_tests` feature flag.
 - **Integration tests** — live in `tests/suite.rs`. Require a fully running Docker Compose stack
-  (orchestrator server + database).
+  (orchestrator server + database + k8s clusters).
 
-Running `cargo test` from the workspace root will skip all DB-dependent tests. They must be run
+Running `cargo test` from the workspace root will skip all stack-dependent tests. They must be run
 explicitly via `make`.
 
 ## Organization
@@ -111,19 +111,19 @@ To run all unit tests (DB tests skipped):
 cargo test -p rep-orchestrator --lib
 ```
 
-### DB tests
+### Stack-dependent tests
 
-Tests that require a live database connection are annotated with:
+Tests that require a running stack (database + k8s clusters) are annotated with:
 
 ```rust
-#[cfg_attr(not(feature = "db_tests"), ignore)]
+#[cfg_attr(not(feature = "k8s_tests"), ignore)]
 ```
 
 This means they are skipped by `cargo test` (and reported as ignored in the output) unless
-`--features db_tests` is passed. Do not remove this annotation from existing tests — it prevents the
-standard workspace test run from failing when no database is available.
+`--features k8s_tests` is passed. Do not remove this annotation from existing tests — it prevents
+the standard workspace test run from failing when no stack is available.
 
-To run DB tests, first start the test database stack:
+To run stack-dependent tests, first start the local stack:
 
 ```bash
 cd crates/rep-orchestrator
@@ -136,7 +136,7 @@ In a second terminal session, run the tests:
 make db-tests
 ```
 
-To stop the database when done:
+To stop the stack when done:
 
 ```bash
 make test-db-down

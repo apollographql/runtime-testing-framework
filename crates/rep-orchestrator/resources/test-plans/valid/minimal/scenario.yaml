@@ -1,0 +1,7 @@
+name: minimal-nginx-scenario
+description: Minimal DockerScenario for ProvisionEnvironment integration tests
+
+docker:
+  image: nginx
+  tag: alpine
+  command: echo test

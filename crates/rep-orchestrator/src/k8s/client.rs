@@ -13,7 +13,7 @@ use kube::{
     core::NamespaceResourceScope,
 };
 use kube_runtime::{WatchStreamExt, watcher};
-use std::{collections::BTreeMap, path::Path, pin::pin};
+use std::{collections::BTreeMap, pin::pin};
 use tokio_stream::StreamExt;
 use tracing::error;
 use uuid::Uuid;
@@ -29,7 +29,7 @@ pub struct ClusterClients {
 impl ClusterClients {
     /// Construct a new pair of k8s clients using the provided kubeconfig path and contexts.
     pub async fn try_new(
-        path: &Path,
+        path: &str,
         management_context: &str,
         workload_context: &str,
     ) -> Result<Self> {
@@ -42,7 +42,7 @@ impl ClusterClients {
     }
 
     /// Helper for obtaining an [Api] client associated with the appropriate cluster namespace.
-    fn namespaced_api<K>(&self, cluster: Cluster, ns: &str) -> Api<K>
+    pub fn namespaced_api<K>(&self, cluster: Cluster, ns: &str) -> Api<K>
     where
         K: Resource<Scope = NamespaceResourceScope>,
         <K as Resource>::DynamicType: Default,

@@ -1,8 +1,14 @@
-use rep_orchestrator_shared::{payload::TriggerPayload, test_plan::Rep};
+use rep_orchestrator_shared::{
+    status::Status,
+    summary::{TestExecutionSummary, TestRunSummary},
+    {payload::TriggerPayload, test_plan::Rep},
+};
 use reqwest::{Client, Response};
 use rtf_config::{context::Context, formats::TestPlan};
 use serde::{Serialize, de::DeserializeOwned};
-use std::{env, fmt::Display};
+use std::{env, fmt::Display, time::Duration};
+use tokio::time::{Instant, sleep};
+use uuid::Uuid;
 
 const SERVER_URL: &str = "http://localhost:8035";
 
@@ -77,5 +83,67 @@ impl TestHelper {
         let body = self.prepare_rep_payload(test_plan_dir).await?;
 
         self.post("test-run/trigger", body).await
+    }
+
+    async fn poll_for_condition<F, T>(
+        &self,
+        cond: F,
+        error_msg: String,
+        timeout: Duration,
+        interval_ms: u64,
+    ) -> T
+    where
+        F: AsyncFn() -> Option<T>,
+    {
+        let deadline = Instant::now() + timeout;
+        loop {
+            assert!(Instant::now() < deadline, "{error_msg}");
+            if let Some(t) = cond().await {
+                return t;
+            }
+
+            sleep(Duration::from_millis(interval_ms)).await;
+        }
+    }
+
+    /// Poll `GET /test-run/{id}/status` until at least one execution appears, then return its UUID.
+    /// Panics if no execution appears within `timeout`.
+    pub async fn poll_for_execution_id(&self, run_id: Uuid, timeout: Duration) -> Uuid {
+        self.poll_for_condition(
+            async || {
+                let summary: TestRunSummary = self
+                    .json_get(format!("test-run/{run_id}/status"))
+                    .await
+                    .unwrap();
+                summary.executions.first().map(|ex| ex.id)
+            },
+            format!("timed out waiting for execution to appear for run {run_id}"),
+            timeout,
+            500,
+        )
+        .await
+    }
+
+    /// Poll `GET /test-execution/{id}/status` until `expected` appears in the status history.
+    /// Panics if the status does not appear within `timeout`.
+    pub async fn poll_for_status(&self, ex_id: Uuid, expected: Status, timeout: Duration) {
+        self.poll_for_condition(
+            async || {
+                let summary: TestExecutionSummary = self
+                    .json_get(format!("test-execution/{ex_id}/status"))
+                    .await
+                    .unwrap();
+
+                if summary.status_history.iter().any(|u| u.status == expected) {
+                    Some(())
+                } else {
+                    None
+                }
+            },
+            format!("timed out waiting for status {expected:?} on execution {ex_id}"),
+            timeout,
+            500,
+        )
+        .await
     }
 }

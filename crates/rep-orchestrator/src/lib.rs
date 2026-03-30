@@ -32,8 +32,8 @@ pub async fn run_server() -> error::Result<()> {
     let (state, rx) = ServerState::new();
     let (etx, erx) = unbounded_channel::<event_loop::Event>();
 
-    tokio::spawn(resolver::resolver_task(rx, etx));
-    tokio::spawn(event_loop::event_loop_task(erx));
+    tokio::spawn(resolver::resolver_task(rx, etx.clone()));
+    tokio::spawn(event_loop::event_loop_task(etx, erx));
 
     info!("starting axum server");
     let routes = build_routes(state);

@@ -6,12 +6,20 @@ config.define_bool("orchestrator-tests", args=False, usage="Run all cargo tests 
 cfg = config.parse()
 run_orchestrator_tests = cfg.get("orchestrator-tests", False)
 
-# Extract the workload cluster control-plane container IP on the kind network.
-# This is reachable from pods in the management cluster since both kind clusters
+# Extract container IPs for both clusters on the kind network.
+# These are reachable from pods in the management cluster since both kind clusters
 # share the same docker network.
 workload_ip = str(
     local(
         "docker inspect rtf-workload-control-plane"
+        + " --format '{{ .NetworkSettings.Networks.kind.IPAddress }}'",
+        quiet=True,
+    )
+).strip()
+
+mgmt_ip = str(
+    local(
+        "docker inspect rtf-mgmt-control-plane"
         + " --format '{{ .NetworkSettings.Networks.kind.IPAddress }}'",
         quiet=True,
     )
@@ -27,10 +35,23 @@ workload_kubeconfig = str(
     )
 )
 
+# Build a combined kubeconfig (both clusters, container IPs) for the orchestrator pod.
+# Written via temp files to avoid shell quoting issues with YAML content.
+combined_kubeconfig = str(
+    local(
+        "kind get kubeconfig --name rtf-mgmt"
+        + " | sed 's|https://127.0.0.1:[0-9]*|https://%s:6443|g' > /tmp/rtf-mgmt.kubeconfig" % mgmt_ip
+        + " && kind get kubeconfig --name rtf-workload"
+        + " | sed 's|https://127.0.0.1:[0-9]*|https://%s:6443|g' > /tmp/rtf-workload.kubeconfig" % workload_ip
+        + " && KUBECONFIG=/tmp/rtf-mgmt.kubeconfig:/tmp/rtf-workload.kubeconfig kubectl config view --flatten --merge",
+        quiet=True,
+    )
+)
+
 # Namespaces
 k8s_yaml("k8s/namespace.yaml")
 
-# Workload kubeconfig — stored as a secret so the orchestrator can reach the workload cluster
+# Workload kubeconfig — stored as a secret so Argo workflow pods can reach the workload cluster
 k8s_yaml(
     secret_from_dict(
         "workload-kubeconfig",
@@ -39,11 +60,39 @@ k8s_yaml(
     )
 )
 
-# Make sure the rtf-toolbox image is available on both clusters
+# Combined kubeconfig — mounted into the orchestrator pod so it can reach both clusters
+k8s_yaml(
+    secret_from_dict(
+        "orchestrator-kubeconfig",
+        namespace="orchestrator",
+        inputs={"config": combined_kubeconfig},
+    )
+)
+
+# Make sure the rtf-toolbox image is available on both clusters under its full registry name.
+# The workflow spec references the full GCR path, so the image must be loaded under that name
+# even though it was built locally as rtf-toolbox:edge.
+TOOLBOX_IMAGE = "us-central1-docker.pkg.dev/platform-cross-environment/platform-docker/rtf-toolbox:edge"
 local_resource(
     "toolbox-image",
-    cmd="kind load docker-image rtf-toolbox:edge --name rtf-mgmt && kind load docker-image rtf-toolbox:edge --name rtf-workload",
+    cmd=(
+        "docker tag rtf-toolbox:edge {img}"
+        + " && kind load docker-image {img} --name rtf-mgmt"
+        + " && kind load docker-image {img} --name rtf-workload"
+    ).format(img=TOOLBOX_IMAGE),
     labels=["infra"],
+)
+
+# GCR pull secret — dummy for local use. In production this contains real GCR credentials
+# used by create-pull-secret to authorise image pulls in the workload cluster. Locally,
+# all test fixtures use public images, so the credential content is irrelevant; the secret
+# object must exist so Argo can mount it into the create-pull-secret workflow task pod.
+k8s_yaml(
+    secret_from_dict(
+        "gcr-secret",
+        namespace="cluster-api",
+        inputs={".dockerconfigjson": '{"auths":{}}'},
+    )
 )
 
 # Argo workflow service account + RBAC in cluster-api
@@ -56,6 +105,8 @@ k8s_resource(
         "argo-workflow:role:cluster-api",
         "argo-workflow:rolebinding:cluster-api",
         "workload-kubeconfig:secret:cluster-api",
+        "orchestrator-kubeconfig:secret:orchestrator",
+        "gcr-secret:secret:cluster-api",
     ],
     new_name="cluster-setup",
     labels=["infra"],
@@ -103,18 +154,21 @@ k8s_resource(
     labels=["rep-orchestrator"],
 )
 
-# Image build — only files consumed by the release build are watched
-docker_build(
+# Image build — custom_build separates file watching (deps/ignore) from the Docker
+# build context, so we can exclude test directories from triggering rebuilds without
+# stripping them from the context that cargo needs.
+# target/ and .git/ are excluded from the Docker context via .dockerignore at the repo root.
+custom_build(
     "rep-orchestrator",
-    context="../../../",
-    dockerfile="../docker/Dockerfile",
-    only=[
-        "Cargo.lock",
-        "Cargo.toml",
-        "crates/",
+    "docker build --file ../docker/Dockerfile --tag $EXPECTED_REF ../../../",
+    deps=[
+        "../../../Cargo.lock",
+        "../../../Cargo.toml",
+        "../../../crates/",
     ],
     ignore=[
-        "crates/rtf-cli/resources/",  # test fixtures only — reading these during integration tests triggers spurious rebuilds via MacOS FSEvents atime updates
+        "../../../crates/rtf-cli/resources/",  # test fixtures only — reading these during integration tests triggers spurious rebuilds via MacOS FSEvents atime updates
+        "../../../crates/rep-orchestrator/tests/",  # integration tests are not compiled into the release binary
     ],
 )
 

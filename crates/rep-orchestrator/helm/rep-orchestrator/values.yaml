@@ -23,3 +23,9 @@ db:
   name: "rtf_rep"
   user: "service_user"
   pass: ""      # required
+
+k8s:
+  kubeconfigPath: ""     # required
+  mgmtContext: ""        # required
+  workloadContext: ""    # required
+  kubeconfigSecret: ""   # name of a secret with key "config" to mount at kubeconfigPath

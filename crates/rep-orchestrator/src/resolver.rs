@@ -3,7 +3,7 @@ use crate::{
     conn,
     context::RepContext,
     db::{Status, TestRun, UpdateHandle},
-    event_loop::{Event, EventType},
+    event_loop::{Event, EventData},
     state::TestRunWithPayload,
 };
 use rep_orchestrator_shared::{payload::TriggerPayload, test_plan::RepTestPlan};
@@ -133,7 +133,7 @@ async fn try_resolve<H: UpdateHandle>(
 
         if let Err(e) = etx.send(Event {
             test_execution: ex,
-            ty: EventType::ProvisionEnvironment(
+            data: EventData::ProvisionEnvironment(
                 variant.environment.execution,
                 variant.scenario.execution,
             ),
@@ -216,6 +216,9 @@ mod tests {
             github_token: "dummy".to_string(),
             host: "0.0.0.0".to_string(),
             port: 8035,
+            kubeconfig_path: "dummy".to_string(),
+            mgmt_context: "dummy".to_string(),
+            workload_context: "dummy".to_string(),
         }
     }
 
@@ -510,7 +513,7 @@ mod tests {
         // One ProvisionEnvironment event sent
         let event = erx.try_recv().expect("one event must be sent");
         assert!(
-            matches!(event.ty, EventType::ProvisionEnvironment(_, _)),
+            matches!(event.data, EventData::ProvisionEnvironment(_, _)),
             "expected ProvisionEnvironment event"
         );
         assert!(erx.try_recv().is_err(), "only one event expected");

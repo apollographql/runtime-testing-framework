@@ -14,4 +14,7 @@ RTF_DB_USER=service_user \
 RTF_DB_PASS=password \
 RTF_APOLLO_KEY=dummy \
 RTF_GITHUB_TOKEN=dummy \
-    cargo test --manifest-path "$SCRIPT_DIR/../Cargo.toml" --features db_tests
+RTF_KUBECONFIG_PATH=/root/.kube/config \
+RTF_MGMT_CONTEXT=kind-rtf-mgmt \
+RTF_WORKLOAD_CONTEXT=kind-rtf-workload \
+    cargo test --manifest-path "$SCRIPT_DIR/../Cargo.toml" --features k8s_tests

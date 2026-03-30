@@ -59,6 +59,18 @@ spec:
                 secretKeyRef:
                   name: {{ include "rep-orchestrator.fullname" . }}
                   key: db-pass
+            - name: RTF_KUBECONFIG_PATH
+              value: {{ .Values.k8s.kubeconfigPath | quote }}
+            - name: RTF_MGMT_CONTEXT
+              value: {{ .Values.k8s.mgmtContext | quote }}
+            - name: RTF_WORKLOAD_CONTEXT
+              value: {{ .Values.k8s.workloadContext | quote }}
+          {{- if .Values.k8s.kubeconfigSecret }}
+          volumeMounts:
+            - name: kubeconfig
+              mountPath: /root/.kube
+              readOnly: true
+          {{- end }}
           startupProbe:
             httpGet:
               path: /health
@@ -70,3 +82,12 @@ spec:
               path: /health
               port: {{ .Values.service.port }}
             periodSeconds: 5
+      {{- if .Values.k8s.kubeconfigSecret }}
+      volumes:
+        - name: kubeconfig
+          secret:
+            secretName: {{ .Values.k8s.kubeconfigSecret }}
+            items:
+              - key: config
+                path: config
+      {{- end }}
