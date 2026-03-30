@@ -63,6 +63,21 @@ cluster-down:
 	@cd local-stack && tilt down --context kind-rtf-mgmt
 
 
+# DB stack management
+
+.PHONY: db-up
+db-up:
+	@docker compose -f local-stack/db/docker-compose.yaml up
+
+.PHONY: db-down
+db-down:
+	@docker compose -f local-stack/db/docker-compose.yaml down
+
+.PHONY: db-shell
+db-shell:
+	@docker exec -it db psql -U service_user rtf_rep
+
+
 # Management of the test DB container
 
 .PHONY: clear-db-data
