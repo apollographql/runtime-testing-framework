@@ -112,3 +112,145 @@ async fn wait_and_update<K>(
         data,
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        db::{MockUpdateHandle, Status, TaggedStatusUpdate},
+        k8s::{
+            self,
+            mock_client::{MockClient, Resp},
+        },
+    };
+    use rtf_config::{
+        formats::{DockerCommand, DockerScenario},
+        templating::Field,
+    };
+    use simple_test_case::test_case;
+    use tokio::sync::mpsc;
+
+    fn stub_scenario() -> DockerScenario {
+        DockerScenario {
+            docker: DockerCommand {
+                image: Field::Resolved("nginx".into()),
+                tag: None,
+                command: Field::Resolved("echo test".into()),
+            },
+            env_vars: Default::default(),
+            file_providers: vec![],
+        }
+    }
+
+    #[tokio::test]
+    async fn try_run_happy_path_sets_expected_statuses() {
+        let ex = TestExecution::create_stub(1, 1, "test");
+        let mut handle = MockUpdateHandle::with_execution(ex.clone());
+        let clients = MockClient::default_ok();
+        let (etx, _erx) = mpsc::unbounded_channel();
+
+        let res = try_run(ex, stub_scenario(), etx, clients, &mut handle).await;
+
+        assert!(res.is_ok(), "{res:?}");
+        assert_eq!(
+            &handle.status_updates,
+            &[
+                TaggedStatusUpdate::execution(
+                    1,
+                    Status::Provisioning,
+                    Some(MSG_CREATE_SCENARIO_CM)
+                ),
+                TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_JOB_CREATE)),
+                TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_JOB_WAIT)),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn try_run_returns_expected_configmap_error() {
+        let ex = TestExecution::create_stub(1, 1, "test");
+        let mut handle = MockUpdateHandle::with_execution(ex.clone());
+        let clients = MockClient {
+            create_scenario_configmap: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
+            ..MockClient::default()
+        };
+        let (etx, _erx) = mpsc::unbounded_channel();
+
+        let res = try_run(ex, stub_scenario(), etx, clients.clone(), &mut handle).await;
+
+        assert!(matches!(
+            res,
+            Err(Error::CreateConfigmap {
+                kind: "scenario",
+                ..
+            })
+        ));
+        assert_eq!(
+            &handle.status_updates,
+            &[TaggedStatusUpdate::execution(
+                1,
+                Status::Provisioning,
+                Some(MSG_CREATE_SCENARIO_CM)
+            )]
+        );
+    }
+
+    #[tokio::test]
+    async fn try_run_returns_expected_job_error() {
+        let ex = TestExecution::create_stub(1, 1, "test");
+        let mut handle = MockUpdateHandle::with_execution(ex.clone());
+        let clients = MockClient {
+            create_job: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
+            ..MockClient::default_ok()
+        };
+        let (etx, _erx) = mpsc::unbounded_channel();
+
+        let res = try_run(ex, stub_scenario(), etx, clients, &mut handle).await;
+
+        assert!(matches!(res, Err(Error::CreateJob { .. })));
+        assert_eq!(
+            &handle.status_updates,
+            &[
+                TaggedStatusUpdate::execution(
+                    1,
+                    Status::Provisioning,
+                    Some(MSG_CREATE_SCENARIO_CM)
+                ),
+                TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_JOB_CREATE)),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn wait_and_update_submits_cleanup_namespace_on_success() {
+        let ex = TestExecution::create_stub(1, 1, "test");
+        let clients = MockClient {
+            wait_for_job: Resp::new(WatchOutcome::Succeeded),
+            ..MockClient::default_ok()
+        };
+        let (etx, mut erx) = mpsc::unbounded_channel();
+
+        wait_and_update("test-namespace", ex, &etx, clients).await;
+
+        let evt = erx.try_recv().unwrap();
+        assert!(matches!(evt.data, EventData::CleanupNamespace), "{evt:?}");
+    }
+
+    #[test_case(WatchOutcome::Failed(String::new()); "failed")]
+    #[test_case(WatchOutcome::WatcherError(String::new()); "watch error")]
+    #[test_case(WatchOutcome::StreamClosed; "stream closed")]
+    #[tokio::test]
+    async fn wait_and_update_submits_mark_unrunnable_on_watch_error(outcome: WatchOutcome) {
+        let ex = TestExecution::create_stub(1, 1, "test");
+        let clients = MockClient {
+            wait_for_job: Resp::new(outcome),
+            ..MockClient::default_ok()
+        };
+        let (etx, mut erx) = mpsc::unbounded_channel();
+
+        wait_and_update("test-namespace", ex, &etx, clients).await;
+
+        let evt = erx.try_recv().unwrap();
+        assert!(matches!(evt.data, EventData::MarkUnrunnable(_)), "{evt:?}");
+    }
+}
