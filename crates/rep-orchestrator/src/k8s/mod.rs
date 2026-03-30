@@ -7,12 +7,14 @@ use std::fmt;
 use uuid::Uuid;
 
 mod client;
+mod job;
 mod workflow;
 
 #[cfg(test)]
 pub mod mock_client;
 
 pub use client::ClusterClients;
+pub use job::{CONFIG_MAP_NAME_SCENARIO, scenario_job};
 pub use workflow::{
     Dag, MainTemplate, TaskSpec, TaskTemplate, TemplateDef, Workflow, WorkflowSpec,
 };
