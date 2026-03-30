@@ -19,7 +19,7 @@ mod tests {
     use crate::test_helpers::TestServerState;
     use reqwest::StatusCode;
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn handler_returns_200_for_known_run() -> anyhow::Result<()> {
         let tss = TestServerState::new();
@@ -34,7 +34,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn handler_returns_404_for_unknown_run() -> anyhow::Result<()> {
         let tss = TestServerState::new();

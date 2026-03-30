@@ -128,7 +128,7 @@ mod tests {
     };
     use simple_test_case::test_case;
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn init_creates_execution_with_initialising_status() -> Result<()> {
         let c = conn!();
@@ -143,7 +143,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn get_by_id_returns_matching_execution() -> Result<()> {
         let c = conn!();
@@ -156,7 +156,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn get_by_id_unchecked_returns_matching_execution() -> Result<()> {
         let c = conn!();
@@ -169,7 +169,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn get_by_uuid_returns_matching_execution() -> Result<()> {
         let c = conn!();
@@ -182,7 +182,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn test_run_returns_parent_run() -> Result<()> {
         let c = conn!();
@@ -200,7 +200,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn set_exit_code_persists_value() -> Result<()> {
         let c = conn!();
@@ -220,7 +220,7 @@ mod tests {
     }
 
     // Status of Initialising is checked in `init_creates_execution_with_initialising_status` above
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[test_case(Status::Provisioning; "provisioning")]
     #[test_case(Status::Running; "running")]
     #[test_case(Status::Successful; "successful")]
@@ -240,7 +240,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn status_history_returns_entries_newest_first() -> Result<()> {
         let c = conn!();
@@ -258,7 +258,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[test_case(Status::Successful; "successful")]
     #[test_case(Status::Failed; "failed")]
     #[test_case(Status::Unrunnable; "unrunnable")]
@@ -276,7 +276,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[test_case(Status::Initialising; "initialising")]
     #[test_case(Status::Provisioning; "provisioning")]
     #[test_case(Status::Running; "running")]
@@ -294,7 +294,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[test_case(None, Status::Provisioning; "initialising to provisioning")]
     #[test_case(None, Status::Running; "initialising to running")]
     #[test_case(Some(Status::Provisioning), Status::Running; "provisioning to running")]
@@ -317,7 +317,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[test_case(Status::Provisioning; "provisioning")]
     #[test_case(Status::Running; "running")]
     #[tokio::test]
@@ -340,7 +340,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[test_case(Status::Successful; "successful")]
     #[test_case(Status::Failed; "failed")]
     #[test_case(Status::Unrunnable; "unrunnable")]
@@ -357,7 +357,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn terminal_status_propagation_requires_all_executions() -> Result<()> {
         let c = conn!();

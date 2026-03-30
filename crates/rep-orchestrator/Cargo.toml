@@ -4,15 +4,22 @@ version.workspace = true
 edition.workspace = true
 
 [features]
-# Used to prevent tests that need a running stack (DB + k8s) from executing unless explicitly
-# requested. Annotate such tests with the following:
+# Used to prevent tests that need a running database from executing unless
+# explicitly requested. Annotate such tests with the following:
+#   #[cfg_attr(not(feature = "db_tests"), ignore)]
+#
+# Execute the tests using "cargo test --features db_tests"
+db_tests = []
+# Used to prevent tests that need a full running Tilt stack (DB + k8s) from
+# executing unless explicitly requested. Annotate such tests with the
+# following:
 #   #[cfg_attr(not(feature = "k8s_tests"), ignore)]
 #
 # Execute the tests using "cargo test --features k8s_tests"
-k8s_tests = []
+k8s_tests = ["db_tests"]
 
-# Mark all integration tests as being DB tests.
-# -> This needs to be done for each test file in /tests/
+# Mark all integration tests as being k8s tests.
+# -> This needs to be done for each test file in /tests/ but not for each individual test
 [[test]]
 name = "suite"
 required-features = ["k8s_tests"]

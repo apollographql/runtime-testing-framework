@@ -60,7 +60,7 @@ pub async fn check_db_conn() -> Result<()> {
 mod tests {
     use super::*;
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn check_db_conn_returns_ok_with_running_db() {
         let res = check_db_conn().await;

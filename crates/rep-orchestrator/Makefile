@@ -22,7 +22,7 @@ db-tests:
 		RTF_KUBECONFIG_PATH=dummy \
 		RTF_MGMT_CONTEXT=dummy \
 		RTF_WORKLOAD_CONTEXT=dummy \
-		cargo test --lib --features k8s_tests $(ARGS)
+		cargo test --lib --features db_tests $(ARGS)
 
 .PHONY: integration-tests
 integration-tests: clear-db-data

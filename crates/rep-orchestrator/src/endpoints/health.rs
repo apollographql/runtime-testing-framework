@@ -18,7 +18,7 @@ mod tests {
     use crate::test_helpers::TestServerState;
     use reqwest::StatusCode;
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn handler_returns_200() {
         let tss = TestServerState::new();

@@ -25,7 +25,7 @@ mod tests {
     use rep_orchestrator_shared::status::Status;
     use reqwest::StatusCode;
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn handler_initialises_a_new_run_and_submits_to_resolver() -> anyhow::Result<()> {
         let mut tss = TestServerState::new();

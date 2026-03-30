@@ -142,7 +142,7 @@ mod tests {
         );
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn get_handler_returns_200_for_known_execution() -> anyhow::Result<()> {
         let tss = TestServerState::new();
@@ -159,7 +159,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn get_handler_returns_404_for_unknown_execution() -> anyhow::Result<()> {
         let tss = TestServerState::new();
@@ -183,7 +183,7 @@ mod tests {
         }
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[test_case(&[su(Running, None), su(Successful, None)]; "successful")]
     #[test_case(&[su(Running, None), su(Successful, Some(0))]; "successful with 0 exit code")]
     #[test_case(&[su(Running, None), su(Failed, Some(1))]; "failed")]
@@ -235,7 +235,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "k8s_tests"), ignore)]
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[test_case(&[su(Running, None)], su(Provisioning, None); "status rollback")]
     #[test_case(&[su(Failed, Some(1))], su(Successful, None); "second terminal status")]
     #[test_case(&[], su(Failed, None); "failed without exit code")]
