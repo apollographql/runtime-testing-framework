@@ -180,7 +180,7 @@ mod tests {
         let ex = TestExecution::create_stub(1, 1, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
         let clients = MockClient {
-            create_configmap: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
+            create_env_configmap: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
             ..MockClient::default()
         };
         let (etx, _erx) = mpsc::unbounded_channel();

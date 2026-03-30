@@ -14,9 +14,12 @@ use uuid::Uuid;
 /// given method at most once.
 #[derive(Default, Debug, Clone)]
 pub struct MockClient {
-    pub create_configmap: Resp<Result<ConfigMap>>,
+    pub create_env_configmap: Resp<Result<ConfigMap>>,
+    pub create_scenario_configmap: Resp<Result<ConfigMap>>,
     pub create_workflow: Resp<Result<Workflow>>,
+    pub create_job: Resp<Result<Job>>,
     pub wait_for_workflow: Resp<WatchOutcome>,
+    pub wait_for_job: Resp<WatchOutcome>,
 }
 
 impl MockClient {
@@ -25,9 +28,12 @@ impl MockClient {
     /// Use [MockClient::default] to default all responses to unset.
     pub fn default_ok() -> Self {
         Self {
-            create_configmap: Resp::new(Ok(Default::default())),
+            create_env_configmap: Resp::new(Ok(Default::default())),
+            create_scenario_configmap: Resp::new(Ok(Default::default())),
             create_workflow: Resp::new(Ok(Default::default())),
+            create_job: Resp::new(Ok(Default::default())),
             wait_for_workflow: Resp::new(WatchOutcome::Succeeded),
+            wait_for_job: Resp::new(WatchOutcome::Succeeded),
         }
     }
 }
@@ -35,15 +41,18 @@ impl MockClient {
 impl Client for MockClient {
     async fn create_configmap(
         &self,
-        _cluster: Cluster,
+        cluster: Cluster,
         _namespace: &str,
         _configmap_name: &str,
         _file_name: &str,
         _content: String,
     ) -> Result<ConfigMap> {
-        self.create_configmap
-            .take()
-            .expect("create_configmap called but no result configured")
+        let cm = match cluster {
+            Cluster::Management => self.create_env_configmap.take(),
+            Cluster::Workload => self.create_scenario_configmap.take(),
+        };
+
+        cm.expect("create_configmap called but no result configured")
     }
 
     async fn create_argo_workflow(&self, _name: &str, _spec: WorkflowSpec) -> Result<Workflow> {
@@ -59,11 +68,15 @@ impl Client for MockClient {
     }
 
     async fn create_job(&self, _ns: &str, _name: &str, _spec: JobSpec) -> Result<Job> {
-        unimplemented!("not yet used in tests")
+        self.create_job
+            .take()
+            .expect("create_job called but no outcome configured")
     }
 
     async fn wait_for_job(&self, _ns: &str, _execution_id: &Uuid) -> WatchOutcome {
-        unimplemented!("not yet used in tests")
+        self.wait_for_job
+            .take()
+            .expect("wait_for_job called but no outcome configured")
     }
 
     async fn delete_workload_namespace(&self, _ns: &str) -> Result<()> {
