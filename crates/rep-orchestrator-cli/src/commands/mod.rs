@@ -13,8 +13,7 @@ use kube::{
     Client, Config,
     config::{KubeConfigOptions, Kubeconfig},
 };
-use std::path::Path;
-use std::process::Command;
+use std::{path::Path, process::Command};
 use tracing::info;
 
 const MANAGER_NAME: &str = "rep-orchestrator-cli";

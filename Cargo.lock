@@ -2875,11 +2875,15 @@ dependencies = [
  "clap",
  "k8s-openapi",
  "kube",
+ "rep-orchestrator-shared",
+ "reqwest",
  "rtf-cli-shared",
  "serde_json",
  "simple_test_case",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
