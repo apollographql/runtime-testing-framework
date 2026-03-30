@@ -55,7 +55,7 @@
 <a href=#55 id=55 data-nosnippet>55</a></span><span class="kw">mod </span>tests {
 <a href=#56 id=56 data-nosnippet>56</a>    <span class="kw">use </span>super::<span class="kw-2">*</span>;
 <a href=#57 id=57 data-nosnippet>57</a>
-<a href=#58 id=58 data-nosnippet>58</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
+<a href=#58 id=58 data-nosnippet>58</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"k8s_tests"</span>), ignore)]
 <a href=#59 id=59 data-nosnippet>59</a>    #[tokio::test]
 <a href=#60 id=60 data-nosnippet>60</a>    </span><span class="kw">async fn </span>check_db_conn_returns_ok_with_running_db() {
 <a href=#61 id=61 data-nosnippet>61</a>        <span class="kw">let </span>res = check_db_conn().<span class="kw">await</span>;

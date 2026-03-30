@@ -32,8 +32,8 @@
 <a href=#32 id=32 data-nosnippet>32</a>    <span class="kw">let </span>(state, rx) = ServerState::new();
 <a href=#33 id=33 data-nosnippet>33</a>    <span class="kw">let </span>(etx, erx) = unbounded_channel::&lt;event_loop::Event&gt;();
 <a href=#34 id=34 data-nosnippet>34</a>
-<a href=#35 id=35 data-nosnippet>35</a>    tokio::spawn(resolver::resolver_task(rx, etx));
-<a href=#36 id=36 data-nosnippet>36</a>    tokio::spawn(event_loop::event_loop_task(erx));
+<a href=#35 id=35 data-nosnippet>35</a>    tokio::spawn(resolver::resolver_task(rx, etx.clone()));
+<a href=#36 id=36 data-nosnippet>36</a>    tokio::spawn(event_loop::event_loop_task(etx, erx));
 <a href=#37 id=37 data-nosnippet>37</a>
 <a href=#38 id=38 data-nosnippet>38</a>    <span class="macro">info!</span>(<span class="string">"starting axum server"</span>);
 <a href=#39 id=39 data-nosnippet>39</a>    <span class="kw">let </span>routes = build_routes(state);

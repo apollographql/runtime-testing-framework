@@ -128,7 +128,7 @@
 <a href=#128 id=128 data-nosnippet>128</a>    };
 <a href=#129 id=129 data-nosnippet>129</a>    <span class="kw">use </span>simple_test_case::test_case;
 <a href=#130 id=130 data-nosnippet>130</a>
-<a href=#131 id=131 data-nosnippet>131</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
+<a href=#131 id=131 data-nosnippet>131</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"k8s_tests"</span>), ignore)]
 <a href=#132 id=132 data-nosnippet>132</a>    #[tokio::test]
 <a href=#133 id=133 data-nosnippet>133</a>    </span><span class="kw">async fn </span>init_creates_execution_with_initialising_status() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#134 id=134 data-nosnippet>134</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
@@ -143,7 +143,7 @@
 <a href=#143 id=143 data-nosnippet>143</a>        <span class="prelude-val">Ok</span>(())
 <a href=#144 id=144 data-nosnippet>144</a>    }
 <a href=#145 id=145 data-nosnippet>145</a>
-<a href=#146 id=146 data-nosnippet>146</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
+<a href=#146 id=146 data-nosnippet>146</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"k8s_tests"</span>), ignore)]
 <a href=#147 id=147 data-nosnippet>147</a>    #[tokio::test]
 <a href=#148 id=148 data-nosnippet>148</a>    </span><span class="kw">async fn </span>get_by_id_returns_matching_execution() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#149 id=149 data-nosnippet>149</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
@@ -156,7 +156,7 @@
 <a href=#156 id=156 data-nosnippet>156</a>        <span class="prelude-val">Ok</span>(())
 <a href=#157 id=157 data-nosnippet>157</a>    }
 <a href=#158 id=158 data-nosnippet>158</a>
-<a href=#159 id=159 data-nosnippet>159</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
+<a href=#159 id=159 data-nosnippet>159</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"k8s_tests"</span>), ignore)]
 <a href=#160 id=160 data-nosnippet>160</a>    #[tokio::test]
 <a href=#161 id=161 data-nosnippet>161</a>    </span><span class="kw">async fn </span>get_by_id_unchecked_returns_matching_execution() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#162 id=162 data-nosnippet>162</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
@@ -169,7 +169,7 @@
 <a href=#169 id=169 data-nosnippet>169</a>        <span class="prelude-val">Ok</span>(())
 <a href=#170 id=170 data-nosnippet>170</a>    }
 <a href=#171 id=171 data-nosnippet>171</a>
-<a href=#172 id=172 data-nosnippet>172</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
+<a href=#172 id=172 data-nosnippet>172</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"k8s_tests"</span>), ignore)]
 <a href=#173 id=173 data-nosnippet>173</a>    #[tokio::test]
 <a href=#174 id=174 data-nosnippet>174</a>    </span><span class="kw">async fn </span>get_by_uuid_returns_matching_execution() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#175 id=175 data-nosnippet>175</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
@@ -182,7 +182,7 @@
 <a href=#182 id=182 data-nosnippet>182</a>        <span class="prelude-val">Ok</span>(())
 <a href=#183 id=183 data-nosnippet>183</a>    }
 <a href=#184 id=184 data-nosnippet>184</a>
-<a href=#185 id=185 data-nosnippet>185</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
+<a href=#185 id=185 data-nosnippet>185</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"k8s_tests"</span>), ignore)]
 <a href=#186 id=186 data-nosnippet>186</a>    #[tokio::test]
 <a href=#187 id=187 data-nosnippet>187</a>    </span><span class="kw">async fn </span>test_run_returns_parent_run() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#188 id=188 data-nosnippet>188</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
@@ -200,7 +200,7 @@
 <a href=#200 id=200 data-nosnippet>200</a>        <span class="prelude-val">Ok</span>(())
 <a href=#201 id=201 data-nosnippet>201</a>    }
 <a href=#202 id=202 data-nosnippet>202</a>
-<a href=#203 id=203 data-nosnippet>203</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
+<a href=#203 id=203 data-nosnippet>203</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"k8s_tests"</span>), ignore)]
 <a href=#204 id=204 data-nosnippet>204</a>    #[tokio::test]
 <a href=#205 id=205 data-nosnippet>205</a>    </span><span class="kw">async fn </span>set_exit_code_persists_value() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#206 id=206 data-nosnippet>206</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
@@ -220,7 +220,7 @@
 <a href=#220 id=220 data-nosnippet>220</a>    }
 <a href=#221 id=221 data-nosnippet>221</a>
 <a href=#222 id=222 data-nosnippet>222</a>    <span class="comment">// Status of Initialising is checked in `init_creates_execution_with_initialising_status` above
-<a href=#223 id=223 data-nosnippet>223</a>    </span><span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
+<a href=#223 id=223 data-nosnippet>223</a>    </span><span class="attr">#[cfg_attr(not(feature = <span class="string">"k8s_tests"</span>), ignore)]
 <a href=#224 id=224 data-nosnippet>224</a>    #[test_case(Status::Provisioning; <span class="string">"provisioning"</span>)]
 <a href=#225 id=225 data-nosnippet>225</a>    #[test_case(Status::Running; <span class="string">"running"</span>)]
 <a href=#226 id=226 data-nosnippet>226</a>    #[test_case(Status::Successful; <span class="string">"successful"</span>)]
@@ -240,7 +240,7 @@
 <a href=#240 id=240 data-nosnippet>240</a>        <span class="prelude-val">Ok</span>(())
 <a href=#241 id=241 data-nosnippet>241</a>    }
 <a href=#242 id=242 data-nosnippet>242</a>
-<a href=#243 id=243 data-nosnippet>243</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
+<a href=#243 id=243 data-nosnippet>243</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"k8s_tests"</span>), ignore)]
 <a href=#244 id=244 data-nosnippet>244</a>    #[tokio::test]
 <a href=#245 id=245 data-nosnippet>245</a>    </span><span class="kw">async fn </span>status_history_returns_entries_newest_first() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#246 id=246 data-nosnippet>246</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();
@@ -258,7 +258,7 @@
 <a href=#258 id=258 data-nosnippet>258</a>        <span class="prelude-val">Ok</span>(())
 <a href=#259 id=259 data-nosnippet>259</a>    }
 <a href=#260 id=260 data-nosnippet>260</a>
-<a href=#261 id=261 data-nosnippet>261</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
+<a href=#261 id=261 data-nosnippet>261</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"k8s_tests"</span>), ignore)]
 <a href=#262 id=262 data-nosnippet>262</a>    #[test_case(Status::Successful; <span class="string">"successful"</span>)]
 <a href=#263 id=263 data-nosnippet>263</a>    #[test_case(Status::Failed; <span class="string">"failed"</span>)]
 <a href=#264 id=264 data-nosnippet>264</a>    #[test_case(Status::Unrunnable; <span class="string">"unrunnable"</span>)]
@@ -276,7 +276,7 @@
 <a href=#276 id=276 data-nosnippet>276</a>        <span class="prelude-val">Ok</span>(())
 <a href=#277 id=277 data-nosnippet>277</a>    }
 <a href=#278 id=278 data-nosnippet>278</a>
-<a href=#279 id=279 data-nosnippet>279</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
+<a href=#279 id=279 data-nosnippet>279</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"k8s_tests"</span>), ignore)]
 <a href=#280 id=280 data-nosnippet>280</a>    #[test_case(Status::Initialising; <span class="string">"initialising"</span>)]
 <a href=#281 id=281 data-nosnippet>281</a>    #[test_case(Status::Provisioning; <span class="string">"provisioning"</span>)]
 <a href=#282 id=282 data-nosnippet>282</a>    #[test_case(Status::Running; <span class="string">"running"</span>)]
@@ -294,7 +294,7 @@
 <a href=#294 id=294 data-nosnippet>294</a>        <span class="prelude-val">Ok</span>(())
 <a href=#295 id=295 data-nosnippet>295</a>    }
 <a href=#296 id=296 data-nosnippet>296</a>
-<a href=#297 id=297 data-nosnippet>297</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
+<a href=#297 id=297 data-nosnippet>297</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"k8s_tests"</span>), ignore)]
 <a href=#298 id=298 data-nosnippet>298</a>    #[test_case(<span class="prelude-val">None</span>, Status::Provisioning; <span class="string">"initialising to provisioning"</span>)]
 <a href=#299 id=299 data-nosnippet>299</a>    #[test_case(<span class="prelude-val">None</span>, Status::Running; <span class="string">"initialising to running"</span>)]
 <a href=#300 id=300 data-nosnippet>300</a>    #[test_case(<span class="prelude-val">Some</span>(Status::Provisioning), Status::Running; <span class="string">"provisioning to running"</span>)]
@@ -317,7 +317,7 @@
 <a href=#317 id=317 data-nosnippet>317</a>        <span class="prelude-val">Ok</span>(())
 <a href=#318 id=318 data-nosnippet>318</a>    }
 <a href=#319 id=319 data-nosnippet>319</a>
-<a href=#320 id=320 data-nosnippet>320</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
+<a href=#320 id=320 data-nosnippet>320</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"k8s_tests"</span>), ignore)]
 <a href=#321 id=321 data-nosnippet>321</a>    #[test_case(Status::Provisioning; <span class="string">"provisioning"</span>)]
 <a href=#322 id=322 data-nosnippet>322</a>    #[test_case(Status::Running; <span class="string">"running"</span>)]
 <a href=#323 id=323 data-nosnippet>323</a>    #[tokio::test]
@@ -340,7 +340,7 @@
 <a href=#340 id=340 data-nosnippet>340</a>        <span class="prelude-val">Ok</span>(())
 <a href=#341 id=341 data-nosnippet>341</a>    }
 <a href=#342 id=342 data-nosnippet>342</a>
-<a href=#343 id=343 data-nosnippet>343</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
+<a href=#343 id=343 data-nosnippet>343</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"k8s_tests"</span>), ignore)]
 <a href=#344 id=344 data-nosnippet>344</a>    #[test_case(Status::Successful; <span class="string">"successful"</span>)]
 <a href=#345 id=345 data-nosnippet>345</a>    #[test_case(Status::Failed; <span class="string">"failed"</span>)]
 <a href=#346 id=346 data-nosnippet>346</a>    #[test_case(Status::Unrunnable; <span class="string">"unrunnable"</span>)]
@@ -357,7 +357,7 @@
 <a href=#357 id=357 data-nosnippet>357</a>        <span class="prelude-val">Ok</span>(())
 <a href=#358 id=358 data-nosnippet>358</a>    }
 <a href=#359 id=359 data-nosnippet>359</a>
-<a href=#360 id=360 data-nosnippet>360</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"db_tests"</span>), ignore)]
+<a href=#360 id=360 data-nosnippet>360</a>    <span class="attr">#[cfg_attr(not(feature = <span class="string">"k8s_tests"</span>), ignore)]
 <a href=#361 id=361 data-nosnippet>361</a>    #[tokio::test]
 <a href=#362 id=362 data-nosnippet>362</a>    </span><span class="kw">async fn </span>terminal_status_propagation_requires_all_executions() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
 <a href=#363 id=363 data-nosnippet>363</a>        <span class="kw">let </span>c = <span class="macro">conn!</span>();

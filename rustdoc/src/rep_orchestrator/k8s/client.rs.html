@@ -13,7 +13,7 @@
 <a href=#13 id=13 data-nosnippet>13</a>    core::NamespaceResourceScope,
 <a href=#14 id=14 data-nosnippet>14</a>};
 <a href=#15 id=15 data-nosnippet>15</a><span class="kw">use </span>kube_runtime::{WatchStreamExt, watcher};
-<a href=#16 id=16 data-nosnippet>16</a><span class="kw">use </span>std::{collections::BTreeMap, path::Path, pin::pin};
+<a href=#16 id=16 data-nosnippet>16</a><span class="kw">use </span>std::{collections::BTreeMap, pin::pin};
 <a href=#17 id=17 data-nosnippet>17</a><span class="kw">use </span>tokio_stream::StreamExt;
 <a href=#18 id=18 data-nosnippet>18</a><span class="kw">use </span>tracing::error;
 <a href=#19 id=19 data-nosnippet>19</a><span class="kw">use </span>uuid::Uuid;
@@ -29,7 +29,7 @@
 <a href=#29 id=29 data-nosnippet>29</a><span class="kw">impl </span>ClusterClients {
 <a href=#30 id=30 data-nosnippet>30</a>    <span class="doccomment">/// Construct a new pair of k8s clients using the provided kubeconfig path and contexts.
 <a href=#31 id=31 data-nosnippet>31</a>    </span><span class="kw">pub async fn </span>try_new(
-<a href=#32 id=32 data-nosnippet>32</a>        path: <span class="kw-2">&amp;</span>Path,
+<a href=#32 id=32 data-nosnippet>32</a>        path: <span class="kw-2">&amp;</span>str,
 <a href=#33 id=33 data-nosnippet>33</a>        management_context: <span class="kw-2">&amp;</span>str,
 <a href=#34 id=34 data-nosnippet>34</a>        workload_context: <span class="kw-2">&amp;</span>str,
 <a href=#35 id=35 data-nosnippet>35</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
@@ -42,7 +42,7 @@
 <a href=#42 id=42 data-nosnippet>42</a>    }
 <a href=#43 id=43 data-nosnippet>43</a>
 <a href=#44 id=44 data-nosnippet>44</a>    <span class="doccomment">/// Helper for obtaining an [Api] client associated with the appropriate cluster namespace.
-<a href=#45 id=45 data-nosnippet>45</a>    </span><span class="kw">fn </span>namespaced_api&lt;K&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, cluster: Cluster, ns: <span class="kw-2">&amp;</span>str) -&gt; Api&lt;K&gt;
+<a href=#45 id=45 data-nosnippet>45</a>    </span><span class="kw">pub fn </span>namespaced_api&lt;K&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, cluster: Cluster, ns: <span class="kw-2">&amp;</span>str) -&gt; Api&lt;K&gt;
 <a href=#46 id=46 data-nosnippet>46</a>    <span class="kw">where
 <a href=#47 id=47 data-nosnippet>47</a>        </span>K: Resource&lt;Scope = NamespaceResourceScope&gt;,
 <a href=#48 id=48 data-nosnippet>48</a>        &lt;K <span class="kw">as </span>Resource&gt;::DynamicType: Default,

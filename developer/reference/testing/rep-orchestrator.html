@@ -35,7 +35,7 @@
             const path_to_root = "../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../searchindex-e210ef63.js";
+            window.path_to_searchindex_js = "../../../searchindex-57286800.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../../toc-e82f622f.js"></script>
@@ -182,12 +182,12 @@
 <p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rep-orchestrator"><code>rep-orchestrator</code></a> crate are organized and implemented.</p>
 <p>The crate has two categories of test:</p>
 <ul>
-<li><strong>Unit tests</strong> — live alongside source code in <code>src/</code>. Some require a running Postgres instance
-and are gated behind the <code>db_tests</code> feature flag.</li>
+<li><strong>Unit tests</strong> — live alongside source code in <code>src/</code>. Some require a running stack and are gated
+behind the <code>k8s_tests</code> feature flag.</li>
 <li><strong>Integration tests</strong> — live in <code>tests/suite.rs</code>. Require a fully running Docker Compose stack
-(orchestrator server + database).</li>
+(orchestrator server + database + k8s clusters).</li>
 </ul>
-<p>Running <code>cargo test</code> from the workspace root will skip all DB-dependent tests. They must be run
+<p>Running <code>cargo test</code> from the workspace root will skip all stack-dependent tests. They must be run
 explicitly via <code>make</code>.</p>
 <h2 id="organization"><a class="header" href="#organization">Organization</a></h2>
 <h3 id="unit-tests"><a class="header" href="#unit-tests">Unit tests</a></h3>
@@ -271,23 +271,23 @@ logic directly without requiring HTTP or database infrastructure where possible.
 <p>To run all unit tests (DB tests skipped):</p>
 <pre><code class="language-bash">cargo test -p rep-orchestrator --lib
 </code></pre>
-<h3 id="db-tests"><a class="header" href="#db-tests">DB tests</a></h3>
-<p>Tests that require a live database connection are annotated with:</p>
+<h3 id="stack-dependent-tests"><a class="header" href="#stack-dependent-tests">Stack-dependent tests</a></h3>
+<p>Tests that require a running stack (database + k8s clusters) are annotated with:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>#[cfg_attr(not(feature = "db_tests"), ignore)]
+</span>#[cfg_attr(not(feature = "k8s_tests"), ignore)]
 <span class="boring">}</span></code></pre>
 <p>This means they are skipped by <code>cargo test</code> (and reported as ignored in the output) unless
-<code>--features db_tests</code> is passed. Do not remove this annotation from existing tests — it prevents the
-standard workspace test run from failing when no database is available.</p>
-<p>To run DB tests, first start the test database stack:</p>
+<code>--features k8s_tests</code> is passed. Do not remove this annotation from existing tests — it prevents
+the standard workspace test run from failing when no stack is available.</p>
+<p>To run stack-dependent tests, first start the local stack:</p>
 <pre><code class="language-bash">cd crates/rep-orchestrator
 make test-db-up
 </code></pre>
 <p>In a second terminal session, run the tests:</p>
 <pre><code class="language-bash">make db-tests
 </code></pre>
-<p>To stop the database when done:</p>
+<p>To stop the stack when done:</p>
 <pre><code class="language-bash">make test-db-down
 </code></pre>
 <h3 id="integration-tests-1"><a class="header" href="#integration-tests-1">Integration tests</a></h3>
