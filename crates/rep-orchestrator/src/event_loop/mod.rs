@@ -18,7 +18,8 @@ use rtf_config::formats::{DockerComposeEnvironment, DockerScenario};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tracing::{error, warn};
 
-pub mod provision_environment;
+mod provision_environment;
+mod run_scenario;
 
 /// Run as a long lived task. This is an infinite loop that processes [Event]s received on a
 /// channel that is shared with the axum server and the event loop's own handler functions.
@@ -71,6 +72,12 @@ enum Error {
         #[source]
         error: crate::k8s::Error,
     },
+
+    #[error("unable to create Kubernetes job: {error}")]
+    CreateJob {
+        #[source]
+        error: crate::k8s::Error,
+    },
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -80,6 +87,7 @@ pub enum EventData {
     ProvisionEnvironment(DockerComposeEnvironment, DockerScenario),
     RunScenario(DockerScenario),
     MarkUnrunnable(String),
+    CleanupNamespace,
 }
 
 impl EventData {
@@ -88,6 +96,7 @@ impl EventData {
             Self::ProvisionEnvironment(_, _) => "ProvisionEnvironment",
             Self::RunScenario(_) => "RunScenario",
             Self::MarkUnrunnable(_) => "MarkUnrunnable",
+            Self::CleanupNamespace => "CleanupNamespace",
         }
     }
 }
@@ -124,8 +133,13 @@ impl Event {
                 .await
             }
 
-            EventData::RunScenario(_scenario) => {
-                warn!("RunScenario not yet implemented");
+            EventData::RunScenario(scenario) => {
+                run_scenario::try_run(self.test_execution.clone(), scenario, etx, clients, conn)
+                    .await
+            }
+
+            EventData::CleanupNamespace => {
+                warn!("CleanupNamespace not yet implemented");
                 Ok(())
             }
         };

@@ -284,6 +284,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     async fn post_handler_sets_exit_code_for_failed_status() -> anyhow::Result<()> {
         let tss = TestServerState::new();
