@@ -8,6 +8,7 @@ use crate::{
 };
 use rtf_config::formats::{DockerComposeEnvironment, DockerScenario, EnvironmentConfig};
 use tokio::sync::mpsc::UnboundedSender;
+use tracing::{info, warn};
 
 const MSG_CREATE_ENV_CM: &str = "creating environment configmap";
 const MSG_ARGO_CREATE: &str = "creating Argo workflow";
@@ -35,6 +36,7 @@ where
     })
     .unwrap_or_else(|e| panic!("EnvironmentConfig failed to serialize: {e}"));
 
+    info!(%execution_id, "creating environment configmap");
     conn.mark_execution_as_provisioning(&test_execution, MSG_CREATE_ENV_CM.to_string())
         .await;
 
@@ -52,6 +54,7 @@ where
             error,
         })?;
 
+    info!(%execution_id, "creating environment argo workflow");
     conn.mark_execution_as_provisioning(&test_execution, MSG_ARGO_CREATE.to_string())
         .await;
 
@@ -66,6 +69,7 @@ where
     conn.mark_execution_as_provisioning(&test_execution, MSG_ARGO_WAIT.to_string())
         .await;
 
+    info!(%execution_id, "waiting for environment argo workflow to complete");
     tokio::spawn(async move {
         wait_and_update(test_execution, scenario, &etx, clients).await;
     });
@@ -74,20 +78,33 @@ where
 }
 
 async fn wait_and_update<K>(
-    ex: TestExecution,
+    test_execution: TestExecution,
     scenario: DockerScenario,
     etx: &UnboundedSender<Event>,
     clients: K,
 ) where
     K: k8s::Client,
 {
-    let data = match clients.wait_for_workflow(&ex.uuid()).await {
-        WatchOutcome::Succeeded => EventData::RunScenario(scenario),
-        outcome => EventData::MarkUnrunnable(outcome.to_string()),
+    let execution_id = test_execution.uuid();
+    let data = match clients.wait_for_workflow(&test_execution.uuid()).await {
+        WatchOutcome::Succeeded => {
+            info!(%execution_id, "argo workflow completed successfully");
+            EventData::RunScenario(scenario)
+        }
+
+        WatchOutcome::Failed(reason) => {
+            warn!(%execution_id, %reason, "argo workflow failed");
+            EventData::MarkUnrunnable(WatchOutcome::Failed(reason).to_string())
+        }
+
+        outcome => {
+            warn!(%execution_id, %outcome, "unable to determine state of argo workflow");
+            EventData::MarkUnrunnable(outcome.to_string())
+        }
     };
 
     let _ = etx.send(Event {
-        test_execution: ex,
+        test_execution,
         data,
     });
 }
