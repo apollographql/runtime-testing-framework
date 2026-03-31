@@ -19,6 +19,17 @@ use std::{collections::HashMap, mem::take, ops::ControlFlow};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tracing::{error, info_span, warn};
 
+/// A long lived Tokio task that is responsible for running all RTF related logic that executes
+/// within the server.
+///
+/// See `resolve_variant` below for the specific [rtf_config] logic that is run on the server.
+///
+/// # Differences compared to `rtf_cli`
+/// The resolution logic used here only supports processing a [RepTestPlan] that has been submitted
+/// as part of a [TriggerPayload] (prepared using `rtf rep prepare` on the command line). That
+/// preparation logic handles all filesystem operations on the client side and provides the
+/// required local file data for us to construct a [RepContext] that can then handle resolving
+/// what's left.
 pub async fn resolver_task(
     mut rx: UnboundedReceiver<TestRunWithPayload>,
     etx: UnboundedSender<Event>,

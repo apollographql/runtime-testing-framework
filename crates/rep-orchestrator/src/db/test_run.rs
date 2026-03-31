@@ -8,6 +8,12 @@ use rep_orchestrator_shared::summary::TestRunSummary;
 use sqlx::{FromRow, PgConnection};
 use uuid::Uuid;
 
+/// A `TestRun` denotes a single user-triggered set of tests that should be considered passing or
+/// failing based on their combined status.
+///
+/// This is a logical construct that we use to make it easier to trigger and query the results of
+/// workloads submitted to the orchestrator. Each [TestRun] contains one or more [TestExecution]s
+/// which denote the acutal tests being run.
 #[derive(Debug, Clone, PartialEq, Eq, FromRow)]
 pub struct TestRun {
     id: i32,

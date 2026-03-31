@@ -8,6 +8,11 @@ use rep_orchestrator_shared::summary::TestExecutionSummary;
 use sqlx::{Executor, FromRow, PgConnection};
 use uuid::Uuid;
 
+/// An individual `TestExecution` has the same semantics as a single RTF matrix variant and is our
+/// unit of execution under the orchestrator.
+///
+/// Each execution represents the running of a user provided RTF scenario inside of an ephemeral
+/// namespace within the workload cluster and is associated with a single parent [TestRun].
 #[derive(Debug, Clone, PartialEq, Eq, FromRow)]
 pub struct TestExecution {
     id: i32,
