@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM rust:1.94.0-bookworm AS build
+FROM --platform=$BUILDPLATFORM rust:1.94.1-bookworm AS build
 
 # aws-lc-rs (required by kube) needs cmake and clang
 RUN apt-get update && apt-get install -y cmake clang && rm -rf /var/lib/apt/lists/*
