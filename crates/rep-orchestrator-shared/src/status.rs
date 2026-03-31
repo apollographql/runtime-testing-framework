@@ -12,6 +12,9 @@ pub struct StatusUpdate {
 }
 
 /// An individual lifecycle status for a test run or execution.
+///
+/// See the documentation on the sibling `Status` enum in the `rep_orchestrator` crate for details
+/// on semantics.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Status {

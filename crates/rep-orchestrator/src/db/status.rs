@@ -15,6 +15,9 @@ use std::cmp::Ordering;
 /// - integer "status"
 /// - nullable text "message"
 /// - timestamp "updated_at"
+///
+/// # Semantics
+/// See the documentation on the [Status] enum for how each of the different statuses are used.
 pub trait StatusTracked: Queryable {
     const STATUS_TABLE: &'static str;
 
@@ -116,16 +119,54 @@ impl From<StatusUpdate> for SharedStatusUpdate {
 }
 
 /// An individual lifecycle status for a test run or execution.
+///
+/// We enforce that status updates only over move forward through the ordering shown in the enum
+/// definition here. Other than with with the three terminal statuses, it is possible for a
+/// [StatusUpdate] to be created with a status that matches the current value. This is to allow for
+/// fine grain messages to be recorded without needing to add a variant per operation.
+///
+///
+/// # Test Run statuses vs Test Execution status
+/// The majority of status updates made are against Test Executions rather than Test Runs. Other
+/// than their original `Initialising` status, Test Runs receive their status updates via a "high
+/// watermark" mechanism through status updates submitted against their Test Executions. See the
+/// `status_after_execution` method for details of the semantics of how this mechanism works.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, sqlx::Type)]
 #[repr(i32)]
 pub enum Status {
+    /// Initialising denotes that this entity has been acknowledged by the server but that no
+    /// further action has been taken yet other than creating the initial database entry.
     #[default]
     Initialising = 1,
+
+    /// Resolving denotes that the central resolver task has picked up this entity and is in the
+    /// process of resolving the associated RTF test plan and carrying out validation checks.
     Resolving = 2,
+
+    /// Provisioning denotes that we are in the process of creating the per-execution namespace and
+    /// associated resources that are needed to process a given execution. We are deliberately
+    /// verbose with the number of Provisioning updates we make to allow users to follow the
+    /// progress of their workloads as they run.
     Provisioning = 3,
+
+    /// Running denotes that all RTF environment resources were successfully created and that the
+    /// RTF scenario is now being run. This is set immediately prior to invoking the user provided
+    /// scenario command.
     Running = 4,
+
+    /// Successful denotes receiving a 0 exit code from the user provided RTF scenario command and
+    /// is one of the three terminal states for a status tracked entity.
     Successful = 5,
+
+    /// Failed denotes receiving a non-0 exit code from the user provided RTF scenario command and
+    /// is one of the three terminal states for a status tracked entity.
     Failed = 6,
+
+    /// Unrunnable denotes encountering a non-recoverable error during the process of running a
+    /// given test execution. This covers all internal errors within the orchestrator and sidecar
+    /// container as well as any errors that arise from being unable to successfully provision the
+    /// RTF environment or scenario (such as docker images not being available or containers not
+    /// reaching a ready status in the cluster).
     Unrunnable = 7,
 }
 
