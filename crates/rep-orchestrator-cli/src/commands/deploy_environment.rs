@@ -1,7 +1,12 @@
-use crate::commands::{client_from_kubeconfig, run_shell};
-use anyhow::{Context, anyhow, bail};
+use crate::{
+    commands::client_from_kubeconfig,
+    context::CliContext,
+    error::{CliError, CliResult, ToCliResult},
+};
+use anyhow::{Context, anyhow};
 use k8s_openapi::api::apps::v1::Deployment;
 use kube::{Api, Client};
+use rep_orchestrator_shared::status::Status;
 use std::{collections::HashMap, env::temp_dir, fs, path::Path, process::Command, time::Duration};
 use tokio::time::{Instant, sleep};
 use tracing::info;
@@ -16,24 +21,29 @@ pub async fn deploy_environment(
     kubeconfig_path: &Path,
     environment_path: &Path,
     timeout: u64,
-) -> anyhow::Result<()> {
+    ctx: &impl CliContext,
+) -> CliResult<()> {
     let workdir_path = temp_dir().join("rtf-work");
     let k8s_dir_path = workdir_path.join("k8s");
-    fs::create_dir_all(&k8s_dir_path).context("Failed to create k8s working directory")?;
+    fs::create_dir_all(&k8s_dir_path)
+        .context("Failed to create k8s working directory")
+        .err_unrunnable()?;
 
     info!("Resolving environment docker-compose files...");
     let outdir = workdir_path.join("output");
-    run_shell(
+    ctx.run_shell(
         Command::new("rtf")
             .args(["resolve", "environment"])
             .arg(environment_path)
             .args(["--outdir", &outdir.to_string_lossy()]),
-    )?;
+        Status::Provisioning,
+    )
+    .await?;
 
-    setup_env(&k8s_dir_path, &outdir)?;
+    setup_env(&k8s_dir_path, &outdir, ctx).await?;
 
     info!("Applying manifests to namespace '{namespace}'...");
-    run_shell(
+    ctx.run_shell(
         Command::new("kubectl")
             .args(["--kubeconfig", &kubeconfig_path.to_string_lossy()])
             .args([
@@ -43,7 +53,9 @@ pub async fn deploy_environment(
                 "-f",
                 &k8s_dir_path.to_string_lossy(),
             ]),
-    )?;
+        Status::Provisioning,
+    )
+    .await?;
 
     let client = client_from_kubeconfig(Some(kubeconfig_path)).await?;
     wait_for_deployments(&client, namespace, timeout).await?;
@@ -53,23 +65,33 @@ pub async fn deploy_environment(
 }
 
 /// Sources COMPOSE_FILES from the resolved RTF environment and converts them to k8s manifests
-fn setup_env(k8s_dir_path: &Path, outdir_path: &Path) -> anyhow::Result<()> {
+async fn setup_env(
+    k8s_dir_path: &Path,
+    outdir_path: &Path,
+    ctx: &impl CliContext,
+) -> CliResult<()> {
     let setup_env = outdir_path.join("setup/setup.env");
-    let env_contents = fs::read_to_string(&setup_env).context("Failed to read setup.env file")?;
+    let env_contents = fs::read_to_string(&setup_env)
+        .context("Failed to read setup.env file")
+        .err_unrunnable()?;
 
-    let env_vars = parse_env_file(&env_contents)?;
+    let env_vars = parse_env_file(&env_contents).err_unrunnable()?;
 
-    let compose_files_path = env_vars.get("COMPOSE_FILES").context(
-        "COMPOSE_FILES was not set by setup.env -- make sure environment.yaml is well-formed",
-    )?;
+    let compose_files_path = env_vars
+        .get("COMPOSE_FILES")
+        .context(
+            "COMPOSE_FILES was not set by setup.env -- make sure environment.yaml is well-formed",
+        )
+        .err_unrunnable()?;
 
     let compose_files_content = fs::read_to_string(compose_files_path)
-        .context("Failed to read COMPOSE_FILES file provider output")?;
+        .context("Failed to read COMPOSE_FILES file provider output")
+        .err_unrunnable()?;
 
     info!("Converting to kubernetes manifests...");
     let mut kompose = build_kompose_command(&compose_files_content, k8s_dir_path, &env_vars);
 
-    run_shell(&mut kompose)
+    ctx.run_shell(&mut kompose, Status::Provisioning).await
 }
 
 /// Parse a `.env` file into a map of key-value pairs.
@@ -122,7 +144,7 @@ async fn wait_for_deployments(
     client: &Client,
     namespace: &str,
     timeout_secs: u64,
-) -> anyhow::Result<()> {
+) -> CliResult<()> {
     let api: Api<Deployment> = Api::namespaced(client.clone(), namespace);
     let deadline = Instant::now() + Duration::from_secs(timeout_secs);
 
@@ -131,7 +153,8 @@ async fn wait_for_deployments(
         let deployments = api
             .list(&Default::default())
             .await
-            .context("Failed to list deployments")?;
+            .context("Failed to list deployments")
+            .err_unrunnable()?;
 
         let all_available = deployments.items.iter().all(|deployment| {
             deployment
@@ -180,10 +203,10 @@ async fn wait_for_deployments(
                     })
                 })
                 .collect();
-            bail!(
+            return Err(CliError::unrunnable(anyhow!(
                 "Timed out after {timeout_secs}s waiting for deployments: {}",
                 not_ready.join("\n")
-            );
+            )));
         }
 
         sleep(Duration::from_secs(2)).await;

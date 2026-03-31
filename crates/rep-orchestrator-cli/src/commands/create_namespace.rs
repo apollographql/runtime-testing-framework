@@ -1,4 +1,7 @@
-use crate::commands::{MANAGER_NAME, client_from_kubeconfig};
+use crate::{
+    commands::{MANAGER_NAME, client_from_kubeconfig},
+    error::{CliResult, ToCliResult},
+};
 use anyhow::Context;
 use k8s_openapi::api::core::v1::Namespace;
 use kube::{
@@ -8,7 +11,7 @@ use kube::{
 use std::path::Path;
 use tracing::info;
 
-pub async fn create_namespace(namespace: &str, kubeconfig_path: &Path) -> anyhow::Result<()> {
+pub async fn create_namespace(namespace: &str, kubeconfig_path: &Path) -> CliResult<()> {
     info!("Creating namespace '{namespace}' in workload cluster...");
 
     let client = client_from_kubeconfig(Some(kubeconfig_path)).await?;
@@ -28,7 +31,8 @@ pub async fn create_namespace(namespace: &str, kubeconfig_path: &Path) -> anyhow
         &Patch::Apply(&ns),
     )
     .await
-    .context("Failed to create kube namespace.")?;
+    .context("Failed to create kube namespace.")
+    .err_unrunnable()?;
     info!("Namespace created successfully.");
 
     Ok(())
