@@ -130,9 +130,7 @@ impl From<StatusUpdate> for SharedStatusUpdate {
 /// The majority of status updates made are against Test Executions rather than Test Runs. Other
 /// than their original `Initialising` status, Test Runs receive their status updates via a "high
 /// watermark" mechanism through status updates submitted against their Test Executions. See the
-/// [status_after_execution][0] method for details of the semantics of how this mechanism works.
-///
-/// [0]: crate::db::TestRun::status_after_execution_update
+/// `status_after_execution` method for details of the semantics of how this mechanism works.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, sqlx::Type)]
 #[repr(i32)]
 pub enum Status {
