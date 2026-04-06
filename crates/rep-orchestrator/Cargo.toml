@@ -50,7 +50,7 @@ uuid.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true 
-axum-test = "19.1.1"
+axum-test = "20.0.0"
 indoc.workspace = true
 reqwest.workspace = true
 simple_test_case.workspace = true
