@@ -19,6 +19,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tracing::{error, warn};
 
 mod cleanup_namespace;
+mod event_queue;
 mod provision_environment;
 mod run_scenario;
 
