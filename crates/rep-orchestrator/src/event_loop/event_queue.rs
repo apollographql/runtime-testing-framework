@@ -175,7 +175,7 @@ impl ProvisioningHandle {
 
             if current > max {
                 error!(
-                    "currenly have {current} active namespaces but should be capped at a max of {max}"
+                    "currently have {current} active namespaces but should be capped at a max of {max}"
                 );
             }
 
@@ -196,7 +196,7 @@ impl ProvisioningHandle {
     /// Returns `false` if unable to send the event to the event loop, otherwise `true`.
     pub async fn request_provisioning(&self, ex: TestExecution, tp: RepTestPlan) -> bool {
         // We don't need to worry about a race condition between waiting for capacity and
-        // re-aquiring the lock as we are the only task attempting to provision executions.
+        // re-acquiring the lock as we are the only task attempting to provision executions.
         self.wait_for_namespace_capacity().await;
 
         // Ensure that we release the mutex before sending the event
