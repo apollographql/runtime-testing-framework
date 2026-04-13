@@ -114,38 +114,14 @@ mod tests {
     use super::*;
     use crate::{
         db::{MockUpdateHandle, Status, TaggedStatusUpdate},
+        event_loop::tests::{stub_environment, stub_scenario},
         k8s::{
             self,
             mock_client::{MockClient, Resp},
         },
     };
-    use rtf_config::{
-        formats::{DockerCommand, DockerScenario},
-        templating::Field,
-    };
     use simple_test_case::test_case;
     use tokio::sync::mpsc;
-
-    fn stub_environment() -> DockerComposeEnvironment {
-        DockerComposeEnvironment {
-            project_name: None,
-            compose_files: vec![],
-            file_providers: vec![],
-            env_vars: Default::default(),
-        }
-    }
-
-    fn stub_scenario() -> DockerScenario {
-        DockerScenario {
-            docker: DockerCommand {
-                image: Field::Resolved("nginx".into()),
-                tag: None,
-                command: Field::Resolved("echo test".into()),
-            },
-            env_vars: Default::default(),
-            file_providers: vec![],
-        }
-    }
 
     #[tokio::test]
     async fn try_run_happy_path_sets_expected_statuses() {

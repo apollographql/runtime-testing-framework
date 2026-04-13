@@ -19,6 +19,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tracing::{error, warn};
 
 mod cleanup_namespace;
+mod event_queue;
 mod provision_environment;
 mod run_scenario;
 
@@ -89,7 +90,7 @@ enum Error {
 
 type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum EventData {
     ProvisionEnvironment(DockerComposeEnvironment, DockerScenario),
     RunScenario(DockerScenario),
@@ -110,7 +111,7 @@ impl EventData {
 
 /// Raw event data paired with an associated [TestExecution] so we can track the status of the
 /// execution as we process it.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Event {
     pub test_execution: TestExecution,
     pub data: EventData,
@@ -156,5 +157,62 @@ impl Event {
         };
 
         res
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rep_orchestrator_shared::test_plan::RepTestPlan;
+    use rtf_config::{
+        formats::{
+            DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig,
+            ScenarioConfig,
+        },
+        templating::Field,
+    };
+
+    pub fn stub_environment() -> DockerComposeEnvironment {
+        DockerComposeEnvironment {
+            project_name: None,
+            compose_files: vec![],
+            file_providers: vec![],
+            env_vars: Default::default(),
+        }
+    }
+
+    pub fn stub_scenario() -> DockerScenario {
+        DockerScenario {
+            docker: DockerCommand {
+                image: Field::Resolved("nginx".into()),
+                tag: None,
+                command: Field::Resolved("echo test".into()),
+            },
+            env_vars: Default::default(),
+            file_providers: vec![],
+        }
+    }
+
+    pub fn stub_test_plan() -> RepTestPlan {
+        RepTestPlan {
+            name: String::new(),
+            description: String::new(),
+            variables: Default::default(),
+            matrix: Default::default(),
+            custom_providers: vec![],
+            scenario: ScenarioConfig {
+                name: String::new(),
+                description: String::new(),
+                variable_definitions: vec![],
+                custom_providers: vec![],
+                execution: stub_scenario(),
+            },
+            environment: EnvironmentConfig {
+                name: String::new(),
+                description: String::new(),
+                variable_definitions: vec![],
+                custom_providers: vec![],
+                execution: stub_environment(),
+            },
+        }
     }
 }
