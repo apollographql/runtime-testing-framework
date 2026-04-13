@@ -51,7 +51,7 @@ run = "cargo test"
 "cargo:cargo-expand" = "1.0.121"
 "cargo:cargo-llvm-cov" = "0.8.4"
 "cargo:typos-cli" = "1.44.0"
-dprint = "0.53.2"
+dprint = "0.54.0"
 mdbook = "0.5.2"
 rust = "1.94.1"
 
