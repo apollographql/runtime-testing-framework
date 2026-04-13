@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["LOG_LEVEL_ENV_VAR"],"fn":["main"],"mod":["cli","commands"]};
+window.SIDEBAR_ITEMS = {"constant":["LOG_LEVEL_ENV_VAR"],"fn":["main"],"mod":["cli","commands","context","error","orchestrator"]};
