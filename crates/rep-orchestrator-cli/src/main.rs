@@ -1,6 +1,12 @@
 mod cli;
 mod commands;
+mod context;
+#[expect(unused)]
+mod error;
+#[expect(unused)]
+mod orchestrator;
 
+use crate::context::EnvironmentContext;
 use clap::Parser;
 use cli::{Args, Command};
 use std::process::exit;
@@ -16,6 +22,14 @@ async fn main() {
     if let Err(e) = rtf_cli_shared::init_logging(LOG_LEVEL_ENV_VAR, verbose + 1) {
         error!("unable to initialise logging: {e}");
         exit(1);
+    };
+
+    let _context = match EnvironmentContext::from_environment() {
+        Err(e) => {
+            error!("unable to initialize REP Orchestrator CLI: {e}");
+            exit(1);
+        }
+        Ok(context) => context,
     };
 
     let res = match command {
