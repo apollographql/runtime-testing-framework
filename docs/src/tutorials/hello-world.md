@@ -171,7 +171,7 @@ Edit the `test-plan.yaml` to change the variable being used for the setup comman
 Run the test plan again to see the modified output:
 
 ```bash
-rm output -rf
+rm -rf output
 rtf run example-test-plans/hello-world/test-plan.yaml
 ```
 
@@ -195,7 +195,7 @@ and scenario, as they both reference the same shared variable:
 ```
 
 ```bash
-rm output -rf
+rm -rf output
 rtf run example-test-plans/hello-world/test-plan.yaml
 ```
 
@@ -303,7 +303,7 @@ it under the `matrix.dimensions` section of the test plan:
 Running the test plan with two `setup_subject` variables produces two results:
 
 ```bash
-rm output -rf
+rm -rf output
 rtf run example-test-plans/hello-world/test-plan.yaml
 ```
 
@@ -335,7 +335,7 @@ If we also move the `scenario_subject` into the matrix:
 We'll get a run for every _combination_ of variables:
 
 ```bash
-rm output -rf
+rm -rf output
 rtf run example-test-plans/hello-world/test-plan.yaml
 ```
 
