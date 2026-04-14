@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["EventData"],"fn":["event_loop_task"],"struct":["Event"]};
+window.SIDEBAR_ITEMS = {"enum":["EventData","SubmitError"],"fn":["event_loop_task"],"struct":["Claim","Event","EventQueue","EventQueueState","ProvisioningHandle"]};
