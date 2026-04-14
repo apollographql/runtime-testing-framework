@@ -27,6 +27,11 @@ pub struct Config {
     pub kubeconfig_path: String,
     pub mgmt_context: String,
     pub workload_context: String,
+    pub gcs_bucket: String,
+    #[serde(default = "default_gcs_url_ttl_secs")]
+    pub gcs_url_ttl_secs: u64,
+    #[serde(default)]
+    pub mock_gcs_url: Option<String>,
 }
 
 impl Config {
@@ -56,4 +61,8 @@ fn default_max_concurrent() -> usize {
 
 fn default_max_queued() -> usize {
     100
+}
+
+fn default_gcs_url_ttl_secs() -> u64 {
+    300
 }

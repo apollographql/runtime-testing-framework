@@ -13,6 +13,7 @@ pub mod db;
 pub mod endpoints;
 pub mod error;
 pub mod event_loop;
+pub mod gcs;
 pub mod k8s;
 pub mod resolver;
 pub mod state;

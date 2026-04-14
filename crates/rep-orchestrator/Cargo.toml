@@ -33,9 +33,12 @@ rtf-integrations = { path = "../rtf-integrations" }
 axum = { version = "0.8.8", features = ["macros"] }
 chrono.workspace = true
 envy = "0.4.2"
+google-cloud-storage = "=1.10.0"
+google-cloud-auth = "=1.8.0"
 k8s-openapi.workspace = true
 kube.workspace = true
 kube-runtime = "3.0.1"
+reqwest.workspace = true
 schemars.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
