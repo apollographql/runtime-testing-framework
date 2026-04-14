@@ -1,4 +1,4 @@
-use crate::{conn, db::TestRun, error::Error, state::ServerState};
+use crate::{conn, db::TestRun, error::Error, event_loop::SubmitError, state::ServerState};
 use axum::{Json, extract::State};
 use rep_orchestrator_shared::{payload::TriggerPayload, summary::TestRunSummary};
 
@@ -11,11 +11,11 @@ pub async fn handler(
 
     let summary = test_run.clone().try_into_summary(conn).await?;
 
-    state
-        .submit_test_plan(test_run, payload)
-        .map_err(|_| Error::ResolverChannelClosed)?;
-
-    Ok(Json(summary))
+    match state.try_submit_test_plan(test_run, payload).await {
+        Ok(()) => Ok(Json(summary)),
+        Err(SubmitError::InsufficientCapacity(_)) => Err(Error::InsufficientCapacity),
+        Err(SubmitError::ResolveChannelClosed(_)) => Err(Error::ResolverChannelClosed),
+    }
 }
 
 #[cfg(test)]

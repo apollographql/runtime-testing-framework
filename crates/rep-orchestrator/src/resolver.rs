@@ -2,8 +2,8 @@ use crate::{
     config::Config,
     conn,
     context::RepContext,
-    db::{Status, TestRun, UpdateHandle},
-    event_loop::{Event, EventData},
+    db::{TestRun, UpdateHandle},
+    event_loop::ProvisioningHandle,
     state::TestRunWithPayload,
 };
 use rep_orchestrator_shared::{payload::TriggerPayload, test_plan::RepTestPlan};
@@ -16,8 +16,11 @@ use rtf_config::{
     templating::{Template, TemplateContext},
 };
 use std::{collections::HashMap, mem::take, ops::ControlFlow};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::{error, info_span, warn};
+
+const MSG_RUN_CHECKS: &str = "running test plan static checks";
+const MSG_RESOLVE: &str = "resolving test plan";
 
 /// A long lived Tokio task that is responsible for running all RTF related logic that executes
 /// within the server.
@@ -32,10 +35,10 @@ use tracing::{error, info_span, warn};
 /// what's left.
 pub async fn resolver_task(
     mut rx: UnboundedReceiver<TestRunWithPayload>,
-    etx: UnboundedSender<Event>,
+    prov_handle: ProvisioningHandle,
 ) -> crate::Result<()> {
     while let Some(TestRunWithPayload { test_run, payload }) = rx.recv().await {
-        match resolve_test_plan(test_run, payload, conn!(), Config::get(), &etx).await {
+        match resolve_test_plan(test_run, payload, conn!(), Config::get(), &prov_handle).await {
             ControlFlow::Break(_) => break,
             ControlFlow::Continue(_) => continue,
         }
@@ -75,14 +78,14 @@ type Result<T> = std::result::Result<T, ResolverError>;
 async fn resolve_test_plan<H: UpdateHandle>(
     test_run: TestRun,
     payload: TriggerPayload,
-    handle: &mut H,
+    update_handle: &mut H,
     cfg: &Config,
-    etx: &UnboundedSender<Event>,
+    prov_handle: &ProvisioningHandle,
 ) -> ControlFlow<()> {
     let span = info_span!("resolve", test_run_id = %test_run.uuid(), name = %test_run.name());
     let _guard = span.enter();
 
-    if let Err(e) = try_resolve(&test_run, payload, handle, cfg, etx).await {
+    if let Err(e) = try_resolve(&test_run, payload, update_handle, cfg, prov_handle).await {
         match e {
             ResolverError::EventChannelClosed => {
                 error!(%e);
@@ -92,9 +95,9 @@ async fn resolve_test_plan<H: UpdateHandle>(
                 error!(%e);
             }
             _ => {
-                warn!(%e, "test plan preparation failed");
-                let _ = handle
-                    .update_test_run_status(&test_run, Status::Unrunnable, Some(e.to_string()))
+                warn!(%e, "test plan resolution failed");
+                update_handle
+                    .mark_run_as_unrunnable(&test_run, e.to_string())
                     .await;
             }
         }
@@ -106,19 +109,19 @@ async fn resolve_test_plan<H: UpdateHandle>(
 async fn try_resolve<H: UpdateHandle>(
     test_run: &TestRun,
     payload: TriggerPayload,
-    handle: &mut H,
+    update_handle: &mut H,
     cfg: &Config,
-    etx: &UnboundedSender<Event>,
+    prov_handle: &ProvisioningHandle,
 ) -> Result<()> {
-    handle
-        .update_test_run_status(test_run, Status::Resolving, None)
-        .await?;
+    update_handle
+        .mark_run_as_resolving(test_run, MSG_RUN_CHECKS.into())
+        .await;
 
     let (ctx, test_plan) = prepare_resolution(cfg, payload)?;
     let variants = test_plan.try_iter_matrix_variants()?;
 
     for (name, mut variant) in variants {
-        let ex = match handle.init_execution(test_run, &name).await {
+        let ex = match update_handle.init_execution(test_run, &name).await {
             Ok(ex) => ex,
             Err(e) => {
                 error!(%e, %name, "unable to initialise execution record");
@@ -126,30 +129,20 @@ async fn try_resolve<H: UpdateHandle>(
             }
         };
 
-        if let Err(e) = handle
-            .update_test_execution_status(&ex, Status::Resolving, None)
-            .await
-        {
-            error!(%e, %name, "unable to set execution status to Resolving");
-            continue;
-        }
+        update_handle
+            .mark_execution_as_resolving(&ex, MSG_RESOLVE.into())
+            .await;
 
         if let Err(e) = resolve_variant(&mut variant, &ctx).await {
             warn!(%e, %name, "variant resolution failed");
-            let _ = handle
-                .update_test_execution_status(&ex, Status::Unrunnable, Some(e.to_string()))
+            update_handle
+                .mark_execution_as_unrunnable(&ex, e.to_string())
                 .await;
             continue;
         }
 
-        if let Err(e) = etx.send(Event {
-            test_execution: ex,
-            data: EventData::ProvisionEnvironment(
-                variant.environment.execution,
-                variant.scenario.execution,
-            ),
-        }) {
-            error!(%e, "event loop channel closed, exiting resolver");
+        if !prov_handle.request_provisioning(ex, variant).await {
+            error!("exiting resolver");
             return Err(ResolverError::EventChannelClosed);
         }
     }
@@ -201,6 +194,7 @@ mod tests {
     use crate::{
         config::Config,
         db::{MockUpdateHandle, Status, TaggedStatusUpdate, TestRun},
+        event_loop::{EventData, EventQueue},
     };
     use indoc::indoc;
     use rep_orchestrator_shared::{
@@ -214,7 +208,6 @@ mod tests {
     use rtf_config::providers::file::compose::NamedComposeFileProvider;
     use rtf_config::templating::{Field, Scalar};
     use simple_test_case::test_case;
-    use tokio::sync::mpsc::unbounded_channel;
 
     fn dummy_config() -> Config {
         Config {
@@ -227,6 +220,8 @@ mod tests {
             github_token: "dummy".to_string(),
             host: "0.0.0.0".to_string(),
             port: 8035,
+            max_concurrent_executions: 10,
+            max_queued_executions: 100,
             kubeconfig_path: "dummy".to_string(),
             mgmt_context: "dummy".to_string(),
             workload_context: "dummy".to_string(),
@@ -346,10 +341,11 @@ mod tests {
         let test_run = TestRun::create_stub(1, "test");
         // Empty handle — test_run is not registered, so update_test_run_status will fail
         let mut handle = MockUpdateHandle::default();
-        let (etx, _erx) = unbounded_channel::<Event>();
         let cfg = dummy_config();
+        let (_eq, ph, _, _) =
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
 
-        _ = resolve_test_plan(test_run, empty_payload(), &mut handle, &cfg, &etx).await;
+        _ = resolve_test_plan(test_run, empty_payload(), &mut handle, &cfg, &ph).await;
 
         assert!(
             handle.status_updates.is_empty(),
@@ -367,10 +363,11 @@ mod tests {
     ) {
         let test_run = TestRun::create_stub(1, "test");
         let mut handle = mock_handle_with_run(&test_run);
-        let (etx, _erx) = unbounded_channel::<Event>();
         let cfg = dummy_config();
+        let (_eq, ph, _, _) =
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
 
-        _ = resolve_test_plan(test_run.clone(), payload, &mut handle, &cfg, &etx).await;
+        _ = resolve_test_plan(test_run.clone(), payload, &mut handle, &cfg, &ph).await;
 
         let run_updates: Vec<_> = handle
             .status_updates
@@ -404,8 +401,9 @@ mod tests {
     async fn resolve_test_plan_variant_static_check_fails_sets_execution_unrunnable() {
         let test_run = TestRun::create_stub(1, "test");
         let mut handle = mock_handle_with_run(&test_run);
-        let (etx, _erx) = unbounded_channel::<Event>();
         let cfg = dummy_config();
+        let (_eq, ph, _, _) =
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
 
         // compose_files with a required provider — try_check always fails for RequiredFile
         let required_compose: NamedComposeFileProvider = serde_yaml::from_str(indoc!(
@@ -430,7 +428,7 @@ mod tests {
             },
         };
 
-        _ = resolve_test_plan(test_run.clone(), payload, &mut handle, &cfg, &etx).await;
+        _ = resolve_test_plan(test_run.clone(), payload, &mut handle, &cfg, &ph).await;
 
         let run_updates: Vec<_> = handle
             .status_updates
@@ -480,12 +478,22 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_test_plan_success_sends_provision_event() {
-        let test_run = TestRun::create_stub(1, "test");
-        let mut handle = mock_handle_with_run(&test_run);
-        let (etx, mut erx) = unbounded_channel::<Event>();
+        let tr = TestRun::create_stub(1, "test");
+        let mut handle = mock_handle_with_run(&tr);
         let cfg = dummy_config();
+        let (mut eq, ph, eqs, mut rx) =
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
 
-        _ = resolve_test_plan(test_run.clone(), empty_payload(), &mut handle, &cfg, &etx).await;
+        // The checks we have in place around submitting test plans for resolution mean that we
+        // need to ensure that we have the correct shared state before calling `resolve_test_plan`.
+        // Rather than spoof it with test-only methods for manipulating that state, we call
+        // `try_submit_test_plan` to drive things in the expected way.
+        eqs.try_submit_test_plan(tr.clone(), empty_payload())
+            .await
+            .unwrap();
+        let TestRunWithPayload { test_run, payload } = rx.recv().await.unwrap();
+
+        _ = resolve_test_plan(test_run, payload, &mut handle, &cfg, &ph).await;
 
         // TestRun status set to Resolving
         let run_updates: Vec<_> = handle
@@ -522,23 +530,33 @@ mod tests {
         );
 
         // One ProvisionEnvironment event sent
-        let event = erx.try_recv().expect("one event must be sent");
+        let evt = eq.next_event().await.unwrap();
         assert!(
-            matches!(event.data, EventData::ProvisionEnvironment(_, _)),
+            matches!(evt.data, EventData::ProvisionEnvironment(_, _)),
             "expected ProvisionEnvironment event"
         );
-        assert!(erx.try_recv().is_err(), "only one event expected");
+        assert!(eq.is_empty(), "only one event expected");
     }
 
     #[tokio::test]
     async fn resolve_test_plan_event_loop_closed_stops_processing() {
-        let test_run = TestRun::create_stub(1, "test");
-        let mut handle = mock_handle_with_run(&test_run);
-        let (etx, erx) = unbounded_channel::<Event>();
-        drop(erx); // close the receiver — etx.send() will fail
+        let tr = TestRun::create_stub(1, "test");
+        let mut handle = mock_handle_with_run(&tr);
         let cfg = dummy_config();
+        // dropping the receiver for the event loop so sends will fail
+        let (_, ph, eqs, mut rx) =
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
 
-        let res = resolve_test_plan(test_run, empty_payload(), &mut handle, &cfg, &etx).await;
+        // The checks we have in place around submitting test plans for resolution mean that we
+        // need to ensure that we have the correct shared state before calling `resolve_test_plan`.
+        // Rather than spoof it with test-only methods for manipulating that state, we call
+        // `try_submit_test_plan` to drive things in the expected way.
+        eqs.try_submit_test_plan(tr.clone(), empty_payload())
+            .await
+            .unwrap();
+        let TestRunWithPayload { test_run, payload } = rx.recv().await.unwrap();
+
+        let res = resolve_test_plan(test_run, payload, &mut handle, &cfg, &ph).await;
         assert_eq!(
             res,
             ControlFlow::Break(()),

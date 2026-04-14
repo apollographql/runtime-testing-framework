@@ -1,6 +1,8 @@
-use crate::db::TestRun;
+use crate::{
+    db::TestRun,
+    event_loop::{EventQueueState, SubmitError},
+};
 use rep_orchestrator_shared::payload::TriggerPayload;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
 #[derive(Debug)]
 pub struct TestRunWithPayload {
@@ -10,23 +12,19 @@ pub struct TestRunWithPayload {
 
 #[derive(Debug, Clone)]
 pub struct ServerState {
-    tx_resolve: UnboundedSender<TestRunWithPayload>,
+    eq_state: EventQueueState,
 }
 
 impl ServerState {
-    pub fn new() -> (Self, UnboundedReceiver<TestRunWithPayload>) {
-        let (tx_resolve, rx_resolve) = unbounded_channel();
-
-        (Self { tx_resolve }, rx_resolve)
+    pub fn new(eq_state: EventQueueState) -> Self {
+        Self { eq_state }
     }
 
-    pub fn submit_test_plan(
+    pub async fn try_submit_test_plan(
         &self,
         test_run: TestRun,
         payload: TriggerPayload,
-    ) -> Result<(), Box<TriggerPayload>> {
-        self.tx_resolve
-            .send(TestRunWithPayload { test_run, payload })
-            .map_err(|e| Box::new(e.0.payload))
+    ) -> Result<(), SubmitError> {
+        self.eq_state.try_submit_test_plan(test_run, payload).await
     }
 }
