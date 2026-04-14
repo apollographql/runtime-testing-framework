@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-57286800.js";
+            window.path_to_searchindex_js = "searchindex-46243faa.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-e82f622f.js"></script>
@@ -651,7 +651,7 @@ scenario :: hello, darkness my old friend
    scenario_subject: "darkness my old friend"
 </code></pre>
 <p>Run the test plan again to see the modified output:</p>
-<pre><code class="language-bash">rm output -rf
+<pre><code class="language-bash">rm -rf output
 rtf run example-test-plans/hello-world/test-plan.yaml
 </code></pre>
 <p>Output:</p>
@@ -667,7 +667,7 @@ and scenario, as they both reference the same shared variable:</p>
    setup_subject: "world!"
    scenario_subject: "darkness my old friend"
 </code></pre>
-<pre><code class="language-bash">rm output -rf
+<pre><code class="language-bash">rm -rf output
 rtf run example-test-plans/hello-world/test-plan.yaml
 </code></pre>
 <p>Output:</p>
@@ -741,7 +741,7 @@ it under the <code>matrix.dimensions</code> section of the test plan:</p>
 +    setup_subject: [ "world!", "sailor!" ]
 </code></pre>
 <p>Running the test plan with two <code>setup_subject</code> variables produces two results:</p>
-<pre><code class="language-bash">rm output -rf
+<pre><code class="language-bash">rm -rf output
 rtf run example-test-plans/hello-world/test-plan.yaml
 </code></pre>
 <p>Output:</p>
@@ -764,7 +764,7 @@ scenario :: hello, darkness my old friend
 +    scenario_subject: [ "darkness my old friend", "is it me you're looking for?" ]
 </code></pre>
 <p>We’ll get a run for every <em>combination</em> of variables:</p>
-<pre><code class="language-bash">rm output -rf
+<pre><code class="language-bash">rm -rf output
 rtf run example-test-plans/hello-world/test-plan.yaml
 </code></pre>
 <p>Output:</p>
