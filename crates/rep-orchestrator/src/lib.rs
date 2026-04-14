@@ -77,7 +77,10 @@ mod test_helpers {
 
     impl TestServerState {
         pub fn new() -> Self {
-            let cfg = Config::get();
+            Self::new_with_config(Config::get())
+        }
+
+        pub fn new_with_config(cfg: &Config) -> Self {
             let (_, _, eq_state, resolver_rx) =
                 EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
 

@@ -21,7 +21,7 @@ pub async fn handler(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_helpers::TestServerState;
+    use crate::{config::Config, test_helpers::TestServerState};
     use rep_orchestrator_shared::status::Status;
     use reqwest::StatusCode;
 
@@ -52,6 +52,30 @@ mod tests {
         assert!(
             maybe_run.is_some(),
             "test run ID did not map to a known run in the DB"
+        );
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn handler_returns_service_unavailable_when_queue_is_full() -> anyhow::Result<()> {
+        let mut cfg = Config::get().clone();
+        cfg.max_queued_executions = 0;
+
+        let tss = TestServerState::new_with_config(&cfg);
+        let payload = tss.minimal_trigger_payload();
+
+        let resp = tss
+            .test_server
+            .post("/test-run/trigger")
+            .json(&payload)
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::SERVICE_UNAVAILABLE);
+        assert!(
+            tss.resolver_rx.is_empty(),
+            "should not have submitted the test plan"
         );
 
         Ok(())

@@ -144,7 +144,7 @@ impl EventQueue {
     }
 
     /// Remove the given execution from the running set and notify the resolver task that a
-    /// namespace slot is now available via [ProvisioningHandle::wait_for_namespace_capacity].
+    /// namespace slot is now available.
     pub async fn mark_execution_complete(&self, execution_id: Uuid) {
         // Ensure that we release the mutex before notifying the resolver task.
         {
