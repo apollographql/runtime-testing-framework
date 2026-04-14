@@ -1,6 +1,6 @@
 use crate::{
     commands::client_from_kubeconfig,
-    error::{CliResult, ToCliResult},
+    error::{CliError, CliResult},
 };
 use anyhow::Context;
 use k8s_openapi::api::core::v1::ConfigMap;
@@ -18,7 +18,7 @@ pub async fn cleanup(configmap: &str, namespace: &str) -> CliResult<()> {
         Err(e) => {
             return Err(e)
                 .context("Failed to delete configmap")
-                .err_unrunnable();
+                .map_err(CliError::unrunnable);
         }
     }
     info!("Cleanup complete.");

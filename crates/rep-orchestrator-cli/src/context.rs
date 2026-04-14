@@ -1,5 +1,5 @@
 use crate::{
-    error::{CliError, CliResult, ToCliResult},
+    error::{CliError, CliResult},
     orchestrator::{self, Client},
 };
 use anyhow::Context;
@@ -33,7 +33,7 @@ pub trait CliContext {
         let exit_status = cmd
             .status()
             .with_context(|| format!("I/O error when attempting to invoke {cmd_context}"))
-            .err_unrunnable()?;
+            .map_err(CliError::unrunnable)?;
 
         match exit_status.success() {
             false if is_orchestration => Err(CliError::unrunnable_subprocess(
@@ -49,7 +49,7 @@ pub trait CliContext {
                     .update_status(next_execution_status, Some(exit_status), Some(cmd_context))
                     .await
                     .context("Failed to update execution status")
-                    .err_unrunnable()?;
+                    .map_err(CliError::unrunnable)?;
 
                 Ok(())
             }

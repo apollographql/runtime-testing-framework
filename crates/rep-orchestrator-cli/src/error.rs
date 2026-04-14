@@ -25,10 +25,6 @@ pub enum CliError {
 
 pub type CliResult<T> = Result<T, CliError>;
 
-pub trait ToCliResult<T> {
-    fn err_unrunnable(self) -> CliResult<T>;
-}
-
 impl CliError {
     /// Construct a [CliError::Unrunnable] error from the provided `source` error
     pub fn unrunnable(source: anyhow::Error) -> Self {
@@ -111,12 +107,6 @@ impl Display for CliError {
     }
 }
 
-impl<T> ToCliResult<T> for Result<T, anyhow::Error> {
-    fn err_unrunnable(self) -> CliResult<T> {
-        self.map_err(CliError::unrunnable)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -184,7 +174,7 @@ mod tests {
     #[test]
     fn err_unrunnable_converts_anyhow_to_unrunnable() {
         let result: Result<(), anyhow::Error> = Err(anyhow!("bad thing"));
-        let cli_err = result.err_unrunnable().unwrap_err();
+        let cli_err = result.map_err(CliError::unrunnable).unwrap_err();
         assert_eq!(cli_err.rep_orchestrator_status(), Status::Unrunnable);
         assert_eq!(cli_err.exit_status(), None);
         assert_eq!(cli_err.source_to_string(), "bad thing");
@@ -193,6 +183,6 @@ mod tests {
     #[test]
     fn err_unrunnable_passes_through_ok() {
         let result: Result<u32, anyhow::Error> = Ok(42);
-        assert_eq!(result.err_unrunnable().unwrap(), 42);
+        assert_eq!(result.map_err(CliError::unrunnable).unwrap(), 42);
     }
 }

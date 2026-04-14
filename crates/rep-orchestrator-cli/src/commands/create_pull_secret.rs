@@ -1,6 +1,6 @@
 use crate::{
     commands::{MANAGER_NAME, client_from_kubeconfig},
-    error::{CliResult, ToCliResult},
+    error::{CliError, CliResult},
 };
 use anyhow::Context;
 use k8s_openapi::api::core::v1::{Secret, ServiceAccount};
@@ -29,7 +29,7 @@ pub async fn create_pull_secret(
                 docker_config_path.display()
             )
         })
-        .err_unrunnable()?;
+        .map_err(CliError::unrunnable)?;
 
     let secret = Secret {
         metadata: ObjectMeta {
@@ -54,7 +54,7 @@ pub async fn create_pull_secret(
         )
         .await
         .context("Failed to create pull secret")
-        .err_unrunnable()?;
+        .map_err(CliError::unrunnable)?;
 
     info!("Patching default service account...");
     let sa_api: Api<ServiceAccount> = Api::namespaced(client, namespace);
@@ -65,7 +65,7 @@ pub async fn create_pull_secret(
         .patch("default", &PatchParams::default(), &Patch::Strategic(patch))
         .await
         .context("Failed to patch default service account")
-        .err_unrunnable()?;
+        .map_err(CliError::unrunnable)?;
     info!("Pull secret created successfully.");
 
     Ok(())

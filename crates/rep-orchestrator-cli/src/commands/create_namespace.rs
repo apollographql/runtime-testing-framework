@@ -1,6 +1,6 @@
 use crate::{
     commands::{MANAGER_NAME, client_from_kubeconfig},
-    error::{CliResult, ToCliResult},
+    error::{CliError, CliResult},
 };
 use anyhow::Context;
 use k8s_openapi::api::core::v1::Namespace;
@@ -32,7 +32,7 @@ pub async fn create_namespace(namespace: &str, kubeconfig_path: &Path) -> CliRes
     )
     .await
     .context("Failed to create kube namespace.")
-    .err_unrunnable()?;
+    .map_err(CliError::unrunnable)?;
     info!("Namespace created successfully.");
 
     Ok(())

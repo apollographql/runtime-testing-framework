@@ -1,7 +1,7 @@
 use crate::{
     commands::client_from_kubeconfig,
     context::CliContext,
-    error::{CliError, CliResult, ToCliResult},
+    error::{CliError, CliResult},
 };
 use anyhow::{Context, anyhow};
 use k8s_openapi::api::apps::v1::Deployment;
@@ -27,7 +27,7 @@ pub async fn deploy_environment(
     let k8s_dir_path = workdir_path.join("k8s");
     fs::create_dir_all(&k8s_dir_path)
         .context("Failed to create k8s working directory")
-        .err_unrunnable()?;
+        .map_err(CliError::unrunnable)?;
 
     info!("Resolving environment docker-compose files...");
     let outdir = workdir_path.join("output");
@@ -73,20 +73,20 @@ async fn setup_env(
     let setup_env = outdir_path.join("setup/setup.env");
     let env_contents = fs::read_to_string(&setup_env)
         .context("Failed to read setup.env file")
-        .err_unrunnable()?;
+        .map_err(CliError::unrunnable)?;
 
-    let env_vars = parse_env_file(&env_contents).err_unrunnable()?;
+    let env_vars = parse_env_file(&env_contents).map_err(CliError::unrunnable)?;
 
     let compose_files_path = env_vars
         .get("COMPOSE_FILES")
         .context(
             "COMPOSE_FILES was not set by setup.env -- make sure environment.yaml is well-formed",
         )
-        .err_unrunnable()?;
+        .map_err(CliError::unrunnable)?;
 
     let compose_files_content = fs::read_to_string(compose_files_path)
         .context("Failed to read COMPOSE_FILES file provider output")
-        .err_unrunnable()?;
+        .map_err(CliError::unrunnable)?;
 
     info!("Converting to kubernetes manifests...");
     let mut kompose = build_kompose_command(&compose_files_content, k8s_dir_path, &env_vars);
@@ -154,7 +154,7 @@ async fn wait_for_deployments(
             .list(&Default::default())
             .await
             .context("Failed to list deployments")
-            .err_unrunnable()?;
+            .map_err(CliError::unrunnable)?;
 
         let all_available = deployments.items.iter().all(|deployment| {
             deployment
