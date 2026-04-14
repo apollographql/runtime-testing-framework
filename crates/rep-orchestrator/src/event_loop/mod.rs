@@ -22,7 +22,7 @@ mod event_queue;
 mod provision_environment;
 mod run_scenario;
 
-pub use event_queue::{EventQueue, EventQueueState, ProvisioningHandle, SubmitError};
+pub use event_queue::{Claim, EventQueue, EventQueueState, ProvisioningHandle, SubmitError};
 
 /// Run as a long lived task. This is an infinite loop that processes [Event]s received on a
 /// channel that is shared with the axum server and the event loop's own handler functions.

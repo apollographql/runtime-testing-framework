@@ -248,11 +248,17 @@ impl ProvisioningHandle {
 /// Errors that can be encountered when attempting to submit a test plan to the resolver task.
 #[derive(Debug)]
 pub enum SubmitError {
-    /// Insufficient capacity for queuing all matrix variants from this test plan
-    InsufficientCapacity(Box<TriggerPayload>),
+    /// The size of the provided claim did not match the number of test plan executions submitted
+    InvalidClaim,
     /// Resolver channel is closed
-    ResolveChannelClosed(Box<TriggerPayload>),
+    ResolveChannelClosed,
 }
+
+/// A claim for resolving a specific number of test executions.
+///
+/// This type is deliberately opaque so the owner is only able to pass it back to
+/// [EventQueueState::try_submit_test_plan].
+pub struct Claim(usize);
 
 /// Access to shared [EventQueue] state.
 ///
@@ -268,44 +274,51 @@ impl EventQueueState {
     /// obtain sufficient pending execution claims.
     pub async fn try_submit_test_plan(
         &self,
+        claim: Claim,
         test_run: TestRun,
         payload: TriggerPayload,
     ) -> Result<(), SubmitError> {
         let n = payload.test_plan.matrix.n_variants();
+        if claim.0 != n {
+            return Err(SubmitError::InvalidClaim);
+        }
 
-        if self.try_reserve_pending_executions(n).await {
-            match self
-                .tx_resolve
-                .send(TestRunWithPayload { test_run, payload })
-            {
-                Ok(_) => Ok(()),
-                Err(e) => {
-                    // If we hit this branch then the channel is closed and we are likely shutting
-                    // down. But, we still attempt to be good citizens and release our claim on the
-                    // resolver queue to ensure that the shared state is correct.
-                    let mut shared = self.shared.lock().await;
-                    shared.n_queued -= n;
+        match self
+            .tx_resolve
+            .send(TestRunWithPayload { test_run, payload })
+        {
+            Ok(_) => Ok(()),
+            Err(_) => {
+                // If we hit this branch then the channel is closed and we are likely shutting
+                // down. But, we still attempt to be good citizens and release our claim on the
+                // resolver queue to ensure that the shared state is correct.
+                let mut shared = self.shared.lock().await;
+                shared.n_queued -= n;
 
-                    Err(SubmitError::ResolveChannelClosed(Box::new(e.0.payload)))
-                }
+                Err(SubmitError::ResolveChannelClosed)
             }
-        } else {
-            Err(SubmitError::InsufficientCapacity(Box::new(payload)))
         }
     }
 
     /// Attempt to reserve the requested number of executions if there is capacity.
     ///
     /// Returns `true` if the claim was successful, otherwise `false`.
-    async fn try_reserve_pending_executions(&self, n: usize) -> bool {
+    pub async fn try_reserve_pending_executions(&self, tp: &RepTestPlan) -> Option<Claim> {
+        let n = tp.matrix.n_variants();
         let mut shared = self.shared.lock().await;
 
         if shared.n_queued.saturating_add(n) <= shared.max_queued_executions {
             shared.n_queued += n;
-            true
+            Some(Claim(n))
         } else {
-            false
+            None
         }
+    }
+
+    /// Return `n` queued execution claims back to the shared state.
+    pub async fn release_pending_execution_claim(&self, claim: Claim) {
+        let mut shared = self.shared.lock().await;
+        shared.n_queued -= claim.0;
     }
 }
 
@@ -324,8 +337,9 @@ mod tests {
         db::Queryable,
         event_loop::tests::{stub_environment, stub_scenario, stub_test_plan},
     };
+    use rtf_config::templating::Scalar;
     use simple_test_case::test_case;
-    use std::time::Duration;
+    use std::{collections::HashMap, time::Duration};
 
     #[test_case(&[(1, true)]; "single claim below max")]
     #[test_case(&[(5, true)]; "single claim at max")]
@@ -338,8 +352,11 @@ mod tests {
         let (_, _, state, _) = EventQueue::new(1, 5);
 
         for (i, &(n, expected)) in claims.iter().enumerate() {
-            let successful = state.try_reserve_pending_executions(n).await;
-            assert_eq!(successful, expected, "claim {i}");
+            let mut tp = stub_test_plan();
+            tp.matrix.dimensions = HashMap::from([("a".to_string(), vec![Scalar::Bool(true); n])]);
+
+            let successful = state.try_reserve_pending_executions(&tp).await;
+            assert_eq!(successful.is_some(), expected, "claim {i}");
         }
     }
 

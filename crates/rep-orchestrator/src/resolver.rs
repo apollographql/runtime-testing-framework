@@ -488,7 +488,12 @@ mod tests {
         // need to ensure that we have the correct shared state before calling `resolve_test_plan`.
         // Rather than spoof it with test-only methods for manipulating that state, we call
         // `try_submit_test_plan` to drive things in the expected way.
-        eqs.try_submit_test_plan(tr.clone(), empty_payload())
+        let payload = empty_payload();
+        let claim = eqs
+            .try_reserve_pending_executions(&payload.test_plan)
+            .await
+            .unwrap();
+        eqs.try_submit_test_plan(claim, tr.clone(), payload)
             .await
             .unwrap();
         let TestRunWithPayload { test_run, payload } = rx.recv().await.unwrap();
@@ -551,7 +556,12 @@ mod tests {
         // need to ensure that we have the correct shared state before calling `resolve_test_plan`.
         // Rather than spoof it with test-only methods for manipulating that state, we call
         // `try_submit_test_plan` to drive things in the expected way.
-        eqs.try_submit_test_plan(tr.clone(), empty_payload())
+        let payload = empty_payload();
+        let claim = eqs
+            .try_reserve_pending_executions(&payload.test_plan)
+            .await
+            .unwrap();
+        eqs.try_submit_test_plan(claim, tr.clone(), payload)
             .await
             .unwrap();
         let TestRunWithPayload { test_run, payload } = rx.recv().await.unwrap();
