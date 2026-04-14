@@ -121,7 +121,10 @@ pub(crate) mod mocks {
             }
         }
 
-        pub fn read_updates<F: FnOnce(RwLockReadGuard<Vec<StatusUpdateArgs>>)>(&self, closure: F) {
+        pub fn read_updates<F>(&self, closure: F)
+        where
+            F: FnOnce(RwLockReadGuard<Vec<StatusUpdateArgs>>),
+        {
             let updates = self.status_updates.read().unwrap();
             closure(updates)
         }
@@ -142,6 +145,7 @@ pub(crate) mod mocks {
                 exit_status,
                 message,
             });
+
             Ok(())
         }
     }
