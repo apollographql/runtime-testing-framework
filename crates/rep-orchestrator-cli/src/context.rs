@@ -22,8 +22,7 @@ pub trait CliContext {
     /// a [Status::Unrunnable] or [Status::Failed] state depending on whether the failed command was associated with invoking
     /// user scripts or setup scripts.
     async fn run_shell(&self, cmd: &mut Command, next_execution_status: Status) -> CliResult<()> {
-        let cmd_context = format!("running: {cmd:?}");
-        info!("{cmd_context}");
+        info!("Running {cmd:?}");
 
         let is_orchestration = matches!(
             next_execution_status,
@@ -32,21 +31,25 @@ pub trait CliContext {
 
         let exit_status = cmd
             .status()
-            .with_context(|| format!("I/O error when attempting to invoke {cmd_context}"))
+            .with_context(|| format!("I/O error when attempting to invoke {cmd:?}"))
             .map_err(CliError::unrunnable)?;
 
         match exit_status.success() {
             false if is_orchestration => Err(CliError::unrunnable_subprocess(
                 exit_status,
-                format!("Setup command failed: {cmd_context}"),
+                format!("Setup command failed: {cmd:?}"),
             )),
             false => Err(CliError::failed(
                 exit_status,
-                format!("Test plan invocation failed: {cmd_context}"),
+                format!("Test plan invocation failed: {cmd:?}"),
             )),
             true => {
                 self.orchestrator_client()
-                    .update_status(next_execution_status, Some(exit_status), Some(cmd_context))
+                    .update_status(
+                        next_execution_status,
+                        Some(exit_status),
+                        Some(format!("Completed command: {cmd:?}")),
+                    )
                     .await
                     .context("Failed to update execution status")
                     .map_err(CliError::unrunnable)?;
@@ -139,7 +142,7 @@ mod tests {
         ctx.orchestrator_client().read_updates(|updates| {
             let message = updates[0].message.as_deref().unwrap();
             assert_eq!(
-                message, "running: \"true\"",
+                message, "Completed command: \"true\"",
                 "expected command in message: {message}"
             );
         });
