@@ -1,6 +1,6 @@
 use crate::k8s::{
     self, CLUSTER_API_NAMESPACE, Cluster, EXECUTION_ID_LABEL, Result, WatchOutcome, Workflow,
-    WorkflowSpec,
+    WorkflowSpec, workflow_name,
 };
 use k8s_openapi::api::{
     batch::v1::{Job, JobSpec},
@@ -99,15 +99,23 @@ impl k8s::Client for ClusterClients {
         Ok(cm)
     }
 
-    async fn create_argo_workflow(&self, name: &str, spec: WorkflowSpec) -> Result<Workflow> {
+    async fn create_argo_workflow(
+        &self,
+        execution_id: &Uuid,
+        spec: WorkflowSpec,
+    ) -> Result<Workflow> {
         let wf = self
             .namespaced_api(Cluster::Management, CLUSTER_API_NAMESPACE)
             .create(
                 &Default::default(),
                 &Workflow {
                     metadata: ObjectMeta {
-                        name: Some(name.to_owned()),
+                        name: Some(workflow_name(execution_id)),
                         namespace: Some(CLUSTER_API_NAMESPACE.to_owned()),
+                        labels: Some(BTreeMap::from([(
+                            EXECUTION_ID_LABEL.to_owned(),
+                            execution_id.to_string(),
+                        )])),
                         ..Default::default()
                     },
                     spec,
@@ -119,7 +127,13 @@ impl k8s::Client for ClusterClients {
         Ok(wf)
     }
 
-    async fn create_job(&self, ns: &str, name: &str, spec: JobSpec) -> Result<Job> {
+    async fn create_job(
+        &self,
+        ns: &str,
+        name: &str,
+        execution_id: &Uuid,
+        spec: JobSpec,
+    ) -> Result<Job> {
         let job = self
             .namespaced_api(Cluster::Workload, ns)
             .create(
@@ -128,6 +142,10 @@ impl k8s::Client for ClusterClients {
                     metadata: ObjectMeta {
                         name: Some(name.to_owned()),
                         namespace: Some(ns.to_owned()),
+                        labels: Some(BTreeMap::from([(
+                            EXECUTION_ID_LABEL.to_owned(),
+                            execution_id.to_string(),
+                        )])),
                         ..Default::default()
                     },
                     spec: Some(spec),

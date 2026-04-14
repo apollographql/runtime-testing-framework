@@ -62,6 +62,7 @@ where
         .create_job(
             &namespace,
             SCENARIO_JOB_NAME,
+            &execution_id,
             scenario_job(&execution_id, &scenario),
         )
         .await

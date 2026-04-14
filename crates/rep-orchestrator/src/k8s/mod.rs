@@ -55,7 +55,7 @@ pub trait Client: Clone + Send + Sync + 'static {
     /// deploying services into it as defined by an RTF Test Plan.
     fn create_argo_workflow(
         &self,
-        name: &str,
+        execution_id: &Uuid,
         spec: WorkflowSpec,
     ) -> impl Future<Output = Result<Workflow>> + Send;
 
@@ -65,6 +65,7 @@ pub trait Client: Clone + Send + Sync + 'static {
         &self,
         ns: &str,
         name: &str,
+        execution_id: &Uuid,
         spec: JobSpec,
     ) -> impl Future<Output = Result<Job>> + Send;
 

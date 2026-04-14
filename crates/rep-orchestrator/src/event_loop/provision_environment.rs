@@ -59,10 +59,7 @@ where
         .await;
 
     clients
-        .create_argo_workflow(
-            &workflow_name(&execution_id),
-            WorkflowSpec::for_execution_id(&execution_id),
-        )
+        .create_argo_workflow(&execution_id, WorkflowSpec::for_execution_id(&execution_id))
         .await
         .map_err(|error| Error::CreateArgoWorkflow { error })?;
 
