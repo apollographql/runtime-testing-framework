@@ -134,6 +134,7 @@ fn scenario_run_container_spec(scenario: &DockerScenario) -> Container {
     Container {
         name: "scenario-runner".to_owned(),
         image: Some(scenario.docker_image()),
+        image_pull_policy: Some("Always".to_string()),
         command: Some(vec!["/bin/sh".to_owned(), "/shared/run.sh".to_owned()]),
         working_dir: Some(SHARED_DIR_PATH.to_owned()),
         volume_mounts: Some(vec![VolumeMount {
