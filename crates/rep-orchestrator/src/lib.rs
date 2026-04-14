@@ -1,9 +1,10 @@
+#![warn(clippy::undocumented_unsafe_blocks)]
 use axum::{
     Router,
     routing::{get, post},
     serve,
 };
-use tokio::{net::TcpListener, sync::mpsc::unbounded_channel};
+use tokio::net::TcpListener;
 use tracing::info;
 
 pub mod config;
@@ -20,6 +21,7 @@ pub use error::{Error, Result};
 
 use config::Config;
 use db::pool::check_db_conn;
+use event_loop::EventQueue;
 use state::ServerState;
 
 pub async fn run_server() -> error::Result<()> {
@@ -29,11 +31,12 @@ pub async fn run_server() -> error::Result<()> {
     info!("Checking database connection");
     check_db_conn().await?;
 
-    let (state, rx) = ServerState::new();
-    let (etx, erx) = unbounded_channel::<event_loop::Event>();
+    let (event_queue, prov_handle, eq_state, rx) =
+        EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+    let state = ServerState::new(eq_state);
 
-    tokio::spawn(resolver::resolver_task(rx, etx.clone()));
-    tokio::spawn(event_loop::event_loop_task(etx, erx));
+    tokio::spawn(resolver::resolver_task(rx, prov_handle));
+    tokio::spawn(event_loop::event_loop_task(event_queue));
 
     info!("starting axum server");
     let routes = build_routes(state);
@@ -74,7 +77,14 @@ mod test_helpers {
 
     impl TestServerState {
         pub fn new() -> Self {
-            let (state, resolver_rx) = ServerState::new();
+            Self::new_with_config(Config::get())
+        }
+
+        pub fn new_with_config(cfg: &Config) -> Self {
+            let (_, _, eq_state, resolver_rx) =
+                EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+
+            let state = ServerState::new(eq_state);
             let test_server = TestServer::new(build_routes(state));
 
             Self {

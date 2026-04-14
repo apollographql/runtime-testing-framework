@@ -15,7 +15,6 @@ use crate::{
     k8s::ClusterClients,
 };
 use rtf_config::formats::{DockerComposeEnvironment, DockerScenario};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tracing::{error, warn};
 
 mod cleanup_namespace;
@@ -23,9 +22,11 @@ mod event_queue;
 mod provision_environment;
 mod run_scenario;
 
+pub use event_queue::{Claim, EventQueue, EventQueueState, ProvisioningHandle, SubmitError};
+
 /// Run as a long lived task. This is an infinite loop that processes [Event]s received on a
 /// channel that is shared with the axum server and the event loop's own handler functions.
-pub async fn event_loop_task(etx: UnboundedSender<Event>, mut erx: UnboundedReceiver<Event>) {
+pub async fn event_loop_task(mut event_queue: EventQueue) {
     let Config {
         kubeconfig_path,
         mgmt_context,
@@ -39,10 +40,10 @@ pub async fn event_loop_task(etx: UnboundedSender<Event>, mut erx: UnboundedRece
             panic!("failed to initialise k8s clients, event loop cannot start: {e}")
         });
 
-    while let Some(evt) = erx.recv().await {
+    while let Some(evt) = event_queue.next_event().await {
         let ty_name = evt.data.name();
 
-        if let Err(err) = evt.handle(etx.clone(), clients.clone()).await {
+        if let Err(err) = evt.handle(&event_queue, clients.clone()).await {
             error!(%err, ty=%ty_name, "Error handling event");
         }
     }
@@ -118,7 +119,7 @@ pub struct Event {
 }
 
 impl Event {
-    async fn handle(self, etx: UnboundedSender<Event>, clients: ClusterClients) -> Result<()> {
+    async fn handle(self, event_queue: &EventQueue, clients: ClusterClients) -> Result<()> {
         let conn = conn!();
 
         let res = match self.data {
@@ -134,7 +135,7 @@ impl Event {
                     self.test_execution.clone(),
                     environment,
                     scenario,
-                    etx.clone(),
+                    event_queue.tx(),
                     clients.clone(),
                     conn,
                 )
@@ -142,12 +143,23 @@ impl Event {
             }
 
             EventData::RunScenario(scenario) => {
-                run_scenario::try_run(self.test_execution.clone(), scenario, etx, clients, conn)
-                    .await
+                run_scenario::try_run(
+                    self.test_execution.clone(),
+                    scenario,
+                    event_queue.tx(),
+                    clients,
+                    conn,
+                )
+                .await
             }
 
             EventData::CleanupNamespace => {
-                cleanup_namespace::try_run(self.test_execution.clone(), clients).await
+                let res = cleanup_namespace::try_run(self.test_execution.clone(), clients).await;
+                event_queue
+                    .mark_execution_complete(self.test_execution.uuid())
+                    .await;
+
+                res
             }
         };
 

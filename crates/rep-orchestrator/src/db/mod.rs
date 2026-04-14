@@ -98,6 +98,51 @@ pub trait UpdateHandle: Send + Sync {
         message: Option<String>,
     ) -> impl Future<Output = crate::Result<()>> + Send;
 
+    fn mark_run_as_resolving(
+        &mut self,
+        tr: &TestRun,
+        message: String,
+    ) -> impl Future<Output = ()> + Send {
+        async {
+            if let Err(err) = self
+                .update_test_run_status(tr, Status::Resolving, Some(message))
+                .await
+            {
+                error!(id=%tr.uuid(), %err, "Unable to mark Test Run as resolving");
+            }
+        }
+    }
+
+    fn mark_run_as_unrunnable(
+        &mut self,
+        tr: &TestRun,
+        message: String,
+    ) -> impl Future<Output = ()> + Send {
+        async {
+            if let Err(err) = self
+                .update_test_run_status(tr, Status::Unrunnable, Some(message))
+                .await
+            {
+                error!(id=%tr.uuid(), %err, "Unable to mark Test Run as unrunnable");
+            }
+        }
+    }
+
+    fn mark_execution_as_resolving(
+        &mut self,
+        ex: &TestExecution,
+        message: String,
+    ) -> impl Future<Output = ()> + Send {
+        async {
+            if let Err(err) = self
+                .update_test_execution_status(ex, Status::Resolving, Some(message))
+                .await
+            {
+                error!(id=%ex.uuid(), %err, "Unable to mark Test Execution as resolving");
+            }
+        }
+    }
+
     fn mark_execution_as_provisioning(
         &mut self,
         ex: &TestExecution,

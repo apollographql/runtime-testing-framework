@@ -1,9 +1,9 @@
-#![expect(dead_code)]
 use crate::{
-    db::TestExecution,
+    db::{TestExecution, TestRun},
     event_loop::{Event, EventData},
+    state::TestRunWithPayload,
 };
-use rep_orchestrator_shared::test_plan::RepTestPlan;
+use rep_orchestrator_shared::{payload::TriggerPayload, test_plan::RepTestPlan};
 use std::{
     collections::{HashSet, VecDeque},
     sync::Arc,
@@ -43,7 +43,12 @@ impl EventQueue {
     pub fn new(
         max_concurrent_executions: usize,
         max_queued_executions: usize,
-    ) -> (Self, ProvisioningHandle, EventQueueState) {
+    ) -> (
+        Self,
+        ProvisioningHandle,
+        EventQueueState,
+        UnboundedReceiver<TestRunWithPayload>,
+    ) {
         let shared = Arc::new(Mutex::new(Shared {
             max_concurrent_executions,
             max_queued_executions,
@@ -51,6 +56,7 @@ impl EventQueue {
             n_queued: 0,
         }));
         let notify = Arc::new(Notify::new());
+        let (tx_resolve, rx_resolve) = unbounded_channel();
         let (tx, rx) = unbounded_channel();
 
         let eq = EventQueue {
@@ -70,13 +76,20 @@ impl EventQueue {
 
         let eqs = EventQueueState {
             shared: eq.shared.clone(),
+            tx_resolve,
         };
 
-        (eq, ph, eqs)
+        (eq, ph, eqs, rx_resolve)
     }
 
     pub fn tx(&self) -> UnboundedSender<Event> {
         self.tx.clone()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.rx.is_empty()
+            && self.pending_provisions.is_empty()
+            && self.pending_non_provisions.is_empty()
     }
 
     #[inline(always)]
@@ -99,10 +112,7 @@ impl EventQueue {
     pub async fn next_event(&mut self) -> Option<Event> {
         // If our channel is empty and we have nothing queued we block and wait for the next event
         // to arrive.
-        if self.rx.is_empty()
-            && self.pending_provisions.is_empty()
-            && self.pending_non_provisions.is_empty()
-        {
+        if self.is_empty() {
             let evt = self.rx.recv().await?;
             self.push_event(evt);
         }
@@ -134,7 +144,7 @@ impl EventQueue {
     }
 
     /// Remove the given execution from the running set and notify the resolver task that a
-    /// namespace slot is now available via [ProvisioningHandle::wait_for_namespace_capacity].
+    /// namespace slot is now available.
     pub async fn mark_execution_complete(&self, execution_id: Uuid) {
         // Ensure that we release the mutex before notifying the resolver task.
         {
@@ -223,7 +233,32 @@ impl ProvisioningHandle {
 
         true
     }
+
+    /// Return `n` queued execution claims back to the shared state.
+    ///
+    /// # Safety
+    /// The caller must pass an `n` that matches the number of unused claims they previously
+    /// obtained from `try_reserve_pending_executions`.
+    pub async unsafe fn release_pending_execution_claim(&self, n: usize) {
+        let mut shared = self.shared.lock().await;
+        shared.n_queued -= n;
+    }
 }
+
+/// Errors that can be encountered when attempting to submit a test plan to the resolver task.
+#[derive(Debug)]
+pub enum SubmitError {
+    /// The size of the provided claim did not match the number of test plan executions submitted
+    InvalidClaim,
+    /// Resolver channel is closed
+    ResolveChannelClosed,
+}
+
+/// A claim for resolving a specific number of test executions.
+///
+/// This type is deliberately opaque so the owner is only able to pass it back to
+/// [EventQueueState::try_submit_test_plan].
+pub struct Claim(usize);
 
 /// Access to shared [EventQueue] state.
 ///
@@ -231,21 +266,59 @@ impl ProvisioningHandle {
 #[derive(Debug, Clone)]
 pub struct EventQueueState {
     shared: Arc<Mutex<Shared>>,
+    tx_resolve: UnboundedSender<TestRunWithPayload>,
 }
 
 impl EventQueueState {
+    /// Attempt to submit a [TestRunWithPayload] through to the resolver task if we are able to
+    /// obtain sufficient pending execution claims.
+    pub async fn try_submit_test_plan(
+        &self,
+        claim: Claim,
+        test_run: TestRun,
+        payload: TriggerPayload,
+    ) -> Result<(), SubmitError> {
+        let n = payload.test_plan.matrix.n_variants();
+        if claim.0 != n {
+            return Err(SubmitError::InvalidClaim);
+        }
+
+        match self
+            .tx_resolve
+            .send(TestRunWithPayload { test_run, payload })
+        {
+            Ok(_) => Ok(()),
+            Err(_) => {
+                // If we hit this branch then the channel is closed and we are likely shutting
+                // down. But, we still attempt to be good citizens and release our claim on the
+                // resolver queue to ensure that the shared state is correct.
+                let mut shared = self.shared.lock().await;
+                shared.n_queued -= n;
+
+                Err(SubmitError::ResolveChannelClosed)
+            }
+        }
+    }
+
     /// Attempt to reserve the requested number of executions if there is capacity.
     ///
     /// Returns `true` if the claim was successful, otherwise `false`.
-    pub async fn try_reserve_pending_executions(&self, n: usize) -> bool {
+    pub async fn try_reserve_pending_executions(&self, tp: &RepTestPlan) -> Option<Claim> {
+        let n = tp.matrix.n_variants();
         let mut shared = self.shared.lock().await;
 
         if shared.n_queued.saturating_add(n) <= shared.max_queued_executions {
             shared.n_queued += n;
-            true
+            Some(Claim(n))
         } else {
-            false
+            None
         }
+    }
+
+    /// Return `n` queued execution claims back to the shared state.
+    pub async fn release_pending_execution_claim(&self, claim: Claim) {
+        let mut shared = self.shared.lock().await;
+        shared.n_queued -= claim.0;
     }
 }
 
@@ -264,8 +337,9 @@ mod tests {
         db::Queryable,
         event_loop::tests::{stub_environment, stub_scenario, stub_test_plan},
     };
+    use rtf_config::templating::Scalar;
     use simple_test_case::test_case;
-    use std::time::Duration;
+    use std::{collections::HashMap, time::Duration};
 
     #[test_case(&[(1, true)]; "single claim below max")]
     #[test_case(&[(5, true)]; "single claim at max")]
@@ -275,17 +349,20 @@ mod tests {
     #[test_case(&[(3, true), (2, true), (1, false)]; "seq to max then over")]
     #[tokio::test]
     async fn try_reserve_pending_executions_returns_expected_value(claims: &[(usize, bool)]) {
-        let (_, _, state) = EventQueue::new(1, 5);
+        let (_, _, state, _) = EventQueue::new(1, 5);
 
         for (i, &(n, expected)) in claims.iter().enumerate() {
-            let successful = state.try_reserve_pending_executions(n).await;
-            assert_eq!(successful, expected, "claim {i}");
+            let mut tp = stub_test_plan();
+            tp.matrix.dimensions = HashMap::from([("a".to_string(), vec![Scalar::Bool(true); n])]);
+
+            let successful = state.try_reserve_pending_executions(&tp).await;
+            assert_eq!(successful.is_some(), expected, "claim {i}");
         }
     }
 
     #[tokio::test]
     async fn mark_execution_complete_updates_running_set() {
-        let (eq, _, _) = EventQueue::new(1, 5);
+        let (eq, _, _, _) = EventQueue::new(1, 5);
         let id = Uuid::new_v4();
         eq.shared.lock().await.running_executions.insert(id);
 
@@ -303,7 +380,7 @@ mod tests {
     async fn mark_execution_complete_unblocks_waiting_provisioning_handle(
         is_known_execution: bool,
     ) {
-        let (q, h, _) = EventQueue::new(1, 5);
+        let (q, h, _, _) = EventQueue::new(1, 5);
         let id = Uuid::new_v4();
 
         // We warn if the execution was unknown but we should always notify regardless
@@ -325,7 +402,7 @@ mod tests {
 
     #[tokio::test]
     async fn request_provisioning_happy_path() {
-        let (mut q, h, _) = EventQueue::new(1, 5);
+        let (mut q, h, _, _) = EventQueue::new(1, 5);
         let ex = TestExecution::create_stub(1, 1, "test");
         let ex_uuid = ex.uuid();
         q.shared.lock().await.n_queued = 1;
@@ -351,7 +428,7 @@ mod tests {
     #[tokio::test]
     #[should_panic(expected = "request_provisioning called with n_queued == 0")]
     async fn request_provisioning_panics_when_n_queued_is_zero() {
-        let (_, h, _) = EventQueue::new(1, 5);
+        let (_, h, _, _) = EventQueue::new(1, 5);
         let ex = TestExecution::create_stub(1, 1, "test");
 
         h.request_provisioning(ex, stub_test_plan()).await;
@@ -359,7 +436,7 @@ mod tests {
 
     #[tokio::test]
     async fn request_provisioning_returns_false_when_channel_is_closed() {
-        let (q, h, _) = EventQueue::new(1, 5);
+        let (q, h, _, _) = EventQueue::new(1, 5);
         q.shared.lock().await.n_queued = 1;
         drop(q);
 
@@ -372,7 +449,7 @@ mod tests {
 
     #[tokio::test]
     async fn request_provisioning_waits_for_capacity() {
-        let (q, h, _) = EventQueue::new(1, 5); // max concurrent of 1
+        let (q, h, _, _) = EventQueue::new(1, 5); // max concurrent of 1
         let blocking_id = Uuid::new_v4();
 
         {
@@ -424,7 +501,7 @@ mod tests {
     async fn next_event_returns_expected_event_from_pending(events: Vec<Event>, expected_id: i32) {
         // Handle needs to stay alive: dropping it reduces sender_strong_count to 1, causing the
         // drain loop to return None before reaching the priority selection logic.
-        let (mut q, _h, _) = EventQueue::new(1, 5);
+        let (mut q, _h, _, _) = EventQueue::new(1, 5);
 
         for evt in events.into_iter() {
             if matches!(evt.data, EventData::ProvisionEnvironment(_, _)) {
@@ -447,7 +524,7 @@ mod tests {
     async fn next_event_drains_channel_before_selecting() {
         // Handle needs to stay alive: dropping it reduces sender_strong_count to 1, causing the
         // drain loop to return None before reaching the priority selection logic.
-        let (mut q, _h, _) = EventQueue::new(1, 5);
+        let (mut q, _h, _, _) = EventQueue::new(1, 5);
 
         // Send the provision event first so we know that we're not just relying on ordering
         q.tx.send(provision_evt(1)).unwrap();
@@ -462,7 +539,7 @@ mod tests {
     async fn next_event_blocks_when_no_events_are_available() {
         // Handle needs to stay alive: dropping it reduces sender_strong_count to 1, causing the
         // drain loop to return None before reaching the priority selection logic.
-        let (mut q, _h, _) = EventQueue::new(1, 5);
+        let (mut q, _h, _, _) = EventQueue::new(1, 5);
         let tx = q.tx.clone();
 
         let next_event_task = tokio::spawn(async move { q.next_event().await });
@@ -487,7 +564,7 @@ mod tests {
 
     #[tokio::test]
     async fn next_event_returns_none_when_no_external_senders_remain() {
-        let (mut q, h, _) = EventQueue::new(1, 5);
+        let (mut q, h, _, _) = EventQueue::new(1, 5);
 
         // Start with an event in the channel so we skip the blocking recv call and drop into the
         // drain loop.

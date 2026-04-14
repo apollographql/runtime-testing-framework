@@ -20,17 +20,13 @@ pub struct Config {
     pub host: String,
     #[serde(default = "default_port")]
     pub port: u16,
+    #[serde(default = "default_max_concurrent")]
+    pub max_concurrent_executions: usize,
+    #[serde(default = "default_max_queued")]
+    pub max_queued_executions: usize,
     pub kubeconfig_path: String,
     pub mgmt_context: String,
     pub workload_context: String,
-}
-
-fn default_host() -> String {
-    "0.0.0.0".to_owned()
-}
-
-fn default_port() -> u16 {
-    8035
 }
 
 impl Config {
@@ -44,4 +40,20 @@ impl Config {
             Err(e) => panic!("invalid socker addr from config: {e}"),
         }
     }
+}
+
+fn default_host() -> String {
+    "0.0.0.0".to_owned()
+}
+
+fn default_port() -> u16 {
+    8035
+}
+
+fn default_max_concurrent() -> usize {
+    10
+}
+
+fn default_max_queued() -> usize {
+    100
 }

@@ -17,6 +17,9 @@ pub enum Error {
     #[error(transparent)]
     Io(#[from] io::Error),
 
+    #[error("insufficient queue capacity")]
+    InsufficientCapacity,
+
     #[error("requested execution status ({requested}) does not follow current status ({current})")]
     InvalidExecutionStatus { current: Status, requested: Status },
 
@@ -60,6 +63,11 @@ impl IntoResponse for Error {
             Self::UnknownTestRun { id } => (
                 StatusCode::NOT_FOUND,
                 Json(json!({ "error": "NOT_FOUND", "id": id, "message": msg })),
+            ),
+
+            Self::InsufficientCapacity => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({ "error": "SERVICE_UNAVAILABLE", "message": "execution queue full" })),
             ),
 
             _ => (
