@@ -1,17 +1,21 @@
 use crate::{
     error::{CliError, CliResult},
+    kubernetes,
     orchestrator::{self, Client},
 };
 use anyhow::Context;
 use rep_orchestrator_shared::{EXECUTION_ID_ENV_VAR, ORCHESTRATOR_URL_ENV_VAR, status::Status};
-use std::{env, process::Command, str::FromStr};
+use std::{env, path::Path, process::Command, str::FromStr};
 use tracing::info;
 use uuid::Uuid;
 
 pub trait CliContext {
     type OrchestratorClient: orchestrator::Client;
+    type KubeClient: kubernetes::Client;
 
     fn orchestrator_client(&self) -> &Self::OrchestratorClient;
+
+    fn kube_client(&self) -> &Self::KubeClient;
 
     /// Run a shell [Command] to completion.
     ///
@@ -62,10 +66,11 @@ pub trait CliContext {
 
 pub struct EnvironmentContext {
     orchestrator_client: orchestrator::HttpClient,
+    kube_client: kubernetes::HttpClient,
 }
 
 impl EnvironmentContext {
-    pub fn from_environment() -> anyhow::Result<Self> {
+    pub async fn from_environment(kubeconfig: Option<&Path>) -> anyhow::Result<Self> {
         let orchestrator_url = env::var(ORCHESTRATOR_URL_ENV_VAR)
             .context(format!("{ORCHESTRATOR_URL_ENV_VAR} must be set"))?;
 
@@ -77,36 +82,50 @@ impl EnvironmentContext {
             })?;
 
         let orchestrator_client = orchestrator::HttpClient::new(orchestrator_url, execution_id);
+        let kube_client = kubernetes::HttpClient::from_kubeconfig(kubeconfig).await?;
 
         Ok(Self {
             orchestrator_client,
+            kube_client,
         })
     }
 }
 
 impl CliContext for EnvironmentContext {
     type OrchestratorClient = orchestrator::HttpClient;
+    type KubeClient = kubernetes::HttpClient;
 
     fn orchestrator_client(&self) -> &Self::OrchestratorClient {
         &self.orchestrator_client
+    }
+
+    fn kube_client(&self) -> &Self::KubeClient {
+        &self.kube_client
     }
 }
 
 #[cfg(test)]
 pub(crate) mod mocks {
     use super::*;
+    use kubernetes::mocks::MockClient as MockKubeClient;
     use orchestrator::mocks::MockClient as MockOrchestrator;
 
     #[derive(Default)]
     pub struct MockContext {
         pub orchestrator_client: MockOrchestrator,
+        pub kube_client: MockKubeClient,
     }
 
     impl CliContext for MockContext {
         type OrchestratorClient = MockOrchestrator;
+        type KubeClient = MockKubeClient;
 
         fn orchestrator_client(&self) -> &Self::OrchestratorClient {
             &self.orchestrator_client
+        }
+
+        fn kube_client(&self) -> &Self::KubeClient {
+            &self.kube_client
         }
     }
 }
@@ -207,6 +226,7 @@ mod tests {
     async fn run_shell_returns_unrunnable_when_status_update_fails() {
         let ctx = MockContext {
             orchestrator_client: MockOrchestrator::failing(),
+            ..Default::default()
         };
 
         let err = ctx

@@ -1,26 +1,23 @@
 use crate::{
-    commands::{MANAGER_NAME, client_from_kubeconfig},
+    context::CliContext,
     error::{CliError, CliResult},
+    info_status,
+    kubernetes::Client,
 };
 use anyhow::Context;
-use k8s_openapi::api::core::v1::{Secret, ServiceAccount};
-use kube::{
-    Api,
-    api::{ObjectMeta, Patch, PatchParams},
-};
-use serde_json::json;
-use std::collections::BTreeMap;
+use rep_orchestrator_shared::status::Status;
 use std::path::Path;
-use tracing::info;
 
 pub async fn create_pull_secret(
     namespace: &str,
-    kubeconfig_path: &Path,
     docker_config_path: &Path,
+    ctx: &impl CliContext,
 ) -> CliResult<()> {
-    info!("Creating image pull secret in namespace '{namespace}'...");
-
-    let client = client_from_kubeconfig(Some(kubeconfig_path)).await?;
+    info_status!(
+        ctx,
+        Status::Provisioning,
+        "Creating image pull secret in namespace '{namespace}'..."
+    )?;
 
     let docker_config_json = std::fs::read(docker_config_path)
         .with_context(|| {
@@ -31,42 +28,107 @@ pub async fn create_pull_secret(
         })
         .map_err(CliError::unrunnable)?;
 
-    let secret = Secret {
-        metadata: ObjectMeta {
-            name: Some("gcr-secret".to_owned()),
-            namespace: Some(namespace.to_owned()),
-            ..Default::default()
-        },
-        type_: Some("kubernetes.io/dockerconfigjson".to_owned()),
-        data: Some(BTreeMap::from([(
-            ".dockerconfigjson".to_owned(),
-            k8s_openapi::ByteString(docker_config_json),
-        )])),
-        ..Default::default()
-    };
+    let client = ctx.kube_client();
 
-    let secrets: Api<Secret> = Api::namespaced(client.clone(), namespace);
-    secrets
-        .patch(
-            "gcr-secret",
-            &PatchParams::apply(MANAGER_NAME),
-            &Patch::Apply(&secret),
-        )
+    client
+        .create_pull_secret(namespace, docker_config_json)
         .await
         .context("Failed to create pull secret")
         .map_err(CliError::unrunnable)?;
 
-    info!("Patching default service account...");
-    let sa_api: Api<ServiceAccount> = Api::namespaced(client, namespace);
-    let patch = json!({
-        "imagePullSecrets": [{"name": "gcr-secret"}]
-    });
-    sa_api
-        .patch("default", &PatchParams::default(), &Patch::Strategic(patch))
+    info_status!(
+        ctx,
+        Status::Provisioning,
+        "Patching default service account..."
+    )?;
+
+    client
+        .patch_default_service_account(namespace)
         .await
         .context("Failed to patch default service account")
         .map_err(CliError::unrunnable)?;
-    info!("Pull secret created successfully.");
+
+    info_status!(
+        ctx,
+        Status::Provisioning,
+        "Pull secret created successfully."
+    )?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::context::mocks::MockContext;
+    use crate::kubernetes::mocks::{KubeCall, MockClient as MockKubeClient};
+    use crate::orchestrator::mocks::MockClient as MockOrchestrator;
+    use rep_orchestrator_shared::status::Status;
+    use std::path::PathBuf;
+
+    #[tokio::test]
+    async fn full_status_transition() {
+        let ctx = MockContext::default();
+        create_pull_secret("test-ns", &PathBuf::from("/dev/null"), &ctx)
+            .await
+            .unwrap();
+
+        ctx.orchestrator_client().read_updates(|updates| {
+            assert_eq!(updates.len(), 3);
+            assert_eq!(updates[0].status, Status::Provisioning);
+            assert_eq!(updates[1].status, Status::Provisioning);
+            assert_eq!(updates[2].status, Status::Provisioning);
+        });
+    }
+
+    #[tokio::test]
+    async fn calls_kube_operations_in_order() {
+        let ctx = MockContext::default();
+        create_pull_secret("my-ns", &PathBuf::from("/dev/null"), &ctx)
+            .await
+            .unwrap();
+
+        ctx.kube_client.read_calls(|calls| {
+            assert_eq!(
+                calls,
+                &[
+                    KubeCall::ApplyPullSecret {
+                        namespace: "my-ns".to_owned(),
+                    },
+                    KubeCall::PatchDefaultServiceAccount {
+                        namespace: "my-ns".to_owned(),
+                    },
+                ]
+            );
+        });
+    }
+
+    #[tokio::test]
+    async fn kube_failure_stops_after_initial_status() {
+        let ctx = MockContext {
+            kube_client: MockKubeClient::failing(),
+            ..Default::default()
+        };
+        let err = create_pull_secret("test-ns", &PathBuf::from("/dev/null"), &ctx)
+            .await
+            .unwrap_err();
+        assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
+
+        ctx.orchestrator_client().read_updates(|updates| {
+            assert_eq!(updates.len(), 1);
+            assert_eq!(updates[0].status, Status::Provisioning);
+        });
+    }
+
+    #[tokio::test]
+    async fn aborts_on_status_update_failure() {
+        let ctx = MockContext {
+            orchestrator_client: MockOrchestrator::failing(),
+            ..Default::default()
+        };
+        let err = create_pull_secret("test-ns", &PathBuf::from("/dev/null"), &ctx)
+            .await
+            .unwrap_err();
+        assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
+    }
 }

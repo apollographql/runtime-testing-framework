@@ -1,15 +1,13 @@
 use crate::{
-    commands::client_from_kubeconfig,
     context::CliContext,
     error::{CliError, CliResult},
+    info_status,
+    kubernetes::Client,
 };
 use anyhow::{Context, anyhow};
-use k8s_openapi::api::apps::v1::Deployment;
-use kube::{Api, Client};
 use rep_orchestrator_shared::status::Status;
 use std::{collections::HashMap, env::temp_dir, fs, path::Path, process::Command, time::Duration};
 use tokio::time::{Instant, sleep};
-use tracing::info;
 
 const DUPLICATE_ERROR: &str =
     "Encountered a duplicate environment entry in the resolved RTF environment";
@@ -29,7 +27,11 @@ pub async fn deploy_environment(
         .context("Failed to create k8s working directory")
         .map_err(CliError::unrunnable)?;
 
-    info!("Resolving environment docker-compose files...");
+    info_status!(
+        ctx,
+        Status::Resolving,
+        "Resolving environment docker-compose files..."
+    )?;
     let outdir = workdir_path.join("output");
     ctx.run_shell(
         Command::new("rtf")
@@ -42,7 +44,11 @@ pub async fn deploy_environment(
 
     setup_env(&k8s_dir_path, &outdir, ctx).await?;
 
-    info!("Applying manifests to namespace '{namespace}'...");
+    info_status!(
+        ctx,
+        Status::Provisioning,
+        "Applying manifests to namespace '{namespace}'..."
+    )?;
     ctx.run_shell(
         Command::new("kubectl")
             .args(["--kubeconfig", &kubeconfig_path.to_string_lossy()])
@@ -57,9 +63,12 @@ pub async fn deploy_environment(
     )
     .await?;
 
-    let client = client_from_kubeconfig(Some(kubeconfig_path)).await?;
-    wait_for_deployments(&client, namespace, timeout).await?;
-    info!("Environment deployed successfully.");
+    wait_for_deployments(namespace, timeout, ctx).await?;
+    info_status!(
+        ctx,
+        Status::Provisioning,
+        "Environment deployed successfully."
+    )?;
 
     Ok(())
 }
@@ -88,7 +97,11 @@ async fn setup_env(
         .context("Failed to read COMPOSE_FILES file provider output")
         .map_err(CliError::unrunnable)?;
 
-    info!("Converting to kubernetes manifests...");
+    info_status!(
+        ctx,
+        Status::Resolving,
+        "Converting to kubernetes manifests..."
+    )?;
     let mut kompose = build_kompose_command(&compose_files_content, k8s_dir_path, &env_vars);
 
     ctx.run_shell(&mut kompose, Status::Provisioning).await
@@ -141,67 +154,35 @@ fn build_kompose_command(
 
 /// Wait for all Deployments in a namespace to have the Available condition.
 async fn wait_for_deployments(
-    client: &Client,
     namespace: &str,
     timeout_secs: u64,
+    ctx: &impl CliContext,
 ) -> CliResult<()> {
-    let api: Api<Deployment> = Api::namespaced(client.clone(), namespace);
+    let kube = ctx.kube_client();
     let deadline = Instant::now() + Duration::from_secs(timeout_secs);
 
-    info!("Waiting for deployments to become available...");
+    info_status!(
+        ctx,
+        Status::Provisioning,
+        "Waiting for deployments to become available..."
+    )?;
+
     loop {
-        let deployments = api
-            .list(&Default::default())
+        let status = kube
+            .check_deployment_status(namespace)
             .await
             .context("Failed to list deployments")
             .map_err(CliError::unrunnable)?;
 
-        let all_available = deployments.items.iter().all(|deployment| {
-            deployment
-                .status
-                .as_ref()
-                .and_then(|status| status.conditions.as_ref())
-                .is_some_and(|conditions| {
-                    conditions.iter().any(|condition| {
-                        condition.type_ == "Available" && condition.status == "True"
-                    })
-                })
-        });
-
-        if all_available && !deployments.items.is_empty() {
+        if status.total > 0 && status.not_ready.is_empty() {
             return Ok(());
         }
 
         if Instant::now() >= deadline {
-            let not_ready: Vec<_> = deployments
-                .items
+            let not_ready: Vec<_> = status
+                .not_ready
                 .iter()
-                .filter(|deployment| {
-                    !deployment
-                        .status
-                        .as_ref()
-                        .and_then(|status| status.conditions.as_ref())
-                        .is_some_and(|conditions| {
-                            conditions.iter().any(|condition| {
-                                condition.type_ == "Available" && condition.status == "True"
-                            })
-                        })
-                })
-                .filter_map(|deployment| {
-                    deployment.metadata.name.as_ref().map(|name| {
-                        format!(
-                            "{}: {}",
-                            name,
-                            deployment
-                                .status
-                                .as_ref()
-                                .and_then(|status| status.conditions.as_ref())
-                                .and_then(|conditions| conditions.last())
-                                .map(|condition| condition.status.as_str())
-                                .unwrap_or("unknown")
-                        )
-                    })
-                })
+                .map(|d| format!("{}: {}", d.name, d.last_condition_status))
                 .collect();
             return Err(CliError::unrunnable(anyhow!(
                 "Timed out after {timeout_secs}s waiting for deployments: {}",
@@ -216,6 +197,7 @@ async fn wait_for_deployments(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::context::mocks::MockContext;
     use simple_test_case::test_case;
     use std::path::PathBuf;
 
@@ -280,5 +262,12 @@ mod tests {
         let args = extract_kompose_args(&cmd);
         let f_count = args.iter().filter(|a| a.as_str() == "-f").count();
         assert_eq!(f_count, 3);
+    }
+
+    #[tokio::test]
+    async fn wait_for_deployments_returns_ok_when_all_available() {
+        let ctx = MockContext::default();
+        let result = wait_for_deployments("test-ns", 10, &ctx).await;
+        assert!(result.is_ok());
     }
 }

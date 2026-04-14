@@ -2,7 +2,9 @@ mod cli;
 mod commands;
 mod context;
 mod error;
+mod kubernetes;
 mod orchestrator;
+mod status;
 
 use crate::{
     context::{CliContext, EnvironmentContext},
@@ -24,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
         bail!("unable to initialise logging: {e}");
     };
 
-    let ctx = match EnvironmentContext::from_environment() {
+    let ctx = match EnvironmentContext::from_environment(command.kubeconfig()).await {
         Err(e) => {
             bail!("unable to initialize REP Orchestrator CLI: {e}");
         }
@@ -36,16 +38,15 @@ async fn main() -> anyhow::Result<()> {
 
 async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Result<()> {
     let res = match command {
-        Command::CreateNamespace {
-            namespace,
-            kubeconfig: kubeconfig_path,
-        } => commands::create_namespace(&namespace, &kubeconfig_path).await,
+        Command::CreateNamespace { namespace, .. } => {
+            commands::create_namespace(&namespace, ctx).await
+        }
 
         Command::CreatePullSecret {
             namespace,
-            kubeconfig: kubeconfig_path,
             docker_config: docker_config_path,
-        } => commands::create_pull_secret(&namespace, &kubeconfig_path, &docker_config_path).await,
+            ..
+        } => commands::create_pull_secret(&namespace, &docker_config_path, ctx).await,
 
         Command::DeployEnvironment {
             namespace,
@@ -66,7 +67,7 @@ async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Result<
         Command::Cleanup {
             configmap,
             namespace,
-        } => commands::cleanup(&configmap, &namespace).await,
+        } => commands::cleanup(&configmap, &namespace, ctx).await,
     };
 
     match res {
@@ -85,12 +86,13 @@ async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Result<
 mod tests {
     use super::*;
     use crate::context::mocks::MockContext;
+    use crate::kubernetes::mocks::MockClient as MockKubeClient;
     use crate::orchestrator::mocks::MockClient as MockOrchestrator;
     use rep_orchestrator_shared::status::Status;
     use simple_test_case::test_case;
     use std::path::PathBuf;
 
-    fn failing_create_namespace() -> Command {
+    fn create_namespace_command() -> Command {
         Command::CreateNamespace {
             namespace: "test-ns".to_owned(),
             kubeconfig: PathBuf::from("/dev/null"),
@@ -99,41 +101,47 @@ mod tests {
 
     enum FailingClient {
         Orchestrator,
+        Kube,
     }
 
-    fn build_context(failing_client: Option<FailingClient>) -> MockContext {
+    fn build_context(failing_client: FailingClient) -> MockContext {
         match failing_client {
-            Some(FailingClient::Orchestrator) => MockContext {
+            FailingClient::Orchestrator => MockContext {
                 orchestrator_client: MockOrchestrator::failing(),
+                ..Default::default()
             },
-            None => MockContext::default(),
+            FailingClient::Kube => MockContext {
+                kube_client: MockKubeClient::failing(),
+                ..Default::default()
+            },
         }
     }
 
     #[tokio::test]
     async fn command_error_triggers_status_update() {
-        let ctx = MockContext::default();
-        let result = run_command(failing_create_namespace(), &ctx).await;
+        let ctx = build_context(FailingClient::Kube);
+        let result = run_command(create_namespace_command(), &ctx).await;
 
         assert!(result.is_err());
         ctx.orchestrator_client().read_updates(|updates| {
-            assert_eq!(updates.len(), 1);
-            assert_eq!(updates[0].status, Status::Unrunnable);
+            assert_eq!(updates.len(), 2);
+            assert_eq!(updates[0].status, Status::Provisioning);
+            assert_eq!(updates[1].status, Status::Unrunnable);
         });
     }
 
-    #[test_case(None; "command error propagated to caller")]
-    #[test_case(Some(FailingClient::Orchestrator); "status update failure does not mask command error")]
+    #[test_case(FailingClient::Kube, "Failed to create kube namespace"; "command error propagated to caller")]
+    #[test_case(FailingClient::Orchestrator, "mock update failure"; "status update failure does not mask command error")]
     #[tokio::test]
-    async fn error_message_contains_original_cause(failing_client: Option<FailingClient>) {
+    async fn error_message_contains_original_cause(failing_client: FailingClient, expected: &str) {
         let ctx = build_context(failing_client);
-        let err = run_command(failing_create_namespace(), &ctx)
+        let err = run_command(create_namespace_command(), &ctx)
             .await
             .unwrap_err();
 
         assert!(
-            err.to_string().contains("failed to build kube config"),
-            "expected kubeconfig error: {err}"
+            err.to_string().contains(expected),
+            "expected '{expected}' in error: {err}"
         );
     }
 }
