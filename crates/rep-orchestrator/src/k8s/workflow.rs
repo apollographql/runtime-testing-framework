@@ -7,10 +7,24 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+const TTL_SECONDS_AFTER_FINISHED: i32 = 3600; // cleanup after 1h
+
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct WorkflowStatus {
     pub phase: Option<String>, // Pending | Running | Succeeded | Failed | Error
     pub message: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TtlStrategy {
+    pub seconds_after_completion: Option<i32>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PodGC {
+    pub strategy: String,
 }
 
 #[derive(CustomResource, Default, Debug, Clone, Deserialize, Serialize, JsonSchema)]
@@ -29,6 +43,8 @@ pub struct WorkflowSpec {
     pub on_exit: String,
     pub templates: Vec<TemplateDef>,
     pub volumes: Vec<Volume>,
+    pub ttl_strategy: Option<TtlStrategy>,
+    pub pod_g_c: Option<PodGC>,
 }
 
 impl WorkflowSpec {
@@ -60,6 +76,14 @@ impl WorkflowSpec {
                 }),
                 ..Default::default()
             }],
+            ttl_strategy: Some(TtlStrategy {
+                seconds_after_completion: Some(TTL_SECONDS_AFTER_FINISHED),
+            }),
+            // Delete the workflow pods if the workflow succeeds
+            // Retains failed pods for debugging
+            pod_g_c: Some(PodGC {
+                strategy: "OnWorkflowSuccess".to_string(),
+            }),
         }
     }
 }
