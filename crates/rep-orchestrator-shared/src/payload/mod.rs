@@ -8,6 +8,9 @@ mod trigger;
 pub use trigger::TriggerPayload;
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct GenerateUploadUrlsPayload {}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SetStatusPayload {
     pub status: Status,
     #[serde(default)]

@@ -1,4 +1,5 @@
 #![warn(clippy::undocumented_unsafe_blocks)]
+use crate::gcs::GCSClient;
 use axum::{
     Router,
     routing::{get, post},
@@ -13,6 +14,7 @@ pub mod db;
 pub mod endpoints;
 pub mod error;
 pub mod event_loop;
+pub mod gcs;
 pub mod k8s;
 pub mod resolver;
 pub mod state;
@@ -33,7 +35,8 @@ pub async fn run_server() -> error::Result<()> {
 
     let (event_queue, prov_handle, eq_state, rx) =
         EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
-    let state = ServerState::new(eq_state);
+    let gcs_client = GCSClient::new_from_config(cfg).await?;
+    let state = ServerState::new(eq_state, gcs_client);
 
     tokio::spawn(resolver::resolver_task(rx, prov_handle));
     tokio::spawn(event_loop::event_loop_task(event_queue));
@@ -48,10 +51,24 @@ pub async fn run_server() -> error::Result<()> {
 }
 
 fn build_routes(state: ServerState) -> Router {
-    use endpoints::{execution_status, health, run_status, trigger};
+    use endpoints::{
+        execution_artifacts, execution_status, generate_upload_urls, health, run_status, trigger,
+    };
 
     Router::new()
         .route("/health", get(health::handler))
+        .route(
+            "/test-execution/{id}/generate-upload-urls",
+            post(generate_upload_urls::handler),
+        )
+        .route(
+            "/test-execution/{id}/log.txt",
+            get(execution_artifacts::log_file_handler),
+        )
+        .route(
+            "/test-execution/{id}/output.zip",
+            get(execution_artifacts::output_zip_handler),
+        )
         .route(
             "/test-execution/{id}/status",
             get(execution_status::get_handler).post(execution_status::post_handler),
@@ -77,14 +94,25 @@ mod test_helpers {
 
     impl TestServerState {
         pub fn new() -> Self {
-            Self::new_with_config(Config::get())
+            Self::new_with_params(
+                Config::get(),
+                GCSClient::new_mock("base_url", "bucket", None),
+            )
+        }
+
+        pub fn new_with_gcs_client(gcs_client: GCSClient) -> Self {
+            Self::new_with_params(Config::get(), gcs_client)
         }
 
         pub fn new_with_config(cfg: &Config) -> Self {
+            Self::new_with_params(cfg, GCSClient::new_mock("base_url", "bucket", None))
+        }
+
+        pub fn new_with_params(cfg: &Config, gcs_client: GCSClient) -> Self {
             let (_, _, eq_state, resolver_rx) =
                 EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
 
-            let state = ServerState::new(eq_state);
+            let state = ServerState::new(eq_state, gcs_client);
             let test_server = TestServer::new(build_routes(state));
 
             Self {

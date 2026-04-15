@@ -15,7 +15,19 @@ pub enum Error {
     Db(#[from] crate::db::Error),
 
     #[error(transparent)]
+    Gcs(#[from] crate::gcs::Error),
+
+    #[error(transparent)]
     Io(#[from] io::Error),
+
+    #[error("file upload has already been requested for this execution")]
+    FileUploadAlreadyRequested,
+
+    #[error("no file upload available for this execution")]
+    FileUploadNotAvailable,
+
+    #[error("files not ready for download")]
+    FileUploadNotReady,
 
     #[error("insufficient queue capacity")]
     InsufficientCapacity,
@@ -47,12 +59,28 @@ impl IntoResponse for Error {
         let msg = self.to_string();
 
         let raw = match self {
-            Self::MissingExitCode
+            Self::FileUploadAlreadyRequested
+            | Self::MissingExitCode
             | Self::InvalidFailedExitCode
             | Self::InvalidExitCode { .. }
             | Self::InvalidExecutionStatus { .. } => (
                 StatusCode::BAD_REQUEST,
                 Json(json!({ "error": "BAD_REQUEST", "message": msg })),
+            ),
+
+            Self::FileUploadNotAvailable => (
+                StatusCode::NOT_FOUND,
+                Json(json!({ "error": "NOT_FOUND", "message": msg })),
+            ),
+
+            Self::FileUploadNotReady => (
+                StatusCode::CONFLICT,
+                Json(json!({ "error": "CONFLICT", "message": msg })),
+            ),
+
+            Self::InsufficientCapacity => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({ "error": "SERVICE_UNAVAILABLE", "message": msg })),
             ),
 
             Self::UnknownTestExecution { id } => (
@@ -63,11 +91,6 @@ impl IntoResponse for Error {
             Self::UnknownTestRun { id } => (
                 StatusCode::NOT_FOUND,
                 Json(json!({ "error": "NOT_FOUND", "id": id, "message": msg })),
-            ),
-
-            Self::InsufficientCapacity => (
-                StatusCode::SERVICE_UNAVAILABLE,
-                Json(json!({ "error": "SERVICE_UNAVAILABLE", "message": "execution queue full" })),
             ),
 
             _ => (

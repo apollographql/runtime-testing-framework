@@ -3,6 +3,10 @@ image:
   tag: latest
   pullPolicy: Never
 
+gcs:
+  bucket: "rtf-local"
+  mockUrl: "mock-gcs"
+
 config:
   logLevel: "info,hyper=error,rep_orchestrator=debug"
 
