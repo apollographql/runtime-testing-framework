@@ -2,6 +2,7 @@
 use crate::{
     Error, Result, conn,
     db::{Status, StatusTracked, TestExecution},
+    endpoints::BearerToken,
 };
 use axum::{Json, extract::Path};
 use rep_orchestrator_shared::{
@@ -20,8 +21,8 @@ pub async fn get_handler(Path(id): Path<Uuid>) -> Result<Json<TestExecutionSumma
     }
 }
 
-// TODO: This endpoint needs to be authenticated
 pub async fn post_handler(
+    auth: BearerToken,
     Path(id): Path<Uuid>,
     Json(payload): Json<SetStatusPayload>,
 ) -> Result<Json<SharedStatusUpdate>> {
@@ -29,8 +30,10 @@ pub async fn post_handler(
 
     let mut ex = match TestExecution::get_by_uuid(&id, conn).await? {
         Some(ex) => ex,
-        None => return Err(Error::UnknownTestExecution { id }),
+        None => return Err(Error::Unauthorized),
     };
+
+    auth.verify(ex.token())?;
 
     let current = ex.current_status(conn).await?;
     validate(&payload, current.status.into())?;
@@ -84,8 +87,13 @@ mod tests {
     use super::*;
     use crate::{db::TestRun, test_helpers::TestServerState};
     use SharedStatus::*;
+    use axum::http::{HeaderValue, header::AUTHORIZATION};
     use reqwest::StatusCode;
     use simple_test_case::test_case;
+
+    fn bearer(token: &Uuid) -> HeaderValue {
+        HeaderValue::from_str(&format!("Bearer {token}")).unwrap()
+    }
 
     // valid
     #[test_case(Running, None, Ok(()); "valid non-error")]
@@ -193,10 +201,11 @@ mod tests {
         payloads: &[SetStatusPayload],
     ) -> anyhow::Result<()> {
         let tss = TestServerState::new();
-        let ex_id = {
+        let (ex_id, token) = {
             let conn = conn!();
             let tr = TestRun::init("test", conn).await?;
-            tr.init_execution("test", conn).await?.uuid()
+            let ex = tr.init_execution("test", conn).await?;
+            (ex.uuid(), ex.token().to_owned())
         };
 
         // This isn't the true update sequence for a happy-path test execution going through the
@@ -208,6 +217,7 @@ mod tests {
             let resp = tss
                 .test_server
                 .post(&format!("/test-execution/{ex_id}/status"))
+                .add_header(AUTHORIZATION, bearer(&token))
                 .json(payload)
                 .await;
 
@@ -249,16 +259,18 @@ mod tests {
         invalid_payload: SetStatusPayload,
     ) -> anyhow::Result<()> {
         let tss = TestServerState::new();
-        let ex_id = {
+        let (ex_id, token) = {
             let conn = conn!();
             let tr = TestRun::init("test", conn).await?;
-            tr.init_execution("test", conn).await?.uuid()
+            let ex = tr.init_execution("test", conn).await?;
+            (ex.uuid(), ex.token().to_owned())
         };
 
         for (i, payload) in valid_payloads.iter().enumerate() {
             let resp = tss
                 .test_server
                 .post(&format!("/test-execution/{ex_id}/status"))
+                .add_header(AUTHORIZATION, bearer(&token))
                 .json(payload)
                 .await;
 
@@ -271,6 +283,7 @@ mod tests {
         let resp = tss
             .test_server
             .post(&format!("/test-execution/{ex_id}/status"))
+            .add_header(AUTHORIZATION, bearer(&token))
             .json(&invalid_payload)
             .await;
 
@@ -288,15 +301,17 @@ mod tests {
     #[tokio::test]
     async fn post_handler_sets_exit_code_for_failed_status() -> anyhow::Result<()> {
         let tss = TestServerState::new();
-        let ex_id = {
+        let (ex_id, token) = {
             let conn = conn!();
             let tr = TestRun::init("test", conn).await?;
-            tr.init_execution("test", conn).await?.uuid()
+            let ex = tr.init_execution("test", conn).await?;
+            (ex.uuid(), ex.token().to_owned())
         };
 
         let resp = tss
             .test_server
             .post(&format!("/test-execution/{ex_id}/status"))
+            .add_header(AUTHORIZATION, bearer(&token))
             .json(&su(Failed, Some(42)))
             .await;
 
@@ -314,6 +329,81 @@ mod tests {
         let summary: TestExecutionSummary = resp.json();
 
         assert_eq!(summary.exit_code, Some(42));
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn post_handler_returns_403_without_token() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let conn = conn!();
+        let tr = TestRun::init("test", conn).await?;
+        tr.init_execution("test", conn).await?;
+
+        let resp = tss
+            .test_server
+            .post(&format!("/test-execution/{}/status", Uuid::new_v4()))
+            .json(&su(Running, None))
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::FORBIDDEN);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn post_handler_returns_403_for_unknown_execution() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+
+        let resp = tss
+            .test_server
+            .post(&format!("/test-execution/{}/status", Uuid::new_v4()))
+            .json(&su(Running, None))
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::FORBIDDEN);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn post_handler_returns_403_with_wrong_token() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let ex_id = {
+            let conn = conn!();
+            let tr = TestRun::init("test", conn).await?;
+            tr.init_execution("test", conn).await?.uuid()
+        };
+
+        let resp = tss
+            .test_server
+            .post(&format!("/test-execution/{ex_id}/status"))
+            .add_header(AUTHORIZATION, bearer(&Uuid::new_v4()))
+            .json(&su(Running, None))
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::FORBIDDEN);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn get_handler_does_not_require_token() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let conn = conn!();
+        let tr = TestRun::init("test", conn).await?;
+        let ex_id = tr.init_execution("test", conn).await?.uuid();
+
+        let resp = tss
+            .test_server
+            .get(&format!("/test-execution/{ex_id}/status"))
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::OK);
 
         Ok(())
     }

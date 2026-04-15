@@ -50,6 +50,9 @@ pub enum Error {
     #[error("{id} is not a known test execution ID")]
     UnknownTestExecution { id: Uuid },
 
+    #[error("not authorized for this execution")]
+    Unauthorized,
+
     #[error("{id} is not a known test run ID")]
     UnknownTestRun { id: Uuid },
 }
@@ -81,6 +84,11 @@ impl IntoResponse for Error {
             Self::InsufficientCapacity => (
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(json!({ "error": "SERVICE_UNAVAILABLE", "message": msg })),
+            ),
+
+            Self::Unauthorized => (
+                StatusCode::FORBIDDEN,
+                Json(json!({ "error": "FORBIDDEN", "message": msg })),
             ),
 
             Self::UnknownTestExecution { id } => (

@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS test_execution (
     id SERIAL PRIMARY KEY,
     uuid UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
+    token UUID NOT NULL DEFAULT gen_random_uuid(),
     test_run_id INT NOT NULL,
     exit_code INT,
     started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
