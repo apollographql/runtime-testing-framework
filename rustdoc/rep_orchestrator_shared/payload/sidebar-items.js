@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["SetStatusPayload","SourceKey","SourceKeyedArrayMap","TriggerPayload"]};
+window.SIDEBAR_ITEMS = {"struct":["GenerateUploadUrlsPayload","SetStatusPayload","SourceKey","SourceKeyedArrayMap","TriggerPayload"]};

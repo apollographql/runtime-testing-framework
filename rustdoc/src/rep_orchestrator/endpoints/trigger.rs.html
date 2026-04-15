@@ -3,7 +3,7 @@
 <a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>rep_orchestrator_shared::{payload::TriggerPayload, summary::TestRunSummary};
 <a href=#4 id=4 data-nosnippet>4</a>
 <a href=#5 id=5 data-nosnippet>5</a><span class="kw">pub async fn </span>handler(
-<a href=#6 id=6 data-nosnippet>6</a>    State(ServerState { eq_state }): State&lt;ServerState&gt;,
+<a href=#6 id=6 data-nosnippet>6</a>    State(ServerState { eq_state, .. }): State&lt;ServerState&gt;,
 <a href=#7 id=7 data-nosnippet>7</a>    Json(payload): Json&lt;TriggerPayload&gt;,
 <a href=#8 id=8 data-nosnippet>8</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Json&lt;TestRunSummary&gt;, Error&gt; {
 <a href=#9 id=9 data-nosnippet>9</a>    <span class="kw">let </span>claim = eq_state
