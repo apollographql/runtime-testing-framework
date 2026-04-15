@@ -15,6 +15,9 @@ pub enum Error {
     Db(#[from] crate::db::Error),
 
     #[error(transparent)]
+    Gcs(#[from] crate::gcs::Error),
+
+    #[error(transparent)]
     Io(#[from] io::Error),
 
     #[error("insufficient queue capacity")]

@@ -22,6 +22,8 @@ db-tests:
 		RTF_KUBECONFIG_PATH=dummy \
 		RTF_MGMT_CONTEXT=dummy \
 		RTF_WORKLOAD_CONTEXT=dummy \
+		RTF_GCS_BUCKET=dummy \
+		RTF_MOCK_GCS_URL="localhost:8035" \
 		cargo test --lib --features db_tests $(ARGS)
 
 .PHONY: integration-tests
@@ -36,6 +38,8 @@ integration-tests: clear-db-data
 		RTF_KUBECONFIG_PATH=$(HOME)/.kube/config \
 		RTF_MGMT_CONTEXT=kind-rtf-mgmt \
 		RTF_WORKLOAD_CONTEXT=kind-rtf-workload \
+		RTF_GCS_BUCKET=dummy \
+		RTF_MOCK_GCS_URL="localhost:8035" \
 		cargo test --features k8s_tests --test '*' $(ARGS)
 
 .PHONY: test-all

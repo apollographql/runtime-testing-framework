@@ -1,4 +1,5 @@
 #![warn(clippy::undocumented_unsafe_blocks)]
+use crate::gcs::GCSClient;
 use axum::{
     Router,
     routing::{get, post},
@@ -34,7 +35,8 @@ pub async fn run_server() -> error::Result<()> {
 
     let (event_queue, prov_handle, eq_state, rx) =
         EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
-    let state = ServerState::new(eq_state);
+    let gcs_client = GCSClient::new_from_config(cfg).await?;
+    let state = ServerState::new(eq_state, gcs_client);
 
     tokio::spawn(resolver::resolver_task(rx, prov_handle));
     tokio::spawn(event_loop::event_loop_task(event_queue));
@@ -85,7 +87,7 @@ mod test_helpers {
             let (_, _, eq_state, resolver_rx) =
                 EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
 
-            let state = ServerState::new(eq_state);
+            let state = ServerState::new(eq_state, GCSClient::new_mock("base_url", "bucket"));
             let test_server = TestServer::new(build_routes(state));
 
             Self {

@@ -3,7 +3,7 @@ use axum::{Json, extract::State};
 use rep_orchestrator_shared::{payload::TriggerPayload, summary::TestRunSummary};
 
 pub async fn handler(
-    State(ServerState { eq_state }): State<ServerState>,
+    State(ServerState { eq_state, .. }): State<ServerState>,
     Json(payload): Json<TriggerPayload>,
 ) -> Result<Json<TestRunSummary>, Error> {
     let claim = eq_state
