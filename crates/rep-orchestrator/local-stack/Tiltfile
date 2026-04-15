@@ -195,7 +195,7 @@ k8s_resource(
 if run_orchestrator_tests:
     local_resource(
         "orchestrator-tests",
-        cmd="./run-orchestrator-tests.sh",
+        cmd="make -C ../ test-all",
         resource_deps=["rep-orchestrator"],
         labels=["test"],
     )
