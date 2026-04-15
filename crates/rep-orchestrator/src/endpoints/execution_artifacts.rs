@@ -4,6 +4,7 @@ use axum::{
     extract::{Path, State},
     response::Redirect,
 };
+use sqlx::PgConnection;
 use uuid::Uuid;
 
 /// Download and return the string content of the uploaded log file
@@ -11,19 +12,7 @@ pub async fn log_file_handler(
     Path(id): Path<Uuid>,
     State(ServerState { gcs_client, .. }): State<ServerState>,
 ) -> Result<String> {
-    let conn = conn!();
-
-    let ex = match TestExecution::get_by_uuid(&id, conn).await? {
-        Some(ex) => ex,
-        None => return Err(Error::UnknownTestExecution { id }),
-    };
-
-    if !ex.has_file_upload() {
-        return Err(Error::FileUploadNotAvailable);
-    } else if !ex.is_complete() {
-        return Err(Error::FileUploadNotReady);
-    }
-
+    let ex = get_validated_execution(id, conn!()).await?;
     let bytes = gcs_client
         .download_bytes(ex.log_file_gcs_object_name())
         .await?;
@@ -36,8 +25,15 @@ pub async fn output_zip_handler(
     Path(id): Path<Uuid>,
     State(ServerState { gcs_client, .. }): State<ServerState>,
 ) -> Result<Redirect> {
-    let conn = conn!();
+    let ex = get_validated_execution(id, conn!()).await?;
+    let url = gcs_client
+        .signed_download_url(ex.output_zip_gcs_object_name())
+        .await?;
 
+    Ok(Redirect::temporary(&url))
+}
+
+async fn get_validated_execution(id: Uuid, conn: &mut PgConnection) -> Result<TestExecution> {
     let ex = match TestExecution::get_by_uuid(&id, conn).await? {
         Some(ex) => ex,
         None => return Err(Error::UnknownTestExecution { id }),
@@ -49,11 +45,7 @@ pub async fn output_zip_handler(
         return Err(Error::FileUploadNotReady);
     }
 
-    let url = gcs_client
-        .signed_download_url(ex.output_zip_gcs_object_name())
-        .await?;
-
-    Ok(Redirect::temporary(&url))
+    Ok(ex)
 }
 
 #[cfg(test)]
