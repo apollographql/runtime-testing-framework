@@ -4,7 +4,9 @@ use crate::db::{
     test_run::TestRun,
 };
 use chrono::{DateTime, Utc};
-use rep_orchestrator_shared::summary::TestExecutionSummary;
+use rep_orchestrator_shared::{
+    status::StatusUpdate as SharedStatusUpdate, summary::TestExecutionSummary,
+};
 use sqlx::{Executor, FromRow, PgConnection};
 use uuid::Uuid;
 
@@ -22,6 +24,7 @@ pub struct TestExecution {
     exit_code: Option<i32>,
     started_at: DateTime<Utc>,
     completed_at: Option<DateTime<Utc>>,
+    has_file_upload: bool,
 }
 
 impl Queryable for TestExecution {
@@ -50,6 +53,10 @@ impl TestExecution {
         self.uuid
     }
 
+    pub fn has_file_upload(&self) -> bool {
+        self.has_file_upload
+    }
+
     #[cfg(test)]
     pub fn create_stub(id: i32, test_run_id: i32, name: &str) -> Self {
         Self {
@@ -60,6 +67,7 @@ impl TestExecution {
             exit_code: None,
             started_at: Utc::now(),
             completed_at: None,
+            has_file_upload: false,
         }
     }
 
@@ -76,7 +84,7 @@ impl TestExecution {
         let ex: TestExecution = sqlx::query_as(
             "INSERT INTO test_execution (test_run_id, name)
              VALUES ($1, $2)
-             RETURNING id, uuid, test_run_id, name, exit_code, started_at, completed_at;
+             RETURNING id, uuid, test_run_id, name, exit_code, started_at, completed_at, has_file_upload;
             ",
         )
         .bind(test_run_id)
@@ -102,14 +110,25 @@ impl TestExecution {
         Ok(())
     }
 
+    pub async fn mark_has_file_upload(&mut self, conn: &mut PgConnection) -> Result<()> {
+        conn.execute(
+            sqlx::query("UPDATE test_execution SET has_file_upload = true WHERE id = $1;")
+                .bind(self.id),
+        )
+        .await?;
+
+        self.has_file_upload = true;
+
+        Ok(())
+    }
+
     pub async fn test_run(&self, conn: &mut PgConnection) -> Result<TestRun> {
         TestRun::get_by_id_unchecked(self.test_run_id, conn).await
     }
 
     pub async fn try_into_summary(self, conn: &mut PgConnection) -> Result<TestExecutionSummary> {
         let status_history = self.status_history(conn).await?;
-        let current: rep_orchestrator_shared::status::StatusUpdate =
-            self.current_status(conn).await?.into();
+        let current: SharedStatusUpdate = self.current_status(conn).await?.into();
 
         Ok(TestExecutionSummary {
             id: self.uuid,
@@ -220,6 +239,25 @@ mod tests {
 
         let queried = TestExecution::get_by_id_unchecked(ex1.id, c).await?;
         assert_eq!(queried.exit_code, Some(42), "queried struct: {queried:?}");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn mark_has_file_upload_persists_value() -> Result<()> {
+        let c = conn!();
+
+        let tr = TestRun::init("A", c).await?;
+        let mut ex1 = TestExecution::init("a", tr.id(), c).await?;
+
+        assert!(!ex1.has_file_upload, "after init: {ex1:?}");
+
+        ex1.mark_has_file_upload(c).await?;
+        assert!(ex1.has_file_upload, "updated struct: {ex1:?}");
+
+        let queried = TestExecution::get_by_id_unchecked(ex1.id, c).await?;
+        assert!(queried.has_file_upload, "queried struct: {queried:?}");
 
         Ok(())
     }

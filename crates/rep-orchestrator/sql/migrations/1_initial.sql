@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS test_execution (
     test_run_id INT NOT NULL,
     exit_code INT,
     started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    completed_at TIMESTAMPTZ
+    completed_at TIMESTAMPTZ,
+    has_file_upload BOOLEAN NOT NULL DEFAULT false
 );
 
 -- Status history is tracked over time using the ID of the parent test
