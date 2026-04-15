@@ -25,6 +25,7 @@
 
 - [How-to guides](howto/index.md)
   - [RTF Cookbook](howto/cookbook.md)
+  - [Running test plans in GitHub Actions](howto/github-actions.md)
   - [Troubleshooting](howto/troubleshooting.md)
   - [Generating CLI shell completions](howto/shell-completions.md)
   - [Generating JSON Schemas](howto/json-schemas.md)
