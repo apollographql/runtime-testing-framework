@@ -55,7 +55,7 @@ pub trait Client: Clone + Send + Sync + 'static {
     /// deploying services into it as defined by an RTF Test Plan.
     fn create_argo_workflow(
         &self,
-        name: &str,
+        execution_id: &Uuid,
         spec: WorkflowSpec,
     ) -> impl Future<Output = Result<Workflow>> + Send;
 
@@ -65,6 +65,7 @@ pub trait Client: Clone + Send + Sync + 'static {
         &self,
         ns: &str,
         name: &str,
+        execution_id: &Uuid,
         spec: JobSpec,
     ) -> impl Future<Output = Result<Job>> + Send;
 
@@ -96,6 +97,7 @@ pub enum Cluster {
 pub enum WatchOutcome {
     Succeeded,
     Failed(String),
+    ContainerUnrunnable(String),
     WatcherError(String),
     StreamClosed,
 }
@@ -105,6 +107,9 @@ impl fmt::Display for WatchOutcome {
         match self {
             Self::Succeeded => write!(f, "Succeeded"),
             Self::Failed(msg) => write!(f, "Failed ({msg})"),
+            Self::ContainerUnrunnable(reason) => {
+                write!(f, "pod stuck in unrunnable waiting state: {reason}")
+            }
             Self::WatcherError(msg) => write!(f, "Watcher error ({msg})"),
             Self::StreamClosed => write!(f, "Watcher stream closed unexpectedly"),
         }

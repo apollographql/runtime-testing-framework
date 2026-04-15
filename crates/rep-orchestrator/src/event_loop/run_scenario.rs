@@ -62,6 +62,7 @@ where
         .create_job(
             &namespace,
             SCENARIO_JOB_NAME,
+            &execution_id,
             scenario_job(&execution_id, &scenario),
         )
         .await
@@ -87,30 +88,44 @@ async fn wait_and_update<K>(
     K: k8s::Client,
 {
     let execution_id = test_execution.uuid();
-    let data = match clients
+
+    let data: Vec<EventData> = match clients
         .wait_for_job(namespace, &test_execution.uuid())
         .await
     {
         WatchOutcome::Succeeded => {
             info!(%execution_id, "job completed successfully");
-            EventData::CleanupNamespace
+            vec![EventData::CleanupNamespace]
         }
 
         WatchOutcome::Failed(reason) => {
             warn!(%execution_id, %reason, "job failed");
-            EventData::MarkUnrunnable(WatchOutcome::Failed(reason).to_string())
+            vec![EventData::MarkUnrunnable(
+                WatchOutcome::Failed(reason).to_string(),
+            )]
+        }
+
+        WatchOutcome::ContainerUnrunnable(reason) => {
+            warn!(%execution_id, %reason, "container unrunnable");
+
+            vec![
+                EventData::MarkUnrunnable(reason.to_string()),
+                EventData::CleanupNamespace,
+            ]
         }
 
         outcome => {
             warn!(%execution_id, %outcome, "unable to determine state of job");
-            EventData::MarkUnrunnable(outcome.to_string())
+            vec![EventData::MarkUnrunnable(outcome.to_string())]
         }
     };
 
-    let _ = etx.send(Event {
-        test_execution,
-        data,
-    });
+    for item in data {
+        let _ = etx.send(Event {
+            test_execution: test_execution.clone(),
+            data: item,
+        });
+    }
 }
 
 #[cfg(test)]
@@ -219,6 +234,29 @@ mod tests {
 
         let evt = erx.try_recv().unwrap();
         assert!(matches!(evt.data, EventData::CleanupNamespace), "{evt:?}");
+    }
+
+    #[tokio::test]
+    async fn wait_and_update_submits_mark_unrunnable_and_cleanup_on_container_unrunnable() {
+        let ex = TestExecution::create_stub(1, 1, "test");
+        let clients = MockClient {
+            wait_for_job: Resp::new(WatchOutcome::ContainerUnrunnable("ImagePullBackOff".into())),
+            ..MockClient::default_ok()
+        };
+        let (etx, mut erx) = mpsc::unbounded_channel();
+
+        wait_and_update("test-namespace", ex, &etx, clients).await;
+
+        let first = erx.try_recv().unwrap();
+        let second = erx.try_recv().unwrap();
+        assert!(
+            matches!(first.data, EventData::MarkUnrunnable(_)),
+            "{first:?}"
+        );
+        assert!(
+            matches!(second.data, EventData::CleanupNamespace),
+            "{second:?}"
+        );
     }
 
     #[test_case(WatchOutcome::Failed(String::new()); "failed")]

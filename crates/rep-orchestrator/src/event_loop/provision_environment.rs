@@ -3,7 +3,7 @@ use crate::{
     event_loop::{Error, Event, EventData, Result},
     k8s::{
         self, CLUSTER_API_NAMESPACE, Cluster, ENVIRONMENT_CONFIG_FILENAME, WatchOutcome,
-        WorkflowSpec, env_configmap_name, workflow_name,
+        WorkflowSpec, env_configmap_name,
     },
 };
 use rtf_config::formats::{DockerComposeEnvironment, DockerScenario, EnvironmentConfig};
@@ -59,10 +59,7 @@ where
         .await;
 
     clients
-        .create_argo_workflow(
-            &workflow_name(&execution_id),
-            WorkflowSpec::for_execution_id(&execution_id),
-        )
+        .create_argo_workflow(&execution_id, WorkflowSpec::for_execution_id(&execution_id))
         .await
         .map_err(|error| Error::CreateArgoWorkflow { error })?;
 
@@ -95,6 +92,11 @@ async fn wait_and_update<K>(
         WatchOutcome::Failed(reason) => {
             warn!(%execution_id, %reason, "argo workflow failed");
             EventData::MarkUnrunnable(WatchOutcome::Failed(reason).to_string())
+        }
+
+        WatchOutcome::ContainerUnrunnable(reason) => {
+            warn!(%execution_id, %reason, "container unrunnable");
+            EventData::MarkUnrunnable(WatchOutcome::ContainerUnrunnable(reason).to_string())
         }
 
         outcome => {
@@ -234,6 +236,7 @@ mod tests {
     }
 
     #[test_case(WatchOutcome::Failed(String::new()); "failed")]
+    #[test_case(WatchOutcome::ContainerUnrunnable("ImagePullBackOff".into()); "container unrunnable")]
     #[test_case(WatchOutcome::WatcherError(String::new()); "watch error")]
     #[test_case(WatchOutcome::StreamClosed; "stream closed")]
     #[tokio::test]

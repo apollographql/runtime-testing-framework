@@ -57,7 +57,11 @@ impl Client for MockClient {
         cm.expect("create_configmap called but no result configured")
     }
 
-    async fn create_argo_workflow(&self, _name: &str, _spec: WorkflowSpec) -> Result<Workflow> {
+    async fn create_argo_workflow(
+        &self,
+        _execution_id: &Uuid,
+        _spec: WorkflowSpec,
+    ) -> Result<Workflow> {
         self.create_workflow
             .take()
             .expect("create_argo_workflow called but no result configured")
@@ -69,7 +73,13 @@ impl Client for MockClient {
             .expect("wait_for_workflow called but no outcome configured")
     }
 
-    async fn create_job(&self, _ns: &str, _name: &str, _spec: JobSpec) -> Result<Job> {
+    async fn create_job(
+        &self,
+        _ns: &str,
+        _name: &str,
+        _execution_id: &Uuid,
+        _spec: JobSpec,
+    ) -> Result<Job> {
         self.create_job
             .take()
             .expect("create_job called but no outcome configured")
