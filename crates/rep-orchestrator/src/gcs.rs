@@ -26,13 +26,13 @@ pub enum Error {
 /// Trait for a GCS client capable of producing pre-signed upload and download URLs.
 pub trait Client: Send + Sync + 'static {
     /// Return a pre-signed URL that allows a PUT of the given object into this client's bucket.
-    fn signed_upload_url(&self, object: &str) -> impl Future<Output = Result<String>> + Send;
+    fn signed_upload_url(&self, object: String) -> impl Future<Output = Result<String>> + Send;
 
     /// Return a pre-signed URL that allows a GET of the given object from this client's bucket.
-    fn signed_download_url(&self, object: &str) -> impl Future<Output = Result<String>> + Send;
+    fn signed_download_url(&self, object: String) -> impl Future<Output = Result<String>> + Send;
 
     /// Download the contents of an object as raw bytes.
-    fn download_bytes(&self, object: &str) -> impl Future<Output = Result<Vec<u8>>> + Send;
+    fn download_bytes(&self, object: String) -> impl Future<Output = Result<Vec<u8>>> + Send;
 }
 
 #[derive(Debug, Clone)]
@@ -43,7 +43,7 @@ pub struct RealClient {
 }
 
 impl Client for RealClient {
-    async fn signed_upload_url(&self, object: &str) -> Result<String> {
+    async fn signed_upload_url(&self, object: String) -> Result<String> {
         let url = SignedUrlBuilder::for_object(&self.bucket, object)
             .with_method(http::Method::PUT)
             .with_expiration(self.ttl)
@@ -53,7 +53,7 @@ impl Client for RealClient {
         Ok(url)
     }
 
-    async fn signed_download_url(&self, object: &str) -> Result<String> {
+    async fn signed_download_url(&self, object: String) -> Result<String> {
         let url = SignedUrlBuilder::for_object(&self.bucket, object)
             .with_method(http::Method::GET)
             .with_expiration(self.ttl)
@@ -63,7 +63,7 @@ impl Client for RealClient {
         Ok(url)
     }
 
-    async fn download_bytes(&self, object: &str) -> Result<Vec<u8>> {
+    async fn download_bytes(&self, object: String) -> Result<Vec<u8>> {
         let client = Storage::builder()
             .build()
             .await
@@ -92,21 +92,21 @@ impl MockClient {
         Self { base_url, bucket }
     }
 
-    fn url_for_object(&self, object: &str) -> String {
+    fn url_for_object(&self, object: String) -> String {
         format!("{}/{}/{object}", self.base_url, self.bucket)
     }
 }
 
 impl Client for MockClient {
-    async fn signed_upload_url(&self, object: &str) -> Result<String> {
+    async fn signed_upload_url(&self, object: String) -> Result<String> {
         Ok(self.url_for_object(object))
     }
 
-    async fn signed_download_url(&self, object: &str) -> Result<String> {
+    async fn signed_download_url(&self, object: String) -> Result<String> {
         Ok(self.url_for_object(object))
     }
 
-    async fn download_bytes(&self, object: &str) -> Result<Vec<u8>> {
+    async fn download_bytes(&self, object: String) -> Result<Vec<u8>> {
         // (innes) The timeout error stuff here is a little silly, but it allows us to avoid adding
         // a mock-only variant to Error.
 
@@ -162,21 +162,21 @@ impl GCSClient {
 }
 
 impl Client for GCSClient {
-    async fn signed_upload_url(&self, object: &str) -> Result<String> {
+    async fn signed_upload_url(&self, object: String) -> Result<String> {
         match self {
             Self::Real(c) => c.signed_upload_url(object).await,
             Self::Mock(c) => c.signed_upload_url(object).await,
         }
     }
 
-    async fn signed_download_url(&self, object: &str) -> Result<String> {
+    async fn signed_download_url(&self, object: String) -> Result<String> {
         match self {
             Self::Real(c) => c.signed_download_url(object).await,
             Self::Mock(c) => c.signed_download_url(object).await,
         }
     }
 
-    async fn download_bytes(&self, object: &str) -> Result<Vec<u8>> {
+    async fn download_bytes(&self, object: String) -> Result<Vec<u8>> {
         match self {
             Self::Real(c) => c.download_bytes(object).await,
             Self::Mock(c) => c.download_bytes(object).await,

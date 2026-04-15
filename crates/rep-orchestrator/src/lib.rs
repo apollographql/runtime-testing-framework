@@ -51,10 +51,14 @@ pub async fn run_server() -> error::Result<()> {
 }
 
 fn build_routes(state: ServerState) -> Router {
-    use endpoints::{execution_status, health, run_status, trigger};
+    use endpoints::{execution_status, generate_upload_urls, health, run_status, trigger};
 
     Router::new()
         .route("/health", get(health::handler))
+        .route(
+            "/test-execution/{id}/generate-upload-urls",
+            post(generate_upload_urls::handler),
+        )
         .route(
             "/test-execution/{id}/status",
             get(execution_status::get_handler).post(execution_status::post_handler),

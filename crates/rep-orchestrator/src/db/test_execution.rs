@@ -57,6 +57,14 @@ impl TestExecution {
         self.has_file_upload
     }
 
+    pub fn log_file_gcs_object_name(&self) -> String {
+        format!("{}/log.txt", self.uuid)
+    }
+
+    pub fn output_zip_gcs_object_name(&self) -> String {
+        format!("{}/output.zip", self.uuid)
+    }
+
     #[cfg(test)]
     pub fn create_stub(id: i32, test_run_id: i32, name: &str) -> Self {
         Self {

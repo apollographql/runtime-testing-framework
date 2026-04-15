@@ -20,6 +20,9 @@ pub enum Error {
     #[error(transparent)]
     Io(#[from] io::Error),
 
+    #[error("file upload has already been requested for this execution")]
+    FileUploadAlreadyRequested,
+
     #[error("insufficient queue capacity")]
     InsufficientCapacity,
 
@@ -50,7 +53,8 @@ impl IntoResponse for Error {
         let msg = self.to_string();
 
         let raw = match self {
-            Self::MissingExitCode
+            Self::FileUploadAlreadyRequested
+            | Self::MissingExitCode
             | Self::InvalidFailedExitCode
             | Self::InvalidExitCode { .. }
             | Self::InvalidExecutionStatus { .. } => (
