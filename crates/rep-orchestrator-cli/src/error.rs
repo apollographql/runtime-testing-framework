@@ -110,65 +110,60 @@ impl Display for CliError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use simple_test_case::test_case;
     use std::os::unix::process::ExitStatusExt;
 
     fn exit_code(code: i32) -> ExitStatus {
         ExitStatus::from_raw(code << 8)
     }
 
-    #[test]
-    fn unrunnable_has_no_exit_status() {
-        let err = CliError::unrunnable(anyhow!("oops"));
-        assert_eq!(err.exit_status(), None);
+    #[derive(Debug)]
+    enum ExpectedError {
+        Unrunnable,
+        UnrunnableSubprocess(i32),
+        Failed(i32),
     }
 
-    #[test]
-    fn unrunnable_maps_to_unrunnable_status() {
-        let err = CliError::unrunnable(anyhow!("oops"));
-        assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
+    fn build(scenario: ExpectedError, msg: &str) -> CliError {
+        match scenario {
+            ExpectedError::Unrunnable => CliError::unrunnable(anyhow!("{}", msg)),
+            ExpectedError::UnrunnableSubprocess(code) => {
+                CliError::unrunnable_subprocess(exit_code(code), msg.to_owned())
+            }
+            ExpectedError::Failed(code) => CliError::failed(exit_code(code), msg.to_owned()),
+        }
     }
 
+    #[test_case(ExpectedError::Unrunnable, "oops", None, Status::Unrunnable; "unrunnable has no exit status")]
+    #[test_case(ExpectedError::UnrunnableSubprocess(1), "cmd failed", None, Status::Unrunnable; "unrunnable subprocess suppresses exit status")]
+    #[test_case(ExpectedError::Failed(1), "test failed", Some(1), Status::Failed; "failed maps to failed status")]
     #[test]
-    fn unrunnable_subprocess_suppresses_exit_status() {
-        let err = CliError::unrunnable_subprocess(exit_code(1), "cmd failed".to_owned());
-        assert_eq!(err.exit_status(), None);
-        assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
+    fn error_properties(
+        constructor: ExpectedError,
+        msg: &str,
+        expected_exit_code: Option<i32>,
+        expected_status: Status,
+    ) {
+        let err = build(constructor, msg);
+        assert_eq!(err.exit_status().and_then(|s| s.code()), expected_exit_code);
+        assert_eq!(err.rep_orchestrator_status(), expected_status);
     }
 
+    #[test_case(ExpectedError::Unrunnable, "something broke", "something broke"; "unrunnable")]
+    #[test_case(ExpectedError::Failed(1), "tests failed", "tests failed"; "failed")]
     #[test]
-    fn failed_maps_to_failed_status() {
-        let err = CliError::failed(exit_code(1), "test failed".to_owned());
-        assert_eq!(err.rep_orchestrator_status(), Status::Failed);
+    fn source_to_string_returns_message(constructor: ExpectedError, msg: &str, expected: &str) {
+        let err = build(constructor, msg);
+        assert_eq!(err.source_to_string(), expected);
     }
 
+    #[test_case(ExpectedError::Unrunnable, "something broke", "something broke"; "unrunnable without exit code")]
+    #[test_case(ExpectedError::UnrunnableSubprocess(1), "cmd failed", "(1) cmd failed"; "unrunnable subprocess includes exit code")]
+    #[test_case(ExpectedError::Failed(2), "tests failed", "(2) tests failed"; "failed includes exit code")]
     #[test]
-    fn source_to_string_returns_only_message_for_unrunnable() {
-        let err = CliError::unrunnable(anyhow!("something broke"));
-        assert_eq!(err.source_to_string(), "something broke");
-    }
-
-    #[test]
-    fn source_to_string_returns_only_message_for_failed() {
-        let err = CliError::failed(exit_code(1), "tests failed".to_owned());
-        assert_eq!(err.source_to_string(), "tests failed");
-    }
-
-    #[test]
-    fn display_unrunnable_without_exit_code_shows_message_only() {
-        let err = CliError::unrunnable(anyhow!("something broke"));
-        assert_eq!(format!("{err}"), "something broke");
-    }
-
-    #[test]
-    fn display_unrunnable_subprocess_includes_exit_code() {
-        let err = CliError::unrunnable_subprocess(exit_code(1), "cmd failed".to_owned());
-        assert_eq!(format!("{err}"), "(1) cmd failed");
-    }
-
-    #[test]
-    fn display_failed_includes_exit_code() {
-        let err = CliError::failed(exit_code(2), "tests failed".to_owned());
-        assert_eq!(format!("{err}"), "(2) tests failed");
+    fn display_formatting(constructor: ExpectedError, msg: &str, expected: &str) {
+        let err = build(constructor, msg);
+        assert_eq!(format!("{err}"), expected);
     }
 
     #[test]

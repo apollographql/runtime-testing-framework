@@ -87,12 +87,26 @@ mod tests {
     use crate::context::mocks::MockContext;
     use crate::orchestrator::mocks::MockClient as MockOrchestrator;
     use rep_orchestrator_shared::status::Status;
+    use simple_test_case::test_case;
     use std::path::PathBuf;
 
     fn failing_create_namespace() -> Command {
         Command::CreateNamespace {
             namespace: "test-ns".to_owned(),
             kubeconfig: PathBuf::from("/dev/null"),
+        }
+    }
+
+    enum FailingClient {
+        Orchestrator,
+    }
+
+    fn build_context(failing_client: Option<FailingClient>) -> MockContext {
+        match failing_client {
+            Some(FailingClient::Orchestrator) => MockContext {
+                orchestrator_client: MockOrchestrator::failing(),
+            },
+            None => MockContext::default(),
         }
     }
 
@@ -108,9 +122,11 @@ mod tests {
         });
     }
 
+    #[test_case(None; "command error propagated to caller")]
+    #[test_case(Some(FailingClient::Orchestrator); "status update failure does not mask command error")]
     #[tokio::test]
-    async fn command_error_message_propagated_to_caller() {
-        let ctx = MockContext::default();
+    async fn error_message_contains_original_cause(failing_client: Option<FailingClient>) {
+        let ctx = build_context(failing_client);
         let err = run_command(failing_create_namespace(), &ctx)
             .await
             .unwrap_err();
@@ -118,21 +134,6 @@ mod tests {
         assert!(
             err.to_string().contains("failed to build kube config"),
             "expected kubeconfig error: {err}"
-        );
-    }
-
-    #[tokio::test]
-    async fn status_update_failure_does_not_mask_command_error() {
-        let ctx = MockContext {
-            orchestrator_client: MockOrchestrator::failing(),
-        };
-        let err = run_command(failing_create_namespace(), &ctx)
-            .await
-            .unwrap_err();
-
-        assert!(
-            err.to_string().contains("failed to build kube config"),
-            "expected original error despite status update failure: {err}"
         );
     }
 }

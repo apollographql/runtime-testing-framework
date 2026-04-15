@@ -116,6 +116,7 @@ mod tests {
     use super::*;
     use crate::{context::mocks::MockContext, orchestrator::mocks::MockClient as MockOrchestrator};
     use rep_orchestrator_shared::status::Status;
+    use simple_test_case::test_case;
 
     #[tokio::test]
     async fn run_shell_updates_status_on_success() {
@@ -148,82 +149,41 @@ mod tests {
         });
     }
 
+    #[test_case(Status::Initialising, Status::Unrunnable; "initialising maps to unrunnable")]
+    #[test_case(Status::Resolving, Status::Unrunnable; "resolving maps to unrunnable")]
+    #[test_case(Status::Provisioning, Status::Unrunnable; "provisioning maps to unrunnable")]
+    #[test_case(Status::Running, Status::Failed; "running maps to failed")]
     #[tokio::test]
-    async fn run_shell_returns_unrunnable_for_failed_initialising_command() {
+    async fn run_shell_failed_command_maps_to_expected_status(
+        input_status: Status,
+        expected_error_status: Status,
+    ) {
         let ctx = MockContext::default();
         let err = ctx
-            .run_shell(&mut Command::new("false"), Status::Initialising)
+            .run_shell(&mut Command::new("false"), input_status)
             .await
             .unwrap_err();
 
-        assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
+        assert_eq!(err.rep_orchestrator_status(), expected_error_status);
         ctx.orchestrator_client()
             .read_updates(|updates| assert!(updates.is_empty()));
     }
 
+    #[test_case(Status::Running, "Test plan invocation failed"; "failed includes invocation context")]
+    #[test_case(Status::Provisioning, "Setup command failed"; "unrunnable includes setup context")]
     #[tokio::test]
-    async fn run_shell_returns_unrunnable_for_failed_resolving_command() {
+    async fn run_shell_error_message_includes_context(status: Status, expected_context: &str) {
         let ctx = MockContext::default();
         let err = ctx
-            .run_shell(&mut Command::new("false"), Status::Resolving)
-            .await
-            .unwrap_err();
-
-        assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
-    }
-
-    #[tokio::test]
-    async fn run_shell_returns_unrunnable_for_failed_provisioning_command() {
-        let ctx = MockContext::default();
-        let err = ctx
-            .run_shell(&mut Command::new("false"), Status::Provisioning)
-            .await
-            .unwrap_err();
-
-        assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
-    }
-
-    #[tokio::test]
-    async fn run_shell_returns_failed_for_non_orchestration_command() {
-        let ctx = MockContext::default();
-        let err = ctx
-            .run_shell(&mut Command::new("false"), Status::Running)
-            .await
-            .unwrap_err();
-
-        assert_eq!(err.rep_orchestrator_status(), Status::Failed);
-        ctx.orchestrator_client()
-            .read_updates(|updates| assert!(updates.is_empty()))
-    }
-
-    #[tokio::test]
-    async fn run_shell_failed_error_message_includes_command() {
-        let ctx = MockContext::default();
-        let err = ctx
-            .run_shell(&mut Command::new("false"), Status::Running)
+            .run_shell(&mut Command::new("false"), status)
             .await
             .unwrap_err();
 
         let msg = err.source_to_string();
         assert!(msg.contains("false"), "expected command in error: {msg}");
         assert!(
-            msg.contains("Test plan invocation failed"),
-            "expected failure context: {msg}"
-        );
-    }
-
-    #[tokio::test]
-    async fn run_shell_unrunnable_error_message_includes_setup_context() {
-        let ctx = MockContext::default();
-        let err = ctx
-            .run_shell(&mut Command::new("false"), Status::Provisioning)
-            .await
-            .unwrap_err();
-
-        let msg = err.source_to_string();
-        assert!(
-            msg.contains("Setup command failed"),
-            "expected setup context: {msg}"
+            msg.contains(expected_context),
+            "expected '{expected_context}' in error: {msg}"
         );
     }
 
