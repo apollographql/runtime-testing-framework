@@ -97,6 +97,7 @@ pub enum Cluster {
 pub enum WatchOutcome {
     Succeeded,
     Failed(String),
+    ContainerUnrunnable(String),
     WatcherError(String),
     StreamClosed,
 }
@@ -106,6 +107,9 @@ impl fmt::Display for WatchOutcome {
         match self {
             Self::Succeeded => write!(f, "Succeeded"),
             Self::Failed(msg) => write!(f, "Failed ({msg})"),
+            Self::ContainerUnrunnable(reason) => {
+                write!(f, "pod stuck in unrunnable waiting state: {reason}")
+            }
             Self::WatcherError(msg) => write!(f, "Watcher error ({msg})"),
             Self::StreamClosed => write!(f, "Watcher stream closed unexpectedly"),
         }

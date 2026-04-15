@@ -4,7 +4,7 @@ use crate::k8s::{
 };
 use k8s_openapi::api::{
     batch::v1::{Job, JobSpec},
-    core::v1::{ConfigMap, Namespace},
+    core::v1::{ConfigMap, Namespace, Pod},
 };
 use kube::{
     Client, Config, Resource,
@@ -13,10 +13,37 @@ use kube::{
     core::NamespaceResourceScope,
 };
 use kube_runtime::{WatchStreamExt, watcher};
-use std::{collections::BTreeMap, pin::pin};
+use std::{collections::BTreeMap, pin::pin, result};
 use tokio_stream::StreamExt;
 use tracing::error;
 use uuid::Uuid;
+
+// Container waiting reasons that indicate a pod is permanently stuck and will never produce an
+// exit code. These surface as `containerStatuses[].state.waiting.reason` in the pod status.
+//
+// Unlike transient failures (OOMKilled, CrashLoopBackOff, Error), which produce an exit code and
+// propagate to the parent Job/Workflow as Failed, these states leave the container in Waiting
+// indefinitely — the Job/Workflow never transitions, and the execution hangs.
+//
+// The reason strings are kubelet implementation details, not part of the Kubernetes API contract.
+// Image-related reasons originate in pkg/kubelet/images/types.go [1]; container creation reasons
+// in pkg/kubelet/kuberuntime/kuberuntime_container.go [2]. The official pod lifecycle docs
+// describe the Waiting state but do not enumerate possible reason values [3].
+//
+// This list covers known cases but is not exhaustive — other Waiting reasons may exist that
+// would also cause executions to hang.
+//
+// [1] https://github.com/kubernetes/kubernetes/blob/cec8f06d2ce283d1563d37849619887aa2b11c9f/pkg/kubelet/images/types.go
+// [2] https://github.com/kubernetes/kubernetes/blob/cec8f06d2ce283d1563d37849619887aa2b11c9f/pkg/kubelet/kuberuntime/kuberuntime_container.go
+// [3] https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-states
+const UNRUNNABLE_REASONS: &[&str] = &[
+    "ImagePullBackOff",
+    "ErrImagePull",
+    "ErrImageNeverPull",
+    "InvalidImageName",
+    "CreateContainerConfigError",
+    "CreateContainerError",
+];
 
 #[derive(Clone)]
 pub struct ClusterClients {
@@ -158,69 +185,70 @@ impl k8s::Client for ClusterClients {
     }
 
     async fn wait_for_workflow(&self, execution_id: &Uuid) -> WatchOutcome {
-        let api: Api<Workflow> = self.namespaced_api(Cluster::Management, CLUSTER_API_NAMESPACE);
-        let labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
-        let config = watcher::Config::default().labels(&labels);
-        let mut stream = pin!(watcher(api, config).applied_objects());
+        // Watch for the workflow to complete
+        let wf_api: Api<Workflow> = self.namespaced_api(Cluster::Management, CLUSTER_API_NAMESPACE);
+        let wf_labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
+        let wf_config = watcher::Config::default().labels(&wf_labels);
+        let mut wf_stream = pin!(watcher(wf_api, wf_config).applied_objects());
 
-        while let Some(res) = stream.next().await {
-            let wf = match res {
-                Ok(wf) => wf,
-                Err(e) => return WatchOutcome::WatcherError(e.to_string()),
-            };
+        // Watch the argo workflow pods to make sure they do not get into an unrunnable state
+        // This is not handled particularly well by Argo natively
+        let mgmt_pod_api: Api<Pod> =
+            self.namespaced_api(Cluster::Management, CLUSTER_API_NAMESPACE);
+        let wf_pod_labels = format!("workflows.argoproj.io/workflow=provision-env-{execution_id}");
+        let wf_pod_config = watcher::Config::default().labels(&wf_pod_labels);
+        let mut mgmt_pod_stream = pin!(watcher(mgmt_pod_api, wf_pod_config).applied_objects());
 
-            if let Some(status) = &wf.status {
-                match status.phase.as_deref() {
-                    Some("Succeeded") => return WatchOutcome::Succeeded,
+        // Watch the pods being deployed to the workload cluster to make sure they do not get into an unrunnable state
 
-                    Some("Failed") | Some("Error") => {
-                        let msg = status.message.clone().unwrap_or_default();
-                        return WatchOutcome::Failed(msg);
-                    }
+        // TODO This should move to the orchestrator cli once we switch to using that and not the inline
+        // shell logic
+        let workload_ns = execution_id.to_string();
+        let workload_pod_api: Api<Pod> = self.namespaced_api(Cluster::Workload, &workload_ns);
+        let workload_pod_config = watcher::Config::default();
+        let mut workload_pod_stream =
+            pin!(watcher(workload_pod_api, workload_pod_config).applied_objects());
 
-                    Some("Running") => (),
-
-                    _ => {
-                        error!(?status, "unexpected status");
-                        continue;
-                    }
+        loop {
+            tokio::select! {
+                Some(res) = wf_stream.next() => {
+                    if let Some(outcome) = handle_workflow_event(res) { return outcome; }
                 }
+                Some(res) = mgmt_pod_stream.next() => {
+                    if let Some(outcome) = handle_pod_watch_event(res) { return outcome; }
+                }
+                Some(res) = workload_pod_stream.next() => {
+                    if let Some(outcome) = handle_pod_watch_event(res) { return outcome; }
+                }
+                else => return WatchOutcome::StreamClosed
             }
         }
-
-        WatchOutcome::StreamClosed
     }
 
     async fn wait_for_job(&self, ns: &str, execution_id: &Uuid) -> WatchOutcome {
-        let api: Api<Job> = self.namespaced_api(Cluster::Workload, ns);
-        let labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
-        let config = watcher::Config::default().labels(&labels);
-        let mut stream = pin!(watcher(api, config).applied_objects());
+        // Watch for the job to complete
+        let job_api: Api<Job> = self.namespaced_api(Cluster::Workload, ns);
+        let job_labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
+        let job_config = watcher::Config::default().labels(&job_labels);
+        let mut job_stream = pin!(watcher(job_api, job_config).applied_objects());
 
-        while let Some(res) = stream.next().await {
-            let job = match res {
-                Ok(job) => job,
-                Err(e) => return WatchOutcome::WatcherError(e.to_string()),
-            };
+        // Watch the pods being deployed to the workload cluster to make sure they do not get into an unrunnable state
+        let pod_api: Api<Pod> = self.namespaced_api(Cluster::Workload, ns);
+        let pod_labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
+        let pod_config = watcher::Config::default().labels(&pod_labels);
+        let mut pod_stream = pin!(watcher(pod_api, pod_config).applied_objects());
 
-            if let Some(status) = &job.status {
-                let conditions = status.conditions.as_deref().unwrap_or_default();
-                if conditions
-                    .iter()
-                    .any(|c| c.type_ == "Complete" && c.status == "True")
-                {
-                    return WatchOutcome::Succeeded;
+        loop {
+            tokio::select! {
+                Some(res) = job_stream.next() => {
+                    if let Some(outcome) = handle_job_event(res) { return outcome; }
                 }
-                if conditions
-                    .iter()
-                    .any(|c| c.type_ == "Failed" && c.status == "True")
-                {
-                    return WatchOutcome::Failed("".into());
+                Some(res) = pod_stream.next() => {
+                    if let Some(outcome) = handle_pod_watch_event(res) { return outcome; }
                 }
+                else => return WatchOutcome::StreamClosed
             }
         }
-
-        WatchOutcome::StreamClosed
     }
 
     async fn delete_workload_namespace(&self, ns: &str) -> Result<()> {
@@ -229,4 +257,69 @@ impl k8s::Client for ClusterClients {
 
         Ok(())
     }
+}
+
+fn check_pod_for_unrunnable(pod: &Pod) -> Option<WatchOutcome> {
+    let statuses = pod.status.as_ref()?.container_statuses.as_deref()?;
+    for status in statuses {
+        if let Some(waiting) = status.state.as_ref()?.waiting.as_ref()
+            && let Some(reason) = &waiting.reason
+            && UNRUNNABLE_REASONS.contains(&reason.as_str())
+        {
+            return Some(WatchOutcome::ContainerUnrunnable(reason.clone()));
+        }
+    }
+
+    None
+}
+
+fn handle_pod_watch_event(res: result::Result<Pod, watcher::Error>) -> Option<WatchOutcome> {
+    match res {
+        Ok(pod) => check_pod_for_unrunnable(&pod),
+        Err(e) => Some(WatchOutcome::WatcherError(e.to_string())),
+    }
+}
+
+fn handle_workflow_event(res: result::Result<Workflow, watcher::Error>) -> Option<WatchOutcome> {
+    let wf = match res {
+        Ok(wf) => wf,
+        Err(e) => return Some(WatchOutcome::WatcherError(e.to_string())),
+    };
+
+    let status = wf.status.as_ref()?;
+    match status.phase.as_deref() {
+        Some("Succeeded") => Some(WatchOutcome::Succeeded),
+        Some("Failed") | Some("Error") => {
+            let msg = status.message.clone().unwrap_or_default();
+            Some(WatchOutcome::Failed(msg))
+        }
+        Some("Running") => None,
+        _ => {
+            error!(?status, "unexpected workflow status");
+            None
+        }
+    }
+}
+
+fn handle_job_event(res: result::Result<Job, watcher::Error>) -> Option<WatchOutcome> {
+    let job = match res {
+        Ok(job) => job,
+        Err(e) => return Some(WatchOutcome::WatcherError(e.to_string())),
+    };
+
+    let status = job.status.as_ref()?;
+    let conditions = status.conditions.as_deref().unwrap_or_default();
+    if conditions
+        .iter()
+        .any(|c| c.type_ == "Complete" && c.status == "True")
+    {
+        return Some(WatchOutcome::Succeeded);
+    }
+    if conditions
+        .iter()
+        .any(|c| c.type_ == "Failed" && c.status == "True")
+    {
+        return Some(WatchOutcome::Failed("".into()));
+    }
+    None
 }
