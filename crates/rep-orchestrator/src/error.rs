@@ -23,6 +23,12 @@ pub enum Error {
     #[error("file upload has already been requested for this execution")]
     FileUploadAlreadyRequested,
 
+    #[error("no file upload available for this execution")]
+    FileUploadNotAvailable,
+
+    #[error("files not ready for download")]
+    FileUploadNotReady,
+
     #[error("insufficient queue capacity")]
     InsufficientCapacity,
 
@@ -62,6 +68,21 @@ impl IntoResponse for Error {
                 Json(json!({ "error": "BAD_REQUEST", "message": msg })),
             ),
 
+            Self::FileUploadNotAvailable => (
+                StatusCode::NOT_FOUND,
+                Json(json!({ "error": "NOT_FOUND", "message": msg })),
+            ),
+
+            Self::FileUploadNotReady => (
+                StatusCode::CONFLICT,
+                Json(json!({ "error": "CONFLICT", "message": msg })),
+            ),
+
+            Self::InsufficientCapacity => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({ "error": "SERVICE_UNAVAILABLE", "message": msg })),
+            ),
+
             Self::UnknownTestExecution { id } => (
                 StatusCode::NOT_FOUND,
                 Json(json!({ "error": "NOT_FOUND", "id": id, "message": msg })),
@@ -70,11 +91,6 @@ impl IntoResponse for Error {
             Self::UnknownTestRun { id } => (
                 StatusCode::NOT_FOUND,
                 Json(json!({ "error": "NOT_FOUND", "id": id, "message": msg })),
-            ),
-
-            Self::InsufficientCapacity => (
-                StatusCode::SERVICE_UNAVAILABLE,
-                Json(json!({ "error": "SERVICE_UNAVAILABLE", "message": "execution queue full" })),
             ),
 
             _ => (

@@ -23,7 +23,7 @@ db-tests:
 		RTF_MGMT_CONTEXT=dummy \
 		RTF_WORKLOAD_CONTEXT=dummy \
 		RTF_GCS_BUCKET=dummy \
-		RTF_MOCK_GCS_URL="localhost:8035" \
+		RTF_MOCK_GCS_URL="mock-gcs" \
 		cargo test --lib --features db_tests $(ARGS)
 
 .PHONY: integration-tests
@@ -39,7 +39,7 @@ integration-tests: clear-db-data
 		RTF_MGMT_CONTEXT=kind-rtf-mgmt \
 		RTF_WORKLOAD_CONTEXT=kind-rtf-workload \
 		RTF_GCS_BUCKET=dummy \
-		RTF_MOCK_GCS_URL="localhost:8035" \
+		RTF_MOCK_GCS_URL="mock-gcs" \
 		cargo test --features k8s_tests --test '*' $(ARGS)
 
 .PHONY: test-all

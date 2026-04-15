@@ -57,6 +57,10 @@ impl TestExecution {
         self.has_file_upload
     }
 
+    pub fn is_complete(&self) -> bool {
+        self.completed_at.is_some()
+    }
+
     pub fn log_file_gcs_object_name(&self) -> String {
         format!("{}/log.txt", self.uuid)
     }

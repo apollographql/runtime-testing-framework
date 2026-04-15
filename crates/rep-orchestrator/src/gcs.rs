@@ -85,14 +85,21 @@ impl Client for RealClient {
 pub struct MockClient {
     base_url: String,
     bucket: String,
+    #[cfg(test)]
+    canned_response: Option<String>,
 }
 
 impl MockClient {
-    pub fn new(base_url: String, bucket: String) -> Self {
-        Self { base_url, bucket }
+    pub fn new(base_url: impl Into<String>, bucket: impl Into<String>) -> Self {
+        Self {
+            base_url: base_url.into(),
+            bucket: bucket.into(),
+            #[cfg(test)]
+            canned_response: None,
+        }
     }
 
-    fn url_for_object(&self, object: String) -> String {
+    pub fn url_for_object(&self, object: String) -> String {
         format!("{}/{}/{object}", self.base_url, self.bucket)
     }
 }
@@ -107,6 +114,11 @@ impl Client for MockClient {
     }
 
     async fn download_bytes(&self, object: String) -> Result<Vec<u8>> {
+        #[cfg(test)]
+        if let Some(resp) = self.canned_response.clone() {
+            return Ok(resp.into_bytes());
+        }
+
         // (innes) The timeout error stuff here is a little silly, but it allows us to avoid adding
         // a mock-only variant to Error.
 
@@ -136,10 +148,7 @@ impl GCSClient {
     /// [RealClient] using Application Default Credentials.
     pub async fn new_from_config(cfg: &Config) -> Result<Self> {
         let client = match &cfg.mock_gcs_url {
-            Some(url) => Self::Mock(MockClient {
-                base_url: url.clone(),
-                bucket: cfg.gcs_bucket.clone(),
-            }),
+            Some(url) => Self::Mock(MockClient::new(url.clone(), cfg.gcs_bucket.clone())),
 
             None => Self::Real(RealClient {
                 signer: Builder::default().build_signer()?,
@@ -153,10 +162,11 @@ impl GCSClient {
 
     /// Construct a [MockClient] with explicit parameters.
     #[cfg(test)]
-    pub fn new_mock(base_url: &str, bucket: &str) -> Self {
+    pub fn new_mock(base_url: &str, bucket: &str, canned_response: Option<String>) -> Self {
         Self::Mock(MockClient {
             base_url: base_url.into(),
             bucket: bucket.into(),
+            canned_response,
         })
     }
 }
