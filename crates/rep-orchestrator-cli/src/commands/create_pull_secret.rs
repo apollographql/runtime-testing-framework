@@ -1,4 +1,7 @@
-use crate::commands::{MANAGER_NAME, client_from_kubeconfig};
+use crate::{
+    commands::{MANAGER_NAME, client_from_kubeconfig},
+    error::{CliError, CliResult},
+};
 use anyhow::Context;
 use k8s_openapi::api::core::v1::{Secret, ServiceAccount};
 use kube::{
@@ -14,17 +17,19 @@ pub async fn create_pull_secret(
     namespace: &str,
     kubeconfig_path: &Path,
     docker_config_path: &Path,
-) -> anyhow::Result<()> {
+) -> CliResult<()> {
     info!("Creating image pull secret in namespace '{namespace}'...");
 
     let client = client_from_kubeconfig(Some(kubeconfig_path)).await?;
 
-    let docker_config_json = std::fs::read(docker_config_path).with_context(|| {
-        format!(
-            "Failed to read docker config from {}",
-            docker_config_path.display()
-        )
-    })?;
+    let docker_config_json = std::fs::read(docker_config_path)
+        .with_context(|| {
+            format!(
+                "Failed to read docker config from {}",
+                docker_config_path.display()
+            )
+        })
+        .map_err(CliError::unrunnable)?;
 
     let secret = Secret {
         metadata: ObjectMeta {
@@ -48,7 +53,8 @@ pub async fn create_pull_secret(
             &Patch::Apply(&secret),
         )
         .await
-        .context("Failed to create pull secret")?;
+        .context("Failed to create pull secret")
+        .map_err(CliError::unrunnable)?;
 
     info!("Patching default service account...");
     let sa_api: Api<ServiceAccount> = Api::namespaced(client, namespace);
@@ -58,7 +64,8 @@ pub async fn create_pull_secret(
     sa_api
         .patch("default", &PatchParams::default(), &Patch::Strategic(patch))
         .await
-        .context("Failed to patch default service account")?;
+        .context("Failed to patch default service account")
+        .map_err(CliError::unrunnable)?;
     info!("Pull secret created successfully.");
 
     Ok(())
