@@ -21,6 +21,7 @@ pub struct TestExecution {
     uuid: Uuid,
     test_run_id: i32,
     name: String,
+    token: Uuid,
     exit_code: Option<i32>,
     started_at: DateTime<Utc>,
     completed_at: Option<DateTime<Utc>>,
@@ -53,6 +54,10 @@ impl TestExecution {
         self.uuid
     }
 
+    pub fn token(&self) -> &Uuid {
+        &self.token
+    }
+
     pub fn has_file_upload(&self) -> bool {
         self.has_file_upload
     }
@@ -76,6 +81,7 @@ impl TestExecution {
             uuid: Uuid::new_v4(),
             test_run_id,
             name: name.into(),
+            token: Uuid::new_v4(),
             exit_code: None,
             started_at: Utc::now(),
             completed_at: None,
@@ -96,7 +102,7 @@ impl TestExecution {
         let ex: TestExecution = sqlx::query_as(
             "INSERT INTO test_execution (test_run_id, name)
              VALUES ($1, $2)
-             RETURNING id, uuid, test_run_id, name, exit_code, started_at, completed_at, has_file_upload;
+             RETURNING id, uuid, test_run_id, name, token, exit_code, started_at, completed_at, has_file_upload;
             ",
         )
         .bind(test_run_id)

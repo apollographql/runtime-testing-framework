@@ -63,7 +63,7 @@ where
             &namespace,
             SCENARIO_JOB_NAME,
             &execution_id,
-            scenario_job(&execution_id, &scenario),
+            scenario_job(&execution_id, &scenario, test_execution.token()),
         )
         .await
         .map_err(|error| Error::CreateJob { error })?;

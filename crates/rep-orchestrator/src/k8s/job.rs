@@ -2,11 +2,12 @@ use crate::k8s::{EXECUTION_ID_LABEL, TOOLBOX_IMAGE};
 use k8s_openapi::api::{
     batch::v1::JobSpec,
     core::v1::{
-        ConfigMapVolumeSource, Container, ExecAction, Lifecycle, LifecycleHandler, PodSpec,
+        ConfigMapVolumeSource, Container, EnvVar, ExecAction, Lifecycle, LifecycleHandler, PodSpec,
         PodTemplateSpec, Volume, VolumeMount,
     },
 };
 use kube::api::ObjectMeta;
+use rep_orchestrator_shared::{EXECUTION_ID_ENV_VAR, EXECUTION_TOKEN_ENV_VAR};
 use rtf_config::formats::DockerScenario;
 use std::collections::BTreeMap;
 use uuid::Uuid;
@@ -77,7 +78,25 @@ ls -laR /shared/providers/
 "#;
 
 /// Create a new [JobSpec] for the given [DockerScenario].
-pub fn scenario_job(execution_id: &Uuid, scenario: &DockerScenario) -> JobSpec {
+pub fn scenario_job(
+    execution_id: &Uuid,
+    scenario: &DockerScenario,
+    execution_token: &Uuid,
+) -> JobSpec {
+    let env = vec![
+        // TODO: We also need to pass ORCHESTRATOR_URL_ENV_VAR here so the CLI knows where to post updates
+        EnvVar {
+            name: EXECUTION_ID_ENV_VAR.to_owned(),
+            value: Some(execution_id.to_string()),
+            ..Default::default()
+        },
+        EnvVar {
+            name: EXECUTION_TOKEN_ENV_VAR.to_owned(),
+            value: Some(execution_token.to_string()),
+            ..Default::default()
+        },
+    ];
+
     JobSpec {
         backoff_limit: Some(0), // don't retry failed scenarios
         ttl_seconds_after_finished: Some(TTL_SECONDS_AFTER_FINISHED),
@@ -91,10 +110,10 @@ pub fn scenario_job(execution_id: &Uuid, scenario: &DockerScenario) -> JobSpec {
             }),
             spec: Some(PodSpec {
                 restart_policy: Some("Never".to_owned()),
-                init_containers: Some(vec![init_container_spec(scenario)]),
+                init_containers: Some(vec![init_container_spec(scenario, &env)]),
                 containers: vec![
                     scenario_run_container_spec(scenario),
-                    output_collector_container_spec(),
+                    output_collector_container_spec(&env),
                 ],
                 volumes: Some(scenario_volumes()),
                 ..Default::default()
@@ -104,7 +123,7 @@ pub fn scenario_job(execution_id: &Uuid, scenario: &DockerScenario) -> JobSpec {
     }
 }
 
-fn init_container_spec(scenario: &DockerScenario) -> Container {
+fn init_container_spec(scenario: &DockerScenario, env: &[EnvVar]) -> Container {
     Container {
         name: "rtf-resolve".to_owned(),
         image: Some(TOOLBOX_IMAGE.to_owned()),
@@ -112,6 +131,7 @@ fn init_container_spec(scenario: &DockerScenario) -> Container {
         args: Some(vec![
             RESOLVE_SCRIPT.replace("__SCENARIO_COMMAND__", &scenario.command()),
         ]),
+        env: Some(env.to_vec()),
         volume_mounts: Some(vec![
             VolumeMount {
                 name: VOLUME_MOUNT_NAME_CONFIG.to_owned(),
@@ -160,12 +180,13 @@ fn scenario_run_container_spec(scenario: &DockerScenario) -> Container {
     }
 }
 
-fn output_collector_container_spec() -> Container {
+fn output_collector_container_spec(env: &[EnvVar]) -> Container {
     Container {
         name: "output-collector".to_owned(),
         image: Some(TOOLBOX_IMAGE.to_owned()),
         command: Some(vec!["/bin/sh".to_owned(), "-c".to_owned()]),
         args: Some(vec![OUTPUT_COLLECTOR_SCRIPT.to_owned()]),
+        env: Some(env.to_vec()),
         volume_mounts: Some(vec![
             VolumeMount {
                 name: VOLUME_MOUNT_NAME_CONFIG.to_owned(),

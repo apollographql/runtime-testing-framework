@@ -1,5 +1,7 @@
 //! Request signed upload URLs for GCS for a given execution
-use crate::{Error, Result, conn, db::TestExecution, gcs::Client, state::ServerState};
+use crate::{
+    Error, Result, conn, db::TestExecution, endpoints::BearerToken, gcs::Client, state::ServerState,
+};
 use axum::{
     Json,
     extract::{Path, State},
@@ -7,8 +9,8 @@ use axum::{
 use rep_orchestrator_shared::{payload::GenerateUploadUrlsPayload, upload_urls::UploadUrls};
 use uuid::Uuid;
 
-// TODO: This endpoint needs to be authenticated
 pub async fn handler(
+    auth: BearerToken,
     Path(id): Path<Uuid>,
     State(ServerState { gcs_client, .. }): State<ServerState>,
     Json(_): Json<GenerateUploadUrlsPayload>,
@@ -16,9 +18,11 @@ pub async fn handler(
     let conn = conn!();
 
     let mut ex = match TestExecution::get_by_uuid(&id, conn).await? {
-        None => return Err(Error::UnknownTestExecution { id }),
+        None => return Err(Error::Unauthorized),
         Some(ex) => ex,
     };
+
+    auth.verify(ex.token())?;
 
     if ex.has_file_upload() {
         return Err(Error::FileUploadAlreadyRequested);
@@ -46,7 +50,12 @@ mod tests {
         db::{Queryable, TestRun},
         test_helpers::TestServerState,
     };
+    use axum::http::{HeaderValue, header::AUTHORIZATION};
     use reqwest::StatusCode;
+
+    fn bearer(token: &Uuid) -> HeaderValue {
+        HeaderValue::from_str(&format!("Bearer {token}")).unwrap()
+    }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
@@ -62,6 +71,7 @@ mod tests {
                 "/test-execution/{}/generate-upload-urls",
                 ex.uuid()
             ))
+            .add_header(AUTHORIZATION, bearer(ex.token()))
             .json(&GenerateUploadUrlsPayload {})
             .await;
 
@@ -91,6 +101,7 @@ mod tests {
                     "/test-execution/{}/generate-upload-urls",
                     ex.uuid()
                 ))
+                .add_header(AUTHORIZATION, bearer(ex.token()))
                 .json(&GenerateUploadUrlsPayload {})
                 .await;
 
@@ -102,7 +113,7 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn handler_returns_404_for_unknown_execution() -> anyhow::Result<()> {
+    async fn handler_returns_403_for_unknown_execution_without_token() -> anyhow::Result<()> {
         let tss = TestServerState::new();
         let resp = tss
             .test_server
@@ -113,7 +124,94 @@ mod tests {
             .json(&GenerateUploadUrlsPayload {})
             .await;
 
-        assert_eq!(resp.status_code(), StatusCode::NOT_FOUND);
+        assert_eq!(resp.status_code(), StatusCode::FORBIDDEN);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn handler_returns_403_for_unknown_execution() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let resp = tss
+            .test_server
+            .post(&format!(
+                "/test-execution/{}/generate-upload-urls",
+                Uuid::new_v4()
+            ))
+            .add_header(AUTHORIZATION, bearer(&Uuid::new_v4()))
+            .json(&GenerateUploadUrlsPayload {})
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::FORBIDDEN);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn handler_returns_403_without_token() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let conn = conn!();
+        let tr = TestRun::init("test", conn).await?;
+        let ex = tr.init_execution("test", conn).await?;
+
+        let resp = tss
+            .test_server
+            .post(&format!(
+                "/test-execution/{}/generate-upload-urls",
+                ex.uuid()
+            ))
+            .json(&GenerateUploadUrlsPayload {})
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::FORBIDDEN);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn handler_returns_403_with_wrong_token() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let conn = conn!();
+        let tr = TestRun::init("test", conn).await?;
+        let ex = tr.init_execution("test", conn).await?;
+
+        let resp = tss
+            .test_server
+            .post(&format!(
+                "/test-execution/{}/generate-upload-urls",
+                ex.uuid()
+            ))
+            .add_header(AUTHORIZATION, bearer(&Uuid::new_v4()))
+            .json(&GenerateUploadUrlsPayload {})
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::FORBIDDEN);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn handler_accepts_valid_token() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let conn = conn!();
+        let tr = TestRun::init("test", conn).await?;
+        let ex = tr.init_execution("test", conn).await?;
+
+        let resp = tss
+            .test_server
+            .post(&format!(
+                "/test-execution/{}/generate-upload-urls",
+                ex.uuid()
+            ))
+            .add_header(AUTHORIZATION, bearer(ex.token()))
+            .json(&GenerateUploadUrlsPayload {})
+            .await;
+
+        assert_eq!(resp.status_code(), StatusCode::OK);
 
         Ok(())
     }
