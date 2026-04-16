@@ -1,5 +1,5 @@
 use clap::{ArgAction, Parser, Subcommand};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// CLI for the REP (Runtime Environment Provisioner) orchestrator.
 ///
@@ -74,4 +74,15 @@ pub enum Command {
         #[arg(long)]
         namespace: String,
     },
+}
+
+impl Command {
+    pub fn kubeconfig(&self) -> Option<&Path> {
+        match self {
+            Self::CreateNamespace { kubeconfig, .. }
+            | Self::CreatePullSecret { kubeconfig, .. }
+            | Self::DeployEnvironment { kubeconfig, .. } => Some(kubeconfig),
+            Self::Cleanup { .. } => None,
+        }
+    }
 }
