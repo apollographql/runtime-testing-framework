@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MANAGER_NAME"],"struct":["DeploymentInfo","DeploymentStatus","HttpClient"],"trait":["Client"]};

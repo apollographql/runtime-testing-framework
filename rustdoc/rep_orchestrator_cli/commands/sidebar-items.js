@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MANAGER_NAME"],"fn":["client_from_kubeconfig"],"mod":["cleanup","create_namespace","create_pull_secret","deploy_environment"]};
+window.SIDEBAR_ITEMS = {"mod":["cleanup","create_namespace","create_pull_secret","deploy_environment"]};
