@@ -3,9 +3,13 @@ image:
   tag: latest
   pullPolicy: Never
 
+service:
+  type: NodePort
+  nodePort: 30035
+
 gcs:
   bucket: "rtf-local"
-  mockUrl: "mock-gcs"
+  # mockUrl and config.orchestratorUrl are set by the Tiltfile using the mgmt cluster container IP
 
 config:
   logLevel: "info,hyper=error,rep_orchestrator=debug"

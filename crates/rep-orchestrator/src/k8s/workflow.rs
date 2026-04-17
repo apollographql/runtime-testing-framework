@@ -1,11 +1,13 @@
-use crate::k8s::{TOOLBOX_IMAGE, env_configmap_name};
+use crate::{
+    db::TestExecution,
+    k8s::{TOOLBOX_IMAGE, env_configmap_name},
+};
 use k8s_openapi::api::core::v1::{
-    ConfigMapVolumeSource, Container, KeyToPath, SecretVolumeSource, Volume, VolumeMount,
+    ConfigMapVolumeSource, Container, EnvVar, KeyToPath, SecretVolumeSource, Volume, VolumeMount,
 };
 use kube::CustomResource;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 const TTL_SECONDS_AFTER_FINISHED: i32 = 3600; // cleanup after 1h
 
@@ -53,8 +55,10 @@ impl WorkflowSpec {
     // The current helper methods on the nested structs are aimed at creating tasks that run shell
     // inline shell scripts. These will need to be updated to simply call the corresponding
     // subcommands from the CLI.
-    pub fn for_execution_id(execution_id: &Uuid) -> Self {
-        let configmap_name = env_configmap_name(execution_id);
+    pub fn for_execution(ex: &TestExecution, orchestrator_url: &str) -> Self {
+        let execution_id = ex.uuid();
+        let configmap_name = env_configmap_name(&execution_id);
+        let env_vars = ex.toolbox_env_vars(orchestrator_url);
         let namespace = execution_id.to_string();
 
         Self {
@@ -63,9 +67,9 @@ impl WorkflowSpec {
             on_exit: "cleanup".to_owned(),
             templates: vec![
                 TemplateDef::Main(MainTemplate::new()),
-                TemplateDef::Task(create_namespace(&namespace)),
-                TemplateDef::Task(create_pull_secret(&namespace)),
-                TemplateDef::Task(deploy_environment(&configmap_name, &namespace)),
+                TemplateDef::Task(create_namespace(&namespace, env_vars.clone())),
+                TemplateDef::Task(create_pull_secret(&namespace, env_vars.clone())),
+                TemplateDef::Task(deploy_environment(&configmap_name, &namespace, env_vars)),
                 TemplateDef::Task(cleanup(&configmap_name)),
             ],
             volumes: vec![Volume {
@@ -154,6 +158,7 @@ impl TaskTemplate {
         arg: String,
         volume_mounts: Vec<VolumeMount>,
         volumes: Option<Vec<Volume>>,
+        env: Vec<EnvVar>,
     ) -> Self {
         Self {
             name: name.into(),
@@ -163,6 +168,7 @@ impl TaskTemplate {
                 command: Some(vec!["/bin/sh".to_owned(), "-c".to_owned()]),
                 args: Some(vec![arg]),
                 volume_mounts: Some(volume_mounts),
+                env: Some(env),
                 ..Default::default()
             },
             volumes,
@@ -172,6 +178,12 @@ impl TaskTemplate {
 
 const CREATE_NAMESPACE_SCRIPT: &str = r#"
 set -e
+curl -X POST \
+  "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
+  -H "Bearer: $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"PROVISIONING","message":"creating namespace"}'
+
 echo "Creating namespace '__NAMESPACE__' in workload cluster..."
 kubectl \
   --kubeconfig=/kubeconfig/value \
@@ -181,9 +193,15 @@ kubectl \
     kubectl --kubeconfig=/kubeconfig/value apply -f -
 
 echo "Namespace created successfully."
+
+curl -X POST \
+  "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
+  -H "Bearer: $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"PROVISIONING","message":"namespace created"}'
 "#;
 
-fn create_namespace(namespace: &str) -> TaskTemplate {
+fn create_namespace(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
     TaskTemplate::new(
         "create-namespace",
         CREATE_NAMESPACE_SCRIPT.replace("__NAMESPACE__", namespace),
@@ -194,11 +212,18 @@ fn create_namespace(namespace: &str) -> TaskTemplate {
             ..Default::default()
         }],
         None,
+        env,
     )
 }
 
 const CREATE_PULL_SECRET_SCRIPT: &str = r#"
 set -e
+curl -X POST \
+  "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
+  -H "Bearer: $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"PROVISIONING","message":"creating pull secret"}'
+
 echo "Creating image pull secret in namespace '__NAMESPACE__'..."
 kubectl --kubeconfig=/kubeconfig/value \
   create secret docker-registry gcr-secret \
@@ -216,7 +241,7 @@ kubectl --kubeconfig=/kubeconfig/value \
 echo "Pull secret created successfully."
 "#;
 
-fn create_pull_secret(namespace: &str) -> TaskTemplate {
+fn create_pull_secret(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
     TaskTemplate::new(
         "create-pull-secret",
         CREATE_PULL_SECRET_SCRIPT.replace("__NAMESPACE__", namespace),
@@ -247,11 +272,18 @@ fn create_pull_secret(namespace: &str) -> TaskTemplate {
             }),
             ..Default::default()
         }]),
+        env,
     )
 }
 
 const DEPLOY_ENV_SCRIPT: &str = r#"
 set -e
+curl -X POST \
+  "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
+  -H "Bearer: $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"PROVISIONING","message":"deploying environment"}'
+
 WORKDIR=/tmp/rtf-work
 mkdir -p $WORKDIR
 mkdir -p $WORKDIR/k8s
@@ -282,9 +314,14 @@ kubectl --kubeconfig=/kubeconfig/value wait \
   --timeout=300s
 
 echo "Environment deployed successfully."
+curl -X POST \
+  "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
+  -H "Bearer: $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"PROVISIONING","message":"environment deployed successfully"}'
 "#;
 
-fn deploy_environment(configmap_name: &str, namespace: &str) -> TaskTemplate {
+fn deploy_environment(configmap_name: &str, namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
     TaskTemplate::new(
         "deploy-environment",
         DEPLOY_ENV_SCRIPT.replace("__NAMESPACE__", namespace),
@@ -310,6 +347,7 @@ fn deploy_environment(configmap_name: &str, namespace: &str) -> TaskTemplate {
             }),
             ..Default::default()
         }]),
+        env,
     )
 }
 
@@ -330,5 +368,6 @@ fn cleanup(configmap_name: &str) -> TaskTemplate {
         CLEANUP_SCRIPT.replace("__CONFIGMAP__", configmap_name),
         vec![],
         None,
+        vec![],
     )
 }

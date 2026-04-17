@@ -18,6 +18,7 @@ pub(super) async fn try_run<K, H>(
     test_execution: TestExecution,
     environment: DockerComposeEnvironment,
     scenario: DockerScenario,
+    orchestrator_url: &str,
     etx: UnboundedSender<Event>,
     clients: K,
     conn: &mut H,
@@ -59,7 +60,10 @@ where
         .await;
 
     clients
-        .create_argo_workflow(&execution_id, WorkflowSpec::for_execution_id(&execution_id))
+        .create_argo_workflow(
+            &execution_id,
+            WorkflowSpec::for_execution(&test_execution, orchestrator_url),
+        )
         .await
         .map_err(|error| Error::CreateArgoWorkflow { error })?;
 
@@ -136,6 +140,7 @@ mod tests {
             ex,
             stub_environment(),
             stub_scenario(),
+            "http://localhost:8035",
             etx,
             clients,
             &mut handle,
@@ -167,6 +172,7 @@ mod tests {
             ex,
             stub_environment(),
             stub_scenario(),
+            "http://localhost:8035",
             etx,
             clients.clone(),
             &mut handle,
@@ -204,6 +210,7 @@ mod tests {
             ex,
             stub_environment(),
             stub_scenario(),
+            "http://localhost:8035",
             etx,
             clients,
             &mut handle,

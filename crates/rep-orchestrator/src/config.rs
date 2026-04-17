@@ -32,6 +32,7 @@ pub struct Config {
     pub gcs_url_ttl_secs: u64,
     #[serde(default)]
     pub mock_gcs_url: Option<String>,
+    pub orchestrator_url: String,
 }
 
 impl Config {

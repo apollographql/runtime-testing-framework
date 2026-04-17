@@ -228,6 +228,7 @@ mod tests {
             gcs_bucket: "test-bucket".to_string(),
             gcs_url_ttl_secs: 300,
             mock_gcs_url: Some("http://mock-gcs-test".to_string()),
+            orchestrator_url: "http://localhost:8035".to_string(),
         }
     }
 

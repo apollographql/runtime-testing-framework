@@ -18,6 +18,7 @@ const MSG_JOB_WAIT: &str = "waiting for scenario job to complete";
 pub(super) async fn try_run<K, H>(
     test_execution: TestExecution,
     scenario: DockerScenario,
+    orchestrator_url: &str,
     etx: UnboundedSender<Event>,
     clients: K,
     conn: &mut H,
@@ -63,7 +64,7 @@ where
             &namespace,
             SCENARIO_JOB_NAME,
             &execution_id,
-            scenario_job(&execution_id, &scenario, test_execution.token()),
+            scenario_job(&test_execution, &scenario, orchestrator_url),
         )
         .await
         .map_err(|error| Error::CreateJob { error })?;
@@ -149,7 +150,15 @@ mod tests {
         let clients = MockClient::default_ok();
         let (etx, _erx) = mpsc::unbounded_channel();
 
-        let res = try_run(ex, stub_scenario(), etx, clients, &mut handle).await;
+        let res = try_run(
+            ex,
+            stub_scenario(),
+            "http://localhost:8035",
+            etx,
+            clients,
+            &mut handle,
+        )
+        .await;
 
         assert!(res.is_ok(), "{res:?}");
         assert_eq!(
@@ -176,7 +185,15 @@ mod tests {
         };
         let (etx, _erx) = mpsc::unbounded_channel();
 
-        let res = try_run(ex, stub_scenario(), etx, clients.clone(), &mut handle).await;
+        let res = try_run(
+            ex,
+            stub_scenario(),
+            "http://localhost:8035",
+            etx,
+            clients.clone(),
+            &mut handle,
+        )
+        .await;
 
         assert!(matches!(
             res,
@@ -205,7 +222,15 @@ mod tests {
         };
         let (etx, _erx) = mpsc::unbounded_channel();
 
-        let res = try_run(ex, stub_scenario(), etx, clients, &mut handle).await;
+        let res = try_run(
+            ex,
+            stub_scenario(),
+            "http://localhost:8035",
+            etx,
+            clients,
+            &mut handle,
+        )
+        .await;
 
         assert!(matches!(res, Err(Error::CreateJob { .. })));
         assert_eq!(
