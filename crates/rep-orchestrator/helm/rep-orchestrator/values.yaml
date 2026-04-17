@@ -1,6 +1,6 @@
 image:
-  repository: ""
-  tag: "latest"
+  repository: "us-central1-docker.pkg.dev/platform-cross-environment/platform-docker/rep-orchestrator"
+  tag: "edge"
   pullPolicy: Always
 
 imagePullSecrets: []
