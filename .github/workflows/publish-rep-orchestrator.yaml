@@ -1,0 +1,84 @@
+name: Publish REP Orchestrator Docker Image and Helm Chart
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/publish-rep-orchestrator.yaml"
+      - "crates/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
+
+env:
+  REGISTRY: ghcr.io
+
+permissions:
+  contents: read
+  packages: write
+  attestations: write
+  id-token: write
+
+jobs:
+  publish-orchestrator-image:
+    name: Build and publish REP Orchestrator image
+    uses: apollographql/release-tooling/.github/workflows/build_and_publish.yml@a46e497cc5bed75d0b5d0bddd7822f2c14528d38
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      image_name: rep-orchestrator
+      image_description: "REP orchestrator image used to run service for orchestrating
+        RTF test plans on REP"
+      platforms: "[{\"platform\":\"linux/amd64\",\"runner\":\"ubuntu-24.04\"},{\"plat\
+        form\":\"linux/arm64\",\"runner\":\"ubuntu-24.04-arm\"}]"
+      context: .
+      dockerfile_location: crates/rep-orchestrator/docker/Dockerfile
+    secrets: inherit
+
+  publish-helm-chart:
+    name: "Build and publish REP Orchestrator Helm Chart"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      BASE_ARTIFACT_REGISTRY_NAME: us-central1-docker.pkg.dev
+      PUBLISHING_SERVICE_ACCOUNT_PROJECT_ID: platform-mgmt-service-e0izz
+      PUBLISHING_SERVICE_ACCOUNT_NAME: release-tooling-automation@platform-mgmt-service-e0izz.iam.gserviceaccount.com
+      WORKLOAD_IDENTITY_PROVIDER: projects/865738624352/locations/global/workloadIdentityPools/github-d8bck/providers/github-d8bck
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+
+      - name: Authenticate With GCP
+        id: gcp-auth
+        uses: google-github-actions/auth@fc2174804b84f912b1f6d334e9463f484f1c552d
+        with:
+          token_format: "access_token"
+          project_id: ${{ env.PUBLISHING_SERVICE_ACCOUNT_PROJECT_ID }}
+          service_account: ${{ env.PUBLISHING_SERVICE_ACCOUNT_NAME }}
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+
+      - name: Authenticate With Internal Repository
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
+        with:
+          username: "oauth2accesstoken"
+          password: ${{ steps.gcp-auth.outputs.access_token }}
+          registry: ${{ env.BASE_ARTIFACT_REGISTRY_NAME }}
+
+      - name: Authenticate With Helm Registry
+        run: |
+          echo "${{ steps.gcp-auth.outputs.access_token }}" | helm registry login us-central1-docker.pkg.dev --username oauth2accesstoken --password-stdin
+
+      - name: Build Helm Chart
+        run: |
+          helm package . --version="0.0.0+${{ github.sha }}"
+        working-directory: crates/rep-orchestrator/helm/rep-orchestrator
+
+      - name: Push Helm Chart To Repository
+        # We use 0.0.0 here because Helm's semantics are such that the "version" field in Chart.yaml has to be a semver.
+        # The only thing we're interested in is the SHA, which is how we pull the chart back again if we need to.
+        run: |
+          helm push rep-orchestrator-0.0.0+${{ github.sha }}.tgz oci://us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-helm
+        working-directory: crates/rep-orchestrator/helm/rep-orchestrator
