@@ -68,6 +68,12 @@ async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Result<
             configmap,
             namespace,
         } => commands::cleanup(&configmap, &namespace, ctx).await,
+
+        Command::PrepareScenario {
+            scenario,
+            shared_dir,
+            command,
+        } => commands::prepare_scenario(&scenario, &shared_dir, &command, ctx).await,
     };
 
     match res {
