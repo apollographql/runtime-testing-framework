@@ -4,7 +4,9 @@ use crate::{
     orchestrator::{self, Client},
 };
 use anyhow::Context;
-use rep_orchestrator_shared::{EXECUTION_ID_ENV_VAR, ORCHESTRATOR_URL_ENV_VAR, status::Status};
+use rep_orchestrator_shared::{
+    EXECUTION_ID_ENV_VAR, EXECUTION_TOKEN_ENV_VAR, ORCHESTRATOR_URL_ENV_VAR, status::Status,
+};
 use std::{env, path::Path, process::Command, str::FromStr};
 use tracing::info;
 use uuid::Uuid;
@@ -81,7 +83,15 @@ impl EnvironmentContext {
                     .context(format!("{EXECUTION_ID_ENV_VAR} must be a valid UUID"))
             })?;
 
-        let orchestrator_client = orchestrator::HttpClient::new(orchestrator_url, execution_id);
+        let execution_token = env::var(EXECUTION_TOKEN_ENV_VAR)
+            .context(format!("{EXECUTION_TOKEN_ENV_VAR} must be set"))
+            .and_then(|token_var| {
+                Uuid::from_str(&token_var)
+                    .context(format!("{EXECUTION_TOKEN_ENV_VAR} must be a valid UUID"))
+            })?;
+
+        let orchestrator_client =
+            orchestrator::HttpClient::new(orchestrator_url, execution_id, execution_token);
         let kube_client = kubernetes::HttpClient::from_kubeconfig(kubeconfig).await?;
 
         Ok(Self {
