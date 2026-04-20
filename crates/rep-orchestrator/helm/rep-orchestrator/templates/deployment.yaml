@@ -73,9 +73,15 @@ spec:
               value: {{ .Values.config.maxConcurrentExecutions | quote }}
             - name: RTF_MAX_QUEUED_EXECUTIONS
               value: {{ .Values.config.maxQueuedExecutions | quote }}
-            {{- if .Values.gcs.mockUrl }}
-            - name: RTF_MOCK_GCS_URL
-              value: {{ .Values.gcs.mockUrl | quote }}
+            - name: RTF_ORCHESTRATOR_URL
+              value: {{ .Values.config.orchestratorUrl | quote }}
+            {{- if .Values.gcs.mockInternalUrl }}
+            - name: RTF_MOCK_INTERNAL_GCS_URL
+              value: {{ .Values.gcs.mockInternalUrl | quote }}
+            {{- end }}
+            {{- if .Values.gcs.mockPublicUrl }}
+            - name: RTF_MOCK_PUBLIC_GCS_URL
+              value: {{ .Values.gcs.mockPublicUrl | quote }}
             {{- end }}
           {{- if .Values.k8s.kubeconfigSecret }}
           volumeMounts:

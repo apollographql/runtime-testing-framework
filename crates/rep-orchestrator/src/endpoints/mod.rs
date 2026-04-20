@@ -45,8 +45,8 @@ where
         let TypedHeader(Authorization(bearer)) =
             TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state)
                 .await
-                .map_err(|_| {
-                    warn!("Failed to parse bearer token, returning 403");
+                .map_err(|err| {
+                    warn!(%err, "Failed to parse bearer token, returning 403");
                     Error::Unauthorized
                 })?;
 

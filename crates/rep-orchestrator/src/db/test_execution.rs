@@ -4,7 +4,9 @@ use crate::db::{
     test_run::TestRun,
 };
 use chrono::{DateTime, Utc};
+use k8s_openapi::api::core::v1::EnvVar;
 use rep_orchestrator_shared::{
+    EXECUTION_ID_ENV_VAR, EXECUTION_TOKEN_ENV_VAR, ORCHESTRATOR_URL_ENV_VAR,
     status::StatusUpdate as SharedStatusUpdate, summary::TestExecutionSummary,
 };
 use sqlx::{Executor, FromRow, PgConnection};
@@ -72,6 +74,28 @@ impl TestExecution {
 
     pub fn output_zip_gcs_object_name(&self) -> String {
         format!("{}/output.zip", self.uuid)
+    }
+
+    /// Environment variable definitions for toolbox container pods that need to be able to
+    /// communicate with the orchestrator for this execution
+    pub fn toolbox_env_vars(&self, orchestrator_url: &str) -> Vec<EnvVar> {
+        vec![
+            EnvVar {
+                name: EXECUTION_ID_ENV_VAR.to_owned(),
+                value: Some(self.uuid.to_string()),
+                ..Default::default()
+            },
+            EnvVar {
+                name: EXECUTION_TOKEN_ENV_VAR.to_owned(),
+                value: Some(self.token.to_string()),
+                ..Default::default()
+            },
+            EnvVar {
+                name: ORCHESTRATOR_URL_ENV_VAR.to_owned(),
+                value: Some(orchestrator_url.to_owned()),
+                ..Default::default()
+            },
+        ]
     }
 
     #[cfg(test)]

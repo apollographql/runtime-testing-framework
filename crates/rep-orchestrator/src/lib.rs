@@ -96,7 +96,7 @@ mod test_helpers {
         pub fn new() -> Self {
             Self::new_with_params(
                 Config::get(),
-                GCSClient::new_mock("base_url", "bucket", None),
+                GCSClient::new_mock("internal_url", "public_url", "bucket", None),
             )
         }
 
@@ -105,7 +105,10 @@ mod test_helpers {
         }
 
         pub fn new_with_config(cfg: &Config) -> Self {
-            Self::new_with_params(cfg, GCSClient::new_mock("base_url", "bucket", None))
+            Self::new_with_params(
+                cfg,
+                GCSClient::new_mock("internal_url", "public_url", "bucket", None),
+            )
         }
 
         pub fn new_with_params(cfg: &Config, gcs_client: GCSClient) -> Self {

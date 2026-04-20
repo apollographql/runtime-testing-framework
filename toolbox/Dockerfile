@@ -22,6 +22,7 @@ ENV V_KOMPOSE="v1.38.0"
 RUN apt-get update && apt-get install -y \
     curl \
     jq \
+    zip \
     docker.io \
     docker-compose \
     ca-certificates \

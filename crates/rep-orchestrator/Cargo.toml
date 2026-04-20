@@ -58,3 +58,4 @@ axum-test = "20.0.0"
 indoc.workspace = true
 reqwest.workspace = true
 simple_test_case.workspace = true
+zip = "8.5.1"

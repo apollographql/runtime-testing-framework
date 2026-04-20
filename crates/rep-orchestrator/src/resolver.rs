@@ -225,9 +225,11 @@ mod tests {
             kubeconfig_path: "dummy".to_string(),
             mgmt_context: "dummy".to_string(),
             workload_context: "dummy".to_string(),
+            orchestrator_url: "http://localhost:8035".to_string(),
             gcs_bucket: "test-bucket".to_string(),
             gcs_url_ttl_secs: 300,
-            mock_gcs_url: Some("http://mock-gcs-test".to_string()),
+            mock_internal_gcs_url: Some("http://mock-gcs-internal".to_string()),
+            mock_public_gcs_url: Some("http://mock-gcs-public".to_string()),
         }
     }
 

@@ -1,3 +1,5 @@
+use anyhow::{Context as _, bail};
+use axum::body::Bytes;
 use rep_orchestrator_shared::{
     status::Status,
     summary::{TestExecutionSummary, TestRunSummary},
@@ -139,5 +141,31 @@ impl TestHelper {
             500,
         )
         .await
+    }
+
+    pub async fn get_text(&self, endpoint: String) -> anyhow::Result<String> {
+        let resp = self
+            .get(&endpoint)
+            .await
+            .context("unable to make GET request")?;
+
+        if !resp.status().is_success() {
+            bail!("failed GET: {}", resp.status());
+        }
+
+        resp.text().await.context("unable to read body")
+    }
+
+    pub async fn get_bytes(&self, endpoint: String) -> anyhow::Result<Bytes> {
+        let resp = self
+            .get(&endpoint)
+            .await
+            .context("unable to make GET request")?;
+
+        if !resp.status().is_success() {
+            bail!("failed GET: {}", resp.status());
+        }
+
+        resp.bytes().await.context("unable to read body")
     }
 }

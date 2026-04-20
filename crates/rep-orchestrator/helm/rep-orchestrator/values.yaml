@@ -9,6 +9,7 @@ command: []
 
 service:
   port: 8035
+  type: ClusterIP
 
 gcs:
   bucket: ""    # required
@@ -22,6 +23,7 @@ config:
   githubToken: "dummy"
   maxConcurrentExecutions: "10"
   maxQueuedExecutions: "100"
+  orchestratorUrl: ""   # required; must be reachable from both mgmt and workload cluster pods
 
 db:
   host: ""      # required

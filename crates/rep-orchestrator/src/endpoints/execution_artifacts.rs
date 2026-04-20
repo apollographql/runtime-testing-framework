@@ -65,7 +65,8 @@ mod tests {
     #[tokio::test]
     async fn log_file_handler_returns_expected_content(status: Status) -> anyhow::Result<()> {
         let tss = TestServerState::new_with_gcs_client(GCSClient::new_mock(
-            "base_url",
+            "internal_url",
+            "public_url",
             "bucket",
             Some("hello, world!".into()),
         ));
@@ -97,8 +98,8 @@ mod tests {
         ex.mark_has_file_upload(conn).await?;
         ex.set_status(status, None, conn).await?;
 
-        let client = MockClient::new("base_url", "bucket");
-        let expected_redirect_url = client.url_for_object(ex.output_zip_gcs_object_name());
+        let client = MockClient::new("internal_url", "public_url", "bucket");
+        let expected_redirect_url = client.public_url_for_object(ex.output_zip_gcs_object_name());
 
         let tss = TestServerState::new_with_gcs_client(GCSClient::Mock(client));
         let resp = tss

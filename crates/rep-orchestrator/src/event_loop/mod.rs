@@ -31,6 +31,7 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
         kubeconfig_path,
         mgmt_context,
         workload_context,
+        orchestrator_url,
         ..
     } = Config::get();
 
@@ -43,7 +44,10 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
     while let Some(evt) = event_queue.next_event().await {
         let ty_name = evt.data.name();
 
-        if let Err(err) = evt.handle(&event_queue, clients.clone()).await {
+        if let Err(err) = evt
+            .handle(&event_queue, orchestrator_url, clients.clone())
+            .await
+        {
             error!(%err, ty=%ty_name, "Error handling event");
         }
     }
@@ -119,7 +123,12 @@ pub struct Event {
 }
 
 impl Event {
-    async fn handle(self, event_queue: &EventQueue, clients: ClusterClients) -> Result<()> {
+    async fn handle(
+        self,
+        event_queue: &EventQueue,
+        orchestrator_url: &str,
+        clients: ClusterClients,
+    ) -> Result<()> {
         let conn = conn!();
 
         let res = match self.data {
@@ -135,6 +144,7 @@ impl Event {
                     self.test_execution.clone(),
                     environment,
                     scenario,
+                    orchestrator_url,
                     event_queue.tx(),
                     clients.clone(),
                     conn,
@@ -146,6 +156,7 @@ impl Event {
                 run_scenario::try_run(
                     self.test_execution.clone(),
                     scenario,
+                    orchestrator_url,
                     event_queue.tx(),
                     clients,
                     conn,

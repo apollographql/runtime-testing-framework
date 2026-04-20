@@ -1,4 +1,7 @@
-use crate::k8s::{EXECUTION_ID_LABEL, TOOLBOX_IMAGE};
+use crate::{
+    db::TestExecution,
+    k8s::{EXECUTION_ID_LABEL, TOOLBOX_IMAGE},
+};
 use k8s_openapi::api::{
     batch::v1::JobSpec,
     core::v1::{
@@ -7,10 +10,8 @@ use k8s_openapi::api::{
     },
 };
 use kube::api::ObjectMeta;
-use rep_orchestrator_shared::{EXECUTION_ID_ENV_VAR, EXECUTION_TOKEN_ENV_VAR};
 use rtf_config::formats::DockerScenario;
 use std::collections::BTreeMap;
-use uuid::Uuid;
 
 pub const CONFIG_MAP_NAME_SCENARIO: &str = "rtf-scenario-config";
 const SHARED_DIR_PATH: &str = "/shared";
@@ -30,12 +31,55 @@ done
 echo "Scenario finished. Showing output..."
 ls -laR /shared/
 cat /shared/output/output.log
+
+EXIT_CODE=$(cat /shared/scenario_exit_status)
+echo "Scenario exited with code $EXIT_CODE"
+
+echo "Requesting upload URLs..."
+URLS=$(
+  curl -X POST \
+    "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/generate-upload-urls" \
+    -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{}'
+)
+
+LOG_URL=$(echo "$URLS" | jq -r '.log_file_url')
+ZIP_URL=$(echo "$URLS" | jq -r '.output_zip_url')
+
+echo "Uploading log file..."
+curl -X PUT "$LOG_URL" --data-binary @/shared/output/output.log
+
+echo "Uploading output zip..."
+zip -r /shared/output.zip /shared/output
+curl -X PUT "$ZIP_URL" --data-binary @/shared/output.zip
+
+echo "Reporting final status..."
+if [ "$EXIT_CODE" = "0" ]; then
+  curl -X POST \
+    "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
+    -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"status":"SUCCESSFUL", "message": "scenario completed successfully"}'
+else
+  curl -X POST \
+    "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
+    -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "{\"status\":\"FAILED\",\"exit_code\":$EXIT_CODE}"
+fi
 "#;
 
 const RESOLVE_SCRIPT: &str = r#"
 set -e
 
 echo "Resolving scenario..."
+curl -X POST \
+  "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
+  -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"PROVISIONING","message":"resolving scenario"}'
+
 rtf resolve scenario /scenario/scenario.yaml --outdir /shared/providers
 
 echo "Writing out user scenario script..."
@@ -75,27 +119,22 @@ echo "Contents of scenario script"
 cat /shared/scenario.sh
 
 ls -laR /shared/providers/
+
+echo "Reporting running status..."
+curl -X POST \
+  "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
+  -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"RUNNING","message":"scenario starting"}'
 "#;
 
 /// Create a new [JobSpec] for the given [DockerScenario].
 pub fn scenario_job(
-    execution_id: &Uuid,
+    ex: &TestExecution,
     scenario: &DockerScenario,
-    execution_token: &Uuid,
+    orchestrator_url: &str,
 ) -> JobSpec {
-    let env = vec![
-        // TODO: We also need to pass ORCHESTRATOR_URL_ENV_VAR here so the CLI knows where to post updates
-        EnvVar {
-            name: EXECUTION_ID_ENV_VAR.to_owned(),
-            value: Some(execution_id.to_string()),
-            ..Default::default()
-        },
-        EnvVar {
-            name: EXECUTION_TOKEN_ENV_VAR.to_owned(),
-            value: Some(execution_token.to_string()),
-            ..Default::default()
-        },
-    ];
+    let env = ex.toolbox_env_vars(orchestrator_url);
 
     JobSpec {
         backoff_limit: Some(0), // don't retry failed scenarios
@@ -104,7 +143,7 @@ pub fn scenario_job(
             metadata: Some(ObjectMeta {
                 labels: Some(BTreeMap::from([(
                     EXECUTION_ID_LABEL.to_owned(),
-                    execution_id.to_string(),
+                    ex.uuid().to_string(),
                 )])),
                 ..Default::default()
             }),
@@ -197,7 +236,8 @@ fn output_collector_container_spec(env: &[EnvVar]) -> Container {
             VolumeMount {
                 name: VOLUME_MOUNT_NAME_SHARED.to_owned(),
                 mount_path: "/shared".to_owned(),
-                read_only: Some(true),
+                // We need write access to create the output zip file
+                read_only: Some(false),
                 ..Default::default()
             },
         ]),

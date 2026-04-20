@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "rep-orchestrator.labels" . | nindent 4 }}
 spec:
-  type: ClusterIP
+  type: {{ .Values.service.type }}
   selector:
     {{- include "rep-orchestrator.selectorLabels" . | nindent 4 }}
   ports:
@@ -13,3 +13,6 @@ spec:
       targetPort: {{ .Values.service.port }}
       protocol: TCP
       name: http
+      {{- if .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}

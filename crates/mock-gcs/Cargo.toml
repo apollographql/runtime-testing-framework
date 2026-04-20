@@ -1,0 +1,15 @@
+[package]
+name = "mock-gcs"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "mock-gcs"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.8.8", features = ["macros"] }
+bytes = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
