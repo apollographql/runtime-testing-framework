@@ -32,11 +32,9 @@ pub trait Client: Send + Sync {
 
     /// Request signed URLs from the orchestrator for uploading the log file and output zip
     /// associated with the current test execution.
-    #[cfg_attr(not(test), expect(dead_code))]
     async fn generate_upload_urls(&self) -> anyhow::Result<UploadUrls>;
 
     /// PUT `body` to a previously-issued signed upload URL.
-    #[cfg_attr(not(test), expect(dead_code))]
     async fn upload_to_signed_url(&self, url: &str, body: Vec<u8>) -> anyhow::Result<()>;
 }
 

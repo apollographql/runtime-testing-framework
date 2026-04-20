@@ -11,7 +11,7 @@ use std::{
     env,
     fs::{self, Permissions, set_permissions},
     os::unix::fs::PermissionsExt,
-    path::Path,
+    path::{Path, PathBuf},
     process::Command,
     str::FromStr,
 };
@@ -80,6 +80,14 @@ pub trait CliContext {
             .map_err(CliError::unrunnable)
     }
 
+    /// Read the file at `path` as bytes, mapping the IO error to [`Status::Unrunnable`] with the
+    /// path embedded in the message.
+    fn read_file(&self, path: &Path) -> CliResult<Vec<u8>> {
+        fs::read(path)
+            .with_context(|| format!("Failed to read {}", path.display()))
+            .map_err(CliError::unrunnable)
+    }
+
     /// Write `content` to `path`, mapping the IO error to [`Status::Unrunnable`] with the path
     /// embedded in the message.
     fn write_file(&self, path: &Path, content: &[u8]) -> CliResult<()> {
@@ -95,6 +103,33 @@ pub trait CliContext {
             .with_context(|| format!("Failed to chmod {}", path.display()))
             .map_err(CliError::unrunnable)
     }
+
+    /// Returns whether a file or directory exists at `path`.
+    fn path_exists(&self, path: &Path) -> bool {
+        path.exists()
+    }
+
+    /// Recursively list all regular files under `dir`, returning absolute paths.
+    fn list_files_under(&self, dir: &Path) -> CliResult<Vec<PathBuf>> {
+        let mut out = Vec::new();
+        walk_files(dir, &mut out)
+            .with_context(|| format!("Failed to walk {}", dir.display()))
+            .map_err(CliError::unrunnable)?;
+        Ok(out)
+    }
+}
+
+fn walk_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if entry.file_type()?.is_dir() {
+            walk_files(&path, out)?;
+        } else {
+            out.push(path);
+        }
+    }
+    Ok(())
 }
 
 pub struct EnvironmentContext {
@@ -194,16 +229,25 @@ pub(crate) mod mocks {
         }
 
         fn read_file_to_string(&self, path: &Path) -> CliResult<String> {
-            let files = self.fs.files.read().unwrap();
-            let bytes = files.get(path).ok_or_else(|| {
-                CliError::unrunnable(anyhow!(
-                    "Failed to read {}: file not found in mock filesystem",
-                    path.display()
-                ))
-            })?;
-            String::from_utf8(bytes.clone())
+            let bytes = self.read_file(path)?;
+            String::from_utf8(bytes)
                 .with_context(|| format!("Failed to read {} as UTF-8", path.display()))
                 .map_err(CliError::unrunnable)
+        }
+
+        fn read_file(&self, path: &Path) -> CliResult<Vec<u8>> {
+            self.fs
+                .files
+                .read()
+                .unwrap()
+                .get(path)
+                .cloned()
+                .ok_or_else(|| {
+                    CliError::unrunnable(anyhow!(
+                        "Failed to read {}: file not found in mock filesystem",
+                        path.display()
+                    ))
+                })
         }
 
         fn write_file(&self, path: &Path, content: &[u8]) -> CliResult<()> {
@@ -222,6 +266,25 @@ pub(crate) mod mocks {
                 .unwrap()
                 .insert(path.to_owned(), mode);
             Ok(())
+        }
+
+        fn path_exists(&self, path: &Path) -> bool {
+            self.fs.files.read().unwrap().contains_key(path)
+        }
+
+        fn list_files_under(&self, dir: &Path) -> CliResult<Vec<PathBuf>> {
+            let prefix = dir.to_owned();
+            let mut paths: Vec<PathBuf> = self
+                .fs
+                .files
+                .read()
+                .unwrap()
+                .keys()
+                .filter(|p| p.starts_with(&prefix))
+                .cloned()
+                .collect();
+            paths.sort();
+            Ok(paths)
         }
     }
 }
