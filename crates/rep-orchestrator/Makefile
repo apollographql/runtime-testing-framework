@@ -87,6 +87,11 @@ db-shell:
 # Management of the test DB container
 
 .PHONY: clear-db-data
+tilt-db-shell:
+	@kubectl exec -i -n orchestrator --context kind-rtf-mgmt statefulset/postgres -- \
+		env PGPASSWORD=password psql -U service_user rtf_rep
+
+.PHONY: clear-db-data
 clear-db-data:
 	@kubectl exec -i -n orchestrator --context kind-rtf-mgmt statefulset/postgres -- \
 		env PGPASSWORD=password psql -U service_user rtf_rep \

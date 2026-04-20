@@ -39,7 +39,7 @@ echo "Requesting upload URLs..."
 URLS=$(
   curl -X POST \
     "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/generate-upload-urls" \
-    -H "Bearer: $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+    -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
     -H "Content-Type: application/json" \
     -d '{}'
 )
@@ -51,20 +51,20 @@ echo "Uploading log file..."
 curl -X PUT "$LOG_URL" --data-binary @/shared/output/output.log
 
 echo "Uploading output zip..."
-zip -r /tmp/output.zip /shared/output
-curl -X PUT "$ZIP_URL" --data-binary @/tmp/output.zip
+zip -r /shared/output.zip /shared/output
+curl -X PUT "$ZIP_URL" --data-binary @/shared/output.zip
 
 echo "Reporting final status..."
 if [ "$EXIT_CODE" = "0" ]; then
   curl -X POST \
     "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
-    -H "Bearer: $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+    -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
     -H "Content-Type: application/json" \
-    -d '{"status":"SUCCESSFUL"}'
+    -d '{"status":"SUCCESSFUL", "message": "scenario completed successfully"}'
 else
   curl -X POST \
     "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
-    -H "Bearer: $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+    -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
     -H "Content-Type: application/json" \
     -d "{\"status\":\"FAILED\",\"exit_code\":$EXIT_CODE}"
 fi
@@ -76,7 +76,7 @@ set -e
 echo "Resolving scenario..."
 curl -X POST \
   "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
-  -H "Bearer: $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+  -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status":"PROVISIONING","message":"resolving scenario"}'
 
@@ -123,7 +123,7 @@ ls -laR /shared/providers/
 echo "Reporting running status..."
 curl -X POST \
   "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
-  -H "Bearer: $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+  -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status":"RUNNING","message":"scenario starting"}'
 "#;
@@ -236,7 +236,8 @@ fn output_collector_container_spec(env: &[EnvVar]) -> Container {
             VolumeMount {
                 name: VOLUME_MOUNT_NAME_SHARED.to_owned(),
                 mount_path: "/shared".to_owned(),
-                read_only: Some(true),
+                // We need write access to create the output zip file
+                read_only: Some(false),
                 ..Default::default()
             },
         ]),

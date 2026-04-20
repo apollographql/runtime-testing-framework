@@ -83,34 +83,44 @@ impl Client for RealClient {
 /// A mock GCS client that returns deterministic URLs based on a base URL.
 #[derive(Debug, Clone)]
 pub struct MockClient {
-    base_url: String,
+    internal_url: String,
+    public_url: String,
     bucket: String,
     #[cfg(test)]
     canned_response: Option<String>,
 }
 
 impl MockClient {
-    pub fn new(base_url: impl Into<String>, bucket: impl Into<String>) -> Self {
+    pub fn new(
+        internal_url: impl Into<String>,
+        public_url: impl Into<String>,
+        bucket: impl Into<String>,
+    ) -> Self {
         Self {
-            base_url: base_url.into(),
+            internal_url: internal_url.into(),
+            public_url: public_url.into(),
             bucket: bucket.into(),
             #[cfg(test)]
             canned_response: None,
         }
     }
 
-    pub fn url_for_object(&self, object: String) -> String {
-        format!("{}/{}/{object}", self.base_url, self.bucket)
+    pub fn internal_url_for_object(&self, object: String) -> String {
+        format!("{}/{}/{object}", self.internal_url, self.bucket)
+    }
+
+    pub fn public_url_for_object(&self, object: String) -> String {
+        format!("{}/{}/{object}", self.public_url, self.bucket)
     }
 }
 
 impl Client for MockClient {
     async fn signed_upload_url(&self, object: String) -> Result<String> {
-        Ok(self.url_for_object(object))
+        Ok(self.internal_url_for_object(object))
     }
 
     async fn signed_download_url(&self, object: String) -> Result<String> {
-        Ok(self.url_for_object(object))
+        Ok(self.public_url_for_object(object))
     }
 
     async fn download_bytes(&self, object: String) -> Result<Vec<u8>> {
@@ -122,9 +132,15 @@ impl Client for MockClient {
         // (innes) The timeout error stuff here is a little silly, but it allows us to avoid adding
         // a mock-only variant to Error.
 
-        let resp = reqwest::get(self.url_for_object(object))
+        let resp = reqwest::get(self.internal_url_for_object(object))
             .await
             .map_err(google_cloud_storage::Error::timeout)?;
+
+        if !resp.status().is_success() {
+            return Err(Error::GCS(google_cloud_storage::Error::timeout(
+                resp.status().to_string(),
+            )));
+        }
 
         let bytes = resp
             .bytes()
@@ -147,14 +163,20 @@ impl GCSClient {
     /// Uses [MockClient] when `RTF_MOCK_GCS_URL` is set; otherwise attempts to initialise a
     /// [RealClient] using Application Default Credentials.
     pub async fn new_from_config(cfg: &Config) -> Result<Self> {
-        let client = match &cfg.mock_gcs_url {
-            Some(url) => Self::Mock(MockClient::new(url.clone(), cfg.gcs_bucket.clone())),
+        let client = match (&cfg.mock_internal_gcs_url, &cfg.mock_public_gcs_url) {
+            (Some(internal), Some(public)) => Self::Mock(MockClient::new(
+                internal.clone(),
+                public.clone(),
+                cfg.gcs_bucket.clone(),
+            )),
 
-            None => Self::Real(RealClient {
+            (None, None) => Self::Real(RealClient {
                 signer: Builder::default().build_signer()?,
                 bucket: cfg.gcs_bucket.clone(),
                 ttl: Duration::from_secs(cfg.gcs_url_ttl_secs),
             }),
+
+            _ => panic!("when setting mock GCS URLs, both must be set"),
         };
 
         Ok(client)
@@ -162,12 +184,16 @@ impl GCSClient {
 
     /// Construct a [MockClient] with explicit parameters.
     #[cfg(test)]
-    pub fn new_mock(base_url: &str, bucket: &str, canned_response: Option<String>) -> Self {
-        Self::Mock(MockClient {
-            base_url: base_url.into(),
-            bucket: bucket.into(),
-            canned_response,
-        })
+    pub fn new_mock(
+        internal_url: &str,
+        public_url: &str,
+        bucket: &str,
+        canned_response: Option<String>,
+    ) -> Self {
+        let mut client = MockClient::new(internal_url, public_url, bucket);
+        client.canned_response = canned_response;
+
+        Self::Mock(client)
     }
 }
 

@@ -27,12 +27,14 @@ pub struct Config {
     pub kubeconfig_path: String,
     pub mgmt_context: String,
     pub workload_context: String,
+    pub orchestrator_url: String,
     pub gcs_bucket: String,
     #[serde(default = "default_gcs_url_ttl_secs")]
     pub gcs_url_ttl_secs: u64,
     #[serde(default)]
-    pub mock_gcs_url: Option<String>,
-    pub orchestrator_url: String,
+    pub mock_internal_gcs_url: Option<String>,
+    #[serde(default)]
+    pub mock_public_gcs_url: Option<String>,
 }
 
 impl Config {

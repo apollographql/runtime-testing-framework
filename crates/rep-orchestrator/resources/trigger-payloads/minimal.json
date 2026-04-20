@@ -17,7 +17,7 @@
       "docker": {
         "image": "nginx",
         "tag": "alpine",
-        "command": "echo test"
+        "command": "echo 'hello, world!' | tee $RTF_OUTPUT/hello.txt"
       },
       "env_vars": {},
       "file_providers": []

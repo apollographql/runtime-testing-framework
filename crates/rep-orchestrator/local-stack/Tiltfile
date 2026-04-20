@@ -187,7 +187,12 @@ custom_build(
     ],
 )
 k8s_yaml("k8s/mock-gcs.yaml")
-k8s_resource("mock-gcs", resource_deps=["cluster-setup"], labels=["rep-orchestrator"])
+k8s_resource(
+    "mock-gcs",
+    port_forwards=["8080:8080"],
+    resource_deps=["cluster-setup"],
+    labels=["rep-orchestrator"]
+)
 
 # Helm deploy — DB connection wired to local postgres service.
 # orchestratorUrl and gcs.mockUrl use the mgmt cluster container IP so they are
@@ -203,7 +208,7 @@ k8s_yaml(helm(
     set=[
         "db.host=postgres",
         "config.orchestratorUrl=http://%s:%s" % (mgmt_ip, ORCH_NODEPORT),
-        "gcs.mockUrl=http://%s:%s" % (mgmt_ip, MOCK_GCS_NODEPORT),
+        "gcs.mockInternalUrl=http://%s:%s" % (mgmt_ip, MOCK_GCS_NODEPORT),
     ],
 ))
 

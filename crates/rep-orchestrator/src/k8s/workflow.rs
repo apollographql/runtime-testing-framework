@@ -180,7 +180,7 @@ const CREATE_NAMESPACE_SCRIPT: &str = r#"
 set -e
 curl -X POST \
   "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
-  -H "Bearer: $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+  -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status":"PROVISIONING","message":"creating namespace"}'
 
@@ -196,7 +196,7 @@ echo "Namespace created successfully."
 
 curl -X POST \
   "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
-  -H "Bearer: $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+  -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status":"PROVISIONING","message":"namespace created"}'
 "#;
@@ -220,7 +220,7 @@ const CREATE_PULL_SECRET_SCRIPT: &str = r#"
 set -e
 curl -X POST \
   "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
-  -H "Bearer: $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+  -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status":"PROVISIONING","message":"creating pull secret"}'
 
@@ -280,7 +280,7 @@ const DEPLOY_ENV_SCRIPT: &str = r#"
 set -e
 curl -X POST \
   "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
-  -H "Bearer: $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+  -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status":"PROVISIONING","message":"deploying environment"}'
 
@@ -316,7 +316,7 @@ kubectl --kubeconfig=/kubeconfig/value wait \
 echo "Environment deployed successfully."
 curl -X POST \
   "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
-  -H "Bearer: $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
+  -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status":"PROVISIONING","message":"environment deployed successfully"}'
 "#;
