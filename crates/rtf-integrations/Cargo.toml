@@ -6,9 +6,11 @@ edition.workspace = true
 [dependencies]
 apollo-compiler.workspace = true
 bytes.workspace = true
+chrono.workspace = true
 futures.workspace = true
 graphql_client = "0.16.0"
 itertools.workspace = true
+jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 rand.workspace = true
 reqwest.workspace = true
 serde_json.workspace = true
@@ -19,4 +21,6 @@ tracing.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true
+rand_core = "0.6"
+rsa = "0.9"
 simple_test_case.workspace = true
