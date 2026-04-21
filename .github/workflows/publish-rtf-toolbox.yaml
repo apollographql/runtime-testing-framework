@@ -44,4 +44,5 @@ jobs:
 
       - uses: apollographql/release-tooling/rtf-run-test-plan@a46e497cc5bed75d0b5d0bddd7822f2c14528d38
         with:
-          test_plan_path: crates/rtf-cli/resources/test-plans/valid/sanity-check/test-plan.yaml
+          test_plan_path: crates/rtf-cli/resources/test-plans/valid/docker-compose-environment/test-plan.yaml
+          verbose: true
