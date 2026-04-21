@@ -30,15 +30,17 @@ pub trait Client: Send + Sync {
 pub struct HttpClient {
     orchestrator_url: String,
     execution_id: Uuid,
+    execution_token: Uuid,
 }
 
 impl HttpClient {
     /// Creates a new [HttpClient] that will report updates to `orchestrator_url` for the test execution associated
-    /// with `execution_id`.
-    pub fn new(orchestrator_url: String, execution_id: Uuid) -> Self {
+    /// with `execution_id`, authenticating requests with `execution_token` as a Bearer token.
+    pub fn new(orchestrator_url: String, execution_id: Uuid, execution_token: Uuid) -> Self {
         Self {
             orchestrator_url,
             execution_id,
+            execution_token,
         }
     }
 }
@@ -65,6 +67,7 @@ impl Client for HttpClient {
         info!(id=%self.execution_id, %status, "updating execution status");
         let resp = reqwest::Client::new()
             .post(&url)
+            .bearer_auth(self.execution_token)
             .json(&payload)
             .send()
             .await
