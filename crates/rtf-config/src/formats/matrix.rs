@@ -60,7 +60,7 @@ impl Matrix {
     /// quickly check by hand for users when needed.
     pub fn sorted_dimensions(&self) -> Vec<(&String, &Vec<Scalar>)> {
         let mut pairs: Vec<_> = self.dimensions.iter().collect();
-        pairs.sort_unstable_by_key(|(k1, _)| *k1);
+        pairs.sort_unstable_by(|(k1, _), (k2, _)| k1.cmp(k2));
 
         pairs
     }
