@@ -7,5 +7,5 @@ services:
     environment:
       - ECHO_MESSAGE=${ECHO_MESSAGE}
     ports:
-      - "8080:8080"
+      - "8083:8080"
     command: ["python", "/app/echo-server.py"]
