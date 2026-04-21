@@ -14,24 +14,24 @@
     ) -&gt; impl <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="type" href="type.Result.html" title="type rep_orchestrator::k8s::Result">Result</a>&lt;ConfigMap&gt;&gt; + <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a>;
 <span class="item-spacer"></span>    fn <a href="#tymethod.create_argo_workflow" class="fn">create_argo_workflow</a>(
         &amp;self,
-        execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.0/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
+        execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.1/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
         spec: <a class="struct" href="struct.WorkflowSpec.html" title="struct rep_orchestrator::k8s::WorkflowSpec">WorkflowSpec</a>,
     ) -&gt; impl <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="type" href="type.Result.html" title="type rep_orchestrator::k8s::Result">Result</a>&lt;<a class="struct" href="struct.Workflow.html" title="struct rep_orchestrator::k8s::Workflow">Workflow</a>&gt;&gt; + <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a>;
 <span class="item-spacer"></span>    fn <a href="#tymethod.create_job" class="fn">create_job</a>(
         &amp;self,
         ns: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.str.html">str</a>,
         name: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.str.html">str</a>,
-        execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.0/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
+        execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.1/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
         spec: JobSpec,
     ) -&gt; impl <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="type" href="type.Result.html" title="type rep_orchestrator::k8s::Result">Result</a>&lt;Job&gt;&gt; + <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a>;
 <span class="item-spacer"></span>    fn <a href="#tymethod.wait_for_workflow" class="fn">wait_for_workflow</a>(
         &amp;self,
-        execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.0/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
+        execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.1/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
     ) -&gt; impl <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="enum" href="enum.WatchOutcome.html" title="enum rep_orchestrator::k8s::WatchOutcome">WatchOutcome</a>&gt; + <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a>;
 <span class="item-spacer"></span>    fn <a href="#tymethod.wait_for_job" class="fn">wait_for_job</a>(
         &amp;self,
         ns: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.str.html">str</a>,
-        execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.0/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
+        execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.1/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
     ) -&gt; impl <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="enum" href="enum.WatchOutcome.html" title="enum rep_orchestrator::k8s::WatchOutcome">WatchOutcome</a>&gt; + <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a>;
 <span class="item-spacer"></span>    fn <a href="#tymethod.delete_workload_namespace" class="fn">delete_workload_namespace</a>(
         &amp;self,
@@ -49,7 +49,7 @@
 <a href="enum.Cluster.html#variant.Workload" title="variant rep_orchestrator::k8s::Cluster::Workload">workload</a> cluster.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="tymethod.create_argo_workflow" class="method"><a class="src rightside" href="../../src/rep_orchestrator/k8s/mod.rs.html#56-60">Source</a><h4 class="code-header">fn <a href="#tymethod.create_argo_workflow" class="fn">create_argo_workflow</a>(
     &amp;self,
-    execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.0/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
+    execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.1/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
     spec: <a class="struct" href="struct.WorkflowSpec.html" title="struct rep_orchestrator::k8s::WorkflowSpec">WorkflowSpec</a>,
 ) -&gt; impl <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="type" href="type.Result.html" title="type rep_orchestrator::k8s::Result">Result</a>&lt;<a class="struct" href="struct.Workflow.html" title="struct rep_orchestrator::k8s::Workflow">Workflow</a>&gt;&gt; + <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a></h4></section></summary><div class="docblock"><p>Create a new argo <a href="struct.Workflow.html" title="struct rep_orchestrator::k8s::Workflow">Workflow</a> in the <a href="enum.Cluster.html#variant.Management" title="variant rep_orchestrator::k8s::Cluster::Management">management</a> cluster for
 provisioning an ephemeral namespace in the <a href="enum.Cluster.html#variant.Workload" title="variant rep_orchestrator::k8s::Cluster::Workload">workload</a> cluster and
@@ -58,19 +58,19 @@ deploying services into it as defined by an RTF Test Plan.</p>
     &amp;self,
     ns: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.str.html">str</a>,
     name: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.str.html">str</a>,
-    execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.0/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
+    execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.1/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
     spec: JobSpec,
 ) -&gt; impl <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="type" href="type.Result.html" title="type rep_orchestrator::k8s::Result">Result</a>&lt;Job&gt;&gt; + <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a></h4></section></summary><div class="docblock"><p>Create a new k8s [Job] for running an RTF Scenario in an ephemeral namespace within the
 <a href="enum.Cluster.html#variant.Workload" title="variant rep_orchestrator::k8s::Cluster::Workload">workload</a> cluster.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="tymethod.wait_for_workflow" class="method"><a class="src rightside" href="../../src/rep_orchestrator/k8s/mod.rs.html#74">Source</a><h4 class="code-header">fn <a href="#tymethod.wait_for_workflow" class="fn">wait_for_workflow</a>(
     &amp;self,
-    execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.0/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
+    execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.1/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
 ) -&gt; impl <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="enum" href="enum.WatchOutcome.html" title="enum rep_orchestrator::k8s::WatchOutcome">WatchOutcome</a>&gt; + <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a></h4></section></summary><div class="docblock"><p>Wait for a <a href="struct.Workflow.html" title="struct rep_orchestrator::k8s::Workflow">Workflow</a> running within the <a href="enum.Cluster.html#variant.Management" title="variant rep_orchestrator::k8s::Cluster::Management">management</a> cluster to reach
 a terminal state, selecting the workflow by its execution ID label.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="tymethod.wait_for_job" class="method"><a class="src rightside" href="../../src/rep_orchestrator/k8s/mod.rs.html#78-82">Source</a><h4 class="code-header">fn <a href="#tymethod.wait_for_job" class="fn">wait_for_job</a>(
     &amp;self,
     ns: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.str.html">str</a>,
-    execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.0/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
+    execution_id: &amp;<a class="struct" href="https://docs.rs/uuid/1.23.1/uuid/struct.Uuid.html" title="struct uuid::Uuid">Uuid</a>,
 ) -&gt; impl <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="enum" href="enum.WatchOutcome.html" title="enum rep_orchestrator::k8s::WatchOutcome">WatchOutcome</a>&gt; + <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a></h4></section></summary><div class="docblock"><p>Wait for a k8s [Job] running within the <a href="enum.Cluster.html#variant.Workload" title="variant rep_orchestrator::k8s::Cluster::Workload">workload</a> cluster to reach
 a terminal state, selecting the job by its execution ID label.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="tymethod.delete_workload_namespace" class="method"><a class="src rightside" href="../../src/rep_orchestrator/k8s/mod.rs.html#85">Source</a><h4 class="code-header">fn <a href="#tymethod.delete_workload_namespace" class="fn">delete_workload_namespace</a>(
