@@ -1,6 +1,6 @@
 use crate::{
     db::TestExecution,
-    k8s::{TOOLBOX_IMAGE, env_configmap_name},
+    k8s::{CLI_BINARY, CLUSTER_API_NAMESPACE, TOOLBOX_IMAGE, env_configmap_name},
 };
 use k8s_openapi::api::core::v1::{
     ConfigMapVolumeSource, Container, EnvVar, KeyToPath, SecretVolumeSource, Volume, VolumeMount,
@@ -10,6 +10,13 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 const TTL_SECONDS_AFTER_FINISHED: i32 = 3600; // cleanup after 1h
+
+/// Mount point for the workload-cluster kubeconfig secret.
+const KUBECONFIG_PATH: &str = "/kubeconfig/value";
+/// Mount point for the GCR pull-secret Docker config.
+const DOCKER_CONFIG_PATH: &str = "/gcr-secret/config.json";
+/// Mount point for the resolved environment.yaml configmap.
+const ENVIRONMENT_PATH: &str = "/environment/environment.yaml";
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct WorkflowStatus {
@@ -50,11 +57,6 @@ pub struct WorkflowSpec {
 }
 
 impl WorkflowSpec {
-    // TODO: This needs to be rewritten to use the toolbox image commands instead of inline shell
-    // scripts!
-    // The current helper methods on the nested structs are aimed at creating tasks that run shell
-    // inline shell scripts. These will need to be updated to simply call the corresponding
-    // subcommands from the CLI.
     pub fn for_execution(ex: &TestExecution, orchestrator_url: &str) -> Self {
         let execution_id = ex.uuid();
         let configmap_name = env_configmap_name(&execution_id);
@@ -69,8 +71,12 @@ impl WorkflowSpec {
                 TemplateDef::Main(MainTemplate::new()),
                 TemplateDef::Task(create_namespace(&namespace, env_vars.clone())),
                 TemplateDef::Task(create_pull_secret(&namespace, env_vars.clone())),
-                TemplateDef::Task(deploy_environment(&configmap_name, &namespace, env_vars)),
-                TemplateDef::Task(cleanup(&configmap_name)),
+                TemplateDef::Task(deploy_environment(
+                    &configmap_name,
+                    &namespace,
+                    env_vars.clone(),
+                )),
+                TemplateDef::Task(cleanup(&configmap_name, env_vars)),
             ],
             volumes: vec![Volume {
                 name: "kubeconfig".into(),
@@ -153,9 +159,10 @@ pub struct TaskTemplate {
 }
 
 impl TaskTemplate {
+    /// Build a task container that runs `rep-orchestrator-cli <args...>` inside the toolbox image.
     fn new(
         name: &str,
-        arg: String,
+        cli_args: Vec<String>,
         volume_mounts: Vec<VolumeMount>,
         volumes: Option<Vec<Volume>>,
         env: Vec<EnvVar>,
@@ -165,8 +172,8 @@ impl TaskTemplate {
             container: Container {
                 name: name.into(),
                 image: Some(TOOLBOX_IMAGE.into()),
-                command: Some(vec!["/bin/sh".to_owned(), "-c".to_owned()]),
-                args: Some(vec![arg]),
+                command: Some(vec![CLI_BINARY.to_owned()]),
+                args: Some(cli_args),
                 volume_mounts: Some(volume_mounts),
                 env: Some(env),
                 ..Default::default()
@@ -176,82 +183,45 @@ impl TaskTemplate {
     }
 }
 
-const CREATE_NAMESPACE_SCRIPT: &str = r#"
-set -e
-curl -X POST \
-  "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
-  -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"status":"PROVISIONING","message":"creating namespace"}'
-
-echo "Creating namespace '__NAMESPACE__' in workload cluster..."
-kubectl \
-  --kubeconfig=/kubeconfig/value \
-  create namespace __NAMESPACE__ \
-  --dry-run=client \
-  -o yaml |
-    kubectl --kubeconfig=/kubeconfig/value apply -f -
-
-echo "Namespace created successfully."
-
-curl -X POST \
-  "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
-  -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"status":"PROVISIONING","message":"namespace created"}'
-"#;
+fn kubeconfig_volume_mount() -> VolumeMount {
+    VolumeMount {
+        name: "kubeconfig".into(),
+        mount_path: "/kubeconfig".into(),
+        read_only: Some(true),
+        ..Default::default()
+    }
+}
 
 fn create_namespace(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
     TaskTemplate::new(
         "create-namespace",
-        CREATE_NAMESPACE_SCRIPT.replace("__NAMESPACE__", namespace),
-        vec![VolumeMount {
-            name: "kubeconfig".into(),
-            mount_path: "/kubeconfig".into(),
-            read_only: Some(true),
-            ..Default::default()
-        }],
+        vec![
+            "create-namespace".into(),
+            "--namespace".into(),
+            namespace.into(),
+            "--kubeconfig".into(),
+            KUBECONFIG_PATH.into(),
+        ],
+        vec![kubeconfig_volume_mount()],
         None,
         env,
     )
 }
 
-const CREATE_PULL_SECRET_SCRIPT: &str = r#"
-set -e
-curl -X POST \
-  "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
-  -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"status":"PROVISIONING","message":"creating pull secret"}'
-
-echo "Creating image pull secret in namespace '__NAMESPACE__'..."
-kubectl --kubeconfig=/kubeconfig/value \
-  create secret docker-registry gcr-secret \
-  --namespace=__NAMESPACE__ \
-  --from-file=.dockerconfigjson=/gcr-secret/config.json \
-  --dry-run=client -o yaml |
-    kubectl --kubeconfig=/kubeconfig/value apply -f -
-
-echo "Patching default service account..."
-kubectl --kubeconfig=/kubeconfig/value \
-  patch serviceaccount default \
-  --namespace=__NAMESPACE__ \
-  -p '{"imagePullSecrets": [{"name": "gcr-secret"}]}'
-
-echo "Pull secret created successfully."
-"#;
-
 fn create_pull_secret(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
     TaskTemplate::new(
         "create-pull-secret",
-        CREATE_PULL_SECRET_SCRIPT.replace("__NAMESPACE__", namespace),
         vec![
-            VolumeMount {
-                name: "kubeconfig".into(),
-                mount_path: "/kubeconfig".into(),
-                read_only: Some(true),
-                ..Default::default()
-            },
+            "create-pull-secret".into(),
+            "--namespace".into(),
+            namespace.into(),
+            "--kubeconfig".into(),
+            KUBECONFIG_PATH.into(),
+            "--docker-config".into(),
+            DOCKER_CONFIG_PATH.into(),
+        ],
+        vec![
+            kubeconfig_volume_mount(),
             VolumeMount {
                 name: "gcr-secret".into(),
                 mount_path: "/gcr-secret".into(),
@@ -276,62 +246,20 @@ fn create_pull_secret(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
     )
 }
 
-const DEPLOY_ENV_SCRIPT: &str = r#"
-set -e
-curl -X POST \
-  "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
-  -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"status":"PROVISIONING","message":"deploying environment"}'
-
-WORKDIR=/tmp/rtf-work
-mkdir -p $WORKDIR
-mkdir -p $WORKDIR/k8s
-
-echo "Resolving environment docker-compose files..."
-rtf resolve environment /environment/environment.yaml --outdir $WORKDIR/output
-
-# Source RTF env vars
-. $WORKDIR/output/setup/setup.env
-echo "Converting to kubernetes manifests..."
-KOMPOSE_ARGS=""
-while IFS= read -r f || [ -n "$f" ]; do
-  [ -n "$f" ] && KOMPOSE_ARGS="$KOMPOSE_ARGS -f $f"
-done < "$COMPOSE_FILES"
-kompose convert $KOMPOSE_ARGS -o $WORKDIR/k8s/
-
-echo "Applying manifests to namespace '__NAMESPACE__'..."
-kubectl --kubeconfig=/kubeconfig/value apply \
-  -n __NAMESPACE__ \
-  -f $WORKDIR/k8s/
-
-echo "Waiting for deployments to become available..."
-kubectl --kubeconfig=/kubeconfig/value wait \
-  --for=condition=available \
-  deployment \
-  --all \
-  -n __NAMESPACE__ \
-  --timeout=300s
-
-echo "Environment deployed successfully."
-curl -X POST \
-  "$APOLLO_REP_ORCHESTRATOR_URL/test-execution/$APOLLO_REP_ORCHESTRATOR_EXECUTION_ID/status" \
-  -H "Authorization: Bearer $APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"status":"PROVISIONING","message":"environment deployed successfully"}'
-"#;
-
 fn deploy_environment(configmap_name: &str, namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
     TaskTemplate::new(
         "deploy-environment",
-        DEPLOY_ENV_SCRIPT.replace("__NAMESPACE__", namespace),
         vec![
-            VolumeMount {
-                name: "kubeconfig".into(),
-                mount_path: "/kubeconfig".into(),
-                read_only: Some(true),
-                ..Default::default()
-            },
+            "deploy-environment".into(),
+            "--namespace".into(),
+            namespace.into(),
+            "--kubeconfig".into(),
+            KUBECONFIG_PATH.into(),
+            "--environment".into(),
+            ENVIRONMENT_PATH.into(),
+        ],
+        vec![
+            kubeconfig_volume_mount(),
             VolumeMount {
                 name: "environment".into(),
                 mount_path: "/environment".into(),
@@ -351,23 +279,18 @@ fn deploy_environment(configmap_name: &str, namespace: &str, env: Vec<EnvVar>) -
     )
 }
 
-const CLEANUP_SCRIPT: &str = r#"
-set -e
-echo "Cleaning up ConfigMap '__CONFIGMAP__'..."
-
-kubectl delete configmap __CONFIGMAP__ \
-  -n cluster-api \
-  --ignore-not-found
-
-echo "Cleanup complete."
-"#;
-
-fn cleanup(configmap_name: &str) -> TaskTemplate {
+fn cleanup(configmap_name: &str, env: Vec<EnvVar>) -> TaskTemplate {
     TaskTemplate::new(
         "cleanup",
-        CLEANUP_SCRIPT.replace("__CONFIGMAP__", configmap_name),
+        vec![
+            "cleanup".into(),
+            "--configmap".into(),
+            configmap_name.into(),
+            "--namespace".into(),
+            CLUSTER_API_NAMESPACE.into(),
+        ],
         vec![],
         None,
-        vec![],
+        env,
     )
 }
