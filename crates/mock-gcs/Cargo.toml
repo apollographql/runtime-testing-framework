@@ -8,7 +8,7 @@ name = "mock-gcs"
 path = "src/main.rs"
 
 [dependencies]
-axum = { version = "0.8.8", features = ["macros"] }
+axum = { version = "0.8.9", features = ["macros"] }
 bytes = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
