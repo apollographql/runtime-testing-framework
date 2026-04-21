@@ -29,7 +29,7 @@ pub async fn deploy_environment(
 
     info_status!(
         ctx,
-        Status::Resolving,
+        Status::Provisioning,
         "Resolving environment docker-compose files..."
     )?;
     let outdir = workdir_path.join("output");
@@ -99,7 +99,7 @@ async fn setup_env(
 
     info_status!(
         ctx,
-        Status::Resolving,
+        Status::Provisioning,
         "Converting to kubernetes manifests..."
     )?;
     let mut kompose = build_kompose_command(&compose_files_content, k8s_dir_path, &env_vars);
