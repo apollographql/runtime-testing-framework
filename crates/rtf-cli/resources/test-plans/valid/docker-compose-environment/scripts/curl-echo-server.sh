@@ -5,7 +5,7 @@ set -e
 sleep 2
 
 # Curl the echo server
-response=$(curl -s http://localhost:8080/)
+response=$(curl -v http://localhost:8080/)
 
 echo "Response from echo-server:"
 echo "$response"
