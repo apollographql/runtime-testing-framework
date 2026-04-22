@@ -1,0 +1,11 @@
+services:
+  echo-server:
+    image: python:3.14-alpine
+    working_dir: /app
+    volumes:
+      - ${ECHO_SERVER_SCRIPT}:/app/echo-server.py:ro
+    environment:
+      - ECHO_MESSAGE=${ECHO_MESSAGE}
+    ports:
+      - "8080:8080"
+    command: ["python", "/app/echo-server.py"]
