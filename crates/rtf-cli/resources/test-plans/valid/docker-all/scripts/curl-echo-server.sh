@@ -1,11 +1,14 @@
 #!/usr/bin/env sh
 set -e
 
-# Wait for service to be ready
+echo "installing curl"
+apk add curl
+
+echo "waiting for service to be ready"
 sleep 2
 
-# Curl the echo server
-response=$(curl -v http://localhost:8080/)
+echo "making request to server"
+response=$(curl -v echo-server:8080/)
 
 echo "Response from echo-server:"
 echo "$response"

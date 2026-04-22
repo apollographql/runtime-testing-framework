@@ -1,0 +1,21 @@
+name: scenario-docker-compose-environment
+description: Execute a scenario against a docker compose environment
+
+variable_definitions:
+  - name: message
+    description: "A message to echo out"
+
+docker:
+  image: alpine
+  tag: latest
+  command: "sh $CURL_SERVER"
+
+env_vars:
+  EXPECTED_MESSAGE: "{{ message }}"
+  STAGE: "scenario"
+
+file_providers:
+  - name: curl-echo-server.sh
+    env_var: CURL_SERVER
+    kind: relative_path
+    path: scripts/curl-echo-server.sh

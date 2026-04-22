@@ -1,0 +1,15 @@
+name: docker-compose-environment
+description: Setup and teardown a docker compose environment
+
+variables:
+  message: "hello, world!"
+
+scenario:
+  from:
+    kind: local
+    relative_path: scenario.yaml
+
+environment:
+  from:
+    kind: local
+    relative_path: environment.yaml
