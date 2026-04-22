@@ -20,10 +20,13 @@ config:
   port: "8035"
   logLevel: "warn"
   apolloKey: "dummy"
-  githubToken: "dummy"
   maxConcurrentExecutions: "10"
   maxQueuedExecutions: "100"
   orchestratorUrl: ""   # required; must be reachable from both mgmt and workload cluster pods
+
+github:
+  appId: ""            # required; GitHub App ID
+  privateKeySecret: ""  # required; name of a k8s Secret with key "private-key-pem"
 
 db:
   host: ""      # required

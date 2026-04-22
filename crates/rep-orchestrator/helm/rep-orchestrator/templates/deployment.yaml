@@ -41,11 +41,16 @@ spec:
                 secretKeyRef:
                   name: {{ include "rep-orchestrator.fullname" . }}
                   key: apollo-key
-            - name: RTF_GITHUB_TOKEN
+            - name: RTF_GITHUB_APP_ID
               valueFrom:
                 secretKeyRef:
                   name: {{ include "rep-orchestrator.fullname" . }}
-                  key: github-token
+                  key: github-app-id
+            - name: RTF_GITHUB_APP_PRIVATE_KEY_PEM
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.github.privateKeySecret }}
+                  key: private-key-pem
             - name: RTF_DB_HOST
               value: {{ .Values.db.host | quote }}
             - name: RTF_DB_PORT

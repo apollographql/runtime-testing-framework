@@ -15,6 +15,10 @@ gcs:
 config:
   logLevel: "info,hyper=error,rep_orchestrator=debug"
 
+github:
+  appId: "1"
+  privateKeySecret: "github-app-private-key"
+
 db:
   pass: password
 

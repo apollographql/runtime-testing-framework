@@ -15,7 +15,8 @@ pub struct Config {
     pub db_name: String,
     pub db_user: String,
     pub db_pass: String,
-    pub github_token: String,
+    pub github_app_id: u64,
+    pub github_app_private_key_pem: String,
     #[serde(default = "default_host")]
     pub host: String,
     #[serde(default = "default_port")]

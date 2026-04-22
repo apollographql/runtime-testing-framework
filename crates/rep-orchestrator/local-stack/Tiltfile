@@ -73,6 +73,16 @@ k8s_yaml(
     )
 )
 
+# GitHub App private key — dummy value; the orchestrator doesn't validate the PEM at startup,
+# only at JWT signing time. GitHub calls will fail if actually attempted.
+k8s_yaml(
+    secret_from_dict(
+        "github-app-private-key",
+        namespace="orchestrator",
+        inputs={"private-key-pem": "dummy"},
+    )
+)
+
 # Make sure the rtf-toolbox image is available on both clusters under its full registry name.
 # The workflow spec references the full GCR path, so the image must be loaded under that name
 # even though it was built locally as rtf-toolbox:edge.
@@ -110,6 +120,7 @@ k8s_resource(
         "argo-workflow:rolebinding:cluster-api",
         "workload-kubeconfig:secret:cluster-api",
         "orchestrator-kubeconfig:secret:orchestrator",
+        "github-app-private-key:secret:orchestrator",
         "gcr-secret:secret:cluster-api",
     ],
     new_name="cluster-setup",
