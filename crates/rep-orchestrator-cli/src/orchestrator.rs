@@ -1,6 +1,10 @@
 use crate::error::CliError;
 use anyhow::{Context, anyhow};
-use rep_orchestrator_shared::{payload::SetStatusPayload, status::Status};
+use rep_orchestrator_shared::{
+    payload::{GenerateUploadUrlsPayload, SetStatusPayload},
+    status::Status,
+    upload_urls::UploadUrls,
+};
 use std::process::ExitStatus;
 use tracing::info;
 use uuid::Uuid;
@@ -25,6 +29,15 @@ pub trait Client: Send + Sync {
         exit_status: Option<ExitStatus>,
         message: Option<String>,
     ) -> anyhow::Result<()>;
+
+    /// Request signed URLs from the orchestrator for uploading the log file and output zip
+    /// associated with the current test execution.
+    #[cfg_attr(not(test), expect(dead_code))]
+    async fn generate_upload_urls(&self) -> anyhow::Result<UploadUrls>;
+
+    /// PUT `body` to a previously-issued signed upload URL.
+    #[cfg_attr(not(test), expect(dead_code))]
+    async fn upload_to_signed_url(&self, url: &str, body: Vec<u8>) -> anyhow::Result<()>;
 }
 
 pub struct HttpClient {
@@ -95,6 +108,51 @@ impl Client for HttpClient {
             Err(anyhow!(msg))
         }
     }
+
+    async fn generate_upload_urls(&self) -> anyhow::Result<UploadUrls> {
+        let url = format!(
+            "{}/test-execution/{}/generate-upload-urls",
+            self.orchestrator_url, self.execution_id
+        );
+
+        info!(id=%self.execution_id, "requesting upload URLs");
+        let resp = reqwest::Client::new()
+            .post(&url)
+            .bearer_auth(self.execution_token)
+            .json(&GenerateUploadUrlsPayload {})
+            .send()
+            .await
+            .context("failed to request signed URLs for artifact upload")?;
+
+        let status_code = resp.status();
+        if !status_code.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(anyhow!(
+                "generate-upload-urls failed for {}; ({status_code}): {body}",
+                self.execution_id,
+            ));
+        }
+
+        Ok(resp.json().await?)
+    }
+
+    async fn upload_to_signed_url(&self, url: &str, body: Vec<u8>) -> anyhow::Result<()> {
+        info!(id=%self.execution_id, "uploading artifact");
+        let resp = reqwest::Client::new()
+            .put(url)
+            .body(body)
+            .send()
+            .await
+            .context("failed to PUT to signed upload URL")?;
+
+        let status_code = resp.status();
+        if !status_code.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(anyhow!("signed upload PUT failed ({status_code}): {body}",));
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -110,17 +168,36 @@ pub(crate) mod mocks {
         pub message: Option<String>,
     }
 
-    #[derive(Default)]
+    pub struct UploadCall {
+        pub url: String,
+        pub body: Vec<u8>,
+    }
+
     pub struct MockClient {
         status_updates: RwLock<Vec<StatusUpdateArgs>>,
+        uploads: RwLock<Vec<UploadCall>>,
         update_should_fail: bool,
+        log_file_url: String,
+        output_zip_url: String,
+    }
+
+    impl Default for MockClient {
+        fn default() -> Self {
+            Self {
+                status_updates: RwLock::new(Vec::new()),
+                uploads: RwLock::new(Vec::new()),
+                update_should_fail: false,
+                log_file_url: "http://mock/log".to_owned(),
+                output_zip_url: "http://mock/zip".to_owned(),
+            }
+        }
     }
 
     impl MockClient {
         pub fn failing() -> Self {
             Self {
-                status_updates: RwLock::new(Vec::new()),
                 update_should_fail: true,
+                ..Default::default()
             }
         }
 
@@ -130,6 +207,14 @@ pub(crate) mod mocks {
         {
             let updates = self.status_updates.read().unwrap();
             closure(updates)
+        }
+
+        pub fn read_uploads<F>(&self, closure: F)
+        where
+            F: FnOnce(RwLockReadGuard<Vec<UploadCall>>),
+        {
+            let uploads = self.uploads.read().unwrap();
+            closure(uploads)
         }
     }
 
@@ -149,6 +234,27 @@ pub(crate) mod mocks {
                 message,
             });
 
+            Ok(())
+        }
+
+        async fn generate_upload_urls(&self) -> anyhow::Result<UploadUrls> {
+            if self.update_should_fail {
+                return Err(anyhow::anyhow!("mock upload urls failure"));
+            }
+            Ok(UploadUrls {
+                log_file_url: self.log_file_url.clone(),
+                output_zip_url: self.output_zip_url.clone(),
+            })
+        }
+
+        async fn upload_to_signed_url(&self, url: &str, body: Vec<u8>) -> anyhow::Result<()> {
+            if self.update_should_fail {
+                return Err(anyhow::anyhow!("mock upload failure"));
+            }
+            self.uploads.write().unwrap().push(UploadCall {
+                url: url.to_owned(),
+                body,
+            });
             Ok(())
         }
     }
@@ -190,5 +296,40 @@ mod tests {
             assert_eq!(updates[0].exit_status, None);
             assert_eq!(updates[0].message.as_deref(), Some("setup broke"));
         });
+    }
+
+    #[tokio::test]
+    async fn mock_generate_upload_urls_returns_canned_urls() {
+        let client = MockClient::default();
+        let urls = client.generate_upload_urls().await.unwrap();
+        assert_eq!(urls.log_file_url, "http://mock/log");
+        assert_eq!(urls.output_zip_url, "http://mock/zip");
+    }
+
+    #[tokio::test]
+    async fn mock_upload_to_signed_url_records_calls() {
+        let client = MockClient::default();
+        client
+            .upload_to_signed_url("http://mock/target", b"payload".to_vec())
+            .await
+            .unwrap();
+
+        client.read_uploads(|uploads| {
+            assert_eq!(uploads.len(), 1);
+            assert_eq!(uploads[0].url, "http://mock/target");
+            assert_eq!(uploads[0].body, b"payload");
+        });
+    }
+
+    #[tokio::test]
+    async fn mock_failing_client_fails_upload_methods() {
+        let client = MockClient::failing();
+        assert!(client.generate_upload_urls().await.is_err());
+        assert!(
+            client
+                .upload_to_signed_url("url", Vec::new())
+                .await
+                .is_err()
+        );
     }
 }
