@@ -4,9 +4,6 @@ set -e
 # Wait for service to be ready
 sleep 2
 
-cat /etc/hosts
-docker ps
-
 # Curl the echo server
 response=$(curl -v http://localhost:8080/)
 
