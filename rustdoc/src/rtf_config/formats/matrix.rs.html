@@ -60,7 +60,7 @@
 <a href=#60 id=60 data-nosnippet>60</a>    /// quickly check by hand for users when needed.
 <a href=#61 id=61 data-nosnippet>61</a>    </span><span class="kw">pub fn </span>sorted_dimensions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;(<span class="kw-2">&amp;</span>String, <span class="kw-2">&amp;</span>Vec&lt;Scalar&gt;)&gt; {
 <a href=#62 id=62 data-nosnippet>62</a>        <span class="kw">let </span><span class="kw-2">mut </span>pairs: Vec&lt;<span class="kw">_</span>&gt; = <span class="self">self</span>.dimensions.iter().collect();
-<a href=#63 id=63 data-nosnippet>63</a>        pairs.sort_unstable_by(|(k1, <span class="kw">_</span>), (k2, <span class="kw">_</span>)| k1.cmp(k2));
+<a href=#63 id=63 data-nosnippet>63</a>        pairs.sort_unstable_by_key(|(k1, <span class="kw">_</span>)| <span class="kw-2">*</span>k1);
 <a href=#64 id=64 data-nosnippet>64</a>
 <a href=#65 id=65 data-nosnippet>65</a>        pairs
 <a href=#66 id=66 data-nosnippet>66</a>    }
