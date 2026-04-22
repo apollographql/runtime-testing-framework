@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM rust:1.95.0-bookworm AS build
+FROM --platform=$BUILDPLATFORM rust:1.95.0 AS build
 
 # aws-lc-rs (required by kube) needs cmake and clang
 RUN apt-get update && apt-get install -y cmake clang && rm -rf /var/lib/apt/lists/*
@@ -16,7 +16,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     && cp target/release/mock-gcs /mock-gcs
 
 
-FROM --platform=$BUILDPLATFORM debian:bookworm-slim
+FROM --platform=$BUILDPLATFORM debian:trixie-slim
 
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 

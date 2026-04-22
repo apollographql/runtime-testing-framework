@@ -1,0 +1,40 @@
+name: Test RTF Toolbox Image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/test-toolbox-image.yaml"
+      - "crates/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "toolbox/**"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/test-toolbox-image.yaml"
+      - "crates/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "toolbox/**"
+
+jobs:
+  test-toolbox-image:
+    name: Build and test toolbox image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build toolbox image
+        run: docker build -t rtf-toolbox:local -f toolbox/Dockerfile .
+
+      - name: Run test plan with local toolbox image
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" \
+            -w "${GITHUB_WORKSPACE}" \
+            rtf-toolbox:local \
+            rtf -vvv run crates/rtf-cli/resources/test-plans/valid/docker-all/test-plan.yaml
