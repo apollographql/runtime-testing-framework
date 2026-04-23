@@ -74,6 +74,22 @@ pub enum Command {
         #[arg(long)]
         namespace: String,
     },
+
+    /// Resolve the scenario config and write a `run.sh` wrapper into the shared volume for the
+    /// scenario-runner container to execute.
+    PrepareScenario {
+        /// Path to the scenario.yaml configuration file
+        #[arg(long)]
+        scenario: PathBuf,
+
+        /// Path to the shared volume mounted by the scenario-runner and output-collector containers
+        #[arg(long)]
+        shared_dir: PathBuf,
+
+        /// User-provided shell command to run as the scenario body
+        #[arg(long)]
+        command: String,
+    },
 }
 
 impl Command {
@@ -82,7 +98,7 @@ impl Command {
             Self::CreateNamespace { kubeconfig, .. }
             | Self::CreatePullSecret { kubeconfig, .. }
             | Self::DeployEnvironment { kubeconfig, .. } => Some(kubeconfig),
-            Self::Cleanup { .. } => None,
+            Self::Cleanup { .. } | Self::PrepareScenario { .. } => None,
         }
     }
 }

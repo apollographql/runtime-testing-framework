@@ -7,7 +7,14 @@ use anyhow::Context;
 use rep_orchestrator_shared::{
     EXECUTION_ID_ENV_VAR, EXECUTION_TOKEN_ENV_VAR, ORCHESTRATOR_URL_ENV_VAR, status::Status,
 };
-use std::{env, path::Path, process::Command, str::FromStr};
+use std::{
+    env,
+    fs::{self, Permissions, set_permissions},
+    os::unix::fs::PermissionsExt,
+    path::Path,
+    process::Command,
+    str::FromStr,
+};
 use tracing::info;
 use uuid::Uuid;
 
@@ -64,6 +71,30 @@ pub trait CliContext {
             }
         }
     }
+
+    /// Read the file at `path` as UTF-8, mapping the IO error to [`Status::Unrunnable`] with the
+    /// path embedded in the message.
+    fn read_file_to_string(&self, path: &Path) -> CliResult<String> {
+        fs::read_to_string(path)
+            .with_context(|| format!("Failed to read {}", path.display()))
+            .map_err(CliError::unrunnable)
+    }
+
+    /// Write `content` to `path`, mapping the IO error to [`Status::Unrunnable`] with the path
+    /// embedded in the message.
+    fn write_file(&self, path: &Path, content: &[u8]) -> CliResult<()> {
+        fs::write(path, content)
+            .with_context(|| format!("Failed to write {}", path.display()))
+            .map_err(CliError::unrunnable)
+    }
+
+    /// chmod `path` to `mode`, mapping the IO error to [`Status::Unrunnable`] with the path
+    /// embedded in the message.
+    fn set_permissions_mode(&self, path: &Path, mode: u32) -> CliResult<()> {
+        set_permissions(path, Permissions::from_mode(mode))
+            .with_context(|| format!("Failed to chmod {}", path.display()))
+            .map_err(CliError::unrunnable)
+    }
 }
 
 pub struct EnvironmentContext {
@@ -117,13 +148,37 @@ impl CliContext for EnvironmentContext {
 #[cfg(test)]
 pub(crate) mod mocks {
     use super::*;
+    use anyhow::anyhow;
     use kubernetes::mocks::MockClient as MockKubeClient;
     use orchestrator::mocks::MockClient as MockOrchestrator;
+    use std::{
+        collections::HashMap,
+        path::PathBuf,
+        sync::{Arc, RwLock},
+    };
 
+    /// In-memory filesystem state backing [`MockContext`]'s filesystem helpers. Shared via
+    /// `Arc` so spawned tasks can observe writes made on the main test thread.
     #[derive(Default)]
+    pub struct MockFs {
+        pub files: RwLock<HashMap<PathBuf, Vec<u8>>>,
+        pub permissions: RwLock<HashMap<PathBuf, u32>>,
+    }
+
     pub struct MockContext {
         pub orchestrator_client: MockOrchestrator,
         pub kube_client: MockKubeClient,
+        pub fs: Arc<MockFs>,
+    }
+
+    impl Default for MockContext {
+        fn default() -> Self {
+            Self {
+                orchestrator_client: MockOrchestrator::default(),
+                kube_client: MockKubeClient::default(),
+                fs: Arc::new(MockFs::default()),
+            }
+        }
     }
 
     impl CliContext for MockContext {
@@ -136,6 +191,37 @@ pub(crate) mod mocks {
 
         fn kube_client(&self) -> &Self::KubeClient {
             &self.kube_client
+        }
+
+        fn read_file_to_string(&self, path: &Path) -> CliResult<String> {
+            let files = self.fs.files.read().unwrap();
+            let bytes = files.get(path).ok_or_else(|| {
+                CliError::unrunnable(anyhow!(
+                    "Failed to read {}: file not found in mock filesystem",
+                    path.display()
+                ))
+            })?;
+            String::from_utf8(bytes.clone())
+                .with_context(|| format!("Failed to read {} as UTF-8", path.display()))
+                .map_err(CliError::unrunnable)
+        }
+
+        fn write_file(&self, path: &Path, content: &[u8]) -> CliResult<()> {
+            self.fs
+                .files
+                .write()
+                .unwrap()
+                .insert(path.to_owned(), content.to_vec());
+            Ok(())
+        }
+
+        fn set_permissions_mode(&self, path: &Path, mode: u32) -> CliResult<()> {
+            self.fs
+                .permissions
+                .write()
+                .unwrap()
+                .insert(path.to_owned(), mode);
+            Ok(())
         }
     }
 }
