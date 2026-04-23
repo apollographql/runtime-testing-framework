@@ -29,7 +29,7 @@ pub async fn deploy_environment(
 
     info_status!(
         ctx,
-        Status::Resolving,
+        Status::Provisioning,
         "Resolving environment docker-compose files..."
     )?;
     let outdir = workdir_path.join("output");
@@ -99,7 +99,7 @@ async fn setup_env(
 
     info_status!(
         ctx,
-        Status::Resolving,
+        Status::Provisioning,
         "Converting to kubernetes manifests..."
     )?;
     let mut kompose = build_kompose_command(&compose_files_content, k8s_dir_path, &env_vars);
@@ -109,7 +109,9 @@ async fn setup_env(
 
 /// Parse a `.env` file into a map of key-value pairs.
 ///
-/// Expects all lines in the file to be of the form "export $key=$value"
+/// Expects all lines in the file to be of the form `export $key="$value"` — the quoted form
+/// produced by `rtf resolve environment`. The surrounding double quotes are stripped so the
+/// value behaves the way it would after `source`-ing the file in a shell.
 ///
 /// Assumes clean output from RTF and returns an [anyhow::Error] if the file was in any way malformed.
 fn parse_env_file(contents: &str) -> anyhow::Result<HashMap<String, String>> {
@@ -122,7 +124,11 @@ fn parse_env_file(contents: &str) -> anyhow::Result<HashMap<String, String>> {
 
         match kv.split_once('=') {
             Some((key, value)) => {
-                if let Some(_existing) = rtf_env.insert(key.to_owned(), value.to_owned()) {
+                let unquoted = value
+                    .strip_prefix('"')
+                    .and_then(|v| v.strip_suffix('"'))
+                    .unwrap_or(value);
+                if let Some(_existing) = rtf_env.insert(key.to_owned(), unquoted.to_owned()) {
                     return Err(anyhow!("{DUPLICATE_ERROR}: {line:?}"));
                 }
             }
@@ -205,6 +211,30 @@ mod tests {
     fn parse_env_preserves_values_containing_equals() -> anyhow::Result<()> {
         let vars = parse_env_file("export FOO=bar=baz=qux")?;
         assert_eq!(vars.get("FOO").unwrap(), "bar=baz=qux");
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_env_strips_surrounding_double_quotes() -> anyhow::Result<()> {
+        // `rtf resolve environment` emits `export KEY="value"`; the quotes would be stripped
+        // by `source`, and we need to mirror that behaviour so values like file paths don't
+        // carry stray quote characters.
+        let vars = parse_env_file(
+            "export COMPOSE_FILES=\"/tmp/rtf-work/output/setup/compose-files.txt\"",
+        )?;
+        assert_eq!(
+            vars.get("COMPOSE_FILES").unwrap(),
+            "/tmp/rtf-work/output/setup/compose-files.txt"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_env_leaves_unquoted_values_intact() -> anyhow::Result<()> {
+        let vars = parse_env_file("export FOO=bar")?;
+        assert_eq!(vars.get("FOO").unwrap(), "bar");
 
         Ok(())
     }

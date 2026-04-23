@@ -42,7 +42,7 @@ pub async fn prepare_scenario(
 ) -> CliResult<()> {
     let paths = SharedPaths::new(shared_dir);
 
-    info_status!(ctx, Status::Resolving, "Resolving scenario...")?;
+    info_status!(ctx, Status::Provisioning, "Resolving scenario...")?;
     ctx.run_shell(
         Command::new("rtf")
             .args(["resolve", "scenario"])

@@ -26,50 +26,36 @@ pub trait CliContext {
 
     fn kube_client(&self) -> &Self::KubeClient;
 
-    /// Run a shell [Command] to completion.
+    /// Run an orchestration shell [Command] to completion.
     ///
-    /// If it exits with a successful exit code, [Self::OrchestratorClient] will post an update moving the associated
-    /// test execution to `next_execution_status`.
-    ///
-    /// If it fails, [Self::OrchestratorClient] will be used to update the status of the associated test execution to either
-    /// a [Status::Unrunnable] or [Status::Failed] state depending on whether the failed command was associated with invoking
-    /// user scripts or setup scripts.
+    /// On success, posts an update moving the execution to `next_execution_status`. On failure,
+    /// returns a [Status::Unrunnable] error — every caller is an orchestration subroutine, so
+    /// there is no distinction between "setup failed" and "user scenario failed" here.
     async fn run_shell(&self, cmd: &mut Command, next_execution_status: Status) -> CliResult<()> {
         info!("Running {cmd:?}");
-
-        let is_orchestration = matches!(
-            next_execution_status,
-            Status::Initialising | Status::Resolving | Status::Provisioning
-        );
 
         let exit_status = cmd
             .status()
             .with_context(|| format!("I/O error when attempting to invoke {cmd:?}"))
             .map_err(CliError::unrunnable)?;
 
-        match exit_status.success() {
-            false if is_orchestration => Err(CliError::unrunnable_subprocess(
+        if !exit_status.success() {
+            return Err(CliError::unrunnable_subprocess(
                 exit_status,
-                format!("Setup command failed: {cmd:?}"),
-            )),
-            false => Err(CliError::failed(
-                exit_status,
-                format!("Test plan invocation failed: {cmd:?}"),
-            )),
-            true => {
-                self.orchestrator_client()
-                    .update_status(
-                        next_execution_status,
-                        Some(exit_status),
-                        Some(format!("Completed command: {cmd:?}")),
-                    )
-                    .await
-                    .context("Failed to update execution status")
-                    .map_err(CliError::unrunnable)?;
-
-                Ok(())
-            }
+                format!("Command failed: {cmd:?}"),
+            ));
         }
+
+        self.orchestrator_client()
+            .update_status(
+                next_execution_status,
+                None,
+                Some(format!("Completed command: {cmd:?}")),
+            )
+            .await
+            .map_err(CliError::unrunnable)?;
+
+        Ok(())
     }
 
     /// Read the file at `path` as UTF-8, mapping the IO error to [`Status::Unrunnable`] with the
@@ -294,7 +280,6 @@ mod tests {
     use super::*;
     use crate::{context::mocks::MockContext, orchestrator::mocks::MockClient as MockOrchestrator};
     use rep_orchestrator_shared::status::Status;
-    use simple_test_case::test_case;
 
     #[tokio::test]
     async fn run_shell_updates_status_on_success() {
@@ -307,14 +292,15 @@ mod tests {
         ctx.orchestrator_client().read_updates(|updates| {
             assert_eq!(updates.len(), 1);
             assert_eq!(updates[0].status, Status::Provisioning);
-            assert!(updates[0].exit_status.unwrap().success());
+            // exit_status is deliberately dropped — non-terminal statuses must not carry one.
+            assert!(updates[0].exit_status.is_none());
         });
     }
 
     #[tokio::test]
     async fn run_shell_includes_command_in_status_message() {
         let ctx = MockContext::default();
-        ctx.run_shell(&mut Command::new("true"), Status::Running)
+        ctx.run_shell(&mut Command::new("true"), Status::Provisioning)
             .await
             .unwrap();
 
@@ -327,41 +313,32 @@ mod tests {
         });
     }
 
-    #[test_case(Status::Initialising, Status::Unrunnable; "initialising maps to unrunnable")]
-    #[test_case(Status::Resolving, Status::Unrunnable; "resolving maps to unrunnable")]
-    #[test_case(Status::Provisioning, Status::Unrunnable; "provisioning maps to unrunnable")]
-    #[test_case(Status::Running, Status::Failed; "running maps to failed")]
     #[tokio::test]
-    async fn run_shell_failed_command_maps_to_expected_status(
-        input_status: Status,
-        expected_error_status: Status,
-    ) {
+    async fn run_shell_failed_command_maps_to_unrunnable() {
         let ctx = MockContext::default();
         let err = ctx
-            .run_shell(&mut Command::new("false"), input_status)
+            .run_shell(&mut Command::new("false"), Status::Provisioning)
             .await
             .unwrap_err();
 
-        assert_eq!(err.rep_orchestrator_status(), expected_error_status);
+        assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
         ctx.orchestrator_client()
             .read_updates(|updates| assert!(updates.is_empty()));
     }
 
-    #[test_case(Status::Running, "Test plan invocation failed"; "failed includes invocation context")]
-    #[test_case(Status::Provisioning, "Setup command failed"; "unrunnable includes setup context")]
     #[tokio::test]
-    async fn run_shell_error_message_includes_context(status: Status, expected_context: &str) {
+    async fn run_shell_error_message_includes_command() {
         let ctx = MockContext::default();
         let err = ctx
-            .run_shell(&mut Command::new("false"), status)
+            .run_shell(&mut Command::new("false"), Status::Provisioning)
             .await
             .unwrap_err();
 
         let msg = err.source_to_string();
         assert!(msg.contains("false"), "expected command in error: {msg}");
         assert!(
-            msg.contains(expected_context),
-            "expected '{expected_context}' in error: {msg}"
+            msg.contains("Command failed"),
+            "expected 'Command failed' in error: {msg}"
         );
     }
 
@@ -371,7 +348,7 @@ mod tests {
         let err = ctx
             .run_shell(
                 &mut Command::new("this-binary-definitely-does-not-exist"),
-                Status::Running,
+                Status::Provisioning,
             )
             .await
             .unwrap_err();
