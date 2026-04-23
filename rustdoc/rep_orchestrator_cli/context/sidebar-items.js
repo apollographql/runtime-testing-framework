@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["EnvironmentContext"],"trait":["CliContext"]};
+window.SIDEBAR_ITEMS = {"fn":["walk_files"],"struct":["EnvironmentContext"],"trait":["CliContext"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["cleanup","create_namespace","create_pull_secret","deploy_environment","prepare_scenario"]};
+window.SIDEBAR_ITEMS = {"mod":["cleanup","collect_output","create_namespace","create_pull_secret","deploy_environment","prepare_scenario"]};
