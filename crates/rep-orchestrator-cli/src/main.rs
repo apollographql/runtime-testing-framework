@@ -74,6 +74,8 @@ async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Result<
             shared_dir,
             command,
         } => commands::prepare_scenario(&scenario, &shared_dir, &command, ctx).await,
+
+        Command::CollectOutput { shared_dir } => commands::collect_output(&shared_dir, ctx).await,
     };
 
     match res {

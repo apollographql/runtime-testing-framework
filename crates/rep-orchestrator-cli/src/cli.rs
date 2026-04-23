@@ -90,6 +90,14 @@ pub enum Command {
         #[arg(long)]
         command: String,
     },
+
+    /// Upload the scenario's log file and zipped output directory, then report the terminal
+    /// execution status based on the scenario's exit code.
+    CollectOutput {
+        /// Path to the shared volume containing the scenario's artifacts
+        #[arg(long)]
+        shared_dir: PathBuf,
+    },
 }
 
 impl Command {
@@ -98,7 +106,9 @@ impl Command {
             Self::CreateNamespace { kubeconfig, .. }
             | Self::CreatePullSecret { kubeconfig, .. }
             | Self::DeployEnvironment { kubeconfig, .. } => Some(kubeconfig),
-            Self::Cleanup { .. } | Self::PrepareScenario { .. } => None,
+            Self::Cleanup { .. } | Self::PrepareScenario { .. } | Self::CollectOutput { .. } => {
+                None
+            }
         }
     }
 }
