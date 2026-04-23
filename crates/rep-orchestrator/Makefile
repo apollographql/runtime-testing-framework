@@ -18,7 +18,8 @@ db-tests:
 		RTF_DB_USER=service_user \
 		RTF_DB_PASS=password \
 		RTF_APOLLO_KEY=dummy \
-		RTF_GITHUB_TOKEN=dummy \
+		RTF_GITHUB_APP_ID=1 \
+		RTF_GITHUB_APP_PRIVATE_KEY_PEM=dummy \
 		RTF_KUBECONFIG_PATH=dummy \
 		RTF_MGMT_CONTEXT=dummy \
 		RTF_WORKLOAD_CONTEXT=dummy \
@@ -35,7 +36,8 @@ integration-tests: clear-db-data
 		RTF_DB_USER=service_user \
 		RTF_DB_PASS=password \
 		RTF_APOLLO_KEY=dummy \
-		RTF_GITHUB_TOKEN=dummy \
+		RTF_GITHUB_APP_ID=1 \
+		RTF_GITHUB_APP_PRIVATE_KEY_PEM=dummy \
 		RTF_KUBECONFIG_PATH=$(HOME)/.kube/config \
 		RTF_MGMT_CONTEXT=kind-rtf-mgmt \
 		RTF_WORKLOAD_CONTEXT=kind-rtf-workload \
