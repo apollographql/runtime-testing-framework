@@ -24,6 +24,8 @@ mod provision_environment;
 mod run_scenario;
 
 pub use event_queue::{Claim, EventQueue, EventQueueState, ProvisioningHandle, SubmitError};
+pub use provision_environment::MSG_ARGO_WAIT;
+pub use run_scenario::MSG_JOB_WAIT;
 
 /// Run as a long lived task. This is an infinite loop that processes [Event]s received on a
 /// channel that is shared with the axum server and the event loop's own handler functions.

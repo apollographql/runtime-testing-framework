@@ -14,7 +14,7 @@ pub(crate) const MSG_CREATE_ENV_CM: &str = "creating environment configmap";
 pub(crate) const MSG_ENV_CM_CREATED: &str = "environment configmap created";
 pub(crate) const MSG_CREATE_ARGO: &str = "creating Argo workflow";
 pub(crate) const MSG_ARGO_CREATED: &str = "Argo workflow created";
-pub(crate) const MSG_ARGO_WAIT: &str = "waiting for Argo workflow to complete";
+pub const MSG_ARGO_WAIT: &str = "waiting for Argo workflow to complete";
 pub(crate) const MSG_ARGO_COMPLETE: &str = "Argo workflow complete";
 
 pub(super) async fn create_config_map<K, H>(

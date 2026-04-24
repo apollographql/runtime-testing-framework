@@ -2,6 +2,7 @@ mod common;
 
 use anyhow::Context;
 use common::TestHelper;
+use rep_orchestrator::event_loop::{MSG_ARGO_WAIT, MSG_JOB_WAIT};
 use rep_orchestrator_shared::{status::Status::*, summary::TestRunSummary};
 use serial_test::serial;
 use std::{
@@ -94,10 +95,10 @@ async fn unknown_docker_image_in_environment_marks_execution_unrunnable() {
     // The Argo workflow pod watcher detected the bad image — the execution must have reached
     // the environment wait step but never moved on to the scenario phase.
     assert!(
-        summary.status_history.iter().any(|u| {
-            u.status == Provisioning
-                && u.message.as_deref() == Some("waiting for Argo workflow to complete")
-        }),
+        summary
+            .status_history
+            .iter()
+            .any(|u| { u.status == Provisioning && u.message.as_deref() == Some(MSG_ARGO_WAIT) }),
         "expected environment Argo-wait step in history: {:#?}",
         summary.status_history,
     );
@@ -136,10 +137,10 @@ async fn unknown_docker_image_in_scenario_marks_execution_unrunnable() {
     // scenario image. So Running must appear — its presence proves the environment provisioned
     // and the scenario job reached execution before the image pull failure was detected.
     assert!(
-        summary.status_history.iter().any(|u| {
-            u.status == Provisioning
-                && u.message.as_deref() == Some("waiting for scenario job to complete")
-        }),
+        summary
+            .status_history
+            .iter()
+            .any(|u| { u.status == Provisioning && u.message.as_deref() == Some(MSG_JOB_WAIT) }),
         "expected scenario job-wait step in history: {:#?}",
         summary.status_history,
     );
