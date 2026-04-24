@@ -10,19 +10,19 @@ use rtf_config::formats::{DockerScenario, ScenarioConfig};
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{info, warn};
 
-const SCENARIO_JOB_NAME: &str = "scenario-execution";
-const MSG_CREATE_SCENARIO_CM: &str = "creating scenario configmap";
-const MSG_JOB_CREATE: &str = "creating scenario job";
-const MSG_JOB_WAIT: &str = "waiting for scenario job to complete";
+pub(crate) const SCENARIO_JOB_NAME: &str = "scenario-execution";
+pub(crate) const MSG_CREATE_SCENARIO_CM: &str = "creating scenario configmap";
+pub(crate) const MSG_SCENARIO_CM_CREATED: &str = "scenario configmap created";
+pub(crate) const MSG_CREATE_JOB: &str = "creating scenario job";
+pub(crate) const MSG_JOB_CREATED: &str = "scenario job created";
+pub(crate) const MSG_JOB_WAIT: &str = "waiting for scenario job to complete";
 
-pub(super) async fn try_run<K, H>(
+pub(super) async fn create_config_map<K, H>(
     test_execution: TestExecution,
     scenario: DockerScenario,
-    orchestrator_url: &str,
-    etx: UnboundedSender<Event>,
     clients: K,
     conn: &mut H,
-) -> Result<()>
+) -> Result<Option<EventData>>
 where
     K: k8s::Client,
     H: UpdateHandle,
@@ -56,8 +56,29 @@ where
             error,
         })?;
 
+    info!(%execution_id, "scenario configmap created");
+    conn.mark_execution_as_provisioning(&test_execution, MSG_SCENARIO_CM_CREATED.to_string())
+        .await;
+
+    Ok(Some(EventData::CreateScenarioJob(scenario)))
+}
+
+pub(super) async fn create_job<K, H>(
+    test_execution: TestExecution,
+    scenario: DockerScenario,
+    orchestrator_url: &str,
+    clients: K,
+    conn: &mut H,
+) -> Result<Option<EventData>>
+where
+    K: k8s::Client,
+    H: UpdateHandle,
+{
+    let execution_id = test_execution.uuid();
+    let namespace = execution_id.to_string();
+
     info!(%execution_id, "creating scenario job");
-    conn.mark_execution_as_provisioning(&test_execution, MSG_JOB_CREATE.to_string())
+    conn.mark_execution_as_provisioning(&test_execution, MSG_CREATE_JOB.to_string())
         .await;
     clients
         .create_job(
@@ -69,15 +90,35 @@ where
         .await
         .map_err(|error| Error::CreateJob { error })?;
 
+    info!(%execution_id, "scenario job created");
+    conn.mark_execution_as_provisioning(&test_execution, MSG_JOB_CREATED.to_string())
+        .await;
+
+    Ok(Some(EventData::WaitForScenarioJob))
+}
+
+pub(super) async fn wait_for_job<K, H>(
+    test_execution: TestExecution,
+    etx: UnboundedSender<Event>,
+    clients: K,
+    conn: &mut H,
+) -> Result<Option<EventData>>
+where
+    K: k8s::Client,
+    H: UpdateHandle,
+{
+    let execution_id = test_execution.uuid();
+    let namespace = execution_id.to_string();
+
+    info!(%execution_id, "waiting for scenario job to complete");
     conn.mark_execution_as_provisioning(&test_execution, MSG_JOB_WAIT.to_string())
         .await;
 
-    info!(%execution_id, "waiting for scenario job to complete");
     tokio::spawn(async move {
         wait_and_update(&namespace, test_execution, &etx, clients).await;
     });
 
-    Ok(())
+    Ok(None)
 }
 
 async fn wait_and_update<K>(
@@ -90,7 +131,7 @@ async fn wait_and_update<K>(
 {
     let execution_id = test_execution.uuid();
 
-    let data: Vec<EventData> = match clients
+    let to_send = match clients
         .wait_for_job(namespace, &test_execution.uuid())
         .await
     {
@@ -121,10 +162,10 @@ async fn wait_and_update<K>(
         }
     };
 
-    for item in data {
+    for data in to_send.into_iter() {
         let _ = etx.send(Event {
             test_execution: test_execution.clone(),
-            data: item,
+            data,
         });
     }
 }
@@ -144,56 +185,57 @@ mod tests {
     use tokio::sync::mpsc;
 
     #[tokio::test]
-    async fn try_run_happy_path_sets_expected_statuses() {
+    async fn full_happy_path_sets_expected_statuses() {
         let ex = TestExecution::create_stub(1, 1, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
         let clients = MockClient::default_ok();
         let (etx, _erx) = mpsc::unbounded_channel();
 
-        let res = try_run(
-            ex,
+        // create configmap
+        let res =
+            create_config_map(ex.clone(), stub_scenario(), clients.clone(), &mut handle).await;
+        assert!(res.is_ok(), "create_config_map: {res:?}");
+
+        // create job
+        let res = create_job(
+            ex.clone(),
             stub_scenario(),
             "http://localhost:8035",
-            etx,
-            clients,
+            clients.clone(),
             &mut handle,
         )
         .await;
+        assert!(res.is_ok(), "create_job: {res:?}");
 
-        assert!(res.is_ok(), "{res:?}");
+        // wait for job to complete
+        let res = wait_for_job(ex, etx, clients, &mut handle).await;
+        assert!(res.is_ok(), "wait_for_job: {res:?}");
+
+        use Status::*;
+
         assert_eq!(
             &handle.status_updates,
             &[
-                TaggedStatusUpdate::execution(
-                    1,
-                    Status::Provisioning,
-                    Some(MSG_CREATE_SCENARIO_CM)
-                ),
-                TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_JOB_CREATE)),
-                TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_JOB_WAIT)),
+                TaggedStatusUpdate::execution(1, Provisioning, Some(MSG_CREATE_SCENARIO_CM)),
+                TaggedStatusUpdate::execution(1, Provisioning, Some(MSG_SCENARIO_CM_CREATED)),
+                TaggedStatusUpdate::execution(1, Provisioning, Some(MSG_CREATE_JOB)),
+                TaggedStatusUpdate::execution(1, Provisioning, Some(MSG_JOB_CREATED)),
+                TaggedStatusUpdate::execution(1, Provisioning, Some(MSG_JOB_WAIT)),
             ]
         );
     }
 
     #[tokio::test]
-    async fn try_run_returns_expected_configmap_error() {
+    async fn create_configmap_returns_expected_configmap_error() {
         let ex = TestExecution::create_stub(1, 1, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
         let clients = MockClient {
             create_scenario_configmap: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
             ..MockClient::default()
         };
-        let (etx, _erx) = mpsc::unbounded_channel();
 
-        let res = try_run(
-            ex,
-            stub_scenario(),
-            "http://localhost:8035",
-            etx,
-            clients.clone(),
-            &mut handle,
-        )
-        .await;
+        let res =
+            create_config_map(ex.clone(), stub_scenario(), clients.clone(), &mut handle).await;
 
         assert!(matches!(
             res,
@@ -213,21 +255,19 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn try_run_returns_expected_job_error() {
+    async fn create_job_returns_expected_job_error() {
         let ex = TestExecution::create_stub(1, 1, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
         let clients = MockClient {
             create_job: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
             ..MockClient::default_ok()
         };
-        let (etx, _erx) = mpsc::unbounded_channel();
 
-        let res = try_run(
-            ex,
+        let res = create_job(
+            ex.clone(),
             stub_scenario(),
             "http://localhost:8035",
-            etx,
-            clients,
+            clients.clone(),
             &mut handle,
         )
         .await;
@@ -235,14 +275,11 @@ mod tests {
         assert!(matches!(res, Err(Error::CreateJob { .. })));
         assert_eq!(
             &handle.status_updates,
-            &[
-                TaggedStatusUpdate::execution(
-                    1,
-                    Status::Provisioning,
-                    Some(MSG_CREATE_SCENARIO_CM)
-                ),
-                TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_JOB_CREATE)),
-            ]
+            &[TaggedStatusUpdate::execution(
+                1,
+                Status::Provisioning,
+                Some(MSG_CREATE_JOB)
+            ),]
         );
     }
 

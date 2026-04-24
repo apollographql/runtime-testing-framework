@@ -10,19 +10,20 @@ use rtf_config::formats::{DockerComposeEnvironment, DockerScenario, EnvironmentC
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{info, warn};
 
-const MSG_CREATE_ENV_CM: &str = "creating environment configmap";
-const MSG_ARGO_CREATE: &str = "creating Argo workflow";
-const MSG_ARGO_WAIT: &str = "waiting for Argo workflow to complete";
+pub(crate) const MSG_CREATE_ENV_CM: &str = "creating environment configmap";
+pub(crate) const MSG_ENV_CM_CREATED: &str = "environment configmap created";
+pub(crate) const MSG_CREATE_ARGO: &str = "creating Argo workflow";
+pub(crate) const MSG_ARGO_CREATED: &str = "Argo workflow created";
+pub(crate) const MSG_ARGO_WAIT: &str = "waiting for Argo workflow to complete";
+pub(crate) const MSG_ARGO_COMPLETE: &str = "Argo workflow complete";
 
-pub(super) async fn try_run<K, H>(
+pub(super) async fn create_config_map<K, H>(
     test_execution: TestExecution,
     environment: DockerComposeEnvironment,
     scenario: DockerScenario,
-    orchestrator_url: &str,
-    etx: UnboundedSender<Event>,
     clients: K,
     conn: &mut H,
-) -> Result<()>
+) -> Result<Option<EventData>>
 where
     K: k8s::Client,
     H: UpdateHandle,
@@ -55,8 +56,28 @@ where
             error,
         })?;
 
+    info!(%execution_id, "environment configmap created");
+    conn.mark_execution_as_provisioning(&test_execution, MSG_ENV_CM_CREATED.to_string())
+        .await;
+
+    Ok(Some(EventData::CreateEnvArgoWorkflow(scenario)))
+}
+
+pub(super) async fn create_workflow<K, H>(
+    test_execution: TestExecution,
+    scenario: DockerScenario,
+    orchestrator_url: &str,
+    clients: K,
+    conn: &mut H,
+) -> Result<Option<EventData>>
+where
+    K: k8s::Client,
+    H: UpdateHandle,
+{
+    let execution_id = test_execution.uuid();
+
     info!(%execution_id, "creating environment argo workflow");
-    conn.mark_execution_as_provisioning(&test_execution, MSG_ARGO_CREATE.to_string())
+    conn.mark_execution_as_provisioning(&test_execution, MSG_CREATE_ARGO.to_string())
         .await;
 
     clients
@@ -67,15 +88,34 @@ where
         .await
         .map_err(|error| Error::CreateArgoWorkflow { error })?;
 
+    conn.mark_execution_as_provisioning(&test_execution, MSG_ARGO_CREATED.to_string())
+        .await;
+
+    Ok(Some(EventData::WaitForEnvArgoWorkflow(scenario)))
+}
+
+pub(super) async fn wait_for_workflow<K, H>(
+    test_execution: TestExecution,
+    scenario: DockerScenario,
+    etx: UnboundedSender<Event>,
+    clients: K,
+    conn: &mut H,
+) -> Result<Option<EventData>>
+where
+    K: k8s::Client,
+    H: UpdateHandle,
+{
+    let execution_id = test_execution.uuid();
+
+    info!(%execution_id, "waiting for environment argo workflow to complete");
     conn.mark_execution_as_provisioning(&test_execution, MSG_ARGO_WAIT.to_string())
         .await;
 
-    info!(%execution_id, "waiting for environment argo workflow to complete");
     tokio::spawn(async move {
         wait_and_update(test_execution, scenario, &etx, clients).await;
     });
 
-    Ok(())
+    Ok(None)
 }
 
 async fn wait_and_update<K>(
@@ -87,32 +127,41 @@ async fn wait_and_update<K>(
     K: k8s::Client,
 {
     let execution_id = test_execution.uuid();
-    let data = match clients.wait_for_workflow(&test_execution.uuid()).await {
+    let to_send = match clients.wait_for_workflow(&test_execution.uuid()).await {
         WatchOutcome::Succeeded => {
             info!(%execution_id, "argo workflow completed successfully");
-            EventData::RunScenario(scenario)
+            vec![
+                EventData::ArgoWorkflowComplete,
+                EventData::CreateScenarioConfigMap(scenario),
+            ]
         }
 
         WatchOutcome::Failed(reason) => {
             warn!(%execution_id, %reason, "argo workflow failed");
-            EventData::MarkUnrunnable(WatchOutcome::Failed(reason).to_string())
+            vec![EventData::MarkUnrunnable(
+                WatchOutcome::Failed(reason).to_string(),
+            )]
         }
 
         WatchOutcome::ContainerUnrunnable(reason) => {
             warn!(%execution_id, %reason, "container unrunnable");
-            EventData::MarkUnrunnable(WatchOutcome::ContainerUnrunnable(reason).to_string())
+            vec![EventData::MarkUnrunnable(
+                WatchOutcome::ContainerUnrunnable(reason).to_string(),
+            )]
         }
 
         outcome => {
             warn!(%execution_id, %outcome, "unable to determine state of argo workflow");
-            EventData::MarkUnrunnable(outcome.to_string())
+            vec![EventData::MarkUnrunnable(outcome.to_string())]
         }
     };
 
-    let _ = etx.send(Event {
-        test_execution,
-        data,
-    });
+    for data in to_send.into_iter() {
+        let _ = etx.send(Event {
+            test_execution: test_execution.clone(),
+            data,
+        });
+    }
 }
 
 #[cfg(test)]
@@ -130,50 +179,63 @@ mod tests {
     use tokio::sync::mpsc;
 
     #[tokio::test]
-    async fn try_run_happy_path_sets_expected_statuses() {
+    async fn full_happy_path_sets_expected_statuses() {
         let ex = TestExecution::create_stub(1, 1, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
         let clients = MockClient::default_ok();
         let (etx, _erx) = mpsc::unbounded_channel();
 
-        let res = try_run(
-            ex,
+        // create configmap
+        let res = create_config_map(
+            ex.clone(),
             stub_environment(),
             stub_scenario(),
-            "http://localhost:8035",
-            etx,
-            clients,
+            clients.clone(),
             &mut handle,
         )
         .await;
+        assert!(res.is_ok(), "create_config_map: {res:?}");
 
-        assert!(res.is_ok(), "{res:?}");
+        // create workflow
+        let res = create_workflow(
+            ex.clone(),
+            stub_scenario(),
+            "http://localhost:8035",
+            clients.clone(),
+            &mut handle,
+        )
+        .await;
+        assert!(res.is_ok(), "create_workflow: {res:?}");
+
+        // wait for workflow to complete
+        let res = wait_for_workflow(ex, stub_scenario(), etx, clients, &mut handle).await;
+        assert!(res.is_ok(), "wait for workflow: {res:?}");
+
         assert_eq!(
             &handle.status_updates,
             &[
                 TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_CREATE_ENV_CM)),
-                TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_ARGO_CREATE)),
+                TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_ENV_CM_CREATED)),
+                TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_CREATE_ARGO)),
+                TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_ARGO_CREATED)),
                 TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_ARGO_WAIT)),
             ]
         );
     }
 
     #[tokio::test]
-    async fn try_run_returns_expected_configmap_error() {
+    async fn create_configmap_returns_expected_configmap_error() {
         let ex = TestExecution::create_stub(1, 1, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
         let clients = MockClient {
             create_env_configmap: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
             ..MockClient::default()
         };
-        let (etx, _erx) = mpsc::unbounded_channel();
 
-        let res = try_run(
+        let res = create_config_map(
             ex,
             stub_environment(),
             stub_scenario(),
-            "http://localhost:8035",
-            etx,
             clients.clone(),
             &mut handle,
         )
@@ -197,21 +259,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn try_run_returns_expected_workflow_error() {
+    async fn create_workflow_expected_workflow_error() {
         let ex = TestExecution::create_stub(1, 1, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
         let clients = MockClient {
             create_workflow: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
             ..MockClient::default_ok()
         };
-        let (etx, _erx) = mpsc::unbounded_channel();
 
-        let res = try_run(
+        let res = create_workflow(
             ex,
-            stub_environment(),
             stub_scenario(),
             "http://localhost:8035",
-            etx,
             clients,
             &mut handle,
         )
@@ -220,15 +279,16 @@ mod tests {
         assert!(matches!(res, Err(Error::CreateArgoWorkflow { .. })));
         assert_eq!(
             &handle.status_updates,
-            &[
-                TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_CREATE_ENV_CM)),
-                TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_ARGO_CREATE)),
-            ]
+            &[TaggedStatusUpdate::execution(
+                1,
+                Status::Provisioning,
+                Some(MSG_CREATE_ARGO)
+            ),]
         );
     }
 
     #[tokio::test]
-    async fn wait_and_update_submits_run_scenario_on_success() {
+    async fn wait_and_update_submits_expected_events_on_success() {
         let ex = TestExecution::create_stub(1, 1, "test");
         let clients = MockClient {
             wait_for_workflow: Resp::new(WatchOutcome::Succeeded),
@@ -238,8 +298,18 @@ mod tests {
 
         wait_and_update(ex, stub_scenario(), &etx, clients).await;
 
+        // should get two events: workflow complete and create scenario configmap
         let evt = erx.try_recv().unwrap();
-        assert!(matches!(evt.data, EventData::RunScenario(_)), "{evt:?}");
+        assert!(
+            matches!(evt.data, EventData::ArgoWorkflowComplete),
+            "{evt:?}"
+        );
+
+        let evt = erx.try_recv().unwrap();
+        assert!(
+            matches!(evt.data, EventData::CreateScenarioConfigMap(_)),
+            "{evt:?}"
+        );
     }
 
     #[test_case(WatchOutcome::Failed(String::new()); "failed")]

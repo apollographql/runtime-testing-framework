@@ -1,11 +1,14 @@
 use crate::{
     db::TestExecution,
-    event_loop::{Error, Result},
+    event_loop::{Error, EventData, Result},
     k8s,
 };
 use tracing::info;
 
-pub(super) async fn try_run<K>(test_execution: TestExecution, clients: K) -> Result<()>
+pub(super) async fn try_run<K>(
+    test_execution: TestExecution,
+    clients: K,
+) -> Result<Option<EventData>>
 where
     K: k8s::Client,
 {
@@ -16,7 +19,7 @@ where
         .await
         .map_err(|error| Error::DeleteNamespace { error })?;
 
-    Ok(())
+    Ok(None)
 }
 
 #[cfg(test)]

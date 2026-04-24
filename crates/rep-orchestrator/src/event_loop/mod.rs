@@ -12,6 +12,7 @@ use crate::{
     config::Config,
     conn,
     db::{TestExecution, UpdateHandle},
+    event_loop::provision_environment::MSG_ARGO_COMPLETE,
     k8s::ClusterClients,
 };
 use rtf_config::formats::{DockerComposeEnvironment, DockerScenario};
@@ -97,17 +98,29 @@ type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EventData {
-    ProvisionEnvironment(DockerComposeEnvironment, DockerScenario),
-    RunScenario(DockerScenario),
-    MarkUnrunnable(String),
+    CreateEnvConfigMap(DockerComposeEnvironment, DockerScenario),
+    CreateEnvArgoWorkflow(DockerScenario),
+    WaitForEnvArgoWorkflow(DockerScenario),
+    ArgoWorkflowComplete,
+
+    CreateScenarioConfigMap(DockerScenario),
+    CreateScenarioJob(DockerScenario),
+    WaitForScenarioJob,
+
     CleanupNamespace,
+    MarkUnrunnable(String),
 }
 
 impl EventData {
     fn name(&self) -> &'static str {
         match self {
-            Self::ProvisionEnvironment(_, _) => "ProvisionEnvironment",
-            Self::RunScenario(_) => "RunScenario",
+            Self::CreateEnvConfigMap(_, _) => "CreateEnvConfigMap",
+            Self::CreateEnvArgoWorkflow(_) => "CreateEnvArgoWorkflow",
+            Self::WaitForEnvArgoWorkflow(_) => "WaitForEnvArgoWorkflow",
+            Self::ArgoWorkflowComplete => "ArgoWorkflowComplete",
+            Self::CreateScenarioConfigMap(_) => "CreateScenarioConfigMap",
+            Self::CreateScenarioJob(_) => "CreateScenarioJob",
+            Self::WaitForScenarioJob => "WaitForScenarioJob",
             Self::MarkUnrunnable(_) => "MarkUnrunnable",
             Self::CleanupNamespace => "CleanupNamespace",
         }
@@ -132,19 +145,32 @@ impl Event {
         let conn = conn!();
 
         let res = match self.data {
-            EventData::MarkUnrunnable(message) => {
-                conn.mark_execution_as_unrunnable(&self.test_execution, message)
-                    .await;
-
-                Ok(())
-            }
-
-            EventData::ProvisionEnvironment(environment, scenario) => {
-                provision_environment::try_run(
+            EventData::CreateEnvConfigMap(environment, scenario) => {
+                provision_environment::create_config_map(
                     self.test_execution.clone(),
                     environment,
                     scenario,
+                    clients.clone(),
+                    conn,
+                )
+                .await
+            }
+
+            EventData::CreateEnvArgoWorkflow(scenario) => {
+                provision_environment::create_workflow(
+                    self.test_execution.clone(),
+                    scenario,
                     orchestrator_url,
+                    clients.clone(),
+                    conn,
+                )
+                .await
+            }
+
+            EventData::WaitForEnvArgoWorkflow(scenario) => {
+                provision_environment::wait_for_workflow(
+                    self.test_execution.clone(),
+                    scenario,
                     event_queue.tx(),
                     clients.clone(),
                     conn,
@@ -152,11 +178,37 @@ impl Event {
                 .await
             }
 
-            EventData::RunScenario(scenario) => {
-                run_scenario::try_run(
+            EventData::ArgoWorkflowComplete => {
+                conn.mark_execution_as_provisioning(&self.test_execution, MSG_ARGO_COMPLETE.into())
+                    .await;
+
+                Ok(None)
+            }
+
+            EventData::CreateScenarioConfigMap(scenario) => {
+                run_scenario::create_config_map(
+                    self.test_execution.clone(),
+                    scenario,
+                    clients,
+                    conn,
+                )
+                .await
+            }
+
+            EventData::CreateScenarioJob(scenario) => {
+                run_scenario::create_job(
                     self.test_execution.clone(),
                     scenario,
                     orchestrator_url,
+                    clients,
+                    conn,
+                )
+                .await
+            }
+
+            EventData::WaitForScenarioJob => {
+                run_scenario::wait_for_job(
+                    self.test_execution.clone(),
                     event_queue.tx(),
                     clients,
                     conn,
@@ -172,14 +224,32 @@ impl Event {
 
                 res
             }
+
+            EventData::MarkUnrunnable(message) => {
+                conn.mark_execution_as_unrunnable(&self.test_execution, message)
+                    .await;
+
+                Ok(None)
+            }
         };
 
-        if let Err(e) = &res {
-            conn.mark_execution_as_unrunnable(&self.test_execution, e.to_string())
-                .await
+        match res {
+            Ok(Some(next_event_data)) => {
+                let _ = event_queue.tx().send(Event {
+                    test_execution: self.test_execution,
+                    data: next_event_data,
+                });
+            }
+
+            Ok(None) => (),
+
+            Err(e) => {
+                conn.mark_execution_as_unrunnable(&self.test_execution, e.to_string())
+                    .await
+            }
         };
 
-        res
+        Ok(())
     }
 }
 

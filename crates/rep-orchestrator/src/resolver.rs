@@ -540,11 +540,11 @@ mod tests {
             ex_updates[0]
         );
 
-        // One ProvisionEnvironment event sent
+        // One CreateEnvConfigMap event sent
         let evt = eq.next_event().await.unwrap();
         assert!(
-            matches!(evt.data, EventData::ProvisionEnvironment(_, _)),
-            "expected ProvisionEnvironment event"
+            matches!(evt.data, EventData::CreateEnvConfigMap(_, _)),
+            "expected CreateEnvConfigMap event"
         );
         assert!(eq.is_empty(), "only one event expected");
     }

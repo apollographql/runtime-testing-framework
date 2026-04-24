@@ -95,7 +95,7 @@ impl EventQueue {
     #[inline(always)]
     fn push_event(&mut self, evt: Event) {
         match &evt.data {
-            EventData::ProvisionEnvironment(_, _) => self.pending_provisions.push_back(evt),
+            EventData::CreateEnvConfigMap(_, _) => self.pending_provisions.push_back(evt),
             _ => self.pending_non_provisions.push_back(evt),
         }
     }
@@ -223,7 +223,7 @@ impl ProvisioningHandle {
 
         if let Err(e) = self.tx.send(Event {
             test_execution: ex,
-            data: EventData::ProvisionEnvironment(tp.environment.execution, tp.scenario.execution),
+            data: EventData::CreateEnvConfigMap(tp.environment.execution, tp.scenario.execution),
         }) {
             // If the channel is closed then we're shutting down so dropping the event details here
             // is intentional.
@@ -422,7 +422,7 @@ mod tests {
         let event = q.rx.try_recv().expect("event should have been sent");
 
         assert_eq!(event.test_execution.uuid(), ex_uuid);
-        assert!(matches!(event.data, EventData::ProvisionEnvironment(_, _)));
+        assert!(matches!(event.data, EventData::CreateEnvConfigMap(_, _)));
     }
 
     #[tokio::test]
@@ -483,7 +483,7 @@ mod tests {
     fn provision_evt(ex_id: i32) -> Event {
         Event {
             test_execution: TestExecution::create_stub(ex_id, 1, "test"),
-            data: EventData::ProvisionEnvironment(stub_environment(), stub_scenario()),
+            data: EventData::CreateEnvConfigMap(stub_environment(), stub_scenario()),
         }
     }
 
@@ -504,7 +504,7 @@ mod tests {
         let (mut q, _h, _, _) = EventQueue::new(1, 5);
 
         for evt in events.into_iter() {
-            if matches!(evt.data, EventData::ProvisionEnvironment(_, _)) {
+            if matches!(evt.data, EventData::CreateEnvConfigMap(_, _)) {
                 q.pending_provisions.push_back(evt);
             } else {
                 q.pending_non_provisions.push_back(evt);
