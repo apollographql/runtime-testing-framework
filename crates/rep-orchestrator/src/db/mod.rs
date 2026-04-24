@@ -82,6 +82,7 @@ pub trait UpdateHandle: Send + Sync {
         &mut self,
         tr: &TestRun,
         name: &str,
+        index: usize,
     ) -> impl Future<Output = crate::Result<TestExecution>> + Send;
 
     fn update_test_run_status(
@@ -175,8 +176,13 @@ pub trait UpdateHandle: Send + Sync {
 }
 
 impl UpdateHandle for PgConnection {
-    async fn init_execution(&mut self, tr: &TestRun, name: &str) -> crate::Result<TestExecution> {
-        Ok(tr.init_execution(name, self).await?)
+    async fn init_execution(
+        &mut self,
+        tr: &TestRun,
+        name: &str,
+        index: usize,
+    ) -> crate::Result<TestExecution> {
+        Ok(tr.init_execution(name, index, self).await?)
     }
 
     async fn update_test_run_status(
@@ -273,12 +279,14 @@ mod update_handle {
             &mut self,
             tr: &TestRun,
             name: &str,
+            index: usize,
         ) -> crate::Result<TestExecution> {
             if self.test_runs.iter().all(|elem| elem.id() != tr.id()) {
                 return Err(Error::UnknownTestRun { id: tr.uuid() });
             }
 
-            let ex = TestExecution::create_stub(self.test_executions.len() as i32, tr.id(), name);
+            let ex =
+                TestExecution::create_stub(self.test_executions.len() as i32, tr.id(), index, name);
             self.test_executions.push(ex.clone());
 
             Ok(ex)

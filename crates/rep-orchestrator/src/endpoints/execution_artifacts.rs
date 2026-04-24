@@ -72,7 +72,7 @@ mod tests {
         ));
         let conn = conn!();
         let tr = TestRun::init("test", conn).await?;
-        let mut ex = tr.init_execution("test", conn).await?;
+        let mut ex = tr.init_execution("test", 0, conn).await?;
         ex.mark_has_file_upload(conn).await?;
         ex.set_status(status, None, conn).await?;
 
@@ -94,7 +94,7 @@ mod tests {
     async fn output_zip_handler_redirects(status: Status) -> anyhow::Result<()> {
         let conn = conn!();
         let tr = TestRun::init("test", conn).await?;
-        let mut ex = tr.init_execution("test", conn).await?;
+        let mut ex = tr.init_execution("test", 0, conn).await?;
         ex.mark_has_file_upload(conn).await?;
         ex.set_status(status, None, conn).await?;
 
@@ -139,7 +139,7 @@ mod tests {
         let tss = TestServerState::new();
         let conn = conn!();
         let tr = TestRun::init("test", conn).await?;
-        let ex = tr.init_execution("test", conn).await?;
+        let ex = tr.init_execution("test", 0, conn).await?;
 
         let resp = tss
             .test_server
@@ -161,7 +161,7 @@ mod tests {
         let tss = TestServerState::new();
         let conn = conn!();
         let tr = TestRun::init("test", conn).await?;
-        let mut ex = tr.init_execution("test", conn).await?;
+        let mut ex = tr.init_execution("test", 0, conn).await?;
         ex.mark_has_file_upload(conn).await?;
 
         let resp = tss

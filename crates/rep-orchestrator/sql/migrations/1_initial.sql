@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS test_execution (
     name TEXT NOT NULL,
     token UUID NOT NULL DEFAULT gen_random_uuid(),
     test_run_id INT NOT NULL,
+    test_plan_index INT NOT NULL CHECK (test_plan_index >= 0),
     exit_code INT,
     started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     completed_at TIMESTAMPTZ,

@@ -89,9 +89,10 @@ impl TestRun {
     pub async fn init_execution(
         &self,
         name: &str,
+        index: usize,
         conn: &mut PgConnection,
     ) -> Result<TestExecution> {
-        TestExecution::init(name, self.id, conn).await
+        TestExecution::init(name, self.id, index, conn).await
     }
 
     pub async fn executions(&self, conn: &mut PgConnection) -> Result<Vec<TestExecution>> {
@@ -374,8 +375,8 @@ mod tests {
         let c = conn!();
 
         let tr = TestRun::init("A", c).await?;
-        let ex1 = tr.init_execution("a", c).await?;
-        let ex2 = tr.init_execution("b", c).await?;
+        let ex1 = tr.init_execution("a", 0, c).await?;
+        let ex2 = tr.init_execution("b", 1, c).await?;
 
         let executions = tr.executions(c).await?;
         assert_eq!(executions.len(), 2, "wrong number of executions");
