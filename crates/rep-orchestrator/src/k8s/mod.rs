@@ -26,7 +26,7 @@ pub const ENVIRONMENT_CONFIG_FILENAME: &str = "environment.yaml";
 pub const EXECUTION_ID_LABEL: &str = "rtf.io/execution-id";
 pub const SCENARIO_CONFIG_FILENAME: &str = "scenario.yaml";
 pub const TOOLBOX_IMAGE: &str =
-    "us-central1-docker.pkg.dev/platform-cross-environment/platform-docker/rtf-toolbox:edge";
+    "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox:edge";
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

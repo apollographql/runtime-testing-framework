@@ -86,7 +86,7 @@ k8s_yaml(
 # Make sure the rtf-toolbox image is available on both clusters under its full registry name.
 # The workflow spec references the full GCR path, so the image must be loaded under that name
 # even though it was built locally as rtf-toolbox:edge.
-TOOLBOX_IMAGE = "us-central1-docker.pkg.dev/platform-cross-environment/platform-docker/rtf-toolbox:edge"
+TOOLBOX_IMAGE = "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox:edge"
 local_resource(
     "toolbox-image",
     cmd=(
