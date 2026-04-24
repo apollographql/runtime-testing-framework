@@ -1,5 +1,6 @@
 use crate::commands::{
     get_context, load_and_resolve_test_plan_from_github, load_and_resolve_test_plan_from_local,
+    register_declared_graphos_envs,
 };
 use rtf_config::{
     StableSource,
@@ -18,7 +19,7 @@ pub async fn template_test_plan(
     git_ref: Option<String>,
     variables: Variables,
 ) -> anyhow::Result<()> {
-    let ctx = get_context();
+    let mut ctx = get_context();
 
     info!("loading and resolving test plan");
     let (test_plan, sources) = if github {
@@ -26,6 +27,7 @@ pub async fn template_test_plan(
     } else {
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
+    register_declared_graphos_envs(&mut ctx, &test_plan.graphos_environments);
     template_test_plan_with_context(test_plan, sources, variables, check, ctx).await
 }
 

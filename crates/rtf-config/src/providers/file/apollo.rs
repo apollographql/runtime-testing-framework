@@ -1272,7 +1272,12 @@ mod tests {
     ) {
         let mut ctx = Context::new();
         if with_platform_config {
-            ctx.with_platform_env(DEFAULT_GRAPHOS_ENV_NAME, "https://example.test/graphql", "dummy_key", false);
+            ctx.with_platform_env(
+                DEFAULT_GRAPHOS_ENV_NAME,
+                "https://example.test/graphql",
+                "dummy_key",
+                false,
+            );
         }
 
         if !expected_err_kinds.is_empty() {
@@ -1293,7 +1298,12 @@ mod tests {
         let canned_ops = canned_ops_with_time_range(time_range);
 
         let mut ctx = Context::new();
-        ctx.with_platform_env(DEFAULT_GRAPHOS_ENV_NAME, "https://example.test/graphql", "dummy_key", false);
+        ctx.with_platform_env(
+            DEFAULT_GRAPHOS_ENV_NAME,
+            "https://example.test/graphql",
+            "dummy_key",
+            false,
+        );
 
         let res = canned_ops.try_check(&mut Vec::new(), &ctx);
         assert!(
@@ -1310,7 +1320,12 @@ mod tests {
         let canned_ops = canned_ops_with_time_range(time_range);
 
         let mut ctx = Context::new();
-        ctx.with_platform_env(DEFAULT_GRAPHOS_ENV_NAME, "https://example.test/graphql", "dummy_key", false);
+        ctx.with_platform_env(
+            DEFAULT_GRAPHOS_ENV_NAME,
+            "https://example.test/graphql",
+            "dummy_key",
+            false,
+        );
 
         assert_check_errors(canned_ops, &ctx, &[ErrorKind::InvalidDuration]);
     }
@@ -1340,7 +1355,12 @@ mod tests {
         };
 
         let mut ctx = Context::new();
-        ctx.with_platform_env(DEFAULT_GRAPHOS_ENV_NAME, "https://example.test/graphql", "dummy_key", false);
+        ctx.with_platform_env(
+            DEFAULT_GRAPHOS_ENV_NAME,
+            "https://example.test/graphql",
+            "dummy_key",
+            false,
+        );
 
         let res = offline.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");

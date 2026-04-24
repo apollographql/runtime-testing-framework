@@ -1,5 +1,6 @@
 use crate::commands::{
     get_context, load_and_resolve_test_plan_from_github, load_and_resolve_test_plan_from_local,
+    register_declared_graphos_envs,
 };
 use rep_orchestrator_shared::payload::TriggerPayload;
 use rtf_core::variables::Variables;
@@ -23,7 +24,7 @@ pub async fn prepare_rep_trigger_payload(
     git_ref: Option<String>,
     variables: Variables,
 ) -> anyhow::Result<TriggerPayload> {
-    let ctx = get_context();
+    let mut ctx = get_context();
 
     info!("loading and resolving test plan");
     let (test_plan, sources) = if github {
@@ -31,6 +32,7 @@ pub async fn prepare_rep_trigger_payload(
     } else {
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
+    register_declared_graphos_envs(&mut ctx, &test_plan.graphos_environments);
 
     TriggerPayload::prepare(test_plan, sources, variables, ctx).await
 }

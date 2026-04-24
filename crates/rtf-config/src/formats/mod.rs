@@ -5,6 +5,7 @@ use std::io;
 mod custom_provider;
 mod environment;
 mod execution;
+mod graphos_environment;
 mod matrix;
 mod scenario;
 mod test_plan;
@@ -14,6 +15,7 @@ pub use environment::{
     DockerComposeEnvironment, EnvironmentConfig, EnvironmentExecution, ScriptEnvironment,
 };
 pub use execution::{Execution, Generic};
+pub use graphos_environment::GraphosEnvironment;
 pub use matrix::Matrix;
 use rtf_integrations::github;
 pub use scenario::{DockerCommand, DockerScenario, ScenarioConfig, ScenarioExecution};
