@@ -9,6 +9,7 @@ Available file providers:
 - [Custom provider](#custom-provider)
 - [From command](#from-command)
 - [GitHub file](#github-file)
+- [Fields common to all GraphOS providers](#fields-common-to-all-graphos-providers)
 - [GraphOS canned operations](#graphos-canned-operations)
 - [GraphOS canned operations by ID](#graphos-canned-operations-by-id)
 - [GraphOS supergraph Router URL overrides](#graphos-supergraph-router-url-overrides)
@@ -259,6 +260,29 @@ name, or tag.
 Defaults to the mainline branch as specified in GitHub if unset.
 
 </details>
+
+## Fields common to all GraphOS providers
+
+Every file provider that resolves a `graph_ref` against the GraphOS API also accepts an optional
+`graphos_env` field naming which declared [GraphOS environment][0] the request should be routed
+through.
+
+Omitting `graphos_env` (or setting it to `"default"`) falls through to the implicit production
+environment synthesized from the `APOLLO_KEY` env var. Other values must correspond to entries in
+the Test Plan's top-level `graphos_environments` block.
+
+```yaml
+# Uses the implicit default (prod) environment.
+- name: expedia-supergraph.graphql
+  kind: graphos_supergraph
+  graph_ref: ExpediaInc-8789@prod
+
+# Uses a declared non-default environment.
+- name: engine-supergraph.graphql
+  kind: graphos_supergraph
+  graph_ref: engine-ed9f6f25068608ef@prod
+  graphos_env: apollo_staging
+```
 
 ## GraphOS canned operations
 
@@ -752,3 +776,5 @@ template variables defined for the current run.
 The file content with optional `${variable}` interpolation patterns.
 
 </details>
+
+[0]: ./graphos-environments.md

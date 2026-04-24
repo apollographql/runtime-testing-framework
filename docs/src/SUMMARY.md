@@ -37,6 +37,7 @@
     - [Command providers](reference/framework/command-providers.md)
     - [File providers](reference/framework/file-providers.md)
     - [Custom providers](reference/framework/custom-providers.md)
+    - [GraphOS environments](reference/framework/graphos-environments.md)
   - [CLI reference](reference/cli-help.md)
   - [Glossary](reference/glossary.md)
 

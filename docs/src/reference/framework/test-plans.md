@@ -27,6 +27,11 @@ references to Scenario and Environment configurations.
 - `custom_providers`: Declarations for loading Custom Provider Definitions.
   - For full details on the structure of Custom Provider Declarations and Definitions see the
     [Custom Providers][5] page of the Framework documentation.
+- `graphos_environments`: Optional named GraphOS environments that file providers can target via
+  their `graphos_env` field.
+  - Omit entirely to run only against production GraphOS via the implicit `default` environment
+    (synthesized from the `APOLLO_KEY` env var).
+  - For full details see the [GraphOS Environments][6] page of the Framework documentation.
 - `scenario`: A [Config Spec](#config-specs) for the scenario to be run.
   - For full details on the structure of a Scenario see the [Scenario][0] page of the Framework
     documentation.
@@ -377,3 +382,4 @@ environment:
 [3]: ./file-providers.md
 [4]: https://en.wikipedia.org/wiki/Cartesian_product
 [5]: ./custom-providers.md
+[6]: ./graphos-environments.md
