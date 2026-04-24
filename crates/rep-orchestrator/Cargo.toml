@@ -57,5 +57,6 @@ anyhow.workspace = true
 axum-test = "20.0.0"
 indoc.workspace = true
 reqwest.workspace = true
+serial_test = "3.4.0"
 simple_test_case.workspace = true
 zip.workspace = true

@@ -28,6 +28,12 @@ pub enum Status {
     Unrunnable,
 }
 
+impl Status {
+    pub fn is_terminal(&self) -> bool {
+        matches!(self, Self::Successful | Self::Failed | Self::Unrunnable)
+    }
+}
+
 impl fmt::Display for Status {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Status::*;

@@ -143,6 +143,33 @@ impl TestHelper {
         .await
     }
 
+    /// Poll `GET /test-execution/{id}/status` until `current_status` is terminal, then return
+    /// the full summary. Panics if no terminal status is reached within `timeout`.
+    pub async fn poll_execution_for_terminal_status(
+        &self,
+        ex_id: Uuid,
+        timeout: Duration,
+    ) -> TestExecutionSummary {
+        self.poll_for_condition(
+            async || {
+                let summary: TestExecutionSummary = self
+                    .json_get(format!("test-execution/{ex_id}/status"))
+                    .await
+                    .unwrap();
+
+                if summary.current_status.is_terminal() {
+                    Some(summary)
+                } else {
+                    None
+                }
+            },
+            format!("timed out waiting for terminal status on execution {ex_id}"),
+            timeout,
+            500,
+        )
+        .await
+    }
+
     pub async fn get_text(&self, endpoint: String) -> anyhow::Result<String> {
         let resp = self
             .get(&endpoint)

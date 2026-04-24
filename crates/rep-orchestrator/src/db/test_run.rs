@@ -182,7 +182,7 @@ where
 
         // Once all executions are complete we can determine the terminal status of the run.
         // Once the run has a terminal status, further updates are ignored
-        (s_run, s_ex) if s_ex.is_complete() && !s_run.is_complete() => {
+        (s_run, s_ex) if s_ex.is_terminal() && !s_run.is_terminal() => {
             let execution_statuses = (get_sibling_statuses)().await?;
 
             // Combine the statuses of all executions in this run. If the result is a terminal
@@ -190,7 +190,7 @@ where
             execution_statuses
                 .into_iter()
                 .reduce(|l, r| l.combine(r))
-                .and_then(|s| if s.is_complete() { Some(s) } else { None })
+                .and_then(|s| if s.is_terminal() { Some(s) } else { None })
         }
 
         _ => None,

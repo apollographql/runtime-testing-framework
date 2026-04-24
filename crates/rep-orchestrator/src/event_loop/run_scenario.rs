@@ -15,7 +15,7 @@ pub(crate) const MSG_CREATE_SCENARIO_CM: &str = "creating scenario configmap";
 pub(crate) const MSG_SCENARIO_CM_CREATED: &str = "scenario configmap created";
 pub(crate) const MSG_CREATE_JOB: &str = "creating scenario job";
 pub(crate) const MSG_JOB_CREATED: &str = "scenario job created";
-pub(crate) const MSG_JOB_WAIT: &str = "waiting for scenario job to complete";
+pub const MSG_JOB_WAIT: &str = "waiting for scenario job to complete";
 
 pub(super) async fn create_config_map<K, H>(
     test_execution: TestExecution,
