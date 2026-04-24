@@ -1,0 +1,7 @@
+name: minimal-nginx-scenario
+description: Minimal DockerScenario for ProvisionEnvironment integration tests
+
+docker:
+  image: nonexistent-repo/no-such-image
+  tag: no-such-tag-999
+  command: "echo 'hello, world!' | tee $RTF_OUTPUT"

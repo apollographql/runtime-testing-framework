@@ -23,6 +23,13 @@ macro_rules! assert_status {
     }};
 }
 
+fn is_terminal(status: Status) -> bool {
+    matches!(
+        status,
+        Status::Successful | Status::Failed | Status::Unrunnable
+    )
+}
+
 pub struct TestHelper {
     client: Client,
 }
@@ -137,6 +144,33 @@ impl TestHelper {
                 }
             },
             format!("timed out waiting for status {expected:?} on execution {ex_id}"),
+            timeout,
+            500,
+        )
+        .await
+    }
+
+    /// Poll `GET /test-execution/{id}/status` until `current_status` is terminal, then return
+    /// the full summary. Panics if no terminal status is reached within `timeout`.
+    pub async fn poll_execution_for_terminal_status(
+        &self,
+        ex_id: Uuid,
+        timeout: Duration,
+    ) -> TestExecutionSummary {
+        self.poll_for_condition(
+            async || {
+                let summary: TestExecutionSummary = self
+                    .json_get(format!("test-execution/{ex_id}/status"))
+                    .await
+                    .unwrap();
+
+                if is_terminal(summary.current_status) {
+                    Some(summary)
+                } else {
+                    None
+                }
+            },
+            format!("timed out waiting for terminal status on execution {ex_id}"),
             timeout,
             500,
         )

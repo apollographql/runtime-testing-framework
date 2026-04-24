@@ -1,0 +1,12 @@
+name: error-unknown-docker-image-env
+description: Fixture for testing Unrunnable status when environment image pull fails
+
+scenario:
+  from:
+    kind: local
+    relative_path: scenario.yaml
+
+environment:
+  from:
+    kind: local
+    relative_path: environment.yaml
