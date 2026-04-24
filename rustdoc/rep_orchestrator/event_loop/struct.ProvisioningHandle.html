@@ -2,7 +2,7 @@
 </div></details><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-ProvisioningHandle" class="impl"><a class="src rightside" href="../../src/rep_orchestrator/event_loop/event_queue.rs.html#174-246">Source</a><a href="#impl-ProvisioningHandle" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.ProvisioningHandle.html" title="struct rep_orchestrator::event_loop::ProvisioningHandle">ProvisioningHandle</a></h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.request_provisioning" class="method"><a class="src rightside" href="../../src/rep_orchestrator/event_loop/event_queue.rs.html#207-235">Source</a><h4 class="code-header">pub async fn <a href="#method.request_provisioning" class="fn">request_provisioning</a>(
     &amp;self,
     ex: <a class="struct" href="../db/struct.TestExecution.html" title="struct rep_orchestrator::db::TestExecution">TestExecution</a>,
-    tp: RepTestPlan,
+    tp: <a class="type" href="../../rep_orchestrator_shared/test_plan/type.RepTestPlan.html" title="type rep_orchestrator_shared::test_plan::RepTestPlan">RepTestPlan</a>,
 ) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.bool.html">bool</a></h4></section></summary><div class="docblock"><p>Atomically decrement n_queued, add <code>ex</code> to the running executions set and send the
 provisioning event to the event loop.</p>
 <p>Returns <code>false</code> if unable to send the event to the event loop, otherwise <code>true</code>.</p>

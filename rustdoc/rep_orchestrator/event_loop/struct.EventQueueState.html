@@ -4,12 +4,12 @@
     &amp;self,
     claim: <a class="struct" href="struct.Claim.html" title="struct rep_orchestrator::event_loop::Claim">Claim</a>,
     test_run: <a class="struct" href="../db/struct.TestRun.html" title="struct rep_orchestrator::db::TestRun">TestRun</a>,
-    payload: TriggerPayload,
+    payload: <a class="struct" href="../../rep_orchestrator_shared/payload/trigger/struct.TriggerPayload.html" title="struct rep_orchestrator_shared::payload::trigger::TriggerPayload">TriggerPayload</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.94.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>, <a class="enum" href="enum.SubmitError.html" title="enum rep_orchestrator::event_loop::SubmitError">SubmitError</a>&gt;</h4></section></summary><div class="docblock"><p>Attempt to submit a <a href="../state/struct.TestRunWithPayload.html" title="struct rep_orchestrator::state::TestRunWithPayload">TestRunWithPayload</a> through to the resolver task if we are able to
 obtain sufficient pending execution claims.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.try_reserve_pending_executions" class="method"><a class="src rightside" href="../../src/rep_orchestrator/event_loop/event_queue.rs.html#306-316">Source</a><h4 class="code-header">pub async fn <a href="#method.try_reserve_pending_executions" class="fn">try_reserve_pending_executions</a>(
     &amp;self,
-    tp: &amp;RepTestPlan,
+    tp: &amp;<a class="type" href="../../rep_orchestrator_shared/test_plan/type.RepTestPlan.html" title="type rep_orchestrator_shared::test_plan::RepTestPlan">RepTestPlan</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.94.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="struct.Claim.html" title="struct rep_orchestrator::event_loop::Claim">Claim</a>&gt;</h4></section></summary><div class="docblock"><p>Attempt to reserve the requested number of executions if there is capacity.</p>
 <p>Returns <code>true</code> if the claim was successful, otherwise <code>false</code>.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.release_pending_execution_claim" class="method"><a class="src rightside" href="../../src/rep_orchestrator/event_loop/event_queue.rs.html#319-322">Source</a><h4 class="code-header">pub async fn <a href="#method.release_pending_execution_claim" class="fn">release_pending_execution_claim</a>(&amp;self, claim: <a class="struct" href="struct.Claim.html" title="struct rep_orchestrator::event_loop::Claim">Claim</a>)</h4></section></summary><div class="docblock"><p>Return <code>n</code> queued execution claims back to the shared state.</p>
