@@ -9,9 +9,12 @@ use crate::{
     templating::CustomProviderDefinitions,
 };
 use rtf_integrations::{
-    APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, GITHUB_TOKEN_ENV_VAR, GRAPH_OS_STAGING_ENV_VAR,
+    APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, DEFAULT_GRAPHOS_ENV_NAME, GITHUB_TOKEN_ENV_VAR,
     HttpClient, ReqwestClient, github,
-    graphos::{platform_query, supergraph::SupergraphDetails},
+    graphos::{
+        platform_query::{self, PROD_STUDIO_URL},
+        supergraph::SupergraphDetails,
+    },
 };
 use std::{
     collections::{HashMap, hash_map::Entry},
@@ -47,12 +50,25 @@ pub trait ResolutionContext: Send + Sync {
     type GithubClient: github::Client;
     type HttpClient: HttpClient;
 
-    /// Provide a [Client][platform_query::Client] for making requests to the Apollo platform API.
+    /// Provide a [Client][platform_query::Client] for making requests to the Apollo platform API
+    /// on behalf of the named GraphOS environment.
     ///
-    /// If it is not possible for this current context to make requests to the platform API then
-    /// this method should return [None].
-    fn platform_client(&self) -> Option<&Self::PlatformClient> {
+    /// `env_name` is the name under which an environment has been registered (e.g. `"default"` for
+    /// the conventional prod environment, or a user-declared name like `"apollo_staging"`).
+    ///
+    /// If it is not possible for this current context to make requests on behalf of the named
+    /// environment (typically because the environment's API key has not been configured), this
+    /// method should return [None].
+    #[allow(unused_variables)]
+    fn platform_client_for(&self, env_name: &str) -> Option<&Self::PlatformClient> {
         None
+    }
+
+    /// Provide a [Client][platform_query::Client] for the default GraphOS environment.
+    ///
+    /// Convenience for `self.platform_client_for(DEFAULT_GRAPHOS_ENV_NAME)`.
+    fn platform_client(&self) -> Option<&Self::PlatformClient> {
+        self.platform_client_for(DEFAULT_GRAPHOS_ENV_NAME)
     }
 
     /// Provide a [Client][github::Client] for making requests to the GitHub REST API.
@@ -84,16 +100,25 @@ pub trait ResolutionContext: Send + Sync {
     /// and pass them to the mapping function provided. Custom implementations can be used to
     /// implement caching and other custom behaviour.
     ///
+    /// `env_name` selects which registered GraphOS environment the supergraph details should be
+    /// pulled from (e.g. `"default"` for the conventional prod environment, or a user-declared
+    /// name like `"apollo_staging"`).
+    ///
     /// # Panics
-    /// The default implementation will panic if [ResolutionContext::platform_client] is [None].
+    /// The default implementation will panic if
+    /// [ResolutionContext::platform_client_for] returns [None] for the provided `env_name`.
     fn with_supergraph_details<T: Send>(
         &self,
+        env_name: impl Into<String> + Send,
         graph_id: impl Into<String> + Send,
         variant: impl Into<String> + Send,
         f: impl FnOnce(&Arc<SupergraphDetails>) -> providers::Result<T> + Send,
     ) -> impl Future<Output = providers::Result<T>> + Send {
         async move {
-            let client = self.platform_client().expect("no platform client");
+            let env_name = env_name.into();
+            let client = self
+                .platform_client_for(&env_name)
+                .expect("no platform client");
             let details = SupergraphDetails::fetch(graph_id, variant, client).await?;
 
             f(&Arc::new(details))
@@ -260,20 +285,23 @@ impl Context {
     }
 
     /// Construct a new `Context` with environment variables.
+    ///
+    /// If [APOLLO_KEY_ENV_VAR] is set, the implicit `default` GraphOS environment is registered
+    /// pointing at [PROD_STUDIO_URL]. If [APOLLO_SUDO_ENV_VAR] is also set to `"true"` or `"1"`,
+    /// the default environment is configured to send `apollo-sudo: true` on every request.
+    ///
+    /// Additional (non-default) GraphOS environments declared by a test plan's `graphos_environments`
+    /// block are registered separately via [Context::with_platform_env] after the plan is loaded.
     pub fn new_from_env_vars(env_vars: &HashMap<String, String>) -> Self {
         let mut ctx = Self::new();
 
         if let Some(api_key) = env_vars.get(APOLLO_KEY_ENV_VAR) {
-            let staging = matches!(
-                env_vars.get(GRAPH_OS_STAGING_ENV_VAR).map(|s| s.as_str()),
-                Some("true" | "1")
-            );
             let sudo = matches!(
                 env_vars.get(APOLLO_SUDO_ENV_VAR).map(|s| s.as_str()),
                 Some("true" | "1")
             );
 
-            ctx.with_platform_config(api_key, staging, sudo);
+            ctx.with_platform_env(DEFAULT_GRAPHOS_ENV_NAME, PROD_STUDIO_URL, api_key, sudo);
         }
 
         if let Some(api_token) = env_vars.get(GITHUB_TOKEN_ENV_VAR) {
@@ -283,14 +311,17 @@ impl Context {
         ctx
     }
 
-    /// Provide configuration for making requests to the Apollo platform API.
-    pub fn with_platform_config(
+    /// Register a named GraphOS environment.
+    ///
+    /// See [ReqwestClient::with_platform_env] for the parameter semantics.
+    pub fn with_platform_env(
         &mut self,
+        env_name: impl Into<String>,
+        url: impl Into<String>,
         api_key: impl Into<String>,
-        staging: bool,
         sudo: bool,
     ) -> &mut Self {
-        self.client.with_platform_config(api_key, staging, sudo);
+        self.client.with_platform_env(env_name, url, api_key, sudo);
         self
     }
 
@@ -343,8 +374,8 @@ impl ResolutionContext for Context {
     type GithubClient = github::GithubClient;
     type HttpClient = ReqwestClient;
 
-    fn platform_client(&self) -> Option<&Self::PlatformClient> {
-        self.client.platform_client()
+    fn platform_client_for(&self, env_name: &str) -> Option<&Self::PlatformClient> {
+        self.client.platform_client_for(env_name)
     }
 
     fn github_client(&self) -> Option<&Self::GithubClient> {
@@ -383,18 +414,23 @@ impl ResolutionContext for Context {
 
     async fn with_supergraph_details<T: Send>(
         &self,
+        env_name: impl Into<String> + Send,
         graph_id: impl Into<String> + Send,
         variant: impl Into<String> + Send,
         f: impl FnOnce(&Arc<SupergraphDetails>) -> providers::Result<T> + Send,
     ) -> providers::Result<T> {
+        let env_name = env_name.into();
         let graph_id = graph_id.into();
         let variant = variant.into();
 
         let mut guard = self.supergraph_details.lock().await;
-        let client = self.client.platform_client().expect("no platform client");
-        let graph_ref = format!("{graph_id}@{variant}");
+        let client = self
+            .client
+            .platform_client_for(&env_name)
+            .expect("no platform client");
+        let cache_key = format!("{env_name}::{graph_id}@{variant}");
 
-        if let Entry::Vacant(e) = guard.entry(graph_ref.clone()) {
+        if let Entry::Vacant(e) = guard.entry(cache_key.clone()) {
             let details = Arc::new(SupergraphDetails::fetch(graph_id, variant, client).await?);
             let res = f(&details);
             e.insert(details);
@@ -402,7 +438,7 @@ impl ResolutionContext for Context {
             return res;
         }
 
-        let details = guard.get(&graph_ref).expect("details should be cached");
+        let details = guard.get(&cache_key).expect("details should be cached");
 
         f(details)
     }

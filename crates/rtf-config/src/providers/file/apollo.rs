@@ -15,7 +15,7 @@ use itertools::Itertools;
 use reqwest::StatusCode;
 use rtf_derive::Template;
 use rtf_integrations::{
-    HttpClient,
+    DEFAULT_GRAPHOS_ENV_NAME, HttpClient,
     graphos::supergraph::{
         Subgraph, SupergraphDetails,
         operations::{
@@ -49,6 +49,12 @@ use tracing::warn;
 pub struct GraphosSupergraph {
     /// The Apollo graph ref to pull supergraph SDL for.
     pub graph_ref: Field<String>,
+    /// The name of the declared GraphOS environment to resolve the `graph_ref` against.
+    ///
+    /// Defaults to `"default"` — which is the implicit prod environment synthesized from the
+    /// `APOLLO_KEY` env var unless a test plan overrides it.
+    #[serde(default = "default_graphos_env")]
+    pub graphos_env: Field<String>,
     /// Replace the supergraph's subgraph urls with overridden values for testing.
     ///
     /// Defaults to null if unset.
@@ -94,7 +100,12 @@ impl AsUtf8FileContent for GraphosSupergraph {
             .expect("validated graph_ref");
 
         let sg = ctx
-            .with_supergraph_details(graph_id, variant, |details| Ok(details.clone()))
+            .with_supergraph_details(
+                self.graphos_env.as_resolved(),
+                graph_id,
+                variant,
+                |details| Ok(details.clone()),
+            )
             .await?;
 
         Ok(self.content_from_details(sg))
@@ -107,7 +118,12 @@ impl Check for GraphosSupergraph {
         path: &mut Vec<String>,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
+        validate_graph_ref_and_client(
+            self.graph_ref.as_resolved(),
+            self.graphos_env.as_resolved(),
+            path,
+            ctx,
+        )
     }
 }
 
@@ -129,6 +145,12 @@ impl Check for GraphosSupergraph {
 pub struct GraphosSubgraphs {
     /// The Apollo graph ref to pull subgraph SDL files for.
     pub graph_ref: Field<String>,
+    /// The name of the declared GraphOS environment to resolve the `graph_ref` against.
+    ///
+    /// Defaults to `"default"` — which is the implicit prod environment synthesized from the
+    /// `APOLLO_KEY` env var unless a test plan overrides it.
+    #[serde(default = "default_graphos_env")]
+    pub graphos_env: Field<String>,
 }
 
 impl GraphosSubgraphs {
@@ -172,7 +194,12 @@ impl ResolveFileContent for GraphosSubgraphs {
             .expect("validated graph_ref");
 
         let sg = ctx
-            .with_supergraph_details(graph_id, variant, |details| Ok(details.clone()))
+            .with_supergraph_details(
+                self.graphos_env.as_resolved(),
+                graph_id,
+                variant,
+                |details| Ok(details.clone()),
+            )
             .await?;
 
         Ok(self.content_from_details(sg, target.as_ref()))
@@ -185,7 +212,12 @@ impl Check for GraphosSubgraphs {
         path: &mut Vec<String>,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
+        validate_graph_ref_and_client(
+            self.graph_ref.as_resolved(),
+            self.graphos_env.as_resolved(),
+            path,
+            ctx,
+        )
     }
 }
 
@@ -206,6 +238,12 @@ impl Check for GraphosSubgraphs {
 pub struct GraphosSubgraphNames {
     /// The Apollo graph ref to pull subgraph names for.
     pub graph_ref: Field<String>,
+    /// The name of the declared GraphOS environment to resolve the `graph_ref` against.
+    ///
+    /// Defaults to `"default"` — which is the implicit prod environment synthesized from the
+    /// `APOLLO_KEY` env var unless a test plan overrides it.
+    #[serde(default = "default_graphos_env")]
+    pub graphos_env: Field<String>,
 }
 
 impl AsUtf8FileContent for GraphosSubgraphNames {
@@ -220,7 +258,12 @@ impl AsUtf8FileContent for GraphosSubgraphNames {
             .expect("validated graph_ref");
 
         let subgraphs = ctx
-            .with_supergraph_details(graph_id, variant, |details| Ok(details.subgraphs.clone()))
+            .with_supergraph_details(
+                self.graphos_env.as_resolved(),
+                graph_id,
+                variant,
+                |details| Ok(details.subgraphs.clone()),
+            )
             .await?;
 
         let contents = subgraphs.into_iter().map(|sg| sg.name).join("\n");
@@ -235,7 +278,12 @@ impl Check for GraphosSubgraphNames {
         path: &mut Vec<String>,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
+        validate_graph_ref_and_client(
+            self.graph_ref.as_resolved(),
+            self.graphos_env.as_resolved(),
+            path,
+            ctx,
+        )
     }
 }
 
@@ -260,6 +308,12 @@ impl Check for GraphosSubgraphNames {
 pub struct GraphosSubgraphRouterUrlOverrides {
     /// The Apollo graph ref to pull the subgraphs for.
     pub graph_ref: Field<String>,
+    /// The name of the declared GraphOS environment to resolve the `graph_ref` against.
+    ///
+    /// Defaults to `"default"` — which is the implicit prod environment synthesized from the
+    /// `APOLLO_KEY` env var unless a test plan overrides it.
+    #[serde(default = "default_graphos_env")]
+    pub graphos_env: Field<String>,
     /// The format of the overrides url.
     #[serde(default = "default_url_format")]
     pub url_format: UrlFormat,
@@ -487,7 +541,12 @@ impl AsUtf8FileContent for GraphosSubgraphRouterUrlOverrides {
             .expect("validated graph_ref");
 
         let sg = ctx
-            .with_supergraph_details(graph_id, variant, |details| Ok(details.clone()))
+            .with_supergraph_details(
+                self.graphos_env.as_resolved(),
+                graph_id,
+                variant,
+                |details| Ok(details.clone()),
+            )
             .await?;
 
         self.content_from_details(sg)
@@ -500,7 +559,12 @@ impl Check for GraphosSubgraphRouterUrlOverrides {
         path: &mut Vec<String>,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
+        validate_graph_ref_and_client(
+            self.graph_ref.as_resolved(),
+            self.graphos_env.as_resolved(),
+            path,
+            ctx,
+        )
     }
 }
 
@@ -523,6 +587,12 @@ impl Check for GraphosSubgraphRouterUrlOverrides {
 pub struct GraphosCannedOps {
     /// The Apollo graph ref to pull operations for.
     pub graph_ref: Field<String>,
+    /// The name of the declared GraphOS environment to resolve the `graph_ref` against.
+    ///
+    /// Defaults to `"default"` — which is the implicit prod environment synthesized from the
+    /// `APOLLO_KEY` env var unless a test plan overrides it.
+    #[serde(default = "default_graphos_env")]
+    pub graphos_env: Field<String>,
     /// The number of operations to attempt to fetch.
     ///
     /// Defaults to 20 if unset.
@@ -560,11 +630,14 @@ impl AsUtf8FileContent for GraphosCannedOps {
             .split_once('@')
             .expect("validated graph_ref");
 
+        let env_name = self.graphos_env.as_resolved();
         let details: Arc<SupergraphDetails> = ctx
-            .with_supergraph_details(graph_id, variant, |details| Ok(details.clone()))
+            .with_supergraph_details(env_name, graph_id, variant, |details| Ok(details.clone()))
             .await?;
 
-        let client = ctx.platform_client().expect("to have a platform client");
+        let client = ctx
+            .platform_client_for(env_name)
+            .expect("to have a platform client");
         let from_seconds = -(humantime::parse_duration(self.time_range.as_resolved())
             .expect("validated time_range")
             .as_secs() as i64);
@@ -590,6 +663,7 @@ impl Check for GraphosCannedOps {
         let mut errs = checks::ErrorBuilder::new();
         errs.append(validate_graph_ref_and_client(
             self.graph_ref.as_resolved(),
+            self.graphos_env.as_resolved(),
             path,
             ctx,
         ));
@@ -622,6 +696,12 @@ impl Check for GraphosCannedOps {
 pub struct GraphosCannedOpsById {
     /// The Apollo graph ref to pull operations for.
     pub graph_ref: Field<String>,
+    /// The name of the declared GraphOS environment to resolve the `graph_ref` against.
+    ///
+    /// Defaults to `"default"` — which is the implicit prod environment synthesized from the
+    /// `APOLLO_KEY` env var unless a test plan overrides it.
+    #[serde(default = "default_graphos_env")]
+    pub graphos_env: Field<String>,
     /// Operation IDs from the Apollo studio API for the operations you want to
     /// work with as queried from an `OperationInsightsListItem` in the Studio
     /// graphQL API.
@@ -639,11 +719,14 @@ impl AsUtf8FileContent for GraphosCannedOpsById {
             .split_once('@')
             .expect("validated graph_ref");
 
+        let env_name = self.graphos_env.as_resolved();
         let details: Arc<SupergraphDetails> = ctx
-            .with_supergraph_details(graph_id, variant, |details| Ok(details.clone()))
+            .with_supergraph_details(env_name, graph_id, variant, |details| Ok(details.clone()))
             .await?;
 
-        let client = ctx.platform_client().expect("to have a platform client");
+        let client = ctx
+            .platform_client_for(env_name)
+            .expect("to have a platform client");
         let ids: Vec<String> = self
             .operation_ids
             .iter()
@@ -661,7 +744,12 @@ impl Check for GraphosCannedOpsById {
         path: &mut Vec<String>,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        validate_graph_ref_and_client(self.graph_ref.as_resolved(), path, ctx)
+        validate_graph_ref_and_client(
+            self.graph_ref.as_resolved(),
+            self.graphos_env.as_resolved(),
+            path,
+            ctx,
+        )
     }
 }
 
@@ -695,6 +783,12 @@ fn canned_ops_json_lines(canned_ops: Vec<CannedOperation>) -> providers::Result<
 pub struct OfflineGraphosLicense {
     /// The Apollo graph id to pull an offline license for.
     pub graph_id: Field<String>,
+    /// The name of the declared GraphOS environment to fetch the offline license from.
+    ///
+    /// Defaults to `"default"` — which is the implicit prod environment synthesized from the
+    /// `APOLLO_KEY` env var unless a test plan overrides it.
+    #[serde(default = "default_graphos_env")]
+    pub graphos_env: Field<String>,
 }
 
 impl AsUtf8FileContent for OfflineGraphosLicense {
@@ -702,7 +796,9 @@ impl AsUtf8FileContent for OfflineGraphosLicense {
         &self,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<String> {
-        let client = ctx.platform_client().expect("to have a platform client");
+        let client = ctx
+            .platform_client_for(self.graphos_env.as_resolved())
+            .expect("to have a platform client");
         let license = fetch_offline_license(self.graph_id.as_resolved(), client).await?;
 
         Ok(license)
@@ -715,12 +811,13 @@ impl Check for OfflineGraphosLicense {
         path: &mut Vec<String>,
         ctx: &impl ResolutionContext,
     ) -> checks::Result<()> {
-        validate_client(path, ctx)
+        validate_client(self.graphos_env.as_resolved(), path, ctx)
     }
 }
 
 fn validate_graph_ref_and_client(
     graph_ref: &str,
+    env_name: &str,
     path: &[String],
     ctx: &impl ResolutionContext,
 ) -> checks::Result<()> {
@@ -732,21 +829,42 @@ fn validate_graph_ref_and_client(
             path,
         );
     }
-    errs.append(validate_client(path, ctx));
+    errs.append(validate_client(env_name, path, ctx));
 
     errs.into_result(())
 }
 
-fn validate_client(path: &[String], ctx: &impl ResolutionContext) -> checks::Result<()> {
-    if ctx.platform_client().is_none() {
+fn validate_client(
+    env_name: &str,
+    path: &[String],
+    ctx: &impl ResolutionContext,
+) -> checks::Result<()> {
+    if ctx.platform_client_for(env_name).is_none() {
+        let message = if env_name == DEFAULT_GRAPHOS_ENV_NAME {
+            "expected os env key APOLLO_KEY".to_string()
+        } else {
+            format!(
+                "provider references graphos environment {env_name:?}, \
+                 but no API key has been configured for it \
+                 (expected the env var declared by the plan's \
+                 graphos_environments.{env_name}.api_key_env_var)"
+            )
+        };
         return Err(checks::Errors::new(
             checks::ErrorKind::MissingGraphOsApiKey,
-            "expected os env key APOLLO_KEY",
+            message,
             path,
         ));
     }
 
     Ok(())
+}
+
+/// The default `graphos_env` field value for GraphOS-backed file providers — the conventional
+/// "default" environment name. Providers that don't opt into a named environment fall through
+/// to this, which maps to the implicit prod environment synthesized from `APOLLO_KEY`.
+fn default_graphos_env() -> Field<String> {
+    Field::Resolved(DEFAULT_GRAPHOS_ENV_NAME.to_string())
 }
 
 /// # Router download script
@@ -912,6 +1030,7 @@ mod tests {
     fn supergraph(graph_ref: &str) -> GraphosSupergraph {
         GraphosSupergraph {
             graph_ref: Field::Resolved(graph_ref.to_string()),
+            graphos_env: default_graphos_env(),
             with_subgraph_overrides: None,
             with_connector_overrides: None,
         }
@@ -924,6 +1043,7 @@ mod tests {
     fn subgraphs(graph_ref: &str) -> GraphosSubgraphs {
         GraphosSubgraphs {
             graph_ref: Field::Resolved(graph_ref.to_string()),
+            graphos_env: default_graphos_env(),
         }
     }
 
@@ -934,6 +1054,7 @@ mod tests {
     fn subgraph_names(graph_ref: &str) -> GraphosSubgraphNames {
         GraphosSubgraphNames {
             graph_ref: Field::Resolved(graph_ref.to_string()),
+            graphos_env: default_graphos_env(),
         }
     }
 
@@ -944,6 +1065,7 @@ mod tests {
     fn subgraphs_overrides(graph_ref: &str) -> GraphosSubgraphRouterUrlOverrides {
         GraphosSubgraphRouterUrlOverrides {
             graph_ref: Field::Resolved(graph_ref.to_string()),
+            graphos_env: default_graphos_env(),
             url_format: UrlFormat::Docker,
         }
     }
@@ -952,6 +1074,7 @@ mod tests {
     fn canned_ops(graph_ref: &str) -> FileProvider {
         FileProvider::GraphosCannedOps(GraphosCannedOps {
             graph_ref: Field::Resolved(graph_ref.to_string()),
+            graphos_env: default_graphos_env(),
             top_n: Field::Resolved(20),
             skip_mutations: Field::Resolved(true),
             time_range: Field::Resolved("30d".to_string()),
@@ -962,6 +1085,7 @@ mod tests {
     fn canned_ops_with_time_range(time_range: &str) -> GraphosCannedOps {
         GraphosCannedOps {
             graph_ref: Field::Resolved("graph@variant".to_string()),
+            graphos_env: default_graphos_env(),
             top_n: Field::Resolved(20),
             skip_mutations: Field::Resolved(true),
             time_range: Field::Resolved(time_range.to_string()),
@@ -972,6 +1096,7 @@ mod tests {
     fn canned_ops_by_id(graph_ref: &str) -> FileProvider {
         FileProvider::GraphosCannedOpsById(GraphosCannedOpsById {
             graph_ref: Field::Resolved(graph_ref.to_string()),
+            graphos_env: default_graphos_env(),
             operation_ids: Vec::new(),
         })
     }
@@ -1147,7 +1272,7 @@ mod tests {
     ) {
         let mut ctx = Context::new();
         if with_platform_config {
-            ctx.with_platform_config("dummy_key", false, false);
+            ctx.with_platform_env(DEFAULT_GRAPHOS_ENV_NAME, "https://example.test/graphql", "dummy_key", false);
         }
 
         if !expected_err_kinds.is_empty() {
@@ -1168,7 +1293,7 @@ mod tests {
         let canned_ops = canned_ops_with_time_range(time_range);
 
         let mut ctx = Context::new();
-        ctx.with_platform_config("dummy_key", false, false);
+        ctx.with_platform_env(DEFAULT_GRAPHOS_ENV_NAME, "https://example.test/graphql", "dummy_key", false);
 
         let res = canned_ops.try_check(&mut Vec::new(), &ctx);
         assert!(
@@ -1185,7 +1310,7 @@ mod tests {
         let canned_ops = canned_ops_with_time_range(time_range);
 
         let mut ctx = Context::new();
-        ctx.with_platform_config("dummy_key", false, false);
+        ctx.with_platform_env(DEFAULT_GRAPHOS_ENV_NAME, "https://example.test/graphql", "dummy_key", false);
 
         assert_check_errors(canned_ops, &ctx, &[ErrorKind::InvalidDuration]);
     }
@@ -1211,10 +1336,11 @@ mod tests {
     fn offline_license_check_success() {
         let offline = OfflineGraphosLicense {
             graph_id: Field::Resolved("graph".to_string()),
+            graphos_env: default_graphos_env(),
         };
 
         let mut ctx = Context::new();
-        ctx.with_platform_config("dummy_key", false, false);
+        ctx.with_platform_env(DEFAULT_GRAPHOS_ENV_NAME, "https://example.test/graphql", "dummy_key", false);
 
         let res = offline.try_check(&mut Vec::new(), &ctx);
         assert!(res.is_ok(), "expected check to succeed, got {res:?}");
@@ -1224,6 +1350,7 @@ mod tests {
     fn offline_license_check_missing_api_key() {
         let offline = OfflineGraphosLicense {
             graph_id: Field::Resolved("graph".to_string()),
+            graphos_env: default_graphos_env(),
         };
 
         let ctx = Context::new();
@@ -1273,6 +1400,7 @@ mod tests {
         let details = supergraph_details();
         let supergraph = GraphosSupergraph {
             graph_ref: Field::Resolved("graph@variant".to_string()),
+            graphos_env: default_graphos_env(),
             with_subgraph_overrides: Some(UrlFormat::Docker),
             with_connector_overrides: None,
         };
@@ -1298,6 +1426,7 @@ mod tests {
         let details = supergraph_details();
         let supergraph = GraphosSupergraph {
             graph_ref: Field::Resolved("graph@variant".to_string()),
+            graphos_env: default_graphos_env(),
             with_subgraph_overrides: Some(UrlFormat::Custom(CustomUrlFormat {
                 base_url: Field::Resolved("http://my-subgraph".to_string()),
                 base_port: Field::Resolved(8000),
@@ -1335,6 +1464,7 @@ mod tests {
         let details = supergraph_details();
         let supergraph = GraphosSupergraph {
             graph_ref: Field::Resolved("graph@variant".to_string()),
+            graphos_env: default_graphos_env(),
             with_subgraph_overrides: Some(UrlFormat::Custom(CustomUrlFormat {
                 base_url: Field::Resolved("http://my-subgraph".to_string()),
                 base_port: Field::Resolved(8000),
@@ -1371,6 +1501,7 @@ mod tests {
         let details = supergraph_details();
         let supergraph = GraphosSupergraph {
             graph_ref: Field::Resolved("graph@variant".to_string()),
+            graphos_env: default_graphos_env(),
             with_subgraph_overrides: Some(UrlFormat::Localhost),
             with_connector_overrides: None,
         };

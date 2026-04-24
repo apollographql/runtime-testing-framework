@@ -9,8 +9,8 @@ use rtf_config::{
     templating::CustomProviderDefinitions,
 };
 use rtf_integrations::{
-    ReqwestClient, github,
-    graphos::{self, supergraph::SupergraphDetails},
+    DEFAULT_GRAPHOS_ENV_NAME, ReqwestClient, github,
+    graphos::{self, platform_query::PROD_STUDIO_URL, supergraph::SupergraphDetails},
 };
 use std::{
     collections::HashMap,
@@ -34,8 +34,13 @@ impl RepContext {
         custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
     ) -> Self {
         let mut inner = Context::new();
-        // apollo_sudo always true; graphos_staging always false for REP
-        inner.with_platform_config(&cfg.apollo_key, false, true);
+        // REP always runs against prod GraphOS with apollo-sudo enabled.
+        inner.with_platform_env(
+            DEFAULT_GRAPHOS_ENV_NAME,
+            PROD_STUDIO_URL,
+            &cfg.apollo_key,
+            true,
+        );
         inner.with_github_app_config(cfg.github_app_id, cfg.github_app_private_key_pem.clone());
 
         Self {
@@ -51,8 +56,8 @@ impl ResolutionContext for RepContext {
     type GithubClient = github::GithubClient;
     type HttpClient = ReqwestClient;
 
-    fn platform_client(&self) -> Option<&Self::PlatformClient> {
-        self.inner.platform_client()
+    fn platform_client_for(&self, env_name: &str) -> Option<&Self::PlatformClient> {
+        self.inner.platform_client_for(env_name)
     }
 
     fn github_client(&self) -> Option<&Self::GithubClient> {
@@ -81,12 +86,13 @@ impl ResolutionContext for RepContext {
 
     async fn with_supergraph_details<T: Send>(
         &self,
+        env_name: impl Into<String> + Send,
         graph_id: impl Into<String> + Send,
         variant: impl Into<String> + Send,
         f: impl FnOnce(&Arc<SupergraphDetails>) -> providers::Result<T> + Send,
     ) -> providers::Result<T> {
         self.inner
-            .with_supergraph_details(graph_id, variant, f)
+            .with_supergraph_details(env_name, graph_id, variant, f)
             .await
     }
 

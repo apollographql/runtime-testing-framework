@@ -15,13 +15,12 @@ use std::{collections::BTreeMap, future::Future, time::Duration};
 use tokio::time::sleep;
 use tracing::{error, warn};
 
-/// API endpoint for the staging studio instance.
-/// -> Apollo internal graphs are queried from here
-pub(crate) const STAGING_STUDIO_URL: &str =
-    "https://graphql-staging.api.apollographql.com/api/graphql";
 /// API endpoint for the production studio instance.
-/// -> Customer graphs are queried from here
-pub(crate) const PROD_STUDIO_URL: &str = "https://graphql.api.apollographql.com/api/graphql";
+///
+/// This is the URL used for the implicit "default" platform environment when a test plan
+/// does not declare a `graphos_environments` block. Test plans that target other GraphOS
+/// environments (staging, dev, etc.) declare their URLs explicitly in the plan YAML.
+pub const PROD_STUDIO_URL: &str = "https://graphql.api.apollographql.com/api/graphql";
 /// Maximum number of times to attempt a platform API request before giving up.
 const MAX_ATTEMPTS: u32 = 3;
 /// Delay between retry attempts.
@@ -171,7 +170,8 @@ pub struct GqlError {
 ///     my_enums: vec![my_query::MyEnum::A], // enums are available in the generated module
 /// };
 /// let api_key = "...";
-/// let client = ReqwestClient::new_prod(api_key);
+/// let mut client = ReqwestClient::new();
+/// client.with_platform_env("default", PROD_STUDIO_URL, api_key, false);
 ///
 /// let parsed_response = MyQuery::fetch(vars, &client).await?;
 /// ```

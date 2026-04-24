@@ -14,22 +14,24 @@
 use bytes::Bytes;
 use github::GithubClient;
 use reqwest::{Error, StatusCode};
-use std::future::Future;
+use std::{collections::HashMap, future::Future};
 
 pub mod github;
 pub mod graphos;
 
-use graphos::{
-    PlatformClient,
-    platform_query::{PROD_STUDIO_URL, STAGING_STUDIO_URL},
-};
+use graphos::PlatformClient;
+
+/// The name reserved for the "default" platform environment.
+///
+/// When a test plan does not declare a `graphos_environments` block, an implicit environment
+/// under this name is synthesized from [APOLLO_KEY_ENV_VAR] (and optionally [APOLLO_SUDO_ENV_VAR])
+/// pointing at the production Apollo GraphOS instance.
+pub const DEFAULT_GRAPHOS_ENV_NAME: &str = "default";
 
 /// The environment variable name for the api key used to authenticate with the GraphOS API
 pub const APOLLO_KEY_ENV_VAR: &str = "APOLLO_KEY";
 /// The environment variable name for setting the apollo-sudo=true header in GraphOS API requests
 pub const APOLLO_SUDO_ENV_VAR: &str = "APOLLO_SUDO";
-/// The environment variable name for whether or not to use the staging GraphOS API
-pub const GRAPH_OS_STAGING_ENV_VAR: &str = "GRAPHOS_STAGING";
 /// The maximum number of queries to run in parallel querying the platform API.
 pub const N_PARALLEL_FETCH: usize = 20;
 /// The environment variable name for the api token used to authenticate with the GitHub API.
@@ -40,7 +42,7 @@ pub const GITHUB_TOKEN_ENV_VAR: &str = "GITHUB_TOKEN";
 pub struct ReqwestClient {
     pub(crate) inner: reqwest::Client,
     pub(crate) github: Option<GithubClient>,
-    pub(crate) platform: Option<PlatformClient>,
+    pub(crate) platforms: HashMap<String, PlatformClient>,
 }
 
 impl ReqwestClient {
@@ -49,14 +51,21 @@ impl ReqwestClient {
         Self {
             inner: reqwest::Client::new(),
             github: None,
-            platform: None,
+            platforms: HashMap::new(),
         }
     }
 
-    /// Obtain a reference to an API client for running operations with the Apollo platform API if
-    /// config is available.
+    /// Obtain a reference to the default platform client if it has been configured.
+    ///
+    /// This is a convenience for [ReqwestClient::platform_client_for] with the
+    /// [DEFAULT_GRAPHOS_ENV_NAME] environment name.
     pub fn platform_client(&self) -> Option<&PlatformClient> {
-        self.platform.as_ref()
+        self.platform_client_for(DEFAULT_GRAPHOS_ENV_NAME)
+    }
+
+    /// Obtain a reference to a named platform client if it has been configured.
+    pub fn platform_client_for(&self, env_name: &str) -> Option<&PlatformClient> {
+        self.platforms.get(env_name)
     }
 
     /// Obtain a reference to an API client for making requests to the GitHub REST API if config is
@@ -65,25 +74,29 @@ impl ReqwestClient {
         self.github.as_ref()
     }
 
-    /// Provide configuration for making requests to the Apollo platform API.
-    pub fn with_platform_config(
+    /// Register a named platform environment.
+    ///
+    /// `env_name` is the key that test plans use when referencing this environment via the
+    /// `graphos_env` field on a GraphOS file provider (e.g. `"default"`, `"apollo_staging"`).
+    /// `url` is the GraphOS API endpoint for this environment.
+    /// `api_key` is the credential sent as the `x-api-key` header.
+    /// If `sudo` is true, requests include the `apollo-sudo: true` header.
+    pub fn with_platform_env(
         &mut self,
+        env_name: impl Into<String>,
+        url: impl Into<String>,
         api_key: impl Into<String>,
-        staging: bool,
         sudo: bool,
     ) -> &mut Self {
-        let url = if staging {
-            STAGING_STUDIO_URL
-        } else {
-            PROD_STUDIO_URL
-        };
-
-        self.platform = Some(PlatformClient {
-            inner: self.inner.clone(),
-            url: url.into(),
-            api_key: api_key.into().into(),
-            sudo,
-        });
+        self.platforms.insert(
+            env_name.into(),
+            PlatformClient {
+                inner: self.inner.clone(),
+                url: url.into().into(),
+                api_key: api_key.into().into(),
+                sudo,
+            },
+        );
 
         self
     }

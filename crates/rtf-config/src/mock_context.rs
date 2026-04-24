@@ -162,6 +162,7 @@ impl<C: HttpClient + Clone + Send + Sync + 'static> ResolutionContext for MockCo
 
     async fn with_supergraph_details<T: Send>(
         &self,
+        _env_name: impl Into<String> + Send,
         _graph_id: impl Into<String> + Send,
         _variant: impl Into<String> + Send,
         _f: impl FnOnce(&Arc<SupergraphDetails>) -> providers::Result<T> + Send,
