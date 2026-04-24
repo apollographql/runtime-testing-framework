@@ -22,7 +22,7 @@ permissions:
 jobs:
   publish-orchestrator-image:
     name: Build and publish REP Orchestrator image
-    uses: apollographql/release-tooling/.github/workflows/build_and_publish.yml@a46e497cc5bed75d0b5d0bddd7822f2c14528d38
+    uses: apollographql/release-tooling/.github/workflows/build_and_publish.yml@cc8018036a3df0bfb7dd8b5d92ff23c998a59579
     permissions:
       contents: read
       id-token: write
