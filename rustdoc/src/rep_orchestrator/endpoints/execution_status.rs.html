@@ -58,7 +58,7 @@
 <a href=#58 id=58 data-nosnippet>58</a>    <span class="comment">// We check strictly greater than in order to allow multiple updates at the same Status
 <a href=#59 id=59 data-nosnippet>59</a>    // with different messages (e.g. the different stages of provisioning). But we disallow
 <a href=#60 id=60 data-nosnippet>60</a>    // moving backward through the statuses or setting multiple terminal statuses.
-<a href=#61 id=61 data-nosnippet>61</a>    </span><span class="kw">if </span>db_current_status &gt; db_payload_status || db_current_status.is_complete() {
+<a href=#61 id=61 data-nosnippet>61</a>    </span><span class="kw">if </span>db_current_status &gt; db_payload_status || db_current_status.is_terminal() {
 <a href=#62 id=62 data-nosnippet>62</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::InvalidExecutionStatus {
 <a href=#63 id=63 data-nosnippet>63</a>            current: current_status,
 <a href=#64 id=64 data-nosnippet>64</a>            requested: payload.status,

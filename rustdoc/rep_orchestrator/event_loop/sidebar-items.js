@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["EventData","SubmitError"],"fn":["event_loop_task"],"struct":["Claim","Event","EventQueue","EventQueueState","ProvisioningHandle"]};
+window.SIDEBAR_ITEMS = {"constant":["MSG_ARGO_WAIT","MSG_JOB_WAIT"],"enum":["EventData","SubmitError"],"fn":["event_loop_task"],"struct":["Claim","Event","EventQueue","EventQueueState","ProvisioningHandle"]};
