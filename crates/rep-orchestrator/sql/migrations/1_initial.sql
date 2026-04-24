@@ -19,6 +19,12 @@ CREATE TABLE IF NOT EXISTS test_run_status (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- A cache of unhydrated test plan data used for recovering state when we have a restart.
+CREATE TABLE IF NOT EXISTS test_plan_cache (
+    run_id INT NOT NULL CHECK (run_id > 0) PRIMARY KEY,
+    test_plan JSONB
+);
+
 -- Test Executions represent individual environment/scenario pairs run in an ephemeral namespace.
 -- Each execution is associated with a single Test Run.
 CREATE TABLE IF NOT EXISTS test_execution (

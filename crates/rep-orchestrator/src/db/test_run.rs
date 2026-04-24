@@ -4,8 +4,11 @@ use crate::db::{
     test_execution::TestExecution,
 };
 use chrono::{DateTime, Utc};
-use rep_orchestrator_shared::summary::TestRunSummary;
+use rep_orchestrator_shared::{summary::TestRunSummary, test_plan::RepTestPlan};
+use serde_json::Value;
 use sqlx::{FromRow, PgConnection};
+use std::collections::HashMap;
+use tracing::error;
 use uuid::Uuid;
 
 /// A `TestRun` denotes a single user-triggered set of tests that should be considered passing or
@@ -157,6 +160,77 @@ impl TestRun {
             executions,
         })
     }
+
+    /// Load all currently cached test plans into a map of test run ID to [TestRun] and
+    /// [RepTestPlan].
+    ///
+    /// Returns DB level errors as `Err` but partitions off malformed test plan JSON errors into a
+    /// [Vec] of [TestRun]s that it is the caller's responsibility to process. To evict malformed
+    /// data from the cache use [TestRun::clear_cached_test_plan]. To evict the entire cache use
+    /// [TestRun::clear_test_plan_cache].
+    pub async fn load_test_plan_cache(
+        conn: &mut PgConnection,
+    ) -> Result<(HashMap<Uuid, (TestRun, RepTestPlan)>, Vec<TestRun>)> {
+        let raw = CachedTestPlan::load_all(conn).await?;
+        let mut map = HashMap::with_capacity(raw.len());
+        let mut malformed = Vec::new();
+
+        for CachedTestPlan { run_id, test_plan } in raw.into_iter() {
+            let tr = TestRun::get_by_id_unchecked(run_id, conn).await?;
+            match serde_json::from_value(test_plan) {
+                Ok(tp) => {
+                    map.insert(tr.uuid, (tr, tp));
+                }
+
+                Err(err) => {
+                    error!(%err, run_id=%tr.uuid, "malformed cached test plan");
+                    malformed.push(tr);
+                }
+            }
+        }
+
+        Ok((map, malformed))
+    }
+
+    /// Clear the entire test plan cache.
+    ///
+    /// This does _not_ alter the status of associated runs and executions.
+    pub async fn clear_test_plan_cache(conn: &mut PgConnection) -> Result<()> {
+        sqlx::query("DELETE FROM test_plan_cache;")
+            .execute(conn)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Cache the given [RepTestPlan] against this [TestRun]s ID.
+    ///
+    /// Used to recover event loop state on startup for ongoing executions.
+    pub async fn cache_test_plan(&self, tp: RepTestPlan, conn: &mut PgConnection) -> Result<()> {
+        let val = serde_json::to_value(tp).expect("test plan to serialize");
+
+        sqlx::query(
+            "INSERT INTO test_plan_cache (run_id, test_plan)
+             VALUES ($1, $2);
+            ",
+        )
+        .bind(self.id)
+        .bind(val)
+        .execute(conn)
+        .await?;
+
+        Ok(())
+    }
+
+    /// Evict the cached test plan associated with this [TestRun]s ID.
+    pub async fn clear_cached_test_plan(self, conn: &mut PgConnection) -> Result<()> {
+        sqlx::query("DELETE FROM test_plan_cache WHERE run_id=$1;")
+            .bind(self.id)
+            .execute(conn)
+            .await?;
+
+        Ok(())
+    }
 }
 
 async fn status_after_execution_update<F, Fut>(
@@ -199,6 +273,30 @@ where
     Ok(new_run_status)
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, FromRow)]
+struct CachedTestPlan {
+    run_id: i32,
+    test_plan: Value,
+}
+
+impl Queryable for CachedTestPlan {
+    const TABLE_NAME: &'static str = "test_plan_cache";
+
+    fn id(&self) -> i32 {
+        self.run_id
+    }
+}
+
+impl CachedTestPlan {
+    async fn load_all(conn: &mut PgConnection) -> Result<Vec<Self>> {
+        Ok(
+            sqlx::query_as("SELECT run_id, test_plan FROM test_plan_cache;")
+                .fetch_all(conn)
+                .await?,
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -207,6 +305,15 @@ mod tests {
         db::status::{Status, StatusTracked},
     };
     use Status::*;
+    use rep_orchestrator_shared::test_plan::RepTestPlan;
+    use rtf_config::{
+        formats::{
+            DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig,
+            ScenarioConfig,
+        },
+        templating::Field,
+    };
+    use serde_json::json;
     use simple_test_case::test_case;
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
@@ -390,6 +497,147 @@ mod tests {
                 .await?;
 
         assert_eq!(new_status, expected);
+
+        Ok(())
+    }
+
+    fn stub_test_plan() -> RepTestPlan {
+        RepTestPlan {
+            name: String::new(),
+            description: String::new(),
+            variables: Default::default(),
+            matrix: Default::default(),
+            custom_providers: vec![],
+            scenario: ScenarioConfig {
+                name: String::new(),
+                description: String::new(),
+                variable_definitions: vec![],
+                custom_providers: vec![],
+                execution: DockerScenario {
+                    docker: DockerCommand {
+                        image: Field::Resolved("nginx".into()),
+                        tag: None,
+                        command: Field::Resolved("echo test".into()),
+                    },
+                    env_vars: Default::default(),
+                    file_providers: vec![],
+                },
+            },
+            environment: EnvironmentConfig {
+                name: String::new(),
+                description: String::new(),
+                variable_definitions: vec![],
+                custom_providers: vec![],
+                execution: DockerComposeEnvironment {
+                    project_name: None,
+                    compose_files: vec![],
+                    file_providers: vec![],
+                    env_vars: Default::default(),
+                },
+            },
+        }
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn load_test_plan_cache_returns_cached_plans() -> Result<()> {
+        let c = conn!();
+        let tr1 = TestRun::init("run-a", c).await?;
+        let tr2 = TestRun::init("run-b", c).await?;
+        let uuid1 = tr1.uuid();
+        let uuid2 = tr2.uuid();
+
+        tr1.cache_test_plan(stub_test_plan(), c).await?;
+        tr2.cache_test_plan(stub_test_plan(), c).await?;
+
+        let (map, _) = TestRun::load_test_plan_cache(c).await?;
+        assert!(map.contains_key(&uuid1), "run-a UUID not in cache");
+        assert!(map.contains_key(&uuid2), "run-b UUID not in cache");
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn load_test_plan_cache_partitions_malformed_json() -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init("test", c).await?;
+        let uuid = tr.uuid();
+
+        // We don't expose an API for storing an arbitrary JSON blob like this, but we need to
+        // guard against structural changes in RepTestPlan meaning that we somehow manage to have
+        // old data that no longer parses present in the cache.
+        sqlx::query("INSERT INTO test_plan_cache (run_id, test_plan) VALUES ($1, $2::jsonb)")
+            .bind(tr.id())
+            .bind(json!({"not": "a test plan"}))
+            .execute(&mut *c)
+            .await?;
+
+        let (map, malformed) = TestRun::load_test_plan_cache(c).await?;
+        assert!(!map.contains_key(&uuid), "present in map");
+        assert!(
+            malformed.iter().any(|r| r.uuid() == uuid),
+            "present in malformed"
+        );
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn clear_cached_test_plan_removes_the_entry() -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init("test", c).await?;
+        let run_id = tr.id;
+
+        // should be present in the cache after caching
+        tr.cache_test_plan(stub_test_plan(), c).await?;
+
+        let cache = CachedTestPlan::load_all(c).await?;
+        assert!(
+            cache.iter().any(|elem| elem.run_id == run_id),
+            "should be cached"
+        );
+
+        // should be removed from the cache after clearing
+        tr.clear_cached_test_plan(c).await?;
+
+        let cache = CachedTestPlan::load_all(c).await?;
+        assert!(
+            cache.iter().all(|elem| elem.run_id != run_id),
+            "should not be cached"
+        );
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    #[ignore = "races with other tests that use the test plan cache"]
+    async fn clear_test_plan_cache_removes_all_entries() -> Result<()> {
+        let c = conn!();
+        let tr1 = TestRun::init("run-a", c).await?;
+        let tr2 = TestRun::init("run-b", c).await?;
+        let uuid1 = tr1.uuid();
+        let uuid2 = tr2.uuid();
+
+        tr1.cache_test_plan(stub_test_plan(), c).await?;
+        tr2.cache_test_plan(stub_test_plan(), c).await?;
+        let (map, _) = TestRun::load_test_plan_cache(c).await?;
+        assert!(
+            map.contains_key(&uuid1),
+            "run-a should be present before clearing"
+        );
+        assert!(
+            map.contains_key(&uuid2),
+            "run-b should be present before clearing"
+        );
+
+        TestRun::clear_test_plan_cache(c).await?;
+
+        let (map, malformed) = TestRun::load_test_plan_cache(c).await?;
+        assert!(map.is_empty(), "expected empty map after clear all");
+        assert!(malformed.is_empty(), "unexpected malformed after clear all");
 
         Ok(())
     }
