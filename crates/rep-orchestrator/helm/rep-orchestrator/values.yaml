@@ -1,5 +1,5 @@
 image:
-  repository: "us-central1-docker.pkg.dev/platform-cross-environment/platform-docker/rep-orchestrator"
+  repository: "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rep-orchestrator"
   tag: "edge"
   pullPolicy: Always
 
