@@ -453,18 +453,18 @@ mod tests {
 
         ex1.set_status(Status::Successful, None, c).await?;
         let current = tr.current_status(c).await?;
-        let is_complete = current.status.is_complete();
-        assert!(!is_complete, "after ex1: {current:?}");
+        let is_terminal = current.status.is_terminal();
+        assert!(!is_terminal, "after ex1: {current:?}");
 
         ex2.set_status(Status::Successful, None, c).await?;
         let current = tr.current_status(c).await?;
-        let is_complete = current.status.is_complete();
-        assert!(!is_complete, "after ex2: {current:?}");
+        let is_terminal = current.status.is_terminal();
+        assert!(!is_terminal, "after ex2: {current:?}");
 
         ex3.set_status(Status::Successful, None, c).await?;
         let current = tr.current_status(c).await?;
-        let is_complete = current.status.is_complete();
-        assert!(is_complete, "after ex3: {current:?}");
+        let is_terminal = current.status.is_terminal();
+        assert!(is_terminal, "after ex3: {current:?}");
 
         Ok(())
     }

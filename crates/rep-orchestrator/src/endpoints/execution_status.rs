@@ -58,7 +58,7 @@ fn validate(payload: &SetStatusPayload, current_status: SharedStatus) -> Result<
     // We check strictly greater than in order to allow multiple updates at the same Status
     // with different messages (e.g. the different stages of provisioning). But we disallow
     // moving backward through the statuses or setting multiple terminal statuses.
-    if db_current_status > db_payload_status || db_current_status.is_complete() {
+    if db_current_status > db_payload_status || db_current_status.is_terminal() {
         return Err(Error::InvalidExecutionStatus {
             current: current_status,
             requested: payload.status,

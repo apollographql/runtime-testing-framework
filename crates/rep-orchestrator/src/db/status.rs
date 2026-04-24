@@ -46,7 +46,7 @@ pub trait StatusTracked: Queryable {
             )
             .await?;
 
-            if status.is_complete() {
+            if status.is_terminal() {
                 conn.execute(
                     sqlx::query(&format!(
                         "UPDATE {} SET completed_at = NOW() WHERE id = $1;",
@@ -172,7 +172,7 @@ pub enum Status {
 
 impl Status {
     /// Whether or not this status represents a terminal state.
-    pub fn is_complete(&self) -> bool {
+    pub fn is_terminal(&self) -> bool {
         matches!(self, Self::Successful | Self::Failed | Self::Unrunnable)
     }
 

@@ -23,13 +23,6 @@ macro_rules! assert_status {
     }};
 }
 
-fn is_terminal(status: Status) -> bool {
-    matches!(
-        status,
-        Status::Successful | Status::Failed | Status::Unrunnable
-    )
-}
-
 pub struct TestHelper {
     client: Client,
 }
@@ -164,7 +157,7 @@ impl TestHelper {
                     .await
                     .unwrap();
 
-                if is_terminal(summary.current_status) {
+                if summary.current_status.is_terminal() {
                     Some(summary)
                 } else {
                     None
