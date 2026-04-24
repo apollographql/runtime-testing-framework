@@ -66,6 +66,25 @@ impl<E: Execution> TestPlan<E> {
         }))
     }
 
+    /// Try to expand a single matrix variant by index.
+    ///
+    /// Returns an error if matrix expansion fails, otherwise `Ok(None)` if the index was out of bounds
+    /// and `Ok(Some((variant_name, test_plan)))` if the index is valid.
+    pub fn try_expand_variant(&self, index: usize) -> Result<Option<(String, Self)>> {
+        // Expand the full matrix in order to ensure that the test plan as a whole is valid.
+        let mut expanded = self.matrix.try_expand(&self.variables)?;
+        if index >= expanded.len() {
+            return Ok(None);
+        }
+
+        let (name, variables) = expanded.swap_remove(index);
+        let mut new = self.clone();
+        new.variables = variables;
+        new.matrix.clear();
+
+        Ok(Some((name, new)))
+    }
+
     pub async fn run_environment_setup(
         &self,
         out_dir: &Path,
@@ -1455,6 +1474,28 @@ mod tests {
 
     // Tests for matrix expansion, variants, and matrix-related functionality
 
+    fn test_plan_from_matrix_parts(
+        variables: &[&str],
+        dimensions: &[(&str, Vec<&str>)],
+        include: &[HashMap<String, Scalar>],
+    ) -> TestPlanConfig {
+        let variables = template_context(variables);
+        let dimensions: HashMap<String, Vec<Scalar>> = dimensions
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.iter().map(|s| Scalar::from(*s)).collect()))
+            .collect();
+
+        TestPlanConfig {
+            variables: variables.variables().clone(),
+            matrix: Matrix {
+                variant_names: None,
+                dimensions,
+                include: include.to_vec(),
+            },
+            ..TestPlanConfig::empty()
+        }
+    }
+
     #[test_case(
         &[],
         &[],
@@ -1552,20 +1593,7 @@ mod tests {
         include: &[HashMap<String, Scalar>],
         expected_variables_maps: &[HashMap<String, Scalar>],
     ) {
-        let variables = template_context(variables);
-        let dimensions: HashMap<String, Vec<Scalar>> = dimensions
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.iter().map(|s| Scalar::from(*s)).collect()))
-            .collect();
-        let test_plan = TestPlanConfig {
-            variables: variables.variables().clone(),
-            matrix: Matrix {
-                variant_names: None,
-                dimensions,
-                include: include.to_vec(),
-            },
-            ..TestPlanConfig::empty()
-        };
+        let test_plan = test_plan_from_matrix_parts(variables, dimensions, include);
 
         let variants: Vec<_> = test_plan.try_iter_matrix_variants().unwrap().collect();
         assert_eq!(
@@ -1605,6 +1633,27 @@ mod tests {
                 "test the combination from iter_matrix_variants matches the combination in expanded_matrix_variants"
             );
         }
+    }
+
+    #[test_case(0, true; "first variant")]
+    #[test_case(1, true; "second variant")]
+    #[test_case(2, true; "third variant")]
+    #[test_case(3, false; "index is n_variants")]
+    #[test_case(9, false; "index greater than n_variants")]
+    #[test]
+    fn try_expand_variant_returns_expected_output(index: usize, is_some: bool) {
+        let tp = test_plan_from_matrix_parts(
+            &["foo"],
+            &[("key1", vec!["a", "b", "c"])],
+            &[variables_map!("bar" => "bar")],
+        );
+
+        assert_eq!(tp.matrix.n_variants(), 3, "num variants");
+
+        let res = tp.try_expand_variant(index);
+        assert!(res.is_ok(), "{res:?}");
+
+        assert_eq!(res.unwrap().is_some(), is_some, "is_some");
     }
 
     #[test]
