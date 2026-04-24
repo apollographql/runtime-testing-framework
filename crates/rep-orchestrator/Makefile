@@ -7,6 +7,7 @@ cluster-setup:
 .PHONY: cluster-teardown
 cluster-teardown:
 	@./local-stack/teardown.sh
+	@IMAGES=$$(docker images --filter=reference="*tilt*" -q); [ -z "$$IMAGES" ] || docker rmi --force $$IMAGES
 
 # Test actions
 
