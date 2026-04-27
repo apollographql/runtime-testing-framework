@@ -25,18 +25,26 @@ config:
   orchestratorUrl: ""   # required; must be reachable from both mgmt and workload cluster pods
 
 github:
-  appId: ""            # required; GitHub App ID
+  appId: ""             # required; GitHub App ID
   privateKeySecret: ""  # required; name of a k8s Secret with key "private-key-pem"
 
 db:
-  host: ""      # required
+  host: ""      # required (set to 127.0.0.1 for cloud SQL proxy)
   port: "5432"
   name: "rtf_rep"
   user: "service_user"
   pass: ""      # required
+
+serviceAccountName: ""  # K8s ServiceAccount name (required for Workload Identity)
 
 k8s:
   kubeconfigPath: ""     # required
   mgmtContext: ""        # required
   workloadContext: ""    # required
   kubeconfigSecret: ""   # name of a secret with key "config" to mount at kubeconfigPath
+
+cloudSqlProxy:
+  enabled: false
+  # required when enabled (format = project:region:instance)
+  instanceConnectionName: "runtime-testing-framework:us-central1:orchestrator-postgres"
+  image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2"
