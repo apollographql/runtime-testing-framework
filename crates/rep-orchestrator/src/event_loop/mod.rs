@@ -38,11 +38,13 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
         ..
     } = Config::get();
 
-    let clients = ClusterClients::try_new(kubeconfig_path, mgmt_context, workload_context)
-        .await
-        .unwrap_or_else(|e| {
-            panic!("failed to initialise k8s clients, event loop cannot start: {e}")
-        });
+    let clients = match mgmt_context {
+        Some(ctx) => ClusterClients::try_new(kubeconfig_path, ctx, workload_context).await,
+        None => {
+            ClusterClients::try_new_in_cluster_management(kubeconfig_path, workload_context).await
+        }
+    }
+    .unwrap_or_else(|e| panic!("failed to initialise k8s clients, event loop cannot start: {e}"));
 
     while let Some(evt) = event_queue.next_event().await {
         let ty_name = evt.data.name();

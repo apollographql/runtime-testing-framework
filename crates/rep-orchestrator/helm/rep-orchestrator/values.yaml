@@ -8,12 +8,33 @@ imagePullSecrets: []
 command: []
 
 service:
+  create: true
   port: 8035
   type: ClusterIP
 
 gcs:
   bucket: ""    # required
   urlTtlSecs: "300"
+
+secret:
+  create: true
+
+# External secret references for Deployment env vars.
+# When secret.create=true, name defaults to the chart fullname (the Secret this chart creates).
+# When secret.create=false, set name to point at your externally-managed Secret.
+secrets:
+  apolloKey:
+    name: ""          # required
+    key: "apollo-key"
+  githubAppId:
+    name: ""          # required
+    key: "github-app-id"
+  githubPrivateKey:
+    name: ""          # required
+    key: "private-key-pem"
+  dbPassword:
+    name: ""          # required
+    key: "db-pass"
 
 config:
   host: "0.0.0.0"
@@ -25,23 +46,24 @@ config:
   orchestratorUrl: ""   # required; must be reachable from both mgmt and workload cluster pods
 
 github:
-  appId: ""             # required; GitHub App ID
-  privateKeySecret: ""  # required; name of a k8s Secret with key "private-key-pem"
+  appId: ""            # required; GitHub App ID
 
 db:
   host: ""      # required (set to 127.0.0.1 for cloud SQL proxy)
   port: "5432"
   name: "rtf_rep"
   user: "service_user"
-  pass: ""      # required
+  password: null  # set to enable password auth; omit when using Cloud SQL Proxy IAM auth
 
-serviceAccountName: ""  # K8s ServiceAccount name (required for Workload Identity)
+serviceAccountName: null  # K8s ServiceAccount name (required for Workload Identity)
 
 k8s:
   kubeconfigPath: ""     # required
-  mgmtContext: ""        # required
+  mgmtContext: null
   workloadContext: ""    # required
-  kubeconfigSecret: ""   # name of a secret with key "config" to mount at kubeconfigPath
+  kubeconfigSecretRef:
+    name: null           # name of a Secret to mount at kubeconfigPath
+    key: "config"
 
 cloudSqlProxy:
   enabled: false

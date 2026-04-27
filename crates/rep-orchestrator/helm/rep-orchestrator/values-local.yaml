@@ -15,15 +15,25 @@ gcs:
 config:
   logLevel: "info,hyper=error,rep_orchestrator=debug"
 
+secrets:
+  apolloKey:
+    name: "rep-orchestrator"
+  githubAppId:
+    name: "rep-orchestrator"
+  githubPrivateKey:
+    name: "github-app-private-key"
+  dbPassword:
+    name: "rep-orchestrator"
+
 github:
   appId: "1"
-  privateKeySecret: "github-app-private-key"
 
 db:
-  pass: password
+  password: password
 
 k8s:
   kubeconfigPath: "/root/.kube/config"
   mgmtContext: "kind-rtf-mgmt"
   workloadContext: "kind-rtf-workload"
-  kubeconfigSecret: "orchestrator-kubeconfig"
+  kubeconfigSecretRef:
+    name: "orchestrator-kubeconfig"

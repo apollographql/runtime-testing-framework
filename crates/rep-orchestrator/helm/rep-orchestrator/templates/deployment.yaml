@@ -42,39 +42,43 @@ spec:
             - name: RTF_APOLLO_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "rep-orchestrator.fullname" . }}
-                  key: apollo-key
+                  name: {{ required "secrets.apolloKey.name is required" .Values.secrets.apolloKey.name }}
+                  key: {{ .Values.secrets.apolloKey.key }}
             - name: RTF_GITHUB_APP_ID
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "rep-orchestrator.fullname" . }}
-                  key: github-app-id
+                  name: {{ required "secrets.githubAppId.name is required" .Values.secrets.githubAppId.name }}
+                  key: {{ .Values.secrets.githubAppId.key }}
             - name: RTF_GITHUB_APP_PRIVATE_KEY_PEM
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.github.privateKeySecret }}
-                  key: private-key-pem
+                  name: {{ required "secrets.githubPrivateKey.name is required" .Values.secrets.githubPrivateKey.name }}
+                  key: {{ .Values.secrets.githubPrivateKey.key }}
             - name: RTF_DB_HOST
-              value: {{ .Values.db.host | quote }}
+              value: {{ required "db.host is required" .Values.db.host | quote }}
             - name: RTF_DB_PORT
               value: {{ .Values.db.port | quote }}
             - name: RTF_DB_NAME
               value: {{ .Values.db.name | quote }}
             - name: RTF_DB_USER
               value: {{ .Values.db.user | quote }}
+            {{- if .Values.db.password }}
             - name: RTF_DB_PASS
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "rep-orchestrator.fullname" . }}
-                  key: db-pass
+                  name: {{ required "secrets.dbPassword.name is required" .Values.secrets.dbPassword.name }}
+                  key: {{ .Values.secrets.dbPassword.key }}
+            {{- end }}
             - name: RTF_KUBECONFIG_PATH
-              value: {{ .Values.k8s.kubeconfigPath | quote }}
+              value: {{ required "k8s.kubeconfigPath is required" .Values.k8s.kubeconfigPath | quote }}
+            {{- if .Values.k8s.mgmtContext }}
             - name: RTF_MGMT_CONTEXT
               value: {{ .Values.k8s.mgmtContext | quote }}
+            {{- end }}
             - name: RTF_WORKLOAD_CONTEXT
-              value: {{ .Values.k8s.workloadContext | quote }}
+              value: {{ required "k8s.workloadContext is required" .Values.k8s.workloadContext | quote }}
             - name: RTF_GCS_BUCKET
-              value: {{ .Values.gcs.bucket | quote }}
+              value: {{ required "gcs.bucket is required" .Values.gcs.bucket | quote }}
             - name: RTF_GCS_URL_TTL_SECS
               value: {{ .Values.gcs.urlTtlSecs | quote }}
             - name: RTF_MAX_CONCURRENT_EXECUTIONS
@@ -82,7 +86,7 @@ spec:
             - name: RTF_MAX_QUEUED_EXECUTIONS
               value: {{ .Values.config.maxQueuedExecutions | quote }}
             - name: RTF_ORCHESTRATOR_URL
-              value: {{ .Values.config.orchestratorUrl | quote }}
+              value: {{ required "config.orchestratorUrl is required" .Values.config.orchestratorUrl | quote }}
             {{- if .Values.gcs.mockInternalUrl }}
             - name: RTF_MOCK_INTERNAL_GCS_URL
               value: {{ .Values.gcs.mockInternalUrl | quote }}
@@ -91,7 +95,7 @@ spec:
             - name: RTF_MOCK_PUBLIC_GCS_URL
               value: {{ .Values.gcs.mockPublicUrl | quote }}
             {{- end }}
-          {{- if .Values.k8s.kubeconfigSecret }}
+          {{- if .Values.k8s.kubeconfigSecretRef.name }}
           volumeMounts:
             - name: kubeconfig
               mountPath: /root/.kube
@@ -122,12 +126,12 @@ spec:
               cpu: "100m"
               memory: "128Mi"
         {{- end }}
-      {{- if .Values.k8s.kubeconfigSecret }}
+      {{- if .Values.k8s.kubeconfigSecretRef.name }}
       volumes:
         - name: kubeconfig
           secret:
-            secretName: {{ .Values.k8s.kubeconfigSecret }}
+            secretName: {{ .Values.k8s.kubeconfigSecretRef.name }}
             items:
-              - key: config
+              - key: {{ .Values.k8s.kubeconfigSecretRef.key }}
                 path: config
       {{- end }}
