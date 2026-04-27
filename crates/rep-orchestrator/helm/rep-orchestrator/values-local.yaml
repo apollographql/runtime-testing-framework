@@ -15,15 +15,20 @@ gcs:
 config:
   logLevel: "info,hyper=error,rep_orchestrator=debug"
 
+secrets:
+  githubPrivateKey:
+    name: "github-app-private-key"
+
 github:
   appId: "1"
-  privateKeySecret: "github-app-private-key"
 
 db:
-  pass: password
+  password:
+    value: password
 
 k8s:
   kubeconfigPath: "/root/.kube/config"
   mgmtContext: "kind-rtf-mgmt"
   workloadContext: "kind-rtf-workload"
-  kubeconfigSecret: "orchestrator-kubeconfig"
+  kubeconfigSecretRef:
+    name: "orchestrator-kubeconfig"

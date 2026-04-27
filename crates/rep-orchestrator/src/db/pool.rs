@@ -11,12 +11,15 @@ static POOL: OnceCell<PgPool> = OnceCell::const_new();
 
 pub async fn init_pool(cfg: &Config) -> Result<PgPool> {
     info!("Initialising DB connection pool");
-    let opts = PgConnectOptions::new()
+    let mut opts = PgConnectOptions::new()
         .host(&cfg.db_host)
         .port(cfg.db_port)
         .username(&cfg.db_user)
-        .password(&cfg.db_pass)
         .database(&cfg.db_name);
+
+    if let Some(ref pass) = cfg.db_pass {
+        opts = opts.password(pass);
+    }
 
     // See `get_pool` below: we create a pool per-test to avoid issues with async drop so we need
     // to ensure that those pools don't attempt to grab multiple connections from DB container

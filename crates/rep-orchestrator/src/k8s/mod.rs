@@ -2,7 +2,7 @@ use k8s_openapi::api::{
     batch::v1::{Job, JobSpec},
     core::v1::ConfigMap,
 };
-use kube::config::KubeconfigError;
+use kube::config::{InClusterError, KubeconfigError};
 use std::fmt;
 use uuid::Uuid;
 
@@ -35,6 +35,9 @@ pub enum Error {
 
     #[error("Kubeconfig error: {0}")]
     KubeConfig(#[from] KubeconfigError),
+
+    #[error("In-cluster config error: {0}")]
+    InCluster(#[from] InClusterError),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

@@ -68,6 +68,22 @@ impl ClusterClients {
         })
     }
 
+    /// Construct clients where the management client uses the pod's own in-cluster credentials
+    /// and the workload client uses an explicit kubeconfig file. Used in prod where the
+    /// orchestrator runs inside the mgmt cluster.
+    pub async fn try_new_in_cluster_management(
+        workload_path: &str,
+        workload_context: &str,
+    ) -> Result<Self> {
+        let management = Client::try_from(Config::incluster_env()?)?;
+        let kfg = Kubeconfig::read_from(workload_path)?;
+
+        Ok(Self {
+            management,
+            workload: client_for_context(kfg, workload_context).await?,
+        })
+    }
+
     /// Helper for obtaining an [Api] client associated with the appropriate cluster namespace.
     pub fn namespaced_api<K>(&self, cluster: Cluster, ns: &str) -> Api<K>
     where

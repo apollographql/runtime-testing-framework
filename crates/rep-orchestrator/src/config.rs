@@ -14,7 +14,8 @@ pub struct Config {
     pub db_port: u16,
     pub db_name: String,
     pub db_user: String,
-    pub db_pass: String,
+    #[serde(default)]
+    pub db_pass: Option<String>,
     pub github_app_id: u64,
     pub github_app_private_key_pem: String,
     #[serde(default = "default_host")]
@@ -26,7 +27,8 @@ pub struct Config {
     #[serde(default = "default_max_queued")]
     pub max_queued_executions: usize,
     pub kubeconfig_path: String,
-    pub mgmt_context: String,
+    #[serde(default)]
+    pub mgmt_context: Option<String>,
     pub workload_context: String,
     pub orchestrator_url: String,
     pub gcs_bucket: String,

@@ -42,18 +42,18 @@ spec:
             - name: RTF_APOLLO_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "rep-orchestrator.fullname" . }}
-                  key: apollo-key
+                  name: {{ default (include "rep-orchestrator.fullname" .) .Values.secrets.apolloKey.name }}
+                  key: {{ .Values.secrets.apolloKey.key }}
             - name: RTF_GITHUB_APP_ID
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "rep-orchestrator.fullname" . }}
-                  key: github-app-id
+                  name: {{ default (include "rep-orchestrator.fullname" .) .Values.secrets.githubAppId.name }}
+                  key: {{ .Values.secrets.githubAppId.key }}
             - name: RTF_GITHUB_APP_PRIVATE_KEY_PEM
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.github.privateKeySecret }}
-                  key: private-key-pem
+                  name: {{ .Values.secrets.githubPrivateKey.name }}
+                  key: {{ .Values.secrets.githubPrivateKey.key }}
             - name: RTF_DB_HOST
               value: {{ .Values.db.host | quote }}
             - name: RTF_DB_PORT
@@ -62,15 +62,19 @@ spec:
               value: {{ .Values.db.name | quote }}
             - name: RTF_DB_USER
               value: {{ .Values.db.user | quote }}
+            {{- if .Values.db.password.enabled }}
             - name: RTF_DB_PASS
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "rep-orchestrator.fullname" . }}
-                  key: db-pass
+                  name: {{ default (include "rep-orchestrator.fullname" .) .Values.secrets.dbPassword.name }}
+                  key: {{ .Values.secrets.dbPassword.key }}
+            {{- end }}
             - name: RTF_KUBECONFIG_PATH
               value: {{ .Values.k8s.kubeconfigPath | quote }}
+            {{- if .Values.k8s.mgmtContext }}
             - name: RTF_MGMT_CONTEXT
               value: {{ .Values.k8s.mgmtContext | quote }}
+            {{- end }}
             - name: RTF_WORKLOAD_CONTEXT
               value: {{ .Values.k8s.workloadContext | quote }}
             - name: RTF_GCS_BUCKET
@@ -91,7 +95,7 @@ spec:
             - name: RTF_MOCK_PUBLIC_GCS_URL
               value: {{ .Values.gcs.mockPublicUrl | quote }}
             {{- end }}
-          {{- if .Values.k8s.kubeconfigSecret }}
+          {{- if .Values.k8s.kubeconfigSecretRef.name }}
           volumeMounts:
             - name: kubeconfig
               mountPath: /root/.kube
@@ -122,12 +126,12 @@ spec:
               cpu: "100m"
               memory: "128Mi"
         {{- end }}
-      {{- if .Values.k8s.kubeconfigSecret }}
+      {{- if .Values.k8s.kubeconfigSecretRef.name }}
       volumes:
         - name: kubeconfig
           secret:
-            secretName: {{ .Values.k8s.kubeconfigSecret }}
+            secretName: {{ .Values.k8s.kubeconfigSecretRef.name }}
             items:
-              - key: config
+              - key: {{ .Values.k8s.kubeconfigSecretRef.key }}
                 path: config
       {{- end }}
