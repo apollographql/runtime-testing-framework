@@ -280,7 +280,7 @@ the Test Plan's top-level `graphos_environments` block.
 # Uses a declared non-default environment.
 - name: engine-supergraph.graphql
   kind: graphos_supergraph
-  graph_ref: engine-ed9f6f25068608ef@prod
+  graph_ref: engine@prod
   graphos_env: apollo_staging
 ```
 

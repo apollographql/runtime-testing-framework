@@ -75,7 +75,7 @@ through to the implicit `default` environment.
 - name: engine-supergraph.graphql
   env_var: ENGINE_SUPERGRAPH
   kind: graphos_supergraph
-  graph_ref: engine-ed9f6f25068608ef@prod
+  graph_ref: engine@prod
   graphos_env: apollo_staging
 ```
 
@@ -89,7 +89,7 @@ matrix:
   include:
     - graph_ref: customer-graph@prod
       graphos_env: default
-    - graph_ref: engine-ed9f6f25068608ef@prod
+    - graph_ref: engine@prod
       graphos_env: apollo_staging
 ```
 
@@ -97,7 +97,7 @@ matrix:
 
 The rtf process needs the API key for every environment the test plan actually exercises. For the
 mixed-graph example above, that means both `APOLLO_KEY` (for the prod-resolved graph) and
-`APOLLO_KEY_STAGING` (for `engine-ed9f6f25068608ef@prod`) must be exported in the shell that runs
+`APOLLO_KEY_STAGING` (for `engine@prod`) must be exported in the shell that runs
 `rtf`.
 
 Environments whose API key is absent at runtime produce a `MissingGraphOsApiKey` error at check
