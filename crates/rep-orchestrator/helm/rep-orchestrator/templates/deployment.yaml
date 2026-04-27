@@ -18,6 +18,9 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.serviceAccountName }}
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      {{- end }}
       containers:
         - name: rep-orchestrator
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -105,6 +108,20 @@ spec:
               path: /health
               port: {{ .Values.service.port }}
             periodSeconds: 5
+        {{- if .Values.cloudSqlProxy.enabled }}
+        - name: cloud-sql-proxy
+          image: {{ .Values.cloudSqlProxy.image }}
+          args:
+            - "--structured-logs"
+            - "--auto-iam-authn"
+            - "--private-ip"
+            - "--port={{ .Values.db.port }}"
+            - {{ .Values.cloudSqlProxy.instanceConnectionName | quote }}
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+        {{- end }}
       {{- if .Values.k8s.kubeconfigSecret }}
       volumes:
         - name: kubeconfig
