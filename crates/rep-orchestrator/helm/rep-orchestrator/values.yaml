@@ -24,16 +24,16 @@ secret:
 # When secret.create=false, set name to point at your externally-managed Secret.
 secrets:
   apolloKey:
-    name: ""          # default: chart fullname
+    name: ""          # required
     key: "apollo-key"
   githubAppId:
-    name: ""          # default: chart fullname
+    name: ""          # required
     key: "github-app-id"
   githubPrivateKey:
     name: ""          # required
     key: "private-key-pem"
   dbPassword:
-    name: ""          # default: chart fullname
+    name: ""          # required
     key: "db-pass"
 
 config:
@@ -53,18 +53,16 @@ db:
   port: "5432"
   name: "rtf_rep"
   user: "service_user"
-  password:
-    enabled: true
-    value: ""
+  password: null  # set to enable password auth; omit when using Cloud SQL Proxy IAM auth
 
-serviceAccountName: ""  # K8s ServiceAccount name (required for Workload Identity)
+serviceAccountName: null  # K8s ServiceAccount name (required for Workload Identity)
 
 k8s:
   kubeconfigPath: ""     # required
-  mgmtContext: ""
+  mgmtContext: null
   workloadContext: ""    # required
   kubeconfigSecretRef:
-    name: ""             # name of a Secret to mount at kubeconfigPath
+    name: null           # name of a Secret to mount at kubeconfigPath
     key: "config"
 
 cloudSqlProxy:

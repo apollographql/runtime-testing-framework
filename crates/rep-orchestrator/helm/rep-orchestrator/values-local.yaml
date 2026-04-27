@@ -16,15 +16,20 @@ config:
   logLevel: "info,hyper=error,rep_orchestrator=debug"
 
 secrets:
+  apolloKey:
+    name: "rep-orchestrator"
+  githubAppId:
+    name: "rep-orchestrator"
   githubPrivateKey:
     name: "github-app-private-key"
+  dbPassword:
+    name: "rep-orchestrator"
 
 github:
   appId: "1"
 
 db:
-  password:
-    value: password
+  password: password
 
 k8s:
   kubeconfigPath: "/root/.kube/config"

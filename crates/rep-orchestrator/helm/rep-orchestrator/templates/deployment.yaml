@@ -42,43 +42,43 @@ spec:
             - name: RTF_APOLLO_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ default (include "rep-orchestrator.fullname" .) .Values.secrets.apolloKey.name }}
+                  name: {{ required "secrets.apolloKey.name is required" .Values.secrets.apolloKey.name }}
                   key: {{ .Values.secrets.apolloKey.key }}
             - name: RTF_GITHUB_APP_ID
               valueFrom:
                 secretKeyRef:
-                  name: {{ default (include "rep-orchestrator.fullname" .) .Values.secrets.githubAppId.name }}
+                  name: {{ required "secrets.githubAppId.name is required" .Values.secrets.githubAppId.name }}
                   key: {{ .Values.secrets.githubAppId.key }}
             - name: RTF_GITHUB_APP_PRIVATE_KEY_PEM
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.githubPrivateKey.name }}
+                  name: {{ required "secrets.githubPrivateKey.name is required" .Values.secrets.githubPrivateKey.name }}
                   key: {{ .Values.secrets.githubPrivateKey.key }}
             - name: RTF_DB_HOST
-              value: {{ .Values.db.host | quote }}
+              value: {{ required "db.host is required" .Values.db.host | quote }}
             - name: RTF_DB_PORT
               value: {{ .Values.db.port | quote }}
             - name: RTF_DB_NAME
               value: {{ .Values.db.name | quote }}
             - name: RTF_DB_USER
               value: {{ .Values.db.user | quote }}
-            {{- if .Values.db.password.enabled }}
+            {{- if .Values.db.password }}
             - name: RTF_DB_PASS
               valueFrom:
                 secretKeyRef:
-                  name: {{ default (include "rep-orchestrator.fullname" .) .Values.secrets.dbPassword.name }}
+                  name: {{ required "secrets.dbPassword.name is required" .Values.secrets.dbPassword.name }}
                   key: {{ .Values.secrets.dbPassword.key }}
             {{- end }}
             - name: RTF_KUBECONFIG_PATH
-              value: {{ .Values.k8s.kubeconfigPath | quote }}
+              value: {{ required "k8s.kubeconfigPath is required" .Values.k8s.kubeconfigPath | quote }}
             {{- if .Values.k8s.mgmtContext }}
             - name: RTF_MGMT_CONTEXT
               value: {{ .Values.k8s.mgmtContext | quote }}
             {{- end }}
             - name: RTF_WORKLOAD_CONTEXT
-              value: {{ .Values.k8s.workloadContext | quote }}
+              value: {{ required "k8s.workloadContext is required" .Values.k8s.workloadContext | quote }}
             - name: RTF_GCS_BUCKET
-              value: {{ .Values.gcs.bucket | quote }}
+              value: {{ required "gcs.bucket is required" .Values.gcs.bucket | quote }}
             - name: RTF_GCS_URL_TTL_SECS
               value: {{ .Values.gcs.urlTtlSecs | quote }}
             - name: RTF_MAX_CONCURRENT_EXECUTIONS
@@ -86,7 +86,7 @@ spec:
             - name: RTF_MAX_QUEUED_EXECUTIONS
               value: {{ .Values.config.maxQueuedExecutions | quote }}
             - name: RTF_ORCHESTRATOR_URL
-              value: {{ .Values.config.orchestratorUrl | quote }}
+              value: {{ required "config.orchestratorUrl is required" .Values.config.orchestratorUrl | quote }}
             {{- if .Values.gcs.mockInternalUrl }}
             - name: RTF_MOCK_INTERNAL_GCS_URL
               value: {{ .Values.gcs.mockInternalUrl | quote }}
