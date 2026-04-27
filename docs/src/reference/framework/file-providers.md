@@ -273,9 +273,9 @@ the Test Plan's top-level `graphos_environments` block.
 
 ```yaml
 # Uses the implicit default (prod) environment.
-- name: expedia-supergraph.graphql
+- name: customer-supergraph.graphql
   kind: graphos_supergraph
-  graph_ref: ExpediaInc-8789@prod
+  graph_ref: customer-graph@prod
 
 # Uses a declared non-default environment.
 - name: engine-supergraph.graphql

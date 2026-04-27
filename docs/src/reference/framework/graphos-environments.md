@@ -63,12 +63,12 @@ environment should satisfy its `graph_ref`. Providers that don't specify a `grap
 through to the implicit `default` environment.
 
 ```yaml
-# Pulls the Expedia@prod supergraph from the default (prod) environment —
+# Pulls a customer graph from the default (prod) environment —
 # no graphos_env needed.
 - name: expedia-supergraph.graphql
   env_var: EXPEDIA_SUPERGRAPH
   kind: graphos_supergraph
-  graph_ref: ExpediaInc-8789@prod
+  graph_ref: customer-graph@prod
 
 # Pulls Apollo's engine@prod supergraph from the declared apollo_staging
 # environment.
@@ -87,7 +87,7 @@ single matrix can fan out across graphs that live in different environments by p
 matrix:
   dimensions: {}
   include:
-    - graph_ref: ExpediaInc-8789@prod
+    - graph_ref: customer-graph@prod
       graphos_env: default
     - graph_ref: engine-ed9f6f25068608ef@prod
       graphos_env: apollo_staging
@@ -96,7 +96,7 @@ matrix:
 ## Runtime contract
 
 The rtf process needs the API key for every environment the test plan actually exercises. For the
-mixed-graph example above, that means both `APOLLO_KEY` (for `ExpediaInc-8789@prod`) and
+mixed-graph example above, that means both `APOLLO_KEY` (for the prod-resolved graph) and
 `APOLLO_KEY_STAGING` (for `engine-ed9f6f25068608ef@prod`) must be exported in the shell that runs
 `rtf`.
 
