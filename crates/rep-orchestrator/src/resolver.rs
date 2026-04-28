@@ -120,8 +120,8 @@ async fn try_resolve<H: UpdateHandle>(
     let (ctx, test_plan) = prepare_resolution(cfg, payload)?;
     let variants = test_plan.try_iter_matrix_variants()?;
 
-    for (name, mut variant) in variants {
-        let ex = match update_handle.init_execution(test_run, &name).await {
+    for (i, (name, mut variant)) in variants.enumerate() {
+        let ex = match update_handle.init_execution(test_run, &name, i).await {
             Ok(ex) => ex,
             Err(e) => {
                 error!(%e, %name, "unable to initialise execution record");

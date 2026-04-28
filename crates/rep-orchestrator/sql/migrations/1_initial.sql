@@ -19,10 +19,10 @@ CREATE TABLE IF NOT EXISTS test_run_status (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- A cache of unhydrated test plan data used for recovering state when we have a restart.
-CREATE TABLE IF NOT EXISTS test_plan_cache (
+-- A cache of trigger payload data used for recovering state when we have a restart.
+CREATE TABLE IF NOT EXISTS payload_cache (
     run_id INT NOT NULL CHECK (run_id > 0) PRIMARY KEY,
-    test_plan JSONB
+    payload JSONB
 );
 
 -- Test Executions represent individual environment/scenario pairs run in an ephemeral namespace.
@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS test_execution (
     name TEXT NOT NULL,
     token UUID NOT NULL DEFAULT gen_random_uuid(),
     test_run_id INT NOT NULL,
+    test_plan_index INT NOT NULL CHECK (test_plan_index >= 0),
     exit_code INT,
     started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     completed_at TIMESTAMPTZ,

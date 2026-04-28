@@ -63,7 +63,7 @@ mod tests {
         let tss = TestServerState::new();
         let conn = conn!();
         let tr = TestRun::init("test", conn).await?;
-        let ex = tr.init_execution("test", conn).await?;
+        let ex = tr.init_execution("test", 0, conn).await?;
 
         let resp = tss
             .test_server
@@ -92,7 +92,7 @@ mod tests {
         let tss = TestServerState::new();
         let conn = conn!();
         let tr = TestRun::init("test", conn).await?;
-        let ex = tr.init_execution("test", conn).await?;
+        let ex = tr.init_execution("test", 0, conn).await?;
 
         for (i, expected) in [StatusCode::OK, StatusCode::BAD_REQUEST].iter().enumerate() {
             let resp = tss
@@ -154,7 +154,7 @@ mod tests {
         let tss = TestServerState::new();
         let conn = conn!();
         let tr = TestRun::init("test", conn).await?;
-        let ex = tr.init_execution("test", conn).await?;
+        let ex = tr.init_execution("test", 0, conn).await?;
 
         let resp = tss
             .test_server
@@ -176,7 +176,7 @@ mod tests {
         let tss = TestServerState::new();
         let conn = conn!();
         let tr = TestRun::init("test", conn).await?;
-        let ex = tr.init_execution("test", conn).await?;
+        let ex = tr.init_execution("test", 0, conn).await?;
 
         let resp = tss
             .test_server
@@ -199,7 +199,7 @@ mod tests {
         let tss = TestServerState::new();
         let conn = conn!();
         let tr = TestRun::init("test", conn).await?;
-        let ex = tr.init_execution("test", conn).await?;
+        let ex = tr.init_execution("test", 0, conn).await?;
 
         let resp = tss
             .test_server

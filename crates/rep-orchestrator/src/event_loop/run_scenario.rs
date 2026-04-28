@@ -186,7 +186,7 @@ mod tests {
 
     #[tokio::test]
     async fn full_happy_path_sets_expected_statuses() {
-        let ex = TestExecution::create_stub(1, 1, "test");
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
         let clients = MockClient::default_ok();
         let (etx, _erx) = mpsc::unbounded_channel();
@@ -227,7 +227,7 @@ mod tests {
 
     #[tokio::test]
     async fn create_configmap_returns_expected_configmap_error() {
-        let ex = TestExecution::create_stub(1, 1, "test");
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
         let clients = MockClient {
             create_scenario_configmap: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
@@ -256,7 +256,7 @@ mod tests {
 
     #[tokio::test]
     async fn create_job_returns_expected_job_error() {
-        let ex = TestExecution::create_stub(1, 1, "test");
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
         let clients = MockClient {
             create_job: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
@@ -285,7 +285,7 @@ mod tests {
 
     #[tokio::test]
     async fn wait_and_update_submits_cleanup_namespace_on_success() {
-        let ex = TestExecution::create_stub(1, 1, "test");
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
         let clients = MockClient {
             wait_for_job: Resp::new(WatchOutcome::Succeeded),
             ..MockClient::default_ok()
@@ -300,7 +300,7 @@ mod tests {
 
     #[tokio::test]
     async fn wait_and_update_submits_mark_unrunnable_and_cleanup_on_container_unrunnable() {
-        let ex = TestExecution::create_stub(1, 1, "test");
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
         let clients = MockClient {
             wait_for_job: Resp::new(WatchOutcome::ContainerUnrunnable("ImagePullBackOff".into())),
             ..MockClient::default_ok()
@@ -326,7 +326,7 @@ mod tests {
     #[test_case(WatchOutcome::StreamClosed; "stream closed")]
     #[tokio::test]
     async fn wait_and_update_submits_mark_unrunnable_on_watch_error(outcome: WatchOutcome) {
-        let ex = TestExecution::create_stub(1, 1, "test");
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
         let clients = MockClient {
             wait_for_job: Resp::new(outcome),
             ..MockClient::default_ok()

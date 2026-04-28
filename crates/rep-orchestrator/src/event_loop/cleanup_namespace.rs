@@ -29,7 +29,7 @@ mod tests {
 
     #[tokio::test]
     async fn try_run_happy_path_returns_ok() {
-        let ex = TestExecution::create_stub(1, 1, "test");
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
         let clients = MockClient::default_ok();
 
         let res = try_run(ex, clients).await;
@@ -39,7 +39,7 @@ mod tests {
 
     #[tokio::test]
     async fn try_run_returns_expected_delete_error() {
-        let ex = TestExecution::create_stub(1, 1, "test");
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
         let clients = MockClient {
             delete_workload_namespace: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
             ..MockClient::default()

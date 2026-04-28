@@ -403,7 +403,7 @@ mod tests {
     #[tokio::test]
     async fn request_provisioning_happy_path() {
         let (mut q, h, _, _) = EventQueue::new(1, 5);
-        let ex = TestExecution::create_stub(1, 1, "test");
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
         let ex_uuid = ex.uuid();
         q.shared.lock().await.n_queued = 1;
 
@@ -429,7 +429,7 @@ mod tests {
     #[should_panic(expected = "request_provisioning called with n_queued == 0")]
     async fn request_provisioning_panics_when_n_queued_is_zero() {
         let (_, h, _, _) = EventQueue::new(1, 5);
-        let ex = TestExecution::create_stub(1, 1, "test");
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
 
         h.request_provisioning(ex, stub_test_plan()).await;
     }
@@ -441,7 +441,10 @@ mod tests {
         drop(q);
 
         let successful = h
-            .request_provisioning(TestExecution::create_stub(1, 1, "test"), stub_test_plan())
+            .request_provisioning(
+                TestExecution::create_stub(1, 1, 0, "test"),
+                stub_test_plan(),
+            )
             .await;
 
         assert!(!successful, "should have failed to send event");
@@ -458,7 +461,7 @@ mod tests {
             shared.n_queued = 1;
         }
 
-        let ex = TestExecution::create_stub(1, 1, "test");
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
         let provision_task =
             tokio::spawn(async move { h.request_provisioning(ex, stub_test_plan()).await });
 
@@ -482,14 +485,14 @@ mod tests {
 
     fn provision_evt(ex_id: i32) -> Event {
         Event {
-            test_execution: TestExecution::create_stub(ex_id, 1, "test"),
+            test_execution: TestExecution::create_stub(ex_id, 1, 0, "test"),
             data: EventData::CreateEnvConfigMap(stub_environment(), stub_scenario()),
         }
     }
 
     fn cleanup_evt(ex_id: i32) -> Event {
         Event {
-            test_execution: TestExecution::create_stub(ex_id, 1, "test"),
+            test_execution: TestExecution::create_stub(ex_id, 1, 0, "test"),
             data: EventData::CleanupNamespace,
         }
     }

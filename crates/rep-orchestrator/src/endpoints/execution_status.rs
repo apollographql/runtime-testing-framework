@@ -156,7 +156,7 @@ mod tests {
         let tss = TestServerState::new();
         let conn = conn!();
         let tr = TestRun::init("test", conn).await?;
-        let ex_id = tr.init_execution("test", conn).await?.uuid();
+        let ex_id = tr.init_execution("test", 0, conn).await?.uuid();
 
         let resp = tss
             .test_server
@@ -204,7 +204,7 @@ mod tests {
         let (ex_id, token) = {
             let conn = conn!();
             let tr = TestRun::init("test", conn).await?;
-            let ex = tr.init_execution("test", conn).await?;
+            let ex = tr.init_execution("test", 0, conn).await?;
             (ex.uuid(), ex.token().to_owned())
         };
 
@@ -262,7 +262,7 @@ mod tests {
         let (ex_id, token) = {
             let conn = conn!();
             let tr = TestRun::init("test", conn).await?;
-            let ex = tr.init_execution("test", conn).await?;
+            let ex = tr.init_execution("test", 0, conn).await?;
             (ex.uuid(), ex.token().to_owned())
         };
 
@@ -304,7 +304,7 @@ mod tests {
         let (ex_id, token) = {
             let conn = conn!();
             let tr = TestRun::init("test", conn).await?;
-            let ex = tr.init_execution("test", conn).await?;
+            let ex = tr.init_execution("test", 0, conn).await?;
             (ex.uuid(), ex.token().to_owned())
         };
 
@@ -339,7 +339,7 @@ mod tests {
         let tss = TestServerState::new();
         let conn = conn!();
         let tr = TestRun::init("test", conn).await?;
-        tr.init_execution("test", conn).await?;
+        tr.init_execution("test", 0, conn).await?;
 
         let resp = tss
             .test_server
@@ -375,7 +375,7 @@ mod tests {
         let ex_id = {
             let conn = conn!();
             let tr = TestRun::init("test", conn).await?;
-            tr.init_execution("test", conn).await?.uuid()
+            tr.init_execution("test", 0, conn).await?.uuid()
         };
 
         let resp = tss
@@ -396,7 +396,7 @@ mod tests {
         let tss = TestServerState::new();
         let conn = conn!();
         let tr = TestRun::init("test", conn).await?;
-        let ex_id = tr.init_execution("test", conn).await?.uuid();
+        let ex_id = tr.init_execution("test", 0, conn).await?.uuid();
 
         let resp = tss
             .test_server

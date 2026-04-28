@@ -22,6 +22,7 @@ pub struct TestExecution {
     id: i32,
     uuid: Uuid,
     test_run_id: i32,
+    test_plan_index: i32,
     name: String,
     token: Uuid,
     exit_code: Option<i32>,
@@ -68,6 +69,10 @@ impl TestExecution {
         self.completed_at.is_some()
     }
 
+    pub fn test_plan_index(&self) -> usize {
+        self.test_plan_index as usize
+    }
+
     pub fn log_file_gcs_object_name(&self) -> String {
         format!("{}/log.txt", self.uuid)
     }
@@ -99,11 +104,12 @@ impl TestExecution {
     }
 
     #[cfg(test)]
-    pub fn create_stub(id: i32, test_run_id: i32, name: &str) -> Self {
+    pub fn create_stub(id: i32, test_run_id: i32, index: usize, name: &str) -> Self {
         Self {
             id,
             uuid: Uuid::new_v4(),
             test_run_id,
+            test_plan_index: index as i32,
             name: name.into(),
             token: Uuid::new_v4(),
             exit_code: None,
@@ -122,14 +128,20 @@ impl TestExecution {
         )
     }
 
-    pub async fn init(name: &str, test_run_id: i32, conn: &mut PgConnection) -> Result<Self> {
+    pub async fn init(
+        name: &str,
+        test_run_id: i32,
+        test_plan_index: usize,
+        conn: &mut PgConnection,
+    ) -> Result<Self> {
         let ex: TestExecution = sqlx::query_as(
-            "INSERT INTO test_execution (test_run_id, name)
-             VALUES ($1, $2)
-             RETURNING id, uuid, test_run_id, name, token, exit_code, started_at, completed_at, has_file_upload;
+            "INSERT INTO test_execution (test_run_id, test_plan_index, name)
+             VALUES ($1, $2, $3)
+             RETURNING id, uuid, test_run_id, test_plan_index, name, token, exit_code, started_at, completed_at, has_file_upload;
             ",
         )
         .bind(test_run_id)
+        .bind(test_plan_index as i32)
         .bind(name)
         .fetch_one(&mut *conn)
         .await?;
@@ -199,7 +211,7 @@ mod tests {
     async fn init_creates_execution_with_initialising_status() -> Result<()> {
         let c = conn!();
         let tr = TestRun::init("test", c).await?;
-        let res = TestExecution::init("test", tr.id(), c).await;
+        let res = TestExecution::init("test", tr.id(), 0, c).await;
         assert!(res.is_ok(), "{res:?}");
 
         let ex = res.unwrap();
@@ -214,7 +226,7 @@ mod tests {
     async fn get_by_id_returns_matching_execution() -> Result<()> {
         let c = conn!();
         let tr = TestRun::init("test", c).await?;
-        let ex1 = TestExecution::init("test", tr.id(), c).await?;
+        let ex1 = TestExecution::init("test", tr.id(), 0, c).await?;
         let ex2 = TestExecution::get_by_id(ex1.id, c).await?;
 
         assert_eq!(Some(ex1), ex2);
@@ -227,7 +239,7 @@ mod tests {
     async fn get_by_id_unchecked_returns_matching_execution() -> Result<()> {
         let c = conn!();
         let tr = TestRun::init("test", c).await?;
-        let ex1 = TestExecution::init("test", tr.id(), c).await?;
+        let ex1 = TestExecution::init("test", tr.id(), 0, c).await?;
         let ex2 = TestExecution::get_by_id_unchecked(ex1.id, c).await?;
 
         assert_eq!(ex1, ex2);
@@ -240,7 +252,7 @@ mod tests {
     async fn get_by_uuid_returns_matching_execution() -> Result<()> {
         let c = conn!();
         let tr = TestRun::init("test", c).await?;
-        let ex1 = TestExecution::init("test", tr.id(), c).await?;
+        let ex1 = TestExecution::init("test", tr.id(), 0, c).await?;
         let ex2 = TestExecution::get_by_uuid(&ex1.uuid, c).await?;
 
         assert_eq!(Some(ex1), ex2);
@@ -254,8 +266,8 @@ mod tests {
         let c = conn!();
 
         let tr = TestRun::init("A", c).await?;
-        let ex1 = TestExecution::init("a", tr.id(), c).await?;
-        let ex2 = TestExecution::init("b", tr.id(), c).await?;
+        let ex1 = TestExecution::init("a", tr.id(), 0, c).await?;
+        let ex2 = TestExecution::init("b", tr.id(), 0, c).await?;
 
         let tr_a = ex1.test_run(c).await?;
         assert_eq!(tr_a, tr, "execution 1");
@@ -272,7 +284,7 @@ mod tests {
         let c = conn!();
 
         let tr = TestRun::init("A", c).await?;
-        let mut ex1 = TestExecution::init("a", tr.id(), c).await?;
+        let mut ex1 = TestExecution::init("a", tr.id(), 0, c).await?;
 
         assert!(ex1.exit_code.is_none(), "after init: {ex1:?}");
 
@@ -291,7 +303,7 @@ mod tests {
         let c = conn!();
 
         let tr = TestRun::init("A", c).await?;
-        let mut ex1 = TestExecution::init("a", tr.id(), c).await?;
+        let mut ex1 = TestExecution::init("a", tr.id(), 0, c).await?;
 
         assert!(!ex1.has_file_upload, "after init: {ex1:?}");
 
@@ -315,7 +327,7 @@ mod tests {
     async fn set_status_and_current_status_match(status: Status) -> Result<()> {
         let c = conn!();
         let tr = TestRun::init("test", c).await?;
-        let ex = TestExecution::init("test", tr.id(), c).await?;
+        let ex = TestExecution::init("test", tr.id(), 0, c).await?;
 
         ex.set_status(status, None, c).await?;
         let current = ex.current_status(c).await?;
@@ -330,7 +342,7 @@ mod tests {
     async fn status_history_returns_entries_newest_first() -> Result<()> {
         let c = conn!();
         let tr = TestRun::init("test", c).await?;
-        let ex = TestExecution::init("test", tr.id(), c).await?; // sets Status::Initialising
+        let ex = TestExecution::init("test", tr.id(), 0, c).await?; // sets Status::Initialising
         ex.set_status(Status::Running, None, c).await?;
         ex.set_status(Status::Successful, None, c).await?;
 
@@ -351,7 +363,7 @@ mod tests {
     async fn set_terminal_status_sets_completed_at(status: Status) -> Result<()> {
         let c = conn!();
         let tr = TestRun::init("test", c).await?;
-        let ex = TestExecution::init("test", tr.id(), c).await?;
+        let ex = TestExecution::init("test", tr.id(), 0, c).await?;
         assert!(ex.completed_at.is_none());
 
         ex.set_status(status, None, c).await?;
@@ -369,7 +381,7 @@ mod tests {
     async fn set_non_terminal_status_does_not_set_completed_at(status: Status) -> Result<()> {
         let c = conn!();
         let tr = TestRun::init("test", c).await?;
-        let ex = TestExecution::init("test", tr.id(), c).await?;
+        let ex = TestExecution::init("test", tr.id(), 0, c).await?;
         assert!(ex.completed_at.is_none());
 
         ex.set_status(status, None, c).await?;
@@ -394,7 +406,7 @@ mod tests {
             tr.set_status(s, None, c).await?;
         }
 
-        let ex = tr.init_execution("test", c).await?;
+        let ex = tr.init_execution("test", 0, c).await?;
         ex.set_status(execution_status, None, c).await?;
 
         assert_eq!(tr.current_status(c).await?.status, execution_status);
@@ -410,7 +422,7 @@ mod tests {
         let c = conn!();
         let tr = TestRun::init("test", c).await?;
         tr.set_status(status, None, c).await?;
-        let ex = tr.init_execution("test", c).await?;
+        let ex = tr.init_execution("test", 0, c).await?;
 
         let history_before = tr.status_history(c).await?;
         ex.set_status(status, None, c).await?;
@@ -433,7 +445,7 @@ mod tests {
     async fn single_execution_terminal_status_propagates_immediately(status: Status) -> Result<()> {
         let c = conn!();
         let tr = TestRun::init("test", c).await?;
-        let ex = tr.init_execution("test", c).await?;
+        let ex = tr.init_execution("test", 0, c).await?;
         ex.set_status(status, None, c).await?;
 
         let current = tr.current_status(c).await?;
@@ -447,9 +459,9 @@ mod tests {
     async fn terminal_status_propagation_requires_all_executions() -> Result<()> {
         let c = conn!();
         let tr = TestRun::init("test", c).await?;
-        let ex1 = tr.init_execution("a", c).await?;
-        let ex2 = tr.init_execution("b", c).await?;
-        let ex3 = tr.init_execution("c", c).await?;
+        let ex1 = tr.init_execution("a", 0, c).await?;
+        let ex2 = tr.init_execution("b", 1, c).await?;
+        let ex3 = tr.init_execution("c", 2, c).await?;
 
         ex1.set_status(Status::Successful, None, c).await?;
         let current = tr.current_status(c).await?;

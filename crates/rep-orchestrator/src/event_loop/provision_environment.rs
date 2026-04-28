@@ -180,7 +180,7 @@ mod tests {
 
     #[tokio::test]
     async fn full_happy_path_sets_expected_statuses() {
-        let ex = TestExecution::create_stub(1, 1, "test");
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
         let clients = MockClient::default_ok();
         let (etx, _erx) = mpsc::unbounded_channel();
@@ -225,7 +225,7 @@ mod tests {
 
     #[tokio::test]
     async fn create_configmap_returns_expected_configmap_error() {
-        let ex = TestExecution::create_stub(1, 1, "test");
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
         let clients = MockClient {
             create_env_configmap: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
@@ -260,7 +260,7 @@ mod tests {
 
     #[tokio::test]
     async fn create_workflow_expected_workflow_error() {
-        let ex = TestExecution::create_stub(1, 1, "test");
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
         let clients = MockClient {
             create_workflow: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
@@ -289,7 +289,7 @@ mod tests {
 
     #[tokio::test]
     async fn wait_and_update_submits_expected_events_on_success() {
-        let ex = TestExecution::create_stub(1, 1, "test");
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
         let clients = MockClient {
             wait_for_workflow: Resp::new(WatchOutcome::Succeeded),
             ..MockClient::default_ok()
@@ -318,7 +318,7 @@ mod tests {
     #[test_case(WatchOutcome::StreamClosed; "stream closed")]
     #[tokio::test]
     async fn wait_and_update_submits_mark_unrunnable_on_watch_error(outcome: WatchOutcome) {
-        let ex = TestExecution::create_stub(1, 1, "test");
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
         let clients = MockClient {
             wait_for_workflow: Resp::new(outcome),
             ..MockClient::default_ok()
