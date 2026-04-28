@@ -71,6 +71,7 @@ impl WorkflowSpec {
                 TemplateDef::Main(MainTemplate::new()),
                 TemplateDef::Task(create_namespace(&namespace, env_vars.clone())),
                 TemplateDef::Task(create_pull_secret(&namespace, env_vars.clone())),
+                TemplateDef::Task(create_service_account(&namespace, env_vars.clone())),
                 TemplateDef::Task(deploy_environment(
                     &configmap_name,
                     &namespace,
@@ -121,7 +122,11 @@ impl MainTemplate {
                 tasks: vec![
                     TaskSpec::new("create-namespace", &[]),
                     TaskSpec::new("create-pull-secret", &["create-namespace"]),
-                    TaskSpec::new("deploy-environment", &["create-pull-secret"]),
+                    TaskSpec::new("create-service-account", &["create-namespace"]),
+                    TaskSpec::new(
+                        "deploy-environment",
+                        &["create-pull-secret", "create-service-account"],
+                    ),
                 ],
             },
         }
@@ -242,6 +247,22 @@ fn create_pull_secret(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
             }),
             ..Default::default()
         }]),
+        env,
+    )
+}
+
+fn create_service_account(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
+    TaskTemplate::new(
+        "create-service-account",
+        vec![
+            "create-service-account".into(),
+            "--namespace".into(),
+            namespace.into(),
+            "--kubeconfig".into(),
+            KUBECONFIG_PATH.into(),
+        ],
+        vec![kubeconfig_volume_mount()],
+        None,
         env,
     )
 }

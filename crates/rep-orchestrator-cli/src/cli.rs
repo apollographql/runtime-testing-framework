@@ -30,6 +30,17 @@ pub enum Command {
         kubeconfig: PathBuf,
     },
 
+    /// Create the results-writer service account for Workload Identity Federation
+    CreateServiceAccount {
+        /// Target namespace name
+        #[arg(long)]
+        namespace: String,
+
+        /// Path to the kubeconfig file for the workload cluster
+        #[arg(long)]
+        kubeconfig: PathBuf,
+    },
+
     /// Create an image pull secret and patch the default service account
     CreatePullSecret {
         /// Target namespace name
@@ -104,6 +115,7 @@ impl Command {
     pub fn kubeconfig(&self) -> Option<&Path> {
         match self {
             Self::CreateNamespace { kubeconfig, .. }
+            | Self::CreateServiceAccount { kubeconfig, .. }
             | Self::CreatePullSecret { kubeconfig, .. }
             | Self::DeployEnvironment { kubeconfig, .. } => Some(kubeconfig),
             Self::Cleanup { .. } | Self::PrepareScenario { .. } | Self::CollectOutput { .. } => {
