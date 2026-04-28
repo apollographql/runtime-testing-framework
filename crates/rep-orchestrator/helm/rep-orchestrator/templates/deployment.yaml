@@ -69,6 +69,10 @@ spec:
                   name: {{ required "secrets.dbPassword.name is required" .Values.secrets.dbPassword.name }}
                   key: {{ .Values.secrets.dbPassword.key }}
             {{- end }}
+            {{- if .Values.k8s.workload.kubeconfigSecretRef.name }}
+            - name: RTF_KUBECONFIG_SECRET_NAME
+              value: {{ .Values.k8s.workload.kubeconfigSecretRef.name | quote }}
+            {{- end }}
             - name: RTF_KUBECONFIG_PATH
               {{- if .Values.k8s.workload.kubeconfigSecretRef.name }}
               value: "/root/.kube/config"

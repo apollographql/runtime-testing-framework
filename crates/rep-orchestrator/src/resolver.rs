@@ -224,6 +224,7 @@ mod tests {
             max_concurrent_executions: 10,
             max_queued_executions: 100,
             kubeconfig_path: "dummy".to_string(),
+            kubeconfig_secret_name: "workload-kubeconfig".to_string(),
             mgmt_context: Some("dummy".to_string()),
             workload_context: "dummy".to_string(),
             orchestrator_url: "http://localhost:8035".to_string(),
