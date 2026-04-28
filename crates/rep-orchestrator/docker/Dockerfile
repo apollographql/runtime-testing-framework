@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 
 FROM --platform=$BUILDPLATFORM debian:trixie-slim
 
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ca-certificates curl jq && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /rep-orchestrator .
 
