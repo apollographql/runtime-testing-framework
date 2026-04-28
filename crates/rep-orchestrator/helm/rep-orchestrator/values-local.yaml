@@ -32,8 +32,9 @@ db:
   password: password
 
 k8s:
-  kubeconfigPath: "/root/.kube/config"
-  mgmtContext: "kind-rtf-mgmt"
-  workloadContext: "kind-rtf-workload"
-  kubeconfigSecretRef:
-    name: "orchestrator-kubeconfig"
+  management:
+    context: "kind-rtf-mgmt"
+  workload:
+    context: "kind-rtf-workload"
+    kubeconfigSecretRef:
+      name: "orchestrator-kubeconfig"
