@@ -13,6 +13,9 @@ use serde_json::json;
 use std::{collections::BTreeMap, path::Path};
 
 const MANAGER_NAME: &str = "rep-orchestrator-cli";
+const SA_NAME: &str = "results-writer";
+const SA_PREFIX: &str = "iam.gke.io/gcp-service-account";
+const WIF_ANNOTATION: &str = "results-writer@runtime-testing-framework.iam.gserviceaccount.com";
 
 pub struct DeploymentStatus {
     pub total: usize,
@@ -36,6 +39,8 @@ pub trait Client: Send + Sync + Clone {
     ) -> anyhow::Result<()>;
 
     async fn patch_default_service_account(&self, namespace: &str) -> anyhow::Result<()>;
+
+    async fn create_results_writer_service_account(&self, namespace: &str) -> anyhow::Result<()>;
 
     async fn check_deployment_status(&self, namespace: &str) -> anyhow::Result<DeploymentStatus>;
 }
@@ -129,6 +134,30 @@ impl Client for HttpClient {
         Ok(())
     }
 
+    async fn create_results_writer_service_account(&self, namespace: &str) -> anyhow::Result<()> {
+        let sa = ServiceAccount {
+            metadata: ObjectMeta {
+                name: Some(SA_NAME.to_owned()),
+                namespace: Some(namespace.to_owned()),
+                annotations: Some(BTreeMap::from([(
+                    SA_PREFIX.to_owned(),
+                    WIF_ANNOTATION.to_owned(),
+                )])),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let api: Api<ServiceAccount> = Api::namespaced(self.client.clone(), namespace);
+        api.patch(
+            SA_NAME,
+            &PatchParams::apply(MANAGER_NAME),
+            &Patch::Apply(&sa),
+        )
+        .await?;
+        Ok(())
+    }
+
     async fn check_deployment_status(&self, namespace: &str) -> anyhow::Result<DeploymentStatus> {
         let api: Api<Deployment> = Api::namespaced(self.client.clone(), namespace);
         let deployments = api.list(&Default::default()).await?;
@@ -178,6 +207,7 @@ pub(crate) mod mocks {
         ApplyNamespace { name: String },
         ApplyPullSecret { namespace: String },
         PatchDefaultServiceAccount { namespace: String },
+        ApplyResultsWriterServiceAccount { namespace: String },
         CheckDeploymentsAvailable { namespace: String },
     }
 
@@ -256,6 +286,15 @@ pub(crate) mod mocks {
 
         async fn patch_default_service_account(&self, namespace: &str) -> anyhow::Result<()> {
             self.record(KubeCall::PatchDefaultServiceAccount {
+                namespace: namespace.to_owned(),
+            })
+        }
+
+        async fn create_results_writer_service_account(
+            &self,
+            namespace: &str,
+        ) -> anyhow::Result<()> {
+            self.record(KubeCall::ApplyResultsWriterServiceAccount {
                 namespace: namespace.to_owned(),
             })
         }

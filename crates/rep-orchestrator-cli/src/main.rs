@@ -42,6 +42,10 @@ async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Result<
             commands::create_namespace(&namespace, ctx).await
         }
 
+        Command::CreateServiceAccount { namespace, .. } => {
+            commands::create_service_account(&namespace, ctx).await
+        }
+
         Command::CreatePullSecret {
             namespace,
             docker_config: docker_config_path,
