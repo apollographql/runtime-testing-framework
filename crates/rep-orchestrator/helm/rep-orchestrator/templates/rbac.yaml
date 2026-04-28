@@ -1,0 +1,35 @@
+{{- if .Values.serviceAccount.name }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "rep-orchestrator.fullname" . }}
+  namespace: cluster-api
+  labels:
+    {{- include "rep-orchestrator.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create"]
+  - apiGroups: ["argoproj.io"]
+    resources: ["workflows"]
+    verbs: ["create", "get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "rep-orchestrator.fullname" . }}
+  namespace: cluster-api
+  labels:
+    {{- include "rep-orchestrator.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.serviceAccount.name }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ include "rep-orchestrator.fullname" . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
