@@ -70,13 +70,19 @@ spec:
                   key: {{ .Values.secrets.dbPassword.key }}
             {{- end }}
             - name: RTF_KUBECONFIG_PATH
-              value: {{ required "k8s.kubeconfigPath is required" .Values.k8s.kubeconfigPath | quote }}
-            {{- if .Values.k8s.mgmtContext }}
+              {{- if .Values.k8s.workload.kubeconfigSecretRef.name }}
+              value: "/root/.kube/config"
+              {{- else if .Values.k8s.workload.kubeconfigPath }}
+              value: {{ .Values.k8s.workload.kubeconfigPath | quote }}
+              {{- else }}
+              {{ fail "Either k8s.workload.kubeconfigSecretRef.name or k8s.workload.kubeconfigPath must be set" }}
+              {{- end }}
+            {{- if .Values.k8s.management.context }}
             - name: RTF_MGMT_CONTEXT
-              value: {{ .Values.k8s.mgmtContext | quote }}
+              value: {{ .Values.k8s.management.context | quote }}
             {{- end }}
             - name: RTF_WORKLOAD_CONTEXT
-              value: {{ required "k8s.workloadContext is required" .Values.k8s.workloadContext | quote }}
+              value: {{ required "k8s.workload.context is required" .Values.k8s.workload.context | quote }}
             - name: RTF_GCS_BUCKET
               value: {{ required "gcs.bucket is required" .Values.gcs.bucket | quote }}
             - name: RTF_GCS_URL_TTL_SECS
@@ -95,7 +101,7 @@ spec:
             - name: RTF_MOCK_PUBLIC_GCS_URL
               value: {{ .Values.gcs.mockPublicUrl | quote }}
             {{- end }}
-          {{- if .Values.k8s.kubeconfigSecretRef.name }}
+          {{- if .Values.k8s.workload.kubeconfigSecretRef.name }}
           volumeMounts:
             - name: kubeconfig
               mountPath: /root/.kube
@@ -126,12 +132,12 @@ spec:
               cpu: "100m"
               memory: "128Mi"
         {{- end }}
-      {{- if .Values.k8s.kubeconfigSecretRef.name }}
+      {{- if .Values.k8s.workload.kubeconfigSecretRef.name }}
       volumes:
         - name: kubeconfig
           secret:
-            secretName: {{ .Values.k8s.kubeconfigSecretRef.name }}
+            secretName: {{ .Values.k8s.workload.kubeconfigSecretRef.name }}
             items:
-              - key: {{ .Values.k8s.kubeconfigSecretRef.key }}
+              - key: {{ .Values.k8s.workload.kubeconfigSecretRef.key }}
                 path: config
       {{- end }}

@@ -58,12 +58,33 @@ db:
 serviceAccountName: null  # K8s ServiceAccount name (required for Workload Identity)
 
 k8s:
-  kubeconfigPath: ""     # required
-  mgmtContext: null
-  workloadContext: ""    # required
-  kubeconfigSecretRef:
-    name: null           # name of a Secret to mount at kubeconfigPath
-    key: "config"
+  management:
+    # Kubernetes context name for the management cluster (where Argo workflows run).
+    #
+    # Two modes:
+    #   null (default) — production/in-cluster: the pod's own service account credentials
+    #                    are used. No management kubeconfig is required.
+    #   "<context>"    — dev/staging: credentials are read from the kubeconfig supplied via
+    #                    workload.kubeconfigSecretRef or workload.kubeconfigPath, using this
+    #                    context name. That file must contain entries for both clusters.
+    context: null
+
+  workload:
+    # Required: Kubernetes context name for the workload cluster
+    # (where ephemeral test namespaces run).
+    context: ""   # required
+
+    # Kubeconfig source — exactly one of the following must be set:
+    #
+    # Option A: mount a Kubernetes Secret as the kubeconfig.
+    # The file lands at /root/.kube/config (derived from the mount; no kubeconfigPath needed).
+    kubeconfigSecretRef:
+      name: null
+      key: "config"
+
+    # Option B: provide the path to a kubeconfig already present in the container
+    # (e.g. via a bind mount in dev/CI). Ignored when kubeconfigSecretRef.name is set.
+    kubeconfigPath: ""
 
 cloudSqlProxy:
   enabled: false
