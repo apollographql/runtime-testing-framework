@@ -57,7 +57,11 @@ pub struct WorkflowSpec {
 }
 
 impl WorkflowSpec {
-    pub fn for_execution(ex: &TestExecution, orchestrator_url: &str) -> Self {
+    pub fn for_execution(
+        ex: &TestExecution,
+        orchestrator_url: &str,
+        kubeconfig_secret_name: &str,
+    ) -> Self {
         let execution_id = ex.uuid();
         let configmap_name = env_configmap_name(&execution_id);
         let env_vars = ex.toolbox_env_vars(orchestrator_url);
@@ -82,7 +86,7 @@ impl WorkflowSpec {
             volumes: vec![Volume {
                 name: "kubeconfig".into(),
                 secret: Some(SecretVolumeSource {
-                    secret_name: Some("workload-kubeconfig".into()),
+                    secret_name: Some(kubeconfig_secret_name.into()),
                     ..Default::default()
                 }),
                 ..Default::default()

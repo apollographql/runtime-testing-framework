@@ -67,6 +67,7 @@ pub(super) async fn create_workflow<K, H>(
     test_execution: TestExecution,
     scenario: DockerScenario,
     orchestrator_url: &str,
+    kubeconfig_secret_name: &str,
     clients: K,
     conn: &mut H,
 ) -> Result<Option<EventData>>
@@ -83,7 +84,7 @@ where
     clients
         .create_argo_workflow(
             &execution_id,
-            WorkflowSpec::for_execution(&test_execution, orchestrator_url),
+            WorkflowSpec::for_execution(&test_execution, orchestrator_url, kubeconfig_secret_name),
         )
         .await
         .map_err(|error| Error::CreateArgoWorkflow { error })?;
@@ -201,6 +202,7 @@ mod tests {
             ex.clone(),
             stub_scenario(),
             "http://localhost:8035",
+            "workload-kubeconfig",
             clients.clone(),
             &mut handle,
         )
@@ -271,6 +273,7 @@ mod tests {
             ex,
             stub_scenario(),
             "http://localhost:8035",
+            "workload-kubeconfig",
             clients,
             &mut handle,
         )

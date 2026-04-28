@@ -1,5 +1,6 @@
 use serde::Deserialize;
 use std::{net::SocketAddr, sync::LazyLock};
+use tracing::warn;
 
 static CONFIG: LazyLock<Config> =
     LazyLock::new(|| match envy::prefixed("RTF_").from_env::<Config>() {
@@ -27,6 +28,8 @@ pub struct Config {
     #[serde(default = "default_max_queued")]
     pub max_queued_executions: usize,
     pub kubeconfig_path: String,
+    #[serde(default = "default_kubeconfig_secret_name")]
+    pub kubeconfig_secret_name: String,
     #[serde(default)]
     pub mgmt_context: Option<String>,
     pub workload_context: String,
@@ -71,4 +74,9 @@ fn default_max_queued() -> usize {
 
 fn default_gcs_url_ttl_secs() -> u64 {
     300
+}
+
+fn default_kubeconfig_secret_name() -> String {
+    warn!("RTF_KUBECONFIG_SECRET_NAME not set. Using default value for local cluster");
+    "workload-kubeconfig".to_string()
 }
