@@ -37,4 +37,4 @@ k8s:
   workload:
     context: "kind-rtf-workload"
     kubeconfigSecretRef:
-      name: "orchestrator-kubeconfig"
+      name: "workload-kubeconfig"
