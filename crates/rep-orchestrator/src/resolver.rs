@@ -241,7 +241,6 @@ mod tests {
             variables: HashMap::new(),
             matrix: Matrix::default(),
             custom_providers: vec![],
-            graphos_environments: Default::default(),
             scenario: ScenarioConfig {
                 name: "test scenario".to_string(),
                 description: "test".to_string(),

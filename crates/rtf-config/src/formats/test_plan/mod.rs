@@ -2,8 +2,8 @@ use crate::{
     checks::{self, Check},
     context::ResolutionContext,
     formats::{
-        CustomProviderDeclaration, EnvironmentConfig, Execution, Generic, GraphosEnvironment,
-        Matrix, Result, ScenarioConfig,
+        CustomProviderDeclaration, EnvironmentConfig, Execution, Generic, Matrix, Result,
+        ScenarioConfig,
     },
     providers::file::{SourceDir, StableSource},
     run::Execute,
@@ -41,8 +41,6 @@ pub struct TestPlan<E: Execution> {
     pub matrix: Matrix,
     #[serde(default)]
     pub custom_providers: Vec<CustomProviderDeclaration>,
-    #[serde(default)]
-    pub graphos_environments: HashMap<String, GraphosEnvironment>,
     pub scenario: ScenarioConfig<E::Scenario>,
     pub environment: EnvironmentConfig<E::Environment>,
 }
@@ -168,7 +166,6 @@ impl<E: Execution> TestPlan<E> {
             variables: Default::default(),
             matrix: Default::default(),
             custom_providers: Default::default(),
-            graphos_environments: Default::default(),
             scenario: ScenarioConfig::empty(),
             environment: EnvironmentConfig::empty(),
         }
@@ -446,85 +443,6 @@ mod tests {
             &["bar", "baz", "foo"],
             "check that test plan returns fields"
         )
-    }
-
-    #[test]
-    fn parse_graphos_environments_block() {
-        let yaml = indoc!(
-            r#"
-            name: plan
-            description: a test plan declaring graphos environments
-            graphos_environments:
-              apollo_staging:
-                url: https://graphql-staging.api.apollographql.com/api/graphql
-                api_key_env_var: APOLLO_KEY_STAGING
-                sudo: true
-              apollo_dev0:
-                url: https://graphql-dev0.example.test/api/graphql
-                api_key_env_var: APOLLO_KEY_DEV0
-              # sudo defaults to false when omitted
-            scenario:
-              inline:
-                name: scenario
-                description: a scenario
-                command:
-                  name: scenario.sh
-                  kind: inline
-                  content: |
-                    #!/usr/bin/env sh
-                    echo "Hello!"
-            environment:
-              inline:
-                name: environment
-                description: an environment
-                setup:
-                  command:
-                    name: setup.sh
-                    kind: inline
-                    content: |
-                      #!/usr/bin/env sh
-                      echo "Setup!"
-                teardown:
-                  command:
-                    name: teardown.sh
-                    kind: inline
-                    content: |
-                      #!/usr/bin/env sh
-                      echo "Teardown!"
-            "#
-        );
-
-        let config: RawTestPlanConfig =
-            serde_yaml::from_str(yaml).expect("test plan config to parse");
-
-        assert_eq!(config.graphos_environments.len(), 2);
-        let staging = config
-            .graphos_environments
-            .get("apollo_staging")
-            .expect("apollo_staging env to be parsed");
-        assert_eq!(
-            staging.url,
-            "https://graphql-staging.api.apollographql.com/api/graphql"
-        );
-        assert_eq!(staging.api_key_env_var, "APOLLO_KEY_STAGING");
-        assert!(staging.sudo, "explicit sudo: true should parse");
-
-        let dev0 = config
-            .graphos_environments
-            .get("apollo_dev0")
-            .expect("apollo_dev0 env to be parsed");
-        assert!(!dev0.sudo, "sudo should default to false when omitted");
-    }
-
-    #[test]
-    fn parse_graphos_environments_defaults_to_empty() {
-        let config: RawTestPlanConfig = serde_yaml::from_str(INLINE_TEST_PLAN)
-            .expect("test plan without graphos_environments block to parse");
-
-        assert!(
-            config.graphos_environments.is_empty(),
-            "graphos_environments should default to empty when unset"
-        );
     }
 
     #[test]

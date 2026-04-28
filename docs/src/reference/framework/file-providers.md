@@ -9,7 +9,6 @@ Available file providers:
 - [Custom provider](#custom-provider)
 - [From command](#from-command)
 - [GitHub file](#github-file)
-- [Fields common to all GraphOS providers](#fields-common-to-all-graphos-providers)
 - [GraphOS canned operations](#graphos-canned-operations)
 - [GraphOS canned operations by ID](#graphos-canned-operations-by-id)
 - [GraphOS supergraph Router URL overrides](#graphos-supergraph-router-url-overrides)
@@ -261,29 +260,6 @@ Defaults to the mainline branch as specified in GitHub if unset.
 
 </details>
 
-## Fields common to all GraphOS providers
-
-Every file provider that resolves a `graph_ref` against the GraphOS API also accepts an optional
-`graphos_env` field naming which declared [GraphOS environment][0] the request should be routed
-through.
-
-Omitting `graphos_env` (or setting it to `"default"`) falls through to the implicit production
-environment synthesized from the `APOLLO_KEY` env var. Other values must correspond to entries in
-the Test Plan's top-level `graphos_environments` block.
-
-```yaml
-# Uses the implicit default (prod) environment.
-- name: customer-supergraph.graphql
-  kind: graphos_supergraph
-  graph_ref: customer-graph@prod
-
-# Uses a declared non-default environment.
-- name: engine-supergraph.graphql
-  kind: graphos_supergraph
-  graph_ref: engine@prod
-  graphos_env: apollo_staging
-```
-
 ## GraphOS canned operations
 
 The user specifies the graph ref and parameters that should be used to generate canned GraphQL
@@ -305,6 +281,13 @@ requests based on operations data obtained from the GraphOS API.
 ### `graph_ref`
 
 The Apollo graph ref to pull operations for.
+
+### `graphos_env`
+
+The name of the GraphOS environment to resolve the `graph_ref` against.
+
+Defaults to `"default"` — production GraphOS, authenticated via `APOLLO_KEY`. See the
+`GraphOS Environments` reference for the closed list of valid values.
 
 ### `top_n`
 
@@ -349,6 +332,13 @@ requests based on operations data obtained from the GraphOS API.
 
 The Apollo graph ref to pull operations for.
 
+### `graphos_env`
+
+The name of the GraphOS environment to resolve the `graph_ref` against.
+
+Defaults to `"default"` — production GraphOS, authenticated via `APOLLO_KEY`. See the
+`GraphOS Environments` reference for the closed list of valid values.
+
 ### `operation_ids`
 
 Operation IDs from the Apollo studio API for the operations you want to work with as queried from an
@@ -380,6 +370,13 @@ with real graphs.
 ### `graph_ref`
 
 The Apollo graph ref to pull the subgraphs for.
+
+### `graphos_env`
+
+The name of the GraphOS environment to resolve the `graph_ref` against.
+
+Defaults to `"default"` — production GraphOS, authenticated via `APOLLO_KEY`. See the
+`GraphOS Environments` reference for the closed list of valid values.
 
 ### `url_format`
 
@@ -455,6 +452,13 @@ Note that this file provider will output a directory of SDL schema files, one fo
 
 The Apollo graph ref to pull subgraph SDL files for.
 
+### `graphos_env`
+
+The name of the GraphOS environment to resolve the `graph_ref` against.
+
+Defaults to `"default"` — production GraphOS, authenticated via `APOLLO_KEY`. See the
+`GraphOS Environments` reference for the closed list of valid values.
+
 </details>
 
 ## GraphOS subgraph names
@@ -478,6 +482,13 @@ This file provider will output a newline-delimited file of the subgraph names.
 
 The Apollo graph ref to pull subgraph names for.
 
+### `graphos_env`
+
+The name of the GraphOS environment to resolve the `graph_ref` against.
+
+Defaults to `"default"` — production GraphOS, authenticated via `APOLLO_KEY`. See the
+`GraphOS Environments` reference for the closed list of valid values.
+
 </details>
 
 ## GraphOS supergraph SDL
@@ -498,6 +509,13 @@ The user specifies the ref that should be used to fetch a supergraph SDL file fr
 ### `graph_ref`
 
 The Apollo graph ref to pull supergraph SDL for.
+
+### `graphos_env`
+
+The name of the GraphOS environment to resolve the `graph_ref` against.
+
+Defaults to `"default"` — production GraphOS, authenticated via `APOLLO_KEY`. See the
+`GraphOS Environments` reference for the closed list of valid values.
 
 ### `with_subgraph_overrides`
 
@@ -653,6 +671,13 @@ API.
 
 The Apollo graph id to pull an offline license for.
 
+### `graphos_env`
+
+The name of the declared GraphOS environment to fetch the offline license from.
+
+Defaults to `"default"` — which is the implicit prod environment synthesized from the `APOLLO_KEY`
+env var unless a test plan overrides it.
+
 </details>
 
 ## Relative dir
@@ -776,5 +801,3 @@ template variables defined for the current run.
 The file content with optional `${variable}` interpolation patterns.
 
 </details>
-
-[0]: ./graphos-environments.md

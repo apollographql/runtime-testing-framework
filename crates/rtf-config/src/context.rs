@@ -9,12 +9,9 @@ use crate::{
     templating::CustomProviderDefinitions,
 };
 use rtf_integrations::{
-    APOLLO_KEY_ENV_VAR, APOLLO_SUDO_ENV_VAR, DEFAULT_GRAPHOS_ENV_NAME, GITHUB_TOKEN_ENV_VAR,
-    HttpClient, ReqwestClient, github,
-    graphos::{
-        platform_query::{self, PROD_STUDIO_URL},
-        supergraph::SupergraphDetails,
-    },
+    APOLLO_SUDO_ENV_VAR, DEFAULT_GRAPHOS_ENV_NAME, GITHUB_TOKEN_ENV_VAR, HttpClient,
+    KNOWN_GRAPHOS_ENVS, ReqwestClient, github,
+    graphos::{platform_query, supergraph::SupergraphDetails},
 };
 use std::{
     collections::{HashMap, hash_map::Entry},
@@ -286,22 +283,34 @@ impl Context {
 
     /// Construct a new `Context` with environment variables.
     ///
-    /// If [APOLLO_KEY_ENV_VAR] is set, the implicit `default` GraphOS environment is registered
-    /// pointing at [PROD_STUDIO_URL]. If [APOLLO_SUDO_ENV_VAR] is also set to `"true"` or `"1"`,
-    /// the default environment is configured to send `apollo-sudo: true` on every request.
+    /// For each entry in [KNOWN_GRAPHOS_ENVS], rtf looks up the entry's `api_key_env_var` in
+    /// `env_vars` and — if set — registers a [PlatformClient][platform_query::Client] under the
+    /// entry's name.  Environments whose API key env var is not set are silently skipped; any
+    /// provider that references them will fail at [Check][crate::checks::Check] time with a
+    /// targeted error message.
     ///
-    /// Additional (non-default) GraphOS environments declared by a test plan's `graphos_environments`
-    /// block are registered separately via [Context::with_platform_env] after the plan is loaded.
+    /// As a back-compat affordance, [APOLLO_SUDO_ENV_VAR] (when set to `"true"` or `"1"`)
+    /// overrides the baseline `sudo` flag of the `default` environment to true.
     pub fn new_from_env_vars(env_vars: &HashMap<String, String>) -> Self {
         let mut ctx = Self::new();
 
-        if let Some(api_key) = env_vars.get(APOLLO_KEY_ENV_VAR) {
-            let sudo = matches!(
-                env_vars.get(APOLLO_SUDO_ENV_VAR).map(|s| s.as_str()),
-                Some("true" | "1")
-            );
+        let apollo_sudo_override = matches!(
+            env_vars.get(APOLLO_SUDO_ENV_VAR).map(|s| s.as_str()),
+            Some("true" | "1")
+        );
 
-            ctx.with_platform_env(DEFAULT_GRAPHOS_ENV_NAME, PROD_STUDIO_URL, api_key, sudo);
+        for env in KNOWN_GRAPHOS_ENVS {
+            let Some(api_key) = env_vars.get(env.api_key_env_var) else {
+                continue;
+            };
+
+            let sudo = if env.name == DEFAULT_GRAPHOS_ENV_NAME && apollo_sudo_override {
+                true
+            } else {
+                env.sudo
+            };
+
+            ctx.with_platform_env(env.name, env.url, api_key, sudo);
         }
 
         if let Some(api_token) = env_vars.get(GITHUB_TOKEN_ENV_VAR) {

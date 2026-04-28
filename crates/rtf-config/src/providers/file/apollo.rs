@@ -15,7 +15,7 @@ use itertools::Itertools;
 use reqwest::StatusCode;
 use rtf_derive::Template;
 use rtf_integrations::{
-    DEFAULT_GRAPHOS_ENV_NAME, HttpClient,
+    DEFAULT_GRAPHOS_ENV_NAME, HttpClient, KNOWN_GRAPHOS_ENVS,
     graphos::supergraph::{
         Subgraph, SupergraphDetails,
         operations::{
@@ -23,6 +23,7 @@ use rtf_integrations::{
             fetch_offline_license,
         },
     },
+    known_graphos_env,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -49,10 +50,10 @@ use tracing::warn;
 pub struct GraphosSupergraph {
     /// The Apollo graph ref to pull supergraph SDL for.
     pub graph_ref: Field<String>,
-    /// The name of the declared GraphOS environment to resolve the `graph_ref` against.
+    /// The name of the GraphOS environment to resolve the `graph_ref` against.
     ///
-    /// Defaults to `"default"` — which is the implicit prod environment synthesized from the
-    /// `APOLLO_KEY` env var unless a test plan overrides it.
+    /// Defaults to `"default"` — production GraphOS, authenticated via `APOLLO_KEY`.  See the
+    /// `GraphOS Environments` reference for the closed list of valid values.
     #[serde(default = "default_graphos_env")]
     pub graphos_env: Field<String>,
     /// Replace the supergraph's subgraph urls with overridden values for testing.
@@ -145,10 +146,10 @@ impl Check for GraphosSupergraph {
 pub struct GraphosSubgraphs {
     /// The Apollo graph ref to pull subgraph SDL files for.
     pub graph_ref: Field<String>,
-    /// The name of the declared GraphOS environment to resolve the `graph_ref` against.
+    /// The name of the GraphOS environment to resolve the `graph_ref` against.
     ///
-    /// Defaults to `"default"` — which is the implicit prod environment synthesized from the
-    /// `APOLLO_KEY` env var unless a test plan overrides it.
+    /// Defaults to `"default"` — production GraphOS, authenticated via `APOLLO_KEY`.  See the
+    /// `GraphOS Environments` reference for the closed list of valid values.
     #[serde(default = "default_graphos_env")]
     pub graphos_env: Field<String>,
 }
@@ -238,10 +239,10 @@ impl Check for GraphosSubgraphs {
 pub struct GraphosSubgraphNames {
     /// The Apollo graph ref to pull subgraph names for.
     pub graph_ref: Field<String>,
-    /// The name of the declared GraphOS environment to resolve the `graph_ref` against.
+    /// The name of the GraphOS environment to resolve the `graph_ref` against.
     ///
-    /// Defaults to `"default"` — which is the implicit prod environment synthesized from the
-    /// `APOLLO_KEY` env var unless a test plan overrides it.
+    /// Defaults to `"default"` — production GraphOS, authenticated via `APOLLO_KEY`.  See the
+    /// `GraphOS Environments` reference for the closed list of valid values.
     #[serde(default = "default_graphos_env")]
     pub graphos_env: Field<String>,
 }
@@ -308,10 +309,10 @@ impl Check for GraphosSubgraphNames {
 pub struct GraphosSubgraphRouterUrlOverrides {
     /// The Apollo graph ref to pull the subgraphs for.
     pub graph_ref: Field<String>,
-    /// The name of the declared GraphOS environment to resolve the `graph_ref` against.
+    /// The name of the GraphOS environment to resolve the `graph_ref` against.
     ///
-    /// Defaults to `"default"` — which is the implicit prod environment synthesized from the
-    /// `APOLLO_KEY` env var unless a test plan overrides it.
+    /// Defaults to `"default"` — production GraphOS, authenticated via `APOLLO_KEY`.  See the
+    /// `GraphOS Environments` reference for the closed list of valid values.
     #[serde(default = "default_graphos_env")]
     pub graphos_env: Field<String>,
     /// The format of the overrides url.
@@ -587,10 +588,10 @@ impl Check for GraphosSubgraphRouterUrlOverrides {
 pub struct GraphosCannedOps {
     /// The Apollo graph ref to pull operations for.
     pub graph_ref: Field<String>,
-    /// The name of the declared GraphOS environment to resolve the `graph_ref` against.
+    /// The name of the GraphOS environment to resolve the `graph_ref` against.
     ///
-    /// Defaults to `"default"` — which is the implicit prod environment synthesized from the
-    /// `APOLLO_KEY` env var unless a test plan overrides it.
+    /// Defaults to `"default"` — production GraphOS, authenticated via `APOLLO_KEY`.  See the
+    /// `GraphOS Environments` reference for the closed list of valid values.
     #[serde(default = "default_graphos_env")]
     pub graphos_env: Field<String>,
     /// The number of operations to attempt to fetch.
@@ -696,10 +697,10 @@ impl Check for GraphosCannedOps {
 pub struct GraphosCannedOpsById {
     /// The Apollo graph ref to pull operations for.
     pub graph_ref: Field<String>,
-    /// The name of the declared GraphOS environment to resolve the `graph_ref` against.
+    /// The name of the GraphOS environment to resolve the `graph_ref` against.
     ///
-    /// Defaults to `"default"` — which is the implicit prod environment synthesized from the
-    /// `APOLLO_KEY` env var unless a test plan overrides it.
+    /// Defaults to `"default"` — production GraphOS, authenticated via `APOLLO_KEY`.  See the
+    /// `GraphOS Environments` reference for the closed list of valid values.
     #[serde(default = "default_graphos_env")]
     pub graphos_env: Field<String>,
     /// Operation IDs from the Apollo studio API for the operations you want to
@@ -839,15 +840,27 @@ fn validate_client(
     path: &[String],
     ctx: &impl ResolutionContext,
 ) -> checks::Result<()> {
+    let Some(env) = known_graphos_env(env_name) else {
+        let known: Vec<&str> = KNOWN_GRAPHOS_ENVS.iter().map(|e| e.name).collect();
+        return Err(checks::Errors::new(
+            checks::ErrorKind::UnknownGraphosEnv,
+            format!(
+                "graphos_env {env_name:?} is not a known GraphOS environment. \
+                 Valid values: {known:?}",
+            ),
+            path,
+        ));
+    };
+
     if ctx.platform_client_for(env_name).is_none() {
         let message = if env_name == DEFAULT_GRAPHOS_ENV_NAME {
-            "expected os env key APOLLO_KEY".to_string()
+            format!("expected os env key {}", env.api_key_env_var)
         } else {
             format!(
                 "provider references graphos environment {env_name:?}, \
                  but no API key has been configured for it \
-                 (expected the env var declared by the plan's \
-                 graphos_environments.{env_name}.api_key_env_var)"
+                 (expected os env key {})",
+                env.api_key_env_var,
             )
         };
         return Err(checks::Errors::new(

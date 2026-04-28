@@ -3,8 +3,8 @@ use crate::{
     checks::CheckArrayDuplicates,
     context::ResolutionContext,
     formats::{
-        CustomProviderDeclaration, EnvironmentConfig, Error, GraphosEnvironment, Matrix, Result,
-        ScenarioConfig, TestPlan, test_plan::Sources,
+        CustomProviderDeclaration, EnvironmentConfig, Error, Matrix, Result, ScenarioConfig,
+        TestPlan, test_plan::Sources,
     },
     merge_yaml,
     providers::file::{RawSource, SourceDir, StableSource},
@@ -35,11 +35,6 @@ pub struct RawTestPlanConfig {
     /// Custom provider declarations to load for this test plan
     #[serde(default)]
     pub custom_providers: Vec<CustomProviderDeclaration>,
-    /// Named GraphOS environments that `graphos_env` fields on GraphOS file providers can
-    /// reference. The `default` environment is always implicitly available (synthesized from
-    /// the `APOLLO_KEY` env var) and does not need to be declared here.
-    #[serde(default)]
-    pub graphos_environments: HashMap<String, GraphosEnvironment>,
     /// The test scenario to execute
     pub scenario: ConfigSpec,
     /// The environment setup and teardown to run around the test scenario
@@ -93,7 +88,6 @@ impl RawTestPlanConfig {
                 variables: self.variables,
                 matrix: self.matrix.into(),
                 custom_providers: self.custom_providers,
-                graphos_environments: self.graphos_environments,
                 scenario,
                 environment,
             },

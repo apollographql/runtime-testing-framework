@@ -19,13 +19,13 @@ use std::{collections::HashMap, future::Future};
 pub mod github;
 pub mod graphos;
 
-use graphos::PlatformClient;
+use graphos::{
+    PlatformClient,
+    platform_query::{PROD_STUDIO_URL, STAGING_STUDIO_URL},
+};
 
-/// The name reserved for the "default" platform environment.
-///
-/// When a test plan does not declare a `graphos_environments` block, an implicit environment
-/// under this name is synthesized from [APOLLO_KEY_ENV_VAR] (and optionally [APOLLO_SUDO_ENV_VAR])
-/// pointing at the production Apollo GraphOS instance.
+/// The name reserved for the "default" platform environment — the production GraphOS instance,
+/// where customer graphs live.
 pub const DEFAULT_GRAPHOS_ENV_NAME: &str = "default";
 
 /// The environment variable name for the api key used to authenticate with the GraphOS API
@@ -36,6 +36,51 @@ pub const APOLLO_SUDO_ENV_VAR: &str = "APOLLO_SUDO";
 pub const N_PARALLEL_FETCH: usize = 20;
 /// The environment variable name for the api token used to authenticate with the GitHub API.
 pub const GITHUB_TOKEN_ENV_VAR: &str = "GITHUB_TOKEN";
+
+/// Static metadata for a GraphOS environment that rtf knows how to talk to.
+///
+/// The set of environments rtf supports is fixed at build time via [KNOWN_GRAPHOS_ENVS] — test
+/// plans select one by name through the `graphos_env` field on a GraphOS file provider, and
+/// rtf reads the corresponding [Self::api_key_env_var] from its process environment to obtain
+/// the credential.
+///
+/// Adding a new environment is a code change here (a new entry in [KNOWN_GRAPHOS_ENVS] plus a
+/// URL constant in `graphos::platform_query`).  Keeping the set closed and static is what lets
+/// the rep-orchestrator provision the right secrets at deploy time without coordinating with
+/// arbitrary plan-author-declared env var names.
+#[derive(Debug, Clone, Copy)]
+pub struct KnownGraphosEnv {
+    /// The name used to reference this environment from `graphos_env` fields on file providers.
+    pub name: &'static str,
+    /// The GraphOS API endpoint for this environment.
+    pub url: &'static str,
+    /// The env var the rtf process reads to obtain this environment's API key.
+    pub api_key_env_var: &'static str,
+    /// Whether requests routed to this environment include the `apollo-sudo: true` header.
+    pub sudo: bool,
+}
+
+/// Every GraphOS environment that rtf recognises.  See [KnownGraphosEnv] for how this list is
+/// expected to grow.
+pub const KNOWN_GRAPHOS_ENVS: &[KnownGraphosEnv] = &[
+    KnownGraphosEnv {
+        name: DEFAULT_GRAPHOS_ENV_NAME,
+        url: PROD_STUDIO_URL,
+        api_key_env_var: APOLLO_KEY_ENV_VAR,
+        sudo: false,
+    },
+    KnownGraphosEnv {
+        name: "staging",
+        url: STAGING_STUDIO_URL,
+        api_key_env_var: "APOLLO_KEY_STAGING",
+        sudo: true,
+    },
+];
+
+/// Look up a known GraphOS environment by name.
+pub fn known_graphos_env(name: &str) -> Option<&'static KnownGraphosEnv> {
+    KNOWN_GRAPHOS_ENVS.iter().find(|env| env.name == name)
+}
 
 /// A client implementation that is backed by a [reqwest::Client].
 #[derive(Debug, Default, Clone)]

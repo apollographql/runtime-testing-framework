@@ -8,57 +8,19 @@ use anyhow::{Context as _, anyhow, bail};
 use rtf_config::{
     Execution, SourceDir,
     context::{Context, PathKind, ResolutionContext},
-    formats::{self, GraphosEnvironment, Sources, TestPlan},
+    formats::{self, Sources, TestPlan},
 };
 use serde::Deserialize;
 use std::{
-    collections::HashMap,
     env::{self, current_dir},
     path::PathBuf,
 };
-use tracing::debug;
 
 pub mod plumbing;
 pub mod porcelain;
 
 pub(crate) fn get_context() -> Context {
     Context::new_from_env_vars(&env::vars().collect())
-}
-
-/// Register each test-plan-declared GraphOS environment with the context.
-///
-/// For every entry in the plan's `graphos_environments` block, looks up the declared
-/// `api_key_env_var` in the process environment and — if set — registers a `PlatformClient`
-/// under that environment's name via [Context::with_platform_env].
-///
-/// Environments whose `api_key_env_var` is not set in the process environment are skipped;
-/// any provider that references them will fail at [Check][rtf_config::checks::Check] time with
-/// a clear "missing API key" error that names both the environment and the expected env var.
-pub(crate) fn register_declared_graphos_envs(
-    ctx: &mut Context,
-    envs: &HashMap<String, GraphosEnvironment>,
-) {
-    let env_vars: HashMap<String, String> = env::vars().collect();
-
-    for (name, env) in envs {
-        let Some(api_key) = env_vars.get(&env.api_key_env_var) else {
-            debug!(
-                env_name = %name,
-                api_key_env_var = %env.api_key_env_var,
-                "declared graphos environment has no API key in the process environment — \
-                 skipping registration. Providers that reference this environment will fail \
-                 at check time."
-            );
-            continue;
-        };
-
-        debug!(
-            env_name = %name,
-            url = %env.url,
-            "registering declared graphos environment",
-        );
-        ctx.with_platform_env(name, &env.url, api_key, env.sudo);
-    }
 }
 
 pub fn get_context_and_check_outdir(

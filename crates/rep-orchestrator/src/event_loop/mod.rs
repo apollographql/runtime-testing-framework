@@ -294,7 +294,6 @@ mod tests {
             variables: Default::default(),
             matrix: Default::default(),
             custom_providers: vec![],
-            graphos_environments: Default::default(),
             scenario: ScenarioConfig {
                 name: String::new(),
                 description: String::new(),

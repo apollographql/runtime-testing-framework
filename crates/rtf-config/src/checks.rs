@@ -47,6 +47,9 @@ pub enum ErrorKind {
     #[strum(to_string = "No API key provided for calling the Apollo GraphOS API")]
     MissingGraphOsApiKey,
 
+    #[strum(to_string = "Unknown GraphOS environment name")]
+    UnknownGraphosEnv,
+
     #[strum(to_string = "A file was provided when a directory was expected")]
     NotADirectory,
 

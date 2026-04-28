@@ -2,7 +2,7 @@ use crate::{
     cli::RunTarget,
     commands::{
         get_context_and_check_outdir, load_and_resolve_test_plan_from_github,
-        load_and_resolve_test_plan_from_local, register_declared_graphos_envs,
+        load_and_resolve_test_plan_from_local,
     },
 };
 use rtf_config::{
@@ -28,7 +28,7 @@ pub async fn check_and_run_test_plan(
     out_dir: &str,
     force: bool,
 ) -> anyhow::Result<()> {
-    let (mut ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
+    let (ctx, out_dir) = get_context_and_check_outdir(out_dir, force)?;
 
     info!("loading and resolving test plan");
     let (test_plan, sources) = if github {
@@ -36,7 +36,6 @@ pub async fn check_and_run_test_plan(
     } else {
         load_and_resolve_test_plan_from_local(test_plan_path, &ctx).await?
     };
-    register_declared_graphos_envs(&mut ctx, &test_plan.graphos_environments);
     check_and_run_test_plan_with_context(test_plan, sources, variables, &out_dir, run_target, ctx)
         .await
 }

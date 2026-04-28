@@ -15,12 +15,14 @@ use std::{collections::BTreeMap, future::Future, time::Duration};
 use tokio::time::sleep;
 use tracing::{error, warn};
 
-/// API endpoint for the production studio instance.
-///
-/// This is the URL used for the implicit "default" platform environment when a test plan
-/// does not declare a `graphos_environments` block. Test plans that target other GraphOS
-/// environments (staging, dev, etc.) declare their URLs explicitly in the plan YAML.
+/// API endpoint for the production studio instance — the URL of the `default` GraphOS
+/// environment, used to resolve customer graph_refs.
 pub const PROD_STUDIO_URL: &str = "https://graphql.api.apollographql.com/api/graphql";
+
+/// API endpoint for the staging studio instance — the URL of the `staging` GraphOS environment,
+/// used to resolve graph_refs that live in Apollo's staging GraphOS (e.g. Apollo's own
+/// `engine@prod` graph).
+pub const STAGING_STUDIO_URL: &str = "https://graphql-staging.api.apollographql.com/api/graphql";
 /// Maximum number of times to attempt a platform API request before giving up.
 const MAX_ATTEMPTS: u32 = 3;
 /// Delay between retry attempts.
