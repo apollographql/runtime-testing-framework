@@ -208,7 +208,7 @@ impl TestRun {
     /// Used to recover event loop state on startup for ongoing executions.
     pub async fn cache_payload(
         &self,
-        payload: TriggerPayload,
+        payload: &TriggerPayload,
         conn: &mut PgConnection,
     ) -> Result<()> {
         let val = serde_json::to_value(payload).expect("payload to serialize");
@@ -226,12 +226,15 @@ impl TestRun {
         Ok(())
     }
 
-    /// Evict the cached test plan associated with this [TestRun]s ID.
-    pub async fn clear_cached_payload(self, conn: &mut PgConnection) -> Result<()> {
-        sqlx::query("DELETE FROM payload_cache WHERE run_id=$1;")
-            .bind(self.id)
-            .execute(conn)
-            .await?;
+    /// Evict the cached test plan associated with a given [TestRun] UUID.
+    pub async fn clear_cached_payload(run_uuid: Uuid, conn: &mut PgConnection) -> Result<()> {
+        sqlx::query(
+            "DELETE FROM payload_cache
+             WHERE run_id IN (SELECT id FROM test_run WHERE uuid = $1);",
+        )
+        .bind(run_uuid)
+        .execute(conn)
+        .await?;
 
         Ok(())
     }
@@ -553,8 +556,8 @@ mod tests {
         let uuid1 = tr1.uuid();
         let uuid2 = tr2.uuid();
 
-        tr1.cache_payload(stub_payload(), c).await?;
-        tr2.cache_payload(stub_payload(), c).await?;
+        tr1.cache_payload(&stub_payload(), c).await?;
+        tr2.cache_payload(&stub_payload(), c).await?;
 
         let (map, _) = TestRun::load_payload_cache(c).await?;
         assert!(map.contains_key(&uuid1), "run-a UUID not in cache");
@@ -591,13 +594,13 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn clear_cached_test_plan_removes_the_entry() -> Result<()> {
+    async fn clear_cached_payload_removes_the_entry() -> Result<()> {
         let c = conn!();
         let tr = TestRun::init("test", c).await?;
         let run_id = tr.id;
 
         // should be present in the cache after caching
-        tr.cache_payload(stub_payload(), c).await?;
+        tr.cache_payload(&stub_payload(), c).await?;
 
         let cache = CachedPayload::load_all(c).await?;
         assert!(
@@ -606,7 +609,7 @@ mod tests {
         );
 
         // should be removed from the cache after clearing
-        tr.clear_cached_payload(c).await?;
+        TestRun::clear_cached_payload(tr.uuid(), c).await?;
 
         let cache = CachedPayload::load_all(c).await?;
         assert!(
@@ -627,8 +630,8 @@ mod tests {
         let uuid1 = tr1.uuid();
         let uuid2 = tr2.uuid();
 
-        tr1.cache_payload(stub_payload(), c).await?;
-        tr2.cache_payload(stub_payload(), c).await?;
+        tr1.cache_payload(&stub_payload(), c).await?;
+        tr2.cache_payload(&stub_payload(), c).await?;
         let (map, _) = TestRun::load_payload_cache(c).await?;
         assert!(
             map.contains_key(&uuid1),

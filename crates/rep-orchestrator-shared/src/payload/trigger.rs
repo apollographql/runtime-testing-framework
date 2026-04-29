@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, mem::take, sync::Arc};
 use tracing::info;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TriggerPayload {
     pub test_plan: RepTestPlan,
     pub relative_files: SourceKeyedArrayMap<String>,

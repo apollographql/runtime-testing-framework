@@ -11,16 +11,14 @@ use rtf_config::{
     StableSource,
     checks::Check,
     context::ResolutionContext,
-    inlining::InlineMode,
-    run::RunProviders,
     templating::{Template, TemplateContext},
 };
 use std::{collections::HashMap, mem::take, ops::ControlFlow};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::{error, info_span, warn};
+use uuid::Uuid;
 
 const MSG_RUN_CHECKS: &str = "running test plan static checks";
-const MSG_RESOLVE: &str = "resolving test plan";
 
 /// A long lived Tokio task that is responsible for running all RTF related logic that executes
 /// within the server.
@@ -38,7 +36,7 @@ pub async fn resolver_task(
     prov_handle: ProvisioningHandle,
 ) -> crate::Result<()> {
     while let Some(TestRunWithPayload { test_run, payload }) = rx.recv().await {
-        match resolve_test_plan(test_run, payload, conn!(), Config::get(), &prov_handle).await {
+        match resolve_test_plan(test_run, payload, Config::get(), conn!(), &prov_handle).await {
             ControlFlow::Break(_) => break,
             ControlFlow::Continue(_) => continue,
         }
@@ -50,7 +48,7 @@ pub async fn resolver_task(
 }
 
 #[derive(Debug, thiserror::Error)]
-enum ResolverError {
+pub(crate) enum ResolverError {
     #[error("event loop channel closed")]
     EventChannelClosed,
 
@@ -60,11 +58,14 @@ enum ResolverError {
     #[error("unable to expand matrix variants: {0}")]
     MatrixExpansion(#[from] rtf_config::formats::Error),
 
-    #[error("unable to set test run status to Resolving: {0}")]
-    SetResolvingStatus(#[from] crate::Error),
-
     #[error("templating pre-check failed: {0}")]
     TemplatingCheck(rtf_config::templating::Errors),
+
+    #[error("{0} is not a known execution ID")]
+    UnknownExecution(Uuid),
+
+    #[error("{0} is not a known run ID")]
+    UnknownRun(Uuid),
 
     #[error("static checks failed: {0}")]
     VariantCheck(#[from] rtf_config::checks::Errors),
@@ -73,13 +74,13 @@ enum ResolverError {
     VariantTemplating(rtf_config::templating::Errors),
 }
 
-type Result<T> = std::result::Result<T, ResolverError>;
+pub(crate) type Result<T> = std::result::Result<T, ResolverError>;
 
 async fn resolve_test_plan<H: UpdateHandle>(
     test_run: TestRun,
     payload: TriggerPayload,
-    update_handle: &mut H,
     cfg: &Config,
+    update_handle: &mut H,
     prov_handle: &ProvisioningHandle,
 ) -> ControlFlow<()> {
     let span = info_span!("resolve", test_run_id = %test_run.uuid(), name = %test_run.name());
@@ -91,9 +92,7 @@ async fn resolve_test_plan<H: UpdateHandle>(
                 error!(%e);
                 return ControlFlow::Break(());
             }
-            ResolverError::SetResolvingStatus(_) => {
-                error!(%e);
-            }
+
             _ => {
                 warn!(%e, "test plan resolution failed");
                 update_handle
@@ -106,45 +105,70 @@ async fn resolve_test_plan<H: UpdateHandle>(
     ControlFlow::Continue(())
 }
 
-async fn try_resolve<H: UpdateHandle>(
+async fn try_resolve<H>(
     test_run: &TestRun,
     payload: TriggerPayload,
     update_handle: &mut H,
     cfg: &Config,
     prov_handle: &ProvisioningHandle,
-) -> Result<()> {
+) -> Result<()>
+where
+    H: UpdateHandle,
+{
     update_handle
         .mark_run_as_resolving(test_run, MSG_RUN_CHECKS.into())
         .await;
 
-    let (ctx, test_plan) = prepare_resolution(cfg, payload)?;
-    let variants = test_plan.try_iter_matrix_variants()?;
+    let (ctx, test_plan) = prepare_resolution(cfg, payload.clone())?;
 
-    for (i, (name, mut variant)) in variants.enumerate() {
-        let ex = match update_handle.init_execution(test_run, &name, i).await {
+    // Run full static checks up front before creating executions and pushing to the queue
+    for (_, mut variant) in test_plan.try_iter_matrix_variants()? {
+        let variables = take(&mut variant.variables);
+        let template_ctx =
+            TemplateContext::new(variables, HashMap::new(), ctx.custom_provider_definitions());
+
+        variant
+            .try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
+            .map_err(ResolverError::VariantTemplating)?;
+
+        variant.try_check(&mut Vec::new(), &ctx)?;
+    }
+
+    let expanded_matrix = test_plan.matrix.try_expand(&test_plan.variables)?;
+
+    update_handle
+        .cache_payload_for_run(test_run, &payload)
+        .await;
+    prov_handle
+        .cache_for_test_run(test_run.uuid(), ctx, test_plan)
+        .await;
+
+    let mut n_submitted = 0;
+    for (i, (name, _)) in expanded_matrix.iter().enumerate() {
+        let ex = match update_handle.init_execution(test_run, name, i).await {
             Ok(ex) => ex,
             Err(e) => {
-                error!(%e, %name, "unable to initialise execution record");
+                error!(%e, %name, "unable to initialise execution in DB");
                 continue;
             }
         };
 
+        n_submitted += 1;
+        prov_handle
+            .request_provisioning(ex, test_run.uuid())
+            .await?;
+    }
+
+    // If we failed to init any executions then there's nothing to clear the cache later, so we
+    // clear it now and mark the run as unrunnable.
+    if n_submitted == 0 {
+        prov_handle.evict_payload_cache(test_run.uuid()).await;
         update_handle
-            .mark_execution_as_resolving(&ex, MSG_RESOLVE.into())
+            .clear_cached_payload_for_run(test_run.uuid())
             .await;
-
-        if let Err(e) = resolve_variant(&mut variant, &ctx).await {
-            warn!(%e, %name, "variant resolution failed");
-            update_handle
-                .mark_execution_as_unrunnable(&ex, e.to_string())
-                .await;
-            continue;
-        }
-
-        if !prov_handle.request_provisioning(ex, variant).await {
-            error!("exiting resolver");
-            return Err(ResolverError::EventChannelClosed);
-        }
+        update_handle
+            .mark_run_as_unrunnable(test_run, "unable to initialise executions".into())
+            .await;
     }
 
     Ok(())
@@ -166,34 +190,12 @@ fn prepare_resolution(cfg: &Config, payload: TriggerPayload) -> Result<(RepConte
     Ok((ctx, test_plan))
 }
 
-async fn resolve_variant(test_plan: &mut RepTestPlan, ctx: &RepContext) -> Result<()> {
-    let variables = take(&mut test_plan.variables);
-    let template_ctx =
-        TemplateContext::new(variables, HashMap::new(), ctx.custom_provider_definitions());
-
-    test_plan
-        .try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
-        .map_err(ResolverError::VariantTemplating)?;
-
-    test_plan.try_check(&mut Vec::new(), ctx)?;
-
-    test_plan.environment.inline(&InlineMode::All, ctx).await?;
-
-    test_plan
-        .scenario
-        .execution
-        .inline(&InlineMode::All, ctx)
-        .await?;
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
         config::Config,
-        db::{MockUpdateHandle, Status, TaggedStatusUpdate, TestRun},
+        db::{MockUpdateHandle, Status, StatusUpdate, TaggedStatusUpdate, TestRun},
         event_loop::{EventData, EventQueue},
     };
     use indoc::indoc;
@@ -352,13 +354,9 @@ mod tests {
         let (_eq, ph, _, _) =
             EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
 
-        _ = resolve_test_plan(test_run, empty_payload(), &mut handle, &cfg, &ph).await;
+        _ = resolve_test_plan(test_run, empty_payload(), &cfg, &mut handle, &ph).await;
 
-        assert!(
-            handle.status_updates.is_empty(),
-            "no status updates expected when setting Resolving fails: {:?}",
-            handle.status_updates
-        );
+        assert_eq!(handle.status_updates, vec![]);
     }
 
     #[test_case(payload_with_conflicting_var(), "templating pre-check failed:"; "templating_check_fails")]
@@ -374,7 +372,7 @@ mod tests {
         let (_eq, ph, _, _) =
             EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
 
-        _ = resolve_test_plan(test_run.clone(), payload, &mut handle, &cfg, &ph).await;
+        _ = resolve_test_plan(test_run.clone(), payload, &cfg, &mut handle, &ph).await;
 
         let run_updates: Vec<_> = handle
             .status_updates
@@ -405,7 +403,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_test_plan_variant_static_check_fails_sets_execution_unrunnable() {
+    async fn resolve_test_plan_variant_static_check_fails_sets_run_unrunnable() {
         let test_run = TestRun::create_stub(1, "test");
         let mut handle = mock_handle_with_run(&test_run);
         let cfg = dummy_config();
@@ -435,41 +433,19 @@ mod tests {
             },
         };
 
-        _ = resolve_test_plan(test_run.clone(), payload, &mut handle, &cfg, &ph).await;
+        _ = resolve_test_plan(test_run.clone(), payload, &cfg, &mut handle, &ph).await;
 
         let run_updates: Vec<_> = handle
             .status_updates
             .iter()
             .filter(|u| matches!(u, TaggedStatusUpdate::Run(_, _)))
             .collect();
-        assert_eq!(
-            run_updates.len(),
-            1,
-            "only Resolving for the run: {:?}",
-            run_updates
-        );
+        assert_eq!(run_updates.len(), 2, "{run_updates:?}");
         assert!(
             matches!(run_updates[0], TaggedStatusUpdate::Run(_, s) if s.status == Status::Resolving)
         );
-
-        let ex_updates: Vec<_> = handle
-            .status_updates
-            .iter()
-            .filter(|u| matches!(u, TaggedStatusUpdate::Execution(_, _)))
-            .collect();
-        assert_eq!(
-            ex_updates.len(),
-            2,
-            "expected Resolving + Unrunnable: {:?}",
-            ex_updates
-        );
-        assert!(
-            matches!(ex_updates[0], TaggedStatusUpdate::Execution(_, s) if s.status == Status::Resolving),
-            "first execution update must be Resolving: {:?}",
-            ex_updates[0]
-        );
-        let TaggedStatusUpdate::Execution(_, unrunnable) = ex_updates[1] else {
-            panic!("expected Execution update at index 1");
+        let TaggedStatusUpdate::Run(_, unrunnable) = run_updates[1] else {
+            panic!("expected Run update at index 1");
         };
         assert_eq!(unrunnable.status, Status::Unrunnable);
         let msg = unrunnable.message.as_deref().unwrap_or("");
@@ -481,6 +457,16 @@ mod tests {
             msg.contains("must provide a compose file"),
             "expected message to contain 'must provide a compose file', got: {msg:?}"
         );
+
+        assert_eq!(handle.test_executions, vec![]);
+
+        let ex_updates: Vec<_> = handle
+            .status_updates
+            .iter()
+            .filter(|u| matches!(u, TaggedStatusUpdate::Execution(_, _)))
+            .collect();
+
+        assert!(ex_updates.is_empty(), "{ex_updates:?}");
     }
 
     #[tokio::test]
@@ -505,7 +491,7 @@ mod tests {
             .unwrap();
         let TestRunWithPayload { test_run, payload } = rx.recv().await.unwrap();
 
-        _ = resolve_test_plan(test_run, payload, &mut handle, &cfg, &ph).await;
+        _ = resolve_test_plan(test_run, payload, &cfg, &mut handle, &ph).await;
 
         // TestRun status set to Resolving
         let run_updates: Vec<_> = handle
@@ -523,31 +509,55 @@ mod tests {
             matches!(run_updates[0], TaggedStatusUpdate::Run(_, s) if s.status == Status::Resolving)
         );
 
-        // One execution created and set to Resolving
+        // One execution created. Status transitions for the execution are deferred to handler
+        // time (when CreateEnvConfigMap is dispatched), so no execution status updates are
+        // expected from the resolver itself.
         assert_eq!(handle.test_executions.len(), 1, "one execution created");
         let ex_updates: Vec<_> = handle
             .status_updates
             .iter()
             .filter(|u| matches!(u, TaggedStatusUpdate::Execution(_, _)))
             .collect();
-        assert_eq!(
-            ex_updates.len(),
-            1,
-            "one execution status update: {ex_updates:?}"
-        );
         assert!(
-            matches!(ex_updates[0], TaggedStatusUpdate::Execution(_, s) if s.status == Status::Resolving),
-            "execution status must be Resolving: {:?}",
-            ex_updates[0]
+            ex_updates.is_empty(),
+            "resolver should not emit execution status updates: {ex_updates:?}"
         );
 
         // One CreateEnvConfigMap event sent
         let evt = eq.next_event().await.unwrap();
         assert!(
-            matches!(evt.data, EventData::CreateEnvConfigMap(_, _)),
+            matches!(evt.data, EventData::CreateEnvConfigMap),
             "expected CreateEnvConfigMap event"
         );
         assert!(eq.is_empty(), "only one event expected");
+    }
+
+    #[tokio::test]
+    async fn resolve_test_plan_evicts_cache_when_all_init_executions_fail() {
+        let tr = TestRun::create_stub(1, "test");
+
+        // No `test_runs` registered on the handle: init_execution will fail with
+        // `UnknownTestRun` for every variant.
+        let mut handle = MockUpdateHandle::default();
+        let cfg = dummy_config();
+        let (_eq, ph, _, _) =
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+
+        _ = resolve_test_plan(tr.clone(), empty_payload(), &cfg, &mut handle, &ph).await;
+
+        assert_eq!(handle.test_executions, vec![]);
+        assert_eq!(handle.cleared_payload_caches, vec![tr.uuid()]);
+
+        match handle.status_updates.last() {
+            Some(TaggedStatusUpdate::Run(
+                1,
+                StatusUpdate {
+                    status: Status::Unrunnable,
+                    ..
+                },
+            )) => (),
+            other => panic!("expected unrunnable status, got {other:?}"),
+        }
     }
 
     #[tokio::test]
@@ -573,7 +583,7 @@ mod tests {
             .unwrap();
         let TestRunWithPayload { test_run, payload } = rx.recv().await.unwrap();
 
-        let res = resolve_test_plan(test_run, payload, &mut handle, &cfg, &ph).await;
+        let res = resolve_test_plan(test_run, payload, &cfg, &mut handle, &ph).await;
         assert_eq!(
             res,
             ControlFlow::Break(()),

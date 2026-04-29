@@ -6,7 +6,7 @@ use crate::{
         WorkflowSpec, env_configmap_name,
     },
 };
-use rtf_config::formats::{DockerComposeEnvironment, DockerScenario, EnvironmentConfig};
+use rtf_config::formats::{DockerComposeEnvironment, EnvironmentConfig};
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{info, warn};
 
@@ -20,7 +20,6 @@ pub(crate) const MSG_ARGO_COMPLETE: &str = "Argo workflow complete";
 pub(super) async fn create_config_map<K, H>(
     test_execution: TestExecution,
     environment: DockerComposeEnvironment,
-    scenario: DockerScenario,
     clients: K,
     conn: &mut H,
 ) -> Result<Option<EventData>>
@@ -60,12 +59,11 @@ where
     conn.mark_execution_as_provisioning(&test_execution, MSG_ENV_CM_CREATED.to_string())
         .await;
 
-    Ok(Some(EventData::CreateEnvArgoWorkflow(scenario)))
+    Ok(Some(EventData::CreateEnvArgoWorkflow))
 }
 
 pub(super) async fn create_workflow<K, H>(
     test_execution: TestExecution,
-    scenario: DockerScenario,
     orchestrator_url: &str,
     kubeconfig_secret_name: &str,
     clients: K,
@@ -92,12 +90,11 @@ where
     conn.mark_execution_as_provisioning(&test_execution, MSG_ARGO_CREATED.to_string())
         .await;
 
-    Ok(Some(EventData::WaitForEnvArgoWorkflow(scenario)))
+    Ok(Some(EventData::WaitForEnvArgoWorkflow))
 }
 
 pub(super) async fn wait_for_workflow<K, H>(
     test_execution: TestExecution,
-    scenario: DockerScenario,
     etx: UnboundedSender<Event>,
     clients: K,
     conn: &mut H,
@@ -113,18 +110,14 @@ where
         .await;
 
     tokio::spawn(async move {
-        wait_and_update(test_execution, scenario, &etx, clients).await;
+        wait_and_update(test_execution, &etx, clients).await;
     });
 
     Ok(None)
 }
 
-async fn wait_and_update<K>(
-    test_execution: TestExecution,
-    scenario: DockerScenario,
-    etx: &UnboundedSender<Event>,
-    clients: K,
-) where
+async fn wait_and_update<K>(test_execution: TestExecution, etx: &UnboundedSender<Event>, clients: K)
+where
     K: k8s::Client,
 {
     let execution_id = test_execution.uuid();
@@ -133,27 +126,32 @@ async fn wait_and_update<K>(
             info!(%execution_id, "argo workflow completed successfully");
             vec![
                 EventData::ArgoWorkflowComplete,
-                EventData::CreateScenarioConfigMap(scenario),
+                EventData::CreateScenarioConfigMap,
             ]
         }
 
         WatchOutcome::Failed(reason) => {
             warn!(%execution_id, %reason, "argo workflow failed");
-            vec![EventData::MarkUnrunnable(
-                WatchOutcome::Failed(reason).to_string(),
-            )]
+            vec![
+                EventData::MarkUnrunnable(WatchOutcome::Failed(reason).to_string()),
+                EventData::CleanupNamespace,
+            ]
         }
 
         WatchOutcome::ContainerUnrunnable(reason) => {
             warn!(%execution_id, %reason, "container unrunnable");
-            vec![EventData::MarkUnrunnable(
-                WatchOutcome::ContainerUnrunnable(reason).to_string(),
-            )]
+            vec![
+                EventData::MarkUnrunnable(WatchOutcome::ContainerUnrunnable(reason).to_string()),
+                EventData::CleanupNamespace,
+            ]
         }
 
         outcome => {
             warn!(%execution_id, %outcome, "unable to determine state of argo workflow");
-            vec![EventData::MarkUnrunnable(outcome.to_string())]
+            vec![
+                EventData::MarkUnrunnable(outcome.to_string()),
+                EventData::CleanupNamespace,
+            ]
         }
     };
 
@@ -170,7 +168,7 @@ mod tests {
     use super::*;
     use crate::{
         db::{MockUpdateHandle, Status, TaggedStatusUpdate},
-        event_loop::tests::{stub_environment, stub_scenario},
+        event_loop::tests::stub_environment,
         k8s::{
             self,
             mock_client::{MockClient, Resp},
@@ -187,20 +185,13 @@ mod tests {
         let (etx, _erx) = mpsc::unbounded_channel();
 
         // create configmap
-        let res = create_config_map(
-            ex.clone(),
-            stub_environment(),
-            stub_scenario(),
-            clients.clone(),
-            &mut handle,
-        )
-        .await;
+        let res =
+            create_config_map(ex.clone(), stub_environment(), clients.clone(), &mut handle).await;
         assert!(res.is_ok(), "create_config_map: {res:?}");
 
         // create workflow
         let res = create_workflow(
             ex.clone(),
-            stub_scenario(),
             "http://localhost:8035",
             "workload-kubeconfig",
             clients.clone(),
@@ -210,7 +201,7 @@ mod tests {
         assert!(res.is_ok(), "create_workflow: {res:?}");
 
         // wait for workflow to complete
-        let res = wait_for_workflow(ex, stub_scenario(), etx, clients, &mut handle).await;
+        let res = wait_for_workflow(ex, etx, clients, &mut handle).await;
         assert!(res.is_ok(), "wait for workflow: {res:?}");
 
         assert_eq!(
@@ -234,14 +225,7 @@ mod tests {
             ..MockClient::default()
         };
 
-        let res = create_config_map(
-            ex,
-            stub_environment(),
-            stub_scenario(),
-            clients.clone(),
-            &mut handle,
-        )
-        .await;
+        let res = create_config_map(ex, stub_environment(), clients.clone(), &mut handle).await;
 
         assert!(matches!(
             res,
@@ -271,7 +255,6 @@ mod tests {
 
         let res = create_workflow(
             ex,
-            stub_scenario(),
             "http://localhost:8035",
             "workload-kubeconfig",
             clients,
@@ -299,7 +282,7 @@ mod tests {
         };
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update(ex, stub_scenario(), &etx, clients).await;
+        wait_and_update(ex, &etx, clients).await;
 
         // should get two events: workflow complete and create scenario configmap
         let evt = erx.try_recv().unwrap();
@@ -310,7 +293,7 @@ mod tests {
 
         let evt = erx.try_recv().unwrap();
         assert!(
-            matches!(evt.data, EventData::CreateScenarioConfigMap(_)),
+            matches!(evt.data, EventData::CreateScenarioConfigMap),
             "{evt:?}"
         );
     }
@@ -320,7 +303,9 @@ mod tests {
     #[test_case(WatchOutcome::WatcherError(String::new()); "watch error")]
     #[test_case(WatchOutcome::StreamClosed; "stream closed")]
     #[tokio::test]
-    async fn wait_and_update_submits_mark_unrunnable_on_watch_error(outcome: WatchOutcome) {
+    async fn wait_and_update_submits_mark_unrunnable_then_cleanup_on_watch_error(
+        outcome: WatchOutcome,
+    ) {
         let ex = TestExecution::create_stub(1, 1, 0, "test");
         let clients = MockClient {
             wait_for_workflow: Resp::new(outcome),
@@ -328,9 +313,17 @@ mod tests {
         };
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update(ex, stub_scenario(), &etx, clients).await;
+        wait_and_update(ex, &etx, clients).await;
 
-        let evt = erx.try_recv().unwrap();
-        assert!(matches!(evt.data, EventData::MarkUnrunnable(_)), "{evt:?}");
+        let first = erx.try_recv().unwrap();
+        let second = erx.try_recv().unwrap();
+        assert!(
+            matches!(first.data, EventData::MarkUnrunnable(_)),
+            "first event: {first:?}"
+        );
+        assert!(
+            matches!(second.data, EventData::CleanupNamespace),
+            "second event: {second:?}"
+        );
     }
 }

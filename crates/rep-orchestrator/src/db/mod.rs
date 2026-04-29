@@ -1,6 +1,8 @@
+use rep_orchestrator_shared::payload::TriggerPayload;
 use sqlx::{Database, FromRow, PgConnection, Postgres};
 use thiserror::Error;
 use tracing::error;
+use uuid::Uuid;
 
 pub mod pool;
 mod status;
@@ -173,6 +175,14 @@ pub trait UpdateHandle: Send + Sync {
             }
         }
     }
+
+    fn cache_payload_for_run(
+        &mut self,
+        tr: &TestRun,
+        payload: &TriggerPayload,
+    ) -> impl Future<Output = ()> + Send;
+
+    fn clear_cached_payload_for_run(&mut self, run_uuid: Uuid) -> impl Future<Output = ()> + Send;
 }
 
 impl UpdateHandle for PgConnection {
@@ -201,6 +211,18 @@ impl UpdateHandle for PgConnection {
         message: Option<String>,
     ) -> crate::Result<()> {
         Ok(ex.set_status(status, message, self).await?)
+    }
+
+    async fn cache_payload_for_run(&mut self, tr: &TestRun, payload: &TriggerPayload) {
+        if let Err(err) = tr.cache_payload(payload, self).await {
+            error!(run_uuid=%tr.uuid(), %err, "Unable to cache payload for run");
+        }
+    }
+
+    async fn clear_cached_payload_for_run(&mut self, run_uuid: Uuid) {
+        if let Err(err) = TestRun::clear_cached_payload(run_uuid, self).await {
+            error!(%run_uuid, %err, "Unable to evict cached payload for run");
+        }
     }
 }
 
@@ -253,6 +275,8 @@ mod update_handle {
         pub test_runs: Vec<TestRun>,
         pub test_executions: Vec<TestExecution>,
         pub status_updates: Vec<TaggedStatusUpdate>,
+        pub cached_payloads: Vec<Uuid>,
+        pub cleared_payload_caches: Vec<Uuid>,
     }
 
     impl MockUpdateHandle {
@@ -322,6 +346,14 @@ mod update_handle {
                 .push(TaggedStatusUpdate::execution(ex.id(), status, message));
 
             Ok(())
+        }
+
+        async fn cache_payload_for_run(&mut self, tr: &TestRun, _payload: &TriggerPayload) {
+            self.cached_payloads.push(tr.uuid());
+        }
+
+        async fn clear_cached_payload_for_run(&mut self, run_uuid: Uuid) {
+            self.cleared_payload_caches.push(run_uuid);
         }
     }
 }
