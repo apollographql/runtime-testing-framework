@@ -3,7 +3,7 @@ use crate::{
     k8s::{CLI_BINARY, CLUSTER_API_NAMESPACE, TOOLBOX_IMAGE, env_configmap_name},
 };
 use k8s_openapi::api::core::v1::{
-    ConfigMapVolumeSource, Container, EnvVar, KeyToPath, SecretVolumeSource, Volume, VolumeMount,
+    ConfigMapVolumeSource, Container, EnvVar, SecretVolumeSource, Volume, VolumeMount,
 };
 use kube::CustomResource;
 use schemars::JsonSchema;
@@ -13,8 +13,6 @@ const TTL_SECONDS_AFTER_FINISHED: i32 = 3600; // cleanup after 1h
 
 /// Mount point for the workload-cluster kubeconfig secret.
 const KUBECONFIG_PATH: &str = "/kubeconfig/value";
-/// Mount point for the GCR pull-secret Docker config.
-const DOCKER_CONFIG_PATH: &str = "/gcr-secret/config.json";
 /// Mount point for the resolved environment.yaml configmap.
 const ENVIRONMENT_PATH: &str = "/environment/environment.yaml";
 
@@ -74,7 +72,6 @@ impl WorkflowSpec {
             templates: vec![
                 TemplateDef::Main(MainTemplate::new()),
                 TemplateDef::Task(create_namespace(&namespace, env_vars.clone())),
-                TemplateDef::Task(create_pull_secret(&namespace, env_vars.clone())),
                 TemplateDef::Task(create_service_account(&namespace, env_vars.clone())),
                 TemplateDef::Task(deploy_environment(
                     &configmap_name,
@@ -213,44 +210,6 @@ fn create_namespace(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
         ],
         vec![kubeconfig_volume_mount()],
         None,
-        env,
-    )
-}
-
-fn create_pull_secret(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
-    TaskTemplate::new(
-        "create-pull-secret",
-        vec![
-            "create-pull-secret".into(),
-            "--namespace".into(),
-            namespace.into(),
-            "--kubeconfig".into(),
-            KUBECONFIG_PATH.into(),
-            "--docker-config".into(),
-            DOCKER_CONFIG_PATH.into(),
-        ],
-        vec![
-            kubeconfig_volume_mount(),
-            VolumeMount {
-                name: "gcr-secret".into(),
-                mount_path: "/gcr-secret".into(),
-                read_only: Some(true),
-                ..Default::default()
-            },
-        ],
-        Some(vec![Volume {
-            name: "gcr-secret".into(),
-            secret: Some(SecretVolumeSource {
-                secret_name: Some("gcr-secret".into()),
-                items: Some(vec![KeyToPath {
-                    key: ".dockerconfigjson".into(),
-                    path: "config.json".into(),
-                    ..Default::default()
-                }]),
-                ..Default::default()
-            }),
-            ..Default::default()
-        }]),
         env,
     )
 }
