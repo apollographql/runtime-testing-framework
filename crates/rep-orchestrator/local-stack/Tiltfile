@@ -190,11 +190,9 @@ custom_build(
 # Mock GCS server — in-memory store used in place of real GCS for local integration tests
 custom_build(
     "mock-gcs",
-    "docker build --file ../../../crates/mock-gcs/docker/Dockerfile --tag $EXPECTED_REF ../../../",
+    "docker build --file ../../../mock-gcs/Dockerfile --tag $EXPECTED_REF ../../../mock-gcs",
     deps=[
-        "../../../Cargo.lock",
-        "../../../Cargo.toml",
-        "../../../crates/mock-gcs/",
+        "../../../mock-gcs/",
     ],
 )
 k8s_yaml("k8s/mock-gcs.yaml")
