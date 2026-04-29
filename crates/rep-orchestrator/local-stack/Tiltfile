@@ -1,5 +1,9 @@
 load("ext://secret", "secret_from_dict")
 
+# We only have ~10 resources in this file. This ensures that anything that can be worked on
+# can be worked on
+update_settings(max_parallel_updates=6)
+
 allow_k8s_contexts("kind-rtf-mgmt")
 
 config.define_bool("orchestrator-tests", args=False, usage="Run all cargo tests for the orchestrator crate (off by default)")
@@ -86,14 +90,29 @@ k8s_yaml(
 # Make sure the rtf-toolbox image is available on both clusters under its full registry name.
 # The workflow spec references the full GCR path, so the image must be loaded under that name
 # even though it was built locally as rtf-toolbox:edge.
+# We split this into three so we can load the images to each cluster in parallel and show the explicit
+# dependency between the image tagging and loading commands
 TOOLBOX_IMAGE = "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox:edge"
 local_resource(
-    "toolbox-image",
-    cmd=(
-        "docker tag rtf-toolbox:edge {img}"
-        + " && kind load docker-image {img} --name rtf-mgmt"
-        + " && kind load docker-image {img} --name rtf-workload"
-    ).format(img=TOOLBOX_IMAGE),
+    "toolbox-image-tag",
+    cmd="docker tag rtf-toolbox:edge {img}".format(img=TOOLBOX_IMAGE),
+    allow_parallel=True,
+    labels=["infra"],
+)
+
+local_resource(
+    "toolbox-image-mgmt",
+    cmd="kind load docker-image {img} --name rtf-mgmt".format(img=TOOLBOX_IMAGE),
+    resource_deps=["toolbox-image-tag"],
+    allow_parallel=True,
+    labels=["infra"],
+)
+
+local_resource(
+    "toolbox-image-workload",
+    cmd="kind load docker-image {img} --name rtf-workload".format(img=TOOLBOX_IMAGE),
+    resource_deps=["toolbox-image-tag"],
+    allow_parallel=True,
     labels=["infra"],
 )
 
@@ -140,12 +159,18 @@ k8s_resource(
     labels=["infra"],
 )
 
+# Parallelism is explicitly enabled here since the Argo install does not depend on the toolbox
+# image being loaded (the only other local resources)
+# By default, tilt will load all local resources before loading k8s resources. This ensures the local
+# resources load as quickly as possible so the k8s resources can start loading
+# https://docs.tilt.dev/resource_dependencies.html
 local_resource(
     "argo-install",
     cmd="kubectl apply -n argo --server-side --context kind-rtf-mgmt -f "
     + ARGO_INSTALL_URL
     + " && kubectl -n argo rollout status --context kind-rtf-mgmt deployment/workflow-controller --timeout=120s",
     resource_deps=["argo-namespace"],
+    allow_parallel=True,
     labels=["infra"],
 )
 
@@ -190,11 +215,9 @@ custom_build(
 # Mock GCS server — in-memory store used in place of real GCS for local integration tests
 custom_build(
     "mock-gcs",
-    "docker build --file ../../../crates/mock-gcs/docker/Dockerfile --tag $EXPECTED_REF ../../../",
+    "docker build --file ../../../mock-gcs/Dockerfile --tag $EXPECTED_REF ../../../mock-gcs",
     deps=[
-        "../../../Cargo.lock",
-        "../../../Cargo.toml",
-        "../../../crates/mock-gcs/",
+        "../../../mock-gcs/",
     ],
 )
 k8s_yaml("k8s/mock-gcs.yaml")
@@ -227,7 +250,7 @@ k8s_resource(
     "rep-orchestrator",
     objects=["rep-orchestrator:secret:orchestrator"],
     port_forwards=["8035:8035"],
-    resource_deps=["cluster-setup", "postgres", "argo-install", "mock-gcs"],
+    resource_deps=["cluster-setup"],
     labels=["rep-orchestrator"],
 )
 
