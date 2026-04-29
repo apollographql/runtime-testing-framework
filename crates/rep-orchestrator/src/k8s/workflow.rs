@@ -122,12 +122,8 @@ impl MainTemplate {
             dag: Dag {
                 tasks: vec![
                     TaskSpec::new("create-namespace", &[]),
-                    TaskSpec::new("create-pull-secret", &["create-namespace"]),
                     TaskSpec::new("create-service-account", &["create-namespace"]),
-                    TaskSpec::new(
-                        "deploy-environment",
-                        &["create-pull-secret", "create-service-account"],
-                    ),
+                    TaskSpec::new("deploy-environment", &["create-service-account"]),
                 ],
             },
         }
