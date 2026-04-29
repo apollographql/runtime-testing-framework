@@ -9,7 +9,8 @@ use kube::CustomResource;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-const TTL_SECONDS_AFTER_FINISHED: i32 = 3600; // cleanup after 1h
+const TTL_SECONDS_AFTER_FINISHED: i32 = 10; // cleanup after 10s
+const TTL_SECONDS_AFTER_FAILED: i32 = 120; // cleanup after 2m when failed for debugging
 
 /// Mount point for the workload-cluster kubeconfig secret.
 const KUBECONFIG_PATH: &str = "/kubeconfig/value";
@@ -26,6 +27,7 @@ pub struct WorkflowStatus {
 #[serde(rename_all = "camelCase")]
 pub struct TtlStrategy {
     pub seconds_after_completion: Option<i32>,
+    pub seconds_after_failure: Option<i32>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize, JsonSchema)]
@@ -90,6 +92,7 @@ impl WorkflowSpec {
             }],
             ttl_strategy: Some(TtlStrategy {
                 seconds_after_completion: Some(TTL_SECONDS_AFTER_FINISHED),
+                seconds_after_failure: Some(TTL_SECONDS_AFTER_FAILED),
             }),
             // Delete the workflow pods if the workflow succeeds
             // Retains failed pods for debugging
