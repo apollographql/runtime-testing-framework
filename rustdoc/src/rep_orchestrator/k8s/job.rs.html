@@ -10,32 +10,32 @@
 <a href=#10 id=10 data-nosnippet>10</a>    },
 <a href=#11 id=11 data-nosnippet>11</a>};
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span>kube::api::ObjectMeta;
-<a href=#13 id=13 data-nosnippet>13</a><span class="kw">use </span>rtf_config::formats::DockerScenario;
-<a href=#14 id=14 data-nosnippet>14</a><span class="kw">use </span>std::collections::BTreeMap;
-<a href=#15 id=15 data-nosnippet>15</a>
-<a href=#16 id=16 data-nosnippet>16</a><span class="kw">pub const </span>CONFIG_MAP_NAME_SCENARIO: <span class="kw-2">&amp;</span>str = <span class="string">"rtf-scenario-config"</span>;
-<a href=#17 id=17 data-nosnippet>17</a>
-<a href=#18 id=18 data-nosnippet>18</a><span class="kw">const </span>SHARED_DIR_PATH: <span class="kw-2">&amp;</span>str = <span class="string">"/shared"</span>;
-<a href=#19 id=19 data-nosnippet>19</a><span class="kw">const </span>SCENARIO_CONFIG_DIR: <span class="kw-2">&amp;</span>str = <span class="string">"/scenario"</span>;
-<a href=#20 id=20 data-nosnippet>20</a><span class="kw">const </span>SCENARIO_CONFIG_PATH: <span class="kw-2">&amp;</span>str = <span class="string">"/scenario/scenario.yaml"</span>;
-<a href=#21 id=21 data-nosnippet>21</a><span class="kw">const </span>TTL_SECONDS_AFTER_FINISHED: i32 = <span class="number">3600</span>; <span class="comment">// cleanup after 1h
-<a href=#22 id=22 data-nosnippet>22</a>
-<a href=#23 id=23 data-nosnippet>23</a></span><span class="kw">const </span>VOLUME_MOUNT_NAME_CONFIG: <span class="kw-2">&amp;</span>str = <span class="string">"scenario-config"</span>;
-<a href=#24 id=24 data-nosnippet>24</a><span class="kw">const </span>VOLUME_MOUNT_NAME_SHARED: <span class="kw-2">&amp;</span>str = <span class="string">"shared"</span>;
-<a href=#25 id=25 data-nosnippet>25</a>
-<a href=#26 id=26 data-nosnippet>26</a><span class="doccomment">/// Build a [JobSpec] that runs a [DockerScenario] under REP.
-<a href=#27 id=27 data-nosnippet>27</a>///
-<a href=#28 id=28 data-nosnippet>28</a>/// Layout:
-<a href=#29 id=29 data-nosnippet>29</a>/// - Init container `rtf-resolve` (toolbox image) resolves the scenario config and writes
-<a href=#30 id=30 data-nosnippet>30</a>///   `run.sh` into the shared volume via `rep-orchestrator-cli prepare-scenario`.
-<a href=#31 id=31 data-nosnippet>31</a>/// - Regular container `scenario-runner` (user image) executes `run.sh`. On exit, the script
-<a href=#32 id=32 data-nosnippet>32</a>///   touches a sentinel file in the shared volume so the `output-collector` running in
-<a href=#33 id=33 data-nosnippet>33</a>///   parallel can detect completion.
-<a href=#34 id=34 data-nosnippet>34</a>/// - Regular container `output-collector` (toolbox image) polls for the sentinel, uploads
-<a href=#35 id=35 data-nosnippet>35</a>///   artifacts, and posts the terminal status via `rep-orchestrator-cli collect-output`.
-<a href=#36 id=36 data-nosnippet>36</a></span><span class="kw">pub fn </span>scenario_job(
-<a href=#37 id=37 data-nosnippet>37</a>    ex: <span class="kw-2">&amp;</span>TestExecution,
-<a href=#38 id=38 data-nosnippet>38</a>    scenario: <span class="kw-2">&amp;</span>DockerScenario,
+<a href=#13 id=13 data-nosnippet>13</a><span class="kw">use </span>std::collections::BTreeMap;
+<a href=#14 id=14 data-nosnippet>14</a>
+<a href=#15 id=15 data-nosnippet>15</a><span class="kw">pub const </span>CONFIG_MAP_NAME_SCENARIO: <span class="kw-2">&amp;</span>str = <span class="string">"rtf-scenario-config"</span>;
+<a href=#16 id=16 data-nosnippet>16</a>
+<a href=#17 id=17 data-nosnippet>17</a><span class="kw">const </span>SHARED_DIR_PATH: <span class="kw-2">&amp;</span>str = <span class="string">"/shared"</span>;
+<a href=#18 id=18 data-nosnippet>18</a><span class="kw">const </span>SCENARIO_CONFIG_DIR: <span class="kw-2">&amp;</span>str = <span class="string">"/scenario"</span>;
+<a href=#19 id=19 data-nosnippet>19</a><span class="kw">const </span>SCENARIO_CONFIG_PATH: <span class="kw-2">&amp;</span>str = <span class="string">"/scenario/scenario.yaml"</span>;
+<a href=#20 id=20 data-nosnippet>20</a><span class="kw">const </span>TTL_SECONDS_AFTER_FINISHED: i32 = <span class="number">3600</span>; <span class="comment">// cleanup after 1h
+<a href=#21 id=21 data-nosnippet>21</a>
+<a href=#22 id=22 data-nosnippet>22</a></span><span class="kw">const </span>VOLUME_MOUNT_NAME_CONFIG: <span class="kw-2">&amp;</span>str = <span class="string">"scenario-config"</span>;
+<a href=#23 id=23 data-nosnippet>23</a><span class="kw">const </span>VOLUME_MOUNT_NAME_SHARED: <span class="kw-2">&amp;</span>str = <span class="string">"shared"</span>;
+<a href=#24 id=24 data-nosnippet>24</a>
+<a href=#25 id=25 data-nosnippet>25</a><span class="doccomment">/// Build a [JobSpec] that runs a `DockerScenario` under REP.
+<a href=#26 id=26 data-nosnippet>26</a>///
+<a href=#27 id=27 data-nosnippet>27</a>/// Layout:
+<a href=#28 id=28 data-nosnippet>28</a>/// - Init container `rtf-resolve` (toolbox image) resolves the scenario config and writes
+<a href=#29 id=29 data-nosnippet>29</a>///   `run.sh` into the shared volume via `rep-orchestrator-cli prepare-scenario`.
+<a href=#30 id=30 data-nosnippet>30</a>/// - Regular container `scenario-runner` (user image) executes `run.sh`. On exit, the script
+<a href=#31 id=31 data-nosnippet>31</a>///   touches a sentinel file in the shared volume so the `output-collector` running in
+<a href=#32 id=32 data-nosnippet>32</a>///   parallel can detect completion.
+<a href=#33 id=33 data-nosnippet>33</a>/// - Regular container `output-collector` (toolbox image) polls for the sentinel, uploads
+<a href=#34 id=34 data-nosnippet>34</a>///   artifacts, and posts the terminal status via `rep-orchestrator-cli collect-output`.
+<a href=#35 id=35 data-nosnippet>35</a></span><span class="kw">pub fn </span>scenario_job(
+<a href=#36 id=36 data-nosnippet>36</a>    ex: <span class="kw-2">&amp;</span>TestExecution,
+<a href=#37 id=37 data-nosnippet>37</a>    scenario_image: String,
+<a href=#38 id=38 data-nosnippet>38</a>    scenario_command: String,
 <a href=#39 id=39 data-nosnippet>39</a>    orchestrator_url: <span class="kw-2">&amp;</span>str,
 <a href=#40 id=40 data-nosnippet>40</a>) -&gt; JobSpec {
 <a href=#41 id=41 data-nosnippet>41</a>    <span class="kw">let </span>env = ex.toolbox_env_vars(orchestrator_url);
@@ -53,9 +53,9 @@
 <a href=#53 id=53 data-nosnippet>53</a>            }),
 <a href=#54 id=54 data-nosnippet>54</a>            spec: <span class="prelude-val">Some</span>(PodSpec {
 <a href=#55 id=55 data-nosnippet>55</a>                restart_policy: <span class="prelude-val">Some</span>(<span class="string">"Never"</span>.to_owned()),
-<a href=#56 id=56 data-nosnippet>56</a>                init_containers: <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[rtf_resolve_container_spec(scenario, <span class="kw-2">&amp;</span>env)]),
+<a href=#56 id=56 data-nosnippet>56</a>                init_containers: <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[rtf_resolve_container_spec(scenario_command, <span class="kw-2">&amp;</span>env)]),
 <a href=#57 id=57 data-nosnippet>57</a>                containers: <span class="macro">vec!</span>[
-<a href=#58 id=58 data-nosnippet>58</a>                    scenario_run_container_spec(scenario),
+<a href=#58 id=58 data-nosnippet>58</a>                    scenario_run_container_spec(scenario_image),
 <a href=#59 id=59 data-nosnippet>59</a>                    output_collector_container_spec(<span class="kw-2">&amp;</span>env),
 <a href=#60 id=60 data-nosnippet>60</a>                ],
 <a href=#61 id=61 data-nosnippet>61</a>                volumes: <span class="prelude-val">Some</span>(scenario_volumes()),
@@ -66,7 +66,7 @@
 <a href=#66 id=66 data-nosnippet>66</a>    }
 <a href=#67 id=67 data-nosnippet>67</a>}
 <a href=#68 id=68 data-nosnippet>68</a>
-<a href=#69 id=69 data-nosnippet>69</a><span class="kw">fn </span>rtf_resolve_container_spec(scenario: <span class="kw-2">&amp;</span>DockerScenario, env: <span class="kw-2">&amp;</span>[EnvVar]) -&gt; Container {
+<a href=#69 id=69 data-nosnippet>69</a><span class="kw">fn </span>rtf_resolve_container_spec(scenario_command: String, env: <span class="kw-2">&amp;</span>[EnvVar]) -&gt; Container {
 <a href=#70 id=70 data-nosnippet>70</a>    Container {
 <a href=#71 id=71 data-nosnippet>71</a>        name: <span class="string">"rtf-resolve"</span>.to_owned(),
 <a href=#72 id=72 data-nosnippet>72</a>        image: <span class="prelude-val">Some</span>(TOOLBOX_IMAGE.to_owned()),
@@ -78,7 +78,7 @@
 <a href=#78 id=78 data-nosnippet>78</a>            <span class="string">"--shared-dir"</span>.into(),
 <a href=#79 id=79 data-nosnippet>79</a>            SHARED_DIR_PATH.into(),
 <a href=#80 id=80 data-nosnippet>80</a>            <span class="string">"--command"</span>.into(),
-<a href=#81 id=81 data-nosnippet>81</a>            scenario.command(),
+<a href=#81 id=81 data-nosnippet>81</a>            scenario_command,
 <a href=#82 id=82 data-nosnippet>82</a>        ]),
 <a href=#83 id=83 data-nosnippet>83</a>        env: <span class="prelude-val">Some</span>(env.to_vec()),
 <a href=#84 id=84 data-nosnippet>84</a>        volume_mounts: <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[
@@ -99,10 +99,10 @@
 <a href=#99 id=99 data-nosnippet>99</a>    }
 <a href=#100 id=100 data-nosnippet>100</a>}
 <a href=#101 id=101 data-nosnippet>101</a>
-<a href=#102 id=102 data-nosnippet>102</a><span class="kw">fn </span>scenario_run_container_spec(scenario: <span class="kw-2">&amp;</span>DockerScenario) -&gt; Container {
+<a href=#102 id=102 data-nosnippet>102</a><span class="kw">fn </span>scenario_run_container_spec(scenario_image: String) -&gt; Container {
 <a href=#103 id=103 data-nosnippet>103</a>    Container {
 <a href=#104 id=104 data-nosnippet>104</a>        name: <span class="string">"scenario-runner"</span>.to_owned(),
-<a href=#105 id=105 data-nosnippet>105</a>        image: <span class="prelude-val">Some</span>(scenario.docker_image()),
+<a href=#105 id=105 data-nosnippet>105</a>        image: <span class="prelude-val">Some</span>(scenario_image),
 <a href=#106 id=106 data-nosnippet>106</a>        image_pull_policy: <span class="prelude-val">Some</span>(<span class="string">"Always"</span>.to_string()),
 <a href=#107 id=107 data-nosnippet>107</a>        command: <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[<span class="string">"/bin/sh"</span>.to_owned(), <span class="string">"/shared/run.sh"</span>.to_owned()]),
 <a href=#108 id=108 data-nosnippet>108</a>        working_dir: <span class="prelude-val">Some</span>(SHARED_DIR_PATH.to_owned()),
