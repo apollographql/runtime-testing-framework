@@ -46,7 +46,7 @@ jobs:
 
   orchestrator-test:
     name: REP orchestrator tests
-    runs-on: rust-4c
+    runs-on: rust-8c
     needs: [read-rust-version, check-for-updated-files]
     if: ${{ needs.check-for-updated-files.outputs.should_run_tests == 'true' }}
     timeout-minutes: 45
