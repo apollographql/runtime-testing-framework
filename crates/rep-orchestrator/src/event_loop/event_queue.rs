@@ -163,6 +163,13 @@ impl EventQueue {
         }
     }
 
+    async fn with_shared<F, T>(&self, f: F) -> T
+    where
+        F: AsyncFnOnce(&mut Shared) -> T,
+    {
+        f(&mut *self.shared.lock().await).await
+    }
+
     /// Remove the given execution from the running set, freeing a namespace slot for the
     /// next pending provision event, and decrement the parent run's outstanding-execution
     /// count.
@@ -174,34 +181,36 @@ impl EventQueue {
             warn!(%ex_id, "mark_execution_complete called for unknown execution id");
         }
 
-        let mut shared = self.shared.lock().await;
-        let run_uuid = shared.execution_map.remove(&ex_id)?;
-        let active = shared.active_run_executions.get_mut(&run_uuid)?;
-        active.remove(&ex_id);
+        self.with_shared(async |shared| {
+            let run_uuid = shared.execution_map.remove(&ex_id)?;
+            let active = shared.active_run_executions.get_mut(&run_uuid)?;
+            active.remove(&ex_id);
 
-        if active.is_empty() {
-            shared.active_run_executions.remove(&run_uuid);
-            shared.payload_cache.remove(&run_uuid);
-            Some(run_uuid)
-        } else {
-            None
-        }
+            if active.is_empty() {
+                shared.active_run_executions.remove(&run_uuid);
+                shared.payload_cache.remove(&run_uuid);
+                Some(run_uuid)
+            } else {
+                None
+            }
+        })
+        .await
     }
 
     pub(crate) async fn resolve_environment_for_execution(
         &self,
         ex: &TestExecution,
     ) -> resolver::Result<DockerComposeEnvironment> {
-        let shared = self.shared.lock().await;
-        shared.resolve_environment_for_execution(ex).await
+        self.with_shared(async |shared| shared.resolve_environment_for_execution(ex).await)
+            .await
     }
 
     pub(crate) async fn resolve_scenario_for_execution(
         &self,
         ex: &TestExecution,
     ) -> resolver::Result<DockerScenario> {
-        let shared = self.shared.lock().await;
-        shared.resolve_scenario_for_execution(ex).await
+        self.with_shared(async |shared| shared.resolve_scenario_for_execution(ex).await)
+            .await
     }
 }
 
