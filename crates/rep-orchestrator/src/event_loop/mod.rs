@@ -14,8 +14,8 @@ use crate::{
     db::{TestExecution, UpdateHandle},
     event_loop::provision_environment::MSG_ARGO_COMPLETE,
     k8s::ClusterClients,
+    resolver::ResolverError,
 };
-use rtf_config::formats::{DockerComposeEnvironment, DockerScenario};
 use tracing::{error, warn};
 
 mod cleanup_namespace;
@@ -52,7 +52,7 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
 
         if let Err(err) = evt
             .handle(
-                &event_queue,
+                &mut event_queue,
                 orchestrator_url,
                 kubeconfig_secret_name,
                 clients.clone(),
@@ -77,6 +77,9 @@ enum Error {
 
     #[error(transparent)]
     K8s(#[from] crate::k8s::Error),
+
+    #[error(transparent)]
+    Resolve(#[from] ResolverError),
 
     #[error("unable to create Argo workflow: {error}")]
     CreateArgoWorkflow {
@@ -106,15 +109,15 @@ enum Error {
 
 type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EventData {
-    CreateEnvConfigMap(DockerComposeEnvironment, DockerScenario),
-    CreateEnvArgoWorkflow(DockerScenario),
-    WaitForEnvArgoWorkflow(DockerScenario),
+    CreateEnvConfigMap,
+    CreateEnvArgoWorkflow,
+    WaitForEnvArgoWorkflow,
     ArgoWorkflowComplete,
 
-    CreateScenarioConfigMap(DockerScenario),
-    CreateScenarioJob(DockerScenario),
+    CreateScenarioConfigMap,
+    CreateScenarioJob { image: String, command: String },
     WaitForScenarioJob,
 
     CleanupNamespace,
@@ -124,16 +127,29 @@ pub enum EventData {
 impl EventData {
     fn name(&self) -> &'static str {
         match self {
-            Self::CreateEnvConfigMap(_, _) => "CreateEnvConfigMap",
-            Self::CreateEnvArgoWorkflow(_) => "CreateEnvArgoWorkflow",
-            Self::WaitForEnvArgoWorkflow(_) => "WaitForEnvArgoWorkflow",
+            Self::CreateEnvConfigMap => "CreateEnvConfigMap",
+            Self::CreateEnvArgoWorkflow => "CreateEnvArgoWorkflow",
+            Self::WaitForEnvArgoWorkflow => "WaitForEnvArgoWorkflow",
             Self::ArgoWorkflowComplete => "ArgoWorkflowComplete",
-            Self::CreateScenarioConfigMap(_) => "CreateScenarioConfigMap",
-            Self::CreateScenarioJob(_) => "CreateScenarioJob",
+            Self::CreateScenarioConfigMap => "CreateScenarioConfigMap",
+            Self::CreateScenarioJob { .. } => "CreateScenarioJob",
             Self::WaitForScenarioJob => "WaitForScenarioJob",
             Self::MarkUnrunnable(_) => "MarkUnrunnable",
             Self::CleanupNamespace => "CleanupNamespace",
         }
+    }
+
+    /// Whether or not a handler failure for this event should cause us to queue a CleanupNamespace
+    /// event.
+    fn requires_cleanup_on_error(&self) -> bool {
+        matches!(
+            self,
+            EventData::WaitForEnvArgoWorkflow
+                | EventData::ArgoWorkflowComplete
+                | EventData::CreateScenarioConfigMap
+                | EventData::CreateScenarioJob { .. }
+                | EventData::WaitForScenarioJob
+        )
     }
 }
 
@@ -148,29 +164,36 @@ pub struct Event {
 impl Event {
     async fn handle(
         self,
-        event_queue: &EventQueue,
+        event_queue: &mut EventQueue,
         orchestrator_url: &str,
         kubeconfig_secret_name: &str,
         clients: ClusterClients,
     ) -> Result<()> {
         let conn = conn!();
+        let cleanup_on_error = self.data.requires_cleanup_on_error();
 
         let res = match self.data {
-            EventData::CreateEnvConfigMap(environment, scenario) => {
-                provision_environment::create_config_map(
-                    self.test_execution.clone(),
-                    environment,
-                    scenario,
-                    clients.clone(),
-                    conn,
-                )
-                .await
+            EventData::CreateEnvConfigMap => {
+                match event_queue
+                    .resolve_environment_for_execution(&self.test_execution)
+                    .await
+                {
+                    Ok(env_cfg) => {
+                        provision_environment::create_config_map(
+                            self.test_execution.clone(),
+                            env_cfg,
+                            clients,
+                            conn,
+                        )
+                        .await
+                    }
+                    Err(e) => Err(e.into()),
+                }
             }
 
-            EventData::CreateEnvArgoWorkflow(scenario) => {
+            EventData::CreateEnvArgoWorkflow => {
                 provision_environment::create_workflow(
                     self.test_execution.clone(),
-                    scenario,
                     orchestrator_url,
                     kubeconfig_secret_name,
                     clients.clone(),
@@ -179,12 +202,11 @@ impl Event {
                 .await
             }
 
-            EventData::WaitForEnvArgoWorkflow(scenario) => {
+            EventData::WaitForEnvArgoWorkflow => {
                 provision_environment::wait_for_workflow(
                     self.test_execution.clone(),
-                    scenario,
                     event_queue.tx(),
-                    clients.clone(),
+                    clients,
                     conn,
                 )
                 .await
@@ -197,20 +219,29 @@ impl Event {
                 Ok(None)
             }
 
-            EventData::CreateScenarioConfigMap(scenario) => {
-                run_scenario::create_config_map(
-                    self.test_execution.clone(),
-                    scenario,
-                    clients,
-                    conn,
-                )
-                .await
+            EventData::CreateScenarioConfigMap => {
+                match event_queue
+                    .resolve_scenario_for_execution(&self.test_execution)
+                    .await
+                {
+                    Ok(scenario_cfg) => {
+                        run_scenario::create_config_map(
+                            self.test_execution.clone(),
+                            scenario_cfg,
+                            clients,
+                            conn,
+                        )
+                        .await
+                    }
+                    Err(e) => Err(e.into()),
+                }
             }
 
-            EventData::CreateScenarioJob(scenario) => {
+            EventData::CreateScenarioJob { image, command } => {
                 run_scenario::create_job(
                     self.test_execution.clone(),
-                    scenario,
+                    image,
+                    command,
                     orchestrator_url,
                     clients,
                     conn,
@@ -230,9 +261,12 @@ impl Event {
 
             EventData::CleanupNamespace => {
                 let res = cleanup_namespace::try_run(self.test_execution.clone(), clients).await;
-                event_queue
+                if let Some(run_uuid) = event_queue
                     .mark_execution_complete(self.test_execution.uuid())
-                    .await;
+                    .await
+                {
+                    conn.clear_cached_payload_for_run(run_uuid).await;
+                }
 
                 res
             }
@@ -257,7 +291,14 @@ impl Event {
 
             Err(e) => {
                 conn.mark_execution_as_unrunnable(&self.test_execution, e.to_string())
-                    .await
+                    .await;
+
+                if cleanup_on_error {
+                    let _ = event_queue.tx().send(Event {
+                        test_execution: self.test_execution,
+                        data: EventData::CleanupNamespace,
+                    });
+                }
             }
         };
 

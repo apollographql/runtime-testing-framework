@@ -10,7 +10,6 @@ use k8s_openapi::api::{
     },
 };
 use kube::api::ObjectMeta;
-use rtf_config::formats::DockerScenario;
 use std::collections::BTreeMap;
 
 pub const CONFIG_MAP_NAME_SCENARIO: &str = "rtf-scenario-config";
@@ -23,7 +22,7 @@ const TTL_SECONDS_AFTER_FINISHED: i32 = 3600; // cleanup after 1h
 const VOLUME_MOUNT_NAME_CONFIG: &str = "scenario-config";
 const VOLUME_MOUNT_NAME_SHARED: &str = "shared";
 
-/// Build a [JobSpec] that runs a [DockerScenario] under REP.
+/// Build a [JobSpec] that runs a `DockerScenario` under REP.
 ///
 /// Layout:
 /// - Init container `rtf-resolve` (toolbox image) resolves the scenario config and writes
@@ -35,7 +34,8 @@ const VOLUME_MOUNT_NAME_SHARED: &str = "shared";
 ///   artifacts, and posts the terminal status via `rep-orchestrator-cli collect-output`.
 pub fn scenario_job(
     ex: &TestExecution,
-    scenario: &DockerScenario,
+    scenario_image: String,
+    scenario_command: String,
     orchestrator_url: &str,
 ) -> JobSpec {
     let env = ex.toolbox_env_vars(orchestrator_url);
@@ -53,9 +53,9 @@ pub fn scenario_job(
             }),
             spec: Some(PodSpec {
                 restart_policy: Some("Never".to_owned()),
-                init_containers: Some(vec![rtf_resolve_container_spec(scenario, &env)]),
+                init_containers: Some(vec![rtf_resolve_container_spec(scenario_command, &env)]),
                 containers: vec![
-                    scenario_run_container_spec(scenario),
+                    scenario_run_container_spec(scenario_image),
                     output_collector_container_spec(&env),
                 ],
                 volumes: Some(scenario_volumes()),
@@ -66,7 +66,7 @@ pub fn scenario_job(
     }
 }
 
-fn rtf_resolve_container_spec(scenario: &DockerScenario, env: &[EnvVar]) -> Container {
+fn rtf_resolve_container_spec(scenario_command: String, env: &[EnvVar]) -> Container {
     Container {
         name: "rtf-resolve".to_owned(),
         image: Some(TOOLBOX_IMAGE.to_owned()),
@@ -78,7 +78,7 @@ fn rtf_resolve_container_spec(scenario: &DockerScenario, env: &[EnvVar]) -> Cont
             "--shared-dir".into(),
             SHARED_DIR_PATH.into(),
             "--command".into(),
-            scenario.command(),
+            scenario_command,
         ]),
         env: Some(env.to_vec()),
         volume_mounts: Some(vec![
@@ -99,10 +99,10 @@ fn rtf_resolve_container_spec(scenario: &DockerScenario, env: &[EnvVar]) -> Cont
     }
 }
 
-fn scenario_run_container_spec(scenario: &DockerScenario) -> Container {
+fn scenario_run_container_spec(scenario_image: String) -> Container {
     Container {
         name: "scenario-runner".to_owned(),
-        image: Some(scenario.docker_image()),
+        image: Some(scenario_image),
         image_pull_policy: Some("Always".to_string()),
         command: Some(vec!["/bin/sh".to_owned(), "/shared/run.sh".to_owned()]),
         working_dir: Some(SHARED_DIR_PATH.to_owned()),

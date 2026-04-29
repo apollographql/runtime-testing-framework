@@ -1,18 +1,30 @@
 use crate::{
+    context::RepContext,
     db::{TestExecution, TestRun},
     event_loop::{Event, EventData},
+    resolver::{self, ResolverError},
     state::TestRunWithPayload,
 };
 use rep_orchestrator_shared::{payload::TriggerPayload, test_plan::RepTestPlan};
+use rtf_config::{
+    StableSource,
+    checks::Check,
+    context::ResolutionContext,
+    formats::{DockerComposeEnvironment, DockerScenario},
+    inlining::InlineMode,
+    run::RunProviders,
+    templating::{Template, TemplateContext},
+};
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
+    mem::take,
     sync::Arc,
 };
 use tokio::sync::{
-    Mutex, Notify,
+    Mutex,
     mpsc::{UnboundedReceiver, UnboundedSender, error::TryRecvError, unbounded_channel},
 };
-use tracing::{error, info, warn};
+use tracing::{error, warn};
 use uuid::Uuid;
 
 /// Coordinates queuing of k8s events to provide back pressure and prioritise running executions
@@ -33,8 +45,10 @@ pub struct EventQueue {
     pending_non_provisions: VecDeque<Event>,
     /// Pending provisioning events for new executions
     pending_provisions: VecDeque<Event>,
-    /// Notifier for waking up the resolver when it waits for an available namespace slot
-    notify: Arc<Notify>,
+    /// Uuids for the set of executions whose namespaces are live in the cluster.
+    running_executions: HashSet<Uuid>,
+    /// Maximum number of live namespaces running test executions
+    max_concurrent_executions: usize,
 }
 
 impl EventQueue {
@@ -50,12 +64,12 @@ impl EventQueue {
         UnboundedReceiver<TestRunWithPayload>,
     ) {
         let shared = Arc::new(Mutex::new(Shared {
-            max_concurrent_executions,
+            execution_map: HashMap::new(),
+            payload_cache: HashMap::new(),
+            active_run_executions: HashMap::new(),
             max_queued_executions,
-            running_executions: HashSet::new(),
             n_queued: 0,
         }));
-        let notify = Arc::new(Notify::new());
         let (tx_resolve, rx_resolve) = unbounded_channel();
         let (tx, rx) = unbounded_channel();
 
@@ -65,13 +79,13 @@ impl EventQueue {
             shared,
             pending_provisions: VecDeque::new(),
             pending_non_provisions: VecDeque::new(),
-            notify,
+            running_executions: HashSet::new(),
+            max_concurrent_executions,
         };
 
         let ph = ProvisioningHandle {
             shared: eq.shared.clone(),
             tx: eq.tx.clone(),
-            notify: eq.notify.clone(),
         };
 
         let eqs = EventQueueState {
@@ -95,8 +109,20 @@ impl EventQueue {
     #[inline(always)]
     fn push_event(&mut self, evt: Event) {
         match &evt.data {
-            EventData::CreateEnvConfigMap(_, _) => self.pending_provisions.push_back(evt),
+            EventData::CreateEnvConfigMap => self.pending_provisions.push_back(evt),
             _ => self.pending_non_provisions.push_back(evt),
+        }
+    }
+
+    fn still_have_external_senders(&self) -> bool {
+        self.rx.sender_strong_count() > 1
+    }
+
+    fn runnable_provisioning_event(&mut self) -> Option<Event> {
+        if self.running_executions.len() < self.max_concurrent_executions {
+            self.pending_provisions.pop_front()
+        } else {
+            None
         }
     }
 
@@ -104,59 +130,87 @@ impl EventQueue {
     /// provisioning new namespaces.
     ///
     /// We buffer events internally and fully drain the channel of any events received since the
-    /// last call to `next_event`. This method only blocks when there are no internally buffered
-    /// events and the channel is currently empty.
+    /// last call to `next_event`. This method blocks when there are no internally buffered events
+    /// and the channel is currently empty or if we are running `max_concurrent_executions` and the
+    /// only queued events would provision a new namespace.
     ///
-    /// Returns [None] when the event channel is closed as per [UnboundedReceiver::recv] or if the
-    /// only remaining `sender` is the one held within this struct.
+    /// Returns [None] when all external senders have been dropped and the internal queues
+    /// are empty.
     pub async fn next_event(&mut self) -> Option<Event> {
-        // If our channel is empty and we have nothing queued we block and wait for the next event
-        // to arrive.
-        if self.is_empty() {
-            let evt = self.rx.recv().await?;
-            self.push_event(evt);
-        }
-
-        // Drain any pending events from the channel before we determine which event to handle next
         loop {
-            // If only our own sender remains, all external senders have been dropped and
-            // no new events will arrive from outside the event loop.
-            if self.rx.sender_strong_count() <= 1 {
+            while self.still_have_external_senders() {
+                match self.rx.try_recv() {
+                    Ok(evt) => self.push_event(evt),
+                    Err(TryRecvError::Empty) => break,
+                    Err(TryRecvError::Disconnected) => unreachable!("we hold a sender"),
+                }
+            }
+
+            if let Some(evt) = self.pending_non_provisions.pop_front() {
+                return Some(evt);
+            } else if let Some(evt) = self.runnable_provisioning_event() {
+                self.running_executions.insert(evt.test_execution.uuid());
+                return Some(evt);
+            }
+
+            if self.still_have_external_senders() {
+                let evt = self.rx.recv().await?;
+                self.push_event(evt);
+            } else {
+                // all external senders gone so event stream is now closed
                 return None;
             }
-
-            match self.rx.try_recv() {
-                Ok(evt) => self.push_event(evt),
-                Err(TryRecvError::Empty) => break,
-                Err(TryRecvError::Disconnected) => unreachable!("we hold a sender"),
-            }
         }
-
-        assert!(
-            !(self.pending_non_provisions.is_empty() && self.pending_provisions.is_empty()),
-            "should have at least one event at this point"
-        );
-
-        // Prefer progressing ongoing executions over provisioning new ones
-        self.pending_non_provisions
-            .pop_front()
-            .or_else(|| self.pending_provisions.pop_front())
     }
 
-    /// Remove the given execution from the running set and notify the resolver task that a
-    /// namespace slot is now available.
-    pub async fn mark_execution_complete(&self, execution_id: Uuid) {
-        // Ensure that we release the mutex before notifying the resolver task.
-        {
-            let mut shared = self.shared.lock().await;
-            if !shared.running_executions.remove(&execution_id) {
-                warn!(%execution_id, "mark_execution_complete called for unknown execution id");
-            }
+    async fn with_shared<F, T>(&self, f: F) -> T
+    where
+        F: AsyncFnOnce(&mut Shared) -> T,
+    {
+        f(&mut *self.shared.lock().await).await
+    }
+
+    /// Remove the given execution from the running set, freeing a namespace slot for the
+    /// next pending provision event, and decrement the parent run's outstanding-execution
+    /// count.
+    ///
+    /// Returns `Some(run_uuid)` if this was the final execution for its parent run, otherwise
+    /// `None`.
+    pub async fn mark_execution_complete(&mut self, ex_id: Uuid) -> Option<Uuid> {
+        if !self.running_executions.remove(&ex_id) {
+            warn!(%ex_id, "mark_execution_complete called for unknown execution id");
         }
 
-        // Always notify: the namespace is gone regardless of whether we tracked it, and the
-        // resolver must be woken so it can re-check capacity.
-        self.notify.notify_one();
+        self.with_shared(async |shared| {
+            let run_uuid = shared.execution_map.remove(&ex_id)?;
+            let active = shared.active_run_executions.get_mut(&run_uuid)?;
+            active.remove(&ex_id);
+
+            if active.is_empty() {
+                shared.active_run_executions.remove(&run_uuid);
+                shared.payload_cache.remove(&run_uuid);
+                Some(run_uuid)
+            } else {
+                None
+            }
+        })
+        .await
+    }
+
+    pub(crate) async fn resolve_environment_for_execution(
+        &self,
+        ex: &TestExecution,
+    ) -> resolver::Result<DockerComposeEnvironment> {
+        self.with_shared(async |shared| shared.resolve_environment_for_execution(ex).await)
+            .await
+    }
+
+    pub(crate) async fn resolve_scenario_for_execution(
+        &self,
+        ex: &TestExecution,
+    ) -> resolver::Result<DockerScenario> {
+        self.with_shared(async |shared| shared.resolve_scenario_for_execution(ex).await)
+            .await
     }
 }
 
@@ -167,71 +221,66 @@ pub struct ProvisioningHandle {
     shared: Arc<Mutex<Shared>>,
     /// Sender for submitting provisioning events to the event queue
     tx: UnboundedSender<Event>,
-    /// Notifier used to wait for namespace capacity
-    notify: Arc<Notify>,
 }
 
 impl ProvisioningHandle {
-    /// Wait for a namespace slot to become available.
-    ///
-    /// Assumes that the caller is the only task waiting for namespace capacity.
-    async fn wait_for_namespace_capacity(&self) {
-        // We need to make sure that we release the mutex once we've checked capacity to avoid
-        // deadlock.
-        let at_or_over_capacity = {
-            let shared = self.shared.lock().await;
-            let current = shared.running_executions.len();
-            let max = shared.max_concurrent_executions;
-
-            if current > max {
-                error!(
-                    "currently have {current} active namespaces but should be capped at a max of {max}"
-                );
-            }
-
-            // Using `>=` to ensure that we always wait even if we somehow manage to provision more
-            // executions than we should have.
-            current >= max
-        };
-
-        if at_or_over_capacity {
-            info!("waiting for an available namespace slot");
-            self.notify.notified().await
-        }
+    async fn with_shared<F, T>(&self, f: F) -> T
+    where
+        F: AsyncFnOnce(&mut Shared) -> T,
+    {
+        f(&mut *self.shared.lock().await).await
     }
 
-    /// Atomically decrement n_queued, add `ex` to the running executions set and send the
-    /// provisioning event to the event loop.
-    ///
-    /// Returns `false` if unable to send the event to the event loop, otherwise `true`.
-    pub async fn request_provisioning(&self, ex: TestExecution, tp: RepTestPlan) -> bool {
-        // We don't need to worry about a race condition between waiting for capacity and
-        // re-acquiring the lock as we are the only task attempting to provision executions.
-        self.wait_for_namespace_capacity().await;
+    pub(crate) async fn cache_for_test_run(
+        &self,
+        run_uuid: Uuid,
+        ctx: RepContext,
+        test_plan: RepTestPlan,
+    ) {
+        self.with_shared(async |shared| shared.payload_cache.insert(run_uuid, (ctx, test_plan)))
+            .await;
+    }
 
-        // Ensure that we release the mutex before sending the event
-        {
-            let mut shared = self.shared.lock().await;
+    /// Drop the in-memory payload cache entry for the given run uuid without touching the
+    /// ref-count bookkeeping. Used by the resolver when it has cached a payload but every
+    /// `init_execution` for the run failed — there will be no `mark_execution_complete` for
+    /// this run, so eviction has to happen here instead.
+    pub(crate) async fn evict_payload_cache(&self, run_uuid: Uuid) {
+        self.with_shared(async |shared| {
+            shared.payload_cache.remove(&run_uuid);
+        })
+        .await;
+    }
+
+    /// Decrement `n_queued` and submit a provisioning event to the event loop.
+    ///
+    /// The event waits in `EventQueue::pending_provisions` until namespace capacity is
+    /// available — the gating happens inside `EventQueue::next_event`, not here.
+    pub(crate) async fn request_provisioning(
+        &self,
+        ex: TestExecution,
+        run_uuid: Uuid,
+    ) -> resolver::Result<()> {
+        self.with_shared(async |shared| {
             assert!(
                 shared.n_queued > 0,
                 "request_provisioning called with n_queued == 0"
             );
 
             shared.n_queued -= 1;
-            shared.running_executions.insert(ex.uuid());
-        }
+            shared.register_execution(ex.uuid(), run_uuid);
+        })
+        .await;
 
         if let Err(e) = self.tx.send(Event {
             test_execution: ex,
-            data: EventData::CreateEnvConfigMap(tp.environment.execution, tp.scenario.execution),
+            data: EventData::CreateEnvConfigMap,
         }) {
-            // If the channel is closed then we're shutting down so dropping the event details here
-            // is intentional.
             error!(%e, "event loop channel closed");
-            return false;
+            return Err(ResolverError::EventChannelClosed);
         }
 
-        true
+        Ok(())
     }
 
     /// Return `n` queued execution claims back to the shared state.
@@ -322,21 +371,97 @@ impl EventQueueState {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct Shared {
-    max_concurrent_executions: usize,
+    /// Map of TestExecution uuid to parent TestRun uuid
+    execution_map: HashMap<Uuid, Uuid>,
+    /// Map of TestRun uuid to payload data
+    payload_cache: HashMap<Uuid, (RepContext, RepTestPlan)>,
+    /// Executions active for each run.
+    active_run_executions: HashMap<Uuid, HashSet<Uuid>>,
+    /// Maximum number of pending executions waiting for a namespace
     max_queued_executions: usize,
-    running_executions: HashSet<Uuid>,
+    /// The number of currently queued executions
     n_queued: usize,
+}
+
+impl Shared {
+    fn register_execution(&mut self, ex_uuid: Uuid, run_uuid: Uuid) {
+        self.execution_map.insert(ex_uuid, run_uuid);
+        self.active_run_executions
+            .entry(run_uuid)
+            .or_default()
+            .insert(ex_uuid);
+    }
+
+    async fn resolve_environment_for_execution(
+        &self,
+        ex: &TestExecution,
+    ) -> resolver::Result<DockerComposeEnvironment> {
+        self.with_templated_and_checked_variant(ex, async |ctx, mut test_plan| {
+            test_plan.environment.inline(&InlineMode::All, ctx).await?;
+
+            Ok(test_plan.environment.execution)
+        })
+        .await
+    }
+
+    async fn resolve_scenario_for_execution(
+        &self,
+        ex: &TestExecution,
+    ) -> resolver::Result<DockerScenario> {
+        self.with_templated_and_checked_variant(ex, async |ctx, mut test_plan| {
+            test_plan
+                .scenario
+                .execution
+                .inline(&InlineMode::All, ctx)
+                .await?;
+
+            Ok(test_plan.scenario.execution)
+        })
+        .await
+    }
+
+    async fn with_templated_and_checked_variant<F, T>(
+        &self,
+        ex: &TestExecution,
+        f: F,
+    ) -> resolver::Result<T>
+    where
+        F: AsyncFnOnce(&RepContext, RepTestPlan) -> resolver::Result<T>,
+    {
+        let run_uuid = match self.execution_map.get(&ex.uuid()) {
+            Some(id) => id,
+            None => return Err(ResolverError::UnknownExecution(ex.uuid())),
+        };
+        let index = ex.test_plan_index();
+
+        let (ctx, mut test_plan) = match self.payload_cache.get(run_uuid) {
+            Some((ctx, test_plan)) => match test_plan.try_expand_variant(index)? {
+                Some((_, variant)) => (ctx, variant),
+                None => return Err(ResolverError::UnknownExecution(ex.uuid())),
+            },
+            None => return Err(ResolverError::UnknownRun(*run_uuid)),
+        };
+
+        let variables = take(&mut test_plan.variables);
+        let template_ctx =
+            TemplateContext::new(variables, HashMap::new(), ctx.custom_provider_definitions());
+
+        test_plan
+            .try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
+            .map_err(ResolverError::VariantTemplating)?;
+
+        test_plan.try_check(&mut Vec::new(), ctx)?;
+
+        f(ctx, test_plan).await
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        db::Queryable,
-        event_loop::tests::{stub_environment, stub_scenario, stub_test_plan},
-    };
+    use crate::{db::Queryable, event_loop::tests::stub_test_plan};
     use rtf_config::templating::Scalar;
     use simple_test_case::test_case;
     use std::{collections::HashMap, time::Duration};
@@ -362,42 +487,72 @@ mod tests {
 
     #[tokio::test]
     async fn mark_execution_complete_updates_running_set() {
-        let (eq, _, _, _) = EventQueue::new(1, 5);
+        let (mut eq, _, _, _) = EventQueue::new(1, 5);
         let id = Uuid::new_v4();
-        eq.shared.lock().await.running_executions.insert(id);
+        eq.running_executions.insert(id);
 
-        eq.mark_execution_complete(id).await;
+        let evicted = eq.mark_execution_complete(id).await;
 
         assert!(
-            !eq.shared.lock().await.running_executions.contains(&id),
+            !eq.running_executions.contains(&id),
             "execution was still present in running set"
+        );
+        assert_eq!(
+            evicted, None,
+            "no run should be evicted when execution wasn't registered"
         );
     }
 
-    #[test_case(true; "known")]
-    #[test_case(false; "unknown")]
     #[tokio::test]
-    async fn mark_execution_complete_unblocks_waiting_provisioning_handle(
-        is_known_execution: bool,
-    ) {
-        let (q, h, _, _) = EventQueue::new(1, 5);
-        let id = Uuid::new_v4();
+    async fn mark_execution_complete_evicts_cache_after_last_execution() {
+        let (mut eq, h, _, _) = EventQueue::new(2, 5);
+        let run_uuid = Uuid::new_v4();
+        let ex1 = Uuid::new_v4();
+        let ex2 = Uuid::new_v4();
 
-        // We warn if the execution was unknown but we should always notify regardless
-        if is_known_execution {
-            q.shared.lock().await.running_executions.insert(id);
-        }
+        h.with_shared(async |shared| {
+            shared.register_execution(ex1, run_uuid);
+            shared.register_execution(ex2, run_uuid);
+        })
+        .await;
+        eq.running_executions.insert(ex1);
+        eq.running_executions.insert(ex2);
 
-        let wait_task = tokio::spawn(async move {
-            h.wait_for_namespace_capacity().await;
-        });
+        // Completing the first execution leaves the run with 1 open execution: no eviction.
+        let evicted = eq.mark_execution_complete(ex1).await;
+        assert_eq!(evicted, None);
+        eq.with_shared(async |shared| {
+            assert_eq!(
+                shared
+                    .active_run_executions
+                    .get(&run_uuid)
+                    .map(|set| set.len()),
+                Some(1),
+                "{:?}",
+                shared.active_run_executions
+            );
+            assert!(shared.execution_map.contains_key(&ex2));
+        })
+        .await;
 
-        q.mark_execution_complete(id).await;
+        let evicted = eq.mark_execution_complete(ex2).await;
+        assert_eq!(evicted, Some(run_uuid),);
 
-        tokio::time::timeout(Duration::from_secs(1), wait_task)
-            .await
-            .expect("provisioning handle should have been unblocked within 1s")
-            .expect("wait task should not have panicked");
+        eq.with_shared(async |shared| {
+            assert!(
+                !shared.active_run_executions.contains_key(&run_uuid),
+                "open count entry should be cleared"
+            );
+            assert!(
+                !shared.execution_map.contains_key(&ex2),
+                "ex1 should be removed"
+            );
+            assert!(
+                !shared.execution_map.contains_key(&ex1),
+                "ex2 should be removed"
+            );
+        })
+        .await;
     }
 
     #[tokio::test]
@@ -407,22 +562,18 @@ mod tests {
         let ex_uuid = ex.uuid();
         q.shared.lock().await.n_queued = 1;
 
-        let successful = h.request_provisioning(ex, stub_test_plan()).await;
+        let res = h.request_provisioning(ex, Uuid::new_v4()).await;
 
-        assert!(successful, "should have been able to send event");
+        assert!(res.is_ok(), "should have been able to send event: {res:?}");
 
         let shared = q.shared.lock().await;
         assert_eq!(shared.n_queued, 0, "n_queued should have been decremented");
-        assert!(
-            shared.running_executions.contains(&ex_uuid),
-            "execution should be in the running set"
-        );
-
         drop(shared);
+
         let event = q.rx.try_recv().expect("event should have been sent");
 
         assert_eq!(event.test_execution.uuid(), ex_uuid);
-        assert!(matches!(event.data, EventData::CreateEnvConfigMap(_, _)));
+        assert!(matches!(event.data, EventData::CreateEnvConfigMap));
     }
 
     #[tokio::test]
@@ -431,7 +582,7 @@ mod tests {
         let (_, h, _, _) = EventQueue::new(1, 5);
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
-        h.request_provisioning(ex, stub_test_plan()).await;
+        _ = h.request_provisioning(ex, Uuid::new_v4()).await;
     }
 
     #[tokio::test]
@@ -440,53 +591,50 @@ mod tests {
         q.shared.lock().await.n_queued = 1;
         drop(q);
 
-        let successful = h
-            .request_provisioning(
-                TestExecution::create_stub(1, 1, 0, "test"),
-                stub_test_plan(),
-            )
+        let res = h
+            .request_provisioning(TestExecution::create_stub(1, 1, 0, "test"), Uuid::new_v4())
             .await;
 
-        assert!(!successful, "should have failed to send event");
+        assert!(res.is_err(), "should have failed to send event");
     }
 
     #[tokio::test]
-    async fn request_provisioning_waits_for_capacity() {
-        let (q, h, _, _) = EventQueue::new(1, 5); // max concurrent of 1
+    async fn next_event_gates_provisions_on_namespace_capacity() {
+        // max concurrent of 1: any provision dispatch is blocked while a slot is in use.
+        let (mut q, _h, _, _) = EventQueue::new(1, 5);
         let blocking_id = Uuid::new_v4();
-
-        {
-            let mut shared = q.shared.lock().await;
-            shared.running_executions.insert(blocking_id);
-            shared.n_queued = 1;
-        }
+        q.running_executions.insert(blocking_id);
 
         let ex = TestExecution::create_stub(1, 1, 0, "test");
-        let provision_task =
-            tokio::spawn(async move { h.request_provisioning(ex, stub_test_plan()).await });
+        let ex_uuid = ex.uuid();
+        q.tx.send(Event {
+            test_execution: ex,
+            data: EventData::CreateEnvConfigMap,
+        })
+        .unwrap();
 
-        // yield to allow the provisioning task to run (if able)
-        tokio::task::yield_now().await;
-        assert!(
-            !provision_task.is_finished(),
-            "should be blocked waiting for capacity"
-        );
+        let res = tokio::time::timeout(Duration::from_millis(50), q.next_event()).await;
+        assert!(res.is_err(), "next_event should have blocked at capacity");
 
-        // Clearing the "running" execution should unblock the pending provisioning request
-        q.mark_execution_complete(blocking_id).await;
-
-        let successful = tokio::time::timeout(Duration::from_secs(1), provision_task)
+        let _ = q.mark_execution_complete(blocking_id).await;
+        let evt = tokio::time::timeout(Duration::from_secs(1), q.next_event())
             .await
-            .expect("provision task should have unblocked within 1s")
-            .expect("provision task should not have panicked");
+            .expect("next_event should have yielded within 1s")
+            .expect("should have returned Some(event)");
 
-        assert!(successful, "request_provisioning should have returned true");
+        assert_eq!(evt.test_execution.uuid(), ex_uuid);
+        assert!(matches!(evt.data, EventData::CreateEnvConfigMap));
+        assert!(
+            q.running_executions.contains(&ex_uuid),
+            "running executions: {:?}",
+            q.running_executions
+        );
     }
 
     fn provision_evt(ex_id: i32) -> Event {
         Event {
             test_execution: TestExecution::create_stub(ex_id, 1, 0, "test"),
-            data: EventData::CreateEnvConfigMap(stub_environment(), stub_scenario()),
+            data: EventData::CreateEnvConfigMap,
         }
     }
 
@@ -507,7 +655,7 @@ mod tests {
         let (mut q, _h, _, _) = EventQueue::new(1, 5);
 
         for evt in events.into_iter() {
-            if matches!(evt.data, EventData::CreateEnvConfigMap(_, _)) {
+            if matches!(evt.data, EventData::CreateEnvConfigMap) {
                 q.pending_provisions.push_back(evt);
             } else {
                 q.pending_non_provisions.push_back(evt);

@@ -60,12 +60,16 @@ where
     conn.mark_execution_as_provisioning(&test_execution, MSG_SCENARIO_CM_CREATED.to_string())
         .await;
 
-    Ok(Some(EventData::CreateScenarioJob(scenario)))
+    Ok(Some(EventData::CreateScenarioJob {
+        image: scenario.docker_image(),
+        command: scenario.command(),
+    }))
 }
 
 pub(super) async fn create_job<K, H>(
     test_execution: TestExecution,
-    scenario: DockerScenario,
+    scenario_image: String,
+    scenario_command: String,
     orchestrator_url: &str,
     clients: K,
     conn: &mut H,
@@ -85,7 +89,12 @@ where
             &namespace,
             SCENARIO_JOB_NAME,
             &execution_id,
-            scenario_job(&test_execution, &scenario, orchestrator_url),
+            scenario_job(
+                &test_execution,
+                scenario_image,
+                scenario_command,
+                orchestrator_url,
+            ),
         )
         .await
         .map_err(|error| Error::CreateJob { error })?;
@@ -142,9 +151,10 @@ async fn wait_and_update<K>(
 
         WatchOutcome::Failed(reason) => {
             warn!(%execution_id, %reason, "job failed");
-            vec![EventData::MarkUnrunnable(
-                WatchOutcome::Failed(reason).to_string(),
-            )]
+            vec![
+                EventData::MarkUnrunnable(WatchOutcome::Failed(reason).to_string()),
+                EventData::CleanupNamespace,
+            ]
         }
 
         WatchOutcome::ContainerUnrunnable(reason) => {
@@ -158,7 +168,10 @@ async fn wait_and_update<K>(
 
         outcome => {
             warn!(%execution_id, %outcome, "unable to determine state of job");
-            vec![EventData::MarkUnrunnable(outcome.to_string())]
+            vec![
+                EventData::MarkUnrunnable(outcome.to_string()),
+                EventData::CleanupNamespace,
+            ]
         }
     };
 
@@ -199,7 +212,8 @@ mod tests {
         // create job
         let res = create_job(
             ex.clone(),
-            stub_scenario(),
+            "image".into(),
+            "cmd".into(),
             "http://localhost:8035",
             clients.clone(),
             &mut handle,
@@ -265,7 +279,8 @@ mod tests {
 
         let res = create_job(
             ex.clone(),
-            stub_scenario(),
+            "image".into(),
+            "cmd".into(),
             "http://localhost:8035",
             clients.clone(),
             &mut handle,
@@ -325,7 +340,9 @@ mod tests {
     #[test_case(WatchOutcome::WatcherError(String::new()); "watch error")]
     #[test_case(WatchOutcome::StreamClosed; "stream closed")]
     #[tokio::test]
-    async fn wait_and_update_submits_mark_unrunnable_on_watch_error(outcome: WatchOutcome) {
+    async fn wait_and_update_submits_mark_unrunnable_then_cleanup_on_watch_error(
+        outcome: WatchOutcome,
+    ) {
         let ex = TestExecution::create_stub(1, 1, 0, "test");
         let clients = MockClient {
             wait_for_job: Resp::new(outcome),
@@ -335,7 +352,15 @@ mod tests {
 
         wait_and_update("test-namespace", ex, &etx, clients).await;
 
-        let evt = erx.try_recv().unwrap();
-        assert!(matches!(evt.data, EventData::MarkUnrunnable(_)), "{evt:?}");
+        let first = erx.try_recv().unwrap();
+        let second = erx.try_recv().unwrap();
+        assert!(
+            matches!(first.data, EventData::MarkUnrunnable(_)),
+            "first event: {first:?}"
+        );
+        assert!(
+            matches!(second.data, EventData::CleanupNamespace),
+            "second event: {second:?}"
+        );
     }
 }
