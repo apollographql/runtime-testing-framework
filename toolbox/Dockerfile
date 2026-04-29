@@ -1,13 +1,21 @@
 # Rust build image
 FROM --platform=$BUILDPLATFORM rust:1.95.0 AS builder
 
+# aws-lc-rs (required by kube) needs cmake and clang
+RUN apt-get update && apt-get install -y cmake clang && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /rtf
 
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ ./crates/
 
 # Build Rust binaries
-RUN cargo build --release --bin rtf --bin rep-orchestrator-cli
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/rtf/target \
+    cargo build --release --bin rtf --bin rep-orchestrator-cli \
+    && cp target/release/rtf /rtf-bin \
+    && cp target/release/rep-orchestrator-cli /rep-orchestrator-cli-bin
 
 
 # Runtime image build
@@ -39,8 +47,8 @@ RUN curl -L "https://github.com/kubernetes/kompose/releases/download/$V_KOMPOSE/
 
 
 # Copy over Rust binaries from the build image
-COPY --from=builder /rtf/target/release/rtf /usr/local/bin/rtf
-COPY --from=builder /rtf/target/release/rep-orchestrator-cli /usr/local/bin/rep-orchestrator-cli
+COPY --from=builder /rtf-bin /usr/local/bin/rtf
+COPY --from=builder /rep-orchestrator-cli-bin /usr/local/bin/rep-orchestrator-cli
 
 
 # Copy over scripts and add them to the PATH
