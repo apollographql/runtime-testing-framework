@@ -46,12 +46,6 @@ async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Result<
             commands::create_service_account(&namespace, ctx).await
         }
 
-        Command::CreatePullSecret {
-            namespace,
-            docker_config: docker_config_path,
-            ..
-        } => commands::create_pull_secret(&namespace, &docker_config_path, ctx).await,
-
         Command::DeployEnvironment {
             namespace,
             kubeconfig: kubeconfig_path,

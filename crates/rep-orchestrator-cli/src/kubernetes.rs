@@ -2,14 +2,13 @@ use crate::error::{CliError, CliResult};
 use anyhow::Context;
 use k8s_openapi::api::{
     apps::v1::Deployment,
-    core::v1::{ConfigMap, Namespace, Secret, ServiceAccount},
+    core::v1::{ConfigMap, Namespace, ServiceAccount},
 };
 use kube::{
     Api, Config,
     api::{DeleteParams, ObjectMeta, Patch, PatchParams},
     config::{KubeConfigOptions, Kubeconfig},
 };
-use serde_json::json;
 use std::{collections::BTreeMap, path::Path};
 
 const MANAGER_NAME: &str = "rep-orchestrator-cli";
@@ -31,14 +30,6 @@ pub trait Client: Send + Sync + Clone {
     async fn delete_configmap(&self, name: &str, namespace: &str) -> anyhow::Result<()>;
 
     async fn create_namespace(&self, name: &str) -> anyhow::Result<()>;
-
-    async fn create_pull_secret(
-        &self,
-        namespace: &str,
-        docker_config: Vec<u8>,
-    ) -> anyhow::Result<()>;
-
-    async fn patch_default_service_account(&self, namespace: &str) -> anyhow::Result<()>;
 
     async fn create_results_writer_service_account(&self, namespace: &str) -> anyhow::Result<()>;
 
@@ -91,45 +82,6 @@ impl Client for HttpClient {
             ..Default::default()
         };
         api.patch(name, &PatchParams::apply(MANAGER_NAME), &Patch::Apply(&ns))
-            .await?;
-        Ok(())
-    }
-
-    async fn create_pull_secret(
-        &self,
-        namespace: &str,
-        docker_config: Vec<u8>,
-    ) -> anyhow::Result<()> {
-        let secret = Secret {
-            metadata: ObjectMeta {
-                name: Some("gcr-secret".to_owned()),
-                namespace: Some(namespace.to_owned()),
-                ..Default::default()
-            },
-            type_: Some("kubernetes.io/dockerconfigjson".to_owned()),
-            data: Some(BTreeMap::from([(
-                ".dockerconfigjson".to_owned(),
-                k8s_openapi::ByteString(docker_config),
-            )])),
-            ..Default::default()
-        };
-
-        let api: Api<Secret> = Api::namespaced(self.client.clone(), namespace);
-        api.patch(
-            "gcr-secret",
-            &PatchParams::apply(MANAGER_NAME),
-            &Patch::Apply(&secret),
-        )
-        .await?;
-        Ok(())
-    }
-
-    async fn patch_default_service_account(&self, namespace: &str) -> anyhow::Result<()> {
-        let api: Api<ServiceAccount> = Api::namespaced(self.client.clone(), namespace);
-        let patch = json!({
-            "imagePullSecrets": [{"name": "gcr-secret"}]
-        });
-        api.patch("default", &PatchParams::default(), &Patch::Strategic(patch))
             .await?;
         Ok(())
     }
@@ -205,8 +157,6 @@ pub(crate) mod mocks {
     pub enum KubeCall {
         DeleteConfigMap { name: String, namespace: String },
         ApplyNamespace { name: String },
-        ApplyPullSecret { namespace: String },
-        PatchDefaultServiceAccount { namespace: String },
         ApplyResultsWriterServiceAccount { namespace: String },
         CheckDeploymentsAvailable { namespace: String },
     }
@@ -271,22 +221,6 @@ pub(crate) mod mocks {
         async fn create_namespace(&self, name: &str) -> anyhow::Result<()> {
             self.record(KubeCall::ApplyNamespace {
                 name: name.to_owned(),
-            })
-        }
-
-        async fn create_pull_secret(
-            &self,
-            namespace: &str,
-            _docker_config: Vec<u8>,
-        ) -> anyhow::Result<()> {
-            self.record(KubeCall::ApplyPullSecret {
-                namespace: namespace.to_owned(),
-            })
-        }
-
-        async fn patch_default_service_account(&self, namespace: &str) -> anyhow::Result<()> {
-            self.record(KubeCall::PatchDefaultServiceAccount {
-                namespace: namespace.to_owned(),
             })
         }
 

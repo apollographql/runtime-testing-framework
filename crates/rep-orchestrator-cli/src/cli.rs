@@ -41,21 +41,6 @@ pub enum Command {
         kubeconfig: PathBuf,
     },
 
-    /// Create an image pull secret and patch the default service account
-    CreatePullSecret {
-        /// Target namespace name
-        #[arg(long)]
-        namespace: String,
-
-        /// Path to the kubeconfig file for the workload cluster
-        #[arg(long)]
-        kubeconfig: PathBuf,
-
-        /// Path to the Docker config JSON file for registry authentication
-        #[arg(long)]
-        docker_config: PathBuf,
-    },
-
     /// Resolve an RTF environment, convert the resolved compose files to Kubernetes manifests, and deploy
     DeployEnvironment {
         /// Target namespace for deployment
@@ -116,7 +101,6 @@ impl Command {
         match self {
             Self::CreateNamespace { kubeconfig, .. }
             | Self::CreateServiceAccount { kubeconfig, .. }
-            | Self::CreatePullSecret { kubeconfig, .. }
             | Self::DeployEnvironment { kubeconfig, .. } => Some(kubeconfig),
             Self::Cleanup { .. } | Self::PrepareScenario { .. } | Self::CollectOutput { .. } => {
                 None

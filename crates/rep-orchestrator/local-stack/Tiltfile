@@ -116,18 +116,6 @@ local_resource(
     labels=["infra"],
 )
 
-# GCR pull secret — dummy for local use. In production this contains real GCR credentials
-# used by create-pull-secret to authorise image pulls in the workload cluster. Locally,
-# all test fixtures use public images, so the credential content is irrelevant; the secret
-# object must exist so Argo can mount it into the create-pull-secret workflow task pod.
-k8s_yaml(
-    secret_from_dict(
-        "gcr-secret",
-        namespace="cluster-api",
-        inputs={".dockerconfigjson": '{"auths":{}}'},
-    )
-)
-
 # Argo workflow service account + RBAC in cluster-api
 k8s_yaml("k8s/service-account.yaml")
 k8s_resource(
@@ -140,7 +128,6 @@ k8s_resource(
         "orchestrator-kubeconfig:secret:cluster-api",
         "orchestrator-kubeconfig:secret:orchestrator",
         "github-app-private-key:secret:orchestrator",
-        "gcr-secret:secret:cluster-api",
     ],
     new_name="cluster-setup",
     labels=["infra"],
