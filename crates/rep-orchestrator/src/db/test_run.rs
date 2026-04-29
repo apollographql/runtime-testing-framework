@@ -620,7 +620,6 @@ mod tests {
         Ok(())
     }
 
-    #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
     #[ignore = "races with other tests that use the test plan cache"]
     async fn clear_test_plan_cache_removes_all_entries() -> Result<()> {

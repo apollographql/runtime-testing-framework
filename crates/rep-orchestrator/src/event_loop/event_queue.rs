@@ -511,8 +511,8 @@ mod tests {
         let ex2 = Uuid::new_v4();
 
         h.with_shared(async |shared| {
-            shared.register_execution(run_uuid, ex1);
-            shared.register_execution(run_uuid, ex2);
+            shared.register_execution(ex1, run_uuid);
+            shared.register_execution(ex2, run_uuid);
         })
         .await;
         eq.running_executions.insert(ex1);
@@ -521,33 +521,38 @@ mod tests {
         // Completing the first execution leaves the run with 1 open execution: no eviction.
         let evicted = eq.mark_execution_complete(ex1).await;
         assert_eq!(evicted, None);
-        {
-            let shared = eq.shared.lock().await;
+        eq.with_shared(async |shared| {
             assert_eq!(
                 shared
                     .active_run_executions
                     .get(&run_uuid)
                     .map(|set| set.len()),
-                Some(1)
+                Some(1),
+                "{:?}",
+                shared.active_run_executions
             );
             assert!(shared.execution_map.contains_key(&ex2));
-        }
+        })
+        .await;
 
         let evicted = eq.mark_execution_complete(ex2).await;
         assert_eq!(evicted, Some(run_uuid),);
-        let shared = eq.shared.lock().await;
-        assert!(
-            !shared.active_run_executions.contains_key(&run_uuid),
-            "open count entry should be cleared"
-        );
-        assert!(
-            !shared.execution_map.contains_key(&ex2),
-            "ex1 should be removed"
-        );
-        assert!(
-            !shared.execution_map.contains_key(&ex1),
-            "ex2 should be removed"
-        );
+
+        eq.with_shared(async |shared| {
+            assert!(
+                !shared.active_run_executions.contains_key(&run_uuid),
+                "open count entry should be cleared"
+            );
+            assert!(
+                !shared.execution_map.contains_key(&ex2),
+                "ex1 should be removed"
+            );
+            assert!(
+                !shared.execution_map.contains_key(&ex1),
+                "ex2 should be removed"
+            );
+        })
+        .await;
     }
 
     #[tokio::test]

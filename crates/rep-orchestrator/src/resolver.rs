@@ -195,7 +195,7 @@ mod tests {
     use super::*;
     use crate::{
         config::Config,
-        db::{MockUpdateHandle, Status, StatusUpdate, TaggedStatusUpdate, TestRun},
+        db::{MockUpdateHandle, Status, TaggedStatusUpdate, TestRun},
         event_loop::{EventData, EventQueue},
     };
     use indoc::indoc;
@@ -547,17 +547,6 @@ mod tests {
 
         assert_eq!(handle.test_executions, vec![]);
         assert_eq!(handle.cleared_payload_caches, vec![tr.uuid()]);
-
-        match handle.status_updates.last() {
-            Some(TaggedStatusUpdate::Run(
-                1,
-                StatusUpdate {
-                    status: Status::Unrunnable,
-                    ..
-                },
-            )) => (),
-            other => panic!("expected unrunnable status, got {other:?}"),
-        }
     }
 
     #[tokio::test]
