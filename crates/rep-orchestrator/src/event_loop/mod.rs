@@ -39,23 +39,47 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
         ..
     } = Config::get();
 
-    let clients = match mgmt_context {
-        Some(ctx) => ClusterClients::try_new(kubeconfig_path, ctx, workload_context).await,
-        None => {
-            ClusterClients::try_new_in_cluster_management(kubeconfig_path, workload_context).await
-        }
-    }
-    .unwrap_or_else(|e| panic!("failed to initialise k8s clients, event loop cannot start: {e}"));
-
+    // Clients are built fresh per-event so that rotated credentials in the mounted kubeconfig
+    // secret are picked up without an orchestrator pod restart.
     while let Some(evt) = event_queue.next_event().await {
         let ty_name = evt.data.name();
+
+        let clients = match mgmt_context {
+            Some(ctx) => ClusterClients::try_new(kubeconfig_path, ctx, workload_context).await,
+            None => {
+                ClusterClients::try_new_in_cluster_management(kubeconfig_path, workload_context)
+                    .await
+            }
+        };
+
+        let clients = match clients {
+            Ok(c) => c,
+            Err(e) => {
+                error!(%e, ty=%ty_name, "failed to build k8s clients for event");
+                let requires_cleanup = evt.data.requires_cleanup_on_error();
+                let tx = event_queue.tx();
+                let _ = tx.send(Event {
+                    test_execution: evt.test_execution.clone(),
+                    data: EventData::MarkUnrunnable(format!("failed to build k8s clients: {e}")),
+                });
+
+                if requires_cleanup {
+                    let _ = tx.send(Event {
+                        test_execution: evt.test_execution,
+                        data: EventData::CleanupNamespace,
+                    });
+                }
+
+                continue;
+            }
+        };
 
         if let Err(err) = evt
             .handle(
                 &mut event_queue,
                 orchestrator_url,
                 kubeconfig_secret_name,
-                clients.clone(),
+                clients,
             )
             .await
         {
