@@ -4,7 +4,7 @@ use crate::k8s::{
 };
 use k8s_openapi::api::{
     batch::v1::{Job, JobSpec},
-    core::v1::{ConfigMap, Namespace, Pod},
+    core::v1::{Namespace, Pod},
 };
 use kube::{
     Client, Config, Resource,
@@ -115,33 +115,6 @@ async fn client_for_context(kfg: Kubeconfig, context: &str) -> Result<Client> {
 }
 
 impl k8s::Client for ClusterClients {
-    async fn create_configmap(
-        &self,
-        cluster: Cluster,
-        namespace: &str,
-        configmap_name: &str,
-        file_name: &str,
-        content: String,
-    ) -> Result<ConfigMap> {
-        let cm = self
-            .namespaced_api(cluster, namespace)
-            .create(
-                &Default::default(),
-                &ConfigMap {
-                    metadata: ObjectMeta {
-                        name: Some(configmap_name.to_owned()),
-                        namespace: Some(namespace.to_owned()),
-                        ..Default::default()
-                    },
-                    data: Some(BTreeMap::from([(file_name.to_owned(), content)])),
-                    ..Default::default()
-                },
-            )
-            .await?;
-
-        Ok(cm)
-    }
-
     async fn create_argo_workflow(
         &self,
         execution_id: &Uuid,

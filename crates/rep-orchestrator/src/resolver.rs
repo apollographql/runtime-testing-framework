@@ -523,10 +523,10 @@ mod tests {
             "resolver should not emit execution status updates: {ex_updates:?}"
         );
 
-        // One CreateEnvConfigMap event sent
+        // One CreateEnvArgoWorkflow event sent
         let evt = eq.next_event().await.unwrap();
         assert!(
-            matches!(evt.data, EventData::CreateEnvConfigMap),
+            matches!(evt.data, EventData::CreateEnvArgoWorkflow),
             "expected CreateEnvConfigMap event"
         );
         assert!(eq.is_empty(), "only one event expected");

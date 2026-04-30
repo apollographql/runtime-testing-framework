@@ -5,21 +5,15 @@ use crate::{
 use k8s_openapi::api::{
     batch::v1::JobSpec,
     core::v1::{
-        ConfigMapVolumeSource, Container, EnvVar, ExecAction, Lifecycle, LifecycleHandler, PodSpec,
-        PodTemplateSpec, Volume, VolumeMount,
+        Container, EnvVar, ExecAction, Lifecycle, LifecycleHandler, PodSpec, PodTemplateSpec,
+        Volume, VolumeMount,
     },
 };
 use kube::api::ObjectMeta;
 use std::collections::BTreeMap;
 
-pub const CONFIG_MAP_NAME_SCENARIO: &str = "rtf-scenario-config";
-
 const SHARED_DIR_PATH: &str = "/shared";
-const SCENARIO_CONFIG_DIR: &str = "/scenario";
-const SCENARIO_CONFIG_PATH: &str = "/scenario/scenario.yaml";
 const TTL_SECONDS_AFTER_FINISHED: i32 = 3600; // cleanup after 1h
-
-const VOLUME_MOUNT_NAME_CONFIG: &str = "scenario-config";
 const VOLUME_MOUNT_NAME_SHARED: &str = "shared";
 
 /// Build a [JobSpec] that runs a `DockerScenario` under REP.
@@ -73,28 +67,18 @@ fn rtf_resolve_container_spec(scenario_command: String, env: &[EnvVar]) -> Conta
         command: Some(vec![CLI_BINARY.to_owned()]),
         args: Some(vec![
             "prepare-scenario".into(),
-            "--scenario".into(),
-            SCENARIO_CONFIG_PATH.into(),
             "--shared-dir".into(),
             SHARED_DIR_PATH.into(),
             "--command".into(),
             scenario_command,
         ]),
         env: Some(env.to_vec()),
-        volume_mounts: Some(vec![
-            VolumeMount {
-                name: VOLUME_MOUNT_NAME_CONFIG.to_owned(),
-                mount_path: SCENARIO_CONFIG_DIR.to_owned(),
-                read_only: Some(true),
-                ..Default::default()
-            },
-            VolumeMount {
-                name: VOLUME_MOUNT_NAME_SHARED.to_owned(),
-                mount_path: SHARED_DIR_PATH.to_owned(),
-                read_only: Some(false),
-                ..Default::default()
-            },
-        ]),
+        volume_mounts: Some(vec![VolumeMount {
+            name: VOLUME_MOUNT_NAME_SHARED.to_owned(),
+            mount_path: SHARED_DIR_PATH.to_owned(),
+            read_only: Some(false),
+            ..Default::default()
+        }]),
         ..Default::default()
     }
 }
@@ -155,19 +139,9 @@ fn output_collector_container_spec(env: &[EnvVar]) -> Container {
 }
 
 fn scenario_volumes() -> Vec<Volume> {
-    vec![
-        Volume {
-            name: VOLUME_MOUNT_NAME_CONFIG.to_owned(),
-            config_map: Some(ConfigMapVolumeSource {
-                name: CONFIG_MAP_NAME_SCENARIO.to_owned(),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
-        Volume {
-            name: VOLUME_MOUNT_NAME_SHARED.to_owned(),
-            empty_dir: Some(Default::default()),
-            ..Default::default()
-        },
-    ]
+    vec![Volume {
+        name: VOLUME_MOUNT_NAME_SHARED.to_owned(),
+        empty_dir: Some(Default::default()),
+        ..Default::default()
+    }]
 }

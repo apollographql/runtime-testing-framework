@@ -1,66 +1,15 @@
 use crate::{
     db::{TestExecution, UpdateHandle},
     event_loop::{Error, Event, EventData, Result},
-    k8s::{
-        self, CLUSTER_API_NAMESPACE, Cluster, ENVIRONMENT_CONFIG_FILENAME, WatchOutcome,
-        WorkflowSpec, env_configmap_name,
-    },
+    k8s::{self, WatchOutcome, WorkflowSpec},
 };
-use rtf_config::formats::{DockerComposeEnvironment, EnvironmentConfig};
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{info, warn};
 
-pub(crate) const MSG_CREATE_ENV_CM: &str = "creating environment configmap";
-pub(crate) const MSG_ENV_CM_CREATED: &str = "environment configmap created";
 pub(crate) const MSG_CREATE_ARGO: &str = "creating Argo workflow";
 pub(crate) const MSG_ARGO_CREATED: &str = "Argo workflow created";
 pub const MSG_ARGO_WAIT: &str = "waiting for Argo workflow to complete";
 pub(crate) const MSG_ARGO_COMPLETE: &str = "Argo workflow complete";
-
-pub(super) async fn create_config_map<K, H>(
-    test_execution: TestExecution,
-    environment: DockerComposeEnvironment,
-    clients: K,
-    conn: &mut H,
-) -> Result<Option<EventData>>
-where
-    K: k8s::Client,
-    H: UpdateHandle,
-{
-    let execution_id = test_execution.uuid();
-    let content = serde_yaml::to_string(&EnvironmentConfig {
-        name: execution_id.to_string(),
-        execution: environment,
-        description: Default::default(),
-        variable_definitions: Default::default(),
-        custom_providers: Default::default(),
-    })
-    .unwrap_or_else(|e| panic!("EnvironmentConfig failed to serialize: {e}"));
-
-    info!(%execution_id, "creating environment configmap");
-    conn.mark_execution_as_provisioning(&test_execution, MSG_CREATE_ENV_CM.to_string())
-        .await;
-
-    clients
-        .create_configmap(
-            Cluster::Management,
-            CLUSTER_API_NAMESPACE,
-            &env_configmap_name(&execution_id),
-            ENVIRONMENT_CONFIG_FILENAME,
-            content,
-        )
-        .await
-        .map_err(|error| Error::CreateConfigmap {
-            kind: "environment",
-            error,
-        })?;
-
-    info!(%execution_id, "environment configmap created");
-    conn.mark_execution_as_provisioning(&test_execution, MSG_ENV_CM_CREATED.to_string())
-        .await;
-
-    Ok(Some(EventData::CreateEnvArgoWorkflow))
-}
 
 pub(super) async fn create_workflow<K, H>(
     test_execution: TestExecution,
@@ -126,7 +75,7 @@ where
             info!(%execution_id, "argo workflow completed successfully");
             vec![
                 EventData::ArgoWorkflowComplete,
-                EventData::CreateScenarioConfigMap,
+                EventData::CreateScenarioJob,
             ]
         }
 
@@ -168,7 +117,6 @@ mod tests {
     use super::*;
     use crate::{
         db::{MockUpdateHandle, Status, TaggedStatusUpdate},
-        event_loop::tests::stub_environment,
         k8s::{
             self,
             mock_client::{MockClient, Resp},
@@ -183,11 +131,6 @@ mod tests {
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
         let clients = MockClient::default_ok();
         let (etx, _erx) = mpsc::unbounded_channel();
-
-        // create configmap
-        let res =
-            create_config_map(ex.clone(), stub_environment(), clients.clone(), &mut handle).await;
-        assert!(res.is_ok(), "create_config_map: {res:?}");
 
         // create workflow
         let res = create_workflow(
@@ -207,40 +150,10 @@ mod tests {
         assert_eq!(
             &handle.status_updates,
             &[
-                TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_CREATE_ENV_CM)),
-                TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_ENV_CM_CREATED)),
                 TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_CREATE_ARGO)),
                 TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_ARGO_CREATED)),
                 TaggedStatusUpdate::execution(1, Status::Provisioning, Some(MSG_ARGO_WAIT)),
             ]
-        );
-    }
-
-    #[tokio::test]
-    async fn create_configmap_returns_expected_configmap_error() {
-        let ex = TestExecution::create_stub(1, 1, 0, "test");
-        let mut handle = MockUpdateHandle::with_execution(ex.clone());
-        let clients = MockClient {
-            create_env_configmap: Resp::new(Err(k8s::Error::Kube(kube::Error::TlsRequired))),
-            ..MockClient::default()
-        };
-
-        let res = create_config_map(ex, stub_environment(), clients.clone(), &mut handle).await;
-
-        assert!(matches!(
-            res,
-            Err(Error::CreateConfigmap {
-                kind: "environment",
-                ..
-            })
-        ));
-        assert_eq!(
-            &handle.status_updates,
-            &[TaggedStatusUpdate::execution(
-                1,
-                Status::Provisioning,
-                Some(MSG_CREATE_ENV_CM)
-            )]
         );
     }
 
@@ -292,10 +205,7 @@ mod tests {
         );
 
         let evt = erx.try_recv().unwrap();
-        assert!(
-            matches!(evt.data, EventData::CreateScenarioConfigMap),
-            "{evt:?}"
-        );
+        assert!(matches!(evt.data, EventData::CreateScenarioJob), "{evt:?}");
     }
 
     #[test_case(WatchOutcome::Failed(String::new()); "failed")]

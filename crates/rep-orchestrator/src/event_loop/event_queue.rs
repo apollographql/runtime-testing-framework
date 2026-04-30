@@ -109,7 +109,7 @@ impl EventQueue {
     #[inline(always)]
     fn push_event(&mut self, evt: Event) {
         match &evt.data {
-            EventData::CreateEnvConfigMap => self.pending_provisions.push_back(evt),
+            EventData::CreateEnvArgoWorkflow => self.pending_provisions.push_back(evt),
             _ => self.pending_non_provisions.push_back(evt),
         }
     }
@@ -197,14 +197,6 @@ impl EventQueue {
         .await
     }
 
-    pub(crate) async fn resolve_environment_for_execution(
-        &self,
-        ex: &TestExecution,
-    ) -> resolver::Result<DockerComposeEnvironment> {
-        self.with_shared(async |shared| shared.resolve_environment_for_execution(ex).await)
-            .await
-    }
-
     pub(crate) async fn resolve_scenario_for_execution(
         &self,
         ex: &TestExecution,
@@ -274,7 +266,7 @@ impl ProvisioningHandle {
 
         if let Err(e) = self.tx.send(Event {
             test_execution: ex,
-            data: EventData::CreateEnvConfigMap,
+            data: EventData::CreateEnvArgoWorkflow,
         }) {
             error!(%e, "event loop channel closed");
             return Err(ResolverError::EventChannelClosed);
@@ -597,7 +589,7 @@ mod tests {
         let event = q.rx.try_recv().expect("event should have been sent");
 
         assert_eq!(event.test_execution.uuid(), ex_uuid);
-        assert!(matches!(event.data, EventData::CreateEnvConfigMap));
+        assert!(matches!(event.data, EventData::CreateEnvArgoWorkflow));
     }
 
     #[tokio::test]
@@ -633,7 +625,7 @@ mod tests {
         let ex_uuid = ex.uuid();
         q.tx.send(Event {
             test_execution: ex,
-            data: EventData::CreateEnvConfigMap,
+            data: EventData::CreateEnvArgoWorkflow,
         })
         .unwrap();
 
@@ -647,7 +639,7 @@ mod tests {
             .expect("should have returned Some(event)");
 
         assert_eq!(evt.test_execution.uuid(), ex_uuid);
-        assert!(matches!(evt.data, EventData::CreateEnvConfigMap));
+        assert!(matches!(evt.data, EventData::CreateEnvArgoWorkflow));
         assert!(
             q.running_executions.contains(&ex_uuid),
             "running executions: {:?}",
@@ -658,7 +650,7 @@ mod tests {
     fn provision_evt(ex_id: i32) -> Event {
         Event {
             test_execution: TestExecution::create_stub(ex_id, 1, 0, "test"),
-            data: EventData::CreateEnvConfigMap,
+            data: EventData::CreateEnvArgoWorkflow,
         }
     }
 
@@ -679,7 +671,7 @@ mod tests {
         let (mut q, _h, _, _) = EventQueue::new(1, 5);
 
         for evt in events.into_iter() {
-            if matches!(evt.data, EventData::CreateEnvConfigMap) {
+            if matches!(evt.data, EventData::CreateEnvArgoWorkflow) {
                 q.pending_provisions.push_back(evt);
             } else {
                 q.pending_non_provisions.push_back(evt);

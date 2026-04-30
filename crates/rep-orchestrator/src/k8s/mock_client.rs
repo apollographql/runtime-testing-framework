@@ -1,8 +1,5 @@
-use crate::k8s::{Client, Cluster, Result, WatchOutcome, Workflow, WorkflowSpec};
-use k8s_openapi::api::{
-    batch::v1::{Job, JobSpec},
-    core::v1::ConfigMap,
-};
+use crate::k8s::{Client, Result, WatchOutcome, Workflow, WorkflowSpec};
+use k8s_openapi::api::batch::v1::{Job, JobSpec};
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
@@ -14,8 +11,6 @@ use uuid::Uuid;
 /// given method at most once.
 #[derive(Default, Debug, Clone)]
 pub struct MockClient {
-    pub create_env_configmap: Resp<Result<ConfigMap>>,
-    pub create_scenario_configmap: Resp<Result<ConfigMap>>,
     pub create_workflow: Resp<Result<Workflow>>,
     pub create_job: Resp<Result<Job>>,
     pub wait_for_workflow: Resp<WatchOutcome>,
@@ -29,8 +24,6 @@ impl MockClient {
     /// Use [MockClient::default] to default all responses to unset.
     pub fn default_ok() -> Self {
         Self {
-            create_env_configmap: Resp::new(Ok(Default::default())),
-            create_scenario_configmap: Resp::new(Ok(Default::default())),
             create_workflow: Resp::new(Ok(Default::default())),
             create_job: Resp::new(Ok(Default::default())),
             wait_for_workflow: Resp::new(WatchOutcome::Succeeded),
@@ -41,22 +34,6 @@ impl MockClient {
 }
 
 impl Client for MockClient {
-    async fn create_configmap(
-        &self,
-        cluster: Cluster,
-        _namespace: &str,
-        _configmap_name: &str,
-        _file_name: &str,
-        _content: String,
-    ) -> Result<ConfigMap> {
-        let cm = match cluster {
-            Cluster::Management => self.create_env_configmap.take(),
-            Cluster::Workload => self.create_scenario_configmap.take(),
-        };
-
-        cm.expect("create_configmap called but no result configured")
-    }
-
     async fn create_argo_workflow(
         &self,
         _execution_id: &Uuid,
