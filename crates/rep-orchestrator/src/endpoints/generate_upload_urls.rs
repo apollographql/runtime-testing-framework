@@ -53,7 +53,7 @@ mod tests {
     use axum::http::{HeaderValue, header::AUTHORIZATION};
     use reqwest::StatusCode;
 
-    fn bearer(token: &Uuid) -> HeaderValue {
+    fn bearer(token: Uuid) -> HeaderValue {
         HeaderValue::from_str(&format!("Bearer {token}")).unwrap()
     }
 
@@ -139,7 +139,7 @@ mod tests {
                 "/test-execution/{}/generate-upload-urls",
                 Uuid::new_v4()
             ))
-            .add_header(AUTHORIZATION, bearer(&Uuid::new_v4()))
+            .add_header(AUTHORIZATION, bearer(Uuid::new_v4()))
             .json(&GenerateUploadUrlsPayload {})
             .await;
 
@@ -184,7 +184,7 @@ mod tests {
                 "/test-execution/{}/generate-upload-urls",
                 ex.uuid()
             ))
-            .add_header(AUTHORIZATION, bearer(&Uuid::new_v4()))
+            .add_header(AUTHORIZATION, bearer(Uuid::new_v4()))
             .json(&GenerateUploadUrlsPayload {})
             .await;
 

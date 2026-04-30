@@ -3,6 +3,7 @@ use crate::{
     error::{CliError, CliResult},
     info_status,
     kubernetes::Client,
+    orchestrator::Client as OrchestratorClient,
 };
 use anyhow::{Context, anyhow};
 use rep_orchestrator_shared::status::Status;
@@ -17,7 +18,6 @@ const MISSING_EXPORT_ERROR: &str = "Expected leading 'export ' prefix to env fil
 pub async fn deploy_environment(
     namespace: &str,
     kubeconfig_path: &Path,
-    environment_path: &Path,
     timeout: u64,
     ctx: &impl CliContext,
 ) -> CliResult<()> {
@@ -30,13 +30,28 @@ pub async fn deploy_environment(
     info_status!(
         ctx,
         Status::Provisioning,
+        "Fetching environment configuration..."
+    )?;
+
+    let cfg_bytes = ctx
+        .orchestrator_client()
+        .fetch_environment_config()
+        .await
+        .map_err(CliError::unrunnable)?;
+
+    let cfg_path = temp_dir().join("environment.yaml");
+    ctx.write_file(&cfg_path, &cfg_bytes)?;
+
+    info_status!(
+        ctx,
+        Status::Provisioning,
         "Resolving environment docker-compose files..."
     )?;
     let outdir = workdir_path.join("output");
     ctx.run_shell(
         Command::new("rtf")
             .args(["resolve", "environment"])
-            .arg(environment_path)
+            .arg(&cfg_path)
             .args(["--outdir", &outdir.to_string_lossy()]),
         Status::Provisioning,
     )

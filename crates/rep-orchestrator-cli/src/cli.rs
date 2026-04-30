@@ -51,33 +51,14 @@ pub enum Command {
         #[arg(long)]
         kubeconfig: PathBuf,
 
-        /// Path to the environment.yaml configuration file
-        #[arg(long)]
-        environment: PathBuf,
-
         /// Timeout in seconds for waiting on deployments to become available
         #[arg(long, default_value = "300")]
         timeout: u64,
     },
 
-    /// Delete a ConfigMap used for environment configuration
-    Cleanup {
-        /// Name of the ConfigMap to delete
-        #[arg(long)]
-        configmap: String,
-
-        /// Namespace where the ConfigMap resides
-        #[arg(long)]
-        namespace: String,
-    },
-
     /// Resolve the scenario config and write a `run.sh` wrapper into the shared volume for the
     /// scenario-runner container to execute.
     PrepareScenario {
-        /// Path to the scenario.yaml configuration file
-        #[arg(long)]
-        scenario: PathBuf,
-
         /// Path to the shared volume mounted by the scenario-runner and output-collector containers
         #[arg(long)]
         shared_dir: PathBuf,
@@ -102,9 +83,7 @@ impl Command {
             Self::CreateNamespace { kubeconfig, .. }
             | Self::CreateServiceAccount { kubeconfig, .. }
             | Self::DeployEnvironment { kubeconfig, .. } => Some(kubeconfig),
-            Self::Cleanup { .. } | Self::PrepareScenario { .. } | Self::CollectOutput { .. } => {
-                None
-            }
+            Self::PrepareScenario { .. } | Self::CollectOutput { .. } => None,
         }
     }
 }

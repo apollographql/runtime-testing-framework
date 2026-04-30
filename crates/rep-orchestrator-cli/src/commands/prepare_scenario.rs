@@ -2,9 +2,11 @@ use crate::{
     context::CliContext,
     error::{CliError, CliResult},
     info_status,
+    orchestrator::Client as OrchestratorClient,
 };
 use rep_orchestrator_shared::status::Status;
 use std::{
+    env::temp_dir,
     path::{Path, PathBuf},
     process::Command,
 };
@@ -35,18 +37,32 @@ __SCENARIO_COMMAND__
 /// Resolve the scenario config into `<shared_dir>/providers` and write a `run.sh` script into
 /// `<shared_dir>` that inlines the resolved env vars and invokes the user's scenario command.
 pub async fn prepare_scenario(
-    scenario_path: &Path,
     shared_dir: &Path,
     scenario_command: &str,
     ctx: &impl CliContext,
 ) -> CliResult<()> {
     let paths = SharedPaths::new(shared_dir);
 
+    info_status!(
+        ctx,
+        Status::Provisioning,
+        "Fetching scenario configuration..."
+    )?;
+
+    let cfg_bytes = ctx
+        .orchestrator_client()
+        .fetch_scenario_config()
+        .await
+        .map_err(CliError::unrunnable)?;
+
+    let cfg_path = &temp_dir().join("scenario.yaml");
+    ctx.write_file(cfg_path, &cfg_bytes)?;
+
     info_status!(ctx, Status::Provisioning, "Resolving scenario...")?;
     ctx.run_shell(
         Command::new("rtf")
             .args(["resolve", "scenario"])
-            .arg(scenario_path)
+            .arg(cfg_path)
             .args(["--outdir", &paths.providers_dir.to_string_lossy()]),
         Status::Provisioning,
     )

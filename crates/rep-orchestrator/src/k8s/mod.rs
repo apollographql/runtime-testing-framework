@@ -1,7 +1,4 @@
-use k8s_openapi::api::{
-    batch::v1::{Job, JobSpec},
-    core::v1::ConfigMap,
-};
+use k8s_openapi::api::batch::v1::{Job, JobSpec};
 use kube::config::{InClusterError, KubeconfigError};
 use std::fmt;
 use uuid::Uuid;
@@ -14,7 +11,7 @@ mod workflow;
 pub mod mock_client;
 
 pub use client::ClusterClients;
-pub use job::{CONFIG_MAP_NAME_SCENARIO, scenario_job};
+pub use job::scenario_job;
 pub use workflow::{
     Dag, MainTemplate, TaskSpec, TaskTemplate, TemplateDef, Workflow, WorkflowSpec,
 };
@@ -22,9 +19,7 @@ pub use workflow::{
 /// Binary name of the REP orchestrator CLI, available on `PATH` inside [TOOLBOX_IMAGE].
 const CLI_BINARY: &str = "rep-orchestrator-cli";
 pub const CLUSTER_API_NAMESPACE: &str = "cluster-api";
-pub const ENVIRONMENT_CONFIG_FILENAME: &str = "environment.yaml";
 pub const EXECUTION_ID_LABEL: &str = "rtf.io/execution-id";
-pub const SCENARIO_CONFIG_FILENAME: &str = "scenario.yaml";
 pub const TOOLBOX_IMAGE: &str =
     "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox:edge";
 
@@ -44,17 +39,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Kubernetes API actions required for executing RTF test plans inside of REP clusters.
 pub trait Client: Clone + Send + Sync + 'static {
-    /// Create a new config map in either the [management][Cluster::Management] or
-    /// [workload][Cluster::Workload] cluster.
-    fn create_configmap(
-        &self,
-        cluster: Cluster,
-        namespace: &str,
-        configmap_name: &str,
-        file_name: &str,
-        content: String,
-    ) -> impl Future<Output = Result<ConfigMap>> + Send;
-
     /// Create a new argo [Workflow] in the [management][Cluster::Management] cluster for
     /// provisioning an ephemeral namespace in the [workload][Cluster::Workload] cluster and
     /// deploying services into it as defined by an RTF Test Plan.

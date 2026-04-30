@@ -1,10 +1,8 @@
 use crate::{
     db::TestExecution,
-    k8s::{CLI_BINARY, CLUSTER_API_NAMESPACE, TOOLBOX_IMAGE, env_configmap_name},
+    k8s::{CLI_BINARY, TOOLBOX_IMAGE},
 };
-use k8s_openapi::api::core::v1::{
-    ConfigMapVolumeSource, Container, EnvVar, SecretVolumeSource, Volume, VolumeMount,
-};
+use k8s_openapi::api::core::v1::{Container, EnvVar, SecretVolumeSource, Volume, VolumeMount};
 use kube::CustomResource;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -14,8 +12,6 @@ const TTL_SECONDS_AFTER_FAILED: i32 = 120; // cleanup after 2m when failed for d
 
 /// Mount point for the workload-cluster kubeconfig secret.
 const KUBECONFIG_PATH: &str = "/kubeconfig/value";
-/// Mount point for the resolved environment.yaml configmap.
-const ENVIRONMENT_PATH: &str = "/environment/environment.yaml";
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct WorkflowStatus {
@@ -49,7 +45,6 @@ pub struct PodGC {
 pub struct WorkflowSpec {
     pub service_account_name: String,
     pub entrypoint: String,
-    pub on_exit: String,
     pub templates: Vec<TemplateDef>,
     pub volumes: Vec<Volume>,
     pub ttl_strategy: Option<TtlStrategy>,
@@ -63,24 +58,17 @@ impl WorkflowSpec {
         kubeconfig_secret_name: &str,
     ) -> Self {
         let execution_id = ex.uuid();
-        let configmap_name = env_configmap_name(&execution_id);
         let env_vars = ex.toolbox_env_vars(orchestrator_url);
         let namespace = execution_id.to_string();
 
         Self {
             service_account_name: "argo-workflow".to_owned(),
             entrypoint: "main".to_owned(),
-            on_exit: "cleanup".to_owned(),
             templates: vec![
                 TemplateDef::Main(MainTemplate::new()),
                 TemplateDef::Task(create_namespace(&namespace, env_vars.clone())),
                 TemplateDef::Task(create_service_account(&namespace, env_vars.clone())),
-                TemplateDef::Task(deploy_environment(
-                    &configmap_name,
-                    &namespace,
-                    env_vars.clone(),
-                )),
-                TemplateDef::Task(cleanup(&configmap_name, env_vars)),
+                TemplateDef::Task(deploy_environment(&namespace, env_vars.clone())),
             ],
             volumes: vec![Volume {
                 name: "kubeconfig".into(),
@@ -229,7 +217,7 @@ fn create_service_account(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
     )
 }
 
-fn deploy_environment(configmap_name: &str, namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
+fn deploy_environment(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
     TaskTemplate::new(
         "deploy-environment",
         vec![
@@ -238,41 +226,8 @@ fn deploy_environment(configmap_name: &str, namespace: &str, env: Vec<EnvVar>) -
             namespace.into(),
             "--kubeconfig".into(),
             KUBECONFIG_PATH.into(),
-            "--environment".into(),
-            ENVIRONMENT_PATH.into(),
         ],
-        vec![
-            kubeconfig_volume_mount(),
-            VolumeMount {
-                name: "environment".into(),
-                mount_path: "/environment".into(),
-                read_only: Some(true),
-                ..Default::default()
-            },
-        ],
-        Some(vec![Volume {
-            name: "environment".to_owned(),
-            config_map: Some(ConfigMapVolumeSource {
-                name: configmap_name.to_owned(),
-                ..Default::default()
-            }),
-            ..Default::default()
-        }]),
-        env,
-    )
-}
-
-fn cleanup(configmap_name: &str, env: Vec<EnvVar>) -> TaskTemplate {
-    TaskTemplate::new(
-        "cleanup",
-        vec![
-            "cleanup".into(),
-            "--configmap".into(),
-            configmap_name.into(),
-            "--namespace".into(),
-            CLUSTER_API_NAMESPACE.into(),
-        ],
-        vec![],
+        vec![kubeconfig_volume_mount()],
         None,
         env,
     )

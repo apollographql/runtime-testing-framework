@@ -9,6 +9,7 @@ use tracing::warn;
 use uuid::Uuid;
 
 pub mod execution_artifacts;
+pub mod execution_config;
 pub mod execution_status;
 pub mod generate_upload_urls;
 pub mod health;
@@ -22,12 +23,12 @@ pub mod trigger;
 pub struct BearerToken(String);
 
 impl BearerToken {
-    pub fn verify(&self, expected: &Uuid) -> crate::Result<()> {
+    pub fn verify(&self, expected: Uuid) -> crate::Result<()> {
         let provided: Uuid = self.0.parse().map_err(|_| {
             warn!("Provided bearer token is not a valid UUID, returning 403");
             Error::Unauthorized
         })?;
-        if provided == *expected {
+        if provided == expected {
             Ok(())
         } else {
             Err(Error::Unauthorized)

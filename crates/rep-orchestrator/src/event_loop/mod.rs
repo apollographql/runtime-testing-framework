@@ -87,13 +87,6 @@ enum Error {
         error: crate::k8s::Error,
     },
 
-    #[error("unable to create {kind} configmap: {error}")]
-    CreateConfigmap {
-        kind: &'static str,
-        #[source]
-        error: crate::k8s::Error,
-    },
-
     #[error("unable to create Kubernetes job: {error}")]
     CreateJob {
         #[source]
@@ -111,13 +104,11 @@ type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EventData {
-    CreateEnvConfigMap,
     CreateEnvArgoWorkflow,
     WaitForEnvArgoWorkflow,
     ArgoWorkflowComplete,
 
-    CreateScenarioConfigMap,
-    CreateScenarioJob { image: String, command: String },
+    CreateScenarioJob,
     WaitForScenarioJob,
 
     CleanupNamespace,
@@ -127,12 +118,10 @@ pub enum EventData {
 impl EventData {
     fn name(&self) -> &'static str {
         match self {
-            Self::CreateEnvConfigMap => "CreateEnvConfigMap",
             Self::CreateEnvArgoWorkflow => "CreateEnvArgoWorkflow",
             Self::WaitForEnvArgoWorkflow => "WaitForEnvArgoWorkflow",
             Self::ArgoWorkflowComplete => "ArgoWorkflowComplete",
-            Self::CreateScenarioConfigMap => "CreateScenarioConfigMap",
-            Self::CreateScenarioJob { .. } => "CreateScenarioJob",
+            Self::CreateScenarioJob => "CreateScenarioJob",
             Self::WaitForScenarioJob => "WaitForScenarioJob",
             Self::MarkUnrunnable(_) => "MarkUnrunnable",
             Self::CleanupNamespace => "CleanupNamespace",
@@ -146,8 +135,7 @@ impl EventData {
             self,
             EventData::WaitForEnvArgoWorkflow
                 | EventData::ArgoWorkflowComplete
-                | EventData::CreateScenarioConfigMap
-                | EventData::CreateScenarioJob { .. }
+                | EventData::CreateScenarioJob
                 | EventData::WaitForScenarioJob
         )
     }
@@ -173,24 +161,6 @@ impl Event {
         let cleanup_on_error = self.data.requires_cleanup_on_error();
 
         let res = match self.data {
-            EventData::CreateEnvConfigMap => {
-                match event_queue
-                    .resolve_environment_for_execution(&self.test_execution)
-                    .await
-                {
-                    Ok(env_cfg) => {
-                        provision_environment::create_config_map(
-                            self.test_execution.clone(),
-                            env_cfg,
-                            clients,
-                            conn,
-                        )
-                        .await
-                    }
-                    Err(e) => Err(e.into()),
-                }
-            }
-
             EventData::CreateEnvArgoWorkflow => {
                 provision_environment::create_workflow(
                     self.test_execution.clone(),
@@ -219,15 +189,17 @@ impl Event {
                 Ok(None)
             }
 
-            EventData::CreateScenarioConfigMap => {
+            EventData::CreateScenarioJob => {
                 match event_queue
                     .resolve_scenario_for_execution(&self.test_execution)
                     .await
                 {
                     Ok(scenario_cfg) => {
-                        run_scenario::create_config_map(
+                        run_scenario::create_job(
                             self.test_execution.clone(),
-                            scenario_cfg,
+                            scenario_cfg.docker_image(),
+                            scenario_cfg.command(),
+                            orchestrator_url,
                             clients,
                             conn,
                         )
@@ -235,18 +207,6 @@ impl Event {
                     }
                     Err(e) => Err(e.into()),
                 }
-            }
-
-            EventData::CreateScenarioJob { image, command } => {
-                run_scenario::create_job(
-                    self.test_execution.clone(),
-                    image,
-                    command,
-                    orchestrator_url,
-                    clients,
-                    conn,
-                )
-                .await
             }
 
             EventData::WaitForScenarioJob => {

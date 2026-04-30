@@ -10,7 +10,7 @@ use rtf_config::{
     StableSource,
     checks::Check,
     context::ResolutionContext,
-    formats::{DockerComposeEnvironment, DockerScenario},
+    formats::{DockerComposeEnvironment, DockerScenario, EnvironmentConfig, ScenarioConfig},
     inlining::InlineMode,
     run::RunProviders,
     templating::{Template, TemplateContext},
@@ -109,7 +109,7 @@ impl EventQueue {
     #[inline(always)]
     fn push_event(&mut self, evt: Event) {
         match &evt.data {
-            EventData::CreateEnvConfigMap => self.pending_provisions.push_back(evt),
+            EventData::CreateEnvArgoWorkflow => self.pending_provisions.push_back(evt),
             _ => self.pending_non_provisions.push_back(evt),
         }
     }
@@ -197,20 +197,13 @@ impl EventQueue {
         .await
     }
 
-    pub(crate) async fn resolve_environment_for_execution(
-        &self,
-        ex: &TestExecution,
-    ) -> resolver::Result<DockerComposeEnvironment> {
-        self.with_shared(async |shared| shared.resolve_environment_for_execution(ex).await)
-            .await
-    }
-
     pub(crate) async fn resolve_scenario_for_execution(
         &self,
         ex: &TestExecution,
     ) -> resolver::Result<DockerScenario> {
         self.with_shared(async |shared| shared.resolve_scenario_for_execution(ex).await)
             .await
+            .map(|s| s.execution)
     }
 }
 
@@ -274,7 +267,7 @@ impl ProvisioningHandle {
 
         if let Err(e) = self.tx.send(Event {
             test_execution: ex,
-            data: EventData::CreateEnvConfigMap,
+            data: EventData::CreateEnvArgoWorkflow,
         }) {
             error!(%e, "event loop channel closed");
             return Err(ResolverError::EventChannelClosed);
@@ -319,6 +312,13 @@ pub struct EventQueueState {
 }
 
 impl EventQueueState {
+    async fn with_shared<F, T>(&self, f: F) -> T
+    where
+        F: AsyncFnOnce(&mut Shared) -> T,
+    {
+        f(&mut *self.shared.lock().await).await
+    }
+
     /// Attempt to submit a [TestRunWithPayload] through to the resolver task if we are able to
     /// obtain sufficient pending execution claims.
     pub async fn try_submit_test_plan(
@@ -341,8 +341,7 @@ impl EventQueueState {
                 // If we hit this branch then the channel is closed and we are likely shutting
                 // down. But, we still attempt to be good citizens and release our claim on the
                 // resolver queue to ensure that the shared state is correct.
-                let mut shared = self.shared.lock().await;
-                shared.n_queued -= n;
+                self.with_shared(async |shared| shared.n_queued -= n).await;
 
                 Err(SubmitError::ResolveChannelClosed)
             }
@@ -354,20 +353,38 @@ impl EventQueueState {
     /// Returns `true` if the claim was successful, otherwise `false`.
     pub async fn try_reserve_pending_executions(&self, tp: &RepTestPlan) -> Option<Claim> {
         let n = tp.matrix.n_variants();
-        let mut shared = self.shared.lock().await;
 
-        if shared.n_queued.saturating_add(n) <= shared.max_queued_executions {
-            shared.n_queued += n;
-            Some(Claim(n))
-        } else {
-            None
-        }
+        self.with_shared(async |shared| {
+            if shared.n_queued.saturating_add(n) <= shared.max_queued_executions {
+                shared.n_queued += n;
+                Some(Claim(n))
+            } else {
+                None
+            }
+        })
+        .await
     }
 
     /// Return `n` queued execution claims back to the shared state.
     pub async fn release_pending_execution_claim(&self, claim: Claim) {
-        let mut shared = self.shared.lock().await;
-        shared.n_queued -= claim.0;
+        self.with_shared(async |shared| shared.n_queued -= claim.0)
+            .await;
+    }
+
+    pub(crate) async fn resolve_environment_for_execution(
+        &self,
+        ex: &TestExecution,
+    ) -> resolver::Result<EnvironmentConfig<DockerComposeEnvironment>> {
+        self.with_shared(async |shared| shared.resolve_environment_for_execution(ex).await)
+            .await
+    }
+
+    pub(crate) async fn resolve_scenario_for_execution(
+        &self,
+        ex: &TestExecution,
+    ) -> resolver::Result<ScenarioConfig<DockerScenario>> {
+        self.with_shared(async |shared| shared.resolve_scenario_for_execution(ex).await)
+            .await
     }
 }
 
@@ -397,11 +414,11 @@ impl Shared {
     async fn resolve_environment_for_execution(
         &self,
         ex: &TestExecution,
-    ) -> resolver::Result<DockerComposeEnvironment> {
+    ) -> resolver::Result<EnvironmentConfig<DockerComposeEnvironment>> {
         self.with_templated_and_checked_variant(ex, async |ctx, mut test_plan| {
             test_plan.environment.inline(&InlineMode::All, ctx).await?;
 
-            Ok(test_plan.environment.execution)
+            Ok(test_plan.environment)
         })
         .await
     }
@@ -409,7 +426,7 @@ impl Shared {
     async fn resolve_scenario_for_execution(
         &self,
         ex: &TestExecution,
-    ) -> resolver::Result<DockerScenario> {
+    ) -> resolver::Result<ScenarioConfig<DockerScenario>> {
         self.with_templated_and_checked_variant(ex, async |ctx, mut test_plan| {
             test_plan
                 .scenario
@@ -417,7 +434,7 @@ impl Shared {
                 .inline(&InlineMode::All, ctx)
                 .await?;
 
-            Ok(test_plan.scenario.execution)
+            Ok(test_plan.scenario)
         })
         .await
     }
@@ -573,7 +590,7 @@ mod tests {
         let event = q.rx.try_recv().expect("event should have been sent");
 
         assert_eq!(event.test_execution.uuid(), ex_uuid);
-        assert!(matches!(event.data, EventData::CreateEnvConfigMap));
+        assert!(matches!(event.data, EventData::CreateEnvArgoWorkflow));
     }
 
     #[tokio::test]
@@ -609,7 +626,7 @@ mod tests {
         let ex_uuid = ex.uuid();
         q.tx.send(Event {
             test_execution: ex,
-            data: EventData::CreateEnvConfigMap,
+            data: EventData::CreateEnvArgoWorkflow,
         })
         .unwrap();
 
@@ -623,7 +640,7 @@ mod tests {
             .expect("should have returned Some(event)");
 
         assert_eq!(evt.test_execution.uuid(), ex_uuid);
-        assert!(matches!(evt.data, EventData::CreateEnvConfigMap));
+        assert!(matches!(evt.data, EventData::CreateEnvArgoWorkflow));
         assert!(
             q.running_executions.contains(&ex_uuid),
             "running executions: {:?}",
@@ -634,7 +651,7 @@ mod tests {
     fn provision_evt(ex_id: i32) -> Event {
         Event {
             test_execution: TestExecution::create_stub(ex_id, 1, 0, "test"),
-            data: EventData::CreateEnvConfigMap,
+            data: EventData::CreateEnvArgoWorkflow,
         }
     }
 
@@ -655,7 +672,7 @@ mod tests {
         let (mut q, _h, _, _) = EventQueue::new(1, 5);
 
         for evt in events.into_iter() {
-            if matches!(evt.data, EventData::CreateEnvConfigMap) {
+            if matches!(evt.data, EventData::CreateEnvArgoWorkflow) {
                 q.pending_provisions.push_back(evt);
             } else {
                 q.pending_non_provisions.push_back(evt);

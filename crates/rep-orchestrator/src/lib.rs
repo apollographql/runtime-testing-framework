@@ -52,7 +52,8 @@ pub async fn run_server() -> error::Result<()> {
 
 fn build_routes(state: ServerState) -> Router {
     use endpoints::{
-        execution_artifacts, execution_status, generate_upload_urls, health, run_status, trigger,
+        execution_artifacts, execution_config, execution_status, generate_upload_urls, health,
+        run_status, trigger,
     };
 
     Router::new()
@@ -70,6 +71,14 @@ fn build_routes(state: ServerState) -> Router {
             get(execution_artifacts::output_zip_handler),
         )
         .route(
+            "/test-execution/{id}/environment-config",
+            get(execution_config::env_handler),
+        )
+        .route(
+            "/test-execution/{id}/scenario-config",
+            get(execution_config::scenario_handler),
+        )
+        .route(
             "/test-execution/{id}/status",
             get(execution_status::get_handler).post(execution_status::post_handler),
         )
@@ -81,7 +90,7 @@ fn build_routes(state: ServerState) -> Router {
 #[cfg(test)]
 mod test_helpers {
     use super::*;
-    use crate::state::TestRunWithPayload;
+    use crate::{event_loop::ProvisioningHandle, state::TestRunWithPayload};
     use axum_test::TestServer;
     use tokio::sync::mpsc::UnboundedReceiver;
 
@@ -89,6 +98,8 @@ mod test_helpers {
     /// behaviour using [axum_test](https://docs.rs/axum-test/latest/axum_test/).
     pub struct TestServerState {
         pub test_server: TestServer,
+        pub prov_handle: ProvisioningHandle,
+        pub state: ServerState,
         pub resolver_rx: UnboundedReceiver<TestRunWithPayload>,
     }
 
@@ -112,14 +123,16 @@ mod test_helpers {
         }
 
         pub fn new_with_params(cfg: &Config, gcs_client: GCSClient) -> Self {
-            let (_, _, eq_state, resolver_rx) =
+            let (_, prov_handle, eq_state, resolver_rx) =
                 EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
 
             let state = ServerState::new(eq_state, gcs_client);
-            let test_server = TestServer::new(build_routes(state));
+            let test_server = TestServer::new(build_routes(state.clone()));
 
             Self {
                 test_server,
+                prov_handle,
+                state,
                 resolver_rx,
             }
         }
