@@ -14,6 +14,7 @@ gcs:
 
 config:
   logLevel: "info,hyper=error,rep_orchestrator=debug"
+  toolboxPullPolicy: "IfNotPresent"
 
 secrets:
   apolloKey:

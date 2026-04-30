@@ -14,6 +14,7 @@ pub(crate) const MSG_ARGO_COMPLETE: &str = "Argo workflow complete";
 pub(super) async fn create_workflow<K, H>(
     test_execution: TestExecution,
     orchestrator_url: &str,
+    toolbox_pull_policy: &str,
     kubeconfig_secret_name: &str,
     clients: K,
     conn: &mut H,
@@ -31,7 +32,12 @@ where
     clients
         .create_argo_workflow(
             &execution_id,
-            WorkflowSpec::for_execution(&test_execution, orchestrator_url, kubeconfig_secret_name),
+            WorkflowSpec::for_execution(
+                &test_execution,
+                orchestrator_url,
+                toolbox_pull_policy,
+                kubeconfig_secret_name,
+            ),
         )
         .await
         .map_err(|error| Error::CreateArgoWorkflow { error })?;
@@ -136,6 +142,7 @@ mod tests {
         let res = create_workflow(
             ex.clone(),
             "http://localhost:8035",
+            "IfNotPresent",
             "workload-kubeconfig",
             clients.clone(),
             &mut handle,
@@ -169,6 +176,7 @@ mod tests {
         let res = create_workflow(
             ex,
             "http://localhost:8035",
+            "IfNotPresent",
             "workload-kubeconfig",
             clients,
             &mut handle,

@@ -55,6 +55,7 @@ impl WorkflowSpec {
     pub fn for_execution(
         ex: &TestExecution,
         orchestrator_url: &str,
+        toolbox_pull_policy: &str,
         kubeconfig_secret_name: &str,
     ) -> Self {
         let execution_id = ex.uuid();
@@ -66,9 +67,21 @@ impl WorkflowSpec {
             entrypoint: "main".to_owned(),
             templates: vec![
                 TemplateDef::Main(MainTemplate::new()),
-                TemplateDef::Task(create_namespace(&namespace, env_vars.clone())),
-                TemplateDef::Task(create_service_account(&namespace, env_vars.clone())),
-                TemplateDef::Task(deploy_environment(&namespace, env_vars.clone())),
+                TemplateDef::Task(create_namespace(
+                    &namespace,
+                    toolbox_pull_policy,
+                    env_vars.clone(),
+                )),
+                TemplateDef::Task(create_service_account(
+                    &namespace,
+                    toolbox_pull_policy,
+                    env_vars.clone(),
+                )),
+                TemplateDef::Task(deploy_environment(
+                    &namespace,
+                    toolbox_pull_policy,
+                    env_vars.clone(),
+                )),
             ],
             volumes: vec![Volume {
                 name: "kubeconfig".into(),
@@ -155,6 +168,7 @@ impl TaskTemplate {
     /// Build a task container that runs `rep-orchestrator-cli <args...>` inside the toolbox image.
     fn new(
         name: &str,
+        toolbox_pull_policy: &str,
         cli_args: Vec<String>,
         volume_mounts: Vec<VolumeMount>,
         volumes: Option<Vec<Volume>>,
@@ -165,7 +179,7 @@ impl TaskTemplate {
             container: Container {
                 name: name.into(),
                 image: Some(TOOLBOX_IMAGE.into()),
-                image_pull_policy: Some("Always".into()),
+                image_pull_policy: Some(toolbox_pull_policy.into()),
                 command: Some(vec![CLI_BINARY.to_owned()]),
                 args: Some(cli_args),
                 volume_mounts: Some(volume_mounts),
@@ -186,9 +200,10 @@ fn kubeconfig_volume_mount() -> VolumeMount {
     }
 }
 
-fn create_namespace(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
+fn create_namespace(namespace: &str, toolbox_pull_policy: &str, env: Vec<EnvVar>) -> TaskTemplate {
     TaskTemplate::new(
         "create-namespace",
+        toolbox_pull_policy,
         vec![
             "create-namespace".into(),
             "--namespace".into(),
@@ -202,9 +217,14 @@ fn create_namespace(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
     )
 }
 
-fn create_service_account(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
+fn create_service_account(
+    namespace: &str,
+    toolbox_pull_policy: &str,
+    env: Vec<EnvVar>,
+) -> TaskTemplate {
     TaskTemplate::new(
         "create-service-account",
+        toolbox_pull_policy,
         vec![
             "create-service-account".into(),
             "--namespace".into(),
@@ -218,9 +238,14 @@ fn create_service_account(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
     )
 }
 
-fn deploy_environment(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
+fn deploy_environment(
+    namespace: &str,
+    toolbox_pull_policy: &str,
+    env: Vec<EnvVar>,
+) -> TaskTemplate {
     TaskTemplate::new(
         "deploy-environment",
+        toolbox_pull_policy,
         vec![
             "deploy-environment".into(),
             "--namespace".into(),
