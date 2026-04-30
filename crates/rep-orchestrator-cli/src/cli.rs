@@ -51,10 +51,6 @@ pub enum Command {
         #[arg(long)]
         kubeconfig: PathBuf,
 
-        /// Path to the environment.yaml configuration file
-        #[arg(long)]
-        environment: PathBuf,
-
         /// Timeout in seconds for waiting on deployments to become available
         #[arg(long, default_value = "300")]
         timeout: u64,
@@ -74,10 +70,6 @@ pub enum Command {
     /// Resolve the scenario config and write a `run.sh` wrapper into the shared volume for the
     /// scenario-runner container to execute.
     PrepareScenario {
-        /// Path to the scenario.yaml configuration file
-        #[arg(long)]
-        scenario: PathBuf,
-
         /// Path to the shared volume mounted by the scenario-runner and output-collector containers
         #[arg(long)]
         shared_dir: PathBuf,

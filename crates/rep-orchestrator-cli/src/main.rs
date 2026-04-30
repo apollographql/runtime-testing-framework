@@ -49,17 +49,9 @@ async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Result<
         Command::DeployEnvironment {
             namespace,
             kubeconfig: kubeconfig_path,
-            environment: environment_path,
             timeout,
         } => {
-            commands::deploy_environment(
-                &namespace,
-                &kubeconfig_path,
-                &environment_path,
-                timeout,
-                ctx,
-            )
-            .await
+            commands::deploy_environment(&namespace, &kubeconfig_path, timeout, ctx).await
         }
 
         Command::Cleanup {
@@ -67,11 +59,9 @@ async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Result<
             namespace,
         } => commands::cleanup(&configmap, &namespace, ctx).await,
 
-        Command::PrepareScenario {
-            scenario,
-            shared_dir,
-            command,
-        } => commands::prepare_scenario(&scenario, &shared_dir, &command, ctx).await,
+        Command::PrepareScenario { shared_dir, command } => {
+            commands::prepare_scenario(&shared_dir, &command, ctx).await
+        }
 
         Command::CollectOutput { shared_dir } => commands::collect_output(&shared_dir, ctx).await,
     };

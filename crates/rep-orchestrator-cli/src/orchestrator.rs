@@ -36,6 +36,12 @@ pub trait Client: Send + Sync {
 
     /// PUT `body` to a previously-issued signed upload URL.
     async fn upload_to_signed_url(&self, url: &str, body: Vec<u8>) -> anyhow::Result<()>;
+
+    /// Fetch the resolved environment YAML for the current test execution.
+    async fn fetch_environment_config(&self) -> anyhow::Result<Vec<u8>>;
+
+    /// Fetch the resolved scenario YAML for the current test execution.
+    async fn fetch_scenario_config(&self) -> anyhow::Result<Vec<u8>>;
 }
 
 pub struct HttpClient {
@@ -53,6 +59,32 @@ impl HttpClient {
             execution_id,
             execution_token,
         }
+    }
+
+    async fn fetch_config(&self, endpoint: &str) -> anyhow::Result<Vec<u8>> {
+        let url = format!(
+            "{}/test-execution/{}/{endpoint}",
+            self.orchestrator_url, self.execution_id
+        );
+
+        info!(id=%self.execution_id, "fetching {}", endpoint);
+        let resp = reqwest::Client::new()
+            .get(&url)
+            .bearer_auth(self.execution_token)
+            .send()
+            .await
+            .context(format!("failed to fetch config from {endpoint}"))?;
+
+        let status_code = resp.status();
+        if !status_code.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(anyhow!(
+                "{endpoint} fetch failed for {}; ({status_code}): {body}",
+                self.execution_id,
+            ));
+        }
+
+        Ok(resp.bytes().await?.to_vec())
     }
 }
 
@@ -150,6 +182,14 @@ impl Client for HttpClient {
         }
 
         Ok(())
+    }
+
+    async fn fetch_environment_config(&self) -> anyhow::Result<Vec<u8>> {
+        self.fetch_config("environment-config").await
+    }
+
+    async fn fetch_scenario_config(&self) -> anyhow::Result<Vec<u8>> {
+        self.fetch_config("scenario-config").await
     }
 }
 
@@ -255,6 +295,20 @@ pub(crate) mod mocks {
             });
             Ok(())
         }
+
+        async fn fetch_environment_config(&self) -> anyhow::Result<Vec<u8>> {
+            if self.update_should_fail {
+                return Err(anyhow::anyhow!("mock fetch environment config failure"));
+            }
+            Ok(Vec::new())
+        }
+
+        async fn fetch_scenario_config(&self) -> anyhow::Result<Vec<u8>> {
+            if self.update_should_fail {
+                return Err(anyhow::anyhow!("mock fetch scenario config failure"));
+            }
+            Ok(Vec::new())
+        }
     }
 }
 
@@ -329,5 +383,12 @@ mod tests {
                 .await
                 .is_err()
         );
+    }
+
+    #[tokio::test]
+    async fn mock_failing_client_fails_fetch_methods() {
+        let client = MockClient::failing();
+        assert!(client.fetch_environment_config().await.is_err());
+        assert!(client.fetch_scenario_config().await.is_err());
     }
 }
