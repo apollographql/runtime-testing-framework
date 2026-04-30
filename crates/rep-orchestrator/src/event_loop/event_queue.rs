@@ -319,6 +319,13 @@ pub struct EventQueueState {
 }
 
 impl EventQueueState {
+    async fn with_shared<F, T>(&self, f: F) -> T
+    where
+        F: AsyncFnOnce(&mut Shared) -> T,
+    {
+        f(&mut *self.shared.lock().await).await
+    }
+
     /// Attempt to submit a [TestRunWithPayload] through to the resolver task if we are able to
     /// obtain sufficient pending execution claims.
     pub async fn try_submit_test_plan(
@@ -341,8 +348,7 @@ impl EventQueueState {
                 // If we hit this branch then the channel is closed and we are likely shutting
                 // down. But, we still attempt to be good citizens and release our claim on the
                 // resolver queue to ensure that the shared state is correct.
-                let mut shared = self.shared.lock().await;
-                shared.n_queued -= n;
+                self.with_shared(async |shared| shared.n_queued -= n).await;
 
                 Err(SubmitError::ResolveChannelClosed)
             }
@@ -354,20 +360,38 @@ impl EventQueueState {
     /// Returns `true` if the claim was successful, otherwise `false`.
     pub async fn try_reserve_pending_executions(&self, tp: &RepTestPlan) -> Option<Claim> {
         let n = tp.matrix.n_variants();
-        let mut shared = self.shared.lock().await;
 
-        if shared.n_queued.saturating_add(n) <= shared.max_queued_executions {
-            shared.n_queued += n;
-            Some(Claim(n))
-        } else {
-            None
-        }
+        self.with_shared(async |shared| {
+            if shared.n_queued.saturating_add(n) <= shared.max_queued_executions {
+                shared.n_queued += n;
+                Some(Claim(n))
+            } else {
+                None
+            }
+        })
+        .await
     }
 
     /// Return `n` queued execution claims back to the shared state.
     pub async fn release_pending_execution_claim(&self, claim: Claim) {
-        let mut shared = self.shared.lock().await;
-        shared.n_queued -= claim.0;
+        self.with_shared(async |shared| shared.n_queued -= claim.0)
+            .await;
+    }
+
+    pub(crate) async fn resolve_environment_for_execution(
+        &self,
+        ex: &TestExecution,
+    ) -> resolver::Result<DockerComposeEnvironment> {
+        self.with_shared(async |shared| shared.resolve_environment_for_execution(ex).await)
+            .await
+    }
+
+    pub(crate) async fn resolve_scenario_for_execution(
+        &self,
+        ex: &TestExecution,
+    ) -> resolver::Result<DockerScenario> {
+        self.with_shared(async |shared| shared.resolve_scenario_for_execution(ex).await)
+            .await
     }
 }
 

@@ -20,6 +20,12 @@ pub enum Error {
     #[error(transparent)]
     Io(#[from] io::Error),
 
+    #[error(transparent)]
+    Resolve(#[from] crate::resolver::ResolverError),
+
+    #[error(transparent)]
+    Yaml(#[from] serde_yaml::Error),
+
     #[error("file upload has already been requested for this execution")]
     FileUploadAlreadyRequested,
 

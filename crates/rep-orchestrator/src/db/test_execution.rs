@@ -57,8 +57,8 @@ impl TestExecution {
         self.uuid
     }
 
-    pub fn token(&self) -> &Uuid {
-        &self.token
+    pub fn token(&self) -> Uuid {
+        self.token
     }
 
     pub fn has_file_upload(&self) -> bool {

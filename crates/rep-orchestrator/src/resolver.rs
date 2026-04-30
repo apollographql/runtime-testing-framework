@@ -48,7 +48,7 @@ pub async fn resolver_task(
 }
 
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum ResolverError {
+pub enum ResolverError {
     #[error("event loop channel closed")]
     EventChannelClosed,
 
