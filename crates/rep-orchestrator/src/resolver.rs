@@ -230,6 +230,7 @@ mod tests {
             mgmt_context: Some("dummy".to_string()),
             workload_context: "dummy".to_string(),
             orchestrator_url: "http://localhost:8035".to_string(),
+            toolbox_pull_policy: "IfNotPresent".to_string(),
             gcs_bucket: "test-bucket".to_string(),
             gcs_url_ttl_secs: 300,
             mock_internal_gcs_url: Some("http://mock-gcs-internal".to_string()),

@@ -35,6 +35,7 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
         mgmt_context,
         workload_context,
         orchestrator_url,
+        toolbox_pull_policy,
         kubeconfig_secret_name,
         ..
     } = Config::get();
@@ -78,6 +79,7 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
             .handle(
                 &mut event_queue,
                 orchestrator_url,
+                toolbox_pull_policy,
                 kubeconfig_secret_name,
                 clients,
             )
@@ -178,6 +180,7 @@ impl Event {
         self,
         event_queue: &mut EventQueue,
         orchestrator_url: &str,
+        toolbox_pull_policy: &str,
         kubeconfig_secret_name: &str,
         clients: ClusterClients,
     ) -> Result<()> {
@@ -189,6 +192,7 @@ impl Event {
                 provision_environment::create_workflow(
                     self.test_execution.clone(),
                     orchestrator_url,
+                    toolbox_pull_policy,
                     kubeconfig_secret_name,
                     clients.clone(),
                     conn,
@@ -224,6 +228,7 @@ impl Event {
                             scenario_cfg.docker_image(),
                             scenario_cfg.command(),
                             orchestrator_url,
+                            toolbox_pull_policy,
                             clients,
                             conn,
                         )

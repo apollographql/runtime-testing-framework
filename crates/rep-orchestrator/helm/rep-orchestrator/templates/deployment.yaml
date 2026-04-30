@@ -97,6 +97,8 @@ spec:
               value: {{ .Values.config.maxQueuedExecutions | quote }}
             - name: RTF_ORCHESTRATOR_URL
               value: {{ required "config.orchestratorUrl is required" .Values.config.orchestratorUrl | quote }}
+            - name: RTF_TOOLBOX_PULL_POLICY
+              value: {{ required "config.toolboxPullPolicy is required" .Values.config.toolboxPullPolicy | quote }}
             {{- if .Values.gcs.mockInternalUrl }}
             - name: RTF_MOCK_INTERNAL_GCS_URL
               value: {{ .Values.gcs.mockInternalUrl | quote }}

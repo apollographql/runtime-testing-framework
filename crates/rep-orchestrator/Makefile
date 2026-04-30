@@ -27,6 +27,7 @@ db-tests:
 		RTF_GCS_BUCKET=dummy \
 		RTF_MOCK_GCS_URL="mock-gcs" \
 		RTF_ORCHESTRATOR_URL="http://localhost:8035" \
+		RTF_TOOLBOX_PULL_POLICY="IfNotPresent" \
 		cargo test --lib --features db_tests $(ARGS)
 
 .PHONY: integration-tests
@@ -45,6 +46,7 @@ integration-tests: clear-db-data
 		RTF_GCS_BUCKET=dummy \
 		RTF_MOCK_GCS_URL="dummy" \
 		RTF_ORCHESTRATOR_URL="http://localhost:8035" \
+		RTF_TOOLBOX_PULL_POLICY="IfNotPresent" \
 		cargo test --features k8s_tests --test '*' $(ARGS)
 
 .PHONY: test-all

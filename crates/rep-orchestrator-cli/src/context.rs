@@ -143,7 +143,7 @@ impl EnvironmentContext {
             })?;
 
         let orchestrator_client =
-            orchestrator::HttpClient::new(orchestrator_url, execution_id, execution_token);
+            orchestrator::HttpClient::try_new(orchestrator_url, execution_id, execution_token)?;
         let kube_client = kubernetes::HttpClient::from_kubeconfig(kubeconfig).await?;
 
         Ok(Self {

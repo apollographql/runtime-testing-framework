@@ -16,6 +16,7 @@ pub(super) async fn create_job<K, H>(
     scenario_image: String,
     scenario_command: String,
     orchestrator_url: &str,
+    toolbox_pull_policy: &str,
     clients: K,
     conn: &mut H,
 ) -> Result<Option<EventData>>
@@ -39,6 +40,7 @@ where
                 scenario_image,
                 scenario_command,
                 orchestrator_url,
+                toolbox_pull_policy,
             ),
         )
         .await
@@ -154,6 +156,7 @@ mod tests {
             "image".into(),
             "cmd".into(),
             "http://localhost:8035",
+            "IfNotPresent",
             clients.clone(),
             &mut handle,
         )
@@ -190,6 +193,7 @@ mod tests {
             "image".into(),
             "cmd".into(),
             "http://localhost:8035",
+            "IfNotPresent",
             clients.clone(),
             &mut handle,
         )

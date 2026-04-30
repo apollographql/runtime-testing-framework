@@ -31,6 +31,7 @@ pub fn scenario_job(
     scenario_image: String,
     scenario_command: String,
     orchestrator_url: &str,
+    toolbox_pull_policy: &str,
 ) -> JobSpec {
     let env = ex.toolbox_env_vars(orchestrator_url);
 
@@ -47,10 +48,14 @@ pub fn scenario_job(
             }),
             spec: Some(PodSpec {
                 restart_policy: Some("Never".to_owned()),
-                init_containers: Some(vec![rtf_resolve_container_spec(scenario_command, &env)]),
+                init_containers: Some(vec![rtf_resolve_container_spec(
+                    scenario_command,
+                    toolbox_pull_policy,
+                    &env,
+                )]),
                 containers: vec![
                     scenario_run_container_spec(scenario_image),
-                    output_collector_container_spec(&env),
+                    output_collector_container_spec(toolbox_pull_policy, &env),
                 ],
                 volumes: Some(scenario_volumes()),
                 ..Default::default()
@@ -60,10 +65,15 @@ pub fn scenario_job(
     }
 }
 
-fn rtf_resolve_container_spec(scenario_command: String, env: &[EnvVar]) -> Container {
+fn rtf_resolve_container_spec(
+    scenario_command: String,
+    toolbox_pull_policy: &str,
+    env: &[EnvVar],
+) -> Container {
     Container {
         name: "rtf-resolve".to_owned(),
         image: Some(TOOLBOX_IMAGE.to_owned()),
+        image_pull_policy: Some(toolbox_pull_policy.to_owned()),
         command: Some(vec![CLI_BINARY.to_owned()]),
         args: Some(vec![
             "prepare-scenario".into(),
@@ -116,10 +126,11 @@ fn scenario_run_container_spec(scenario_image: String) -> Container {
     }
 }
 
-fn output_collector_container_spec(env: &[EnvVar]) -> Container {
+fn output_collector_container_spec(toolbox_pull_policy: &str, env: &[EnvVar]) -> Container {
     Container {
         name: "output-collector".to_owned(),
         image: Some(TOOLBOX_IMAGE.to_owned()),
+        image_pull_policy: Some(toolbox_pull_policy.to_owned()),
         command: Some(vec![CLI_BINARY.to_owned()]),
         args: Some(vec![
             "collect-output".into(),

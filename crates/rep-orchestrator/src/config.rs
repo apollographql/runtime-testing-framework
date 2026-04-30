@@ -34,6 +34,7 @@ pub struct Config {
     pub mgmt_context: Option<String>,
     pub workload_context: String,
     pub orchestrator_url: String,
+    pub toolbox_pull_policy: String,
     pub gcs_bucket: String,
     #[serde(default = "default_gcs_url_ttl_secs")]
     pub gcs_url_ttl_secs: u64,
