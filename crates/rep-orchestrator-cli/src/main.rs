@@ -50,18 +50,12 @@ async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Result<
             namespace,
             kubeconfig: kubeconfig_path,
             timeout,
-        } => {
-            commands::deploy_environment(&namespace, &kubeconfig_path, timeout, ctx).await
-        }
+        } => commands::deploy_environment(&namespace, &kubeconfig_path, timeout, ctx).await,
 
-        Command::Cleanup {
-            configmap,
-            namespace,
-        } => commands::cleanup(&configmap, &namespace, ctx).await,
-
-        Command::PrepareScenario { shared_dir, command } => {
-            commands::prepare_scenario(&shared_dir, &command, ctx).await
-        }
+        Command::PrepareScenario {
+            shared_dir,
+            command,
+        } => commands::prepare_scenario(&shared_dir, &command, ctx).await,
 
         Command::CollectOutput { shared_dir } => commands::collect_output(&shared_dir, ctx).await,
     };

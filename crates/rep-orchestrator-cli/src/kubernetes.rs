@@ -2,11 +2,11 @@ use crate::error::{CliError, CliResult};
 use anyhow::Context;
 use k8s_openapi::api::{
     apps::v1::Deployment,
-    core::v1::{ConfigMap, Namespace, ServiceAccount},
+    core::v1::{Namespace, ServiceAccount},
 };
 use kube::{
     Api, Config,
-    api::{DeleteParams, ObjectMeta, Patch, PatchParams},
+    api::{ObjectMeta, Patch, PatchParams},
     config::{KubeConfigOptions, Kubeconfig},
 };
 use std::{collections::BTreeMap, path::Path};
@@ -27,8 +27,6 @@ pub struct DeploymentInfo {
 }
 
 pub trait Client: Send + Sync + Clone {
-    async fn delete_configmap(&self, name: &str, namespace: &str) -> anyhow::Result<()>;
-
     async fn create_namespace(&self, name: &str) -> anyhow::Result<()>;
 
     async fn create_results_writer_service_account(&self, namespace: &str) -> anyhow::Result<()>;
@@ -66,12 +64,6 @@ impl HttpClient {
 }
 
 impl Client for HttpClient {
-    async fn delete_configmap(&self, name: &str, namespace: &str) -> anyhow::Result<()> {
-        let api: Api<ConfigMap> = Api::namespaced(self.client.clone(), namespace);
-        api.delete(name, &DeleteParams::default()).await?;
-        Ok(())
-    }
-
     async fn create_namespace(&self, name: &str) -> anyhow::Result<()> {
         let api: Api<Namespace> = Api::all(self.client.clone());
         let ns = Namespace {
@@ -155,7 +147,6 @@ pub(crate) mod mocks {
 
     #[derive(Debug, Clone, PartialEq)]
     pub enum KubeCall {
-        DeleteConfigMap { name: String, namespace: String },
         ApplyNamespace { name: String },
         ApplyResultsWriterServiceAccount { namespace: String },
         CheckDeploymentsAvailable { namespace: String },
@@ -211,13 +202,6 @@ pub(crate) mod mocks {
     }
 
     impl Client for MockClient {
-        async fn delete_configmap(&self, name: &str, namespace: &str) -> anyhow::Result<()> {
-            self.record(KubeCall::DeleteConfigMap {
-                name: name.to_owned(),
-                namespace: namespace.to_owned(),
-            })
-        }
-
         async fn create_namespace(&self, name: &str) -> anyhow::Result<()> {
             self.record(KubeCall::ApplyNamespace {
                 name: name.to_owned(),

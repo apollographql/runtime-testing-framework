@@ -56,17 +56,6 @@ pub enum Command {
         timeout: u64,
     },
 
-    /// Delete a ConfigMap used for environment configuration
-    Cleanup {
-        /// Name of the ConfigMap to delete
-        #[arg(long)]
-        configmap: String,
-
-        /// Namespace where the ConfigMap resides
-        #[arg(long)]
-        namespace: String,
-    },
-
     /// Resolve the scenario config and write a `run.sh` wrapper into the shared volume for the
     /// scenario-runner container to execute.
     PrepareScenario {
@@ -94,9 +83,7 @@ impl Command {
             Self::CreateNamespace { kubeconfig, .. }
             | Self::CreateServiceAccount { kubeconfig, .. }
             | Self::DeployEnvironment { kubeconfig, .. } => Some(kubeconfig),
-            Self::Cleanup { .. } | Self::PrepareScenario { .. } | Self::CollectOutput { .. } => {
-                None
-            }
+            Self::PrepareScenario { .. } | Self::CollectOutput { .. } => None,
         }
     }
 }
