@@ -1,7 +1,16 @@
 <!-- diataxis-type: howto -->
 
-# Developer How-to Guides
+# Developer how-to guides
 
 Task-oriented guides for common development workflows.
 
-- [PR Checks](pr-checks.md) - running CI checks locally
+- [PR Checks][0] - running CI checks locally
+- [Run rep-orchestrator tests][1] - running unit, DB, and integration tests for the orchestrator
+- [Run a test coverage report][2] - generating and inspecting a full workspace coverage report
+- [Update trybuild .stderr files][3] - refreshing expected compiler output after a Rust version
+  change
+
+[0]: pr-checks.md
+[1]: run-rep-orchestrator-tests.md
+[2]: run-coverage-reports.md
+[3]: update-trybuild-stderr-files.md

@@ -12,29 +12,29 @@ has its own README file explaining its purpose at the crate's root.
 
 The `rtf-config` crate is the heart of RTF. It handles:
 
-- **Parsing** - YAML config files (Test Plans, Environments, Scenarios) are parsed into strongly
-  typed Rust structs
+- **Parsing** - YAML config files ([Test Plans][1], [Environments][1], [Scenarios][1]) are parsed
+  into strongly typed Rust structs
 - **Templating** - Variable substitution using the `{{ variable }}` syntax
 - **Validation** - Static analysis checks before execution
-- **Providers** - Both file providers and command providers live here
+- **Providers** - Both File Providers and Command Providers live here
 
-The crate exposes a [ResolutionContext][1] trait that abstracts all IO operations, enabling
+The crate exposes a [ResolutionContext][2] trait that abstracts all IO operations, enabling
 testability and CLI control over execution.
 
-The `rep-orchestrator` crate is a server-side orchestration layer for REP. It is an [axum][2] HTTP
-server that receives test plans and manages the lifecycle of test runs and individual test
-executions.
+The `rep-orchestrator` crate is a server-side orchestration layer for REP. It manages the lifecycle
+of test runs and individual test executions across two Kubernetes clusters: a management cluster
+(Argo workflows for environment provisioning) and a workload cluster (scenario jobs). It uses the
+`rep-orchestrator-shared` crate for types shared between it and the `rep-orchestrator-cli` which
+submits updates to the clusters.
 
 The `rtf-integrations` crate provides the `rtf-config` crate with clients to make various HTTP
 requests.
-
-The other crates sit above these crates, providing business logic and presentation layers for RTF.
 
 ## Data flow
 
 When a user runs `rtf run test-plan.yaml`, the following flow occurs:
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                              rtf run                                    │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -84,10 +84,10 @@ RTF and REP are related but distinct systems that serve different execution cont
 - **RTF CLI** (`rtf`) is a local command-line tool. A developer runs it directly to perform actions
   against test plans on the same system the CLI is hosted on.
 - **REP (Runtime Environment Provisioner) Orchestrator Service** is a server-side system. It
-  receives test plans over HTTP, manages their execution in a REP provisioned cluster
+  receives Test Plans over HTTP, manages their execution in a REP provisioned cluster
   asynchronously, and reports results back to callers via status endpoints.
 
-The handoff point between the two systems is the `RepPayload` — a resolved test plan produced by
+The handoff point between the two systems is the `RepPayload` — a resolved Test Plan produced by
 `rtf rep prepare` and submitted to REP via `POST /test-run/trigger`. REP does not replace the RTF
 CLI; they are complementary tools for different execution contexts.
 
@@ -95,7 +95,7 @@ CLI; they are complementary tools for different execution contexts.
 
 When a caller triggers a test run via REP:
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  POST /test-run/trigger (RepPayload)                                    │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -143,7 +143,7 @@ Providers are the primary extension point in RTF. They come in two forms:
 
 - **File Providers** - Generate files that are made available to commands via environment variables.
   Examples include `relative_path` (reading a file from a specific relative path),
-  `graphos_supergraph` (fetch from GraphOS), and `merge_yaml` (a utility to merge yaml from multiple
+  `graphos_supergraph` (fetch from GraphOS), and `merge_yaml` (a utility to merge YAML from multiple
   sources). Custom Providers allow users to define their own file providers using YAML definitions
   that execute commands to produce files.
 
@@ -207,20 +207,20 @@ See [Use of IO in Providers][3] for more details.
 
 RTF follows several key design principles:
 
-1. **Composition over embedding** - RTF composes with external tools rather than embedding them. See
-   the [Overview][4] for more on this philosophy.
+- **Composition over embedding** - RTF composes with external tools rather than embedding them. See
+  the [Overview][4] for more on this philosophy.
 
-2. **Plumbing and porcelain** - Commands are split into low-level "plumbing" (like `template`) and
-   high-level "porcelain" (like `run`). See [Plumbing vs Porcelain][5].
+- **Plumbing and porcelain** - Commands are split into low-level "plumbing" (like `template`) and
+  high-level "porcelain" (like `run`). See [Plumbing vs Porcelain][5].
 
-3. **No built-in magic** - Commands don't have special inline logic. See [No Built-in Magic][6].
+- **No built-in magic** - Commands don't have special inline logic. See [No Built-in Magic][6].
 
-4. **Fail fast with good errors** - RTF validates early and reports all known errors in batch rather
-   than failing on the first error. See [Error Handling][7].
+- **Fail fast with good errors** - RTF validates early and reports all known errors in batch rather
+  than failing on the first error. See [Error Handling][7].
 
 [0]: https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html
-[1]: https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs
-[2]: https://docs.rs/axum
+[1]: ../../reference/glossary.md
+[2]: https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs
 [3]: context.md
 [4]: ../../explanation/overview.md
 [5]: cli-design/plumbing-vs-porcelain.md
