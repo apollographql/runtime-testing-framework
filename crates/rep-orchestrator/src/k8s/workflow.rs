@@ -165,6 +165,7 @@ impl TaskTemplate {
             container: Container {
                 name: name.into(),
                 image: Some(TOOLBOX_IMAGE.into()),
+                image_pull_policy: Some("always".into()),
                 command: Some(vec![CLI_BINARY.to_owned()]),
                 args: Some(cli_args),
                 volume_mounts: Some(volume_mounts),
