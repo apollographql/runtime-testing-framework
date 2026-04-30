@@ -45,7 +45,6 @@ pub struct PodGC {
 pub struct WorkflowSpec {
     pub service_account_name: String,
     pub entrypoint: String,
-    pub on_exit: String,
     pub templates: Vec<TemplateDef>,
     pub volumes: Vec<Volume>,
     pub ttl_strategy: Option<TtlStrategy>,
@@ -65,7 +64,6 @@ impl WorkflowSpec {
         Self {
             service_account_name: "argo-workflow".to_owned(),
             entrypoint: "main".to_owned(),
-            on_exit: "cleanup".to_owned(),
             templates: vec![
                 TemplateDef::Main(MainTemplate::new()),
                 TemplateDef::Task(create_namespace(&namespace, env_vars.clone())),
@@ -229,15 +227,7 @@ fn deploy_environment(namespace: &str, env: Vec<EnvVar>) -> TaskTemplate {
             "--kubeconfig".into(),
             KUBECONFIG_PATH.into(),
         ],
-        vec![
-            kubeconfig_volume_mount(),
-            VolumeMount {
-                name: "environment".into(),
-                mount_path: "/environment".into(),
-                read_only: Some(true),
-                ..Default::default()
-            },
-        ],
+        vec![kubeconfig_volume_mount()],
         None,
         env,
     )
