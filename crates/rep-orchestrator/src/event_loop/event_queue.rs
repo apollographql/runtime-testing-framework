@@ -10,7 +10,7 @@ use rtf_config::{
     StableSource,
     checks::Check,
     context::ResolutionContext,
-    formats::{DockerComposeEnvironment, DockerScenario},
+    formats::{DockerComposeEnvironment, DockerScenario, EnvironmentConfig, ScenarioConfig},
     inlining::InlineMode,
     run::RunProviders,
     templating::{Template, TemplateContext},
@@ -203,6 +203,7 @@ impl EventQueue {
     ) -> resolver::Result<DockerScenario> {
         self.with_shared(async |shared| shared.resolve_scenario_for_execution(ex).await)
             .await
+            .map(|s| s.execution)
     }
 }
 
@@ -373,7 +374,7 @@ impl EventQueueState {
     pub(crate) async fn resolve_environment_for_execution(
         &self,
         ex: &TestExecution,
-    ) -> resolver::Result<DockerComposeEnvironment> {
+    ) -> resolver::Result<EnvironmentConfig<DockerComposeEnvironment>> {
         self.with_shared(async |shared| shared.resolve_environment_for_execution(ex).await)
             .await
     }
@@ -381,7 +382,7 @@ impl EventQueueState {
     pub(crate) async fn resolve_scenario_for_execution(
         &self,
         ex: &TestExecution,
-    ) -> resolver::Result<DockerScenario> {
+    ) -> resolver::Result<ScenarioConfig<DockerScenario>> {
         self.with_shared(async |shared| shared.resolve_scenario_for_execution(ex).await)
             .await
     }
@@ -413,11 +414,11 @@ impl Shared {
     async fn resolve_environment_for_execution(
         &self,
         ex: &TestExecution,
-    ) -> resolver::Result<DockerComposeEnvironment> {
+    ) -> resolver::Result<EnvironmentConfig<DockerComposeEnvironment>> {
         self.with_templated_and_checked_variant(ex, async |ctx, mut test_plan| {
             test_plan.environment.inline(&InlineMode::All, ctx).await?;
 
-            Ok(test_plan.environment.execution)
+            Ok(test_plan.environment)
         })
         .await
     }
@@ -425,7 +426,7 @@ impl Shared {
     async fn resolve_scenario_for_execution(
         &self,
         ex: &TestExecution,
-    ) -> resolver::Result<DockerScenario> {
+    ) -> resolver::Result<ScenarioConfig<DockerScenario>> {
         self.with_templated_and_checked_variant(ex, async |ctx, mut test_plan| {
             test_plan
                 .scenario
@@ -433,7 +434,7 @@ impl Shared {
                 .inline(&InlineMode::All, ctx)
                 .await?;
 
-            Ok(test_plan.scenario.execution)
+            Ok(test_plan.scenario)
         })
         .await
     }
