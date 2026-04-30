@@ -1,3 +1,4 @@
+use git_version::git_version;
 use rep_orchestrator::run_server;
 use std::{io::stdout, process};
 use tracing::{error, info, subscriber::set_global_default};
@@ -18,7 +19,12 @@ async fn main() {
 
     set_global_default(subscriber).expect("unable to set a global tracing subscriber");
 
-    info!("starting server");
+    info!(
+        "starting server version={}-{}",
+        env!("CARGO_PKG_VERSION"),
+        git_version!(fallback = "unknown")
+    );
+
     if let Err(error) = run_server().await {
         error!(%error, "Fatal error");
         process::exit(1);

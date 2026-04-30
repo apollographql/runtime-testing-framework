@@ -17,17 +17,17 @@ rtf-integrations = { path = "../rtf-integrations" }
 
 anyhow.workspace = true 
 assert_fs.workspace = true
-clap.workspace = true
 clap_complete = "4.6.2"
+clap.workspace = true
+git-version.workspace = true
+open = "5.3.4"
 schemars.workspace = true
-serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
+serde.workspace = true
 tokio.workspace = true
-tracing.workspace = true
 tracing-subscriber.workspace = true
-git-version = "0.3.9"
-open = "5.3.4"
+tracing.workspace = true
 
 [dev-dependencies]
 assert_cmd.workspace = true
