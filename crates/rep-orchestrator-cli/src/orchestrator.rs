@@ -67,14 +67,13 @@ impl HttpClient {
     }
 
     async fn fetch_config(&self, endpoint: &str) -> anyhow::Result<Vec<u8>> {
-        let url = format!(
-            "{}/test-execution/{}/{endpoint}",
-            self.orchestrator_url, self.execution_id
-        );
+        let url = self
+            .orchestrator_url
+            .join(&format!("test-execution/{}/{endpoint}", self.execution_id))?;
 
         info!(id=%self.execution_id, "fetching {}", endpoint);
         let resp = reqwest::Client::new()
-            .get(&url)
+            .get(url)
             .bearer_auth(self.execution_token)
             .send()
             .await
@@ -100,10 +99,10 @@ impl Client for HttpClient {
         exit_status: Option<ExitStatus>,
         message: Option<String>,
     ) -> anyhow::Result<()> {
-        let url = format!(
-            "{}/test-execution/{}/status",
-            self.orchestrator_url, self.execution_id
-        );
+        let url = self
+            .orchestrator_url
+            .join(&format!("test-execution/{}/status", self.execution_id))?;
+
         let payload = SetStatusPayload {
             status,
             exit_code: exit_status
@@ -114,7 +113,7 @@ impl Client for HttpClient {
 
         info!(id=%self.execution_id, %status, "updating execution status");
         let resp = reqwest::Client::new()
-            .post(&url)
+            .post(url)
             .bearer_auth(self.execution_token)
             .json(&payload)
             .send()
@@ -145,14 +144,14 @@ impl Client for HttpClient {
     }
 
     async fn generate_upload_urls(&self) -> anyhow::Result<UploadUrls> {
-        let url = format!(
-            "{}/test-execution/{}/generate-upload-urls",
-            self.orchestrator_url, self.execution_id
-        );
+        let url = self.orchestrator_url.join(&format!(
+            "test-execution/{}/generate-upload-urls",
+            self.execution_id
+        ))?;
 
         info!(id=%self.execution_id, "requesting upload URLs");
         let resp = reqwest::Client::new()
-            .post(&url)
+            .post(url)
             .bearer_auth(self.execution_token)
             .json(&GenerateUploadUrlsPayload {})
             .send()
