@@ -278,11 +278,18 @@ fn handle_workflow_event(res: result::Result<Workflow, watcher::Error>) -> Optio
     let status = wf.status.as_ref()?;
     match status.phase.as_deref() {
         Some("Succeeded") => Some(WatchOutcome::Succeeded),
+
         Some("Failed") | Some("Error") => {
-            let msg = status.message.clone().unwrap_or_default();
+            let msg = status
+                .message
+                .clone()
+                .unwrap_or_else(|| "argo workflow failed".into());
+
             Some(WatchOutcome::Failed(msg))
         }
+
         Some("Running") => None,
+
         _ => {
             error!(?status, "unexpected workflow status");
             None
@@ -304,11 +311,13 @@ fn handle_job_event(res: result::Result<Job, watcher::Error>) -> Option<WatchOut
     {
         return Some(WatchOutcome::Succeeded);
     }
+
     if conditions
         .iter()
         .any(|c| c.type_ == "Failed" && c.status == "True")
     {
-        return Some(WatchOutcome::Failed("".into()));
+        return Some(WatchOutcome::Failed("job failed".into()));
     }
+
     None
 }
