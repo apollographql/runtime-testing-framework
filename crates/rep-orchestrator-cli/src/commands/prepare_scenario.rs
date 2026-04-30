@@ -55,8 +55,7 @@ pub async fn prepare_scenario(
         .await
         .map_err(CliError::unrunnable)?;
 
-    let workdir_path = temp_dir().join("rtf-work");
-    let cfg_path = &workdir_path.join("scenario.yaml");
+    let cfg_path = &temp_dir().join("scenario.yaml");
     ctx.write_file(cfg_path, &cfg_bytes)?;
 
     info_status!(ctx, Status::Provisioning, "Resolving scenario...")?;
