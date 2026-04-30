@@ -5,6 +5,7 @@ use rep_orchestrator_shared::{
     status::Status,
     upload_urls::UploadUrls,
 };
+use reqwest::Url;
 use std::process::ExitStatus;
 use tracing::info;
 use uuid::Uuid;
@@ -45,7 +46,7 @@ pub trait Client: Send + Sync {
 }
 
 pub struct HttpClient {
-    orchestrator_url: String,
+    orchestrator_url: Url,
     execution_id: Uuid,
     execution_token: Uuid,
 }
@@ -53,12 +54,16 @@ pub struct HttpClient {
 impl HttpClient {
     /// Creates a new [HttpClient] that will report updates to `orchestrator_url` for the test execution associated
     /// with `execution_id`, authenticating requests with `execution_token` as a Bearer token.
-    pub fn new(orchestrator_url: String, execution_id: Uuid, execution_token: Uuid) -> Self {
-        Self {
-            orchestrator_url,
+    pub fn try_new(
+        orchestrator_url: String,
+        execution_id: Uuid,
+        execution_token: Uuid,
+    ) -> anyhow::Result<Self> {
+        Ok(Self {
+            orchestrator_url: Url::parse(&orchestrator_url)?,
             execution_id,
             execution_token,
-        }
+        })
     }
 
     async fn fetch_config(&self, endpoint: &str) -> anyhow::Result<Vec<u8>> {
