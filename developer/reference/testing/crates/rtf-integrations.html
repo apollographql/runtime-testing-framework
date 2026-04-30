@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>rep-orchestrator - Runtime Testing Framework</title>
+        <title>rtf-integrations - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../../../favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="../../../favicon-8114d1fc.png">
-        <link rel="stylesheet" href="../../../css/variables-8adf115d.css">
-        <link rel="stylesheet" href="../../../css/general-2459343d.css">
-        <link rel="stylesheet" href="../../../css/chrome-ae938929.css">
-        <link rel="stylesheet" href="../../../css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../../../../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../../../../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../../../../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../../../../css/general-2459343d.css">
+        <link rel="stylesheet" href="../../../../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../../../../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../../../fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../../../../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="../../../highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../../tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../../ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../../../../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../../../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../../../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "../../../";
+            const path_to_root = "../../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../searchindex-46243faa.js";
+            window.path_to_searchindex_js = "../../../../searchindex-fb25db8d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../../toc-e82f622f.js"></script>
+        <script src="../../../../toc-6c62d7cd.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../../../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../../../../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">Runtime Testing Framework</h1>
 
                     <div class="right-buttons">
-                        <a href="../../../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../../../../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/apollographql/runtime-testing-framework" title="Git repository" aria-label="Git repository">
@@ -178,179 +178,95 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: reference -->
-<h1 id="rep-orchestrator"><a class="header" href="#rep-orchestrator">rep-orchestrator</a></h1>
-<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rep-orchestrator"><code>rep-orchestrator</code></a> crate are organized and implemented.</p>
-<p>The crate has two categories of test:</p>
-<ul>
-<li><strong>Unit tests</strong> — live alongside source code in <code>src/</code>. Some require a running stack and are gated
-behind the <code>k8s_tests</code> feature flag.</li>
-<li><strong>Integration tests</strong> — live in <code>tests/suite.rs</code>. Require a fully running Docker Compose stack
-(orchestrator server + database + k8s clusters).</li>
-</ul>
-<p>Running <code>cargo test</code> from the workspace root will skip all stack-dependent tests. They must be run
-explicitly via <code>make</code>.</p>
+<h1 id="rtf-integrations"><a class="header" href="#rtf-integrations">rtf-integrations</a></h1>
+<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-integrations"><code>rtf-integrations</code></a> crate are organized and implemented.
+The crate follows the <a href="./unit-tests.html">unit test style</a>. This page describes the additional conventions that
+apply within <code>rtf-integrations</code>.</p>
 <h2 id="organization"><a class="header" href="#organization">Organization</a></h2>
-<h3 id="unit-tests"><a class="header" href="#unit-tests">Unit tests</a></h3>
-<p>Unit tests in <code>rep-orchestrator</code> follow the same hierarchy used in <a href="./rtf-integrations.html"><code>rtf-integrations</code></a>:</p>
-<ol>
-<li><strong>Module</strong> - A logical grouping of functionality. Since this maps directly to the Rust module
-structure, there are likely to be sub-modules in the path. For example, database operations for
-test executions could be nested under <code>db::test_execution</code>. The primary concern is the logical
-organization of the Rust code for scopes and privacy.</li>
-<li><strong>Function</strong> - The function or logic under test. This most likely maps to a function or trait
-method. If this is not fully specified in the module path, it should be specified as the first
-prefix in the test case name.</li>
-<li><strong>Test class</strong> - A logical grouping of test cases. This is defined when using
-<a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> to create multiple parameterized tests.</li>
-<li><strong>Test case</strong> - The specific test case. This should be uniquely and meaningfully named. Examples
-of test case naming can be seen <a href="./index.html#test-case-naming">here</a>.</li>
-</ol>
-<p>Following the hierarchy above leads to the following generic test case paths:</p>
+<p>Tests follow the standard unit test hierarchy. The test class level uses the <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a> macro
+naming convention: when <code>#[dir_cases]</code> is used, the test function name becomes the test class (e.g.
+<code>try_parse_ok</code>, <code>try_parse_err</code>), and test case names are derived from the test data file names.</p>
+<p>Following the hierarchy leads to the following generic test case paths:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// When simple_test_case is not used
-module::path::tests::function_test_case
+</span>// With dir_cases
+module::path::tests::function_test_class::file_name
 
-// When simple_test_case is used
-module::path::tests::function_test_class::test_case
+// Without simple_test_case
+module::path::tests::function_test_case
 <span class="boring">}</span></code></pre>
-<h3 id="integration-tests"><a class="header" href="#integration-tests">Integration tests</a></h3>
-<p>Integration tests in <code>tests/suite.rs</code> test the HTTP API as a whole. They do not follow the module
-hierarchy used by unit tests since they are not organized by source module. Instead, they are named
-using the following hierarchy:</p>
-<ol>
-<li><strong>Endpoint</strong> - The HTTP endpoint under test. Examples include <code>trigger</code>
-(<code>POST /test-run/trigger</code>) and <code>run_status</code> (<code>GET /test-run/{id}/status</code>).</li>
-<li><strong>Scenario</strong> - The specific behaviour being verified. Examples include
-<code>returns_200_for_valid_plan</code> or <code>returns_404_for_unknown_run</code>.</li>
-</ol>
-<p>This leads to the following generic test case paths:</p>
+<h2 id="trait-based-testing-with-platformquery"><a class="header" href="#trait-based-testing-with-platformquery">Trait-based testing with PlatformQuery</a></h2>
+<p>The crate’s primary testing pattern leverages the <code>PlatformQuery</code> trait to test GraphQL response
+parsing without requiring HTTP mocking:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>endpoint_scenario
-<span class="boring">}</span></code></pre>
-<h4 id="example---triggering-a-test-run"><a class="header" href="#example---triggering-a-test-run">Example - triggering a test run</a></h4>
-<p>This example demonstrates testing the trigger endpoint with a valid test plan:</p>
-<ol>
-<li><strong>Endpoint</strong> is <code>trigger</code>. This is the endpoint under test.</li>
-<li><strong>Scenario</strong> is <code>valid_rep_test_plan_returns_200</code>. This describes the input and the expected
-outcome.</li>
-</ol>
-<p>This leads to the following full test path:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>test trigger_valid_rep_test_plan_returns_200
-<span class="boring">}</span></code></pre>
-<h4 id="example---querying-run-status-for-an-unknown-run"><a class="header" href="#example---querying-run-status-for-an-unknown-run">Example - querying run status for an unknown run</a></h4>
-<ol>
-<li><strong>Endpoint</strong> is <code>run_status</code>. This is the endpoint under test.</li>
-<li><strong>Scenario</strong> is <code>returns_404_for_unknown_run</code>. This describes the input and the expected outcome.</li>
-</ol>
-<p>This leads to the following full test path:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>test run_status_returns_404_for_unknown_run
-<span class="boring">}</span></code></pre>
-<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
-<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing infrastructure</a></h3>
-<p>The crate leverages the following key testing tools:</p>
-<ul>
-<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Provides <code>#[test_case]</code> and <code>#[dir_cases]</code> attributes for
-parameterized testing across both unit and integration tests</li>
-<li><strong><a href="https://docs.rs/tokio/latest/tokio/attr.test.html"><code>tokio</code></a></strong> - Provides the <code>#[tokio::test]</code> attribute for async test functions, used
-extensively in integration tests</li>
-<li><strong><a href="https://docs.rs/reqwest/latest/reqwest/"><code>reqwest</code></a></strong> - HTTP client used by <code>TestHelper</code> to make requests against the running server
-during integration tests</li>
-<li><strong><a href="https://docs.rs/assert_fs/latest/assert_fs/"><code>assert_fs</code></a></strong> - Temporary filesystem utilities used by <code>TestHelper</code> to manage test plan
-directories during integration tests</li>
-<li><strong><a href="https://docs.rs/anyhow/latest/anyhow/"><code>anyhow</code></a></strong> - Ergonomic error handling in tests with the <code>-&gt; anyhow::Result&lt;()&gt;</code> return type</li>
-</ul>
-<h3 id="unit-tests-1"><a class="header" href="#unit-tests-1">Unit tests</a></h3>
-<p>Unit tests live inside <code>#[cfg(test)] mod tests</code> blocks within their source file and test business
-logic directly without requiring HTTP or database infrastructure where possible.</p>
-<p>To run all unit tests (DB tests skipped):</p>
-<pre><code class="language-bash">cargo test -p rep-orchestrator --lib
-</code></pre>
-<h3 id="stack-dependent-tests"><a class="header" href="#stack-dependent-tests">Stack-dependent tests</a></h3>
-<p>Tests that require a running stack (database + k8s clusters) are annotated with:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[cfg_attr(not(feature = "k8s_tests"), ignore)]
-<span class="boring">}</span></code></pre>
-<p>This means they are skipped by <code>cargo test</code> (and reported as ignored in the output) unless
-<code>--features k8s_tests</code> is passed. Do not remove this annotation from existing tests — it prevents
-the standard workspace test run from failing when no stack is available.</p>
-<p>To run stack-dependent tests, first start the local stack:</p>
-<pre><code class="language-bash">cd crates/rep-orchestrator
-make test-db-up
-</code></pre>
-<p>In a second terminal session, run the tests:</p>
-<pre><code class="language-bash">make db-tests
-</code></pre>
-<p>To stop the stack when done:</p>
-<pre><code class="language-bash">make test-db-down
-</code></pre>
-<h3 id="integration-tests-1"><a class="header" href="#integration-tests-1">Integration tests</a></h3>
-<p>Integration tests require the full Docker Compose stack (orchestrator server + database). They test
-the HTTP API end-to-end and are defined in <code>tests/suite.rs</code>.</p>
-<p>To run the integration tests manually:</p>
-<pre><code class="language-bash">cd crates/rep-orchestrator
-make up
-</code></pre>
-<p>This will show you the server logs for everything in the stack, useful for debugging failed tests.
-In a second terminal window run the tests:</p>
-<pre><code class="language-bash">make integration-tests    # run tests in tests/suite.rs
-</code></pre>
-<p>To stop the stack when done run:</p>
-<pre><code class="language-bash">make down
-</code></pre>
-<p>To run all tests as CI does (spin up, wait, test, tear down):</p>
-<pre><code class="language-bash">cd crates/rep-orchestrator
-make ci-tests
-</code></pre>
-<h4 id="testing-infrastructure-1"><a class="header" href="#testing-infrastructure-1">Testing infrastructure</a></h4>
-<p>Integration tests use a <code>TestHelper</code> struct defined in <code>tests/common/mod.rs</code>. Any shared logic
-between tests should be added as further methods to this helper. It wraps a <code>reqwest::Client</code> and
-provides convenience methods for calling server endpoints:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct TestHelper {
-    client: Client,
+</span>pub trait PlatformQuery: GraphQLQuery {
+    type Output;
+    type Error;
+
+    fn try_parse(
+        data: Self::ResponseData,
+        variables: Self::Variables,
+    ) -&gt; Result&lt;Self::Output, Self::Error&gt;;
 }
 <span class="boring">}</span></code></pre>
-<p>The helper handles:</p>
-<ul>
-<li><strong><code>trigger_run</code></strong> - prepares a <code>RepPayload</code> from a test plan directory and posts it to
-<code>/test-run/trigger</code></li>
-<li><strong><code>json_get</code></strong> / <strong><code>json_post</code></strong> - typed request/response helpers that deserialize JSON responses
-directly into the expected type.</li>
-<li><strong><code>get</code></strong> / <strong><code>post</code></strong> - request/response helpers that return a <code>Response</code> so you can do simple
-high level assertions on things like the status code.</li>
-<li><strong>Temp directory placement</strong> - uses <code>CARGO_TARGET_TMPDIR</code> rather than <code>/tmp</code> to avoid macOS
-symlink issues with Docker volume mounts</li>
-</ul>
-<h4 id="parameterized-integration-tests"><a class="header" href="#parameterized-integration-tests">Parameterized integration tests</a></h4>
-<p>Tests that cover multiple input variations use <code>#[test_case]</code> from <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a>:</p>
+<p>Tests deserialize JSON directly into the GraphQL response type and call <code>try_parse</code> in isolation:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>#[test_case(&amp;[su(Provisioning, None), su(Running, None), su(Successful, None)]; "successful")]
-#[test_case(&amp;[su(Provisioning, None), su(Running, None), su(Failed, Some(1))]; "failed")]
-#[test_case(&amp;[su(Provisioning, None), su(Unrunnable, None)]; "unrunnable")]
-#[tokio::test]
-async fn update_test_execution_status_valid_sequence_works(payloads: &amp;[SetStatusPayload]) {
-    // ...
+</span>fn try_parse_ok(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&gt; {
+    let raw: &lt;OfflineLicense as GraphQLQuery&gt;::ResponseData = serde_json::from_str(contents)?;
+    let result = OfflineLicense::try_parse(raw, variables)?;
+    assert_eq!(result, "expected-value");
+    Ok(())
 }
 <span class="boring">}</span></code></pre>
+<h2 id="directory-driven-parameterized-tests"><a class="header" href="#directory-driven-parameterized-tests">Directory-driven parameterized tests</a></h2>
+<p>The <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a> macro generates test cases from files in a directory:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[dir_cases("crates/rtf-integrations/resources/test_data/offline_license/valid")]
+#[test]
+fn try_parse_ok(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&gt; {
+    // Test logic runs once per file in the directory
+}
+<span class="boring">}</span></code></pre>
+<p>Each file becomes a separate test case. <code>path</code> provides context for error messages; <code>contents</code> is
+the file text. Adding new test cases is as simple as adding a file to the directory.</p>
+<h2 id="test-data-organization"><a class="header" href="#test-data-organization">Test data organization</a></h2>
+<p>Test data lives in <code>resources/test_data/</code>, organized by operation and validity:</p>
+<pre><code>resources/test_data/
+└── &lt;operation&gt;/
+    ├── valid/    — complete GraphQL response JSON
+    └── invalid/  — response JSON wrapped with an expected_error field
+</code></pre>
+<p><strong>Valid test case</strong> — the raw GraphQL response:</p>
+<pre><code class="language-json">{
+  "graph": {
+    "account": {
+      "offlineLicense": { "jwt": "test-jwt-token" }
+    }
+  }
+}
+</code></pre>
+<p><strong>Invalid test case</strong> — wrapped with <code>expected_error</code> so tests can assert the correct error variant
+is returned:</p>
+<pre><code class="language-json">{
+  "expected_error": "UnknownSupergraph",
+  "data": { "graph": null }
+}
+</code></pre>
+<p>Each error variant in the crate’s error types should have at least one corresponding file in the
+<code>invalid/</code> directory.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../../developer/reference/testing/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../../../developer/reference/testing/crates/rtf-core.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../../developer/reference/testing/rtf-cli.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../../../developer/reference/testing/crates/rtf-derive.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -360,11 +276,11 @@ async fn update_test_execution_status_valid_sequence_works(payloads: &amp;[SetSt
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../../developer/reference/testing/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../../../developer/reference/testing/crates/rtf-core.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../../developer/reference/testing/rtf-cli.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../../../developer/reference/testing/crates/rtf-derive.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -383,19 +299,19 @@ async fn update_test_execution_status_valid_sequence_works(payloads: &amp;[SetSt
             window.playground_copyable = true;
         </script>
 
-        <script src="../../../ace-2a3cd908.js"></script>
-        <script src="../../../mode-rust-2c9d5c9a.js"></script>
-        <script src="../../../editor-16ca416c.js"></script>
-        <script src="../../../theme-dawn-4493f9c8.js"></script>
-        <script src="../../../theme-tomorrow_night-9dbe62a9.js"></script>
+        <script src="../../../../ace-2a3cd908.js"></script>
+        <script src="../../../../mode-rust-2c9d5c9a.js"></script>
+        <script src="../../../../editor-16ca416c.js"></script>
+        <script src="../../../../theme-dawn-4493f9c8.js"></script>
+        <script src="../../../../theme-tomorrow_night-9dbe62a9.js"></script>
 
-        <script src="../../../elasticlunr-ef4e11c1.min.js"></script>
-        <script src="../../../mark-09e88c2c.min.js"></script>
-        <script src="../../../searcher-c2a407aa.js"></script>
+        <script src="../../../../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../../../../mark-09e88c2c.min.js"></script>
+        <script src="../../../../searcher-c2a407aa.js"></script>
 
-        <script src="../../../clipboard-1626706a.min.js"></script>
-        <script src="../../../highlight-abc7f01d.js"></script>
-        <script src="../../../book-a0b12cfe.js"></script>
+        <script src="../../../../clipboard-1626706a.min.js"></script>
+        <script src="../../../../highlight-abc7f01d.js"></script>
+        <script src="../../../../book-a0b12cfe.js"></script>
 
         <!-- Custom JS scripts -->
 

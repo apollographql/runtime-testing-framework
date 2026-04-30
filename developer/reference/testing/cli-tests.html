@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>rtf-config - Runtime Testing Framework</title>
+        <title>CLI integration tests - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -35,10 +35,10 @@
             const path_to_root = "../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../searchindex-46243faa.js";
+            window.path_to_searchindex_js = "../../../searchindex-fb25db8d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../../toc-e82f622f.js"></script>
+        <script src="../../../toc-6c62d7cd.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,214 +178,86 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: reference -->
-<h1 id="rtf-config"><a class="header" href="#rtf-config">rtf-config</a></h1>
-<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate are organized and implemented.</p>
+<h1 id="cli-integration-tests"><a class="header" href="#cli-integration-tests">CLI integration tests</a></h1>
+<p>CLI tests verify the compiled binary’s behavior end-to-end: argument parsing, output formatting,
+exit codes, and filesystem interactions. They live in a <code>tests/</code> directory at the crate root and
+compile the binary rather than calling functions directly.</p>
 <h2 id="organization"><a class="header" href="#organization">Organization</a></h2>
-<p>Tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate are organized using the following hierarchy:</p>
+<p>CLI tests are not organized by source module. Modules within the <code>tests/</code> directory create the
+naming hierarchy:</p>
 <ol>
-<li><strong>Module</strong> - A logical grouping of config data structures. Examples include providers and config
-files. Since this maps directly to the Rust module structure, there are likely to be sub-modules
-in the path. For example, file providers could be nested under the path <code>providers::file</code>. The
-primary concern is the logical organization of the Rust code for scopes and privacy.</li>
-<li><strong>Data structures</strong> - Any specific snippet or reusable YAML config; these most likely map to a
-specific type. Examples include specific file providers like <code>RelativePath</code> and <code>GithubFile</code>. It
-is unlikely that each of these will have a specific file in the Rust code. If these are not fully
-specified in the module path, then they should be specified as the first prefix in the test case
-name.</li>
-<li><strong>Functionality</strong> - Any specific functionality implemented for the data structure. This could
-include trait implementations and other functions implemented for the data structure. Examples
-include parsing, template, validate, and resolve for file providers. This should be the second
-prefix in the test case name.</li>
-<li><strong>Test class</strong> - A logical grouping of test cases, for example, all valid test cases for parsing
-a file provider. This is only defined when using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> to create multiple
-parameterized tests.</li>
-<li><strong>Test case</strong> - The specific test case. This should be uniquely and meaningfully named. Examples
-of test case naming can be seen <a href="./index.html#test-case-naming">here</a>.</li>
+<li><strong>Environment dependency</strong> — Tests that require API tokens are grouped by their credential
+requirement. Files named after the command they test have no external dependency. Examples:
+<code>github</code> (requires <code>GITHUB_TOKEN</code>), <code>graphos</code> (requires <code>APOLLO_KEY</code>).</li>
+<li><strong>Command</strong> — The CLI subcommand under test. Examples: <code>template</code>, <code>run</code>, <code>rep</code>. Where no command
+is supplied, use <code>no_command</code>.</li>
+<li><strong>Flag(s)</strong> — Flags that cause significant branching in functionality, added as a prefix to the
+test case name. Omit if the flag is already implied by the environment dependency.</li>
+<li><strong>Test class</strong> — A grouping of parameterized cases defined with <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a>.</li>
+<li><strong>Test case</strong> — The specific scenario, uniquely and meaningfully named. See
+<a href="./index.html#test-case-naming">test case naming</a>.</li>
 </ol>
 <p>Following the hierarchy above leads to the following generic test case paths:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// When simple_test_case is not used
-module::path::tests::data_structure_functionality_test_case
+</span>// Without simple_test_case
+env_dependency::command::flags_test_case
 
-// When simple_test_case is used
-module::path::tests::data_structure_functionality_test_class::test_case
+// With simple_test_case
+env_dependency::command::flags_test_class::test_case
 <span class="boring">}</span></code></pre>
-<h3 id="example---resolving-a-file-provider"><a class="header" href="#example---resolving-a-file-provider">Example - resolving a file provider</a></h3>
-<p>This example demonstrates how to test that the file provider, <code>RelativePath</code>, can be resolved into
-file content. Working through the hierarchy:</p>
-<ol>
-<li><strong>Module</strong> is <code>provider::file</code>. This is where the <code>RelativePath</code> type is defined.</li>
-<li><strong>Data structure</strong> is <code>relative_path</code> since this is the specific file provider being tested. This
-becomes the first prefix in the test case name since the module does not uniquely identify the
-data structure.</li>
-<li><strong>Functionality</strong> is <code>resolve</code>. This becomes the second prefix in the test case name.</li>
-<li><strong>Test class</strong> is omitted since <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is not used.</li>
-<li><strong>Test case</strong> is <code>into_text</code>. For illustrative purposes, a failing test case, <code>file_not_text</code>, is
-included as well.</li>
-</ol>
-<p>The full test paths are:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>test provider::file::tests::relative_path_resolve_into_text
-test provider::file::tests::relative_path_resolve_file_not_text
-<span class="boring">}</span></code></pre>
-<p>To achieve the structure above, the tests are defined in <code>src/providers/file/mod.rs</code> and organized
-as follows:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>mod tests {
-  #[test]
-  fn relative_path_resolve_success() {
-    ...
-  }
-
-  #[test]
-  fn relative_path_resolve_file_not_text() {
-    ...
-  }
-}
-<span class="boring">}</span></code></pre>
-<h3 id="example---malformed-template-strings"><a class="header" href="#example---malformed-template-strings">Example - malformed template strings</a></h3>
-<p>This example demonstrates how to test that the template string <code>"{{ template_variable }}"</code> does not
-work when similar, but not acceptable, patterns are specified. Working through the hierarchy:</p>
-<ol>
-<li><strong>Module</strong> is <code>templating</code>. This is where the <code>Field</code> type is defined.</li>
-<li><strong>Data structure</strong> is <code>field</code> since the <code>Field</code> type is being tested. This becomes the first
-prefix in the test case name since the module does not uniquely identify the data structure.</li>
-<li><strong>Functionality</strong> is <code>parse</code> since the template string is evaluated during the parsing of a
-<code>Field</code>. This becomes the second prefix in the test case name.</li>
-<li><strong>Test class</strong> is <code>malformed_template_string</code>. <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is used since there are
-variations in strings that are tested using the same logic.</li>
-<li><strong>Test cases</strong> are a series of uniquely named tests. For example, <code>no_space_after_variable_name</code>
-and <code>single_curly_braces</code>.</li>
-</ol>
-<p>The full test paths are:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>test templating::tests::field_parse_malformed_template_string::no_space_after_variable_name
-test templating::tests::field_parse_malformed_template_string::single_curly_braces
-<span class="boring">}</span></code></pre>
-<p>To achieve the structure above, the tests are defined in <code>src/templating.rs</code> and organized as
-follows:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>mod tests {
-  use simple_test_case::test_case;
-  #[test_case("arg1"; "no_space_after_variable_name")]
-  #[test_case("arg2"; "single_curly_braces")]
-  #[test]
-  fn field_parse_malformed_template_string(arg: &amp;str) {
-    ...
-  }
-}
-<span class="boring">}</span></code></pre>
-<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
-<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate uses several testing strategies and tools to ensure comprehensive
-coverage of configuration parsing, validation, and resolution.</p>
-<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing infrastructure</a></h3>
-<p>The crate leverages the following key testing tools:</p>
+<h2 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing infrastructure</a></h2>
+<p>CLI tests use the following tools:</p>
 <ul>
-<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Enables parameterized testing with <code>#[test_case]</code> attributes for
-testing multiple input variations with the same test logic</li>
-<li><strong><code>assert_fs</code></strong> - Provides temporary filesystem testing utilities for file operations</li>
-<li><strong><code>predicates</code></strong> - Offers composable assertion predicates for more expressive test assertions</li>
-<li><strong><code>indoc</code></strong> - Allows clean multi-line string literals in tests, particularly useful for YAML
-configurations</li>
+<li><strong><a href="https://docs.rs/assert_cmd/latest/assert_cmd/"><code>assert_cmd</code></a></strong> — Spawns the compiled binary and asserts on stdout, stderr, and exit status</li>
+<li><strong><a href="https://docs.rs/assert_fs/latest/assert_fs/"><code>assert_fs</code></a></strong> — Temporary filesystem utilities for managing test directories</li>
+<li><strong><a href="https://docs.rs/predicates/latest/predicates/"><code>predicates</code></a></strong> — Composable assertion predicates for output matching</li>
+<li><strong><a href="https://docs.rs/indoc/latest/indoc/"><code>indoc</code></a></strong> — Clean multi-line expected output strings</li>
+<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> — Parameterized testing across multiple input variations</li>
+<li><strong><code>cargo_bin_cmd!</code></strong> — Macro that builds a command for the target binary</li>
 </ul>
-<h3 id="mock-system"><a class="header" href="#mock-system">Mock system</a></h3>
-<p>The crate implements a flexible mock system through <code>MockContext&lt;T&gt;</code> that allows dependency
-injection during testing:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// For HTTP client testing
-let mock_ctx = MockContext::with_http_client(&amp;[
-    ("https://example.com/api", "200", "response body")
-]);
-
-// For GitHub client testing  
-let mock_ctx = MockContext::with_github_client("file content");
-<span class="boring">}</span></code></pre>
-<p>This approach enables testing without external dependencies while maintaining the same interfaces
-used in production code.</p>
-<p>For mocking interactions with GraphOS, a different approach is used. Rather than mocking the GraphOS
-API directly, the tests create mock <code>SupergraphDetails</code> and test the content transformation logic:</p>
+<h2 id="ignoring-credential-dependent-tests"><a class="header" href="#ignoring-credential-dependent-tests">Ignoring credential-dependent tests</a></h2>
+<p>Tests that require API tokens must be ignored by default. The <code>#[ignore]</code> attribute takes a reason
+string explaining which credential is needed:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test]
-fn supergraph_resolve_success() {
-    // Create mock supergraph details with known test data
-    let details = Arc::new(SupergraphDetails {
-        graph_id: "test-graph".to_string(),
-        variant: "test-variant".to_string(),
-        supergraph_sdl: "schema { query: Query }".to_string(),
-        subgraphs: vec![/* test subgraphs */],
-    });
-
-    let supergraph = GraphosSupergraph {
-        graph_ref: Field::Resolved("graph@variant".to_string()),
-        with_subgraph_overrides: None,
-    };
-
-    // Test the content transformation directly
-    let result = supergraph.content_from_details(details);
-    assert_eq!(result, "schema { query: Query }");
+#[ignore = "requires a valid GitHub API Token"]
+fn github_flag_completes() {
+    // ...
 }
 <span class="boring">}</span></code></pre>
-<p>This pattern allows testing the core business logic while avoiding the complexity of mocking
-external APIs. The <code>with_supergraph_details</code> method in the production context handles the API
-interaction separately.</p>
-<h3 id="parameterized-testing-patterns"><a class="header" href="#parameterized-testing-patterns">Parameterized testing patterns</a></h3>
-<p>Tests extensively use <code>#[test_case]</code> to cover multiple scenarios efficiently:</p>
+<p>This keeps <code>cargo test</code> fast and dependency-free. To run these tests, supply the credential as an
+environment variable and pass <code>-- --ignored</code> or <code>-- --include-ignored</code> to cargo.</p>
+<h2 id="temporary-directory-management"><a class="header" href="#temporary-directory-management">Temporary directory management</a></h2>
+<p><code>CmdWithTmpDir</code> combines a command with a temporary directory, ensuring filesystem state is cleaned
+up after each test:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>#[test_case("foo"; "ascii")]
-#[test_case("BAR"; "upper case")]
-#[test_case("世界"; "unicode")]
-#[test]
-fn field_parse_valid_identifiers(raw: &amp;str) {
-    // Test logic handles all cases
+</span>pub struct CmdWithTmpDir {
+    cmd: Command,
+    tmp: TempDir,
 }
 <span class="boring">}</span></code></pre>
-<p>Related test cases are grouped into test classes when using parameterized testing, following the
-naming hierarchy described in the <a href="#organization">Organization</a> section.</p>
-<h3 id="configuration-testing-strategy"><a class="header" href="#configuration-testing-strategy">Configuration testing strategy</a></h3>
-<p>The crate employs a systematic approach to testing configuration handling:</p>
-<ol>
-<li><strong>Parsing Tests</strong> - Verify YAML deserialization works correctly for valid inputs and fails
-appropriately for invalid ones</li>
-<li><strong>Template Resolution Tests</strong> - Ensure the <code>{{ variable }}</code> templating system works across all
-supported data types. In most cases specific tests are not required for the <code>Template</code> trait
-since this is derived with a proc macro. Whenever there is a custom implementation of this trait
-then tests are defined.</li>
-<li><strong>Validation Tests</strong> - Check that configuration validation catches common errors and edge cases</li>
-<li><strong>Resolve Tests</strong> - Test that providers and configuration resolve and execute correctly.</li>
-</ol>
-<h3 id="test-data-management"><a class="header" href="#test-data-management">Test data management</a></h3>
-<p>Test data is organized in two main ways:</p>
-<ul>
-<li><strong>Inline test data</strong> using <code>indoc!</code> for small, focused examples</li>
-<li><strong>Resource files</strong> in <code>resources/</code> for larger, realistic configurations and any non UTF-8 files.</li>
-</ul>
-<h3 id="error-testing"><a class="header" href="#error-testing">Error testing</a></h3>
-<p>The crate places strong emphasis on testing error conditions:</p>
-<ul>
-<li><strong>Malformed input testing</strong> - Invalid YAML, incorrect template syntax, missing required fields</li>
-<li><strong>Boundary condition testing</strong> - Empty values, special characters, unicode handling</li>
-<li><strong>Error message validation</strong> - Ensuring error messages are helpful for users</li>
-</ul>
-<p>Error tests follow the same organizational patterns as success tests, often using parameterized
-testing to cover multiple error scenarios efficiently.</p>
+<p>Use this when a test must write output files and the test needs to inspect them.</p>
+<h2 id="test-resources"><a class="header" href="#test-resources">Test resources</a></h2>
+<p>Test data lives under <code>resources/</code> at the crate root, organized by resource type and validity:</p>
+<pre><code class="language-text">resources/
+└── &lt;resource_type&gt;/
+    ├── valid/    — complete, valid test plans for success scenarios
+    └── invalid/  — organized by failure category (load-and-resolve, templating, checks, run)
+</code></pre>
+<p>Each test plan directory is self-contained with all necessary files.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../../developer/reference/testing/rtf-cli.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../../developer/reference/testing/unit-tests.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../../developer/reference/testing/rtf-derive.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../../developer/reference/testing/http-tests.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -395,11 +267,11 @@ testing to cover multiple error scenarios efficiently.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../../developer/reference/testing/rtf-cli.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../../developer/reference/testing/unit-tests.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../../developer/reference/testing/rtf-derive.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../../developer/reference/testing/http-tests.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

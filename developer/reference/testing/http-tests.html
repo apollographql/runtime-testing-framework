@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>File Providers - Runtime Testing Framework</title>
+        <title>HTTP API integration tests - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -178,25 +178,80 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: reference -->
-<h1 id="file-providers"><a class="header" href="#file-providers">File providers</a></h1>
-<p><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L224">File providers</a> are the primary way that rtf exposes useful functionality to users. Each
-provider is defined as a struct that can be parsed from a YAML snippet within a larger config file,
-with fields that serve as inputs to business logic from the <a href="https://github.com/apollographql/runtime-testing-framework/tree/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-integrations">rtf-integrations</a> crate. Running a
-file provider will generate one or more resources within a user designated output directory which
-can then be referenced by the commands being run as part of a test plan.</p>
-<p>Within config files, file providers are always wrapped in a <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L201">NamedFileProvider</a> that adds
-filename and environment variable fields along with logic for running the provider and outputting
-the new resources in the correct location on the filesystem.</p>
+<h1 id="http-api-integration-tests"><a class="header" href="#http-api-integration-tests">HTTP API integration tests</a></h1>
+<p>HTTP API integration tests verify HTTP servers end-to-end. They require a running stack (on either
+Docker Compose or Kubernetes) and are distinct from unit tests that test business logic in
+isolation.</p>
+<h2 id="test-scope"><a class="header" href="#test-scope">Test scope</a></h2>
+<p>Integration tests are expensive to run — starting a full stack adds significant overhead. Keep them
+focused: verify that the stack wires together correctly and that the HTTP API behaves as expected
+for the happy path and key error boundaries.</p>
+<p>Don’t use integration tests to cover every error scenario exhaustively. Detailed error-case coverage
+belongs in unit tests, where it’s fast and deterministic. Integration tests should give just enough
+confidence that the end-to-end plumbing works.</p>
+<h2 id="feature-flags"><a class="header" href="#feature-flags">Feature flags</a></h2>
+<p>Stack-dependent tests are gated behind feature flags so that <code>cargo test</code> passes without any
+infrastructure:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Flag</th><th>What it enables</th></tr>
+</thead>
+<tbody>
+<tr><td><code>db_tests</code></td><td>Unit tests that require a live PostgreSQL database</td></tr>
+<tr><td><code>k8s_tests</code></td><td>Full integration tests requiring the Docker Compose stack (implies <code>db_tests</code>)</td></tr>
+</tbody>
+</table>
+</div>
+<p>Tests gated by these flags are annotated as follows:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg_attr(not(feature = "db_tests"), ignore)]
+fn some_db_test() { ... }
+
+#[cfg_attr(not(feature = "k8s_tests"), ignore)]
+fn some_k8s_test() { ... }
+<span class="boring">}</span></code></pre>
+<p>Do not remove these annotations — they prevent the standard workspace test run from failing when no
+stack is available.</p>
+<h2 id="organization"><a class="header" href="#organization">Organization</a></h2>
+<p>Integration tests test the HTTP API as a whole and are not organized by source module. Instead, they
+are named by endpoint and scenario:</p>
+<ol>
+<li><strong>Endpoint</strong> — The HTTP endpoint under test. Examples: <code>trigger</code> (<code>POST /test-run/trigger</code>),
+<code>run_status</code> (<code>GET /test-run/{id}/status</code>).</li>
+<li><strong>Scenario</strong> — The specific behaviour being verified. Examples:
+<code>valid_rep_test_plan_returns_200</code>, <code>returns_404_for_unknown_run</code>.</li>
+</ol>
+<p>Following the hierarchy above leads to the following generic test case path:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>endpoint_scenario
+<span class="boring">}</span></code></pre>
+<p>For example: <code>trigger_valid_rep_test_plan_returns_200</code>.</p>
+<h2 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing infrastructure</a></h2>
+<p>Integration tests use the following tools:</p>
+<ul>
+<li><strong><a href="https://docs.rs/tokio/latest/tokio/attr.test.html"><code>tokio</code></a></strong> — <code>#[tokio::test]</code> for async test functions</li>
+<li><strong><a href="https://docs.rs/serial_test/latest/serial_test/"><code>serial_test</code></a></strong> — Forces tests to run serially; required because tests share a single
+running stack and would interfere with each other if run in parallel</li>
+<li><strong><a href="https://docs.rs/reqwest/latest/reqwest/"><code>reqwest</code></a></strong> — HTTP client for making requests to the server under test</li>
+<li><strong><a href="https://docs.rs/assert_fs/latest/assert_fs/"><code>assert_fs</code></a></strong> — Temporary filesystem utilities</li>
+<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> — Parameterized testing with <code>#[test_case]</code> for multiple input
+variations</li>
+</ul>
+<p>Define shared test setup and request helpers in a <code>tests/common/</code> module. See the relevant
+crate-specific page for implementation details.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../../developer/reference/data-structures/fields.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../../developer/reference/testing/cli-tests.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../../developer/reference/data-structures/command-providers.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../../developer/reference/testing/proc-macro-tests.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -206,11 +261,11 @@ the new resources in the correct location on the filesystem.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../../developer/reference/data-structures/fields.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../../developer/reference/testing/cli-tests.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../../developer/reference/data-structures/command-providers.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../../developer/reference/testing/proc-macro-tests.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

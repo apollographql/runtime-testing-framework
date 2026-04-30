@@ -35,10 +35,10 @@
             const path_to_root = "../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../searchindex-46243faa.js";
+            window.path_to_searchindex_js = "../../../searchindex-fb25db8d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../../toc-e82f622f.js"></script>
+        <script src="../../../toc-6c62d7cd.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -179,18 +179,37 @@
                     <main>
                         <!-- diataxis-type: reference -->
 <h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
-<p>As developers of a testing framework, we believe in the importance of comprehensive,
-well-structured, automated tests. High-quality testing enables safe, rapid iteration and continuous
-delivery. This document serves as our implementation guide for delivering well-tested software.</p>
-<p>Each crate has its own page within the docs explaining test structure and how tests are implemented.
-Testing guidance applicable across all crates is documented on this page.</p>
+<p>RTF maintains comprehensive, well-structured, automated tests to enable safe, rapid iteration and
+continuous delivery. This document covers testing conventions across the codebase.</p>
+<p>Testing guidance is split into two areas:</p>
+<ul>
+<li><strong>Styles of test</strong> — patterns that apply across multiple crates, documenting the tools and
+conventions for each broad category of test</li>
+<li><strong>Crate-specific pages</strong> — pages for each crate that describe any additional conventions on top of
+the relevant style</li>
+</ul>
+<h2 id="styles-of-test"><a class="header" href="#styles-of-test">Styles of test</a></h2>
+<ul>
+<li><a href="unit-tests.html">Unit tests</a> — tests inside <code>#[cfg(test)] mod tests</code> blocks</li>
+<li><a href="cli-tests.html">CLI integration tests</a> — testing compiled binaries via <code>assert_cmd</code></li>
+<li><a href="http-tests.html">HTTP API integration tests</a> — full-stack tests against a running server</li>
+<li><a href="proc-macro-tests.html">Proc macro tests</a> — compile-time testing with <code>trybuild</code></li>
+</ul>
+<h2 id="crate-specific-pages"><a class="header" href="#crate-specific-pages">Crate-specific pages</a></h2>
+<ul>
+<li><a href="crates/rtf-config.html">rtf-config</a></li>
+<li><a href="crates/rtf-core.html">rtf-core</a></li>
+<li><a href="crates/rtf-integrations.html">rtf-integrations</a></li>
+<li><a href="crates/rtf-derive.html">rtf-derive</a></li>
+<li><a href="crates/rtf-cli.html">rtf-cli</a></li>
+<li><a href="crates/rep-orchestrator.html">rep-orchestrator</a></li>
+<li><a href="crates/rep-orchestrator-cli.html">rep-orchestrator-cli</a></li>
+</ul>
 <h2 id="organizing-tests"><a class="header" href="#organizing-tests">Organizing tests</a></h2>
-<p>Each crate’s page describes a hierarchy that should be followed for all tests in that crate.
-Examples are included for additional guidance.</p>
-<p>The key aim of the hierarchies is to ensure that all tests related to the same level in the
-hierarchy are named consistently, making it easy to find related tests. The hierarchies will be
-followed using a combination of module structure and test case naming. For module structure, the
-primary concern is ensuring that code has the right scope and privacy level. Test structure is a
+<p>Each style page and crate-specific page describes a naming hierarchy for its test category. The key
+aim is consistent naming at each level of the hierarchy, making it easy to find related tests. The
+hierarchies use a combination of module structure and test case naming. For module structure, the
+primary concern is ensuring code has the right scope and privacy level. Test structure is a
 secondary concern to module structure.</p>
 <h2 id="test-case-naming"><a class="header" href="#test-case-naming">Test case naming</a></h2>
 <p>Test cases should be uniquely named within their hierarchy. The test cases should be given
@@ -210,41 +229,8 @@ meaningful names that describe what is being tested.</p>
 does not differentiate the test cases</li>
 </ul>
 <h2 id="test-coverage-reports"><a class="header" href="#test-coverage-reports">Test coverage reports</a></h2>
-<p>This section documents how to run a full test coverage report for RTF.</p>
-<blockquote>
-<p><strong>Note</strong>: There are no test coverage targets for RTF. A test coverage report showing a high
-percentage of coverage does not mean that RTF is fully tested. The reports are used to identify
-clear gaps in testing coverage where we would have expected to have at least one test case.</p>
-</blockquote>
-<p>The <a href="https://github.com/taiki-e/cargo-llvm-cov"><code>cargo-llvm-cov</code></a> crate is used to generate test coverage reports for RTF. If you are using
-<a href="https://mise.jdx.dev/getting-started.html"><code>mise</code></a>, then this will already be installed locally.</p>
-<p>To run a new report, first clear the previous test coverage data:</p>
-<pre><code class="language-bash">cargo llvm-cov clean --workspace
-</code></pre>
-<p>Next, test all the unignored tests:</p>
-<pre><code class="language-bash">cargo llvm-cov --no-report
-</code></pre>
-<p>Next, test all the ignored tests. This will add to the previous coverage, not replace it.</p>
-<blockquote>
-<p><strong>Note</strong>: Valid credentials will need to be supplied for these tests to complete successfully.</p>
-</blockquote>
-<pre><code class="language-bash">GITHUB_KEY="$GITHUB_KEY" cargo llvm-cov --test github --no-report -- --ignored
-APOLLO_KEY="$APOLLO_KEY" APOLLO_SUDO="true" cargo llvm-cov --test starstuff --no-report -- --ignored
-APOLLO_KEY="$APOLLO_KEY" APOLLO_SUDO="true" cargo llvm-cov --test imgood_observability_test --no-report -- --ignored
-</code></pre>
-<p>Finally, generate the report. It should open in your browser:</p>
-<pre><code class="language-bash">cargo llvm-cov report --open
-</code></pre>
-<p>The report should be manually inspected to ensure that all branches that should have at least one
-test case are covered. Two points to consider:</p>
-<ol>
-<li>100% coverage for any given area should not be treated as “this is fully tested.” It just means
-the code was executed at least once during testing. It is likely that calling code once during
-tests is not sufficient to test all scenarios.</li>
-<li>Conversely, there may be good reasons why certain areas of the code are not executed during
-tests. Where there is a justifiable reason, it is valid to not cover every single line of code
-during tests.</li>
-</ol>
+<p>RTF uses <a href="https://github.com/taiki-e/cargo-llvm-cov"><code>cargo-llvm-cov</code></a> for coverage reporting. There are no coverage targets — reports are
+used to identify unexpected gaps. See <a href="../../howto/run-coverage-reports.html">How to run a test coverage report</a> for the full procedure.</p>
 
                     </main>
 
@@ -254,7 +240,7 @@ during tests.</li>
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../../developer/reference/testing/rep-orchestrator.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../../developer/reference/testing/unit-tests.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -268,7 +254,7 @@ during tests.</li>
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../../developer/reference/testing/rep-orchestrator.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../../developer/reference/testing/unit-tests.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

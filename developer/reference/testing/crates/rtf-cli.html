@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>rtf-derive - Runtime Testing Framework</title>
+        <title>rtf-cli - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../../../favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="../../../favicon-8114d1fc.png">
-        <link rel="stylesheet" href="../../../css/variables-8adf115d.css">
-        <link rel="stylesheet" href="../../../css/general-2459343d.css">
-        <link rel="stylesheet" href="../../../css/chrome-ae938929.css">
-        <link rel="stylesheet" href="../../../css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../../../../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../../../../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../../../../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../../../../css/general-2459343d.css">
+        <link rel="stylesheet" href="../../../../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../../../../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../../../fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../../../../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="../../../highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../../tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../../ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../../../../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../../../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../../../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "../../../";
+            const path_to_root = "../../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../searchindex-46243faa.js";
+            window.path_to_searchindex_js = "../../../../searchindex-fb25db8d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../../toc-e82f622f.js"></script>
+        <script src="../../../../toc-6c62d7cd.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../../../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../../../../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">Runtime Testing Framework</h1>
 
                     <div class="right-buttons">
-                        <a href="../../../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../../../../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/apollographql/runtime-testing-framework" title="Git repository" aria-label="Git repository">
@@ -178,128 +178,44 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: reference -->
-<h1 id="rtf-derive"><a class="header" href="#rtf-derive">rtf-derive</a></h1>
-<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate are organized and implemented.</p>
-<p>This crate defines a <a href="https://doc.rust-lang.org/reference/procedural-macros.html">proc macro</a> for deriving the <code>Template</code> trait defined in the
-<a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate. The considerations for testing a proc macro are different from testing a
-standard Rust crate.</p>
+<h1 id="rtf-cli"><a class="header" href="#rtf-cli">rtf-cli</a></h1>
+<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate are organized and implemented. The crate
+follows the <a href="./cli-tests.html">CLI integration test style</a>. This page describes the additional conventions that
+apply within <code>rtf-cli</code>.</p>
 <h2 id="organization"><a class="header" href="#organization">Organization</a></h2>
-<p>For the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate, tests are defined in a <code>tests</code> directory at the root of the crate.
-This is because we need to test how the derive macro is applied to a variety of Rust containers. We
-also need to test the conditions under which the macro will fail to compile. Tests will not be named
-based on the module structure for the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a>, so tests must be named by creating modules
-within the test directory itself.</p>
-<p>Tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate are organized into the following modules:</p>
-<ol>
-<li><strong><code>compile</code></strong> - The <code>compile</code> tests check the conditions under which the derive macro will fail
-to compile into valid Rust.</li>
-<li><strong><code>template</code></strong> - The <code>template</code> tests check the implementation of the <code>Template</code> trait works as
-expected when the derive macro is applied to a Rust container.</li>
-</ol>
-<p>The structure of the tests within each of these modules is discussed below.</p>
-<h3 id="compile-tests"><a class="header" href="#compile-tests">Compile tests</a></h3>
-<p>There are two types of compile test: <code>pass</code> and <code>fail</code>. These are organized into separate
-directories within the <code>compile</code> subdirectory of <code>tests</code>.</p>
-<p>The <code>pass</code> tests work by importing the <code>*.rs</code> files into the <code>compile</code> module. These are not
-executed by <code>cargo test</code> but will fail if <code>cargo check</code> is run and they do not result in valid Rust.
-If any of the code in these modules fails to compile then the test should be considered to have
-failed.</p>
-<p>The <code>fail</code> tests use the <a href="https://docs.rs/trybuild/latest/trybuild/"><code>trybuild</code></a> crate. This is specifically to test the conditions under
-which we expect the derive macro to fail to compile valid Rust. The <code>*.rs</code> files in the <code>fail</code>
-directory should be used as examples of Rust containers that should not have the <code>Template</code> derive
-macro applied to them.</p>
-<blockquote>
-<p><strong>Note</strong>: The <code>trybuild</code> crate automatically generates the expected error messages when you run
-the tests with no error messages defined. There is a chance that updates to the Rust version used
-to run tests changes the format of the error messages produced and causes tests to fail. When this
-happens, delete the <code>.stderr</code> files associated with the failing test files and rerun <code>cargo test</code>.
-This should generate a <code>wip</code> directory at the root of the repository with the new <code>.stderr</code> files.
-Copy these into the <code>fail</code> directory and re-run <code>cargo test</code>. Your tests should now pass.</p>
-</blockquote>
-<h3 id="template-tests"><a class="header" href="#template-tests">Template tests</a></h3>
-<p>The <code>template</code> tests follow a typical Rust unit testing approach. The module defines various valid
-Rust containers the derive macro can be applied to. It then checks, for each of those containers,
-that the <code>Template</code> trait methods work as expected. The <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> crate is used to
-parameterize these containers into a single test function.</p>
-<p>The tests are organized using the following hierarchy:</p>
-<ol>
-<li><strong>Trait method</strong> - The method of the <code>Template</code> trait under test. In cases where the method can
-error, this will also identify the error conditions.</li>
-<li><strong>Data structure</strong> - The Rust container under test. This is defined as part of the
-<a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> test case name.</li>
-<li><strong>Test case</strong> - Additional information required to uniquely identify the test. This is defined as
-part of the <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> test case name.</li>
-</ol>
-<p>Following the hierarchy above leads to the following generic test case paths:</p>
+<p>Tests in <code>rtf-cli</code> use the environment dependency → command → flags → test class → test case
+hierarchy described in the <a href="./cli-tests.html">CLI integration test style</a>.</p>
+<p>The key convention specific to this crate: when a flag identifier duplicates the environment
+dependency identifier (e.g. a <code>--github</code> flag inside the <code>github</code> test module), omit the flag from
+the test case name. The environment dependency already encodes it.</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// When simple_test_case is used
-template::tests::trait_method::data_structure_test_case
+</span>// Environment dependency is "github", command is "run"
+// Flag "--github" is omitted — already implied by the module
+test github::run::github_flag_completes        // good
+test github::run::github_github_flag_completes // bad — duplicated identifier
 <span class="boring">}</span></code></pre>
-<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
-<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate employs specialized testing strategies tailored to procedural macro
-testing requirements.</p>
-<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing infrastructure</a></h3>
-<p>The crate leverages the following key testing tools:</p>
-<ul>
-<li><strong><a href="https://docs.rs/trybuild/latest/trybuild/"><code>trybuild</code></a></strong> - Enables testing of procedural macro compilation failures with precise error
-message validation</li>
-<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Provides parameterized testing capabilities for testing the derive
-macro across multiple Rust container types</li>
-<li><strong>Compile-time testing</strong> - Uses the Rust compiler itself as a testing tool to validate successful
-macro expansion</li>
-</ul>
-<h3 id="procedural-macro-testing-strategy"><a class="header" href="#procedural-macro-testing-strategy">Procedural macro testing strategy</a></h3>
-<p>Testing procedural macros requires a different approach from standard unit testing:</p>
-<ol>
-<li><strong>Compilation Success Testing</strong> - Verify that the macro successfully generates valid Rust code
-for supported container types</li>
-<li><strong>Compilation Failure Testing</strong> - Ensure the macro fails appropriately with helpful error
-messages for unsupported scenarios</li>
-<li><strong>Generated Code Testing</strong> - Validate that the generated <code>Template</code> trait implementations behave
-correctly at runtime</li>
-</ol>
-<h3 id="error-testing-with-trybuild"><a class="header" href="#error-testing-with-trybuild">Error testing with trybuild</a></h3>
-<p>The <code>fail</code> tests use <code>trybuild</code> to capture and validate compilation error messages:</p>
+<h2 id="ignored-tests"><a class="header" href="#ignored-tests">Ignored tests</a></h2>
+<p>Tests with external API dependencies are <code>#[ignore]</code> by default. The reason string must name the
+specific credential required:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test]
-fn ui() {
-    let t = trybuild::TestCases::new();
-    t.compile_fail("tests/compile/fail/*.rs");
-}
+#[ignore = "requires a valid GitHub API Token"]
+fn github_flag_completes() { ... }
 <span class="boring">}</span></code></pre>
-<p>This approach ensures that:</p>
-<ul>
-<li>Error messages remain consistent across Rust versions</li>
-<li>Users receive helpful diagnostic information when the macro cannot be applied</li>
-<li>The macro fails early with clear explanations rather than generating invalid code</li>
-</ul>
-<h3 id="parameterized-container-testing"><a class="header" href="#parameterized-container-testing">Parameterized container testing</a></h3>
-<p>The <code>template</code> tests extensively use <code>#[test_case]</code> to verify the derive macro works across
-different Rust container types:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[test_case("Struct"; "basic_struct")]
-#[test_case("TupleStruct"; "tuple_struct")]
-#[test_case("UnitStruct"; "unit_struct")]
-#[test]
-fn template_method_works(container_type: &amp;str) {
-    // Test the generated Template implementation
-}
-<span class="boring">}</span></code></pre>
-<p>This pattern allows comprehensive testing of the macro’s behavior across the full range of supported
-Rust syntax.</p>
+<p>Tests are grouped by their credential requirement into separate files (e.g. <code>tests/github/</code>,
+<code>tests/graphos/</code>), making it easy to run only the tests relevant to a given credential.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../../developer/reference/testing/rtf-config.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../../../developer/reference/testing/crates/rtf-derive.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../../developer/reference/testing/rtf-integrations.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../../../developer/reference/testing/crates/rep-orchestrator.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -309,11 +225,11 @@ Rust syntax.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../../developer/reference/testing/rtf-config.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../../../developer/reference/testing/crates/rtf-derive.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../../developer/reference/testing/rtf-integrations.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../../../developer/reference/testing/crates/rep-orchestrator.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -332,19 +248,19 @@ Rust syntax.</p>
             window.playground_copyable = true;
         </script>
 
-        <script src="../../../ace-2a3cd908.js"></script>
-        <script src="../../../mode-rust-2c9d5c9a.js"></script>
-        <script src="../../../editor-16ca416c.js"></script>
-        <script src="../../../theme-dawn-4493f9c8.js"></script>
-        <script src="../../../theme-tomorrow_night-9dbe62a9.js"></script>
+        <script src="../../../../ace-2a3cd908.js"></script>
+        <script src="../../../../mode-rust-2c9d5c9a.js"></script>
+        <script src="../../../../editor-16ca416c.js"></script>
+        <script src="../../../../theme-dawn-4493f9c8.js"></script>
+        <script src="../../../../theme-tomorrow_night-9dbe62a9.js"></script>
 
-        <script src="../../../elasticlunr-ef4e11c1.min.js"></script>
-        <script src="../../../mark-09e88c2c.min.js"></script>
-        <script src="../../../searcher-c2a407aa.js"></script>
+        <script src="../../../../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../../../../mark-09e88c2c.min.js"></script>
+        <script src="../../../../searcher-c2a407aa.js"></script>
 
-        <script src="../../../clipboard-1626706a.min.js"></script>
-        <script src="../../../highlight-abc7f01d.js"></script>
-        <script src="../../../book-a0b12cfe.js"></script>
+        <script src="../../../../clipboard-1626706a.min.js"></script>
+        <script src="../../../../highlight-abc7f01d.js"></script>
+        <script src="../../../../book-a0b12cfe.js"></script>
 
         <!-- Custom JS scripts -->
 

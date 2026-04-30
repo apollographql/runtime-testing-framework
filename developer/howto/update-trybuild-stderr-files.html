@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>rtf-cli - Runtime Testing Framework</title>
+        <title>Update trybuild .stderr files - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../../../favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="../../../favicon-8114d1fc.png">
-        <link rel="stylesheet" href="../../../css/variables-8adf115d.css">
-        <link rel="stylesheet" href="../../../css/general-2459343d.css">
-        <link rel="stylesheet" href="../../../css/chrome-ae938929.css">
-        <link rel="stylesheet" href="../../../css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../../css/general-2459343d.css">
+        <link rel="stylesheet" href="../../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../../../fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="../../../highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../../tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../../ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "../../../";
+            const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../searchindex-46243faa.js";
+            window.path_to_searchindex_js = "../../searchindex-fb25db8d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../../toc-e82f622f.js"></script>
+        <script src="../../toc-6c62d7cd.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../../../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">Runtime Testing Framework</h1>
 
                     <div class="right-buttons">
-                        <a href="../../../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/apollographql/runtime-testing-framework" title="Git repository" aria-label="Git repository">
@@ -177,245 +177,39 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <!-- diataxis-type: reference -->
-<h1 id="rtf-cli"><a class="header" href="#rtf-cli">rtf-cli</a></h1>
-<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate are organized and implemented.</p>
-<h2 id="organization"><a class="header" href="#organization">Organization</a></h2>
-<p>For the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate, tests are defined in a <code>tests</code> directory at the root of the crate.
-This allows them to test the execution of the actual CLI as a fully compiled binary. Tests will not
-be named based on the module structure for the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a>, so tests must be named by creating
-modules within the test directory itself.</p>
-<p>Comprehensive test coverage for the config and core RTF functionality should be provided by the
-other crates. CLI testing should focus on ensuring the commands execute as expected and present the
-right information to the end user.</p>
-<p>Tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate are organized using the following hierarchy:</p>
-<ol>
-<li><strong>Environment dependency</strong> - Some tests in this crate require API tokens to be provided to run
-tests successfully. By default, any such tests should be ignored. To run the tests, environment
-variable(s) containing the token(s) must be provided. To make it easier to run all tests with the
-same dependencies, tests with the same token requirements are stored in the same file. The first
-part of the test path therefore contains the environment dependency identifier. Examples include
-<code>github</code>, which stores all the tests that require a GitHub token.</li>
-<li><strong>Command</strong> - The command supplied to the CLI. For example, the <code>run</code> and <code>template</code> commands.
-Where no command is supplied, this is <code>no_command</code>. The command is part of the module path.</li>
-<li><strong>Flag(s)</strong> - Flags passed to the command that cause significant branching in functionality. For
-example, <code>check</code> could be used to describe tests covering the <code>template --check</code> case. Where it
-is necessary to identify the flags, these should be specified as the prefix to the test case
-name.</li>
-<li><strong>Test class</strong> - A logical grouping of test cases, for example, all valid <code>template</code> commands
-using the <code>--check</code> flag. This is only defined when using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> to create
-multiple parameterized tests.</li>
-<li><strong>Test case</strong> - The specific test case. This should be uniquely and meaningfully named. Examples
-of test case naming can be seen <a href="./index.html#test-case-naming">here</a>.</li>
-</ol>
-<p>Following the hierarchy above leads to the following generic test case paths:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// When simple_test_case is not used
-env_dependency::command::flags_test_case
-
-// When simple_test_case is used
-env_dependency::command::flags_test_class::test_case
-<span class="boring">}</span></code></pre>
-<h3 id="example---template-and-check"><a class="header" href="#example---template-and-check">Example - template and check</a></h3>
-<p>This example demonstrates how to test that a local test plan can be templated and passes a static
-check. Working through the hierarchy:</p>
-<ol>
-<li><strong>Environment dependency</strong> is omitted. This test requires no tokens to successfully run.</li>
-<li><strong>Command</strong> is <code>template</code>. This is the command being passed to the CLI.</li>
-<li><strong>Flag(s)</strong> is <code>check</code>. The <code>--check</code> flag is used in this test and adds significant additional
-logic.</li>
-<li><strong>Test class</strong> is omitted since <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is not used.</li>
-<li><strong>Test case</strong> is <code>completes_basic</code>. A failing test case is <code>completes_with_cli_variables</code>.</li>
-</ol>
-<p>This leads to the following full test path:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>test template::check_completes_basic
-test template::check_completes_with_cli_variables
-<span class="boring">}</span></code></pre>
-<p>To achieve the structure above, the tests are defined in <code>tests/template.rs</code> and organized as
-follows:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[test]
-fn check_completes_basic() {
-  ...
-}
-
-#[test]
-fn check_completes_with_cli_variables() {
-  ...
-}
-<span class="boring">}</span></code></pre>
-<h3 id="example---run-from-github"><a class="header" href="#example---run-from-github">Example - run from GitHub</a></h3>
-<p>This example demonstrates how to test that the run command can execute a test plan stored in GitHub.
-Working through the hierarchy:</p>
-<ol>
-<li><strong>Environment dependency</strong> is <code>github</code>. This test will require a <code>GITHUB_TOKEN</code> to successfully
-run.</li>
-<li><strong>Command</strong> is <code>run</code>. This is the command being passed to the CLI.</li>
-<li><strong>Flag(s)</strong> could be <code>github</code>; however, this duplicates the identifier in the environment
-dependency, so it is omitted. The <code>--github</code> flag branches the <code>run</code> command significantly, so it
-has to be included in the test case path somewhere (just not twice!).</li>
-<li><strong>Test class</strong> is omitted since <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is not used.</li>
-<li><strong>Test case</strong> is <code>github_flag_completes</code>. An additional test case is
-<code>github_flag_produces_expected_output</code>.</li>
-</ol>
-<p>This leads to the following full test path:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>test github::run::github_flag_completes
-test github::run::github_flag_produces_expected_output
-<span class="boring">}</span></code></pre>
-<p>To achieve the structure above, the tests are defined in <code>tests/github/run.rs</code> and organized as
-follows:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[test]
-#[ignore = "requires a valid GitHub API Token"]
-fn github_flag_completes() {
-  ...
-}
-
-#[test]
-#[ignore = "requires a valid GitHub API Token"]
-fn github_flag_produces_expected_output() {
-  ...
-}
-<span class="boring">}</span></code></pre>
+                        <!-- diataxis-type: howto -->
+<h1 id="how-to-update-trybuild-stderr-files-for-rtf-derive"><a class="header" href="#how-to-update-trybuild-stderr-files-for-rtf-derive">How to update trybuild .stderr files for rtf-derive</a></h1>
+<p>Rust may change compiler error message formatting between versions. When this causes <a href="https://docs.rs/trybuild/latest/trybuild/"><code>trybuild</code></a>
+fail tests to break in the <code>rtf-derive</code> crate, update the <code>.stderr</code> files to match the new output.</p>
 <blockquote>
-<p><strong>Note</strong>: The tests are ignored by default as they require a GitHub token to run successfully.</p>
+<p><strong>Prerequisites</strong></p>
+<ul>
+<li>The current Rust toolchain installed via <code>rustup</code></li>
+</ul>
 </blockquote>
-<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
-<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate uses specialized testing tools and patterns focused on testing CLI
-behavior, command execution, and user-facing functionality.</p>
-<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing infrastructure</a></h3>
-<p>The crate leverages the following key testing tools:</p>
-<ul>
-<li><strong><a href="https://docs.rs/assert_cmd/latest/assert_cmd/"><code>assert_cmd</code></a></strong> - Provides utilities for testing command-line applications, including
-spawning commands and asserting on their output and exit status</li>
-<li><strong><a href="https://docs.rs/assert_fs/latest/assert_fs/"><code>assert_fs</code></a></strong> - Offers temporary filesystem testing utilities for file operations and
-directory management</li>
-<li><strong><a href="https://docs.rs/predicates/latest/predicates/"><code>predicates</code></a></strong> - Provides composable assertion predicates for more expressive test
-assertions on command outputs</li>
-<li><strong><a href="https://docs.rs/indoc/latest/indoc/"><code>indoc</code></a></strong> - Allows clean multi-line string literals in tests, particularly useful for
-expected error messages</li>
-<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Enables parameterized testing with <code>#[test_case]</code> attributes for
-testing multiple input variations</li>
-</ul>
-<h3 id="command-testing-patterns"><a class="header" href="#command-testing-patterns">Command testing patterns</a></h3>
-<p>The CLI tests focus on three main areas of functionality:</p>
-<ol>
-<li><strong>Command execution and argument parsing</strong> - Testing that commands run correctly with various
-flag combinations</li>
-<li><strong>Output validation</strong> - Ensuring the CLI produces correct stdout/stderr content</li>
-<li><strong>Exit status verification</strong> - Checking that commands succeed or fail with appropriate exit codes</li>
-</ol>
-<h4 id="basic-command-testing"><a class="header" href="#basic-command-testing">Basic command testing</a></h4>
-<p>Tests verify that commands are executable and respond appropriately to basic invocations:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[test]
-fn is_executable() {
-    let mut cmd = cargo_bin_cmd!("rtf");
-    let res = cmd.arg("template").assert();
-    
-    res.stderr(contains("Usage: rtf template"));
-}
-<span class="boring">}</span></code></pre>
-<h4 id="parameterized-testing-for-multiple-scenarios"><a class="header" href="#parameterized-testing-for-multiple-scenarios">Parameterized testing for multiple scenarios</a></h4>
-<p>Complex scenarios use parameterized testing to cover multiple input variations efficiently:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[test_case("command-from-spec"; "command from spec")]
-#[test_case("matrix-variables"; "matrix variables")]
-#[test_case("resolved-variables"; "resolved variables")]
-#[test]
-fn check_completes_basic(test_plan_dir: &amp;str) {
-    let mut cmd = cargo_bin_cmd!("rtf");
-    let res = cmd
-        .env_clear()
-        .arg("template")
-        .arg(format!("resources/valid/{test_plan_dir}/test-plan.yaml"))
-        .arg("--check")
-        .assert();
-        
-    res.success().stdout(contains("name:"));
-}
-<span class="boring">}</span></code></pre>
-<h3 id="temporary-directory-management"><a class="header" href="#temporary-directory-management">Temporary directory management</a></h3>
-<p>The crate implements a custom <code>CmdWithTmpDir</code> utility that combines command execution with temporary
-directory management:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct CmdWithTmpDir {
-    cmd: Command,
-    tmp: TempDir,
-}
-<span class="boring">}</span></code></pre>
-<p>This ensures that test files and directories are properly cleaned up after test execution while
-providing convenient access to both the command and the temporary filesystem state.</p>
-<h3 id="error-testing-strategy"><a class="header" href="#error-testing-strategy">Error testing strategy</a></h3>
-<p>CLI error testing focuses on user-facing error messages and exit codes:</p>
-<ol>
-<li><strong>Input validation errors</strong> - Testing malformed YAML, missing files, and invalid configurations</li>
-<li><strong>Templating errors</strong> - Ensuring template resolution failures are properly reported</li>
-<li><strong>Static analysis failures</strong> - Testing the <code>--check</code> flag’s validation logic</li>
-<li><strong>Runtime execution errors</strong> - Verifying that script execution failures are handled gracefully</li>
-</ol>
-<p>Error tests are heavily parameterized to cover multiple failure scenarios:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[test_case(
-    "missing-variables.yaml",
-    "Missing template variables definitions";
-    "missing variables"
-)]
-#[test_case(
-    "unknown-variables.yaml", 
-    "Unknown templating variable";
-    "unknown variables"
-)]
-#[test]
-fn templating_fails(file: &amp;str, err_contains: &amp;str) {
-    let mut cmd = cargo_bin_cmd!("rtf");
-    let res = cmd
-        .arg("template")
-        .arg(format!("resources/invalid/templating/{file}"))
-        .assert();
-        
-    res.stderr(contains(format!("Templating failed\n{err_contains}")));
-}
-<span class="boring">}</span></code></pre>
-<h3 id="integration-testing-approach"><a class="header" href="#integration-testing-approach">Integration testing approach</a></h3>
-<p>Since the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate tests are integration tests, they focus on end-to-end functionality
-rather than unit testing individual functions. This includes:</p>
-<ul>
-<li><strong>Full command execution</strong> - Running the compiled binary with real arguments</li>
-<li><strong>File system interactions</strong> - Testing with actual YAML files and directory structures</li>
-<li><strong>Environment isolation</strong> - Using <code>env_clear()</code> to ensure consistent test conditions</li>
-<li><strong>Output capture and validation</strong> - Asserting on complete stdout/stderr content</li>
-</ul>
-<h3 id="test-resource-management"><a class="header" href="#test-resource-management">Test resource management</a></h3>
-<p>Test data is organized in a structured resource hierarchy:</p>
-<ul>
-<li><code>resources/&lt;resource_type&gt;/valid/</code> - Contains complete, valid test plans for success scenarios</li>
-<li><code>resources/&lt;resource_type&gt;/invalid/</code> - Organized by failure category (load-and-resolve,
-templating, checks, run)</li>
-</ul>
-<p>Each test plan directory is self-contained with all necessary files, enabling realistic integration
-testing scenarios.</p>
+<p>Delete the <code>.stderr</code> files for the failing tests:</p>
+<pre><code class="language-bash">rm crates/rtf-derive/tests/compile/fail/*.stderr
+</code></pre>
+<p>Run <code>cargo test</code>. <code>trybuild</code> writes new <code>.stderr</code> files to a <code>wip/</code> directory at the repository
+root:</p>
+<pre><code class="language-bash">cargo test -p rtf-derive
+</code></pre>
+<p>Copy the generated files into <code>tests/compile/fail/</code>:</p>
+<pre><code class="language-bash">cp wip/*.stderr crates/rtf-derive/tests/compile/fail/
+</code></pre>
+<p>Confirm the tests pass:</p>
+<pre><code class="language-bash">cargo test -p rtf-derive
+</code></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../../developer/reference/testing/rep-orchestrator.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../developer/howto/run-coverage-reports.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../../developer/reference/testing/rtf-config.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../developer/reference/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -425,11 +219,11 @@ testing scenarios.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../../developer/reference/testing/rep-orchestrator.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../developer/howto/run-coverage-reports.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../../developer/reference/testing/rtf-config.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../developer/reference/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -448,19 +242,19 @@ testing scenarios.</p>
             window.playground_copyable = true;
         </script>
 
-        <script src="../../../ace-2a3cd908.js"></script>
-        <script src="../../../mode-rust-2c9d5c9a.js"></script>
-        <script src="../../../editor-16ca416c.js"></script>
-        <script src="../../../theme-dawn-4493f9c8.js"></script>
-        <script src="../../../theme-tomorrow_night-9dbe62a9.js"></script>
+        <script src="../../ace-2a3cd908.js"></script>
+        <script src="../../mode-rust-2c9d5c9a.js"></script>
+        <script src="../../editor-16ca416c.js"></script>
+        <script src="../../theme-dawn-4493f9c8.js"></script>
+        <script src="../../theme-tomorrow_night-9dbe62a9.js"></script>
 
-        <script src="../../../elasticlunr-ef4e11c1.min.js"></script>
-        <script src="../../../mark-09e88c2c.min.js"></script>
-        <script src="../../../searcher-c2a407aa.js"></script>
+        <script src="../../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../../mark-09e88c2c.min.js"></script>
+        <script src="../../searcher-c2a407aa.js"></script>
 
-        <script src="../../../clipboard-1626706a.min.js"></script>
-        <script src="../../../highlight-abc7f01d.js"></script>
-        <script src="../../../book-a0b12cfe.js"></script>
+        <script src="../../clipboard-1626706a.min.js"></script>
+        <script src="../../highlight-abc7f01d.js"></script>
+        <script src="../../book-a0b12cfe.js"></script>
 
         <!-- Custom JS scripts -->
 

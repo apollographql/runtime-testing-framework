@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>File Providers - Runtime Testing Framework</title>
+        <title>rep-orchestrator - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../../../favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="../../../favicon-8114d1fc.png">
-        <link rel="stylesheet" href="../../../css/variables-8adf115d.css">
-        <link rel="stylesheet" href="../../../css/general-2459343d.css">
-        <link rel="stylesheet" href="../../../css/chrome-ae938929.css">
-        <link rel="stylesheet" href="../../../css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../../../../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../../../../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../../../../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../../../../css/general-2459343d.css">
+        <link rel="stylesheet" href="../../../../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../../../../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../../../fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../../../../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="../../../highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../../tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../../ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../../../../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../../../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../../../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "../../../";
+            const path_to_root = "../../../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../../searchindex-fb25db8d.js";
+            window.path_to_searchindex_js = "../../../../searchindex-fb25db8d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../../toc-6c62d7cd.js"></script>
+        <script src="../../../../toc-6c62d7cd.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../../../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../../../../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">Runtime Testing Framework</h1>
 
                     <div class="right-buttons">
-                        <a href="../../../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../../../../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/apollographql/runtime-testing-framework" title="Git repository" aria-label="Git repository">
@@ -178,25 +178,114 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: reference -->
-<h1 id="file-providers"><a class="header" href="#file-providers">File providers</a></h1>
-<p><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L224">File providers</a> are the primary way that rtf exposes useful functionality to users. Each
-provider is defined as a struct that can be parsed from a YAML snippet within a larger config file,
-with fields that serve as inputs to business logic from the <a href="https://github.com/apollographql/runtime-testing-framework/tree/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-integrations">rtf-integrations</a> crate. Running a
-file provider will generate one or more resources within a user designated output directory which
-can then be referenced by the commands being run as part of a test plan.</p>
-<p>Within config files, file providers are always wrapped in a <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L201">NamedFileProvider</a> that adds
-filename and environment variable fields along with logic for running the provider and outputting
-the new resources in the correct location on the filesystem.</p>
+<h1 id="rep-orchestrator"><a class="header" href="#rep-orchestrator">rep-orchestrator</a></h1>
+<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rep-orchestrator"><code>rep-orchestrator</code></a> crate are organized and implemented.
+The crate uses two test styles:</p>
+<ul>
+<li>Unit tests follow the <a href="./unit-tests.html">unit test style</a></li>
+<li>HTTP API integration tests follow the <a href="./http-tests.html">HTTP API integration test style</a></li>
+</ul>
+<p>See <a href="../../howto/run-rep-orchestrator-tests.html">Run rep-orchestrator tests</a> for a step-by-step guide to running each category locally.</p>
+<h2 id="categories"><a class="header" href="#categories">Categories</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Category</th><th>Location</th><th>Requires</th></tr>
+</thead>
+<tbody>
+<tr><td>Unit tests</td><td><code>src/</code> (<code>#[cfg(test)] mod tests</code> blocks)</td><td>Nothing</td></tr>
+<tr><td>DB tests</td><td><code>src/</code> (gated by <code>db_tests</code> feature)</td><td>PostgreSQL via <code>make db-up</code></td></tr>
+<tr><td>Integration tests</td><td><code>tests/suite.rs</code> (gated by <code>k8s_tests</code> feature)</td><td>Full tilt stack</td></tr>
+</tbody>
+</table>
+</div>
+<p>Running <code>cargo test</code> from the workspace root skips all stack-dependent tests. They must be run
+explicitly via <code>make</code>.</p>
+<h2 id="unit-test-organization"><a class="header" href="#unit-test-organization">Unit test organization</a></h2>
+<p>Unit tests follow the Module → Function → Test class → Test case hierarchy from the
+<a href="./unit-tests.html">unit test style</a>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Without simple_test_case
+module::path::tests::function_test_case
+
+// With simple_test_case
+module::path::tests::function_test_class::test_case
+<span class="boring">}</span></code></pre>
+<h2 id="integration-test-organization"><a class="header" href="#integration-test-organization">Integration test organization</a></h2>
+<p>Integration tests follow the Endpoint → Scenario naming described in the
+<a href="./http-tests.html">HTTP API integration test style</a>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>endpoint_scenario
+<span class="boring">}</span></code></pre>
+<p>For example: <code>trigger_valid_rep_test_plan_returns_200</code>.</p>
+<h2 id="feature-flag-annotation"><a class="header" href="#feature-flag-annotation">Feature flag annotation</a></h2>
+<p>Stack-dependent tests must always carry this annotation to prevent the standard test run from
+failing without a stack:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg_attr(not(feature = "db_tests"), ignore)]    // for DB tests
+#[cfg_attr(not(feature = "k8s_tests"), ignore)]   // for integration tests
+<span class="boring">}</span></code></pre>
+<p>Do not remove these annotations from existing tests.</p>
+<h2 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing infrastructure</a></h2>
+<p>Integration tests use the following tools:</p>
+<ul>
+<li><strong><code>TestHelper</code></strong> — Defined in <code>tests/common/mod.rs</code>. Wraps <code>reqwest::Client</code> and provides
+convenience methods for calling server endpoints</li>
+<li><strong><a href="https://docs.rs/tokio/latest/tokio/attr.test.html"><code>tokio</code></a></strong> — <code>#[tokio::test]</code> for async test functions</li>
+<li><strong><a href="https://docs.rs/reqwest/latest/reqwest/"><code>reqwest</code></a></strong> — HTTP client used inside <code>TestHelper</code></li>
+<li><strong><a href="https://docs.rs/assert_fs/latest/assert_fs/"><code>assert_fs</code></a></strong> — Temporary filesystem utilities; uses <code>CARGO_TARGET_TMPDIR</code> rather than
+<code>/tmp</code> to avoid macOS symlink issues with Docker volume mounts</li>
+<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> — Parameterized testing with <code>#[test_case]</code> for multiple input
+variations</li>
+</ul>
+<h3 id="testhelper-api"><a class="header" href="#testhelper-api">TestHelper API</a></h3>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct TestHelper {
+    client: Client,
+}
+<span class="boring">}</span></code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Method</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>trigger_run</code></td><td>Prepares a <code>RepPayload</code> from a test plan directory and POSTs to <code>/test-run/trigger</code></td></tr>
+<tr><td><code>json_get</code> / <code>json_post</code></td><td>Typed helpers that deserialize JSON responses into the expected type</td></tr>
+<tr><td><code>get</code> / <code>post</code></td><td>Raw helpers returning <code>Response</code> for status-code assertions</td></tr>
+</tbody>
+</table>
+</div>
+<p>Shared logic between tests should be added as further methods on <code>TestHelper</code>.</p>
+<h2 id="make-targets"><a class="header" href="#make-targets">Make targets</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Target</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>make db-up</code> / <code>make db-down</code></td><td>Start/stop the lightweight DB-only test stack</td></tr>
+<tr><td><code>make db-tests</code></td><td>Run DB-gated tests against the running DB stack</td></tr>
+<tr><td><code>make cluster-setup &amp;&amp; make cluster-up</code> / <code>make cluster-teardown</code></td><td>Start/stop the full stack</td></tr>
+<tr><td><code>make integration-tests</code></td><td>Run <code>tests/suite.rs</code> against the running full stack</td></tr>
+<tr><td><code>make ci-tests</code></td><td>Full CI flow: stack up → wait → test → stack down</td></tr>
+</tbody>
+</table>
+</div>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../../developer/reference/data-structures/fields.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../../../developer/reference/testing/crates/rtf-cli.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../../developer/reference/data-structures/command-providers.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../../../developer/reference/testing/crates/rep-orchestrator-cli.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -206,11 +295,11 @@ the new resources in the correct location on the filesystem.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../../developer/reference/data-structures/fields.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../../../developer/reference/testing/crates/rtf-cli.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../../developer/reference/data-structures/command-providers.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../../../developer/reference/testing/crates/rep-orchestrator-cli.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -229,19 +318,19 @@ the new resources in the correct location on the filesystem.</p>
             window.playground_copyable = true;
         </script>
 
-        <script src="../../../ace-2a3cd908.js"></script>
-        <script src="../../../mode-rust-2c9d5c9a.js"></script>
-        <script src="../../../editor-16ca416c.js"></script>
-        <script src="../../../theme-dawn-4493f9c8.js"></script>
-        <script src="../../../theme-tomorrow_night-9dbe62a9.js"></script>
+        <script src="../../../../ace-2a3cd908.js"></script>
+        <script src="../../../../mode-rust-2c9d5c9a.js"></script>
+        <script src="../../../../editor-16ca416c.js"></script>
+        <script src="../../../../theme-dawn-4493f9c8.js"></script>
+        <script src="../../../../theme-tomorrow_night-9dbe62a9.js"></script>
 
-        <script src="../../../elasticlunr-ef4e11c1.min.js"></script>
-        <script src="../../../mark-09e88c2c.min.js"></script>
-        <script src="../../../searcher-c2a407aa.js"></script>
+        <script src="../../../../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../../../../mark-09e88c2c.min.js"></script>
+        <script src="../../../../searcher-c2a407aa.js"></script>
 
-        <script src="../../../clipboard-1626706a.min.js"></script>
-        <script src="../../../highlight-abc7f01d.js"></script>
-        <script src="../../../book-a0b12cfe.js"></script>
+        <script src="../../../../clipboard-1626706a.min.js"></script>
+        <script src="../../../../highlight-abc7f01d.js"></script>
+        <script src="../../../../book-a0b12cfe.js"></script>
 
         <!-- Custom JS scripts -->
 

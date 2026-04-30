@@ -35,10 +35,10 @@
             const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../../searchindex-46243faa.js";
+            window.path_to_searchindex_js = "../../searchindex-fb25db8d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-e82f622f.js"></script>
+        <script src="../../toc-6c62d7cd.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -186,23 +186,24 @@ inform their design.</p>
 has its own README file explaining its purpose at the crate’s root.</p>
 <p>The <code>rtf-config</code> crate is the heart of RTF. It handles:</p>
 <ul>
-<li><strong>Parsing</strong> - YAML config files (Test Plans, Environments, Scenarios) are parsed into strongly
-typed Rust structs</li>
+<li><strong>Parsing</strong> - YAML config files (<a href="../../reference/glossary.html">Test Plans</a>, <a href="../../reference/glossary.html">Environments</a>, <a href="../../reference/glossary.html">Scenarios</a>) are parsed
+into strongly typed Rust structs</li>
 <li><strong>Templating</strong> - Variable substitution using the <code>{{ variable }}</code> syntax</li>
 <li><strong>Validation</strong> - Static analysis checks before execution</li>
-<li><strong>Providers</strong> - Both file providers and command providers live here</li>
+<li><strong>Providers</strong> - Both File Providers and Command Providers live here</li>
 </ul>
 <p>The crate exposes a <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs">ResolutionContext</a> trait that abstracts all IO operations, enabling
 testability and CLI control over execution.</p>
-<p>The <code>rep-orchestrator</code> crate is a server-side orchestration layer for REP. It is an <a href="https://docs.rs/axum">axum</a> HTTP
-server that receives test plans and manages the lifecycle of test runs and individual test
-executions.</p>
+<p>The <code>rep-orchestrator</code> crate is a server-side orchestration layer for REP. It manages the lifecycle
+of test runs and individual test executions across two Kubernetes clusters: a management cluster
+(Argo workflows for environment provisioning) and a workload cluster (scenario jobs). It uses the
+<code>rep-orchestrator-shared</code> crate for types shared between it and the <code>rep-orchestrator-cli</code> which
+submits updates to the clusters.</p>
 <p>The <code>rtf-integrations</code> crate provides the <code>rtf-config</code> crate with clients to make various HTTP
 requests.</p>
-<p>The other crates sit above these crates, providing business logic and presentation layers for RTF.</p>
 <h2 id="data-flow"><a class="header" href="#data-flow">Data flow</a></h2>
 <p>When a user runs <code>rtf run test-plan.yaml</code>, the following flow occurs:</p>
-<pre><code>┌─────────────────────────────────────────────────────────────────────────┐
+<pre><code class="language-text">┌─────────────────────────────────────────────────────────────────────────┐
 │                              rtf run                                    │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -249,15 +250,15 @@ requests.</p>
 <li><strong>RTF CLI</strong> (<code>rtf</code>) is a local command-line tool. A developer runs it directly to perform actions
 against test plans on the same system the CLI is hosted on.</li>
 <li><strong>REP (Runtime Environment Provisioner) Orchestrator Service</strong> is a server-side system. It
-receives test plans over HTTP, manages their execution in a REP provisioned cluster
+receives Test Plans over HTTP, manages their execution in a REP provisioned cluster
 asynchronously, and reports results back to callers via status endpoints.</li>
 </ul>
-<p>The handoff point between the two systems is the <code>RepPayload</code> — a resolved test plan produced by
+<p>The handoff point between the two systems is the <code>RepPayload</code> — a resolved Test Plan produced by
 <code>rtf rep prepare</code> and submitted to REP via <code>POST /test-run/trigger</code>. REP does not replace the RTF
 CLI; they are complementary tools for different execution contexts.</p>
 <h3 id="rep-data-flow"><a class="header" href="#rep-data-flow">REP data flow</a></h3>
 <p>When a caller triggers a test run via REP:</p>
-<pre><code>┌─────────────────────────────────────────────────────────────────────────┐
+<pre><code class="language-text">┌─────────────────────────────────────────────────────────────────────────┐
 │  POST /test-run/trigger (RepPayload)                                    │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -302,7 +303,7 @@ CLI; they are complementary tools for different execution contexts.</p>
 <li>
 <p><strong>File Providers</strong> - Generate files that are made available to commands via environment variables.
 Examples include <code>relative_path</code> (reading a file from a specific relative path),
-<code>graphos_supergraph</code> (fetch from GraphOS), and <code>merge_yaml</code> (a utility to merge yaml from multiple
+<code>graphos_supergraph</code> (fetch from GraphOS), and <code>merge_yaml</code> (a utility to merge YAML from multiple
 sources). Custom Providers allow users to define their own file providers using YAML definitions
 that execute commands to produce files.</p>
 </li>
@@ -354,7 +355,7 @@ field transitions from <code>Pending</code> to <code>Resolved</code> and can be 
 <p>See <a href="context.html">Use of IO in Providers</a> for more details.</p>
 <h2 id="design-principles"><a class="header" href="#design-principles">Design principles</a></h2>
 <p>RTF follows several key design principles:</p>
-<ol>
+<ul>
 <li>
 <p><strong>Composition over embedding</strong> - RTF composes with external tools rather than embedding them. See
 the <a href="../../explanation/overview.html">Overview</a> for more on this philosophy.</p>
@@ -370,7 +371,7 @@ high-level “porcelain” (like <code>run</code>). See <a href="cli-design/plum
 <p><strong>Fail fast with good errors</strong> - RTF validates early and reports all known errors in batch rather
 than failing on the first error. See <a href="../reference/error-handling.html">Error Handling</a>.</p>
 </li>
-</ol>
+</ul>
 
                     </main>
 

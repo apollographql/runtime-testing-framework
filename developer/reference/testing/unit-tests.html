@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>File Providers - Runtime Testing Framework</title>
+        <title>Unit tests - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -178,25 +178,77 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <!-- diataxis-type: reference -->
-<h1 id="file-providers"><a class="header" href="#file-providers">File providers</a></h1>
-<p><a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L224">File providers</a> are the primary way that rtf exposes useful functionality to users. Each
-provider is defined as a struct that can be parsed from a YAML snippet within a larger config file,
-with fields that serve as inputs to business logic from the <a href="https://github.com/apollographql/runtime-testing-framework/tree/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-integrations">rtf-integrations</a> crate. Running a
-file provider will generate one or more resources within a user designated output directory which
-can then be referenced by the commands being run as part of a test plan.</p>
-<p>Within config files, file providers are always wrapped in a <a href="https://github.com/apollographql/runtime-testing-framework/blob/37ed7a5f57c7761ee24acc1a0ece82fc5456740d/crates/rtf-config/src/providers/file/mod.rs#L201">NamedFileProvider</a> that adds
-filename and environment variable fields along with logic for running the provider and outputting
-the new resources in the correct location on the filesystem.</p>
+<h1 id="unit-tests"><a class="header" href="#unit-tests">Unit tests</a></h1>
+<p>Unit tests in RTF are defined inside <code>#[cfg(test)] mod tests</code> blocks within source files. This keeps
+tests close to the code they test and ensures test helper code remains private to the module.</p>
+<p>Crate-specific pages describe any additional conventions that apply within that crate.</p>
+<h2 id="organization"><a class="header" href="#organization">Organization</a></h2>
+<p>Unit tests follow this naming hierarchy:</p>
+<ol>
+<li><strong>Module</strong> — A logical grouping of functionality. Maps directly to the Rust module structure;
+sub-modules may appear in the path (e.g. <code>providers::file</code>). The primary concern is the Rust
+code’s scope and privacy; test structure is secondary.</li>
+<li><strong>Function</strong> — The function or logic under test. Maps to a function or trait method. If not fully
+specified in the module path, it becomes the first prefix in the test case name.</li>
+<li><strong>Test class</strong> — A logical grouping of test cases. Defined when using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> to
+create multiple parameterized tests. Named after the test function when using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a>.</li>
+<li><strong>Test case</strong> — The specific test case. Should be uniquely and meaningfully named. See
+<a href="./index.html#test-case-naming">test case naming</a>.</li>
+</ol>
+<p>Following the hierarchy above leads to the following generic test case paths:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Without simple_test_case
+module::path::tests::function_test_case
+
+// With simple_test_case
+module::path::tests::function_test_class::test_case
+<span class="boring">}</span></code></pre>
+<h2 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing infrastructure</a></h2>
+<p>Unit tests commonly use the following tools:</p>
+<ul>
+<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> — Parameterized testing with <code>#[test_case]</code> for multiple input
+variations sharing the same test logic</li>
+<li><strong><a href="https://docs.rs/indoc/latest/indoc/"><code>indoc</code></a></strong> — Clean multi-line string literals for inline test data (YAML, JSON, etc.)</li>
+<li><strong><a href="https://docs.rs/anyhow/latest/anyhow/"><code>anyhow</code></a></strong> — Ergonomic error handling via <code>-&gt; anyhow::Result&lt;()&gt;</code> return type and
+<code>.context()</code> for test failure messages</li>
+</ul>
+<h2 id="parameterized-tests"><a class="header" href="#parameterized-tests">Parameterized tests</a></h2>
+<p>Use <code>#[test_case]</code> when multiple inputs should exercise the same logic:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use simple_test_case::test_case;
+
+#[test_case("{{ valid }}"; "standard")]
+#[test_case("{{ with_underscore }}"; "with underscore")]
+#[test]
+fn field_parse_valid(raw: &amp;str) {
+    // Same assertion logic for each case
+}
+<span class="boring">}</span></code></pre>
+<p>The test class is named after the function (<code>field_parse_valid</code>). Each test case gets a unique label
+in the semicolon position (<code>"standard"</code>, <code>"with underscore"</code>).</p>
+<h2 id="test-data"><a class="header" href="#test-data">Test data</a></h2>
+<p><strong>Inline:</strong> Use <code>indoc!</code> for small, focused YAML or text:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let yaml = indoc! {"
+    command:
+      script: echo hello
+"};
+<span class="boring">}</span></code></pre>
+<p><strong>Resource files:</strong> Place larger configs and any non-UTF-8 content in a <code>resources/</code> directory at
+the crate root. Reference them with <code>include_str!</code> or by path via <code>assert_fs</code>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../../../developer/reference/data-structures/fields.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../../developer/reference/testing/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../../../developer/reference/data-structures/command-providers.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../../developer/reference/testing/cli-tests.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -206,11 +258,11 @@ the new resources in the correct location on the filesystem.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../../../developer/reference/data-structures/fields.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../../developer/reference/testing/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../../../developer/reference/data-structures/command-providers.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../../developer/reference/testing/cli-tests.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

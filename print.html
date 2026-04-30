@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-46243faa.js";
+            window.path_to_searchindex_js = "searchindex-fb25db8d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-e82f622f.js"></script>
+        <script src="toc-6c62d7cd.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -5549,23 +5549,24 @@ inform their design.</p>
 has its own README file explaining its purpose at the crate’s root.</p>
 <p>The <code>rtf-config</code> crate is the heart of RTF. It handles:</p>
 <ul>
-<li><strong>Parsing</strong> - YAML config files (Test Plans, Environments, Scenarios) are parsed into strongly
-typed Rust structs</li>
+<li><strong>Parsing</strong> - YAML config files (<a href="#glossary">Test Plans</a>, <a href="#glossary">Environments</a>, <a href="#glossary">Scenarios</a>) are parsed
+into strongly typed Rust structs</li>
 <li><strong>Templating</strong> - Variable substitution using the <code>{{ variable }}</code> syntax</li>
 <li><strong>Validation</strong> - Static analysis checks before execution</li>
-<li><strong>Providers</strong> - Both file providers and command providers live here</li>
+<li><strong>Providers</strong> - Both File Providers and Command Providers live here</li>
 </ul>
 <p>The crate exposes a <a href="https://github.com/apollographql/runtime-testing-framework/blob/main/crates/rtf-config/src/context.rs">ResolutionContext</a> trait that abstracts all IO operations, enabling
 testability and CLI control over execution.</p>
-<p>The <code>rep-orchestrator</code> crate is a server-side orchestration layer for REP. It is an <a href="https://docs.rs/axum">axum</a> HTTP
-server that receives test plans and manages the lifecycle of test runs and individual test
-executions.</p>
+<p>The <code>rep-orchestrator</code> crate is a server-side orchestration layer for REP. It manages the lifecycle
+of test runs and individual test executions across two Kubernetes clusters: a management cluster
+(Argo workflows for environment provisioning) and a workload cluster (scenario jobs). It uses the
+<code>rep-orchestrator-shared</code> crate for types shared between it and the <code>rep-orchestrator-cli</code> which
+submits updates to the clusters.</p>
 <p>The <code>rtf-integrations</code> crate provides the <code>rtf-config</code> crate with clients to make various HTTP
 requests.</p>
-<p>The other crates sit above these crates, providing business logic and presentation layers for RTF.</p>
 <h2 id="data-flow"><a class="header" href="#data-flow">Data flow</a></h2>
 <p>When a user runs <code>rtf run test-plan.yaml</code>, the following flow occurs:</p>
-<pre><code>┌─────────────────────────────────────────────────────────────────────────┐
+<pre><code class="language-text">┌─────────────────────────────────────────────────────────────────────────┐
 │                              rtf run                                    │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -5612,15 +5613,15 @@ requests.</p>
 <li><strong>RTF CLI</strong> (<code>rtf</code>) is a local command-line tool. A developer runs it directly to perform actions
 against test plans on the same system the CLI is hosted on.</li>
 <li><strong>REP (Runtime Environment Provisioner) Orchestrator Service</strong> is a server-side system. It
-receives test plans over HTTP, manages their execution in a REP provisioned cluster
+receives Test Plans over HTTP, manages their execution in a REP provisioned cluster
 asynchronously, and reports results back to callers via status endpoints.</li>
 </ul>
-<p>The handoff point between the two systems is the <code>RepPayload</code> — a resolved test plan produced by
+<p>The handoff point between the two systems is the <code>RepPayload</code> — a resolved Test Plan produced by
 <code>rtf rep prepare</code> and submitted to REP via <code>POST /test-run/trigger</code>. REP does not replace the RTF
 CLI; they are complementary tools for different execution contexts.</p>
 <h3 id="rep-data-flow"><a class="header" href="#rep-data-flow">REP data flow</a></h3>
 <p>When a caller triggers a test run via REP:</p>
-<pre><code>┌─────────────────────────────────────────────────────────────────────────┐
+<pre><code class="language-text">┌─────────────────────────────────────────────────────────────────────────┐
 │  POST /test-run/trigger (RepPayload)                                    │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -5665,7 +5666,7 @@ CLI; they are complementary tools for different execution contexts.</p>
 <li>
 <p><strong>File Providers</strong> - Generate files that are made available to commands via environment variables.
 Examples include <code>relative_path</code> (reading a file from a specific relative path),
-<code>graphos_supergraph</code> (fetch from GraphOS), and <code>merge_yaml</code> (a utility to merge yaml from multiple
+<code>graphos_supergraph</code> (fetch from GraphOS), and <code>merge_yaml</code> (a utility to merge YAML from multiple
 sources). Custom Providers allow users to define their own file providers using YAML definitions
 that execute commands to produce files.</p>
 </li>
@@ -5717,7 +5718,7 @@ field transitions from <code>Pending</code> to <code>Resolved</code> and can be 
 <p>See <a href="#use-of-io-in-providers">Use of IO in Providers</a> for more details.</p>
 <h2 id="design-principles"><a class="header" href="#design-principles">Design principles</a></h2>
 <p>RTF follows several key design principles:</p>
-<ol>
+<ul>
 <li>
 <p><strong>Composition over embedding</strong> - RTF composes with external tools rather than embedding them. See
 the <a href="#overview">Overview</a> for more on this philosophy.</p>
@@ -5733,7 +5734,7 @@ high-level “porcelain” (like <code>run</code>). See <a href="#plumbing-vs-po
 <p><strong>Fail fast with good errors</strong> - RTF validates early and reports all known errors in batch rather
 than failing on the first error. See <a href="#error-handling">Error Handling</a>.</p>
 </li>
-</ol>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="logging-philosophy"><a class="header" href="#logging-philosophy">Logging Philosophy</a></h1>
 <p>RTF takes the “no news is good news” approach - quiet by default. Logging exists to help debug
@@ -5806,10 +5807,14 @@ test a portion of their configuration ahead of running a porcelain command.</p>
 <p>CLI subcommands should reference functions that handle the logic of the command. There should be no
 inline logic at the CLI struct level.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
-<h1 id="developer-how-to-guides"><a class="header" href="#developer-how-to-guides">Developer How-to Guides</a></h1>
+<h1 id="developer-how-to-guides"><a class="header" href="#developer-how-to-guides">Developer how-to guides</a></h1>
 <p>Task-oriented guides for common development workflows.</p>
 <ul>
 <li><a href="#running-pr-checks">PR Checks</a> - running CI checks locally</li>
+<li><a href="#how-to-run-rep-orchestrator-tests">Run rep-orchestrator tests</a> - running unit, DB, and integration tests for the orchestrator</li>
+<li><a href="#how-to-run-a-test-coverage-report">Run a test coverage report</a> - generating and inspecting a full workspace coverage report</li>
+<li><a href="#how-to-update-trybuild-stderr-files-for-rtf-derive">Update trybuild .stderr files</a> - refreshing expected compiler output after a Rust version
+change</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
 <h1 id="running-pr-checks"><a class="header" href="#running-pr-checks">Running PR checks</a></h1>
@@ -5885,6 +5890,136 @@ page is intentionally categorised.</p>
 <pre><code class="language-bash">mise run pr-doc-types
 </code></pre>
 <p>This will print the path of any file that is missing or has an invalid annotation.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
+<h1 id="how-to-run-rep-orchestrator-tests"><a class="header" href="#how-to-run-rep-orchestrator-tests">How to run rep-orchestrator tests</a></h1>
+<p>The <code>rep-orchestrator</code> crate partitions its tests into three categories, each requiring a different
+level of infrastructure. This guide explains how to run each category.</p>
+<blockquote>
+<p><strong>Prerequisites</strong></p>
+<ul>
+<li><code>cargo</code> (via <code>rustup</code>)</li>
+<li><code>make</code></li>
+<li>Docker with Compose support</li>
+<li><a href="https://docs.tilt.dev/index.html"><code>tilt</code></a></li>
+<li><a href="https://kind.sigs.k8s.io/"><code>kind</code></a></li>
+</ul>
+</blockquote>
+<h2 id="unit-tests"><a class="header" href="#unit-tests">Unit tests</a></h2>
+<p>Unit tests require no external infrastructure and run via the standard workspace test command:</p>
+<pre><code class="language-bash">cargo test -p rep-orchestrator --lib
+</code></pre>
+<p>Stack-dependent tests are skipped automatically and reported as ignored in the output.</p>
+<h2 id="db-tests"><a class="header" href="#db-tests">DB tests</a></h2>
+<p>DB tests require a running PostgreSQL instance.</p>
+<p>Start the lightweight database stack:</p>
+<pre><code class="language-bash">cd crates/rep-orchestrator
+make db-up
+</code></pre>
+<p>In a second terminal, run the DB tests:</p>
+<pre><code class="language-bash">make db-tests
+</code></pre>
+<p>Stop the stack when done:</p>
+<pre><code class="language-bash">make db-down
+</code></pre>
+<p>The DB tests can also be run against the tilt stack (documented in the section below).</p>
+<h2 id="integration-tests"><a class="header" href="#integration-tests">Integration tests</a></h2>
+<p>Integration tests exercise the full HTTP API and require the complete tilt stack (orchestrator
+server + database).</p>
+<p>Set up the cluster:</p>
+<pre><code class="language-bash">cd crates/rep-orchestrator
+make cluster-setup
+</code></pre>
+<p>Then start the tilt stack (and view the status of the resources via the link provided in the
+output):</p>
+<pre><code class="language-bash">make cluster-up
+</code></pre>
+<p>In a second terminal, run the integration tests:</p>
+<pre><code class="language-bash">make integration-tests
+</code></pre>
+<p>Stop the stack when done:</p>
+<pre><code class="language-bash">make cluster-teardown
+</code></pre>
+<h2 id="running-all-tests-as-ci-does"><a class="header" href="#running-all-tests-as-ci-does">Running all tests as CI does</a></h2>
+<p>To replicate the full CI flow — start stack, wait for readiness, run all tests, tear down:</p>
+<pre><code class="language-bash">cd crates/rep-orchestrator
+make ci-tests
+</code></pre>
+<h2 id="feature-flags-reference"><a class="header" href="#feature-flags-reference">Feature flags reference</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Flag</th><th>What it gates</th></tr>
+</thead>
+<tbody>
+<tr><td><code>db_tests</code></td><td>Unit tests requiring a live PostgreSQL database</td></tr>
+<tr><td><code>k8s_tests</code></td><td>Full integration tests in <code>tests/suite.rs</code> (implies <code>db_tests</code>)</td></tr>
+</tbody>
+</table>
+</div>
+<p>To test a feature flag directly, use the <code>make</code> targets as these also set required environment
+variables that are necessary for the tests to work:</p>
+<pre><code class="language-bash">make db-tests
+make integration-tests
+</code></pre>
+<p>See the <a href="#http-api-integration-tests">HTTP API integration test reference</a> for details on test organization and the
+<code>TestHelper</code> infrastructure.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
+<h1 id="how-to-run-a-test-coverage-report"><a class="header" href="#how-to-run-a-test-coverage-report">How to run a test coverage report</a></h1>
+<blockquote>
+<p><strong>Prerequisites</strong></p>
+<ul>
+<li><a href="https://github.com/taiki-e/cargo-llvm-cov"><code>cargo-llvm-cov</code></a> installed (included if you use <a href="https://mise.jdx.dev/getting-started.html"><code>mise</code></a>)</li>
+<li>Valid API credentials for any ignored tests you want to include</li>
+</ul>
+</blockquote>
+<blockquote>
+<p><strong>Note</strong>: There are no coverage targets for RTF. Reports are used to identify unexpected gaps, not
+to hit a percentage. High coverage does not mean the code is fully tested.</p>
+</blockquote>
+<p>Clear previous coverage data:</p>
+<pre><code class="language-bash">cargo llvm-cov clean --workspace
+</code></pre>
+<p>Run all unignored tests:</p>
+<pre><code class="language-bash">cargo llvm-cov --no-report
+</code></pre>
+<p>Optionally, run the ignored tests to add their coverage. Supply only the credentials you have
+available:</p>
+<pre><code class="language-bash">GITHUB_TOKEN="$GITHUB_TOKEN" cargo llvm-cov -p rtf-cli --no-report -- --ignored github::
+APOLLO_KEY="$APOLLO_KEY" APOLLO_SUDO="true" cargo llvm-cov -p rtf-cli --no-report -- --ignored graphos::
+</code></pre>
+<p>Generate and open the report:</p>
+<pre><code class="language-bash">cargo llvm-cov report --open
+</code></pre>
+<p>Inspect the report manually for unexpected gaps. Two things to keep in mind:</p>
+<ul>
+<li>100% coverage for an area doesn’t mean it’s fully tested — it means the code ran at least once. A
+single execution rarely covers all scenarios.</li>
+<li>Low coverage in some areas may be justified. Where there’s a good reason, leaving lines uncovered
+is acceptable.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: howto -->
+<h1 id="how-to-update-trybuild-stderr-files-for-rtf-derive"><a class="header" href="#how-to-update-trybuild-stderr-files-for-rtf-derive">How to update trybuild .stderr files for rtf-derive</a></h1>
+<p>Rust may change compiler error message formatting between versions. When this causes <a href="https://docs.rs/trybuild/latest/trybuild/"><code>trybuild</code></a>
+fail tests to break in the <code>rtf-derive</code> crate, update the <code>.stderr</code> files to match the new output.</p>
+<blockquote>
+<p><strong>Prerequisites</strong></p>
+<ul>
+<li>The current Rust toolchain installed via <code>rustup</code></li>
+</ul>
+</blockquote>
+<p>Delete the <code>.stderr</code> files for the failing tests:</p>
+<pre><code class="language-bash">rm crates/rtf-derive/tests/compile/fail/*.stderr
+</code></pre>
+<p>Run <code>cargo test</code>. <code>trybuild</code> writes new <code>.stderr</code> files to a <code>wip/</code> directory at the repository
+root:</p>
+<pre><code class="language-bash">cargo test -p rtf-derive
+</code></pre>
+<p>Copy the generated files into <code>tests/compile/fail/</code>:</p>
+<pre><code class="language-bash">cp wip/*.stderr crates/rtf-derive/tests/compile/fail/
+</code></pre>
+<p>Confirm the tests pass:</p>
+<pre><code class="language-bash">cargo test -p rtf-derive
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="developer-reference"><a class="header" href="#developer-reference">Developer Reference</a></h1>
 <p>Technical reference documentation for RTF contributors.</p>
@@ -6777,18 +6912,37 @@ boilerplate logic for you.</p>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
-<p>As developers of a testing framework, we believe in the importance of comprehensive,
-well-structured, automated tests. High-quality testing enables safe, rapid iteration and continuous
-delivery. This document serves as our implementation guide for delivering well-tested software.</p>
-<p>Each crate has its own page within the docs explaining test structure and how tests are implemented.
-Testing guidance applicable across all crates is documented on this page.</p>
+<p>RTF maintains comprehensive, well-structured, automated tests to enable safe, rapid iteration and
+continuous delivery. This document covers testing conventions across the codebase.</p>
+<p>Testing guidance is split into two areas:</p>
+<ul>
+<li><strong>Styles of test</strong> — patterns that apply across multiple crates, documenting the tools and
+conventions for each broad category of test</li>
+<li><strong>Crate-specific pages</strong> — pages for each crate that describe any additional conventions on top of
+the relevant style</li>
+</ul>
+<h2 id="styles-of-test"><a class="header" href="#styles-of-test">Styles of test</a></h2>
+<ul>
+<li><a href="#unit-tests-1">Unit tests</a> — tests inside <code>#[cfg(test)] mod tests</code> blocks</li>
+<li><a href="#cli-integration-tests">CLI integration tests</a> — testing compiled binaries via <code>assert_cmd</code></li>
+<li><a href="#http-api-integration-tests">HTTP API integration tests</a> — full-stack tests against a running server</li>
+<li><a href="#proc-macro-tests">Proc macro tests</a> — compile-time testing with <code>trybuild</code></li>
+</ul>
+<h2 id="crate-specific-pages"><a class="header" href="#crate-specific-pages">Crate-specific pages</a></h2>
+<ul>
+<li><a href="#rtf-config">rtf-config</a></li>
+<li><a href="#rtf-core">rtf-core</a></li>
+<li><a href="#rtf-integrations">rtf-integrations</a></li>
+<li><a href="#rtf-derive">rtf-derive</a></li>
+<li><a href="#rtf-cli">rtf-cli</a></li>
+<li><a href="#rep-orchestrator">rep-orchestrator</a></li>
+<li><a href="#rep-orchestrator-cli">rep-orchestrator-cli</a></li>
+</ul>
 <h2 id="organizing-tests"><a class="header" href="#organizing-tests">Organizing tests</a></h2>
-<p>Each crate’s page describes a hierarchy that should be followed for all tests in that crate.
-Examples are included for additional guidance.</p>
-<p>The key aim of the hierarchies is to ensure that all tests related to the same level in the
-hierarchy are named consistently, making it easy to find related tests. The hierarchies will be
-followed using a combination of module structure and test case naming. For module structure, the
-primary concern is ensuring that code has the right scope and privacy level. Test structure is a
+<p>Each style page and crate-specific page describes a naming hierarchy for its test category. The key
+aim is consistent naming at each level of the hierarchy, making it easy to find related tests. The
+hierarchies use a combination of module structure and test case naming. For module structure, the
+primary concern is ensuring code has the right scope and privacy level. Test structure is a
 secondary concern to module structure.</p>
 <h2 id="test-case-naming"><a class="header" href="#test-case-naming">Test case naming</a></h2>
 <p>Test cases should be uniquely named within their hierarchy. The test cases should be given
@@ -6808,375 +6962,125 @@ meaningful names that describe what is being tested.</p>
 does not differentiate the test cases</li>
 </ul>
 <h2 id="test-coverage-reports"><a class="header" href="#test-coverage-reports">Test coverage reports</a></h2>
-<p>This section documents how to run a full test coverage report for RTF.</p>
-<blockquote>
-<p><strong>Note</strong>: There are no test coverage targets for RTF. A test coverage report showing a high
-percentage of coverage does not mean that RTF is fully tested. The reports are used to identify
-clear gaps in testing coverage where we would have expected to have at least one test case.</p>
-</blockquote>
-<p>The <a href="https://github.com/taiki-e/cargo-llvm-cov"><code>cargo-llvm-cov</code></a> crate is used to generate test coverage reports for RTF. If you are using
-<a href="https://mise.jdx.dev/getting-started.html"><code>mise</code></a>, then this will already be installed locally.</p>
-<p>To run a new report, first clear the previous test coverage data:</p>
-<pre><code class="language-bash">cargo llvm-cov clean --workspace
-</code></pre>
-<p>Next, test all the unignored tests:</p>
-<pre><code class="language-bash">cargo llvm-cov --no-report
-</code></pre>
-<p>Next, test all the ignored tests. This will add to the previous coverage, not replace it.</p>
-<blockquote>
-<p><strong>Note</strong>: Valid credentials will need to be supplied for these tests to complete successfully.</p>
-</blockquote>
-<pre><code class="language-bash">GITHUB_KEY="$GITHUB_KEY" cargo llvm-cov --test github --no-report -- --ignored
-APOLLO_KEY="$APOLLO_KEY" APOLLO_SUDO="true" cargo llvm-cov --test starstuff --no-report -- --ignored
-APOLLO_KEY="$APOLLO_KEY" APOLLO_SUDO="true" cargo llvm-cov --test imgood_observability_test --no-report -- --ignored
-</code></pre>
-<p>Finally, generate the report. It should open in your browser:</p>
-<pre><code class="language-bash">cargo llvm-cov report --open
-</code></pre>
-<p>The report should be manually inspected to ensure that all branches that should have at least one
-test case are covered. Two points to consider:</p>
-<ol>
-<li>100% coverage for any given area should not be treated as “this is fully tested.” It just means
-the code was executed at least once during testing. It is likely that calling code once during
-tests is not sufficient to test all scenarios.</li>
-<li>Conversely, there may be good reasons why certain areas of the code are not executed during
-tests. Where there is a justifiable reason, it is valid to not cover every single line of code
-during tests.</li>
-</ol>
+<p>RTF uses <a href="https://github.com/taiki-e/cargo-llvm-cov"><code>cargo-llvm-cov</code></a> for coverage reporting. There are no coverage targets — reports are
+used to identify unexpected gaps. See <a href="#how-to-run-a-test-coverage-report">How to run a test coverage report</a> for the full procedure.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
-<h1 id="rep-orchestrator"><a class="header" href="#rep-orchestrator">rep-orchestrator</a></h1>
-<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rep-orchestrator"><code>rep-orchestrator</code></a> crate are organized and implemented.</p>
-<p>The crate has two categories of test:</p>
-<ul>
-<li><strong>Unit tests</strong> — live alongside source code in <code>src/</code>. Some require a running stack and are gated
-behind the <code>k8s_tests</code> feature flag.</li>
-<li><strong>Integration tests</strong> — live in <code>tests/suite.rs</code>. Require a fully running Docker Compose stack
-(orchestrator server + database + k8s clusters).</li>
-</ul>
-<p>Running <code>cargo test</code> from the workspace root will skip all stack-dependent tests. They must be run
-explicitly via <code>make</code>.</p>
+<h1 id="unit-tests-1"><a class="header" href="#unit-tests-1">Unit tests</a></h1>
+<p>Unit tests in RTF are defined inside <code>#[cfg(test)] mod tests</code> blocks within source files. This keeps
+tests close to the code they test and ensures test helper code remains private to the module.</p>
+<p>Crate-specific pages describe any additional conventions that apply within that crate.</p>
 <h2 id="organization"><a class="header" href="#organization">Organization</a></h2>
-<h3 id="unit-tests"><a class="header" href="#unit-tests">Unit tests</a></h3>
-<p>Unit tests in <code>rep-orchestrator</code> follow the same hierarchy used in <a href="#rtf-integrations"><code>rtf-integrations</code></a>:</p>
+<p>Unit tests follow this naming hierarchy:</p>
 <ol>
-<li><strong>Module</strong> - A logical grouping of functionality. Since this maps directly to the Rust module
-structure, there are likely to be sub-modules in the path. For example, database operations for
-test executions could be nested under <code>db::test_execution</code>. The primary concern is the logical
-organization of the Rust code for scopes and privacy.</li>
-<li><strong>Function</strong> - The function or logic under test. This most likely maps to a function or trait
-method. If this is not fully specified in the module path, it should be specified as the first
-prefix in the test case name.</li>
-<li><strong>Test class</strong> - A logical grouping of test cases. This is defined when using
-<a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> to create multiple parameterized tests.</li>
-<li><strong>Test case</strong> - The specific test case. This should be uniquely and meaningfully named. Examples
-of test case naming can be seen <a href="#test-case-naming">here</a>.</li>
+<li><strong>Module</strong> — A logical grouping of functionality. Maps directly to the Rust module structure;
+sub-modules may appear in the path (e.g. <code>providers::file</code>). The primary concern is the Rust
+code’s scope and privacy; test structure is secondary.</li>
+<li><strong>Function</strong> — The function or logic under test. Maps to a function or trait method. If not fully
+specified in the module path, it becomes the first prefix in the test case name.</li>
+<li><strong>Test class</strong> — A logical grouping of test cases. Defined when using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> to
+create multiple parameterized tests. Named after the test function when using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a>.</li>
+<li><strong>Test case</strong> — The specific test case. Should be uniquely and meaningfully named. See
+<a href="#test-case-naming">test case naming</a>.</li>
 </ol>
 <p>Following the hierarchy above leads to the following generic test case paths:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// When simple_test_case is not used
+</span>// Without simple_test_case
 module::path::tests::function_test_case
 
-// When simple_test_case is used
+// With simple_test_case
 module::path::tests::function_test_class::test_case
 <span class="boring">}</span></code></pre>
-<h3 id="integration-tests"><a class="header" href="#integration-tests">Integration tests</a></h3>
-<p>Integration tests in <code>tests/suite.rs</code> test the HTTP API as a whole. They do not follow the module
-hierarchy used by unit tests since they are not organized by source module. Instead, they are named
-using the following hierarchy:</p>
-<ol>
-<li><strong>Endpoint</strong> - The HTTP endpoint under test. Examples include <code>trigger</code>
-(<code>POST /test-run/trigger</code>) and <code>run_status</code> (<code>GET /test-run/{id}/status</code>).</li>
-<li><strong>Scenario</strong> - The specific behaviour being verified. Examples include
-<code>returns_200_for_valid_plan</code> or <code>returns_404_for_unknown_run</code>.</li>
-</ol>
-<p>This leads to the following generic test case paths:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>endpoint_scenario
-<span class="boring">}</span></code></pre>
-<h4 id="example---triggering-a-test-run"><a class="header" href="#example---triggering-a-test-run">Example - triggering a test run</a></h4>
-<p>This example demonstrates testing the trigger endpoint with a valid test plan:</p>
-<ol>
-<li><strong>Endpoint</strong> is <code>trigger</code>. This is the endpoint under test.</li>
-<li><strong>Scenario</strong> is <code>valid_rep_test_plan_returns_200</code>. This describes the input and the expected
-outcome.</li>
-</ol>
-<p>This leads to the following full test path:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>test trigger_valid_rep_test_plan_returns_200
-<span class="boring">}</span></code></pre>
-<h4 id="example---querying-run-status-for-an-unknown-run"><a class="header" href="#example---querying-run-status-for-an-unknown-run">Example - querying run status for an unknown run</a></h4>
-<ol>
-<li><strong>Endpoint</strong> is <code>run_status</code>. This is the endpoint under test.</li>
-<li><strong>Scenario</strong> is <code>returns_404_for_unknown_run</code>. This describes the input and the expected outcome.</li>
-</ol>
-<p>This leads to the following full test path:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>test run_status_returns_404_for_unknown_run
-<span class="boring">}</span></code></pre>
-<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
-<h3 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing infrastructure</a></h3>
-<p>The crate leverages the following key testing tools:</p>
+<h2 id="testing-infrastructure"><a class="header" href="#testing-infrastructure">Testing infrastructure</a></h2>
+<p>Unit tests commonly use the following tools:</p>
 <ul>
-<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Provides <code>#[test_case]</code> and <code>#[dir_cases]</code> attributes for
-parameterized testing across both unit and integration tests</li>
-<li><strong><a href="https://docs.rs/tokio/latest/tokio/attr.test.html"><code>tokio</code></a></strong> - Provides the <code>#[tokio::test]</code> attribute for async test functions, used
-extensively in integration tests</li>
-<li><strong><a href="https://docs.rs/reqwest/latest/reqwest/"><code>reqwest</code></a></strong> - HTTP client used by <code>TestHelper</code> to make requests against the running server
-during integration tests</li>
-<li><strong><a href="https://docs.rs/assert_fs/latest/assert_fs/"><code>assert_fs</code></a></strong> - Temporary filesystem utilities used by <code>TestHelper</code> to manage test plan
-directories during integration tests</li>
-<li><strong><a href="https://docs.rs/anyhow/latest/anyhow/"><code>anyhow</code></a></strong> - Ergonomic error handling in tests with the <code>-&gt; anyhow::Result&lt;()&gt;</code> return type</li>
+<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> — Parameterized testing with <code>#[test_case]</code> for multiple input
+variations sharing the same test logic</li>
+<li><strong><a href="https://docs.rs/indoc/latest/indoc/"><code>indoc</code></a></strong> — Clean multi-line string literals for inline test data (YAML, JSON, etc.)</li>
+<li><strong><a href="https://docs.rs/anyhow/latest/anyhow/"><code>anyhow</code></a></strong> — Ergonomic error handling via <code>-&gt; anyhow::Result&lt;()&gt;</code> return type and
+<code>.context()</code> for test failure messages</li>
 </ul>
-<h3 id="unit-tests-1"><a class="header" href="#unit-tests-1">Unit tests</a></h3>
-<p>Unit tests live inside <code>#[cfg(test)] mod tests</code> blocks within their source file and test business
-logic directly without requiring HTTP or database infrastructure where possible.</p>
-<p>To run all unit tests (DB tests skipped):</p>
-<pre><code class="language-bash">cargo test -p rep-orchestrator --lib
-</code></pre>
-<h3 id="stack-dependent-tests"><a class="header" href="#stack-dependent-tests">Stack-dependent tests</a></h3>
-<p>Tests that require a running stack (database + k8s clusters) are annotated with:</p>
+<h2 id="parameterized-tests"><a class="header" href="#parameterized-tests">Parameterized tests</a></h2>
+<p>Use <code>#[test_case]</code> when multiple inputs should exercise the same logic:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>#[cfg_attr(not(feature = "k8s_tests"), ignore)]
-<span class="boring">}</span></code></pre>
-<p>This means they are skipped by <code>cargo test</code> (and reported as ignored in the output) unless
-<code>--features k8s_tests</code> is passed. Do not remove this annotation from existing tests — it prevents
-the standard workspace test run from failing when no stack is available.</p>
-<p>To run stack-dependent tests, first start the local stack:</p>
-<pre><code class="language-bash">cd crates/rep-orchestrator
-make test-db-up
-</code></pre>
-<p>In a second terminal session, run the tests:</p>
-<pre><code class="language-bash">make db-tests
-</code></pre>
-<p>To stop the stack when done:</p>
-<pre><code class="language-bash">make test-db-down
-</code></pre>
-<h3 id="integration-tests-1"><a class="header" href="#integration-tests-1">Integration tests</a></h3>
-<p>Integration tests require the full Docker Compose stack (orchestrator server + database). They test
-the HTTP API end-to-end and are defined in <code>tests/suite.rs</code>.</p>
-<p>To run the integration tests manually:</p>
-<pre><code class="language-bash">cd crates/rep-orchestrator
-make up
-</code></pre>
-<p>This will show you the server logs for everything in the stack, useful for debugging failed tests.
-In a second terminal window run the tests:</p>
-<pre><code class="language-bash">make integration-tests    # run tests in tests/suite.rs
-</code></pre>
-<p>To stop the stack when done run:</p>
-<pre><code class="language-bash">make down
-</code></pre>
-<p>To run all tests as CI does (spin up, wait, test, tear down):</p>
-<pre><code class="language-bash">cd crates/rep-orchestrator
-make ci-tests
-</code></pre>
-<h4 id="testing-infrastructure-1"><a class="header" href="#testing-infrastructure-1">Testing infrastructure</a></h4>
-<p>Integration tests use a <code>TestHelper</code> struct defined in <code>tests/common/mod.rs</code>. Any shared logic
-between tests should be added as further methods to this helper. It wraps a <code>reqwest::Client</code> and
-provides convenience methods for calling server endpoints:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct TestHelper {
-    client: Client,
+</span>use simple_test_case::test_case;
+
+#[test_case("{{ valid }}"; "standard")]
+#[test_case("{{ with_underscore }}"; "with underscore")]
+#[test]
+fn field_parse_valid(raw: &amp;str) {
+    // Same assertion logic for each case
 }
 <span class="boring">}</span></code></pre>
-<p>The helper handles:</p>
-<ul>
-<li><strong><code>trigger_run</code></strong> - prepares a <code>RepPayload</code> from a test plan directory and posts it to
-<code>/test-run/trigger</code></li>
-<li><strong><code>json_get</code></strong> / <strong><code>json_post</code></strong> - typed request/response helpers that deserialize JSON responses
-directly into the expected type.</li>
-<li><strong><code>get</code></strong> / <strong><code>post</code></strong> - request/response helpers that return a <code>Response</code> so you can do simple
-high level assertions on things like the status code.</li>
-<li><strong>Temp directory placement</strong> - uses <code>CARGO_TARGET_TMPDIR</code> rather than <code>/tmp</code> to avoid macOS
-symlink issues with Docker volume mounts</li>
-</ul>
-<h4 id="parameterized-integration-tests"><a class="header" href="#parameterized-integration-tests">Parameterized integration tests</a></h4>
-<p>Tests that cover multiple input variations use <code>#[test_case]</code> from <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a>:</p>
+<p>The test class is named after the function (<code>field_parse_valid</code>). Each test case gets a unique label
+in the semicolon position (<code>"standard"</code>, <code>"with underscore"</code>).</p>
+<h2 id="test-data"><a class="header" href="#test-data">Test data</a></h2>
+<p><strong>Inline:</strong> Use <code>indoc!</code> for small, focused YAML or text:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>#[test_case(&amp;[su(Provisioning, None), su(Running, None), su(Successful, None)]; "successful")]
-#[test_case(&amp;[su(Provisioning, None), su(Running, None), su(Failed, Some(1))]; "failed")]
-#[test_case(&amp;[su(Provisioning, None), su(Unrunnable, None)]; "unrunnable")]
-#[tokio::test]
-async fn update_test_execution_status_valid_sequence_works(payloads: &amp;[SetStatusPayload]) {
-    // ...
-}
+</span>let yaml = indoc! {"
+    command:
+      script: echo hello
+"};
 <span class="boring">}</span></code></pre>
+<p><strong>Resource files:</strong> Place larger configs and any non-UTF-8 content in a <code>resources/</code> directory at
+the crate root. Reference them with <code>include_str!</code> or by path via <code>assert_fs</code>.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
-<h1 id="rtf-cli"><a class="header" href="#rtf-cli">rtf-cli</a></h1>
-<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate are organized and implemented.</p>
+<h1 id="cli-integration-tests"><a class="header" href="#cli-integration-tests">CLI integration tests</a></h1>
+<p>CLI tests verify the compiled binary’s behavior end-to-end: argument parsing, output formatting,
+exit codes, and filesystem interactions. They live in a <code>tests/</code> directory at the crate root and
+compile the binary rather than calling functions directly.</p>
 <h2 id="organization-1"><a class="header" href="#organization-1">Organization</a></h2>
-<p>For the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate, tests are defined in a <code>tests</code> directory at the root of the crate.
-This allows them to test the execution of the actual CLI as a fully compiled binary. Tests will not
-be named based on the module structure for the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a>, so tests must be named by creating
-modules within the test directory itself.</p>
-<p>Comprehensive test coverage for the config and core RTF functionality should be provided by the
-other crates. CLI testing should focus on ensuring the commands execute as expected and present the
-right information to the end user.</p>
-<p>Tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate are organized using the following hierarchy:</p>
+<p>CLI tests are not organized by source module. Modules within the <code>tests/</code> directory create the
+naming hierarchy:</p>
 <ol>
-<li><strong>Environment dependency</strong> - Some tests in this crate require API tokens to be provided to run
-tests successfully. By default, any such tests should be ignored. To run the tests, environment
-variable(s) containing the token(s) must be provided. To make it easier to run all tests with the
-same dependencies, tests with the same token requirements are stored in the same file. The first
-part of the test path therefore contains the environment dependency identifier. Examples include
-<code>github</code>, which stores all the tests that require a GitHub token.</li>
-<li><strong>Command</strong> - The command supplied to the CLI. For example, the <code>run</code> and <code>template</code> commands.
-Where no command is supplied, this is <code>no_command</code>. The command is part of the module path.</li>
-<li><strong>Flag(s)</strong> - Flags passed to the command that cause significant branching in functionality. For
-example, <code>check</code> could be used to describe tests covering the <code>template --check</code> case. Where it
-is necessary to identify the flags, these should be specified as the prefix to the test case
-name.</li>
-<li><strong>Test class</strong> - A logical grouping of test cases, for example, all valid <code>template</code> commands
-using the <code>--check</code> flag. This is only defined when using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> to create
-multiple parameterized tests.</li>
-<li><strong>Test case</strong> - The specific test case. This should be uniquely and meaningfully named. Examples
-of test case naming can be seen <a href="#test-case-naming">here</a>.</li>
+<li><strong>Environment dependency</strong> — Tests that require API tokens are grouped by their credential
+requirement. Files named after the command they test have no external dependency. Examples:
+<code>github</code> (requires <code>GITHUB_TOKEN</code>), <code>graphos</code> (requires <code>APOLLO_KEY</code>).</li>
+<li><strong>Command</strong> — The CLI subcommand under test. Examples: <code>template</code>, <code>run</code>, <code>rep</code>. Where no command
+is supplied, use <code>no_command</code>.</li>
+<li><strong>Flag(s)</strong> — Flags that cause significant branching in functionality, added as a prefix to the
+test case name. Omit if the flag is already implied by the environment dependency.</li>
+<li><strong>Test class</strong> — A grouping of parameterized cases defined with <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a>.</li>
+<li><strong>Test case</strong> — The specific scenario, uniquely and meaningfully named. See
+<a href="#test-case-naming">test case naming</a>.</li>
 </ol>
 <p>Following the hierarchy above leads to the following generic test case paths:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// When simple_test_case is not used
+</span>// Without simple_test_case
 env_dependency::command::flags_test_case
 
-// When simple_test_case is used
+// With simple_test_case
 env_dependency::command::flags_test_class::test_case
 <span class="boring">}</span></code></pre>
-<h3 id="example---template-and-check"><a class="header" href="#example---template-and-check">Example - template and check</a></h3>
-<p>This example demonstrates how to test that a local test plan can be templated and passes a static
-check. Working through the hierarchy:</p>
-<ol>
-<li><strong>Environment dependency</strong> is omitted. This test requires no tokens to successfully run.</li>
-<li><strong>Command</strong> is <code>template</code>. This is the command being passed to the CLI.</li>
-<li><strong>Flag(s)</strong> is <code>check</code>. The <code>--check</code> flag is used in this test and adds significant additional
-logic.</li>
-<li><strong>Test class</strong> is omitted since <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is not used.</li>
-<li><strong>Test case</strong> is <code>completes_basic</code>. A failing test case is <code>completes_with_cli_variables</code>.</li>
-</ol>
-<p>This leads to the following full test path:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>test template::check_completes_basic
-test template::check_completes_with_cli_variables
-<span class="boring">}</span></code></pre>
-<p>To achieve the structure above, the tests are defined in <code>tests/template.rs</code> and organized as
-follows:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[test]
-fn check_completes_basic() {
-  ...
-}
-
-#[test]
-fn check_completes_with_cli_variables() {
-  ...
-}
-<span class="boring">}</span></code></pre>
-<h3 id="example---run-from-github"><a class="header" href="#example---run-from-github">Example - run from GitHub</a></h3>
-<p>This example demonstrates how to test that the run command can execute a test plan stored in GitHub.
-Working through the hierarchy:</p>
-<ol>
-<li><strong>Environment dependency</strong> is <code>github</code>. This test will require a <code>GITHUB_TOKEN</code> to successfully
-run.</li>
-<li><strong>Command</strong> is <code>run</code>. This is the command being passed to the CLI.</li>
-<li><strong>Flag(s)</strong> could be <code>github</code>; however, this duplicates the identifier in the environment
-dependency, so it is omitted. The <code>--github</code> flag branches the <code>run</code> command significantly, so it
-has to be included in the test case path somewhere (just not twice!).</li>
-<li><strong>Test class</strong> is omitted since <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is not used.</li>
-<li><strong>Test case</strong> is <code>github_flag_completes</code>. An additional test case is
-<code>github_flag_produces_expected_output</code>.</li>
-</ol>
-<p>This leads to the following full test path:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>test github::run::github_flag_completes
-test github::run::github_flag_produces_expected_output
-<span class="boring">}</span></code></pre>
-<p>To achieve the structure above, the tests are defined in <code>tests/github/run.rs</code> and organized as
-follows:</p>
+<h2 id="testing-infrastructure-1"><a class="header" href="#testing-infrastructure-1">Testing infrastructure</a></h2>
+<p>CLI tests use the following tools:</p>
+<ul>
+<li><strong><a href="https://docs.rs/assert_cmd/latest/assert_cmd/"><code>assert_cmd</code></a></strong> — Spawns the compiled binary and asserts on stdout, stderr, and exit status</li>
+<li><strong><a href="https://docs.rs/assert_fs/latest/assert_fs/"><code>assert_fs</code></a></strong> — Temporary filesystem utilities for managing test directories</li>
+<li><strong><a href="https://docs.rs/predicates/latest/predicates/"><code>predicates</code></a></strong> — Composable assertion predicates for output matching</li>
+<li><strong><a href="https://docs.rs/indoc/latest/indoc/"><code>indoc</code></a></strong> — Clean multi-line expected output strings</li>
+<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> — Parameterized testing across multiple input variations</li>
+<li><strong><code>cargo_bin_cmd!</code></strong> — Macro that builds a command for the target binary</li>
+</ul>
+<h2 id="ignoring-credential-dependent-tests"><a class="header" href="#ignoring-credential-dependent-tests">Ignoring credential-dependent tests</a></h2>
+<p>Tests that require API tokens must be ignored by default. The <code>#[ignore]</code> attribute takes a reason
+string explaining which credential is needed:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test]
 #[ignore = "requires a valid GitHub API Token"]
 fn github_flag_completes() {
-  ...
-}
-
-#[test]
-#[ignore = "requires a valid GitHub API Token"]
-fn github_flag_produces_expected_output() {
-  ...
+    // ...
 }
 <span class="boring">}</span></code></pre>
-<blockquote>
-<p><strong>Note</strong>: The tests are ignored by default as they require a GitHub token to run successfully.</p>
-</blockquote>
-<h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
-<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate uses specialized testing tools and patterns focused on testing CLI
-behavior, command execution, and user-facing functionality.</p>
-<h3 id="testing-infrastructure-2"><a class="header" href="#testing-infrastructure-2">Testing infrastructure</a></h3>
-<p>The crate leverages the following key testing tools:</p>
-<ul>
-<li><strong><a href="https://docs.rs/assert_cmd/latest/assert_cmd/"><code>assert_cmd</code></a></strong> - Provides utilities for testing command-line applications, including
-spawning commands and asserting on their output and exit status</li>
-<li><strong><a href="https://docs.rs/assert_fs/latest/assert_fs/"><code>assert_fs</code></a></strong> - Offers temporary filesystem testing utilities for file operations and
-directory management</li>
-<li><strong><a href="https://docs.rs/predicates/latest/predicates/"><code>predicates</code></a></strong> - Provides composable assertion predicates for more expressive test
-assertions on command outputs</li>
-<li><strong><a href="https://docs.rs/indoc/latest/indoc/"><code>indoc</code></a></strong> - Allows clean multi-line string literals in tests, particularly useful for
-expected error messages</li>
-<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Enables parameterized testing with <code>#[test_case]</code> attributes for
-testing multiple input variations</li>
-</ul>
-<h3 id="command-testing-patterns"><a class="header" href="#command-testing-patterns">Command testing patterns</a></h3>
-<p>The CLI tests focus on three main areas of functionality:</p>
-<ol>
-<li><strong>Command execution and argument parsing</strong> - Testing that commands run correctly with various
-flag combinations</li>
-<li><strong>Output validation</strong> - Ensuring the CLI produces correct stdout/stderr content</li>
-<li><strong>Exit status verification</strong> - Checking that commands succeed or fail with appropriate exit codes</li>
-</ol>
-<h4 id="basic-command-testing"><a class="header" href="#basic-command-testing">Basic command testing</a></h4>
-<p>Tests verify that commands are executable and respond appropriately to basic invocations:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[test]
-fn is_executable() {
-    let mut cmd = cargo_bin_cmd!("rtf");
-    let res = cmd.arg("template").assert();
-    
-    res.stderr(contains("Usage: rtf template"));
-}
-<span class="boring">}</span></code></pre>
-<h4 id="parameterized-testing-for-multiple-scenarios"><a class="header" href="#parameterized-testing-for-multiple-scenarios">Parameterized testing for multiple scenarios</a></h4>
-<p>Complex scenarios use parameterized testing to cover multiple input variations efficiently:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[test_case("command-from-spec"; "command from spec")]
-#[test_case("matrix-variables"; "matrix variables")]
-#[test_case("resolved-variables"; "resolved variables")]
-#[test]
-fn check_completes_basic(test_plan_dir: &amp;str) {
-    let mut cmd = cargo_bin_cmd!("rtf");
-    let res = cmd
-        .env_clear()
-        .arg("template")
-        .arg(format!("resources/valid/{test_plan_dir}/test-plan.yaml"))
-        .arg("--check")
-        .assert();
-        
-    res.success().stdout(contains("name:"));
-}
-<span class="boring">}</span></code></pre>
-<h3 id="temporary-directory-management"><a class="header" href="#temporary-directory-management">Temporary directory management</a></h3>
-<p>The crate implements a custom <code>CmdWithTmpDir</code> utility that combines command execution with temporary
-directory management:</p>
+<p>This keeps <code>cargo test</code> fast and dependency-free. To run these tests, supply the credential as an
+environment variable and pass <code>-- --ignored</code> or <code>-- --include-ignored</code> to cargo.</p>
+<h2 id="temporary-directory-management"><a class="header" href="#temporary-directory-management">Temporary directory management</a></h2>
+<p><code>CmdWithTmpDir</code> combines a command with a temporary directory, ensuring filesystem state is cleaned
+up after each test:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub struct CmdWithTmpDir {
@@ -7184,177 +7088,167 @@ directory management:</p>
     tmp: TempDir,
 }
 <span class="boring">}</span></code></pre>
-<p>This ensures that test files and directories are properly cleaned up after test execution while
-providing convenient access to both the command and the temporary filesystem state.</p>
-<h3 id="error-testing-strategy"><a class="header" href="#error-testing-strategy">Error testing strategy</a></h3>
-<p>CLI error testing focuses on user-facing error messages and exit codes:</p>
-<ol>
-<li><strong>Input validation errors</strong> - Testing malformed YAML, missing files, and invalid configurations</li>
-<li><strong>Templating errors</strong> - Ensuring template resolution failures are properly reported</li>
-<li><strong>Static analysis failures</strong> - Testing the <code>--check</code> flag’s validation logic</li>
-<li><strong>Runtime execution errors</strong> - Verifying that script execution failures are handled gracefully</li>
-</ol>
-<p>Error tests are heavily parameterized to cover multiple failure scenarios:</p>
+<p>Use this when a test must write output files and the test needs to inspect them.</p>
+<h2 id="test-resources"><a class="header" href="#test-resources">Test resources</a></h2>
+<p>Test data lives under <code>resources/</code> at the crate root, organized by resource type and validity:</p>
+<pre><code class="language-text">resources/
+└── &lt;resource_type&gt;/
+    ├── valid/    — complete, valid test plans for success scenarios
+    └── invalid/  — organized by failure category (load-and-resolve, templating, checks, run)
+</code></pre>
+<p>Each test plan directory is self-contained with all necessary files.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
+<h1 id="http-api-integration-tests"><a class="header" href="#http-api-integration-tests">HTTP API integration tests</a></h1>
+<p>HTTP API integration tests verify HTTP servers end-to-end. They require a running stack (on either
+Docker Compose or Kubernetes) and are distinct from unit tests that test business logic in
+isolation.</p>
+<h2 id="test-scope"><a class="header" href="#test-scope">Test scope</a></h2>
+<p>Integration tests are expensive to run — starting a full stack adds significant overhead. Keep them
+focused: verify that the stack wires together correctly and that the HTTP API behaves as expected
+for the happy path and key error boundaries.</p>
+<p>Don’t use integration tests to cover every error scenario exhaustively. Detailed error-case coverage
+belongs in unit tests, where it’s fast and deterministic. Integration tests should give just enough
+confidence that the end-to-end plumbing works.</p>
+<h2 id="feature-flags"><a class="header" href="#feature-flags">Feature flags</a></h2>
+<p>Stack-dependent tests are gated behind feature flags so that <code>cargo test</code> passes without any
+infrastructure:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Flag</th><th>What it enables</th></tr>
+</thead>
+<tbody>
+<tr><td><code>db_tests</code></td><td>Unit tests that require a live PostgreSQL database</td></tr>
+<tr><td><code>k8s_tests</code></td><td>Full integration tests requiring the Docker Compose stack (implies <code>db_tests</code>)</td></tr>
+</tbody>
+</table>
+</div>
+<p>Tests gated by these flags are annotated as follows:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>#[test_case(
-    "missing-variables.yaml",
-    "Missing template variables definitions";
-    "missing variables"
-)]
-#[test_case(
-    "unknown-variables.yaml", 
-    "Unknown templating variable";
-    "unknown variables"
-)]
-#[test]
-fn templating_fails(file: &amp;str, err_contains: &amp;str) {
-    let mut cmd = cargo_bin_cmd!("rtf");
-    let res = cmd
-        .arg("template")
-        .arg(format!("resources/invalid/templating/{file}"))
-        .assert();
-        
-    res.stderr(contains(format!("Templating failed\n{err_contains}")));
+</span>#[cfg_attr(not(feature = "db_tests"), ignore)]
+fn some_db_test() { ... }
+
+#[cfg_attr(not(feature = "k8s_tests"), ignore)]
+fn some_k8s_test() { ... }
+<span class="boring">}</span></code></pre>
+<p>Do not remove these annotations — they prevent the standard workspace test run from failing when no
+stack is available.</p>
+<h2 id="organization-2"><a class="header" href="#organization-2">Organization</a></h2>
+<p>Integration tests test the HTTP API as a whole and are not organized by source module. Instead, they
+are named by endpoint and scenario:</p>
+<ol>
+<li><strong>Endpoint</strong> — The HTTP endpoint under test. Examples: <code>trigger</code> (<code>POST /test-run/trigger</code>),
+<code>run_status</code> (<code>GET /test-run/{id}/status</code>).</li>
+<li><strong>Scenario</strong> — The specific behaviour being verified. Examples:
+<code>valid_rep_test_plan_returns_200</code>, <code>returns_404_for_unknown_run</code>.</li>
+</ol>
+<p>Following the hierarchy above leads to the following generic test case path:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>endpoint_scenario
+<span class="boring">}</span></code></pre>
+<p>For example: <code>trigger_valid_rep_test_plan_returns_200</code>.</p>
+<h2 id="testing-infrastructure-2"><a class="header" href="#testing-infrastructure-2">Testing infrastructure</a></h2>
+<p>Integration tests use the following tools:</p>
+<ul>
+<li><strong><a href="https://docs.rs/tokio/latest/tokio/attr.test.html"><code>tokio</code></a></strong> — <code>#[tokio::test]</code> for async test functions</li>
+<li><strong><a href="https://docs.rs/serial_test/latest/serial_test/"><code>serial_test</code></a></strong> — Forces tests to run serially; required because tests share a single
+running stack and would interfere with each other if run in parallel</li>
+<li><strong><a href="https://docs.rs/reqwest/latest/reqwest/"><code>reqwest</code></a></strong> — HTTP client for making requests to the server under test</li>
+<li><strong><a href="https://docs.rs/assert_fs/latest/assert_fs/"><code>assert_fs</code></a></strong> — Temporary filesystem utilities</li>
+<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> — Parameterized testing with <code>#[test_case]</code> for multiple input
+variations</li>
+</ul>
+<p>Define shared test setup and request helpers in a <code>tests/common/</code> module. See the relevant
+crate-specific page for implementation details.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
+<h1 id="proc-macro-tests"><a class="header" href="#proc-macro-tests">Proc macro tests</a></h1>
+<p>Proc macro testing requires a different approach from standard unit testing because the code under
+test runs at compile time.</p>
+<h2 id="test-structure"><a class="header" href="#test-structure">Test structure</a></h2>
+<p>Tests live in a <code>tests/</code> directory at the crate root, split into two modules:</p>
+<pre><code>tests/
+├── compile.rs          # trybuild pass/fail compilation tests
+├── compile/
+│   ├── pass/           # .rs files that must compile successfully
+│   └── fail/           # .rs files that must fail to compile, with .stderr files
+└── template.rs         # runtime tests for the generated trait implementations
+</code></pre>
+<h2 id="compile-tests"><a class="header" href="#compile-tests">Compile tests</a></h2>
+<p>There are two types of compile test:</p>
+<p><strong>Pass tests</strong> — <code>.rs</code> files imported into the <code>compile</code> module. They are not executed but will
+cause a test failure if they do not produce valid Rust under <code>cargo check</code>. These verify that the
+macro generates correct code for supported input types.</p>
+<p><strong>Fail tests</strong> — <code>.rs</code> files that should not compile. The <a href="https://docs.rs/trybuild/latest/trybuild/"><code>trybuild</code></a> crate captures the
+compiler’s error output and compares it against a <code>.stderr</code> file:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[test]
+fn ui() {
+    let t = trybuild::TestCases::new();
+    t.compile_fail("tests/compile/fail/*.rs");
 }
 <span class="boring">}</span></code></pre>
-<h3 id="integration-testing-approach"><a class="header" href="#integration-testing-approach">Integration testing approach</a></h3>
-<p>Since the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate tests are integration tests, they focus on end-to-end functionality
-rather than unit testing individual functions. This includes:</p>
-<ul>
-<li><strong>Full command execution</strong> - Running the compiled binary with real arguments</li>
-<li><strong>File system interactions</strong> - Testing with actual YAML files and directory structures</li>
-<li><strong>Environment isolation</strong> - Using <code>env_clear()</code> to ensure consistent test conditions</li>
-<li><strong>Output capture and validation</strong> - Asserting on complete stdout/stderr content</li>
-</ul>
-<h3 id="test-resource-management"><a class="header" href="#test-resource-management">Test resource management</a></h3>
-<p>Test data is organized in a structured resource hierarchy:</p>
-<ul>
-<li><code>resources/&lt;resource_type&gt;/valid/</code> - Contains complete, valid test plans for success scenarios</li>
-<li><code>resources/&lt;resource_type&gt;/invalid/</code> - Organized by failure category (load-and-resolve,
-templating, checks, run)</li>
-</ul>
-<p>Each test plan directory is self-contained with all necessary files, enabling realistic integration
-testing scenarios.</p>
+<p>This ensures users receive helpful, stable error messages when the macro is applied incorrectly.</p>
+<h3 id="updating-stderr-files-after-a-rust-version-change"><a class="header" href="#updating-stderr-files-after-a-rust-version-change">Updating .stderr files after a Rust version change</a></h3>
+<p>Rust may change compiler error message formatting between versions, causing fail tests to break. See
+<a href="#how-to-update-trybuild-stderr-files-for-rtf-derive">How to update trybuild .stderr files</a> for the procedure.</p>
+<h2 id="template-tests"><a class="header" href="#template-tests">Template tests</a></h2>
+<p>The <code>template</code> module tests that the generated <code>Template</code> trait implementations work correctly at
+runtime. <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is used to run the same assertions against multiple Rust container
+types (structs, tuple structs, enums, etc.):</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[test_case("Struct"; "basic_struct")]
+#[test_case("TupleStruct"; "tuple_struct")]
+#[test]
+fn try_template_method_works(container_type: &amp;str) {
+    // ...
+}
+<span class="boring">}</span></code></pre>
+<p>Tests are organized using the following hierarchy:</p>
+<ol>
+<li><strong>Trait method</strong> — The <code>Template</code> method under test, including whether the error path is being
+tested.</li>
+<li><strong>Data structure</strong> — The Rust container type, defined as the test case name.</li>
+<li><strong>Test case</strong> — Additional context to uniquely identify the test.</li>
+</ol>
+<p>Following the hierarchy above leads to the following generic test case path:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>template::tests::trait_method::data_structure_test_case
+<span class="boring">}</span></code></pre>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="rtf-config"><a class="header" href="#rtf-config">rtf-config</a></h1>
-<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate are organized and implemented.</p>
-<h2 id="organization-2"><a class="header" href="#organization-2">Organization</a></h2>
-<p>Tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate are organized using the following hierarchy:</p>
+<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate are organized and implemented. The
+crate follows the <a href="developer/reference/testing/crates/unit-tests.html">unit test style</a>. This page describes the additional conventions that apply
+within <code>rtf-config</code>.</p>
+<h2 id="organization-3"><a class="header" href="#organization-3">Organization</a></h2>
+<p>Tests in <code>rtf-config</code> extend the standard unit test hierarchy with an extra level between Module and
+Function to account for the data-centric structure of the crate:</p>
 <ol>
-<li><strong>Module</strong> - A logical grouping of config data structures. Examples include providers and config
-files. Since this maps directly to the Rust module structure, there are likely to be sub-modules
-in the path. For example, file providers could be nested under the path <code>providers::file</code>. The
-primary concern is the logical organization of the Rust code for scopes and privacy.</li>
-<li><strong>Data structures</strong> - Any specific snippet or reusable YAML config; these most likely map to a
-specific type. Examples include specific file providers like <code>RelativePath</code> and <code>GithubFile</code>. It
-is unlikely that each of these will have a specific file in the Rust code. If these are not fully
-specified in the module path, then they should be specified as the first prefix in the test case
-name.</li>
-<li><strong>Functionality</strong> - Any specific functionality implemented for the data structure. This could
-include trait implementations and other functions implemented for the data structure. Examples
-include parsing, template, validate, and resolve for file providers. This should be the second
-prefix in the test case name.</li>
-<li><strong>Test class</strong> - A logical grouping of test cases, for example, all valid test cases for parsing
-a file provider. This is only defined when using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> to create multiple
-parameterized tests.</li>
-<li><strong>Test case</strong> - The specific test case. This should be uniquely and meaningfully named. Examples
-of test case naming can be seen <a href="#test-case-naming">here</a>.</li>
+<li><strong>Module</strong> — A logical grouping of config data structures (e.g. <code>providers::file</code>).</li>
+<li><strong>Data structure</strong> — The specific type under test (e.g. <code>RelativePath</code>, <code>GithubFile</code>). If not
+fully specified in the module path, this becomes the first prefix in the test case name.</li>
+<li><strong>Functionality</strong> — The trait or function being tested (e.g. <code>parse</code>, <code>template</code>, <code>resolve</code>).
+This becomes the second prefix in the test case name.</li>
+<li><strong>Test class</strong> — A logical grouping of parameterized cases created with <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a>.</li>
+<li><strong>Test case</strong> — The specific scenario, uniquely and meaningfully named. See
+<a href="developer/reference/testing/crates/index.html#test-case-naming">test case naming</a>.</li>
 </ol>
 <p>Following the hierarchy above leads to the following generic test case paths:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// When simple_test_case is not used
+</span>// Without simple_test_case
 module::path::tests::data_structure_functionality_test_case
 
-// When simple_test_case is used
+// With simple_test_case
 module::path::tests::data_structure_functionality_test_class::test_case
 <span class="boring">}</span></code></pre>
-<h3 id="example---resolving-a-file-provider"><a class="header" href="#example---resolving-a-file-provider">Example - resolving a file provider</a></h3>
-<p>This example demonstrates how to test that the file provider, <code>RelativePath</code>, can be resolved into
-file content. Working through the hierarchy:</p>
-<ol>
-<li><strong>Module</strong> is <code>provider::file</code>. This is where the <code>RelativePath</code> type is defined.</li>
-<li><strong>Data structure</strong> is <code>relative_path</code> since this is the specific file provider being tested. This
-becomes the first prefix in the test case name since the module does not uniquely identify the
-data structure.</li>
-<li><strong>Functionality</strong> is <code>resolve</code>. This becomes the second prefix in the test case name.</li>
-<li><strong>Test class</strong> is omitted since <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is not used.</li>
-<li><strong>Test case</strong> is <code>into_text</code>. For illustrative purposes, a failing test case, <code>file_not_text</code>, is
-included as well.</li>
-</ol>
-<p>The full test paths are:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>test provider::file::tests::relative_path_resolve_into_text
-test provider::file::tests::relative_path_resolve_file_not_text
-<span class="boring">}</span></code></pre>
-<p>To achieve the structure above, the tests are defined in <code>src/providers/file/mod.rs</code> and organized
-as follows:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>mod tests {
-  #[test]
-  fn relative_path_resolve_success() {
-    ...
-  }
-
-  #[test]
-  fn relative_path_resolve_file_not_text() {
-    ...
-  }
-}
-<span class="boring">}</span></code></pre>
-<h3 id="example---malformed-template-strings"><a class="header" href="#example---malformed-template-strings">Example - malformed template strings</a></h3>
-<p>This example demonstrates how to test that the template string <code>"{{ template_variable }}"</code> does not
-work when similar, but not acceptable, patterns are specified. Working through the hierarchy:</p>
-<ol>
-<li><strong>Module</strong> is <code>templating</code>. This is where the <code>Field</code> type is defined.</li>
-<li><strong>Data structure</strong> is <code>field</code> since the <code>Field</code> type is being tested. This becomes the first
-prefix in the test case name since the module does not uniquely identify the data structure.</li>
-<li><strong>Functionality</strong> is <code>parse</code> since the template string is evaluated during the parsing of a
-<code>Field</code>. This becomes the second prefix in the test case name.</li>
-<li><strong>Test class</strong> is <code>malformed_template_string</code>. <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> is used since there are
-variations in strings that are tested using the same logic.</li>
-<li><strong>Test cases</strong> are a series of uniquely named tests. For example, <code>no_space_after_variable_name</code>
-and <code>single_curly_braces</code>.</li>
-</ol>
-<p>The full test paths are:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>test templating::tests::field_parse_malformed_template_string::no_space_after_variable_name
-test templating::tests::field_parse_malformed_template_string::single_curly_braces
-<span class="boring">}</span></code></pre>
-<p>To achieve the structure above, the tests are defined in <code>src/templating.rs</code> and organized as
-follows:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>mod tests {
-  use simple_test_case::test_case;
-  #[test_case("arg1"; "no_space_after_variable_name")]
-  #[test_case("arg2"; "single_curly_braces")]
-  #[test]
-  fn field_parse_malformed_template_string(arg: &amp;str) {
-    ...
-  }
-}
-<span class="boring">}</span></code></pre>
-<h2 id="implementation-2"><a class="header" href="#implementation-2">Implementation</a></h2>
-<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate uses several testing strategies and tools to ensure comprehensive
-coverage of configuration parsing, validation, and resolution.</p>
-<h3 id="testing-infrastructure-3"><a class="header" href="#testing-infrastructure-3">Testing infrastructure</a></h3>
-<p>The crate leverages the following key testing tools:</p>
-<ul>
-<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Enables parameterized testing with <code>#[test_case]</code> attributes for
-testing multiple input variations with the same test logic</li>
-<li><strong><code>assert_fs</code></strong> - Provides temporary filesystem testing utilities for file operations</li>
-<li><strong><code>predicates</code></strong> - Offers composable assertion predicates for more expressive test assertions</li>
-<li><strong><code>indoc</code></strong> - Allows clean multi-line string literals in tests, particularly useful for YAML
-configurations</li>
-</ul>
-<h3 id="mock-system"><a class="header" href="#mock-system">Mock system</a></h3>
-<p>The crate implements a flexible mock system through <code>MockContext&lt;T&gt;</code> that allows dependency
-injection during testing:</p>
+<h2 id="mock-system"><a class="header" href="#mock-system">Mock system</a></h2>
+<p>The crate implements a <code>MockContext&lt;T&gt;</code> that allows dependency injection for HTTP and GitHub clients
+during testing:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// For HTTP client testing
@@ -7362,18 +7256,17 @@ let mock_ctx = MockContext::with_http_client(&amp;[
     ("https://example.com/api", "200", "response body")
 ]);
 
-// For GitHub client testing  
+// For GitHub client testing
 let mock_ctx = MockContext::with_github_client("file content");
 <span class="boring">}</span></code></pre>
-<p>This approach enables testing without external dependencies while maintaining the same interfaces
-used in production code.</p>
-<p>For mocking interactions with GraphOS, a different approach is used. Rather than mocking the GraphOS
-API directly, the tests create mock <code>SupergraphDetails</code> and test the content transformation logic:</p>
+<p>This enables testing without external dependencies while using the same interfaces as production
+code.</p>
+<p>For GraphOS interactions, the crate tests against mock <code>SupergraphDetails</code> rather than mocking the
+GraphOS API directly:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test]
 fn supergraph_resolve_success() {
-    // Create mock supergraph details with known test data
     let details = Arc::new(SupergraphDetails {
         graph_id: "test-graph".to_string(),
         variant: "test-variant".to_string(),
@@ -7386,292 +7279,49 @@ fn supergraph_resolve_success() {
         with_subgraph_overrides: None,
     };
 
-    // Test the content transformation directly
     let result = supergraph.content_from_details(details);
     assert_eq!(result, "schema { query: Query }");
 }
 <span class="boring">}</span></code></pre>
-<p>This pattern allows testing the core business logic while avoiding the complexity of mocking
-external APIs. The <code>with_supergraph_details</code> method in the production context handles the API
-interaction separately.</p>
-<h3 id="parameterized-testing-patterns"><a class="header" href="#parameterized-testing-patterns">Parameterized testing patterns</a></h3>
-<p>Tests extensively use <code>#[test_case]</code> to cover multiple scenarios efficiently:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[test_case("foo"; "ascii")]
-#[test_case("BAR"; "upper case")]
-#[test_case("世界"; "unicode")]
-#[test]
-fn field_parse_valid_identifiers(raw: &amp;str) {
-    // Test logic handles all cases
-}
-<span class="boring">}</span></code></pre>
-<p>Related test cases are grouped into test classes when using parameterized testing, following the
-naming hierarchy described in the <a href="#organization-2">Organization</a> section.</p>
-<h3 id="configuration-testing-strategy"><a class="header" href="#configuration-testing-strategy">Configuration testing strategy</a></h3>
-<p>The crate employs a systematic approach to testing configuration handling:</p>
+<p>This tests the core content transformation logic while keeping API interaction complexity in the
+production context method (<code>with_supergraph_details</code>).</p>
+<h2 id="configuration-testing-strategy"><a class="header" href="#configuration-testing-strategy">Configuration testing strategy</a></h2>
+<p>Config handling is tested in four phases:</p>
 <ol>
-<li><strong>Parsing Tests</strong> - Verify YAML deserialization works correctly for valid inputs and fails
-appropriately for invalid ones</li>
-<li><strong>Template Resolution Tests</strong> - Ensure the <code>{{ variable }}</code> templating system works across all
-supported data types. In most cases specific tests are not required for the <code>Template</code> trait
-since this is derived with a proc macro. Whenever there is a custom implementation of this trait
-then tests are defined.</li>
-<li><strong>Validation Tests</strong> - Check that configuration validation catches common errors and edge cases</li>
-<li><strong>Resolve Tests</strong> - Test that providers and configuration resolve and execute correctly.</li>
+<li><strong>Parsing</strong> — YAML deserialization works correctly for valid inputs and fails for invalid ones</li>
+<li><strong>Template resolution</strong> — The <code>{{ variable }}</code> templating system works across all supported
+types. Derived implementations of <code>Template</code> generally don’t need separate tests; only custom
+implementations require them.</li>
+<li><strong>Validation</strong> — Config validation catches common errors and edge cases</li>
+<li><strong>Resolve</strong> — Providers and configuration resolve and execute correctly</li>
 </ol>
-<h3 id="test-data-management"><a class="header" href="#test-data-management">Test data management</a></h3>
-<p>Test data is organized in two main ways:</p>
-<ul>
-<li><strong>Inline test data</strong> using <code>indoc!</code> for small, focused examples</li>
-<li><strong>Resource files</strong> in <code>resources/</code> for larger, realistic configurations and any non UTF-8 files.</li>
-</ul>
-<h3 id="error-testing"><a class="header" href="#error-testing">Error testing</a></h3>
-<p>The crate places strong emphasis on testing error conditions:</p>
-<ul>
-<li><strong>Malformed input testing</strong> - Invalid YAML, incorrect template syntax, missing required fields</li>
-<li><strong>Boundary condition testing</strong> - Empty values, special characters, unicode handling</li>
-<li><strong>Error message validation</strong> - Ensuring error messages are helpful for users</li>
-</ul>
-<p>Error tests follow the same organizational patterns as success tests, often using parameterized
-testing to cover multiple error scenarios efficiently.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
-<h1 id="rtf-derive"><a class="header" href="#rtf-derive">rtf-derive</a></h1>
-<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate are organized and implemented.</p>
-<p>This crate defines a <a href="https://doc.rust-lang.org/reference/procedural-macros.html">proc macro</a> for deriving the <code>Template</code> trait defined in the
-<a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config"><code>rtf-config</code></a> crate. The considerations for testing a proc macro are different from testing a
-standard Rust crate.</p>
-<h2 id="organization-3"><a class="header" href="#organization-3">Organization</a></h2>
-<p>For the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate, tests are defined in a <code>tests</code> directory at the root of the crate.
-This is because we need to test how the derive macro is applied to a variety of Rust containers. We
-also need to test the conditions under which the macro will fail to compile. Tests will not be named
-based on the module structure for the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a>, so tests must be named by creating modules
-within the test directory itself.</p>
-<p>Tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate are organized into the following modules:</p>
-<ol>
-<li><strong><code>compile</code></strong> - The <code>compile</code> tests check the conditions under which the derive macro will fail
-to compile into valid Rust.</li>
-<li><strong><code>template</code></strong> - The <code>template</code> tests check the implementation of the <code>Template</code> trait works as
-expected when the derive macro is applied to a Rust container.</li>
-</ol>
-<p>The structure of the tests within each of these modules is discussed below.</p>
-<h3 id="compile-tests"><a class="header" href="#compile-tests">Compile tests</a></h3>
-<p>There are two types of compile test: <code>pass</code> and <code>fail</code>. These are organized into separate
-directories within the <code>compile</code> subdirectory of <code>tests</code>.</p>
-<p>The <code>pass</code> tests work by importing the <code>*.rs</code> files into the <code>compile</code> module. These are not
-executed by <code>cargo test</code> but will fail if <code>cargo check</code> is run and they do not result in valid Rust.
-If any of the code in these modules fails to compile then the test should be considered to have
-failed.</p>
-<p>The <code>fail</code> tests use the <a href="https://docs.rs/trybuild/latest/trybuild/"><code>trybuild</code></a> crate. This is specifically to test the conditions under
-which we expect the derive macro to fail to compile valid Rust. The <code>*.rs</code> files in the <code>fail</code>
-directory should be used as examples of Rust containers that should not have the <code>Template</code> derive
-macro applied to them.</p>
-<blockquote>
-<p><strong>Note</strong>: The <code>trybuild</code> crate automatically generates the expected error messages when you run
-the tests with no error messages defined. There is a chance that updates to the Rust version used
-to run tests changes the format of the error messages produced and causes tests to fail. When this
-happens, delete the <code>.stderr</code> files associated with the failing test files and rerun <code>cargo test</code>.
-This should generate a <code>wip</code> directory at the root of the repository with the new <code>.stderr</code> files.
-Copy these into the <code>fail</code> directory and re-run <code>cargo test</code>. Your tests should now pass.</p>
-</blockquote>
-<h3 id="template-tests"><a class="header" href="#template-tests">Template tests</a></h3>
-<p>The <code>template</code> tests follow a typical Rust unit testing approach. The module defines various valid
-Rust containers the derive macro can be applied to. It then checks, for each of those containers,
-that the <code>Template</code> trait methods work as expected. The <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> crate is used to
-parameterize these containers into a single test function.</p>
-<p>The tests are organized using the following hierarchy:</p>
-<ol>
-<li><strong>Trait method</strong> - The method of the <code>Template</code> trait under test. In cases where the method can
-error, this will also identify the error conditions.</li>
-<li><strong>Data structure</strong> - The Rust container under test. This is defined as part of the
-<a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> test case name.</li>
-<li><strong>Test case</strong> - Additional information required to uniquely identify the test. This is defined as
-part of the <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> test case name.</li>
-</ol>
-<p>Following the hierarchy above leads to the following generic test case paths:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// When simple_test_case is used
-template::tests::trait_method::data_structure_test_case
-<span class="boring">}</span></code></pre>
-<h2 id="implementation-3"><a class="header" href="#implementation-3">Implementation</a></h2>
-<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate employs specialized testing strategies tailored to procedural macro
-testing requirements.</p>
-<h3 id="testing-infrastructure-4"><a class="header" href="#testing-infrastructure-4">Testing infrastructure</a></h3>
-<p>The crate leverages the following key testing tools:</p>
-<ul>
-<li><strong><a href="https://docs.rs/trybuild/latest/trybuild/"><code>trybuild</code></a></strong> - Enables testing of procedural macro compilation failures with precise error
-message validation</li>
-<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Provides parameterized testing capabilities for testing the derive
-macro across multiple Rust container types</li>
-<li><strong>Compile-time testing</strong> - Uses the Rust compiler itself as a testing tool to validate successful
-macro expansion</li>
-</ul>
-<h3 id="procedural-macro-testing-strategy"><a class="header" href="#procedural-macro-testing-strategy">Procedural macro testing strategy</a></h3>
-<p>Testing procedural macros requires a different approach from standard unit testing:</p>
-<ol>
-<li><strong>Compilation Success Testing</strong> - Verify that the macro successfully generates valid Rust code
-for supported container types</li>
-<li><strong>Compilation Failure Testing</strong> - Ensure the macro fails appropriately with helpful error
-messages for unsupported scenarios</li>
-<li><strong>Generated Code Testing</strong> - Validate that the generated <code>Template</code> trait implementations behave
-correctly at runtime</li>
-</ol>
-<h3 id="error-testing-with-trybuild"><a class="header" href="#error-testing-with-trybuild">Error testing with trybuild</a></h3>
-<p>The <code>fail</code> tests use <code>trybuild</code> to capture and validate compilation error messages:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[test]
-fn ui() {
-    let t = trybuild::TestCases::new();
-    t.compile_fail("tests/compile/fail/*.rs");
-}
-<span class="boring">}</span></code></pre>
-<p>This approach ensures that:</p>
-<ul>
-<li>Error messages remain consistent across Rust versions</li>
-<li>Users receive helpful diagnostic information when the macro cannot be applied</li>
-<li>The macro fails early with clear explanations rather than generating invalid code</li>
-</ul>
-<h3 id="parameterized-container-testing"><a class="header" href="#parameterized-container-testing">Parameterized container testing</a></h3>
-<p>The <code>template</code> tests extensively use <code>#[test_case]</code> to verify the derive macro works across
-different Rust container types:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[test_case("Struct"; "basic_struct")]
-#[test_case("TupleStruct"; "tuple_struct")]
-#[test_case("UnitStruct"; "unit_struct")]
-#[test]
-fn template_method_works(container_type: &amp;str) {
-    // Test the generated Template implementation
-}
-<span class="boring">}</span></code></pre>
-<p>This pattern allows comprehensive testing of the macro’s behavior across the full range of supported
-Rust syntax.</p>
+<h1 id="rtf-core"><a class="header" href="#rtf-core">rtf-core</a></h1>
+<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-core"><code>rtf-core</code></a> crate follows the standard <a href="developer/reference/testing/crates/unit-tests.html">unit test style</a>. Tests live alongside source
+code in <code>#[cfg(test)] mod tests</code> blocks.</p>
+<p>The crate’s tests focus on execution logic and diff/comparison output. Test data is typically
+generated inline or loaded via <code>include_str!</code> from resource files.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="rtf-integrations"><a class="header" href="#rtf-integrations">rtf-integrations</a></h1>
-<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-integrations"><code>rtf-integrations</code></a> crate are organized and implemented.</p>
+<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-integrations"><code>rtf-integrations</code></a> crate are organized and implemented.
+The crate follows the <a href="developer/reference/testing/crates/unit-tests.html">unit test style</a>. This page describes the additional conventions that
+apply within <code>rtf-integrations</code>.</p>
 <h2 id="organization-4"><a class="header" href="#organization-4">Organization</a></h2>
-<p>Tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-integrations"><code>rtf-integrations</code></a> crate are organized using the following hierarchy:</p>
-<ol>
-<li><strong>Module</strong> - A logical grouping of core RTF functionality. Examples include GraphOS (<code>graphos</code>)
-and GitHub (<code>github</code>) API calls. Since this maps directly to the Rust module structure, there are
-likely to be sub-modules in the path. For example, supergraph details could be nested under the
-path <code>graphos::supergraph::details</code>. The primary concern is the logical organization of the Rust
-code for scopes and privacy.</li>
-<li><strong>Function</strong> - The function or logic under test. This most likely maps to a function or trait.
-For example, <code>try_parse</code> for parsing GraphQL response data. It is unlikely that each of these
-will have a specific file in the Rust code. If this is not fully specified in the module path,
-then it should be specified as the first prefix in the test case name.</li>
-<li><strong>Test class</strong> - A logical grouping of test cases, for example, all valid test cases for parsing
-an offline license response. This is defined when using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a> to create
-multiple parameterized tests. When using the <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a> macro, test classes are named based
-on the test function (e.g., <code>try_parse_ok</code> or <code>try_parse_err</code>).</li>
-<li><strong>Test case</strong> - The specific test case. The test case should be uniquely and meaningfully named.
-When using <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a>, test case names are derived from the test data file names. Examples
-of test case naming can be seen <a href="#test-case-naming">here</a>.</li>
-</ol>
-<p>Following the hierarchy above leads to the following generic test case paths:</p>
+<p>Tests follow the standard unit test hierarchy. The test class level uses the <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a> macro
+naming convention: when <code>#[dir_cases]</code> is used, the test function name becomes the test class (e.g.
+<code>try_parse_ok</code>, <code>try_parse_err</code>), and test case names are derived from the test data file names.</p>
+<p>Following the hierarchy leads to the following generic test case paths:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// When dir_cases is used
+</span>// With dir_cases
 module::path::tests::function_test_class::file_name
 
-// When simple_test_case is not used
+// Without simple_test_case
 module::path::tests::function_test_case
 <span class="boring">}</span></code></pre>
-<h3 id="example---parsing-an-offline-license-response"><a class="header" href="#example---parsing-an-offline-license-response">Example - parsing an offline license response</a></h3>
-<p>This example demonstrates how to test that an offline license response can be parsed from GraphOS.
-Working through the hierarchy:</p>
-<ol>
-<li><strong>Module</strong> is <code>graphos::supergraph::operations::license</code>. This is where the <code>OfflineLicense</code>
-query and its <code>PlatformQuery</code> implementation are defined.</li>
-<li><strong>Function</strong> is <code>try_parse</code>. This is the method that parses the GraphQL response data. The test
-functions are named <code>try_parse_ok</code> for success cases and <code>try_parse_err</code> for failure cases.</li>
-<li><strong>Test class</strong> is <code>try_parse_ok</code> or <code>try_parse_err</code>. The <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a> macro is used, so the
-test function name becomes the test class.</li>
-<li><strong>Test case</strong> is derived from the file name. For example, <code>normal</code> for the <code>valid/normal.json</code>
-test data file.</li>
-</ol>
-<p>This leads to the following full test paths:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>test graphos::supergraph::operations::license::tests::try_parse_ok::normal
-test graphos::supergraph::operations::license::tests::try_parse_err::no_graph
-test graphos::supergraph::operations::license::tests::try_parse_err::no_account
-test graphos::supergraph::operations::license::tests::try_parse_err::no_offline_license
-<span class="boring">}</span></code></pre>
-<p>To achieve the structure above, the tests are defined in
-<code>src/graphos/supergraph/operations/license.rs</code> and organized as follows:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[cfg(test)]
-mod tests {
-    use simple_test_case::dir_cases;
-
-    #[dir_cases("crates/rtf-integrations/resources/test_data/offline_license/valid")]
-    #[test]
-    fn try_parse_ok(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&gt; {
-        // Parse and validate successful response
-    }
-
-    #[dir_cases("crates/rtf-integrations/resources/test_data/offline_license/invalid")]
-    #[test]
-    fn try_parse_err(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&gt; {
-        // Parse and validate error response
-    }
-}
-<span class="boring">}</span></code></pre>
-<h3 id="example---url-rewriting-in-supergraph-details"><a class="header" href="#example---url-rewriting-in-supergraph-details">Example - URL rewriting in supergraph details</a></h3>
-<p>This example demonstrates testing a utility function without <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a>. Working through the
-hierarchy:</p>
-<ol>
-<li><strong>Module</strong> is <code>graphos::supergraph::details</code>. This is where the <code>rewrite_subgraph_urls</code> function
-is defined.</li>
-<li><strong>Function</strong> is <code>rewrite_subgraph_urls</code>. This becomes the first prefix in the test case name.</li>
-<li><strong>Test class</strong> is omitted since <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a> is not used.</li>
-<li><strong>Test case</strong> describes the specific scenario, for example <code>all_urls_updated</code> or
-<code>invalid_sdl_returns_none</code>.</li>
-</ol>
-<p>This leads to the following full test paths:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>test graphos::supergraph::details::tests::rewrite_subgraph_urls_all_urls_updated
-test graphos::supergraph::details::tests::rewrite_subgraph_urls_invalid_sdl_returns_none
-test graphos::supergraph::details::tests::rewrite_subgraph_urls_missing_join_graph_returns_none
-<span class="boring">}</span></code></pre>
-<p>To achieve the structure above, the tests are defined in <code>src/graphos/supergraph/details.rs</code> and
-organized as follows:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[cfg(test)]
-mod tests {
-    #[test]
-    fn rewrite_subgraph_urls_all_urls_updated() {
-        // Test happy path
-    }
-
-    #[test]
-    fn rewrite_subgraph_urls_invalid_sdl_returns_none() {
-        // Test error handling
-    }
-}
-<span class="boring">}</span></code></pre>
-<h2 id="implementation-4"><a class="header" href="#implementation-4">Implementation</a></h2>
-<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-integrations"><code>rtf-integrations</code></a> crate uses a trait-based testing approach that focuses on testing
-business logic directly, without requiring HTTP mocking or complex test infrastructure.</p>
-<h3 id="testing-infrastructure-5"><a class="header" href="#testing-infrastructure-5">Testing infrastructure</a></h3>
-<p>The crate leverages the following key testing tools:</p>
-<ul>
-<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> - Provides the <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a> macro for directory-driven
-parameterized testing, automatically generating test cases from files in a directory</li>
-<li><strong><a href="https://docs.rs/anyhow/latest/anyhow/"><code>anyhow</code></a></strong> - Enables ergonomic error handling in tests with the <code>-&gt; anyhow::Result&lt;()&gt;</code>
-return type and contextual error messages via <code>.context()</code></li>
-<li><strong><a href="https://docs.rs/serde_json/latest/serde_json/"><code>serde_json</code></a></strong> - Used to deserialize test data from JSON files into GraphQL response types</li>
-</ul>
-<h3 id="trait-based-testing-pattern"><a class="header" href="#trait-based-testing-pattern">Trait-based testing pattern</a></h3>
+<h2 id="trait-based-testing-with-platformquery"><a class="header" href="#trait-based-testing-with-platformquery">Trait-based testing with PlatformQuery</a></h2>
 <p>The crate’s primary testing pattern leverages the <code>PlatformQuery</code> trait to test GraphQL response
-parsing logic without requiring HTTP mocking:</p>
+parsing without requiring HTTP mocking:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>pub trait PlatformQuery: GraphQLQuery {
@@ -7684,27 +7334,18 @@ parsing logic without requiring HTTP mocking:</p>
     ) -&gt; Result&lt;Self::Output, Self::Error&gt;;
 }
 <span class="boring">}</span></code></pre>
-<p>Tests call <code>try_parse</code> directly with deserialized JSON data, validating the parsing logic in
-isolation:</p>
+<p>Tests deserialize JSON directly into the GraphQL response type and call <code>try_parse</code> in isolation:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>#[test]
-fn try_parse_ok(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&gt; {
-    // Deserialize JSON directly into the GraphQL response type
-    let raw: &lt;OfflineLicense as GraphQLQuery&gt;::ResponseData =
-        serde_json::from_str(contents)?;
-
-    // Test the parsing logic directly
-    let jwt = OfflineLicense::try_parse(raw, variables)?;
-
-    assert_eq!(jwt, "expected-value");
+</span>fn try_parse_ok(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&gt; {
+    let raw: &lt;OfflineLicense as GraphQLQuery&gt;::ResponseData = serde_json::from_str(contents)?;
+    let result = OfflineLicense::try_parse(raw, variables)?;
+    assert_eq!(result, "expected-value");
     Ok(())
 }
 <span class="boring">}</span></code></pre>
-<p>This approach avoids the complexity of HTTP mocking while ensuring comprehensive coverage of the
-response parsing logic.</p>
-<h3 id="directory-driven-parameterized-tests"><a class="header" href="#directory-driven-parameterized-tests">Directory-driven parameterized tests</a></h3>
-<p>The <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a> macro automatically generates test cases from files in a directory:</p>
+<h2 id="directory-driven-parameterized-tests"><a class="header" href="#directory-driven-parameterized-tests">Directory-driven parameterized tests</a></h2>
+<p>The <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a> macro generates test cases from files in a directory:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[dir_cases("crates/rtf-integrations/resources/test_data/offline_license/valid")]
@@ -7713,117 +7354,169 @@ fn try_parse_ok(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&g
     // Test logic runs once per file in the directory
 }
 <span class="boring">}</span></code></pre>
-<p>Each file in the specified directory becomes a separate test case, with:</p>
-<ul>
-<li><code>path</code> - The file path (useful for error context)</li>
-<li><code>contents</code> - The file contents as a string</li>
-</ul>
-<p>This pattern makes it easy to add new test cases by simply adding files to the test data directory.</p>
-<h3 id="test-data-organization"><a class="header" href="#test-data-organization">Test data organization</a></h3>
-<p>Test data is organized in structured directories under <code>resources/test_data/</code>:</p>
+<p>Each file becomes a separate test case. <code>path</code> provides context for error messages; <code>contents</code> is
+the file text. Adding new test cases is as simple as adding a file to the directory.</p>
+<h2 id="test-data-organization"><a class="header" href="#test-data-organization">Test data organization</a></h2>
+<p>Test data lives in <code>resources/test_data/</code>, organized by operation and validity:</p>
 <pre><code>resources/test_data/
-├── offline_license/
-│   ├── valid/
-│   │   └── normal.json
-│   └── invalid/
-│       ├── no_graph.json
-│       ├── no_account.json
-│       └── no_offline_license.json
-├── supergraph_details/
-│   ├── valid/
-│   └── invalid/
-└── queries/
-    └── *.graphql
+└── &lt;operation&gt;/
+    ├── valid/    — complete GraphQL response JSON
+    └── invalid/  — response JSON wrapped with an expected_error field
 </code></pre>
-<p><strong>Valid test cases</strong> contain complete GraphQL response data as JSON:</p>
+<p><strong>Valid test case</strong> — the raw GraphQL response:</p>
 <pre><code class="language-json">{
   "graph": {
     "account": {
-      "offlineLicense": {
-        "jwt": "test-jwt-token"
-      }
+      "offlineLicense": { "jwt": "test-jwt-token" }
     }
   }
 }
 </code></pre>
-<p><strong>Invalid test cases</strong> wrap the response data with an <code>expected_error</code> field:</p>
+<p><strong>Invalid test case</strong> — wrapped with <code>expected_error</code> so tests can assert the correct error variant
+is returned:</p>
 <pre><code class="language-json">{
   "expected_error": "UnknownSupergraph",
-  "data": {
-    "graph": null
-  }
+  "data": { "graph": null }
 }
 </code></pre>
-<p>This structure ensures that error tests validate both that an error occurs and that it’s the
-<em>correct</em> error.</p>
-<h3 id="schema-based-validation-tests"><a class="header" href="#schema-based-validation-tests">Schema-based validation tests</a></h3>
-<p>Tests involving GraphQL schema manipulation use <a href="https://docs.rs/apollo-compiler/latest/apollo_compiler/"><code>apollo-compiler</code></a> for parsing and validation:</p>
+<p>Each error variant in the crate’s error types should have at least one corresponding file in the
+<code>invalid/</code> directory.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
+<h1 id="rtf-derive"><a class="header" href="#rtf-derive">rtf-derive</a></h1>
+<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-derive"><code>rtf-derive</code></a> crate is a procedural macro crate. Its tests follow the
+<a href="developer/reference/testing/crates/proc-macro-tests.html">proc macro test style</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
+<h1 id="rtf-cli"><a class="header" href="#rtf-cli">rtf-cli</a></h1>
+<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli"><code>rtf-cli</code></a> crate are organized and implemented. The crate
+follows the <a href="developer/reference/testing/crates/cli-tests.html">CLI integration test style</a>. This page describes the additional conventions that
+apply within <code>rtf-cli</code>.</p>
+<h2 id="organization-5"><a class="header" href="#organization-5">Organization</a></h2>
+<p>Tests in <code>rtf-cli</code> use the environment dependency → command → flags → test class → test case
+hierarchy described in the <a href="developer/reference/testing/crates/cli-tests.html">CLI integration test style</a>.</p>
+<p>The key convention specific to this crate: when a flag identifier duplicates the environment
+dependency identifier (e.g. a <code>--github</code> flag inside the <code>github</code> test module), omit the flag from
+the test case name. The environment dependency already encodes it.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Environment dependency is "github", command is "run"
+// Flag "--github" is omitted — already implied by the module
+test github::run::github_flag_completes        // good
+test github::run::github_github_flag_completes // bad — duplicated identifier
+<span class="boring">}</span></code></pre>
+<h2 id="ignored-tests"><a class="header" href="#ignored-tests">Ignored tests</a></h2>
+<p>Tests with external API dependencies are <code>#[ignore]</code> by default. The reason string must name the
+specific credential required:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>#[test]
-fn fix_aliases_adds_aliases_for_duplicate_fields() {
-    let schema = Schema::parse_and_validate(SCHEMA, "supergraph.graphql").unwrap();
-    let mut doc = ExecutableDocument::parse(&amp;schema, query, "test").unwrap();
-
-    fix_aliases(&amp;mut doc);
-
-    let res = doc.validate(&amp;schema);
-    assert!(res.is_ok());
-}
+#[ignore = "requires a valid GitHub API Token"]
+fn github_flag_completes() { ... }
 <span class="boring">}</span></code></pre>
-<p>Schema test data is typically embedded using <code>include_str!</code>:</p>
+<p>Tests are grouped by their credential requirement into separate files (e.g. <code>tests/github/</code>,
+<code>tests/graphos/</code>), making it easy to run only the tests relevant to a given credential.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
+<h1 id="rep-orchestrator"><a class="header" href="#rep-orchestrator">rep-orchestrator</a></h1>
+<p>This page documents how tests in the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rep-orchestrator"><code>rep-orchestrator</code></a> crate are organized and implemented.
+The crate uses two test styles:</p>
+<ul>
+<li>Unit tests follow the <a href="developer/reference/testing/crates/unit-tests.html">unit test style</a></li>
+<li>HTTP API integration tests follow the <a href="developer/reference/testing/crates/http-tests.html">HTTP API integration test style</a></li>
+</ul>
+<p>See <a href="developer/reference/howto/run-rep-orchestrator-tests.html">Run rep-orchestrator tests</a> for a step-by-step guide to running each category locally.</p>
+<h2 id="categories"><a class="header" href="#categories">Categories</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Category</th><th>Location</th><th>Requires</th></tr>
+</thead>
+<tbody>
+<tr><td>Unit tests</td><td><code>src/</code> (<code>#[cfg(test)] mod tests</code> blocks)</td><td>Nothing</td></tr>
+<tr><td>DB tests</td><td><code>src/</code> (gated by <code>db_tests</code> feature)</td><td>PostgreSQL via <code>make db-up</code></td></tr>
+<tr><td>Integration tests</td><td><code>tests/suite.rs</code> (gated by <code>k8s_tests</code> feature)</td><td>Full tilt stack</td></tr>
+</tbody>
+</table>
+</div>
+<p>Running <code>cargo test</code> from the workspace root skips all stack-dependent tests. They must be run
+explicitly via <code>make</code>.</p>
+<h2 id="unit-test-organization"><a class="header" href="#unit-test-organization">Unit test organization</a></h2>
+<p>Unit tests follow the Module → Function → Test class → Test case hierarchy from the
+<a href="developer/reference/testing/crates/unit-tests.html">unit test style</a>:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>const SCHEMA: &amp;str = include_str!("../../../../resources/engine-prod-schema.graphql");
+</span>// Without simple_test_case
+module::path::tests::function_test_case
+
+// With simple_test_case
+module::path::tests::function_test_class::test_case
 <span class="boring">}</span></code></pre>
-<h3 id="error-testing-strategy-1"><a class="header" href="#error-testing-strategy-1">Error testing strategy</a></h3>
-<p>Error testing ensures all error variants are covered and properly handled:</p>
-<ol>
-<li><strong>Exhaustive variant coverage</strong> - Each error variant has at least one corresponding test file in
-the <code>invalid/</code> directory</li>
-<li><strong>Error matching</strong> - Tests validate that the specific expected error variant is returned:</li>
-</ol>
+<h2 id="integration-test-organization"><a class="header" href="#integration-test-organization">Integration test organization</a></h2>
+<p>Integration tests follow the Endpoint → Scenario naming described in the
+<a href="developer/reference/testing/crates/http-tests.html">HTTP API integration test style</a>:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>#[dir_cases("crates/rtf-integrations/resources/test_data/offline_license/invalid")]
-#[test]
-fn try_parse_err(path: &amp;str, contents: &amp;str) -&gt; anyhow::Result&lt;()&gt; {
-    let ErrCase { expected_error, data } = serde_json::from_str(contents)?;
-    let raw = serde_json::from_value(data)?;
-
-    let result = OfflineLicense::try_parse(raw, variables);
-
-    match (expected_error.as_str(), result) {
-        ("UnknownSupergraph", Err(FetchErrorCause::UnknownSupergraph)) =&gt; (),
-        ("UnknownOrganisation", Err(FetchErrorCause::UnknownOrganisation)) =&gt; (),
-        (expected, actual) =&gt; panic!("expected {expected}, got {actual:?}"),
-    }
-
-    Ok(())
-}
+</span>endpoint_scenario
 <span class="boring">}</span></code></pre>
-<h3 id="unit-tests-for-utility-functions"><a class="header" href="#unit-tests-for-utility-functions">Unit tests for utility functions</a></h3>
-<p>Not all tests use <a href="https://docs.rs/simple_test_case/latest/simple_test_case/attr.dir_cases.html"><code>dir_cases</code></a>. Utility functions with deterministic behavior use standard unit
-tests:</p>
+<p>For example: <code>trigger_valid_rep_test_plan_returns_200</code>.</p>
+<h2 id="feature-flag-annotation"><a class="header" href="#feature-flag-annotation">Feature flag annotation</a></h2>
+<p>Stack-dependent tests must always carry this annotation to prevent the standard test run from
+failing without a stack:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>#[test]
-fn rewrite_subgraph_urls_all_urls_updated() {
-    let sdl = include_str!("../../../resources/test_data/simple-supergraph.graphql");
-    let url_map = HashMap::from([
-        ("products".to_string(), "http://localhost:4001".to_string()),
-        ("reviews".to_string(), "http://localhost:4002".to_string()),
-    ]);
-
-    let result = rewrite_subgraph_urls(sdl, &amp;url_map);
-
-    assert!(result.is_some());
-    let new_sdl = result.unwrap();
-    assert!(new_sdl.contains("http://localhost:4001"));
+</span>#[cfg_attr(not(feature = "db_tests"), ignore)]    // for DB tests
+#[cfg_attr(not(feature = "k8s_tests"), ignore)]   // for integration tests
+<span class="boring">}</span></code></pre>
+<p>Do not remove these annotations from existing tests.</p>
+<h2 id="testing-infrastructure-3"><a class="header" href="#testing-infrastructure-3">Testing infrastructure</a></h2>
+<p>Integration tests use the following tools:</p>
+<ul>
+<li><strong><code>TestHelper</code></strong> — Defined in <code>tests/common/mod.rs</code>. Wraps <code>reqwest::Client</code> and provides
+convenience methods for calling server endpoints</li>
+<li><strong><a href="https://docs.rs/tokio/latest/tokio/attr.test.html"><code>tokio</code></a></strong> — <code>#[tokio::test]</code> for async test functions</li>
+<li><strong><a href="https://docs.rs/reqwest/latest/reqwest/"><code>reqwest</code></a></strong> — HTTP client used inside <code>TestHelper</code></li>
+<li><strong><a href="https://docs.rs/assert_fs/latest/assert_fs/"><code>assert_fs</code></a></strong> — Temporary filesystem utilities; uses <code>CARGO_TARGET_TMPDIR</code> rather than
+<code>/tmp</code> to avoid macOS symlink issues with Docker volume mounts</li>
+<li><strong><a href="https://docs.rs/simple_test_case/latest/simple_test_case/"><code>simple_test_case</code></a></strong> — Parameterized testing with <code>#[test_case]</code> for multiple input
+variations</li>
+</ul>
+<h3 id="testhelper-api"><a class="header" href="#testhelper-api">TestHelper API</a></h3>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct TestHelper {
+    client: Client,
 }
 <span class="boring">}</span></code></pre>
-<p>These tests are named with the <code>function_scenario</code> pattern and are grouped together in the <code>tests</code>
-module.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Method</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>trigger_run</code></td><td>Prepares a <code>RepPayload</code> from a test plan directory and POSTs to <code>/test-run/trigger</code></td></tr>
+<tr><td><code>json_get</code> / <code>json_post</code></td><td>Typed helpers that deserialize JSON responses into the expected type</td></tr>
+<tr><td><code>get</code> / <code>post</code></td><td>Raw helpers returning <code>Response</code> for status-code assertions</td></tr>
+</tbody>
+</table>
+</div>
+<p>Shared logic between tests should be added as further methods on <code>TestHelper</code>.</p>
+<h2 id="make-targets"><a class="header" href="#make-targets">Make targets</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Target</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>make db-up</code> / <code>make db-down</code></td><td>Start/stop the lightweight DB-only test stack</td></tr>
+<tr><td><code>make db-tests</code></td><td>Run DB-gated tests against the running DB stack</td></tr>
+<tr><td><code>make cluster-setup &amp;&amp; make cluster-up</code> / <code>make cluster-teardown</code></td><td>Start/stop the full stack</td></tr>
+<tr><td><code>make integration-tests</code></td><td>Run <code>tests/suite.rs</code> against the running full stack</td></tr>
+<tr><td><code>make ci-tests</code></td><td>Full CI flow: stack up → wait → test → stack down</td></tr>
+</tbody>
+</table>
+</div>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
+<h1 id="rep-orchestrator-cli"><a class="header" href="#rep-orchestrator-cli">rep-orchestrator-cli</a></h1>
+<p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rep-orchestrator-cli"><code>rep-orchestrator-cli</code></a> crate follows the standard <a href="developer/reference/testing/crates/unit-tests.html">unit test style</a> for any unit tests.
+CLI behavior tests, if added, should follow the <a href="developer/reference/testing/crates/cli-tests.html">CLI integration test style</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: reference -->
 <h1 id="data-structures"><a class="header" href="#data-structures">Data structures</a></h1>
 <p>The <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-config">rtf-config</a> crate provides a number of data structures for working with user written YAML
