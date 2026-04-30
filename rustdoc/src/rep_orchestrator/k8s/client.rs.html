@@ -278,38 +278,47 @@
 <a href=#278 id=278 data-nosnippet>278</a>    <span class="kw">let </span>status = wf.status.as_ref()<span class="question-mark">?</span>;
 <a href=#279 id=279 data-nosnippet>279</a>    <span class="kw">match </span>status.phase.as_deref() {
 <a href=#280 id=280 data-nosnippet>280</a>        <span class="prelude-val">Some</span>(<span class="string">"Succeeded"</span>) =&gt; <span class="prelude-val">Some</span>(WatchOutcome::Succeeded),
-<a href=#281 id=281 data-nosnippet>281</a>        <span class="prelude-val">Some</span>(<span class="string">"Failed"</span>) | <span class="prelude-val">Some</span>(<span class="string">"Error"</span>) =&gt; {
-<a href=#282 id=282 data-nosnippet>282</a>            <span class="kw">let </span>msg = status.message.clone().unwrap_or_default();
-<a href=#283 id=283 data-nosnippet>283</a>            <span class="prelude-val">Some</span>(WatchOutcome::Failed(msg))
-<a href=#284 id=284 data-nosnippet>284</a>        }
-<a href=#285 id=285 data-nosnippet>285</a>        <span class="prelude-val">Some</span>(<span class="string">"Running"</span>) =&gt; <span class="prelude-val">None</span>,
-<a href=#286 id=286 data-nosnippet>286</a>        <span class="kw">_ </span>=&gt; {
-<a href=#287 id=287 data-nosnippet>287</a>            <span class="macro">error!</span>(<span class="question-mark">?</span>status, <span class="string">"unexpected workflow status"</span>);
-<a href=#288 id=288 data-nosnippet>288</a>            <span class="prelude-val">None
-<a href=#289 id=289 data-nosnippet>289</a>        </span>}
-<a href=#290 id=290 data-nosnippet>290</a>    }
-<a href=#291 id=291 data-nosnippet>291</a>}
+<a href=#281 id=281 data-nosnippet>281</a>
+<a href=#282 id=282 data-nosnippet>282</a>        <span class="prelude-val">Some</span>(<span class="string">"Failed"</span>) | <span class="prelude-val">Some</span>(<span class="string">"Error"</span>) =&gt; {
+<a href=#283 id=283 data-nosnippet>283</a>            <span class="kw">let </span>msg = status
+<a href=#284 id=284 data-nosnippet>284</a>                .message
+<a href=#285 id=285 data-nosnippet>285</a>                .clone()
+<a href=#286 id=286 data-nosnippet>286</a>                .unwrap_or_else(|| <span class="string">"argo workflow failed"</span>.into());
+<a href=#287 id=287 data-nosnippet>287</a>
+<a href=#288 id=288 data-nosnippet>288</a>            <span class="prelude-val">Some</span>(WatchOutcome::Failed(msg))
+<a href=#289 id=289 data-nosnippet>289</a>        }
+<a href=#290 id=290 data-nosnippet>290</a>
+<a href=#291 id=291 data-nosnippet>291</a>        <span class="prelude-val">Some</span>(<span class="string">"Running"</span>) =&gt; <span class="prelude-val">None</span>,
 <a href=#292 id=292 data-nosnippet>292</a>
-<a href=#293 id=293 data-nosnippet>293</a><span class="kw">fn </span>handle_job_event(res: result::Result&lt;Job, watcher::Error&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;WatchOutcome&gt; {
-<a href=#294 id=294 data-nosnippet>294</a>    <span class="kw">let </span>job = <span class="kw">match </span>res {
-<a href=#295 id=295 data-nosnippet>295</a>        <span class="prelude-val">Ok</span>(job) =&gt; job,
-<a href=#296 id=296 data-nosnippet>296</a>        <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Some</span>(WatchOutcome::WatcherError(e.to_string())),
-<a href=#297 id=297 data-nosnippet>297</a>    };
-<a href=#298 id=298 data-nosnippet>298</a>
-<a href=#299 id=299 data-nosnippet>299</a>    <span class="kw">let </span>status = job.status.as_ref()<span class="question-mark">?</span>;
-<a href=#300 id=300 data-nosnippet>300</a>    <span class="kw">let </span>conditions = status.conditions.as_deref().unwrap_or_default();
-<a href=#301 id=301 data-nosnippet>301</a>    <span class="kw">if </span>conditions
-<a href=#302 id=302 data-nosnippet>302</a>        .iter()
-<a href=#303 id=303 data-nosnippet>303</a>        .any(|c| c.type_ == <span class="string">"Complete" </span>&amp;&amp; c.status == <span class="string">"True"</span>)
-<a href=#304 id=304 data-nosnippet>304</a>    {
-<a href=#305 id=305 data-nosnippet>305</a>        <span class="kw">return </span><span class="prelude-val">Some</span>(WatchOutcome::Succeeded);
-<a href=#306 id=306 data-nosnippet>306</a>    }
-<a href=#307 id=307 data-nosnippet>307</a>    <span class="kw">if </span>conditions
-<a href=#308 id=308 data-nosnippet>308</a>        .iter()
-<a href=#309 id=309 data-nosnippet>309</a>        .any(|c| c.type_ == <span class="string">"Failed" </span>&amp;&amp; c.status == <span class="string">"True"</span>)
-<a href=#310 id=310 data-nosnippet>310</a>    {
-<a href=#311 id=311 data-nosnippet>311</a>        <span class="kw">return </span><span class="prelude-val">Some</span>(WatchOutcome::Failed(<span class="string">""</span>.into()));
-<a href=#312 id=312 data-nosnippet>312</a>    }
-<a href=#313 id=313 data-nosnippet>313</a>    <span class="prelude-val">None
-<a href=#314 id=314 data-nosnippet>314</a></span>}
+<a href=#293 id=293 data-nosnippet>293</a>        <span class="kw">_ </span>=&gt; {
+<a href=#294 id=294 data-nosnippet>294</a>            <span class="macro">error!</span>(<span class="question-mark">?</span>status, <span class="string">"unexpected workflow status"</span>);
+<a href=#295 id=295 data-nosnippet>295</a>            <span class="prelude-val">None
+<a href=#296 id=296 data-nosnippet>296</a>        </span>}
+<a href=#297 id=297 data-nosnippet>297</a>    }
+<a href=#298 id=298 data-nosnippet>298</a>}
+<a href=#299 id=299 data-nosnippet>299</a>
+<a href=#300 id=300 data-nosnippet>300</a><span class="kw">fn </span>handle_job_event(res: result::Result&lt;Job, watcher::Error&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;WatchOutcome&gt; {
+<a href=#301 id=301 data-nosnippet>301</a>    <span class="kw">let </span>job = <span class="kw">match </span>res {
+<a href=#302 id=302 data-nosnippet>302</a>        <span class="prelude-val">Ok</span>(job) =&gt; job,
+<a href=#303 id=303 data-nosnippet>303</a>        <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Some</span>(WatchOutcome::WatcherError(e.to_string())),
+<a href=#304 id=304 data-nosnippet>304</a>    };
+<a href=#305 id=305 data-nosnippet>305</a>
+<a href=#306 id=306 data-nosnippet>306</a>    <span class="kw">let </span>status = job.status.as_ref()<span class="question-mark">?</span>;
+<a href=#307 id=307 data-nosnippet>307</a>    <span class="kw">let </span>conditions = status.conditions.as_deref().unwrap_or_default();
+<a href=#308 id=308 data-nosnippet>308</a>    <span class="kw">if </span>conditions
+<a href=#309 id=309 data-nosnippet>309</a>        .iter()
+<a href=#310 id=310 data-nosnippet>310</a>        .any(|c| c.type_ == <span class="string">"Complete" </span>&amp;&amp; c.status == <span class="string">"True"</span>)
+<a href=#311 id=311 data-nosnippet>311</a>    {
+<a href=#312 id=312 data-nosnippet>312</a>        <span class="kw">return </span><span class="prelude-val">Some</span>(WatchOutcome::Succeeded);
+<a href=#313 id=313 data-nosnippet>313</a>    }
+<a href=#314 id=314 data-nosnippet>314</a>
+<a href=#315 id=315 data-nosnippet>315</a>    <span class="kw">if </span>conditions
+<a href=#316 id=316 data-nosnippet>316</a>        .iter()
+<a href=#317 id=317 data-nosnippet>317</a>        .any(|c| c.type_ == <span class="string">"Failed" </span>&amp;&amp; c.status == <span class="string">"True"</span>)
+<a href=#318 id=318 data-nosnippet>318</a>    {
+<a href=#319 id=319 data-nosnippet>319</a>        <span class="kw">return </span><span class="prelude-val">Some</span>(WatchOutcome::Failed(<span class="string">"job failed"</span>.into()));
+<a href=#320 id=320 data-nosnippet>320</a>    }
+<a href=#321 id=321 data-nosnippet>321</a>
+<a href=#322 id=322 data-nosnippet>322</a>    <span class="prelude-val">None
+<a href=#323 id=323 data-nosnippet>323</a></span>}
 </code></pre></div></section></main></body></html>
