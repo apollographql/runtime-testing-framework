@@ -52,6 +52,8 @@ async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Result<
             timeout,
         } => commands::deploy_environment(&namespace, &kubeconfig_path, timeout, ctx).await,
 
+        Command::ResolveEnvironment { outdir } => commands::resolve_environment(&outdir, ctx).await,
+
         Command::PrepareScenario {
             shared_dir,
             command,

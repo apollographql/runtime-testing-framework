@@ -56,6 +56,13 @@ pub enum Command {
         timeout: u64,
     },
 
+    /// Resolve an RTF environment
+    ResolveEnvironment {
+        /// Path to write the resolved output to
+        #[arg(long)]
+        outdir: String,
+    },
+
     /// Resolve the scenario config and write a `run.sh` wrapper into the shared volume for the
     /// scenario-runner container to execute.
     PrepareScenario {
@@ -83,7 +90,9 @@ impl Command {
             Self::CreateNamespace { kubeconfig, .. }
             | Self::CreateServiceAccount { kubeconfig, .. }
             | Self::DeployEnvironment { kubeconfig, .. } => Some(kubeconfig),
-            Self::PrepareScenario { .. } | Self::CollectOutput { .. } => None,
+            Self::ResolveEnvironment { .. }
+            | Self::PrepareScenario { .. }
+            | Self::CollectOutput { .. } => None,
         }
     }
 }
