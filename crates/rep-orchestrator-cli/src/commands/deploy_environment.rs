@@ -14,35 +14,6 @@ const DUPLICATE_ERROR: &str =
     "Encountered a duplicate environment entry in the resolved RTF environment";
 const MALFORMED_ERROR: &str = "Encountered a malformed line in the resolved RTF environment";
 const MISSING_EXPORT_ERROR: &str = "Expected leading 'export ' prefix to env file line";
-const KUSTOMIZE_PATCH: &str = r#"
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-  - kompose-output.yaml
-patches:
-  - target:
-      kind: Deployment
-      annotationSelector: "rtf.fileproviders=true"
-    patch: |-
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: placeholder  # overridden by target selector
-      spec:
-        template:
-          spec:
-            initContainers:
-              - name: toolbox-init
-                image: us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox:edge
-                command:
-                  - rep-orchestrator-cli
-                  - resolve-environment
-                  - --outdir
-                  - /providers
-                volumeMounts:
-                  - mountPath: /providers
-                    name: providers
-"#;
 
 pub async fn deploy_environment(
     namespace: &str,
@@ -156,12 +127,15 @@ async fn setup_env(
 
     ctx.write_file(
         &k8s_dir_path.join("kustomization.yaml"),
-        KUSTOMIZE_PATCH.as_bytes(),
+        ctx.orchestrator_client()
+            .kustomize_patch_for_execution()
+            .as_bytes(),
     )?;
 
     ctx.run_shell(
         Command::new("kubectl").args([
             "kustomize",
+            k8s_dir_path.to_string_lossy().as_ref(),
             "-o",
             &k8s_dir_path.join("out.yaml").to_string_lossy(),
         ]),

@@ -6,7 +6,7 @@ project_name: rep-prepare
 
 compose_files:
   - name: compose.yaml
-    kind: relative_file
+    kind: relative_path
     path: providers/compose.yaml
 
 file_providers:
