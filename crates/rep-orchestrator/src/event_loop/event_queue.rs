@@ -418,6 +418,9 @@ impl Shared {
         self.with_templated_and_checked_variant(ex, async |ctx, mut test_plan| {
             test_plan.environment.inline(&InlineMode::All, ctx).await?;
 
+            // Clear custom provider data now that we've inlined so `rtf resolve` doesn't hit it
+            test_plan.environment.custom_providers = Vec::new();
+
             Ok(test_plan.environment)
         })
         .await
@@ -433,6 +436,9 @@ impl Shared {
                 .execution
                 .inline(&InlineMode::All, ctx)
                 .await?;
+
+            // Clear custom provider data now that we've inlined so `rtf resolve` doesn't hit it
+            test_plan.scenario.custom_providers = Vec::new();
 
             Ok(test_plan.scenario)
         })
