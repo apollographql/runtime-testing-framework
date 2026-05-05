@@ -30,8 +30,6 @@ pub async fn resolve_environment(outdir: &str, ctx: &impl CliContext) -> CliResu
             &cfg_path.to_string_lossy(),
             "--outdir",
             outdir,
-            // need to force in order to get rid of lost+found dirs coming from fsck
-            "--force",
             "-vvv",
         ]),
         Status::Provisioning,
