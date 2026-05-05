@@ -51,9 +51,17 @@ async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Result<
             kubeconfig: kubeconfig_path,
             timeout,
             provider_dir,
+            toolbox_pull_policy,
         } => {
-            commands::deploy_environment(&namespace, &kubeconfig_path, &provider_dir, timeout, ctx)
-                .await
+            commands::deploy_environment(
+                &namespace,
+                &kubeconfig_path,
+                &provider_dir,
+                &toolbox_pull_policy,
+                timeout,
+                ctx,
+            )
+            .await
         }
 
         Command::ResolveEnvironment { outdir } => commands::resolve_environment(&outdir, ctx).await,

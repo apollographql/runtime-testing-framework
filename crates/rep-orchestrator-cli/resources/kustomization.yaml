@@ -17,7 +17,7 @@ patches:
             initContainers:
               - name: toolbox-init
                 image: us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rtf-toolbox:edge
-                imagePullPolicy: Always
+                imagePullPolicy: __IMAGE_PULL_POLICY__
                 command:
                   - rep-orchestrator-cli
                   - resolve-environment

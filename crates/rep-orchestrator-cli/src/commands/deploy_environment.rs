@@ -19,6 +19,7 @@ pub async fn deploy_environment(
     namespace: &str,
     kubeconfig_path: &Path,
     provider_dir_path: &Path,
+    toolbox_pull_policy: &str,
     timeout: u64,
     ctx: &impl CliContext,
 ) -> CliResult<()> {
@@ -64,7 +65,7 @@ pub async fn deploy_environment(
     )
     .await?;
 
-    setup_env(&k8s_dir_path, provider_dir_path, ctx).await?;
+    setup_env(&k8s_dir_path, provider_dir_path, toolbox_pull_policy, ctx).await?;
 
     info_status!(
         ctx,
@@ -99,6 +100,7 @@ pub async fn deploy_environment(
 async fn setup_env(
     k8s_dir_path: &Path,
     provider_dir_path: &Path,
+    toolbox_pull_policy: &str,
     ctx: &impl CliContext,
 ) -> CliResult<()> {
     let setup_env = provider_dir_path.join("setup/setup.env");
@@ -135,7 +137,7 @@ async fn setup_env(
     ctx.write_file(
         &k8s_dir_path.join("kustomization.yaml"),
         ctx.orchestrator_client()
-            .kustomize_patch_for_execution(provider_dir_path)
+            .kustomize_patch_for_execution(provider_dir_path, toolbox_pull_policy)
             .as_bytes(),
     )?;
 
