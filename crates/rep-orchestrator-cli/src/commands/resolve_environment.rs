@@ -3,8 +3,9 @@ use crate::{
     error::{CliError, CliResult},
     orchestrator::Client as OrchestratorClient,
 };
+use anyhow::Context;
 use rep_orchestrator_shared::status::Status;
-use std::{env::temp_dir, process::Command};
+use std::{env::temp_dir, fs, process::Command};
 
 pub async fn resolve_environment(outdir: &str, ctx: &impl CliContext) -> CliResult<()> {
     let cfg_bytes = ctx
@@ -15,6 +16,12 @@ pub async fn resolve_environment(outdir: &str, ctx: &impl CliContext) -> CliResu
 
     let cfg_path = temp_dir().join("environment.yaml");
     ctx.write_file(&cfg_path, &cfg_bytes)?;
+
+    fs::create_dir_all(outdir)
+        .context(format!(
+            "Failed to create provider output directory ({outdir})"
+        ))
+        .map_err(CliError::unrunnable)?;
 
     ctx.run_shell(
         Command::new("rtf").args([
