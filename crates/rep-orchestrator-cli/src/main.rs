@@ -1,11 +1,3 @@
-mod cli;
-mod commands;
-mod context;
-mod error;
-mod kubernetes;
-mod orchestrator;
-mod status;
-
 use crate::{
     context::{CliContext, EnvironmentContext},
     orchestrator::Client,
@@ -14,6 +6,14 @@ use anyhow::{anyhow, bail};
 use clap::Parser;
 use cli::{Args, Command};
 use tracing::error;
+
+mod cli;
+mod commands;
+mod context;
+mod error;
+mod kubernetes;
+mod orchestrator;
+mod status;
 
 const LOG_LEVEL_ENV_VAR: &str = "APOLLO_REP_ORCHESTRATOR_LOG";
 
@@ -50,7 +50,11 @@ async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Result<
             namespace,
             kubeconfig: kubeconfig_path,
             timeout,
-        } => commands::deploy_environment(&namespace, &kubeconfig_path, timeout, ctx).await,
+            provider_dir,
+        } => {
+            commands::deploy_environment(&namespace, &kubeconfig_path, &provider_dir, timeout, ctx)
+                .await
+        }
 
         Command::ResolveEnvironment { outdir } => commands::resolve_environment(&outdir, ctx).await,
 

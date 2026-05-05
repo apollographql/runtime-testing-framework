@@ -21,7 +21,7 @@ patches:
                   - rep-orchestrator-cli
                   - resolve-environment
                   - --outdir
-                  - /providers
+                  - __OUTDIR__
                 env:
                   - name: APOLLO_REP_ORCHESTRATOR_URL
                     value: __ORCHESTRATOR_URL__
@@ -30,5 +30,5 @@ patches:
                   - name: APOLLO_REP_ORCHESTRATOR_EXECUTION_TOKEN
                     value: __EXECUTION_TOKEN__
                 volumeMounts:
-                  - mountPath: /providers
+                  - mountPath: __OUTDIR__
                     name: providers

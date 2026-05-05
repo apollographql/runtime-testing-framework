@@ -54,6 +54,10 @@ pub enum Command {
         /// Timeout in seconds for waiting on deployments to become available
         #[arg(long, default_value = "300")]
         timeout: u64,
+
+        /// The directory to write file provider output to
+        #[arg(long, default_value = "/providers")]
+        provider_dir: PathBuf,
     },
 
     /// Resolve an RTF environment
