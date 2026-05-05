@@ -56,7 +56,7 @@ pub enum Command {
         timeout: u64,
 
         /// The directory to write file provider output to
-        #[arg(long, default_value = "/providers")]
+        #[arg(long, default_value = "/providers/output")]
         provider_dir: PathBuf,
 
         /// The image pull policy to set for toolbox init containers

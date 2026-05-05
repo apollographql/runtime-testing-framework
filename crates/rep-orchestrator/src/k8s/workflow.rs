@@ -254,6 +254,8 @@ fn deploy_environment(
             KUBECONFIG_PATH.into(),
             "--toolbox-pull-policy".into(),
             toolbox_pull_policy.into(),
+            "--provider-dir".into(),
+            "/providers/output".into(),
         ],
         vec![kubeconfig_volume_mount()],
         None,
