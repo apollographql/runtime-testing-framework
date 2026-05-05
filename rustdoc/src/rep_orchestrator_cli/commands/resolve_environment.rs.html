@@ -17,14 +17,20 @@
 <a href=#17 id=17 data-nosnippet>17</a>    ctx.write_file(<span class="kw-2">&amp;</span>cfg_path, <span class="kw-2">&amp;</span>cfg_bytes)<span class="question-mark">?</span>;
 <a href=#18 id=18 data-nosnippet>18</a>
 <a href=#19 id=19 data-nosnippet>19</a>    ctx.run_shell(
-<a href=#20 id=20 data-nosnippet>20</a>        Command::new(<span class="string">"rtf"</span>)
-<a href=#21 id=21 data-nosnippet>21</a>            .args([<span class="string">"resolve"</span>, <span class="string">"environment"</span>])
-<a href=#22 id=22 data-nosnippet>22</a>            .arg(<span class="kw-2">&amp;</span>cfg_path)
-<a href=#23 id=23 data-nosnippet>23</a>            .args([<span class="string">"--outdir"</span>, outdir]),
-<a href=#24 id=24 data-nosnippet>24</a>        Status::Provisioning,
-<a href=#25 id=25 data-nosnippet>25</a>    )
-<a href=#26 id=26 data-nosnippet>26</a>    .<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#27 id=27 data-nosnippet>27</a>
-<a href=#28 id=28 data-nosnippet>28</a>    <span class="prelude-val">Ok</span>(())
-<a href=#29 id=29 data-nosnippet>29</a>}
+<a href=#20 id=20 data-nosnippet>20</a>        Command::new(<span class="string">"rtf"</span>).args([
+<a href=#21 id=21 data-nosnippet>21</a>            <span class="string">"resolve"</span>,
+<a href=#22 id=22 data-nosnippet>22</a>            <span class="string">"environment"</span>,
+<a href=#23 id=23 data-nosnippet>23</a>            <span class="kw-2">&amp;</span>cfg_path.to_string_lossy(),
+<a href=#24 id=24 data-nosnippet>24</a>            <span class="string">"--outdir"</span>,
+<a href=#25 id=25 data-nosnippet>25</a>            outdir,
+<a href=#26 id=26 data-nosnippet>26</a>            <span class="comment">// need to force in order to get rid of lost+found dirs coming from fsck
+<a href=#27 id=27 data-nosnippet>27</a>            </span><span class="string">"--force"</span>,
+<a href=#28 id=28 data-nosnippet>28</a>            <span class="string">"-vvv"</span>,
+<a href=#29 id=29 data-nosnippet>29</a>        ]),
+<a href=#30 id=30 data-nosnippet>30</a>        Status::Provisioning,
+<a href=#31 id=31 data-nosnippet>31</a>    )
+<a href=#32 id=32 data-nosnippet>32</a>    .<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#33 id=33 data-nosnippet>33</a>
+<a href=#34 id=34 data-nosnippet>34</a>    <span class="prelude-val">Ok</span>(())
+<a href=#35 id=35 data-nosnippet>35</a>}
 </code></pre></div></section></main></body></html>
