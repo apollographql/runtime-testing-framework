@@ -3,34 +3,41 @@
 <a href=#3 id=3 data-nosnippet>3</a>    error::{CliError, CliResult},
 <a href=#4 id=4 data-nosnippet>4</a>    orchestrator::Client <span class="kw">as </span>OrchestratorClient,
 <a href=#5 id=5 data-nosnippet>5</a>};
-<a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>rep_orchestrator_shared::status::Status;
-<a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span>std::{env::temp_dir, process::Command};
-<a href=#8 id=8 data-nosnippet>8</a>
-<a href=#9 id=9 data-nosnippet>9</a><span class="kw">pub async fn </span>resolve_environment(outdir: <span class="kw-2">&amp;</span>str, ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>CliContext) -&gt; CliResult&lt;()&gt; {
-<a href=#10 id=10 data-nosnippet>10</a>    <span class="kw">let </span>cfg_bytes = ctx
-<a href=#11 id=11 data-nosnippet>11</a>        .orchestrator_client()
-<a href=#12 id=12 data-nosnippet>12</a>        .fetch_environment_config()
-<a href=#13 id=13 data-nosnippet>13</a>        .<span class="kw">await
-<a href=#14 id=14 data-nosnippet>14</a>        </span>.map_err(CliError::unrunnable)<span class="question-mark">?</span>;
-<a href=#15 id=15 data-nosnippet>15</a>
-<a href=#16 id=16 data-nosnippet>16</a>    <span class="kw">let </span>cfg_path = temp_dir().join(<span class="string">"environment.yaml"</span>);
-<a href=#17 id=17 data-nosnippet>17</a>    ctx.write_file(<span class="kw-2">&amp;</span>cfg_path, <span class="kw-2">&amp;</span>cfg_bytes)<span class="question-mark">?</span>;
-<a href=#18 id=18 data-nosnippet>18</a>
-<a href=#19 id=19 data-nosnippet>19</a>    ctx.run_shell(
-<a href=#20 id=20 data-nosnippet>20</a>        Command::new(<span class="string">"rtf"</span>).args([
-<a href=#21 id=21 data-nosnippet>21</a>            <span class="string">"resolve"</span>,
-<a href=#22 id=22 data-nosnippet>22</a>            <span class="string">"environment"</span>,
-<a href=#23 id=23 data-nosnippet>23</a>            <span class="kw-2">&amp;</span>cfg_path.to_string_lossy(),
-<a href=#24 id=24 data-nosnippet>24</a>            <span class="string">"--outdir"</span>,
-<a href=#25 id=25 data-nosnippet>25</a>            outdir,
-<a href=#26 id=26 data-nosnippet>26</a>            <span class="comment">// need to force in order to get rid of lost+found dirs coming from fsck
-<a href=#27 id=27 data-nosnippet>27</a>            </span><span class="string">"--force"</span>,
-<a href=#28 id=28 data-nosnippet>28</a>            <span class="string">"-vvv"</span>,
-<a href=#29 id=29 data-nosnippet>29</a>        ]),
-<a href=#30 id=30 data-nosnippet>30</a>        Status::Provisioning,
-<a href=#31 id=31 data-nosnippet>31</a>    )
-<a href=#32 id=32 data-nosnippet>32</a>    .<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#33 id=33 data-nosnippet>33</a>
-<a href=#34 id=34 data-nosnippet>34</a>    <span class="prelude-val">Ok</span>(())
-<a href=#35 id=35 data-nosnippet>35</a>}
+<a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>anyhow::Context;
+<a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span>rep_orchestrator_shared::status::Status;
+<a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>std::{env::temp_dir, fs, process::Command};
+<a href=#9 id=9 data-nosnippet>9</a>
+<a href=#10 id=10 data-nosnippet>10</a><span class="kw">pub async fn </span>resolve_environment(outdir: <span class="kw-2">&amp;</span>str, ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>CliContext) -&gt; CliResult&lt;()&gt; {
+<a href=#11 id=11 data-nosnippet>11</a>    <span class="kw">let </span>cfg_bytes = ctx
+<a href=#12 id=12 data-nosnippet>12</a>        .orchestrator_client()
+<a href=#13 id=13 data-nosnippet>13</a>        .fetch_environment_config()
+<a href=#14 id=14 data-nosnippet>14</a>        .<span class="kw">await
+<a href=#15 id=15 data-nosnippet>15</a>        </span>.map_err(CliError::unrunnable)<span class="question-mark">?</span>;
+<a href=#16 id=16 data-nosnippet>16</a>
+<a href=#17 id=17 data-nosnippet>17</a>    <span class="kw">let </span>cfg_path = temp_dir().join(<span class="string">"environment.yaml"</span>);
+<a href=#18 id=18 data-nosnippet>18</a>    ctx.write_file(<span class="kw-2">&amp;</span>cfg_path, <span class="kw-2">&amp;</span>cfg_bytes)<span class="question-mark">?</span>;
+<a href=#19 id=19 data-nosnippet>19</a>
+<a href=#20 id=20 data-nosnippet>20</a>    fs::create_dir_all(outdir)
+<a href=#21 id=21 data-nosnippet>21</a>        .context(<span class="macro">format!</span>(
+<a href=#22 id=22 data-nosnippet>22</a>            <span class="string">"Failed to create provider output directory ({outdir})"
+<a href=#23 id=23 data-nosnippet>23</a>        </span>))
+<a href=#24 id=24 data-nosnippet>24</a>        .map_err(CliError::unrunnable)<span class="question-mark">?</span>;
+<a href=#25 id=25 data-nosnippet>25</a>
+<a href=#26 id=26 data-nosnippet>26</a>    ctx.run_shell(
+<a href=#27 id=27 data-nosnippet>27</a>        Command::new(<span class="string">"rtf"</span>).args([
+<a href=#28 id=28 data-nosnippet>28</a>            <span class="string">"resolve"</span>,
+<a href=#29 id=29 data-nosnippet>29</a>            <span class="string">"environment"</span>,
+<a href=#30 id=30 data-nosnippet>30</a>            <span class="kw-2">&amp;</span>cfg_path.to_string_lossy(),
+<a href=#31 id=31 data-nosnippet>31</a>            <span class="string">"--outdir"</span>,
+<a href=#32 id=32 data-nosnippet>32</a>            outdir,
+<a href=#33 id=33 data-nosnippet>33</a>            <span class="comment">// need to force in order to get rid of lost+found dirs coming from fsck
+<a href=#34 id=34 data-nosnippet>34</a>            </span><span class="string">"--force"</span>,
+<a href=#35 id=35 data-nosnippet>35</a>            <span class="string">"-vvv"</span>,
+<a href=#36 id=36 data-nosnippet>36</a>        ]),
+<a href=#37 id=37 data-nosnippet>37</a>        Status::Provisioning,
+<a href=#38 id=38 data-nosnippet>38</a>    )
+<a href=#39 id=39 data-nosnippet>39</a>    .<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#40 id=40 data-nosnippet>40</a>
+<a href=#41 id=41 data-nosnippet>41</a>    <span class="prelude-val">Ok</span>(())
+<a href=#42 id=42 data-nosnippet>42</a>}
 </code></pre></div></section></main></body></html>
