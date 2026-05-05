@@ -1,16 +1,18 @@
 name: dc739bed-ff86-4b82-99c9-e4a6978f666e
 description: ""
 variable_definitions: []
-custom_providers: []
+
 project_name: rep-prepare
+
 compose_files:
   - name: compose.yaml
+    kind: relative_path
+    path: providers/compose.yaml
+
+file_providers:
+  - name: file-provider.txt
+    env_var: EXAMPLE_FILE
     kind: inline
-    content: |
-      services:                 
-        alpine:
-          image: alpine:latest
-          command: ["sleep", "infinity"]
-          pull_policy: always
-file_providers: []
+    content: I AM A FILE
+
 env_vars: {}

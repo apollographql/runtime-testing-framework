@@ -54,6 +54,17 @@ pub enum Command {
         /// Timeout in seconds for waiting on deployments to become available
         #[arg(long, default_value = "300")]
         timeout: u64,
+
+        /// The directory to write file provider output to
+        #[arg(long, default_value = "/providers")]
+        provider_dir: PathBuf,
+    },
+
+    /// Resolve an RTF environment
+    ResolveEnvironment {
+        /// Path to write the resolved output to
+        #[arg(long)]
+        outdir: String,
     },
 
     /// Resolve the scenario config and write a `run.sh` wrapper into the shared volume for the
@@ -83,7 +94,9 @@ impl Command {
             Self::CreateNamespace { kubeconfig, .. }
             | Self::CreateServiceAccount { kubeconfig, .. }
             | Self::DeployEnvironment { kubeconfig, .. } => Some(kubeconfig),
-            Self::PrepareScenario { .. } | Self::CollectOutput { .. } => None,
+            Self::ResolveEnvironment { .. }
+            | Self::PrepareScenario { .. }
+            | Self::CollectOutput { .. } => None,
         }
     }
 }

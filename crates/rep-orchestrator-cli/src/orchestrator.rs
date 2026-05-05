@@ -6,11 +6,15 @@ use rep_orchestrator_shared::{
     upload_urls::UploadUrls,
 };
 use reqwest::Url;
-use std::process::ExitStatus;
+use std::{path::Path, process::ExitStatus};
 use tracing::info;
 use uuid::Uuid;
 
+const KUSTOMIZE_PATCH: &str = include_str!("../resources/kustomization.yaml");
+
 pub trait Client: Send + Sync {
+    fn kustomize_patch_for_execution(&self, outdir: &Path) -> String;
+
     /// Updates the status of the current test execution with context from the provided [CliError].
     async fn update_error_status(&self, error: CliError) -> anyhow::Result<()> {
         self.update_status(
@@ -93,6 +97,14 @@ impl HttpClient {
 }
 
 impl Client for HttpClient {
+    fn kustomize_patch_for_execution(&self, outdir: &Path) -> String {
+        KUSTOMIZE_PATCH
+            .replace("__ORCHESTRATOR_URL__", self.orchestrator_url.as_str())
+            .replace("__EXECUTION_ID__", &self.execution_id.to_string())
+            .replace("__EXECUTION_TOKEN__", &self.execution_token.to_string())
+            .replace("__OUTDIR__", &outdir.to_string_lossy())
+    }
+
     async fn update_status(
         &self,
         status: Status,
@@ -261,6 +273,10 @@ pub(crate) mod mocks {
     }
 
     impl Client for MockClient {
+        fn kustomize_patch_for_execution(&self, _outdir: &Path) -> String {
+            KUSTOMIZE_PATCH.to_string()
+        }
+
         async fn update_status(
             &self,
             status: Status,

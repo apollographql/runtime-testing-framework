@@ -131,15 +131,17 @@ impl EnvironmentContext {
         let execution_id = env::var(EXECUTION_ID_ENV_VAR)
             .context(format!("{EXECUTION_ID_ENV_VAR} must be set"))
             .and_then(|id_var| {
-                Uuid::from_str(&id_var)
-                    .context(format!("{EXECUTION_ID_ENV_VAR} must be a valid UUID"))
+                Uuid::from_str(&id_var).context(format!(
+                    "{EXECUTION_ID_ENV_VAR} must be a valid UUID: got {id_var:?}"
+                ))
             })?;
 
         let execution_token = env::var(EXECUTION_TOKEN_ENV_VAR)
             .context(format!("{EXECUTION_TOKEN_ENV_VAR} must be set"))
             .and_then(|token_var| {
-                Uuid::from_str(&token_var)
-                    .context(format!("{EXECUTION_TOKEN_ENV_VAR} must be a valid UUID"))
+                Uuid::from_str(&token_var).context(format!(
+                    "{EXECUTION_TOKEN_ENV_VAR} must be a valid UUID: got {token_var:?}"
+                ))
             })?;
 
         let orchestrator_client =

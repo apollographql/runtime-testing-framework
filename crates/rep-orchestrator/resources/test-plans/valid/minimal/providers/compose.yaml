@@ -1,3 +1,13 @@
 services:
   nginx:
     image: nginx:alpine
+    labels:
+      rtf.fileproviders: true
+    command: sleep infinity
+    pull_policy: always
+    volumes:
+      - providers:/providers
+
+volumes:
+  providers:
+    driver: local

@@ -18,6 +18,7 @@ const MISSING_EXPORT_ERROR: &str = "Expected leading 'export ' prefix to env fil
 pub async fn deploy_environment(
     namespace: &str,
     kubeconfig_path: &Path,
+    provider_dir_path: &Path,
     timeout: u64,
     ctx: &impl CliContext,
 ) -> CliResult<()> {
@@ -25,6 +26,9 @@ pub async fn deploy_environment(
     let k8s_dir_path = workdir_path.join("k8s");
     fs::create_dir_all(&k8s_dir_path)
         .context("Failed to create k8s working directory")
+        .map_err(CliError::unrunnable)?;
+    fs::create_dir_all(provider_dir_path)
+        .context("Failed to create provider output directory")
         .map_err(CliError::unrunnable)?;
 
     info_status!(
@@ -47,17 +51,20 @@ pub async fn deploy_environment(
         Status::Provisioning,
         "Resolving environment docker-compose files..."
     )?;
-    let outdir = workdir_path.join("output");
+
     ctx.run_shell(
-        Command::new("rtf")
-            .args(["resolve", "environment"])
-            .arg(&cfg_path)
-            .args(["--outdir", &outdir.to_string_lossy()]),
+        Command::new("rtf").args([
+            "resolve",
+            "environment",
+            &cfg_path.to_string_lossy(),
+            "--outdir",
+            &provider_dir_path.to_string_lossy(),
+        ]),
         Status::Provisioning,
     )
     .await?;
 
-    setup_env(&k8s_dir_path, &outdir, ctx).await?;
+    setup_env(&k8s_dir_path, provider_dir_path, ctx).await?;
 
     info_status!(
         ctx,
@@ -65,15 +72,15 @@ pub async fn deploy_environment(
         "Applying manifests to namespace '{namespace}'..."
     )?;
     ctx.run_shell(
-        Command::new("kubectl")
-            .args(["--kubeconfig", &kubeconfig_path.to_string_lossy()])
-            .args([
-                "apply",
-                "-n",
-                namespace,
-                "-f",
-                &k8s_dir_path.to_string_lossy(),
-            ]),
+        Command::new("kubectl").args([
+            "--kubeconfig",
+            &kubeconfig_path.to_string_lossy(),
+            "apply",
+            "-n",
+            namespace,
+            "-f",
+            &k8s_dir_path.join("out.yaml").to_string_lossy(),
+        ]),
         Status::Provisioning,
     )
     .await?;
@@ -91,10 +98,10 @@ pub async fn deploy_environment(
 /// Sources COMPOSE_FILES from the resolved RTF environment and converts them to k8s manifests
 async fn setup_env(
     k8s_dir_path: &Path,
-    outdir_path: &Path,
+    provider_dir_path: &Path,
     ctx: &impl CliContext,
 ) -> CliResult<()> {
-    let setup_env = outdir_path.join("setup/setup.env");
+    let setup_env = provider_dir_path.join("setup/setup.env");
     let env_contents = fs::read_to_string(&setup_env)
         .context("Failed to read setup.env file")
         .map_err(CliError::unrunnable)?;
@@ -117,9 +124,31 @@ async fn setup_env(
         Status::Provisioning,
         "Converting to kubernetes manifests..."
     )?;
-    let mut kompose = build_kompose_command(&compose_files_content, k8s_dir_path, &env_vars);
+    let mut kompose = build_kompose_command(
+        &compose_files_content,
+        &k8s_dir_path.join("kompose-output.yaml"),
+        &env_vars,
+    );
 
-    ctx.run_shell(&mut kompose, Status::Provisioning).await
+    ctx.run_shell(&mut kompose, Status::Provisioning).await?;
+
+    ctx.write_file(
+        &k8s_dir_path.join("kustomization.yaml"),
+        ctx.orchestrator_client()
+            .kustomize_patch_for_execution(provider_dir_path)
+            .as_bytes(),
+    )?;
+
+    ctx.run_shell(
+        Command::new("kubectl").args([
+            "kustomize",
+            k8s_dir_path.to_string_lossy().as_ref(),
+            "-o",
+            &k8s_dir_path.join("out.yaml").to_string_lossy(),
+        ]),
+        Status::Provisioning,
+    )
+    .await
 }
 
 /// Parse a `.env` file into a map of key-value pairs.
