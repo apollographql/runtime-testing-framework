@@ -198,7 +198,12 @@ fn build_kompose_command(
     for line in compose_files_content.lines() {
         kompose.args(["-f", line]);
     }
-    kompose.args(["-o", &k8s_dir_path.to_string_lossy()]);
+    kompose.args([
+        "-o",
+        &k8s_dir_path.to_string_lossy(),
+        "--volumes",
+        "emptyDir",
+    ]);
     kompose.envs(env_vars);
 
     kompose
