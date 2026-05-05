@@ -58,6 +58,10 @@ pub enum Command {
         /// The directory to write file provider output to
         #[arg(long, default_value = "/providers")]
         provider_dir: PathBuf,
+
+        /// The image pull policy to set for toolbox init containers
+        #[arg(long, default_value = "Always")]
+        toolbox_pull_policy: String,
     },
 
     /// Resolve an RTF environment

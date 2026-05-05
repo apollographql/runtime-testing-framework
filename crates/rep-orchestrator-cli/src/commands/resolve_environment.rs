@@ -17,10 +17,16 @@ pub async fn resolve_environment(outdir: &str, ctx: &impl CliContext) -> CliResu
     ctx.write_file(&cfg_path, &cfg_bytes)?;
 
     ctx.run_shell(
-        Command::new("rtf")
-            .args(["resolve", "environment"])
-            .arg(&cfg_path)
-            .args(["--outdir", outdir]),
+        Command::new("rtf").args([
+            "resolve",
+            "environment",
+            &cfg_path.to_string_lossy(),
+            "--outdir",
+            outdir,
+            // need to force in order to get rid of lost+found dirs coming from fsck
+            "--force",
+            "-vvv",
+        ]),
         Status::Provisioning,
     )
     .await?;
