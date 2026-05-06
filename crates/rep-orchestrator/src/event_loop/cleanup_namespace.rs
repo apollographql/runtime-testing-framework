@@ -3,7 +3,7 @@ use crate::{
     event_loop::{Error, EventData, Result},
     k8s,
 };
-use tracing::info;
+use tracing::{info, warn};
 
 pub(super) async fn try_run<K>(
     test_execution: TestExecution,
@@ -14,12 +14,17 @@ where
 {
     let execution_id = test_execution.uuid();
     info!(%execution_id, "deleting namespace");
-    clients
+    match clients
         .delete_workload_namespace(&execution_id.to_string())
         .await
-        .map_err(|error| Error::DeleteNamespace { error })?;
-
-    Ok(None)
+    {
+        Ok(()) => Ok(None),
+        Err(k8s::Error::Kube(kube::Error::Api(ref e))) if e.code == 404 => {
+            warn!(%execution_id, "namespace not found, skipping delete");
+            Ok(None)
+        }
+        Err(error) => Err(Error::DeleteNamespace { error }),
+    }
 }
 
 #[cfg(test)]
@@ -48,5 +53,27 @@ mod tests {
         let res = try_run(ex, clients).await;
 
         assert!(matches!(res, Err(Error::DeleteNamespace { .. })));
+    }
+
+    #[tokio::test]
+    async fn try_run_returns_ok_when_namespace_not_found() {
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
+        let clients = MockClient {
+            delete_workload_namespace: Resp::new(Err(k8s::Error::Kube(kube::Error::Api(
+                Box::new(kube::core::Status {
+                    status: None,
+                    message: "namespaces not found".into(),
+                    reason: "NotFound".into(),
+                    code: 404,
+                    details: None,
+                    metadata: None,
+                }),
+            )))),
+            ..MockClient::default()
+        };
+
+        let res = try_run(ex, clients).await;
+
+        assert!(res.is_ok(), "{res:?}");
     }
 }

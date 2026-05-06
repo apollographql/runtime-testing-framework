@@ -16,8 +16,7 @@ pub async fn env_handler(
     };
 
     auth.verify(ex.token())?;
-    let dce = eq_state.resolve_environment_for_execution(&ex).await?;
-    let yaml = serde_yaml::to_string(&dce)?;
+    let yaml = eq_state.resolve_environment_for_execution(&ex).await?;
 
     Ok(yaml)
 }
@@ -35,8 +34,7 @@ pub async fn scenario_handler(
     };
 
     auth.verify(ex.token())?;
-    let ds = eq_state.resolve_scenario_for_execution(&ex).await?;
-    let yaml = serde_yaml::to_string(&ds)?;
+    let yaml = eq_state.resolve_scenario_for_execution(&ex).await?;
 
     Ok(yaml)
 }
@@ -77,6 +75,17 @@ mod tests {
         _ = tss.prov_handle.request_provisioning(ex, run_uuid).await;
     }
 
+    async fn populate_resolved_caches(ex: &TestExecution, tss: &TestServerState) {
+        tss.prov_handle
+            .resolve_and_cache_env_config(ex)
+            .await
+            .unwrap();
+        tss.prov_handle
+            .resolve_and_cache_scenario_config(ex)
+            .await
+            .unwrap();
+    }
+
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[test_case("environment-config"; "env")]
     #[test_case("scenario-config"; "scenario")]
@@ -89,7 +98,8 @@ mod tests {
             let ex = tr.init_execution("test", 0, conn).await?;
             let uuids = (ex.uuid(), ex.token());
 
-            provision(ex, tr.uuid(), &tss).await;
+            provision(ex.clone(), tr.uuid(), &tss).await;
+            populate_resolved_caches(&ex, &tss).await;
 
             uuids
         };
