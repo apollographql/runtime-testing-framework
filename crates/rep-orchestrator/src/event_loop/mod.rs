@@ -14,7 +14,7 @@ use crate::{
     db::{TestExecution, UpdateHandle},
     event_loop::provision_environment::MSG_ARGO_COMPLETE,
     k8s::ClusterClients,
-    resolver::ResolverError,
+    resolver::{ResolverError, ResolverInput},
 };
 use tracing::{error, warn};
 
@@ -130,11 +130,13 @@ type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EventData {
+    ResolveEnvConfig,
     CreateEnvArgoWorkflow,
     WaitForEnvArgoWorkflow,
     ArgoWorkflowComplete,
 
-    CreateScenarioJob,
+    ResolveScenarioConfig,
+    CreateScenarioJob { image: String, command: String },
     WaitForScenarioJob,
 
     CleanupNamespace,
@@ -144,10 +146,12 @@ pub enum EventData {
 impl EventData {
     fn name(&self) -> &'static str {
         match self {
+            Self::ResolveEnvConfig => "ResolveEnvConfig",
             Self::CreateEnvArgoWorkflow => "CreateEnvArgoWorkflow",
             Self::WaitForEnvArgoWorkflow => "WaitForEnvArgoWorkflow",
             Self::ArgoWorkflowComplete => "ArgoWorkflowComplete",
-            Self::CreateScenarioJob => "CreateScenarioJob",
+            Self::ResolveScenarioConfig => "ResolveScenarioConfig",
+            Self::CreateScenarioJob { .. } => "CreateScenarioJob",
             Self::WaitForScenarioJob => "WaitForScenarioJob",
             Self::MarkUnrunnable(_) => "MarkUnrunnable",
             Self::CleanupNamespace => "CleanupNamespace",
@@ -159,9 +163,10 @@ impl EventData {
     fn requires_cleanup_on_error(&self) -> bool {
         matches!(
             self,
-            EventData::WaitForEnvArgoWorkflow
+            EventData::ResolveScenarioConfig
+                | EventData::WaitForEnvArgoWorkflow
                 | EventData::ArgoWorkflowComplete
-                | EventData::CreateScenarioJob
+                | EventData::CreateScenarioJob { .. }
                 | EventData::WaitForScenarioJob
         )
     }
@@ -188,6 +193,15 @@ impl Event {
         let cleanup_on_error = self.data.requires_cleanup_on_error();
 
         let res = match self.data {
+            EventData::ResolveEnvConfig => {
+                if let Err(e) = event_queue
+                    .send_to_resolver(ResolverInput::ResolveEnvConfig(self.test_execution))
+                {
+                    error!(%e, "resolver channel closed during ResolveEnvConfig dispatch");
+                }
+                return Ok(());
+            }
+
             EventData::CreateEnvArgoWorkflow => {
                 provision_environment::create_workflow(
                     self.test_execution.clone(),
@@ -211,31 +225,35 @@ impl Event {
             }
 
             EventData::ArgoWorkflowComplete => {
+                event_queue
+                    .evict_resolved_env_config(self.test_execution.uuid())
+                    .await;
                 conn.mark_execution_as_provisioning(&self.test_execution, MSG_ARGO_COMPLETE.into())
                     .await;
 
                 Ok(None)
             }
 
-            EventData::CreateScenarioJob => {
-                match event_queue
-                    .resolve_scenario_for_execution(&self.test_execution)
-                    .await
+            EventData::ResolveScenarioConfig => {
+                if let Err(e) = event_queue
+                    .send_to_resolver(ResolverInput::ResolveScenarioConfig(self.test_execution))
                 {
-                    Ok(scenario_cfg) => {
-                        run_scenario::create_job(
-                            self.test_execution.clone(),
-                            scenario_cfg.docker_image(),
-                            scenario_cfg.command(),
-                            orchestrator_url,
-                            toolbox_pull_policy,
-                            clients,
-                            conn,
-                        )
-                        .await
-                    }
-                    Err(e) => Err(e.into()),
+                    error!(%e, "resolver channel closed during ResolveScenarioConfig dispatch");
                 }
+                return Ok(());
+            }
+
+            EventData::CreateScenarioJob { image, command } => {
+                run_scenario::create_job(
+                    self.test_execution.clone(),
+                    image,
+                    command,
+                    orchestrator_url,
+                    toolbox_pull_policy,
+                    clients,
+                    conn,
+                )
+                .await
             }
 
             EventData::WaitForScenarioJob => {
@@ -297,6 +315,11 @@ impl Event {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::{
+        db::{MockUpdateHandle, TestExecution},
+        k8s::mock_client::MockClient,
+    };
     use rep_orchestrator_shared::test_plan::RepTestPlan;
     use rtf_config::{
         formats::{
@@ -325,6 +348,32 @@ mod tests {
             env_vars: Default::default(),
             file_providers: vec![],
         }
+    }
+
+    /// Verifies that `CreateScenarioJob { image, command }` passes those fields through to
+    /// `run_scenario::create_job`. Requires a real DB connection.
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn create_scenario_job_uses_embedded_image_and_command() {
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
+        let mut handle = MockUpdateHandle::with_execution(ex.clone());
+        let clients = MockClient::default_ok();
+
+        let res = run_scenario::create_job(
+            ex,
+            "nginx".to_string(),
+            "echo test".to_string(),
+            "http://localhost:8035",
+            "IfNotPresent",
+            clients,
+            &mut handle,
+        )
+        .await;
+
+        assert!(
+            res.is_ok(),
+            "create_job with embedded image/command: {res:?}"
+        );
     }
 
     pub fn stub_test_plan() -> RepTestPlan {

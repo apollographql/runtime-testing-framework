@@ -2,8 +2,8 @@ use crate::{
     config::Config,
     conn,
     context::RepContext,
-    db::{TestRun, UpdateHandle},
-    event_loop::ProvisioningHandle,
+    db::{TestExecution, TestRun, UpdateHandle},
+    event_loop::{EventData, ProvisioningHandle},
     state::TestRunWithPayload,
 };
 use rep_orchestrator_shared::{payload::TriggerPayload, test_plan::RepTestPlan};
@@ -17,6 +17,13 @@ use std::{collections::HashMap, mem::take, ops::ControlFlow};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::{error, info_span, warn};
 use uuid::Uuid;
+
+#[derive(Debug)]
+pub enum ResolverInput {
+    TestRun(Box<TestRunWithPayload>),
+    ResolveEnvConfig(TestExecution),
+    ResolveScenarioConfig(TestExecution),
+}
 
 const MSG_RUN_CHECKS: &str = "running test plan static checks";
 
@@ -32,13 +39,28 @@ const MSG_RUN_CHECKS: &str = "running test plan static checks";
 /// required local file data for us to construct a [RepContext] that can then handle resolving
 /// what's left.
 pub async fn resolver_task(
-    mut rx: UnboundedReceiver<TestRunWithPayload>,
+    mut rx: UnboundedReceiver<ResolverInput>,
     prov_handle: ProvisioningHandle,
 ) -> crate::Result<()> {
-    while let Some(TestRunWithPayload { test_run, payload }) = rx.recv().await {
-        match resolve_test_plan(test_run, payload, Config::get(), conn!(), &prov_handle).await {
-            ControlFlow::Break(_) => break,
-            ControlFlow::Continue(_) => continue,
+    while let Some(input) = rx.recv().await {
+        match input {
+            ResolverInput::TestRun(boxed) => {
+                let TestRunWithPayload { test_run, payload } = *boxed;
+                match resolve_test_plan(test_run, payload, Config::get(), conn!(), &prov_handle)
+                    .await
+                {
+                    ControlFlow::Break(_) => break,
+                    ControlFlow::Continue(_) => continue,
+                }
+            }
+
+            ResolverInput::ResolveEnvConfig(test_execution) => {
+                resolve_env_config(test_execution, &prov_handle).await;
+            }
+
+            ResolverInput::ResolveScenarioConfig(test_execution) => {
+                resolve_scenario_config(test_execution, &prov_handle).await;
+            }
         }
     }
 
@@ -57,6 +79,9 @@ pub enum ResolverError {
 
     #[error("unable to expand matrix variants: {0}")]
     MatrixExpansion(#[from] rtf_config::formats::Error),
+
+    #[error("serialisation error: {0}")]
+    Serialisation(String),
 
     #[error("templating pre-check failed: {0}")]
     TemplatingCheck(rtf_config::templating::Errors),
@@ -174,6 +199,51 @@ where
     Ok(())
 }
 
+async fn resolve_env_config(test_execution: TestExecution, prov_handle: &ProvisioningHandle) {
+    match prov_handle
+        .resolve_and_cache_env_config(&test_execution)
+        .await
+    {
+        Ok(()) => {
+            let _ = prov_handle.send_event(test_execution, EventData::CreateEnvArgoWorkflow);
+        }
+        // If we've errored then there is nothing in the cache so we don't need to evict anything
+        // from the cache
+        Err(e) => {
+            warn!(%e, "ResolveEnvConfig failed");
+            let _ = prov_handle.send_event(
+                test_execution.clone(),
+                EventData::MarkUnrunnable(e.to_string()),
+            );
+            let _ = prov_handle.send_event(test_execution, EventData::CleanupNamespace);
+        }
+    }
+}
+
+async fn resolve_scenario_config(test_execution: TestExecution, prov_handle: &ProvisioningHandle) {
+    match prov_handle
+        .resolve_and_cache_scenario_config(&test_execution)
+        .await
+    {
+        Ok((image, command)) => {
+            let _ = prov_handle.send_event(
+                test_execution,
+                EventData::CreateScenarioJob { image, command },
+            );
+        }
+        // If we've errored then there is nothing in the cache so we don't need to evict anything
+        // from the cache
+        Err(e) => {
+            warn!(%e, "ResolveScenarioConfig failed");
+            let _ = prov_handle.send_event(
+                test_execution.clone(),
+                EventData::MarkUnrunnable(e.to_string()),
+            );
+            let _ = prov_handle.send_event(test_execution, EventData::CleanupNamespace);
+        }
+    }
+}
+
 fn prepare_resolution(cfg: &Config, payload: TriggerPayload) -> Result<(RepContext, RepTestPlan)> {
     let TriggerPayload {
         mut test_plan,
@@ -197,6 +267,7 @@ mod tests {
         config::Config,
         db::{MockUpdateHandle, Status, TaggedStatusUpdate, TestRun},
         event_loop::{EventData, EventQueue},
+        state::TestRunWithPayload,
     };
     use indoc::indoc;
     use rep_orchestrator_shared::{
@@ -347,6 +418,146 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn resolve_env_config_success_sends_create_env_argo_workflow() {
+        let cfg = dummy_config();
+        let (mut eq, ph, eqs, _) =
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+        let run_uuid = Uuid::new_v4();
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
+
+        let ctx = crate::context::RepContext::new(
+            &cfg,
+            rep_orchestrator_shared::payload::SourceKeyedArrayMap {
+                keys: vec![],
+                data: vec![],
+            },
+            rep_orchestrator_shared::payload::SourceKeyedArrayMap {
+                keys: vec![],
+                data: vec![],
+            },
+        );
+        let tp = minimal_rep_test_plan();
+        eqs.try_reserve_pending_executions(&tp).await.unwrap();
+        ph.cache_for_test_run(run_uuid, ctx, tp).await;
+        ph.request_provisioning(ex.clone(), run_uuid).await.unwrap();
+        // drain the ResolveEnvConfig sent by request_provisioning
+        let _ = eq.next_event().await;
+
+        resolve_env_config(ex, &ph).await;
+
+        let evt = eq
+            .next_event()
+            .await
+            .expect("CreateEnvArgoWorkflow should be sent");
+        assert!(
+            matches!(evt.data, EventData::CreateEnvArgoWorkflow),
+            "expected CreateEnvArgoWorkflow, got: {:?}",
+            evt.data
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_env_config_failure_sends_mark_unrunnable_and_cleanup() {
+        let cfg = dummy_config();
+        let (mut eq, ph, _, _) =
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+        // execution NOT registered → resolve_and_cache_env_config will fail
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
+
+        resolve_env_config(ex, &ph).await;
+
+        let evt1 = eq
+            .next_event()
+            .await
+            .expect("MarkUnrunnable should be sent");
+        assert!(
+            matches!(evt1.data, EventData::MarkUnrunnable(_)),
+            "expected MarkUnrunnable, got: {:?}",
+            evt1.data
+        );
+        let evt2 = eq
+            .next_event()
+            .await
+            .expect("CleanupNamespace should be sent");
+        assert!(
+            matches!(evt2.data, EventData::CleanupNamespace),
+            "expected CleanupNamespace, got: {:?}",
+            evt2.data
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_scenario_config_success_sends_create_scenario_job() {
+        let cfg = dummy_config();
+        let (mut eq, ph, eqs, _) =
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+        let run_uuid = Uuid::new_v4();
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
+
+        let ctx = crate::context::RepContext::new(
+            &cfg,
+            rep_orchestrator_shared::payload::SourceKeyedArrayMap {
+                keys: vec![],
+                data: vec![],
+            },
+            rep_orchestrator_shared::payload::SourceKeyedArrayMap {
+                keys: vec![],
+                data: vec![],
+            },
+        );
+        let tp = minimal_rep_test_plan();
+        eqs.try_reserve_pending_executions(&tp).await.unwrap();
+        ph.cache_for_test_run(run_uuid, ctx, tp).await;
+        ph.request_provisioning(ex.clone(), run_uuid).await.unwrap();
+        let _ = eq.next_event().await; // drain ResolveEnvConfig
+
+        resolve_scenario_config(ex, &ph).await;
+
+        let evt = eq
+            .next_event()
+            .await
+            .expect("CreateScenarioJob should be sent");
+        assert!(
+            matches!(evt.data, EventData::CreateScenarioJob { .. }),
+            "expected CreateScenarioJob, got: {:?}",
+            evt.data
+        );
+        if let EventData::CreateScenarioJob { image, command } = evt.data {
+            assert!(!image.is_empty(), "image should be non-empty");
+            assert!(!command.is_empty(), "command should be non-empty");
+        }
+    }
+
+    #[tokio::test]
+    async fn resolve_scenario_config_failure_sends_mark_unrunnable_and_cleanup() {
+        let cfg = dummy_config();
+        let (mut eq, ph, _, _) =
+            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
+
+        resolve_scenario_config(ex, &ph).await;
+
+        let evt1 = eq
+            .next_event()
+            .await
+            .expect("MarkUnrunnable should be sent");
+        assert!(
+            matches!(evt1.data, EventData::MarkUnrunnable(_)),
+            "expected MarkUnrunnable, got: {:?}",
+            evt1.data
+        );
+        let evt2 = eq
+            .next_event()
+            .await
+            .expect("CleanupNamespace should be sent");
+        assert!(
+            matches!(evt2.data, EventData::CleanupNamespace),
+            "expected CleanupNamespace, got: {:?}",
+            evt2.data
+        );
+    }
+
+    #[tokio::test]
     async fn resolve_test_plan_set_resolving_fails_exits_early() {
         let test_run = TestRun::create_stub(1, "test");
         // Empty handle — test_run is not registered, so update_test_run_status will fail
@@ -490,7 +701,10 @@ mod tests {
         eqs.try_submit_test_plan(claim, tr.clone(), payload)
             .await
             .unwrap();
-        let TestRunWithPayload { test_run, payload } = rx.recv().await.unwrap();
+        let ResolverInput::TestRun(boxed) = rx.recv().await.unwrap() else {
+            panic!("expected TestRun input");
+        };
+        let TestRunWithPayload { test_run, payload } = *boxed;
 
         _ = resolve_test_plan(test_run, payload, &cfg, &mut handle, &ph).await;
 
@@ -511,7 +725,7 @@ mod tests {
         );
 
         // One execution created. Status transitions for the execution are deferred to handler
-        // time (when CreateEnvConfigMap is dispatched), so no execution status updates are
+        // time (when ResolveEnvConfig is dispatched), so no execution status updates are
         // expected from the resolver itself.
         assert_eq!(handle.test_executions.len(), 1, "one execution created");
         let ex_updates: Vec<_> = handle
@@ -524,11 +738,11 @@ mod tests {
             "resolver should not emit execution status updates: {ex_updates:?}"
         );
 
-        // One CreateEnvArgoWorkflow event sent
+        // One ResolveEnvConfig event sent
         let evt = eq.next_event().await.unwrap();
         assert!(
-            matches!(evt.data, EventData::CreateEnvArgoWorkflow),
-            "expected CreateEnvConfigMap event"
+            matches!(evt.data, EventData::ResolveEnvConfig),
+            "expected ResolveEnvConfig event"
         );
         assert!(eq.is_empty(), "only one event expected");
     }
@@ -571,7 +785,10 @@ mod tests {
         eqs.try_submit_test_plan(claim, tr.clone(), payload)
             .await
             .unwrap();
-        let TestRunWithPayload { test_run, payload } = rx.recv().await.unwrap();
+        let ResolverInput::TestRun(boxed) = rx.recv().await.unwrap() else {
+            panic!("expected TestRun input");
+        };
+        let TestRunWithPayload { test_run, payload } = *boxed;
 
         let res = resolve_test_plan(test_run, payload, &cfg, &mut handle, &ph).await;
         assert_eq!(

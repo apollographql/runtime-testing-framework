@@ -2,7 +2,7 @@ use crate::{
     context::RepContext,
     db::{TestExecution, TestRun},
     event_loop::{Event, EventData},
-    resolver::{self, ResolverError},
+    resolver::{self, ResolverError, ResolverInput},
     state::TestRunWithPayload,
 };
 use rep_orchestrator_shared::{payload::TriggerPayload, test_plan::RepTestPlan};
@@ -10,7 +10,6 @@ use rtf_config::{
     StableSource,
     checks::Check,
     context::ResolutionContext,
-    formats::{DockerComposeEnvironment, DockerScenario, EnvironmentConfig, ScenarioConfig},
     inlining::InlineMode,
     run::RunProviders,
     templating::{Template, TemplateContext},
@@ -49,6 +48,8 @@ pub struct EventQueue {
     running_executions: HashSet<Uuid>,
     /// Maximum number of live namespaces running test executions
     max_concurrent_executions: usize,
+    /// Sender for forwarding resolve events to the resolver_task
+    tx_resolve: UnboundedSender<ResolverInput>,
 }
 
 impl EventQueue {
@@ -61,12 +62,14 @@ impl EventQueue {
         Self,
         ProvisioningHandle,
         EventQueueState,
-        UnboundedReceiver<TestRunWithPayload>,
+        UnboundedReceiver<ResolverInput>,
     ) {
         let shared = Arc::new(Mutex::new(Shared {
             execution_map: HashMap::new(),
             payload_cache: HashMap::new(),
             active_run_executions: HashMap::new(),
+            resolved_env_cache: HashMap::new(),
+            resolved_scenario_cache: HashMap::new(),
             max_queued_executions,
             n_queued: 0,
         }));
@@ -81,6 +84,7 @@ impl EventQueue {
             pending_non_provisions: VecDeque::new(),
             running_executions: HashSet::new(),
             max_concurrent_executions,
+            tx_resolve: tx_resolve.clone(),
         };
 
         let ph = ProvisioningHandle {
@@ -109,7 +113,7 @@ impl EventQueue {
     #[inline(always)]
     fn push_event(&mut self, evt: Event) {
         match &evt.data {
-            EventData::CreateEnvArgoWorkflow => self.pending_provisions.push_back(evt),
+            EventData::ResolveEnvConfig => self.pending_provisions.push_back(evt),
             _ => self.pending_non_provisions.push_back(evt),
         }
     }
@@ -185,6 +189,7 @@ impl EventQueue {
             let run_uuid = shared.execution_map.remove(&ex_id)?;
             let active = shared.active_run_executions.get_mut(&run_uuid)?;
             active.remove(&ex_id);
+            shared.resolved_scenario_cache.remove(&ex_id);
 
             if active.is_empty() {
                 shared.active_run_executions.remove(&run_uuid);
@@ -197,13 +202,17 @@ impl EventQueue {
         .await
     }
 
-    pub(crate) async fn resolve_scenario_for_execution(
-        &self,
-        ex: &TestExecution,
-    ) -> resolver::Result<DockerScenario> {
-        self.with_shared(async |shared| shared.resolve_scenario_for_execution(ex).await)
-            .await
-            .map(|s| s.execution)
+    /// Send a [ResolverInput] to the resolver_task channel.
+    pub(crate) fn send_to_resolver(&self, input: ResolverInput) -> resolver::Result<()> {
+        self.tx_resolve
+            .send(input)
+            .map_err(|_| ResolverError::EventChannelClosed)
+    }
+
+    /// Evict the resolved env config cache entry for the given execution.
+    pub(crate) async fn evict_resolved_env_config(&self, ex_id: Uuid) {
+        self.with_shared(async |shared| shared.resolved_env_cache.remove(&ex_id))
+            .await;
     }
 }
 
@@ -267,13 +276,79 @@ impl ProvisioningHandle {
 
         if let Err(e) = self.tx.send(Event {
             test_execution: ex,
-            data: EventData::CreateEnvArgoWorkflow,
+            data: EventData::ResolveEnvConfig,
         }) {
             error!(%e, "event loop channel closed");
             return Err(ResolverError::EventChannelClosed);
         }
 
         Ok(())
+    }
+
+    /// Resolve the environment config for `ex`, serialise to YAML, and store in
+    /// `resolved_env_cache` keyed by execution UUID.
+    pub(crate) async fn resolve_and_cache_env_config(
+        &self,
+        ex: &TestExecution,
+    ) -> resolver::Result<()> {
+        let ex = ex.clone();
+
+        self.with_shared(async move |shared| {
+            let env_cfg = shared
+                .with_templated_and_checked_variant(&ex, async |ctx, mut test_plan| {
+                    test_plan.environment.inline(&InlineMode::All, ctx).await?;
+                    test_plan.environment.custom_providers = Vec::new();
+                    Ok(test_plan.environment)
+                })
+                .await?;
+            let yaml = serde_yaml::to_string(&env_cfg)
+                .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
+            shared.resolved_env_cache.insert(ex.uuid(), yaml);
+
+            Ok(())
+        })
+        .await
+    }
+
+    /// Resolve the scenario config for `ex`, serialise to YAML, store in `resolved_scenario_cache`,
+    /// and return the docker image and command for embedding in the `CreateScenarioJob` event.
+    pub(crate) async fn resolve_and_cache_scenario_config(
+        &self,
+        ex: &TestExecution,
+    ) -> resolver::Result<(String, String)> {
+        let ex = ex.clone();
+
+        self.with_shared(async move |shared| {
+            let scenario_cfg = shared
+                .with_templated_and_checked_variant(&ex, async |ctx, mut test_plan| {
+                    test_plan
+                        .scenario
+                        .execution
+                        .inline(&InlineMode::All, ctx)
+                        .await?;
+                    test_plan.scenario.custom_providers = Vec::new();
+                    Ok(test_plan.scenario)
+                })
+                .await?;
+            let yaml = serde_yaml::to_string(&scenario_cfg)
+                .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
+            let image = scenario_cfg.execution.docker_image();
+            let command = scenario_cfg.execution.command();
+            shared.resolved_scenario_cache.insert(ex.uuid(), yaml);
+
+            Ok((image, command))
+        })
+        .await
+    }
+
+    /// Send an event to the event loop.
+    pub(crate) fn send_event(&self, ex: TestExecution, data: EventData) -> resolver::Result<()> {
+        self.tx
+            .send(Event {
+                test_execution: ex,
+                data,
+            })
+            .map_err(|_| ResolverError::EventChannelClosed)
     }
 
     /// Return `n` queued execution claims back to the shared state.
@@ -308,7 +383,7 @@ pub struct Claim(usize);
 #[derive(Debug, Clone)]
 pub struct EventQueueState {
     shared: Arc<Mutex<Shared>>,
-    tx_resolve: UnboundedSender<TestRunWithPayload>,
+    tx_resolve: UnboundedSender<ResolverInput>,
 }
 
 impl EventQueueState {
@@ -334,8 +409,10 @@ impl EventQueueState {
 
         match self
             .tx_resolve
-            .send(TestRunWithPayload { test_run, payload })
-        {
+            .send(ResolverInput::TestRun(Box::new(TestRunWithPayload {
+                test_run,
+                payload,
+            }))) {
             Ok(_) => Ok(()),
             Err(_) => {
                 // If we hit this branch then the channel is closed and we are likely shutting
@@ -374,17 +451,29 @@ impl EventQueueState {
     pub(crate) async fn resolve_environment_for_execution(
         &self,
         ex: &TestExecution,
-    ) -> resolver::Result<EnvironmentConfig<DockerComposeEnvironment>> {
-        self.with_shared(async |shared| shared.resolve_environment_for_execution(ex).await)
-            .await
+    ) -> resolver::Result<String> {
+        self.with_shared(async |shared| {
+            shared
+                .resolved_env_cache
+                .get(&ex.uuid())
+                .cloned()
+                .ok_or(ResolverError::UnknownExecution(ex.uuid()))
+        })
+        .await
     }
 
     pub(crate) async fn resolve_scenario_for_execution(
         &self,
         ex: &TestExecution,
-    ) -> resolver::Result<ScenarioConfig<DockerScenario>> {
-        self.with_shared(async |shared| shared.resolve_scenario_for_execution(ex).await)
-            .await
+    ) -> resolver::Result<String> {
+        self.with_shared(async |shared| {
+            shared
+                .resolved_scenario_cache
+                .get(&ex.uuid())
+                .cloned()
+                .ok_or(ResolverError::UnknownExecution(ex.uuid()))
+        })
+        .await
     }
 }
 
@@ -396,6 +485,10 @@ struct Shared {
     payload_cache: HashMap<Uuid, (RepContext, RepTestPlan)>,
     /// Executions active for each run.
     active_run_executions: HashMap<Uuid, HashSet<Uuid>>,
+    /// Pre-resolved env config YAML keyed by execution UUID
+    resolved_env_cache: HashMap<Uuid, String>,
+    /// Pre-resolved scenario config YAML keyed by execution UUID
+    resolved_scenario_cache: HashMap<Uuid, String>,
     /// Maximum number of pending executions waiting for a namespace
     max_queued_executions: usize,
     /// The number of currently queued executions
@@ -409,40 +502,6 @@ impl Shared {
             .entry(run_uuid)
             .or_default()
             .insert(ex_uuid);
-    }
-
-    async fn resolve_environment_for_execution(
-        &self,
-        ex: &TestExecution,
-    ) -> resolver::Result<EnvironmentConfig<DockerComposeEnvironment>> {
-        self.with_templated_and_checked_variant(ex, async |ctx, mut test_plan| {
-            test_plan.environment.inline(&InlineMode::All, ctx).await?;
-
-            // Clear custom provider data now that we've inlined so `rtf resolve` doesn't hit it
-            test_plan.environment.custom_providers = Vec::new();
-
-            Ok(test_plan.environment)
-        })
-        .await
-    }
-
-    async fn resolve_scenario_for_execution(
-        &self,
-        ex: &TestExecution,
-    ) -> resolver::Result<ScenarioConfig<DockerScenario>> {
-        self.with_templated_and_checked_variant(ex, async |ctx, mut test_plan| {
-            test_plan
-                .scenario
-                .execution
-                .inline(&InlineMode::All, ctx)
-                .await?;
-
-            // Clear custom provider data now that we've inlined so `rtf resolve` doesn't hit it
-            test_plan.scenario.custom_providers = Vec::new();
-
-            Ok(test_plan.scenario)
-        })
-        .await
     }
 
     async fn with_templated_and_checked_variant<F, T>(
@@ -484,10 +543,61 @@ impl Shared {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{db::Queryable, event_loop::tests::stub_test_plan};
+    use crate::{
+        config::Config, context::RepContext, db::Queryable, event_loop::tests::stub_test_plan,
+    };
+    use rep_orchestrator_shared::payload::SourceKeyedArrayMap;
     use rtf_config::templating::Scalar;
     use simple_test_case::test_case;
     use std::{collections::HashMap, time::Duration};
+
+    fn dummy_config() -> Config {
+        Config {
+            apollo_key: "dummy".to_string(),
+            db_host: "localhost".to_string(),
+            db_port: 5432,
+            db_name: "test".to_string(),
+            db_user: "test".to_string(),
+            db_pass: Some("test".to_string()),
+            github_app_id: 1,
+            github_app_private_key_pem: "dummy".to_string(),
+            host: "0.0.0.0".to_string(),
+            port: 8035,
+            max_concurrent_executions: 10,
+            max_queued_executions: 100,
+            kubeconfig_path: "dummy".to_string(),
+            kubeconfig_secret_name: "workload-kubeconfig".to_string(),
+            mgmt_context: Some("dummy".to_string()),
+            workload_context: "dummy".to_string(),
+            orchestrator_url: "http://localhost:8035".to_string(),
+            toolbox_pull_policy: "IfNotPresent".to_string(),
+            gcs_bucket: "test-bucket".to_string(),
+            gcs_url_ttl_secs: 300,
+            mock_internal_gcs_url: Some("http://mock-gcs-internal".to_string()),
+            mock_public_gcs_url: Some("http://mock-gcs-public".to_string()),
+        }
+    }
+
+    fn empty_source_map<T>() -> SourceKeyedArrayMap<T> {
+        SourceKeyedArrayMap {
+            keys: vec![],
+            data: vec![],
+        }
+    }
+
+    async fn populated_prov_handle() -> (ProvisioningHandle, TestExecution) {
+        let cfg = dummy_config();
+        let (_, ph, _, _) = EventQueue::new(1, 100);
+        let run_uuid = Uuid::new_v4();
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
+
+        let ctx = RepContext::new(&cfg, empty_source_map(), empty_source_map());
+        ph.cache_for_test_run(run_uuid, ctx, stub_test_plan()).await;
+        ph.with_shared(async |shared| shared.register_execution(ex.uuid(), run_uuid))
+            .await;
+
+        (ph, ex)
+    }
 
     #[test_case(&[(1, true)]; "single claim below max")]
     #[test_case(&[(5, true)]; "single claim at max")]
@@ -596,7 +706,7 @@ mod tests {
         let event = q.rx.try_recv().expect("event should have been sent");
 
         assert_eq!(event.test_execution.uuid(), ex_uuid);
-        assert!(matches!(event.data, EventData::CreateEnvArgoWorkflow));
+        assert!(matches!(event.data, EventData::ResolveEnvConfig));
     }
 
     #[tokio::test]
@@ -632,7 +742,7 @@ mod tests {
         let ex_uuid = ex.uuid();
         q.tx.send(Event {
             test_execution: ex,
-            data: EventData::CreateEnvArgoWorkflow,
+            data: EventData::ResolveEnvConfig,
         })
         .unwrap();
 
@@ -646,7 +756,7 @@ mod tests {
             .expect("should have returned Some(event)");
 
         assert_eq!(evt.test_execution.uuid(), ex_uuid);
-        assert!(matches!(evt.data, EventData::CreateEnvArgoWorkflow));
+        assert!(matches!(evt.data, EventData::ResolveEnvConfig));
         assert!(
             q.running_executions.contains(&ex_uuid),
             "running executions: {:?}",
@@ -657,7 +767,7 @@ mod tests {
     fn provision_evt(ex_id: i32) -> Event {
         Event {
             test_execution: TestExecution::create_stub(ex_id, 1, 0, "test"),
-            data: EventData::CreateEnvArgoWorkflow,
+            data: EventData::ResolveEnvConfig,
         }
     }
 
@@ -678,7 +788,7 @@ mod tests {
         let (mut q, _h, _, _) = EventQueue::new(1, 5);
 
         for evt in events.into_iter() {
-            if matches!(evt.data, EventData::CreateEnvArgoWorkflow) {
+            if matches!(evt.data, EventData::ResolveEnvConfig) {
                 q.pending_provisions.push_back(evt);
             } else {
                 q.pending_non_provisions.push_back(evt);
@@ -748,5 +858,174 @@ mod tests {
         assert_eq!(q.next_event().await, None, "should have returned None");
         assert_eq!(q.pending_non_provisions.len(), 0, "unexpected recv");
         assert!(!q.rx.is_empty(), "event should still be in the channel");
+    }
+
+    #[tokio::test]
+    async fn push_event_routes_resolve_env_config_to_provisions() {
+        let (mut q, _h, _, _) = EventQueue::new(1, 5);
+        let evt = Event {
+            test_execution: TestExecution::create_stub(1, 1, 0, "test"),
+            data: EventData::ResolveEnvConfig,
+        };
+
+        q.push_event(evt);
+
+        assert_eq!(q.pending_provisions.len(), 1);
+        assert_eq!(q.pending_non_provisions.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn push_event_routes_create_env_argo_workflow_to_non_provisions() {
+        let (mut q, _h, _, _) = EventQueue::new(1, 5);
+        let evt = Event {
+            test_execution: TestExecution::create_stub(1, 1, 0, "test"),
+            data: EventData::CreateEnvArgoWorkflow,
+        };
+
+        q.push_event(evt);
+
+        assert_eq!(q.pending_non_provisions.len(), 1);
+        assert_eq!(q.pending_provisions.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn resolve_and_cache_env_config_stores_yaml() {
+        let (ph, ex) = populated_prov_handle().await;
+        let ex_uuid = ex.uuid();
+
+        let res = ph.resolve_and_cache_env_config(&ex).await;
+
+        assert!(res.is_ok(), "{res:?}");
+        ph.with_shared(async |shared| {
+            let yaml = shared.resolved_env_cache.get(&ex_uuid);
+            assert!(
+                yaml.is_some_and(|y| !y.is_empty()),
+                "env YAML should be cached"
+            );
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn resolve_and_cache_scenario_config_stores_yaml_and_returns_image_and_command() {
+        let (ph, ex) = populated_prov_handle().await;
+        let ex_uuid = ex.uuid();
+
+        let res = ph.resolve_and_cache_scenario_config(&ex).await;
+
+        let (image, command) = res.expect("resolve_and_cache_scenario_config should succeed");
+        assert!(!image.is_empty(), "image should be non-empty");
+        assert!(!command.is_empty(), "command should be non-empty");
+        ph.with_shared(async |shared| {
+            let yaml = shared.resolved_scenario_cache.get(&ex_uuid);
+            assert!(
+                yaml.is_some_and(|y| !y.is_empty()),
+                "scenario YAML should be cached"
+            );
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn mark_execution_complete_evicts_resolved_scenario_cache() {
+        let (mut eq, h, _, _) = EventQueue::new(1, 5);
+        let run_uuid = Uuid::new_v4();
+        let ex_id = Uuid::new_v4();
+
+        h.with_shared(async |shared| {
+            shared.register_execution(ex_id, run_uuid);
+            shared
+                .resolved_scenario_cache
+                .insert(ex_id, "yaml".to_string());
+        })
+        .await;
+        eq.running_executions.insert(ex_id);
+
+        eq.mark_execution_complete(ex_id).await;
+
+        h.with_shared(async |shared| {
+            assert!(
+                !shared.resolved_scenario_cache.contains_key(&ex_id),
+                "scenario cache entry should be evicted"
+            );
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn resolve_environment_for_execution_returns_error_when_cache_empty() {
+        let (_, _, eqs, _) = EventQueue::new(1, 5);
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
+
+        let res = eqs.resolve_environment_for_execution(&ex).await;
+
+        assert!(
+            matches!(res, Err(ResolverError::UnknownExecution(_))),
+            "expected UnknownExecution, got: {res:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_scenario_for_execution_returns_error_when_cache_empty() {
+        let (_, _, eqs, _) = EventQueue::new(1, 5);
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
+
+        let res = eqs.resolve_scenario_for_execution(&ex).await;
+
+        assert!(
+            matches!(res, Err(ResolverError::UnknownExecution(_))),
+            "expected UnknownExecution, got: {res:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn send_to_resolver_forwards_resolve_env_config() {
+        let (eq, _, _, mut rx) = EventQueue::new(1, 5);
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
+
+        eq.send_to_resolver(ResolverInput::ResolveEnvConfig(ex.clone()))
+            .unwrap();
+
+        let input = rx.try_recv().expect("ResolverInput should be forwarded");
+        assert!(
+            matches!(input, ResolverInput::ResolveEnvConfig(ref e) if e.uuid() == ex.uuid()),
+            "wrong input forwarded: {input:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn send_to_resolver_forwards_resolve_scenario_config() {
+        let (eq, _, _, mut rx) = EventQueue::new(1, 5);
+        let ex = TestExecution::create_stub(1, 1, 0, "test");
+
+        eq.send_to_resolver(ResolverInput::ResolveScenarioConfig(ex.clone()))
+            .unwrap();
+
+        let input = rx.try_recv().expect("ResolverInput should be forwarded");
+        assert!(
+            matches!(input, ResolverInput::ResolveScenarioConfig(ref e) if e.uuid() == ex.uuid()),
+            "wrong input forwarded: {input:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn evict_resolved_env_config_removes_cache_entry() {
+        let (eq, h, _, _) = EventQueue::new(1, 5);
+        let ex_id = Uuid::new_v4();
+
+        h.with_shared(async |shared| {
+            shared.resolved_env_cache.insert(ex_id, "yaml".to_string());
+        })
+        .await;
+
+        eq.evict_resolved_env_config(ex_id).await;
+
+        h.with_shared(async |shared| {
+            assert!(
+                !shared.resolved_env_cache.contains_key(&ex_id),
+                "env cache entry should be evicted"
+            );
+        })
+        .await;
     }
 }

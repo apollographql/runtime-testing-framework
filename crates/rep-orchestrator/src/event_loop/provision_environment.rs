@@ -81,7 +81,7 @@ where
             info!(%execution_id, "argo workflow completed successfully");
             vec![
                 EventData::ArgoWorkflowComplete,
-                EventData::CreateScenarioJob,
+                EventData::ResolveScenarioConfig,
             ]
         }
 
@@ -213,7 +213,10 @@ mod tests {
         );
 
         let evt = erx.try_recv().unwrap();
-        assert!(matches!(evt.data, EventData::CreateScenarioJob), "{evt:?}");
+        assert!(
+            matches!(evt.data, EventData::ResolveScenarioConfig),
+            "{evt:?}"
+        );
     }
 
     #[test_case(WatchOutcome::Failed(String::new()); "failed")]

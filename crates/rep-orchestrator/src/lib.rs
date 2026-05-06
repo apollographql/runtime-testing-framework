@@ -90,7 +90,7 @@ fn build_routes(state: ServerState) -> Router {
 #[cfg(test)]
 mod test_helpers {
     use super::*;
-    use crate::{event_loop::ProvisioningHandle, state::TestRunWithPayload};
+    use crate::{event_loop::ProvisioningHandle, resolver::ResolverInput};
     use axum_test::TestServer;
     use tokio::sync::mpsc::UnboundedReceiver;
 
@@ -100,7 +100,7 @@ mod test_helpers {
         pub test_server: TestServer,
         pub prov_handle: ProvisioningHandle,
         pub state: ServerState,
-        pub resolver_rx: UnboundedReceiver<TestRunWithPayload>,
+        pub resolver_rx: UnboundedReceiver<ResolverInput>,
     }
 
     impl TestServerState {
