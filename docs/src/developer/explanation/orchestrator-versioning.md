@@ -11,11 +11,14 @@ not be edited after the fact.**
 
 ## Current phase
 
-> **Phase 0 — Baseline**
+> **Phase 1 + 2 — chart/image link fixed; production uses `edge` for fast iteration**
 >
-> The chart is published with version `0.0.0+<git-sha>` on every merge to `main`. The image is
-> always pulled as `edge`. Production is updated by manually opening a PR on
-> `runtime-environment-provisioner` to bump `targetRevision`.
+> The chart is published with version `0.0.0+<git-sha>` and `appVersion` set to the git SHA. A
+> pinned chart version guarantees a pinned image via the `appVersion` fallback in the Deployment
+> template. Production overrides `image.tag: edge` and `pullPolicy: Always` in the ArgoCD
+> `valuesObject`, so pods pick up the latest image on every rollout without a chart bump PR.
+> Production is still updated by manually opening a PR on `runtime-environment-provisioner` to bump
+> `targetRevision`.
 
 ## Design intent
 
