@@ -90,7 +90,7 @@
 <a href=#90 id=90 data-nosnippet>90</a><span class="attr">#[cfg(test)]
 <a href=#91 id=91 data-nosnippet>91</a></span><span class="kw">mod </span>test_helpers {
 <a href=#92 id=92 data-nosnippet>92</a>    <span class="kw">use </span>super::<span class="kw-2">*</span>;
-<a href=#93 id=93 data-nosnippet>93</a>    <span class="kw">use </span>crate::{event_loop::ProvisioningHandle, state::TestRunWithPayload};
+<a href=#93 id=93 data-nosnippet>93</a>    <span class="kw">use </span>crate::{event_loop::ProvisioningHandle, resolver::ResolverInput};
 <a href=#94 id=94 data-nosnippet>94</a>    <span class="kw">use </span>axum_test::TestServer;
 <a href=#95 id=95 data-nosnippet>95</a>    <span class="kw">use </span>tokio::sync::mpsc::UnboundedReceiver;
 <a href=#96 id=96 data-nosnippet>96</a>
@@ -100,7 +100,7 @@
 <a href=#100 id=100 data-nosnippet>100</a>        <span class="kw">pub </span>test_server: TestServer,
 <a href=#101 id=101 data-nosnippet>101</a>        <span class="kw">pub </span>prov_handle: ProvisioningHandle,
 <a href=#102 id=102 data-nosnippet>102</a>        <span class="kw">pub </span>state: ServerState,
-<a href=#103 id=103 data-nosnippet>103</a>        <span class="kw">pub </span>resolver_rx: UnboundedReceiver&lt;TestRunWithPayload&gt;,
+<a href=#103 id=103 data-nosnippet>103</a>        <span class="kw">pub </span>resolver_rx: UnboundedReceiver&lt;ResolverInput&gt;,
 <a href=#104 id=104 data-nosnippet>104</a>    }
 <a href=#105 id=105 data-nosnippet>105</a>
 <a href=#106 id=106 data-nosnippet>106</a>    <span class="kw">impl </span>TestServerState {

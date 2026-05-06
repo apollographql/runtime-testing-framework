@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ResolverError"],"fn":["resolver_task"]};
+window.SIDEBAR_ITEMS = {"enum":["ResolverError","ResolverInput"],"fn":["resolver_task"]};
