@@ -13,7 +13,11 @@ use rtf_config::{
     context::ResolutionContext,
     templating::{Template, TemplateContext},
 };
-use std::{collections::HashMap, mem::take, ops::ControlFlow};
+use std::{
+    collections::{HashMap, VecDeque},
+    mem::take,
+    ops::ControlFlow,
+};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::{error, info_span, warn};
 use uuid::Uuid;
@@ -39,10 +43,12 @@ const MSG_RUN_CHECKS: &str = "running test plan static checks";
 /// required local file data for us to construct a [RepContext] that can then handle resolving
 /// what's left.
 pub async fn resolver_task(
-    mut rx: UnboundedReceiver<ResolverInput>,
+    rx: UnboundedReceiver<ResolverInput>,
     prov_handle: ProvisioningHandle,
 ) -> crate::Result<()> {
-    while let Some(input) = rx.recv().await {
+    let mut queue = ResolverQueue::new(rx);
+
+    while let Some(input) = queue.next_input().await {
         match input {
             ResolverInput::TestRun(boxed) => {
                 let TestRunWithPayload { test_run, payload } = *boxed;
@@ -67,6 +73,66 @@ pub async fn resolver_task(
     warn!("resolver channel closed, exiting");
 
     Ok(())
+}
+
+/// Owns the resolver task's input channel and the persistent priority buckets used to order
+/// resolver work over [TestRun][ResolverInput::TestRun] >
+/// [ResolveEnvConfig][ResolverInput::ResolveEnvConfig] >
+/// [ResolveScenarioConfig][ResolverInput::ResolveScenarioConfig].
+struct ResolverQueue {
+    rx: UnboundedReceiver<ResolverInput>,
+    test_runs: VecDeque<Box<TestRunWithPayload>>,
+    resolve_env_configs: VecDeque<TestExecution>,
+    resolve_scenario_configs: VecDeque<TestExecution>,
+}
+
+impl ResolverQueue {
+    fn new(rx: UnboundedReceiver<ResolverInput>) -> Self {
+        Self {
+            rx,
+            test_runs: VecDeque::new(),
+            resolve_env_configs: VecDeque::new(),
+            resolve_scenario_configs: VecDeque::new(),
+        }
+    }
+
+    /// Returns the next [ResolverInput] to be processed, draining the channel into the priority
+    /// buckets and then popping from the highest non-empty bucket in this order:
+    ///
+    /// 1. [ResolverInput::TestRun]
+    /// 2. [ResolverInput::ResolveEnvConfig]
+    /// 3. [ResolverInput::ResolveScenarioConfig]
+    ///
+    /// Buckets persist across calls. Blocks when all buckets and the channel are empty. Returns
+    /// [None] only when all external senders have been dropped and all buckets are empty.
+    async fn next_input(&mut self) -> Option<ResolverInput> {
+        loop {
+            while let Ok(input) = self.rx.try_recv() {
+                self.push_input(input);
+            }
+
+            if let Some(boxed) = self.test_runs.pop_front() {
+                return Some(ResolverInput::TestRun(boxed));
+            }
+            if let Some(ex) = self.resolve_env_configs.pop_front() {
+                return Some(ResolverInput::ResolveEnvConfig(ex));
+            }
+            if let Some(ex) = self.resolve_scenario_configs.pop_front() {
+                return Some(ResolverInput::ResolveScenarioConfig(ex));
+            }
+
+            let input = self.rx.recv().await?;
+            self.push_input(input);
+        }
+    }
+
+    fn push_input(&mut self, input: ResolverInput) {
+        match input {
+            ResolverInput::TestRun(boxed) => self.test_runs.push_back(boxed),
+            ResolverInput::ResolveEnvConfig(ex) => self.resolve_env_configs.push_back(ex),
+            ResolverInput::ResolveScenarioConfig(ex) => self.resolve_scenario_configs.push_back(ex),
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -796,5 +862,107 @@ mod tests {
             ControlFlow::Break(()),
             "expected ControlFlow::Break to be returned"
         )
+    }
+
+    fn boxed_test_run(name: &str) -> Box<TestRunWithPayload> {
+        Box::new(TestRunWithPayload {
+            test_run: TestRun::create_stub(1, name),
+            payload: empty_payload(),
+        })
+    }
+
+    #[tokio::test]
+    async fn next_input_prioritises_by_kind_regardless_of_arrival_order() {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut queue = ResolverQueue::new(rx);
+
+        let env_ex = TestExecution::create_stub(1, 1, 0, "env");
+        let scenario_ex = TestExecution::create_stub(2, 1, 1, "scenario");
+
+        // Submit in reverse priority
+        tx.send(ResolverInput::ResolveScenarioConfig(scenario_ex.clone()))
+            .unwrap();
+        tx.send(ResolverInput::ResolveEnvConfig(env_ex.clone()))
+            .unwrap();
+        tx.send(ResolverInput::TestRun(boxed_test_run("tr")))
+            .unwrap();
+
+        let first = queue.next_input().await.unwrap();
+        assert!(
+            matches!(first, ResolverInput::TestRun(_)),
+            "expected TestRun first, got {first:?}"
+        );
+
+        let second = queue.next_input().await.unwrap();
+        assert!(
+            matches!(second, ResolverInput::ResolveEnvConfig(ref ex) if ex.uuid() == env_ex.uuid()),
+            "expected ResolveEnvConfig second, got {second:?}"
+        );
+
+        let third = queue.next_input().await.unwrap();
+        assert!(
+            matches!(third, ResolverInput::ResolveScenarioConfig(ref ex) if ex.uuid() == scenario_ex.uuid()),
+            "expected ResolveScenarioConfig third, got {third:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn next_input_preserves_fifo_within_a_bucket() {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut queue = ResolverQueue::new(rx);
+
+        let ex_a = TestExecution::create_stub(1, 1, 0, "a");
+        let ex_b = TestExecution::create_stub(2, 1, 1, "b");
+        let ex_c = TestExecution::create_stub(3, 1, 2, "c");
+
+        tx.send(ResolverInput::ResolveEnvConfig(ex_a.clone()))
+            .unwrap();
+        tx.send(ResolverInput::ResolveEnvConfig(ex_b.clone()))
+            .unwrap();
+        tx.send(ResolverInput::ResolveEnvConfig(ex_c.clone()))
+            .unwrap();
+
+        for expected in [&ex_a, &ex_b, &ex_c] {
+            let input = queue.next_input().await.unwrap();
+            assert!(
+                matches!(input, ResolverInput::ResolveEnvConfig(ref ex) if ex.uuid() == expected.uuid()),
+                "FIFO order broken; expected {} got {input:?}",
+                expected.uuid()
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn next_input_returns_none_when_all_senders_dropped_and_buckets_empty() {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ResolverInput>();
+        let mut queue = ResolverQueue::new(rx);
+
+        drop(tx);
+
+        let result = queue.next_input().await;
+        assert!(result.is_none(), "expected None on closed channel");
+    }
+
+    #[tokio::test]
+    async fn next_input_drains_buffered_events_after_senders_dropped() {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut queue = ResolverQueue::new(rx);
+
+        let env_ex = TestExecution::create_stub(1, 1, 0, "env");
+        tx.send(ResolverInput::ResolveEnvConfig(env_ex.clone()))
+            .unwrap();
+        drop(tx);
+
+        let first = queue.next_input().await.unwrap();
+        assert!(
+            matches!(first, ResolverInput::ResolveEnvConfig(ref ex) if ex.uuid() == env_ex.uuid()),
+            "expected buffered event to drain before close",
+        );
+
+        let second = queue.next_input().await;
+        assert!(
+            second.is_none(),
+            "expected None after draining buffered event"
+        );
     }
 }
