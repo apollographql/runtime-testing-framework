@@ -47,6 +47,7 @@
   - [Logging Philosophy](developer/explanation/logging-philosophy.md)
   - [Use of IO in Providers](developer/explanation/context.md)
   - [CLI Design](developer/explanation/cli-design/index.md)
+  - [Orchestrator Helm Chart Versioning](developer/explanation/orchestrator-versioning.md)
     - [Plumbing vs Porcelain](developer/explanation/cli-design/plumbing-vs-porcelain.md)
     - [No Built-in Magic](developer/explanation/cli-design/no-built-in-magic.md)
 

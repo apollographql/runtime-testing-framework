@@ -73,7 +73,7 @@ jobs:
 
       - name: Build Helm Chart
         run: |
-          helm package . --version="0.0.0+${{ github.sha }}"
+          helm package . --version="0.0.0+${{ github.sha }}" --app-version="${{ github.sha }}"
         working-directory: crates/rep-orchestrator/helm/rep-orchestrator
 
       - name: Push Helm Chart To Repository
