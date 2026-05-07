@@ -6,7 +6,7 @@ use rtf_config::{
     StableSource,
     context::ResolutionContext,
     formats::{Sources, TestPlanConfig},
-    inlining::{self, InlineMode},
+    inlining::{self, InlineMode, InlinedProvider},
     templating::{Template, TemplateContext},
 };
 use rtf_core::variables::Variables;
@@ -51,6 +51,8 @@ async fn inline_file_providers_with_context(
     let outdir = ctx.canonicalize_path(outdir)?;
     ctx.set_output_path(&outdir);
 
+    let mut inline_cache = HashMap::new();
+
     if test_plan.matrix.is_empty() {
         info!("inlining relative file providers for test plan");
 
@@ -61,6 +63,7 @@ async fn inline_file_providers_with_context(
             &outdir,
             None,
             &mut ctx,
+            &mut inline_cache,
         )
         .await;
     }
@@ -77,6 +80,7 @@ async fn inline_file_providers_with_context(
             &outdir,
             Some(variant_name),
             &mut ctx,
+            &mut inline_cache,
         )
         .await?;
     }
@@ -89,6 +93,7 @@ async fn inline_file_providers(
     mode: &InlineMode,
     ctx: &mut impl ResolutionContext,
     template_variables: &HashMap<String, StableSource>,
+    inline_cache: &mut HashMap<u64, InlinedProvider>,
 ) -> inlining::Result<()> {
     let mut errs = inlining::ErrorBuilder::new();
 
@@ -105,10 +110,11 @@ async fn inline_file_providers(
             .map_err(Into::into),
     );
 
-    // Inline all file providers after templating
+    // Inline all file providers after templating — share one cache across both to deduplicate
+    // providers that appear in both scenario and environment
     info!("inlining file providers for test plan");
-    errs.append(test_plan.scenario.inline(mode, ctx).await);
-    errs.append(test_plan.environment.inline(mode, ctx).await);
+    errs.append(test_plan.scenario.inline(mode, ctx, inline_cache).await);
+    errs.append(test_plan.environment.inline(mode, ctx, inline_cache).await);
 
     errs.into_result(())
 }
@@ -120,8 +126,9 @@ async fn inline_one(
     outdir: &Path,
     test_plan_name: Option<String>,
     ctx: &mut impl ResolutionContext,
+    inline_cache: &mut HashMap<u64, InlinedProvider>,
 ) -> anyhow::Result<()> {
-    inline_file_providers(test_plan, mode, ctx, template_variables).await?;
+    inline_file_providers(test_plan, mode, ctx, template_variables, inline_cache).await?;
 
     info!("writing out inlined test plan");
     let output_path = match test_plan_name {

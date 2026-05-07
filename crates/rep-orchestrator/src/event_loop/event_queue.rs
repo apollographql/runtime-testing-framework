@@ -325,9 +325,15 @@ impl ProvisioningHandle {
         let (mut test_plan, ctx) = self.templated_and_checked_version(ex).await?;
 
         // Make sure that we run the run inlining without holding the lock on shared
+        let inline_cache = ctx.inline_cache();
         test_plan
             .environment
-            .inline(&InlineMode::All, ctx.as_ref())
+            .execution
+            .inline(
+                &InlineMode::All,
+                ctx.as_ref(),
+                &mut *inline_cache.lock().await,
+            )
             .await?;
         test_plan.environment.custom_providers = Vec::new();
 
@@ -351,10 +357,15 @@ impl ProvisioningHandle {
         let (mut test_plan, ctx) = self.templated_and_checked_version(ex).await?;
 
         // Make sure that we run the run inlining without holding the lock on shared
+        let inline_cache = ctx.inline_cache();
         test_plan
             .scenario
             .execution
-            .inline(&InlineMode::All, ctx.as_ref())
+            .inline(
+                &InlineMode::All,
+                ctx.as_ref(),
+                &mut *inline_cache.lock().await,
+            )
             .await?;
         test_plan.scenario.custom_providers = Vec::new();
 

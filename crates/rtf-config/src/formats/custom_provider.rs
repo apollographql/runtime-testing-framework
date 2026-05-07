@@ -1,7 +1,7 @@
 use crate::{
     VariableDefinition,
     context::ResolutionContext,
-    inlining::{self, InlineMode},
+    inlining::{self, InlineMode, InlinedProvider},
     providers::{
         self,
         command::CommandSection,
@@ -36,8 +36,9 @@ impl CustomProviderDefinition {
         &mut self,
         mode: &InlineMode,
         ctx: &impl ResolutionContext,
+        cache: &mut HashMap<u64, InlinedProvider>,
     ) -> inlining::Result<()> {
-        self.command.inline(mode, ctx).await
+        self.command.inline(mode, ctx, cache).await
     }
 
     /// Validate variable definitions and provided values against allowed_values constraints.

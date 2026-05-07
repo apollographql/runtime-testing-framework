@@ -4,6 +4,7 @@ use rtf_config::{
     SourceDir, StableSource, checks,
     context::{Context, PathKind, ResolutionContext},
     formats::{CustomProviderDefinition, Sources},
+    inlining::InlinedProvider,
     providers,
     run::Provider,
     templating::CustomProviderDefinitions,
@@ -18,6 +19,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use tokio::sync::Mutex;
 
 /// A [ResolutionContext] that reads relative files from a map rather than the filesystem.
 #[derive(Debug, Clone)]
@@ -25,6 +27,7 @@ pub struct RepContext {
     inner: Context,
     relative_files: SourceKeyedArrayMap<String>,
     custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
+    inline_cache: Arc<Mutex<HashMap<u64, InlinedProvider>>>,
 }
 
 impl RepContext {
@@ -42,7 +45,12 @@ impl RepContext {
             inner,
             relative_files,
             custom_providers,
+            inline_cache: Default::default(),
         }
+    }
+
+    pub fn inline_cache(&self) -> Arc<Mutex<HashMap<u64, InlinedProvider>>> {
+        self.inline_cache.clone()
     }
 }
 

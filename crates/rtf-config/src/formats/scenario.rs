@@ -3,7 +3,7 @@ use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
     formats::{CustomProviderDeclaration, Result},
-    inlining::{self, InlineMode},
+    inlining::{self, InlineMode, InlinedProvider},
     providers::{
         self,
         command::CommandSection,
@@ -57,8 +57,9 @@ impl ScenarioConfig<ScenarioExecution> {
         &mut self,
         mode: &InlineMode,
         ctx: &impl ResolutionContext,
+        cache: &mut HashMap<u64, InlinedProvider>,
     ) -> inlining::Result<()> {
-        self.execution.inline(mode, ctx).await
+        self.execution.inline(mode, ctx, cache).await
     }
 
     /// Create an empty [ScenarioConfig] for tests
@@ -190,10 +191,11 @@ impl RunProviders for ScenarioExecution {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         match self {
-            Self::Docker(inner) => inner.file_providers.inline(mode, ctx),
-            Self::Script(inner) => inner.inline(mode, ctx),
+            Self::Docker(inner) => inner.file_providers.inline(mode, ctx, cache),
+            Self::Script(inner) => inner.inline(mode, ctx, cache),
         }
     }
 }
@@ -400,8 +402,9 @@ impl RunProviders for DockerScenario {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
-        self.file_providers.inline(mode, ctx)
+        self.file_providers.inline(mode, ctx, cache)
     }
 }
 
@@ -1055,7 +1058,9 @@ mod tests {
             ..ScenarioConfig::empty()
         };
 
-        let result = scenario.inline(&InlineMode::All, &ctx).await;
+        let result = scenario
+            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
         let command_provider = match scenario.execution {

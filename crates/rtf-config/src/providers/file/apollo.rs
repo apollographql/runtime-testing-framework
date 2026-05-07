@@ -1560,7 +1560,9 @@ mod tests {
             version: Field::Resolved(version.to_string()),
         });
 
-        let res = provider.inline(&InlineMode::All, &ctx).await;
+        let res = provider
+            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .await;
         assert!(res.is_ok(), "expected provider to inline, got {res:?}");
 
         let expected_inline_provider = FileProvider::Inline(InlineFile {
@@ -1595,7 +1597,9 @@ mod tests {
             features: Field::Resolved("default".to_string()),
         });
 
-        let res = provider.inline(&InlineMode::All, &ctx).await;
+        let res = provider
+            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .await;
         assert!(res.is_ok(), "expected provider to inline, got {res:?}");
 
         let expected_inline_provider = FileProvider::Inline(InlineFile {

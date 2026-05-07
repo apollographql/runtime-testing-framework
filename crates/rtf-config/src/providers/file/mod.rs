@@ -3,7 +3,7 @@ use crate::{
     checks::{self, Check},
     context::{PathKind, ResolutionContext},
     enum_impl_check,
-    inlining::{self, InlineMode},
+    inlining::{self, InlineMode, InlinedProvider, provider_cache_key},
     providers,
     run::{ExtractRelativeFiles, RunProviders, try_read_relative_dir, try_read_relative_file},
     templating::{self, Field, Template, TemplateContext},
@@ -196,14 +196,28 @@ macro_rules! enum_impl_resolve_and_write {
 /// All the FileProviders that implement IntoUtf8Content have to be specified in the macro arguments
 macro_rules! impl_inline {
     (
-        $self:expr, $mode:expr, $ctx:expr;
+        $self:expr, $mode:expr, $ctx:expr, $cache:expr;
         $($inline:ident),*
-    ) => {
+    ) => {{
+        if matches!($self, Self::Inline(_) | Self::InlineDir(_)) {
+            return Ok(());
+        }
+
+        let key = provider_cache_key(&*$self);
+
+        if let Some(cached) = $cache.get(&key) {
+            match cached.clone() {
+                InlinedProvider::File(f) => *$self = Self::Inline(f),
+                InlinedProvider::Dir(d) => *$self = Self::InlineDir(d),
+            }
+
+            return Ok(());
+        }
+
         match (&mut *$self, $mode) {
             // FromCommand just inlines any file providers it wraps using the mode provided
             (Self::FromCommand(inner), mode) => {
-                inner.inline(mode, $ctx).await?;
-                Ok(())
+                inner.inline(mode, $ctx, $cache).await?;
             }
 
             // MergeYaml is a special case, when inlining relative files only the inner providers
@@ -212,11 +226,9 @@ macro_rules! impl_inline {
                 match mode {
                     InlineMode::All => {
                         *$self = FileProvider::Inline(inner.try_into_inline_file($ctx).await?);
-                        Ok(())
                     }
                     InlineMode::RelativeFiles => {
                         inner.inline_all_relative_paths($ctx).await?;
-                        Ok(())
                     }
                 }
             }
@@ -224,26 +236,33 @@ macro_rules! impl_inline {
             // RelativePaths get inlined the same way in both modes
             (FileProvider::RelativeDir(inner), _) => {
                 *$self = FileProvider::InlineDir(inner.try_into_inline_files($ctx).await?);
-                Ok(())
             }
             (FileProvider::RelativePath(inner), _) => {
                 *$self = FileProvider::Inline(inner.try_into_inline_file($ctx).await?);
-                Ok(())
             }
 
             // No other file providers need to do anything when mode is RelativeFiles
-            (_, InlineMode::RelativeFiles) => Ok(()),
+            (_, InlineMode::RelativeFiles) => return Ok(()),
 
             // The methods required for inlining the rest of the providers
-            (Self::Inline(_) | Self::InlineDir(_), InlineMode::All) => Ok(()),
+            (Self::Inline(_) | Self::InlineDir(_), InlineMode::All) => return Ok(()),
+
             (Self::GraphosSubgraphs(inner), InlineMode::All) => {
                 *$self = FileProvider::InlineDir(inner.inline($ctx).await?);
-                Ok(())
             }
             $((Self::$inline(inner), InlineMode::All) => {
                 *$self = FileProvider::Inline(inner.try_into_inline_file($ctx).await?);
-                Ok(())
             })*
+        }
+
+        match $self {
+            Self::Inline(f) => { $cache.insert(key, InlinedProvider::File(f.clone())); }
+            Self::InlineDir(d) => { $cache.insert(key, InlinedProvider::Dir(d.clone())); }
+            _ => {}
+        }
+
+        Ok(())
+
         }
     };
 }
@@ -421,9 +440,10 @@ impl FileProvider {
         &mut self,
         mode: &InlineMode,
         ctx: &impl ResolutionContext,
+        cache: &mut HashMap<u64, InlinedProvider>,
     ) -> inlining::Result<()> {
         impl_inline!(
-            self, mode, ctx;
+            self, mode, ctx, cache;
             BuildRouterFromSource,
             Conditional,
             CustomProvider,
@@ -1925,7 +1945,9 @@ mod tests {
             message: "required file must be defined".to_string(),
         });
 
-        let _res = required.inline(&InlineMode::All, &ctx).await;
+        let _res = required
+            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .await;
     }
 
     #[tokio::test]
@@ -1960,7 +1982,9 @@ mod tests {
 
         let mut file_provider =
             FileProvider::RelativePath(relative_file("file.txt", StableSource::TestPlan));
-        let result = file_provider.inline(&InlineMode::All, &ctx).await;
+        let result = file_provider
+            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
         assert_eq!(
@@ -1988,7 +2012,9 @@ mod tests {
 
         let mut file_provider =
             FileProvider::RelativePath(relative_file("file.txt", StableSource::TestPlan));
-        let result = file_provider.inline(&InlineMode::RelativeFiles, &ctx).await;
+        let result = file_provider
+            .inline(&InlineMode::RelativeFiles, &ctx, &mut HashMap::new())
+            .await;
 
         assert!(
             result.is_ok(),
@@ -2013,7 +2039,9 @@ mod tests {
         });
         let expected_file_provider = file_provider.clone();
 
-        let result = file_provider.inline(&InlineMode::RelativeFiles, &ctx).await;
+        let result = file_provider
+            .inline(&InlineMode::RelativeFiles, &ctx, &mut HashMap::new())
+            .await;
         assert!(
             result.is_ok(),
             "Expected inline_relative_path_provider to succeed, got {result:?}"

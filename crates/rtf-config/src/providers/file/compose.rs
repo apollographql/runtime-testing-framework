@@ -2,7 +2,7 @@ use crate::{
     checks::{self, Check},
     context::ResolutionContext,
     enum_impl_resolve_and_write,
-    inlining::{self, InlineMode},
+    inlining::{self, InlineMode, InlinedProvider, provider_cache_key},
     providers::file::StableSource,
     providers::file::{
         AsUtf8FileContent, InlineDir, InlineFile, RelativeDir, RelativeFile, RequiredFile,
@@ -137,36 +137,55 @@ impl ComposeFileProvider {
         &mut self,
         mode: &InlineMode,
         ctx: &impl ResolutionContext,
+        cache: &mut HashMap<u64, InlinedProvider>,
     ) -> inlining::Result<()> {
+        if matches!(self, Self::Inline(_) | Self::InlineDir(_)) {
+            return Ok(());
+        }
+
+        let key = provider_cache_key(&*self);
+        if let Some(cached) = cache.get(&key) {
+            match cached.clone() {
+                InlinedProvider::File(f) => *self = Self::Inline(f),
+                InlinedProvider::Dir(d) => *self = Self::InlineDir(d),
+            }
+
+            return Ok(());
+        }
+
         match (&mut *self, mode) {
             (ComposeFileProvider::RelativeDir(inner), _) => {
                 *self = ComposeFileProvider::InlineDir(inner.try_into_inline_files(ctx).await?);
-
-                Ok(())
             }
             (ComposeFileProvider::RelativePath(inner), _) => {
                 *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
-
-                Ok(())
             }
-            (_, InlineMode::RelativeFiles) => Ok(()),
+            (_, InlineMode::RelativeFiles) => return Ok(()),
             (ComposeFileProvider::GithubFile(inner), InlineMode::All) => {
                 *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
-
-                Ok(())
             }
             (
                 ComposeFileProvider::Inline(_)
                 | ComposeFileProvider::InlineDir(_)
                 | ComposeFileProvider::Templated(_),
                 InlineMode::All,
-            ) => Ok(()),
+            ) => return Ok(()),
             (ComposeFileProvider::Required(inner), InlineMode::All) => {
                 *self = ComposeFileProvider::Inline(inner.try_into_inline_file(ctx).await?);
-
-                Ok(())
             }
         }
+
+        match self {
+            Self::Inline(f) => {
+                cache.insert(key, InlinedProvider::File(f.clone()));
+            }
+            Self::InlineDir(d) => {
+                cache.insert(key, InlinedProvider::Dir(d.clone()));
+            }
+            _ => {}
+        }
+
+        Ok(())
     }
 }
 
