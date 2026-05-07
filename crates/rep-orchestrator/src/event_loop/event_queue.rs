@@ -226,6 +226,12 @@ pub struct ProvisioningHandle {
 }
 
 impl ProvisioningHandle {
+    /// Run an async closure with access to the shared event queue state.
+    ///
+    /// This method holds the mutex lock on the shared state for the duration of the closure. As
+    /// such, you _must_ ensure that closures are quick to execute. If multiple long running
+    /// operations are required, prefer extracting the state you need from [Shared] and
+    /// manipulating it after releasing the lock before re-acquiring.
     async fn with_shared<F, T>(&self, f: F) -> T
     where
         F: AsyncFnOnce(&mut Shared) -> T,
@@ -239,8 +245,12 @@ impl ProvisioningHandle {
         ctx: RepContext,
         test_plan: RepTestPlan,
     ) {
-        self.with_shared(async |shared| shared.payload_cache.insert(run_uuid, (ctx, test_plan)))
-            .await;
+        self.with_shared(async |shared| {
+            shared
+                .payload_cache
+                .insert(run_uuid, (Arc::new(ctx), test_plan))
+        })
+        .await;
     }
 
     /// Drop the in-memory payload cache entry for the given run uuid without touching the
@@ -285,24 +295,46 @@ impl ProvisioningHandle {
         Ok(())
     }
 
+    async fn templated_and_checked_version(
+        &self,
+        ex: &TestExecution,
+    ) -> resolver::Result<(RepTestPlan, Arc<RepContext>)> {
+        let (mut test_plan, ctx) = self
+            .with_shared(async |shared| shared.variant_with_context(ex).await)
+            .await?;
+
+        let variables = take(&mut test_plan.variables);
+        let template_ctx =
+            TemplateContext::new(variables, HashMap::new(), ctx.custom_provider_definitions());
+
+        test_plan
+            .try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
+            .map_err(ResolverError::VariantTemplating)?;
+
+        test_plan.try_check(&mut Vec::new(), ctx.as_ref())?;
+
+        Ok((test_plan, ctx))
+    }
+
     /// Resolve the environment config for `ex`, serialise to YAML, and store in
     /// `resolved_env_cache` keyed by execution UUID.
     pub(crate) async fn resolve_and_cache_env_config(
         &self,
         ex: &TestExecution,
     ) -> resolver::Result<()> {
-        let ex = ex.clone();
+        let (mut test_plan, ctx) = self.templated_and_checked_version(ex).await?;
 
-        self.with_shared(async move |shared| {
-            let env_cfg = shared
-                .with_templated_and_checked_variant(&ex, async |ctx, mut test_plan| {
-                    test_plan.environment.inline(&InlineMode::All, ctx).await?;
-                    test_plan.environment.custom_providers = Vec::new();
-                    Ok(test_plan.environment)
-                })
-                .await?;
-            let yaml = serde_yaml::to_string(&env_cfg)
-                .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
+        // Make sure that we run the run inlining without holding the lock on shared
+        test_plan
+            .environment
+            .inline(&InlineMode::All, ctx.as_ref())
+            .await?;
+        test_plan.environment.custom_providers = Vec::new();
+
+        let yaml = serde_yaml::to_string(&test_plan.environment)
+            .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
+
+        self.with_shared(async |shared| {
             shared.resolved_env_cache.insert(ex.uuid(), yaml);
 
             Ok(())
@@ -316,29 +348,28 @@ impl ProvisioningHandle {
         &self,
         ex: &TestExecution,
     ) -> resolver::Result<(String, String)> {
-        let ex = ex.clone();
+        let (mut test_plan, ctx) = self.templated_and_checked_version(ex).await?;
 
-        self.with_shared(async move |shared| {
-            let scenario_cfg = shared
-                .with_templated_and_checked_variant(&ex, async |ctx, mut test_plan| {
-                    test_plan
-                        .scenario
-                        .execution
-                        .inline(&InlineMode::All, ctx)
-                        .await?;
-                    test_plan.scenario.custom_providers = Vec::new();
-                    Ok(test_plan.scenario)
-                })
-                .await?;
-            let yaml = serde_yaml::to_string(&scenario_cfg)
-                .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
-            let image = scenario_cfg.execution.docker_image();
-            let command = scenario_cfg.execution.command();
+        // Make sure that we run the run inlining without holding the lock on shared
+        test_plan
+            .scenario
+            .execution
+            .inline(&InlineMode::All, ctx.as_ref())
+            .await?;
+        test_plan.scenario.custom_providers = Vec::new();
+
+        let image = test_plan.scenario.execution.docker_image();
+        let command = test_plan.scenario.execution.command();
+
+        let yaml = serde_yaml::to_string(&test_plan.scenario)
+            .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
+
+        self.with_shared(async |shared| {
             shared.resolved_scenario_cache.insert(ex.uuid(), yaml);
-
-            Ok((image, command))
         })
-        .await
+        .await;
+
+        Ok((image, command))
     }
 
     /// Send an event to the event loop.
@@ -482,7 +513,7 @@ struct Shared {
     /// Map of TestExecution uuid to parent TestRun uuid
     execution_map: HashMap<Uuid, Uuid>,
     /// Map of TestRun uuid to payload data
-    payload_cache: HashMap<Uuid, (RepContext, RepTestPlan)>,
+    payload_cache: HashMap<Uuid, (Arc<RepContext>, RepTestPlan)>,
     /// Executions active for each run.
     active_run_executions: HashMap<Uuid, HashSet<Uuid>>,
     /// Pre-resolved env config YAML keyed by execution UUID
@@ -504,39 +535,23 @@ impl Shared {
             .insert(ex_uuid);
     }
 
-    async fn with_templated_and_checked_variant<F, T>(
+    async fn variant_with_context(
         &self,
         ex: &TestExecution,
-        f: F,
-    ) -> resolver::Result<T>
-    where
-        F: AsyncFnOnce(&RepContext, RepTestPlan) -> resolver::Result<T>,
-    {
+    ) -> resolver::Result<(RepTestPlan, Arc<RepContext>)> {
         let run_uuid = match self.execution_map.get(&ex.uuid()) {
             Some(id) => id,
             None => return Err(ResolverError::UnknownExecution(ex.uuid())),
         };
         let index = ex.test_plan_index();
 
-        let (ctx, mut test_plan) = match self.payload_cache.get(run_uuid) {
+        match self.payload_cache.get(run_uuid) {
             Some((ctx, test_plan)) => match test_plan.try_expand_variant(index)? {
-                Some((_, variant)) => (ctx, variant),
-                None => return Err(ResolverError::UnknownExecution(ex.uuid())),
+                Some((_, variant)) => Ok((variant, Arc::clone(ctx))),
+                None => Err(ResolverError::UnknownExecution(ex.uuid())),
             },
-            None => return Err(ResolverError::UnknownRun(*run_uuid)),
-        };
-
-        let variables = take(&mut test_plan.variables);
-        let template_ctx =
-            TemplateContext::new(variables, HashMap::new(), ctx.custom_provider_definitions());
-
-        test_plan
-            .try_template(&mut Vec::new(), &StableSource::TestPlan, &template_ctx)
-            .map_err(ResolverError::VariantTemplating)?;
-
-        test_plan.try_check(&mut Vec::new(), ctx)?;
-
-        f(ctx, test_plan).await
+            None => Err(ResolverError::UnknownRun(*run_uuid)),
+        }
     }
 }
 
