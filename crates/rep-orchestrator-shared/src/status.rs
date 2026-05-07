@@ -15,7 +15,9 @@ pub struct StatusUpdate {
 ///
 /// See the documentation on the sibling `Status` enum in the `rep_orchestrator` crate for details
 /// on semantics.
-#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(
+    Default, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Hash,
+)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Status {
     #[default]
