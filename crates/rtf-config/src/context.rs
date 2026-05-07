@@ -1,6 +1,7 @@
 use crate::{
     checks,
     formats::Sources,
+    inlining::provider_cache_key,
     providers::{
         self,
         file::{SourceDir, StableSource},
@@ -24,7 +25,6 @@ use std::{
     sync::{Arc, RwLock},
 };
 use tokio::sync::Mutex;
-use tracing::error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PathKind {
@@ -244,7 +244,7 @@ pub trait ResolutionContext: Send + Sync {
 pub struct Context {
     client: ReqwestClient,
     supergraph_details: Arc<Mutex<HashMap<String, Arc<SupergraphDetails>>>>,
-    fp_output_paths: HashMap<String, PathBuf>,
+    fp_output_paths: HashMap<u64, PathBuf>,
     output_path: PathBuf,
     capture_output: bool,
     captured_stdout: Arc<RwLock<Vec<u8>>>,
@@ -364,19 +364,13 @@ impl ResolutionContext for Context {
     }
 
     fn store_provider_output_path(&mut self, provider: Provider<'_>, path: PathBuf) {
-        let key = match serde_yaml::to_string(&provider) {
-            Ok(s) => s,
-            Err(error) => {
-                error!(?path, %error, "unable to generate file provider cache key");
-                return;
-            }
-        };
+        let key = provider_cache_key(&provider);
 
         self.fp_output_paths.insert(key, path);
     }
 
     fn known_provider_output_path(&self, provider: Provider<'_>) -> Option<PathBuf> {
-        let key = serde_yaml::to_string(&provider).ok()?;
+        let key = provider_cache_key(&provider);
 
         self.fp_output_paths.get(&key).cloned()
     }

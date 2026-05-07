@@ -110,8 +110,7 @@ async fn inline_file_providers(
             .map_err(Into::into),
     );
 
-    // Inline all file providers after templating — share one cache across both to deduplicate
-    // providers that appear in both scenario and environment
+    // Inline all file providers after templating
     info!("inlining file providers for test plan");
     errs.append(test_plan.scenario.inline(mode, ctx, inline_cache).await);
     errs.append(test_plan.environment.inline(mode, ctx, inline_cache).await);
