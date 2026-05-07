@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-fb25db8d.js";
+            window.path_to_searchindex_js = "searchindex-3088e62e.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-6c62d7cd.js"></script>
+        <script src="toc-fd605a4a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -5793,6 +5793,131 @@ the inner <code>Context</code>.</p>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="cli-subcommand-design"><a class="header" href="#cli-subcommand-design">CLI subcommand design</a></h1>
 <p>The following pages provide an overview of how the <a href="https://github.com/apollographql/runtime-testing-framework/tree/main/crates/rtf-cli">CLI</a> subcommands and flags are designed.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
+<h1 id="orchestrator-helm-chart-versioning-policy"><a class="header" href="#orchestrator-helm-chart-versioning-policy">Orchestrator Helm chart versioning policy</a></h1>
+<p>This document records the decisions behind how we version and deploy the <code>rep-orchestrator</code> Helm
+chart, the rationale for the phased approach, and the options that were considered and rejected.</p>
+<p><strong>When a phase is completed, update the <a href="#current-phase">Current phase</a> section to reflect actual state. The
+phase descriptions below are a permanent historical record of what was done and why — they should
+not be edited after the fact.</strong></p>
+<h2 id="current-phase"><a class="header" href="#current-phase">Current phase</a></h2>
+<blockquote>
+<p><strong>Phase 1 + 2 — chart/image link fixed; production uses <code>edge</code> for fast iteration</strong></p>
+<p>The chart is published with version <code>0.0.0+&lt;git-sha&gt;</code> and <code>appVersion</code> set to the git SHA. A
+pinned chart version guarantees a pinned image via the <code>appVersion</code> fallback in the Deployment
+template. Production overrides <code>image.tag: edge</code> and <code>pullPolicy: Always</code> in the ArgoCD
+<code>valuesObject</code>, so pods pick up the latest image on every rollout without a chart bump PR.
+Production is still updated by manually opening a PR on <code>runtime-environment-provisioner</code> to bump
+<code>targetRevision</code>.</p>
+</blockquote>
+<h2 id="design-intent"><a class="header" href="#design-intent">Design intent</a></h2>
+<p>The chart and image are published together on every code merge by design. The intent is that
+updating the Helm chart is the canonical way to update the orchestrator — a chart version change
+implies a software change, and a software change produces a new chart version. This keeps deployment
+straightforward: there is one thing to bump (the chart), and it brings everything with it.</p>
+<h2 id="options-considered"><a class="header" href="#options-considered">Options considered</a></h2>
+<p>Before settling on the phased approach, three alternatives were evaluated:</p>
+<h3 id="option-a--rolling-tag-prod--latest"><a class="header" href="#option-a--rolling-tag-prod--latest">Option A — rolling tag (<code>prod</code> / <code>latest</code>)</a></h3>
+<p>Publish the chart under a mutable tag and point ArgoCD at it so it auto-tracks.</p>
+<p><strong>Rejected.</strong> ArgoCD’s OCI Helm source requires an exact <code>targetRevision</code> string; it cannot track a
+mutable tag or a semver range. It would pull the tag once at install time and never update. Making
+this work would require ArgoCD Image Updater, an additional operational dependency. More
+fundamentally, with no staging environment between <code>main</code> and production, a mutable tag means any
+bad merge silently redeploys with no human checkpoint — unacceptable as we approach live consumers.</p>
+<h3 id="option-b--immediate-move-to-semver"><a class="header" href="#option-b--immediate-move-to-semver">Option B — immediate move to semver</a></h3>
+<p>Replace <code>0.0.0+sha</code> with incrementing semver (<code>0.1.0</code>, <code>0.1.1</code>, …) from the outset.</p>
+<p><strong>Rejected for now.</strong> ArgoCD OCI still requires an exact version; semver ranges do not work, so we
+gain no auto-tracking benefit. During early active development (several merges per day) we would
+accumulate hundreds of patch versions with no semantic distinction between them.</p>
+<h3 id="option-c--sha-pinning-with-phased-improvement-chosen"><a class="header" href="#option-c--sha-pinning-with-phased-improvement-chosen">Option C — SHA pinning with phased improvement (chosen)</a></h3>
+<p>Keep SHA-based pinning but fix its problems in layers, making the process progressively more
+automated and semantically correct as the service matures.</p>
+<h2 id="phase-history"><a class="header" href="#phase-history">Phase history</a></h2>
+<h3 id="phase-0--baseline"><a class="header" href="#phase-0--baseline">Phase 0 — Baseline</a></h3>
+<p><strong>State:</strong></p>
+<ul>
+<li>Chart published as <code>0.0.0+&lt;git-sha&gt;</code> on every merge to <code>main</code> that touches <code>crates/**</code>.</li>
+<li>Image published with tags: full git SHA, <code>main-&lt;short-sha&gt;</code>, and mutable <code>edge</code>.</li>
+<li><code>values.yaml</code> hardcodes <code>image.tag: edge</code> — every chart version deploys whatever <code>edge</code> points to
+at rollout time, regardless of the chart’s own SHA.</li>
+<li>Production updated by manually opening a PR on <code>runtime-environment-provisioner</code> to bump
+<code>targetRevision</code>.</li>
+</ul>
+<p><strong>Problems that motivated moving to Phase 1:</strong></p>
+<ul>
+<li><strong>Chart and image are decoupled.</strong> Pinning a chart version does not guarantee a pinned image. The
+SHA in the chart version identifies the templates, not the running binary, contradicting the
+lockstep intent.</li>
+<li><strong><code>0.0.0+sha</code> is semantically unordered.</strong> Semver build metadata (the <code>+</code> segment) has no defined
+precedence — <code>0.0.0+abc</code> and <code>0.0.0+def</code> are equal. This rules out any tooling that relies on
+version ordering (including Renovate).</li>
+<li><strong>Manual PRs at high velocity.</strong> With several merges per day, repeatedly bumping <code>targetRevision</code>
+by hand is a significant source of toil.</li>
+</ul>
+<hr>
+<h3 id="phase-1--fix-the-chartimage-version-link"><a class="header" href="#phase-1--fix-the-chartimage-version-link">Phase 1 — fix the chart/image version link</a></h3>
+<p><strong>What changed:</strong></p>
+<ul>
+<li>The <code>helm package</code> step passes <code>--app-version ${{ github.sha }}</code>, embedding the git SHA into
+<code>Chart.appVersion</code>.</li>
+<li>The Helm <code>Deployment</code> template uses <code>appVersion</code> as the fallback image tag:
+<pre><code class="language-yaml">image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+</code></pre>
+</li>
+<li><code>values.yaml</code> clears <code>image.tag</code> (previously hardcoded to <code>edge</code>) and sets
+<code>pullPolicy: IfNotPresent</code> as the chart default. SHA tags are immutable; <code>Always</code> is wasteful when
+the image cannot have changed.</li>
+</ul>
+<p><strong>Result:</strong> A pinned chart version guarantees a pinned image. <code>image.tag</code> remains overridable via
+values, which is used in Phase 2.</p>
+<hr>
+<h3 id="phase-2--production-uses-edge-for-fast-iteration"><a class="header" href="#phase-2--production-uses-edge-for-fast-iteration">Phase 2 — production uses <code>edge</code> for fast iteration</a></h3>
+<p><strong>What changed:</strong></p>
+<ul>
+<li>The ArgoCD <code>valuesObject</code> in <code>runtime-environment-provisioner</code> adds:
+<pre><code class="language-yaml">image:
+  tag: edge
+  pullPolicy: Always
+</code></pre>
+</li>
+</ul>
+<p><strong>Result:</strong> Production picks up the latest image on every pod restart or rollout without requiring a
+chart bump PR. With several merges per day and no live consumers at this stage, this removes the
+manual PR toil during the highest-velocity period of development.</p>
+<p><strong>Trade-off:</strong> The <code>edge</code> override is a known, intentional deviation from the lockstep intent. The
+deployed image is not pinned. This is acceptable while there are no consumers; it must be removed
+before the service takes on production traffic (Phase 3).</p>
+<blockquote>
+<p><strong>Note:</strong> Phases 1 and 2 are a single implementation effort, listed separately because Phase 1 is
+a change in this repo and Phase 2 is a values change in <code>runtime-environment-provisioner</code>.</p>
+</blockquote>
+<hr>
+<h3 id="phase-3--remove-edge-override-enforce-lockstep-in-production"><a class="header" href="#phase-3--remove-edge-override-enforce-lockstep-in-production">Phase 3 — remove <code>edge</code> override (enforce lockstep in production)</a></h3>
+<p><strong>Trigger:</strong> The service has external consumers and a bad deploy has real consequences.</p>
+<p><strong>What changed:</strong></p>
+<ul>
+<li>The <code>image.tag: edge</code> and <code>pullPolicy: Always</code> overrides are removed from the production
+<code>valuesObject</code> in <code>runtime-environment-provisioner</code>.</li>
+<li>The chart’s <code>appVersion</code> (the git SHA baked in at publish time) becomes the live image tag.</li>
+<li>Deploying a new image now requires a chart bump PR to REP.</li>
+</ul>
+<p><strong>Result:</strong> The lockstep intent is fully enforced in production. Every code change produces a new
+chart version; bumping to that version in REP is the single operation that updates the running
+orchestrator.</p>
+<hr>
+<h2 id="summary"><a class="header" href="#summary">Summary</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Phase</th><th>Image tag in production</th><th>Lockstep enforced?</th><th>Automation</th></tr>
+</thead>
+<tbody>
+<tr><td>0</td><td><code>edge</code> (hardcoded in values)</td><td>No</td><td>None — manual PRs to REP</td></tr>
+<tr><td>1 + 2</td><td><code>edge</code> (values override)</td><td>No — intentional deviation</td><td>None — manual PRs to REP</td></tr>
+<tr><td>3</td><td>Git SHA (<code>appVersion</code>)</td><td>Yes</td><td>None — manual PRs to REP</td></tr>
+</tbody>
+</table>
+</div>
 <div style="break-before: page; page-break-before: always;"></div><!-- diataxis-type: explanation -->
 <h1 id="plumbing-vs-porcelain"><a class="header" href="#plumbing-vs-porcelain">Plumbing vs porcelain</a></h1>
 <p>The CLI subcommands are split into two different concepts; porcelain and plumbing.</p>

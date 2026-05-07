@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Glossary - Runtime Testing Framework</title>
+        <title>Orchestrator Helm Chart Versioning - Runtime Testing Framework</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
-        <link rel="stylesheet" href="../css/variables-8adf115d.css">
-        <link rel="stylesheet" href="../css/general-2459343d.css">
-        <link rel="stylesheet" href="../css/chrome-ae938929.css">
-        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../../css/general-2459343d.css">
+        <link rel="stylesheet" href="../../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "../";
+            const path_to_root = "../../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-3088e62e.js";
+            window.path_to_searchindex_js = "../../searchindex-3088e62e.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-fd605a4a.js"></script>
+        <script src="../../toc-fd605a4a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">Runtime Testing Framework</h1>
 
                     <div class="right-buttons">
-                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/apollographql/runtime-testing-framework" title="Git repository" aria-label="Git repository">
@@ -177,69 +177,141 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <!-- diataxis-type: reference -->
-<h1 id="glossary"><a class="header" href="#glossary">Glossary</a></h1>
-<h2 id="custom-provider-declaration"><a class="header" href="#custom-provider-declaration">Custom Provider Declaration</a></h2>
-<p>A YAML snippet within an RTF configuration file (Test Plan, Environment or Scenario) that specifies
-where to load Custom Provider Definitions from. This maps Custom Provider Definitions to the name
-used to reference them in a Custom Provider. An RTF configuration file can only use Custom Providers
-defined in its Custom Provider Declaration.</p>
-<h2 id="custom-provider-definition"><a class="header" href="#custom-provider-definition">Custom Provider Definition</a></h2>
-<p>An RTF YAML file for specifying a reusable Custom Provider. A Custom Provider Definition specifies
-the Variables, File Providers and Command required to produce one or more files from the arguments
-supplied to a Custom Provider. Custom Provider Definitions support Templating using arguments from
-the invoking Custom Provider.</p>
-<h2 id="environment"><a class="header" href="#environment">Environment</a></h2>
-<p>An RTF configuration file for specifying how to set up and tear down the services and infrastructure
-under test using Command and File providers. Like all RTF configuration files, Environment
-configurations support Templating using Variables from the Test Plan.</p>
-<h2 id="provider"><a class="header" href="#provider">Provider</a></h2>
-<p>A self contained piece of functionality within RTF that can provide file content for use in
-executing commands found in a Scenario or Environment configuration. Providers are declared as part
-of RTF configuration files by specifying their kind and the parameters needed to run them.</p>
-<h3 id="command-provider"><a class="header" href="#command-provider">Command Provider</a></h3>
-<p>A Provider that defines an executable command along with environment variables and a set of attached
-File Providers whose content will be made available to the command when it is run. The purpose of
-each of the Scenario and Environment configuration files is to parameterise, resolve and run one or
-more Command Providers.</p>
-<h3 id="custom-provider"><a class="header" href="#custom-provider">Custom Provider</a></h3>
-<p>A Provider that uses a Custom Provider Definition to execute a Command to produce one or more files.
-Custom Providers generate file(s) using the arguments provided.</p>
-<h3 id="file-provider"><a class="header" href="#file-provider">File Provider</a></h3>
-<p>A Provider that will write out one or more files into a Test Plan’s output directory when resolved.
-File Providers range from being completely general purpose (e.g. pulling an arbitrary file from
-GitHub) to generating data specific to the Test Plan being resolved (e.g. generating valid GraphQL
-operations to run against the supergraph under test).</p>
-<h2 id="rtf"><a class="header" href="#rtf">RTF</a></h2>
-<p>May refer to either the Runtime Testing Framework as a whole or the <code>rtf</code> CLI which is used to
-resolve and run Test Plans.</p>
-<h2 id="scenario"><a class="header" href="#scenario">Scenario</a></h2>
-<p>An RTF configuration file for specifying how to run a test against services spun up by an
-Environment configuration using Command and File providers. Like all RTF configuration files,
-Scenario configurations support Templating using Variables from the Test Plan.</p>
-<h2 id="templating"><a class="header" href="#templating">Templating</a></h2>
-<p>The use of template strings within RTF configuration files for declaring how users of that
-configuration file may specify how to set Provider parameters and Command Provider environment
-variables. Template strings are denoted with opening and closing double braces surrounding the name
-of the Variable to inject with a single space at either side: <code>"{{ my_variable }}"</code></p>
-<h2 id="test-plan"><a class="header" href="#test-plan">Test Plan</a></h2>
-<p>The main RTF configuration file that defines an runnable test by combining a Scenario configuration
-with the Environment configuration it should be executed against. If either the Scenario or
-Environment supports Templating Variables then they can be specified statically as part of the Test
-Plan itself or dynamically through command line arguments to the RTF CLI.</p>
-<h2 id="variables"><a class="header" href="#variables">Variables</a></h2>
-<p>Templating Variables are declared within the Scenario and Environment configuration files and have
-their values defined within the Test Plan referencing those configuration files.</p>
+                        <!-- diataxis-type: explanation -->
+<h1 id="orchestrator-helm-chart-versioning-policy"><a class="header" href="#orchestrator-helm-chart-versioning-policy">Orchestrator Helm chart versioning policy</a></h1>
+<p>This document records the decisions behind how we version and deploy the <code>rep-orchestrator</code> Helm
+chart, the rationale for the phased approach, and the options that were considered and rejected.</p>
+<p><strong>When a phase is completed, update the <a href="#current-phase">Current phase</a> section to reflect actual state. The
+phase descriptions below are a permanent historical record of what was done and why — they should
+not be edited after the fact.</strong></p>
+<h2 id="current-phase"><a class="header" href="#current-phase">Current phase</a></h2>
+<blockquote>
+<p><strong>Phase 1 + 2 — chart/image link fixed; production uses <code>edge</code> for fast iteration</strong></p>
+<p>The chart is published with version <code>0.0.0+&lt;git-sha&gt;</code> and <code>appVersion</code> set to the git SHA. A
+pinned chart version guarantees a pinned image via the <code>appVersion</code> fallback in the Deployment
+template. Production overrides <code>image.tag: edge</code> and <code>pullPolicy: Always</code> in the ArgoCD
+<code>valuesObject</code>, so pods pick up the latest image on every rollout without a chart bump PR.
+Production is still updated by manually opening a PR on <code>runtime-environment-provisioner</code> to bump
+<code>targetRevision</code>.</p>
+</blockquote>
+<h2 id="design-intent"><a class="header" href="#design-intent">Design intent</a></h2>
+<p>The chart and image are published together on every code merge by design. The intent is that
+updating the Helm chart is the canonical way to update the orchestrator — a chart version change
+implies a software change, and a software change produces a new chart version. This keeps deployment
+straightforward: there is one thing to bump (the chart), and it brings everything with it.</p>
+<h2 id="options-considered"><a class="header" href="#options-considered">Options considered</a></h2>
+<p>Before settling on the phased approach, three alternatives were evaluated:</p>
+<h3 id="option-a--rolling-tag-prod--latest"><a class="header" href="#option-a--rolling-tag-prod--latest">Option A — rolling tag (<code>prod</code> / <code>latest</code>)</a></h3>
+<p>Publish the chart under a mutable tag and point ArgoCD at it so it auto-tracks.</p>
+<p><strong>Rejected.</strong> ArgoCD’s OCI Helm source requires an exact <code>targetRevision</code> string; it cannot track a
+mutable tag or a semver range. It would pull the tag once at install time and never update. Making
+this work would require ArgoCD Image Updater, an additional operational dependency. More
+fundamentally, with no staging environment between <code>main</code> and production, a mutable tag means any
+bad merge silently redeploys with no human checkpoint — unacceptable as we approach live consumers.</p>
+<h3 id="option-b--immediate-move-to-semver"><a class="header" href="#option-b--immediate-move-to-semver">Option B — immediate move to semver</a></h3>
+<p>Replace <code>0.0.0+sha</code> with incrementing semver (<code>0.1.0</code>, <code>0.1.1</code>, …) from the outset.</p>
+<p><strong>Rejected for now.</strong> ArgoCD OCI still requires an exact version; semver ranges do not work, so we
+gain no auto-tracking benefit. During early active development (several merges per day) we would
+accumulate hundreds of patch versions with no semantic distinction between them.</p>
+<h3 id="option-c--sha-pinning-with-phased-improvement-chosen"><a class="header" href="#option-c--sha-pinning-with-phased-improvement-chosen">Option C — SHA pinning with phased improvement (chosen)</a></h3>
+<p>Keep SHA-based pinning but fix its problems in layers, making the process progressively more
+automated and semantically correct as the service matures.</p>
+<h2 id="phase-history"><a class="header" href="#phase-history">Phase history</a></h2>
+<h3 id="phase-0--baseline"><a class="header" href="#phase-0--baseline">Phase 0 — Baseline</a></h3>
+<p><strong>State:</strong></p>
+<ul>
+<li>Chart published as <code>0.0.0+&lt;git-sha&gt;</code> on every merge to <code>main</code> that touches <code>crates/**</code>.</li>
+<li>Image published with tags: full git SHA, <code>main-&lt;short-sha&gt;</code>, and mutable <code>edge</code>.</li>
+<li><code>values.yaml</code> hardcodes <code>image.tag: edge</code> — every chart version deploys whatever <code>edge</code> points to
+at rollout time, regardless of the chart’s own SHA.</li>
+<li>Production updated by manually opening a PR on <code>runtime-environment-provisioner</code> to bump
+<code>targetRevision</code>.</li>
+</ul>
+<p><strong>Problems that motivated moving to Phase 1:</strong></p>
+<ul>
+<li><strong>Chart and image are decoupled.</strong> Pinning a chart version does not guarantee a pinned image. The
+SHA in the chart version identifies the templates, not the running binary, contradicting the
+lockstep intent.</li>
+<li><strong><code>0.0.0+sha</code> is semantically unordered.</strong> Semver build metadata (the <code>+</code> segment) has no defined
+precedence — <code>0.0.0+abc</code> and <code>0.0.0+def</code> are equal. This rules out any tooling that relies on
+version ordering (including Renovate).</li>
+<li><strong>Manual PRs at high velocity.</strong> With several merges per day, repeatedly bumping <code>targetRevision</code>
+by hand is a significant source of toil.</li>
+</ul>
+<hr>
+<h3 id="phase-1--fix-the-chartimage-version-link"><a class="header" href="#phase-1--fix-the-chartimage-version-link">Phase 1 — fix the chart/image version link</a></h3>
+<p><strong>What changed:</strong></p>
+<ul>
+<li>The <code>helm package</code> step passes <code>--app-version ${{ github.sha }}</code>, embedding the git SHA into
+<code>Chart.appVersion</code>.</li>
+<li>The Helm <code>Deployment</code> template uses <code>appVersion</code> as the fallback image tag:
+<pre><code class="language-yaml">image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+</code></pre>
+</li>
+<li><code>values.yaml</code> clears <code>image.tag</code> (previously hardcoded to <code>edge</code>) and sets
+<code>pullPolicy: IfNotPresent</code> as the chart default. SHA tags are immutable; <code>Always</code> is wasteful when
+the image cannot have changed.</li>
+</ul>
+<p><strong>Result:</strong> A pinned chart version guarantees a pinned image. <code>image.tag</code> remains overridable via
+values, which is used in Phase 2.</p>
+<hr>
+<h3 id="phase-2--production-uses-edge-for-fast-iteration"><a class="header" href="#phase-2--production-uses-edge-for-fast-iteration">Phase 2 — production uses <code>edge</code> for fast iteration</a></h3>
+<p><strong>What changed:</strong></p>
+<ul>
+<li>The ArgoCD <code>valuesObject</code> in <code>runtime-environment-provisioner</code> adds:
+<pre><code class="language-yaml">image:
+  tag: edge
+  pullPolicy: Always
+</code></pre>
+</li>
+</ul>
+<p><strong>Result:</strong> Production picks up the latest image on every pod restart or rollout without requiring a
+chart bump PR. With several merges per day and no live consumers at this stage, this removes the
+manual PR toil during the highest-velocity period of development.</p>
+<p><strong>Trade-off:</strong> The <code>edge</code> override is a known, intentional deviation from the lockstep intent. The
+deployed image is not pinned. This is acceptable while there are no consumers; it must be removed
+before the service takes on production traffic (Phase 3).</p>
+<blockquote>
+<p><strong>Note:</strong> Phases 1 and 2 are a single implementation effort, listed separately because Phase 1 is
+a change in this repo and Phase 2 is a values change in <code>runtime-environment-provisioner</code>.</p>
+</blockquote>
+<hr>
+<h3 id="phase-3--remove-edge-override-enforce-lockstep-in-production"><a class="header" href="#phase-3--remove-edge-override-enforce-lockstep-in-production">Phase 3 — remove <code>edge</code> override (enforce lockstep in production)</a></h3>
+<p><strong>Trigger:</strong> The service has external consumers and a bad deploy has real consequences.</p>
+<p><strong>What changed:</strong></p>
+<ul>
+<li>The <code>image.tag: edge</code> and <code>pullPolicy: Always</code> overrides are removed from the production
+<code>valuesObject</code> in <code>runtime-environment-provisioner</code>.</li>
+<li>The chart’s <code>appVersion</code> (the git SHA baked in at publish time) becomes the live image tag.</li>
+<li>Deploying a new image now requires a chart bump PR to REP.</li>
+</ul>
+<p><strong>Result:</strong> The lockstep intent is fully enforced in production. Every code change produces a new
+chart version; bumping to that version in REP is the single operation that updates the running
+orchestrator.</p>
+<hr>
+<h2 id="summary"><a class="header" href="#summary">Summary</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Phase</th><th>Image tag in production</th><th>Lockstep enforced?</th><th>Automation</th></tr>
+</thead>
+<tbody>
+<tr><td>0</td><td><code>edge</code> (hardcoded in values)</td><td>No</td><td>None — manual PRs to REP</td></tr>
+<tr><td>1 + 2</td><td><code>edge</code> (values override)</td><td>No — intentional deviation</td><td>None — manual PRs to REP</td></tr>
+<tr><td>3</td><td>Git SHA (<code>appVersion</code>)</td><td>Yes</td><td>None — manual PRs to REP</td></tr>
+</tbody>
+</table>
+</div>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../reference/cli-help.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../../developer/explanation/cli-design/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../developer/explanation/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../developer/explanation/cli-design/plumbing-vs-porcelain.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -249,11 +321,11 @@ their values defined within the Test Plan referencing those configuration files.
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../reference/cli-help.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../developer/explanation/cli-design/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../developer/explanation/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../developer/explanation/cli-design/plumbing-vs-porcelain.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -272,19 +344,19 @@ their values defined within the Test Plan referencing those configuration files.
             window.playground_copyable = true;
         </script>
 
-        <script src="../ace-2a3cd908.js"></script>
-        <script src="../mode-rust-2c9d5c9a.js"></script>
-        <script src="../editor-16ca416c.js"></script>
-        <script src="../theme-dawn-4493f9c8.js"></script>
-        <script src="../theme-tomorrow_night-9dbe62a9.js"></script>
+        <script src="../../ace-2a3cd908.js"></script>
+        <script src="../../mode-rust-2c9d5c9a.js"></script>
+        <script src="../../editor-16ca416c.js"></script>
+        <script src="../../theme-dawn-4493f9c8.js"></script>
+        <script src="../../theme-tomorrow_night-9dbe62a9.js"></script>
 
-        <script src="../elasticlunr-ef4e11c1.min.js"></script>
-        <script src="../mark-09e88c2c.min.js"></script>
-        <script src="../searcher-c2a407aa.js"></script>
+        <script src="../../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../../mark-09e88c2c.min.js"></script>
+        <script src="../../searcher-c2a407aa.js"></script>
 
-        <script src="../clipboard-1626706a.min.js"></script>
-        <script src="../highlight-abc7f01d.js"></script>
-        <script src="../book-a0b12cfe.js"></script>
+        <script src="../../clipboard-1626706a.min.js"></script>
+        <script src="../../highlight-abc7f01d.js"></script>
+        <script src="../../book-a0b12cfe.js"></script>
 
         <!-- Custom JS scripts -->
 
