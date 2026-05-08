@@ -13,6 +13,10 @@ spec:
     metadata:
       labels:
         {{- include "rep-orchestrator.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -126,6 +130,10 @@ spec:
               path: /health
               port: {{ .Values.service.port }}
             periodSeconds: 5
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
         {{- if .Values.cloudSqlProxy.enabled }}
         - name: cloud-sql-proxy
           image: {{ .Values.cloudSqlProxy.image }}

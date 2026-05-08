@@ -7,6 +7,12 @@ imagePullSecrets: []
 
 command: []
 
+podAnnotations: {}
+
+resources:
+  limits: {}
+  requests: {}
+
 service:
   create: true
   port: 8035
