@@ -670,6 +670,8 @@ mod tests {
             src: None,
         });
 
-        let _res = provider.inline(&InlineMode::All, &ctx).await;
+        let _res = provider
+            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .await;
     }
 }

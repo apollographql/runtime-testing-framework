@@ -6,7 +6,7 @@ use crate::{
     StableSource,
     checks::{Check, CheckArrayDuplicates},
     context::ResolutionContext,
-    inlining::{self, InlineMode},
+    inlining::{self, InlineMode, InlinedProvider},
     providers::{
         self,
         command::CommandProvider,
@@ -196,6 +196,7 @@ pub trait RunProviders: Send + Sync {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>>;
 }
 
@@ -210,12 +211,13 @@ impl RunProviders for Vec<NamedFileProvider> {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
             for nfp in self.iter_mut() {
-                errs.append(nfp.provider.inline(mode, ctx).await);
+                errs.append(nfp.provider.inline(mode, ctx, cache).await);
             }
 
             errs.into_result(())
@@ -239,12 +241,13 @@ impl RunProviders for Vec<NamedComposeFileProvider> {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
             for nfp in self.iter_mut() {
-                errs.append(nfp.provider.inline(mode, ctx).await);
+                errs.append(nfp.provider.inline(mode, ctx, cache).await);
             }
 
             errs.into_result(())

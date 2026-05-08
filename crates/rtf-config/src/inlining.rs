@@ -1,4 +1,10 @@
-use crate::{providers, templating};
+use crate::{
+    providers,
+    providers::file::{InlineDir, InlineFile},
+    templating,
+};
+use serde::Serialize;
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 /// User facing descriptions of the reason that inlining a [`crate::providers::file::RelativeFile`] failed.
 ///
@@ -55,4 +61,29 @@ impl From<templating::Errors> for Errors {
 pub enum InlineMode {
     All,
     RelativeFiles,
+}
+
+/// The cached result of fully resolving a file provider during inlining.
+#[derive(Debug, Clone)]
+pub enum InlinedProvider {
+    File(InlineFile),
+    Dir(InlineDir),
+}
+
+/// Compute a stable `u64` cache key for a serializable provider.
+///
+/// We rely on YAML serialization to produce a canonical byte representation which we then hash to
+/// generate the key in order to avoid arbitrary length strings as keys for the cache.
+/// This means that two providers with identical YAML representations will produce the same cache
+/// key, which is fine as we would deserialize them as the same type from YAML anyway.
+pub(crate) fn provider_cache_key<T>(value: &T) -> u64
+where
+    T: Serialize,
+{
+    let mut hasher = DefaultHasher::new();
+    serde_yaml::to_string(value)
+        .expect("to serialize")
+        .hash(&mut hasher);
+
+    hasher.finish()
 }

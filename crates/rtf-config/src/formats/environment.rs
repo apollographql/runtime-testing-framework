@@ -5,7 +5,7 @@ use crate::{
     context::{PathKind, ResolutionContext},
     enum_impl_check,
     formats::{CustomProviderDeclaration, Result},
-    inlining::{self, InlineMode},
+    inlining::{self, InlineMode, InlinedProvider},
     providers::{
         self,
         command::CommandSection,
@@ -95,8 +95,9 @@ impl<R: RunEnvironment> EnvironmentConfig<R> {
         &mut self,
         mode: &InlineMode,
         ctx: &impl ResolutionContext,
+        cache: &mut HashMap<u64, InlinedProvider>,
     ) -> inlining::Result<()> {
-        self.execution.inline(mode, ctx).await
+        self.execution.inline(mode, ctx, cache).await
     }
 }
 
@@ -240,10 +241,11 @@ impl RunProviders for EnvironmentExecution {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         match self {
-            EnvironmentExecution::DockerCompose(inner) => inner.inline(mode, ctx),
-            EnvironmentExecution::Script(inner) => inner.inline(mode, ctx),
+            EnvironmentExecution::DockerCompose(inner) => inner.inline(mode, ctx, cache),
+            EnvironmentExecution::Script(inner) => inner.inline(mode, ctx, cache),
         }
     }
 }
@@ -316,12 +318,13 @@ impl RunProviders for ScriptEnvironment {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
-            errs.append(self.setup.inline(mode, ctx).await);
-            errs.append(self.teardown.inline(mode, ctx).await);
+            errs.append(self.setup.inline(mode, ctx, cache).await);
+            errs.append(self.teardown.inline(mode, ctx, cache).await);
 
             errs.into_result(())
         })
@@ -643,12 +646,13 @@ impl RunProviders for DockerComposeEnvironment {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
-            errs.append(self.compose_files.inline(mode, ctx).await);
-            errs.append(self.file_providers.inline(mode, ctx).await);
+            errs.append(self.compose_files.inline(mode, ctx, cache).await);
+            errs.append(self.file_providers.inline(mode, ctx, cache).await);
 
             errs.into_result(())
         })
@@ -1506,7 +1510,9 @@ pub(crate) mod tests {
             ..EnvironmentConfig::empty()
         };
 
-        let result = environment.inline(&InlineMode::All, &ctx).await;
+        let result = environment
+            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
 
@@ -1570,7 +1576,9 @@ pub(crate) mod tests {
             ..EnvironmentConfig::empty()
         };
 
-        let result = environment.inline(&InlineMode::All, &ctx).await;
+        let result = environment
+            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
 

@@ -3,7 +3,7 @@ use crate::{
     checks::{self, Check, CheckArrayDuplicates, DedupArray, duplicate_keys},
     context::ResolutionContext,
     enum_impl_check, enum_impl_resolve_and_write,
-    inlining::{self, InlineMode},
+    inlining::{self, InlineMode, InlinedProvider},
     providers::{
         self,
         file::{
@@ -104,12 +104,13 @@ impl RunProviders for CommandSection {
         &'a mut self,
         mode: &'a InlineMode,
         ctx: &'a impl ResolutionContext,
+        cache: &'a mut HashMap<u64, InlinedProvider>,
     ) -> Pin<Box<dyn Future<Output = inlining::Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut errs = inlining::ErrorBuilder::new();
 
-            errs.append(self.command.command_provider.inline(mode, ctx).await);
-            errs.append(self.file_providers.inline(mode, ctx).await);
+            errs.append(self.command.command_provider.inline(mode, ctx, cache).await);
+            errs.append(self.file_providers.inline(mode, ctx, cache).await);
             errs.into_result(())
         })
     }
@@ -264,6 +265,7 @@ impl CommandProvider {
         &mut self,
         mode: &InlineMode,
         ctx: &impl ResolutionContext,
+        _cache: &mut HashMap<u64, InlinedProvider>,
     ) -> inlining::Result<()> {
         match (&mut *self, mode) {
             (CommandProvider::RelativePath(inner), _) => {
@@ -942,7 +944,7 @@ mod tests {
         });
 
         let result = command_provider
-            .inline(&InlineMode::RelativeFiles, &ctx)
+            .inline(&InlineMode::RelativeFiles, &ctx, &mut HashMap::new())
             .await;
         assert!(
             result.is_ok(),
@@ -967,7 +969,7 @@ mod tests {
         let expected_command_provider = command_provider.clone();
 
         let result = command_provider
-            .inline(&InlineMode::RelativeFiles, &ctx)
+            .inline(&InlineMode::RelativeFiles, &ctx, &mut HashMap::new())
             .await;
         assert!(
             result.is_ok(),
@@ -1022,7 +1024,9 @@ mod tests {
             ],
         };
 
-        let result = command_section.inline(&InlineMode::All, &ctx).await;
+        let result = command_section
+            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .await;
         assert!(
             result.is_ok(),
             "Expected inlining relative paths to succeed, got {result:?}"
@@ -1101,7 +1105,7 @@ mod tests {
         };
 
         let result = command_section
-            .inline(&InlineMode::RelativeFiles, &ctx)
+            .inline(&InlineMode::RelativeFiles, &ctx, &mut HashMap::new())
             .await;
         assert!(
             result.is_ok(),

@@ -3,7 +3,7 @@ use crate::{
     checks::{self, Check},
     context::ResolutionContext,
     enum_impl_as_utf8_file_content, enum_impl_check,
-    inlining::{self, InlineMode},
+    inlining::{self, InlineMode, InlinedProvider},
     merge_yaml,
     providers::file::StableSource,
     providers::{
@@ -409,8 +409,9 @@ impl FromCommand {
         &mut self,
         mode: &InlineMode,
         ctx: &impl ResolutionContext,
+        cache: &mut HashMap<u64, InlinedProvider>,
     ) -> inlining::Result<()> {
-        self.inner.inline(mode, ctx).await
+        self.inner.inline(mode, ctx, cache).await
     }
 }
 
@@ -1179,7 +1180,9 @@ mod tests {
             })),
         });
 
-        let result = file_provider.inline(&InlineMode::All, &ctx).await;
+        let result = file_provider
+            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .await;
 
         assert!(result.is_ok(), "Expected inline to succeed, got {result:?}");
         assert_eq!(
@@ -1209,7 +1212,9 @@ mod tests {
             }],
         });
 
-        let _res = file_provider.inline(&InlineMode::All, &ctx).await;
+        let _res = file_provider
+            .inline(&InlineMode::All, &ctx, &mut HashMap::new())
+            .await;
     }
 
     fn templated(content: &str) -> TemplatedFile {
