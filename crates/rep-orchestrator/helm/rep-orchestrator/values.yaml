@@ -58,9 +58,9 @@ db:
   password: null  # set to enable password auth; omit when using Cloud SQL Proxy IAM auth
 
 serviceAccount:
-  name: null        # when set, creates the SA and cluster-api RBAC; also sets serviceAccountName on the pod
-  annotations:
-    iam.gke.io/gcp-service-account: orchestrator@runtime-testing-framework.iam.gserviceaccount.com
+  create: false
+  name: ""
+  annotations: {}
 
 k8s:
   management:

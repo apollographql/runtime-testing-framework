@@ -18,8 +18,8 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.serviceAccount.name }}
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "rep-orchestrator.serviceAccountName" . }}
       {{- end }}
       containers:
         - name: rep-orchestrator
