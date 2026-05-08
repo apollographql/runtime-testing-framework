@@ -292,13 +292,17 @@ struct ExLine {
 
 impl From<&TestExecutionSummary> for ExLine {
     fn from(s: &TestExecutionSummary) -> Self {
-        let message: String = s.status_history[0]
+        let mut message: String = s.status_history[0]
             .message
             .clone()
             .unwrap_or_default()
             .chars()
             .take(MAX_MESSAGE_CHARS)
             .collect();
+
+        if message.chars().count() < MAX_MESSAGE_CHARS {
+            message.extend(vec![' '; MAX_MESSAGE_CHARS - message.len()]);
+        }
 
         Self {
             name: s.name.clone(),
