@@ -16,6 +16,8 @@ use crate::{
     k8s::ClusterClients,
     resolver::{ResolverError, ResolverInput},
 };
+use std::time::Duration;
+use tokio::{spawn, time::sleep};
 use tracing::{error, warn};
 
 mod cleanup_namespace;
@@ -37,6 +39,7 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
         orchestrator_url,
         toolbox_pull_policy,
         kubeconfig_secret_name,
+        failed_execution_ttl_secs,
         ..
     } = Config::get();
 
@@ -67,7 +70,7 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
                 if requires_cleanup {
                     let _ = tx.send(Event {
                         test_execution: evt.test_execution,
-                        data: EventData::CleanupNamespace,
+                        data: EventData::CleanupNamespaceAfter(*failed_execution_ttl_secs),
                     });
                 }
 
@@ -81,6 +84,7 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
                 orchestrator_url,
                 toolbox_pull_policy,
                 kubeconfig_secret_name,
+                *failed_execution_ttl_secs,
                 clients,
             )
             .await
@@ -140,6 +144,7 @@ pub enum EventData {
     WaitForScenarioJob,
 
     CleanupNamespace,
+    CleanupNamespaceAfter(u64),
     MarkUnrunnable(String),
 }
 
@@ -154,6 +159,7 @@ impl EventData {
             Self::CreateScenarioJob { .. } => "CreateScenarioJob",
             Self::WaitForScenarioJob => "WaitForScenarioJob",
             Self::MarkUnrunnable(_) => "MarkUnrunnable",
+            Self::CleanupNamespaceAfter(_) => "CleanupNamespaceAfter",
             Self::CleanupNamespace => "CleanupNamespace",
         }
     }
@@ -187,6 +193,7 @@ impl Event {
         orchestrator_url: &str,
         toolbox_pull_policy: &str,
         kubeconfig_secret_name: &str,
+        failed_execution_ttl_seconds: u64,
         clients: ClusterClients,
     ) -> Result<()> {
         let conn = conn!();
@@ -217,6 +224,7 @@ impl Event {
             EventData::WaitForEnvArgoWorkflow => {
                 provision_environment::wait_for_workflow(
                     self.test_execution.clone(),
+                    failed_execution_ttl_seconds,
                     event_queue.tx(),
                     clients,
                     conn,
@@ -259,11 +267,27 @@ impl Event {
             EventData::WaitForScenarioJob => {
                 run_scenario::wait_for_job(
                     self.test_execution.clone(),
+                    failed_execution_ttl_seconds,
                     event_queue.tx(),
                     clients,
                     conn,
                 )
                 .await
+            }
+
+            EventData::CleanupNamespaceAfter(ttl_secs) => {
+                let tx = event_queue.tx();
+                let test_execution = self.test_execution.clone();
+
+                spawn(async move {
+                    sleep(Duration::from_secs(ttl_secs)).await;
+                    _ = tx.send(Event {
+                        test_execution,
+                        data: EventData::CleanupNamespace,
+                    });
+                });
+
+                Ok(None)
             }
 
             EventData::CleanupNamespace => {
@@ -303,7 +327,7 @@ impl Event {
                 if cleanup_on_error {
                     let _ = event_queue.tx().send(Event {
                         test_execution: self.test_execution,
-                        data: EventData::CleanupNamespace,
+                        data: EventData::CleanupNamespaceAfter(failed_execution_ttl_seconds),
                     });
                 }
             }

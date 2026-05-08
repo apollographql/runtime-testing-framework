@@ -38,6 +38,8 @@ pub struct Config {
     pub gcs_bucket: String,
     #[serde(default = "default_gcs_url_ttl_secs")]
     pub gcs_url_ttl_secs: u64,
+    #[serde(default = "default_failed_execution_ttl_secs")]
+    pub failed_execution_ttl_secs: u64,
     #[serde(default)]
     pub mock_internal_gcs_url: Option<String>,
     #[serde(default)]
@@ -79,5 +81,10 @@ fn default_gcs_url_ttl_secs() -> u64 {
 
 fn default_kubeconfig_secret_name() -> String {
     warn!("RTF_KUBECONFIG_SECRET_NAME not set. Using default value for local cluster");
+
     "workload-kubeconfig".to_string()
+}
+
+fn default_failed_execution_ttl_secs() -> u64 {
+    600
 }

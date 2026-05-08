@@ -45,6 +45,7 @@ config:
   maxQueuedExecutions: "100"
   orchestratorUrl: ""   # required; must be reachable from both mgmt and workload cluster pods
   toolboxPullPolicy: "Always"
+  failedExecutionTtlSecs: "600"
 
 github:
   appId: ""            # required; GitHub App ID

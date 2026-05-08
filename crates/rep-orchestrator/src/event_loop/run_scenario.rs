@@ -55,6 +55,7 @@ where
 
 pub(super) async fn wait_for_job<K, H>(
     test_execution: TestExecution,
+    failed_execution_ttl_seconds: u64,
     etx: UnboundedSender<Event>,
     clients: K,
     conn: &mut H,
@@ -71,7 +72,14 @@ where
         .await;
 
     tokio::spawn(async move {
-        wait_and_update(&namespace, test_execution, &etx, clients).await;
+        wait_and_update(
+            &namespace,
+            test_execution,
+            failed_execution_ttl_seconds,
+            &etx,
+            clients,
+        )
+        .await;
     });
 
     Ok(None)
@@ -80,6 +88,7 @@ where
 async fn wait_and_update<K>(
     namespace: &str,
     test_execution: TestExecution,
+    failed_execution_ttl_seconds: u64,
     etx: &UnboundedSender<Event>,
     clients: K,
 ) where
@@ -100,7 +109,7 @@ async fn wait_and_update<K>(
             warn!(%execution_id, %reason, "job failed");
             vec![
                 EventData::MarkUnrunnable(WatchOutcome::Failed(reason).to_string()),
-                EventData::CleanupNamespace,
+                EventData::CleanupNamespaceAfter(failed_execution_ttl_seconds),
             ]
         }
 
@@ -109,7 +118,7 @@ async fn wait_and_update<K>(
 
             vec![
                 EventData::MarkUnrunnable(reason.to_string()),
-                EventData::CleanupNamespace,
+                EventData::CleanupNamespaceAfter(failed_execution_ttl_seconds),
             ]
         }
 
@@ -117,7 +126,7 @@ async fn wait_and_update<K>(
             warn!(%execution_id, %outcome, "unable to determine state of job");
             vec![
                 EventData::MarkUnrunnable(outcome.to_string()),
-                EventData::CleanupNamespace,
+                EventData::CleanupNamespaceAfter(failed_execution_ttl_seconds),
             ]
         }
     };
@@ -164,7 +173,7 @@ mod tests {
         assert!(res.is_ok(), "create_job: {res:?}");
 
         // wait for job to complete
-        let res = wait_for_job(ex, etx, clients, &mut handle).await;
+        let res = wait_for_job(ex, 600, etx, clients, &mut handle).await;
         assert!(res.is_ok(), "wait_for_job: {res:?}");
 
         use Status::*;
@@ -219,38 +228,16 @@ mod tests {
         };
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update("test-namespace", ex, &etx, clients).await;
+        wait_and_update("test-namespace", ex, 600, &etx, clients).await;
 
         let evt = erx.try_recv().unwrap();
         assert!(matches!(evt.data, EventData::CleanupNamespace), "{evt:?}");
     }
 
-    #[tokio::test]
-    async fn wait_and_update_submits_mark_unrunnable_and_cleanup_on_container_unrunnable() {
-        let ex = TestExecution::create_stub(1, 1, 0, "test");
-        let clients = MockClient {
-            wait_for_job: Resp::new(WatchOutcome::ContainerUnrunnable("ImagePullBackOff".into())),
-            ..MockClient::default_ok()
-        };
-        let (etx, mut erx) = mpsc::unbounded_channel();
-
-        wait_and_update("test-namespace", ex, &etx, clients).await;
-
-        let first = erx.try_recv().unwrap();
-        let second = erx.try_recv().unwrap();
-        assert!(
-            matches!(first.data, EventData::MarkUnrunnable(_)),
-            "{first:?}"
-        );
-        assert!(
-            matches!(second.data, EventData::CleanupNamespace),
-            "{second:?}"
-        );
-    }
-
     #[test_case(WatchOutcome::Failed(String::new()); "failed")]
     #[test_case(WatchOutcome::WatcherError(String::new()); "watch error")]
     #[test_case(WatchOutcome::StreamClosed; "stream closed")]
+    #[test_case(WatchOutcome::ContainerUnrunnable("ImagePullBackOff".into()); "container unrunnable")]
     #[tokio::test]
     async fn wait_and_update_submits_mark_unrunnable_then_cleanup_on_watch_error(
         outcome: WatchOutcome,
@@ -262,7 +249,7 @@ mod tests {
         };
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update("test-namespace", ex, &etx, clients).await;
+        wait_and_update("test-namespace", ex, 600, &etx, clients).await;
 
         let first = erx.try_recv().unwrap();
         let second = erx.try_recv().unwrap();
@@ -271,7 +258,7 @@ mod tests {
             "first event: {first:?}"
         );
         assert!(
-            matches!(second.data, EventData::CleanupNamespace),
+            matches!(second.data, EventData::CleanupNamespaceAfter(600)),
             "second event: {second:?}"
         );
     }
