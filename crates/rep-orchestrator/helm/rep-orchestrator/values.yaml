@@ -1,96 +1,139 @@
-image:
-  repository: "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rep-orchestrator"
-  tag: null
-  pullPolicy: IfNotPresent
+# -- Cloud SQL proxy sidecar configuration
+cloudSqlProxy:
+  # -- Whether to enable the Cloud SQL proxy sidecar
+  enabled: false
+  # -- Cloud SQL instance connection name (format: project:region:instance). Required when enabled
+  instanceConnectionName: "runtime-testing-framework:us-central1:orchestrator-postgres"
+  # -- Docker image for the Cloud SQL proxy
+  image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2"
 
-imagePullSecrets: []
-
+# -- Override the container command
 command: []
 
-podAnnotations: {}
-
-resources:
-  limits: {}
-  requests: {}
-
-service:
-  create: true
-  port: 8035
-  type: ClusterIP
-
-gcs:
-  bucket: ""    # required
-  urlTtlSecs: "300"
-
-# External secret references for Deployment env vars.
-# Set name to point at your externally-managed Secret.
-secrets:
-  apolloKey:
-    name: ""          # required
-    key: "apollo-key"
-  githubAppId:
-    name: ""          # required
-    key: "github-app-id"
-  githubPrivateKey:
-    name: ""          # required
-    key: "private-key-pem"
-  dbPassword:
-    name: ""          # required
-    key: "db-pass"
-
+# -- Application configuration
 config:
+  # -- Host address the server listens on
   host: "0.0.0.0"
+  # -- Port the server listens on
   port: "8035"
+  # -- Log level for the RUST_LOG environment variable
   logLevel: "warn"
+  # -- Maximum number of concurrent test executions
   maxConcurrentExecutions: "10"
+  # -- Maximum number of queued test executions
   maxQueuedExecutions: "100"
-  orchestratorUrl: ""   # required; must be reachable from both mgmt and workload cluster pods
+  # -- URL for this orchestrator instance, reachable from both management and workload cluster pods. Required
+  orchestratorUrl: ""
+  # -- Image pull policy for toolbox images
   toolboxPullPolicy: "Always"
+  # -- The ttl of a namespace after its execution fails
   failedExecutionTtlSecs: "600"
 
+# -- Database connection settings
 db:
-  host: ""      # required (set to 127.0.0.1 for cloud SQL proxy)
+  # -- Database host. Set to 127.0.0.1 when using Cloud SQL Proxy. Required
+  host: ""
+  # -- Database port
   port: "5432"
+  # -- Database name
   name: "rtf_rep"
+  # -- Database user
   user: "service_user"
-  password: null  # set to enable password auth; omit when using Cloud SQL Proxy IAM auth
+  # -- Set to a non-null value to enable password authentication; RTF_DB_PASS will be mounted from secrets.dbPassword. Omit when using Cloud SQL Proxy IAM auth
+  password: null
 
-serviceAccount:
-  create: false
-  name: ""
-  annotations: {}
+# -- Overrides the fully qualified app name
+fullnameOverride: ""
 
+# -- Google Cloud Storage configuration
+gcs:
+  # -- GCS bucket name. Required
+  bucket: ""
+  # -- Signed URL TTL in seconds
+  urlTtlSecs: "300"
+
+# -- Container image configuration
+image:
+  # -- Image repository
+  repository: "us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-docker/rep-orchestrator"
+  # -- Image tag. Defaults to the chart appVersion when not set
+  tag: null
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+
+# -- List of image pull secrets
+imagePullSecrets: []
+
+# -- Kubernetes cluster configuration
 k8s:
+  # -- Management cluster configuration
   management:
-    # Kubernetes context name for the management cluster (where Argo workflows run).
-    #
-    # Two modes:
-    #   null (default) — production/in-cluster: the pod's own service account credentials
-    #                    are used. No management kubeconfig is required.
-    #   "<context>"    — dev/staging: credentials are read from the kubeconfig supplied via
-    #                    workload.kubeconfigSecretRef or workload.kubeconfigPath, using this
-    #                    context name. That file must contain entries for both clusters.
+    # -- Kubernetes context name for the management cluster. Set to null for in-cluster (production) mode using the pod's own service-account credentials; set to a context name for dev/staging to read credentials from the supplied kubeconfig
     context: null
-
+  # -- Workload cluster configuration
   workload:
-    # Required: Kubernetes context name for the workload cluster
-    # (where ephemeral test namespaces run).
-    context: ""   # required
-
-    # Kubeconfig source — exactly one of the following must be set:
-    #
-    # Option A: mount a Kubernetes Secret as the kubeconfig.
-    # The file lands at /root/.kube/config (derived from the mount; no kubeconfigPath needed).
+    # -- Kubernetes context name for the workload cluster. Required
+    context: ""
+    # -- Reference to a Secret containing the kubeconfig; the file is mounted at /root/.kube/config
     kubeconfigSecretRef:
+      # -- Secret name. When set, the kubeconfig is mounted from this Secret
       name: null
+      # -- Key within the Secret
       key: "config"
-
-    # Option B: provide the path to a kubeconfig already present in the container
-    # (e.g. via a bind mount in dev/CI). Ignored when kubeconfigSecretRef.name is set.
+    # -- Path to a kubeconfig file already present in the container. Ignored when kubeconfigSecretRef.name is set
     kubeconfigPath: ""
 
-cloudSqlProxy:
-  enabled: false
-  # required when enabled (format = project:region:instance)
-  instanceConnectionName: "runtime-testing-framework:us-central1:orchestrator-postgres"
-  image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2"
+# -- Overrides the chart name
+nameOverride: ""
+
+# -- Annotations to add to the pod template
+podAnnotations: {}
+
+# -- Resource requests and limits for the rep-orchestrator container
+resources: {}
+
+# -- External Secret references for Deployment environment variables. Set name on each block to point at your externally-managed Secret
+secrets:
+  # -- Apollo key secret reference
+  apolloKey:
+    # -- Name of the Secret containing the Apollo key. Required
+    name: ""
+    # -- Key within the Secret
+    key: "apollo-key"
+  # -- GitHub App ID secret reference
+  githubAppId:
+    # -- Name of the Secret containing the GitHub App ID. Required
+    name: ""
+    # -- Key within the Secret
+    key: "github-app-id"
+  # -- GitHub App private key secret reference
+  githubPrivateKey:
+    # -- Name of the Secret containing the GitHub App private key. Required
+    name: ""
+    # -- Key within the Secret
+    key: "private-key-pem"
+  # -- Database password secret reference. Required when db.password is set
+  dbPassword:
+    # -- Name of the Secret containing the database password
+    name: ""
+    # -- Key within the Secret
+    key: "db-pass"
+
+# -- Kubernetes Service configuration
+service:
+  # -- Whether to create a Service resource
+  create: true
+  # -- Service port
+  port: 8035
+  # -- Service type
+  type: ClusterIP
+
+# -- Service account configuration
+serviceAccount:
+  # -- Whether to create a ServiceAccount
+  create: false
+  # -- Name of the ServiceAccount. Defaults to the chart fullname when create is true
+  name: ""
+  # -- Annotations to add to the ServiceAccount.
+  # e.g. iam.gke.io/gcp-service-account: sa@project.iam.gserviceaccount.com
+  annotations: {}
