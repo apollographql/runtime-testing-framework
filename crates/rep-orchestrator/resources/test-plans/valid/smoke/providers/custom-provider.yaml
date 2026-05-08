@@ -1,0 +1,13 @@
+name: custom provider
+description: A custom provider that requires an argument
+variable_definitions:
+  - name: argument
+    description: the argument to echo
+command:
+  name: custom_provider.sh
+  kind: inline
+  content: |
+    #!/usr/bin/env sh
+    echo "The argument was $ARG" >> "$RTF_OUTPUT"
+env_vars:
+  ARG: "{{ argument }}"
