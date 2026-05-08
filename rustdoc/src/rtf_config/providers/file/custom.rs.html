@@ -670,7 +670,9 @@
 <a href=#670 id=670 data-nosnippet>670</a>            src: <span class="prelude-val">None</span>,
 <a href=#671 id=671 data-nosnippet>671</a>        });
 <a href=#672 id=672 data-nosnippet>672</a>
-<a href=#673 id=673 data-nosnippet>673</a>        <span class="kw">let </span>_res = provider.inline(<span class="kw-2">&amp;</span>InlineMode::All, <span class="kw-2">&amp;</span>ctx).<span class="kw">await</span>;
-<a href=#674 id=674 data-nosnippet>674</a>    }
-<a href=#675 id=675 data-nosnippet>675</a>}
+<a href=#673 id=673 data-nosnippet>673</a>        <span class="kw">let </span>_res = provider
+<a href=#674 id=674 data-nosnippet>674</a>            .inline(<span class="kw-2">&amp;</span>InlineMode::All, <span class="kw-2">&amp;</span>ctx, <span class="kw-2">&amp;mut </span>HashMap::new())
+<a href=#675 id=675 data-nosnippet>675</a>            .<span class="kw">await</span>;
+<a href=#676 id=676 data-nosnippet>676</a>    }
+<a href=#677 id=677 data-nosnippet>677</a>}
 </code></pre></div></section></main></body></html>
