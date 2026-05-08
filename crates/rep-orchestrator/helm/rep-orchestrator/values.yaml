@@ -22,12 +22,8 @@ gcs:
   bucket: ""    # required
   urlTtlSecs: "300"
 
-secret:
-  create: true
-
 # External secret references for Deployment env vars.
-# When secret.create=true, name defaults to the chart fullname (the Secret this chart creates).
-# When secret.create=false, set name to point at your externally-managed Secret.
+# Set name to point at your externally-managed Secret.
 secrets:
   apolloKey:
     name: ""          # required
@@ -46,15 +42,11 @@ config:
   host: "0.0.0.0"
   port: "8035"
   logLevel: "warn"
-  apolloKey: "dummy"
   maxConcurrentExecutions: "10"
   maxQueuedExecutions: "100"
   orchestratorUrl: ""   # required; must be reachable from both mgmt and workload cluster pods
   toolboxPullPolicy: "Always"
   failedExecutionTtlSecs: "600"
-
-github:
-  appId: ""            # required; GitHub App ID
 
 db:
   host: ""      # required (set to 127.0.0.1 for cloud SQL proxy)
