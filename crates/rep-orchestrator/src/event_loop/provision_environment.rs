@@ -50,6 +50,7 @@ where
 
 pub(super) async fn wait_for_workflow<K, H>(
     test_execution: TestExecution,
+    failed_execution_ttl_seconds: u64,
     etx: UnboundedSender<Event>,
     clients: K,
     conn: &mut H,
@@ -65,14 +66,18 @@ where
         .await;
 
     tokio::spawn(async move {
-        wait_and_update(test_execution, &etx, clients).await;
+        wait_and_update(test_execution, failed_execution_ttl_seconds, &etx, clients).await;
     });
 
     Ok(None)
 }
 
-async fn wait_and_update<K>(test_execution: TestExecution, etx: &UnboundedSender<Event>, clients: K)
-where
+async fn wait_and_update<K>(
+    test_execution: TestExecution,
+    failed_execution_ttl_seconds: u64,
+    etx: &UnboundedSender<Event>,
+    clients: K,
+) where
     K: k8s::Client,
 {
     let execution_id = test_execution.uuid();
@@ -89,7 +94,7 @@ where
             warn!(%execution_id, %reason, "argo workflow failed");
             vec![
                 EventData::MarkUnrunnable(WatchOutcome::Failed(reason).to_string()),
-                EventData::CleanupNamespace,
+                EventData::CleanupNamespaceAfter(failed_execution_ttl_seconds),
             ]
         }
 
@@ -97,7 +102,7 @@ where
             warn!(%execution_id, %reason, "container unrunnable");
             vec![
                 EventData::MarkUnrunnable(WatchOutcome::ContainerUnrunnable(reason).to_string()),
-                EventData::CleanupNamespace,
+                EventData::CleanupNamespaceAfter(failed_execution_ttl_seconds),
             ]
         }
 
@@ -105,7 +110,7 @@ where
             warn!(%execution_id, %outcome, "unable to determine state of argo workflow");
             vec![
                 EventData::MarkUnrunnable(outcome.to_string()),
-                EventData::CleanupNamespace,
+                EventData::CleanupNamespaceAfter(failed_execution_ttl_seconds),
             ]
         }
     };
@@ -151,7 +156,7 @@ mod tests {
         assert!(res.is_ok(), "create_workflow: {res:?}");
 
         // wait for workflow to complete
-        let res = wait_for_workflow(ex, etx, clients, &mut handle).await;
+        let res = wait_for_workflow(ex, 600, etx, clients, &mut handle).await;
         assert!(res.is_ok(), "wait for workflow: {res:?}");
 
         assert_eq!(
@@ -203,7 +208,7 @@ mod tests {
         };
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update(ex, &etx, clients).await;
+        wait_and_update(ex, 600, &etx, clients).await;
 
         // should get two events: workflow complete and create scenario configmap
         let evt = erx.try_recv().unwrap();
@@ -234,7 +239,7 @@ mod tests {
         };
         let (etx, mut erx) = mpsc::unbounded_channel();
 
-        wait_and_update(ex, &etx, clients).await;
+        wait_and_update(ex, 600, &etx, clients).await;
 
         let first = erx.try_recv().unwrap();
         let second = erx.try_recv().unwrap();
@@ -243,7 +248,7 @@ mod tests {
             "first event: {first:?}"
         );
         assert!(
-            matches!(second.data, EventData::CleanupNamespace),
+            matches!(second.data, EventData::CleanupNamespaceAfter(600)),
             "second event: {second:?}"
         );
     }

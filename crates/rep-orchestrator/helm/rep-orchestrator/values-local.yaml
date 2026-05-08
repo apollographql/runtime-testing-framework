@@ -15,6 +15,7 @@ gcs:
 config:
   logLevel: "info,hyper=error,rep_orchestrator=debug"
   toolboxPullPolicy: "IfNotPresent"
+  failedExecutionTtlSecs: "60"
 
 secrets:
   apolloKey:

@@ -601,6 +601,7 @@ mod tests {
             gcs_url_ttl_secs: 300,
             mock_internal_gcs_url: Some("http://mock-gcs-internal".to_string()),
             mock_public_gcs_url: Some("http://mock-gcs-public".to_string()),
+            failed_execution_ttl_secs: 600,
         }
     }
 
