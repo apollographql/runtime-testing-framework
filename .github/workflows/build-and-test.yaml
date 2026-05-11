@@ -129,7 +129,7 @@ jobs:
       with:
         mise_toml: |
           [tools]
-          "dprint" = "0.52.0"
+          "dprint" = "0.54.0"
     - run: dprint check
 
   check-doc-types:
@@ -138,6 +138,22 @@ jobs:
     steps:
     - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
     - run: ./scripts/check-doc-types.sh
+
+  check-helm-docs:
+    name: Check rep-orchestrator helm chart README is in sync
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      # The action takes too long to build if we install all the tools in the repo
+      # This deletes the full mise.toml and instead installs only what's needed.
+    - run: rm -f .config/mise/mise.toml
+    - uses: jdx/mise-action@v2
+      with:
+        mise_toml: |
+          [tools]
+          "dprint" = "0.54.0"
+          "helm-docs" = "1.13.1"
+    - run: ./scripts/check-helm-docs.sh
 
   check-generated-docs:
     name: Check that generated docs are up to date
@@ -161,7 +177,7 @@ jobs:
           [tasks.format-markdown]
           run = "dprint fmt"
           [tools]
-          "dprint" = "0.52.0"
+          "dprint" = "0.54.0"
     - run: |
         ./scripts/generate-docs.sh
         DIFF="$(git diff docs/src/)"

@@ -1,4 +1,4 @@
-{{- if .Values.serviceAccount.name }}
+{{- if .Values.serviceAccount.create }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -26,7 +26,7 @@ metadata:
     {{- include "rep-orchestrator.labels" . | nindent 4 }}
 subjects:
   - kind: ServiceAccount
-    name: {{ .Values.serviceAccount.name }}
+    name: {{ include "rep-orchestrator.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 roleRef:
   kind: Role

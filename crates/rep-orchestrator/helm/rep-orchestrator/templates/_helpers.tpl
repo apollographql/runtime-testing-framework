@@ -28,6 +28,7 @@ Common labels
 helm.sh/chart: {{ include "rep-orchestrator.name" . }}-{{ .Chart.Version | replace "+" "_" }}
 {{ include "rep-orchestrator.selectorLabels" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/version: {{ .Chart.Version | quote }}
 {{- end }}
 
 {{/*
@@ -36,4 +37,15 @@ Selector labels
 {{- define "rep-orchestrator.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "rep-orchestrator.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
+Return the serviceAccount name
+*/}}
+{{- define "rep-orchestrator.serviceAccountName" -}}
+{{- if .Values.serviceAccount.name }}
+{{- .Values.serviceAccount.name }}
+{{- else }}
+{{- include "rep-orchestrator.fullname" . }}
+{{- end }}
 {{- end }}

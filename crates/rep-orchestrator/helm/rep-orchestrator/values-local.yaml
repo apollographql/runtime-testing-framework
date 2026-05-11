@@ -27,9 +27,6 @@ secrets:
   dbPassword:
     name: "rep-orchestrator"
 
-github:
-  appId: "1"
-
 db:
   password: password
 
