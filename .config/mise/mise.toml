@@ -65,7 +65,7 @@ run = "cargo test"
 "cargo:cargo-llvm-cov" = "0.8.4"
 "cargo:typos-cli" = "1.44.0"
 dprint = "0.54.0"
-"helm-docs" = "1.13.1"
+"helm-docs" = "1.14.2"
 mdbook = "0.5.2"
 rust = "1.95.0"
 
