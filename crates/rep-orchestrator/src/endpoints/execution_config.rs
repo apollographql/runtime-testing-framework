@@ -76,14 +76,7 @@ mod tests {
     }
 
     async fn populate_resolved_caches(ex: &TestExecution, tss: &TestServerState) {
-        tss.prov_handle
-            .resolve_and_cache_env_config(ex)
-            .await
-            .unwrap();
-        tss.prov_handle
-            .resolve_and_cache_scenario_config(ex)
-            .await
-            .unwrap();
+        tss.prov_handle.resolve_and_cache_config(ex).await.unwrap();
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]

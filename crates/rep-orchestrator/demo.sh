@@ -2,6 +2,7 @@
 # Demonstration of the expected user flow for triggering a test run and polling for the result
 
 TP_PATH="./resources/test-plans/valid/minimal/test-plan.yaml"
+# ../../../rtf-morgue/test-plans/router-validation/rep-compatible/test-plan.yaml
 
 echo ":: Triggering test run using $TP_PATH"
 RUN_ID="$(

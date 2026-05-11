@@ -25,8 +25,7 @@ use uuid::Uuid;
 #[derive(Debug)]
 pub enum ResolverInput {
     TestRun(Box<TestRunWithPayload>),
-    ResolveEnvConfig(TestExecution),
-    ResolveScenarioConfig(TestExecution),
+    ResolveConfig(TestExecution),
 }
 
 const MSG_RUN_CHECKS: &str = "running test plan static checks";
@@ -60,12 +59,8 @@ pub async fn resolver_task(
                 }
             }
 
-            ResolverInput::ResolveEnvConfig(test_execution) => {
-                resolve_env_config(test_execution, &prov_handle).await;
-            }
-
-            ResolverInput::ResolveScenarioConfig(test_execution) => {
-                resolve_scenario_config(test_execution, &prov_handle).await;
+            ResolverInput::ResolveConfig(test_execution) => {
+                resolve_config(test_execution, &prov_handle).await;
             }
         }
     }
@@ -76,14 +71,11 @@ pub async fn resolver_task(
 }
 
 /// Owns the resolver task's input channel and the persistent priority buckets used to order
-/// resolver work over [TestRun][ResolverInput::TestRun] >
-/// [ResolveEnvConfig][ResolverInput::ResolveEnvConfig] >
-/// [ResolveScenarioConfig][ResolverInput::ResolveScenarioConfig].
+/// resolver work over [ResolveConfig][ResolverInput::ResolveConfig] > [TestRun][ResolverInput::TestRun].
 struct ResolverQueue {
     rx: UnboundedReceiver<ResolverInput>,
     test_runs: VecDeque<Box<TestRunWithPayload>>,
-    resolve_env_configs: VecDeque<TestExecution>,
-    resolve_scenario_configs: VecDeque<TestExecution>,
+    resolve_configs: VecDeque<TestExecution>,
 }
 
 impl ResolverQueue {
@@ -91,17 +83,15 @@ impl ResolverQueue {
         Self {
             rx,
             test_runs: VecDeque::new(),
-            resolve_env_configs: VecDeque::new(),
-            resolve_scenario_configs: VecDeque::new(),
+            resolve_configs: VecDeque::new(),
         }
     }
 
     /// Returns the next [ResolverInput] to be processed, draining the channel into the priority
     /// buckets and then popping from the highest non-empty bucket in this order:
     ///
-    /// 1. [ResolverInput::TestRun]
-    /// 2. [ResolverInput::ResolveEnvConfig]
-    /// 3. [ResolverInput::ResolveScenarioConfig]
+    /// 1. [ResolverInput::ResolveConfig]
+    /// 2. [ResolverInput::TestRun]
     ///
     /// Buckets persist across calls. Blocks when all buckets and the channel are empty. Returns
     /// [None] only when all external senders have been dropped and all buckets are empty.
@@ -111,14 +101,11 @@ impl ResolverQueue {
                 self.push_input(input);
             }
 
+            if let Some(ex) = self.resolve_configs.pop_front() {
+                return Some(ResolverInput::ResolveConfig(ex));
+            }
             if let Some(boxed) = self.test_runs.pop_front() {
                 return Some(ResolverInput::TestRun(boxed));
-            }
-            if let Some(ex) = self.resolve_env_configs.pop_front() {
-                return Some(ResolverInput::ResolveEnvConfig(ex));
-            }
-            if let Some(ex) = self.resolve_scenario_configs.pop_front() {
-                return Some(ResolverInput::ResolveScenarioConfig(ex));
             }
 
             let input = self.rx.recv().await?;
@@ -129,8 +116,7 @@ impl ResolverQueue {
     fn push_input(&mut self, input: ResolverInput) {
         match input {
             ResolverInput::TestRun(boxed) => self.test_runs.push_back(boxed),
-            ResolverInput::ResolveEnvConfig(ex) => self.resolve_env_configs.push_back(ex),
-            ResolverInput::ResolveScenarioConfig(ex) => self.resolve_scenario_configs.push_back(ex),
+            ResolverInput::ResolveConfig(ex) => self.resolve_configs.push_back(ex),
         }
     }
 }
@@ -265,11 +251,8 @@ where
     Ok(())
 }
 
-async fn resolve_env_config(test_execution: TestExecution, prov_handle: &ProvisioningHandle) {
-    match prov_handle
-        .resolve_and_cache_env_config(&test_execution)
-        .await
-    {
+async fn resolve_config(test_execution: TestExecution, prov_handle: &ProvisioningHandle) {
+    match prov_handle.resolve_and_cache_config(&test_execution).await {
         Ok(()) => {
             let _ = prov_handle.send_event(test_execution, EventData::CreateEnvArgoWorkflow);
         }
@@ -277,30 +260,6 @@ async fn resolve_env_config(test_execution: TestExecution, prov_handle: &Provisi
         // from the cache
         Err(e) => {
             warn!(%e, "ResolveEnvConfig failed");
-            let _ = prov_handle.send_event(
-                test_execution.clone(),
-                EventData::MarkUnrunnable(e.to_string()),
-            );
-            let _ = prov_handle.send_event(test_execution, EventData::CleanupNamespace);
-        }
-    }
-}
-
-async fn resolve_scenario_config(test_execution: TestExecution, prov_handle: &ProvisioningHandle) {
-    match prov_handle
-        .resolve_and_cache_scenario_config(&test_execution)
-        .await
-    {
-        Ok((image, command)) => {
-            let _ = prov_handle.send_event(
-                test_execution,
-                EventData::CreateScenarioJob { image, command },
-            );
-        }
-        // If we've errored then there is nothing in the cache so we don't need to evict anything
-        // from the cache
-        Err(e) => {
-            warn!(%e, "ResolveScenarioConfig failed");
             let _ = prov_handle.send_event(
                 test_execution.clone(),
                 EventData::MarkUnrunnable(e.to_string()),
@@ -485,7 +444,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_env_config_success_sends_create_env_argo_workflow() {
+    async fn resolve_config_success_sends_create_env_argo_workflow() {
         let cfg = dummy_config();
         let (mut eq, ph, eqs, _) =
             EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
@@ -510,7 +469,7 @@ mod tests {
         // drain the ResolveEnvConfig sent by request_provisioning
         let _ = eq.next_event().await;
 
-        resolve_env_config(ex, &ph).await;
+        resolve_config(ex, &ph).await;
 
         let evt = eq
             .next_event()
@@ -524,85 +483,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_env_config_failure_sends_mark_unrunnable_and_cleanup() {
+    async fn resolve_config_failure_sends_mark_unrunnable_and_cleanup() {
         let cfg = dummy_config();
         let (mut eq, ph, _, _) =
             EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
         // execution NOT registered → resolve_and_cache_env_config will fail
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
-        resolve_env_config(ex, &ph).await;
-
-        let evt1 = eq
-            .next_event()
-            .await
-            .expect("MarkUnrunnable should be sent");
-        assert!(
-            matches!(evt1.data, EventData::MarkUnrunnable(_)),
-            "expected MarkUnrunnable, got: {:?}",
-            evt1.data
-        );
-        let evt2 = eq
-            .next_event()
-            .await
-            .expect("CleanupNamespace should be sent");
-        assert!(
-            matches!(evt2.data, EventData::CleanupNamespace),
-            "expected CleanupNamespace, got: {:?}",
-            evt2.data
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_scenario_config_success_sends_create_scenario_job() {
-        let cfg = dummy_config();
-        let (mut eq, ph, eqs, _) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
-        let run_uuid = Uuid::new_v4();
-        let ex = TestExecution::create_stub(1, 1, 0, "test");
-
-        let ctx = crate::context::RepContext::new(
-            &cfg,
-            rep_orchestrator_shared::payload::SourceKeyedArrayMap {
-                keys: vec![],
-                data: vec![],
-            },
-            rep_orchestrator_shared::payload::SourceKeyedArrayMap {
-                keys: vec![],
-                data: vec![],
-            },
-        );
-        let tp = minimal_rep_test_plan();
-        eqs.try_reserve_pending_executions(&tp).await.unwrap();
-        ph.cache_for_test_run(run_uuid, ctx, tp).await;
-        ph.request_provisioning(ex.clone(), run_uuid).await.unwrap();
-        let _ = eq.next_event().await; // drain ResolveEnvConfig
-
-        resolve_scenario_config(ex, &ph).await;
-
-        let evt = eq
-            .next_event()
-            .await
-            .expect("CreateScenarioJob should be sent");
-        assert!(
-            matches!(evt.data, EventData::CreateScenarioJob { .. }),
-            "expected CreateScenarioJob, got: {:?}",
-            evt.data
-        );
-        if let EventData::CreateScenarioJob { image, command } = evt.data {
-            assert!(!image.is_empty(), "image should be non-empty");
-            assert!(!command.is_empty(), "command should be non-empty");
-        }
-    }
-
-    #[tokio::test]
-    async fn resolve_scenario_config_failure_sends_mark_unrunnable_and_cleanup() {
-        let cfg = dummy_config();
-        let (mut eq, ph, _, _) =
-            EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
-        let ex = TestExecution::create_stub(1, 1, 0, "test");
-
-        resolve_scenario_config(ex, &ph).await;
+        resolve_config(ex, &ph).await;
 
         let evt1 = eq
             .next_event()
@@ -808,7 +696,7 @@ mod tests {
         // One ResolveEnvConfig event sent
         let evt = eq.next_event().await.unwrap();
         assert!(
-            matches!(evt.data, EventData::ResolveEnvConfig),
+            matches!(evt.data, EventData::ResolveConfig),
             "expected ResolveEnvConfig event"
         );
         assert!(eq.is_empty(), "only one event expected");
@@ -878,32 +766,23 @@ mod tests {
         let mut queue = ResolverQueue::new(rx);
 
         let env_ex = TestExecution::create_stub(1, 1, 0, "env");
-        let scenario_ex = TestExecution::create_stub(2, 1, 1, "scenario");
 
         // Submit in reverse priority
-        tx.send(ResolverInput::ResolveScenarioConfig(scenario_ex.clone()))
-            .unwrap();
-        tx.send(ResolverInput::ResolveEnvConfig(env_ex.clone()))
-            .unwrap();
         tx.send(ResolverInput::TestRun(boxed_test_run("tr")))
+            .unwrap();
+        tx.send(ResolverInput::ResolveConfig(env_ex.clone()))
             .unwrap();
 
         let first = queue.next_input().await.unwrap();
         assert!(
-            matches!(first, ResolverInput::TestRun(_)),
-            "expected TestRun first, got {first:?}"
+            matches!(first, ResolverInput::ResolveConfig(ref ex) if ex.uuid() == env_ex.uuid()),
+            "expected ResolveEnvConfig first, got {first:?}"
         );
 
         let second = queue.next_input().await.unwrap();
         assert!(
-            matches!(second, ResolverInput::ResolveEnvConfig(ref ex) if ex.uuid() == env_ex.uuid()),
-            "expected ResolveEnvConfig second, got {second:?}"
-        );
-
-        let third = queue.next_input().await.unwrap();
-        assert!(
-            matches!(third, ResolverInput::ResolveScenarioConfig(ref ex) if ex.uuid() == scenario_ex.uuid()),
-            "expected ResolveScenarioConfig third, got {third:?}"
+            matches!(second, ResolverInput::TestRun(_)),
+            "expected TestRun second, got {second:?}"
         );
     }
 
@@ -916,17 +795,14 @@ mod tests {
         let ex_b = TestExecution::create_stub(2, 1, 1, "b");
         let ex_c = TestExecution::create_stub(3, 1, 2, "c");
 
-        tx.send(ResolverInput::ResolveEnvConfig(ex_a.clone()))
-            .unwrap();
-        tx.send(ResolverInput::ResolveEnvConfig(ex_b.clone()))
-            .unwrap();
-        tx.send(ResolverInput::ResolveEnvConfig(ex_c.clone()))
-            .unwrap();
+        tx.send(ResolverInput::ResolveConfig(ex_a.clone())).unwrap();
+        tx.send(ResolverInput::ResolveConfig(ex_b.clone())).unwrap();
+        tx.send(ResolverInput::ResolveConfig(ex_c.clone())).unwrap();
 
         for expected in [&ex_a, &ex_b, &ex_c] {
             let input = queue.next_input().await.unwrap();
             assert!(
-                matches!(input, ResolverInput::ResolveEnvConfig(ref ex) if ex.uuid() == expected.uuid()),
+                matches!(input, ResolverInput::ResolveConfig(ref ex) if ex.uuid() == expected.uuid()),
                 "FIFO order broken; expected {} got {input:?}",
                 expected.uuid()
             );
@@ -950,13 +826,13 @@ mod tests {
         let mut queue = ResolverQueue::new(rx);
 
         let env_ex = TestExecution::create_stub(1, 1, 0, "env");
-        tx.send(ResolverInput::ResolveEnvConfig(env_ex.clone()))
+        tx.send(ResolverInput::ResolveConfig(env_ex.clone()))
             .unwrap();
         drop(tx);
 
         let first = queue.next_input().await.unwrap();
         assert!(
-            matches!(first, ResolverInput::ResolveEnvConfig(ref ex) if ex.uuid() == env_ex.uuid()),
+            matches!(first, ResolverInput::ResolveConfig(ref ex) if ex.uuid() == env_ex.uuid()),
             "expected buffered event to drain before close",
         );
 

@@ -70,6 +70,7 @@ impl EventQueue {
             active_run_executions: HashMap::new(),
             resolved_env_cache: HashMap::new(),
             resolved_scenario_cache: HashMap::new(),
+            scenario_docker_cache: HashMap::new(),
             max_queued_executions,
             n_queued: 0,
         }));
@@ -113,7 +114,7 @@ impl EventQueue {
     #[inline(always)]
     fn push_event(&mut self, evt: Event) {
         match &evt.data {
-            EventData::ResolveEnvConfig => self.pending_provisions.push_back(evt),
+            EventData::ResolveConfig => self.pending_provisions.push_back(evt),
             _ => self.pending_non_provisions.push_back(evt),
         }
     }
@@ -190,6 +191,7 @@ impl EventQueue {
             let active = shared.active_run_executions.get_mut(&run_uuid)?;
             active.remove(&ex_id);
             shared.resolved_scenario_cache.remove(&ex_id);
+            shared.scenario_docker_cache.remove(&ex_id);
 
             if active.is_empty() {
                 shared.active_run_executions.remove(&run_uuid);
@@ -200,6 +202,14 @@ impl EventQueue {
             }
         })
         .await
+    }
+
+    pub(crate) async fn scenario_docker_image_and_command(
+        &self,
+        ex_id: Uuid,
+    ) -> Option<(String, String)> {
+        self.with_shared(async |shared| shared.scenario_docker_cache.get(&ex_id).cloned())
+            .await
     }
 
     /// Send a [ResolverInput] to the resolver_task channel.
@@ -286,7 +296,7 @@ impl ProvisioningHandle {
 
         if let Err(e) = self.tx.send(Event {
             test_execution: ex,
-            data: EventData::ResolveEnvConfig,
+            data: EventData::ResolveConfig,
         }) {
             error!(%e, "event loop channel closed");
             return Err(ResolverError::EventChannelClosed);
@@ -318,7 +328,7 @@ impl ProvisioningHandle {
 
     /// Resolve the environment config for `ex`, serialise to YAML, and store in
     /// `resolved_env_cache` keyed by execution UUID.
-    pub(crate) async fn resolve_and_cache_env_config(
+    pub(crate) async fn resolve_and_cache_config(
         &self,
         ex: &TestExecution,
     ) -> resolver::Result<()> {
@@ -335,29 +345,7 @@ impl ProvisioningHandle {
                 &mut *inline_cache.lock().await,
             )
             .await?;
-        test_plan.environment.custom_providers = Vec::new();
 
-        let yaml = serde_yaml::to_string(&test_plan.environment)
-            .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
-
-        self.with_shared(async |shared| {
-            shared.resolved_env_cache.insert(ex.uuid(), yaml);
-
-            Ok(())
-        })
-        .await
-    }
-
-    /// Resolve the scenario config for `ex`, serialise to YAML, store in `resolved_scenario_cache`,
-    /// and return the docker image and command for embedding in the `CreateScenarioJob` event.
-    pub(crate) async fn resolve_and_cache_scenario_config(
-        &self,
-        ex: &TestExecution,
-    ) -> resolver::Result<(String, String)> {
-        let (mut test_plan, ctx) = self.templated_and_checked_version(ex).await?;
-
-        // Make sure that we run the run inlining without holding the lock on shared
-        let inline_cache = ctx.inline_cache();
         test_plan
             .scenario
             .execution
@@ -367,20 +355,31 @@ impl ProvisioningHandle {
                 &mut *inline_cache.lock().await,
             )
             .await?;
+
+        // Clear custom provider details to allow `rtf resolve` to run
+        test_plan.environment.custom_providers = Vec::new();
         test_plan.scenario.custom_providers = Vec::new();
 
         let image = test_plan.scenario.execution.docker_image();
         let command = test_plan.scenario.execution.command();
 
-        let yaml = serde_yaml::to_string(&test_plan.scenario)
+        let env_yaml = serde_yaml::to_string(&test_plan.environment)
+            .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
+        let scenario_yaml = serde_yaml::to_string(&test_plan.scenario)
             .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
 
         self.with_shared(async |shared| {
-            shared.resolved_scenario_cache.insert(ex.uuid(), yaml);
-        })
-        .await;
+            shared.resolved_env_cache.insert(ex.uuid(), env_yaml);
+            shared
+                .resolved_scenario_cache
+                .insert(ex.uuid(), scenario_yaml);
+            shared
+                .scenario_docker_cache
+                .insert(ex.uuid(), (image, command));
 
-        Ok((image, command))
+            Ok(())
+        })
+        .await
     }
 
     /// Send an event to the event loop.
@@ -531,6 +530,8 @@ struct Shared {
     resolved_env_cache: HashMap<Uuid, String>,
     /// Pre-resolved scenario config YAML keyed by execution UUID
     resolved_scenario_cache: HashMap<Uuid, String>,
+    /// Pre-resolved docker image and command keyed by execution UUID
+    scenario_docker_cache: HashMap<Uuid, (String, String)>,
     /// Maximum number of pending executions waiting for a namespace
     max_queued_executions: usize,
     /// The number of currently queued executions
@@ -733,7 +734,7 @@ mod tests {
         let event = q.rx.try_recv().expect("event should have been sent");
 
         assert_eq!(event.test_execution.uuid(), ex_uuid);
-        assert!(matches!(event.data, EventData::ResolveEnvConfig));
+        assert!(matches!(event.data, EventData::ResolveConfig));
     }
 
     #[tokio::test]
@@ -769,7 +770,7 @@ mod tests {
         let ex_uuid = ex.uuid();
         q.tx.send(Event {
             test_execution: ex,
-            data: EventData::ResolveEnvConfig,
+            data: EventData::ResolveConfig,
         })
         .unwrap();
 
@@ -783,7 +784,7 @@ mod tests {
             .expect("should have returned Some(event)");
 
         assert_eq!(evt.test_execution.uuid(), ex_uuid);
-        assert!(matches!(evt.data, EventData::ResolveEnvConfig));
+        assert!(matches!(evt.data, EventData::ResolveConfig));
         assert!(
             q.running_executions.contains(&ex_uuid),
             "running executions: {:?}",
@@ -794,7 +795,7 @@ mod tests {
     fn provision_evt(ex_id: i32) -> Event {
         Event {
             test_execution: TestExecution::create_stub(ex_id, 1, 0, "test"),
-            data: EventData::ResolveEnvConfig,
+            data: EventData::ResolveConfig,
         }
     }
 
@@ -815,7 +816,7 @@ mod tests {
         let (mut q, _h, _, _) = EventQueue::new(1, 5);
 
         for evt in events.into_iter() {
-            if matches!(evt.data, EventData::ResolveEnvConfig) {
+            if matches!(evt.data, EventData::ResolveConfig) {
                 q.pending_provisions.push_back(evt);
             } else {
                 q.pending_non_provisions.push_back(evt);
@@ -892,7 +893,7 @@ mod tests {
         let (mut q, _h, _, _) = EventQueue::new(1, 5);
         let evt = Event {
             test_execution: TestExecution::create_stub(1, 1, 0, "test"),
-            data: EventData::ResolveEnvConfig,
+            data: EventData::ResolveConfig,
         };
 
         q.push_event(evt);
@@ -916,38 +917,27 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_and_cache_env_config_stores_yaml() {
+    async fn resolve_and_cache_config_stores_yaml_and_docker_details() {
         let (ph, ex) = populated_prov_handle().await;
         let ex_uuid = ex.uuid();
 
-        let res = ph.resolve_and_cache_env_config(&ex).await;
+        let res = ph.resolve_and_cache_config(&ex).await;
 
         assert!(res.is_ok(), "{res:?}");
         ph.with_shared(async |shared| {
-            let yaml = shared.resolved_env_cache.get(&ex_uuid);
             assert!(
-                yaml.is_some_and(|y| !y.is_empty()),
+                shared.resolved_env_cache.contains_key(&ex_uuid),
                 "env YAML should be cached"
             );
-        })
-        .await;
-    }
 
-    #[tokio::test]
-    async fn resolve_and_cache_scenario_config_stores_yaml_and_returns_image_and_command() {
-        let (ph, ex) = populated_prov_handle().await;
-        let ex_uuid = ex.uuid();
-
-        let res = ph.resolve_and_cache_scenario_config(&ex).await;
-
-        let (image, command) = res.expect("resolve_and_cache_scenario_config should succeed");
-        assert!(!image.is_empty(), "image should be non-empty");
-        assert!(!command.is_empty(), "command should be non-empty");
-        ph.with_shared(async |shared| {
-            let yaml = shared.resolved_scenario_cache.get(&ex_uuid);
             assert!(
-                yaml.is_some_and(|y| !y.is_empty()),
+                shared.resolved_scenario_cache.contains_key(&ex_uuid),
                 "scenario YAML should be cached"
+            );
+
+            assert!(
+                shared.scenario_docker_cache.contains_key(&ex_uuid),
+                "scenario docker image and command should be cached"
             );
         })
         .await;
@@ -1010,27 +1000,12 @@ mod tests {
         let (eq, _, _, mut rx) = EventQueue::new(1, 5);
         let ex = TestExecution::create_stub(1, 1, 0, "test");
 
-        eq.send_to_resolver(ResolverInput::ResolveEnvConfig(ex.clone()))
+        eq.send_to_resolver(ResolverInput::ResolveConfig(ex.clone()))
             .unwrap();
 
         let input = rx.try_recv().expect("ResolverInput should be forwarded");
         assert!(
-            matches!(input, ResolverInput::ResolveEnvConfig(ref e) if e.uuid() == ex.uuid()),
-            "wrong input forwarded: {input:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn send_to_resolver_forwards_resolve_scenario_config() {
-        let (eq, _, _, mut rx) = EventQueue::new(1, 5);
-        let ex = TestExecution::create_stub(1, 1, 0, "test");
-
-        eq.send_to_resolver(ResolverInput::ResolveScenarioConfig(ex.clone()))
-            .unwrap();
-
-        let input = rx.try_recv().expect("ResolverInput should be forwarded");
-        assert!(
-            matches!(input, ResolverInput::ResolveScenarioConfig(ref e) if e.uuid() == ex.uuid()),
+            matches!(input, ResolverInput::ResolveConfig(ref e) if e.uuid() == ex.uuid()),
             "wrong input forwarded: {input:?}"
         );
     }
