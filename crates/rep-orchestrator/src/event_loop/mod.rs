@@ -134,13 +134,12 @@ type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EventData {
-    ResolveEnvConfig,
+    ResolveConfig,
     CreateEnvArgoWorkflow,
     WaitForEnvArgoWorkflow,
     ArgoWorkflowComplete,
 
-    ResolveScenarioConfig,
-    CreateScenarioJob { image: String, command: String },
+    CreateScenarioJob,
     WaitForScenarioJob,
 
     CleanupNamespace,
@@ -151,12 +150,11 @@ pub enum EventData {
 impl EventData {
     fn name(&self) -> &'static str {
         match self {
-            Self::ResolveEnvConfig => "ResolveEnvConfig",
+            Self::ResolveConfig => "ResolveConfig",
             Self::CreateEnvArgoWorkflow => "CreateEnvArgoWorkflow",
             Self::WaitForEnvArgoWorkflow => "WaitForEnvArgoWorkflow",
             Self::ArgoWorkflowComplete => "ArgoWorkflowComplete",
-            Self::ResolveScenarioConfig => "ResolveScenarioConfig",
-            Self::CreateScenarioJob { .. } => "CreateScenarioJob",
+            Self::CreateScenarioJob => "CreateScenarioJob",
             Self::WaitForScenarioJob => "WaitForScenarioJob",
             Self::MarkUnrunnable(_) => "MarkUnrunnable",
             Self::CleanupNamespaceAfter(_) => "CleanupNamespaceAfter",
@@ -169,10 +167,9 @@ impl EventData {
     fn requires_cleanup_on_error(&self) -> bool {
         matches!(
             self,
-            EventData::ResolveScenarioConfig
-                | EventData::WaitForEnvArgoWorkflow
+            EventData::WaitForEnvArgoWorkflow
                 | EventData::ArgoWorkflowComplete
-                | EventData::CreateScenarioJob { .. }
+                | EventData::CreateScenarioJob
                 | EventData::WaitForScenarioJob
         )
     }
@@ -200,9 +197,9 @@ impl Event {
         let cleanup_on_error = self.data.requires_cleanup_on_error();
 
         let res = match self.data {
-            EventData::ResolveEnvConfig => {
-                if let Err(e) = event_queue
-                    .send_to_resolver(ResolverInput::ResolveEnvConfig(self.test_execution))
+            EventData::ResolveConfig => {
+                if let Err(e) =
+                    event_queue.send_to_resolver(ResolverInput::ResolveConfig(self.test_execution))
                 {
                     error!(%e, "resolver channel closed during ResolveEnvConfig dispatch");
                 }
@@ -242,26 +239,28 @@ impl Event {
                 Ok(None)
             }
 
-            EventData::ResolveScenarioConfig => {
-                if let Err(e) = event_queue
-                    .send_to_resolver(ResolverInput::ResolveScenarioConfig(self.test_execution))
-                {
-                    error!(%e, "resolver channel closed during ResolveScenarioConfig dispatch");
-                }
-                return Ok(());
-            }
+            EventData::CreateScenarioJob => {
+                let res = event_queue
+                    .scenario_docker_image_and_command(self.test_execution.uuid())
+                    .await;
 
-            EventData::CreateScenarioJob { image, command } => {
-                run_scenario::create_job(
-                    self.test_execution.clone(),
-                    image,
-                    command,
-                    orchestrator_url,
-                    toolbox_pull_policy,
-                    clients,
-                    conn,
-                )
-                .await
+                match res {
+                    Some((image, command)) => {
+                        run_scenario::create_job(
+                            self.test_execution.clone(),
+                            image,
+                            command,
+                            orchestrator_url,
+                            toolbox_pull_policy,
+                            clients,
+                            conn,
+                        )
+                        .await
+                    }
+                    None => Err(Error::Resolve(ResolverError::UnknownExecution(
+                        self.test_execution.uuid(),
+                    ))),
+                }
             }
 
             EventData::WaitForScenarioJob => {
