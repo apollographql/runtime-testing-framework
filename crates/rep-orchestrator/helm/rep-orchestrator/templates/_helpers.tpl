@@ -28,7 +28,7 @@ Common labels
 helm.sh/chart: {{ include "rep-orchestrator.name" . }}-{{ .Chart.Version | replace "+" "_" }}
 {{ include "rep-orchestrator.selectorLabels" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/version: {{ .Chart.Version | quote }}
+app.kubernetes.io/version: {{ .Chart.Version | replace "+" "_" | quote }}
 {{- end }}
 
 {{/*
