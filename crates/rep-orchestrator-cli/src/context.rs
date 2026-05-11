@@ -1,7 +1,6 @@
 use crate::{
     error::{CliError, CliResult},
-    kubernetes,
-    orchestrator::{self, Client},
+    kubernetes, orchestrator,
 };
 use anyhow::Context;
 use rep_orchestrator_shared::{
@@ -31,91 +30,33 @@ pub trait CliContext {
     /// On success, posts an update moving the execution to `next_execution_status`. On failure,
     /// returns a [Status::Unrunnable] error — every caller is an orchestration subroutine, so
     /// there is no distinction between "setup failed" and "user scenario failed" here.
-    async fn run_shell(&self, cmd: &mut Command, next_execution_status: Status) -> CliResult<()> {
-        info!("Running {cmd:?}");
-
-        let exit_status = cmd
-            .status()
-            .with_context(|| format!("I/O error when attempting to invoke {cmd:?}"))
-            .map_err(CliError::unrunnable)?;
-
-        if !exit_status.success() {
-            return Err(CliError::unrunnable_subprocess(
-                exit_status,
-                format!("Command failed: {cmd:?}"),
-            ));
-        }
-
-        self.orchestrator_client()
-            .update_status(
-                next_execution_status,
-                None,
-                Some(format!("Completed command: {cmd:?}")),
-            )
-            .await
-            .map_err(CliError::unrunnable)?;
-
-        Ok(())
-    }
+    fn run_shell(
+        &self,
+        cmd: &mut Command,
+        next_execution_status: Status,
+    ) -> impl Future<Output = CliResult<()>> + Send;
 
     /// Read the file at `path` as UTF-8, mapping the IO error to [`Status::Unrunnable`] with the
     /// path embedded in the message.
-    fn read_file_to_string(&self, path: &Path) -> CliResult<String> {
-        fs::read_to_string(path)
-            .with_context(|| format!("Failed to read {}", path.display()))
-            .map_err(CliError::unrunnable)
-    }
+    fn read_file_to_string(&self, path: &Path) -> CliResult<String>;
 
     /// Read the file at `path` as bytes, mapping the IO error to [`Status::Unrunnable`] with the
     /// path embedded in the message.
-    fn read_file(&self, path: &Path) -> CliResult<Vec<u8>> {
-        fs::read(path)
-            .with_context(|| format!("Failed to read {}", path.display()))
-            .map_err(CliError::unrunnable)
-    }
+    fn read_file(&self, path: &Path) -> CliResult<Vec<u8>>;
 
     /// Write `content` to `path`, mapping the IO error to [`Status::Unrunnable`] with the path
     /// embedded in the message.
-    fn write_file(&self, path: &Path, content: &[u8]) -> CliResult<()> {
-        fs::write(path, content)
-            .with_context(|| format!("Failed to write {}", path.display()))
-            .map_err(CliError::unrunnable)
-    }
+    fn write_file(&self, path: &Path, content: &[u8]) -> CliResult<()>;
 
     /// chmod `path` to `mode`, mapping the IO error to [`Status::Unrunnable`] with the path
     /// embedded in the message.
-    fn set_permissions_mode(&self, path: &Path, mode: u32) -> CliResult<()> {
-        set_permissions(path, Permissions::from_mode(mode))
-            .with_context(|| format!("Failed to chmod {}", path.display()))
-            .map_err(CliError::unrunnable)
-    }
+    fn set_permissions_mode(&self, path: &Path, mode: u32) -> CliResult<()>;
 
     /// Returns whether a file or directory exists at `path`.
-    fn path_exists(&self, path: &Path) -> bool {
-        path.exists()
-    }
+    fn path_exists(&self, path: &Path) -> bool;
 
     /// Recursively list all regular files under `dir`, returning absolute paths.
-    fn list_files_under(&self, dir: &Path) -> CliResult<Vec<PathBuf>> {
-        let mut out = Vec::new();
-        walk_files(dir, &mut out)
-            .with_context(|| format!("Failed to walk {}", dir.display()))
-            .map_err(CliError::unrunnable)?;
-        Ok(out)
-    }
-}
-
-fn walk_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
-    for entry in fs::read_dir(dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if entry.file_type()?.is_dir() {
-            walk_files(&path, out)?;
-        } else {
-            out.push(path);
-        }
-    }
-    Ok(())
+    fn list_files_under(&self, dir: &Path) -> CliResult<Vec<PathBuf>>;
 }
 
 pub struct EnvironmentContext {
@@ -166,6 +107,93 @@ impl CliContext for EnvironmentContext {
     fn kube_client(&self) -> &Self::KubeClient {
         &self.kube_client
     }
+
+    async fn run_shell(&self, cmd: &mut Command, next_execution_status: Status) -> CliResult<()> {
+        run_shell(cmd, next_execution_status, self.orchestrator_client()).await
+    }
+
+    fn read_file_to_string(&self, path: &Path) -> CliResult<String> {
+        fs::read_to_string(path)
+            .with_context(|| format!("Failed to read {}", path.display()))
+            .map_err(CliError::unrunnable)
+    }
+
+    fn read_file(&self, path: &Path) -> CliResult<Vec<u8>> {
+        fs::read(path)
+            .with_context(|| format!("Failed to read {}", path.display()))
+            .map_err(CliError::unrunnable)
+    }
+
+    fn write_file(&self, path: &Path, content: &[u8]) -> CliResult<()> {
+        fs::write(path, content)
+            .with_context(|| format!("Failed to write {}", path.display()))
+            .map_err(CliError::unrunnable)
+    }
+
+    fn set_permissions_mode(&self, path: &Path, mode: u32) -> CliResult<()> {
+        set_permissions(path, Permissions::from_mode(mode))
+            .with_context(|| format!("Failed to chmod {}", path.display()))
+            .map_err(CliError::unrunnable)
+    }
+
+    fn path_exists(&self, path: &Path) -> bool {
+        path.exists()
+    }
+
+    fn list_files_under(&self, dir: &Path) -> CliResult<Vec<PathBuf>> {
+        let mut out = Vec::new();
+
+        walk_files(dir, &mut out)
+            .with_context(|| format!("Failed to walk {}", dir.display()))
+            .map_err(CliError::unrunnable)?;
+
+        Ok(out)
+    }
+}
+
+async fn run_shell(
+    cmd: &mut Command,
+    next_execution_status: Status,
+    orchestrator_client: &impl orchestrator::Client,
+) -> CliResult<()> {
+    info!("Running {cmd:?}");
+
+    let exit_status = cmd
+        .status()
+        .with_context(|| format!("I/O error when attempting to invoke {cmd:?}"))
+        .map_err(CliError::unrunnable)?;
+
+    if !exit_status.success() {
+        return Err(CliError::unrunnable_subprocess(
+            exit_status,
+            format!("Command failed: {cmd:?}"),
+        ));
+    }
+
+    orchestrator_client
+        .update_status(
+            next_execution_status,
+            None,
+            Some(format!("Completed command: {cmd:?}")),
+        )
+        .await
+        .map_err(CliError::unrunnable)?;
+
+    Ok(())
+}
+
+fn walk_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if entry.file_type()?.is_dir() {
+            walk_files(&path, out)?;
+        } else {
+            out.push(path);
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -218,6 +246,14 @@ pub(crate) mod mocks {
             &self.kube_client
         }
 
+        async fn run_shell(
+            &self,
+            cmd: &mut Command,
+            next_execution_status: Status,
+        ) -> CliResult<()> {
+            run_shell(cmd, next_execution_status, self.orchestrator_client()).await
+        }
+
         fn read_file_to_string(&self, path: &Path) -> CliResult<String> {
             let bytes = self.read_file(path)?;
             String::from_utf8(bytes)
@@ -246,6 +282,7 @@ pub(crate) mod mocks {
                 .write()
                 .unwrap()
                 .insert(path.to_owned(), content.to_vec());
+
             Ok(())
         }
 
@@ -255,6 +292,7 @@ pub(crate) mod mocks {
                 .write()
                 .unwrap()
                 .insert(path.to_owned(), mode);
+
             Ok(())
         }
 
@@ -273,7 +311,9 @@ pub(crate) mod mocks {
                 .filter(|p| p.starts_with(&prefix))
                 .cloned()
                 .collect();
+
             paths.sort();
+
             Ok(paths)
         }
     }
@@ -293,6 +333,7 @@ mod tests {
             .await;
 
         assert!(result.is_ok());
+
         ctx.orchestrator_client().read_updates(|updates| {
             assert_eq!(updates.len(), 1);
             assert_eq!(updates[0].status, Status::Provisioning);
@@ -310,6 +351,7 @@ mod tests {
 
         ctx.orchestrator_client().read_updates(|updates| {
             let message = updates[0].message.as_deref().unwrap();
+
             assert_eq!(
                 message, "Completed command: \"true\"",
                 "expected command in message: {message}"
@@ -326,6 +368,7 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
+
         ctx.orchestrator_client()
             .read_updates(|updates| assert!(updates.is_empty()));
     }
@@ -339,6 +382,7 @@ mod tests {
             .unwrap_err();
 
         let msg = err.source_to_string();
+
         assert!(msg.contains("false"), "expected command in error: {msg}");
         assert!(
             msg.contains("Command failed"),
@@ -358,6 +402,7 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
+
         ctx.orchestrator_client()
             .read_updates(|updates| assert!(updates.is_empty()));
     }
