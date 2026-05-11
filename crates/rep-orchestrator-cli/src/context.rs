@@ -171,9 +171,11 @@ impl CliContext for EnvironmentContext {
 #[cfg(test)]
 pub(crate) mod mocks {
     use super::*;
+    use crate::{
+        kubernetes::mocks::MockClient as MockKubeClient,
+        orchestrator::mocks::MockClient as MockOrchestrator,
+    };
     use anyhow::anyhow;
-    use kubernetes::mocks::MockClient as MockKubeClient;
-    use orchestrator::mocks::MockClient as MockOrchestrator;
     use std::{
         collections::HashMap,
         path::PathBuf,

@@ -222,8 +222,10 @@ impl Client for HttpClient {
 pub(crate) mod mocks {
     use super::*;
     use rep_orchestrator_shared::status::Status;
-    use std::process::ExitStatus;
-    use std::sync::{RwLock, RwLockReadGuard};
+    use std::{
+        process::ExitStatus,
+        sync::{RwLock, RwLockReadGuard},
+    };
 
     pub struct StatusUpdateArgs {
         pub status: Status,
