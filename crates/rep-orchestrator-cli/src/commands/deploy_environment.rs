@@ -1,13 +1,16 @@
 use crate::{
-    context::CliContext,
-    error::{CliError, CliResult},
+    context::{CliContext, FsError, FsErrorKind},
+    error::CliResult,
     info_status,
     kubernetes::Client,
+    kubernetes::Error,
     orchestrator::Client as OrchestratorClient,
 };
-use anyhow::{Context, anyhow};
+use anyhow::anyhow;
 use rep_orchestrator_shared::status::Status;
-use std::{collections::HashMap, env::temp_dir, fs, path::Path, process::Command, time::Duration};
+use std::{
+    collections::HashMap, env::temp_dir, fs, io, path::Path, process::Command, time::Duration,
+};
 use tokio::time::{Instant, sleep};
 use tracing::{info, warn};
 
@@ -26,20 +29,22 @@ pub async fn deploy_environment(
 ) -> CliResult<()> {
     let workdir_path = temp_dir().join("rtf-work");
     let k8s_dir_path = workdir_path.join("k8s");
-    fs::create_dir_all(&k8s_dir_path)
-        .context("Failed to create k8s working directory")
-        .map_err(CliError::unrunnable)?;
-    fs::create_dir_all(provider_dir_path)
-        .context("Failed to create provider output directory")
-        .map_err(CliError::unrunnable)?;
+
+    fs::create_dir_all(&k8s_dir_path).map_err(|source| FsError {
+        kind: FsErrorKind::CreateDir,
+        path: k8s_dir_path.clone(),
+        source,
+    })?;
+
+    fs::create_dir_all(provider_dir_path).map_err(|source| FsError {
+        kind: FsErrorKind::CreateDir,
+        path: provider_dir_path.to_owned(),
+        source,
+    })?;
 
     info_status!(ctx, Status::Provisioning, "deploying environment")?;
 
-    let cfg_bytes = ctx
-        .orchestrator_client()
-        .fetch_environment_config()
-        .await
-        .map_err(CliError::unrunnable)?;
+    let cfg_bytes = ctx.orchestrator_client().fetch_environment_config().await?;
 
     let cfg_path = temp_dir().join("environment.yaml");
     ctx.write_file(&cfg_path, &cfg_bytes)?;
@@ -87,22 +92,33 @@ async fn setup_env(
     ctx: &impl CliContext,
 ) -> CliResult<()> {
     let setup_env = provider_dir_path.join("setup/setup.env");
-    let env_contents = fs::read_to_string(&setup_env)
-        .context("Failed to read setup.env file")
-        .map_err(CliError::unrunnable)?;
+    let env_contents = fs::read_to_string(&setup_env).map_err(|source| FsError {
+        kind: FsErrorKind::Read,
+        path: setup_env.clone(),
+        source,
+    })?;
 
-    let env_vars = parse_env_file(&env_contents).map_err(CliError::unrunnable)?;
+    let env_vars = parse_env_file(&env_contents).map_err(|e| FsError {
+        kind: FsErrorKind::Read,
+        path: setup_env.clone(),
+        source: io::Error::new(io::ErrorKind::InvalidData, e.to_string()),
+    })?;
 
-    let compose_files_path = env_vars
-        .get("COMPOSE_FILES")
-        .context(
+    let compose_files_path = env_vars.get("COMPOSE_FILES").ok_or_else(|| FsError {
+        kind: FsErrorKind::Read,
+        path: setup_env.clone(),
+        source: io::Error::new(
+            io::ErrorKind::InvalidData,
             "COMPOSE_FILES was not set by setup.env -- make sure environment.yaml is well-formed",
-        )
-        .map_err(CliError::unrunnable)?;
+        ),
+    })?;
 
-    let compose_files_content = fs::read_to_string(compose_files_path)
-        .context("Failed to read COMPOSE_FILES file provider output")
-        .map_err(CliError::unrunnable)?;
+    let compose_files_content =
+        fs::read_to_string(compose_files_path).map_err(|source| FsError {
+            kind: FsErrorKind::Read,
+            path: compose_files_path.into(),
+            source,
+        })?;
 
     info!("converting to kubernetes manifests");
     let mut kompose = build_kompose_command(
@@ -201,12 +217,7 @@ async fn wait_for_deployments(
     )?;
 
     loop {
-        let status = kube
-            .check_deployment_status(namespace)
-            .await
-            .context("Failed to list deployments")
-            .map_err(CliError::unrunnable)?;
-
+        let status = kube.check_deployment_status(namespace).await?;
         if status.total > 0 && status.not_ready.is_empty() {
             return Ok(());
         }
@@ -217,14 +228,17 @@ async fn wait_for_deployments(
                 .iter()
                 .map(|d| format!("{}: {}", d.name, d.last_condition_status))
                 .collect();
+
             warn!(
                 "timed out after {timeout_secs}s; not-ready deployments: {}",
                 not_ready.join(", ")
             );
-            return Err(CliError::unrunnable(anyhow!(
-                "Timed out after {timeout_secs}s waiting for deployments: {}",
-                not_ready.join("\n")
-            )));
+
+            return Err(Error::DeploymentTimeout {
+                timeout_secs,
+                names: not_ready.join("\n"),
+            }
+            .into());
         }
 
         sleep(Duration::from_secs(2)).await;

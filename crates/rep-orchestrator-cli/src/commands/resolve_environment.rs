@@ -1,9 +1,8 @@
 use crate::{
-    context::CliContext,
-    error::{CliError, CliResult},
+    context::{CliContext, FsError, FsErrorKind},
+    error::CliResult,
     orchestrator::Client as OrchestratorClient,
 };
-use anyhow::Context;
 use std::{env::temp_dir, fs, process::Command};
 use tracing::info;
 
@@ -11,20 +10,16 @@ use tracing::info;
 /// definition so we don't push statuses back to the orchestrator here, only log.
 pub async fn resolve_environment(outdir: &str, ctx: &impl CliContext) -> CliResult<()> {
     info!("fetching environment configuration");
-    let cfg_bytes = ctx
-        .orchestrator_client()
-        .fetch_environment_config()
-        .await
-        .map_err(CliError::unrunnable)?;
+    let cfg_bytes = ctx.orchestrator_client().fetch_environment_config().await?;
 
     let cfg_path = temp_dir().join("environment.yaml");
     ctx.write_file(&cfg_path, &cfg_bytes)?;
 
-    fs::create_dir_all(outdir)
-        .context(format!(
-            "Failed to create provider output directory ({outdir})"
-        ))
-        .map_err(CliError::unrunnable)?;
+    fs::create_dir_all(outdir).map_err(|source| FsError {
+        path: outdir.into(),
+        kind: FsErrorKind::CreateDir,
+        source,
+    })?;
 
     ctx.run_shell(Command::new("rtf").args([
         "resolve",

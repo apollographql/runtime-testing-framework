@@ -48,13 +48,29 @@ pub async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Res
             command,
         } => commands::prepare_scenario(&shared_dir, &command, ctx).await,
 
-        Command::CollectOutput { shared_dir } => commands::collect_output(&shared_dir, ctx).await,
+        // Collect output is unique in the fact that it can set a Failed status where all other CLI
+        // fatal errors result in Unrunnable.
+        Command::CollectOutput { shared_dir } => {
+            let e = match commands::collect_output(&shared_dir, ctx).await {
+                Ok(()) => return Ok(()),
+                Err(e) => e,
+            };
+
+            let (status, exit_status) = e.status_and_exit_status();
+            let msg = e.to_string();
+
+            ctx.orchestrator_client()
+                .update_status(status, exit_status, Some(msg.clone()))
+                .await?;
+
+            return Err(anyhow!(msg));
+        }
     };
 
     match res {
         Ok(()) => Ok(()),
         Err(e) => {
-            let console_err = anyhow!(e.source_to_string());
+            let console_err = anyhow!(e.to_string());
             if let Err(status_failure) = ctx.orchestrator_client().update_error_status(e).await {
                 error!("failed to update status for error: {status_failure}");
             }
@@ -112,7 +128,7 @@ mod tests {
         });
     }
 
-    #[test_case(FailingClient::Kube, "Failed to create kube namespace"; "command error propagated to caller")]
+    #[test_case(FailingClient::Kube, "failed to create namespace"; "command error propagated to caller")]
     #[test_case(FailingClient::Orchestrator, "mock update failure"; "status update failure does not mask command error")]
     #[tokio::test]
     async fn error_message_contains_original_cause(failing_client: FailingClient, expected: &str) {

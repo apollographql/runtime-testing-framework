@@ -1,10 +1,4 @@
-use crate::{
-    context::CliContext,
-    error::{CliError, CliResult},
-    info_status,
-    kubernetes::Client,
-};
-use anyhow::Context;
+use crate::{context::CliContext, error::CliResult, info_status, kubernetes::Client};
 use rep_orchestrator_shared::status::Status;
 
 pub async fn create_service_account(namespace: &str, ctx: &impl CliContext) -> CliResult<()> {
@@ -16,17 +10,13 @@ pub async fn create_service_account(namespace: &str, ctx: &impl CliContext) -> C
 
     ctx.kube_client()
         .create_results_writer_service_account(namespace)
-        .await
-        .context("Failed to create results-writer service account.")
-        .map_err(CliError::unrunnable)?;
+        .await?;
 
     info_status!(
         ctx,
         Status::Provisioning,
         "results-writer service account created successfully"
-    )?;
-
-    Ok(())
+    )
 }
 
 #[cfg(test)]
@@ -72,8 +62,8 @@ mod tests {
             kube_client: MockKubeClient::failing(),
             ..Default::default()
         };
-        let err = create_service_account("test-ns", &ctx).await.unwrap_err();
-        assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
+        let res = create_service_account("test-ns", &ctx).await;
+        assert!(res.is_err(), "{res:?}");
 
         ctx.orchestrator_client().read_updates(|updates| {
             assert_eq!(updates.len(), 1);
@@ -87,7 +77,7 @@ mod tests {
             orchestrator_client: MockOrchestrator::failing(),
             ..Default::default()
         };
-        let err = create_service_account("test-ns", &ctx).await.unwrap_err();
-        assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
+        let res = create_service_account("test-ns", &ctx).await;
+        assert!(res.is_err(), "{res:?}");
     }
 }

@@ -1,183 +1,75 @@
-use anyhow::anyhow;
-use rep_orchestrator_shared::status::Status;
-use std::{
-    fmt::{self, Display, Formatter},
-    process::ExitStatus,
+use crate::{
+    context::{FsError, ShellError},
+    kubernetes, orchestrator,
 };
 use thiserror::Error;
 
-/// Errors produced within this CLI that map 1:1 with terminal failure statuses in the REP Orchestrator.
-///
-/// See the documentation of [Status] for details.
+/// All errors that prevent test execution from proceeding.
 #[derive(Debug, Error)]
-pub enum CliError {
-    Unrunnable {
-        source: anyhow::Error,
-        /// Unrunnable errors may include an exit code for [Display] purposes, but this will not be recorded to the database
-        exit_status: Option<ExitStatus>,
-    },
-    Failed {
-        source: anyhow::Error,
-        /// Failures in a user's test plan **must** have an associated exit code to record to the database
-        exit_status: ExitStatus,
-    },
+pub enum Error {
+    #[error(transparent)]
+    Kubernetes(#[from] kubernetes::Error),
+
+    #[error(transparent)]
+    OrchestratorApi(#[from] orchestrator::Error),
+
+    #[error(transparent)]
+    Filesystem(#[from] FsError),
+
+    #[error(transparent)]
+    Shell(#[from] ShellError),
 }
 
-pub type CliResult<T> = Result<T, CliError>;
-
-impl CliError {
-    /// Construct a [CliError::Unrunnable] error from the provided `source` error
-    pub fn unrunnable(source: anyhow::Error) -> Self {
-        Self::Unrunnable {
-            source,
-            exit_status: None,
-        }
-    }
-
-    /// Construct a [CliError::Unrunnable] error from the provided subprocess `exit_status` and additional `context`
-    pub fn unrunnable_subprocess(exit_status: ExitStatus, context: String) -> Self {
-        Self::Unrunnable {
-            source: anyhow!(context),
-            exit_status: Some(exit_status),
-        }
-    }
-
-    /// Construct a [CliError::Failed] error from the provided subprocess `exit_status` and additional `context`
-    pub fn failed(exit_status: ExitStatus, context: String) -> Self {
-        Self::Failed {
-            source: anyhow!(context),
-            exit_status,
-        }
-    }
-
-    /// The exit status of the process that caused this error, if any
-    pub fn exit_status(&self) -> Option<ExitStatus> {
-        match self {
-            // For the purposes of writing to the database, Unrunnable errors should not report an exit status directly
-            Self::Unrunnable { .. } => None,
-            Self::Failed { exit_status, .. } => Some(*exit_status),
-        }
-    }
-
-    /// The String form of the underlying error
-    pub fn source_to_string(&self) -> String {
-        match self {
-            Self::Unrunnable { source, .. } | Self::Failed { source, .. } => source.to_string(),
-        }
-    }
-
-    /// The [Status] that this variant maps to
-    pub fn rep_orchestrator_status(&self) -> Status {
-        match self {
-            Self::Unrunnable { .. } => Status::Unrunnable,
-            Self::Failed { .. } => Status::Failed,
-        }
-    }
-}
-
-fn format_with_exit_code(
-    formatter: &mut Formatter,
-    source: &anyhow::Error,
-    code: Option<i32>,
-) -> fmt::Result {
-    match code {
-        Some(code) => {
-            write!(formatter, "({code}) {}", source)
-        }
-        None => source.fmt(formatter),
-    }
-}
-
-impl Display for CliError {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Unrunnable {
-                source,
-                exit_status,
-            } => format_with_exit_code(
-                formatter,
-                source,
-                exit_status.and_then(|status| status.code()),
-            ),
-            Self::Failed {
-                source,
-                exit_status,
-            } => format_with_exit_code(formatter, source, exit_status.code()),
-        }
-    }
-}
+pub type CliResult<T> = std::result::Result<T, Error>;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use simple_test_case::test_case;
-    use std::os::unix::process::ExitStatusExt;
+    use crate::context::FsErrorKind;
+    use std::{io, path::PathBuf};
 
-    fn exit_code(code: i32) -> ExitStatus {
-        ExitStatus::from_raw(code << 8)
-    }
-
-    #[derive(Debug)]
-    enum ExpectedError {
-        Unrunnable,
-        UnrunnableSubprocess(i32),
-        Failed(i32),
-    }
-
-    fn build(scenario: ExpectedError, msg: &str) -> CliError {
-        match scenario {
-            ExpectedError::Unrunnable => CliError::unrunnable(anyhow!("{}", msg)),
-            ExpectedError::UnrunnableSubprocess(code) => {
-                CliError::unrunnable_subprocess(exit_code(code), msg.to_owned())
-            }
-            ExpectedError::Failed(code) => CliError::failed(exit_code(code), msg.to_owned()),
+    fn filesystem_error() -> Error {
+        FsError {
+            path: PathBuf::from("/some/file"),
+            kind: FsErrorKind::Read,
+            source: io::Error::new(io::ErrorKind::NotFound, "not found"),
         }
+        .into()
     }
 
-    #[test_case(ExpectedError::Unrunnable, "oops", None, Status::Unrunnable; "unrunnable has no exit status")]
-    #[test_case(ExpectedError::UnrunnableSubprocess(1), "cmd failed", None, Status::Unrunnable; "unrunnable subprocess suppresses exit status")]
-    #[test_case(ExpectedError::Failed(1), "test failed", Some(1), Status::Failed; "failed maps to failed status")]
-    #[test]
-    fn error_properties(
-        constructor: ExpectedError,
-        msg: &str,
-        expected_exit_code: Option<i32>,
-        expected_status: Status,
-    ) {
-        let err = build(constructor, msg);
-        assert_eq!(err.exit_status().and_then(|s| s.code()), expected_exit_code);
-        assert_eq!(err.rep_orchestrator_status(), expected_status);
+    fn shell_spawn_error() -> Error {
+        ShellError::Spawn {
+            cmd: "my-cmd".to_owned(),
+            source: io::Error::new(io::ErrorKind::NotFound, "not found"),
+        }
+        .into()
     }
 
-    #[test_case(ExpectedError::Unrunnable, "something broke", "something broke"; "unrunnable")]
-    #[test_case(ExpectedError::Failed(1), "tests failed", "tests failed"; "failed")]
-    #[test]
-    fn source_to_string_returns_message(constructor: ExpectedError, msg: &str, expected: &str) {
-        let err = build(constructor, msg);
-        assert_eq!(err.source_to_string(), expected);
-    }
-
-    #[test_case(ExpectedError::Unrunnable, "something broke", "something broke"; "unrunnable without exit code")]
-    #[test_case(ExpectedError::UnrunnableSubprocess(1), "cmd failed", "(1) cmd failed"; "unrunnable subprocess includes exit code")]
-    #[test_case(ExpectedError::Failed(2), "tests failed", "(2) tests failed"; "failed includes exit code")]
-    #[test]
-    fn display_formatting(constructor: ExpectedError, msg: &str, expected: &str) {
-        let err = build(constructor, msg);
-        assert_eq!(format!("{err}"), expected);
+    fn shell_failed_error(code: i32) -> Error {
+        use std::{os::unix::process::ExitStatusExt, process::ExitStatus};
+        ShellError::Failed {
+            cmd: "my-cmd".to_owned(),
+            exit_status: ExitStatus::from_raw(code << 8),
+        }
+        .into()
     }
 
     #[test]
-    fn err_unrunnable_converts_anyhow_to_unrunnable() {
-        let result: Result<(), anyhow::Error> = Err(anyhow!("bad thing"));
-        let cli_err = result.map_err(CliError::unrunnable).unwrap_err();
-        assert_eq!(cli_err.rep_orchestrator_status(), Status::Unrunnable);
-        assert_eq!(cli_err.exit_status(), None);
-        assert_eq!(cli_err.source_to_string(), "bad thing");
+    fn filesystem_error_message_includes_path() {
+        let msg = filesystem_error().to_string();
+        assert!(msg.contains("/some/file"), "expected path in error: {msg}");
     }
 
     #[test]
-    fn err_unrunnable_passes_through_ok() {
-        let result: Result<u32, anyhow::Error> = Ok(42);
-        assert_eq!(result.map_err(CliError::unrunnable).unwrap(), 42);
+    fn shell_failed_error_message_includes_exit_code() {
+        let msg = shell_failed_error(2).to_string();
+        assert!(msg.contains("(2)"), "expected exit code in error: {msg}");
+        assert!(msg.contains("my-cmd"), "expected cmd in error: {msg}");
+    }
+
+    #[test]
+    fn shell_spawn_error_message_includes_cmd() {
+        let msg = shell_spawn_error().to_string();
+        assert!(msg.contains("my-cmd"), "expected cmd in spawn error: {msg}");
     }
 }

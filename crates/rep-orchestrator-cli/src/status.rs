@@ -11,6 +11,6 @@ macro_rules! info_status {
         $ctx.orchestrator_client()
             .update_status($status, None, Some(message))
             .await
-            .map_err(CliError::unrunnable)
+            .map_err($crate::error::Error::from)
     }};
 }

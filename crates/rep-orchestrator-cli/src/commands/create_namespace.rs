@@ -1,10 +1,4 @@
-use crate::{
-    context::CliContext,
-    error::{CliError, CliResult},
-    info_status,
-    kubernetes::Client,
-};
-use anyhow::Context;
+use crate::{context::CliContext, error::CliResult, info_status, kubernetes::Client};
 use rep_orchestrator_shared::status::Status;
 
 pub async fn create_namespace(namespace: &str, ctx: &impl CliContext) -> CliResult<()> {
@@ -14,12 +8,7 @@ pub async fn create_namespace(namespace: &str, ctx: &impl CliContext) -> CliResu
         "creating namespace '{namespace}' in workload cluster"
     )?;
 
-    ctx.kube_client()
-        .create_namespace(namespace)
-        .await
-        .context("Failed to create kube namespace.")
-        .map_err(CliError::unrunnable)?;
-
+    ctx.kube_client().create_namespace(namespace).await?;
     info_status!(ctx, Status::Provisioning, "namespace created successfully")?;
 
     Ok(())
@@ -28,9 +17,11 @@ pub async fn create_namespace(namespace: &str, ctx: &impl CliContext) -> CliResu
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::mocks::MockContext;
-    use crate::kubernetes::mocks::{KubeCall, MockClient as MockKubeClient};
-    use crate::orchestrator::mocks::MockClient as MockOrchestrator;
+    use crate::{
+        context::mocks::MockContext,
+        kubernetes::mocks::{KubeCall, MockClient as MockKubeClient},
+        orchestrator::mocks::MockClient as MockOrchestrator,
+    };
     use rep_orchestrator_shared::status::Status;
 
     #[tokio::test]
@@ -66,8 +57,8 @@ mod tests {
             kube_client: MockKubeClient::failing(),
             ..Default::default()
         };
-        let err = create_namespace("test-ns", &ctx).await.unwrap_err();
-        assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
+        let res = create_namespace("test-ns", &ctx).await;
+        assert!(res.is_err(), "{res:?}");
 
         ctx.orchestrator_client().read_updates(|updates| {
             assert_eq!(updates.len(), 1);
@@ -81,7 +72,7 @@ mod tests {
             orchestrator_client: MockOrchestrator::failing(),
             ..Default::default()
         };
-        let err = create_namespace("test-ns", &ctx).await.unwrap_err();
-        assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
+        let res = create_namespace("test-ns", &ctx).await;
+        assert!(res.is_err(), "{res:?}");
     }
 }
