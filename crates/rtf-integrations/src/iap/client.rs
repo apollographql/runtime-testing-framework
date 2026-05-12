@@ -1,11 +1,16 @@
 //! IAP-authenticated HTTP client for the REP orchestrator.
 
 use crate::iap::{
-    auth::{OauthConfig, access_token, id_token},
-    secrets::{fetch_iap_audience, fetch_oauth_client_id, fetch_oauth_client_secret},
+    auth::{OauthConfig, id_token},
+    secrets::{Secrets, fetch_all},
 };
 use bytes::Bytes;
-use reqwest::{Client, Method};
+use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderName, HeaderValue};
+use reqwest::{Body, Client, Method};
+use std::pin::Pin;
+use std::str::FromStr;
+use tokio::io::AsyncRead;
+use tokio_util::io::ReaderStream;
 
 /// Errors that can occur when building or using an [`IapClient`].
 #[derive(Debug, thiserror::Error)]
@@ -57,6 +62,24 @@ pub enum Error {
     /// The secret payload returned by Secret Manager could not be decoded.
     #[error("could not decode secret payload: {0}")]
     InvalidSecret(String),
+
+    /// The caller passed an unparsable HTTP method string.
+    #[error("invalid HTTP method {method:?}: {reason}")]
+    InvalidMethod {
+        /// The original method string the caller supplied.
+        method: String,
+        /// The parser's error message.
+        reason: String,
+    },
+
+    /// The caller passed a header string that does not match `Key: Value`.
+    #[error("invalid header {raw:?}: {reason}")]
+    InvalidHeader {
+        /// The original header string the caller supplied.
+        raw: String,
+        /// The parser's error message.
+        reason: String,
+    },
 }
 
 /// Alias for a [Result][std::result::Result] where the error variant is an [Error].
@@ -75,6 +98,65 @@ impl IapResponse {
     /// Returns `true` when the status is in the 2xx range.
     pub fn is_success(&self) -> bool {
         (200..300).contains(&self.status)
+    }
+}
+
+/// Body for an outgoing IAP request.
+///
+/// Construct with [`RequestBody::from_bytes`] for in-memory payloads, or
+/// [`RequestBody::from_reader`] for streaming sources (open files, stdin, etc).
+/// Streaming bodies flow through the HTTP client chunk-by-chunk and never
+/// accumulate in memory, so multi-gigabyte payloads are safe.
+pub struct RequestBody {
+    inner: RequestBodyInner,
+}
+
+enum RequestBodyInner {
+    Bytes(Vec<u8>),
+    Reader(Pin<Box<dyn AsyncRead + Send + 'static>>),
+}
+
+impl RequestBody {
+    /// Build a body from a fixed byte buffer. Sent with `Content-Length`.
+    pub fn from_bytes(bytes: impl Into<Vec<u8>>) -> Self {
+        Self {
+            inner: RequestBodyInner::Bytes(bytes.into()),
+        }
+    }
+
+    /// Build a body from a streaming reader. Sent with chunked transfer encoding.
+    pub fn from_reader<R>(reader: R) -> Self
+    where
+        R: AsyncRead + Send + 'static,
+    {
+        Self {
+            inner: RequestBodyInner::Reader(Box::pin(reader)),
+        }
+    }
+}
+
+impl std::fmt::Debug for RequestBody {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.inner {
+            RequestBodyInner::Bytes(b) => f
+                .debug_struct("RequestBody")
+                .field("kind", &"Bytes")
+                .field("len", &b.len())
+                .finish(),
+            RequestBodyInner::Reader(_) => f
+                .debug_struct("RequestBody")
+                .field("kind", &"Reader")
+                .finish(),
+        }
+    }
+}
+
+impl From<RequestBody> for Body {
+    fn from(body: RequestBody) -> Self {
+        match body.inner {
+            RequestBodyInner::Bytes(b) => Body::from(b),
+            RequestBodyInner::Reader(r) => Body::wrap_stream(ReaderStream::new(r)),
+        }
     }
 }
 
@@ -97,14 +179,15 @@ pub struct IapClient {
 impl IapClient {
     /// Build a new client.
     ///
-    /// Loads ADC, obtains an access token, and fetches the IAP audience plus
-    /// the Desktop OAuth client credentials from Secret Manager.
+    /// Fetches the IAP audience and the Desktop OAuth client credentials from
+    /// Secret Manager. The SDK loads Application Default Credentials internally.
     pub async fn new(orchestrator_url: impl Into<String>) -> Result<Self> {
         let orchestrator_url = orchestrator_url.into();
-        let access_token = access_token().await?;
-        let iap_audience = fetch_iap_audience(&access_token).await?;
-        let oauth_client_id = fetch_oauth_client_id(&access_token).await?;
-        let oauth_client_secret = fetch_oauth_client_secret(&access_token).await?;
+        let Secrets {
+            iap_audience,
+            oauth_client_id,
+            oauth_client_secret,
+        } = fetch_all().await?;
         let http = Client::new();
         Ok(Self {
             orchestrator_url,
@@ -118,15 +201,19 @@ impl IapClient {
     /// Send an authenticated request to the orchestrator and return the full response.
     ///
     /// Mints a user-scoped Google-signed ID token aimed at the IAP audience and
-    /// attaches it as a `Bearer` token. `method` is an HTTP method string
-    /// (e.g. `"GET"`, `"POST"`).
+    /// attaches it as a `Bearer` token. Each entry in `headers` must be a
+    /// `"Key: Value"` string; parse failures surface as [`Error::InvalidHeader`].
+    /// The supplied headers cannot override `Authorization`.
     pub async fn send(
         &self,
         method: &str,
         path: &str,
-        headers: &[(String, String)],
-        body: Option<Bytes>,
+        headers: &[String],
+        body: Option<RequestBody>,
     ) -> Result<IapResponse> {
+        let method = parse_method(method)?;
+        let header_map = parse_headers(headers)?;
+
         let oauth_config = OauthConfig {
             iap_audience: &self.iap_audience,
             client_id: &self.oauth_client_id,
@@ -137,21 +224,15 @@ impl IapClient {
         let base = self.orchestrator_url.trim_end_matches('/');
         let url = format!("{base}{path}");
 
-        let parsed_method = method
-            .parse::<Method>()
-            .map_err(|e| Error::OauthFlow(format!("invalid HTTP method '{method}': {e}")))?;
+        let mut auth_value = HeaderValue::from_str(&format!("Bearer {id_token}"))
+            .map_err(|e| Error::OauthFlow(format!("invalid bearer token: {e}")))?;
+        auth_value.set_sensitive(true);
 
-        let mut builder = self
-            .http
-            .request(parsed_method, &url)
-            .header("Authorization", format!("Bearer {id_token}"));
-
-        for (key, value) in headers {
-            builder = builder.header(key.as_str(), value.as_str());
-        }
+        let mut builder = self.http.request(method, &url).headers(header_map);
+        builder = builder.header(AUTHORIZATION, auth_value);
 
         if let Some(b) = body {
-            builder = builder.body(b);
+            builder = builder.body(Body::from(b));
         }
 
         let response = builder.send().await?;
@@ -165,6 +246,34 @@ impl IapClient {
 
         Ok(IapResponse { status, body })
     }
+}
+
+fn parse_method(method: &str) -> Result<Method> {
+    Method::from_str(method).map_err(|e| Error::InvalidMethod {
+        method: method.to_owned(),
+        reason: e.to_string(),
+    })
+}
+
+fn parse_headers(headers: &[String]) -> Result<HeaderMap> {
+    let mut map = HeaderMap::new();
+    for raw in headers {
+        let (name, value) = raw.split_once(':').ok_or_else(|| Error::InvalidHeader {
+            raw: raw.clone(),
+            reason: "expected \"Key: Value\"".to_owned(),
+        })?;
+        let name = HeaderName::from_str(name.trim()).map_err(|e| Error::InvalidHeader {
+            raw: raw.clone(),
+            reason: e.to_string(),
+        })?;
+        let value =
+            HeaderValue::from_str(value.trim_start()).map_err(|e| Error::InvalidHeader {
+                raw: raw.clone(),
+                reason: e.to_string(),
+            })?;
+        map.append(name, value);
+    }
+    Ok(map)
 }
 
 #[cfg(test)]
@@ -219,5 +328,41 @@ mod tests {
                 "expected !is_success() for status {status}"
             );
         }
+    }
+
+    #[test]
+    fn parse_method_accepts_known_verbs() {
+        assert_eq!(parse_method("GET").unwrap(), Method::GET);
+        assert_eq!(parse_method("POST").unwrap(), Method::POST);
+        assert_eq!(parse_method("PATCH").unwrap(), Method::PATCH);
+    }
+
+    #[test]
+    fn parse_method_rejects_garbage() {
+        let err = parse_method("GET POST").unwrap_err();
+        assert!(matches!(err, Error::InvalidMethod { .. }), "got {err:?}");
+        let msg = err.to_string();
+        assert!(msg.contains("GET POST"));
+    }
+
+    #[test]
+    fn parse_headers_builds_header_map() {
+        let headers = vec![
+            "Content-Type: application/json".to_owned(),
+            "X-Custom: foo: bar".to_owned(),
+        ];
+        let map = parse_headers(&headers).unwrap();
+        assert_eq!(
+            map.get("content-type").unwrap().to_str().unwrap(),
+            "application/json"
+        );
+        assert_eq!(map.get("x-custom").unwrap().to_str().unwrap(), "foo: bar");
+    }
+
+    #[test]
+    fn parse_headers_rejects_missing_colon() {
+        let headers = vec!["BearerToken".to_owned()];
+        let err = parse_headers(&headers).unwrap_err();
+        assert!(matches!(err, Error::InvalidHeader { .. }), "got {err:?}");
     }
 }

@@ -15,11 +15,14 @@ chrono = { version = "0.4.44", features = ["serde"] }
 clap = { version = "4.6.1", features = ["derive"] }
 futures = "0.3.32"
 git-version = "0.3.9"
-google-cloud-auth = "=1.8.0"
+google-cloud-auth = "=1.10.0"
+google-cloud-gax = "=1.10.0"
+google-cloud-secretmanager-v1 = "=1.9.0"
 indoc = "2.0.7"
 itertools = "0.14.0"
 k8s-openapi = { version = "0.27.1", features = ["schemars", "v1_35"] }
 kube = { version = "3.1.0", features = ["aws-lc-rs", "client", "config", "derive", "runtime"] }
+oauth2 = "5.0.0"
 open = "5.3.4"
 rand = "0.10.1"
 reqwest = { version = "0.13.2", default-features=false, features = ["charset", "http2", "json", "rustls", "stream", "system-proxy"] }
@@ -30,9 +33,11 @@ serde_yaml = "0.9.34"
 sha2 = "0.10"
 strum = { version = "0.28.0", features = ["derive"] }
 thiserror = "2.0.18"
-tokio = { version = "1.52.1", features = ["io-util", "macros", "net", "parking_lot", "rt-multi-thread", "time"] }
+tokio = { version = "1.52.1", features = ["fs", "io-util", "io-std", "macros", "net", "parking_lot", "rt-multi-thread", "time"] }
+tokio-util = { version = "0.7.18", features = ["io"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
+url = "2.5.8"
 uuid = { version = "1.23.1", features = ["v4", "serde"] }
 
 # test dependencies

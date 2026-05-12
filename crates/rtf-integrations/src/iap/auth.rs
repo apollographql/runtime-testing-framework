@@ -1,22 +1,25 @@
-//! GCP access tokens (for Secret Manager) and the user-OAuth loopback flow
-//! that mints IAP-audience ID tokens.
+//! User-OAuth loopback flow that mints IAP-audience ID tokens.
 
 use crate::iap::client::{Error, Result};
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use chrono::{DateTime, Duration, Utc};
-use google_cloud_auth::credentials::Builder;
-use reqwest::Client;
+use oauth2::basic::{
+    BasicErrorResponse, BasicRevocationErrorResponse, BasicTokenIntrospectionResponse,
+    BasicTokenType,
+};
+use oauth2::{
+    AuthUrl, AuthorizationCode, Client, ClientId, ClientSecret, CsrfToken, EndpointNotSet,
+    EndpointSet, ExtraTokenFields, PkceCodeChallenge, RedirectUrl, RefreshToken, Scope,
+    StandardRevocableToken, StandardTokenResponse, TokenResponse, TokenUrl,
+};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::{env, fs};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
+use url::form_urlencoded;
 
 const GOOGLE_AUTH_ENDPOINT: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_ENDPOINT: &str = "https://oauth2.googleapis.com/token";
-const OAUTH_SCOPES: &str = "openid email";
-const ACCESS_TOKEN_SCOPE: &str = "https://www.googleapis.com/auth/cloud-platform";
 const TOKEN_CACHE_SUBDIR: &str = "rtf";
 const TOKEN_CACHE_FILENAME: &str = "iap_credentials.json";
 const LOOPBACK_TIMEOUT_SECS: u64 = 300;
@@ -40,23 +43,34 @@ struct CachedTokens {
     refresh_token: String,
 }
 
-/// Obtain a GCP access token from Application Default Credentials.
+/// Extra fields beyond RFC 6749 that Google returns from the token endpoint.
 ///
-/// Used to authenticate the Secret Manager bootstrap calls that fetch the IAP
-/// audience and the Desktop OAuth client credentials. Requires the user to
-/// have run `gcloud auth application-default login` at least once.
-pub(super) async fn access_token() -> Result<String> {
-    let credentials = Builder::default()
-        .with_scopes([ACCESS_TOKEN_SCOPE])
-        .build_access_token_credentials()
-        .map_err(|e| Error::Adc(e.to_string()))?;
-    let token = credentials
-        .access_token()
-        .await
-        .map_err(|e| Error::Adc(e.to_string()))?;
-
-    Ok(token.token)
+/// `id_token` is the OIDC ID token; everything else in the response is covered
+/// by [`StandardTokenResponse`].
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct GoogleExtraFields {
+    id_token: String,
 }
+
+impl ExtraTokenFields for GoogleExtraFields {}
+
+type GoogleTokenResponse = StandardTokenResponse<GoogleExtraFields, BasicTokenType>;
+
+/// `oauth2` client configured with Google's endpoints and our custom
+/// `id_token`-aware response type. The two `EndpointSet` markers reflect the
+/// auth and token URLs being populated by [`build_oauth_client`].
+type GoogleOauthClient = Client<
+    BasicErrorResponse,
+    GoogleTokenResponse,
+    BasicTokenIntrospectionResponse,
+    StandardRevocableToken,
+    BasicRevocationErrorResponse,
+    EndpointSet,
+    EndpointNotSet,
+    EndpointNotSet,
+    EndpointNotSet,
+    EndpointSet,
+>;
 
 /// Obtain an IAP-audience OIDC ID token authenticated as the current user.
 ///
@@ -81,20 +95,47 @@ pub(super) async fn id_token(config: &OauthConfig<'_>) -> Result<String> {
     Ok(tokens.id_token)
 }
 
-/// Token endpoint response shape, common to both authorization-code and
-/// refresh-token grants.
-#[derive(Deserialize)]
-struct TokenResponse {
-    id_token: String,
-    refresh_token: Option<String>,
-    expires_in: i64,
+/// Build the `oauth2::Client` for Google's endpoints. `redirect_uri` is only
+/// needed for the authorization-code grant; refresh-token grants pass `None`.
+fn build_oauth_client(
+    config: &OauthConfig<'_>,
+    redirect_uri: Option<&str>,
+) -> Result<GoogleOauthClient> {
+    let mut client = Client::new(ClientId::new(config.client_id.to_owned()))
+        .set_client_secret(ClientSecret::new(config.client_secret.to_owned()))
+        .set_auth_uri(
+            AuthUrl::new(GOOGLE_AUTH_ENDPOINT.to_owned())
+                .map_err(|e| Error::OauthFlow(format!("invalid auth URL: {e}")))?,
+        )
+        .set_token_uri(
+            TokenUrl::new(GOOGLE_TOKEN_ENDPOINT.to_owned())
+                .map_err(|e| Error::OauthFlow(format!("invalid token URL: {e}")))?,
+        );
+
+    if let Some(uri) = redirect_uri {
+        client = client.set_redirect_uri(
+            RedirectUrl::new(uri.to_owned())
+                .map_err(|e| Error::OauthFlow(format!("invalid redirect URI: {e}")))?,
+        );
+    }
+
+    Ok(client)
+}
+
+/// Build the HTTP client used for token-endpoint calls. Redirects are disabled
+/// to avoid SSRF (per the `oauth2` crate's recommendation).
+///
+/// This uses `oauth2`'s bundled reqwest 0.12 (not the workspace's 0.13) because
+/// that's what `AsyncHttpClient` is implemented for. The duplication is
+/// confined to this OAuth flow.
+fn build_oauth_http_client() -> Result<oauth2::reqwest::Client> {
+    oauth2::reqwest::ClientBuilder::new()
+        .redirect(oauth2::reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|e| Error::OauthFlow(format!("could not build OAuth HTTP client: {e}")))
 }
 
 async fn run_oauth_flow(config: &OauthConfig<'_>) -> Result<CachedTokens> {
-    let code_verifier = generate_code_verifier();
-    let code_challenge = compute_code_challenge(&code_verifier);
-    let state = random_url_safe(24);
-
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
         .map_err(|e| Error::OauthFlow(format!("could not bind loopback listener: {e}")))?;
@@ -104,11 +145,21 @@ async fn run_oauth_flow(config: &OauthConfig<'_>) -> Result<CachedTokens> {
         .port();
     let redirect_uri = format!("http://127.0.0.1:{port}");
 
-    let auth_url = build_auth_url(config.client_id, &redirect_uri, &code_challenge, &state);
+    let oauth_client = build_oauth_client(config, Some(&redirect_uri))?;
+    let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
+
+    let (auth_url, csrf_token) = oauth_client
+        .authorize_url(CsrfToken::new_random)
+        .add_scope(Scope::new("openid".to_owned()))
+        .add_scope(Scope::new("email".to_owned()))
+        .add_extra_param("access_type", "offline")
+        .add_extra_param("prompt", "consent")
+        .set_pkce_challenge(pkce_challenge)
+        .url();
 
     eprintln!("Opening browser to authenticate with IAP…");
     eprintln!("If the browser does not open, visit this URL:\n  {auth_url}\n");
-    let _ = open::that(&auth_url);
+    let _ = open::that(auth_url.as_str());
 
     let (code, returned_state) = tokio::time::timeout(
         std::time::Duration::from_secs(LOOPBACK_TIMEOUT_SECS),
@@ -121,43 +172,78 @@ async fn run_oauth_flow(config: &OauthConfig<'_>) -> Result<CachedTokens> {
         ))
     })??;
 
-    if returned_state != state {
+    if returned_state != csrf_token.secret().as_str() {
         return Err(Error::OauthFlow(
             "OAuth state mismatch — aborting to prevent CSRF".to_owned(),
         ));
     }
 
-    let response = exchange_code(&code, &code_verifier, &redirect_uri, config).await?;
-    let refresh_token = response.refresh_token.ok_or_else(|| {
-        Error::OauthFlow(
-            "Google did not return a refresh_token; check that the OAuth consent screen \
-             grants offline access"
-                .to_owned(),
-        )
-    })?;
+    let http_client = build_oauth_http_client()?;
+    let token_result = oauth_client
+        .exchange_code(AuthorizationCode::new(code))
+        .add_extra_param("audience", config.iap_audience)
+        .set_pkce_verifier(pkce_verifier)
+        .request_async(&http_client)
+        .await
+        .map_err(|e| Error::OauthFlow(format!("Google token endpoint: {e}")))?;
+
+    let refresh_token = token_result
+        .refresh_token()
+        .ok_or_else(|| {
+            Error::OauthFlow(
+                "Google did not return a refresh_token; check that the OAuth consent screen \
+                 grants offline access"
+                    .to_owned(),
+            )
+        })?
+        .secret()
+        .to_owned();
 
     Ok(CachedTokens {
         audience: config.iap_audience.to_owned(),
         client_id: config.client_id.to_owned(),
-        id_token: response.id_token,
-        id_token_expires_at: Utc::now() + Duration::seconds(response.expires_in),
+        id_token: token_result.extra_fields().id_token.clone(),
+        id_token_expires_at: expires_at(&token_result),
         refresh_token,
     })
 }
 
-fn build_auth_url(client_id: &str, redirect_uri: &str, challenge: &str, state: &str) -> String {
-    let params = [
-        ("client_id", client_id),
-        ("redirect_uri", redirect_uri),
-        ("response_type", "code"),
-        ("scope", OAUTH_SCOPES),
-        ("code_challenge", challenge),
-        ("code_challenge_method", "S256"),
-        ("state", state),
-        ("access_type", "offline"),
-        ("prompt", "consent"),
-    ];
-    format!("{GOOGLE_AUTH_ENDPOINT}?{}", encode_form(&params))
+async fn refresh_id_token(refresh_token: &str, config: &OauthConfig<'_>) -> Result<CachedTokens> {
+    let oauth_client = build_oauth_client(config, None)?;
+    let http_client = build_oauth_http_client()?;
+
+    let token_result = oauth_client
+        .exchange_refresh_token(&RefreshToken::new(refresh_token.to_owned()))
+        .add_extra_param("audience", config.iap_audience)
+        .request_async(&http_client)
+        .await
+        .map_err(|e| Error::OauthFlow(format!("Google token endpoint: {e}")))?;
+
+    // Refresh-token grants may or may not return a new refresh_token; keep the
+    // existing one if Google didn't rotate it.
+    let next_refresh_token = token_result
+        .refresh_token()
+        .map(|t| t.secret().to_owned())
+        .unwrap_or_else(|| refresh_token.to_owned());
+
+    Ok(CachedTokens {
+        audience: config.iap_audience.to_owned(),
+        client_id: config.client_id.to_owned(),
+        id_token: token_result.extra_fields().id_token.clone(),
+        id_token_expires_at: expires_at(&token_result),
+        refresh_token: next_refresh_token,
+    })
+}
+
+/// Convert the SDK's `expires_in` into an absolute UTC timestamp, defaulting to
+/// one hour out when Google omits the field (per RFC 6749 §5.1 it's only
+/// RECOMMENDED, not REQUIRED).
+fn expires_at(response: &GoogleTokenResponse) -> DateTime<Utc> {
+    let expires_in = response
+        .expires_in()
+        .and_then(|d| i64::try_from(d.as_secs()).ok())
+        .unwrap_or(3600);
+    Utc::now() + Duration::seconds(expires_in)
 }
 
 async fn accept_oauth_callback(listener: TcpListener) -> Result<(String, String)> {
@@ -185,15 +271,12 @@ async fn accept_oauth_callback(listener: TcpListener) -> Result<(String, String)
     let mut code = None;
     let mut state = None;
     let mut oauth_error = None;
-    for pair in query.split('&').filter(|p| !p.is_empty()) {
-        if let Some((k, v)) = pair.split_once('=') {
-            let value = percent_decode(v);
-            match k {
-                "code" => code = Some(value),
-                "state" => state = Some(value),
-                "error" => oauth_error = Some(value),
-                _ => {}
-            }
+    for (key, value) in form_urlencoded::parse(query.as_bytes()) {
+        match key.as_ref() {
+            "code" => code = Some(value.into_owned()),
+            "state" => state = Some(value.into_owned()),
+            "error" => oauth_error = Some(value.into_owned()),
+            _ => {}
         }
     }
 
@@ -224,170 +307,6 @@ async fn accept_oauth_callback(listener: TcpListener) -> Result<(String, String)
         state.ok_or_else(|| Error::OauthFlow("missing state in OAuth callback".to_owned()))?;
 
     Ok((code, state))
-}
-
-async fn exchange_code(
-    code: &str,
-    verifier: &str,
-    redirect_uri: &str,
-    config: &OauthConfig<'_>,
-) -> Result<TokenResponse> {
-    let params = [
-        ("client_id", config.client_id),
-        ("client_secret", config.client_secret),
-        ("code", code),
-        ("code_verifier", verifier),
-        ("redirect_uri", redirect_uri),
-        ("grant_type", "authorization_code"),
-        ("audience", config.iap_audience),
-    ];
-
-    post_token_request(&params).await
-}
-
-async fn refresh_id_token(refresh_token: &str, config: &OauthConfig<'_>) -> Result<CachedTokens> {
-    let params = [
-        ("client_id", config.client_id),
-        ("client_secret", config.client_secret),
-        ("refresh_token", refresh_token),
-        ("grant_type", "refresh_token"),
-        ("audience", config.iap_audience),
-    ];
-    let resp = post_token_request(&params).await?;
-
-    Ok(CachedTokens {
-        audience: config.iap_audience.to_owned(),
-        client_id: config.client_id.to_owned(),
-        id_token: resp.id_token,
-        id_token_expires_at: Utc::now() + Duration::seconds(resp.expires_in),
-        // Refresh-token grants may or may not return a new refresh_token; keep
-        // the existing one if Google didn't rotate it.
-        refresh_token: resp
-            .refresh_token
-            .unwrap_or_else(|| refresh_token.to_owned()),
-    })
-}
-
-async fn post_token_request(params: &[(&str, &str)]) -> Result<TokenResponse> {
-    let client = Client::new();
-    let response = client
-        .post(GOOGLE_TOKEN_ENDPOINT)
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(encode_form(params))
-        .send()
-        .await?;
-
-    if !response.status().is_success() {
-        let status = response.status().as_u16();
-        let body = response.text().await.unwrap_or_default();
-        return Err(Error::OauthFlow(format!(
-            "Google token endpoint returned HTTP {status}: {body}"
-        )));
-    }
-
-    response.json().await.map_err(Error::Http)
-}
-
-// ── PKCE + URL-safe random helpers ─────────────────────────────────────────
-
-fn generate_code_verifier() -> String {
-    // RFC 7636 §4.1: code_verifier is a high-entropy string of 43–128 chars
-    // from the unreserved URL-safe alphabet. 32 random bytes → 43 base64url chars.
-    let mut bytes = [0u8; 32];
-    rand::fill(&mut bytes);
-
-    URL_SAFE_NO_PAD.encode(bytes)
-}
-
-fn compute_code_challenge(verifier: &str) -> String {
-    let digest = Sha256::digest(verifier.as_bytes());
-
-    URL_SAFE_NO_PAD.encode(digest)
-}
-
-fn random_url_safe(byte_len: usize) -> String {
-    let mut bytes = vec![0u8; byte_len];
-    rand::fill(bytes.as_mut_slice());
-
-    URL_SAFE_NO_PAD.encode(bytes)
-}
-
-fn encode_form(params: &[(&str, &str)]) -> String {
-    let mut out = String::new();
-    for (i, (k, v)) in params.iter().enumerate() {
-        if i > 0 {
-            out.push('&');
-        }
-        url_encode_into(&mut out, k);
-        out.push('=');
-        url_encode_into(&mut out, v);
-    }
-
-    out
-}
-
-fn url_encode_into(out: &mut String, s: &str) {
-    // application/x-www-form-urlencoded per WHATWG: alnum and `*-._` pass
-    // through; space → `+`; everything else → percent-encoded UTF-8 bytes.
-    for byte in s.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'*' | b'-' | b'.' | b'_' => {
-                out.push(byte as char)
-            }
-            b' ' => out.push('+'),
-            _ => {
-                out.push('%');
-                out.push(hex_char(byte >> 4));
-                out.push(hex_char(byte & 0x0F));
-            }
-        }
-    }
-}
-
-fn hex_char(nibble: u8) -> char {
-    match nibble {
-        0..=9 => (b'0' + nibble) as char,
-        10..=15 => (b'A' + nibble - 10) as char,
-        _ => unreachable!(),
-    }
-}
-
-fn percent_decode(s: &str) -> String {
-    let bytes = s.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        match bytes[i] {
-            b'+' => {
-                out.push(b' ');
-                i += 1;
-            }
-            b'%' if i + 2 < bytes.len() => {
-                if let (Some(hi), Some(lo)) = (hex_value(bytes[i + 1]), hex_value(bytes[i + 2])) {
-                    out.push((hi << 4) | lo);
-                    i += 3;
-                } else {
-                    out.push(bytes[i]);
-                    i += 1;
-                }
-            }
-            b => {
-                out.push(b);
-                i += 1;
-            }
-        }
-    }
-
-    String::from_utf8_lossy(&out).into_owned()
-}
-
-fn hex_value(b: u8) -> Option<u8> {
-    match b {
-        b'0'..=b'9' => Some(b - b'0'),
-        b'a'..=b'f' => Some(b - b'a' + 10),
-        b'A'..=b'F' => Some(b - b'A' + 10),
-        _ => None,
-    }
 }
 
 fn html_escape(s: &str) -> String {
@@ -456,36 +375,26 @@ fn save_cache(tokens: &CachedTokens) -> Result<()> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn code_verifier_is_43_chars_url_safe() {
-        let v = generate_code_verifier();
-        assert_eq!(v.len(), 43, "RFC 7636: 32 bytes → 43 base64url chars");
-        assert!(
-            v.bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'),
-            "verifier must be URL-safe: {v}"
-        );
+    fn decode_query_value(value: &str) -> String {
+        let query = format!("v={value}");
+        form_urlencoded::parse(query.as_bytes())
+            .find(|(k, _)| k == "v")
+            .map(|(_, v)| v.into_owned())
+            .unwrap_or_default()
     }
 
     #[test]
-    fn code_challenge_is_base64url_sha256_of_verifier() {
-        // Test vector from RFC 7636 §4.6.
-        let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
-        let expected = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
-        assert_eq!(compute_code_challenge(verifier), expected);
+    fn query_decoding_handles_plus_and_hex() {
+        // Documents how the OAuth callback parser decodes redirect query values.
+        assert_eq!(decode_query_value("hello+world"), "hello world");
+        assert_eq!(decode_query_value("a%20b"), "a b");
+        assert_eq!(decode_query_value("%2F%3A"), "/:");
+        assert_eq!(decode_query_value("noop"), "noop");
     }
 
     #[test]
-    fn percent_decode_handles_plus_and_hex() {
-        assert_eq!(percent_decode("hello+world"), "hello world");
-        assert_eq!(percent_decode("a%20b"), "a b");
-        assert_eq!(percent_decode("%2F%3A"), "/:");
-        assert_eq!(percent_decode("noop"), "noop");
-    }
-
-    #[test]
-    fn percent_decode_passes_through_malformed_percent() {
-        assert_eq!(percent_decode("%ZZ"), "%ZZ");
+    fn query_decoding_passes_through_malformed_percent() {
+        assert_eq!(decode_query_value("%ZZ"), "%ZZ");
     }
 
     #[test]
@@ -497,16 +406,31 @@ mod tests {
     }
 
     #[test]
-    fn build_auth_url_contains_expected_params() {
-        let url = build_auth_url("CID", "http://127.0.0.1:1234", "CHAL", "ST");
-        assert!(url.starts_with(GOOGLE_AUTH_ENDPOINT));
+    fn authorize_url_carries_expected_oauth_params() {
+        let config = OauthConfig {
+            iap_audience: "AUD",
+            client_id: "CID",
+            client_secret: "SECRET",
+        };
+        let client = build_oauth_client(&config, Some("http://127.0.0.1:1234")).unwrap();
+        let (pkce, _) = PkceCodeChallenge::new_random_sha256();
+        let (url, _csrf) = client
+            .authorize_url(|| CsrfToken::new("ST".to_owned()))
+            .add_scope(Scope::new("openid".to_owned()))
+            .add_scope(Scope::new("email".to_owned()))
+            .add_extra_param("access_type", "offline")
+            .add_extra_param("prompt", "consent")
+            .set_pkce_challenge(pkce)
+            .url();
+        let url = url.as_str();
+        assert!(url.starts_with(GOOGLE_AUTH_ENDPOINT), "got {url}");
         assert!(url.contains("client_id=CID"));
         assert!(url.contains("redirect_uri=http%3A%2F%2F127.0.0.1%3A1234"));
-        assert!(url.contains("code_challenge=CHAL"));
         assert!(url.contains("code_challenge_method=S256"));
         assert!(url.contains("state=ST"));
         assert!(url.contains("access_type=offline"));
         assert!(url.contains("prompt=consent"));
+        // openid + email come out URL-encoded; the order is preserved.
         assert!(url.contains("scope=openid+email"));
     }
 }

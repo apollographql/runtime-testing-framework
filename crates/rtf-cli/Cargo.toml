@@ -16,7 +16,6 @@ rtf-core = { path = "../rtf-core" }
 rtf-integrations = { path = "../rtf-integrations" }
 
 anyhow.workspace = true
-bytes.workspace = true
 assert_fs.workspace = true
 clap_complete = "4.6.2"
 clap.workspace = true

@@ -12,7 +12,7 @@ mod auth;
 mod client;
 mod secrets;
 
-pub use client::{Error, IapClient, IapResponse};
+pub use client::{Error, IapClient, IapResponse, RequestBody};
 
 /// The GCP project that hosts the REP orchestrator and its Secret Manager secrets.
 pub const GCP_PROJECT: &str = "runtime-testing-framework";
