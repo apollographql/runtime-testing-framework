@@ -27,11 +27,17 @@ pub struct DeploymentInfo {
 }
 
 pub trait Client: Send + Sync + Clone {
-    async fn create_namespace(&self, name: &str) -> anyhow::Result<()>;
+    fn create_namespace(&self, name: &str) -> impl Future<Output = anyhow::Result<()>> + Send;
 
-    async fn create_results_writer_service_account(&self, namespace: &str) -> anyhow::Result<()>;
+    fn create_results_writer_service_account(
+        &self,
+        namespace: &str,
+    ) -> impl Future<Output = anyhow::Result<()>> + Send;
 
-    async fn check_deployment_status(&self, namespace: &str) -> anyhow::Result<DeploymentStatus>;
+    fn check_deployment_status(
+        &self,
+        namespace: &str,
+    ) -> impl Future<Output = anyhow::Result<DeploymentStatus>> + Send;
 }
 
 #[derive(Clone)]
@@ -75,6 +81,7 @@ impl Client for HttpClient {
         };
         api.patch(name, &PatchParams::apply(MANAGER_NAME), &Patch::Apply(&ns))
             .await?;
+
         Ok(())
     }
 
@@ -99,6 +106,7 @@ impl Client for HttpClient {
             &Patch::Apply(&sa),
         )
         .await?;
+
         Ok(())
     }
 
@@ -189,6 +197,7 @@ pub(crate) mod mocks {
                 return Err(anyhow::anyhow!("mock kube failure"));
             }
             state.calls.push(call);
+
             Ok(())
         }
 
@@ -197,6 +206,7 @@ pub(crate) mod mocks {
             F: FnOnce(&[KubeCall]),
         {
             let state = self.state.read().unwrap();
+
             closure(&state.calls)
         }
     }
@@ -225,6 +235,7 @@ pub(crate) mod mocks {
                 namespace: namespace.to_owned(),
             })?;
             let state = self.state.read().unwrap();
+
             if state.deployments_available {
                 Ok(DeploymentStatus {
                     total: 1,

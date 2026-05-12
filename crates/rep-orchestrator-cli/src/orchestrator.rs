@@ -20,37 +20,43 @@ pub trait Client: Send + Sync {
     ) -> String;
 
     /// Updates the status of the current test execution with context from the provided [CliError].
-    async fn update_error_status(&self, error: CliError) -> anyhow::Result<()> {
+    fn update_error_status(
+        &self,
+        error: CliError,
+    ) -> impl Future<Output = anyhow::Result<()>> + Send {
         self.update_status(
             error.rep_orchestrator_status(),
             error.exit_status(),
             Some(error.source_to_string()),
         )
-        .await
     }
 
     /// Update the [Status] of the current test execution, with an optional `message` to write to the database.
     ///
     /// If there was a subprocess associated with this status update, its [ExitStatus] may be included for additional context.
-    async fn update_status(
+    fn update_status(
         &self,
         status: Status,
         exit_status: Option<ExitStatus>,
         message: Option<String>,
-    ) -> anyhow::Result<()>;
+    ) -> impl Future<Output = anyhow::Result<()>> + Send;
 
     /// Request signed URLs from the orchestrator for uploading the log file and output zip
     /// associated with the current test execution.
-    async fn generate_upload_urls(&self) -> anyhow::Result<UploadUrls>;
+    fn generate_upload_urls(&self) -> impl Future<Output = anyhow::Result<UploadUrls>> + Send;
 
     /// PUT `body` to a previously-issued signed upload URL.
-    async fn upload_to_signed_url(&self, url: &str, body: Vec<u8>) -> anyhow::Result<()>;
+    fn upload_to_signed_url(
+        &self,
+        url: &str,
+        body: Vec<u8>,
+    ) -> impl Future<Output = anyhow::Result<()>> + Send;
 
     /// Fetch the resolved environment YAML for the current test execution.
-    async fn fetch_environment_config(&self) -> anyhow::Result<Vec<u8>>;
+    fn fetch_environment_config(&self) -> impl Future<Output = anyhow::Result<Vec<u8>>> + Send;
 
     /// Fetch the resolved scenario YAML for the current test execution.
-    async fn fetch_scenario_config(&self) -> anyhow::Result<Vec<u8>>;
+    fn fetch_scenario_config(&self) -> impl Future<Output = anyhow::Result<Vec<u8>>> + Send;
 }
 
 pub struct HttpClient {
@@ -222,8 +228,10 @@ impl Client for HttpClient {
 pub(crate) mod mocks {
     use super::*;
     use rep_orchestrator_shared::status::Status;
-    use std::process::ExitStatus;
-    use std::sync::{RwLock, RwLockReadGuard};
+    use std::{
+        process::ExitStatus,
+        sync::{RwLock, RwLockReadGuard},
+    };
 
     pub struct StatusUpdateArgs {
         pub status: Status,
@@ -269,6 +277,7 @@ pub(crate) mod mocks {
             F: FnOnce(RwLockReadGuard<Vec<StatusUpdateArgs>>),
         {
             let updates = self.status_updates.read().unwrap();
+
             closure(updates)
         }
 
@@ -277,6 +286,7 @@ pub(crate) mod mocks {
             F: FnOnce(RwLockReadGuard<Vec<UploadCall>>),
         {
             let uploads = self.uploads.read().unwrap();
+
             closure(uploads)
         }
     }
@@ -308,6 +318,7 @@ pub(crate) mod mocks {
             if self.update_should_fail {
                 return Err(anyhow::anyhow!("mock upload urls failure"));
             }
+
             Ok(UploadUrls {
                 log_file_url: self.log_file_url.clone(),
                 output_zip_url: self.output_zip_url.clone(),
@@ -322,6 +333,7 @@ pub(crate) mod mocks {
                 url: url.to_owned(),
                 body,
             });
+
             Ok(())
         }
 
@@ -329,6 +341,7 @@ pub(crate) mod mocks {
             if self.update_should_fail {
                 return Err(anyhow::anyhow!("mock fetch environment config failure"));
             }
+
             Ok(Vec::new())
         }
 
@@ -336,6 +349,7 @@ pub(crate) mod mocks {
             if self.update_should_fail {
                 return Err(anyhow::anyhow!("mock fetch scenario config failure"));
             }
+
             Ok(Vec::new())
         }
     }
