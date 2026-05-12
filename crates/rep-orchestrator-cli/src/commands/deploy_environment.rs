@@ -9,6 +9,7 @@ use anyhow::{Context, anyhow};
 use rep_orchestrator_shared::status::Status;
 use std::{collections::HashMap, env::temp_dir, fs, path::Path, process::Command, time::Duration};
 use tokio::time::{Instant, sleep};
+use tracing::{info, warn};
 
 const DUPLICATE_ERROR: &str =
     "Encountered a duplicate environment entry in the resolved RTF environment";
@@ -32,11 +33,7 @@ pub async fn deploy_environment(
         .context("Failed to create provider output directory")
         .map_err(CliError::unrunnable)?;
 
-    info_status!(
-        ctx,
-        Status::Provisioning,
-        "Fetching environment configuration..."
-    )?;
+    info_status!(ctx, Status::Provisioning, "Deploying environment...")?;
 
     let cfg_bytes = ctx
         .orchestrator_client()
@@ -47,43 +44,29 @@ pub async fn deploy_environment(
     let cfg_path = temp_dir().join("environment.yaml");
     ctx.write_file(&cfg_path, &cfg_bytes)?;
 
-    info_status!(
-        ctx,
-        Status::Provisioning,
-        "Resolving environment docker-compose files..."
-    )?;
+    info!("Resolving environment docker-compose files...");
 
-    ctx.run_shell(
-        Command::new("rtf").args([
-            "resolve",
-            "environment",
-            &cfg_path.to_string_lossy(),
-            "--outdir",
-            &provider_dir_path.to_string_lossy(),
-        ]),
-        Status::Provisioning,
-    )
+    ctx.run_shell(Command::new("rtf").args([
+        "resolve",
+        "environment",
+        &cfg_path.to_string_lossy(),
+        "--outdir",
+        &provider_dir_path.to_string_lossy(),
+    ]))
     .await?;
 
     setup_env(&k8s_dir_path, provider_dir_path, toolbox_pull_policy, ctx).await?;
 
-    info_status!(
-        ctx,
-        Status::Provisioning,
-        "Applying manifests to namespace '{namespace}'..."
-    )?;
-    ctx.run_shell(
-        Command::new("kubectl").args([
-            "--kubeconfig",
-            &kubeconfig_path.to_string_lossy(),
-            "apply",
-            "-n",
-            namespace,
-            "-f",
-            &k8s_dir_path.join("out.yaml").to_string_lossy(),
-        ]),
-        Status::Provisioning,
-    )
+    info!("Applying manifests to namespace '{namespace}'...");
+    ctx.run_shell(Command::new("kubectl").args([
+        "--kubeconfig",
+        &kubeconfig_path.to_string_lossy(),
+        "apply",
+        "-n",
+        namespace,
+        "-f",
+        &k8s_dir_path.join("out.yaml").to_string_lossy(),
+    ]))
     .await?;
 
     wait_for_deployments(namespace, timeout, ctx).await?;
@@ -121,18 +104,14 @@ async fn setup_env(
         .context("Failed to read COMPOSE_FILES file provider output")
         .map_err(CliError::unrunnable)?;
 
-    info_status!(
-        ctx,
-        Status::Provisioning,
-        "Converting to kubernetes manifests..."
-    )?;
+    info!("Converting to kubernetes manifests...");
     let mut kompose = build_kompose_command(
         &compose_files_content,
         &k8s_dir_path.join("kompose-output.yaml"),
         &env_vars,
     );
 
-    ctx.run_shell(&mut kompose, Status::Provisioning).await?;
+    ctx.run_shell(&mut kompose).await?;
 
     ctx.write_file(
         &k8s_dir_path.join("kustomization.yaml"),
@@ -141,15 +120,12 @@ async fn setup_env(
             .as_bytes(),
     )?;
 
-    ctx.run_shell(
-        Command::new("kubectl").args([
-            "kustomize",
-            k8s_dir_path.to_string_lossy().as_ref(),
-            "-o",
-            &k8s_dir_path.join("out.yaml").to_string_lossy(),
-        ]),
-        Status::Provisioning,
-    )
+    ctx.run_shell(Command::new("kubectl").args([
+        "kustomize",
+        k8s_dir_path.to_string_lossy().as_ref(),
+        "-o",
+        &k8s_dir_path.join("out.yaml").to_string_lossy(),
+    ]))
     .await
 }
 
@@ -241,6 +217,10 @@ async fn wait_for_deployments(
                 .iter()
                 .map(|d| format!("{}: {}", d.name, d.last_condition_status))
                 .collect();
+            warn!(
+                "Timed out after {timeout_secs}s; not-ready deployments: {}",
+                not_ready.join(", ")
+            );
             return Err(CliError::unrunnable(anyhow!(
                 "Timed out after {timeout_secs}s waiting for deployments: {}",
                 not_ready.join("\n")

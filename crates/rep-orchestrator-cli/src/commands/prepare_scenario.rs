@@ -10,6 +10,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
+use tracing::info;
 
 // On exit, the wrapper touches a sentinel file so the output-collector container (which runs
 // in parallel with the scenario-runner) can detect completion via polling. The real scenario
@@ -46,7 +47,7 @@ pub async fn prepare_scenario(
     info_status!(
         ctx,
         Status::Provisioning,
-        "Fetching scenario configuration..."
+        "Resolving scenario configuration..."
     )?;
 
     let cfg_bytes = ctx
@@ -58,13 +59,12 @@ pub async fn prepare_scenario(
     let cfg_path = &temp_dir().join("scenario.yaml");
     ctx.write_file(cfg_path, &cfg_bytes)?;
 
-    info_status!(ctx, Status::Provisioning, "Resolving scenario...")?;
+    info!("Resolving scenario...");
     ctx.run_shell(
         Command::new("rtf")
             .args(["resolve", "scenario"])
             .arg(cfg_path)
             .args(["--outdir", &paths.providers_dir.to_string_lossy()]),
-        Status::Provisioning,
     )
     .await?;
 
@@ -74,11 +74,7 @@ pub async fn prepare_scenario(
     ctx.write_file(&paths.run_script, run_sh.as_bytes())?;
     ctx.set_permissions_mode(&paths.run_script, 0o777)?;
 
-    info_status!(
-        ctx,
-        Status::Running,
-        "Scenario resolved, run execution beginning..."
-    )?;
+    info_status!(ctx, Status::Running, "Begining scenario execution")?;
 
     Ok(())
 }

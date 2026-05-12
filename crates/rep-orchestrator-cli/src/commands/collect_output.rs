@@ -6,6 +6,7 @@ use crate::{
 };
 use anyhow::Context;
 use rep_orchestrator_shared::status::Status;
+use tracing::info;
 use std::{
     io::{Cursor, Write},
     os::unix::process::ExitStatusExt,
@@ -29,25 +30,25 @@ pub async fn collect_output(shared_dir: &Path, ctx: &impl CliContext) -> CliResu
     info_status!(ctx, Status::Running, "Waiting for scenario to complete...")?;
     wait_for_sentinel(ctx, &paths.exit_sentinel, POLL_INTERVAL).await;
 
-    info_status!(ctx, Status::Running, "Requesting upload URLs...")?;
+    info!("Requesting upload URLs...");
     let urls = ctx
         .orchestrator_client()
         .generate_upload_urls()
         .await
         .map_err(CliError::unrunnable)?;
 
-    info_status!(ctx, Status::Running, "Uploading log file...")?;
+    info!("Uploading log file...");
     let log_bytes = ctx.read_file(&paths.output_log)?;
     ctx.orchestrator_client()
         .upload_to_signed_url(&urls.log_file_url, log_bytes)
         .await
         .map_err(CliError::unrunnable)?;
 
-    info_status!(ctx, Status::Running, "Building output zip...")?;
+    info!("Building output zip...");
     build_output_zip(ctx, shared_dir, &paths.output_zip)?;
     let zip_bytes = ctx.read_file(&paths.output_zip)?;
 
-    info_status!(ctx, Status::Running, "Uploading output zip...")?;
+    info!("Uploading output zip...");
     ctx.orchestrator_client()
         .upload_to_signed_url(&urls.output_zip_url, zip_bytes)
         .await
