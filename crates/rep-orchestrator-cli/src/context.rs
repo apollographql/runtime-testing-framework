@@ -148,7 +148,7 @@ impl CliContext for EnvironmentContext {
 }
 
 async fn run_shell(cmd: &mut Command) -> CliResult<()> {
-    info!("Running {cmd:?}");
+    info!("running {cmd:?}");
 
     let exit_status = cmd
         .status()
@@ -158,11 +158,11 @@ async fn run_shell(cmd: &mut Command) -> CliResult<()> {
     if !exit_status.success() {
         return Err(CliError::unrunnable_subprocess(
             exit_status,
-            format!("Command failed: {cmd:?}"),
+            format!("command failed: {cmd:?}"),
         ));
     }
 
-    info!("Command succeeded: {cmd:?}");
+    info!("command succeeded: {cmd:?}");
 
     Ok(())
 }
@@ -335,8 +335,8 @@ mod tests {
 
         assert!(msg.contains("false"), "expected command in error: {msg}");
         assert!(
-            msg.contains("Command failed"),
-            "expected 'Command failed' in error: {msg}"
+            msg.contains("command failed"),
+            "expected 'command failed' in error: {msg}"
         );
     }
 

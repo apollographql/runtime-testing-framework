@@ -11,7 +11,7 @@ pub async fn create_service_account(namespace: &str, ctx: &impl CliContext) -> C
     info_status!(
         ctx,
         Status::Provisioning,
-        "Creating results-writer service account in namespace '{namespace}'..."
+        "creating results-writer service account in namespace '{namespace}'"
     )?;
 
     ctx.kube_client()
@@ -23,7 +23,7 @@ pub async fn create_service_account(namespace: &str, ctx: &impl CliContext) -> C
     info_status!(
         ctx,
         Status::Provisioning,
-        "results-writer service account created successfully."
+        "results-writer service account created successfully"
     )?;
 
     Ok(())

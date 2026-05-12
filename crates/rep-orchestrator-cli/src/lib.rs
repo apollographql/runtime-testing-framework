@@ -56,7 +56,7 @@ pub async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Res
         Err(e) => {
             let console_err = anyhow!(e.source_to_string());
             if let Err(status_failure) = ctx.orchestrator_client().update_error_status(e).await {
-                error!("Failed to update status for error: {status_failure}");
+                error!("failed to update status for error: {status_failure}");
             }
             Err(console_err)
         }

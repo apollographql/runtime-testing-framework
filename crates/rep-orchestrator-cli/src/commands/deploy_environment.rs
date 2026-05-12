@@ -33,7 +33,7 @@ pub async fn deploy_environment(
         .context("Failed to create provider output directory")
         .map_err(CliError::unrunnable)?;
 
-    info_status!(ctx, Status::Provisioning, "Deploying environment...")?;
+    info_status!(ctx, Status::Provisioning, "deploying environment")?;
 
     let cfg_bytes = ctx
         .orchestrator_client()
@@ -44,7 +44,7 @@ pub async fn deploy_environment(
     let cfg_path = temp_dir().join("environment.yaml");
     ctx.write_file(&cfg_path, &cfg_bytes)?;
 
-    info!("Resolving environment docker-compose files...");
+    info!("resolving environment docker-compose files");
 
     ctx.run_shell(Command::new("rtf").args([
         "resolve",
@@ -57,7 +57,7 @@ pub async fn deploy_environment(
 
     setup_env(&k8s_dir_path, provider_dir_path, toolbox_pull_policy, ctx).await?;
 
-    info!("Applying manifests to namespace '{namespace}'...");
+    info!("applying manifests to namespace '{namespace}'");
     ctx.run_shell(Command::new("kubectl").args([
         "--kubeconfig",
         &kubeconfig_path.to_string_lossy(),
@@ -73,7 +73,7 @@ pub async fn deploy_environment(
     info_status!(
         ctx,
         Status::Provisioning,
-        "Environment deployed successfully."
+        "environment deployed successfully"
     )?;
 
     Ok(())
@@ -104,7 +104,7 @@ async fn setup_env(
         .context("Failed to read COMPOSE_FILES file provider output")
         .map_err(CliError::unrunnable)?;
 
-    info!("Converting to kubernetes manifests...");
+    info!("converting to kubernetes manifests");
     let mut kompose = build_kompose_command(
         &compose_files_content,
         &k8s_dir_path.join("kompose-output.yaml"),
@@ -197,7 +197,7 @@ async fn wait_for_deployments(
     info_status!(
         ctx,
         Status::Provisioning,
-        "Waiting for deployments to become available..."
+        "waiting for deployments to become available"
     )?;
 
     loop {
@@ -218,7 +218,7 @@ async fn wait_for_deployments(
                 .map(|d| format!("{}: {}", d.name, d.last_condition_status))
                 .collect();
             warn!(
-                "Timed out after {timeout_secs}s; not-ready deployments: {}",
+                "timed out after {timeout_secs}s; not-ready deployments: {}",
                 not_ready.join(", ")
             );
             return Err(CliError::unrunnable(anyhow!(

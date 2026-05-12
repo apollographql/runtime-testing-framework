@@ -6,7 +6,6 @@ use crate::{
 };
 use anyhow::Context;
 use rep_orchestrator_shared::status::Status;
-use tracing::info;
 use std::{
     io::{Cursor, Write},
     os::unix::process::ExitStatusExt,
@@ -15,6 +14,7 @@ use std::{
     time::Duration,
 };
 use tokio::time::sleep;
+use tracing::info;
 use zip::{ZipWriter, write::SimpleFileOptions};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
@@ -27,28 +27,28 @@ const POLL_INTERVAL: Duration = Duration::from_secs(5);
 pub async fn collect_output(shared_dir: &Path, ctx: &impl CliContext) -> CliResult<()> {
     let paths = SharedPaths::new(shared_dir);
 
-    info_status!(ctx, Status::Running, "Waiting for scenario to complete...")?;
+    info_status!(ctx, Status::Running, "waiting for scenario to complete")?;
     wait_for_sentinel(ctx, &paths.exit_sentinel, POLL_INTERVAL).await;
 
-    info!("Requesting upload URLs...");
+    info!("requesting upload URLs");
     let urls = ctx
         .orchestrator_client()
         .generate_upload_urls()
         .await
         .map_err(CliError::unrunnable)?;
 
-    info!("Uploading log file...");
+    info!("uploading log file");
     let log_bytes = ctx.read_file(&paths.output_log)?;
     ctx.orchestrator_client()
         .upload_to_signed_url(&urls.log_file_url, log_bytes)
         .await
         .map_err(CliError::unrunnable)?;
 
-    info!("Building output zip...");
+    info!("building output zip");
     build_output_zip(ctx, shared_dir, &paths.output_zip)?;
     let zip_bytes = ctx.read_file(&paths.output_zip)?;
 
-    info!("Uploading output zip...");
+    info!("uploading output zip");
     ctx.orchestrator_client()
         .upload_to_signed_url(&urls.output_zip_url, zip_bytes)
         .await
@@ -56,7 +56,7 @@ pub async fn collect_output(shared_dir: &Path, ctx: &impl CliContext) -> CliResu
 
     let exit_code = read_exit_code(ctx, &paths.exit_status_file)?;
     if exit_code == 0 {
-        info_status!(ctx, Status::Successful, "Scenario completed successfully.")?;
+        info_status!(ctx, Status::Successful, "scenario completed successfully")?;
 
         Ok(())
     } else {

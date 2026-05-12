@@ -11,7 +11,7 @@ pub async fn create_namespace(namespace: &str, ctx: &impl CliContext) -> CliResu
     info_status!(
         ctx,
         Status::Provisioning,
-        "Creating namespace '{namespace}' in workload cluster..."
+        "creating namespace '{namespace}' in workload cluster"
     )?;
 
     ctx.kube_client()
@@ -20,7 +20,7 @@ pub async fn create_namespace(namespace: &str, ctx: &impl CliContext) -> CliResu
         .context("Failed to create kube namespace.")
         .map_err(CliError::unrunnable)?;
 
-    info_status!(ctx, Status::Provisioning, "Namespace created successfully.")?;
+    info_status!(ctx, Status::Provisioning, "namespace created successfully")?;
 
     Ok(())
 }

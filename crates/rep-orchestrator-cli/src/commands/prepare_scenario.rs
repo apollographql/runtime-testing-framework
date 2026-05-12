@@ -47,7 +47,7 @@ pub async fn prepare_scenario(
     info_status!(
         ctx,
         Status::Provisioning,
-        "Resolving scenario configuration..."
+        "resolving scenario configuration"
     )?;
 
     let cfg_bytes = ctx
@@ -59,7 +59,7 @@ pub async fn prepare_scenario(
     let cfg_path = &temp_dir().join("scenario.yaml");
     ctx.write_file(cfg_path, &cfg_bytes)?;
 
-    info!("Resolving scenario...");
+    info!("resolving scenario");
     ctx.run_shell(
         Command::new("rtf")
             .args(["resolve", "scenario"])
@@ -74,7 +74,7 @@ pub async fn prepare_scenario(
     ctx.write_file(&paths.run_script, run_sh.as_bytes())?;
     ctx.set_permissions_mode(&paths.run_script, 0o777)?;
 
-    info_status!(ctx, Status::Running, "Begining scenario execution")?;
+    info_status!(ctx, Status::Running, "beginning scenario execution")?;
 
     Ok(())
 }
