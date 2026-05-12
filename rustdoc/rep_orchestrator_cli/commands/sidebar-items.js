@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["collect_output","create_namespace","create_service_account","deploy_environment","prepare_scenario","resolve_environment"]};

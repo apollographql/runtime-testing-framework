@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["MANAGER_NAME","SA_NAME","SA_PREFIX","WIF_ANNOTATION"],"struct":["DeploymentInfo","DeploymentStatus","HttpClient"],"trait":["Client"]};

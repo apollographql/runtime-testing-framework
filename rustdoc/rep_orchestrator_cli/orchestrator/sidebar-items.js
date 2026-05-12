@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["KUSTOMIZE_PATCH"],"struct":["HttpClient"],"trait":["Client"]};

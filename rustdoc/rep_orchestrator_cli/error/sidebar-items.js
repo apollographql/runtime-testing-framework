@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["CliError"],"fn":["format_with_exit_code"],"type":["CliResult"]};

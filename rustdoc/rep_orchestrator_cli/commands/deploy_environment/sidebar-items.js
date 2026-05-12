@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["DUPLICATE_ERROR","MALFORMED_ERROR","MISSING_EXPORT_ERROR"],"fn":["build_kompose_command","deploy_environment","parse_env_file","setup_env","wait_for_deployments"]};

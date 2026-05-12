@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["POLL_INTERVAL"],"fn":["build_output_zip","collect_output","exit_status_from_code","read_exit_code","wait_for_sentinel"],"struct":["SharedPaths"]};

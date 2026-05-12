@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["LOG_LEVEL_ENV_VAR"],"fn":["main","run_command"],"macro":["info_status"],"mod":["cli","commands","context","error","kubernetes","orchestrator","status"]};
+window.SIDEBAR_ITEMS = {"fn":["run_command"],"macro":["info_status"],"struct":["Args","EnvironmentContext"]};
