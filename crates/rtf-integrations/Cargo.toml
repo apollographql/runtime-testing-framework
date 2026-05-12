@@ -5,16 +5,20 @@ edition.workspace = true
 
 [dependencies]
 apollo-compiler.workspace = true
+base64 = "0.22"
 bytes.workspace = true
 chrono.workspace = true
 futures.workspace = true
+google-cloud-auth.workspace = true
 graphql_client = "0.16.0"
 itertools.workspace = true
-jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
+jsonwebtoken = { version = "10.3.0", features = ["rust_crypto", "use_pem"] }
+open.workspace = true
 rand.workspace = true
 reqwest.workspace = true
 serde_json.workspace = true
 serde.workspace = true
+sha2.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
