@@ -7,10 +7,10 @@ use rtf_cli::{
     },
     commands::{
         plumbing::{
-            expand_test_plan_matrix, generate_json_schema, generate_shell_completions,
-            inline_test_plan, resolve_environment, resolve_scenario, run_custom_provider,
-            template_custom_provider, template_test_plan, test_custom_provider,
-            write_rep_trigger_payload_to_stdout,
+            execute_rep_request, expand_test_plan_matrix, generate_json_schema,
+            generate_shell_completions, inline_test_plan, resolve_environment, resolve_scenario,
+            run_custom_provider, template_custom_provider, template_test_plan,
+            test_custom_provider, write_rep_trigger_payload_to_stdout,
         },
         porcelain::{check_and_run_test_plan, open_docs},
     },
@@ -143,6 +143,26 @@ async fn main() {
         } => {
             write_rep_trigger_payload_to_stdout(&test_plan_path, github, git_ref, variables.into())
                 .await
+        }
+
+        Command::Rep {
+            subcommand:
+                RepSubcommand::Request {
+                    path,
+                    method,
+                    data,
+                    header,
+                    orchestrator_url,
+                },
+        } => {
+            execute_rep_request(
+                &path,
+                method.as_deref(),
+                data.as_deref(),
+                &header,
+                orchestrator_url.as_deref(),
+            )
+            .await
         }
 
         Command::Completion { shell } => generate_shell_completions(shell),

@@ -15,12 +15,13 @@ rtf-config = { path = "../rtf-config" }
 rtf-core = { path = "../rtf-core" }
 rtf-integrations = { path = "../rtf-integrations" }
 
-anyhow.workspace = true 
+anyhow.workspace = true
+bytes.workspace = true
 assert_fs.workspace = true
 clap_complete = "4.6.2"
 clap.workspace = true
 git-version.workspace = true
-open = "5.3.4"
+open.workspace = true
 schemars.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true

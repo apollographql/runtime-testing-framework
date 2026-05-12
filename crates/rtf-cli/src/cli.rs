@@ -308,6 +308,32 @@ pub enum RepSubcommand {
         #[arg(long = "ref", requires = "github")]
         git_ref: Option<String>,
     },
+
+    /// Send an IAP-authenticated HTTP request to the REP orchestrator.
+    ///
+    /// The response body is written to stdout on success.
+    Request {
+        /// Path on the orchestrator to request (e.g. `/health`)
+        path: String,
+
+        /// HTTP method (defaults to GET)
+        #[arg(short = 'X', long)]
+        method: Option<String>,
+
+        /// Request body. Use `@<path>` to read from a file, `-` to read from stdin,
+        /// or pass a literal string. Omit to send no body.
+        #[arg(short, long)]
+        data: Option<String>,
+
+        /// Additional request headers in the form "Key: Value". May be repeated.
+        #[arg(short = 'H', long = "header")]
+        header: Vec<String>,
+
+        /// Override the REP orchestrator base URL. Takes precedence over
+        /// APOLLO_REP_ORCHESTRATOR_URL.
+        #[arg(long)]
+        orchestrator_url: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, ValueEnum)]
