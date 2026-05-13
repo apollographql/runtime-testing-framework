@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["run_command"],"macro":["info_status"],"struct":["Args","EnvironmentContext"]};
+window.SIDEBAR_ITEMS = {"enum":["Error"],"fn":["run_command"],"macro":["info_status"],"struct":["Args","EnvironmentContext"],"type":["Result"]};
