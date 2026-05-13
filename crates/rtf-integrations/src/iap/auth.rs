@@ -75,11 +75,21 @@ type GoogleOauthClient = Client<
     EndpointSet,
 >;
 
-/// Obtain an IAP-audience OIDC ID token authenticated as the current user.
+/// Obtain an IAP-audience OIDC ID token for the current principal.
 ///
-/// Tries the on-disk cache, then a refresh-token grant, then runs the full
-/// loopback OAuth flow (which opens a browser).
+/// When Application Default Credentials describe a service account (directly or
+/// via impersonation), mints an ID token through Google's service-account
+/// token endpoint and skips user consent — this is the non-interactive path
+/// used by CI.
+///
+/// Otherwise (a human user signed in via `gcloud auth application-default
+/// login`), tries the on-disk cache, then a refresh-token grant, then runs the
+/// full loopback OAuth flow (which opens a browser).
 pub(super) async fn id_token(config: &OauthConfig<'_>) -> Result<String> {
+    if adc_is_service_account_like() {
+        return service_account_id_token(config.client_id).await;
+    }
+
     if let Some(cached) = load_cache()
         && cached.client_id == config.client_id
     {
@@ -95,6 +105,71 @@ pub(super) async fn id_token(config: &OauthConfig<'_>) -> Result<String> {
     save_cache(&tokens)?;
 
     Ok(tokens.id_token)
+}
+
+/// `true` when ADC describes a credential type whose ID tokens IAP will accept
+/// without an interactive consent flow.
+///
+/// Reads the ADC file at `$GOOGLE_APPLICATION_CREDENTIALS` (if set) or the
+/// platform-default location, parses just the `type` field, and matches
+/// against the two service-account variants. Anything else — missing file,
+/// parse failure, `authorized_user`, `external_account` — returns `false` so
+/// the caller falls back to the user OAuth flow.
+fn adc_is_service_account_like() -> bool {
+    let Some(path) = adc_path() else {
+        return false;
+    };
+    let Ok(bytes) = fs::read(&path) else {
+        return false;
+    };
+
+    #[derive(Deserialize)]
+    struct AdcType<'a> {
+        #[serde(rename = "type", borrow)]
+        kind: Option<&'a str>,
+    }
+
+    let Ok(parsed) = serde_json::from_slice::<AdcType<'_>>(&bytes) else {
+        return false;
+    };
+
+    matches!(
+        parsed.kind,
+        Some("service_account") | Some("impersonated_service_account")
+    )
+}
+
+fn adc_path() -> Option<PathBuf> {
+    if let Ok(explicit) = env::var("GOOGLE_APPLICATION_CREDENTIALS")
+        && !explicit.is_empty()
+    {
+        return Some(PathBuf::from(explicit));
+    }
+    let home = env::var("HOME").ok().filter(|h| !h.is_empty())?;
+    Some(
+        PathBuf::from(home)
+            .join(".config")
+            .join("gcloud")
+            .join("application_default_credentials.json"),
+    )
+}
+
+/// Mint an ID token aimed at `audience` using the service account that ADC
+/// resolves to. No browser, no consent screen, no on-disk cache (the SDK
+/// caches tokens in-memory and they're short-lived enough that re-minting
+/// per invocation is cheap).
+async fn service_account_id_token(audience: &str) -> Result<String> {
+    let credentials = google_cloud_auth::credentials::idtoken::Builder::new(audience.to_owned())
+        .build()
+        .map_err(|e| {
+            Error::Adc(format!(
+                "could not build service-account ID token credentials: {e}"
+            ))
+        })?;
+    credentials
+        .id_token()
+        .await
+        .map_err(|e| Error::Adc(format!("could not mint service-account ID token: {e}")))
 }
 
 /// Build the `oauth2::Client` for Google's endpoints. `redirect_uri` is only
@@ -404,6 +479,53 @@ mod tests {
             html_escape("<script>alert(\"x\")</script>"),
             "&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;"
         );
+    }
+
+    #[test]
+    fn adc_classification_via_env_var() {
+        // Temporarily point GOOGLE_APPLICATION_CREDENTIALS at a tempfile whose
+        // contents we control, exercise the parser, restore the env.
+        use std::io::Write;
+        let dir = std::env::temp_dir();
+
+        fn run_case(dir: &std::path::Path, name: &str, contents: &str) -> bool {
+            let path = dir.join(name);
+            std::fs::File::create(&path)
+                .unwrap()
+                .write_all(contents.as_bytes())
+                .unwrap();
+            // SAFETY: tests in this crate touching this env var are all
+            // gated through this helper and run sequentially within the test.
+            unsafe { std::env::set_var("GOOGLE_APPLICATION_CREDENTIALS", &path) };
+            let result = adc_is_service_account_like();
+            // SAFETY: see above — same single-threaded scope.
+            unsafe { std::env::remove_var("GOOGLE_APPLICATION_CREDENTIALS") };
+            std::fs::remove_file(&path).ok();
+            result
+        }
+
+        assert!(run_case(
+            &dir,
+            "rtf_adc_sa.json",
+            r#"{"type":"service_account","client_email":"x@y.iam.gserviceaccount.com"}"#
+        ));
+        assert!(run_case(
+            &dir,
+            "rtf_adc_impersonated.json",
+            r#"{"type":"impersonated_service_account"}"#
+        ));
+        assert!(!run_case(
+            &dir,
+            "rtf_adc_user.json",
+            r#"{"type":"authorized_user"}"#
+        ));
+        assert!(!run_case(
+            &dir,
+            "rtf_adc_external.json",
+            r#"{"type":"external_account"}"#
+        ));
+        assert!(!run_case(&dir, "rtf_adc_no_type.json", r#"{}"#));
+        assert!(!run_case(&dir, "rtf_adc_garbage.json", r#"not json"#));
     }
 
     #[test]
