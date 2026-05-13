@@ -9,6 +9,7 @@ use reqwest::{
     Client, Request, Response,
     header::{AUTHORIZATION, HeaderValue},
 };
+use std::{env, path::PathBuf};
 
 /// Authenticated HTTP client for the REP orchestrator, protected by Google Cloud IAP.
 #[derive(Debug)]
@@ -24,6 +25,8 @@ impl IapClient {
     /// Fetches the IAP OAuth client credentials from Secret Manager. The SDK
     /// loads Application Default Credentials internally.
     pub async fn new(request: Request) -> Result<Self> {
+        require_adc()?;
+
         let (client_id, client_secret) = fetch_secrets().await?;
 
         Ok(Self {
@@ -48,6 +51,28 @@ impl IapClient {
 
         Ok(response)
     }
+}
+
+/// Fail fast with a clear message if no Application Default Credentials are configured.
+///
+/// Checks `$GOOGLE_APPLICATION_CREDENTIALS` first, then the well-known gcloud path. Either
+/// presence is enough — actual validity is verified when the credential is used.
+fn require_adc() -> Result<()> {
+    let configured = env::var("GOOGLE_APPLICATION_CREDENTIALS").is_ok_and(|v| !v.is_empty())
+        || env::var("HOME").is_ok_and(|home| {
+            !home.is_empty()
+                && PathBuf::from(home)
+                    .join(".config/gcloud/application_default_credentials.json")
+                    .exists()
+        });
+
+    if configured {
+        return Ok(());
+    }
+
+    Err(Error::Adc(
+        "not authenticated to GCP — run `gcloud auth application-default login` first".to_string(),
+    ))
 }
 
 async fn fetch_secrets() -> Result<(String, String)> {
