@@ -1,13 +1,11 @@
 use crate::{
-    context::CliContext,
-    error::{CliError, CliResult},
+    context::{CliContext, FsError, FsErrorKind},
     info_status,
     orchestrator::Client as _,
 };
-use anyhow::Context;
 use rep_orchestrator_shared::status::Status;
 use std::{
-    io::{Cursor, Write},
+    io::{self, Cursor, Write},
     os::unix::process::ExitStatusExt,
     path::{Path, PathBuf},
     process::ExitStatus,
@@ -19,55 +17,78 @@ use zip::{ZipWriter, write::SimpleFileOptions};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
 
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error(transparent)]
+    Unrunnable(#[from] crate::Error),
+
+    #[error("scenario exited with non-zero exit code {exit_code}")]
+    ScenarioFailed { exit_code: u8 },
+}
+
+impl Error {
+    pub fn status_and_exit_status(&self) -> (Status, Option<ExitStatus>) {
+        match self {
+            Error::Unrunnable(_) => (Status::Unrunnable, None),
+            Error::ScenarioFailed { exit_code } => (
+                Status::Failed,
+                Some(ExitStatus::from_raw((*exit_code as i32) << 8)),
+            ),
+        }
+    }
+}
+
 /// Upload the scenario's log file and zipped output directory, then report the terminal
 /// execution status derived from the scenario's exit code.
 ///
 /// Runs alongside the scenario-runner container, waiting for it to touch the exit sentinel
 /// file before reading artifacts off the shared volume.
-pub async fn collect_output(shared_dir: &Path, ctx: &impl CliContext) -> CliResult<()> {
+pub async fn collect_output(shared_dir: &Path, ctx: &impl CliContext) -> Result<(), Error> {
     let paths = SharedPaths::new(shared_dir);
 
-    info_status!(ctx, Status::Running, "waiting for scenario to complete")?;
-    wait_for_sentinel(ctx, &paths.exit_sentinel, POLL_INTERVAL).await;
-
-    info!("requesting upload URLs");
-    let urls = ctx
-        .orchestrator_client()
-        .generate_upload_urls()
+    collect_output_inner(&paths, ctx)
         .await
-        .map_err(CliError::unrunnable)?;
-
-    info!("uploading log file");
-    let log_bytes = ctx.read_file(&paths.output_log)?;
-    ctx.orchestrator_client()
-        .upload_to_signed_url(&urls.log_file_url, log_bytes)
-        .await
-        .map_err(CliError::unrunnable)?;
-
-    info!("building output zip");
-    build_output_zip(ctx, shared_dir, &paths.output_zip)?;
-    let zip_bytes = ctx.read_file(&paths.output_zip)?;
-
-    info!("uploading output zip");
-    ctx.orchestrator_client()
-        .upload_to_signed_url(&urls.output_zip_url, zip_bytes)
-        .await
-        .map_err(CliError::unrunnable)?;
+        .map_err(Error::Unrunnable)?;
 
     let exit_code = read_exit_code(ctx, &paths.exit_status_file)?;
+
     if exit_code == 0 {
         info_status!(ctx, Status::Successful, "scenario completed successfully")?;
 
         Ok(())
     } else {
-        Err(CliError::failed(
-            exit_status_from_code(exit_code),
-            format!("Scenario exited with non-zero exit code {exit_code}"),
-        ))
+        Err(Error::ScenarioFailed { exit_code })
     }
 }
 
+async fn collect_output_inner(paths: &SharedPaths, ctx: &impl CliContext) -> crate::Result<()> {
+    info_status!(ctx, Status::Running, "waiting for scenario to complete")?;
+    wait_for_sentinel(ctx, &paths.exit_sentinel, POLL_INTERVAL).await;
+
+    info!("requesting upload URLs");
+    let urls = ctx.orchestrator_client().generate_upload_urls().await?;
+
+    info!("uploading log file");
+    let log_bytes = ctx.read_file(&paths.output_log)?;
+
+    ctx.orchestrator_client()
+        .upload_to_signed_url(&urls.log_file_url, log_bytes)
+        .await?;
+
+    info!("building output zip");
+    build_output_zip(ctx, &paths.base, &paths.output_zip)?;
+    let zip_bytes = ctx.read_file(&paths.output_zip)?;
+
+    info!("uploading output zip");
+    ctx.orchestrator_client()
+        .upload_to_signed_url(&urls.output_zip_url, zip_bytes)
+        .await?;
+
+    Ok(())
+}
+
 struct SharedPaths {
+    base: PathBuf,
     output_log: PathBuf,
     output_zip: PathBuf,
     exit_sentinel: PathBuf,
@@ -77,6 +98,7 @@ struct SharedPaths {
 impl SharedPaths {
     fn new(shared_dir: &Path) -> Self {
         Self {
+            base: shared_dir.into(),
             output_log: shared_dir.join("output").join("output.log"),
             output_zip: shared_dir.join("output.zip"),
             exit_sentinel: shared_dir.join("scenario-exited"),
@@ -91,25 +113,34 @@ async fn wait_for_sentinel(ctx: &impl CliContext, sentinel: &Path, poll_interval
     }
 }
 
-fn read_exit_code(ctx: &impl CliContext, exit_status_file: &Path) -> CliResult<u8> {
+fn read_exit_code(ctx: &impl CliContext, exit_status_file: &Path) -> crate::Result<u8> {
     let contents = ctx.read_file_to_string(exit_status_file)?;
 
-    contents
-        .trim()
-        .parse::<u8>()
-        .with_context(|| {
-            format!(
-                "Unexpected exit code in {}: {contents:?}",
-                exit_status_file.display()
-            )
-        })
-        .map_err(CliError::unrunnable)
+    contents.trim().parse::<u8>().map_err(|_| {
+        FsError {
+            path: exit_status_file.to_owned(),
+            kind: FsErrorKind::Read,
+            source: io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "unexpected exit code content in {}: {:?}",
+                    exit_status_file.display(),
+                    contents.trim()
+                ),
+            ),
+        }
+        .into()
+    })
 }
 
 /// Produce a zip archive of `<shared_dir>/output/` in-process, writing it to `zip_path`.
 /// Archive entries are rooted at `output/` (i.e. relative to `shared_dir`), mirroring
 /// `cd <shared_dir> && zip -r <zip_path> output`.
-fn build_output_zip(ctx: &impl CliContext, shared_dir: &Path, zip_path: &Path) -> CliResult<()> {
+fn build_output_zip(
+    ctx: &impl CliContext,
+    shared_dir: &Path,
+    zip_path: &Path,
+) -> crate::Result<()> {
     let output_dir = shared_dir.join("output");
     let files = ctx.list_files_under(&output_dir)?;
 
@@ -119,39 +150,44 @@ fn build_output_zip(ctx: &impl CliContext, shared_dir: &Path, zip_path: &Path) -
         let options = SimpleFileOptions::default();
 
         for file_path in files {
-            let archive_name = file_path
-                .strip_prefix(shared_dir)
-                .with_context(|| {
+            let archive_name = file_path.strip_prefix(shared_dir).map_err(|_| FsError {
+                path: file_path.clone(),
+                kind: FsErrorKind::Read,
+                source: io::Error::new(
+                    io::ErrorKind::InvalidInput,
                     format!(
-                        "File {} is not under shared dir {}",
+                        "file {} is not under shared dir {}",
                         file_path.display(),
                         shared_dir.display()
-                    )
-                })
-                .map_err(CliError::unrunnable)?;
+                    ),
+                ),
+            })?;
 
             writer
                 .start_file(archive_name.to_string_lossy(), options)
-                .with_context(|| format!("Failed to add {} to zip", archive_name.display()))
-                .map_err(CliError::unrunnable)?;
+                .map_err(|e| FsError {
+                    path: zip_path.to_owned(),
+                    kind: FsErrorKind::Write,
+                    source: io::Error::other(e),
+                })?;
             let bytes = ctx.read_file(&file_path)?;
-            writer
-                .write_all(&bytes)
-                .with_context(|| format!("Failed to write {} to zip", archive_name.display()))
-                .map_err(CliError::unrunnable)?;
+            writer.write_all(&bytes).map_err(|source| FsError {
+                path: zip_path.to_owned(),
+                kind: FsErrorKind::Write,
+                source,
+            })?;
         }
 
-        writer
-            .finish()
-            .with_context(|| format!("Failed to finalise zip at {}", zip_path.display()))
-            .map_err(CliError::unrunnable)?;
+        writer.finish().map_err(|e| FsError {
+            path: zip_path.to_owned(),
+            kind: FsErrorKind::Write,
+            source: io::Error::other(e),
+        })?;
     }
 
-    ctx.write_file(zip_path, &buf)
-}
+    ctx.write_file(zip_path, &buf)?;
 
-fn exit_status_from_code(code: u8) -> ExitStatus {
-    ExitStatus::from_raw((code as i32) << 8)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -170,6 +206,7 @@ mod tests {
         let ctx = MockContext::default();
         ctx.write_file(Path::new(EXIT_STATUS_FILE), b"42\n")
             .unwrap();
+
         assert_eq!(
             read_exit_code(&ctx, Path::new(EXIT_STATUS_FILE)).unwrap(),
             42
@@ -178,8 +215,9 @@ mod tests {
 
     #[test]
     fn read_exit_code_errors_on_missing_file() {
-        let err = read_exit_code(&MockContext::default(), Path::new(EXIT_STATUS_FILE)).unwrap_err();
-        assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
+        let res = read_exit_code(&MockContext::default(), Path::new(EXIT_STATUS_FILE));
+
+        assert!(res.is_err(), "{res:?}");
     }
 
     #[test]
@@ -187,14 +225,9 @@ mod tests {
         let ctx = MockContext::default();
         ctx.write_file(Path::new(EXIT_STATUS_FILE), b"not-a-number")
             .unwrap();
-        let err = read_exit_code(&ctx, Path::new(EXIT_STATUS_FILE)).unwrap_err();
-        assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
-    }
+        let res = read_exit_code(&ctx, Path::new(EXIT_STATUS_FILE));
 
-    #[test]
-    fn exit_status_from_code_round_trips() {
-        let status = exit_status_from_code(7);
-        assert_eq!(status.code(), Some(7));
+        assert!(res.is_err(), "{res:?}");
     }
 
     #[tokio::test]
@@ -251,6 +284,7 @@ mod tests {
             .unwrap()
             .read_to_string(&mut content)
             .unwrap();
+
         assert_eq!(content, "hello");
     }
 }

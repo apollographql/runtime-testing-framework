@@ -1,9 +1,4 @@
-use crate::{
-    context::CliContext,
-    error::{CliError, CliResult},
-    info_status,
-    orchestrator::Client as OrchestratorClient,
-};
+use crate::{context::CliContext, info_status, orchestrator::Client as OrchestratorClient};
 use rep_orchestrator_shared::status::Status;
 use std::{
     env::temp_dir,
@@ -41,7 +36,7 @@ pub async fn prepare_scenario(
     shared_dir: &Path,
     scenario_command: &str,
     ctx: &impl CliContext,
-) -> CliResult<()> {
+) -> crate::Result<()> {
     let paths = SharedPaths::new(shared_dir);
 
     info_status!(
@@ -50,12 +45,7 @@ pub async fn prepare_scenario(
         "resolving scenario configuration"
     )?;
 
-    let cfg_bytes = ctx
-        .orchestrator_client()
-        .fetch_scenario_config()
-        .await
-        .map_err(CliError::unrunnable)?;
-
+    let cfg_bytes = ctx.orchestrator_client().fetch_scenario_config().await?;
     let cfg_path = &temp_dir().join("scenario.yaml");
     ctx.write_file(cfg_path, &cfg_bytes)?;
 

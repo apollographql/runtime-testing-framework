@@ -8,9 +8,10 @@ macro_rules! info_status {
 
         let message = format!($($arg)+);
         tracing::info!(message);
+
         $ctx.orchestrator_client()
             .update_status($status, None, Some(message))
             .await
-            .map_err(CliError::unrunnable)
+            .map_err($crate::Error::from)
     }};
 }
