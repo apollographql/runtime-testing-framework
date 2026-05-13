@@ -20,26 +20,26 @@ const WIF_ANNOTATION: &str = "results-writer@runtime-testing-framework.iam.gserv
 /// Errors produced when communicating with the Kubernetes API or reading kubeconfig.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("failed to read kubeconfig from {path}")]
+    #[error("failed to read kubeconfig from {path}: {source}")]
     ReadKubeconfig {
         path: PathBuf,
         #[source]
         source: KubeconfigError,
     },
 
-    #[error("failed to build kube config")]
+    #[error("failed to build kube config: {0}")]
     BuildConfig(#[source] KubeconfigError),
 
-    #[error("failed to create kubernetes client")]
+    #[error("failed to create kubernetes client: {0}")]
     CreateClient(#[source] kube::Error),
 
-    #[error("failed to create namespace")]
+    #[error("failed to create namespace: {0}")]
     CreateNamespace(#[source] kube::Error),
 
-    #[error("failed to create results-writer service account")]
+    #[error("failed to create results-writer service account: {0}")]
     CreateServiceAccount(#[source] kube::Error),
 
-    #[error("failed to list deployments in namespace")]
+    #[error("failed to list deployments in namespace: {0}")]
     ListDeployments(#[source] kube::Error),
 
     #[error("timed out after {timeout_secs}s waiting for deployments: {names}")]
