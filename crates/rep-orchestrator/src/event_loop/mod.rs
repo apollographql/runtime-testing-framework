@@ -34,7 +34,6 @@ pub use run_scenario::MSG_JOB_WAIT;
 pub async fn event_loop_task(mut event_queue: EventQueue) {
     let Config {
         kubeconfig_path,
-        mgmt_context,
         workload_context,
         orchestrator_url,
         toolbox_pull_policy,
@@ -48,15 +47,7 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
     while let Some(evt) = event_queue.next_event().await {
         let ty_name = evt.data.name();
 
-        let clients = match mgmt_context {
-            Some(ctx) => ClusterClients::try_new(kubeconfig_path, ctx, workload_context).await,
-            None => {
-                ClusterClients::try_new_in_cluster_management(kubeconfig_path, workload_context)
-                    .await
-            }
-        };
-
-        let clients = match clients {
+        let clients = match ClusterClients::try_new(kubeconfig_path, workload_context).await {
             Ok(c) => c,
             Err(e) => {
                 error!(%e, ty=%ty_name, "failed to build k8s clients for event");

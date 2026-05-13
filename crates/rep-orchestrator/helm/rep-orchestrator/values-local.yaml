@@ -31,8 +31,6 @@ db:
   password: password
 
 k8s:
-  management:
-    context: "kind-rtf-mgmt"
   workload:
     context: "kind-rtf-workload"
     kubeconfigSecretRef:

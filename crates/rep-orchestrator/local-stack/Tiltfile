@@ -43,19 +43,6 @@ workload_kubeconfig = str(
     )
 )
 
-# Build a combined kubeconfig (both clusters, container IPs) for the orchestrator pod.
-# Written via temp files to avoid shell quoting issues with YAML content.
-combined_kubeconfig = str(
-    local(
-        "kind get kubeconfig --name rtf-mgmt"
-        + " | sed 's|https://127.0.0.1:[0-9]*|https://%s:6443|g' > /tmp/rtf-mgmt.kubeconfig" % mgmt_ip
-        + " && kind get kubeconfig --name rtf-workload"
-        + " | sed 's|https://127.0.0.1:[0-9]*|https://%s:6443|g' > /tmp/rtf-workload.kubeconfig" % workload_ip
-        + " && KUBECONFIG=/tmp/rtf-mgmt.kubeconfig:/tmp/rtf-workload.kubeconfig kubectl config view --flatten --merge",
-        quiet=True,
-    )
-)
-
 # Namespaces
 k8s_yaml("k8s/namespace.yaml")
 
@@ -68,12 +55,13 @@ k8s_yaml(
     )
 )
 
-# Combined kubeconfig — mounted into the orchestrator pod so it can reach both clusters
+# Workload kubeconfig — mounted into the orchestrator pod so it can reach the workload cluster
+#                       (access to the management cluster uses the in-cluster config)
 k8s_yaml(
     secret_from_dict(
         "orchestrator-kubeconfig",
         namespace="orchestrator",
-        inputs={"config": combined_kubeconfig},
+        inputs={"config": workload_kubeconfig},
     )
 )
 
@@ -143,6 +131,8 @@ k8s_resource(
         "orchestrator-kubeconfig:secret:orchestrator",
         "github-app-private-key:secret:orchestrator",
         "rep-orchestrator:secret:orchestrator",
+        "orchestrator-workflow-submitter:role:cluster-api",
+        "orchestrator-workflow-submitter:rolebinding:cluster-api",
     ],
     new_name="cluster-setup",
     labels=["infra"],

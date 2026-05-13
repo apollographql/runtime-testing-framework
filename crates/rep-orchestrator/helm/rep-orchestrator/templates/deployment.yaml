@@ -85,10 +85,6 @@ spec:
               {{- else }}
               {{ fail "Either k8s.workload.kubeconfigSecretRef.name or k8s.workload.kubeconfigPath must be set" }}
               {{- end }}
-            {{- if .Values.k8s.management.context }}
-            - name: RTF_MGMT_CONTEXT
-              value: {{ .Values.k8s.management.context | quote }}
-            {{- end }}
             - name: RTF_WORKLOAD_CONTEXT
               value: {{ required "k8s.workload.context is required" .Values.k8s.workload.context | quote }}
             - name: RTF_GCS_BUCKET

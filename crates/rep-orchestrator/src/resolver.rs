@@ -299,12 +299,14 @@ mod tests {
         payload::{SourceKeyedArrayMap, TriggerPayload},
         test_plan::RepTestPlan,
     };
-    use rtf_config::formats::{
-        DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig, Matrix,
-        ScenarioConfig,
+    use rtf_config::{
+        formats::{
+            DockerCommand, DockerComposeEnvironment, DockerScenario, EnvironmentConfig, Matrix,
+            ScenarioConfig,
+        },
+        providers::file::compose::NamedComposeFileProvider,
+        templating::{Field, Scalar},
     };
-    use rtf_config::providers::file::compose::NamedComposeFileProvider;
-    use rtf_config::templating::{Field, Scalar};
     use simple_test_case::test_case;
 
     fn dummy_config() -> Config {
@@ -323,7 +325,6 @@ mod tests {
             max_queued_executions: 100,
             kubeconfig_path: "dummy".to_string(),
             kubeconfig_secret_name: "workload-kubeconfig".to_string(),
-            mgmt_context: Some("dummy".to_string()),
             workload_context: "dummy".to_string(),
             orchestrator_url: "http://localhost:8035".to_string(),
             toolbox_pull_policy: "IfNotPresent".to_string(),
