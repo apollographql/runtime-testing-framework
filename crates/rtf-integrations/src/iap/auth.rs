@@ -1,4 +1,9 @@
-//! User-OAuth loopback flow that mints IAP-audience ID tokens.
+//! User-OAuth loopback flow that mints ID tokens for the IAP OAuth client.
+//!
+//! The same Web OAuth client that IAP is configured with also drives the CLI's
+//! consent flow. Google's default behaviour is to issue ID tokens with `aud`
+//! equal to the requesting `client_id`, so the resulting tokens are already
+//! aimed at the IAP audience — no `audience` extra param needed.
 
 use crate::iap::client::{Error, Result};
 use chrono::{DateTime, Duration, Utc};
@@ -25,10 +30,9 @@ const TOKEN_CACHE_FILENAME: &str = "iap_credentials.json";
 const LOOPBACK_TIMEOUT_SECS: u64 = 300;
 const ID_TOKEN_EXPIRY_SKEW_SECS: i64 = 60;
 
-/// Inputs for the user-OAuth flow: the IAP audience to target and the Desktop
-/// OAuth client credentials that drive user consent.
+/// Inputs for the user-OAuth flow: the IAP OAuth client credentials that both
+/// drive user consent and determine the audience of the resulting ID token.
 pub(super) struct OauthConfig<'a> {
-    pub iap_audience: &'a str,
     pub client_id: &'a str,
     pub client_secret: &'a str,
 }
@@ -36,7 +40,6 @@ pub(super) struct OauthConfig<'a> {
 /// Persisted token state at `~/.config/rtf/iap_credentials.json`.
 #[derive(Debug, Serialize, Deserialize)]
 struct CachedTokens {
-    audience: String,
     client_id: String,
     id_token: String,
     id_token_expires_at: DateTime<Utc>,
@@ -78,7 +81,6 @@ type GoogleOauthClient = Client<
 /// loopback OAuth flow (which opens a browser).
 pub(super) async fn id_token(config: &OauthConfig<'_>) -> Result<String> {
     if let Some(cached) = load_cache()
-        && cached.audience == config.iap_audience
         && cached.client_id == config.client_id
     {
         if cached.id_token_expires_at > Utc::now() + Duration::seconds(ID_TOKEN_EXPIRY_SKEW_SECS) {
@@ -143,7 +145,10 @@ async fn run_oauth_flow(config: &OauthConfig<'_>) -> Result<CachedTokens> {
         .local_addr()
         .map_err(|e| Error::OauthFlow(format!("could not read loopback port: {e}")))?
         .port();
-    let redirect_uri = format!("http://127.0.0.1:{port}");
+    // `localhost` (not `127.0.0.1`) so that Google's special-case rule for
+    // Web OAuth clients accepts the redirect — the Web client only needs
+    // `http://localhost` (any port) registered as an authorized redirect URI.
+    let redirect_uri = format!("http://localhost:{port}");
 
     let oauth_client = build_oauth_client(config, Some(&redirect_uri))?;
     let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
@@ -181,7 +186,6 @@ async fn run_oauth_flow(config: &OauthConfig<'_>) -> Result<CachedTokens> {
     let http_client = build_oauth_http_client()?;
     let token_result = oauth_client
         .exchange_code(AuthorizationCode::new(code))
-        .add_extra_param("audience", config.iap_audience)
         .set_pkce_verifier(pkce_verifier)
         .request_async(&http_client)
         .await
@@ -200,7 +204,6 @@ async fn run_oauth_flow(config: &OauthConfig<'_>) -> Result<CachedTokens> {
         .to_owned();
 
     Ok(CachedTokens {
-        audience: config.iap_audience.to_owned(),
         client_id: config.client_id.to_owned(),
         id_token: token_result.extra_fields().id_token.clone(),
         id_token_expires_at: expires_at(&token_result),
@@ -214,7 +217,6 @@ async fn refresh_id_token(refresh_token: &str, config: &OauthConfig<'_>) -> Resu
 
     let token_result = oauth_client
         .exchange_refresh_token(&RefreshToken::new(refresh_token.to_owned()))
-        .add_extra_param("audience", config.iap_audience)
         .request_async(&http_client)
         .await
         .map_err(|e| Error::OauthFlow(format!("Google token endpoint: {e}")))?;
@@ -227,7 +229,6 @@ async fn refresh_id_token(refresh_token: &str, config: &OauthConfig<'_>) -> Resu
         .unwrap_or_else(|| refresh_token.to_owned());
 
     Ok(CachedTokens {
-        audience: config.iap_audience.to_owned(),
         client_id: config.client_id.to_owned(),
         id_token: token_result.extra_fields().id_token.clone(),
         id_token_expires_at: expires_at(&token_result),
@@ -408,11 +409,10 @@ mod tests {
     #[test]
     fn authorize_url_carries_expected_oauth_params() {
         let config = OauthConfig {
-            iap_audience: "AUD",
             client_id: "CID",
             client_secret: "SECRET",
         };
-        let client = build_oauth_client(&config, Some("http://127.0.0.1:1234")).unwrap();
+        let client = build_oauth_client(&config, Some("http://localhost:1234")).unwrap();
         let (pkce, _) = PkceCodeChallenge::new_random_sha256();
         let (url, _csrf) = client
             .authorize_url(|| CsrfToken::new("ST".to_owned()))
@@ -425,7 +425,7 @@ mod tests {
         let url = url.as_str();
         assert!(url.starts_with(GOOGLE_AUTH_ENDPOINT), "got {url}");
         assert!(url.contains("client_id=CID"));
-        assert!(url.contains("redirect_uri=http%3A%2F%2F127.0.0.1%3A1234"));
+        assert!(url.contains("redirect_uri=http%3A%2F%2Flocalhost%3A1234"));
         assert!(url.contains("code_challenge_method=S256"));
         assert!(url.contains("state=ST"));
         assert!(url.contains("access_type=offline"));

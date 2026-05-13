@@ -162,38 +162,35 @@ impl From<RequestBody> for Body {
 
 /// Authenticated HTTP client for the REP orchestrator, protected by Google Cloud IAP.
 ///
-/// Construct with [`IapClient::new`]; ADC loading and three Secret Manager
-/// lookups (the IAP audience and the Desktop OAuth client ID / secret) are
-/// performed eagerly during construction. The first call to [`IapClient::send`]
-/// from a fresh user account opens a browser for OAuth consent; subsequent
-/// invocations reuse a refresh token cached at `~/.config/rtf/iap_credentials.json`.
+/// Construct with [`IapClient::new`]; ADC loading and two Secret Manager
+/// lookups (the IAP OAuth client id and secret) are performed eagerly during
+/// construction. The first call to [`IapClient::send`] from a fresh user
+/// account opens a browser for OAuth consent; subsequent invocations reuse a
+/// refresh token cached at `~/.config/rtf/iap_credentials.json`.
 #[derive(Debug)]
 pub struct IapClient {
     orchestrator_url: String,
-    iap_audience: String,
-    oauth_client_id: String,
-    oauth_client_secret: String,
+    client_id: String,
+    client_secret: String,
     http: Client,
 }
 
 impl IapClient {
     /// Build a new client.
     ///
-    /// Fetches the IAP audience and the Desktop OAuth client credentials from
-    /// Secret Manager. The SDK loads Application Default Credentials internally.
+    /// Fetches the IAP OAuth client credentials from Secret Manager. The SDK
+    /// loads Application Default Credentials internally.
     pub async fn new(orchestrator_url: impl Into<String>) -> Result<Self> {
         let orchestrator_url = orchestrator_url.into();
         let Secrets {
-            iap_audience,
-            oauth_client_id,
-            oauth_client_secret,
+            client_id,
+            client_secret,
         } = fetch_all().await?;
         let http = Client::new();
         Ok(Self {
             orchestrator_url,
-            iap_audience,
-            oauth_client_id,
-            oauth_client_secret,
+            client_id,
+            client_secret,
             http,
         })
     }
@@ -215,9 +212,8 @@ impl IapClient {
         let header_map = parse_headers(headers)?;
 
         let oauth_config = OauthConfig {
-            iap_audience: &self.iap_audience,
-            client_id: &self.oauth_client_id,
-            client_secret: &self.oauth_client_secret,
+            client_id: &self.client_id,
+            client_secret: &self.client_secret,
         };
         let id_token = id_token(&oauth_config).await?;
 
