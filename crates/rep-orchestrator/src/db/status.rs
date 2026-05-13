@@ -1,8 +1,8 @@
-use crate::db::{Queryable, Result};
+use crate::db::{Error, Queryable, Result};
 use chrono::{DateTime, Utc};
 use rep_orchestrator_shared::status::{Status as SharedStatus, StatusUpdate as SharedStatusUpdate};
 use sqlx::{Executor, FromRow, PgConnection};
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt};
 
 /// Helper trait for tracking a time series of [StatusUpdate] items for a parent table.
 ///
@@ -58,6 +58,25 @@ pub trait StatusTracked: Queryable {
             }
 
             self.after_set_status(status, conn).await
+        }
+    }
+
+    fn try_current_status(
+        &self,
+        conn: &mut PgConnection,
+    ) -> impl Future<Output = Result<Option<StatusUpdate>>> + Send {
+        async move {
+            Ok(sqlx::query_as(&format!(
+                "SELECT status, message, updated_at
+                 FROM {}
+                 WHERE parent_id = $1
+                 ORDER BY updated_at DESC
+                 LIMIT 1;",
+                Self::STATUS_TABLE
+            ))
+            .bind(self.id())
+            .fetch_optional(conn)
+            .await?)
         }
     }
 
@@ -188,6 +207,49 @@ impl Status {
             (Provisioning, _) | (_, Provisioning) => Provisioning,
             (Resolving, _) | (_, Resolving) => Resolving,
             (Initialising, _) | (_, Initialising) => Initialising,
+        }
+    }
+
+    pub fn validate_update(&self, new: Status, exit_code: Option<u8>) -> Result<()> {
+        use Status::*;
+
+        // We check strictly greater than in order to allow multiple updates at the same Status
+        // with different messages (e.g. the different stages of provisioning). But we disallow
+        // moving backward through the statuses or setting multiple terminal statuses.
+        if *self > new || self.is_terminal() {
+            return Err(Error::InvalidExecutionStatus {
+                current: *self,
+                requested: new,
+            });
+        }
+
+        match (new, exit_code) {
+            (Failed, None) => return Err(Error::MissingExitCode),
+            (Failed, Some(0)) => return Err(Error::InvalidFailedExitCode),
+            (Failed, Some(_)) => (),
+            (Successful, Some(0)) => (),
+            (_, Some(code)) => {
+                return Err(Error::InvalidExitCode { status: new, code });
+            }
+            _ => (),
+        };
+
+        Ok(())
+    }
+}
+
+impl fmt::Display for Status {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Status::*;
+
+        match self {
+            Initialising => write!(f, "INITIALISING"),
+            Resolving => write!(f, "RESOLVING"),
+            Provisioning => write!(f, "PROVISIONING"),
+            Running => write!(f, "RUNNING"),
+            Successful => write!(f, "SUCCESSFUL"),
+            Failed => write!(f, "FAILED"),
+            Unrunnable => write!(f, "UNRUNNABLE"),
         }
     }
 }
@@ -365,5 +427,50 @@ mod tests {
     #[test]
     fn combine_init_init_returns_initialising() {
         assert_eq!(Initialising.combine(Initialising), Initialising)
+    }
+
+    // valid
+    #[test_case(Running, None, Ok(()); "valid non-error")]
+    #[test_case(Provisioning, None, Ok(()); "valid repeat of current status")]
+    #[test_case(Successful, Some(0), Ok(()); "valid successful with 0 exit code")]
+    #[test_case(Failed, Some(1), Ok(()); "valid error")]
+    // invalid
+    #[test_case(Failed, Some(0), Err(Error::InvalidFailedExitCode); "error with 0 exit code")]
+    #[test_case(Failed, None, Err(Error::MissingExitCode); "error without exit code")]
+    #[test_case(Running, Some(0), Err(Error::InvalidExitCode { status: Running, code: 0 }); "unexpected exit code")]
+    #[test_case(
+        Initialising,
+        None,
+        Err(Error::InvalidExecutionStatus { current: Provisioning, requested: Initialising });
+        "status rollback"
+    )]
+    #[test]
+    fn validation_works(status: Status, exit_code: Option<u8>, expected: Result<()>) {
+        let res = Provisioning.validate_update(status, exit_code);
+
+        match (expected, res) {
+            (Ok(()), Ok(())) => (),
+            (Err(e1), Err(e2)) if e1.to_string() == e2.to_string() => (),
+            (r1, r2) => panic!("expected {r1:?}, got {r2:?}"),
+        }
+    }
+
+    #[test_case(Successful; "successful")]
+    #[test_case(Failed; "failed")]
+    #[test_case(Unrunnable; "unrunnable")]
+    #[test]
+    fn validate_second_terminal_status_is_invalid(current: Status) {
+        let res = current.validate_update(Successful, None);
+
+        assert!(
+            matches!(
+                res,
+                Err(Error::InvalidExecutionStatus {
+                    current: _,
+                    requested: Successful
+                })
+            ),
+            "{res:?}"
+        );
     }
 }

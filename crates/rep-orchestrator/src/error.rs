@@ -1,8 +1,8 @@
+use crate::db;
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Json, Response},
 };
-use rep_orchestrator_shared::status::Status;
 use serde_json::json;
 use std::io;
 use uuid::Uuid;
@@ -38,18 +38,6 @@ pub enum Error {
     #[error("insufficient queue capacity")]
     InsufficientCapacity,
 
-    #[error("requested execution status ({requested}) does not follow current status ({current})")]
-    InvalidExecutionStatus { current: Status, requested: Status },
-
-    #[error("non-terminal status updates may not include a status code")]
-    InvalidExitCode { status: Status, code: u8 },
-
-    #[error("FAILED status updates must have a non-zero exit code")]
-    InvalidFailedExitCode,
-
-    #[error("FAILED status updates must include an exit code")]
-    MissingExitCode,
-
     #[error("resolver channel closed")]
     ResolverChannelClosed,
 
@@ -69,10 +57,10 @@ impl IntoResponse for Error {
 
         let raw = match self {
             Self::FileUploadAlreadyRequested
-            | Self::MissingExitCode
-            | Self::InvalidFailedExitCode
-            | Self::InvalidExitCode { .. }
-            | Self::InvalidExecutionStatus { .. } => (
+            | Self::Db(db::Error::MissingExitCode)
+            | Self::Db(db::Error::InvalidFailedExitCode)
+            | Self::Db(db::Error::InvalidExitCode { .. })
+            | Self::Db(db::Error::InvalidExecutionStatus { .. }) => (
                 StatusCode::BAD_REQUEST,
                 Json(json!({ "error": "BAD_REQUEST", "message": msg })),
             ),
