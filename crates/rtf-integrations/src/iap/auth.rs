@@ -1,5 +1,6 @@
 use crate::iap::{Error, Result};
 use chrono::{DateTime, Duration, Utc};
+use google_cloud_auth::credentials::idtoken;
 use oauth2::{
     AuthUrl, AuthorizationCode, Client, ClientId, ClientSecret, CsrfToken, EndpointNotSet,
     EndpointSet, ExtraTokenFields, PkceCodeChallenge, RedirectUrl, RefreshToken, Scope,
@@ -139,6 +140,10 @@ impl CachedTokens {
 /// login`), tries the on-disk cache, then a refresh-token grant, then runs the
 /// full loopback OAuth flow (which opens a browser).
 pub(super) async fn id_token(client_id: &str, client_secret: &str) -> Result<String> {
+    if adc_is_service_account_like()? {
+        return service_account_id_token(client_id).await;
+    }
+
     if let Some(cache) = CachedTokens::load()? {
         if cache.id_token_expires_at > Utc::now() + Duration::seconds(ID_TOKEN_EXPIRY_SKEW_SECS) {
             return Ok(cache.id_token);
@@ -157,6 +162,67 @@ pub(super) async fn id_token(client_id: &str, client_secret: &str) -> Result<Str
     tokens.save()?;
 
     Ok(tokens.id_token)
+}
+
+/// `true` when ADC describes a credential type whose ID tokens IAP will accept
+/// without an interactive consent flow.
+///
+/// Reads the ADC file at `$GOOGLE_APPLICATION_CREDENTIALS` (if set) or the
+/// platform-default location, parses just the `type` field, and matches
+/// against the two service-account variants. Anything else — missing file,
+/// parse failure, `authorized_user`, `external_account` — returns `false` so
+/// the caller falls back to the user OAuth flow.
+fn adc_is_service_account_like() -> Result<bool> {
+    let adc_path = if let Ok(explicit) = env::var("GOOGLE_APPLICATION_CREDENTIALS")
+        && !explicit.is_empty()
+    {
+        PathBuf::from(explicit)
+    } else {
+        let home = env::var("HOME")
+            .ok()
+            .filter(|h| !h.is_empty())
+            .ok_or(Error::Adc("unable to find home dir".to_string()))?;
+
+        PathBuf::from(home)
+            .join(".config")
+            .join("gcloud")
+            .join("application_default_credentials.json")
+    };
+
+    let bytes = fs::read(adc_path)?;
+    let parsed = serde_json::from_slice::<AdcType<'_>>(&bytes)?;
+
+    let res = matches!(
+        parsed.kind,
+        Some("service_account") | Some("impersonated_service_account")
+    );
+
+    return Ok(res);
+
+    #[derive(Deserialize)]
+    struct AdcType<'a> {
+        #[serde(rename = "type", borrow)]
+        kind: Option<&'a str>,
+    }
+}
+
+/// Mint an ID token aimed at `audience` using the service account that ADC
+/// resolves to. No browser, no consent screen, no on-disk cache (the SDK
+/// caches tokens in-memory and they're short-lived enough that re-minting
+/// per invocation is cheap).
+async fn service_account_id_token(audience: &str) -> Result<String> {
+    let credentials = idtoken::Builder::new(audience.to_owned())
+        .build()
+        .map_err(|e| {
+            Error::Adc(format!(
+                "could not build service-account ID token credentials: {e}"
+            ))
+        })?;
+
+    credentials
+        .id_token()
+        .await
+        .map_err(|e| Error::Adc(format!("could not mint service-account ID token: {e}")))
 }
 
 /// Build the `oauth2::Client` for Google's endpoints. `redirect_uri` is only

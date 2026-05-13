@@ -38,6 +38,10 @@ pub enum Error {
     #[error("user OAuth flow failed: {0}")]
     OauthFlow(String),
 
+    /// Application Default Credentials could not mint a service-account ID token.
+    #[error("ADC error: {0}")]
+    Adc(String),
+
     /// The on-disk token cache could not be read or written.
     #[error("token cache error: {0}")]
     TokenCache(#[from] std::io::Error),
@@ -53,6 +57,10 @@ pub enum Error {
     /// An HTTP transport error.
     #[error(transparent)]
     Http(#[from] reqwest::Error),
+
+    /// A serde json error
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
 }
 
 /// Alias for a [Result][std::result::Result] where the error variant is an [Error].
