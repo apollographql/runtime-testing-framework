@@ -1,7 +1,7 @@
 //! Fetch the status of a given [TestExecution] by its UUID.
 use crate::{
     Error, Result, conn,
-    db::{Status, StatusTracked, TestExecution},
+    db::{StatusTracked, TestExecution},
     endpoints::BearerToken,
 };
 use axum::{Json, extract::Path};
@@ -36,7 +36,9 @@ pub async fn post_handler(
     auth.verify(ex.token())?;
 
     let current = ex.current_status(conn).await?;
-    validate(&payload, current.status.into())?;
+    current
+        .status
+        .validate_update(payload.status.into(), payload.exit_code)?;
 
     ex.set_status(payload.status.into(), payload.message.clone(), conn)
         .await?;
@@ -47,39 +49,6 @@ pub async fn post_handler(
     let new = ex.current_status(conn).await?;
 
     Ok(Json(new.into()))
-}
-
-fn validate(payload: &SetStatusPayload, current_status: SharedStatus) -> Result<()> {
-    use SharedStatus::*;
-
-    let db_current_status: Status = current_status.into();
-    let db_payload_status: Status = payload.status.into();
-
-    // We check strictly greater than in order to allow multiple updates at the same Status
-    // with different messages (e.g. the different stages of provisioning). But we disallow
-    // moving backward through the statuses or setting multiple terminal statuses.
-    if db_current_status > db_payload_status || db_current_status.is_terminal() {
-        return Err(Error::InvalidExecutionStatus {
-            current: current_status,
-            requested: payload.status,
-        });
-    }
-
-    match (payload.status, payload.exit_code) {
-        (Failed, None) => return Err(Error::MissingExitCode),
-        (Failed, Some(0)) => return Err(Error::InvalidFailedExitCode),
-        (Failed, Some(_)) => (),
-        (Successful, Some(0)) => (),
-        (_, Some(code)) => {
-            return Err(Error::InvalidExitCode {
-                status: payload.status,
-                code,
-            });
-        }
-        _ => (),
-    };
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -93,61 +62,6 @@ mod tests {
 
     fn bearer(token: &Uuid) -> HeaderValue {
         HeaderValue::from_str(&format!("Bearer {token}")).unwrap()
-    }
-
-    // valid
-    #[test_case(Running, None, Ok(()); "valid non-error")]
-    #[test_case(Provisioning, None, Ok(()); "valid repeat of current status")]
-    #[test_case(Successful, Some(0), Ok(()); "valid successful with 0 exit code")]
-    #[test_case(Failed, Some(1), Ok(()); "valid error")]
-    // invalid
-    #[test_case(Failed, Some(0), Err(Error::InvalidFailedExitCode); "error with 0 exit code")]
-    #[test_case(Failed, None, Err(Error::MissingExitCode); "error without exit code")]
-    #[test_case(Running, Some(0), Err(Error::InvalidExitCode { status: Running, code: 0 }); "unexpected exit code")]
-    #[test_case(
-        Initialising,
-        None,
-        Err(Error::InvalidExecutionStatus { current: Provisioning, requested: Initialising });
-        "status rollback"
-    )]
-    #[test]
-    fn payload_validation_works(status: SharedStatus, exit_code: Option<u8>, expected: Result<()>) {
-        let payload = SetStatusPayload {
-            status,
-            message: None,
-            exit_code,
-        };
-        let res = validate(&payload, Provisioning);
-
-        match (expected, res) {
-            (Ok(()), Ok(())) => (),
-            (Err(e1), Err(e2)) if e1.to_string() == e2.to_string() => (),
-            (r1, r2) => panic!("expected {r1:?}, got {r2:?}"),
-        }
-    }
-
-    #[test_case(Successful; "successful")]
-    #[test_case(Failed; "failed")]
-    #[test_case(Unrunnable; "unrunnable")]
-    #[test]
-    fn validate_second_terminal_status_is_invalid(current: SharedStatus) {
-        let payload = SetStatusPayload {
-            status: Successful,
-            message: None,
-            exit_code: None,
-        };
-        let res = validate(&payload, current);
-
-        assert!(
-            matches!(
-                res,
-                Err(Error::InvalidExecutionStatus {
-                    current: _,
-                    requested: Successful
-                })
-            ),
-            "{res:?}"
-        );
     }
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]

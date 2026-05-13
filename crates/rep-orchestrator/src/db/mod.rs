@@ -35,6 +35,18 @@ pub enum Error {
 
     #[error(transparent)]
     Sqlx(#[from] sqlx::Error),
+
+    #[error("requested execution status ({requested}) does not follow current status ({current})")]
+    InvalidExecutionStatus { current: Status, requested: Status },
+
+    #[error("non-terminal status updates may not include a status code")]
+    InvalidExitCode { status: Status, code: u8 },
+
+    #[error("FAILED status updates must have a non-zero exit code")]
+    InvalidFailedExitCode,
+
+    #[error("FAILED status updates must include an exit code")]
+    MissingExitCode,
 }
 
 /// Helper trait for common queries and semantics when interacting with the DB.
