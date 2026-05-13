@@ -54,27 +54,10 @@ pub struct ClusterClients {
 }
 
 impl ClusterClients {
-    /// Construct a new pair of k8s clients using the provided kubeconfig path and contexts.
-    pub async fn try_new(
-        path: &str,
-        management_context: &str,
-        workload_context: &str,
-    ) -> Result<Self> {
-        let kfg = Kubeconfig::read_from(path)?;
-
-        Ok(Self {
-            management: client_for_context(kfg.clone(), management_context).await?,
-            workload: client_for_context(kfg, workload_context).await?,
-        })
-    }
-
     /// Construct clients where the management client uses the pod's own in-cluster credentials
     /// and the workload client uses an explicit kubeconfig file. Used in prod where the
     /// orchestrator runs inside the mgmt cluster.
-    pub async fn try_new_in_cluster_management(
-        workload_path: &str,
-        workload_context: &str,
-    ) -> Result<Self> {
+    pub async fn try_new(workload_path: &str, workload_context: &str) -> Result<Self> {
         let management = Client::try_from(Config::incluster_env()?)?;
         let kfg = Kubeconfig::read_from(workload_path)?;
 

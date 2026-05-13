@@ -66,10 +66,6 @@ imagePullSecrets: []
 
 # -- Kubernetes cluster configuration
 k8s:
-  # -- Management cluster configuration
-  management:
-    # -- Kubernetes context name for the management cluster. Set to null for in-cluster (production) mode using the pod's own service-account credentials; set to a context name for dev/staging to read credentials from the supplied kubeconfig
-    context: null
   # -- Workload cluster configuration
   workload:
     # -- Kubernetes context name for the workload cluster. Required
