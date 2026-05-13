@@ -12,11 +12,8 @@ use uuid::Uuid;
 /// Errors produced when communicating with the REP orchestrator HTTP API.
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("failed to fetch environment config: {message}")]
-    FetchEnvironmentConfig { message: String },
-
-    #[error("failed to fetch scenario config: {message}")]
-    FetchScenarioConfig { message: String },
+    #[error("failed to fetch {kind} config: {message}")]
+    FetchConfig { kind: &'static str, message: String },
 
     #[error("failed to request artifact upload URLs: {message}")]
     GenerateUploadUrls { message: String },
@@ -86,37 +83,48 @@ impl HttpClient {
         })
     }
 
-    async fn fetch_config(
-        &self,
-        endpoint: &str,
-        on_error: impl Fn(String) -> Error,
-    ) -> Result<Vec<u8>, Error> {
+    async fn fetch_config(&self, kind: &'static str) -> Result<Vec<u8>, Error> {
         let url = self
             .orchestrator_url
-            .join(&format!("test-execution/{}/{endpoint}", self.execution_id))
-            .map_err(|e| on_error(e.to_string()))?;
+            .join(&format!(
+                "test-execution/{}/{kind}-config",
+                self.execution_id
+            ))
+            .map_err(|e| Error::FetchConfig {
+                kind,
+                message: e.to_string(),
+            })?;
 
-        info!(id=%self.execution_id, "fetching {}", endpoint);
+        info!(id=%self.execution_id, "fetching {kind} config");
         let resp = reqwest::Client::new()
             .get(url)
             .bearer_auth(self.execution_token)
             .send()
             .await
-            .map_err(|e| on_error(e.to_string()))?;
+            .map_err(|e| Error::FetchConfig {
+                kind,
+                message: e.to_string(),
+            })?;
 
         let status_code = resp.status();
         if !status_code.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            return Err(on_error(format!(
-                "{endpoint} fetch failed for {}; ({status_code}): {body}",
-                self.execution_id,
-            )));
+            return Err(Error::FetchConfig {
+                kind,
+                message: format!(
+                    "{kind} fetch failed for {}; ({status_code}): {body}",
+                    self.execution_id,
+                ),
+            });
         }
 
         resp.bytes()
             .await
             .map(|b| b.to_vec())
-            .map_err(|e| on_error(e.to_string()))
+            .map_err(|e| Error::FetchConfig {
+                kind,
+                message: e.to_string(),
+            })
     }
 }
 
@@ -245,17 +253,11 @@ impl Client for HttpClient {
     }
 
     async fn fetch_environment_config(&self) -> Result<Vec<u8>, Error> {
-        self.fetch_config("environment-config", |msg| Error::FetchEnvironmentConfig {
-            message: msg,
-        })
-        .await
+        self.fetch_config("environment").await
     }
 
     async fn fetch_scenario_config(&self) -> Result<Vec<u8>, Error> {
-        self.fetch_config("scenario-config", |msg| Error::FetchScenarioConfig {
-            message: msg,
-        })
-        .await
+        self.fetch_config("scenario").await
     }
 }
 
@@ -368,7 +370,8 @@ pub(crate) mod mocks {
 
         async fn fetch_environment_config(&self) -> Result<Vec<u8>, Error> {
             if self.update_should_fail {
-                return Err(Error::FetchEnvironmentConfig {
+                return Err(Error::FetchConfig {
+                    kind: "environment",
                     message: "mock fetch environment config failure".to_owned(),
                 });
             }
@@ -378,7 +381,8 @@ pub(crate) mod mocks {
 
         async fn fetch_scenario_config(&self) -> Result<Vec<u8>, Error> {
             if self.update_should_fail {
-                return Err(Error::FetchScenarioConfig {
+                return Err(Error::FetchConfig {
+                    kind: "scenario",
                     message: "mock fetch scenario config failure".to_owned(),
                 });
             }
