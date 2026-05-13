@@ -61,6 +61,25 @@ pub trait StatusTracked: Queryable {
         }
     }
 
+    fn try_current_status(
+        &self,
+        conn: &mut PgConnection,
+    ) -> impl Future<Output = Result<Option<StatusUpdate>>> + Send {
+        async move {
+            Ok(sqlx::query_as(&format!(
+                "SELECT status, message, updated_at
+                 FROM {}
+                 WHERE parent_id = $1
+                 ORDER BY updated_at DESC
+                 LIMIT 1;",
+                Self::STATUS_TABLE
+            ))
+            .bind(self.id())
+            .fetch_optional(conn)
+            .await?)
+        }
+    }
+
     fn current_status(
         &self,
         conn: &mut PgConnection,

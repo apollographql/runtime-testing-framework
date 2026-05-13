@@ -213,6 +213,10 @@ impl UpdateHandle for PgConnection {
         status: Status,
         message: Option<String>,
     ) -> crate::Result<()> {
+        if let Some(current) = tr.try_current_status(self).await? {
+            current.status.validate_update(status, None)?;
+        }
+
         Ok(tr.set_status(status, message, self).await?)
     }
 
@@ -222,6 +226,10 @@ impl UpdateHandle for PgConnection {
         status: Status,
         message: Option<String>,
     ) -> crate::Result<()> {
+        if let Some(current) = ex.try_current_status(self).await? {
+            current.status.validate_update(status, None)?;
+        }
+
         Ok(ex.set_status(status, message, self).await?)
     }
 
