@@ -22,7 +22,6 @@ db-tests:
 		RTF_GITHUB_APP_ID=1 \
 		RTF_GITHUB_APP_PRIVATE_KEY_PEM=dummy \
 		RTF_KUBECONFIG_PATH=dummy \
-		RTF_MGMT_CONTEXT=dummy \
 		RTF_WORKLOAD_CONTEXT=dummy \
 		RTF_GCS_BUCKET=dummy \
 		RTF_MOCK_GCS_URL="mock-gcs" \
@@ -41,7 +40,6 @@ integration-tests: clear-db-data
 		RTF_GITHUB_APP_ID=1 \
 		RTF_GITHUB_APP_PRIVATE_KEY_PEM=dummy \
 		RTF_KUBECONFIG_PATH=$(HOME)/.kube/config \
-		RTF_MGMT_CONTEXT=kind-rtf-mgmt \
 		RTF_WORKLOAD_CONTEXT=kind-rtf-workload \
 		RTF_GCS_BUCKET=dummy \
 		RTF_MOCK_GCS_URL="dummy" \
