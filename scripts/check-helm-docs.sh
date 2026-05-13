@@ -59,7 +59,7 @@ if diff -u "$README_FILE" "$TEMP_DIR/chart/README.md" > /dev/null 2>&1; then
 else
     echo "ERROR: README.md is out of sync with values.yaml"
     echo ""
-    echo "Run 'mise run helm-docs' to regenerate README.md"
+    echo "Run 'mise generate-helm-docs' to regenerate README.md"
     echo ""
     diff -u "$README_FILE" "$TEMP_DIR/chart/README.md" || true
     exit 1
