@@ -1,21 +1,89 @@
-use crate::{
-    error::{CliError, CliResult},
-    kubernetes, orchestrator,
-};
+use crate::{kubernetes, orchestrator};
 use anyhow::Context;
 use rep_orchestrator_shared::{
     EXECUTION_ID_ENV_VAR, EXECUTION_TOKEN_ENV_VAR, ORCHESTRATOR_URL_ENV_VAR,
 };
 use std::{
-    env,
+    env, fmt,
     fs::{self, Permissions, set_permissions},
+    io,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, ExitStatus},
     str::FromStr,
 };
 use tracing::info;
 use uuid::Uuid;
+
+/// Describes which filesystem operation failed, used by [FsError] to compose its display message.
+#[derive(Debug)]
+pub enum FsErrorKind {
+    Read,
+    Write,
+    SetPermissions,
+    CreateDir,
+    ListFiles,
+}
+
+impl fmt::Display for FsErrorKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read => f.write_str("read"),
+            Self::Write => f.write_str("write"),
+            Self::SetPermissions => f.write_str("set permissions on"),
+            Self::CreateDir => f.write_str("create directory"),
+            Self::ListFiles => f.write_str("list files under"),
+        }
+    }
+}
+
+/// An error produced when reading, writing, or traversing the filesystem.
+#[derive(Debug, thiserror::Error)]
+#[error("failed to {kind} {path}")]
+pub struct FsError {
+    pub path: PathBuf,
+    pub kind: FsErrorKind,
+    #[source]
+    pub source: io::Error,
+}
+
+/// Errors produced when invoking shell commands.
+///
+/// Implements [`Display`] manually so [`ShellError::Failed`] can conditionally
+/// render the exit code (processes terminated by a signal have no code).
+#[derive(Debug)]
+pub enum ShellError {
+    Spawn {
+        cmd: String,
+        source: io::Error,
+    },
+
+    Failed {
+        cmd: String,
+        exit_status: ExitStatus,
+    },
+}
+
+impl fmt::Display for ShellError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Spawn { cmd, .. } => write!(f, "I/O error when attempting to invoke {cmd}"),
+            Self::Failed { cmd, exit_status } => match exit_status.code() {
+                Some(code) => write!(f, "({code}) command failed: {cmd}"),
+                None => write!(f, "command failed: {cmd}"),
+            },
+        }
+    }
+}
+
+impl std::error::Error for ShellError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Spawn { source, .. } => Some(source),
+            Self::Failed { .. } => None,
+        }
+    }
+}
 
 pub trait CliContext {
     type OrchestratorClient: orchestrator::Client;
@@ -30,29 +98,25 @@ pub trait CliContext {
     /// Logs the command arguments before running. On failure, logs captured stderr and returns a
     /// [Status::Unrunnable] error — every caller is an orchestration subroutine, so there is no
     /// distinction between "setup failed" and "user scenario failed" here.
-    fn run_shell(&self, cmd: &mut Command) -> impl Future<Output = CliResult<()>> + Send;
+    fn run_shell(&self, cmd: &mut Command) -> impl Future<Output = crate::Result<()>> + Send;
 
-    /// Read the file at `path` as UTF-8, mapping the IO error to [`Status::Unrunnable`] with the
-    /// path embedded in the message.
-    fn read_file_to_string(&self, path: &Path) -> CliResult<String>;
+    /// Read the file at `path` as UTF-8.
+    fn read_file_to_string(&self, path: &Path) -> Result<String, FsError>;
 
-    /// Read the file at `path` as bytes, mapping the IO error to [`Status::Unrunnable`] with the
-    /// path embedded in the message.
-    fn read_file(&self, path: &Path) -> CliResult<Vec<u8>>;
+    /// Read the file at `path` as bytes.
+    fn read_file(&self, path: &Path) -> Result<Vec<u8>, FsError>;
 
-    /// Write `content` to `path`, mapping the IO error to [`Status::Unrunnable`] with the path
-    /// embedded in the message.
-    fn write_file(&self, path: &Path, content: &[u8]) -> CliResult<()>;
+    /// Write `content` to `path`.
+    fn write_file(&self, path: &Path, content: &[u8]) -> Result<(), FsError>;
 
-    /// chmod `path` to `mode`, mapping the IO error to [`Status::Unrunnable`] with the path
-    /// embedded in the message.
-    fn set_permissions_mode(&self, path: &Path, mode: u32) -> CliResult<()>;
+    /// chmod `path` to `mode`.
+    fn set_permissions_mode(&self, path: &Path, mode: u32) -> Result<(), FsError>;
 
     /// Returns whether a file or directory exists at `path`.
     fn path_exists(&self, path: &Path) -> bool;
 
     /// Recursively list all regular files under `dir`, returning absolute paths.
-    fn list_files_under(&self, dir: &Path) -> CliResult<Vec<PathBuf>>;
+    fn list_files_under(&self, dir: &Path) -> Result<Vec<PathBuf>, FsError>;
 }
 
 pub struct EnvironmentContext {
@@ -104,62 +168,72 @@ impl CliContext for EnvironmentContext {
         &self.kube_client
     }
 
-    async fn run_shell(&self, cmd: &mut Command) -> CliResult<()> {
+    async fn run_shell(&self, cmd: &mut Command) -> crate::Result<()> {
         run_shell(cmd).await
     }
 
-    fn read_file_to_string(&self, path: &Path) -> CliResult<String> {
-        fs::read_to_string(path)
-            .with_context(|| format!("Failed to read {}", path.display()))
-            .map_err(CliError::unrunnable)
+    fn read_file_to_string(&self, path: &Path) -> Result<String, FsError> {
+        fs::read_to_string(path).map_err(|source| FsError {
+            path: path.to_owned(),
+            kind: FsErrorKind::Read,
+            source,
+        })
     }
 
-    fn read_file(&self, path: &Path) -> CliResult<Vec<u8>> {
-        fs::read(path)
-            .with_context(|| format!("Failed to read {}", path.display()))
-            .map_err(CliError::unrunnable)
+    fn read_file(&self, path: &Path) -> Result<Vec<u8>, FsError> {
+        fs::read(path).map_err(|source| FsError {
+            path: path.to_owned(),
+            kind: FsErrorKind::Read,
+            source,
+        })
     }
 
-    fn write_file(&self, path: &Path, content: &[u8]) -> CliResult<()> {
-        fs::write(path, content)
-            .with_context(|| format!("Failed to write {}", path.display()))
-            .map_err(CliError::unrunnable)
+    fn write_file(&self, path: &Path, content: &[u8]) -> Result<(), FsError> {
+        fs::write(path, content).map_err(|source| FsError {
+            path: path.to_owned(),
+            kind: FsErrorKind::Write,
+            source,
+        })
     }
 
-    fn set_permissions_mode(&self, path: &Path, mode: u32) -> CliResult<()> {
-        set_permissions(path, Permissions::from_mode(mode))
-            .with_context(|| format!("Failed to chmod {}", path.display()))
-            .map_err(CliError::unrunnable)
+    fn set_permissions_mode(&self, path: &Path, mode: u32) -> Result<(), FsError> {
+        set_permissions(path, Permissions::from_mode(mode)).map_err(|source| FsError {
+            path: path.to_owned(),
+            kind: FsErrorKind::SetPermissions,
+            source,
+        })
     }
 
     fn path_exists(&self, path: &Path) -> bool {
         path.exists()
     }
 
-    fn list_files_under(&self, dir: &Path) -> CliResult<Vec<PathBuf>> {
+    fn list_files_under(&self, dir: &Path) -> Result<Vec<PathBuf>, FsError> {
         let mut out = Vec::new();
-
-        walk_files(dir, &mut out)
-            .with_context(|| format!("Failed to walk {}", dir.display()))
-            .map_err(CliError::unrunnable)?;
+        walk_files(dir, &mut out).map_err(|source| FsError {
+            path: dir.to_owned(),
+            kind: FsErrorKind::ListFiles,
+            source,
+        })?;
 
         Ok(out)
     }
 }
 
-async fn run_shell(cmd: &mut Command) -> CliResult<()> {
+async fn run_shell(cmd: &mut Command) -> crate::Result<()> {
     info!("running {cmd:?}");
 
-    let exit_status = cmd
-        .status()
-        .with_context(|| format!("I/O error when attempting to invoke {cmd:?}"))
-        .map_err(CliError::unrunnable)?;
+    let exit_status = cmd.status().map_err(|source| ShellError::Spawn {
+        cmd: format!("{cmd:?}"),
+        source,
+    })?;
 
     if !exit_status.success() {
-        return Err(CliError::unrunnable_subprocess(
+        return Err(ShellError::Failed {
+            cmd: format!("{cmd:?}"),
             exit_status,
-            format!("command failed: {cmd:?}"),
-        ));
+        }
+        .into());
     }
 
     info!("command succeeded: {cmd:?}");
@@ -188,7 +262,6 @@ pub(crate) mod mocks {
         kubernetes::mocks::MockClient as MockKubeClient,
         orchestrator::mocks::MockClient as MockOrchestrator,
     };
-    use anyhow::anyhow;
     use std::{
         collections::HashMap,
         path::PathBuf,
@@ -231,33 +304,40 @@ pub(crate) mod mocks {
             &self.kube_client
         }
 
-        async fn run_shell(&self, cmd: &mut Command) -> CliResult<()> {
+        async fn run_shell(&self, cmd: &mut Command) -> crate::Result<()> {
             run_shell(cmd).await
         }
 
-        fn read_file_to_string(&self, path: &Path) -> CliResult<String> {
+        fn read_file_to_string(&self, path: &Path) -> Result<String, FsError> {
             let bytes = self.read_file(path)?;
-            String::from_utf8(bytes)
-                .with_context(|| format!("Failed to read {} as UTF-8", path.display()))
-                .map_err(CliError::unrunnable)
+            String::from_utf8(bytes).map_err(|_| FsError {
+                path: path.to_owned(),
+                kind: FsErrorKind::Read,
+                source: std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "file is not valid UTF-8",
+                ),
+            })
         }
 
-        fn read_file(&self, path: &Path) -> CliResult<Vec<u8>> {
+        fn read_file(&self, path: &Path) -> Result<Vec<u8>, FsError> {
             self.fs
                 .files
                 .read()
                 .unwrap()
                 .get(path)
                 .cloned()
-                .ok_or_else(|| {
-                    CliError::unrunnable(anyhow!(
-                        "Failed to read {}: file not found in mock filesystem",
-                        path.display()
-                    ))
+                .ok_or_else(|| FsError {
+                    path: path.to_owned(),
+                    kind: FsErrorKind::Read,
+                    source: std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        "file not found in mock filesystem",
+                    ),
                 })
         }
 
-        fn write_file(&self, path: &Path, content: &[u8]) -> CliResult<()> {
+        fn write_file(&self, path: &Path, content: &[u8]) -> Result<(), FsError> {
             self.fs
                 .files
                 .write()
@@ -267,7 +347,7 @@ pub(crate) mod mocks {
             Ok(())
         }
 
-        fn set_permissions_mode(&self, path: &Path, mode: u32) -> CliResult<()> {
+        fn set_permissions_mode(&self, path: &Path, mode: u32) -> Result<(), FsError> {
             self.fs
                 .permissions
                 .write()
@@ -281,7 +361,7 @@ pub(crate) mod mocks {
             self.fs.files.read().unwrap().contains_key(path)
         }
 
-        fn list_files_under(&self, dir: &Path) -> CliResult<Vec<PathBuf>> {
+        fn list_files_under(&self, dir: &Path) -> Result<Vec<PathBuf>, FsError> {
             let prefix = dir.to_owned();
             let mut paths: Vec<PathBuf> = self
                 .fs
@@ -304,7 +384,6 @@ pub(crate) mod mocks {
 mod tests {
     use super::*;
     use crate::context::mocks::MockContext;
-    use rep_orchestrator_shared::status::Status;
 
     #[tokio::test]
     async fn run_shell_does_not_post_status_on_success() {
@@ -316,41 +395,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn run_shell_failed_command_maps_to_unrunnable() {
-        let ctx = MockContext::default();
-        let err = ctx.run_shell(&mut Command::new("false")).await.unwrap_err();
-
-        assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
-
-        ctx.orchestrator_client()
-            .read_updates(|updates| assert!(updates.is_empty()));
-    }
-
-    #[tokio::test]
     async fn run_shell_error_message_includes_command() {
         let ctx = MockContext::default();
         let err = ctx.run_shell(&mut Command::new("false")).await.unwrap_err();
 
-        let msg = err.source_to_string();
+        let msg = err.to_string();
 
         assert!(msg.contains("false"), "expected command in error: {msg}");
         assert!(
             msg.contains("command failed"),
             "expected 'command failed' in error: {msg}"
         );
-    }
-
-    #[tokio::test]
-    async fn run_shell_returns_unrunnable_on_io_error() {
-        let ctx = MockContext::default();
-        let err = ctx
-            .run_shell(&mut Command::new("this-binary-definitely-does-not-exist"))
-            .await
-            .unwrap_err();
-
-        assert_eq!(err.rep_orchestrator_status(), Status::Unrunnable);
-
-        ctx.orchestrator_client()
-            .read_updates(|updates| assert!(updates.is_empty()));
     }
 }

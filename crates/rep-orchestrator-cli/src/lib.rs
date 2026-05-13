@@ -1,5 +1,6 @@
 use crate::{cli::Command, context::CliContext, orchestrator::Client};
 use anyhow::anyhow;
+use rep_orchestrator_shared::status::Status;
 use tracing::error;
 
 mod cli;
@@ -12,6 +13,7 @@ mod status;
 
 pub use cli::Args;
 pub use context::EnvironmentContext;
+pub use error::{Error, Result};
 
 pub async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Result<()> {
     let res = match command {
@@ -48,16 +50,37 @@ pub async fn run_command(command: Command, ctx: &impl CliContext) -> anyhow::Res
             command,
         } => commands::prepare_scenario(&shared_dir, &command, ctx).await,
 
-        Command::CollectOutput { shared_dir } => commands::collect_output(&shared_dir, ctx).await,
+        // Collect output is unique in the fact that it can set a Failed status where all other CLI
+        // fatal errors result in Unrunnable.
+        Command::CollectOutput { shared_dir } => {
+            let e = match commands::collect_output(&shared_dir, ctx).await {
+                Ok(()) => return Ok(()),
+                Err(e) => e,
+            };
+
+            let (status, exit_status) = e.status_and_exit_status();
+            let msg = e.to_string();
+
+            ctx.orchestrator_client()
+                .update_status(status, exit_status, Some(msg.clone()))
+                .await?;
+
+            return Err(anyhow!(msg));
+        }
     };
 
     match res {
         Ok(()) => Ok(()),
         Err(e) => {
-            let console_err = anyhow!(e.source_to_string());
-            if let Err(status_failure) = ctx.orchestrator_client().update_error_status(e).await {
+            let console_err = anyhow!(e.to_string());
+            if let Err(status_failure) = ctx
+                .orchestrator_client()
+                .update_status(Status::Unrunnable, None, Some(e.to_string()))
+                .await
+            {
                 error!("failed to update status for error: {status_failure}");
             }
+
             Err(console_err)
         }
     }
@@ -107,12 +130,12 @@ mod tests {
         assert!(result.is_err());
         ctx.orchestrator_client().read_updates(|updates| {
             assert_eq!(updates.len(), 2);
-            assert_eq!(updates[0].status, Status::Provisioning);
-            assert_eq!(updates[1].status, Status::Unrunnable);
+            assert_eq!(updates[0], Status::Provisioning);
+            assert_eq!(updates[1], Status::Unrunnable);
         });
     }
 
-    #[test_case(FailingClient::Kube, "Failed to create kube namespace"; "command error propagated to caller")]
+    #[test_case(FailingClient::Kube, "failed to create namespace"; "command error propagated to caller")]
     #[test_case(FailingClient::Orchestrator, "mock update failure"; "status update failure does not mask command error")]
     #[tokio::test]
     async fn error_message_contains_original_cause(failing_client: FailingClient, expected: &str) {

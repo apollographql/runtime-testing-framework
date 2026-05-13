@@ -1,5 +1,3 @@
-use crate::error::{CliError, CliResult};
-use anyhow::Context;
 use k8s_openapi::api::{
     apps::v1::Deployment,
     core::v1::{Namespace, ServiceAccount},
@@ -7,14 +5,46 @@ use k8s_openapi::api::{
 use kube::{
     Api, Config,
     api::{ObjectMeta, Patch, PatchParams},
-    config::{KubeConfigOptions, Kubeconfig},
+    config::{KubeConfigOptions, Kubeconfig, KubeconfigError},
 };
-use std::{collections::BTreeMap, path::Path};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
 
 const MANAGER_NAME: &str = "rep-orchestrator-cli";
 const SA_NAME: &str = "results-writer";
 const SA_PREFIX: &str = "iam.gke.io/gcp-service-account";
 const WIF_ANNOTATION: &str = "results-writer@runtime-testing-framework.iam.gserviceaccount.com";
+
+/// Errors produced when communicating with the Kubernetes API or reading kubeconfig.
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("failed to read kubeconfig from {path}")]
+    ReadKubeconfig {
+        path: PathBuf,
+        #[source]
+        source: KubeconfigError,
+    },
+
+    #[error("failed to build kube config")]
+    BuildConfig(#[source] KubeconfigError),
+
+    #[error("failed to create kubernetes client")]
+    CreateClient(#[source] kube::Error),
+
+    #[error("failed to create namespace")]
+    CreateNamespace(#[source] kube::Error),
+
+    #[error("failed to create results-writer service account")]
+    CreateServiceAccount(#[source] kube::Error),
+
+    #[error("failed to list deployments in namespace")]
+    ListDeployments(#[source] kube::Error),
+
+    #[error("timed out after {timeout_secs}s waiting for deployments: {names}")]
+    DeploymentTimeout { timeout_secs: u64, names: String },
+}
 
 pub struct DeploymentStatus {
     pub total: usize,
@@ -27,17 +57,17 @@ pub struct DeploymentInfo {
 }
 
 pub trait Client: Send + Sync + Clone {
-    fn create_namespace(&self, name: &str) -> impl Future<Output = anyhow::Result<()>> + Send;
+    fn create_namespace(&self, name: &str) -> impl Future<Output = Result<(), Error>> + Send;
 
     fn create_results_writer_service_account(
         &self,
         namespace: &str,
-    ) -> impl Future<Output = anyhow::Result<()>> + Send;
+    ) -> impl Future<Output = Result<(), Error>> + Send;
 
     fn check_deployment_status(
         &self,
         namespace: &str,
-    ) -> impl Future<Output = anyhow::Result<DeploymentStatus>> + Send;
+    ) -> impl Future<Output = Result<DeploymentStatus, Error>> + Send;
 }
 
 #[derive(Clone)]
@@ -46,31 +76,30 @@ pub struct HttpClient {
 }
 
 impl HttpClient {
-    pub async fn from_kubeconfig(kubeconfig_path: Option<&Path>) -> CliResult<Self> {
+    pub async fn from_kubeconfig(kubeconfig_path: Option<&Path>) -> crate::Result<Self> {
         let client = match kubeconfig_path {
             Some(path) => {
-                let kfg = Kubeconfig::read_from(path)
-                    .with_context(|| format!("failed to read kubeconfig from {}", path.display()))
-                    .map_err(CliError::unrunnable)?;
+                let kfg = Kubeconfig::read_from(path).map_err(|source| Error::ReadKubeconfig {
+                    path: path.to_owned(),
+                    source,
+                })?;
 
                 let config = Config::from_custom_kubeconfig(kfg, &KubeConfigOptions::default())
                     .await
-                    .context("failed to build kube config")
-                    .map_err(CliError::unrunnable)?;
+                    .map_err(Error::BuildConfig)?;
 
                 kube::Client::try_from(config)
             }
             None => kube::Client::try_default().await,
         }
-        .context("failed to create kube client from in-cluster config")
-        .map_err(CliError::unrunnable)?;
+        .map_err(Error::CreateClient)?;
 
         Ok(Self { client })
     }
 }
 
 impl Client for HttpClient {
-    async fn create_namespace(&self, name: &str) -> anyhow::Result<()> {
+    async fn create_namespace(&self, name: &str) -> Result<(), Error> {
         let api: Api<Namespace> = Api::all(self.client.clone());
         let ns = Namespace {
             metadata: ObjectMeta {
@@ -80,12 +109,13 @@ impl Client for HttpClient {
             ..Default::default()
         };
         api.patch(name, &PatchParams::apply(MANAGER_NAME), &Patch::Apply(&ns))
-            .await?;
+            .await
+            .map_err(Error::CreateNamespace)?;
 
         Ok(())
     }
 
-    async fn create_results_writer_service_account(&self, namespace: &str) -> anyhow::Result<()> {
+    async fn create_results_writer_service_account(&self, namespace: &str) -> Result<(), Error> {
         let sa = ServiceAccount {
             metadata: ObjectMeta {
                 name: Some(SA_NAME.to_owned()),
@@ -105,14 +135,18 @@ impl Client for HttpClient {
             &PatchParams::apply(MANAGER_NAME),
             &Patch::Apply(&sa),
         )
-        .await?;
+        .await
+        .map_err(Error::CreateServiceAccount)?;
 
         Ok(())
     }
 
-    async fn check_deployment_status(&self, namespace: &str) -> anyhow::Result<DeploymentStatus> {
+    async fn check_deployment_status(&self, namespace: &str) -> Result<DeploymentStatus, Error> {
         let api: Api<Deployment> = Api::namespaced(self.client.clone(), namespace);
-        let deployments = api.list(&Default::default()).await?;
+        let deployments = api
+            .list(&Default::default())
+            .await
+            .map_err(Error::ListDeployments)?;
 
         let not_ready: Vec<DeploymentInfo> = deployments
             .items
@@ -191,14 +225,12 @@ pub(crate) mod mocks {
             }
         }
 
-        fn record(&self, call: KubeCall) -> anyhow::Result<()> {
-            let mut state = self.state.write().unwrap();
-            if state.should_fail {
-                return Err(anyhow::anyhow!("mock kube failure"));
-            }
-            state.calls.push(call);
+        fn should_fail(&self) -> bool {
+            self.state.read().unwrap().should_fail
+        }
 
-            Ok(())
+        fn record_call(&self, call: KubeCall) {
+            self.state.write().unwrap().calls.push(call);
         }
 
         pub fn read_calls<F>(&self, closure: F)
@@ -206,34 +238,52 @@ pub(crate) mod mocks {
             F: FnOnce(&[KubeCall]),
         {
             let state = self.state.read().unwrap();
-
             closure(&state.calls)
         }
     }
 
     impl Client for MockClient {
-        async fn create_namespace(&self, name: &str) -> anyhow::Result<()> {
-            self.record(KubeCall::ApplyNamespace {
+        async fn create_namespace(&self, name: &str) -> Result<(), Error> {
+            if self.should_fail() {
+                return Err(Error::CreateNamespace(kube::Error::Api(
+                    kube::core::Status::failure("mock kube failure", "MockFailure").boxed(),
+                )));
+            }
+            self.record_call(KubeCall::ApplyNamespace {
                 name: name.to_owned(),
-            })
+            });
+
+            Ok(())
         }
 
         async fn create_results_writer_service_account(
             &self,
             namespace: &str,
-        ) -> anyhow::Result<()> {
-            self.record(KubeCall::ApplyResultsWriterServiceAccount {
+        ) -> Result<(), Error> {
+            if self.should_fail() {
+                return Err(Error::CreateServiceAccount(kube::Error::Api(
+                    kube::core::Status::failure("mock kube failure", "MockFailure").boxed(),
+                )));
+            }
+            self.record_call(KubeCall::ApplyResultsWriterServiceAccount {
                 namespace: namespace.to_owned(),
-            })
+            });
+
+            Ok(())
         }
 
         async fn check_deployment_status(
             &self,
             namespace: &str,
-        ) -> anyhow::Result<DeploymentStatus> {
-            self.record(KubeCall::CheckDeploymentsAvailable {
+        ) -> Result<DeploymentStatus, Error> {
+            if self.should_fail() {
+                return Err(Error::ListDeployments(kube::Error::Api(
+                    kube::core::Status::failure("mock kube failure", "MockFailure").boxed(),
+                )));
+            }
+            self.record_call(KubeCall::CheckDeploymentsAvailable {
                 namespace: namespace.to_owned(),
-            })?;
+            });
             let state = self.state.read().unwrap();
 
             if state.deployments_available {

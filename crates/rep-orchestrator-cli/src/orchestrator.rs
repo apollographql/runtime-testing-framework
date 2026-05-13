@@ -1,5 +1,3 @@
-use crate::error::CliError;
-use anyhow::{Context, anyhow};
 use rep_orchestrator_shared::{
     payload::{GenerateUploadUrlsPayload, SetStatusPayload},
     status::Status,
@@ -7,8 +5,28 @@ use rep_orchestrator_shared::{
 };
 use reqwest::Url;
 use std::{path::Path, process::ExitStatus};
+use thiserror::Error;
 use tracing::info;
 use uuid::Uuid;
+
+/// Errors produced when communicating with the REP orchestrator HTTP API.
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("failed to fetch environment config: {message}")]
+    FetchEnvironmentConfig { message: String },
+
+    #[error("failed to fetch scenario config: {message}")]
+    FetchScenarioConfig { message: String },
+
+    #[error("failed to request artifact upload URLs: {message}")]
+    GenerateUploadUrls { message: String },
+
+    #[error("failed to upload artifact: {message}")]
+    Upload { message: String },
+
+    #[error("failed to update execution status: {message}")]
+    UpdateStatus { message: String },
+}
 
 const KUSTOMIZE_PATCH: &str = include_str!("../resources/kustomization.yaml");
 
@@ -19,18 +37,6 @@ pub trait Client: Send + Sync {
         toolbox_image_pull_policy: &str,
     ) -> String;
 
-    /// Updates the status of the current test execution with context from the provided [CliError].
-    fn update_error_status(
-        &self,
-        error: CliError,
-    ) -> impl Future<Output = anyhow::Result<()>> + Send {
-        self.update_status(
-            error.rep_orchestrator_status(),
-            error.exit_status(),
-            Some(error.source_to_string()),
-        )
-    }
-
     /// Update the [Status] of the current test execution, with an optional `message` to write to the database.
     ///
     /// If there was a subprocess associated with this status update, its [ExitStatus] may be included for additional context.
@@ -39,24 +45,24 @@ pub trait Client: Send + Sync {
         status: Status,
         exit_status: Option<ExitStatus>,
         message: Option<String>,
-    ) -> impl Future<Output = anyhow::Result<()>> + Send;
+    ) -> impl Future<Output = Result<(), Error>> + Send;
 
     /// Request signed URLs from the orchestrator for uploading the log file and output zip
     /// associated with the current test execution.
-    fn generate_upload_urls(&self) -> impl Future<Output = anyhow::Result<UploadUrls>> + Send;
+    fn generate_upload_urls(&self) -> impl Future<Output = Result<UploadUrls, Error>> + Send;
 
     /// PUT `body` to a previously-issued signed upload URL.
     fn upload_to_signed_url(
         &self,
         url: &str,
         body: Vec<u8>,
-    ) -> impl Future<Output = anyhow::Result<()>> + Send;
+    ) -> impl Future<Output = Result<(), Error>> + Send;
 
     /// Fetch the resolved environment YAML for the current test execution.
-    fn fetch_environment_config(&self) -> impl Future<Output = anyhow::Result<Vec<u8>>> + Send;
+    fn fetch_environment_config(&self) -> impl Future<Output = Result<Vec<u8>, Error>> + Send;
 
     /// Fetch the resolved scenario YAML for the current test execution.
-    fn fetch_scenario_config(&self) -> impl Future<Output = anyhow::Result<Vec<u8>>> + Send;
+    fn fetch_scenario_config(&self) -> impl Future<Output = Result<Vec<u8>, Error>> + Send;
 }
 
 pub struct HttpClient {
@@ -80,10 +86,15 @@ impl HttpClient {
         })
     }
 
-    async fn fetch_config(&self, endpoint: &str) -> anyhow::Result<Vec<u8>> {
+    async fn fetch_config(
+        &self,
+        endpoint: &str,
+        on_error: impl Fn(String) -> Error,
+    ) -> Result<Vec<u8>, Error> {
         let url = self
             .orchestrator_url
-            .join(&format!("test-execution/{}/{endpoint}", self.execution_id))?;
+            .join(&format!("test-execution/{}/{endpoint}", self.execution_id))
+            .map_err(|e| on_error(e.to_string()))?;
 
         info!(id=%self.execution_id, "fetching {}", endpoint);
         let resp = reqwest::Client::new()
@@ -91,18 +102,21 @@ impl HttpClient {
             .bearer_auth(self.execution_token)
             .send()
             .await
-            .context(format!("failed to fetch config from {endpoint}"))?;
+            .map_err(|e| on_error(e.to_string()))?;
 
         let status_code = resp.status();
         if !status_code.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            return Err(anyhow!(
+            return Err(on_error(format!(
                 "{endpoint} fetch failed for {}; ({status_code}): {body}",
                 self.execution_id,
-            ));
+            )));
         }
 
-        Ok(resp.bytes().await?.to_vec())
+        resp.bytes()
+            .await
+            .map(|b| b.to_vec())
+            .map_err(|e| on_error(e.to_string()))
     }
 }
 
@@ -125,10 +139,13 @@ impl Client for HttpClient {
         status: Status,
         exit_status: Option<ExitStatus>,
         message: Option<String>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), Error> {
         let url = self
             .orchestrator_url
-            .join(&format!("test-execution/{}/status", self.execution_id))?;
+            .join(&format!("test-execution/{}/status", self.execution_id))
+            .map_err(|e| Error::UpdateStatus {
+                message: e.to_string(),
+            })?;
 
         let payload = SetStatusPayload {
             status,
@@ -145,36 +162,38 @@ impl Client for HttpClient {
             .json(&payload)
             .send()
             .await
-            .context("failed to send status update request")?;
-        let status_code = resp.status();
+            .map_err(|e| Error::UpdateStatus {
+                message: e.to_string(),
+            })?;
 
+        let status_code = resp.status();
         if status_code.is_success() {
             info!(id=%self.execution_id, %status, "update successful");
-
             Ok(())
         } else {
-            let msg = match resp.text().await {
-                Ok(body) => {
-                    format!(
-                        "status update to {status} failed for {}; ({status_code}): {body}",
-                        self.execution_id
-                    )
-                }
-                Err(err) => format!(
-                    "status update to {status} failed for {}; ({status_code}): [body could not be read: {err}]",
+            let body = match resp.text().await {
+                Ok(body) => body,
+                Err(err) => format!("[body could not be read: {err}]"),
+            };
+            Err(Error::UpdateStatus {
+                message: format!(
+                    "status update to {status} failed for {}; ({status_code}): {body}",
                     self.execution_id
                 ),
-            };
-
-            Err(anyhow!(msg))
+            })
         }
     }
 
-    async fn generate_upload_urls(&self) -> anyhow::Result<UploadUrls> {
-        let url = self.orchestrator_url.join(&format!(
-            "test-execution/{}/generate-upload-urls",
-            self.execution_id
-        ))?;
+    async fn generate_upload_urls(&self) -> Result<UploadUrls, Error> {
+        let url = self
+            .orchestrator_url
+            .join(&format!(
+                "test-execution/{}/generate-upload-urls",
+                self.execution_id
+            ))
+            .map_err(|e| Error::GenerateUploadUrls {
+                message: e.to_string(),
+            })?;
 
         info!(id=%self.execution_id, "requesting upload URLs");
         let resp = reqwest::Client::new()
@@ -183,44 +202,60 @@ impl Client for HttpClient {
             .json(&GenerateUploadUrlsPayload {})
             .send()
             .await
-            .context("failed to request signed URLs for artifact upload")?;
+            .map_err(|e| Error::GenerateUploadUrls {
+                message: e.to_string(),
+            })?;
 
         let status_code = resp.status();
         if !status_code.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            return Err(anyhow!(
-                "generate-upload-urls failed for {}; ({status_code}): {body}",
-                self.execution_id,
-            ));
+            return Err(Error::GenerateUploadUrls {
+                message: format!(
+                    "generate-upload-urls failed for {}; ({status_code}): {body}",
+                    self.execution_id,
+                ),
+            });
         }
 
-        Ok(resp.json().await?)
+        resp.json().await.map_err(|e| Error::GenerateUploadUrls {
+            message: e.to_string(),
+        })
     }
 
-    async fn upload_to_signed_url(&self, url: &str, body: Vec<u8>) -> anyhow::Result<()> {
+    async fn upload_to_signed_url(&self, url: &str, body: Vec<u8>) -> Result<(), Error> {
         info!(id=%self.execution_id, "uploading artifact");
         let resp = reqwest::Client::new()
             .put(url)
             .body(body)
             .send()
             .await
-            .context("failed to PUT to signed upload URL")?;
+            .map_err(|e| Error::Upload {
+                message: e.to_string(),
+            })?;
 
         let status_code = resp.status();
         if !status_code.is_success() {
             let body = resp.text().await.unwrap_or_default();
-            return Err(anyhow!("signed upload PUT failed ({status_code}): {body}",));
+            return Err(Error::Upload {
+                message: format!("signed upload PUT failed ({status_code}): {body}"),
+            });
         }
 
         Ok(())
     }
 
-    async fn fetch_environment_config(&self) -> anyhow::Result<Vec<u8>> {
-        self.fetch_config("environment-config").await
+    async fn fetch_environment_config(&self) -> Result<Vec<u8>, Error> {
+        self.fetch_config("environment-config", |msg| Error::FetchEnvironmentConfig {
+            message: msg,
+        })
+        .await
     }
 
-    async fn fetch_scenario_config(&self) -> anyhow::Result<Vec<u8>> {
-        self.fetch_config("scenario-config").await
+    async fn fetch_scenario_config(&self) -> Result<Vec<u8>, Error> {
+        self.fetch_config("scenario-config", |msg| Error::FetchScenarioConfig {
+            message: msg,
+        })
+        .await
     }
 }
 
@@ -233,19 +268,13 @@ pub(crate) mod mocks {
         sync::{RwLock, RwLockReadGuard},
     };
 
-    pub struct StatusUpdateArgs {
-        pub status: Status,
-        pub exit_status: Option<ExitStatus>,
-        pub message: Option<String>,
-    }
-
     pub struct UploadCall {
         pub url: String,
         pub body: Vec<u8>,
     }
 
     pub struct MockClient {
-        status_updates: RwLock<Vec<StatusUpdateArgs>>,
+        status_updates: RwLock<Vec<Status>>,
         uploads: RwLock<Vec<UploadCall>>,
         update_should_fail: bool,
         log_file_url: String,
@@ -274,10 +303,9 @@ pub(crate) mod mocks {
 
         pub fn read_updates<F>(&self, closure: F)
         where
-            F: FnOnce(RwLockReadGuard<Vec<StatusUpdateArgs>>),
+            F: FnOnce(RwLockReadGuard<Vec<Status>>),
         {
             let updates = self.status_updates.read().unwrap();
-
             closure(updates)
         }
 
@@ -286,7 +314,6 @@ pub(crate) mod mocks {
             F: FnOnce(RwLockReadGuard<Vec<UploadCall>>),
         {
             let uploads = self.uploads.read().unwrap();
-
             closure(uploads)
         }
     }
@@ -299,24 +326,24 @@ pub(crate) mod mocks {
         async fn update_status(
             &self,
             status: Status,
-            exit_status: Option<ExitStatus>,
-            message: Option<String>,
-        ) -> anyhow::Result<()> {
+            _exit_status: Option<ExitStatus>,
+            _message: Option<String>,
+        ) -> Result<(), Error> {
             if self.update_should_fail {
-                return Err(anyhow::anyhow!("mock update failure"));
+                return Err(Error::UpdateStatus {
+                    message: "mock update failure".to_owned(),
+                });
             }
-            self.status_updates.write().unwrap().push(StatusUpdateArgs {
-                status,
-                exit_status,
-                message,
-            });
+            self.status_updates.write().unwrap().push(status);
 
             Ok(())
         }
 
-        async fn generate_upload_urls(&self) -> anyhow::Result<UploadUrls> {
+        async fn generate_upload_urls(&self) -> Result<UploadUrls, Error> {
             if self.update_should_fail {
-                return Err(anyhow::anyhow!("mock upload urls failure"));
+                return Err(Error::GenerateUploadUrls {
+                    message: "mock upload urls failure".to_owned(),
+                });
             }
 
             Ok(UploadUrls {
@@ -325,9 +352,11 @@ pub(crate) mod mocks {
             })
         }
 
-        async fn upload_to_signed_url(&self, url: &str, body: Vec<u8>) -> anyhow::Result<()> {
+        async fn upload_to_signed_url(&self, url: &str, body: Vec<u8>) -> Result<(), Error> {
             if self.update_should_fail {
-                return Err(anyhow::anyhow!("mock upload failure"));
+                return Err(Error::Upload {
+                    message: "mock upload failure".to_owned(),
+                });
             }
             self.uploads.write().unwrap().push(UploadCall {
                 url: url.to_owned(),
@@ -337,17 +366,21 @@ pub(crate) mod mocks {
             Ok(())
         }
 
-        async fn fetch_environment_config(&self) -> anyhow::Result<Vec<u8>> {
+        async fn fetch_environment_config(&self) -> Result<Vec<u8>, Error> {
             if self.update_should_fail {
-                return Err(anyhow::anyhow!("mock fetch environment config failure"));
+                return Err(Error::FetchEnvironmentConfig {
+                    message: "mock fetch environment config failure".to_owned(),
+                });
             }
 
             Ok(Vec::new())
         }
 
-        async fn fetch_scenario_config(&self) -> anyhow::Result<Vec<u8>> {
+        async fn fetch_scenario_config(&self) -> Result<Vec<u8>, Error> {
             if self.update_should_fail {
-                return Err(anyhow::anyhow!("mock fetch scenario config failure"));
+                return Err(Error::FetchScenarioConfig {
+                    message: "mock fetch scenario config failure".to_owned(),
+                });
             }
 
             Ok(Vec::new())
@@ -359,39 +392,6 @@ pub(crate) mod mocks {
 mod tests {
     use super::*;
     use crate::orchestrator::mocks::MockClient;
-
-    #[tokio::test]
-    async fn update_error_status_delegates_failed_error() {
-        use std::os::unix::process::ExitStatusExt;
-
-        let client = MockClient::default();
-        let exit_status = ExitStatus::from_raw(1 << 8); // exit code 1
-        let error = CliError::failed(exit_status, "test plan failed".to_owned());
-
-        client.update_error_status(error).await.unwrap();
-
-        client.read_updates(|updates| {
-            assert_eq!(updates.len(), 1);
-            assert_eq!(updates[0].status, Status::Failed);
-            assert_eq!(updates[0].exit_status, Some(exit_status));
-            assert_eq!(updates[0].message.as_deref(), Some("test plan failed"));
-        });
-    }
-
-    #[tokio::test]
-    async fn update_error_status_delegates_unrunnable_error() {
-        let client = MockClient::default();
-        let error = CliError::unrunnable(anyhow::anyhow!("setup broke"));
-
-        client.update_error_status(error).await.unwrap();
-
-        client.read_updates(|updates| {
-            assert_eq!(updates.len(), 1);
-            assert_eq!(updates[0].status, Status::Unrunnable);
-            assert_eq!(updates[0].exit_status, None);
-            assert_eq!(updates[0].message.as_deref(), Some("setup broke"));
-        });
-    }
 
     #[tokio::test]
     async fn mock_generate_upload_urls_returns_canned_urls() {
