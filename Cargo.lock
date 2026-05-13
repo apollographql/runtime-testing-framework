@@ -3887,6 +3887,7 @@ dependencies = [
  "open",
  "predicates",
  "rep-orchestrator-shared",
+ "reqwest 0.13.3",
  "rtf-cli-shared",
  "rtf-config",
  "rtf-core",

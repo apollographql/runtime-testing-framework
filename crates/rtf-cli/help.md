@@ -22,6 +22,7 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf json-schemas`↴](#rtf-json-schemas)
 * [`rtf rep`↴](#rtf-rep)
 * [`rtf rep prepare`↴](#rtf-rep-prepare)
+* [`rtf rep request`↴](#rtf-rep-request)
 * [`rtf version`↴](#rtf-version)
 
 ## `rtf`
@@ -335,6 +336,7 @@ Commands for the REP (Runtime Environment Provisioner) service
 ###### **Subcommands:**
 
 * `prepare` — Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers
+* `request` — Send an IAP-authenticated HTTP request to the REP orchestrator
 
 
 
@@ -354,6 +356,30 @@ Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON
 
   Default value: `false`
 * `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
+
+
+
+## `rtf rep request`
+
+Send an IAP-authenticated HTTP request to the REP orchestrator.
+
+The response body is written to stdout on success.
+
+**Usage:** `rtf rep request [OPTIONS] <PATH>`
+
+###### **Arguments:**
+
+* `<PATH>` — Path on the orchestrator to request (e.g. `/health`)
+
+###### **Options:**
+
+* `-X`, `--method <METHOD>` — HTTP method
+
+  Default value: `GET`
+* `-b`, `--body <BODY>` — Request body as a literal string
+* `--orchestrator-url <ORCHESTRATOR_URL>` — Override the REP orchestrator base URL
+
+  Default value: `https://api.rtf.apollographql.com`
 
 
 

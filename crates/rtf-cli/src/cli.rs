@@ -3,6 +3,9 @@ use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
 use std::path::PathBuf;
 
+/// Default base URL for the REP orchestrator.
+const DEFAULT_ORCHESTRATOR_URL: &str = "https://api.rtf.apollographql.com";
+
 // NOTE: All of the doc comments here are parsed by Clap and used to build out the documentation
 // seen in the CLI. We treat them as user facing and aim to provide as much useful information as
 // possible without overwhelming the user with output when they run '-h' or '--help'.
@@ -307,6 +310,26 @@ pub enum RepSubcommand {
         /// Optional git ref to pull files from when using --github
         #[arg(long = "ref", requires = "github")]
         git_ref: Option<String>,
+    },
+
+    /// Send an IAP-authenticated HTTP request to the REP orchestrator.
+    ///
+    /// The response body is written to stdout on success.
+    Request {
+        /// Path on the orchestrator to request (e.g. `/health`)
+        path: String,
+
+        /// HTTP method
+        #[arg(short = 'X', long, default_value = "GET")]
+        method: String,
+
+        /// Request body as a literal string
+        #[arg(short, long)]
+        body: Option<String>,
+
+        /// Override the REP orchestrator base URL
+        #[arg(long, default_value = DEFAULT_ORCHESTRATOR_URL )]
+        orchestrator_url: String,
     },
 }
 
