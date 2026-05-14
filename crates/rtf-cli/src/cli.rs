@@ -1,6 +1,7 @@
 //! Parsing of our command line arguments using Clap's derive API
 use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
+use reqwest::{Method, Url};
 use std::path::PathBuf;
 
 // NOTE: All of the doc comments here are parsed by Clap and used to build out the documentation
@@ -318,7 +319,7 @@ pub enum RepSubcommand {
 
         /// HTTP method
         #[arg(short = 'X', long, default_value = "GET")]
-        method: String,
+        method: Method,
 
         /// Request body as a literal string
         #[arg(short, long)]
@@ -326,7 +327,7 @@ pub enum RepSubcommand {
 
         /// Override the REP orchestrator base URL
         #[arg(long)]
-        orchestrator_url: Option<String>,
+        orchestrator_url: Option<Url>,
     },
 }
 

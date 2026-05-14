@@ -10,13 +10,18 @@ use std::{
 
 pub async fn execute_rep_request(
     path: &str,
-    method: &str,
+    method: &Method,
     data: Option<&str>,
-    orchestrator_url: Option<&str>,
+    orchestrator_url: Option<&Url>,
 ) -> anyhow::Result<()> {
-    let url = Url::from_str(orchestrator_url.unwrap_or(DEFAULT_ORCHESTRATOR_URL))?.join(path)?;
-    let method = Method::from_str(method)?;
-    let mut request = Request::new(method.clone(), url);
+    let endpoint = orchestrator_url
+        .unwrap_or(
+            &Url::from_str(DEFAULT_ORCHESTRATOR_URL)
+                .expect("default orchestrator url should be valid"),
+        )
+        .join(path)?;
+
+    let mut request = Request::new(method.clone(), endpoint);
 
     if let Some(body) = data {
         *request.body_mut() = Some(Body::from(body.to_string()));

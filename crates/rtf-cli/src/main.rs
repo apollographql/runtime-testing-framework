@@ -141,9 +141,7 @@ async fn main() {
                     body,
                     orchestrator_url,
                 },
-        } => {
-            execute_rep_request(&path, &method, body.as_deref(), orchestrator_url.as_deref()).await
-        }
+        } => execute_rep_request(&path, &method, body.as_deref(), orchestrator_url.as_ref()).await,
 
         Command::Rep {
             subcommand:
