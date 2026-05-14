@@ -4,26 +4,34 @@ on:
   push:
     branches:
       - main
-    paths:
-      - ".github/workflows/test-toolbox-image.yaml"
-      - "crates/**"
-      - "Cargo.lock"
-      - "Cargo.toml"
-      - "toolbox/**"
   pull_request:
     branches:
       - main
-    paths:
-      - ".github/workflows/test-toolbox-image.yaml"
-      - "crates/**"
-      - "Cargo.lock"
-      - "Cargo.toml"
-      - "toolbox/**"
 
 jobs:
+  check-for-updated-toolbox-files:
+    name: Check whether toolbox files have been updated
+    runs-on: ubuntu-latest
+    outputs:
+      should_run_tests: ${{ steps.check-changes.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        with:
+          fetch-depth: 2
+      - name: Check for changes in relevant directories and files
+        id: check-changes
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            git diff --name-only HEAD^ HEAD | grep -q -E "^\.github/workflows/test-toolbox-image\.yaml$|^crates/|^Cargo\.toml$|^Cargo\.lock$|^toolbox/" && echo "should_run=true" >> $GITHUB_OUTPUT || echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
+
   test-toolbox-image:
     name: Build and test toolbox image
     runs-on: ubuntu-latest
+    needs: [check-for-updated-toolbox-files]
+    if: ${{ needs.check-for-updated-toolbox-files.outputs.should_run_tests == 'true' }}
     steps:
       - uses: actions/checkout@v4
 
