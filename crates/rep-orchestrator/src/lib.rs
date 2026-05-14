@@ -1,12 +1,13 @@
 #![warn(clippy::undocumented_unsafe_blocks)]
 use crate::gcs::GCSClient;
 use axum::{
-    Router,
+    Extension, Router,
     routing::{get, post},
     serve,
 };
 use tokio::net::TcpListener;
 use tracing::info;
+use tracing_subscriber::{EnvFilter, Registry, reload::Handle};
 
 pub mod config;
 pub mod context;
@@ -26,7 +27,7 @@ use db::pool::check_db_conn;
 use event_loop::EventQueue;
 use state::ServerState;
 
-pub async fn run_server() -> error::Result<()> {
+pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Result<()> {
     info!("Loading config from environment");
     let cfg = Config::get();
 
@@ -42,7 +43,7 @@ pub async fn run_server() -> error::Result<()> {
     tokio::spawn(event_loop::event_loop_task(event_queue));
 
     info!("starting axum server");
-    let routes = build_routes(state);
+    let routes = build_routes(state, Some(reload_handle));
     let listener = TcpListener::bind(cfg.socket_addr()).await.unwrap();
 
     serve(listener, routes).await?;
@@ -50,13 +51,13 @@ pub async fn run_server() -> error::Result<()> {
     Ok(())
 }
 
-fn build_routes(state: ServerState) -> Router {
+fn build_routes(state: ServerState, reload_handle: Option<Handle<EnvFilter, Registry>>) -> Router {
     use endpoints::{
-        execution_artifacts, execution_config, execution_status, generate_upload_urls, health,
-        run_status, trigger,
+        admin, execution_artifacts, execution_config, execution_status, generate_upload_urls,
+        health, run_status, trigger,
     };
 
-    Router::new()
+    let mut router = Router::new()
         .route("/health", get(health::handler))
         .route(
             "/test-execution/{id}/generate-upload-urls",
@@ -84,7 +85,18 @@ fn build_routes(state: ServerState) -> Router {
         )
         .route("/test-run/{id}/status", get(run_status::handler))
         .route("/test-run/trigger", post(trigger::handler))
-        .with_state(state)
+        .with_state(state);
+
+    if let Some(reload_handle) = reload_handle {
+        router = router.route(
+            "/admin/logging-filter",
+            get(admin::get_logging_filter_handler)
+                .post(admin::set_logging_filter_handler)
+                .layer(Extension(reload_handle)),
+        );
+    }
+
+    router
 }
 
 #[cfg(test)]
@@ -127,7 +139,7 @@ mod test_helpers {
                 EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
 
             let state = ServerState::new(eq_state, gcs_client);
-            let test_server = TestServer::new(build_routes(state.clone()));
+            let test_server = TestServer::new(build_routes(state.clone(), None));
 
             Self {
                 test_server,

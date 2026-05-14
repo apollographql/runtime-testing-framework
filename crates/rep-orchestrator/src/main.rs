@@ -2,20 +2,19 @@ use git_version::git_version;
 use rep_orchestrator::run_server;
 use std::{io::stdout, process};
 use tracing::{error, info, subscriber::set_global_default};
-use tracing_subscriber::{EnvFilter, FmtSubscriber};
+use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, registry, reload};
 
 #[tokio::main]
 async fn main() {
-    let subscriber = FmtSubscriber::builder()
-        .with_env_filter(EnvFilter::from_default_env())
+    let fmt_layer = fmt::layer()
         .with_writer(stdout)
         .json()
         .flatten_event(true)
         .with_span_list(true)
-        .with_current_span(false)
-        .finish();
+        .with_current_span(false);
 
-    // TODO: wire up a reload handle for runtime setting of the logging filter
+    let (reload_layer, reload_handle) = reload::Layer::new(EnvFilter::from_default_env());
+    let subscriber = registry().with(reload_layer).with(fmt_layer);
 
     set_global_default(subscriber).expect("unable to set a global tracing subscriber");
 
@@ -25,7 +24,7 @@ async fn main() {
         git_version!(fallback = "unknown")
     );
 
-    if let Err(error) = run_server().await {
+    if let Err(error) = run_server(reload_handle).await {
         error!(%error, "Fatal error");
         process::exit(1);
     }
