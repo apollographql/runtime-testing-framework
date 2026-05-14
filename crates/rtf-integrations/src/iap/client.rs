@@ -1,8 +1,8 @@
 //! IAP-authenticated HTTP client for the REP orchestrator.
 
 use crate::iap::{
-    Error, GCP_PROJECT, IAP_OAUTH_CLIENT_ID_SECRET_NAME, IAP_OAUTH_CLIENT_SECRET_SECRET_NAME,
-    Result, auth::id_token,
+    AdcError, Error, GCP_PROJECT, IAP_OAUTH_CLIENT_ID_SECRET_NAME,
+    IAP_OAUTH_CLIENT_SECRET_SECRET_NAME, Result, auth::id_token,
 };
 use google_cloud_secretmanager_v1::client::SecretManagerService;
 use reqwest::{
@@ -41,7 +41,7 @@ impl IapClient {
         let id_token = id_token(&self.client_id, &self.client_secret).await?;
 
         let mut auth_value = HeaderValue::from_str(&format!("Bearer {id_token}"))
-            .map_err(|e| Error::OauthFlow(format!("invalid bearer token: {e}")))?;
+            .map_err(Error::InvalidBearerToken)?;
         auth_value.set_sensitive(true);
 
         let mut request = self.request;
@@ -70,9 +70,7 @@ fn require_adc() -> Result<()> {
         return Ok(());
     }
 
-    Err(Error::Adc(
-        "not authenticated to GCP — run `gcloud auth application-default login` first".to_string(),
-    ))
+    Err(AdcError::NotAuthenticated.into())
 }
 
 async fn fetch_secrets() -> Result<(String, String)> {

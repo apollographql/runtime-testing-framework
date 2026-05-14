@@ -1,4 +1,4 @@
-use crate::iap::{Error, Result};
+use crate::iap::{AdcError, Error, OauthError, Result};
 use chrono::{DateTime, Duration, Utc};
 use google_cloud_auth::credentials::idtoken;
 use oauth2::{
@@ -97,12 +97,7 @@ impl CachedTokens {
     }
 
     fn save(&self) -> Result<()> {
-        let path = Self::cache_path().ok_or_else(|| {
-            Error::OauthFlow(
-                "cannot determine token cache location (HOME and XDG_CONFIG_HOME both unset)"
-                    .to_owned(),
-            )
-        })?;
+        let path = Self::cache_path().ok_or(OauthError::NoCacheLocation)?;
 
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(Error::TokenCache)?;
@@ -181,7 +176,7 @@ fn adc_is_service_account_like() -> Result<bool> {
         let home = env::var("HOME")
             .ok()
             .filter(|h| !h.is_empty())
-            .ok_or(Error::Adc("unable to find home dir".to_string()))?;
+            .ok_or(AdcError::NoHomeDir)?;
 
         PathBuf::from(home)
             .join(".config")
@@ -189,8 +184,8 @@ fn adc_is_service_account_like() -> Result<bool> {
             .join("application_default_credentials.json")
     };
 
-    let bytes = fs::read(adc_path)?;
-    let parsed = serde_json::from_slice::<AdcType<'_>>(&bytes)?;
+    let bytes = fs::read(adc_path).map_err(AdcError::ReadFailed)?;
+    let parsed = serde_json::from_slice::<AdcType<'_>>(&bytes).map_err(AdcError::ParseFailed)?;
 
     let res = matches!(
         parsed.kind,
@@ -213,16 +208,12 @@ fn adc_is_service_account_like() -> Result<bool> {
 async fn service_account_id_token(audience: &str) -> Result<String> {
     let credentials = idtoken::Builder::new(audience.to_owned())
         .build()
-        .map_err(|e| {
-            Error::Adc(format!(
-                "could not build service-account ID token credentials: {e}"
-            ))
-        })?;
+        .map_err(|e| AdcError::CredentialsBuild(e.to_string()))?;
 
-    credentials
+    Ok(credentials
         .id_token()
         .await
-        .map_err(|e| Error::Adc(format!("could not mint service-account ID token: {e}")))
+        .map_err(|e| AdcError::TokenMint(e.to_string()))?)
 }
 
 /// Build the `oauth2::Client` for Google's endpoints. `redirect_uri` is only
@@ -230,13 +221,19 @@ async fn service_account_id_token(audience: &str) -> Result<String> {
 fn build_oauth_client(client_id: &str, client_secret: &str) -> Result<GoogleOauthClient> {
     let client = Client::new(ClientId::new(client_id.to_string()))
         .set_client_secret(ClientSecret::new(client_secret.to_string()))
-        .set_auth_uri(
-            AuthUrl::new(GOOGLE_AUTH_ENDPOINT.to_string())
-                .map_err(|e| Error::OauthFlow(format!("invalid auth URL: {e}")))?,
-        )
+        .set_auth_uri(AuthUrl::new(GOOGLE_AUTH_ENDPOINT.to_string()).map_err(|e| {
+            OauthError::InvalidUrl {
+                endpoint: "auth",
+                message: e.to_string(),
+            }
+        })?)
         .set_token_uri(
-            TokenUrl::new(GOOGLE_TOKEN_ENDPOINT.to_owned())
-                .map_err(|e| Error::OauthFlow(format!("invalid token URL: {e}")))?,
+            TokenUrl::new(GOOGLE_TOKEN_ENDPOINT.to_owned()).map_err(|e| {
+                OauthError::InvalidUrl {
+                    endpoint: "token",
+                    message: e.to_string(),
+                }
+            })?,
         );
 
     Ok(client)
@@ -252,7 +249,8 @@ fn build_oauth_http_client() -> Result<oauth2::reqwest::Client> {
     ClientBuilder::new()
         .redirect(Policy::none())
         .build()
-        .map_err(|e| Error::OauthFlow(format!("could not build OAuth HTTP client: {e}")))
+        .map_err(|e| OauthError::HttpClientBuild(e.to_string()))
+        .map_err(Into::into)
 }
 
 /// Run the user OAuth flow to get IAP token
@@ -262,10 +260,10 @@ async fn run_oauth_flow(client_id: &str, client_secret: &str) -> Result<CachedTo
 
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
-        .map_err(|e| Error::OauthFlow(format!("could not bind loopback listener: {e}")))?;
+        .map_err(OauthError::LoopbackBind)?;
     let port = listener
         .local_addr()
-        .map_err(|e| Error::OauthFlow(format!("could not read loopback port: {e}")))?
+        .map_err(OauthError::LoopbackPort)?
         .port();
 
     // `localhost` (not `127.0.0.1`) so that Google's special-case rule for
@@ -274,7 +272,7 @@ async fn run_oauth_flow(client_id: &str, client_secret: &str) -> Result<CachedTo
     let redirect_uri = format!("http://localhost:{port}");
     let oauth_client = oauth_client.set_redirect_uri(
         RedirectUrl::new(redirect_uri.to_string())
-            .map_err(|e| Error::OauthFlow(format!("invalid redirect URI: {e}")))?,
+            .map_err(|e| OauthError::InvalidRedirectUri(e.to_string()))?,
     );
 
     let (auth_url, csrf_token) = oauth_client
@@ -295,16 +293,10 @@ async fn run_oauth_flow(client_id: &str, client_secret: &str) -> Result<CachedTo
         accept_oauth_callback(listener),
     )
     .await
-    .map_err(|_| {
-        Error::OauthFlow(format!(
-            "OAuth flow timed out after {LOOPBACK_TIMEOUT_SECS}s without a redirect"
-        ))
-    })??;
+    .map_err(|_| OauthError::FlowTimeout(LOOPBACK_TIMEOUT_SECS))??;
 
     if returned_state != csrf_token.secret().as_str() {
-        return Err(Error::OauthFlow(
-            "OAuth state mismatch — aborting to prevent CSRF".to_owned(),
-        ));
+        return Err(OauthError::CsrfMismatch.into());
     }
 
     let http_client = build_oauth_http_client()?;
@@ -314,17 +306,11 @@ async fn run_oauth_flow(client_id: &str, client_secret: &str) -> Result<CachedTo
         .set_pkce_verifier(pkce_verifier)
         .request_async(&http_client)
         .await
-        .map_err(|e| Error::OauthFlow(format!("Google token endpoint: {e}")))?;
+        .map_err(|e| OauthError::TokenEndpoint(e.to_string()))?;
 
     let refresh_token = token_result
         .refresh_token()
-        .ok_or_else(|| {
-            Error::OauthFlow(
-                "Google did not return a refresh_token; check that the OAuth consent screen \
-                 grants offline access"
-                    .to_owned(),
-            )
-        })?
+        .ok_or(OauthError::NoRefreshToken)?
         .secret()
         .to_owned();
 
@@ -340,22 +326,24 @@ async fn accept_oauth_callback(listener: TcpListener) -> Result<(String, String)
     let (mut stream, _) = listener
         .accept()
         .await
-        .map_err(|e| Error::OauthFlow(format!("loopback accept failed: {e}")))?;
+        .map_err(OauthError::LoopbackAccept)?;
 
     let mut buf = vec![0u8; 16 * 1024];
     let n = stream
         .read(&mut buf)
         .await
-        .map_err(|e| Error::OauthFlow(format!("loopback read failed: {e}")))?;
+        .map_err(OauthError::LoopbackRead)?;
     let request = String::from_utf8_lossy(&buf[..n]);
     let first_line = request
         .lines()
         .next()
-        .ok_or_else(|| Error::OauthFlow("empty loopback request".to_owned()))?;
+        .ok_or(OauthError::MalformedCallback("empty loopback request"))?;
     let path = first_line
         .split_whitespace()
         .nth(1)
-        .ok_or_else(|| Error::OauthFlow("missing path in loopback request".to_owned()))?;
+        .ok_or(OauthError::MalformedCallback(
+            "missing path in loopback request",
+        ))?;
     let query = path.split_once('?').map(|(_, q)| q).unwrap_or("");
 
     let mut code = None;
@@ -390,11 +378,10 @@ async fn accept_oauth_callback(listener: TcpListener) -> Result<(String, String)
     let _ = stream.shutdown().await;
 
     if let Some(err) = oauth_error {
-        return Err(Error::OauthFlow(format!("authorization denied: {err}")));
+        return Err(OauthError::AuthorizationDenied(err).into());
     }
-    let code = code.ok_or_else(|| Error::OauthFlow("missing code in OAuth callback".to_owned()))?;
-    let state =
-        state.ok_or_else(|| Error::OauthFlow("missing state in OAuth callback".to_owned()))?;
+    let code = code.ok_or(OauthError::MissingCode)?;
+    let state = state.ok_or(OauthError::MissingState)?;
 
     Ok((code, state))
 }
@@ -411,7 +398,7 @@ async fn refresh_id_token(
         .exchange_refresh_token(&RefreshToken::new(refresh_token.to_owned()))
         .request_async(&http_client)
         .await
-        .map_err(|e| Error::OauthFlow(format!("Google token endpoint: {e}")))?;
+        .map_err(|e| OauthError::TokenEndpoint(e.to_string()))?;
 
     // Refresh-token grants may or may not return a new refresh_token; keep the
     // existing one if Google didn't rotate it.
