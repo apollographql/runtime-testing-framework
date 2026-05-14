@@ -8,6 +8,7 @@ use axum_extra::{
 use tracing::warn;
 use uuid::Uuid;
 
+pub mod admin;
 pub mod execution_artifacts;
 pub mod execution_config;
 pub mod execution_status;

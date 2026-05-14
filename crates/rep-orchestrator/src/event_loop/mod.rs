@@ -18,7 +18,7 @@ use crate::{
 };
 use std::time::Duration;
 use tokio::{spawn, time::sleep};
-use tracing::{error, warn};
+use tracing::{error, info_span, warn};
 
 mod cleanup_namespace;
 mod event_queue;
@@ -46,6 +46,9 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
     // secret are picked up without an orchestrator pod restart.
     while let Some(evt) = event_queue.next_event().await {
         let ty_name = evt.data.name();
+
+        let span = info_span!("event", execution_id = %evt.test_execution.uuid(), ty=ty_name);
+        let _guard = span.enter();
 
         let clients = match ClusterClients::try_new(kubeconfig_path, workload_context).await {
             Ok(c) => c,

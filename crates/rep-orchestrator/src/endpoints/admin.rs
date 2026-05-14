@@ -1,0 +1,53 @@
+//! Admin routes are _not_ externally accessible. They can only be hit from inside of the
+//! REP clusters themselves.
+//!
+//!   See: <https://github.com/mdg-private/runtime-readiness-terraform/blob/main/projects/runtime-env-provisioner/external_lb.tf#L56-L65>
+use axum::{Extension, http::StatusCode};
+use std::str::FromStr;
+use tracing_subscriber::{EnvFilter, Registry, reload::Handle};
+
+const RESET: &str = "reset";
+const ENV_FILTER_DOCS: &str = "See here for docs on the logging filter format: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html#directives";
+
+pub async fn get_logging_filter_handler() -> String {
+    format!("{}\n\n", EnvFilter::from_default_env())
+}
+
+pub async fn set_logging_filter_handler(
+    Extension(reload_handle): Extension<Handle<EnvFilter, Registry>>,
+    body: String,
+) -> (StatusCode, String) {
+    let new_filter = if body == RESET {
+        EnvFilter::from_default_env()
+    } else {
+        match EnvFilter::from_str(&body) {
+            Ok(f) => f,
+            Err(e) => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    format!("invalid logging filter string: {e}\n\n{ENV_FILTER_DOCS}\n\n"),
+                );
+            }
+        }
+    };
+
+    let filter_str = new_filter.to_string();
+
+    match reload_handle.reload(new_filter) {
+        Ok(_) => {
+            let action = if body == RESET { "reset" } else { "updated" };
+
+            (
+                StatusCode::OK,
+                format!(
+                    "server logging filter {action} to {filter_str:?}\n\n{ENV_FILTER_DOCS}\n\n"
+                ),
+            )
+        }
+
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("unable to set logging filter: {e}\n\n{ENV_FILTER_DOCS}\n\n"),
+        ),
+    }
+}
