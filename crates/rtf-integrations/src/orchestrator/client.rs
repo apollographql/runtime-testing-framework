@@ -1,17 +1,18 @@
 //! IAP-authenticated HTTP client for the REP orchestrator.
 
 use crate::orchestrator::{
-    AdcError, Error, GCP_PROJECT, IAP_OAUTH_CLIENT_ID_SECRET_NAME,
-    IAP_OAUTH_CLIENT_SECRET_SECRET_NAME, Result, auth::id_token,
+    Error, GCP_PROJECT, IAP_OAUTH_CLIENT_ID_SECRET_NAME, IAP_OAUTH_CLIENT_SECRET_SECRET_NAME,
+    Result,
+    auth::{AdcCredentials, id_token},
 };
 use google_cloud_secretmanager_v1::client::SecretManagerService;
 use oauth2::http::HeaderValue;
 use reqwest::{Client, Request, Response, header::AUTHORIZATION};
-use std::{env, path::PathBuf};
 
 /// Authenticated HTTP client for the REP orchestrator, protected by Google Cloud IAP.
 #[derive(Debug)]
 pub struct OrchestratorClient {
+    adc: AdcCredentials,
     client_id: String,
     client_secret: String,
     http_client: Client,
@@ -20,14 +21,15 @@ pub struct OrchestratorClient {
 impl OrchestratorClient {
     /// Build a new client.
     ///
-    /// Fetches the IAP OAuth client credentials from Secret Manager. The SDK
-    /// loads Application Default Credentials internally.
+    /// Loads Application Default Credentials from disk and fetches the IAP
+    /// OAuth client credentials from Secret Manager.
     pub async fn new() -> Result<Self> {
-        require_adc()?;
+        let adc = AdcCredentials::load()?;
 
         let (client_id, client_secret) = fetch_secrets().await?;
 
         Ok(Self {
+            adc,
             client_id,
             client_secret,
             http_client: Client::new(),
@@ -36,7 +38,7 @@ impl OrchestratorClient {
 
     /// Send an authenticated request to the orchestrator and return the full response.
     pub async fn send(&self, mut request: Request) -> Result<Response> {
-        let id_token = id_token(&self.client_id, &self.client_secret).await?;
+        let id_token = id_token(&self.adc, &self.client_id, &self.client_secret).await?;
 
         let mut auth_value = HeaderValue::from_str(&format!("Bearer {id_token}"))
             .map_err(Error::InvalidBearerToken)?;
@@ -48,26 +50,6 @@ impl OrchestratorClient {
 
         Ok(response)
     }
-}
-
-/// Fail fast with a clear message if no Application Default Credentials are configured.
-///
-/// Checks `$GOOGLE_APPLICATION_CREDENTIALS` first, then the well-known gcloud path. Either
-/// presence is enough — actual validity is verified when the credential is used.
-fn require_adc() -> Result<()> {
-    let configured = env::var("GOOGLE_APPLICATION_CREDENTIALS").is_ok_and(|v| !v.is_empty())
-        || env::var("HOME").is_ok_and(|home| {
-            !home.is_empty()
-                && PathBuf::from(home)
-                    .join(".config/gcloud/application_default_credentials.json")
-                    .exists()
-        });
-
-    if configured {
-        return Ok(());
-    }
-
-    Err(AdcError::NotAuthenticated.into())
 }
 
 async fn fetch_secrets() -> Result<(String, String)> {

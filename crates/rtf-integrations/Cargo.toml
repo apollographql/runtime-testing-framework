@@ -23,6 +23,7 @@ serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+xdg.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true

@@ -39,6 +39,7 @@ tokio = { version = "1.52.1", features = ["macros", "parking_lot", "rt-multi-thr
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
 uuid = { version = "1.23.1", features = ["v4", "serde"] }
+xdg = "3.0.0"
 
 # test dependencies
 assert_cmd = "2.2.1"

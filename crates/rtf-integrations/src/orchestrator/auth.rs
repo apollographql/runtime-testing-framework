@@ -1,5 +1,5 @@
 use crate::orchestrator::{AdcError, Error, OauthError, Result};
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use google_cloud_auth::credentials::idtoken;
 use oauth2::{
     AuthUrl, AuthorizationCode, Client, ClientId, ClientSecret, CsrfToken, EndpointNotSet,
@@ -13,7 +13,14 @@ use oauth2::{
     url::form_urlencoded,
 };
 use serde::{Deserialize, Serialize};
-use std::{env, fs, io, path::PathBuf, time};
+use std::{
+    env,
+    fs::{self, Permissions},
+    io,
+    os::unix::fs::PermissionsExt,
+    path::PathBuf,
+    time::Duration,
+};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
@@ -25,7 +32,7 @@ const GOOGLE_TOKEN_ENDPOINT: &str = "https://oauth2.googleapis.com/token";
 const TOKEN_CACHE_SUBDIR: &str = "rtf";
 const TOKEN_CACHE_FILENAME: &str = "orchestrator_credentials.json";
 const LOOPBACK_TIMEOUT_SECS: u64 = 300;
-const ID_TOKEN_EXPIRY_SKEW_SECS: i64 = 60;
+const ID_TOKEN_EXPIRY_SKEW_SECS: u64 = 60;
 
 /// Extra fields beyond RFC 6749 that Google returns from the token endpoint.
 ///
@@ -56,6 +63,65 @@ type GoogleOauthClient = oauth2::Client<
     EndpointSet,
 >;
 
+/// Application Default Credentials type, loaded once at client initialisation.
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub(super) enum AdcCredentials {
+    /// A service account key file. `idtoken::Builder` mints ID tokens directly
+    /// from the key material.
+    ServiceAccount,
+    /// An impersonated service account. `idtoken::Builder` handles this flow
+    /// via the IAM Credentials API.
+    ImpersonatedServiceAccount,
+    /// A user credential from `gcloud auth application-default login`. Requires
+    /// the interactive OAuth loopback flow.
+    AuthorizedUser,
+}
+
+impl AdcCredentials {
+    /// Locate, read, and parse the ADC file.
+    pub(super) fn load() -> Result<Self> {
+        let path = Self::path()?;
+
+        let bytes = match fs::read(&path) {
+            Ok(b) => b,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                return Err(AdcError::NotAuthenticated.into());
+            }
+            Err(e) => return Err(AdcError::ReadFailed(e).into()),
+        };
+
+        serde_json::from_slice(&bytes)
+            .map_err(AdcError::ParseFailed)
+            .map_err(Into::into)
+    }
+
+    pub(super) fn is_service_account_like(&self) -> bool {
+        matches!(
+            self,
+            Self::ServiceAccount | Self::ImpersonatedServiceAccount
+        )
+    }
+
+    fn path() -> Result<PathBuf> {
+        if let Ok(explicit) = env::var("GOOGLE_APPLICATION_CREDENTIALS")
+            && !explicit.is_empty()
+        {
+            return Ok(PathBuf::from(explicit));
+        }
+
+        let home = env::var("HOME")
+            .ok()
+            .filter(|h| !h.is_empty())
+            .ok_or(AdcError::NoHomeDir)?;
+
+        Ok(PathBuf::from(home)
+            .join(".config")
+            .join("gcloud")
+            .join("application_default_credentials.json"))
+    }
+}
+
 /// Persisted token state at `~/.config/rtf/iap_credentials.json`.
 #[derive(Debug, Serialize, Deserialize)]
 struct CachedTokens {
@@ -66,23 +132,14 @@ struct CachedTokens {
 }
 
 impl CachedTokens {
-    fn cache_path() -> Option<PathBuf> {
-        let dir = if let Ok(xdg) = env::var("XDG_CONFIG_HOME")
-            && !xdg.is_empty()
-        {
-            PathBuf::from(xdg).join(TOKEN_CACHE_SUBDIR)
-        } else {
-            let home = env::var("HOME").ok().filter(|h| !h.is_empty())?;
-            PathBuf::from(home).join(".config").join(TOKEN_CACHE_SUBDIR)
-        };
-
-        Some(dir.join(TOKEN_CACHE_FILENAME))
+    fn cache_path() -> Result<PathBuf> {
+        Ok(xdg::BaseDirectories::with_prefix(TOKEN_CACHE_SUBDIR)
+            .place_config_file(TOKEN_CACHE_FILENAME)
+            .map_err(|_| OauthError::NoCacheLocation)?)
     }
 
     fn load() -> Result<Option<Self>> {
-        let Some(path) = Self::cache_path() else {
-            return Ok(None);
-        };
+        let path = Self::cache_path()?;
 
         let bytes = match fs::read(&path) {
             Ok(b) => b,
@@ -96,29 +153,43 @@ impl CachedTokens {
         Ok(Some(tokens))
     }
 
+    async fn refresh(&self, client_secret: &str) -> Result<Self> {
+        let oauth_client = build_oauth_client(&self.client_id, client_secret)?;
+        let http_client = build_oauth_http_client()?;
+
+        let token_result = oauth_client
+            .exchange_refresh_token(&RefreshToken::new(self.refresh_token.clone()))
+            .request_async(&http_client)
+            .await
+            .map_err(|e| OauthError::TokenEndpoint(e.to_string()))?;
+
+        // Refresh-token grants may or may not return a new refresh_token; keep the
+        // existing one if Google didn't rotate it.
+        let next_refresh_token = token_result
+            .refresh_token()
+            .map(|t| t.secret().to_owned())
+            .unwrap_or_else(|| self.refresh_token.clone());
+
+        Ok(Self {
+            client_id: self.client_id.clone(),
+            id_token: token_result.extra_fields().id_token.clone(),
+            id_token_expires_at: expires_at(&token_result),
+            refresh_token: next_refresh_token,
+        })
+    }
+
     fn save(&self) -> Result<()> {
-        let path = Self::cache_path().ok_or(OauthError::NoCacheLocation)?;
+        let path = Self::cache_path()?;
 
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(Error::TokenCache)?;
-
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                let _ = fs::set_permissions(parent, fs::Permissions::from_mode(0o700));
-            }
+            let _ = fs::set_permissions(parent, Permissions::from_mode(0o700));
         }
 
-        let json = serde_json::to_vec_pretty(self)
-            .map_err(|e| Error::TokenCache(std::io::Error::other(e)))?;
+        let json =
+            serde_json::to_vec_pretty(self).map_err(|e| Error::TokenCache(io::Error::other(e)))?;
         fs::write(&path, &json).map_err(Error::TokenCache)?;
 
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&path, fs::Permissions::from_mode(0o600))
-                .map_err(Error::TokenCache)?;
-        }
+        fs::set_permissions(&path, Permissions::from_mode(0o600)).map_err(Error::TokenCache)?;
 
         Ok(())
     }
@@ -134,19 +205,21 @@ impl CachedTokens {
 /// Otherwise (a human user signed in via `gcloud auth application-default
 /// login`), tries the on-disk cache, then a refresh-token grant, then runs the
 /// full loopback OAuth flow (which opens a browser).
-pub(super) async fn id_token(client_id: &str, client_secret: &str) -> Result<String> {
-    if adc_is_service_account_like()? {
+pub(super) async fn id_token(
+    adc: &AdcCredentials,
+    client_id: &str,
+    client_secret: &str,
+) -> Result<String> {
+    if adc.is_service_account_like() {
         return service_account_id_token(client_id).await;
     }
 
     if let Some(cache) = CachedTokens::load()? {
-        if cache.id_token_expires_at > Utc::now() + Duration::seconds(ID_TOKEN_EXPIRY_SKEW_SECS) {
+        if cache.id_token_expires_at > Utc::now() + Duration::from_secs(ID_TOKEN_EXPIRY_SKEW_SECS) {
             return Ok(cache.id_token);
         }
 
-        if let Ok(refreshed) =
-            refresh_id_token(client_id, client_secret, &cache.refresh_token).await
-        {
+        if let Ok(refreshed) = cache.refresh(client_secret).await {
             refreshed.save()?;
 
             return Ok(refreshed.id_token);
@@ -157,48 +230,6 @@ pub(super) async fn id_token(client_id: &str, client_secret: &str) -> Result<Str
     tokens.save()?;
 
     Ok(tokens.id_token)
-}
-
-/// `true` when ADC describes a credential type whose ID tokens IAP will accept
-/// without an interactive consent flow.
-///
-/// Reads the ADC file at `$GOOGLE_APPLICATION_CREDENTIALS` (if set) or the
-/// platform-default location, parses just the `type` field, and matches
-/// against the two service-account variants. Anything else — missing file,
-/// parse failure, `authorized_user`, `external_account` — returns `false` so
-/// the caller falls back to the user OAuth flow.
-fn adc_is_service_account_like() -> Result<bool> {
-    let adc_path = if let Ok(explicit) = env::var("GOOGLE_APPLICATION_CREDENTIALS")
-        && !explicit.is_empty()
-    {
-        PathBuf::from(explicit)
-    } else {
-        let home = env::var("HOME")
-            .ok()
-            .filter(|h| !h.is_empty())
-            .ok_or(AdcError::NoHomeDir)?;
-
-        PathBuf::from(home)
-            .join(".config")
-            .join("gcloud")
-            .join("application_default_credentials.json")
-    };
-
-    let bytes = fs::read(adc_path).map_err(AdcError::ReadFailed)?;
-    let parsed = serde_json::from_slice::<AdcType<'_>>(&bytes).map_err(AdcError::ParseFailed)?;
-
-    let res = matches!(
-        parsed.kind,
-        Some("service_account") | Some("impersonated_service_account")
-    );
-
-    return Ok(res);
-
-    #[derive(Deserialize)]
-    struct AdcType<'a> {
-        #[serde(rename = "type", borrow)]
-        kind: Option<&'a str>,
-    }
 }
 
 /// Mint an ID token aimed at `audience` using the service account that ADC
@@ -289,7 +320,7 @@ async fn run_oauth_flow(client_id: &str, client_secret: &str) -> Result<CachedTo
     let _ = open::that(auth_url.as_str());
 
     let (code, returned_state) = timeout(
-        time::Duration::from_secs(LOOPBACK_TIMEOUT_SECS),
+        Duration::from_secs(LOOPBACK_TIMEOUT_SECS),
         accept_oauth_callback(listener),
     )
     .await
@@ -334,29 +365,8 @@ async fn accept_oauth_callback(listener: TcpListener) -> Result<(String, String)
         .await
         .map_err(OauthError::LoopbackRead)?;
     let request = String::from_utf8_lossy(&buf[..n]);
-    let first_line = request
-        .lines()
-        .next()
-        .ok_or(OauthError::MalformedCallback("empty loopback request"))?;
-    let path = first_line
-        .split_whitespace()
-        .nth(1)
-        .ok_or(OauthError::MalformedCallback(
-            "missing path in loopback request",
-        ))?;
-    let query = path.split_once('?').map(|(_, q)| q).unwrap_or("");
 
-    let mut code = None;
-    let mut state = None;
-    let mut oauth_error = None;
-    for (key, value) in form_urlencoded::parse(query.as_bytes()) {
-        match key.as_ref() {
-            "code" => code = Some(value.into_owned()),
-            "state" => state = Some(value.into_owned()),
-            "error" => oauth_error = Some(value.into_owned()),
-            _ => {}
-        }
-    }
+    let (code, state, oauth_error) = parse_loopback_request(&request)?;
 
     let body = match oauth_error.as_ref() {
         Some(err) => format!(
@@ -386,45 +396,47 @@ async fn accept_oauth_callback(listener: TcpListener) -> Result<(String, String)
     Ok((code, state))
 }
 
-async fn refresh_id_token(
-    client_id: &str,
-    client_secret: &str,
-    refresh_token: &str,
-) -> Result<CachedTokens> {
-    let oauth_client = build_oauth_client(client_id, client_secret)?;
-    let http_client = build_oauth_http_client()?;
+/// Parse the path and query parameters from a raw loopback HTTP request line.
+///
+/// Returns `(code, state, oauth_error)`, any of which may be `None` if the
+/// corresponding query parameter was absent.
+fn parse_loopback_request(
+    request: &str,
+) -> Result<(Option<String>, Option<String>, Option<String>)> {
+    let first_line = request
+        .lines()
+        .next()
+        .ok_or(OauthError::MalformedCallback("empty loopback request"))?;
+    let path = first_line
+        .split_whitespace()
+        .nth(1)
+        .ok_or(OauthError::MalformedCallback(
+            "missing path in loopback request",
+        ))?;
+    let query = path.split_once('?').map(|(_, q)| q).unwrap_or("");
 
-    let token_result = oauth_client
-        .exchange_refresh_token(&RefreshToken::new(refresh_token.to_owned()))
-        .request_async(&http_client)
-        .await
-        .map_err(|e| OauthError::TokenEndpoint(e.to_string()))?;
+    let mut code = None;
+    let mut state = None;
+    let mut oauth_error = None;
+    for (key, value) in form_urlencoded::parse(query.as_bytes()) {
+        match key.as_ref() {
+            "code" => code = Some(value.into_owned()),
+            "state" => state = Some(value.into_owned()),
+            "error" => oauth_error = Some(value.into_owned()),
+            _ => {}
+        }
+    }
 
-    // Refresh-token grants may or may not return a new refresh_token; keep the
-    // existing one if Google didn't rotate it.
-    let next_refresh_token = token_result
-        .refresh_token()
-        .map(|t| t.secret().to_owned())
-        .unwrap_or_else(|| refresh_token.to_owned());
-
-    Ok(CachedTokens {
-        client_id: client_id.to_string(),
-        id_token: token_result.extra_fields().id_token.clone(),
-        id_token_expires_at: expires_at(&token_result),
-        refresh_token: next_refresh_token,
-    })
+    Ok((code, state, oauth_error))
 }
 
 /// Convert the SDK's `expires_in` into an absolute UTC timestamp, defaulting to
 /// one hour out when Google omits the field (per RFC 6749 §5.1 it's only
 /// RECOMMENDED, not REQUIRED).
 fn expires_at(response: &GoogleTokenResponse) -> DateTime<Utc> {
-    let expires_in = response
-        .expires_in()
-        .and_then(|d| i64::try_from(d.as_secs()).ok())
-        .unwrap_or(3600);
+    let expires_in = response.expires_in().map(|d| d.as_secs()).unwrap_or(3600);
 
-    Utc::now() + Duration::seconds(expires_in)
+    Utc::now() + Duration::from_secs(expires_in)
 }
 
 fn html_escape(s: &str) -> String {
@@ -432,4 +444,70 @@ fn html_escape(s: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_loopback_request_code_and_state() {
+        let req = "GET /?code=auth_code_123&state=csrf_token HTTP/1.1\r\nHost: localhost\r\n\r\n";
+        let (code, state, error) = parse_loopback_request(req).unwrap();
+
+        assert_eq!(code.as_deref(), Some("auth_code_123"));
+        assert_eq!(state.as_deref(), Some("csrf_token"));
+        assert!(error.is_none());
+    }
+
+    #[test]
+    fn parse_loopback_request_error_param() {
+        let req = "GET /?error=access_denied&state=csrf_token HTTP/1.1\r\nHost: localhost\r\n\r\n";
+        let (code, state, error) = parse_loopback_request(req).unwrap();
+
+        assert!(code.is_none());
+        assert_eq!(state.as_deref(), Some("csrf_token"));
+        assert_eq!(error.as_deref(), Some("access_denied"));
+    }
+
+    #[test]
+    fn parse_loopback_request_no_query_string() {
+        let req = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n";
+        let (code, state, error) = parse_loopback_request(req).unwrap();
+
+        assert!(code.is_none());
+        assert!(state.is_none());
+        assert!(error.is_none());
+    }
+
+    #[test]
+    fn parse_loopback_request_url_encoded_values() {
+        let req = "GET /?code=a%2Fb%2Bc&state=x%3Dy HTTP/1.1\r\n\r\n";
+        let (code, state, _) = parse_loopback_request(req).unwrap();
+
+        assert_eq!(code.as_deref(), Some("a/b+c"));
+        assert_eq!(state.as_deref(), Some("x=y"));
+    }
+
+    #[test]
+    fn parse_loopback_request_empty_request_is_malformed() {
+        let err = parse_loopback_request("").unwrap_err();
+
+        assert!(
+            err.to_string().contains("empty loopback request"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn parse_loopback_request_missing_path_is_malformed() {
+        // Only one token on the request line — no path element
+        let req = "GET\r\n\r\n";
+        let err = parse_loopback_request(req).unwrap_err();
+
+        assert!(
+            err.to_string().contains("missing path in loopback request"),
+            "unexpected error: {err}"
+        );
+    }
 }
