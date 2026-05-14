@@ -8,7 +8,7 @@ apollo-compiler.workspace = true
 bytes.workspace = true
 chrono.workspace = true
 futures.workspace = true
-google-cloud-auth = { workspace = true, features = ["idtoken"] }
+google-cloud-auth.workspace = true
 google-cloud-secretmanager-v1.workspace = true
 google-cloud-gax.workspace = true
 graphql_client = "0.16.0"
