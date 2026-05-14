@@ -8,9 +8,14 @@ apollo-compiler.workspace = true
 bytes.workspace = true
 chrono.workspace = true
 futures.workspace = true
+google-cloud-auth.workspace = true
+google-cloud-secretmanager-v1.workspace = true
+google-cloud-gax.workspace = true
 graphql_client = "0.16.0"
 itertools.workspace = true
-jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
+jsonwebtoken = { version = "10.3.0", features = ["aws_lc_rs"] }
+oauth2.workspace = true
+open.workspace = true
 rand.workspace = true
 reqwest.workspace = true
 serde_json.workspace = true
@@ -18,6 +23,7 @@ serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+xdg.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true

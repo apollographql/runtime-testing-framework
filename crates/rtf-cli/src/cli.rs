@@ -1,6 +1,7 @@
 //! Parsing of our command line arguments using Clap's derive API
 use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
+use reqwest::{Method, Url};
 use std::path::PathBuf;
 
 // NOTE: All of the doc comments here are parsed by Clap and used to build out the documentation
@@ -307,6 +308,26 @@ pub enum RepSubcommand {
         /// Optional git ref to pull files from when using --github
         #[arg(long = "ref", requires = "github")]
         git_ref: Option<String>,
+    },
+
+    /// Send an IAP-authenticated HTTP request to the REP orchestrator.
+    ///
+    /// The response body is written to stdout on success.
+    Request {
+        /// Path on the orchestrator to request (e.g. `/health`)
+        path: String,
+
+        /// HTTP method
+        #[arg(short = 'X', long, default_value = "GET")]
+        method: Method,
+
+        /// Request body as a literal string
+        #[arg(short, long)]
+        body: Option<String>,
+
+        /// Override the REP orchestrator base URL
+        #[arg(long)]
+        orchestrator_url: Option<Url>,
     },
 }
 

@@ -18,6 +18,7 @@ use std::future::Future;
 
 pub mod github;
 pub mod graphos;
+pub mod orchestrator;
 
 use graphos::{
     PlatformClient,
