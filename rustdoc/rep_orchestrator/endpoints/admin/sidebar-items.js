@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_logging_filter_handler","set_logging_filter_handler"]};
