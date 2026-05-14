@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_ORCHESTRATOR_URL"],"enum":["AdcError","Error","OauthError"],"struct":["OrchestratorClient"],"type":["Result"]};

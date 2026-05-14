@@ -17,29 +17,31 @@
 <a href=#17 id=17 data-nosnippet>17</a><span class="kw">pub use </span>expand_matrix::expand_test_plan_matrix;
 <a href=#18 id=18 data-nosnippet>18</a><span class="kw">pub use </span>inline::inline_test_plan;
 <a href=#19 id=19 data-nosnippet>19</a><span class="kw">pub use </span>json_schemas::generate_json_schema;
-<a href=#20 id=20 data-nosnippet>20</a><span class="kw">pub use </span>rep::{prepare_rep_trigger_payload, write_rep_trigger_payload_to_stdout};
-<a href=#21 id=21 data-nosnippet>21</a><span class="kw">pub use </span>resolve::{resolve_environment, resolve_scenario};
-<a href=#22 id=22 data-nosnippet>22</a><span class="kw">pub use </span>template::template_test_plan;
-<a href=#23 id=23 data-nosnippet>23</a>
-<a href=#24 id=24 data-nosnippet>24</a><span class="kw">fn </span>parse_cli_variables(
-<a href=#25 id=25 data-nosnippet>25</a>    variables: Variables,
-<a href=#26 id=26 data-nosnippet>26</a>    ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,
-<a href=#27 id=27 data-nosnippet>27</a>) -&gt; anyhow::Result&lt;(ParsedVariables, <span class="prelude-ty">Option</span>&lt;SourceDir&gt;)&gt; {
-<a href=#28 id=28 data-nosnippet>28</a>    <span class="kw">let </span>(parsed, vars_file_src) = variables.parse(ctx)<span class="question-mark">?</span>;
-<a href=#29 id=29 data-nosnippet>29</a>
-<a href=#30 id=30 data-nosnippet>30</a>    <span class="kw">if </span>!parsed.matrix_dimensions.is_empty() {
-<a href=#31 id=31 data-nosnippet>31</a>        <span class="kw">let </span><span class="kw-2">mut </span>keys: Vec&lt;<span class="kw">_</span>&gt; = parsed
-<a href=#32 id=32 data-nosnippet>32</a>            .matrix_dimensions
-<a href=#33 id=33 data-nosnippet>33</a>            .keys()
-<a href=#34 id=34 data-nosnippet>34</a>            .map(|s| s.as_str())
-<a href=#35 id=35 data-nosnippet>35</a>            .collect();
-<a href=#36 id=36 data-nosnippet>36</a>        keys.sort_unstable();
-<a href=#37 id=37 data-nosnippet>37</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(
-<a href=#38 id=38 data-nosnippet>38</a>            <span class="string">"Expected only scalar variables but found matrix dimensions for: {}"</span>,
-<a href=#39 id=39 data-nosnippet>39</a>            keys.join(<span class="string">", "</span>)
-<a href=#40 id=40 data-nosnippet>40</a>        ));
-<a href=#41 id=41 data-nosnippet>41</a>    }
-<a href=#42 id=42 data-nosnippet>42</a>
-<a href=#43 id=43 data-nosnippet>43</a>    <span class="prelude-val">Ok</span>((parsed, vars_file_src))
-<a href=#44 id=44 data-nosnippet>44</a>}
+<a href=#20 id=20 data-nosnippet>20</a><span class="kw">pub use </span>rep::{
+<a href=#21 id=21 data-nosnippet>21</a>    execute_rep_request, prepare_rep_trigger_payload, write_rep_trigger_payload_to_stdout,
+<a href=#22 id=22 data-nosnippet>22</a>};
+<a href=#23 id=23 data-nosnippet>23</a><span class="kw">pub use </span>resolve::{resolve_environment, resolve_scenario};
+<a href=#24 id=24 data-nosnippet>24</a><span class="kw">pub use </span>template::template_test_plan;
+<a href=#25 id=25 data-nosnippet>25</a>
+<a href=#26 id=26 data-nosnippet>26</a><span class="kw">fn </span>parse_cli_variables(
+<a href=#27 id=27 data-nosnippet>27</a>    variables: Variables,
+<a href=#28 id=28 data-nosnippet>28</a>    ctx: <span class="kw-2">&amp;</span><span class="kw">impl </span>ResolutionContext,
+<a href=#29 id=29 data-nosnippet>29</a>) -&gt; anyhow::Result&lt;(ParsedVariables, <span class="prelude-ty">Option</span>&lt;SourceDir&gt;)&gt; {
+<a href=#30 id=30 data-nosnippet>30</a>    <span class="kw">let </span>(parsed, vars_file_src) = variables.parse(ctx)<span class="question-mark">?</span>;
+<a href=#31 id=31 data-nosnippet>31</a>
+<a href=#32 id=32 data-nosnippet>32</a>    <span class="kw">if </span>!parsed.matrix_dimensions.is_empty() {
+<a href=#33 id=33 data-nosnippet>33</a>        <span class="kw">let </span><span class="kw-2">mut </span>keys: Vec&lt;<span class="kw">_</span>&gt; = parsed
+<a href=#34 id=34 data-nosnippet>34</a>            .matrix_dimensions
+<a href=#35 id=35 data-nosnippet>35</a>            .keys()
+<a href=#36 id=36 data-nosnippet>36</a>            .map(|s| s.as_str())
+<a href=#37 id=37 data-nosnippet>37</a>            .collect();
+<a href=#38 id=38 data-nosnippet>38</a>        keys.sort_unstable();
+<a href=#39 id=39 data-nosnippet>39</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(
+<a href=#40 id=40 data-nosnippet>40</a>            <span class="string">"Expected only scalar variables but found matrix dimensions for: {}"</span>,
+<a href=#41 id=41 data-nosnippet>41</a>            keys.join(<span class="string">", "</span>)
+<a href=#42 id=42 data-nosnippet>42</a>        ));
+<a href=#43 id=43 data-nosnippet>43</a>    }
+<a href=#44 id=44 data-nosnippet>44</a>
+<a href=#45 id=45 data-nosnippet>45</a>    <span class="prelude-val">Ok</span>((parsed, vars_file_src))
+<a href=#46 id=46 data-nosnippet>46</a>}
 </code></pre></div></section></main></body></html>

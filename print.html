@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-3088e62e.js";
+            window.path_to_searchindex_js = "searchindex-3f879f68.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-fd605a4a.js"></script>
@@ -5195,6 +5195,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li><a href="#rtf-json-schemas"><code>rtf json-schemas</code>↴</a></li>
 <li><a href="#rtf-rep"><code>rtf rep</code>↴</a></li>
 <li><a href="#rtf-rep-prepare"><code>rtf rep prepare</code>↴</a></li>
+<li><a href="#rtf-rep-request"><code>rtf rep request</code>↴</a></li>
 <li><a href="#rtf-version"><code>rtf version</code>↴</a></li>
 </ul>
 <h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
@@ -5457,6 +5458,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <h6 id="subcommands-4"><a class="header" href="#subcommands-4"><strong>Subcommands:</strong></a></h6>
 <ul>
 <li><code>prepare</code> — Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers</li>
+<li><code>request</code> — Send an IAP-authenticated HTTP request to the REP orchestrator</li>
 </ul>
 <h2 id="rtf-rep-prepare"><a class="header" href="#rtf-rep-prepare"><code>rtf rep prepare</code></a></h2>
 <p>Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers</p>
@@ -5473,6 +5475,27 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 </li>
 <li>
 <p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
+</li>
+</ul>
+<h2 id="rtf-rep-request"><a class="header" href="#rtf-rep-request"><code>rtf rep request</code></a></h2>
+<p>Send an IAP-authenticated HTTP request to the REP orchestrator.</p>
+<p>The response body is written to stdout on success.</p>
+<p><strong>Usage:</strong> <code>rtf rep request [OPTIONS] &lt;PATH&gt;</code></p>
+<h6 id="arguments-12"><a class="header" href="#arguments-12"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;PATH&gt;</code> — Path on the orchestrator to request (e.g. <code>/health</code>)</li>
+</ul>
+<h6 id="options-12"><a class="header" href="#options-12"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>-X</code>, <code>--method &lt;METHOD&gt;</code> — HTTP method</p>
+<p>Default value: <code>GET</code></p>
+</li>
+<li>
+<p><code>-b</code>, <code>--body &lt;BODY&gt;</code> — Request body as a literal string</p>
+</li>
+<li>
+<p><code>--orchestrator-url &lt;ORCHESTRATOR_URL&gt;</code> — Override the REP orchestrator base URL</p>
 </li>
 </ul>
 <h2 id="rtf-version"><a class="header" href="#rtf-version"><code>rtf version</code></a></h2>
