@@ -5,10 +5,8 @@ use crate::orchestrator::{
     IAP_OAUTH_CLIENT_SECRET_SECRET_NAME, Result, auth::id_token,
 };
 use google_cloud_secretmanager_v1::client::SecretManagerService;
-use reqwest::{
-    Client, Request, Response,
-    header::{AUTHORIZATION, HeaderValue},
-};
+use oauth2::http::HeaderValue;
+use reqwest::{Client, Request, Response, header::AUTHORIZATION};
 use std::{env, path::PathBuf};
 
 /// Authenticated HTTP client for the REP orchestrator, protected by Google Cloud IAP.
@@ -16,7 +14,7 @@ use std::{env, path::PathBuf};
 pub struct OrchestratorClient {
     client_id: String,
     client_secret: String,
-    request: Request,
+    http_client: Client,
 }
 
 impl OrchestratorClient {
@@ -24,7 +22,7 @@ impl OrchestratorClient {
     ///
     /// Fetches the IAP OAuth client credentials from Secret Manager. The SDK
     /// loads Application Default Credentials internally.
-    pub async fn new(request: Request) -> Result<Self> {
+    pub async fn new() -> Result<Self> {
         require_adc()?;
 
         let (client_id, client_secret) = fetch_secrets().await?;
@@ -32,22 +30,21 @@ impl OrchestratorClient {
         Ok(Self {
             client_id,
             client_secret,
-            request,
+            http_client: Client::new(),
         })
     }
 
     /// Send an authenticated request to the orchestrator and return the full response.
-    pub async fn send(self) -> Result<Response> {
+    pub async fn send(&self, mut request: Request) -> Result<Response> {
         let id_token = id_token(&self.client_id, &self.client_secret).await?;
 
         let mut auth_value = HeaderValue::from_str(&format!("Bearer {id_token}"))
             .map_err(Error::InvalidBearerToken)?;
         auth_value.set_sensitive(true);
 
-        let mut request = self.request;
         request.headers_mut().insert(AUTHORIZATION, auth_value);
 
-        let response = Client::new().execute(request).await?;
+        let response = self.http_client.execute(request).await?;
 
         Ok(response)
     }

@@ -3,7 +3,10 @@ use reqwest::{
     header::{CONTENT_TYPE, HeaderValue},
 };
 use rtf_integrations::orchestrator::{DEFAULT_ORCHESTRATOR_URL, OrchestratorClient};
-use std::{io::Write, str::FromStr};
+use std::{
+    io::{Write, stdout},
+    str::FromStr,
+};
 
 pub async fn execute_rep_request(
     path: &str,
@@ -25,12 +28,12 @@ pub async fn execute_rep_request(
             .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     }
 
-    let client = OrchestratorClient::new(request).await?;
-    let response = client.send().await?;
+    let client = OrchestratorClient::new().await?;
+    let response = client.send(request).await?;
 
     if response.status().is_success() {
         let body = response.bytes().await?;
-        std::io::stdout().write_all(&body)?;
+        stdout().write_all(&body)?;
 
         Ok(())
     } else {
