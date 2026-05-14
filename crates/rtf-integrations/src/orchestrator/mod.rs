@@ -11,10 +11,10 @@
 mod auth;
 mod client;
 
-pub use client::IapClient;
+pub use client::OrchestratorClient;
 
 /// The GCP project that hosts the REP orchestrator's Secret Manager secrets.
-pub(crate) const GCP_PROJECT: &str = "runtime-testing-framework";
+const GCP_PROJECT: &str = "runtime-testing-framework";
 
 /// The Secret Manager secret name storing the IAP OAuth client ID.
 ///
@@ -22,12 +22,12 @@ pub(crate) const GCP_PROJECT: &str = "runtime-testing-framework";
 /// the audience IAP validates against and the `client_id` the CLI uses to
 /// drive the user-consent loopback flow. `http://localhost` must be in the
 /// client's authorized redirect URIs.
-pub(crate) const IAP_OAUTH_CLIENT_ID_SECRET_NAME: &str = "iap-orchestrator-client-id";
+const IAP_OAUTH_CLIENT_ID_SECRET_NAME: &str = "iap-orchestrator-client-id";
 
 /// The Secret Manager secret name storing the IAP OAuth client secret.
-pub(crate) const IAP_OAUTH_CLIENT_SECRET_SECRET_NAME: &str = "iap-orchestrator-client-secret";
+const IAP_OAUTH_CLIENT_SECRET_SECRET_NAME: &str = "iap-orchestrator-client-secret";
 
-/// Errors that can occur when building or using an [`IapClient`].
+/// Errors that can occur when building or using an [`OrchestratorClient`].
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// The secret payload returned by Secret Manager could not be decoded.

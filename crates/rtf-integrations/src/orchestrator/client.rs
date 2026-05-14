@@ -1,6 +1,6 @@
 //! IAP-authenticated HTTP client for the REP orchestrator.
 
-use crate::iap::{
+use crate::orchestrator::{
     AdcError, Error, GCP_PROJECT, IAP_OAUTH_CLIENT_ID_SECRET_NAME,
     IAP_OAUTH_CLIENT_SECRET_SECRET_NAME, Result, auth::id_token,
 };
@@ -13,13 +13,13 @@ use std::{env, path::PathBuf};
 
 /// Authenticated HTTP client for the REP orchestrator, protected by Google Cloud IAP.
 #[derive(Debug)]
-pub struct IapClient {
+pub struct OrchestratorClient {
     client_id: String,
     client_secret: String,
     request: Request,
 }
 
-impl IapClient {
+impl OrchestratorClient {
     /// Build a new client.
     ///
     /// Fetches the IAP OAuth client credentials from Secret Manager. The SDK

@@ -2,7 +2,7 @@ use reqwest::{
     Body, Method, Request, Url,
     header::{CONTENT_TYPE, HeaderValue},
 };
-use rtf_integrations::iap::IapClient;
+use rtf_integrations::orchestrator::OrchestratorClient;
 use std::{io::Write, str::FromStr};
 
 pub async fn execute_rep_request(
@@ -27,7 +27,7 @@ pub async fn execute_rep_request(
             .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     }
 
-    let client = IapClient::new(request).await?;
+    let client = OrchestratorClient::new(request).await?;
     let response = client.send().await?;
 
     if response.status().is_success() {

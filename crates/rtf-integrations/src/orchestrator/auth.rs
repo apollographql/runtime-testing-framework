@@ -1,4 +1,4 @@
-use crate::iap::{AdcError, Error, OauthError, Result};
+use crate::orchestrator::{AdcError, Error, OauthError, Result};
 use chrono::{DateTime, Duration, Utc};
 use google_cloud_auth::credentials::idtoken;
 use oauth2::{
@@ -23,7 +23,7 @@ use tokio::{
 const GOOGLE_AUTH_ENDPOINT: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_ENDPOINT: &str = "https://oauth2.googleapis.com/token";
 const TOKEN_CACHE_SUBDIR: &str = "rtf";
-const TOKEN_CACHE_FILENAME: &str = "iap_credentials.json";
+const TOKEN_CACHE_FILENAME: &str = "orchestrator_credentials.json";
 const LOOPBACK_TIMEOUT_SECS: u64 = 300;
 const ID_TOKEN_EXPIRY_SKEW_SECS: i64 = 60;
 
