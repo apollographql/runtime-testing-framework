@@ -13,6 +13,9 @@ mod client;
 
 pub use client::OrchestratorClient;
 
+/// The default base URL for the REP orchestrator.
+pub const DEFAULT_ORCHESTRATOR_URL: &str = "https://api.rtf.apollographql.com";
+
 /// The GCP project that hosts the REP orchestrator's Secret Manager secrets.
 const GCP_PROJECT: &str = "runtime-testing-framework";
 

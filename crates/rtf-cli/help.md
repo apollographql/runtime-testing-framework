@@ -379,8 +379,6 @@ The response body is written to stdout on success.
 * `-b`, `--body <BODY>` — Request body as a literal string
 * `--orchestrator-url <ORCHESTRATOR_URL>` — Override the REP orchestrator base URL
 
-  Default value: `https://api.rtf.apollographql.com`
-
 
 
 ## `rtf version`

@@ -3,9 +3,6 @@ use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
 use std::path::PathBuf;
 
-/// Default base URL for the REP orchestrator.
-const DEFAULT_ORCHESTRATOR_URL: &str = "https://api.rtf.apollographql.com";
-
 // NOTE: All of the doc comments here are parsed by Clap and used to build out the documentation
 // seen in the CLI. We treat them as user facing and aim to provide as much useful information as
 // possible without overwhelming the user with output when they run '-h' or '--help'.
@@ -328,8 +325,8 @@ pub enum RepSubcommand {
         body: Option<String>,
 
         /// Override the REP orchestrator base URL
-        #[arg(long, default_value = DEFAULT_ORCHESTRATOR_URL )]
-        orchestrator_url: String,
+        #[arg(long)]
+        orchestrator_url: Option<String>,
     },
 }
 

@@ -2,20 +2,18 @@ use reqwest::{
     Body, Method, Request, Url,
     header::{CONTENT_TYPE, HeaderValue},
 };
-use rtf_integrations::orchestrator::OrchestratorClient;
+use rtf_integrations::orchestrator::{DEFAULT_ORCHESTRATOR_URL, OrchestratorClient};
 use std::{io::Write, str::FromStr};
 
 pub async fn execute_rep_request(
     path: &str,
     method: &str,
     data: Option<&str>,
-    orchestrator_url: &str,
+    orchestrator_url: Option<&str>,
 ) -> anyhow::Result<()> {
+    let url = Url::from_str(orchestrator_url.unwrap_or(DEFAULT_ORCHESTRATOR_URL))?.join(path)?;
     let method = Method::from_str(method)?;
-    let mut request = Request::new(
-        method.clone(),
-        Url::from_str(&format!("{orchestrator_url}{path}"))?,
-    );
+    let mut request = Request::new(method.clone(), url);
 
     if let Some(body) = data {
         *request.body_mut() = Some(Body::from(body.to_string()));
