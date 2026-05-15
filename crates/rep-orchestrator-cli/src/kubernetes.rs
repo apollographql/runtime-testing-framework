@@ -1,11 +1,10 @@
-use http::Request;
 use k8s_openapi::api::{
     apps::v1::Deployment,
-    core::v1::{Namespace, Pod, ServiceAccount},
+    core::v1::{Event, Namespace, Pod, ServiceAccount},
 };
 use kube::{
     Api, Config,
-    api::{LogParams, ObjectMeta, Patch, PatchParams},
+    api::{LogParams, ObjectMeta, Patch, PatchParams, Request},
     config::{KubeConfigOptions, Kubeconfig, KubeconfigError},
 };
 use serde::{Deserialize, Serialize};
@@ -262,22 +261,26 @@ impl Client for HttpClient {
     }
 
     async fn collect_namespace_events(&self, namespace: &str, output_dir: &Path) {
-        let req = Request::builder()
-            .method("GET")
-            .uri(format!("/api/v1/namespaces/{namespace}/events"))
-            .body(vec![])
-            .expect("events request URI is always valid");
+        let event_api: Api<Event> = Api::namespaced(self.client.clone(), namespace);
 
-        let body = match self.client.request_text(req).await {
-            Ok(b) => b,
+        let events = match event_api.list(&Default::default()).await {
+            Ok(e) => e,
             Err(e) => {
                 warn!("failed to fetch namespace events: {e}");
                 return;
             }
         };
 
+        let json = match serde_json::to_string_pretty(&events) {
+            Ok(j) => j,
+            Err(e) => {
+                warn!("failed to serialize events: {e}");
+                return;
+            }
+        };
+
         let path = output_dir.join("events.json");
-        if let Err(e) = fs::write(&path, body.as_bytes()).await {
+        if let Err(e) = fs::write(&path, json.as_bytes()).await {
             warn!("failed to write events.json: {e}");
         }
     }
@@ -301,11 +304,9 @@ impl Client for HttpClient {
 
         let mut all_pods: Vec<PodStats> = Vec::new();
 
-        for node in &nodes {
-            let req = Request::builder()
-                .method("GET")
-                .uri(format!("/api/v1/nodes/{node}/proxy/stats/summary"))
-                .body(vec![])
+        for node in nodes.iter() {
+            let req = Request::new(format!("/api/v1/nodes/{node}/proxy/stats/summary"))
+                .list(&Default::default())
                 .expect("stats/summary request URI is always valid");
 
             let text = match self.client.request_text(req).await {

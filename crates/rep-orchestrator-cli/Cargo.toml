@@ -9,7 +9,6 @@ rtf-cli-shared = { path = "../rtf-cli-shared" }
 
 anyhow.workspace = true
 clap.workspace = true
-http = "1"
 reqwest.workspace = true
 k8s-openapi.workspace = true
 kube.workspace = true
