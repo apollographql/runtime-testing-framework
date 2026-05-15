@@ -18,6 +18,7 @@ pub use workflow::{
 
 /// Binary name of the REP orchestrator CLI, available on `PATH` inside [TOOLBOX_IMAGE].
 const CLI_BINARY: &str = "rep-orchestrator-cli";
+pub(crate) const OUTPUT_COLLECTOR: &str = "output-collector";
 pub const CLUSTER_API_NAMESPACE: &str = "cluster-api";
 pub const EXECUTION_ID_LABEL: &str = "rtf.io/execution-id";
 pub const TOOLBOX_IMAGE: &str =

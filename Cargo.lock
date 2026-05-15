@@ -3532,6 +3532,7 @@ dependencies = [
  "reqwest 0.13.3",
  "rtf-cli-shared",
  "rustls",
+ "serde",
  "serde_json",
  "simple_test_case",
  "thiserror 2.0.18",

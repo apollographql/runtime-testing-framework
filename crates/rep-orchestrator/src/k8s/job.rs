@@ -1,6 +1,6 @@
 use crate::{
     db::TestExecution,
-    k8s::{CLI_BINARY, EXECUTION_ID_LABEL, TOOLBOX_IMAGE},
+    k8s::{CLI_BINARY, EXECUTION_ID_LABEL, OUTPUT_COLLECTOR, TOOLBOX_IMAGE},
 };
 use k8s_openapi::api::{
     batch::v1::JobSpec,
@@ -58,6 +58,7 @@ pub fn scenario_job(
                     output_collector_container_spec(toolbox_pull_policy, &env),
                 ],
                 volumes: Some(scenario_volumes()),
+                service_account_name: Some(OUTPUT_COLLECTOR.to_owned()),
                 ..Default::default()
             }),
         },
@@ -128,7 +129,7 @@ fn scenario_run_container_spec(scenario_image: String) -> Container {
 
 fn output_collector_container_spec(toolbox_pull_policy: &str, env: &[EnvVar]) -> Container {
     Container {
-        name: "output-collector".to_owned(),
+        name: OUTPUT_COLLECTOR.to_owned(),
         image: Some(TOOLBOX_IMAGE.to_owned()),
         image_pull_policy: Some(toolbox_pull_policy.to_owned()),
         command: Some(vec![CLI_BINARY.to_owned()]),

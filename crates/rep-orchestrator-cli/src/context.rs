@@ -93,6 +93,8 @@ pub trait CliContext {
 
     fn kube_client(&self) -> &Self::KubeClient;
 
+    fn execution_namespace(&self) -> &str;
+
     /// Run an orchestration shell [Command] to completion.
     ///
     /// Logs the command arguments before running. On failure, logs captured stderr and returns a
@@ -122,6 +124,7 @@ pub trait CliContext {
 pub struct EnvironmentContext {
     orchestrator_client: orchestrator::HttpClient,
     kube_client: kubernetes::HttpClient,
+    execution_namespace: String,
 }
 
 impl EnvironmentContext {
@@ -152,6 +155,7 @@ impl EnvironmentContext {
         Ok(Self {
             orchestrator_client,
             kube_client,
+            execution_namespace: execution_id.to_string(),
         })
     }
 }
@@ -166,6 +170,10 @@ impl CliContext for EnvironmentContext {
 
     fn kube_client(&self) -> &Self::KubeClient {
         &self.kube_client
+    }
+
+    fn execution_namespace(&self) -> &str {
+        &self.execution_namespace
     }
 
     async fn run_shell(&self, cmd: &mut Command) -> crate::Result<()> {
@@ -302,6 +310,10 @@ pub(crate) mod mocks {
 
         fn kube_client(&self) -> &Self::KubeClient {
             &self.kube_client
+        }
+
+        fn execution_namespace(&self) -> &str {
+            "test-namespace"
         }
 
         async fn run_shell(&self, cmd: &mut Command) -> crate::Result<()> {

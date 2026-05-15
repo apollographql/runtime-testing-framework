@@ -51,6 +51,8 @@ async fn full_test_run_happy_path_completes_successfully() {
         .unwrap();
 
     let mut file_names = Vec::with_capacity(zip.len());
+    let mut rtf_output_content = None;
+
     for i in 0..zip.len() {
         let mut file = zip.by_index(i).unwrap();
         file_names.push(file.name().to_string());
@@ -60,13 +62,71 @@ async fn full_test_run_happy_path_completes_successfully() {
             file.read_to_string(&mut s)
                 .context("unable to read RTF_OUTPUT file")
                 .unwrap();
-
-            assert_eq!(s, "hello, world!\n", "unexpected RTF_OUTPUT content");
-            return;
+            rtf_output_content = Some(s);
         }
     }
 
-    panic!("no RTF_OUTPUT file in output.zip. Got: {file_names:#?}");
+    let content = rtf_output_content
+        .unwrap_or_else(|| panic!("no RTF_OUTPUT file in output.zip. Got: {file_names:#?}"));
+    assert_eq!(content, "hello, world!\n", "unexpected RTF_OUTPUT content");
+
+    let log_entries: Vec<String> = file_names
+        .iter()
+        .filter(|n| n.starts_with("output/logs/"))
+        .cloned()
+        .collect();
+    assert!(
+        !log_entries.is_empty(),
+        "expected log files in output.zip, got: {file_names:#?}"
+    );
+
+    // Verify the first log file is readable (content may legitimately be empty)
+    let first_log = log_entries.first().unwrap().clone();
+    {
+        let mut log_file = zip.by_name(&first_log).unwrap();
+        let mut log_content = String::new();
+        log_file
+            .read_to_string(&mut log_content)
+            .context("unable to read log file")
+            .unwrap();
+    }
+
+    // Verify events.json is present, valid JSON, and non-empty
+    assert!(
+        file_names.iter().any(|n| n == "output/events.json"),
+        "expected output/events.json in output.zip; got: {file_names:#?}",
+    );
+    let mut events_buf = String::new();
+    zip.by_name("output/events.json")
+        .unwrap()
+        .read_to_string(&mut events_buf)
+        .context("unable to read events.json")
+        .unwrap();
+    assert!(!events_buf.is_empty(), "events.json must not be empty");
+    serde_json::from_str::<serde_json::Value>(&events_buf)
+        .context("events.json must be valid JSON")
+        .unwrap();
+
+    // Verify resource-metrics.json is present, valid JSON, and non-empty
+    assert!(
+        file_names
+            .iter()
+            .any(|n| n == "output/resource-metrics.json"),
+        "expected output/resource-metrics.json in output.zip; got: {file_names:#?}",
+    );
+    let mut metrics_buf = String::new();
+    zip.by_name("output/resource-metrics.json")
+        .unwrap()
+        .read_to_string(&mut metrics_buf)
+        .context("unable to read resource-metrics.json")
+        .unwrap();
+    assert!(
+        !metrics_buf.is_empty(),
+        "resource-metrics.json must not be empty"
+    );
+    serde_json::from_str::<serde_json::Value>(&metrics_buf)
+        .context("resource-metrics.json must be valid JSON")
+        .unwrap();
 }
 
 #[tokio::test]

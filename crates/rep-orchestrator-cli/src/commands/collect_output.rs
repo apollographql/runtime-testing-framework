@@ -1,9 +1,11 @@
 use crate::{
     context::{CliContext, FsError, FsErrorKind},
     info_status,
+    kubernetes::Client as KubeClient,
     orchestrator::Client as _,
 };
 use rep_orchestrator_shared::status::Status;
+
 use std::{
     io::{self, Cursor, Write},
     os::unix::process::ExitStatusExt,
@@ -74,6 +76,19 @@ async fn collect_output_inner(paths: &SharedPaths, ctx: &impl CliContext) -> cra
     ctx.orchestrator_client()
         .upload_to_signed_url(&urls.log_file_url, log_bytes)
         .await?;
+
+    info!("collecting execution namespace artifacts");
+    let ns = ctx.execution_namespace();
+    let output_dir = paths.base.join("output");
+    ctx.kube_client()
+        .collect_container_logs(ns, &output_dir)
+        .await;
+    ctx.kube_client()
+        .collect_namespace_events(ns, &output_dir)
+        .await;
+    ctx.kube_client()
+        .collect_resource_metrics(ns, &output_dir)
+        .await;
 
     info!("building output zip");
     build_output_zip(ctx, &paths.base, &paths.output_zip)?;
@@ -286,5 +301,16 @@ mod tests {
             .unwrap();
 
         assert_eq!(content, "hello");
+    }
+
+    #[tokio::test]
+    async fn collect_output_inner_succeeds_with_clean_kube_client() {
+        let ctx = MockContext::default();
+        ctx.write_file(Path::new(SENTINEL), b"").unwrap();
+        ctx.write_file(Path::new("/shared/output/output.log"), b"log contents")
+            .unwrap();
+
+        let paths = SharedPaths::new(Path::new(SHARED_DIR));
+        collect_output_inner(&paths, &ctx).await.unwrap();
     }
 }

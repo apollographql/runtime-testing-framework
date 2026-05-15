@@ -1,21 +1,22 @@
 use crate::k8s::{
-    self, CLUSTER_API_NAMESPACE, Cluster, EXECUTION_ID_LABEL, Result, WatchOutcome, Workflow,
-    WorkflowSpec, workflow_name,
+    self, CLUSTER_API_NAMESPACE, Cluster, EXECUTION_ID_LABEL, OUTPUT_COLLECTOR, Result,
+    WatchOutcome, Workflow, WorkflowSpec, workflow_name,
 };
 use k8s_openapi::api::{
     batch::v1::{Job, JobSpec},
-    core::v1::{Namespace, Pod},
+    core::v1::{Namespace, Pod, ServiceAccount},
+    rbac::v1::{ClusterRole, ClusterRoleBinding, PolicyRule, Role, RoleBinding, RoleRef, Subject},
 };
 use kube::{
     Client, Config, Resource,
-    api::{Api, ObjectMeta},
+    api::{Api, ObjectMeta, Patch, PatchParams},
     config::{KubeConfigOptions, Kubeconfig},
     core::NamespaceResourceScope,
 };
 use kube_runtime::{WatchStreamExt, watcher};
 use std::{collections::BTreeMap, pin::pin, result};
 use tokio_stream::StreamExt;
-use tracing::error;
+use tracing::{error, warn};
 use uuid::Uuid;
 
 // Container waiting reasons that indicate a pod is permanently stuck and will never produce an
@@ -80,6 +81,136 @@ impl ClusterClients {
 
         Api::namespaced(client, ns)
     }
+
+    async fn create_output_collector_rbac(&self, ns: &str) -> Result<()> {
+        let pp = PatchParams::apply("rep-orchestrator");
+
+        let sa_api: Api<ServiceAccount> = self.namespaced_api(Cluster::Workload, ns);
+        sa_api
+            .patch(
+                OUTPUT_COLLECTOR,
+                &pp,
+                &Patch::Apply(&ServiceAccount {
+                    metadata: ObjectMeta {
+                        name: Some(OUTPUT_COLLECTOR.to_owned()),
+                        namespace: Some(ns.to_owned()),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }),
+            )
+            .await?;
+
+        let role_api: Api<Role> = self.namespaced_api(Cluster::Workload, ns);
+        role_api
+            .patch(
+                OUTPUT_COLLECTOR,
+                &pp,
+                &Patch::Apply(&Role {
+                    metadata: ObjectMeta {
+                        name: Some(OUTPUT_COLLECTOR.to_owned()),
+                        namespace: Some(ns.to_owned()),
+                        ..Default::default()
+                    },
+                    rules: Some(vec![
+                        PolicyRule {
+                            api_groups: Some(vec!["".to_owned()]),
+                            resources: Some(vec!["pods".to_owned()]),
+                            verbs: vec!["list".to_owned()],
+                            ..Default::default()
+                        },
+                        PolicyRule {
+                            api_groups: Some(vec!["".to_owned()]),
+                            resources: Some(vec!["pods/log".to_owned()]),
+                            verbs: vec!["get".to_owned()],
+                            ..Default::default()
+                        },
+                        PolicyRule {
+                            api_groups: Some(vec!["".to_owned()]),
+                            resources: Some(vec!["events".to_owned()]),
+                            verbs: vec!["list".to_owned()],
+                            ..Default::default()
+                        },
+                    ]),
+                }),
+            )
+            .await?;
+
+        let rb_api: Api<RoleBinding> = self.namespaced_api(Cluster::Workload, ns);
+        rb_api
+            .patch(
+                OUTPUT_COLLECTOR,
+                &pp,
+                &Patch::Apply(&RoleBinding {
+                    metadata: ObjectMeta {
+                        name: Some(OUTPUT_COLLECTOR.to_owned()),
+                        namespace: Some(ns.to_owned()),
+                        ..Default::default()
+                    },
+                    role_ref: RoleRef {
+                        api_group: "rbac.authorization.k8s.io".to_owned(),
+                        kind: "Role".to_owned(),
+                        name: OUTPUT_COLLECTOR.to_owned(),
+                    },
+                    subjects: Some(vec![Subject {
+                        kind: "ServiceAccount".to_owned(),
+                        name: OUTPUT_COLLECTOR.to_owned(),
+                        namespace: Some(ns.to_owned()),
+                        ..Default::default()
+                    }]),
+                }),
+            )
+            .await?;
+
+        let cr_api: Api<ClusterRole> = Api::all(self.workload.clone());
+        cr_api
+            .patch(
+                OUTPUT_COLLECTOR,
+                &pp,
+                &Patch::Apply(&ClusterRole {
+                    metadata: ObjectMeta {
+                        name: Some(OUTPUT_COLLECTOR.to_owned()),
+                        ..Default::default()
+                    },
+                    rules: Some(vec![PolicyRule {
+                        api_groups: Some(vec!["".to_owned()]),
+                        resources: Some(vec!["nodes/proxy".to_owned()]),
+                        verbs: vec!["get".to_owned()],
+                        ..Default::default()
+                    }]),
+                    aggregation_rule: None,
+                }),
+            )
+            .await?;
+
+        let crb_name = format!("{OUTPUT_COLLECTOR}-{ns}");
+        let crb_api: Api<ClusterRoleBinding> = Api::all(self.workload.clone());
+        crb_api
+            .patch(
+                &crb_name,
+                &pp,
+                &Patch::Apply(&ClusterRoleBinding {
+                    metadata: ObjectMeta {
+                        name: Some(crb_name.clone()),
+                        ..Default::default()
+                    },
+                    role_ref: RoleRef {
+                        api_group: "rbac.authorization.k8s.io".to_owned(),
+                        kind: "ClusterRole".to_owned(),
+                        name: OUTPUT_COLLECTOR.to_owned(),
+                    },
+                    subjects: Some(vec![Subject {
+                        kind: "ServiceAccount".to_owned(),
+                        name: OUTPUT_COLLECTOR.to_owned(),
+                        namespace: Some(ns.to_owned()),
+                        ..Default::default()
+                    }]),
+                }),
+            )
+            .await?;
+
+        Ok(())
+    }
 }
 
 async fn client_for_context(kfg: Kubeconfig, context: &str) -> Result<Client> {
@@ -133,6 +264,8 @@ impl k8s::Client for ClusterClients {
         execution_id: &Uuid,
         spec: JobSpec,
     ) -> Result<Job> {
+        self.create_output_collector_rbac(ns).await?;
+
         let job = self
             .namespaced_api(Cluster::Workload, ns)
             .create(
@@ -224,6 +357,14 @@ impl k8s::Client for ClusterClients {
     }
 
     async fn delete_workload_namespace(&self, ns: &str) -> Result<()> {
+        let crb_api: Api<ClusterRoleBinding> = Api::all(self.workload.clone());
+        if let Err(e) = crb_api
+            .delete(&format!("{OUTPUT_COLLECTOR}-{ns}"), &Default::default())
+            .await
+        {
+            warn!("failed to delete ClusterRoleBinding {OUTPUT_COLLECTOR}-{ns}: {e}");
+        }
+
         let api: Api<Namespace> = Api::all(self.workload.clone());
         api.delete(ns, &Default::default()).await?;
 
