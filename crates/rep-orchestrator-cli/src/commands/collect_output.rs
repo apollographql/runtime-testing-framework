@@ -4,9 +4,8 @@ use crate::{
     kubernetes::Client as KubeClient,
     orchestrator::Client as _,
 };
-use rep_orchestrator_shared::{EXECUTION_ID_ENV_VAR, status::Status};
+use rep_orchestrator_shared::status::Status;
 use std::{
-    env,
     io::{self, Cursor, Write},
     os::unix::process::ExitStatusExt,
     path::{Path, PathBuf},
@@ -14,7 +13,7 @@ use std::{
     time::Duration,
 };
 use tokio::time::sleep;
-use tracing::{info, warn};
+use tracing::info;
 use zip::{ZipWriter, write::SimpleFileOptions};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
@@ -78,16 +77,17 @@ async fn collect_output_inner(paths: &SharedPaths, ctx: &impl CliContext) -> cra
         .await?;
 
     info!("collecting execution namespace artifacts");
-    match env::var(EXECUTION_ID_ENV_VAR) {
-        Ok(ns) => {
-            let kube = ctx.kube_client();
-            let output_dir = paths.base.join("output");
-            kube.collect_container_logs(&ns, &output_dir).await;
-            kube.collect_namespace_events(&ns, &output_dir).await;
-            kube.collect_resource_metrics(&ns, &output_dir).await;
-        }
-        Err(_) => warn!("execution ID env var not set, skipping artifact collection"),
-    }
+    let ns = ctx.execution_namespace();
+    let output_dir = paths.base.join("output");
+    ctx.kube_client()
+        .collect_container_logs(ns, &output_dir)
+        .await;
+    ctx.kube_client()
+        .collect_namespace_events(ns, &output_dir)
+        .await;
+    ctx.kube_client()
+        .collect_resource_metrics(ns, &output_dir)
+        .await;
 
     info!("building output zip");
     build_output_zip(ctx, &paths.base, &paths.output_zip)?;
