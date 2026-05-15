@@ -14,6 +14,7 @@ use rtf_config::{
     run::RunProviders,
     templating::{Template, TemplateContext},
 };
+use serde::Serialize;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     mem::take,
@@ -94,6 +95,7 @@ impl EventQueue {
 
         let eqs = EventQueueState {
             shared: eq.shared.clone(),
+            eq_inner: Arc::clone(&eq.inner),
             tx_resolve,
         };
 
@@ -457,15 +459,69 @@ pub struct Claim(usize);
 #[derive(Debug, Clone)]
 pub struct EventQueueState {
     shared: Arc<Mutex<Shared>>,
+    eq_inner: Arc<Mutex<EventQueueInner>>,
     tx_resolve: UnboundedSender<ResolverInput>,
 }
 
 impl EventQueueState {
     async fn with_shared<F, T>(&self, f: F) -> T
     where
-        F: AsyncFnOnce(&mut Shared) -> T,
+        F: FnOnce(&mut Shared) -> T,
     {
-        f(&mut *self.shared.lock().await).await
+        f(&mut *self.shared.lock().await)
+    }
+
+    pub async fn event_queue_snapshot(&self) -> Snapshot {
+        let (pending_non_provisions, pending_provisions, running_executions) = {
+            let inner = self.eq_inner.lock().await;
+            let pending_non_provisions: Vec<_> = inner
+                .pending_non_provisions
+                .iter()
+                .map(|evt| EventSummary {
+                    execution_id: evt.test_execution.uuid(),
+                    data: evt.data.clone(),
+                })
+                .collect();
+
+            let pending_provisions: Vec<_> = inner
+                .pending_provisions
+                .iter()
+                .map(|evt| EventSummary {
+                    execution_id: evt.test_execution.uuid(),
+                    data: evt.data.clone(),
+                })
+                .collect();
+
+            let running_executions: Vec<_> = inner.running_executions.iter().cloned().collect();
+
+            (
+                pending_non_provisions,
+                pending_provisions,
+                running_executions,
+            )
+        };
+
+        self.with_shared(|shared| {
+            let summary = SnapshotSummary {
+                running: running_executions.len(),
+                queued: shared.n_queued,
+                pending_provisions: pending_provisions.len(),
+                pending_non_provisions: pending_non_provisions.len(),
+            };
+
+            Snapshot {
+                summary,
+                pending_non_provisions,
+                pending_provisions,
+                running_executions,
+                cached_run_payloads: shared.payload_cache.keys().cloned().collect(),
+                active_run_executions: shared.active_run_executions.clone(),
+                resolved_env_cache: shared.resolved_env_cache.keys().cloned().collect(),
+                resolved_scenario_cache: shared.resolved_env_cache.keys().cloned().collect(),
+                resolved_docker_cache: shared.resolved_env_cache.keys().cloned().collect(),
+            }
+        })
+        .await
     }
 
     /// Attempt to submit a [TestRunWithPayload] through to the resolver task if we are able to
@@ -492,7 +548,7 @@ impl EventQueueState {
                 // If we hit this branch then the channel is closed and we are likely shutting
                 // down. But, we still attempt to be good citizens and release our claim on the
                 // resolver queue to ensure that the shared state is correct.
-                self.with_shared(async |shared| shared.n_queued -= n).await;
+                self.with_shared(|shared| shared.n_queued -= n).await;
 
                 Err(SubmitError::ResolveChannelClosed)
             }
@@ -505,7 +561,7 @@ impl EventQueueState {
     pub async fn try_reserve_pending_executions(&self, tp: &RepTestPlan) -> Option<Claim> {
         let n = tp.matrix.n_variants();
 
-        self.with_shared(async |shared| {
+        self.with_shared(|shared| {
             if shared.n_queued.saturating_add(n) <= shared.max_queued_executions {
                 shared.n_queued += n;
                 Some(Claim(n))
@@ -518,15 +574,14 @@ impl EventQueueState {
 
     /// Return `n` queued execution claims back to the shared state.
     pub async fn release_pending_execution_claim(&self, claim: Claim) {
-        self.with_shared(async |shared| shared.n_queued -= claim.0)
-            .await;
+        self.with_shared(|shared| shared.n_queued -= claim.0).await;
     }
 
     pub(crate) async fn resolve_environment_for_execution(
         &self,
         ex: &TestExecution,
     ) -> resolver::Result<String> {
-        self.with_shared(async |shared| {
+        self.with_shared(|shared| {
             shared
                 .resolved_env_cache
                 .get(&ex.uuid())
@@ -540,7 +595,7 @@ impl EventQueueState {
         &self,
         ex: &TestExecution,
     ) -> resolver::Result<String> {
-        self.with_shared(async |shared| {
+        self.with_shared(|shared| {
             shared
                 .resolved_scenario_cache
                 .get(&ex.uuid())
@@ -598,6 +653,33 @@ impl Shared {
             None => Err(ResolverError::UnknownRun(*run_uuid)),
         }
     }
+}
+
+#[derive(Debug, Serialize)]
+pub struct Snapshot {
+    summary: SnapshotSummary,
+    pending_non_provisions: Vec<EventSummary>,
+    pending_provisions: Vec<EventSummary>,
+    running_executions: Vec<Uuid>,
+    cached_run_payloads: Vec<Uuid>,
+    active_run_executions: HashMap<Uuid, HashSet<Uuid>>,
+    resolved_env_cache: Vec<Uuid>,
+    resolved_scenario_cache: Vec<Uuid>,
+    resolved_docker_cache: Vec<Uuid>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EventSummary {
+    execution_id: Uuid,
+    data: EventData,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SnapshotSummary {
+    running: usize,
+    queued: usize,
+    pending_provisions: usize,
+    pending_non_provisions: usize,
 }
 
 #[cfg(test)]
