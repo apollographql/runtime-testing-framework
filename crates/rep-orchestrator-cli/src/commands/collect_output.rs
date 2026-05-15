@@ -3,16 +3,19 @@ use crate::{
     info_status,
     orchestrator::Client as _,
 };
-use rep_orchestrator_shared::status::Status;
+use k8s_openapi::api::core::v1::Pod;
+use kube::{Api, api::LogParams};
+use rep_orchestrator_shared::{EXECUTION_ID_ENV_VAR, status::Status};
 use std::{
+    env,
     io::{self, Cursor, Write},
     os::unix::process::ExitStatusExt,
     path::{Path, PathBuf},
     process::ExitStatus,
     time::Duration,
 };
-use tokio::time::sleep;
-use tracing::info;
+use tokio::{fs, time::sleep};
+use tracing::{info, warn};
 use zip::{ZipWriter, write::SimpleFileOptions};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
@@ -74,6 +77,18 @@ async fn collect_output_inner(paths: &SharedPaths, ctx: &impl CliContext) -> cra
     ctx.orchestrator_client()
         .upload_to_signed_url(&urls.log_file_url, log_bytes)
         .await?;
+
+    info!("collecting execution namespace logs");
+    match (
+        env::var(EXECUTION_ID_ENV_VAR).ok(),
+        kube::Client::try_default().await,
+    ) {
+        (Some(ns), Ok(client)) => {
+            collect_container_logs(client, &ns, &paths.base.join("output")).await;
+        }
+        (None, _) => warn!("execution ID env var not set, skipping log collection"),
+        (_, Err(e)) => warn!("failed to build kube client, skipping log collection: {e}"),
+    }
 
     info!("building output zip");
     build_output_zip(ctx, &paths.base, &paths.output_zip)?;
@@ -188,6 +203,64 @@ fn build_output_zip(
     ctx.write_file(zip_path, &buf)?;
 
     Ok(())
+}
+
+async fn collect_container_logs(client: kube::Client, namespace: &str, output_dir: &Path) {
+    let pod_api: Api<Pod> = Api::namespaced(client, namespace);
+
+    let pods = match pod_api.list(&Default::default()).await {
+        Ok(p) => p,
+        Err(e) => {
+            warn!("failed to list pods for log collection: {e}");
+            return;
+        }
+    };
+
+    for pod in pods.items {
+        let Some(pod_name) = pod.metadata.name.as_deref() else {
+            continue;
+        };
+
+        let containers = pod
+            .spec
+            .iter()
+            .flat_map(|s| {
+                s.containers
+                    .iter()
+                    .chain(s.init_containers.iter().flatten())
+            })
+            .map(|c| c.name.clone())
+            .collect::<Vec<_>>();
+
+        for container_name in containers {
+            let params = LogParams {
+                container: Some(container_name.clone()),
+                tail_lines: Some(10_000),
+                ..Default::default()
+            };
+
+            match pod_api.logs(pod_name, &params).await {
+                Ok(logs) => {
+                    let log_path = output_dir
+                        .join("logs")
+                        .join(pod_name)
+                        .join(format!("{container_name}.txt"));
+
+                    if let Some(parent) = log_path.parent()
+                        && let Err(e) = fs::create_dir_all(parent).await
+                    {
+                        warn!("failed to create log dir {}: {e}", parent.display());
+                        continue;
+                    }
+
+                    if let Err(e) = fs::write(&log_path, logs.as_bytes()).await {
+                        warn!("failed to write logs for {pod_name}/{container_name}: {e}");
+                    }
+                }
+                Err(e) => warn!("failed to fetch logs for {pod_name}/{container_name}: {e}"),
+            }
+        }
+    }
 }
 
 #[cfg(test)]

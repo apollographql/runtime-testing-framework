@@ -4,11 +4,12 @@ use crate::k8s::{
 };
 use k8s_openapi::api::{
     batch::v1::{Job, JobSpec},
-    core::v1::{Namespace, Pod},
+    core::v1::{Namespace, Pod, ServiceAccount},
+    rbac::v1::{PolicyRule, Role, RoleBinding, RoleRef, Subject},
 };
 use kube::{
     Client, Config, Resource,
-    api::{Api, ObjectMeta},
+    api::{Api, ObjectMeta, Patch, PatchParams},
     config::{KubeConfigOptions, Kubeconfig},
     core::NamespaceResourceScope,
 };
@@ -80,6 +81,83 @@ impl ClusterClients {
 
         Api::namespaced(client, ns)
     }
+
+    async fn create_output_collector_rbac(&self, ns: &str) -> Result<()> {
+        let pp = PatchParams::apply("rep-orchestrator");
+
+        let sa_api: Api<ServiceAccount> = self.namespaced_api(Cluster::Workload, ns);
+        sa_api
+            .patch(
+                "output-collector",
+                &pp,
+                &Patch::Apply(&ServiceAccount {
+                    metadata: ObjectMeta {
+                        name: Some("output-collector".to_owned()),
+                        namespace: Some(ns.to_owned()),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }),
+            )
+            .await?;
+
+        let role_api: Api<Role> = self.namespaced_api(Cluster::Workload, ns);
+        role_api
+            .patch(
+                "output-collector",
+                &pp,
+                &Patch::Apply(&Role {
+                    metadata: ObjectMeta {
+                        name: Some("output-collector".to_owned()),
+                        namespace: Some(ns.to_owned()),
+                        ..Default::default()
+                    },
+                    rules: Some(vec![
+                        PolicyRule {
+                            api_groups: Some(vec!["".to_owned()]),
+                            resources: Some(vec!["pods".to_owned()]),
+                            verbs: vec!["list".to_owned()],
+                            ..Default::default()
+                        },
+                        PolicyRule {
+                            api_groups: Some(vec!["".to_owned()]),
+                            resources: Some(vec!["pods/log".to_owned()]),
+                            verbs: vec!["get".to_owned()],
+                            ..Default::default()
+                        },
+                    ]),
+                }),
+            )
+            .await?;
+
+        let rb_api: Api<RoleBinding> = self.namespaced_api(Cluster::Workload, ns);
+        rb_api
+            .patch(
+                "output-collector",
+                &pp,
+                &Patch::Apply(&RoleBinding {
+                    metadata: ObjectMeta {
+                        name: Some("output-collector".to_owned()),
+                        namespace: Some(ns.to_owned()),
+                        ..Default::default()
+                    },
+                    role_ref: RoleRef {
+                        api_group: "rbac.authorization.k8s.io".to_owned(),
+                        kind: "Role".to_owned(),
+                        name: "output-collector".to_owned(),
+                    },
+                    subjects: Some(vec![Subject {
+                        kind: "ServiceAccount".to_owned(),
+                        name: "output-collector".to_owned(),
+                        namespace: Some(ns.to_owned()),
+                        ..Default::default()
+                    }]),
+                }),
+            )
+            .await?;
+
+        Ok(())
+    }
 }
 
 async fn client_for_context(kfg: Kubeconfig, context: &str) -> Result<Client> {
@@ -133,6 +211,8 @@ impl k8s::Client for ClusterClients {
         execution_id: &Uuid,
         spec: JobSpec,
     ) -> Result<Job> {
+        self.create_output_collector_rbac(ns).await?;
+
         let job = self
             .namespaced_api(Cluster::Workload, ns)
             .create(

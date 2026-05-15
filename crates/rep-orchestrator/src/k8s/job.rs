@@ -58,6 +58,7 @@ pub fn scenario_job(
                     output_collector_container_spec(toolbox_pull_policy, &env),
                 ],
                 volumes: Some(scenario_volumes()),
+                service_account_name: Some("output-collector".to_owned()),
                 ..Default::default()
             }),
         },
