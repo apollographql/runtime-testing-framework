@@ -1,13 +1,10 @@
 use crate::{
     context::{CliContext, FsError, FsErrorKind},
     info_status,
+    kubernetes::Client as KubeClient,
     orchestrator::Client as _,
 };
-use http::Request;
-use k8s_openapi::api::core::v1::Pod;
-use kube::{Api, api::LogParams};
 use rep_orchestrator_shared::{EXECUTION_ID_ENV_VAR, status::Status};
-use serde::{Deserialize, Serialize};
 use std::{
     env,
     io::{self, Cursor, Write},
@@ -16,7 +13,7 @@ use std::{
     process::ExitStatus,
     time::Duration,
 };
-use tokio::{fs, time::sleep};
+use tokio::time::sleep;
 use tracing::{info, warn};
 use zip::{ZipWriter, write::SimpleFileOptions};
 
@@ -81,18 +78,15 @@ async fn collect_output_inner(paths: &SharedPaths, ctx: &impl CliContext) -> cra
         .await?;
 
     info!("collecting execution namespace artifacts");
-    match (
-        env::var(EXECUTION_ID_ENV_VAR).ok(),
-        kube::Client::try_default().await,
-    ) {
-        (Some(ns), Ok(client)) => {
+    match env::var(EXECUTION_ID_ENV_VAR) {
+        Ok(ns) => {
+            let kube = ctx.kube_client();
             let output_dir = paths.base.join("output");
-            collect_container_logs(client.clone(), &ns, &output_dir).await;
-            collect_namespace_events(client.clone(), &ns, &output_dir).await;
-            collect_resource_metrics(client, &ns, &output_dir).await;
+            kube.collect_container_logs(&ns, &output_dir).await;
+            kube.collect_namespace_events(&ns, &output_dir).await;
+            kube.collect_resource_metrics(&ns, &output_dir).await;
         }
-        (None, _) => warn!("execution ID env var not set, skipping artifact collection"),
-        (_, Err(e)) => warn!("failed to build kube client, skipping artifact collection: {e}"),
+        Err(_) => warn!("execution ID env var not set, skipping artifact collection"),
     }
 
     info!("building output zip");
@@ -208,196 +202,6 @@ fn build_output_zip(
     ctx.write_file(zip_path, &buf)?;
 
     Ok(())
-}
-
-async fn collect_container_logs(client: kube::Client, namespace: &str, output_dir: &Path) {
-    let pod_api: Api<Pod> = Api::namespaced(client, namespace);
-
-    let pods = match pod_api.list(&Default::default()).await {
-        Ok(p) => p,
-        Err(e) => {
-            warn!("failed to list pods for log collection: {e}");
-            return;
-        }
-    };
-
-    for pod in pods.items {
-        let Some(pod_name) = pod.metadata.name.as_deref() else {
-            continue;
-        };
-
-        let containers = pod
-            .spec
-            .iter()
-            .flat_map(|s| {
-                s.containers
-                    .iter()
-                    .chain(s.init_containers.iter().flatten())
-            })
-            .map(|c| c.name.clone())
-            .collect::<Vec<_>>();
-
-        for container_name in containers {
-            let params = LogParams {
-                container: Some(container_name.clone()),
-                tail_lines: Some(10_000),
-                ..Default::default()
-            };
-
-            match pod_api.logs(pod_name, &params).await {
-                Ok(logs) => {
-                    let log_path = output_dir
-                        .join("logs")
-                        .join(pod_name)
-                        .join(format!("{container_name}.txt"));
-
-                    if let Some(parent) = log_path.parent()
-                        && let Err(e) = fs::create_dir_all(parent).await
-                    {
-                        warn!("failed to create log dir {}: {e}", parent.display());
-                        continue;
-                    }
-
-                    if let Err(e) = fs::write(&log_path, logs.as_bytes()).await {
-                        warn!("failed to write logs for {pod_name}/{container_name}: {e}");
-                    }
-                }
-                Err(e) => warn!("failed to fetch logs for {pod_name}/{container_name}: {e}"),
-            }
-        }
-    }
-}
-
-async fn collect_namespace_events(client: kube::Client, namespace: &str, output_dir: &Path) {
-    let req = Request::builder()
-        .method("GET")
-        .uri(format!("/api/v1/namespaces/{namespace}/events"))
-        .body(vec![])
-        .expect("events request URI is always valid");
-
-    let body = match client.request_text(req).await {
-        Ok(b) => b,
-        Err(e) => {
-            warn!("failed to fetch namespace events: {e}");
-            return;
-        }
-    };
-
-    let path = output_dir.join("events.json");
-    if let Err(e) = fs::write(&path, body.as_bytes()).await {
-        warn!("failed to write events.json: {e}");
-    }
-}
-
-async fn collect_resource_metrics(client: kube::Client, namespace: &str, output_dir: &Path) {
-    let pod_api: Api<Pod> = Api::namespaced(client.clone(), namespace);
-
-    let pods = match pod_api.list(&Default::default()).await {
-        Ok(p) => p,
-        Err(e) => {
-            warn!("failed to list pods for metric collection: {e}");
-            return;
-        }
-    };
-
-    let nodes: std::collections::BTreeSet<String> = pods
-        .items
-        .iter()
-        .filter_map(|p| p.spec.as_ref()?.node_name.clone())
-        .collect();
-
-    let mut all_pods: Vec<PodStats> = Vec::new();
-
-    for node in &nodes {
-        let req = Request::builder()
-            .method("GET")
-            .uri(format!("/api/v1/nodes/{node}/proxy/stats/summary"))
-            .body(vec![])
-            .expect("stats/summary request URI is always valid");
-
-        let text = match client.request_text(req).await {
-            Ok(t) => t,
-            Err(e) => {
-                warn!("kubelet proxy unavailable for node {node}: {e}");
-                continue;
-            }
-        };
-
-        let summary: NodeSummary = match serde_json::from_str(&text) {
-            Ok(s) => s,
-            Err(e) => {
-                warn!("failed to deserialize stats/summary for node {node}: {e}");
-                continue;
-            }
-        };
-
-        all_pods.extend(
-            summary
-                .pods
-                .into_iter()
-                .filter(|p| p.pod_ref.namespace == namespace),
-        );
-    }
-
-    let json = match serde_json::to_string_pretty(&PodResourceReport { pods: all_pods }) {
-        Ok(j) => j,
-        Err(e) => {
-            warn!("failed to serialize resource metrics: {e}");
-            return;
-        }
-    };
-
-    let path = output_dir.join("resource-metrics.json");
-    if let Err(e) = fs::write(&path, json.as_bytes()).await {
-        warn!("failed to write resource-metrics.json: {e}");
-    }
-}
-
-#[derive(Debug, Deserialize)]
-struct NodeSummary {
-    pods: Vec<PodStats>,
-}
-
-#[derive(Debug, Serialize)]
-struct PodResourceReport {
-    pods: Vec<PodStats>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PodStats {
-    pod_ref: PodRef,
-    containers: Vec<ContainerStats>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct PodRef {
-    name: String,
-    namespace: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ContainerStats {
-    name: String,
-    start_time: Option<String>,
-    cpu: Option<CpuStats>,
-    memory: Option<MemoryStats>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CpuStats {
-    usage_nano_cores: Option<u64>,
-    usage_core_nano_seconds: Option<u64>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct MemoryStats {
-    usage_bytes: Option<u64>,
-    working_set_bytes: Option<u64>,
-    rss_bytes: Option<u64>,
 }
 
 #[cfg(test)]
