@@ -3650,6 +3650,7 @@ dependencies = [
  "chrono",
  "rep-orchestrator-shared",
  "reqwest 0.13.3",
+ "rtf-integrations",
  "serde_json",
  "tabled",
  "tokio",

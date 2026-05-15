@@ -1,16 +1,28 @@
+use std::str::FromStr;
+
 use ad_client::{
     EventData, EventOutcome,
     tokio::{AsyncEventFilter, Client as AdClient},
 };
-use reqwest::Client;
+use reqwest::{Method, Request, Url};
+use rtf_integrations::orchestrator::{DEFAULT_ORCHESTRATOR_URL, OrchestratorClient};
 use uuid::Uuid;
 
-#[derive(Default)]
 pub struct Filter {
-    http_client: Client,
+    orchestrator_client: OrchestratorClient,
+    base: Url,
 }
 
 impl Filter {
+    pub async fn try_new() -> anyhow::Result<Self> {
+        let orchestrator_client = OrchestratorClient::new().await?;
+
+        Ok(Self {
+            orchestrator_client,
+            base: Url::from_str(DEFAULT_ORCHESTRATOR_URL).unwrap(),
+        })
+    }
+
     async fn try_show_summary(
         &self,
         kind: &str,
@@ -23,9 +35,11 @@ impl Filter {
         };
 
         let data: serde_json::Value = self
-            .http_client
-            .get(format!("http://localhost:8035/{kind}/{id}/status"))
-            .send()
+            .orchestrator_client
+            .send(Request::new(
+                Method::GET,
+                self.base.join(&format!("{kind}/{id}/status"))?,
+            ))
             .await?
             .json()
             .await?;
@@ -45,9 +59,11 @@ impl Filter {
         };
 
         let txt = self
-            .http_client
-            .get(format!("http://localhost:8035/test-execution/{id}/log.txt"))
-            .send()
+            .orchestrator_client
+            .send(Request::new(
+                Method::GET,
+                self.base.join(&format!("test-execution/{id}/log.txt"))?,
+            ))
             .await?
             .text()
             .await?;

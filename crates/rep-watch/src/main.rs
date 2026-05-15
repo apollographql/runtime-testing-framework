@@ -7,7 +7,7 @@ const POLL_SECONDS: u64 = 5;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let mut runner = Runner::new().await?;
+    let mut runner = Runner::try_new().await?;
     let mut footer = String::new();
 
     let (tp_path, mut trs) = runner.get_initial_summary().await?;

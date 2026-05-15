@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 ad_client = { git = "https://github.com/sminez/ad.git", branch = "develop" }
 rep-orchestrator-shared = { path = "../rep-orchestrator-shared" }
+rtf-integrations = { path = "../rtf-integrations" }
 
 anyhow.workspace = true
 chrono.workspace = true

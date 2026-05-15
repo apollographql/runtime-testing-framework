@@ -7,11 +7,16 @@ use rep_orchestrator_shared::{
     status::Status,
     summary::{TestExecutionSummary, TestRunSummary},
 };
-use reqwest::Client;
+use reqwest::{
+    Method, Request, Url,
+    header::{CONTENT_TYPE, HeaderValue},
+};
+use rtf_integrations::orchestrator::{DEFAULT_ORCHESTRATOR_URL, OrchestratorClient};
 use std::{
     collections::HashMap,
     path::PathBuf,
     process::{Command, exit},
+    str::FromStr,
     time::Instant,
 };
 use tabled::{Table, Tabled, settings::Style};
@@ -24,13 +29,14 @@ const MAX_MESSAGE_CHARS: usize = 60;
 
 pub struct Runner {
     pub start: Instant,
-    http_client: Client,
-    client: BufferClient,
+    orchestrator_client: OrchestratorClient,
+    buffer_client: BufferClient,
+    base: Url,
 }
 
 impl Runner {
-    pub async fn new() -> anyhow::Result<Self> {
-        let http_client = Client::new();
+    pub async fn try_new() -> anyhow::Result<Self> {
+        let orchestrator_client = OrchestratorClient::new().await?;
         let client = match ad_client::tokio::Client::new().await {
             Ok(client) => client
                 .open_virtual("+rtf", "")
@@ -44,19 +50,24 @@ impl Runner {
 
         Ok(Self {
             start: Instant::now(),
-            http_client,
-            client,
+            orchestrator_client,
+            buffer_client: client,
+            base: Url::from_str(DEFAULT_ORCHESTRATOR_URL).unwrap(),
         })
     }
 
     pub async fn get_initial_summary(&mut self) -> anyhow::Result<(String, TestRunSummary)> {
         match self
-            .client
+            .buffer_client
             .minibuffer_select("Select mode >", &["Test Run ID", "Test Plan Path"])
             .await?
         {
             MiniBufferSelection::Line { index: 0, .. } => {
-                let s = match self.client.minibuffer_prompt("Test Run ID: ").await? {
+                let s = match self
+                    .buffer_client
+                    .minibuffer_prompt("Test Run ID: ")
+                    .await?
+                {
                     Some(s) => s,
                     None => bail!("no ID provided, exiting"),
                 };
@@ -67,7 +78,11 @@ impl Runner {
             }
 
             MiniBufferSelection::Line { index: 1, .. } => {
-                let tp_path = match self.client.minibuffer_prompt("Test plan path: ").await? {
+                let tp_path = match self
+                    .buffer_client
+                    .minibuffer_prompt("Test plan path: ")
+                    .await?
+                {
                     Some(path) => path,
                     None => bail!("no path provided, exiting"),
                 };
@@ -94,10 +109,11 @@ impl Runner {
     }
 
     pub async fn spawn_event_filter(&self) -> anyhow::Result<JoinHandle<()>> {
-        let client = self.client.clone();
+        let client = self.buffer_client.clone();
+        let filter = Filter::try_new().await?;
 
         Ok(task::spawn(async move {
-            let res = client.run_event_filter(Filter::default()).await;
+            let res = client.run_event_filter(filter).await;
 
             if let Err(e) = res {
                 println!("event filter failed: {e}");
@@ -108,18 +124,18 @@ impl Runner {
     }
 
     pub async fn set_buffer_content(&mut self, content: impl AsRef<str>) {
-        let addr = self.client.read_addr().await.unwrap_or("1:1".into());
-        _ = self.client.write_xaddr(",").await;
+        let addr = self.buffer_client.read_addr().await.unwrap_or("1:1".into());
+        _ = self.buffer_client.write_xaddr(",").await;
         _ = self
-            .client
+            .buffer_client
             .write_xdot(&format!("{HEADER}{}", content.as_ref()))
             .await;
-        _ = self.client.write_addr(&addr).await;
-        _ = self.client.ctl("viewport-center", "").await;
+        _ = self.buffer_client.write_addr(&addr).await;
+        _ = self.buffer_client.ctl("viewport-center", "").await;
     }
 
     pub async fn append_buffer_content(&mut self, content: impl AsRef<str>) {
-        _ = self.client.append_to_body(content.as_ref()).await;
+        _ = self.buffer_client.append_to_body(content.as_ref()).await;
     }
 
     pub async fn trigger_run(&mut self, tp_path: &str) -> anyhow::Result<TestRunSummary> {
@@ -134,13 +150,12 @@ impl Runner {
         let _payload: TriggerPayload =
             serde_json::from_slice(&payload_bytes).context("failed to parse RTF output")?;
 
-        let resp = self
-            .http_client
-            .post("http://localhost:8035/test-run/trigger")
-            .body(payload_bytes)
-            .header("Content-Type", "application/json")
-            .send()
-            .await?;
+        let mut req = Request::new(Method::POST, self.base.join("test-run/trigger")?);
+        *req.body_mut() = Some(payload_bytes.into());
+        req.headers_mut()
+            .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+
+        let resp = self.orchestrator_client.send(req).await?;
 
         if resp.status().is_success() {
             Ok(resp.json().await?)
@@ -154,9 +169,11 @@ impl Runner {
 
     pub async fn get_run_status(&self, id: Uuid) -> anyhow::Result<TestRunSummary> {
         let resp = self
-            .http_client
-            .get(format!("http://localhost:8035/test-run/{id}/status"))
-            .send()
+            .orchestrator_client
+            .send(Request::new(
+                Method::GET,
+                self.base.join(&format!("test-run/{id}/status"))?,
+            ))
             .await?;
 
         Ok(resp.json().await?)
