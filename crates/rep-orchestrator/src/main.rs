@@ -1,5 +1,6 @@
 use git_version::git_version;
 use rep_orchestrator::run_server;
+use rustls::crypto::aws_lc_rs;
 use std::{io::stdout, process};
 use tracing::{error, info, subscriber::set_global_default};
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, registry, reload};
@@ -17,6 +18,10 @@ async fn main() {
     let subscriber = registry().with(reload_layer).with(fmt_layer);
 
     set_global_default(subscriber).expect("unable to set a global tracing subscriber");
+
+    if aws_lc_rs::default_provider().install_default().is_err() {
+        panic!("unable to install default crypto provider");
+    }
 
     info!(
         "starting server version={}-{}",

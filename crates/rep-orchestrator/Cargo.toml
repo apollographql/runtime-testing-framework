@@ -41,6 +41,7 @@ k8s-openapi.workspace = true
 kube-runtime = "3.1.0"
 kube.workspace = true
 reqwest.workspace = true
+rustls.workspace = true
 schemars.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
