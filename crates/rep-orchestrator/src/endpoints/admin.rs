@@ -2,7 +2,8 @@
 //! REP clusters themselves.
 //!
 //!   See: <https://github.com/mdg-private/runtime-readiness-terraform/blob/main/projects/runtime-env-provisioner/external_lb.tf#L56-L65>
-use axum::{Extension, http::StatusCode};
+use crate::{Result, event_loop::Snapshot, state::ServerState};
+use axum::{Extension, Json, extract::State, http::StatusCode};
 use std::str::FromStr;
 use tracing_subscriber::{EnvFilter, Registry, reload::Handle};
 
@@ -50,4 +51,12 @@ pub async fn set_logging_filter_handler(
             format!("unable to set logging filter: {e}\n\n{ENV_FILTER_DOCS}\n\n"),
         ),
     }
+}
+
+pub async fn event_queue_snapshot_handler(
+    State(ServerState { eq_state, .. }): State<ServerState>,
+) -> Result<Json<Snapshot>> {
+    let snapshot = eq_state.event_queue_snapshot().await;
+
+    Ok(Json(snapshot))
 }

@@ -58,6 +58,10 @@ fn build_routes(state: ServerState, reload_handle: Option<Handle<EnvFilter, Regi
     };
 
     let mut router = Router::new()
+        .route(
+            "/admin/event-queue-snapshot",
+            get(admin::event_queue_snapshot_handler),
+        )
         .route("/health", get(health::handler))
         .route(
             "/test-execution/{id}/generate-upload-urls",
