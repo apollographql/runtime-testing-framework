@@ -16,6 +16,7 @@ use rtf_cli::{
     },
 };
 use rtf_config::inlining::InlineMode;
+use rustls::crypto::aws_lc_rs;
 use std::process::exit;
 use tracing::error;
 
@@ -31,6 +32,10 @@ async fn main() {
         error!("unable to initialise logging: {e}");
         exit(1);
     };
+
+    if aws_lc_rs::default_provider().install_default().is_err() {
+        panic!("unable to install default crypto provider");
+    }
 
     let res = match command {
         // porcelain commands
