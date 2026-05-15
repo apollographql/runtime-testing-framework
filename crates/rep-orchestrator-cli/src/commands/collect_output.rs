@@ -3,9 +3,11 @@ use crate::{
     info_status,
     orchestrator::Client as _,
 };
+use http::Request;
 use k8s_openapi::api::core::v1::Pod;
 use kube::{Api, api::LogParams};
 use rep_orchestrator_shared::{EXECUTION_ID_ENV_VAR, status::Status};
+use serde::{Deserialize, Serialize};
 use std::{
     env,
     io::{self, Cursor, Write},
@@ -78,16 +80,19 @@ async fn collect_output_inner(paths: &SharedPaths, ctx: &impl CliContext) -> cra
         .upload_to_signed_url(&urls.log_file_url, log_bytes)
         .await?;
 
-    info!("collecting execution namespace logs");
+    info!("collecting execution namespace artifacts");
     match (
         env::var(EXECUTION_ID_ENV_VAR).ok(),
         kube::Client::try_default().await,
     ) {
         (Some(ns), Ok(client)) => {
-            collect_container_logs(client, &ns, &paths.base.join("output")).await;
+            let output_dir = paths.base.join("output");
+            collect_container_logs(client.clone(), &ns, &output_dir).await;
+            collect_namespace_events(client.clone(), &ns, &output_dir).await;
+            collect_resource_metrics(client, &ns, &output_dir).await;
         }
-        (None, _) => warn!("execution ID env var not set, skipping log collection"),
-        (_, Err(e)) => warn!("failed to build kube client, skipping log collection: {e}"),
+        (None, _) => warn!("execution ID env var not set, skipping artifact collection"),
+        (_, Err(e)) => warn!("failed to build kube client, skipping artifact collection: {e}"),
     }
 
     info!("building output zip");
@@ -261,6 +266,138 @@ async fn collect_container_logs(client: kube::Client, namespace: &str, output_di
             }
         }
     }
+}
+
+async fn collect_namespace_events(client: kube::Client, namespace: &str, output_dir: &Path) {
+    let req = Request::builder()
+        .method("GET")
+        .uri(format!("/api/v1/namespaces/{namespace}/events"))
+        .body(vec![])
+        .expect("events request URI is always valid");
+
+    let body = match client.request_text(req).await {
+        Ok(b) => b,
+        Err(e) => {
+            warn!("failed to fetch namespace events: {e}");
+            return;
+        }
+    };
+
+    let path = output_dir.join("events.json");
+    if let Err(e) = fs::write(&path, body.as_bytes()).await {
+        warn!("failed to write events.json: {e}");
+    }
+}
+
+async fn collect_resource_metrics(client: kube::Client, namespace: &str, output_dir: &Path) {
+    let pod_api: Api<Pod> = Api::namespaced(client.clone(), namespace);
+
+    let pods = match pod_api.list(&Default::default()).await {
+        Ok(p) => p,
+        Err(e) => {
+            warn!("failed to list pods for metric collection: {e}");
+            return;
+        }
+    };
+
+    let nodes: std::collections::BTreeSet<String> = pods
+        .items
+        .iter()
+        .filter_map(|p| p.spec.as_ref()?.node_name.clone())
+        .collect();
+
+    let mut all_pods: Vec<PodStats> = Vec::new();
+
+    for node in &nodes {
+        let req = Request::builder()
+            .method("GET")
+            .uri(format!("/api/v1/nodes/{node}/proxy/stats/summary"))
+            .body(vec![])
+            .expect("stats/summary request URI is always valid");
+
+        let text = match client.request_text(req).await {
+            Ok(t) => t,
+            Err(e) => {
+                warn!("kubelet proxy unavailable for node {node}: {e}");
+                continue;
+            }
+        };
+
+        let summary: NodeSummary = match serde_json::from_str(&text) {
+            Ok(s) => s,
+            Err(e) => {
+                warn!("failed to deserialize stats/summary for node {node}: {e}");
+                continue;
+            }
+        };
+
+        all_pods.extend(
+            summary
+                .pods
+                .into_iter()
+                .filter(|p| p.pod_ref.namespace == namespace),
+        );
+    }
+
+    let json = match serde_json::to_string_pretty(&PodResourceReport { pods: all_pods }) {
+        Ok(j) => j,
+        Err(e) => {
+            warn!("failed to serialize resource metrics: {e}");
+            return;
+        }
+    };
+
+    let path = output_dir.join("resource-metrics.json");
+    if let Err(e) = fs::write(&path, json.as_bytes()).await {
+        warn!("failed to write resource-metrics.json: {e}");
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct NodeSummary {
+    pods: Vec<PodStats>,
+}
+
+#[derive(Debug, Serialize)]
+struct PodResourceReport {
+    pods: Vec<PodStats>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PodStats {
+    pod_ref: PodRef,
+    containers: Vec<ContainerStats>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct PodRef {
+    name: String,
+    namespace: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ContainerStats {
+    name: String,
+    start_time: Option<String>,
+    cpu: Option<CpuStats>,
+    memory: Option<MemoryStats>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CpuStats {
+    usage_nano_cores: Option<u64>,
+    usage_core_nano_seconds: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MemoryStats {
+    usage_bytes: Option<u64>,
+    working_set_bytes: Option<u64>,
+    rss_bytes: Option<u64>,
 }
 
 #[cfg(test)]
