@@ -1,13 +1,13 @@
 //! IAP-authenticated HTTP client for the REP orchestrator.
 
 use crate::orchestrator::{
-    Error, GCP_PROJECT, IAP_OAUTH_CLIENT_ID_SECRET_NAME, IAP_OAUTH_CLIENT_SECRET_SECRET_NAME,
-    Result,
+    DEFAULT_ORCHESTRATOR_URL, Error, GCP_PROJECT, IAP_OAUTH_CLIENT_ID_SECRET_NAME,
+    IAP_OAUTH_CLIENT_SECRET_SECRET_NAME, Result,
     auth::{AdcCredentials, id_token},
 };
 use google_cloud_secretmanager_v1::client::SecretManagerService;
-use oauth2::http::HeaderValue;
-use reqwest::{Client, Request, Response, header::AUTHORIZATION};
+use reqwest::{Client, Method, RequestBuilder, Url};
+use std::str::FromStr;
 
 /// Authenticated HTTP client for the REP orchestrator, protected by Google Cloud IAP.
 #[derive(Debug)]
@@ -16,14 +16,26 @@ pub struct OrchestratorClient {
     client_id: String,
     client_secret: String,
     http_client: Client,
+    base_url: Url,
 }
 
 impl OrchestratorClient {
-    /// Build a new client.
+    /// Build a new client using the [default orchestrator URL][DEFAULT_ORCHESTRATOR_URL].
     ///
     /// Loads Application Default Credentials from disk and fetches the IAP
     /// OAuth client credentials from Secret Manager.
     pub async fn new() -> Result<Self> {
+        Self::new_with_base_url(
+            Url::from_str(DEFAULT_ORCHESTRATOR_URL).expect("default URL is valid"),
+        )
+        .await
+    }
+
+    /// Build a new client with a custom orchestrator URL.
+    ///
+    /// Loads Application Default Credentials from disk and fetches the IAP
+    /// OAuth client credentials from Secret Manager.
+    pub async fn new_with_base_url(base_url: Url) -> Result<Self> {
         let adc = AdcCredentials::load()?;
 
         let (client_id, client_secret) = fetch_secrets().await?;
@@ -33,22 +45,19 @@ impl OrchestratorClient {
             client_id,
             client_secret,
             http_client: Client::new(),
+            base_url,
         })
     }
 
-    /// Send an authenticated request to the orchestrator and return the full response.
-    pub async fn send(&self, mut request: Request) -> Result<Response> {
+    /// Prepare a new authenticated request for sending to the orchestrator.
+    pub async fn request(&self, method: Method, endpoint: &str) -> Result<RequestBuilder> {
         let id_token = id_token(&self.adc, &self.client_id, &self.client_secret).await?;
+        let url = self
+            .base_url
+            .join(endpoint)
+            .map_err(|e| Error::InvalidUrl(e.to_string()))?;
 
-        let mut auth_value = HeaderValue::from_str(&format!("Bearer {id_token}"))
-            .map_err(Error::InvalidBearerToken)?;
-        auth_value.set_sensitive(true);
-
-        request.headers_mut().insert(AUTHORIZATION, auth_value);
-
-        let response = self.http_client.execute(request).await?;
-
-        Ok(response)
+        Ok(self.http_client.request(method, url).bearer_auth(id_token))
     }
 }
 

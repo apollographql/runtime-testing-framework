@@ -1,49 +1,36 @@
-use reqwest::{
-    Body, Method, Request, Url,
-    header::{CONTENT_TYPE, HeaderValue},
-};
-use rtf_integrations::orchestrator::{DEFAULT_ORCHESTRATOR_URL, OrchestratorClient};
-use std::{
-    io::{Write, stdout},
-    str::FromStr,
-};
+use reqwest::{Method, Url};
+use rtf_integrations::orchestrator::OrchestratorClient;
+use std::io::{Write, stdout};
 
 pub async fn execute_rep_request(
     path: &str,
-    method: &Method,
+    method: Method,
     data: Option<&str>,
-    orchestrator_url: Option<&Url>,
+    orchestrator_url: Option<Url>,
 ) -> anyhow::Result<()> {
-    let endpoint = orchestrator_url
-        .unwrap_or(
-            &Url::from_str(DEFAULT_ORCHESTRATOR_URL)
-                .expect("default orchestrator url should be valid"),
-        )
-        .join(path)?;
+    let client = match orchestrator_url {
+        Some(url) => OrchestratorClient::new_with_base_url(url).await?,
+        None => OrchestratorClient::new().await?,
+    };
 
-    let mut request = Request::new(method.clone(), endpoint);
+    let mut req = client.request(method.clone(), path).await?;
 
-    if let Some(body) = data {
-        *request.body_mut() = Some(Body::from(body.to_string()));
+    match (data, method) {
+        (Some(body), Method::POST) => req = req.json(body),
+        (Some(body), _) => req = req.body(body.to_string()),
+        _ => (),
     }
 
-    if method == Method::POST {
-        request
-            .headers_mut()
-            .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-    }
+    let resp = req.send().await?;
 
-    let client = OrchestratorClient::new().await?;
-    let response = client.send(request).await?;
-
-    if response.status().is_success() {
-        let body = response.bytes().await?;
+    if resp.status().is_success() {
+        let body = resp.bytes().await?;
         stdout().write_all(&body)?;
 
         Ok(())
     } else {
-        let status = response.status();
-        let body = response.text().await?;
+        let status = resp.status();
+        let body = resp.text().await?;
 
         anyhow::bail!("orchestrator returned HTTP {status}: {body}")
     }

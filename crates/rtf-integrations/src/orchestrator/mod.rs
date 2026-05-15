@@ -37,6 +37,10 @@ pub enum Error {
     #[error("could not decode secret payload: {0}")]
     InvalidSecret(String),
 
+    /// The provided endpoint produced an invalid URL when combined with the client base URL.
+    #[error("invalid URL: {0}")]
+    InvalidUrl(String),
+
     /// The interactive user OAuth flow failed.
     #[error(transparent)]
     OauthFlow(#[from] OauthError),
@@ -48,10 +52,6 @@ pub enum Error {
     /// The on-disk token cache could not be read or written.
     #[error("token cache error: {0}")]
     TokenCache(#[from] std::io::Error),
-
-    /// The ID token could not be formatted as an HTTP Authorization header value.
-    #[error("invalid bearer token: {0}")]
-    InvalidBearerToken(#[source] reqwest::header::InvalidHeaderValue),
 
     /// An error from the Google Cloud client builder.
     #[error(transparent)]
