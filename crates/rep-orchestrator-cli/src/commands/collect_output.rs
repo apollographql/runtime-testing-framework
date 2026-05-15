@@ -5,6 +5,7 @@ use crate::{
     orchestrator::Client as _,
 };
 use rep_orchestrator_shared::status::Status;
+
 use std::{
     io::{self, Cursor, Write},
     os::unix::process::ExitStatusExt,
@@ -300,5 +301,16 @@ mod tests {
             .unwrap();
 
         assert_eq!(content, "hello");
+    }
+
+    #[tokio::test]
+    async fn collect_output_inner_succeeds_with_clean_kube_client() {
+        let ctx = MockContext::default();
+        ctx.write_file(Path::new(SENTINEL), b"").unwrap();
+        ctx.write_file(Path::new("/shared/output/output.log"), b"log contents")
+            .unwrap();
+
+        let paths = SharedPaths::new(Path::new(SHARED_DIR));
+        collect_output_inner(&paths, &ctx).await.unwrap();
     }
 }
