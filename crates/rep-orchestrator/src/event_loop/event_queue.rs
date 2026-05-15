@@ -40,12 +40,9 @@ pub struct EventQueue {
     rx: UnboundedReceiver<Event>,
     /// Shared state between the queue and paired structs
     shared: Arc<Mutex<Shared>>,
-    /// Pending events for in-progress executions
-    pending_non_provisions: VecDeque<Event>,
-    /// Pending provisioning events for new executions
-    pending_provisions: VecDeque<Event>,
-    /// Uuids for the set of executions whose namespaces are live in the cluster.
-    running_executions: HashSet<Uuid>,
+    /// The inner state of the event queue itself.
+    /// Shared so the admin endpoint can view the state
+    inner: Arc<Mutex<EventQueueInner>>,
     /// Maximum number of live namespaces running test executions
     max_concurrent_executions: usize,
     /// Sender for forwarding resolve events to the resolver_task
@@ -81,9 +78,11 @@ impl EventQueue {
             tx,
             rx,
             shared,
-            pending_provisions: VecDeque::new(),
-            pending_non_provisions: VecDeque::new(),
-            running_executions: HashSet::new(),
+            inner: Arc::new(Mutex::new(EventQueueInner {
+                pending_provisions: VecDeque::new(),
+                pending_non_provisions: VecDeque::new(),
+                running_executions: HashSet::new(),
+            })),
             max_concurrent_executions,
             tx_resolve: tx_resolve.clone(),
         };
@@ -105,30 +104,40 @@ impl EventQueue {
         self.tx.clone()
     }
 
-    pub fn is_empty(&self) -> bool {
+    async fn with_shared<F, T>(&self, f: F) -> T
+    where
+        F: FnOnce(&mut Shared) -> T,
+    {
+        f(&mut *self.shared.lock().await)
+    }
+
+    async fn with_inner<F, T>(&self, f: F) -> T
+    where
+        F: FnOnce(&mut EventQueueInner) -> T,
+    {
+        f(&mut *self.inner.lock().await)
+    }
+
+    pub async fn is_empty(&self) -> bool {
         self.rx.is_empty()
-            && self.pending_provisions.is_empty()
-            && self.pending_non_provisions.is_empty()
+            && self
+                .with_inner(|inner| {
+                    inner.pending_provisions.is_empty() && inner.pending_non_provisions.is_empty()
+                })
+                .await
     }
 
     #[inline(always)]
-    fn push_event(&mut self, evt: Event) {
-        match &evt.data {
-            EventData::ResolveConfig => self.pending_provisions.push_back(evt),
-            _ => self.pending_non_provisions.push_back(evt),
-        }
+    async fn push_event(&mut self, evt: Event) {
+        self.with_inner(|inner| match &evt.data {
+            EventData::ResolveConfig => inner.pending_provisions.push_back(evt),
+            _ => inner.pending_non_provisions.push_back(evt),
+        })
+        .await
     }
 
     fn still_have_external_senders(&self) -> bool {
         self.rx.sender_strong_count() > 1
-    }
-
-    fn runnable_provisioning_event(&mut self) -> Option<Event> {
-        if self.running_executions.len() < self.max_concurrent_executions {
-            self.pending_provisions.pop_front()
-        } else {
-            None
-        }
     }
 
     /// Returns the next [Event] to be processed, prioritising non-provision events over
@@ -145,34 +154,27 @@ impl EventQueue {
         loop {
             while self.still_have_external_senders() {
                 match self.rx.try_recv() {
-                    Ok(evt) => self.push_event(evt),
+                    Ok(evt) => self.push_event(evt).await,
                     Err(TryRecvError::Empty) => break,
                     Err(TryRecvError::Disconnected) => unreachable!("we hold a sender"),
                 }
             }
 
-            if let Some(evt) = self.pending_non_provisions.pop_front() {
-                return Some(evt);
-            } else if let Some(evt) = self.runnable_provisioning_event() {
-                self.running_executions.insert(evt.test_execution.uuid());
+            if let Some(evt) = self
+                .with_inner(|inner| inner.next_event(self.max_concurrent_executions))
+                .await
+            {
                 return Some(evt);
             }
 
             if self.still_have_external_senders() {
                 let evt = self.rx.recv().await?;
-                self.push_event(evt);
+                self.push_event(evt).await;
             } else {
                 // all external senders gone so event stream is now closed
                 return None;
             }
         }
-    }
-
-    async fn with_shared<F, T>(&self, f: F) -> T
-    where
-        F: AsyncFnOnce(&mut Shared) -> T,
-    {
-        f(&mut *self.shared.lock().await).await
     }
 
     /// Remove the given execution from the running set, freeing a namespace slot for the
@@ -182,11 +184,11 @@ impl EventQueue {
     /// Returns `Some(run_uuid)` if this was the final execution for its parent run, otherwise
     /// `None`.
     pub async fn mark_execution_complete(&mut self, ex_id: Uuid) -> Option<Uuid> {
-        if !self.running_executions.remove(&ex_id) {
+        if !self.inner.lock().await.running_executions.remove(&ex_id) {
             warn!(%ex_id, "mark_execution_complete called for unknown execution id");
         }
 
-        self.with_shared(async |shared| {
+        self.with_shared(|shared| {
             let run_uuid = shared.execution_map.remove(&ex_id)?;
             let active = shared.active_run_executions.get_mut(&run_uuid)?;
             active.remove(&ex_id);
@@ -208,7 +210,7 @@ impl EventQueue {
         &self,
         ex_id: Uuid,
     ) -> Option<(String, String)> {
-        self.with_shared(async |shared| shared.scenario_docker_cache.get(&ex_id).cloned())
+        self.with_shared(|shared| shared.scenario_docker_cache.get(&ex_id).cloned())
             .await
     }
 
@@ -221,8 +223,39 @@ impl EventQueue {
 
     /// Evict the resolved env config cache entry for the given execution.
     pub(crate) async fn evict_resolved_env_config(&self, ex_id: Uuid) {
-        self.with_shared(async |shared| shared.resolved_env_cache.remove(&ex_id))
+        self.with_shared(|shared| shared.resolved_env_cache.remove(&ex_id))
             .await;
+    }
+}
+
+#[derive(Debug)]
+struct EventQueueInner {
+    /// Pending events for in-progress executions
+    pending_non_provisions: VecDeque<Event>,
+    /// Pending provisioning events for new executions
+    pending_provisions: VecDeque<Event>,
+    /// Uuids for the set of executions whose namespaces are live in the cluster.
+    running_executions: HashSet<Uuid>,
+}
+
+impl EventQueueInner {
+    fn runnable_provisioning_event(&mut self, max_concurrent_executions: usize) -> Option<Event> {
+        if self.running_executions.len() < max_concurrent_executions {
+            self.pending_provisions.pop_front()
+        } else {
+            None
+        }
+    }
+
+    fn next_event(&mut self, max_concurrent_executions: usize) -> Option<Event> {
+        if let Some(evt) = self.pending_non_provisions.pop_front() {
+            return Some(evt);
+        } else if let Some(evt) = self.runnable_provisioning_event(max_concurrent_executions) {
+            self.running_executions.insert(evt.test_execution.uuid());
+            return Some(evt);
+        }
+
+        None
     }
 }
 
@@ -236,7 +269,7 @@ pub struct ProvisioningHandle {
 }
 
 impl ProvisioningHandle {
-    /// Run an async closure with access to the shared event queue state.
+    /// Run a closure with access to the shared event queue state.
     ///
     /// This method holds the mutex lock on the shared state for the duration of the closure. As
     /// such, you _must_ ensure that closures are quick to execute. If multiple long running
@@ -244,9 +277,9 @@ impl ProvisioningHandle {
     /// manipulating it after releasing the lock before re-acquiring.
     async fn with_shared<F, T>(&self, f: F) -> T
     where
-        F: AsyncFnOnce(&mut Shared) -> T,
+        F: FnOnce(&mut Shared) -> T,
     {
-        f(&mut *self.shared.lock().await).await
+        f(&mut *self.shared.lock().await)
     }
 
     pub(crate) async fn cache_for_test_run(
@@ -255,7 +288,7 @@ impl ProvisioningHandle {
         ctx: RepContext,
         test_plan: RepTestPlan,
     ) {
-        self.with_shared(async |shared| {
+        self.with_shared(|shared| {
             shared
                 .payload_cache
                 .insert(run_uuid, (Arc::new(ctx), test_plan))
@@ -268,7 +301,7 @@ impl ProvisioningHandle {
     /// `init_execution` for the run failed — there will be no `mark_execution_complete` for
     /// this run, so eviction has to happen here instead.
     pub(crate) async fn evict_payload_cache(&self, run_uuid: Uuid) {
-        self.with_shared(async |shared| {
+        self.with_shared(|shared| {
             shared.payload_cache.remove(&run_uuid);
         })
         .await;
@@ -283,7 +316,7 @@ impl ProvisioningHandle {
         ex: TestExecution,
         run_uuid: Uuid,
     ) -> resolver::Result<()> {
-        self.with_shared(async |shared| {
+        self.with_shared(|shared| {
             assert!(
                 shared.n_queued > 0,
                 "request_provisioning called with n_queued == 0"
@@ -310,7 +343,7 @@ impl ProvisioningHandle {
         ex: &TestExecution,
     ) -> resolver::Result<(RepTestPlan, Arc<RepContext>)> {
         let (mut test_plan, ctx) = self
-            .with_shared(async |shared| shared.variant_with_context(ex).await)
+            .with_shared(|shared| shared.variant_with_context(ex))
             .await?;
 
         let variables = take(&mut test_plan.variables);
@@ -368,7 +401,7 @@ impl ProvisioningHandle {
         let scenario_yaml = serde_yaml::to_string(&test_plan.scenario)
             .map_err(|e| ResolverError::Serialisation(e.to_string()))?;
 
-        self.with_shared(async |shared| {
+        self.with_shared(|shared| {
             shared.resolved_env_cache.insert(ex.uuid(), env_yaml);
             shared
                 .resolved_scenario_cache
@@ -547,7 +580,7 @@ impl Shared {
             .insert(ex_uuid);
     }
 
-    async fn variant_with_context(
+    fn variant_with_context(
         &self,
         ex: &TestExecution,
     ) -> resolver::Result<(RepTestPlan, Arc<RepContext>)> {
@@ -620,7 +653,7 @@ mod tests {
 
         let ctx = RepContext::new(&cfg, empty_source_map(), empty_source_map());
         ph.cache_for_test_run(run_uuid, ctx, stub_test_plan()).await;
-        ph.with_shared(async |shared| shared.register_execution(ex.uuid(), run_uuid))
+        ph.with_shared(|shared| shared.register_execution(ex.uuid(), run_uuid))
             .await;
 
         (ph, ex)
@@ -649,12 +682,12 @@ mod tests {
     async fn mark_execution_complete_updates_running_set() {
         let (mut eq, _, _, _) = EventQueue::new(1, 5);
         let id = Uuid::new_v4();
-        eq.running_executions.insert(id);
+        eq.inner.lock().await.running_executions.insert(id);
 
         let evicted = eq.mark_execution_complete(id).await;
 
         assert!(
-            !eq.running_executions.contains(&id),
+            !eq.inner.lock().await.running_executions.contains(&id),
             "execution was still present in running set"
         );
         assert_eq!(
@@ -670,18 +703,21 @@ mod tests {
         let ex1 = Uuid::new_v4();
         let ex2 = Uuid::new_v4();
 
-        h.with_shared(async |shared| {
+        h.with_shared(|shared| {
             shared.register_execution(ex1, run_uuid);
             shared.register_execution(ex2, run_uuid);
         })
         .await;
-        eq.running_executions.insert(ex1);
-        eq.running_executions.insert(ex2);
+        eq.with_inner(|inner| {
+            inner.running_executions.insert(ex1);
+            inner.running_executions.insert(ex2);
+        })
+        .await;
 
         // Completing the first execution leaves the run with 1 open execution: no eviction.
         let evicted = eq.mark_execution_complete(ex1).await;
         assert_eq!(evicted, None);
-        eq.with_shared(async |shared| {
+        eq.with_shared(|shared| {
             assert_eq!(
                 shared
                     .active_run_executions
@@ -698,7 +734,7 @@ mod tests {
         let evicted = eq.mark_execution_complete(ex2).await;
         assert_eq!(evicted, Some(run_uuid),);
 
-        eq.with_shared(async |shared| {
+        eq.with_shared(|shared| {
             assert!(
                 !shared.active_run_executions.contains_key(&run_uuid),
                 "open count entry should be cleared"
@@ -763,7 +799,7 @@ mod tests {
         // max concurrent of 1: any provision dispatch is blocked while a slot is in use.
         let (mut q, _h, _, _) = EventQueue::new(1, 5);
         let blocking_id = Uuid::new_v4();
-        q.running_executions.insert(blocking_id);
+        q.inner.lock().await.running_executions.insert(blocking_id);
 
         let ex = TestExecution::create_stub(1, 1, 0, "test");
         let ex_uuid = ex.uuid();
@@ -784,11 +820,15 @@ mod tests {
 
         assert_eq!(evt.test_execution.uuid(), ex_uuid);
         assert!(matches!(evt.data, EventData::ResolveConfig));
-        assert!(
-            q.running_executions.contains(&ex_uuid),
-            "running executions: {:?}",
-            q.running_executions
-        );
+
+        q.with_inner(|inner| {
+            assert!(
+                inner.running_executions.contains(&ex_uuid),
+                "running executions: {:?}",
+                inner.running_executions
+            )
+        })
+        .await;
     }
 
     fn provision_evt(ex_id: i32) -> Event {
@@ -815,11 +855,7 @@ mod tests {
         let (mut q, _h, _, _) = EventQueue::new(1, 5);
 
         for evt in events.into_iter() {
-            if matches!(evt.data, EventData::ResolveConfig) {
-                q.pending_provisions.push_back(evt);
-            } else {
-                q.pending_non_provisions.push_back(evt);
-            }
+            q.push_event(evt).await;
         }
 
         let evt = q.next_event().await.expect("should have returned an event");
@@ -883,7 +919,11 @@ mod tests {
         drop(h);
 
         assert_eq!(q.next_event().await, None, "should have returned None");
-        assert_eq!(q.pending_non_provisions.len(), 0, "unexpected recv");
+        assert_eq!(
+            q.inner.lock().await.pending_non_provisions.len(),
+            0,
+            "unexpected recv"
+        );
         assert!(!q.rx.is_empty(), "event should still be in the channel");
     }
 
@@ -895,10 +935,13 @@ mod tests {
             data: EventData::ResolveConfig,
         };
 
-        q.push_event(evt);
+        q.push_event(evt).await;
 
-        assert_eq!(q.pending_provisions.len(), 1);
-        assert_eq!(q.pending_non_provisions.len(), 0);
+        q.with_inner(|inner| {
+            assert_eq!(inner.pending_provisions.len(), 1);
+            assert_eq!(inner.pending_non_provisions.len(), 0);
+        })
+        .await;
     }
 
     #[tokio::test]
@@ -909,10 +952,13 @@ mod tests {
             data: EventData::CreateEnvArgoWorkflow,
         };
 
-        q.push_event(evt);
+        q.push_event(evt).await;
 
-        assert_eq!(q.pending_non_provisions.len(), 1);
-        assert_eq!(q.pending_provisions.len(), 0);
+        q.with_inner(|inner| {
+            assert_eq!(inner.pending_provisions.len(), 0);
+            assert_eq!(inner.pending_non_provisions.len(), 1);
+        })
+        .await;
     }
 
     #[tokio::test]
@@ -923,7 +969,7 @@ mod tests {
         let res = ph.resolve_and_cache_config(&ex).await;
 
         assert!(res.is_ok(), "{res:?}");
-        ph.with_shared(async |shared| {
+        ph.with_shared(|shared| {
             assert!(
                 shared.resolved_env_cache.contains_key(&ex_uuid),
                 "env YAML should be cached"
@@ -948,18 +994,18 @@ mod tests {
         let run_uuid = Uuid::new_v4();
         let ex_id = Uuid::new_v4();
 
-        h.with_shared(async |shared| {
+        h.with_shared(|shared| {
             shared.register_execution(ex_id, run_uuid);
             shared
                 .resolved_scenario_cache
                 .insert(ex_id, "yaml".to_string());
         })
         .await;
-        eq.running_executions.insert(ex_id);
+        eq.inner.lock().await.running_executions.insert(ex_id);
 
         eq.mark_execution_complete(ex_id).await;
 
-        h.with_shared(async |shared| {
+        h.with_shared(|shared| {
             assert!(
                 !shared.resolved_scenario_cache.contains_key(&ex_id),
                 "scenario cache entry should be evicted"
@@ -1014,14 +1060,14 @@ mod tests {
         let (eq, h, _, _) = EventQueue::new(1, 5);
         let ex_id = Uuid::new_v4();
 
-        h.with_shared(async |shared| {
+        h.with_shared(|shared| {
             shared.resolved_env_cache.insert(ex_id, "yaml".to_string());
         })
         .await;
 
         eq.evict_resolved_env_config(ex_id).await;
 
-        h.with_shared(async |shared| {
+        h.with_shared(|shared| {
             assert!(
                 !shared.resolved_env_cache.contains_key(&ex_id),
                 "env cache entry should be evicted"

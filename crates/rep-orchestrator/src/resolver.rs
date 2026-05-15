@@ -700,7 +700,7 @@ mod tests {
             matches!(evt.data, EventData::ResolveConfig),
             "expected ResolveEnvConfig event"
         );
-        assert!(eq.is_empty(), "only one event expected");
+        assert!(eq.is_empty().await, "only one event expected");
     }
 
     #[tokio::test]
