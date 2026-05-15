@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["get_logging_filter_handler","set_logging_filter_handler"]};
+window.SIDEBAR_ITEMS = {"fn":["event_queue_snapshot_handler","get_logging_filter_handler","set_logging_filter_handler"]};
