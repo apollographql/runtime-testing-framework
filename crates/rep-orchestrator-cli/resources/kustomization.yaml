@@ -5,7 +5,7 @@ resources:
 patches:
   - target:
       kind: Deployment
-      annotationSelector: "rtf.fileproviders=true"
+      annotationSelector: "rtf.io/file-providers=true"
     patch: |-
       apiVersion: apps/v1
       kind: Deployment
