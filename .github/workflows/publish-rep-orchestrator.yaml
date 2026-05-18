@@ -34,6 +34,7 @@ jobs:
         form\":\"linux/arm64\",\"runner\":\"ubuntu-24.04-arm\"}]"
       context: .
       dockerfile_location: crates/rep-orchestrator/docker/Dockerfile
+      build_args: GIT_SHA=${{ github.sha }}
     secrets: inherit
 
   publish-helm-chart:
