@@ -33,3 +33,16 @@ patches:
                 volumeMounts:
                   - mountPath: __OUTDIR__
                     name: providers
+  - target:
+      kind: Deployment
+      annotationSelector: "rtf.io/log-collection=true"
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: placeholder  # overridden by target selector
+      spec:
+        template:
+          metadata:
+            annotations:
+              rtf.io/log-collection: "true"
