@@ -9,6 +9,8 @@ COPY ./Cargo.lock ./Cargo.lock
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./crates ./crates
 
+ARG GIT_SHA=unknown
+
 # Cache mounts persist the cargo registry and compiled deps between builds so
 # only rep-orchestrator (and any locally-changed workspace crates) need recompiling.
 # The binary is copied out to / because cache mounts are not available to later stages.

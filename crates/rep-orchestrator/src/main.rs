@@ -1,4 +1,3 @@
-use git_version::git_version;
 use rep_orchestrator::run_server;
 use rustls::crypto::aws_lc_rs;
 use std::{io::stdout, process};
@@ -26,7 +25,7 @@ async fn main() {
     info!(
         "starting server version={}-{}",
         env!("CARGO_PKG_VERSION"),
-        git_version!(fallback = "unknown")
+        env!("GIT_SHA")
     );
 
     if let Err(error) = run_server(reload_handle).await {

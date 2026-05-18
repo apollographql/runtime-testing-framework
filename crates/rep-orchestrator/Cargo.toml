@@ -34,7 +34,6 @@ axum = { version = "0.8.9", features = ["macros"] }
 axum-extra = { version = "0.12", features = ["typed-header"] }
 chrono.workspace = true
 envy = "0.4.2"
-git-version.workspace = true
 google-cloud-auth.workspace = true
 google-cloud-storage.workspace = true
 k8s-openapi.workspace = true

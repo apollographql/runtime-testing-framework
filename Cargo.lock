@@ -3491,7 +3491,6 @@ dependencies = [
  "axum-test",
  "chrono",
  "envy",
- "git-version",
  "google-cloud-auth",
  "google-cloud-storage",
  "indoc",

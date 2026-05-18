@@ -192,7 +192,7 @@ k8s_resource(
 # target/ and .git/ are excluded from the Docker context via .dockerignore at the repo root.
 custom_build(
     "rep-orchestrator",
-    "docker build --file ../docker/Dockerfile --tag $EXPECTED_REF ../../../",
+    "docker build --file ../docker/Dockerfile --build-arg GIT_SHA=$(git rev-parse --short HEAD) --tag $EXPECTED_REF ../../../",
     deps=[
         "../../../Cargo.lock",
         "../../../Cargo.toml",
