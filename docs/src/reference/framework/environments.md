@@ -14,9 +14,9 @@ The following keys apply to both execution models.
 - `name`: The name for this Environment configuration.
   - Uniqueness is not enforced by the `rtf` CLI but environments should have unique names that can
     be used to distinguish them.
-- `description`: A brief, human readable description of the behaviour of the Environment.
-  - If there are any pre-requisites to running this Environment it is best to call them out here
-    rather than in comments or other files (such as a README).
+- `description`: A brief, human-readable description of the behavior of the Environment.
+  - Describe any prerequisites required to run this Environment, rather than placing them in
+    comments or other files (such as a README).
 - `variable_definitions`: Declarations of the templating variables supported by this Environment.
   - Variable declarations require specifying both the variable name and a short description of how
     the variable is used.
@@ -46,6 +46,25 @@ invoking `docker compose up`, and runs `docker compose down` during teardown.
 - `file_providers`: Additional files the compose stack depends on, exposed to the stack as
   environment variables. Each entry is a [File Provider][2] with a required `name` and `env_var`
   field.
+
+### Service labels
+
+Services in the compose files can carry RTF-specific labels that control behaviour when the test
+runs inside the [REP cluster][4]. These labels have no effect when running locally with the RTF CLI.
+
+| Label                   | Value  | Effect                                                                                                        |
+| ----------------------- | ------ | ------------------------------------------------------------------------------------------------------------- |
+| `rtf.io/file-providers` | `true` | Mounts file provider output into the container. Required for services that read provider files at runtime.    |
+| `rtf.io/log-collection` | `true` | Container logs are uploaded to GCS after the run. Absent by default — logs are not collected unless opted in. |
+
+```yaml
+services:
+  router:
+    image: my-router:latest
+    labels:
+      rtf.io/file-providers: true
+      rtf.io/log-collection: true
+```
 
 ### Full example
 
@@ -130,3 +149,4 @@ teardown:
 [1]: ./custom-providers.md
 [2]: ./file-providers.md
 [3]: ./command-providers.md
+[4]: ../../developer/explanation/concepts-and-architecture.md#rtf-and-rep
