@@ -7,16 +7,12 @@ use rep_orchestrator_shared::{
     status::Status,
     summary::{TestExecutionSummary, TestRunSummary},
 };
-use reqwest::{
-    Method, Request, Url,
-    header::{CONTENT_TYPE, HeaderValue},
-};
-use rtf_integrations::orchestrator::{DEFAULT_ORCHESTRATOR_URL, OrchestratorClient};
+use reqwest::Method;
+use rtf_integrations::orchestrator::OrchestratorClient;
 use std::{
     collections::HashMap,
     path::PathBuf,
     process::{Command, exit},
-    str::FromStr,
     time::Instant,
 };
 use tabled::{Table, Tabled, settings::Style};
@@ -31,7 +27,6 @@ pub struct Runner {
     pub start: Instant,
     orchestrator_client: OrchestratorClient,
     buffer_client: BufferClient,
-    base: Url,
 }
 
 impl Runner {
@@ -52,7 +47,6 @@ impl Runner {
             start: Instant::now(),
             orchestrator_client,
             buffer_client: client,
-            base: Url::from_str(DEFAULT_ORCHESTRATOR_URL).unwrap(),
         })
     }
 
@@ -147,15 +141,16 @@ impl Runner {
             .output()?
             .stdout;
 
-        let _payload: TriggerPayload =
+        let payload: TriggerPayload =
             serde_json::from_slice(&payload_bytes).context("failed to parse RTF output")?;
 
-        let mut req = Request::new(Method::POST, self.base.join("test-run/trigger")?);
-        *req.body_mut() = Some(payload_bytes.into());
-        req.headers_mut()
-            .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-
-        let resp = self.orchestrator_client.send(req).await?;
+        let resp = self
+            .orchestrator_client
+            .request(Method::POST, "test-run/trigger")
+            .await?
+            .json(&payload)
+            .send()
+            .await?;
 
         if resp.status().is_success() {
             Ok(resp.json().await?)
@@ -170,10 +165,9 @@ impl Runner {
     pub async fn get_run_status(&self, id: Uuid) -> anyhow::Result<TestRunSummary> {
         let resp = self
             .orchestrator_client
-            .send(Request::new(
-                Method::GET,
-                self.base.join(&format!("test-run/{id}/status"))?,
-            ))
+            .request(Method::GET, &format!("test-run/{id}/status"))
+            .await?
+            .send()
             .await?;
 
         Ok(resp.json().await?)

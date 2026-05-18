@@ -1,16 +1,13 @@
-use std::str::FromStr;
-
 use ad_client::{
     EventData, EventOutcome,
     tokio::{AsyncEventFilter, Client as AdClient},
 };
-use reqwest::{Method, Request, Url};
-use rtf_integrations::orchestrator::{DEFAULT_ORCHESTRATOR_URL, OrchestratorClient};
+use reqwest::Method;
+use rtf_integrations::orchestrator::OrchestratorClient;
 use uuid::Uuid;
 
 pub struct Filter {
     orchestrator_client: OrchestratorClient,
-    base: Url,
 }
 
 impl Filter {
@@ -19,7 +16,6 @@ impl Filter {
 
         Ok(Self {
             orchestrator_client,
-            base: Url::from_str(DEFAULT_ORCHESTRATOR_URL).unwrap(),
         })
     }
 
@@ -36,10 +32,9 @@ impl Filter {
 
         let data: serde_json::Value = self
             .orchestrator_client
-            .send(Request::new(
-                Method::GET,
-                self.base.join(&format!("{kind}/{id}/status"))?,
-            ))
+            .request(Method::GET, &format!("{kind}/{id}/status"))
+            .await?
+            .send()
             .await?
             .json()
             .await?;
@@ -60,10 +55,9 @@ impl Filter {
 
         let txt = self
             .orchestrator_client
-            .send(Request::new(
-                Method::GET,
-                self.base.join(&format!("test-execution/{id}/log.txt"))?,
-            ))
+            .request(Method::GET, &format!("test-execution/{id}/log.txt"))
+            .await?
+            .send()
             .await?
             .text()
             .await?;
