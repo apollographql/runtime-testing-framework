@@ -1,6 +1,6 @@
 use crate::{
     db::TestExecution,
-    k8s::{CLI_BINARY, EXECUTION_ID_LABEL, OUTPUT_COLLECTOR, TOOLBOX_IMAGE},
+    k8s::{CLI_BINARY, OUTPUT_COLLECTOR, TOOLBOX_IMAGE},
 };
 use k8s_openapi::api::{
     batch::v1::JobSpec,
@@ -10,6 +10,7 @@ use k8s_openapi::api::{
     },
 };
 use kube::api::ObjectMeta;
+use rep_orchestrator_shared::EXECUTION_ID_LABEL;
 use std::collections::BTreeMap;
 
 const SHARED_DIR_PATH: &str = "/shared";
