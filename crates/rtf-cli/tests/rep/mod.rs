@@ -64,3 +64,24 @@ fn rep_request_health_succeeds() {
         .assert()
         .success();
 }
+
+#[test]
+fn rep_ci_run_help_succeeds() {
+    cargo_bin_cmd!("rtf")
+        .args(["rep", "ci-run", "--help"])
+        .assert()
+        .success();
+}
+
+#[test]
+#[ignore = "requires GCP Application Default Credentials and Secret Manager access"]
+fn rep_ci_run_smoke_test_succeeds() {
+    cargo_bin_cmd!("rtf")
+        .args([
+            "rep",
+            "ci-run",
+            "../rep-orchestrator/resources/test-plans/valid/smoke/test-plan.yaml",
+        ])
+        .assert()
+        .success();
+}

@@ -154,6 +154,8 @@ impl UpdateLine {
             }
         }
 
+        // Maximum length of a Status string repr. We pad to ensure that the column size of our
+        // table repr remainins fixed.
         line.status = format!("{:<12}", summary.current_status);
         line.latest_message = summary
             .executions
@@ -169,6 +171,9 @@ impl UpdateLine {
             })
             .unwrap_or_default();
 
+        // Same here: pad to MAX_MESSAGE_CHARS to ensure we have consistent column widths
+        // (This assumes that we never have wide UTF8 chars in status messages with _should_ be a
+        // safe assumption to make!)
         if line.latest_message.chars().count() < MAX_MESSAGE_CHARS {
             line.latest_message
                 .extend(vec![' '; MAX_MESSAGE_CHARS - line.latest_message.len()]);
@@ -188,6 +193,8 @@ struct FailedExecution {
 
 impl From<TestExecutionSummary> for FailedExecution {
     fn from(ex: TestExecutionSummary) -> Self {
+        // We drop our time delta to seconds in terms of precision to prevent humantime from going
+        // overboard on reporting things to an unnecessary level of detail.
         let delta = ex.completed_at.unwrap_or(ex.updated_at) - ex.started_at;
         let seconds = Duration::from_secs(delta.num_seconds().unsigned_abs());
 
