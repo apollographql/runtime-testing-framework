@@ -4,10 +4,10 @@ use k8s_openapi::api::{
 };
 use kube::{
     Api, Config,
-    api::{LogParams, ObjectMeta, Patch, PatchParams, Request},
+    api::{ListParams, LogParams, ObjectMeta, Patch, PatchParams, Request},
     config::{KubeConfigOptions, Kubeconfig, KubeconfigError},
 };
-use rep_orchestrator_shared::{EXECUTION_ID_LABEL, LOG_COLLECTION_ANNOTATION};
+use rep_orchestrator_shared::LOG_COLLECTION_LABEL;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -206,7 +206,8 @@ impl Client for HttpClient {
     async fn collect_container_logs(&self, namespace: &str, output_dir: &Path) {
         let pod_api: Api<Pod> = Api::namespaced(self.client.clone(), namespace);
 
-        let pods = match pod_api.list(&Default::default()).await {
+        let params = ListParams::default().labels(&format!("{LOG_COLLECTION_LABEL}=true"));
+        let pods = match pod_api.list(&params).await {
             Ok(p) => p,
             Err(e) => {
                 let msg = format!("failed to list pods for log collection: {e}");
@@ -391,33 +392,12 @@ impl Client for HttpClient {
     }
 }
 
-fn should_collect_pod_logs(pod: &Pod) -> bool {
-    // Scenario pods: always collect. The orchestrator sets rtf.io/execution-id as a pod
-    // label when it creates the Job (rep-orchestrator/src/k8s/job.rs), so we check labels.
-    if pod
-        .metadata
-        .labels
-        .as_ref()
-        .is_some_and(|l| l.contains_key(EXECUTION_ID_LABEL))
-    {
-        return true;
-    }
-    // Environment service pods: collect only if the user opted in. The label
-    // rtf.io/log-collection flows from the docker-compose service label through kompose
-    // (which writes docker-compose labels as Deployment annotations) and then the kustomize
-    // patch in kustomization.yaml propagates it into the pod-template annotations — the same
-    // pipeline used by rtf.io/file-providers. We therefore check annotations here.
-    pod.metadata.annotations.as_ref().is_some_and(|a| {
-        a.get(LOG_COLLECTION_ANNOTATION)
-            .is_some_and(|v| v == "true")
-    })
-}
-
-/// Returns `(pod_name, container_names)` for every pod that should have logs collected,
-/// combining the collection filter with the container-selection step.
+/// Returns `(pod_name, container_names)` for every pod in the slice.
+///
+/// Filtering is done upstream via a label selector on `rtf.io/log-collection=true`, so this
+/// function only handles container-name extraction. Init containers are excluded.
 fn pods_to_collect(pods: &[Pod]) -> Vec<(&str, Vec<String>)> {
     pods.iter()
-        .filter(|p| should_collect_pod_logs(p))
         .filter_map(|p| {
             let name = p.metadata.name.as_deref()?;
             let containers = p
@@ -608,24 +588,11 @@ mod tests {
         api::core::v1::{Container, PodSpec},
         apimachinery::pkg::apis::meta::v1::ObjectMeta,
     };
-    use std::collections::BTreeMap;
 
-    /// Build a pod with a name, optional execution-id label, optional log-collection annotation,
-    /// and a list of container names — mirroring the real pod shapes we care about.
-    fn make_pod(
-        name: &str,
-        execution_id: Option<&str>,
-        log_collection: Option<&str>,
-        containers: &[&str],
-    ) -> Pod {
+    fn make_pod(name: &str, containers: &[&str]) -> Pod {
         Pod {
             metadata: ObjectMeta {
                 name: Some(name.to_owned()),
-                labels: execution_id
-                    .map(|id| BTreeMap::from([(EXECUTION_ID_LABEL.to_owned(), id.to_owned())])),
-                annotations: log_collection.map(|v| {
-                    BTreeMap::from([(LOG_COLLECTION_ANNOTATION.to_owned(), v.to_owned())])
-                }),
                 ..Default::default()
             },
             spec: Some(PodSpec {
@@ -643,13 +610,8 @@ mod tests {
     }
 
     #[test]
-    fn scenario_pod_always_collects_logs() {
-        let pods = vec![make_pod(
-            "scenario",
-            Some("exec-1"),
-            None,
-            &["runner", "output-collector"],
-        )];
+    fn extracts_container_names_from_pods() {
+        let pods = vec![make_pod("scenario", &["runner", "output-collector"])];
         let result = pods_to_collect(&pods);
         assert_eq!(
             result,
@@ -661,56 +623,34 @@ mod tests {
     }
 
     #[test]
-    fn env_pod_without_label_does_not_collect() {
-        let pods = vec![make_pod("nginx", None, None, &["nginx"])];
-        assert!(pods_to_collect(&pods).is_empty());
+    fn pod_without_name_is_skipped() {
+        let pod = Pod::default();
+        assert!(pods_to_collect(&[pod]).is_empty());
     }
 
     #[test]
-    fn env_pod_with_label_collects_logs() {
-        let pods = vec![make_pod("nginx", None, Some("true"), &["nginx"])];
+    fn init_containers_are_excluded() {
+        use k8s_openapi::api::core::v1::Container;
+        let pod = Pod {
+            metadata: ObjectMeta {
+                name: Some("mypod".to_owned()),
+                ..Default::default()
+            },
+            spec: Some(PodSpec {
+                containers: vec![Container {
+                    name: "main".to_owned(),
+                    ..Default::default()
+                }],
+                init_containers: Some(vec![Container {
+                    name: "init".to_owned(),
+                    ..Default::default()
+                }]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let pods = [pod];
         let result = pods_to_collect(&pods);
-        assert_eq!(result, vec![("nginx", vec!["nginx".to_owned()])]);
-    }
-
-    #[test]
-    fn mixed_namespace_collects_correct_pods() {
-        let pods = vec![
-            make_pod("scenario", Some("exec-1"), None, &["runner"]),
-            make_pod("sidecar", None, None, &["helper"]), // no label
-            make_pod("router", None, Some("true"), &["router"]), // opted in
-        ];
-        let names: Vec<&str> = pods_to_collect(&pods).into_iter().map(|(n, _)| n).collect();
-        assert_eq!(names, ["scenario", "router"]);
-    }
-
-    #[test]
-    fn execution_id_label_in_annotations_is_not_enough() {
-        let pod = Pod {
-            metadata: ObjectMeta {
-                annotations: Some(BTreeMap::from([(
-                    EXECUTION_ID_LABEL.to_owned(),
-                    "exec-123".to_owned(),
-                )])),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        assert!(!should_collect_pod_logs(&pod));
-    }
-
-    #[test]
-    fn log_collection_annotation_non_true_means_skip() {
-        let pod = Pod {
-            metadata: ObjectMeta {
-                annotations: Some(BTreeMap::from([(
-                    LOG_COLLECTION_ANNOTATION.to_owned(),
-                    "false".to_owned(),
-                )])),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        assert!(!should_collect_pod_logs(&pod));
+        assert_eq!(result, vec![("mypod", vec!["main".to_owned()])]);
     }
 }

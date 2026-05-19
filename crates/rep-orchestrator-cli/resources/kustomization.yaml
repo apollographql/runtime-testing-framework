@@ -44,5 +44,5 @@ patches:
       spec:
         template:
           metadata:
-            annotations:
+            labels:
               rtf.io/log-collection: "true"

@@ -10,7 +10,7 @@ use k8s_openapi::api::{
     },
 };
 use kube::api::ObjectMeta;
-use rep_orchestrator_shared::EXECUTION_ID_LABEL;
+use rep_orchestrator_shared::{EXECUTION_ID_LABEL, LOG_COLLECTION_LABEL};
 use std::collections::BTreeMap;
 
 const SHARED_DIR_PATH: &str = "/shared";
@@ -41,10 +41,10 @@ pub fn scenario_job(
         ttl_seconds_after_finished: Some(TTL_SECONDS_AFTER_FINISHED),
         template: PodTemplateSpec {
             metadata: Some(ObjectMeta {
-                labels: Some(BTreeMap::from([(
-                    EXECUTION_ID_LABEL.to_owned(),
-                    ex.uuid().to_string(),
-                )])),
+                labels: Some(BTreeMap::from([
+                    (EXECUTION_ID_LABEL.to_owned(), ex.uuid().to_string()),
+                    (LOG_COLLECTION_LABEL.to_owned(), "true".to_owned()),
+                ])),
                 ..Default::default()
             }),
             spec: Some(PodSpec {
