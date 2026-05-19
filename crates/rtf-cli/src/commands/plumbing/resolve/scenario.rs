@@ -31,7 +31,7 @@ pub async fn resolve_scenario(
         load_config::<ScenarioConfig<ScenarioExecution>>(scenario_path, "scenario", &ctx).await?;
 
     // Custom providers are not supported by resolve scenario
-    if !scenario.custom_providers.is_empty() {
+    if scenario.execution.contains_custom_providers() {
         bail!("custom_providers are not supported by resolve scenario");
     }
 

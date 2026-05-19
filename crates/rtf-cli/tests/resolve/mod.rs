@@ -99,6 +99,31 @@ export RTF_OUTPUT="{OUT}/RTF_OUTPUT"
 }
 
 #[test]
+fn resolve_scenario_with_unused_custom_providers_succeeds() {
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    tmp.copy_from(
+        "resources/scenarios/valid/with-unused-custom-providers",
+        &["**"],
+    )
+    .unwrap();
+
+    let output_dir = tmp.child("output");
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("resolve")
+        .arg("scenario")
+        .arg(tmp.child("scenario.yaml").path())
+        .arg("--outdir")
+        .arg(output_dir.path())
+        .arg("-v")
+        .assert();
+
+    res.success().stderr(contains("done"));
+}
+
+#[test]
 fn resolve_scenario_with_custom_providers_fails() {
     let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     tmp.copy_from("resources/scenarios/invalid/with-custom-providers", &["**"])
@@ -272,6 +297,31 @@ fn resolve_docker_compose_environment_creates_expected_output() {
             .child("setup/providers/docker-compose.yaml")
             .exists()
     );
+}
+
+#[test]
+fn resolve_environment_with_unused_custom_providers_succeeds() {
+    let tmp = TempDir::new_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    tmp.copy_from(
+        "resources/environments/valid/with-unused-custom-providers",
+        &["**"],
+    )
+    .unwrap();
+
+    let output_dir = tmp.child("output");
+
+    let mut cmd = cargo_bin_cmd!("rtf");
+    let res = cmd
+        .env_clear()
+        .arg("resolve")
+        .arg("environment")
+        .arg(tmp.child("environment.yaml").path())
+        .arg("--outdir")
+        .arg(output_dir.path())
+        .arg("-v")
+        .assert();
+
+    res.success().stderr(contains("done"));
 }
 
 #[test]
