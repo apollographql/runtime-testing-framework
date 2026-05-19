@@ -1,7 +1,7 @@
 services:
   nginx:
     labels:
-      rtf.fileproviders: true
+      rtf.io/file-providers: true
     image: nginx:alpine
     command: sleep infinity
     pull_policy: always

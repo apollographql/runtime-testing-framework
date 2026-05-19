@@ -1,6 +1,6 @@
 use crate::k8s::{
-    self, CLUSTER_API_NAMESPACE, Cluster, EXECUTION_ID_LABEL, OUTPUT_COLLECTOR, Result,
-    WatchOutcome, Workflow, WorkflowSpec, workflow_name,
+    self, CLUSTER_API_NAMESPACE, Cluster, OUTPUT_COLLECTOR, Result, WatchOutcome, Workflow,
+    WorkflowSpec, workflow_name,
 };
 use k8s_openapi::api::{
     batch::v1::{Job, JobSpec},
@@ -14,6 +14,7 @@ use kube::{
     core::NamespaceResourceScope,
 };
 use kube_runtime::{WatchStreamExt, watcher};
+use rep_orchestrator_shared::EXECUTION_ID_LABEL;
 use std::{collections::BTreeMap, pin::pin, result};
 use tokio_stream::StreamExt;
 use tracing::{error, warn};

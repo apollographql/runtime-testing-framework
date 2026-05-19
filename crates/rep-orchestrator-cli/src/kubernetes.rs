@@ -4,9 +4,10 @@ use k8s_openapi::api::{
 };
 use kube::{
     Api, Config,
-    api::{LogParams, ObjectMeta, Patch, PatchParams, Request},
+    api::{ListParams, LogParams, ObjectMeta, Patch, PatchParams, Request},
     config::{KubeConfigOptions, Kubeconfig, KubeconfigError},
 };
+use rep_orchestrator_shared::LOG_COLLECTION_LABEL;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -205,7 +206,8 @@ impl Client for HttpClient {
     async fn collect_container_logs(&self, namespace: &str, output_dir: &Path) {
         let pod_api: Api<Pod> = Api::namespaced(self.client.clone(), namespace);
 
-        let pods = match pod_api.list(&Default::default()).await {
+        let params = ListParams::default().labels(&format!("{LOG_COLLECTION_LABEL}=true"));
+        let pods = match pod_api.list(&params).await {
             Ok(p) => p,
             Err(e) => {
                 let msg = format!("failed to list pods for log collection: {e}");
@@ -222,22 +224,7 @@ impl Client for HttpClient {
             }
         };
 
-        for pod in pods.items {
-            let Some(pod_name) = pod.metadata.name.as_deref() else {
-                continue;
-            };
-
-            let containers = pod
-                .spec
-                .iter()
-                .flat_map(|s| {
-                    s.containers
-                        .iter()
-                        .chain(s.init_containers.iter().flatten())
-                })
-                .map(|c| c.name.clone())
-                .collect::<Vec<_>>();
-
+        for (pod_name, containers) in pods_to_collect(&pods.items) {
             for container_name in containers {
                 let params = LogParams {
                     container: Some(container_name.clone()),
@@ -403,6 +390,25 @@ impl Client for HttpClient {
             errors.push(msg);
         }
     }
+}
+
+/// Returns `(pod_name, container_names)` for every pod in the slice.
+///
+/// Filtering is done upstream via a label selector on `rtf.io/log-collection=true`, so this
+/// function only handles container-name extraction. Init containers are excluded.
+fn pods_to_collect(pods: &[Pod]) -> Vec<(&str, Vec<String>)> {
+    pods.iter()
+        .filter_map(|p| {
+            let name = p.metadata.name.as_deref()?;
+            let containers = p
+                .spec
+                .iter()
+                .flat_map(|s| s.containers.iter())
+                .map(|c| c.name.clone())
+                .collect();
+            Some((name, containers))
+        })
+        .collect()
 }
 
 #[derive(Debug, Deserialize)]
@@ -572,5 +578,79 @@ pub(crate) mod mocks {
         async fn collect_namespace_events(&self, _namespace: &str, _output_dir: &Path) {}
 
         async fn collect_resource_metrics(&self, _namespace: &str, _output_dir: &Path) {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use k8s_openapi::{
+        api::core::v1::{Container, PodSpec},
+        apimachinery::pkg::apis::meta::v1::ObjectMeta,
+    };
+
+    fn make_pod(name: &str, containers: &[&str]) -> Pod {
+        Pod {
+            metadata: ObjectMeta {
+                name: Some(name.to_owned()),
+                ..Default::default()
+            },
+            spec: Some(PodSpec {
+                containers: containers
+                    .iter()
+                    .map(|c| Container {
+                        name: c.to_string(),
+                        ..Default::default()
+                    })
+                    .collect(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn extracts_container_names_from_pods() {
+        let pods = vec![make_pod("scenario", &["runner", "output-collector"])];
+        let result = pods_to_collect(&pods);
+        assert_eq!(
+            result,
+            vec![(
+                "scenario",
+                vec!["runner".to_owned(), "output-collector".to_owned()]
+            )]
+        );
+    }
+
+    #[test]
+    fn pod_without_name_is_skipped() {
+        let pod = Pod::default();
+        assert!(pods_to_collect(&[pod]).is_empty());
+    }
+
+    #[test]
+    fn init_containers_are_excluded() {
+        use k8s_openapi::api::core::v1::Container;
+        let pod = Pod {
+            metadata: ObjectMeta {
+                name: Some("mypod".to_owned()),
+                ..Default::default()
+            },
+            spec: Some(PodSpec {
+                containers: vec![Container {
+                    name: "main".to_owned(),
+                    ..Default::default()
+                }],
+                init_containers: Some(vec![Container {
+                    name: "init".to_owned(),
+                    ..Default::default()
+                }]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let pods = [pod];
+        let result = pods_to_collect(&pods);
+        assert_eq!(result, vec![("mypod", vec!["main".to_owned()])]);
     }
 }
