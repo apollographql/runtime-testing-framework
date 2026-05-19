@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-9e74869f.js";
+            window.path_to_searchindex_js = "searchindex-89d9e615.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-fd605a4a.js"></script>
@@ -5217,6 +5217,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <li><a href="#rtf-rep"><code>rtf rep</code>↴</a></li>
 <li><a href="#rtf-rep-prepare"><code>rtf rep prepare</code>↴</a></li>
 <li><a href="#rtf-rep-request"><code>rtf rep request</code>↴</a></li>
+<li><a href="#rtf-rep-ci-run"><code>rtf rep ci-run</code>↴</a></li>
 <li><a href="#rtf-version"><code>rtf version</code>↴</a></li>
 </ul>
 <h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
@@ -5480,6 +5481,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <ul>
 <li><code>prepare</code> — Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers</li>
 <li><code>request</code> — Send an IAP-authenticated HTTP request to the REP orchestrator</li>
+<li><code>ci-run</code> — Trigger a test run using the REP orchestrator and poll for the result</li>
 </ul>
 <h2 id="rtf-rep-prepare"><a class="header" href="#rtf-rep-prepare"><code>rtf rep prepare</code></a></h2>
 <p>Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers</p>
@@ -5517,6 +5519,28 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 </li>
 <li>
 <p><code>--orchestrator-url &lt;ORCHESTRATOR_URL&gt;</code> — Override the REP orchestrator base URL</p>
+</li>
+</ul>
+<h2 id="rtf-rep-ci-run"><a class="header" href="#rtf-rep-ci-run"><code>rtf rep ci-run</code></a></h2>
+<p>Trigger a test run using the REP orchestrator and poll for the result.</p>
+<p>The output of this command is aimed at being usable in CI runs and is non-interactive.</p>
+<p><strong>Usage:</strong> <code>rtf rep ci-run [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
+<h6 id="arguments-13"><a class="header" href="#arguments-13"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test plan file. When using –github this must be in the format ORG/REPO/PATH</li>
+</ul>
+<h6 id="options-13"><a class="header" href="#options-13"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--github</code> — Prepare a test plan file from GitHub instead of from a local path</p>
+<p>Default value: <code>false</code></p>
+</li>
+<li>
+<p><code>--ref &lt;GIT_REF&gt;</code> — Optional git ref to pull files from when using –github</p>
+</li>
+<li>
+<p><code>--poll-interval-seconds &lt;POLL_INTERVAL_SECONDS&gt;</code></p>
+<p>Default value: <code>10</code></p>
 </li>
 </ul>
 <h2 id="rtf-version"><a class="header" href="#rtf-version"><code>rtf version</code></a></h2>
