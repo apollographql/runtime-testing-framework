@@ -40,7 +40,7 @@
 <a href=#40 id=40 data-nosnippet>40</a>    .<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#41 id=41 data-nosnippet>41</a>
 <a href=#42 id=42 data-nosnippet>42</a>    <span class="comment">// Custom providers are not supported by resolve environment
-<a href=#43 id=43 data-nosnippet>43</a>    </span><span class="kw">if </span>!environment.custom_providers.is_empty() {
+<a href=#43 id=43 data-nosnippet>43</a>    </span><span class="kw">if </span>environment.execution.contains_custom_providers() {
 <a href=#44 id=44 data-nosnippet>44</a>        <span class="macro">bail!</span>(<span class="string">"custom_providers are not supported by resolve environment"</span>);
 <a href=#45 id=45 data-nosnippet>45</a>    }
 <a href=#46 id=46 data-nosnippet>46</a>
