@@ -40,7 +40,7 @@ pub async fn resolve_environment(
     .await?;
 
     // Custom providers are not supported by resolve environment
-    if !environment.custom_providers.is_empty() {
+    if environment.execution.contains_custom_providers() {
         bail!("custom_providers are not supported by resolve environment");
     }
 

@@ -11,10 +11,4 @@ command:
   kind: inline
   content: |
     #!/usr/bin/env sh
-    echo "This should not run"
-
-file_providers:
-  - name: custom-provider.txt
-    env_var: CUSTOM
-    kind: custom_provider
-    type: my_custom_provider
+    echo "This should run"

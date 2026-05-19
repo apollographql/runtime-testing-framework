@@ -11,12 +11,6 @@ setup:
     kind: inline
     content: "echo setup"
 
-  file_providers:
-    - name: custom-provider.txt
-      env_var: CUSTOM
-      kind: custom_provider
-      type: my_custom_provider
-
 teardown:
   command:
     name: teardown.sh

@@ -54,6 +54,18 @@ pub enum Provider<'a> {
     },
 }
 
+impl<'a> Provider<'a> {
+    /// Whether or not this provider is a [CustomProvider][crate::providers::file::custom::CustomProvider].
+    pub fn is_custom_provider(&self) -> bool {
+        matches!(
+            self,
+            Provider::File {
+                fp: FileProvider::CustomProvider(_),
+            }
+        )
+    }
+}
+
 pub(crate) async fn try_read_relative_file(
     rf: &RelativeFile,
     files: &mut HashMap<(StableSource, String), String>,
@@ -113,6 +125,12 @@ pub trait RunScenario: Execute + Check + Template + CheckArrayDuplicates + Clone
 
 pub trait RunProviders: Send + Sync {
     fn named_providers<'a>(&'a self) -> Vec<(&'a str, Provider<'a>)>;
+
+    fn contains_custom_providers(&self) -> bool {
+        self.named_providers()
+            .iter()
+            .any(|(_, p)| p.is_custom_provider())
+    }
 
     fn try_extract_relative_files(
         &self,
