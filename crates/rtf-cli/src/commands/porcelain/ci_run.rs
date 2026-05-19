@@ -171,9 +171,9 @@ impl UpdateLine {
             })
             .unwrap_or_default();
 
-        // Same here: pad to MAX_MESSAGE_CHARS to ensure we have consistent column widths
-        // (This assumes that we never have wide UTF8 chars in status messages with _should_ be a
-        // safe assumption to make!)
+        // Same here: pad to MAX_MESSAGE_CHARS to ensure we have consistent column widths (This
+        // assumes that we never have wide UTF8 chars in status messages which _should_ be a safe
+        // assumption to make!)
         if line.latest_message.chars().count() < MAX_MESSAGE_CHARS {
             line.latest_message
                 .extend(vec![' '; MAX_MESSAGE_CHARS - line.latest_message.len()]);
