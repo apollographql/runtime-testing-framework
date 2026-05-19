@@ -12,7 +12,7 @@ use rtf_cli::{
             run_custom_provider, template_custom_provider, template_test_plan,
             test_custom_provider, write_rep_trigger_payload_to_stdout,
         },
-        porcelain::{check_and_run_test_plan, open_docs},
+        porcelain::{check_and_run_test_plan, ci_run, open_docs},
     },
 };
 use rtf_config::inlining::InlineMode;
@@ -158,6 +158,25 @@ async fn main() {
         } => {
             write_rep_trigger_payload_to_stdout(&test_plan_path, github, git_ref, variables.into())
                 .await
+        }
+
+        Command::Rep {
+            subcommand:
+                RepSubcommand::CiRun {
+                    test_plan_path,
+                    github,
+                    git_ref,
+                    poll_interval_seconds,
+                },
+        } => {
+            ci_run(
+                &test_plan_path,
+                github,
+                git_ref,
+                poll_interval_seconds,
+                variables.into(),
+            )
+            .await
         }
 
         Command::Completion { shell } => generate_shell_completions(shell),

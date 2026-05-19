@@ -5,7 +5,7 @@ edition.workspace = true
 
 [dependencies]
 bytes.workspace = true
-humantime = "2"
+humantime.workspace = true
 indoc.workspace = true
 itertools.workspace = true
 rtf-derive = { path = "../rtf-derive" }

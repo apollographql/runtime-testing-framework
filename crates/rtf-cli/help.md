@@ -23,6 +23,7 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf rep`↴](#rtf-rep)
 * [`rtf rep prepare`↴](#rtf-rep-prepare)
 * [`rtf rep request`↴](#rtf-rep-request)
+* [`rtf rep ci-run`↴](#rtf-rep-ci-run)
 * [`rtf version`↴](#rtf-version)
 
 ## `rtf`
@@ -337,6 +338,7 @@ Commands for the REP (Runtime Environment Provisioner) service
 
 * `prepare` — Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers
 * `request` — Send an IAP-authenticated HTTP request to the REP orchestrator
+* `ci-run` — Trigger a test run using the REP orchestrator and poll for the result
 
 
 
@@ -378,6 +380,30 @@ The response body is written to stdout on success.
   Default value: `GET`
 * `-b`, `--body <BODY>` — Request body as a literal string
 * `--orchestrator-url <ORCHESTRATOR_URL>` — Override the REP orchestrator base URL
+
+
+
+## `rtf rep ci-run`
+
+Trigger a test run using the REP orchestrator and poll for the result.
+
+The output of this command is aimed at being usable in CI runs and is non-interactive.
+
+**Usage:** `rtf rep ci-run [OPTIONS] <TEST_PLAN_PATH>`
+
+###### **Arguments:**
+
+* `<TEST_PLAN_PATH>` — Relative path to the test plan file. When using --github this must be in the format ORG/REPO/PATH
+
+###### **Options:**
+
+* `--github` — Prepare a test plan file from GitHub instead of from a local path
+
+  Default value: `false`
+* `--ref <GIT_REF>` — Optional git ref to pull files from when using --github
+* `--poll-interval-seconds <POLL_INTERVAL_SECONDS>`
+
+  Default value: `10`
 
 
 
