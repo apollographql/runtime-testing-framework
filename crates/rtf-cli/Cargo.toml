@@ -20,6 +20,7 @@ assert_fs.workspace = true
 clap_complete = "4.6.2"
 clap.workspace = true
 git-version.workspace = true
+humantime.workspace = true
 open.workspace = true
 reqwest.workspace = true
 rustls.workspace = true
@@ -30,6 +31,8 @@ serde.workspace = true
 tokio.workspace = true
 tracing-subscriber.workspace = true
 tracing.workspace = true
+uuid.workspace = true
+tabled = "0.20.0"
 
 [dev-dependencies]
 assert_cmd.workspace = true
