@@ -1,10 +1,8 @@
 use crate::commands::plumbing::prepare_rep_trigger_payload;
-use anyhow::bail;
 use rep_orchestrator_shared::{
     status::Status,
     summary::{TestExecutionSummary, TestRunSummary},
 };
-use reqwest::Method;
 use rtf_core::variables::Variables;
 use rtf_integrations::orchestrator::OrchestratorClient;
 use std::{process::exit, time::Duration};
@@ -34,22 +32,7 @@ pub async fn ci_run(
     let poll_interval = Duration::from_secs(poll_interval_seconds);
 
     println!("Triggering test run...\n");
-    let resp = client
-        .request(Method::POST, "test-run/trigger")
-        .await?
-        .json(&payload)
-        .send()
-        .await?;
-
-    let mut summary: TestRunSummary = if resp.status().is_success() {
-        resp.json().await?
-    } else {
-        let raw: serde_json::Value = resp.json().await?;
-        let s = serde_json::to_string_pretty(&raw)?;
-
-        bail!("Failed to trigger run:\n{s}")
-    };
-
+    let mut summary: TestRunSummary = client.post_json("test-run/trigger", &payload).await?;
     let id = summary.id;
 
     // Print the table headers and initial line
@@ -60,7 +43,7 @@ pub async fn ci_run(
 
     // Fetch and print the next line of the table at our poll interval
     while any_execution_ongoing(&summary) {
-        match get_run_status(&client, id).await {
+        match client.get_json(&format!("test-run/{id}/status")).await {
             Ok(new) => {
                 summary = new;
                 lines.push(UpdateLine::from_summary(&mut summary));
@@ -103,23 +86,6 @@ pub async fn ci_run(
     }
 
     Ok(())
-}
-
-async fn get_run_status(client: &OrchestratorClient, id: Uuid) -> anyhow::Result<TestRunSummary> {
-    let resp = client
-        .request(Method::GET, &format!("test-run/{id}/status"))
-        .await?
-        .send()
-        .await?;
-
-    if resp.status().is_success() {
-        Ok(resp.json().await?)
-    } else {
-        let raw: serde_json::Value = resp.json().await?;
-        let s = serde_json::to_string_pretty(&raw)?;
-
-        bail!("Failed to fetch run status:\n{s}")
-    }
 }
 
 fn any_execution_ongoing(trs: &TestRunSummary) -> bool {

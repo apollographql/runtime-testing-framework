@@ -7,6 +7,7 @@
 //! browser, the user consents, and the resulting refresh token is cached on
 //! disk. The Web client's id and secret are fetched at runtime from Secret
 //! Manager (using the user's ADC access token to bootstrap).
+use reqwest::StatusCode;
 
 mod auth;
 mod client;
@@ -33,6 +34,15 @@ const IAP_OAUTH_CLIENT_SECRET_SECRET_NAME: &str = "iap-orchestrator-client-secre
 /// Errors that can occur when building or using an [`OrchestratorClient`].
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    /// A request to the orchestrator failed
+    #[error("got {status} response from orchestrator: {body:?}")]
+    FailedRequest {
+        /// The status code returned by the orchestrator
+        status: StatusCode,
+        /// The response body returned by the orchestrator
+        body: String,
+    },
+
     /// The secret payload returned by Secret Manager could not be decoded.
     #[error("could not decode secret payload: {0}")]
     InvalidSecret(String),
