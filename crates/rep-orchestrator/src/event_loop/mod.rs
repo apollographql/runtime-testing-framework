@@ -32,6 +32,16 @@ pub use event_queue::{
 pub use provision_environment::MSG_ARGO_WAIT;
 pub use run_scenario::MSG_JOB_WAIT;
 
+/// Static configuration shared across all event handler arms in the event loop.
+struct EventLoopConfig<'a> {
+    orchestrator_url: &'a str,
+    toolbox_pull_policy: &'a str,
+    kubeconfig_secret_name: &'a str,
+    failed_execution_ttl_seconds: u64,
+    kubeconfig_path: &'a str,
+    workload_context: &'a str,
+}
+
 /// Run as a long lived task. This is an infinite loop that processes [Event]s received on a
 /// channel that is shared with the axum server and the event loop's own handler functions.
 pub async fn event_loop_task(mut event_queue: EventQueue) {
@@ -45,47 +55,22 @@ pub async fn event_loop_task(mut event_queue: EventQueue) {
         ..
     } = Config::get();
 
-    // Clients are built fresh per-event so that rotated credentials in the mounted kubeconfig
-    // secret are picked up without an orchestrator pod restart.
+    let cfg = EventLoopConfig {
+        orchestrator_url,
+        toolbox_pull_policy,
+        kubeconfig_secret_name,
+        failed_execution_ttl_seconds: *failed_execution_ttl_secs,
+        kubeconfig_path,
+        workload_context,
+    };
+
     while let Some(evt) = event_queue.next_event().await {
         let ty_name = evt.data.name();
 
         let span = info_span!("event", execution_id = %evt.test_execution.uuid(), ty=ty_name);
         let _guard = span.enter();
 
-        let clients = match ClusterClients::try_new(kubeconfig_path, workload_context).await {
-            Ok(c) => c,
-            Err(e) => {
-                error!(%e, ty=%ty_name, "failed to build k8s clients for event");
-                let requires_cleanup = evt.data.requires_cleanup_on_error();
-                let tx = event_queue.tx();
-                let _ = tx.send(Event {
-                    test_execution: evt.test_execution.clone(),
-                    data: EventData::MarkUnrunnable(format!("failed to build k8s clients: {e}")),
-                });
-
-                if requires_cleanup {
-                    let _ = tx.send(Event {
-                        test_execution: evt.test_execution,
-                        data: EventData::CleanupNamespaceAfter(*failed_execution_ttl_secs),
-                    });
-                }
-
-                continue;
-            }
-        };
-
-        if let Err(err) = evt
-            .handle(
-                &mut event_queue,
-                orchestrator_url,
-                toolbox_pull_policy,
-                kubeconfig_secret_name,
-                *failed_execution_ttl_secs,
-                clients,
-            )
-            .await
-        {
+        if let Err(err) = evt.handle(&mut event_queue, &cfg).await {
             error!(%err, ty=%ty_name, "Error handling event");
         }
     }
@@ -181,15 +166,7 @@ pub struct Event {
 }
 
 impl Event {
-    async fn handle(
-        self,
-        event_queue: &mut EventQueue,
-        orchestrator_url: &str,
-        toolbox_pull_policy: &str,
-        kubeconfig_secret_name: &str,
-        failed_execution_ttl_seconds: u64,
-        clients: ClusterClients,
-    ) -> Result<()> {
+    async fn handle(self, event_queue: &mut EventQueue, cfg: &EventLoopConfig<'_>) -> Result<()> {
         let conn = conn!();
         let cleanup_on_error = self.data.requires_cleanup_on_error();
 
@@ -200,25 +177,38 @@ impl Event {
                 {
                     error!(%e, "resolver channel closed during ResolveEnvConfig dispatch");
                 }
+
                 return Ok(());
             }
 
             EventData::CreateEnvArgoWorkflow => {
+                let clients = ClusterClients::try_management_only()
+                    .await
+                    .inspect_err(
+                        |e| error!(%e, "failed to build management k8s client for CreateEnvArgoWorkflow"),
+                    )?;
+
                 provision_environment::create_workflow(
                     self.test_execution.clone(),
-                    orchestrator_url,
-                    toolbox_pull_policy,
-                    kubeconfig_secret_name,
-                    clients.clone(),
+                    cfg.orchestrator_url,
+                    cfg.toolbox_pull_policy,
+                    cfg.kubeconfig_secret_name,
+                    clients,
                     conn,
                 )
                 .await
             }
 
             EventData::WaitForEnvArgoWorkflow => {
+                let clients = ClusterClients::try_new(cfg.kubeconfig_path, cfg.workload_context)
+                    .await
+                    .inspect_err(
+                        |e| error!(%e, "failed to build k8s clients for WaitForEnvArgoWorkflow"),
+                    )?;
+
                 provision_environment::wait_for_workflow(
                     self.test_execution.clone(),
-                    failed_execution_ttl_seconds,
+                    cfg.failed_execution_ttl_seconds,
                     event_queue.tx(),
                     clients,
                     conn,
@@ -237,6 +227,15 @@ impl Event {
             }
 
             EventData::CreateScenarioJob => {
+                let clients = ClusterClients::try_workload_only(
+                    cfg.kubeconfig_path,
+                    cfg.workload_context,
+                )
+                .await
+                .inspect_err(
+                    |e| error!(%e, "failed to build workload k8s client for CreateScenarioJob"),
+                )?;
+
                 let res = event_queue
                     .scenario_docker_image_and_command(self.test_execution.uuid())
                     .await;
@@ -247,8 +246,8 @@ impl Event {
                             self.test_execution.clone(),
                             image,
                             command,
-                            orchestrator_url,
-                            toolbox_pull_policy,
+                            cfg.orchestrator_url,
+                            cfg.toolbox_pull_policy,
                             clients,
                             conn,
                         )
@@ -261,9 +260,18 @@ impl Event {
             }
 
             EventData::WaitForScenarioJob => {
+                let clients = ClusterClients::try_workload_only(
+                    cfg.kubeconfig_path,
+                    cfg.workload_context,
+                )
+                .await
+                .inspect_err(
+                    |e| error!(%e, "failed to build workload k8s client for WaitForScenarioJob"),
+                )?;
+
                 run_scenario::wait_for_job(
                     self.test_execution.clone(),
-                    failed_execution_ttl_seconds,
+                    cfg.failed_execution_ttl_seconds,
                     event_queue.tx(),
                     clients,
                     conn,
@@ -287,6 +295,15 @@ impl Event {
             }
 
             EventData::CleanupNamespace => {
+                let clients = ClusterClients::try_workload_only(
+                    cfg.kubeconfig_path,
+                    cfg.workload_context,
+                )
+                .await
+                .inspect_err(
+                    |e| error!(%e, "failed to build workload k8s client for CleanupNamespace"),
+                )?;
+
                 let res = cleanup_namespace::try_run(self.test_execution.clone(), clients).await;
                 if let Some(run_uuid) = event_queue
                     .mark_execution_complete(self.test_execution.uuid())
@@ -323,7 +340,7 @@ impl Event {
                 if cleanup_on_error {
                     let _ = event_queue.tx().send(Event {
                         test_execution: self.test_execution,
-                        data: EventData::CleanupNamespaceAfter(failed_execution_ttl_seconds),
+                        data: EventData::CleanupNamespaceAfter(cfg.failed_execution_ttl_seconds),
                     });
                 }
             }
