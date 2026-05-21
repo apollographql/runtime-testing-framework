@@ -306,9 +306,6 @@ impl k8s::Client for ClusterClients {
         let mut mgmt_pod_stream = pin!(watcher(mgmt_pod_api, wf_pod_config).applied_objects());
 
         // Watch the pods being deployed to the workload cluster to make sure they do not get into an unrunnable state
-
-        // TODO This should move to the orchestrator cli once we switch to using that and not the inline
-        // shell logic
         let workload_ns = execution_id.to_string();
         let workload_pod_api: Api<Pod> = self.namespaced_api(Cluster::Workload, &workload_ns);
         let workload_pod_config = watcher::Config::default();
@@ -374,13 +371,22 @@ impl k8s::Client for ClusterClients {
 }
 
 fn check_pod_for_unrunnable(pod: &Pod) -> Option<WatchOutcome> {
-    let statuses = pod.status.as_ref()?.container_statuses.as_deref()?;
-    for status in statuses {
-        if let Some(waiting) = status.state.as_ref()?.waiting.as_ref()
-            && let Some(reason) = &waiting.reason
-            && UNRUNNABLE_REASONS.contains(&reason.as_str())
+    let pod_status = pod.status.as_ref()?;
+    let containers = pod_status.container_statuses.as_deref().unwrap_or_default();
+    let init_containers = pod_status
+        .init_container_statuses
+        .as_deref()
+        .unwrap_or_default();
+
+    for status in containers.iter().chain(init_containers) {
+        if let Some(reason) = status
+            .state
+            .as_ref()
+            .and_then(|s| s.waiting.as_ref())
+            .and_then(|w| w.reason.as_deref())
+            && UNRUNNABLE_REASONS.contains(&reason)
         {
-            return Some(WatchOutcome::ContainerUnrunnable(reason.clone()));
+            return Some(WatchOutcome::ContainerUnrunnable(reason.to_owned()));
         }
     }
 
