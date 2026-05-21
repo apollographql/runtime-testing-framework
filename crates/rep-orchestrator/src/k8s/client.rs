@@ -56,6 +56,17 @@ pub struct ClusterClients {
 }
 
 impl ClusterClients {
+    /// Construct a client with only the management cluster (in-cluster credentials).
+    /// Used for events that operate exclusively on the management cluster.
+    pub async fn try_management_only() -> Result<Self> {
+        let management = Client::try_from(Config::incluster_env()?)?;
+
+        Ok(Self {
+            management: Some(management),
+            workload: None,
+        })
+    }
+
     /// Construct clients where the management client uses the pod's own in-cluster credentials
     /// and the workload client uses an explicit kubeconfig file. Used in prod where the
     /// orchestrator runs inside the mgmt cluster.
