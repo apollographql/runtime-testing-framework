@@ -24,6 +24,8 @@ This document contains the help content for the `rtf` command-line program.
 * [`rtf rep prepare`↴](#rtf-rep-prepare)
 * [`rtf rep request`↴](#rtf-rep-request)
 * [`rtf rep ci-run`↴](#rtf-rep-ci-run)
+* [`rtf rep execution-output`↴](#rtf-rep-execution-output)
+* [`rtf rep run-output`↴](#rtf-rep-run-output)
 * [`rtf version`↴](#rtf-version)
 
 ## `rtf`
@@ -43,7 +45,7 @@ A swiss army knife for testing the Apollo Runtime
 * `resolve` — Resolve file providers for a config file without executing it
 * `completion` — Write a shell completion file to STDOUT for the given shell
 * `json-schemas` — Output json schemas for environment configuration
-* `rep` — Commands for the REP (Runtime Environment Provisioner) service
+* `rep` — Interactions with the REP Orchestrator
 * `version` — Display CLI version and exit
 
 ###### **Options:**
@@ -330,7 +332,7 @@ Output json schemas for environment configuration
 
 ## `rtf rep`
 
-Commands for the REP (Runtime Environment Provisioner) service
+Interactions with the REP Orchestrator
 
 **Usage:** `rtf rep <COMMAND>`
 
@@ -339,6 +341,8 @@ Commands for the REP (Runtime Environment Provisioner) service
 * `prepare` — Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers
 * `request` — Send an IAP-authenticated HTTP request to the REP orchestrator
 * `ci-run` — Trigger a test run using the REP orchestrator and poll for the result
+* `execution-output` — Pull output for a single test execution
+* `run-output` — Pull output for all executions within a given test run
 
 
 
@@ -404,6 +408,48 @@ The output of this command is aimed at being usable in CI runs and is non-intera
 * `--poll-interval-seconds <POLL_INTERVAL_SECONDS>`
 
   Default value: `10`
+
+
+
+## `rtf rep execution-output`
+
+Pull output for a single test execution
+
+**Usage:** `rtf rep execution-output [OPTIONS] <ID>`
+
+###### **Arguments:**
+
+* `<ID>` — ID of the orchestrator test execution you wish to pull output for
+
+###### **Options:**
+
+* `--outdir <OUTDIR>` — Directory to place output in
+
+  Default value: `output`
+* `--force` — Force removal of an existing output directory before running
+
+  Default value: `false`
+
+
+
+## `rtf rep run-output`
+
+Pull output for all executions within a given test run
+
+**Usage:** `rtf rep run-output [OPTIONS] <ID>`
+
+###### **Arguments:**
+
+* `<ID>` — ID of the orchestrator test run you wish to pull output for
+
+###### **Options:**
+
+* `--outdir <OUTDIR>` — Directory to place output in
+
+  Default value: `output`
+* `--force` — Force removal of an existing output directory before running
+
+  Default value: `false`
 
 
 

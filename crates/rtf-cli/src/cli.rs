@@ -3,6 +3,7 @@ use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
 use reqwest::{Method, Url};
 use std::path::PathBuf;
+use uuid::Uuid;
 
 // NOTE: All of the doc comments here are parsed by Clap and used to build out the documentation
 // seen in the CLI. We treat them as user facing and aim to provide as much useful information as
@@ -138,7 +139,7 @@ pub enum Command {
     /// Output json schemas for environment configuration
     JsonSchemas { config: SchemasConfig },
 
-    /// Commands for the REP (Runtime Environment Provisioner) service
+    /// Interactions with the REP Orchestrator
     Rep {
         #[clap(subcommand)]
         subcommand: RepSubcommand,
@@ -348,6 +349,34 @@ pub enum RepSubcommand {
 
         #[arg(long, default_value = "10")]
         poll_interval_seconds: u64,
+    },
+
+    /// Pull output for a single test execution
+    ExecutionOutput {
+        /// ID of the orchestrator test execution you wish to pull output for
+        id: Uuid,
+
+        /// Directory to place output in
+        #[arg(long, default_value = "output")]
+        outdir: String,
+
+        /// Force removal of an existing output directory before running.
+        #[arg(long, default_value = "false")]
+        force: bool,
+    },
+
+    /// Pull output for all executions within a given test run
+    RunOutput {
+        /// ID of the orchestrator test run you wish to pull output for
+        id: Uuid,
+
+        /// Directory to place output in
+        #[arg(long, default_value = "output")]
+        outdir: String,
+
+        /// Force removal of an existing output directory before running.
+        #[arg(long, default_value = "false")]
+        force: bool,
     },
 }
 

@@ -1,5 +1,4 @@
 //! IAP-authenticated HTTP client for the REP orchestrator.
-
 use crate::orchestrator::{
     DEFAULT_ORCHESTRATOR_URL, Error, GCP_PROJECT, IAP_OAUTH_CLIENT_ID_SECRET_NAME,
     IAP_OAUTH_CLIENT_SECRET_SECRET_NAME, Result,
@@ -7,6 +6,7 @@ use crate::orchestrator::{
 };
 use google_cloud_secretmanager_v1::client::SecretManagerService;
 use reqwest::{Client, Method, RequestBuilder, Url};
+use serde::{Serialize, de::DeserializeOwned};
 use std::str::FromStr;
 
 /// Authenticated HTTP client for the REP orchestrator, protected by Google Cloud IAP.
@@ -58,6 +58,47 @@ impl OrchestratorClient {
             .map_err(|e| Error::InvalidUrl(e.to_string()))?;
 
         Ok(self.http_client.request(method, url).bearer_auth(id_token))
+    }
+
+    /// Make a GET request to the orchestrator, deserializing the response body from JSON.
+    pub async fn get_json<T>(&self, endpoint: &str) -> Result<T>
+    where
+        T: DeserializeOwned,
+    {
+        let resp = self.request(Method::GET, endpoint).await?.send().await?;
+        let status = resp.status();
+
+        if status.is_success() {
+            Ok(resp.json().await?)
+        } else {
+            let body = resp.text().await?;
+
+            Err(Error::FailedRequest { status, body })
+        }
+    }
+
+    /// Make a JSON POST request to the orchestrator, deserializing the response body from JSON.
+    pub async fn post_json<B, T>(&self, endpoint: &str, body: &B) -> Result<T>
+    where
+        B: Serialize,
+        T: DeserializeOwned,
+    {
+        let resp = self
+            .request(Method::POST, endpoint)
+            .await?
+            .json(body)
+            .send()
+            .await?;
+
+        let status = resp.status();
+
+        if status.is_success() {
+            Ok(resp.json().await?)
+        } else {
+            let body = resp.text().await?;
+
+            Err(Error::FailedRequest { status, body })
+        }
     }
 }
 

@@ -3741,6 +3741,7 @@ dependencies = [
  "clap",
  "clap-markdown",
  "clap_complete",
+ "futures",
  "git-version",
  "humantime",
  "indoc",
