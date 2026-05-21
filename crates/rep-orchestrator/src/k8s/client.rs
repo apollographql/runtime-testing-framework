@@ -50,9 +50,9 @@ const UNRUNNABLE_REASONS: &[&str] = &[
 #[derive(Clone)]
 pub struct ClusterClients {
     /// rtf-mgmt — where the Argo workflows run
-    management: Client,
+    management: Option<Client>,
     /// rtf-workload — where we create ephemeral namespaces for running scenarios
-    workload: Client,
+    workload: Option<Client>,
 }
 
 impl ClusterClients {
@@ -64,8 +64,8 @@ impl ClusterClients {
         let kfg = Kubeconfig::read_from(workload_path)?;
 
         Ok(Self {
-            management,
-            workload: client_for_context(kfg, workload_context).await?,
+            management: Some(management),
+            workload: Some(client_for_context(kfg, workload_context).await?),
         })
     }
 
@@ -76,8 +76,16 @@ impl ClusterClients {
         <K as Resource>::DynamicType: Default,
     {
         let client = match cluster {
-            Cluster::Management => self.management.clone(),
-            Cluster::Workload => self.workload.clone(),
+            Cluster::Management => self
+                .management
+                .as_ref()
+                .expect("management client is not populated for this event")
+                .clone(),
+            Cluster::Workload => self
+                .workload
+                .as_ref()
+                .expect("workload client is not populated for this event")
+                .clone(),
         };
 
         Api::namespaced(client, ns)
@@ -163,7 +171,12 @@ impl ClusterClients {
             )
             .await?;
 
-        let cr_api: Api<ClusterRole> = Api::all(self.workload.clone());
+        let cr_api: Api<ClusterRole> = Api::all(
+            self.workload
+                .as_ref()
+                .expect("workload client is not populated for this event")
+                .clone(),
+        );
         cr_api
             .patch(
                 OUTPUT_COLLECTOR,
@@ -185,7 +198,12 @@ impl ClusterClients {
             .await?;
 
         let crb_name = format!("{OUTPUT_COLLECTOR}-{ns}");
-        let crb_api: Api<ClusterRoleBinding> = Api::all(self.workload.clone());
+        let crb_api: Api<ClusterRoleBinding> = Api::all(
+            self.workload
+                .as_ref()
+                .expect("workload client is not populated for this event")
+                .clone(),
+        );
         crb_api
             .patch(
                 &crb_name,
@@ -355,7 +373,12 @@ impl k8s::Client for ClusterClients {
     }
 
     async fn delete_workload_namespace(&self, ns: &str) -> Result<()> {
-        let crb_api: Api<ClusterRoleBinding> = Api::all(self.workload.clone());
+        let crb_api: Api<ClusterRoleBinding> = Api::all(
+            self.workload
+                .as_ref()
+                .expect("workload client is not populated for this event")
+                .clone(),
+        );
         if let Err(e) = crb_api
             .delete(&format!("{OUTPUT_COLLECTOR}-{ns}"), &Default::default())
             .await
@@ -363,7 +386,12 @@ impl k8s::Client for ClusterClients {
             warn!("failed to delete ClusterRoleBinding {OUTPUT_COLLECTOR}-{ns}: {e}");
         }
 
-        let api: Api<Namespace> = Api::all(self.workload.clone());
+        let api: Api<Namespace> = Api::all(
+            self.workload
+                .as_ref()
+                .expect("workload client is not populated for this event")
+                .clone(),
+        );
         api.delete(ns, &Default::default()).await?;
 
         Ok(())
@@ -451,4 +479,33 @@ fn handle_job_event(res: result::Result<Job, watcher::Error>) -> Option<WatchOut
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use k8s_openapi::api::core::v1::Pod;
+
+    impl ClusterClients {
+        fn for_test(management: Option<Client>, workload: Option<Client>) -> Self {
+            Self {
+                management,
+                workload,
+            }
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "management client is not populated for this event")]
+    fn namespaced_api_panics_with_descriptive_message_when_management_is_none() {
+        let clients = ClusterClients::for_test(None, None);
+        let _: Api<Pod> = clients.namespaced_api(Cluster::Management, "test-ns");
+    }
+
+    #[test]
+    #[should_panic(expected = "workload client is not populated for this event")]
+    fn namespaced_api_panics_with_descriptive_message_when_workload_is_none() {
+        let clients = ClusterClients::for_test(None, None);
+        let _: Api<Pod> = clients.namespaced_api(Cluster::Workload, "test-ns");
+    }
 }
