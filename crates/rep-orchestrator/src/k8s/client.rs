@@ -67,6 +67,17 @@ impl ClusterClients {
         })
     }
 
+    /// Construct a client with only the workload cluster (external kubeconfig file).
+    /// Used for events that operate exclusively on the workload cluster.
+    pub async fn try_workload_only(workload_path: &str, workload_context: &str) -> Result<Self> {
+        let kfg = Kubeconfig::read_from(workload_path)?;
+
+        Ok(Self {
+            management: None,
+            workload: Some(client_for_context(kfg, workload_context).await?),
+        })
+    }
+
     /// Construct clients where the management client uses the pod's own in-cluster credentials
     /// and the workload client uses an explicit kubeconfig file. Used in prod where the
     /// orchestrator runs inside the mgmt cluster.
