@@ -85,3 +85,19 @@ fn rep_ci_run_smoke_test_succeeds() {
         .assert()
         .success();
 }
+
+#[test]
+fn rep_execution_output_help_succeeds() {
+    cargo_bin_cmd!("rtf")
+        .args(["rep", "execution-output", "--help"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn rep_run_output_help_succeeds() {
+    cargo_bin_cmd!("rtf")
+        .args(["rep", "run-output", "--help"])
+        .assert()
+        .success();
+}
