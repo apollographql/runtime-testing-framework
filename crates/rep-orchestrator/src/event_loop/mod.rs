@@ -236,7 +236,7 @@ impl Event {
             }
 
             EventData::CreateScenarioJob => {
-                let clients = match ClusterClients::try_new(
+                let clients = match ClusterClients::try_workload_only(
                     &ctx.kubeconfig_path,
                     &ctx.workload_context,
                 )
@@ -244,7 +244,7 @@ impl Event {
                 {
                     Ok(c) => c,
                     Err(e) => {
-                        error!(%e, "failed to build k8s clients for CreateScenarioJob");
+                        error!(%e, "failed to build workload k8s client for CreateScenarioJob");
                         return Err(Error::K8s(e));
                     }
                 };
@@ -273,7 +273,7 @@ impl Event {
             }
 
             EventData::WaitForScenarioJob => {
-                let clients = match ClusterClients::try_new(
+                let clients = match ClusterClients::try_workload_only(
                     &ctx.kubeconfig_path,
                     &ctx.workload_context,
                 )
@@ -281,7 +281,7 @@ impl Event {
                 {
                     Ok(c) => c,
                     Err(e) => {
-                        error!(%e, "failed to build k8s clients for WaitForScenarioJob");
+                        error!(%e, "failed to build workload k8s client for WaitForScenarioJob");
                         return Err(Error::K8s(e));
                     }
                 };
@@ -312,7 +312,7 @@ impl Event {
             }
 
             EventData::CleanupNamespace => {
-                let clients = match ClusterClients::try_new(
+                let clients = match ClusterClients::try_workload_only(
                     &ctx.kubeconfig_path,
                     &ctx.workload_context,
                 )
@@ -320,7 +320,7 @@ impl Event {
                 {
                     Ok(c) => c,
                     Err(e) => {
-                        error!(%e, "failed to build k8s clients for CleanupNamespace");
+                        error!(%e, "failed to build workload k8s client for CleanupNamespace");
                         return Err(Error::K8s(e));
                     }
                 };
@@ -458,17 +458,12 @@ mod tests {
         }
     }
 
-    // AC-4: Test that CreateEnvArgoWorkflow uses provision_environment::create_workflow
-    // and that the refactored code path correctly calls try_management_only.
-    // This test verifies that the handler receives a valid client and can process
-    // the event successfully, confirming the constructor call is correct.
     #[tokio::test]
     async fn create_env_argo_workflow_calls_create_workflow_handler() {
         let ex = TestExecution::create_stub(1, 1, 0, "test");
         let mut handle = MockUpdateHandle::with_execution(ex.clone());
         let clients = MockClient::default_ok();
 
-        // Call the handler directly to verify it can accept and process a client
         let res = provision_environment::create_workflow(
             ex,
             "http://localhost:8035",
@@ -479,14 +474,12 @@ mod tests {
         )
         .await;
 
-        // Verify the handler succeeds with a proper client and returns the next event
         assert!(
             res.is_ok(),
             "create_workflow should succeed with valid client"
         );
-        let next_event = res.unwrap();
         assert_eq!(
-            next_event,
+            res.unwrap(),
             Some(EventData::WaitForEnvArgoWorkflow),
             "create_workflow should dispatch to WaitForEnvArgoWorkflow"
         );
