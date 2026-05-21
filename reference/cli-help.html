@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-89d9e615.js";
+            window.path_to_searchindex_js = "../searchindex-7c76f01a.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-d472d1c8.js"></script>
@@ -202,6 +202,8 @@
 <li><a href="#rtf-rep-prepare"><code>rtf rep prepare</code>↴</a></li>
 <li><a href="#rtf-rep-request"><code>rtf rep request</code>↴</a></li>
 <li><a href="#rtf-rep-ci-run"><code>rtf rep ci-run</code>↴</a></li>
+<li><a href="#rtf-rep-execution-output"><code>rtf rep execution-output</code>↴</a></li>
+<li><a href="#rtf-rep-run-output"><code>rtf rep run-output</code>↴</a></li>
 <li><a href="#rtf-version"><code>rtf version</code>↴</a></li>
 </ul>
 <h2 id="rtf"><a class="header" href="#rtf"><code>rtf</code></a></h2>
@@ -218,7 +220,7 @@
 <li><code>resolve</code> — Resolve file providers for a config file without executing it</li>
 <li><code>completion</code> — Write a shell completion file to STDOUT for the given shell</li>
 <li><code>json-schemas</code> — Output json schemas for environment configuration</li>
-<li><code>rep</code> — Commands for the REP (Runtime Environment Provisioner) service</li>
+<li><code>rep</code> — Interactions with the REP Orchestrator</li>
 <li><code>version</code> — Display CLI version and exit</li>
 </ul>
 <h6 id="options"><a class="header" href="#options"><strong>Options:</strong></a></h6>
@@ -459,13 +461,15 @@
 </li>
 </ul>
 <h2 id="rtf-rep"><a class="header" href="#rtf-rep"><code>rtf rep</code></a></h2>
-<p>Commands for the REP (Runtime Environment Provisioner) service</p>
+<p>Interactions with the REP Orchestrator</p>
 <p><strong>Usage:</strong> <code>rtf rep &lt;COMMAND&gt;</code></p>
 <h6 id="subcommands-4"><a class="header" href="#subcommands-4"><strong>Subcommands:</strong></a></h6>
 <ul>
 <li><code>prepare</code> — Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers</li>
 <li><code>request</code> — Send an IAP-authenticated HTTP request to the REP orchestrator</li>
 <li><code>ci-run</code> — Trigger a test run using the REP orchestrator and poll for the result</li>
+<li><code>execution-output</code> — Pull output for a single test execution</li>
+<li><code>run-output</code> — Pull output for all executions within a given test run</li>
 </ul>
 <h2 id="rtf-rep-prepare"><a class="header" href="#rtf-rep-prepare"><code>rtf rep prepare</code></a></h2>
 <p>Prepare a test plan for execution by the REP service. Outputs a RepTestPlan JSON with inlined relative files and custom providers</p>
@@ -525,6 +529,42 @@
 <li>
 <p><code>--poll-interval-seconds &lt;POLL_INTERVAL_SECONDS&gt;</code></p>
 <p>Default value: <code>10</code></p>
+</li>
+</ul>
+<h2 id="rtf-rep-execution-output"><a class="header" href="#rtf-rep-execution-output"><code>rtf rep execution-output</code></a></h2>
+<p>Pull output for a single test execution</p>
+<p><strong>Usage:</strong> <code>rtf rep execution-output [OPTIONS] &lt;ID&gt;</code></p>
+<h6 id="arguments-14"><a class="header" href="#arguments-14"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;ID&gt;</code> — ID of the orchestrator test execution you wish to pull output for</li>
+</ul>
+<h6 id="options-14"><a class="header" href="#options-14"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--outdir &lt;OUTDIR&gt;</code> — Directory to place output in</p>
+<p>Default value: <code>output</code></p>
+</li>
+<li>
+<p><code>--force</code> — Force removal of an existing output directory before running</p>
+<p>Default value: <code>false</code></p>
+</li>
+</ul>
+<h2 id="rtf-rep-run-output"><a class="header" href="#rtf-rep-run-output"><code>rtf rep run-output</code></a></h2>
+<p>Pull output for all executions within a given test run</p>
+<p><strong>Usage:</strong> <code>rtf rep run-output [OPTIONS] &lt;ID&gt;</code></p>
+<h6 id="arguments-15"><a class="header" href="#arguments-15"><strong>Arguments:</strong></a></h6>
+<ul>
+<li><code>&lt;ID&gt;</code> — ID of the orchestrator test run you wish to pull output for</li>
+</ul>
+<h6 id="options-15"><a class="header" href="#options-15"><strong>Options:</strong></a></h6>
+<ul>
+<li>
+<p><code>--outdir &lt;OUTDIR&gt;</code> — Directory to place output in</p>
+<p>Default value: <code>output</code></p>
+</li>
+<li>
+<p><code>--force</code> — Force removal of an existing output directory before running</p>
+<p>Default value: <code>false</code></p>
 </li>
 </ul>
 <h2 id="rtf-version"><a class="header" href="#rtf-version"><code>rtf version</code></a></h2>
