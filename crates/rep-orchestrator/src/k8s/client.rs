@@ -1,6 +1,6 @@
 use crate::k8s::{
-    self, CLUSTER_API_NAMESPACE, Cluster, OUTPUT_COLLECTOR, Result, WatchOutcome, Workflow,
-    WorkflowSpec, workflow_name,
+    CLUSTER_API_NAMESPACE, FullClient, ManagementClient, OUTPUT_COLLECTOR, Result, WatchOutcome,
+    Workflow, WorkflowSpec, WorkloadClient, workflow_name,
 };
 use k8s_openapi::api::{
     batch::v1::{Job, JobSpec},
@@ -47,76 +47,85 @@ const UNRUNNABLE_REASONS: &[&str] = &[
     "CreateContainerError",
 ];
 
+/// Typestate marker for a [ClusterClients] slot that holds an initialised [Client].
 #[derive(Clone)]
-pub struct ClusterClients {
-    /// rtf-mgmt — where the Argo workflows run
-    management: Option<Client>,
-    /// rtf-workload — where we create ephemeral namespaces for running scenarios
-    workload: Option<Client>,
+pub struct Available(Client);
+
+/// Typestate marker for a [ClusterClients] slot that has not been populated and is therefore
+/// unusable from this instance.
+#[derive(Clone)]
+pub struct Unavailable;
+
+#[derive(Clone)]
+pub struct ClusterClients<M, W> {
+    management: M,
+    workload: W,
 }
 
-impl ClusterClients {
-    /// Construct a client with only the management cluster (in-cluster credentials).
-    /// Used for events that operate exclusively on the management cluster.
-    pub async fn try_management_only() -> Result<Self> {
+impl ClusterClients<Available, Unavailable> {
+    /// Construct a client that can only interact with the management cluster.
+    pub async fn try_new_management() -> Result<Self> {
         let management = Client::try_from(Config::incluster_env()?)?;
 
         Ok(Self {
-            management: Some(management),
-            workload: None,
+            management: Available(management),
+            workload: Unavailable,
         })
     }
+}
 
-    /// Construct a client with only the workload cluster (external kubeconfig file).
-    /// Used for events that operate exclusively on the workload cluster.
-    pub async fn try_workload_only(workload_path: &str, workload_context: &str) -> Result<Self> {
+impl ClusterClients<Unavailable, Available> {
+    /// Construct a client that can only interact with the workload cluster.
+    pub async fn try_new_workload(workload_path: &str, workload_context: &str) -> Result<Self> {
         let kfg = Kubeconfig::read_from(workload_path)?;
 
         Ok(Self {
-            management: None,
-            workload: Some(client_for_context(kfg, workload_context).await?),
+            management: Unavailable,
+            workload: Available(client_for_context(kfg, workload_context).await?),
         })
     }
+}
 
-    /// Construct clients where the management client uses the pod's own in-cluster credentials
-    /// and the workload client uses an explicit kubeconfig file. Used in prod where the
-    /// orchestrator runs inside the mgmt cluster.
-    pub async fn try_new(workload_path: &str, workload_context: &str) -> Result<Self> {
+impl ClusterClients<Available, Available> {
+    /// Construct a client that can interact with both clusters.
+    pub async fn try_new_full(workload_path: &str, workload_context: &str) -> Result<Self> {
         let management = Client::try_from(Config::incluster_env()?)?;
         let kfg = Kubeconfig::read_from(workload_path)?;
 
         Ok(Self {
-            management: Some(management),
-            workload: Some(client_for_context(kfg, workload_context).await?),
+            management: Available(management),
+            workload: Available(client_for_context(kfg, workload_context).await?),
         })
     }
+}
 
-    /// Helper for obtaining an [Api] client associated with the appropriate cluster namespace.
-    pub fn namespaced_api<K>(&self, cluster: Cluster, ns: &str) -> Api<K>
+impl<W> ClusterClients<Available, W> {
+    fn management_api<K>(&self, ns: &str) -> Api<K>
     where
         K: Resource<Scope = NamespaceResourceScope>,
         <K as Resource>::DynamicType: Default,
     {
-        let client = match cluster {
-            Cluster::Management => self
-                .management
-                .as_ref()
-                .expect("management client is not populated for this event")
-                .clone(),
-            Cluster::Workload => self
-                .workload
-                .as_ref()
-                .expect("workload client is not populated for this event")
-                .clone(),
-        };
+        Api::namespaced(self.management.0.clone(), ns)
+    }
+}
 
-        Api::namespaced(client, ns)
+impl<M> ClusterClients<M, Available> {
+    fn workload_api<K>(&self, ns: &str) -> Api<K>
+    where
+        K: Resource<Scope = NamespaceResourceScope>,
+        <K as Resource>::DynamicType: Default,
+    {
+        Api::namespaced(self.workload.0.clone(), ns)
+    }
+
+    fn workload_client(&self) -> Client {
+        self.workload.0.clone()
     }
 
     async fn create_output_collector_rbac(&self, ns: &str) -> Result<()> {
         let pp = PatchParams::apply("rep-orchestrator");
 
-        let sa_api: Api<ServiceAccount> = self.namespaced_api(Cluster::Workload, ns);
+        let sa_api: Api<ServiceAccount> = self.workload_api(ns);
         sa_api
             .patch(
                 OUTPUT_COLLECTOR,
@@ -132,7 +141,7 @@ impl ClusterClients {
             )
             .await?;
 
-        let role_api: Api<Role> = self.namespaced_api(Cluster::Workload, ns);
+        let role_api: Api<Role> = self.workload_api(ns);
         role_api
             .patch(
                 OUTPUT_COLLECTOR,
@@ -167,7 +176,7 @@ impl ClusterClients {
             )
             .await?;
 
-        let rb_api: Api<RoleBinding> = self.namespaced_api(Cluster::Workload, ns);
+        let rb_api: Api<RoleBinding> = self.workload_api(ns);
         rb_api
             .patch(
                 OUTPUT_COLLECTOR,
@@ -193,12 +202,7 @@ impl ClusterClients {
             )
             .await?;
 
-        let cr_api: Api<ClusterRole> = Api::all(
-            self.workload
-                .as_ref()
-                .expect("workload client is not populated for this event")
-                .clone(),
-        );
+        let cr_api: Api<ClusterRole> = Api::all(self.workload_client());
         cr_api
             .patch(
                 OUTPUT_COLLECTOR,
@@ -220,12 +224,7 @@ impl ClusterClients {
             .await?;
 
         let crb_name = format!("{OUTPUT_COLLECTOR}-{ns}");
-        let crb_api: Api<ClusterRoleBinding> = Api::all(
-            self.workload
-                .as_ref()
-                .expect("workload client is not populated for this event")
-                .clone(),
-        );
+        let crb_api: Api<ClusterRoleBinding> = Api::all(self.workload_client());
         crb_api
             .patch(
                 &crb_name,
@@ -269,14 +268,14 @@ async fn client_for_context(kfg: Kubeconfig, context: &str) -> Result<Client> {
     Ok(client)
 }
 
-impl k8s::Client for ClusterClients {
+impl<W: Clone + Send + Sync + 'static> ManagementClient for ClusterClients<Available, W> {
     async fn create_argo_workflow(
         &self,
         execution_id: &Uuid,
         spec: WorkflowSpec,
     ) -> Result<Workflow> {
         let wf = self
-            .namespaced_api(Cluster::Management, CLUSTER_API_NAMESPACE)
+            .management_api(CLUSTER_API_NAMESPACE)
             .create(
                 &Default::default(),
                 &Workflow {
@@ -297,7 +296,9 @@ impl k8s::Client for ClusterClients {
 
         Ok(wf)
     }
+}
 
+impl<M: Clone + Send + Sync + 'static> WorkloadClient for ClusterClients<M, Available> {
     async fn create_job(
         &self,
         ns: &str,
@@ -308,7 +309,7 @@ impl k8s::Client for ClusterClients {
         self.create_output_collector_rbac(ns).await?;
 
         let job = self
-            .namespaced_api(Cluster::Workload, ns)
+            .workload_api(ns)
             .create(
                 &Default::default(),
                 &Job {
@@ -330,53 +331,15 @@ impl k8s::Client for ClusterClients {
         Ok(job)
     }
 
-    async fn wait_for_workflow(&self, execution_id: &Uuid) -> WatchOutcome {
-        // Watch for the workflow to complete
-        let wf_api: Api<Workflow> = self.namespaced_api(Cluster::Management, CLUSTER_API_NAMESPACE);
-        let wf_labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
-        let wf_config = watcher::Config::default().labels(&wf_labels);
-        let mut wf_stream = pin!(watcher(wf_api, wf_config).applied_objects());
-
-        // Watch the argo workflow pods to make sure they do not get into an unrunnable state
-        // This is not handled particularly well by Argo natively
-        let mgmt_pod_api: Api<Pod> =
-            self.namespaced_api(Cluster::Management, CLUSTER_API_NAMESPACE);
-        let wf_pod_labels = format!("workflows.argoproj.io/workflow=provision-env-{execution_id}");
-        let wf_pod_config = watcher::Config::default().labels(&wf_pod_labels);
-        let mut mgmt_pod_stream = pin!(watcher(mgmt_pod_api, wf_pod_config).applied_objects());
-
-        // Watch the pods being deployed to the workload cluster to make sure they do not get into an unrunnable state
-        let workload_ns = execution_id.to_string();
-        let workload_pod_api: Api<Pod> = self.namespaced_api(Cluster::Workload, &workload_ns);
-        let workload_pod_config = watcher::Config::default();
-        let mut workload_pod_stream =
-            pin!(watcher(workload_pod_api, workload_pod_config).applied_objects());
-
-        loop {
-            tokio::select! {
-                Some(res) = wf_stream.next() => {
-                    if let Some(outcome) = handle_workflow_event(res) { return outcome; }
-                }
-                Some(res) = mgmt_pod_stream.next() => {
-                    if let Some(outcome) = handle_pod_watch_event(res) { return outcome; }
-                }
-                Some(res) = workload_pod_stream.next() => {
-                    if let Some(outcome) = handle_pod_watch_event(res) { return outcome; }
-                }
-                else => return WatchOutcome::StreamClosed
-            }
-        }
-    }
-
     async fn wait_for_job(&self, ns: &str, execution_id: &Uuid) -> WatchOutcome {
         // Watch for the job to complete
-        let job_api: Api<Job> = self.namespaced_api(Cluster::Workload, ns);
+        let job_api: Api<Job> = self.workload_api(ns);
         let job_labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
         let job_config = watcher::Config::default().labels(&job_labels);
         let mut job_stream = pin!(watcher(job_api, job_config).applied_objects());
 
         // Watch the pods being deployed to the workload cluster to make sure they do not get into an unrunnable state
-        let pod_api: Api<Pod> = self.namespaced_api(Cluster::Workload, ns);
+        let pod_api: Api<Pod> = self.workload_api(ns);
         let pod_labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
         let pod_config = watcher::Config::default().labels(&pod_labels);
         let mut pod_stream = pin!(watcher(pod_api, pod_config).applied_objects());
@@ -395,12 +358,7 @@ impl k8s::Client for ClusterClients {
     }
 
     async fn delete_workload_namespace(&self, ns: &str) -> Result<()> {
-        let crb_api: Api<ClusterRoleBinding> = Api::all(
-            self.workload
-                .as_ref()
-                .expect("workload client is not populated for this event")
-                .clone(),
-        );
+        let crb_api: Api<ClusterRoleBinding> = Api::all(self.workload_client());
         if let Err(e) = crb_api
             .delete(&format!("{OUTPUT_COLLECTOR}-{ns}"), &Default::default())
             .await
@@ -408,15 +366,49 @@ impl k8s::Client for ClusterClients {
             warn!("failed to delete ClusterRoleBinding {OUTPUT_COLLECTOR}-{ns}: {e}");
         }
 
-        let api: Api<Namespace> = Api::all(
-            self.workload
-                .as_ref()
-                .expect("workload client is not populated for this event")
-                .clone(),
-        );
+        let api: Api<Namespace> = Api::all(self.workload_client());
         api.delete(ns, &Default::default()).await?;
 
         Ok(())
+    }
+}
+
+impl FullClient for ClusterClients<Available, Available> {
+    async fn wait_for_workflow(&self, execution_id: &Uuid) -> WatchOutcome {
+        // Watch for the workflow to complete
+        let wf_api: Api<Workflow> = self.management_api(CLUSTER_API_NAMESPACE);
+        let wf_labels = format!("{EXECUTION_ID_LABEL}={execution_id}");
+        let wf_config = watcher::Config::default().labels(&wf_labels);
+        let mut wf_stream = pin!(watcher(wf_api, wf_config).applied_objects());
+
+        // Watch the argo workflow pods to make sure they do not get into an unrunnable state
+        // This is not handled particularly well by Argo natively
+        let mgmt_pod_api: Api<Pod> = self.management_api(CLUSTER_API_NAMESPACE);
+        let wf_pod_labels = format!("workflows.argoproj.io/workflow=provision-env-{execution_id}");
+        let wf_pod_config = watcher::Config::default().labels(&wf_pod_labels);
+        let mut mgmt_pod_stream = pin!(watcher(mgmt_pod_api, wf_pod_config).applied_objects());
+
+        // Watch the pods being deployed to the workload cluster to make sure they do not get into an unrunnable state
+        let workload_ns = execution_id.to_string();
+        let workload_pod_api: Api<Pod> = self.workload_api(&workload_ns);
+        let workload_pod_config = watcher::Config::default();
+        let mut workload_pod_stream =
+            pin!(watcher(workload_pod_api, workload_pod_config).applied_objects());
+
+        loop {
+            tokio::select! {
+                Some(res) = wf_stream.next() => {
+                    if let Some(outcome) = handle_workflow_event(res) { return outcome; }
+                }
+                Some(res) = mgmt_pod_stream.next() => {
+                    if let Some(outcome) = handle_pod_watch_event(res) { return outcome; }
+                }
+                Some(res) = workload_pod_stream.next() => {
+                    if let Some(outcome) = handle_pod_watch_event(res) { return outcome; }
+                }
+                else => return WatchOutcome::StreamClosed
+            }
+        }
     }
 }
 
@@ -501,33 +493,4 @@ fn handle_job_event(res: result::Result<Job, watcher::Error>) -> Option<WatchOut
     }
 
     None
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use k8s_openapi::api::core::v1::Pod;
-
-    impl ClusterClients {
-        fn for_test(management: Option<Client>, workload: Option<Client>) -> Self {
-            Self {
-                management,
-                workload,
-            }
-        }
-    }
-
-    #[test]
-    #[should_panic(expected = "management client is not populated for this event")]
-    fn namespaced_api_panics_with_descriptive_message_when_management_is_none() {
-        let clients = ClusterClients::for_test(None, None);
-        let _: Api<Pod> = clients.namespaced_api(Cluster::Management, "test-ns");
-    }
-
-    #[test]
-    #[should_panic(expected = "workload client is not populated for this event")]
-    fn namespaced_api_panics_with_descriptive_message_when_workload_is_none() {
-        let clients = ClusterClients::for_test(None, None);
-        let _: Api<Pod> = clients.namespaced_api(Cluster::Workload, "test-ns");
-    }
 }

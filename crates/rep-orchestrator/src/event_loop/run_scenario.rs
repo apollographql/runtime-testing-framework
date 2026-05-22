@@ -1,7 +1,7 @@
 use crate::{
     db::{TestExecution, UpdateHandle},
     event_loop::{Error, Event, EventData, Result},
-    k8s::{self, WatchOutcome, scenario_job},
+    k8s::{WatchOutcome, WorkloadClient, scenario_job},
 };
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{info, warn};
@@ -21,7 +21,7 @@ pub(super) async fn create_job<K, H>(
     conn: &mut H,
 ) -> Result<Option<EventData>>
 where
-    K: k8s::Client,
+    K: WorkloadClient,
     H: UpdateHandle,
 {
     let execution_id = test_execution.uuid();
@@ -61,7 +61,7 @@ pub(super) async fn wait_for_job<K, H>(
     conn: &mut H,
 ) -> Result<Option<EventData>>
 where
-    K: k8s::Client,
+    K: WorkloadClient,
     H: UpdateHandle,
 {
     let execution_id = test_execution.uuid();
@@ -92,7 +92,7 @@ async fn wait_and_update<K>(
     etx: &UnboundedSender<Event>,
     clients: K,
 ) where
-    K: k8s::Client,
+    K: WorkloadClient,
 {
     let execution_id = test_execution.uuid();
 
