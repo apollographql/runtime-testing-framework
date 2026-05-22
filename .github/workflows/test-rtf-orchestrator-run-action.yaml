@@ -1,0 +1,18 @@
+name: Test RTF Orchestrator Run Action
+
+on: workflow_dispatch
+
+jobs:
+  run-sanity-check:
+    name: Run sanity check test plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: apollographql/release-tooling/rtf-orchestrator-run@df8496fe8d5ac9c724204d811701e74f7bc72523
+        with:
+          test_plan_path: crates/rep-orchestrator/resources/test-plans/valid/smoke/test-plan.yaml
+          verbose: true
