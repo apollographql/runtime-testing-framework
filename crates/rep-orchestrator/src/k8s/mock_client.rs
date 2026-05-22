@@ -1,4 +1,6 @@
-use crate::k8s::{Client, Result, WatchOutcome, Workflow, WorkflowSpec};
+use crate::k8s::{
+    FullClient, ManagementClient, Result, WatchOutcome, Workflow, WorkflowSpec, WorkloadClient,
+};
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
@@ -33,7 +35,7 @@ impl MockClient {
     }
 }
 
-impl Client for MockClient {
+impl ManagementClient for MockClient {
     async fn create_argo_workflow(
         &self,
         _execution_id: &Uuid,
@@ -43,13 +45,9 @@ impl Client for MockClient {
             .take()
             .expect("create_argo_workflow called but no result configured")
     }
+}
 
-    async fn wait_for_workflow(&self, _execution_id: &Uuid) -> WatchOutcome {
-        self.wait_for_workflow
-            .take()
-            .expect("wait_for_workflow called but no outcome configured")
-    }
-
+impl WorkloadClient for MockClient {
     async fn create_job(
         &self,
         _ns: &str,
@@ -72,6 +70,14 @@ impl Client for MockClient {
         self.delete_workload_namespace
             .take()
             .expect("delete_workload_namespace called but no outcome configured")
+    }
+}
+
+impl FullClient for MockClient {
+    async fn wait_for_workflow(&self, _execution_id: &Uuid) -> WatchOutcome {
+        self.wait_for_workflow
+            .take()
+            .expect("wait_for_workflow called but no outcome configured")
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::{
     db::TestExecution,
     event_loop::{Error, EventData, Result},
-    k8s,
+    k8s::{self, WorkloadClient},
 };
 use tracing::{info, warn};
 
@@ -10,7 +10,7 @@ pub(super) async fn try_run<K>(
     clients: K,
 ) -> Result<Option<EventData>>
 where
-    K: k8s::Client,
+    K: WorkloadClient,
 {
     let execution_id = test_execution.uuid();
     info!(%execution_id, "deleting namespace");

@@ -182,7 +182,7 @@ impl Event {
             }
 
             EventData::CreateEnvArgoWorkflow => {
-                let clients = ClusterClients::try_management_only()
+                let clients = ClusterClients::try_new_management()
                     .await
                     .inspect_err(
                         |e| error!(%e, "failed to build management k8s client for CreateEnvArgoWorkflow"),
@@ -200,11 +200,14 @@ impl Event {
             }
 
             EventData::WaitForEnvArgoWorkflow => {
-                let clients = ClusterClients::try_new(cfg.kubeconfig_path, cfg.workload_context)
-                    .await
-                    .inspect_err(
-                        |e| error!(%e, "failed to build k8s clients for WaitForEnvArgoWorkflow"),
-                    )?;
+                let clients = ClusterClients::try_new_full(
+                    cfg.kubeconfig_path,
+                    cfg.workload_context,
+                )
+                .await
+                .inspect_err(
+                    |e| error!(%e, "failed to build k8s clients for WaitForEnvArgoWorkflow"),
+                )?;
 
                 provision_environment::wait_for_workflow(
                     self.test_execution.clone(),
@@ -227,7 +230,7 @@ impl Event {
             }
 
             EventData::CreateScenarioJob => {
-                let clients = ClusterClients::try_workload_only(
+                let clients = ClusterClients::try_new_workload(
                     cfg.kubeconfig_path,
                     cfg.workload_context,
                 )
@@ -260,7 +263,7 @@ impl Event {
             }
 
             EventData::WaitForScenarioJob => {
-                let clients = ClusterClients::try_workload_only(
+                let clients = ClusterClients::try_new_workload(
                     cfg.kubeconfig_path,
                     cfg.workload_context,
                 )
@@ -295,7 +298,7 @@ impl Event {
             }
 
             EventData::CleanupNamespace => {
-                let clients = ClusterClients::try_workload_only(
+                let clients = ClusterClients::try_new_workload(
                     cfg.kubeconfig_path,
                     cfg.workload_context,
                 )

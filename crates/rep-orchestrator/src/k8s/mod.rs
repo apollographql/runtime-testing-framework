@@ -37,19 +37,22 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Kubernetes API actions required for executing RTF test plans inside of REP clusters.
-pub trait Client: Clone + Send + Sync + 'static {
-    /// Create a new argo [Workflow] in the [management][Cluster::Management] cluster for
-    /// provisioning an ephemeral namespace in the [workload][Cluster::Workload] cluster and
-    /// deploying services into it as defined by an RTF Test Plan.
+/// Kubernetes API actions that only interact with the management cluster.
+pub trait ManagementClient: Clone + Send + Sync + 'static {
+    /// Create a new argo [Workflow] in the management cluster for provisioning an ephemeral
+    /// namespace in the workload cluster and deploying services into it as defined by an RTF
+    /// Test Plan.
     fn create_argo_workflow(
         &self,
         execution_id: &Uuid,
         spec: WorkflowSpec,
     ) -> impl Future<Output = Result<Workflow>> + Send;
+}
 
+/// Kubernetes API actions that only interact with the workload cluster.
+pub trait WorkloadClient: Clone + Send + Sync + 'static {
     /// Create a new k8s [Job] for running an RTF Scenario in an ephemeral namespace within the
-    /// [workload][Cluster::Workload] cluster.
+    /// workload cluster.
     fn create_job(
         &self,
         ns: &str,
@@ -58,27 +61,24 @@ pub trait Client: Clone + Send + Sync + 'static {
         spec: JobSpec,
     ) -> impl Future<Output = Result<Job>> + Send;
 
-    /// Wait for a [Workflow] running within the [management][Cluster::Management] cluster to reach
-    /// a terminal state, selecting the workflow by its execution ID label.
-    fn wait_for_workflow(&self, execution_id: &Uuid) -> impl Future<Output = WatchOutcome> + Send;
-
-    /// Wait for a k8s [Job] running within the [workload][Cluster::Workload] cluster to reach
-    /// a terminal state, selecting the job by its execution ID label.
+    /// Wait for a k8s [Job] running within the workload cluster to reach a terminal state,
+    /// selecting the job by its execution ID label.
     fn wait_for_job(
         &self,
         ns: &str,
         execution_id: &Uuid,
     ) -> impl Future<Output = WatchOutcome> + Send;
 
-    /// Delete an ephemeral namespace within the [workload][Cluster::Workload].
+    /// Delete an ephemeral namespace within the workload cluster.
     fn delete_workload_namespace(&self, ns: &str) -> impl Future<Output = Result<()>> + Send;
 }
 
-/// Markers for the two REP clusters we use for running test plans.
-#[derive(Debug, Clone, Copy)]
-pub enum Cluster {
-    Management,
-    Workload,
+/// Kubernetes API actions that interact with both the management and workload clusters.
+pub trait FullClient: ManagementClient + WorkloadClient {
+    /// Wait for a [Workflow] running within the management cluster to reach a terminal state,
+    /// selecting the workflow by its execution ID label. The workload cluster is also watched
+    /// so that pods stuck in an unrunnable state can short-circuit the wait.
+    fn wait_for_workflow(&self, execution_id: &Uuid) -> impl Future<Output = WatchOutcome> + Send;
 }
 
 /// Terminal states for argo [Workflow]s and k8s [Job]s.
