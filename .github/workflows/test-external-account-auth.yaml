@@ -1,0 +1,46 @@
+name: Test External Account Auth (Temporary)
+
+# Temporary workflow to verify the WIF → signJwt → IAP auth path works
+# end-to-end before the ExternalAccount branch ships in the toolbox image.
+# Delete once the change is confirmed working in production.
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-auth:
+    name: Verify WIF auth against orchestrator health endpoint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+
+      - uses: hecrj/setup-rust-action@110f36749599534ca96628b82f52ae67e5d95a3c
+        with:
+          rust-version: "1.95.0"
+
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
+        with:
+          shared-key: "ci-build-${{ hashFiles('**/Cargo.lock') }}"
+
+      # Build before re-authing so the OIDC request token is fresh when the
+      # binary actually runs. The token stored in the credential file expires
+      # quickly; a slow compile on a cache miss would stale it out.
+      - name: Build RTF CLI
+        run: cargo build -p rtf-cli
+
+      - name: Authenticate With RTF GCP Project
+        id: gcp-auth
+        uses: "google-github-actions/auth@fc2174804b84f912b1f6d334e9463f484f1c552d"
+        with:
+          create_credentials_file: true
+          project_id: "runtime-testing-framework"
+          service_account: "rtf-morgue-github-actions@runtime-testing-framework.iam.gserviceaccount.com"
+          workload_identity_provider: "projects/230145797925/locations/global/workloadIdentityPools/github-actions/providers/apollographql"
+
+      - name: Hit orchestrator /health via WIF auth
+        run: cargo run -p rtf-cli -- rep request /health
