@@ -4,6 +4,7 @@ use crate::orchestrator::{
     IAP_OAUTH_CLIENT_SECRET_SECRET_NAME, Result,
     auth::{AdcCredentials, id_token},
 };
+use google_cloud_gax::error::rpc::Code;
 use google_cloud_secretmanager_v1::client::SecretManagerService;
 use reqwest::{Client, Method, RequestBuilder, Url};
 use serde::{Serialize, de::DeserializeOwned};
@@ -118,7 +119,17 @@ async fn fetch_secret(client: &SecretManagerService, secret_name: &str) -> Resul
             "projects/{GCP_PROJECT}/secrets/{secret_name}/versions/latest"
         ))
         .send()
-        .await?;
+        .await
+        .map_err(|e| {
+            if e.status().is_some_and(|s| s.code == Code::PermissionDenied) {
+                Error::SecretManagerPermissionDenied {
+                    secret_name: secret_name.to_owned(),
+                    project: GCP_PROJECT,
+                }
+            } else {
+                Error::GoogleSecretManager(e)
+            }
+        })?;
 
     let payload = response
         .payload

@@ -1,6 +1,6 @@
 use crate::orchestrator::{AdcError, Error, OauthError, Result};
 use chrono::{DateTime, Utc};
-use google_cloud_auth::credentials::idtoken;
+use google_cloud_auth::credentials::{external_account, idtoken};
 use oauth2::{
     AuthUrl, AuthorizationCode, Client, ClientId, ClientSecret, CsrfToken, EndpointNotSet,
     EndpointSet, ExtraTokenFields, PkceCodeChallenge, RedirectUrl, RefreshToken, Scope,
@@ -70,6 +70,10 @@ pub(super) enum AdcCredentials {
     /// A service account key file. `idtoken::Builder` mints ID tokens directly
     /// from the key material.
     ServiceAccount,
+    /// Workload Identity Federation (external_account) credentials, used in CI
+    /// via google-github-actions/auth. ID tokens are not supported by the SDK
+    /// for this type; instead we get an access token and call IAM generateIdToken.
+    ExternalAccount,
     /// An impersonated service account. `idtoken::Builder` handles this flow
     /// via the IAM Credentials API.
     ImpersonatedServiceAccount,
@@ -210,6 +214,10 @@ pub(super) async fn id_token(
     client_id: &str,
     client_secret: &str,
 ) -> Result<String> {
+    if matches!(adc, AdcCredentials::ExternalAccount) {
+        return external_account_iap_token(client_id).await;
+    }
+
     if adc.is_service_account_like() {
         return service_account_id_token(client_id).await;
     }
@@ -245,6 +253,101 @@ async fn service_account_id_token(audience: &str) -> Result<String> {
         .id_token()
         .await
         .map_err(|e| AdcError::TokenMint(e.to_string()))?)
+}
+
+/// Obtain an IAP Bearer token for WIF (external_account) credentials.
+///
+/// The google-cloud-auth SDK does not support ID tokens from external_account
+/// credentials. Instead: get an access token from the WIF credential, then
+/// call the IAM Credentials API `signJwt` method to produce a self-signed JWT
+/// that IAP accepts as a Bearer token.
+async fn external_account_iap_token(iap_client_id: &str) -> Result<String> {
+    let path = AdcCredentials::path()?;
+    let bytes = fs::read(&path).map_err(AdcError::ReadFailed)?;
+
+    let sa_email = extract_sa_email(&bytes)?;
+
+    // Get an access token from the WIF credentials.
+    let config: serde_json::Value =
+        serde_json::from_slice(&bytes).map_err(AdcError::ParseFailed)?;
+    let creds = external_account::Builder::new(config)
+        .build_access_token_credentials()
+        .map_err(|e| AdcError::CredentialsBuild(e.to_string()))?;
+    let access_token = creds
+        .access_token()
+        .await
+        .map_err(|e| AdcError::TokenMint(e.to_string()))?
+        .token;
+
+    // Generate an OIDC ID token via IAM Credentials API. IAP requires a
+    // Google-issued OIDC token; self-signed JWTs (signJwt) are only accepted
+    // by a subset of Google services.
+    let url = format!(
+        "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/{}:generateIdToken",
+        sa_email
+    );
+    let body = serde_json::json!({
+        "audience": iap_client_id,
+        "includeEmail": true,
+    });
+
+    let resp = reqwest::Client::new()
+        .post(&url)
+        .bearer_auth(&access_token)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| AdcError::TokenMint(e.to_string()))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+
+        if status == reqwest::StatusCode::FORBIDDEN {
+            return Err(AdcError::GenerateIdTokenDenied { sa_email }.into());
+        }
+        return Err(
+            AdcError::TokenMint(format!("generateIdToken failed ({status}): {text}")).into(),
+        );
+    }
+
+    let token_resp: GenerateIdTokenResponse = resp
+        .json()
+        .await
+        .map_err(|e| AdcError::TokenMint(e.to_string()))?;
+
+    return Ok(token_resp.token);
+
+    // deserialiizable formats
+    #[derive(Deserialize)]
+    struct GenerateIdTokenResponse {
+        token: String,
+    }
+}
+
+/// Extract the service account email from a `generateAccessToken` impersonation URL.
+fn extract_sa_email(bytes: &[u8]) -> Result<String> {
+    // Parse out the SA email from service_account_impersonation_url.
+    // URL format: https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/EMAIL:generateAccessToken
+    let fields: ImpersonationFields =
+        serde_json::from_slice(bytes).map_err(AdcError::ParseFailed)?;
+    let impersonation_url = fields
+        .service_account_impersonation_url
+        .ok_or(AdcError::NoImpersonationUrl)?;
+
+    return impersonation_url
+        .split("/serviceAccounts/")
+        .nth(1)
+        .and_then(|s| s.split(':').next())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_owned())
+        .ok_or_else(|| AdcError::InvalidImpersonationUrl(impersonation_url.to_owned()).into());
+
+    // deserializable formats
+    #[derive(Deserialize)]
+    struct ImpersonationFields {
+        service_account_impersonation_url: Option<String>,
+    }
 }
 
 /// Build the `oauth2::Client` for Google's endpoints. `redirect_uri` is only
