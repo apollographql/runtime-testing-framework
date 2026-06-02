@@ -35,6 +35,15 @@ pub enum Error {
     InCluster(#[from] InClusterError),
 }
 
+impl Error {
+    pub fn is_409_conflict(&self) -> bool {
+        match self {
+            Self::Kube(kube::Error::Api(status)) => status.code == 409,
+            _ => false,
+        }
+    }
+}
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Kubernetes API actions that only interact with the management cluster.

@@ -30,7 +30,8 @@ where
     info!(%execution_id, "creating scenario job");
     conn.mark_execution_as_provisioning(&test_execution, MSG_CREATE_JOB.to_string())
         .await;
-    clients
+
+    match clients
         .create_job(
             &namespace,
             SCENARIO_JOB_NAME,
@@ -44,7 +45,17 @@ where
             ),
         )
         .await
-        .map_err(|error| Error::CreateJob { error })?;
+    {
+        Ok(_) => {}
+
+        // It is possible for the job to already exist if it was previously created before a server
+        // restart / crash. As we name jobs deterministically based on the execution ID, we know
+        // that the pre-existing job is the one we need so we move directly to waiting for it to
+        // complete.
+        Err(e) if e.is_409_conflict() => return Ok(Some(EventData::WaitForScenarioJob)),
+
+        Err(error) => return Err(Error::CreateJob { error }),
+    }
 
     info!(%execution_id, "scenario job created");
     conn.mark_execution_as_provisioning(&test_execution, MSG_JOB_CREATED.to_string())

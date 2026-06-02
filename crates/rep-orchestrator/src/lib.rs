@@ -34,8 +34,12 @@ pub async fn run_server(reload_handle: Handle<EnvFilter, Registry>) -> error::Re
     info!("Checking database connection");
     check_db_conn().await?;
 
-    let (event_queue, prov_handle, eq_state, rx) =
+    let (mut event_queue, prov_handle, eq_state, rx) =
         EventQueue::new(cfg.max_concurrent_executions, cfg.max_queued_executions);
+
+    info!("Initialising event queue state");
+    event_queue.init_queue_state(cfg, conn!()).await?;
+
     let gcs_client = GCSClient::new_from_config(cfg).await?;
     let state = ServerState::new(eq_state, gcs_client);
 
