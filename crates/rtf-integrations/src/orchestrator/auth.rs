@@ -327,27 +327,32 @@ async fn external_account_iap_token(iap_client_id: &str) -> Result<String> {
 
 /// Extract the service account email from a `generateAccessToken` impersonation URL.
 fn extract_sa_email(bytes: &[u8]) -> Result<String> {
-    // Parse out the SA email from service_account_impersonation_url.
-    // URL format: https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/EMAIL:generateAccessToken
     let fields: ImpersonationFields =
         serde_json::from_slice(bytes).map_err(AdcError::ParseFailed)?;
     let impersonation_url = fields
         .service_account_impersonation_url
         .ok_or(AdcError::NoImpersonationUrl)?;
 
-    return impersonation_url
-        .split("/serviceAccounts/")
-        .nth(1)
-        .and_then(|s| s.split(':').next())
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_owned())
-        .ok_or_else(|| AdcError::InvalidImpersonationUrl(impersonation_url.to_owned()).into());
+    return parse_sa_email_from_impersonation_url(&impersonation_url);
 
     // deserializable formats
     #[derive(Deserialize)]
     struct ImpersonationFields {
         service_account_impersonation_url: Option<String>,
     }
+}
+
+/// Parse a service account email out of an IAM impersonation URL.
+///
+/// URL format:
+/// `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/EMAIL:generateAccessToken`
+fn parse_sa_email_from_impersonation_url(url: &str) -> Result<String> {
+    url.split("/serviceAccounts/")
+        .nth(1)
+        .and_then(|s| s.split(':').next())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_owned())
+        .ok_or_else(|| AdcError::InvalidImpersonationUrl(url.to_owned()).into())
 }
 
 /// Build the `oauth2::Client` for Google's endpoints. `redirect_uri` is only
@@ -552,6 +557,45 @@ fn html_escape(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_sa_email_from_impersonation_url_typical() {
+        let url = "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/my-sa@my-project.iam.gserviceaccount.com:generateAccessToken";
+        assert_eq!(
+            parse_sa_email_from_impersonation_url(url).unwrap(),
+            "my-sa@my-project.iam.gserviceaccount.com"
+        );
+    }
+
+    #[test]
+    fn parse_sa_email_from_impersonation_url_missing_service_accounts_segment() {
+        let url = "https://iamcredentials.googleapis.com/v1/projects/-/my-sa@project.iam.gserviceaccount.com:generateAccessToken";
+        let err = parse_sa_email_from_impersonation_url(url).unwrap_err();
+        assert!(
+            err.to_string().contains(url),
+            "expected URL in error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn parse_sa_email_from_impersonation_url_no_colon_suffix() {
+        // No `:generateAccessToken` — the whole tail is the email.
+        let url = "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/my-sa@project.iam.gserviceaccount.com";
+        assert_eq!(
+            parse_sa_email_from_impersonation_url(url).unwrap(),
+            "my-sa@project.iam.gserviceaccount.com"
+        );
+    }
+
+    #[test]
+    fn parse_sa_email_from_impersonation_url_empty_email_segment() {
+        let url = "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/:generateAccessToken";
+        let err = parse_sa_email_from_impersonation_url(url).unwrap_err();
+        assert!(
+            err.to_string().contains(url),
+            "expected URL in error, got: {err}"
+        );
+    }
 
     #[test]
     fn parse_loopback_request_code_and_state() {
