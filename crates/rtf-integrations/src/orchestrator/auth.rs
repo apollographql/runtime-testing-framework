@@ -1,4 +1,5 @@
 use crate::orchestrator::{AdcError, Error, OauthError, Result};
+use tracing::debug;
 use chrono::{DateTime, Utc};
 use google_cloud_auth::credentials::{external_account, idtoken};
 use oauth2::{
@@ -283,10 +284,12 @@ async fn external_account_iap_token(iap_client_id: &str) -> Result<String> {
         serde_json::from_slice(&bytes).map_err(AdcError::ParseFailed)?;
     let creds = external_account::Builder::new(config)
         .build_access_token_credentials()
+        .inspect_err(|e| debug!(error = ?e, "WIF: failed to build access token credentials"))
         .map_err(|e| AdcError::CredentialsBuild(e.to_string()))?;
     let access_token = creds
         .access_token()
         .await
+        .inspect_err(|e| debug!(error = ?e, "WIF: access_token() failed"))
         .map_err(|e| AdcError::TokenMint(e.to_string()))?
         .token;
 
@@ -313,6 +316,7 @@ async fn external_account_iap_token(iap_client_id: &str) -> Result<String> {
         .json(&body)
         .send()
         .await
+        .inspect_err(|e| debug!(error = ?e, "WIF: signJwt HTTP request failed"))
         .map_err(|e| AdcError::TokenMint(e.to_string()))?;
 
     if !resp.status().is_success() {

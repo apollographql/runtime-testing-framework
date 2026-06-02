@@ -44,5 +44,5 @@ jobs:
 
       - name: Hit orchestrator /health via WIF auth
         env:
-          RUST_LOG: trace
+          RUST_LOG: rtf_integrations=debug
         run: cargo run -p rtf-cli -- rep request /health -vvv

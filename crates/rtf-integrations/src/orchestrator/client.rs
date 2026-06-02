@@ -8,6 +8,7 @@ use google_cloud_secretmanager_v1::client::SecretManagerService;
 use reqwest::{Client, Method, RequestBuilder, Url};
 use serde::{Serialize, de::DeserializeOwned};
 use std::str::FromStr;
+use tracing::debug;
 
 /// Authenticated HTTP client for the REP orchestrator, protected by Google Cloud IAP.
 #[derive(Debug)]
@@ -103,7 +104,10 @@ impl OrchestratorClient {
 }
 
 async fn fetch_secrets() -> Result<(String, String)> {
-    let client = SecretManagerService::builder().build().await?;
+    let client = SecretManagerService::builder()
+        .build()
+        .await
+        .inspect_err(|e| debug!(error = ?e, "failed to build Secret Manager client"))?;
 
     let client_id = fetch_secret(&client, IAP_OAUTH_CLIENT_ID_SECRET_NAME).await?;
     let client_secret = fetch_secret(&client, IAP_OAUTH_CLIENT_SECRET_SECRET_NAME).await?;
@@ -118,7 +122,8 @@ async fn fetch_secret(client: &SecretManagerService, secret_name: &str) -> Resul
             "projects/{GCP_PROJECT}/secrets/{secret_name}/versions/latest"
         ))
         .send()
-        .await?;
+        .await
+        .inspect_err(|e| debug!(error = ?e, secret_name, "Secret Manager send() failed"))?;
 
     let payload = response
         .payload
