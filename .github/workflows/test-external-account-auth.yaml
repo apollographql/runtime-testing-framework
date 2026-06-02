@@ -43,4 +43,6 @@ jobs:
           workload_identity_provider: "projects/230145797925/locations/global/workloadIdentityPools/github-actions/providers/apollographql"
 
       - name: Hit orchestrator /health via WIF auth
-        run: cargo run -p rtf-cli -- rep request /health
+        env:
+          RUST_LOG: trace
+        run: cargo run -p rtf-cli -- rep request /health -vvv
