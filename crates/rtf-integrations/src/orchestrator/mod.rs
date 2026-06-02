@@ -71,6 +71,19 @@ pub enum Error {
     #[error(transparent)]
     GoogleSecretManager(#[from] google_cloud_secretmanager_v1::Error),
 
+    /// The caller's GCP credentials lack IAM permission to read a Secret Manager secret.
+    #[error(
+        "permission denied reading secret `{secret_name}` from project `{project}` — \
+         ensure your account has the `roles/secretmanager.secretAccessor` role on \
+         the `{project}` GCP project"
+    )]
+    SecretManagerPermissionDenied {
+        /// The short secret name that was requested.
+        secret_name: String,
+        /// The GCP project that hosts the secret.
+        project: &'static str,
+    },
+
     /// An HTTP transport error.
     #[error(transparent)]
     Http(#[from] reqwest::Error),
@@ -109,6 +122,33 @@ pub enum AdcError {
     /// The service-account ID token could not be minted.
     #[error("could not mint service-account ID token: {0}")]
     TokenMint(String),
+
+    /// external_account credentials are missing `service_account_impersonation_url`,
+    /// which is required to extract the service account email for signJwt.
+    #[error(
+        "external_account credentials missing service_account_impersonation_url; \
+         ensure the WIF provider is configured with service account impersonation"
+    )]
+    NoImpersonationUrl,
+
+    /// The `service_account_impersonation_url` field could not be parsed to
+    /// extract a service account email address.
+    #[error("could not extract service account email from impersonation URL: {0}")]
+    InvalidImpersonationUrl(String),
+
+    /// The IAM Credentials API rejected the `generateIdToken` call with a 403.
+    ///
+    /// The WIF principal needs `iam.serviceAccounts.generateIdToken` on the
+    /// target service account, granted by `roles/iam.serviceAccountTokenCreator`.
+    #[error(
+        "permission denied generating ID token for service account `{sa_email}` — \
+         ensure the WIF principal has `roles/iam.serviceAccountTokenCreator` on that \
+         service account"
+    )]
+    GenerateIdTokenDenied {
+        /// The service account email the token was requested for.
+        sa_email: String,
+    },
 }
 /// Errors from the interactive user OAuth loopback flow.
 #[derive(Debug, thiserror::Error)]
