@@ -1,5 +1,4 @@
 use crate::orchestrator::{AdcError, Error, OauthError, Result};
-use tracing::debug;
 use chrono::{DateTime, Utc};
 use google_cloud_auth::credentials::{external_account, idtoken};
 use oauth2::{
@@ -27,6 +26,7 @@ use tokio::{
     net::TcpListener,
     time::timeout,
 };
+use tracing::debug;
 
 const GOOGLE_AUTH_ENDPOINT: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_ENDPOINT: &str = "https://oauth2.googleapis.com/token";
@@ -293,22 +293,17 @@ async fn external_account_iap_token(iap_client_id: &str) -> Result<String> {
         .map_err(|e| AdcError::TokenMint(e.to_string()))?
         .token;
 
-    // Build the JWT claims.
-    let now = Utc::now().timestamp();
-    let payload = serde_json::json!({
-        "iss": sa_email,
-        "sub": sa_email,
-        "aud": iap_client_id,
-        "iat": now,
-        "exp": now + 3600_i64,
-    });
-
-    // Sign via IAM Credentials API and return the signed JWT.
+    // Generate an OIDC ID token via IAM Credentials API. IAP requires a
+    // Google-issued OIDC token; self-signed JWTs (signJwt) are only accepted
+    // by a subset of Google services.
     let url = format!(
-        "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/{}:signJwt",
+        "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/{}:generateIdToken",
         sa_email
     );
-    let body = serde_json::json!({ "payload": payload.to_string() });
+    let body = serde_json::json!({
+        "audience": iap_client_id,
+        "includeEmail": true,
+    });
 
     let resp = reqwest::Client::new()
         .post(&url)
@@ -316,26 +311,27 @@ async fn external_account_iap_token(iap_client_id: &str) -> Result<String> {
         .json(&body)
         .send()
         .await
-        .inspect_err(|e| debug!(error = ?e, "WIF: signJwt HTTP request failed"))
+        .inspect_err(|e| debug!(error = ?e, "WIF: generateIdToken HTTP request failed"))
         .map_err(|e| AdcError::TokenMint(e.to_string()))?;
 
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        return Err(AdcError::TokenMint(format!("signJwt failed ({status}): {text}")).into());
+        return Err(
+            AdcError::TokenMint(format!("generateIdToken failed ({status}): {text}")).into(),
+        );
     }
 
     #[derive(Deserialize)]
-    struct SignJwtResponse {
-        #[serde(rename = "signedJwt")]
-        signed_jwt: String,
+    struct GenerateIdTokenResponse {
+        token: String,
     }
-    let sign_resp: SignJwtResponse = resp
+    let token_resp: GenerateIdTokenResponse = resp
         .json()
         .await
         .map_err(|e| AdcError::TokenMint(e.to_string()))?;
 
-    Ok(sign_resp.signed_jwt)
+    Ok(token_resp.token)
 }
 
 /// Extract the service account email from a `generateAccessToken` impersonation URL.
