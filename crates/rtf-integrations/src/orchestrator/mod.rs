@@ -109,6 +109,19 @@ pub enum AdcError {
     /// The service-account ID token could not be minted.
     #[error("could not mint service-account ID token: {0}")]
     TokenMint(String),
+
+    /// external_account credentials are missing `service_account_impersonation_url`,
+    /// which is required to extract the service account email for signJwt.
+    #[error(
+        "external_account credentials missing service_account_impersonation_url; \
+         ensure the WIF provider is configured with service account impersonation"
+    )]
+    NoImpersonationUrl,
+
+    /// The `service_account_impersonation_url` field could not be parsed to
+    /// extract a service account email address.
+    #[error("could not extract service account email from impersonation URL: {0}")]
+    InvalidImpersonationUrl(String),
 }
 /// Errors from the interactive user OAuth loopback flow.
 #[derive(Debug, thiserror::Error)]
