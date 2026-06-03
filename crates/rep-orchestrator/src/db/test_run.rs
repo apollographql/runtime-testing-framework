@@ -53,10 +53,6 @@ impl TestRun {
         self.uuid
     }
 
-    pub fn variables_id(&self) -> Option<i32> {
-        self.variables_id
-    }
-
     #[cfg(test)]
     pub fn create_stub(id: i32, name: &str) -> Self {
         Self {
@@ -76,17 +72,21 @@ impl TestRun {
             .await?)
     }
 
-    pub async fn init(name: &str, conn: &mut PgConnection) -> Result<Self> {
-        Self::init_with_variables(name, None, conn).await
-    }
-
-    /// As [`TestRun::init`], but links the run to a captured variables row. `variables_id` is `None`
-    /// when the run had no runtime overrides.
-    pub async fn init_with_variables(
+    /// Create a new run, capturing any runtime variable overrides supplied with it.
+    ///
+    /// `variables` is the flat overrides blob (`-v` / `--vars`) as JSON, or `None` when none were
+    /// supplied. When present it is upserted into the deduplicated `variables` table and the run is
+    /// linked to it, so `variables_id` is `NULL` exactly when `variables` is `None`.
+    pub async fn init(
         name: &str,
-        variables_id: Option<i32>,
+        variables: Option<Value>,
         conn: &mut PgConnection,
     ) -> Result<Self> {
+        let variables_id = match variables {
+            Some(data) => Some(db::upsert_variables(&data, conn).await?),
+            None => None,
+        };
+
         let tr: TestRun = sqlx::query_as(
             "INSERT INTO test_run (name, started_at, variables_id)
              VALUES ($1, NOW(), $2)
@@ -346,7 +346,7 @@ mod tests {
     #[tokio::test]
     async fn init_creates_run_with_initialising_status() -> Result<()> {
         let c = conn!();
-        let res = TestRun::init("test", c).await;
+        let res = TestRun::init("test", None, c).await;
         assert!(res.is_ok(), "{res:?}");
 
         let tr = res.unwrap();
@@ -362,7 +362,7 @@ mod tests {
     #[tokio::test]
     async fn init_leaves_variables_id_null() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init("test", c).await?;
+        let tr = TestRun::init("test", None, c).await?;
         assert_eq!(tr.variables_id, None);
 
         // Persisted as NULL too, not just on the returned struct.
@@ -374,15 +374,28 @@ mod tests {
 
     #[cfg_attr(not(feature = "db_tests"), ignore)]
     #[tokio::test]
-    async fn init_with_variables_round_trips_variables_id() -> Result<()> {
+    async fn init_persists_and_dedupes_variables() -> Result<()> {
         let c = conn!();
-        let var_id = crate::db::upsert_variables(&json!({ "foo": 42 }), c).await?;
+        let vars = json!({ "region": "us", "tier": [1, 2, 3] });
 
-        let tr = TestRun::init_with_variables("test", Some(var_id), c).await?;
-        assert_eq!(tr.variables_id, Some(var_id));
+        let tr = TestRun::init("test", Some(vars.clone()), c).await?;
+        let captured = tr.variables_id;
+        assert!(
+            captured.is_some(),
+            "a run with overrides should have a variables_id"
+        );
 
+        // Persisted, not just present on the returned struct.
         let fetched = TestRun::get_by_id_unchecked(tr.id, c).await?;
-        assert_eq!(fetched.variables_id, Some(var_id));
+        assert_eq!(fetched.variables_id, captured);
+
+        // Dedup: upserting the same blob directly yields the same id init stored.
+        let direct = db::upsert_variables(&vars, c).await?;
+        assert_eq!(
+            captured,
+            Some(direct),
+            "identical overrides should dedupe to a single variables row"
+        );
 
         Ok(())
     }
@@ -391,7 +404,7 @@ mod tests {
     #[tokio::test]
     async fn get_by_id_returns_matching_run() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init("test", c).await?;
+        let tr1 = TestRun::init("test", None, c).await?;
         let tr2 = TestRun::get_by_id(tr1.id, c).await?;
 
         assert_eq!(Some(tr1), tr2);
@@ -403,7 +416,7 @@ mod tests {
     #[tokio::test]
     async fn get_by_id_unchecked_returns_matching_run() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init("test", c).await?;
+        let tr1 = TestRun::init("test", None, c).await?;
         let tr2 = TestRun::get_by_id_unchecked(tr1.id, c).await?;
 
         assert_eq!(tr1, tr2);
@@ -415,7 +428,7 @@ mod tests {
     #[tokio::test]
     async fn get_by_uuid_returns_matching_run() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init("test", c).await?;
+        let tr1 = TestRun::init("test", None, c).await?;
         let tr2 = TestRun::get_by_uuid(&tr1.uuid, c).await?;
 
         assert_eq!(Some(tr1), tr2);
@@ -428,7 +441,7 @@ mod tests {
     async fn executions_returns_all_associated_executions() -> Result<()> {
         let c = conn!();
 
-        let tr = TestRun::init("A", c).await?;
+        let tr = TestRun::init("A", None, c).await?;
         let ex1 = tr.init_execution("a", 0, c).await?;
         let ex2 = tr.init_execution("b", 1, c).await?;
 
@@ -451,7 +464,7 @@ mod tests {
     #[tokio::test]
     async fn set_status_and_current_status_match(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init("test", c).await?;
+        let tr = TestRun::init("test", None, c).await?;
 
         tr.set_status(status, None, c).await?;
         let current = tr.current_status(c).await?;
@@ -465,7 +478,7 @@ mod tests {
     #[tokio::test]
     async fn status_history_returns_entries_newest_first() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init("test", c).await?; // sets Status::Initialising
+        let tr = TestRun::init("test", None, c).await?; // sets Status::Initialising
         tr.set_status(Status::Running, None, c).await?;
         tr.set_status(Status::Successful, None, c).await?;
 
@@ -485,7 +498,7 @@ mod tests {
     #[tokio::test]
     async fn set_terminal_status_sets_completed_at(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init("test", c).await?;
+        let tr = TestRun::init("test", None, c).await?;
         assert!(tr.completed_at.is_none());
 
         tr.set_status(status, None, c).await?;
@@ -503,7 +516,7 @@ mod tests {
     #[tokio::test]
     async fn set_non_terminal_status_does_not_set_completed_at(status: Status) -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init("test", c).await?;
+        let tr = TestRun::init("test", None, c).await?;
         assert!(tr.completed_at.is_none());
 
         tr.set_status(status, None, c).await?;
@@ -602,8 +615,8 @@ mod tests {
     #[tokio::test]
     async fn load_test_plan_cache_returns_cached_plans() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init("run-a", c).await?;
-        let tr2 = TestRun::init("run-b", c).await?;
+        let tr1 = TestRun::init("run-a", None, c).await?;
+        let tr2 = TestRun::init("run-b", None, c).await?;
         let uuid1 = tr1.uuid();
         let uuid2 = tr2.uuid();
 
@@ -623,7 +636,7 @@ mod tests {
     #[tokio::test]
     async fn load_test_plan_cache_partitions_malformed_json() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init("test", c).await?;
+        let tr = TestRun::init("test", None, c).await?;
         let uuid = tr.uuid();
 
         // We don't expose an API for storing an arbitrary JSON blob like this, but we need to
@@ -649,7 +662,7 @@ mod tests {
     #[tokio::test]
     async fn clear_cached_payload_removes_the_entry() -> Result<()> {
         let c = conn!();
-        let tr = TestRun::init("test", c).await?;
+        let tr = TestRun::init("test", None, c).await?;
         let run_id = tr.id;
 
         // should be present in the cache after caching
@@ -677,8 +690,8 @@ mod tests {
     #[ignore = "races with other tests that use the test plan cache"]
     async fn clear_test_plan_cache_removes_all_entries() -> Result<()> {
         let c = conn!();
-        let tr1 = TestRun::init("run-a", c).await?;
-        let tr2 = TestRun::init("run-b", c).await?;
+        let tr1 = TestRun::init("run-a", None, c).await?;
+        let tr2 = TestRun::init("run-b", None, c).await?;
         let uuid1 = tr1.uuid();
         let uuid2 = tr2.uuid();
 

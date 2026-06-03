@@ -274,7 +274,7 @@ fn prepare_resolution(cfg: &Config, payload: TriggerPayload) -> Result<(RepConte
         mut test_plan,
         relative_files,
         custom_providers,
-        variables: _,
+        ..
     } = payload;
 
     let ctx = RepContext::new(cfg, relative_files, custom_providers);

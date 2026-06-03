@@ -258,7 +258,7 @@ impl EventQueue {
                 test_plan,
                 relative_files,
                 custom_providers,
-                variables: _,
+                ..
             } = payload;
             let ctx = RepContext::new(cfg, relative_files, custom_providers);
             h.cache_for_test_run(run_uuid, ctx, test_plan).await;
