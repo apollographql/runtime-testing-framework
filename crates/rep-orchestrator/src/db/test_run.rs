@@ -53,6 +53,10 @@ impl TestRun {
         self.uuid
     }
 
+    pub fn variables_id(&self) -> Option<i32> {
+        self.variables_id
+    }
+
     #[cfg(test)]
     pub fn create_stub(id: i32, name: &str) -> Self {
         Self {

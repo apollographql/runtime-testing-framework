@@ -1,6 +1,13 @@
-use crate::{conn, db::TestRun, error::Error, event_loop::SubmitError, state::ServerState};
+use crate::{
+    conn,
+    db::{TestRun, upsert_variables},
+    error::Error,
+    event_loop::SubmitError,
+    state::ServerState,
+};
 use axum::{Json, extract::State};
 use rep_orchestrator_shared::{payload::TriggerPayload, summary::TestRunSummary};
+use serde_json::Value;
 
 pub async fn handler(
     State(ServerState { eq_state, .. }): State<ServerState>,
@@ -11,13 +18,21 @@ pub async fn handler(
         .await
         .ok_or(Error::InsufficientCapacity)?;
 
-    let (test_run, summary) = match init_run_and_build_summary(&payload.test_plan.name).await {
-        Ok((tr, s)) => (tr, s),
-        Err(e) => {
-            eq_state.release_pending_execution_claim(claim).await;
-            return Err(e);
-        }
-    };
+    // Capture any runtime variable overrides before creating the run so the run is born with the
+    // correct variables_id (NULL iff there were no overrides).
+    let variables = payload
+        .variables
+        .as_ref()
+        .map(|v| serde_json::to_value(v).expect("variables to serialize"));
+
+    let (test_run, summary) =
+        match init_run_and_build_summary(&payload.test_plan.name, variables).await {
+            Ok((tr, s)) => (tr, s),
+            Err(e) => {
+                eq_state.release_pending_execution_claim(claim).await;
+                return Err(e);
+            }
+        };
 
     match eq_state
         .try_submit_test_plan(claim, test_run, payload)
@@ -35,9 +50,18 @@ pub async fn handler(
     }
 }
 
-async fn init_run_and_build_summary(name: &str) -> Result<(TestRun, TestRunSummary), Error> {
+async fn init_run_and_build_summary(
+    name: &str,
+    variables: Option<Value>,
+) -> Result<(TestRun, TestRunSummary), Error> {
     let conn = conn!();
-    let test_run = TestRun::init(name, conn).await?;
+
+    let variables_id = match variables {
+        Some(data) => Some(upsert_variables(&data, conn).await?),
+        None => None,
+    };
+
+    let test_run = TestRun::init_with_variables(name, variables_id, conn).await?;
     let summary = test_run.clone().try_into_summary(conn).await?;
 
     Ok((test_run, summary))
@@ -77,6 +101,75 @@ mod tests {
         assert!(
             maybe_run.is_some(),
             "test run ID did not map to a known run in the DB"
+        );
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn handler_captures_variables_and_dedupes() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+
+        let mut payload = tss.minimal_trigger_payload();
+        payload["variables"] = serde_json::json!({ "region": "us", "tier": [1, 2, 3] });
+
+        let resp = tss
+            .test_server
+            .post("/test-run/trigger")
+            .json(&payload)
+            .await;
+        assert_eq!(resp.status_code(), StatusCode::OK);
+
+        let summary: TestRunSummary = resp.json();
+        let run = TestRun::get_by_uuid(&summary.id, conn!())
+            .await?
+            .expect("run should be in the DB");
+
+        // The run was linked to a captured variables row.
+        let captured = run.variables_id();
+        assert!(
+            captured.is_some(),
+            "a run with overrides should have a variables_id"
+        );
+
+        // End-to-end dedup: upserting the same blob directly returns the id the handler stored.
+        let direct = upsert_variables(
+            &serde_json::json!({ "region": "us", "tier": [1, 2, 3] }),
+            conn!(),
+        )
+        .await?;
+        assert_eq!(
+            captured,
+            Some(direct),
+            "identical overrides should dedupe to a single variables row"
+        );
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn handler_stores_null_variables_id_when_no_overrides() -> anyhow::Result<()> {
+        let tss = TestServerState::new();
+        let payload = tss.minimal_trigger_payload();
+
+        let resp = tss
+            .test_server
+            .post("/test-run/trigger")
+            .json(&payload)
+            .await;
+        assert_eq!(resp.status_code(), StatusCode::OK);
+
+        let summary: TestRunSummary = resp.json();
+        let run = TestRun::get_by_uuid(&summary.id, conn!())
+            .await?
+            .expect("run should be in the DB");
+
+        assert_eq!(
+            run.variables_id(),
+            None,
+            "a run without overrides should store a NULL variables_id"
         );
 
         Ok(())
