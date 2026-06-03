@@ -512,6 +512,7 @@ mod tests {
 
     fn stub_payload() -> TriggerPayload {
         TriggerPayload {
+            variables: None,
             test_plan: RepTestPlan {
                 name: String::new(),
                 description: String::new(),

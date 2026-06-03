@@ -140,8 +140,7 @@ impl Variables {
         ctx: &impl ResolutionContext,
     ) -> Result<(HashMap<String, StableSource>, Option<SourceDir>)> {
         let (parsed, vars_file_src) = self.parse(ctx)?;
-        let variable_sources =
-            parsed.merge_inner(&mut test_plan.variables, &mut test_plan.matrix.dimensions)?;
+        let variable_sources = parsed.merge_into(test_plan)?;
 
         Ok((variable_sources, vars_file_src))
     }
@@ -173,6 +172,15 @@ impl ParsedVariables {
         }
 
         flat
+    }
+
+    /// Merge these parsed variables into a test plan, returning the per-variable source map.
+    /// See [`Variables::merge`] for the precedence rules applied.
+    pub fn merge_into<E: Execution>(
+        self,
+        test_plan: &mut TestPlan<E>,
+    ) -> Result<HashMap<String, StableSource>> {
+        self.merge_inner(&mut test_plan.variables, &mut test_plan.matrix.dimensions)
     }
 
     #[inline]

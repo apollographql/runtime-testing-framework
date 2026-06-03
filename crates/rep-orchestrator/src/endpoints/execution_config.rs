@@ -57,6 +57,7 @@ mod tests {
             test_plan,
             relative_files,
             custom_providers,
+            variables: _,
         } = serde_json::from_value(tss.minimal_trigger_payload()).unwrap();
 
         let ctx = RepContext::new(Config::get(), relative_files, custom_providers);
