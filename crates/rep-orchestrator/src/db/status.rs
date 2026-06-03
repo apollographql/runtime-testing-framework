@@ -169,7 +169,7 @@ pub enum Status {
     Provisioning = 3,
 
     /// EnvironmentReady denotes that the Argo workflow responsible for creating the
-    /// per-execution nammespace has completed successfully and that we are ready to trigger the
+    /// per-execution namespace has completed successfully and that we are ready to trigger the
     /// scenario job.
     EnvironmentReady = 4,
 
@@ -284,8 +284,8 @@ impl From<Status> for SharedStatus {
         match s {
             Initialising => Self::Initialising,
             Resolving => Self::Resolving,
-            // EnvironmentReady is an internal implementation detail; surface as Provisioning
-            Provisioning | EnvironmentReady => Self::Provisioning,
+            Provisioning => Self::Provisioning,
+            EnvironmentReady => Self::EnvironmentReady,
             Running => Self::Running,
             Successful => Self::Successful,
             Failed => Self::Failed,
@@ -302,6 +302,7 @@ impl From<SharedStatus> for Status {
             Initialising => Self::Initialising,
             Resolving => Self::Resolving,
             Provisioning => Self::Provisioning,
+            EnvironmentReady => Self::EnvironmentReady,
             Running => Self::Running,
             Successful => Self::Successful,
             Failed => Self::Failed,

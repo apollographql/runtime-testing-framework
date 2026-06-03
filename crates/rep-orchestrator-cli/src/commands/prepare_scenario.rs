@@ -41,7 +41,7 @@ pub async fn prepare_scenario(
 
     info_status!(
         ctx,
-        Status::Provisioning,
+        Status::EnvironmentReady,
         "resolving scenario configuration"
     )?;
 

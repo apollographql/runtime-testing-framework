@@ -28,7 +28,7 @@ where
     let namespace = execution_id.to_string();
 
     info!(%execution_id, "creating scenario job");
-    conn.mark_execution_as_provisioning(&test_execution, MSG_CREATE_JOB.to_string())
+    conn.mark_execution_as_environment_ready(&test_execution, MSG_CREATE_JOB.to_string())
         .await;
 
     match clients
@@ -58,7 +58,7 @@ where
     }
 
     info!(%execution_id, "scenario job created");
-    conn.mark_execution_as_provisioning(&test_execution, MSG_JOB_CREATED.to_string())
+    conn.mark_execution_as_environment_ready(&test_execution, MSG_JOB_CREATED.to_string())
         .await;
 
     Ok(Some(EventData::WaitForScenarioJob))
@@ -79,7 +79,7 @@ where
     let namespace = execution_id.to_string();
 
     info!(%execution_id, "waiting for scenario job to complete");
-    conn.mark_execution_as_provisioning(&test_execution, MSG_JOB_WAIT.to_string())
+    conn.mark_execution_as_environment_ready(&test_execution, MSG_JOB_WAIT.to_string())
         .await;
 
     tokio::spawn(async move {
@@ -192,9 +192,9 @@ mod tests {
         assert_eq!(
             &handle.status_updates,
             &[
-                TaggedStatusUpdate::execution(1, Provisioning, Some(MSG_CREATE_JOB)),
-                TaggedStatusUpdate::execution(1, Provisioning, Some(MSG_JOB_CREATED)),
-                TaggedStatusUpdate::execution(1, Provisioning, Some(MSG_JOB_WAIT)),
+                TaggedStatusUpdate::execution(1, EnvironmentReady, Some(MSG_CREATE_JOB)),
+                TaggedStatusUpdate::execution(1, EnvironmentReady, Some(MSG_JOB_CREATED)),
+                TaggedStatusUpdate::execution(1, EnvironmentReady, Some(MSG_JOB_WAIT)),
             ]
         );
     }
@@ -224,7 +224,7 @@ mod tests {
             &handle.status_updates,
             &[TaggedStatusUpdate::execution(
                 1,
-                Status::Provisioning,
+                Status::EnvironmentReady,
                 Some(MSG_CREATE_JOB)
             ),]
         );
