@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-7c76f01a.js";
+            window.path_to_searchindex_js = "searchindex-f3b4ad5e.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-d472d1c8.js"></script>
@@ -4631,6 +4631,8 @@ or not equal (<code>ne</code>) to a given scalar value.</p>
 <summary>Fields</summary>
 <h3 id="ty"><a class="header" href="#ty"><code>ty</code></a></h3>
 <p>The type of custom provider to use. This is the name of the custom provider to use.</p>
+<h3 id="arguments"><a class="header" href="#arguments"><code>arguments</code></a></h3>
+<p>The arguments to pass to the custom provider.</p>
 </details>
 <h2 id="from-command"><a class="header" href="#from-command">From command</a></h2>
 <p>Run a command provider and use its output as a file provider resource.</p>
@@ -4683,6 +4685,8 @@ done &lt;"$CANNED_OPS_FILE"
 <summary>Fields</summary>
 <h4 id="name-2"><a class="header" href="#name-2"><code>name</code></a></h4>
 <p>The name of the command to run</p>
+<h4 id="command_provider"><a class="header" href="#command_provider"><code>command_provider</code></a></h4>
+<p>A provider to produce the command that should be run</p>
 <details>
 <summary>Variants</summary>
 <ul>
@@ -4950,6 +4954,20 @@ an array:</p>
 </details>
 <h3 id="overrides"><a class="header" href="#overrides"><code>overrides</code></a></h3>
 <p>One or more YAML files to merge on top of the base file in sequence.</p>
+<details>
+<summary>Variants</summary>
+<details>
+<summary>Variants</summary>
+<ul>
+<li><a href="#github-file">GitHub file</a></li>
+<li><a href="#graphos-supergraph-router-url-overrides">GraphOS supergraph Router URL overrides</a></li>
+<li><a href="#inline-file">Inline file</a></li>
+<li><a href="#relative-path">Relative path</a></li>
+<li><a href="#required-file">Required file</a></li>
+<li><a href="#templated-file">Templated file</a></li>
+</ul>
+</details>
+</details>
 </details>
 <h2 id="graphos-offline-license"><a class="header" href="#graphos-offline-license">GraphOS offline license</a></h2>
 <p>The user specifies the graph id that should be used to fetch an offline license from the GraphOS
@@ -5248,7 +5266,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <h2 id="rtf-run"><a class="header" href="#rtf-run"><code>rtf run</code></a></h2>
 <p>Check and run a test plan</p>
 <p><strong>Usage:</strong> <code>rtf run [OPTIONS] &lt;TEST_PLAN_PATH&gt;</code></p>
-<h6 id="arguments"><a class="header" href="#arguments"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-1"><a class="header" href="#arguments-1"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;TEST_PLAN_PATH&gt;</code> — Relative path to the test plan file that should be executed. When using –github this must be in the format ORG/REPO/PATH</li>
 </ul>
@@ -5282,7 +5300,7 @@ config file’s <code>custom_providers</code> section) to generate a configurati
 <h2 id="rtf-docs"><a class="header" href="#rtf-docs"><code>rtf docs</code></a></h2>
 <p>Open the RTF documentation in your browser</p>
 <p><strong>Usage:</strong> <code>rtf docs [SEARCH_TERM]...</code></p>
-<h6 id="arguments-1"><a class="header" href="#arguments-1"><strong>Arguments:</strong></a></h6>
+<h6 id="arguments-1-1"><a class="header" href="#arguments-1-1"><strong>Arguments:</strong></a></h6>
 <ul>
 <li><code>&lt;SEARCH_TERM&gt;</code> — An optional search term to search for within the docs</li>
 </ul>
