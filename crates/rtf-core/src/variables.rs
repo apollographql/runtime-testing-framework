@@ -156,6 +156,25 @@ pub struct ParsedVariables {
 }
 
 impl ParsedVariables {
+    /// Reconstruct the flat map of runtime overrides — scalars and matrix-dimension arrays in a
+    /// single object, mirroring the user's `--vars` / `-v` input. This is the form captured for the
+    /// REP payload.
+    ///
+    /// In the case where the same key is present as both a scalar and a matrix dimension, the scalar
+    /// wins, matching the merge precedence applied to the test plan.
+    pub fn as_flat(&self) -> HashMap<String, ScalarOrArray> {
+        let mut flat = HashMap::with_capacity(self.variables.len() + self.matrix_dimensions.len());
+
+        for (k, arr) in &self.matrix_dimensions {
+            flat.insert(k.clone(), ScalarOrArray::Array(arr.clone()));
+        }
+        for (k, v) in &self.variables {
+            flat.insert(k.clone(), ScalarOrArray::Scalar(v.clone()));
+        }
+
+        flat
+    }
+
     #[inline]
     fn merge_inner(
         self,
@@ -296,5 +315,50 @@ mod tests {
         let res = from_cli.parse_inner(None);
 
         assert!(res.is_err(), "expected error, ended up with {res:?}");
+    }
+
+    #[test]
+    fn as_flat_preserves_scalars_and_arrays() {
+        let parsed = ParsedVariables {
+            variables: variables_map!("foo" => 42, "name" => "live"),
+            matrix_dimensions: HashMap::from([(
+                "tier".to_string(),
+                vec![1.into(), 2.into(), 3.into()],
+            )]),
+            variable_sources: HashMap::new(),
+        };
+
+        let flat = parsed.as_flat();
+
+        assert_eq!(flat.len(), 3);
+        assert_eq!(
+            flat.get("foo"),
+            Some(&ScalarOrArray::Scalar(Scalar::from(42)))
+        );
+        assert_eq!(
+            flat.get("name"),
+            Some(&ScalarOrArray::Scalar(Scalar::from("live")))
+        );
+        assert_eq!(
+            flat.get("tier"),
+            Some(&ScalarOrArray::Array(vec![1.into(), 2.into(), 3.into()]))
+        );
+    }
+
+    #[test]
+    fn as_flat_scalar_wins_when_key_is_both_scalar_and_dimension() {
+        let parsed = ParsedVariables {
+            variables: variables_map!("dupe" => 99),
+            matrix_dimensions: HashMap::from([("dupe".to_string(), vec![1.into(), 2.into()])]),
+            variable_sources: HashMap::new(),
+        };
+
+        let flat = parsed.as_flat();
+
+        assert_eq!(flat.len(), 1);
+        assert_eq!(
+            flat.get("dupe"),
+            Some(&ScalarOrArray::Scalar(Scalar::from(99)))
+        );
     }
 }
