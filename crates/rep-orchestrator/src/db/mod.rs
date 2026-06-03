@@ -8,10 +8,12 @@ pub mod pool;
 mod status;
 mod test_execution;
 mod test_run;
+mod variables;
 
 pub use status::{Status, StatusTracked, StatusUpdate};
 pub use test_execution::TestExecution;
 pub use test_run::TestRun;
+pub use variables::upsert_variables;
 
 #[macro_export]
 macro_rules! conn {

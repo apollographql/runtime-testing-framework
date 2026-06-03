@@ -24,6 +24,7 @@ pub struct TestRun {
     name: String,
     started_at: DateTime<Utc>,
     completed_at: Option<DateTime<Utc>>,
+    variables_id: Option<i32>,
 }
 
 impl Queryable for TestRun {
@@ -60,6 +61,7 @@ impl TestRun {
             name: name.into(),
             started_at: Utc::now(),
             completed_at: None,
+            variables_id: None,
         }
     }
 
@@ -71,13 +73,24 @@ impl TestRun {
     }
 
     pub async fn init(name: &str, conn: &mut PgConnection) -> Result<Self> {
+        Self::init_with_variables(name, None, conn).await
+    }
+
+    /// As [`TestRun::init`], but links the run to a captured variables row. `variables_id` is `None`
+    /// when the run had no runtime overrides.
+    pub async fn init_with_variables(
+        name: &str,
+        variables_id: Option<i32>,
+        conn: &mut PgConnection,
+    ) -> Result<Self> {
         let tr: TestRun = sqlx::query_as(
-            "INSERT INTO test_run (name, started_at)
-             VALUES ($1, NOW())
-             RETURNING id, uuid, name, started_at, completed_at;
+            "INSERT INTO test_run (name, started_at, variables_id)
+             VALUES ($1, NOW(), $2)
+             RETURNING id, uuid, name, started_at, completed_at, variables_id;
             ",
         )
         .bind(name)
+        .bind(variables_id)
         .fetch_one(&mut *conn)
         .await?;
 
@@ -337,6 +350,35 @@ mod tests {
 
         let current = tr.current_status(c).await?;
         assert_eq!(current.status, Status::Initialising);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn init_leaves_variables_id_null() -> Result<()> {
+        let c = conn!();
+        let tr = TestRun::init("test", c).await?;
+        assert_eq!(tr.variables_id, None);
+
+        // Persisted as NULL too, not just on the returned struct.
+        let fetched = TestRun::get_by_id_unchecked(tr.id, c).await?;
+        assert_eq!(fetched.variables_id, None);
+
+        Ok(())
+    }
+
+    #[cfg_attr(not(feature = "db_tests"), ignore)]
+    #[tokio::test]
+    async fn init_with_variables_round_trips_variables_id() -> Result<()> {
+        let c = conn!();
+        let var_id = crate::db::upsert_variables(&json!({ "foo": 42 }), c).await?;
+
+        let tr = TestRun::init_with_variables("test", Some(var_id), c).await?;
+        assert_eq!(tr.variables_id, Some(var_id));
+
+        let fetched = TestRun::get_by_id_unchecked(tr.id, c).await?;
+        assert_eq!(fetched.variables_id, Some(var_id));
 
         Ok(())
     }
