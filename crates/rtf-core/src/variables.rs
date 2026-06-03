@@ -159,19 +159,21 @@ impl ParsedVariables {
     /// single object, mirroring the user's `--vars` / `-v` input. This is the form captured for the
     /// REP payload.
     ///
-    /// In the case where the same key is present as both a scalar and a matrix dimension, the scalar
-    /// wins, matching the merge precedence applied to the test plan.
+    /// A key can appear in both maps when the same name is supplied as a `-v` scalar and a `--vars`
+    /// array (`parse` keeps both; `merge` resolves it). Matrix dimensions are emitted first so a
+    /// scalar wins such a collision, matching the CLI-over-file merge precedence.
     pub fn as_flat(&self) -> HashMap<String, ScalarOrArray> {
-        let mut flat = HashMap::with_capacity(self.variables.len() + self.matrix_dimensions.len());
-
-        for (k, arr) in &self.matrix_dimensions {
-            flat.insert(k.clone(), ScalarOrArray::Array(arr.clone()));
-        }
-        for (k, v) in &self.variables {
-            flat.insert(k.clone(), ScalarOrArray::Scalar(v.clone()));
-        }
-
-        flat
+        self.matrix_dimensions
+            .clone()
+            .into_iter()
+            .map(|(k, v)| (k, ScalarOrArray::Array(v)))
+            .chain(
+                self.variables
+                    .clone()
+                    .into_iter()
+                    .map(|(k, v)| (k, ScalarOrArray::Scalar(v))),
+            )
+            .collect()
     }
 
     /// Merge these parsed variables into a test plan, returning the per-variable source map.
