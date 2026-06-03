@@ -2,7 +2,7 @@ use rtf_config::{
     Execution, SourceDir, StableSource, context::ResolutionContext, formats::TestPlan,
     templating::Scalar,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io, path::PathBuf};
 
 /// An error that can be encountered when parsing runtime overrides to RTF templating variables.
@@ -30,9 +30,9 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
-enum ScalarOrArray {
+pub enum ScalarOrArray {
     Scalar(Scalar),
     Array(Vec<Scalar>),
 }
