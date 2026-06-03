@@ -274,6 +274,7 @@ fn prepare_resolution(cfg: &Config, payload: TriggerPayload) -> Result<(RepConte
         mut test_plan,
         relative_files,
         custom_providers,
+        ..
     } = payload;
 
     let ctx = RepContext::new(cfg, relative_files, custom_providers);
@@ -375,6 +376,7 @@ mod tests {
 
     fn empty_payload() -> TriggerPayload {
         TriggerPayload {
+            variables: None,
             test_plan: minimal_rep_test_plan(),
             relative_files: SourceKeyedArrayMap {
                 keys: vec![],
@@ -404,6 +406,7 @@ mod tests {
         };
 
         TriggerPayload {
+            variables: None,
             test_plan,
             relative_files: SourceKeyedArrayMap {
                 keys: vec![],
@@ -426,6 +429,7 @@ mod tests {
         };
 
         TriggerPayload {
+            variables: None,
             test_plan,
             relative_files: SourceKeyedArrayMap {
                 keys: vec![],
@@ -590,6 +594,7 @@ mod tests {
         let mut test_plan = minimal_rep_test_plan();
         test_plan.environment.execution.compose_files = vec![required_compose];
         let payload = TriggerPayload {
+            variables: None,
             test_plan,
             relative_files: SourceKeyedArrayMap {
                 keys: vec![],

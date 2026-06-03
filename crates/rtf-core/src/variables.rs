@@ -2,7 +2,7 @@ use rtf_config::{
     Execution, SourceDir, StableSource, context::ResolutionContext, formats::TestPlan,
     templating::Scalar,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io, path::PathBuf};
 
 /// An error that can be encountered when parsing runtime overrides to RTF templating variables.
@@ -30,9 +30,9 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
-enum ScalarOrArray {
+pub enum ScalarOrArray {
     Scalar(Scalar),
     Array(Vec<Scalar>),
 }
@@ -140,8 +140,7 @@ impl Variables {
         ctx: &impl ResolutionContext,
     ) -> Result<(HashMap<String, StableSource>, Option<SourceDir>)> {
         let (parsed, vars_file_src) = self.parse(ctx)?;
-        let variable_sources =
-            parsed.merge_inner(&mut test_plan.variables, &mut test_plan.matrix.dimensions)?;
+        let variable_sources = parsed.merge_into(test_plan)?;
 
         Ok((variable_sources, vars_file_src))
     }
@@ -156,6 +155,36 @@ pub struct ParsedVariables {
 }
 
 impl ParsedVariables {
+    /// Reconstruct the flat map of runtime overrides — scalars and matrix-dimension arrays in a
+    /// single object, mirroring the user's `--vars` / `-v` input. This is the form captured for the
+    /// REP payload.
+    ///
+    /// A key can appear in both maps when the same name is supplied as a `-v` scalar and a `--vars`
+    /// array (`parse` keeps both; `merge` resolves it). Matrix dimensions are emitted first so a
+    /// scalar wins such a collision, matching the CLI-over-file merge precedence.
+    pub fn as_flat(&self) -> HashMap<String, ScalarOrArray> {
+        self.matrix_dimensions
+            .clone()
+            .into_iter()
+            .map(|(k, v)| (k, ScalarOrArray::Array(v)))
+            .chain(
+                self.variables
+                    .clone()
+                    .into_iter()
+                    .map(|(k, v)| (k, ScalarOrArray::Scalar(v))),
+            )
+            .collect()
+    }
+
+    /// Merge these parsed variables into a test plan, returning the per-variable source map.
+    /// See [`Variables::merge`] for the precedence rules applied.
+    pub fn merge_into<E: Execution>(
+        self,
+        test_plan: &mut TestPlan<E>,
+    ) -> Result<HashMap<String, StableSource>> {
+        self.merge_inner(&mut test_plan.variables, &mut test_plan.matrix.dimensions)
+    }
+
     #[inline]
     fn merge_inner(
         self,
@@ -296,5 +325,50 @@ mod tests {
         let res = from_cli.parse_inner(None);
 
         assert!(res.is_err(), "expected error, ended up with {res:?}");
+    }
+
+    #[test]
+    fn as_flat_preserves_scalars_and_arrays() {
+        let parsed = ParsedVariables {
+            variables: variables_map!("foo" => 42, "name" => "live"),
+            matrix_dimensions: HashMap::from([(
+                "tier".to_string(),
+                vec![1.into(), 2.into(), 3.into()],
+            )]),
+            variable_sources: HashMap::new(),
+        };
+
+        let flat = parsed.as_flat();
+
+        assert_eq!(flat.len(), 3);
+        assert_eq!(
+            flat.get("foo"),
+            Some(&ScalarOrArray::Scalar(Scalar::from(42)))
+        );
+        assert_eq!(
+            flat.get("name"),
+            Some(&ScalarOrArray::Scalar(Scalar::from("live")))
+        );
+        assert_eq!(
+            flat.get("tier"),
+            Some(&ScalarOrArray::Array(vec![1.into(), 2.into(), 3.into()]))
+        );
+    }
+
+    #[test]
+    fn as_flat_scalar_wins_when_key_is_both_scalar_and_dimension() {
+        let parsed = ParsedVariables {
+            variables: variables_map!("dupe" => 99),
+            matrix_dimensions: HashMap::from([("dupe".to_string(), vec![1.into(), 2.into()])]),
+            variable_sources: HashMap::new(),
+        };
+
+        let flat = parsed.as_flat();
+
+        assert_eq!(flat.len(), 1);
+        assert_eq!(
+            flat.get("dupe"),
+            Some(&ScalarOrArray::Scalar(Scalar::from(99)))
+        );
     }
 }

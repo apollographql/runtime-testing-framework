@@ -23,7 +23,7 @@ mod tests {
     #[tokio::test]
     async fn handler_returns_200_for_known_run() -> anyhow::Result<()> {
         let tss = TestServerState::new();
-        let run_id = TestRun::init("test", conn!()).await?.uuid();
+        let run_id = TestRun::init("test", None, conn!()).await?.uuid();
 
         let resp = tss
             .test_server

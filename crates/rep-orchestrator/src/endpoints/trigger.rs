@@ -1,6 +1,7 @@
 use crate::{conn, db::TestRun, error::Error, event_loop::SubmitError, state::ServerState};
 use axum::{Json, extract::State};
 use rep_orchestrator_shared::{payload::TriggerPayload, summary::TestRunSummary};
+use serde_json::Value;
 
 pub async fn handler(
     State(ServerState { eq_state, .. }): State<ServerState>,
@@ -11,13 +12,21 @@ pub async fn handler(
         .await
         .ok_or(Error::InsufficientCapacity)?;
 
-    let (test_run, summary) = match init_run_and_build_summary(&payload.test_plan.name).await {
-        Ok((tr, s)) => (tr, s),
-        Err(e) => {
-            eq_state.release_pending_execution_claim(claim).await;
-            return Err(e);
-        }
-    };
+    // Capture any runtime variable overrides before creating the run so the run is born with the
+    // correct variables_id (NULL iff there were no overrides).
+    let variables = payload
+        .variables
+        .as_ref()
+        .map(|v| serde_json::to_value(v).expect("variables to serialize"));
+
+    let (test_run, summary) =
+        match init_run_and_build_summary(&payload.test_plan.name, variables).await {
+            Ok((tr, s)) => (tr, s),
+            Err(e) => {
+                eq_state.release_pending_execution_claim(claim).await;
+                return Err(e);
+            }
+        };
 
     match eq_state
         .try_submit_test_plan(claim, test_run, payload)
@@ -35,9 +44,12 @@ pub async fn handler(
     }
 }
 
-async fn init_run_and_build_summary(name: &str) -> Result<(TestRun, TestRunSummary), Error> {
+async fn init_run_and_build_summary(
+    name: &str,
+    variables: Option<Value>,
+) -> Result<(TestRun, TestRunSummary), Error> {
     let conn = conn!();
-    let test_run = TestRun::init(name, conn).await?;
+    let test_run = TestRun::init(name, variables, conn).await?;
     let summary = test_run.clone().try_into_summary(conn).await?;
 
     Ok((test_run, summary))

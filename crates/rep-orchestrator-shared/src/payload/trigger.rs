@@ -6,7 +6,7 @@ use rtf_config::{
     run::RunProviders,
     templating::{Template, TemplateContext},
 };
-use rtf_core::variables::Variables;
+use rtf_core::variables::{ScalarOrArray, Variables};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, mem::take, sync::Arc};
 use tracing::info;
@@ -16,6 +16,8 @@ pub struct TriggerPayload {
     pub test_plan: RepTestPlan,
     pub relative_files: SourceKeyedArrayMap<String>,
     pub custom_providers: SourceKeyedArrayMap<CustomProviderDefinition>,
+    #[serde(default)]
+    pub variables: Option<HashMap<String, ScalarOrArray>>,
 }
 
 impl TriggerPayload {
@@ -25,8 +27,11 @@ impl TriggerPayload {
         variables: Variables,
         mut ctx: impl ResolutionContext,
     ) -> anyhow::Result<TriggerPayload> {
-        let (variable_sources, vars_file_src) = variables.merge(&mut test_plan, &ctx)?;
+        let (parsed, vars_file_src) = variables.parse(&ctx)?;
+        let flat = parsed.as_flat();
+        let variable_sources = parsed.merge_into(&mut test_plan)?;
         ctx.set_sources(sources.with_variables_file(vars_file_src));
+        let variables = (!flat.is_empty()).then_some(flat);
 
         let n = test_plan.matrix.n_variants();
         let mut files = HashMap::new();
@@ -62,6 +67,7 @@ impl TriggerPayload {
             test_plan,
             relative_files: SourceKeyedArrayMap::from_data(files),
             custom_providers: SourceKeyedArrayMap::from_data(raw_cps),
+            variables,
         })
     }
 }

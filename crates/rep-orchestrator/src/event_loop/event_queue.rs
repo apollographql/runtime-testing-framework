@@ -258,6 +258,7 @@ impl EventQueue {
                 test_plan,
                 relative_files,
                 custom_providers,
+                ..
             } = payload;
             let ctx = RepContext::new(cfg, relative_files, custom_providers);
             h.cache_for_test_run(run_uuid, ctx, test_plan).await;
@@ -1325,6 +1326,7 @@ mod tests {
 
     fn stub_trigger_payload() -> TriggerPayload {
         TriggerPayload {
+            variables: None,
             test_plan: stub_test_plan(),
             relative_files: SourceKeyedArrayMap {
                 keys: vec![],
