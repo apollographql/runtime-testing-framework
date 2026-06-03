@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Error"],"struct":["ParsedVariables","Variables"],"type":["Result"]};
+window.SIDEBAR_ITEMS = {"enum":["Error","ScalarOrArray"],"struct":["ParsedVariables","Variables"],"type":["Result"]};
