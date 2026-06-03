@@ -168,25 +168,29 @@ pub enum Status {
     /// progress of their workloads as they run.
     Provisioning = 3,
 
-    /// Running denotes that all RTF environment resources were successfully created and that the
-    /// RTF scenario is now being run. This is set immediately prior to invoking the user provided
-    /// scenario command.
-    Running = 4,
+    /// EnvironmentReady denotes that the Argo workflow responsible for creating the
+    /// per-execution namespace has completed successfully and that we are ready to trigger the
+    /// scenario job.
+    EnvironmentReady = 4,
+
+    /// Running denotes that the RTF scenario has pulled all of the resources it needs and is now
+    /// being run. This is set immediately prior to invoking the user provided scenario command.
+    Running = 5,
 
     /// Successful denotes receiving a 0 exit code from the user provided RTF scenario command and
     /// is one of the three terminal states for a status tracked entity.
-    Successful = 5,
+    Successful = 6,
 
     /// Failed denotes receiving a non-0 exit code from the user provided RTF scenario command and
     /// is one of the three terminal states for a status tracked entity.
-    Failed = 6,
+    Failed = 7,
 
     /// Unrunnable denotes encountering a non-recoverable error during the process of running a
     /// given test execution. This covers all internal errors within the orchestrator and sidecar
     /// container as well as any errors that arise from being unable to successfully provision the
     /// RTF environment or scenario (such as docker images not being available or containers not
     /// reaching a ready status in the cluster).
-    Unrunnable = 7,
+    Unrunnable = 8,
 }
 
 impl Status {
@@ -204,6 +208,7 @@ impl Status {
             (Failed, _) | (_, Failed) => Failed,
             (Unrunnable, _) | (_, Unrunnable) => Unrunnable,
             (Running, _) | (_, Running) => Running,
+            (EnvironmentReady, _) | (_, EnvironmentReady) => EnvironmentReady,
             (Provisioning, _) | (_, Provisioning) => Provisioning,
             (Resolving, _) | (_, Resolving) => Resolving,
             (Initialising, _) | (_, Initialising) => Initialising,
@@ -246,6 +251,7 @@ impl fmt::Display for Status {
             Initialising => write!(f, "INITIALISING"),
             Resolving => write!(f, "RESOLVING"),
             Provisioning => write!(f, "PROVISIONING"),
+            EnvironmentReady => write!(f, "ENVIRONMENT_READY"),
             Running => write!(f, "RUNNING"),
             Successful => write!(f, "SUCCESSFUL"),
             Failed => write!(f, "FAILED"),
@@ -262,8 +268,9 @@ impl PartialOrd for Status {
             Initialising => 0,
             Resolving => 1,
             Provisioning => 2,
-            Running => 3,
-            Successful | Failed | Unrunnable => 4, // all count as "complete"
+            EnvironmentReady => 3,
+            Running => 4,
+            Successful | Failed | Unrunnable => 5, // all count as "complete"
         };
 
         sort_val(self).partial_cmp(&sort_val(other))
@@ -278,6 +285,7 @@ impl From<Status> for SharedStatus {
             Initialising => Self::Initialising,
             Resolving => Self::Resolving,
             Provisioning => Self::Provisioning,
+            EnvironmentReady => Self::EnvironmentReady,
             Running => Self::Running,
             Successful => Self::Successful,
             Failed => Self::Failed,
@@ -294,6 +302,7 @@ impl From<SharedStatus> for Status {
             Initialising => Self::Initialising,
             Resolving => Self::Resolving,
             Provisioning => Self::Provisioning,
+            EnvironmentReady => Self::EnvironmentReady,
             Running => Self::Running,
             Successful => Self::Successful,
             Failed => Self::Failed,
@@ -310,37 +319,42 @@ mod tests {
 
     #[test_case(
         Initialising,
-        &[Resolving, Provisioning, Running, Unrunnable, Failed, Successful], &[Initialising], &[];
+        &[Resolving, Provisioning, EnvironmentReady, Running, Unrunnable, Failed, Successful], &[Initialising], &[];
         "initialising"
     )]
     #[test_case(
         Resolving,
-        &[Provisioning, Running, Unrunnable, Failed, Successful], &[Resolving], &[Initialising];
+        &[Provisioning, EnvironmentReady, Running, Unrunnable, Failed, Successful], &[Resolving], &[Initialising];
         "resolving"
     )]
     #[test_case(
         Provisioning,
-        &[Running, Unrunnable, Failed, Successful], &[Provisioning], &[Initialising, Resolving];
+        &[EnvironmentReady, Running, Unrunnable, Failed, Successful], &[Provisioning], &[Initialising, Resolving];
         "provisioning"
     )]
     #[test_case(
+        EnvironmentReady,
+        &[Running, Unrunnable, Failed, Successful], &[EnvironmentReady], &[Initialising, Resolving, Provisioning];
+        "environment_ready"
+    )]
+    #[test_case(
         Running,
-        &[Unrunnable, Failed, Successful], &[Running], &[Initialising, Resolving, Provisioning];
+        &[Unrunnable, Failed, Successful], &[Running], &[Initialising, Resolving, Provisioning, EnvironmentReady];
         "running"
     )]
     #[test_case(
         Unrunnable,
-        &[], &[Unrunnable, Failed, Successful], &[Initialising, Resolving, Provisioning, Running];
+        &[], &[Unrunnable, Failed, Successful], &[Initialising, Resolving, Provisioning, EnvironmentReady, Running];
         "unrunnable"
     )]
     #[test_case(
         Failed,
-        &[], &[Unrunnable, Failed, Successful], &[Initialising, Resolving, Provisioning, Running];
+        &[], &[Unrunnable, Failed, Successful], &[Initialising, Resolving, Provisioning, EnvironmentReady, Running];
         "failed"
     )]
     #[test_case(
         Successful,
-        &[], &[Unrunnable, Failed, Successful], &[Initialising, Resolving, Provisioning, Running];
+        &[], &[Unrunnable, Failed, Successful], &[Initialising, Resolving, Provisioning, EnvironmentReady, Running];
         "successful"
     )]
     #[test]
@@ -365,6 +379,7 @@ mod tests {
     #[test_case(Failed; "failed")]
     #[test_case(Unrunnable; "unrunnable")]
     #[test_case(Running; "running")]
+    #[test_case(EnvironmentReady; "environment_ready")]
     #[test_case(Provisioning; "provisioning")]
     #[test_case(Resolving; "resolving")]
     #[test_case(Initialising; "initialising")]
@@ -376,6 +391,7 @@ mod tests {
     #[test_case(Failed; "failed")]
     #[test_case(Unrunnable; "unrunnable")]
     #[test_case(Running; "running")]
+    #[test_case(EnvironmentReady; "environment_ready")]
     #[test_case(Provisioning; "provisioning")]
     #[test_case(Resolving; "resolving")]
     #[test_case(Initialising; "initialising")]
@@ -387,6 +403,7 @@ mod tests {
 
     #[test_case(Unrunnable; "unrunnable")]
     #[test_case(Running; "running")]
+    #[test_case(EnvironmentReady; "environment_ready")]
     #[test_case(Provisioning; "provisioning")]
     #[test_case(Resolving; "resolving")]
     #[test_case(Initialising; "initialising")]
@@ -397,6 +414,7 @@ mod tests {
     }
 
     #[test_case(Running; "running")]
+    #[test_case(EnvironmentReady; "environment_ready")]
     #[test_case(Provisioning; "provisioning")]
     #[test_case(Resolving; "resolving")]
     #[test_case(Initialising; "initialising")]
@@ -406,6 +424,7 @@ mod tests {
         assert_eq!(other.combine(Unrunnable), Unrunnable, "other + unrunnable");
     }
 
+    #[test_case(EnvironmentReady; "environment_ready")]
     #[test_case(Provisioning; "provisioning")]
     #[test_case(Resolving; "resolving")]
     #[test_case(Initialising; "initialising")]
@@ -413,6 +432,23 @@ mod tests {
     fn combine_running_is_running(other: Status) {
         assert_eq!(Running.combine(other), Running, "running + other");
         assert_eq!(other.combine(Running), Running, "other + running");
+    }
+
+    #[test_case(Provisioning; "provisioning")]
+    #[test_case(Resolving; "resolving")]
+    #[test_case(Initialising; "initialising")]
+    #[test]
+    fn combine_environment_ready_is_environment_ready(other: Status) {
+        assert_eq!(
+            EnvironmentReady.combine(other),
+            EnvironmentReady,
+            "env_ready + other"
+        );
+        assert_eq!(
+            other.combine(EnvironmentReady),
+            EnvironmentReady,
+            "other + env_ready"
+        );
     }
 
     #[test_case(Provisioning; "provisioning")]
@@ -430,6 +466,7 @@ mod tests {
     }
 
     // valid
+    #[test_case(EnvironmentReady, None, Ok(()); "valid environment_ready from provisioning")]
     #[test_case(Running, None, Ok(()); "valid non-error")]
     #[test_case(Provisioning, None, Ok(()); "valid repeat of current status")]
     #[test_case(Successful, Some(0), Ok(()); "valid successful with 0 exit code")]

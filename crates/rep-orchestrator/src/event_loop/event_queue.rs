@@ -1,6 +1,7 @@
 use crate::{
+    config::Config,
     context::RepContext,
-    db::{TestExecution, TestRun},
+    db::{self, Status, StatusTracked, TestExecution, TestRun, UpdateHandle},
     event_loop::{Event, EventData},
     resolver::{self, ResolverError, ResolverInput},
     state::TestRunWithPayload,
@@ -15,6 +16,7 @@ use rtf_config::{
     templating::{Template, TemplateContext},
 };
 use serde::Serialize;
+use sqlx::PgConnection;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     mem::take,
@@ -228,6 +230,166 @@ impl EventQueue {
         self.with_shared(|shared| shared.resolved_env_cache.remove(&ex_id))
             .await;
     }
+
+    /// Initialise the in-memory queue state based on current DB cache data.
+    pub(crate) async fn init_queue_state(
+        &mut self,
+        cfg: &Config,
+        conn: &mut PgConnection,
+    ) -> crate::Result<()> {
+        let cache = try_load_payload_cache(conn).await?;
+
+        self.init_queue_state_from_cache(cache, cfg, conn).await
+    }
+
+    async fn init_queue_state_from_cache(
+        &mut self,
+        cache: HashMap<Uuid, (TestRun, TriggerPayload)>,
+        cfg: &Config,
+        conn: &mut impl UpdateHandle,
+    ) -> crate::Result<()> {
+        let h = ProvisioningHandle {
+            shared: self.shared.clone(),
+            tx: self.tx.clone(),
+        };
+
+        for (run_uuid, (tr, payload)) in cache.into_iter() {
+            let TriggerPayload {
+                test_plan,
+                relative_files,
+                custom_providers,
+            } = payload;
+            let ctx = RepContext::new(cfg, relative_files, custom_providers);
+            h.cache_for_test_run(run_uuid, ctx, test_plan).await;
+
+            let executions = conn.executions_for_run(&tr).await?;
+            let mut n_in_flight = 0;
+
+            for ex in executions.into_iter() {
+                let events = self.try_recover_execution(ex, run_uuid, &h, conn).await?;
+                for evt in events.into_iter() {
+                    let _ = self.tx.send(evt);
+                    n_in_flight += 1;
+                }
+            }
+
+            if n_in_flight == 0 {
+                // Nothing left to do for this run so evict from the cache
+                h.evict_payload_cache(run_uuid).await;
+                conn.clear_cached_payload_for_run(run_uuid).await;
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn try_recover_execution(
+        &mut self,
+        ex: TestExecution,
+        run_uuid: Uuid,
+        h: &ProvisioningHandle,
+        conn: &mut impl UpdateHandle,
+    ) -> crate::Result<Vec<Event>> {
+        let current = match conn.try_current_test_execution_status(&ex).await? {
+            Some(s) if s.status.is_terminal() => return Ok(Vec::new()),
+            None => Status::Initialising,
+            Some(s) => s.status,
+        };
+
+        let ex_uuid = ex.uuid();
+
+        self.with_shared(|shared| shared.register_execution(ex_uuid, run_uuid))
+            .await;
+
+        if current > Status::Resolving {
+            self.with_inner(|inner| {
+                inner.running_executions.insert(ex_uuid);
+            })
+            .await;
+        }
+
+        let data = match current {
+            Status::Successful | Status::Failed | Status::Unrunnable => {
+                unreachable!("is_terminal() checked above")
+            }
+
+            // No side-effecting actions taken yet so we're clear to run the full event flow.
+            Status::Initialising | Status::Resolving => vec![EventData::ResolveConfig],
+
+            // This execution would have previously claimed a running execution slot but we don't
+            // know how far through the provisioning process we were. So we mark it as running to
+            // reserve the slot and then run the full event flow.
+            // This will resolve the config before attempting to create the workflow which is
+            // idempotent, allowing us to skip straight to waiting for the workflow to complete if
+            // needed.
+            Status::Provisioning => match h.resolve_and_cache_config(&ex).await {
+                Ok(_) => vec![EventData::CreateEnvArgoWorkflow],
+                Err(e) => {
+                    warn!(%ex_uuid, %e, "failed to resolve config for in-flight Provisioning execution");
+                    vec![
+                        EventData::MarkUnrunnable(e.to_string()),
+                        EventData::CleanupNamespace,
+                    ]
+                }
+            },
+
+            // We should have a live namespace but we don't know if the scenario was part way
+            // through starting up or not triggered yet. As with Status::Provisioning we resolve
+            // the config before attempting to create the job which is also idempotent, again
+            // allowing us to skip straight to waiting for the job to complete if needed.
+            Status::EnvironmentReady => match h.resolve_and_cache_config(&ex).await {
+                Ok(_) => vec![EventData::CreateScenarioJob],
+                Err(e) => {
+                    warn!(%ex_uuid, %e, "failed to resolve config for in-flight EnvironmentReady execution");
+                    vec![
+                        EventData::MarkUnrunnable(e.to_string()),
+                        EventData::CleanupNamespace,
+                    ]
+                }
+            },
+
+            // Scenario in progress, so re-attach the k8s watcher and wait for it to complete.
+            Status::Running => vec![EventData::WaitForScenarioJob],
+        };
+
+        Ok(data
+            .into_iter()
+            .map(|data| Event {
+                test_execution: ex.clone(),
+                data,
+            })
+            .collect())
+    }
+}
+
+/// Load our cached trigger payload state from the DB, evicting malformed payloads and marking
+/// their incomplete child executions as unrunnable.
+async fn try_load_payload_cache(
+    conn: &mut PgConnection,
+) -> db::Result<HashMap<Uuid, (TestRun, TriggerPayload)>> {
+    let (cache, malformed_runs) = TestRun::load_payload_cache(conn).await?;
+
+    for tr in malformed_runs.into_iter() {
+        warn!(run_uuid=%tr.uuid(), "malformed payload cache entry");
+        let executions = tr.executions(conn).await?;
+
+        for ex in executions.iter() {
+            if let Some(s) = ex.try_current_status(conn).await?
+                && !s.status.is_terminal()
+            {
+                ex.set_status(
+                    Status::Unrunnable,
+                    Some("malformed cache state on server restart".into()),
+                    conn,
+                )
+                .await?;
+            }
+        }
+
+        TestRun::clear_cached_payload(tr.uuid(), conn).await?;
+    }
+
+    Ok(cache)
 }
 
 #[derive(Debug)]
@@ -686,7 +848,10 @@ pub struct SnapshotSummary {
 mod tests {
     use super::*;
     use crate::{
-        config::Config, context::RepContext, db::Queryable, event_loop::tests::stub_test_plan,
+        config::Config,
+        context::RepContext,
+        db::{MockUpdateHandle, Queryable},
+        event_loop::tests::stub_test_plan,
     };
     use rep_orchestrator_shared::payload::SourceKeyedArrayMap;
     use rtf_config::templating::Scalar;
@@ -1156,5 +1321,152 @@ mod tests {
             );
         })
         .await;
+    }
+
+    fn stub_trigger_payload() -> TriggerPayload {
+        TriggerPayload {
+            test_plan: stub_test_plan(),
+            relative_files: SourceKeyedArrayMap {
+                keys: vec![],
+                data: vec![],
+            },
+            custom_providers: SourceKeyedArrayMap {
+                keys: vec![],
+                data: vec![],
+            },
+        }
+    }
+
+    async fn prepare_init_queue_test<const N: usize>(
+        statuses: [Status; N],
+    ) -> (EventQueue, MockUpdateHandle, TestRun, [TestExecution; N]) {
+        let cfg = dummy_config();
+        let (mut eq, _, _, _) = EventQueue::new(10, 100);
+
+        let tr = TestRun::create_stub(1, "test");
+        let mut c = MockUpdateHandle::with_run(tr.clone());
+
+        let mut exs = Vec::with_capacity(statuses.len());
+
+        for status in statuses.into_iter() {
+            let ex = c.init_execution(&tr, "test", 0).await.unwrap();
+            c.update_test_execution_status(&ex, status, None)
+                .await
+                .unwrap();
+            exs.push(ex);
+        }
+
+        let cache = HashMap::from([(tr.uuid(), (tr.clone(), stub_trigger_payload()))]);
+
+        eq.init_queue_state_from_cache(cache, &cfg, &mut c)
+            .await
+            .unwrap();
+
+        (eq, c, tr, exs.try_into().unwrap())
+    }
+
+    #[test_case(Status::Initialising, true, false, false, Some(EventData::ResolveConfig); "initialising")]
+    #[test_case(Status::Resolving, true, false, false, Some(EventData::ResolveConfig); "resolving")]
+    #[test_case(Status::Provisioning, true, true, true, Some(EventData::CreateEnvArgoWorkflow); "provisioning")]
+    #[test_case(Status::EnvironmentReady, true, true, true, Some(EventData::CreateScenarioJob); "environment ready")]
+    #[test_case(Status::Running, true, true, false, Some(EventData::WaitForScenarioJob); "running")]
+    #[test_case(Status::Successful, false, false, false, None; "successful")]
+    #[test_case(Status::Failed, false, false, false, None; "failed")]
+    #[test_case(Status::Unrunnable, false, false, false, None; "unrunnable")]
+    #[tokio::test]
+    async fn init_queue_state_produces_expected_state(
+        status: Status,
+        registered: bool,
+        running: bool,
+        cached: bool,
+        data: Option<EventData>,
+    ) {
+        let (mut eq, _, tr, [ex]) = prepare_init_queue_test([status]).await;
+        let ex_uuid = ex.uuid();
+        let run_uuid = tr.uuid();
+
+        eq.with_shared(|shared| {
+            if registered {
+                assert_eq!(
+                    shared.execution_map.get(&ex_uuid),
+                    Some(&run_uuid),
+                    "ex should be in execution_map"
+                );
+
+                assert_eq!(
+                    shared.active_run_executions.get(&run_uuid),
+                    Some(&HashSet::from([ex_uuid])),
+                    "ex should be in active_run_executions"
+                );
+            }
+
+            assert_eq!(
+                shared.resolved_env_cache.contains_key(&ex_uuid),
+                cached,
+                "incorrect cached env state"
+            );
+            assert_eq!(
+                shared.resolved_scenario_cache.contains_key(&ex_uuid),
+                cached,
+                "incorrect cached scenario state"
+            );
+            assert_eq!(
+                shared.scenario_docker_cache.contains_key(&ex_uuid),
+                cached,
+                "incorrect cached docker state"
+            );
+        })
+        .await;
+
+        eq.with_inner(|inner| {
+            assert_eq!(
+                inner.running_executions.contains(&ex_uuid),
+                running,
+                "incorrect running state"
+            );
+        })
+        .await;
+
+        match (eq.rx.try_recv(), data) {
+            (Ok(evt), Some(data)) => assert_eq!(
+                evt,
+                Event {
+                    test_execution: ex,
+                    data
+                }
+            ),
+
+            (Err(_), None) => (),
+
+            (Ok(evt), None) => panic!("unexpected event: {evt:?}"),
+            (Err(_), Some(data)) => panic!("expected {data:?} but got None"),
+        }
+    }
+
+    #[test_case(Status::Running, Status::Running, true; "both in flight")]
+    #[test_case(Status::Running, Status::Successful, true; "one in flight")]
+    #[test_case(Status::Failed, Status::Successful, false; "neither in flight")]
+    #[tokio::test]
+    async fn init_queue_state_evicts_the_payload_cache_correctly(
+        s1: Status,
+        s2: Status,
+        still_cached: bool,
+    ) {
+        let (eq, conn, tr, _) = prepare_init_queue_test([s1, s2]).await;
+
+        eq.with_shared(|shared| {
+            assert_eq!(
+                shared.payload_cache.contains_key(&tr.uuid()),
+                still_cached,
+                "incorrect in-memory cache state"
+            );
+        })
+        .await;
+
+        assert_eq!(
+            conn.cleared_payload_caches.contains(&tr.uuid()),
+            !still_cached,
+            "incorrect DB cache state"
+        );
     }
 }

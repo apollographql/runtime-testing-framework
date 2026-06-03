@@ -29,7 +29,7 @@ where
     conn.mark_execution_as_provisioning(&test_execution, MSG_CREATE_ARGO.to_string())
         .await;
 
-    clients
+    match clients
         .create_argo_workflow(
             &execution_id,
             WorkflowSpec::for_execution(
@@ -40,7 +40,17 @@ where
             ),
         )
         .await
-        .map_err(|error| Error::CreateArgoWorkflow { error })?;
+    {
+        Ok(_) => {}
+
+        // It is possible for the workflow to already exist if it was previously created before a
+        // server restart / crash. As we name workflows deterministically based on the execution
+        // ID, we know that the pre-existing workflow is the one we need so we move directly to
+        // waiting for it to complete.
+        Err(e) if e.is_409_conflict() => return Ok(Some(EventData::WaitForEnvArgoWorkflow)),
+
+        Err(error) => return Err(Error::CreateArgoWorkflow { error }),
+    }
 
     conn.mark_execution_as_provisioning(&test_execution, MSG_ARGO_CREATED.to_string())
         .await;

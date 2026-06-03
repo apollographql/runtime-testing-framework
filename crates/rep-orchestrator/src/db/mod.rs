@@ -99,6 +99,16 @@ pub trait UpdateHandle: Send + Sync {
         index: usize,
     ) -> impl Future<Output = crate::Result<TestExecution>> + Send;
 
+    fn executions_for_run(
+        &mut self,
+        tr: &TestRun,
+    ) -> impl Future<Output = crate::Result<Vec<TestExecution>>>;
+
+    fn try_current_test_execution_status(
+        &mut self,
+        ex: &TestExecution,
+    ) -> impl Future<Output = crate::Result<Option<StatusUpdate>>> + Send;
+
     fn update_test_run_status(
         &mut self,
         tr: &TestRun,
@@ -173,6 +183,21 @@ pub trait UpdateHandle: Send + Sync {
         }
     }
 
+    fn mark_execution_as_environment_ready(
+        &mut self,
+        ex: &TestExecution,
+        message: String,
+    ) -> impl Future<Output = ()> + Send {
+        async {
+            if let Err(err) = self
+                .update_test_execution_status(ex, Status::EnvironmentReady, Some(message))
+                .await
+            {
+                error!(id=%ex.uuid(), %err, "Unable to mark Test Execution as environment_ready");
+            }
+        }
+    }
+
     fn mark_execution_as_unrunnable(
         &mut self,
         ex: &TestExecution,
@@ -205,6 +230,17 @@ impl UpdateHandle for PgConnection {
         index: usize,
     ) -> crate::Result<TestExecution> {
         Ok(tr.init_execution(name, index, self).await?)
+    }
+
+    async fn executions_for_run(&mut self, tr: &TestRun) -> crate::Result<Vec<TestExecution>> {
+        Ok(tr.executions(self).await?)
+    }
+
+    async fn try_current_test_execution_status(
+        &mut self,
+        ex: &TestExecution,
+    ) -> crate::Result<Option<StatusUpdate>> {
+        Ok(ex.try_current_status(self).await?)
     }
 
     async fn update_test_run_status(
@@ -300,6 +336,13 @@ mod update_handle {
     }
 
     impl MockUpdateHandle {
+        pub fn with_run(tr: TestRun) -> Self {
+            Self {
+                test_runs: vec![tr],
+                ..Default::default()
+            }
+        }
+
         pub fn with_execution(ex: TestExecution) -> Self {
             Self {
                 test_executions: vec![ex],
@@ -334,6 +377,30 @@ mod update_handle {
             self.test_executions.push(ex.clone());
 
             Ok(ex)
+        }
+
+        async fn executions_for_run(&mut self, tr: &TestRun) -> crate::Result<Vec<TestExecution>> {
+            Ok(self
+                .test_executions
+                .iter()
+                .filter(|ex| ex.test_run_id() == tr.id())
+                .cloned()
+                .collect())
+        }
+
+        async fn try_current_test_execution_status(
+            &mut self,
+            ex: &TestExecution,
+        ) -> crate::Result<Option<StatusUpdate>> {
+            Ok(self
+                .status_updates
+                .iter()
+                .rev()
+                .filter_map(|u| match u {
+                    TaggedStatusUpdate::Execution(id, s) if *id == ex.id() => Some(s.clone()),
+                    _ => None,
+                })
+                .next())
         }
 
         async fn update_test_run_status(

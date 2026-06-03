@@ -28,9 +28,10 @@ where
     let namespace = execution_id.to_string();
 
     info!(%execution_id, "creating scenario job");
-    conn.mark_execution_as_provisioning(&test_execution, MSG_CREATE_JOB.to_string())
+    conn.mark_execution_as_environment_ready(&test_execution, MSG_CREATE_JOB.to_string())
         .await;
-    clients
+
+    match clients
         .create_job(
             &namespace,
             SCENARIO_JOB_NAME,
@@ -44,10 +45,20 @@ where
             ),
         )
         .await
-        .map_err(|error| Error::CreateJob { error })?;
+    {
+        Ok(_) => {}
+
+        // It is possible for the job to already exist if it was previously created before a server
+        // restart / crash. As we name jobs deterministically based on the execution ID, we know
+        // that the pre-existing job is the one we need so we move directly to waiting for it to
+        // complete.
+        Err(e) if e.is_409_conflict() => return Ok(Some(EventData::WaitForScenarioJob)),
+
+        Err(error) => return Err(Error::CreateJob { error }),
+    }
 
     info!(%execution_id, "scenario job created");
-    conn.mark_execution_as_provisioning(&test_execution, MSG_JOB_CREATED.to_string())
+    conn.mark_execution_as_environment_ready(&test_execution, MSG_JOB_CREATED.to_string())
         .await;
 
     Ok(Some(EventData::WaitForScenarioJob))
@@ -68,7 +79,7 @@ where
     let namespace = execution_id.to_string();
 
     info!(%execution_id, "waiting for scenario job to complete");
-    conn.mark_execution_as_provisioning(&test_execution, MSG_JOB_WAIT.to_string())
+    conn.mark_execution_as_environment_ready(&test_execution, MSG_JOB_WAIT.to_string())
         .await;
 
     tokio::spawn(async move {
@@ -181,9 +192,9 @@ mod tests {
         assert_eq!(
             &handle.status_updates,
             &[
-                TaggedStatusUpdate::execution(1, Provisioning, Some(MSG_CREATE_JOB)),
-                TaggedStatusUpdate::execution(1, Provisioning, Some(MSG_JOB_CREATED)),
-                TaggedStatusUpdate::execution(1, Provisioning, Some(MSG_JOB_WAIT)),
+                TaggedStatusUpdate::execution(1, EnvironmentReady, Some(MSG_CREATE_JOB)),
+                TaggedStatusUpdate::execution(1, EnvironmentReady, Some(MSG_JOB_CREATED)),
+                TaggedStatusUpdate::execution(1, EnvironmentReady, Some(MSG_JOB_WAIT)),
             ]
         );
     }
@@ -213,7 +224,7 @@ mod tests {
             &handle.status_updates,
             &[TaggedStatusUpdate::execution(
                 1,
-                Status::Provisioning,
+                Status::EnvironmentReady,
                 Some(MSG_CREATE_JOB)
             ),]
         );

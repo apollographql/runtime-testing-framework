@@ -162,7 +162,7 @@ impl TestRun {
         })
     }
 
-    /// Load all currently cached test plans into a map of test run ID to [TriggerPayload].
+    /// Load all currently cached test plans into a map of test run UUID to ([TestRun], [TriggerPayload]).
     ///
     /// Returns DB level errors as `Err` but partitions off malformed test plan JSON errors into a
     /// [Vec] of [TestRun]s that it is the caller's responsibility to process. To evict malformed
@@ -170,7 +170,7 @@ impl TestRun {
     /// [TestRun::clear_payload_cache].
     pub async fn load_payload_cache(
         conn: &mut PgConnection,
-    ) -> Result<(HashMap<Uuid, TriggerPayload>, Vec<TestRun>)> {
+    ) -> Result<(HashMap<Uuid, (TestRun, TriggerPayload)>, Vec<TestRun>)> {
         let raw = CachedPayload::load_all(conn).await?;
         let mut map = HashMap::with_capacity(raw.len());
         let mut malformed = Vec::new();
@@ -179,7 +179,7 @@ impl TestRun {
             let tr = TestRun::get_by_id_unchecked(run_id, conn).await?;
             match serde_json::from_value(payload) {
                 Ok(tp) => {
-                    map.insert(tr.uuid, tp);
+                    map.insert(tr.uuid, (tr, tp));
                 }
 
                 Err(err) => {
@@ -258,8 +258,12 @@ where
         // Once at least one execution reports provisioning, the run as a whole is provisioning
         (Initialising | Resolving, Provisioning) => Some(Provisioning),
 
+        // Once at least one execution reports environment_ready, the run as a whole is
+        // environment_ready (Argo workflow completed, scenario job being set up)
+        (Initialising | Resolving | Provisioning, EnvironmentReady) => Some(EnvironmentReady),
+
         // Once at least one execution reports running, the run as a whole is running
-        (Initialising | Resolving | Provisioning, Running) => Some(Running),
+        (Initialising | Resolving | Provisioning | EnvironmentReady, Running) => Some(Running),
 
         // Once all executions are complete we can determine the terminal status of the run.
         // Once the run has a terminal status, further updates are ignored
@@ -562,6 +566,8 @@ mod tests {
         let (map, _) = TestRun::load_payload_cache(c).await?;
         assert!(map.contains_key(&uuid1), "run-a UUID not in cache");
         assert!(map.contains_key(&uuid2), "run-b UUID not in cache");
+        assert!(map[&uuid1].0.uuid() == uuid1, "run-a TestRun in map");
+        assert!(map[&uuid2].0.uuid() == uuid2, "run-b TestRun in map");
 
         Ok(())
     }

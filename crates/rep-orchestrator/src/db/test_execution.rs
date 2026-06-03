@@ -104,6 +104,11 @@ impl TestExecution {
     }
 
     #[cfg(test)]
+    pub fn test_run_id(&self) -> i32 {
+        self.test_run_id
+    }
+
+    #[cfg(test)]
     pub fn create_stub(id: i32, test_run_id: i32, index: usize, name: &str) -> Self {
         Self {
             id,

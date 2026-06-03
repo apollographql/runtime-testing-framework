@@ -197,10 +197,9 @@ async fn unknown_docker_image_in_scenario_marks_execution_unrunnable() {
     // scenario image. So Running must appear — its presence proves the environment provisioned
     // and the scenario job reached execution before the image pull failure was detected.
     assert!(
-        summary
-            .status_history
-            .iter()
-            .any(|u| { u.status == Provisioning && u.message.as_deref() == Some(MSG_JOB_WAIT) }),
+        summary.status_history.iter().any(|u| {
+            u.status == EnvironmentReady && u.message.as_deref() == Some(MSG_JOB_WAIT)
+        }),
         "expected scenario job-wait step in history: {:#?}",
         summary.status_history,
     );
