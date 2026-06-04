@@ -20,12 +20,16 @@ use crate::{
 use rtf_derive::Template;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_yaml::{Mapping, Value};
 use std::{
     collections::{HashMap, HashSet},
     fs::{self, read_dir},
     path::{Path, PathBuf},
     pin::Pin,
 };
+
+const FILE_PROVIDERS_LABEL: &str = "rtf.io/file-providers";
+const PROVIDERS_CONTAINER_PATH: &str = "/providers";
 
 /// # Environment Config
 ///
@@ -376,24 +380,7 @@ impl DockerComposeEnvironment {
         out_dir: &Path,
         ctx: &mut impl ResolutionContext,
     ) -> providers::Result<String> {
-        let output_path = out_dir.join(OUTPUT_PATH);
-        let providers_dir = out_dir.join(PROVIDER_DIR);
-
-        self.run_providers(&providers_dir.join(format!("{name}_providers")), ctx)
-            .await?;
-        let project_name = self.project_name();
-        let env_vars = self.all_env_vars(out_dir, &output_path, ctx)?;
-        let (cmd, args) = self.setup_as_command_and_args(&project_name, ctx)?;
-
-        ctx.run_command_blocking(cmd, args.iter().map(|s| s.as_str()), &env_vars)
-            .map_err(|e| providers::Error::CommandFailed {
-                name: "docker compose up".to_string(),
-                err: e.to_string(),
-            })?;
-
-        ctx.store_run_metadata(DOCKER_COMPOSE_NETWORK, format!("{project_name}_default"));
-
-        Ok("{}".to_string())
+        RunEnvironment::execute_setup(self, name, out_dir, ctx).await
     }
 
     pub async fn execute_teardown(
@@ -417,6 +404,7 @@ impl DockerComposeEnvironment {
     fn setup_as_command_and_args(
         &self,
         project_name: &str,
+        compose_overrides: &[PathBuf],
         ctx: &impl ResolutionContext,
     ) -> providers::Result<(&'static str, Vec<String>)> {
         let mut args = vec![
@@ -426,6 +414,11 @@ impl DockerComposeEnvironment {
         ];
 
         for file in self.compose_file_paths(ctx)? {
+            args.push("-f".to_string());
+            args.push(file.to_string_lossy().to_string());
+        }
+
+        for file in compose_overrides {
             args.push("-f".to_string());
             args.push(file.to_string_lossy().to_string());
         }
@@ -478,6 +471,23 @@ impl DockerComposeEnvironment {
         Ok(vars)
     }
 
+    /// Return the names of docker compose services that carry the `rtf.io/file-providers: true`
+    /// label across all resolved compose files.
+    fn find_labeled_services(
+        &self,
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<Vec<String>> {
+        let mut labeled = Vec::new();
+        for path in self.compose_file_paths(ctx)? {
+            if let Ok(content) = ctx.read_path_to_string(&path) {
+                labeled.extend(labeled_services_in_compose(&content));
+            }
+        }
+        labeled.sort();
+        labeled.dedup();
+        Ok(labeled)
+    }
+
     /// Collect all compose file paths from the resolved providers.
     ///
     /// Handles both single files and directories of compose files. When a provider
@@ -523,13 +533,41 @@ impl RunEnvironment for DockerComposeEnvironment {
     ) -> providers::Result<String> {
         let output_path = out_dir.join(OUTPUT_PATH);
         let providers_dir = out_dir.join(PROVIDER_DIR);
+        let env_providers_dir = providers_dir.join(format!("{name}_providers"));
 
-        self.run_providers(&providers_dir.join(format!("{name}_providers")), ctx)
-            .await?;
+        self.run_providers(&env_providers_dir, ctx).await?;
+
+        let labeled_services = self.find_labeled_services(ctx)?;
+        let mut compose_overrides = Vec::new();
+
+        if !labeled_services.is_empty() {
+            let override_content = generate_local_file_providers_overlay(
+                &labeled_services,
+                &env_providers_dir,
+                &self.file_providers,
+            );
+            let override_path = out_dir.join("file-providers-override.yaml");
+            ctx.write(&override_path, override_content)?;
+            compose_overrides.push(override_path);
+        }
 
         let project_name = self.project_name();
-        let env_vars = self.all_env_vars(out_dir, &output_path, ctx)?;
-        let (cmd, args) = self.setup_as_command_and_args(&project_name, ctx)?;
+        let mut env_vars = self.all_env_vars(out_dir, &output_path, ctx)?;
+
+        // When labeled services are present, the overlay bind-mounts the resolved providers
+        // at PROVIDERS_CONTAINER_PATH inside the container. Remap file provider env vars from
+        // their host paths (returned by all_env_vars) to the container paths so that ${VAR}
+        // references in compose files expand to the correct in-container location.
+        if !labeled_services.is_empty() {
+            for nfp in self.file_providers.iter() {
+                env_vars.insert(
+                    nfp.env_var.clone(),
+                    format!("{}/{}", PROVIDERS_CONTAINER_PATH, nfp.name),
+                );
+            }
+        }
+
+        let (cmd, args) = self.setup_as_command_and_args(&project_name, &compose_overrides, ctx)?;
 
         ctx.run_command_blocking(cmd, args.iter().map(|s| s.as_str()), &env_vars)
             .map_err(|e| providers::Error::CommandFailed {
@@ -592,6 +630,86 @@ fn slugify_compose_project_name(name: &str) -> String {
     }
 
     slug
+}
+
+/// Return service names in a compose YAML that carry `rtf.io/file-providers: true`.
+fn labeled_services_in_compose(yaml_content: &str) -> Vec<String> {
+    let Ok(value) = serde_yaml::from_str::<Value>(yaml_content) else {
+        return vec![];
+    };
+
+    let Some(services) = value.get("services").and_then(|s| s.as_mapping()) else {
+        return vec![];
+    };
+
+    services
+        .iter()
+        .filter_map(|(name, service)| {
+            let label = service
+                .get("labels")
+                .and_then(|l| l.get(FILE_PROVIDERS_LABEL))?;
+
+            let is_set = label.as_bool() == Some(true) || label.as_str() == Some("true");
+
+            if is_set {
+                name.as_str().map(str::to_string)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// Build a compose override that bind-mounts the resolved providers directory at
+/// `/providers` inside each labeled service and remaps file-provider env vars to
+/// their container-side paths.
+fn generate_local_file_providers_overlay(
+    labeled_services: &[String],
+    providers_host_path: &Path,
+    file_providers: &[NamedFileProvider],
+) -> String {
+    let mut services_map = Mapping::new();
+
+    for service in labeled_services {
+        let mut service_map = Mapping::new();
+
+        let volume = format!(
+            "{}:{}",
+            providers_host_path.display(),
+            PROVIDERS_CONTAINER_PATH
+        );
+        service_map.insert(
+            Value::String("volumes".into()),
+            Value::Sequence(vec![Value::String(volume)]),
+        );
+
+        if !file_providers.is_empty() {
+            let env_entries: Vec<Value> = file_providers
+                .iter()
+                .map(|nfp| {
+                    Value::String(format!(
+                        "{}={}/{}",
+                        nfp.env_var, PROVIDERS_CONTAINER_PATH, nfp.name
+                    ))
+                })
+                .collect();
+
+            service_map.insert(
+                Value::String("environment".into()),
+                Value::Sequence(env_entries),
+            );
+        }
+
+        services_map.insert(Value::String(service.clone()), Value::Mapping(service_map));
+    }
+
+    let mut root = Mapping::new();
+    root.insert(
+        Value::String("services".into()),
+        Value::Mapping(services_map),
+    );
+
+    serde_yaml::to_string(&Value::Mapping(root)).unwrap_or_default()
 }
 
 /// Collect all YAML compose files from a directory.
@@ -809,7 +927,7 @@ pub(crate) mod tests {
         fixture::PathChild,
         prelude::{FileWriteStr, PathCreateDir},
     };
-    use indoc::indoc;
+    use indoc::{formatdoc, indoc};
     use simple_test_case::test_case;
     use std::{collections::HashMap, path::PathBuf};
 
@@ -1618,7 +1736,7 @@ pub(crate) mod tests {
         let mut ctx = Context::new();
         let (_temp_dir, paths) = register_compose_paths(&mut ctx, &docker_compose);
 
-        let result = docker_compose.setup_as_command_and_args("test-project", &ctx);
+        let result = docker_compose.setup_as_command_and_args("test-project", &[], &ctx);
         assert!(result.is_ok(), "Expected command to build successfully");
 
         let (cmd, args) = result.unwrap();
@@ -1646,7 +1764,7 @@ pub(crate) mod tests {
         let mut ctx = Context::new();
         let (_temp_dir, paths) = register_compose_paths(&mut ctx, &docker_compose);
 
-        let result = docker_compose.setup_as_command_and_args("multi-compose", &ctx);
+        let result = docker_compose.setup_as_command_and_args("multi-compose", &[], &ctx);
         assert!(result.is_ok(), "Expected command to build successfully");
 
         let (cmd, args) = result.unwrap();
@@ -1687,7 +1805,7 @@ pub(crate) mod tests {
         // Context without stored provider path
         let ctx = Context::new();
 
-        let result = docker_compose.setup_as_command_and_args("test-project", &ctx);
+        let result = docker_compose.setup_as_command_and_args("test-project", &[], &ctx);
         assert!(
             result.is_err(),
             "Expected error when compose file path unknown"
@@ -1760,7 +1878,7 @@ pub(crate) mod tests {
         let _temp_dir = register_compose_paths(&mut ctx, &docker_compose);
 
         // Pass "fallback-name" as the environment name
-        let result = docker_compose.setup_as_command_and_args("fallback-name", &ctx);
+        let result = docker_compose.setup_as_command_and_args("fallback-name", &[], &ctx);
         assert!(result.is_ok(), "Expected command to build successfully");
 
         let (_, args) = result.unwrap();
@@ -1807,7 +1925,7 @@ pub(crate) mod tests {
             tmp.path().to_path_buf(),
         );
 
-        let res = docker_compose.setup_as_command_and_args("inline-dir-test", &ctx);
+        let res = docker_compose.setup_as_command_and_args("inline-dir-test", &[], &ctx);
         assert!(res.is_ok(), "Expected command to build successfully");
 
         let (cmd, args) = res.unwrap();
@@ -1840,5 +1958,91 @@ pub(crate) mod tests {
     #[test]
     fn slugify_compose_project_name_produces_valid_name(input: &str, expected: &str) {
         assert_eq!(slugify_compose_project_name(input), expected);
+    }
+
+    #[test_case("true", &["svc"]; "detects bool true")]
+    #[test_case("\"true\"", &["svc"]; "detects string true")]
+    #[test_case("false", &[]; "ignores false")]
+    #[test]
+    fn labeled_services_in_compose(label_value: &str, res: &[&str]) {
+        let yaml = formatdoc!(
+            r#"
+            services:
+              svc:
+                labels:
+                  rtf.io/file-providers: {label_value}"#
+        );
+
+        assert_eq!(labeled_services_in_compose(&yaml), res.to_vec());
+    }
+
+    #[test]
+    fn labeled_services_in_compose_only_returns_labeled_services() {
+        let yaml = indoc!(
+            r#"
+            services:
+              labeled:
+                labels:
+                  rtf.io/file-providers: true
+              unlabeled:
+                image: nginx"#
+        );
+
+        assert_eq!(labeled_services_in_compose(yaml), vec!["labeled"]);
+    }
+
+    #[test]
+    fn labeled_services_in_compose_returns_empty_for_invalid_yaml() {
+        assert!(labeled_services_in_compose("{ not: valid: yaml: [").is_empty());
+    }
+
+    #[test]
+    fn generate_local_file_providers_overlay_adds_volume_and_env_vars() {
+        let providers = vec![NamedFileProvider {
+            name: "config.yaml".to_string(),
+            env_var: "MY_CONFIG".to_string(),
+            provider: FileProvider::Inline(InlineFile {
+                content: "x".to_string(),
+            }),
+        }];
+
+        let out = generate_local_file_providers_overlay(
+            &["svc".to_string()],
+            Path::new("/out/providers/setup_providers"),
+            &providers,
+        );
+
+        let expected = indoc!(
+            r#"
+            services:
+              svc:
+                volumes:
+                - /out/providers/setup_providers:/providers
+                environment:
+                - MY_CONFIG=/providers/config.yaml
+            "#
+        );
+
+        assert_eq!(out, expected);
+    }
+
+    #[test]
+    fn generate_local_file_providers_overlay_no_env_vars_when_no_providers() {
+        let out = generate_local_file_providers_overlay(
+            &["svc".to_string()],
+            Path::new("/out/providers/setup_providers"),
+            &[],
+        );
+
+        let expected = indoc!(
+            r#"
+            services:
+              svc:
+                volumes:
+                - /out/providers/setup_providers:/providers
+            "#
+        );
+
+        assert_eq!(out, expected);
     }
 }
