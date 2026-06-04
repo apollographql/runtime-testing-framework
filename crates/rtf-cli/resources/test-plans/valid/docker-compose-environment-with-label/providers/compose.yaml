@@ -1,0 +1,11 @@
+services:
+  echo-server:
+    image: python:3.14-alpine
+    working_dir: /app
+    labels:
+      rtf.io/file-providers: true
+    environment:
+      - ECHO_MESSAGE=${ECHO_MESSAGE}
+    ports:
+      - "8081:8080"
+    command: ["sh", "-c", "python ${ECHO_SERVER_SCRIPT}"]

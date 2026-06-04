@@ -19,7 +19,7 @@ compose_files:
           services:
             echo-server:
               image: python:3.11-alpine
-              command: ["echo", "base loaded"]
+              command: ["tail", "-f", "/dev/null"]
       - path: overlay.yaml
         content: |
           services:

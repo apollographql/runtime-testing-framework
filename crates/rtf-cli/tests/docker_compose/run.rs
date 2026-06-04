@@ -13,6 +13,16 @@ fn docker_compose_environment_produces_expected_output() {
 
 #[test]
 #[ignore = "requires docker on the PATH"]
+fn docker_compose_with_label_environment_produces_expected_output() {
+    prepare_rtf_run("resources/test-plans/valid/docker-compose-environment-with-label")
+        .assert()
+        .success()
+        .stdout(contains("env: hello, world!"))
+        .stdout(contains("SUCCESS: Environment variable echoed correctly"));
+}
+
+#[test]
+#[ignore = "requires docker on the PATH"]
 fn docker_compose_inline_dir_runs_with_multiple_compose_files() {
     // This test verifies that InlineDir compose files are correctly
     // resolved and passed to docker compose with multiple -f flags
