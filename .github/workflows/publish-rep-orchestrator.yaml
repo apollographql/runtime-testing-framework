@@ -22,7 +22,7 @@ permissions:
 jobs:
   publish-orchestrator-image:
     name: Build and publish REP Orchestrator image
-    uses: apollographql/release-tooling/.github/workflows/build_and_publish.yml@8c3a10442bc123a814c1a3c3711094d4cf9cdce0
+    uses: apollographql/release-tooling/.github/workflows/build_and_publish.yml@6ab89bdcf9cd1a86ecaa85925b75e003405e5edc
     permissions:
       contents: read
       id-token: write
@@ -52,7 +52,7 @@ jobs:
       # `.Chart.AppVersion` (values.yaml image.tag is null) — it must match the image published by
       # the build_and_publish job above.
       - name: "Publish Helm Chart"
-        uses: apollographql/release-tooling/release-helm-internal@60a3d29b04f1d4717fd458f8c0382878f5ec9440
+        uses: apollographql/release-tooling/release-helm-internal@6ab89bdcf9cd1a86ecaa85925b75e003405e5edc
         with:
           chart_path: crates/rep-orchestrator/helm/rep-orchestrator
           app_version: ${{ github.sha }}
