@@ -43,43 +43,16 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    env:
-      BASE_ARTIFACT_REGISTRY_NAME: us-central1-docker.pkg.dev
-      PUBLISHING_SERVICE_ACCOUNT_PROJECT_ID: platform-mgmt-service-e0izz
-      PUBLISHING_SERVICE_ACCOUNT_NAME: release-tooling-automation@platform-mgmt-service-e0izz.iam.gserviceaccount.com
-      WORKLOAD_IDENTITY_PROVIDER: projects/865738624352/locations/global/workloadIdentityPools/github-d8bck/providers/github-d8bck
     steps:
       - name: "Checkout Code"
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
-      - name: Authenticate With GCP
-        id: gcp-auth
-        uses: google-github-actions/auth@fc2174804b84f912b1f6d334e9463f484f1c552d
+      # Publishes the chart to apollo-private-helm as `0.0.0+<sha>` (the action's default version).
+      # app_version is set to the SHA because the deployment template resolves the image tag from
+      # `.Chart.AppVersion` (values.yaml image.tag is null) — it must match the image published by
+      # the build_and_publish job above.
+      - name: "Publish Helm Chart"
+        uses: apollographql/release-tooling/release-helm-internal@60a3d29b04f1d4717fd458f8c0382878f5ec9440
         with:
-          token_format: "access_token"
-          project_id: ${{ env.PUBLISHING_SERVICE_ACCOUNT_PROJECT_ID }}
-          service_account: ${{ env.PUBLISHING_SERVICE_ACCOUNT_NAME }}
-          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
-
-      - name: Authenticate With Internal Repository
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
-        with:
-          username: "oauth2accesstoken"
-          password: ${{ steps.gcp-auth.outputs.access_token }}
-          registry: ${{ env.BASE_ARTIFACT_REGISTRY_NAME }}
-
-      - name: Authenticate With Helm Registry
-        run: |
-          echo "${{ steps.gcp-auth.outputs.access_token }}" | helm registry login us-central1-docker.pkg.dev --username oauth2accesstoken --password-stdin
-
-      - name: Build Helm Chart
-        run: |
-          helm package . --version="0.0.0+${{ github.sha }}" --app-version="${{ github.sha }}"
-        working-directory: crates/rep-orchestrator/helm/rep-orchestrator
-
-      - name: Push Helm Chart To Repository
-        # We use 0.0.0 here because Helm's semantics are such that the "version" field in Chart.yaml has to be a semver.
-        # The only thing we're interested in is the SHA, which is how we pull the chart back again if we need to.
-        run: |
-          helm push rep-orchestrator-0.0.0+${{ github.sha }}.tgz oci://us-central1-docker.pkg.dev/platform-cross-environment/apollo-private-helm
-        working-directory: crates/rep-orchestrator/helm/rep-orchestrator
+          chart_path: crates/rep-orchestrator/helm/rep-orchestrator
+          app_version: ${{ github.sha }}
