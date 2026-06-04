@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: apollographql/release-tooling/rtf-run-test-plan@8c3a10442bc123a814c1a3c3711094d4cf9cdce0
+      - uses: apollographql/release-tooling/rtf-run-test-plan@6ab89bdcf9cd1a86ecaa85925b75e003405e5edc
         with:
           test_plan_path: crates/rtf-cli/resources/test-plans/valid/docker-all/test-plan.yaml
           verbose: true
