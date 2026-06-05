@@ -441,11 +441,45 @@ impl DockerComposeEnvironment {
         output_path: &Path,
         ctx: &impl ResolutionContext,
     ) -> providers::Result<HashMap<String, String>> {
-        let mut vars: HashMap<String, String> = self
-            .env_vars
+        // Do not remap file provider paths to PROVIDERS_CONTAINER_PATH here. This method is
+        // used by `rtf resolve environment` to write setup.env, whose paths are then passed
+        // to kompose and baked into K8s manifests. The container accesses those files via the
+        // emptyDir mounted at the outdir, so the actual host paths must be preserved.
+        //
+        // The /providers remapping is only correct in execute_setup, where a bind-mount
+        // explicitly places the providers directory at PROVIDERS_CONTAINER_PATH.
+        self.build_env_vars(out_dir, output_path, &[], ctx)
+    }
+
+    fn build_env_vars(
+        &self,
+        out_dir: &Path,
+        output_path: &Path,
+        labeled_services: &[String],
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<HashMap<String, String>> {
+        let mut vars = self.explicit_env_vars();
+
+        vars.extend(self.file_provider_env_vars(labeled_services, ctx)?);
+        vars.insert(OUTDIR.to_string(), out_dir.display().to_string());
+        vars.insert(OUTPUT_PATH.to_string(), output_path.display().to_string());
+
+        Ok(vars)
+    }
+
+    fn explicit_env_vars(&self) -> HashMap<String, String> {
+        self.env_vars
             .iter()
             .map(|(k, v)| (k.to_string(), v.as_resolved().to_string()))
-            .collect();
+            .collect()
+    }
+
+    fn file_provider_env_vars(
+        &self,
+        labeled_services: &[String],
+        ctx: &impl ResolutionContext,
+    ) -> providers::Result<HashMap<String, String>> {
+        let mut vars = HashMap::new();
 
         for nfp in self.file_providers.iter() {
             let path = ctx
@@ -453,11 +487,25 @@ impl DockerComposeEnvironment {
                 .ok_or(providers::Error::MissingProviderOutput {
                     name: nfp.name.clone(),
                 })?;
-            vars.insert(nfp.env_var.clone(), path.to_string_lossy().to_string());
-        }
 
-        vars.insert(OUTDIR.to_string(), out_dir.display().to_string());
-        vars.insert(OUTPUT_PATH.to_string(), output_path.display().to_string());
+            // When labeled services are present, the overlay bind-mounts the resolved providers_dir
+            // at PROVIDERS_CONTAINER_PATH inside the container. Remap file provider env vars from
+            // their host paths (returned by all_env_vars) to the container paths so that ${VAR}
+            // references in compose files expand to the correct in-container location.
+            //
+            // We only rewrite the environment variables if at least one service has the label present
+            // This will break any services that try to volume mount to the files on the local filesystem
+            // but we are ok with this since the presence of a label implies the user wants this work on REP
+            // and any services attempting to mount to the local filesystem will fail
+            if labeled_services.is_empty() {
+                vars.insert(nfp.env_var.clone(), path.to_string_lossy().to_string());
+            } else {
+                vars.insert(
+                    nfp.env_var.clone(),
+                    format!("{}/{}", PROVIDERS_CONTAINER_PATH, nfp.name),
+                );
+            }
+        }
 
         Ok(vars)
     }
@@ -533,31 +581,16 @@ impl RunEnvironment for DockerComposeEnvironment {
         let mut compose_overrides = Vec::new();
 
         if !labeled_services.is_empty() && !self.file_providers.is_empty() {
-            let override_content = generate_local_file_providers_overlay(
-                &labeled_services,
-                &env_providers_dir,
-                &self.file_providers,
-            );
+            let override_content =
+                generate_local_file_providers_overlay(&labeled_services, &env_providers_dir);
             let override_path = out_dir.join("file-providers-override.yaml");
             ctx.write(&override_path, override_content)?;
+
             compose_overrides.push(override_path);
         }
 
         let project_name = self.project_name();
-        let mut env_vars = self.all_env_vars(out_dir, &output_path, ctx)?;
-
-        // When labeled services are present, the overlay bind-mounts the resolved providers
-        // at PROVIDERS_CONTAINER_PATH inside the container. Remap file provider env vars from
-        // their host paths (returned by all_env_vars) to the container paths so that ${VAR}
-        // references in compose files expand to the correct in-container location.
-        if !labeled_services.is_empty() {
-            for nfp in self.file_providers.iter() {
-                env_vars.insert(
-                    nfp.env_var.clone(),
-                    format!("{}/{}", PROVIDERS_CONTAINER_PATH, nfp.name),
-                );
-            }
-        }
+        let env_vars = self.build_env_vars(out_dir, &output_path, &labeled_services, ctx)?;
 
         let (cmd, args) = self.setup_as_command_and_args(&project_name, &compose_overrides, ctx)?;
 
@@ -660,7 +693,6 @@ fn labeled_services_in_compose(yaml_content: &str) -> Vec<String> {
 fn generate_local_file_providers_overlay(
     labeled_services: &[String],
     providers_host_path: &Path,
-    file_providers: &[NamedFileProvider],
 ) -> String {
     let mut services_map = Mapping::new();
 
@@ -670,16 +702,6 @@ fn generate_local_file_providers_overlay(
         PROVIDERS_CONTAINER_PATH
     );
 
-    let env_entries: Vec<Value> = file_providers
-        .iter()
-        .map(|nfp| {
-            Value::String(format!(
-                "{}={}/{}",
-                nfp.env_var, PROVIDERS_CONTAINER_PATH, nfp.name
-            ))
-        })
-        .collect();
-
     for service in labeled_services {
         let mut service_override_config = Mapping::new();
 
@@ -687,13 +709,6 @@ fn generate_local_file_providers_overlay(
             Value::String("volumes".into()),
             Value::Sequence(vec![Value::String(volume.clone())]),
         );
-
-        if !file_providers.is_empty() {
-            service_override_config.insert(
-                Value::String("environment".into()),
-                Value::Sequence(env_entries.clone()),
-            );
-        }
 
         services_map.insert(
             Value::String(service.clone()),
@@ -1996,19 +2011,10 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn generate_local_file_providers_overlay_adds_volume_and_env_vars() {
-        let providers = vec![NamedFileProvider {
-            name: "config.yaml".to_string(),
-            env_var: "MY_CONFIG".to_string(),
-            provider: FileProvider::Inline(InlineFile {
-                content: "x".to_string(),
-            }),
-        }];
-
+    fn generate_local_file_providers_overlay_adds_volume() {
         let out = generate_local_file_providers_overlay(
             &["svc".to_string()],
             Path::new("/out/providers/setup_providers"),
-            &providers,
         );
 
         let expected = indoc!(
@@ -2017,11 +2023,197 @@ pub(crate) mod tests {
               svc:
                 volumes:
                 - /out/providers/setup_providers:/providers
-                environment:
-                - MY_CONFIG=/providers/config.yaml
             "#
         );
 
         assert_eq!(out, expected);
+    }
+
+    #[test]
+    fn generate_local_file_providers_overlay_adds_volume_for_multiple_services() {
+        let out = generate_local_file_providers_overlay(
+            &["svc-a".to_string(), "svc-b".to_string()],
+            Path::new("/out/providers/setup_providers"),
+        );
+
+        let expected = indoc!(
+            r#"
+            services:
+              svc-a:
+                volumes:
+                - /out/providers/setup_providers:/providers
+              svc-b:
+                volumes:
+                - /out/providers/setup_providers:/providers
+            "#
+        );
+
+        assert_eq!(out, expected);
+    }
+
+    #[test]
+    fn build_env_vars_uses_host_paths_without_labeled_services() {
+        let file_provider = FileProvider::Inline(InlineFile {
+            content: "file content".to_string(),
+        });
+
+        let docker_compose = DockerComposeEnvironment {
+            project_name: None,
+            compose_files: Vec::new(),
+            file_providers: vec![NamedFileProvider {
+                name: "config.txt".to_string(),
+                env_var: "CONFIG_FILE".to_string(),
+                provider: file_provider.clone(),
+            }],
+            env_vars: HashMap::new(),
+        };
+
+        let mut ctx = Context::new();
+        ctx.store_provider_output_path(
+            Provider::File { fp: &file_provider },
+            PathBuf::from("/tmp/providers/config.txt"),
+        );
+
+        let out_dir = PathBuf::from("/tmp/output");
+        let output_path = out_dir.join("rtf_output");
+
+        let result = docker_compose.build_env_vars(&out_dir, &output_path, &[], &ctx);
+        assert!(result.is_ok(), "Expected env vars to be built successfully");
+
+        let env_vars = result.unwrap();
+        assert_eq!(
+            env_vars.get("CONFIG_FILE"),
+            Some(&"/tmp/providers/config.txt".to_string()),
+        );
+    }
+
+    #[test]
+    fn build_env_vars_uses_container_paths_with_labeled_services() {
+        let file_provider = FileProvider::Inline(InlineFile {
+            content: "file content".to_string(),
+        });
+
+        let docker_compose = DockerComposeEnvironment {
+            project_name: None,
+            compose_files: Vec::new(),
+            file_providers: vec![NamedFileProvider {
+                name: "config.txt".to_string(),
+                env_var: "CONFIG_FILE".to_string(),
+                provider: file_provider.clone(),
+            }],
+            env_vars: HashMap::new(),
+        };
+
+        let mut ctx = Context::new();
+        ctx.store_provider_output_path(
+            Provider::File { fp: &file_provider },
+            PathBuf::from("/tmp/providers/config.txt"),
+        );
+
+        let out_dir = PathBuf::from("/tmp/output");
+        let output_path = out_dir.join("rtf_output");
+        let labeled_services = vec!["my-service".to_string()];
+
+        let result = docker_compose.build_env_vars(&out_dir, &output_path, &labeled_services, &ctx);
+        assert!(result.is_ok(), "Expected env vars to be built successfully");
+
+        let env_vars = result.unwrap();
+        assert_eq!(
+            env_vars.get("CONFIG_FILE"),
+            Some(&"/providers/config.txt".to_string()),
+        );
+    }
+
+    #[test]
+    fn build_env_vars_uses_container_paths_for_all_file_providers_when_labeled() {
+        let file_provider_1 = FileProvider::Inline(InlineFile {
+            content: "content 1".to_string(),
+        });
+        let file_provider_2 = FileProvider::Inline(InlineFile {
+            content: "content 2".to_string(),
+        });
+
+        let docker_compose = DockerComposeEnvironment {
+            project_name: None,
+            compose_files: Vec::new(),
+            file_providers: vec![
+                NamedFileProvider {
+                    name: "config.txt".to_string(),
+                    env_var: "CONFIG_FILE".to_string(),
+                    provider: file_provider_1.clone(),
+                },
+                NamedFileProvider {
+                    name: "secret.txt".to_string(),
+                    env_var: "SECRET_FILE".to_string(),
+                    provider: file_provider_2.clone(),
+                },
+            ],
+            env_vars: HashMap::new(),
+        };
+
+        let mut ctx = Context::new();
+        ctx.store_provider_output_path(
+            Provider::File {
+                fp: &file_provider_1,
+            },
+            PathBuf::from("/tmp/providers/config.txt"),
+        );
+        ctx.store_provider_output_path(
+            Provider::File {
+                fp: &file_provider_2,
+            },
+            PathBuf::from("/tmp/providers/secret.txt"),
+        );
+
+        let out_dir = PathBuf::from("/tmp/output");
+        let output_path = out_dir.join("rtf_output");
+        let labeled_services = vec!["my-service".to_string()];
+
+        let result = docker_compose.build_env_vars(&out_dir, &output_path, &labeled_services, &ctx);
+        assert!(result.is_ok(), "Expected env vars to be built successfully");
+
+        let env_vars = result.unwrap();
+        assert_eq!(
+            env_vars.get("CONFIG_FILE"),
+            Some(&"/providers/config.txt".to_string()),
+        );
+        assert_eq!(
+            env_vars.get("SECRET_FILE"),
+            Some(&"/providers/secret.txt".to_string()),
+        );
+    }
+
+    #[test]
+    fn build_env_vars_error_when_file_provider_path_unknown() {
+        let file_provider = FileProvider::Inline(InlineFile {
+            content: "file content".to_string(),
+        });
+
+        let docker_compose = DockerComposeEnvironment {
+            project_name: None,
+            compose_files: Vec::new(),
+            file_providers: vec![NamedFileProvider {
+                name: "config.txt".to_string(),
+                env_var: "CONFIG_FILE".to_string(),
+                provider: file_provider,
+            }],
+            env_vars: HashMap::new(),
+        };
+
+        let ctx = Context::new();
+        let out_dir = PathBuf::from("output_dir");
+        let output_path = out_dir.join("path");
+
+        let result = docker_compose.build_env_vars(&out_dir, &output_path, &[], &ctx);
+        assert!(
+            result.is_err(),
+            "Expected error when file provider path is not registered"
+        );
+
+        let err = result.unwrap_err();
+        assert!(
+            matches!(&err, providers::Error::MissingProviderOutput { name } if name == "config.txt"),
+            "Expected MissingProviderOutput error, got {err:?}"
+        );
     }
 }
