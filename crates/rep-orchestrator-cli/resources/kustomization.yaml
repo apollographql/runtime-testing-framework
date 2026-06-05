@@ -33,6 +33,18 @@ patches:
                 volumeMounts:
                   - mountPath: __OUTDIR__
                     name: providers
+            volumes:
+              - name: providers
+                emptyDir: {}
+  - target:
+      kind: Deployment
+      annotationSelector: "rtf.io/file-providers=true"
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts
+        value:
+          - name: providers
+            mountPath: __OUTDIR__
   - target:
       kind: Deployment
       annotationSelector: "rtf.io/log-collection=true"
