@@ -3,10 +3,8 @@ services:
     image: nginx:alpine
     labels:
       rtf.io/file-providers: true
-    command: sleep infinity
+    command: sh -c "nginx -c ${NGINX_CONF_FILE} -g 'daemon off;'"
     pull_policy: always
-    volumes:
-      - providers:/providers
 
 volumes:
   providers:
