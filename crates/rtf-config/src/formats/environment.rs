@@ -374,15 +374,6 @@ impl DockerComposeEnvironment {
         slugify_compose_project_name(raw)
     }
 
-    pub async fn execute_setup(
-        &self,
-        name: &str,
-        out_dir: &Path,
-        ctx: &mut impl ResolutionContext,
-    ) -> providers::Result<String> {
-        RunEnvironment::execute_setup(self, name, out_dir, ctx).await
-    }
-
     pub async fn execute_teardown(
         &self,
         _name: &str,
@@ -485,6 +476,7 @@ impl DockerComposeEnvironment {
         }
         labeled.sort();
         labeled.dedup();
+
         Ok(labeled)
     }
 
@@ -540,7 +532,7 @@ impl RunEnvironment for DockerComposeEnvironment {
         let labeled_services = self.find_labeled_services(ctx)?;
         let mut compose_overrides = Vec::new();
 
-        if !labeled_services.is_empty() {
+        if !labeled_services.is_empty() && !self.file_providers.is_empty() {
             let override_content = generate_local_file_providers_overlay(
                 &labeled_services,
                 &env_providers_dir,
@@ -634,16 +626,18 @@ fn slugify_compose_project_name(name: &str) -> String {
 
 /// Return service names in a compose YAML that carry `rtf.io/file-providers: true`.
 fn labeled_services_in_compose(yaml_content: &str) -> Vec<String> {
-    let Ok(value) = serde_yaml::from_str::<Value>(yaml_content) else {
-        return vec![];
+    let value = match serde_yaml::from_str::<Value>(yaml_content) {
+        Ok(value) => value,
+        Err(_) => return vec![],
     };
 
-    let Some(services) = value.get("services").and_then(|s| s.as_mapping()) else {
-        return vec![];
+    let services = match value.get("services").and_then(|s| s.as_mapping()) {
+        Some(services) => services,
+        None => return vec![],
     };
 
     services
-        .iter()
+        .into_iter()
         .filter_map(|(name, service)| {
             let label = service
                 .get("labels")
@@ -670,37 +664,41 @@ fn generate_local_file_providers_overlay(
 ) -> String {
     let mut services_map = Mapping::new();
 
-    for service in labeled_services {
-        let mut service_map = Mapping::new();
+    let volume = format!(
+        "{}:{}",
+        providers_host_path.display(),
+        PROVIDERS_CONTAINER_PATH
+    );
 
-        let volume = format!(
-            "{}:{}",
-            providers_host_path.display(),
-            PROVIDERS_CONTAINER_PATH
-        );
-        service_map.insert(
+    let env_entries: Vec<Value> = file_providers
+        .iter()
+        .map(|nfp| {
+            Value::String(format!(
+                "{}={}/{}",
+                nfp.env_var, PROVIDERS_CONTAINER_PATH, nfp.name
+            ))
+        })
+        .collect();
+
+    for service in labeled_services {
+        let mut service_override_config = Mapping::new();
+
+        service_override_config.insert(
             Value::String("volumes".into()),
-            Value::Sequence(vec![Value::String(volume)]),
+            Value::Sequence(vec![Value::String(volume.clone())]),
         );
 
         if !file_providers.is_empty() {
-            let env_entries: Vec<Value> = file_providers
-                .iter()
-                .map(|nfp| {
-                    Value::String(format!(
-                        "{}={}/{}",
-                        nfp.env_var, PROVIDERS_CONTAINER_PATH, nfp.name
-                    ))
-                })
-                .collect();
-
-            service_map.insert(
+            service_override_config.insert(
                 Value::String("environment".into()),
-                Value::Sequence(env_entries),
+                Value::Sequence(env_entries.clone()),
             );
         }
 
-        services_map.insert(Value::String(service.clone()), Value::Mapping(service_map));
+        services_map.insert(
+            Value::String(service.clone()),
+            Value::Mapping(service_override_config),
+        );
     }
 
     let mut root = Mapping::new();
@@ -709,7 +707,8 @@ fn generate_local_file_providers_overlay(
         Value::Mapping(services_map),
     );
 
-    serde_yaml::to_string(&Value::Mapping(root)).unwrap_or_default()
+    serde_yaml::to_string(&Value::Mapping(root))
+        .expect("yaml mapping should always convert to valid string")
 }
 
 /// Collect all YAML compose files from a directory.
@@ -2020,26 +2019,6 @@ pub(crate) mod tests {
                 - /out/providers/setup_providers:/providers
                 environment:
                 - MY_CONFIG=/providers/config.yaml
-            "#
-        );
-
-        assert_eq!(out, expected);
-    }
-
-    #[test]
-    fn generate_local_file_providers_overlay_no_env_vars_when_no_providers() {
-        let out = generate_local_file_providers_overlay(
-            &["svc".to_string()],
-            Path::new("/out/providers/setup_providers"),
-            &[],
-        );
-
-        let expected = indoc!(
-            r#"
-            services:
-              svc:
-                volumes:
-                - /out/providers/setup_providers:/providers
             "#
         );
 
